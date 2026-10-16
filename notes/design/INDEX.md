@@ -178,6 +178,12 @@ This index is a navigation aid. The listed source document remains authoritative
   has CLEAN mathematical/source review of complete phase-expression and
   inert-prefix formation. Pi0 embedding, alternative coverage, hereditary
   Sigma0/world validity and Initial remain OPEN.
+  The [bounded profile/operation application](../theory/2026-10-16-choose-bootstrap-profile-and-hereditary-closure.md)
+  now has CLEAN mathematical/source review: actual Unit-entry reception,
+  identity transport of choose's alpha return, and exhaustive inversion of
+  the candidate operation-local clause graph. Caller-owned immediate guards,
+  registration license, joint hereditary validity, every later current-world
+  guard and OriginalInitial remain OPEN.
 
 - [Native negative-formal consumer audit](../progress/2026-10-16-native-negative-formal-consumer-audit.md)
   — Independently CLEAN bounded source evidence: existing tail/closed-weight
@@ -198,6 +204,11 @@ This index is a navigation aid. The listed source document remains authoritative
   retain every other guarded/opaque alternative. Generic image discharge,
   lifecycle, termination/principality and adoption remain OPEN; current native
   slots and preflight are unchanged.
+  The [contractual-alternative audit](../theory/2026-10-16-image-demand-contractual-alternative-falsifier.md)
+  has CLEAN independent semantic review: the original unanchored Z branch
+  needs its own `G ∧ Z ∧ Image ⇒ target` demand rule, and W needs its complete
+  shared local action. Typed-core §8 supplies neither rule. No collision or
+  generic impossibility was established; native discharge remains OPEN.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children

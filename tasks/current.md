@@ -82,6 +82,15 @@ Status: full objective remains active. Native extrusion now schedules current co
   principality, implementation and explicit adoption remain OPEN. M2 two
   reviewers; static pins/links/Markdown checks, zero builds/tests/probes or
   benchmark processes/samples.
+  A separate [contractual-alternative audit](../notes/theory/2026-10-16-image-demand-contractual-alternative-falsifier.md)
+  now identifies the first generic consumer obligation at the original Z/W
+  alternative: `G(y) ∧ Z(y) ∧ Image_H(y,u) ⇒ T(u)`, with W retaining its same
+  `(x,y,z)` and final tuple. The existing typed-core certificate comparison
+  preserves non-support predicates identically and supplies no image preimage
+  law. Independent semantic review is CLEAN for that domain-exclusion result.
+  No representation collision, generic impossibility, source invalidity or
+  native adoption follows. The native discharge producer is investigating the
+  actual first declaration-local law that could make this sequent executable.
 
 - **All four primitive computation roots receive locally:** the
   [uniform source theorem](../notes/theory/2026-10-16-primitive-computation-root-receiving.md)

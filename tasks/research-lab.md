@@ -592,7 +592,15 @@ consumer/response/future graph remains open at Pi0's genuine entry/profile/
 permission/inherited-field application and original alternative coverage.
 No Sigma0/world/Initial validity or `S<=Phi(S)` is credited. The selected
 receiving grammar is the changed input for that exact application, before
-joint hereditary closure. M2 two reviewers, 32 dependency pins, static-only.
+joint hereditary closure. The [bounded Pi0/Op0 application](../notes/theory/2026-10-16-choose-bootstrap-profile-and-hereditary-closure.md)
+now has independent mathematical/source reviews CLEAN: Unit entry is formed
+at its actual receiver, choose returns the supplied alpha response by the
+original Return action, and the candidate local operation inventory has
+exhaustive constructor inversion with all opaque constituents retained.
+It leaves caller-owned `j0`, `a0`, registration-license incidence and
+OriginalInitial OPEN. Review also confirmed W0 guard evidence cannot stand
+for guards at additional S/current-event worlds. M2 two reviewers, 28
+dependency pins, static-only.
 M2 two reviewers on the frozen context artifact, 16 dependency pins and local
 integrity only; zero tests/builds/probes or benchmark samples/processes.
 Profile/native/runtime parents remain distinct OPEN gates.
@@ -649,6 +657,14 @@ another conditional source-diagonal lemma. Generic feasibility, termination,
 principality and production remain OPEN. A bounded read-only next-action pass
 is selecting the evidence-producing method for that changed critical path.
 Static hash/link/Markdown scripts are integrity checks, not semantic probes.
+The separate [contractual-alternative closure audit](../notes/theory/2026-10-16-image-demand-contractual-alternative-falsifier.md)
+is now CLEAN under an independent mathematical review. It extracts the
+unanchored Z sequent `G(y) ∧ Z(y) ∧ Image_H(y,u) ⇒ T(u)` and retains W's
+complete witness/final tuple. Existing typed-core §8 checking handles matching
+same-component support comparisons and leaves outside-grammar predicates
+identical; it supplies no image-demand action. This is not a representation
+collision or a generic impossibility result. The original all-alternative
+native gate remains OPEN pending the effective local law/consumer.
 An independent selector found no further proved runtime matcher expansion.
 The next runtime owner is Function-result projection: ground RootCompReturn
 uses ground(value), which cannot establish callable latent paths. A new
