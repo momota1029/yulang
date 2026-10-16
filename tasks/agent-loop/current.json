@@ -48,7 +48,7 @@
      "tasks/agent-loop/inbox/20261017-npair-whole-presentation-transport.md"
     ],
     "session": "current-session",
-    "active_work_receipt": "Supported collaboration spawn acknowledged in current session; exact proof leases frozen; one Astra author, no descendants."
+    "active_work_receipt": "First active receipt: 2026-10-16 19:30:48 UTC. Adoption/NPAIR/L1-L4 and all seven corrected-plan native pins verified; auditing graph capture and dependent scope remapping. Distinguishes source-presentation proof from missing native realization."
    }
   ],
   "architecture_lane": {
@@ -117,7 +117,7 @@
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Active proof assignment NPAIR-WHOLE-PRESENTATION-TRANSPORT-20261017; 1200s cap; exact two output leases; no descendants."
+   "receipt": "Active; first clock 2026-10-16 19:30:48 UTC; verified adoption, NPAIR, reviewed L1-L4 and seven native pins; auditing actual capture/scope remapping."
   }
  ],
  "leases": [
