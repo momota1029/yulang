@@ -135,6 +135,32 @@ pub(super) struct LocalFreshRoute {
     pub occurrence: HirOccurrenceId,
     pub graph: Graph,
     pub rows: Vec<RowKey>,
+    retained: RetainedFreshUseMaps,
+}
+#[derive(Debug)]
+struct RetainedFreshUseMaps {
+    scope_remap: candidate_source::ScopeRemap,
+    scoped_relations: HashMap<candidate_context::RelationId, candidate_context::ScopedFlow>,
+    #[allow(dead_code)]
+    context_use: usize,
+    terms: Vec<Option<Term>>,
+    effect_operands: HashMap<usize, EffectEndpointKey>,
+    bundle_remap: HashMap<candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId>,
+    context_remap: HashMap<candidate_context::ContextId, candidate_context::ContextId>,
+    evidence_remap: Vec<candidate_context::EvidenceSnapshotId>,
+}
+impl RetainedFreshUseMaps {
+    fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
+        sum(&[
+            self.scope_remap.bytes()?,
+            bytes::<(candidate_context::RelationId, candidate_context::ScopedFlow)>(self.scoped_relations.capacity())?,
+            bytes::<Option<Term>>(self.terms.capacity())?,
+            bytes::<(usize, EffectEndpointKey)>(self.effect_operands.capacity())?,
+            bytes::<(candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId)>(self.bundle_remap.capacity())?,
+            bytes::<(candidate_context::ContextId, candidate_context::ContextId)>(self.context_remap.capacity())?,
+            bytes::<candidate_context::EvidenceSnapshotId>(self.evidence_remap.capacity())?,
+        ])
+    }
 }
 // Disposable, explicitly enabled native-constructor observations. The route
 // continues to own its graph and row map; this retains only expiring maps.
@@ -180,6 +206,12 @@ impl FreshUse {
             bytes::<(candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId)>(self.bundle_remap.capacity())?,
             bytes::<(candidate_context::ContextId, candidate_context::ContextId)>(self.context_remap.capacity())?,
             bytes::<candidate_context::EvidenceSnapshotId>(self.evidence_remap.capacity())?])
+    }
+    fn into_retained_parts(self) -> (Vec<RowKey>, RetainedFreshUseMaps) {
+        let FreshUse { scope_remap, scoped_relations, context_use, rows, terms,
+            effect_operands, bundle_remap, context_remap, evidence_remap } = self;
+        (rows, RetainedFreshUseMaps { scope_remap, scoped_relations, context_use,
+            terms, effect_operands, bundle_remap, context_remap, evidence_remap })
     }
 }
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -282,12 +314,10 @@ impl GraphState {
         }
 
         // All capacities and arithmetic were preflighted by frame accounting and
-        // final route reservation. Only construction maps are released here.
-        let released = frame.fresh.bytes().expect("accounted fresh storage")
-            - bytes::<RowKey>(frame.fresh.rows.capacity()).expect("accounted rows");
+        // final route reservation. Move retained maps without allocation.
+        let (rows, retained) = frame.fresh.into_retained_parts();
         self.local_routes.push(LocalFreshRoute { slot: frame.slot, local: frame.local,
-            occurrence: frame.occurrence, graph: frame.graph, rows: frame.fresh.rows });
-        self.retained_bytes -= released;
+            occurrence: frame.occurrence, graph: frame.graph, rows, retained });
     }
     pub fn refresh_bytes(&mut self) -> Result<(), SolveAvailabilityError> {
         let mut total = sum(&[
@@ -304,7 +334,7 @@ impl GraphState {
             total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?])?;
         }
         for route in &self.local_routes {
-            total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?])?;
+            total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?, route.retained.bytes()?])?;
         }
         for frame in &self.local_use {
             total = sum(&[total, frame.graph.bytes()?, frame.fresh.bytes()?])?;
