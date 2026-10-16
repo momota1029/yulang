@@ -4,8 +4,8 @@ model_reasoning_effort = "high"
 [agents]
 enabled = true
 max_concurrent_threads_per_session = 12
-# The three resident roles inherit Sol/high. Omitted role pins also permit
-# a supported, explicitly bounded Astra override; prose alone never routes it.
+# The proof/dispatcher roles inherit Sol/high; implementer explicitly pins
+# Luna/high and the optional implementation escalation pins Astra/low.
 default_subagent_model = "gpt-6.1-sol"
 default_subagent_reasoning_effort = "high"
 interrupt_message = true
@@ -31,7 +31,11 @@ description = "Write-enabled public-documentation specialist for web/docs, READM
 
 [agents.implementer]
 config_file = "agents/implementer.toml"
-description = "Resident implementation lane; advances approved compiler slices and submits exact proof TODOs to the dispatcher."
+description = "Luna/high implementation lane; advances approved compiler slices and submits exact proof TODOs."
+
+[agents.implementation_escalation]
+config_file = "agents/implementation-escalation.toml"
+description = "One-off Astra/low implementation escalation after explicit Luna lease handoff; not resident."
 
 [agents.performance_auditor]
 config_file = "agents/performance-auditor.toml"

@@ -50,6 +50,13 @@ The primary's reread and a producer's self-review do not count as independent re
 
 ## Model routing and Astra escalation
 
+For `research/simple-sub-intrusion`, the
+[2026-10-16 addendum](../notes/design/2026-10-16-resident-loop-operations-addendum.md)
+sets the resident `implementer` to **Luna/high** minimum and permits one-off
+Astra implementation escalation after an explicit frozen lease handoff.
+That supersedes the historical Sol/low and proof-only escalation examples
+below within this workflow. Never quietly downgrade implementation to Sol.
+
 Read `.codex/config.toml` and the selected `.codex/agents/*.toml` as the executable
 source of model, effort, and sandbox settings. Do not maintain a conflicting tier
 table in prose. The current primary is Luna/high; the inspected `implementer`

@@ -12,7 +12,7 @@ Contract: [README](README.md) and [workflow decision](../../notes/design/2026-10
 | Role | Actual worker ID | State | Requested model/effort | Observed model/effort | Current packet / exact lease |
 | --- | --- | --- | --- | --- | --- |
 | next_action_selector (dispatcher) | none | NOT-STARTED | gpt-6.1-sol / high | unknown | none |
-| implementer | none | NOT-STARTED | gpt-6.1-sol / high | unknown | none |
+| implementer | none | NOT-STARTED | gpt-6-luna / high | unknown | none |
 | prover | none | NOT-STARTED | gpt-6.1-sol / high | unknown | none |
 
 ## Canonical TODOs

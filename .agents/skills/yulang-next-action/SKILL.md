@@ -8,7 +8,8 @@ description: Consult Yulang's resident task dispatcher at every next-action boun
 This invocation loop belongs to Luna. Delegated workers return evidence/TODOs
 to their delegator; they do not recursively invoke a dispatcher or start a trio.
 
-Read `notes/design/2026-10-16-resident-research-loop.md` and
+Read `notes/design/2026-10-16-resident-research-loop.md`,
+`notes/design/2026-10-16-resident-loop-operations-addendum.md` and
 `tasks/agent-loop/README.md`. For the authorized resident loop, this consultation
 is mandatory before every new substantive action/packet and after a result,
 blocker, review, changed decision/dependency or restart, including before a wait
@@ -21,8 +22,10 @@ plan remains read-only and does not authorize dispatching implementation.
 
 Read applicable authority, orchestration budgets and the original gate. Resolve
 branch/HEAD, dependency hashes, current objective, latest frozen result and actual
-running/ready assignments. Read summaries and precise bounded source sections;
-do not dump large task histories. Apply question-board freshness and top-level
+running/ready assignments. Read summaries and precise bounded source sections; check relevant prior
+implementation, tests, path history and accepted/rejected proof attempts.
+Each new substantive packet identifies which earlier result to reuse or why
+its premises no longer apply; do not dump whole histories. Apply question-board freshness and top-level
 inference principles before older recovery or proof clauses.
 
 Read `.codex/agents/next-action-selector.toml` and its registration. Reuse the
@@ -49,7 +52,7 @@ stop condition. Proposed leases require Luna's validation. An existing safe
 running packet may CONTINUE while an idle lane receives a successor.
 
 An idle implementation lane plus authorized ready code work MUST yield an
-implementation assignment now, not another all-proof planning round. Run proof
+**implementer Luna/high** assignment now, never Sol, not another all-proof planning round. Run proof
 alongside it on independent stable inputs. Preserve genuine proof-dependent A/B
 gates; minimal reversible source-evidence construction stays explicitly
 provisional. Do not weaken accepted semantics, narrow quantifiers, or mistake

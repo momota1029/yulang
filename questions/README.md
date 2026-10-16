@@ -53,16 +53,18 @@ Preserve existing committed handoffs.
 The questioning primary reads the board at turn start and before dependent work.
 When it finds a finalized local answer, it validates identities/revisions, exact
 draft content, approval provenance, current premises/source revisions, scope,
-branch/worktree and authority. Recheck bundle stability, then commit the selected
-matching question, approved current draft and approved answer together under scoped
-Git checks. Unapproved archives stay excluded unless explicitly approved as
-non-authoritative history in the displayed bundle. Other pending questions stay
-excluded. The answerer performs no Git mutation.
+branch/worktree and authority. Freeze and inventory all intended files in the
+selected directory, resolving secrets and foreign paths safely. Prepare the
+validation `receipt.md` first, then commit the **entire curated directory**
+in **one atomic commit**, including earlier draft revisions, trials and failed
+attempts as non-authoritative provenance; only `approved-answer.md` carries
+approval. Resolve the SHA from directory Git history rather than changing a
+receipt after commit. Other pending questions stay excluded. The answerer performs no Git mutation.
 
 Consume only a fresh valid committed bundle whose current files match committed
 versions on the intended branch. A commit never proves approval. Preserve and
-reject stale/ambiguous/mismatched answers only for affected work. The questioning
-primary writes the receipt and avoids applying a consumed answer again. Record
+reject stale/ambiguous/mismatched answers only for affected work. The questioning primary writes the validation receipt before committing and
+avoids applying a consumed answer again. Later status belongs in external task/progress records. Record
 reviewed user-approved durable decisions in governing sources before implementation.
 
 Posting does not pause a goal; continue independent authorized work. No watcher,

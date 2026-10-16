@@ -47,6 +47,7 @@ Scope: <approved scope, exclusions, any explicit provisional boundary>
 Acceptance: <observable artifact/evidence and falsifier; tests are not proofs>
 Proposed-outputs: <exact paths; proposals, not leases>
 Checks/resources: <verification owner, bounded commands/CPU/process/time>
+Prior-work: <exact previous implementation/proof/test locators; reuse/adapt/reject rationale>
 Priority-reason: <what this unblocks; next implementation benefit>
 Stop/escalate: <specific obstruction/budget and evidence needed for Astra>
 ```
@@ -79,6 +80,12 @@ Worker states: NOT-STARTED, RUNNING, WAITING, BLOCKED, STOPPED, UNKNOWN.
 A worker may stay resident in WAITING after its packet returns. Record requested
 and observed model/effort separately; unreported actual settings are unknown.
 A restart requires runtime reconciliation, not copying old RUNNING states.
+
+Each new substantive packet includes bounded relevant historical evidence and
+exact reasons to reuse/adapt/reject it. Implementation packets target the pinned
+Luna/high implementer; a separate bounded Astra role requires primary-authorized
+handoff. No Sol implementation fallback is valid. The dispatcher may recommend
+primary-owned Git hygiene, but must preserve pending questions/unknown paths.
 
 Every decision considers both lanes. Ready authorized implementation plus an idle
 implementer must produce an implementation packet; ready independent proof runs

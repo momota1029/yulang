@@ -51,10 +51,13 @@ Read the board at turn start and before dependent actions. Exclude entire
 unintegrated question directories, including approved local answers, from ordinary
 checkpoints. Validate identities/revisions, exact approved content/provenance,
 current premises/source revisions, intended worktree/branch, scope and authority
-before staging. Recheck selected-bundle stability, then commit only the matching
-question, approved current draft and approved answer under scoped Git checks.
-Unapproved archives stay excluded unless explicitly approved as non-authoritative
-history in the displayed bundle; other pending questions remain excluded. If
+before staging. Recheck selected-bundle stability, freeze and inventory all
+intended files in the selected question directory, prepare `receipt.md`, then
+commit **that whole curated directory in one atomic commit** with the question,
+approved current draft, final answer, and all earlier trial/revision artifacts
+as non-authoritative history. Detect secrets/foreign content first; exclude
+all other pending questions. Recover the integration SHA from the containing
+commit rather than editing the receipt afterward. If
 accidentally staged, remove only known paths, preserving files and unrelated state.
 
 Before consumption, verify current files equal committed versions on the intended

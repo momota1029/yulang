@@ -1,11 +1,11 @@
 ---
 name: yulang-research-loop
-description: Maintain Yulang's resident Sol implementation, proof and task-dispatch lanes during authorized research/simple-sub-intrusion work. Use on startup, restart, results, blockers and next-action boundaries; Luna always consults the dispatcher, routes mutual TODOs and keeps safe implementation advancing.
+description: Maintain Yulang's resident Luna implementation, Sol proof and Sol task-dispatch lanes during authorized research/simple-sub-intrusion work. Use on startup, restart, results, blockers and next-action boundaries; Luna always consults the dispatcher, routes mutual TODOs and keeps safe implementation advancing.
 ---
 
 # Run the resident Yulang research loop
 
-Read `AGENTS.md` and `notes/design/2026-10-16-resident-research-loop.md`.
+Read `AGENTS.md`, `notes/design/2026-10-16-resident-research-loop.md` and `notes/design/2026-10-16-resident-loop-operations-addendum.md`.
 The latter supersedes occasional next-action selection for this loop. Keep the
 user-selected Luna primary; do not silently switch the primary model. This
 skill is a primary-only workflow, not a background service. A delegated child
@@ -18,14 +18,16 @@ requests do not authorize production work or require a trio launch.
 Resolve branch/HEAD/status, the authorized goal, applicable user decisions and
 question-board evidence. Read current summaries and exact relevant bounded
 sections of `tasks/current.md` and `tasks/research-lab.md`. Read
-`tasks/agent-loop/README.md` and the board. Reconcile real worker identities,
+`tasks/agent-loop/README.md` and the board. Review bounded prior code, path history, tests, theory/progress and rejected designs for the active gate; carry concrete reuse/adapt/reject references into the next packets. Reconcile real worker identities,
 leases and frozen dependencies; stale queue text is not a live worker. Adopt
 healthy existing roles rather than duplicating them.
 
-Read `.codex/config.toml` and the three role files. Maintain one resident
-`next_action_selector` (dispatcher), `implementer` and `prover`. Normal launches
-use configured Sol/high, explicit native settings when supported, and
-`fork_turns: "none"`. Pass the bounded role contract without parent history.
+Read `.codex/config.toml` and the three resident role files. Maintain one
+`next_action_selector` (dispatcher, Sol/high), `implementer` (**pinned
+Luna/high minimum; never Sol**) and `prover` (Sol/high). Use supported
+explicit native settings and `fork_turns: "none"`; actual pins determine the
+model. The `implementation_escalation` Astra/low role is one-off, not a
+resident fourth role, and requires an acknowledged Luna writer handoff. Pass the bounded role contract without parent history.
 Give the dispatcher the exact board lease and each producer exact artifact paths
 plus one unique inbox path. Only Luna actually dispatches, grants leases,
 appoints independent reviewers and performs Git integration.
@@ -74,15 +76,24 @@ Do not use more plans or conditional lemmas as a substitute for construction.
 
 ## Review, escalate and checkpoint
 
-Route localized evidence-backed bottlenecks from any role to one bounded native
-Astra assignment under the decision; normal work returns to Sol. Record requested
+Route evidence-backed proof/dispatcher bottlenecks from Sol to bounded Astra
+under the original decision. For implementation only, hand off a frozen leased
+Luna/high packet to the separate on-demand `implementation_escalation`
+Astra role; after adjudication resume Luna/high. Never silently downgrade
+implementation to Sol or overlap its writer. Record requested
 and observed settings separately. No override support means no claim of Astra
 execution. Never run two writers of one lease or substitute a producer's review
 for fresh independent certification.
 
 Luna sends actual launch/review/integration receipts back to the dispatcher.
-Freeze the scheduling board and artifacts before a coherent checkpoint; keep
-pending question bundles and unrelated work outside commits. Apply normal
-review and push rules. Before stopping, consult once with the actual completion
+Freeze the scheduling board and artifacts before a coherent checkpoint. Luna
+inspects untracked files after meaningful packets, before commits/pushes and
+at handoff: commit validated valuable scoped work, remove only specifically
+identified owned disposable outputs after their writers stop, and preserve
+unknown/foreign and all pending question files. Once a questioner validates
+the selected explicitly approved answer, stage and commit its *entire curated
+question directory*—question, all experimental/draft history, approved answer
+and validation receipt—in one commit. Never stage unapproved questions just
+to clear the status. Apply normal review and push rules. Before stopping, consult once with the actual completion
 or blocker evidence and preserve owners/next steps. Do not claim ongoing work
 after session termination or claim a config edit started any workers.

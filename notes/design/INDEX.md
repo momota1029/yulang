@@ -2,6 +2,10 @@
 
 This index is a navigation aid. The listed source document remains authoritative for its own text and scope. If this file conflicts with a source, read the source and correct the index.
 
+## Resident Yulang orchestration (2026-10-16)
+
+- [History reuse, Luna implementation floor, untracked hygiene and atomic questions](2026-10-16-resident-loop-operations-addendum.md) — Latest narrow authoritative update to the [resident dispatcher/prover/implementer loop](2026-10-16-resident-research-loop.md) and the [questioner handoff](2026-10-04-questioner-integrated-answer-handoff.md). Only approved answers confer decision authority; earlier attempts are preserved as history.
+
 ## Current callback identity decision (2026-10-15)
 
 - [Extrusion replay completion](../theory/2026-10-16-extrusion-replay-capture-completion.md)

@@ -11,10 +11,12 @@ and unapproved drafts in `questions/` stay unstaged and uncommitted, including
 during ordinary checkpoint commits. Do not hide them with Git ignore rules.
 The answering primary writes only selected answer files/history and never
 mutates Git. All unintegrated bundles, including approved local answers, stay
-excluded from ordinary checkpoints. The questioning primary discovers and
-validates a finalized local answer, rechecks bundle stability, and alone commits
-the matching question, approved current draft and approved answer together.
-Check current-file equality with committed versions before consumption. No
+excluded from ordinary checkpoints. The questioning primary discovers and validates a finalized local answer,
+inventories and freezes its entire curated question directory, prepares a
+validation receipt and commits question, approved draft/answer and all deliberate
+trial/history files **atomically in one commit**. Only the approved answer is
+authoritative. Check current-file equality and resolve the containing commit SHA
+before consumption; do not make a second receipt-only directory commit. No
 worktree-wide writer/Git ownership handoff is required for these disjoint paths.
 Exclude other pending questions and unrelated staged work; concrete index/path
 conflicts defer only affected integration. Tracked instructions/templates are
@@ -126,6 +128,20 @@ defer on the concrete upstream/safety blocker and report it. Do not retarget or
 force-push to work around divergence.
 
 When upstream moved, re-evaluate scope before integration. Do not force a ref merely to preserve a local plan.
+
+## Untracked-file hygiene
+
+The Git-owning primary checks `git status --short --untracked-files=all` at
+startup, after meaningful completed packets, before commit/push and at handoff.
+Classify exact paths by owner/provenance and active lease: useful authorized
+artifact -> verify and checkpoint promptly; confirmed owned disposable output ->
+delete only its named path after its writer stops; unintegrated question bundle
+-> preserve until explicit approval and whole-directory atomic integration;
+unknown/foreign output -> preserve and record its owner/next disposition.
+Workers report every new path; they never perform Git mutation. Do not run
+blanket `git clean`, broad `rm -rf`, blind `git add -A`, reset or stash
+to manufacture a clean tree. Pending questions may safely remain untracked.
+See [2026-10-16 addendum](../notes/design/2026-10-16-resident-loop-operations-addendum.md).
 
 ## Generated and temporary files
 

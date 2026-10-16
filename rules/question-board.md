@@ -1,8 +1,7 @@
 # Yulang question board
 
 Authority: `notes/design/2026-10-04-questioner-integrated-answer-handoff.md`
-§§1–5 (Authoritative successor). Earlier approval/revision/authority safeguards
-remain binding. Use for goal-driven Yulang decisions and explicit board requests;
+§§1–5, plus the [2026-10-16 operational addendum](../notes/design/2026-10-16-resident-loop-operations-addendum.md) on bundle contents and receipt timing. Earlier approval/revision/authority safeguards remain binding. Use for goal-driven Yulang decisions and explicit board requests;
 ordinary conversational clarifications need not create questions.
 
 ## Location, file writers and Git authority
@@ -33,11 +32,12 @@ no Git rights to children or concurrent write-capable child-agent permission.
 A concrete overlapping-path/index conflict blocks only the affected action.
 
 Ordinary checkpoints exclude entire unintegrated question directories, even
-approved local answers. Only the questioning primary integrates a selected
-validated question, approved current draft and approved answer together.
-Unapproved draft archives remain excluded unless explicitly approved as
-non-authoritative history in the displayed bundle; such history is optional.
-Exclude all other pending questions. A commit never proves approval. If pending
+approved local answers. Once the questioner validates a selected explicitly
+approved answer, stage and commit **the entire curated question directory** in
+one commit: question, current approved draft, final answer, earlier attempt/revision
+history as non-authoritative provenance, and the validation receipt. Protect
+all other pending questions and verify the file inventory for secrets and
+other-worker output. A commit never proves approval. If pending
 paths were accidentally staged, remove only known paths from the index, preserving
 files and unrelated state; never blanket-stash/reset/clean.
 
@@ -57,17 +57,20 @@ files and unrelated state; never blanket-stash/reset/clean.
    explicit approval quote/provenance, current premises/source revisions, intended
    worktree/branch, authorized scope and governing authority. Partial files,
    preferences, discussion, silence and paraphrases are not approval.
-5. Recheck that the selected complete bundle is unchanged since validation.
-   Stage explicit matching question/draft/answer paths and commit together under
-   `rules/git-concurrency.md`. Inspect staged scope and the full intended outbound
-   range before normal coherent push. The answerer performs no Git step.
-6. Consume only a valid handoff committed on the intended branch, after checking
-   current files equal their committed versions. Divergence rejects the affected
-   handoff. Existing committed answers use the same exactness/freshness checks.
-7. Write the working-owned `receipt.md` with identities/revisions, validation
-   evidence, integration commit, outcome/reason and affected scope. It may enter
-   the next coherent commit. Record where applied or which gates still precede
-   implementation. Retain receipts; never reapply an unchanged consumed answer.
+5. Before integration, prepare the questioner's `receipt.md` with exact approval
+   evidence, selected revision, file inventory/validation and an integration
+   locator resolved from the containing bundle commit. Freeze/recheck the
+   selected directory; stage **that entire curated directory**, including all
+   intentional intermediate and failed-attempt files as non-authoritative history.
+   Commit in **one coherent bundle**. Exclude unrelated or pending questions.
+   Inspect staged scope and the intended outbound range before safe push.
+6. Consume only after committed/current bytes match on the intended branch,
+   approved content still validates, and the actual bundle SHA can be recovered
+   from the selected directory's Git history.
+7. Keep the validation receipt **in that bundle commit**; a file cannot contain
+   its own immutable commit SHA. Record any subsequent integration/consumption
+   metadata in task/progress records outside the finalized question directory.
+   Retain receipts and never reapply an unchanged consumed answer.
 8. Preserve partial, outdated, conflicting or ambiguous answers, write an
    explanatory rejection receipt and return the rejection to the user. Leave
    only affected work waiting; do not roll back unrelated work or edit finalized
