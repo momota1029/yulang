@@ -6,9 +6,9 @@
   "active_sprint": {
     "id": "local-use-existing-map-retention-20261017",
     "contract": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
-    "revision": 1,
-    "sha256": "92b946b9ae17590b1c88bf25ef0c1cf92922b36f082b5cf3966084db38d7b0d0",
-    "state": "PROOF-REPAIR-REQUIRED",
+    "revision": 2,
+    "sha256": "f926d774454e19b04a47077919b57cb407498856aa8192308284ca668f783d2a",
+    "state": "PROOF-VERSION-REPAIR-READY",
     "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
     "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
     "previous_sprint": {
@@ -18,7 +18,7 @@
       "sha256": "93294d230f4dff06cf781d0be64a59391ee47b2e3bcf0d1f39f6170e569519cf"
     },
     "proof": {
-      "state": "STOPPED",
+      "state": "REPAIR-READY-NOT-RUNNING",
       "owner": "/root/local_use_existing_map_retention",
       "role": "prover",
       "requested_model": "gpt-6.1-sol",
@@ -35,7 +35,11 @@
       "active_work_receipt": "Actual prover spawn acknowledged; exact frozen candidate_scheme snapshot/contract pins and two leased paths supplied; 360s/six-stage cap.",
       "artifact_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
       "handoff_sha256": "9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c",
-      "receipt": "Six stages; full 360s charged; writer STOPPED; M1 actual constructor correspondence and conditional M2 for structural Qmap; current commit only preserves Graph/rows."
+      "receipt": "Six stages; full 360s charged; writer STOPPED; M1 actual constructor correspondence and conditional M2 for structural Qmap; current commit only preserves Graph/rows.",
+      "repair_cap_seconds": 60,
+      "original_v1_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
+      "repair_handoff": "tasks/agent-loop/inbox/20261017-local-use-map-version-repair.md",
+      "correction": "Pin precommit version; state equality only for valid same-version evaluations; handle changed-version as invalidation or equality-or-invalidation; revise dependent claims."
     },
     "proposal": {
       "state": "BLOCKED-ON-PROOF-MAJOR",
@@ -47,7 +51,7 @@
       ]
     },
     "review": {
-      "state": "MAJOR-PROOF-FINDING",
+      "state": "WAITING-FOR-PROOF-REPAIR",
       "sequence": [
         "compiler_referee",
         "architect",
@@ -66,7 +70,10 @@
       "active_work_receipt": "Compiler-referee STOPPED at 120s cap; major M2 statement defect; current proof bytes frozen pending material-boundary consultation.",
       "verdict": "MAJOR: M2 equality conclusion contradicts permitted version invalidation; exact finding in reviewer receipt/message. M1/source inventory otherwise accepted in scope.",
       "reviewer": "/root/local_use_map_retention_review",
-      "review_state": "STOPPED"
+      "review_state": "STOPPED",
+      "delta_cap_seconds": 60,
+      "delta_reviewer": "/root/local_use_map_version_delta_review",
+      "original_v1_review": "MAJOR; reviewer STOPPED; superseded bytes preserved in snapshot."
     },
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; no source/native or consumer/production closure."
   },
@@ -117,18 +124,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Proof reviewer STOPPED with MAJOR; primary records exact finding and consults selector."
+      "receipt": "Selector-approved revision 2 proof correction, old bytes snapshotted; primary prepares exact repair handoff and author reactivation."
     },
     {
       "id": "/root/local_use_existing_map_retention",
       "role": "prover",
-      "state": "STOPPED",
+      "state": "NOT_STARTED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Six stages; full 360s conservatively charged; frozen M1/M2 result; hashes pinned in active_sprint."
+      "session": null,
+      "receipt": "Original revision 1 STOPPED; revision 2 repair packet ready but fresh acknowledgment not yet received."
+    },
+    {
+      "id": "/root/local_use_map_version_delta_review",
+      "role": "compiler_referee",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Fresh 60s delta review of corrected M2 only; await proof freeze."
     }
   ],
   "leases": [
@@ -141,7 +159,7 @@
       "path": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "92b946b9ae17590b1c88bf25ef0c1cf92922b36f082b5cf3966084db38d7b0d0"
+      "sha256": "f926d774454e19b04a47077919b57cb407498856aa8192308284ca668f783d2a"
     },
     {
       "path": "tasks/agent-loop/snapshots/20261017-candidate_scheme-pre-local-use-retention.rs",
@@ -152,7 +170,7 @@
     {
       "path": "notes/theory/2026-10-17-local-use-existing-map-retention.md",
       "owner": "/root/local_use_existing_map_retention",
-      "state": "FROZEN",
+      "state": "HELD",
       "sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245"
     },
     {
@@ -176,6 +194,17 @@
       "owner": "/root",
       "state": "FROZEN",
       "sha256": "93294d230f4dff06cf781d0be64a59391ee47b2e3bcf0d1f39f6170e569519cf"
+    },
+    {
+      "path": "tasks/agent-loop/snapshots/20261017-local-use-existing-map-retention-pre-version-repair.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-local-use-map-version-repair.md",
+      "owner": "/root/local_use_existing_map_retention",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -211,29 +240,29 @@
     },
     {
       "id": "LOCAL-USE-MAP-RETENTION M2 version/invalidation repair",
-      "state": "MAJOR-FINDING; equal-answer conclusion must be valid-same-version only or explicit invalidation alternative",
+      "state": "REVISION2-REPAIR-READY; correct M2 equal-answer vs version invalidation; proof author not RUNNING until fresh ack.",
       "owner": "Luna/selector: versioned proof correction and fresh delta review"
     }
   ],
   "next_action": {
-    "state": "MATERIAL-PROOF-MAJOR-DISPATCH",
-    "dispatcher": "Fresh selector consultation required for MAJOR proof finding and repair authority/resource boundary.",
-    "proof": "M1/source inventory otherwise supported; M2 not accepted until version/invalidation conclusion is repaired and freshly reviewed.",
-    "implementation": "Unapplied proposal blocked on proof repair; no code or compiler source writes."
+    "state": "PROOF-VERSION-REPAIR-READY",
+    "dispatcher": "Selector delta accepted: exact v2 correction and fresh 60s delta review from reserve.",
+    "proof": "M2 v1 MAJOR; original artifact snapshot frozen. Repair only the version/invalidation quantifier.",
+    "implementation": "Proposal outputs remain frozen and dependency-blocked until corrected proof is independently CLEAN."
   },
   "resource_accounting": {
     "current_sprint_id": "local-use-existing-map-retention-20261017",
     "cap_seconds": 1560,
-    "proof": 360,
+    "proof": 420,
     "architecture": 600,
-    "review": 360,
+    "review": 420,
     "coordination": 120,
-    "reserve": 120,
+    "reserve": 0,
     "unknown_reservations_preserved": 3,
     "active_authors": 0,
     "astra_assignments": 0,
     "charged_total_seconds": 480,
-    "status": "Proof author STOPPED at 360s; compiler_referee STOPPED at 120s with MAJOR M2 version/invalidation mismatch. Proposal remains blocked; material selector consultation required.",
+    "status": "Original proof 360s and initial referee review 120s charged. Selector reallocates 60s from reserve to exact M2 repair and 60s to fresh delta review. 600s proposal lane remains blocked; no code.",
     "authors_spent_seconds": 360,
     "review_spent_seconds": 120,
     "architecture_spent_seconds": 0,

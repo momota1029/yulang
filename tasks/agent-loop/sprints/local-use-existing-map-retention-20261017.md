@@ -1,6 +1,9 @@
 # Sprint local-use-existing-map-retention-20261017
 
-Status: adopted by Luna after sprint-end selector delta; revision 1.
+Status: adopted by Luna after sprint-end selector delta; revision 2 supersedes
+revision 1 only for the exact M2 correction, immutable snapshot and bounded
+repair/delta-review allocation. Parent claim, Qmap scope, proposal boundary and
+total envelope remain unchanged.
 Branch: `research/simple-sub-intrusion`.
 Administrative baseline: `c2ca891da23d791dfa661c7745864ef3613a32df`.
 Compiler baseline: source `candidate_scheme.rs` SHA-256
@@ -43,7 +46,7 @@ Success evidence:
 
 ## Two sequential lanes
 
-1. Sol/high prover, cap 360s, at most six substantive stages. Exact outputs:
+1. Sol/high prover, initial cap 360s, at most six substantive stages. Exact outputs:
    - `notes/theory/2026-10-17-local-use-existing-map-retention.md`
    - `tasks/agent-loop/inbox/20261017-local-use-existing-map-retention.md`
    Inspect actual `FreshUse` fields, construction, restoration, ownership and
@@ -55,6 +58,11 @@ Success evidence:
    promote map presence to source-typed NPAIR evidence. Apply R1 only to this
    structurally justified subdomain; keep all absent descriptor/At/provider/
    consumer facts OPEN. Stop if a query needs new compiler fields or semantics.
+   This initial assignment STOPPED at the full 360s cap and its first artifact
+   revision was rejected by fresh proof review on one quantified statement
+   mismatch; that exact frozen version is preserved below. A separately capped
+   60-second correction assignment may produce revision 2 after fresh
+   acknowledgement and exact-path lease.
 2. After the proof author confirms STOP and the fresh compiler_referee finishes
    within 120s, Luna/high, cap 600s, writes only:
    - `notes/design/2026-10-17-local-use-retention-code-contract.md`
@@ -74,6 +82,28 @@ must STOP before the next begins. A blocking proof finding pauses dependent
 proposal acceptance. No review closes whole `rho_u`, source/native adequacy,
 actual consumer, soundness, principality, or the parent.
 
+For the stopped proof revision 1, compiler_referee found a MAJOR mismatch in
+M2: its premise permits changed-version invalidation, but its conclusion claims
+unconditional equality for every query. Revision 2 must pin the precommit
+version and assert value equality only for valid same-version evaluations.
+Changed-version invalidation must be stated separately, or the conclusion must
+explicitly be equality-or-invalidation. Update every dependent claim that relied
+on unconditional equality. Preserve M1 and the justified immediate Graph/rows
+corollary. No semantic query expansion is allowed.
+
+The correction receives at most 60 seconds from the previously unused reserve,
+then a fresh compiler_referee delta review receives at most 60 seconds from the
+same reserve. Preserve the complete v1 artifact snapshot at
+`tasks/agent-loop/snapshots/20261017-local-use-existing-map-retention-pre-version-repair.md`;
+the author also writes the exact revision-2 handoff
+`tasks/agent-loop/inbox/20261017-local-use-map-version-repair.md`. Changed proof
+bytes require a sequential handoff revision; the old handoff remains immutable.
+The original author must acknowledge this exact rev2 packet before RUNNING.
+The fresh review targets only corrected bytes and affected M2/application
+statements; the old reviewer receipt never transfers to revision 2. If either
+60-second cap is insufficient, STOP and return for reconciliation; do not
+consume the proposal-author cap or architect/spec review budget.
+
 Any new internal representation or architecture decision must first be stated
 with its alternatives, independently reviewed, and explicitly approved by the
 user under `rules/design-authority.md`. This sprint produces a reviewable
@@ -82,9 +112,12 @@ approves the exact implementation contract may Luna open a separate exact-path
 code sprint. Negative preflight remains untouched; no subtraction or residual
 publication; no consumer borrowing from Catch.
 
-Fresh envelope: 1560 seconds — proof 360, proposal author 600, reviews 360
-(three sequential 120s caps), coordination 120, reserve 120. One author at a
-time; Astra 0; no code, tests, Cargo, builds, probes or execution. No budget
+Fresh envelope: 1560 seconds — initial proof 360, separate proof correction 60,
+proposal author 600, initial proof review 120, delta proof review 60,
+architecture review 120, spec review 120, coordination 120, reserve 0. The
+correction and delta review reallocate the original 120-second reserve without
+increasing the total. One author at a time; Astra 0; no code, tests, Cargo,
+builds, probes or execution. No budget
 carryover. Preserve three historical UNKNOWN reservations and the quarantined
 board lease. The next dispatcher boundary is a proof obstruction, representation
 approval, new dependency/lease, review finding or sprint end.
@@ -106,11 +139,19 @@ approval, new dependency/lease, review finding or sprint end.
   receipt `d94e24656854fd2d67ed0f600619349c728dfafa26ca6e312f1faa6d3f3532fa`.
 - Prior closeout:
   `notes/progress/2026-10-17-npair-commit-retention-repair-closeout.md`.
-- Current source baseline exact bytes must be verified against the contract pin
-  before the primary writes the snapshot; only the snapshot, proof artifact,
-  proof inbox, proposal artifact, proposal inbox, sprint contract and
-  `current.json` are leased. No source files, tests, fixtures, expectations,
-  rules or other worker paths may be written.
+- Original M2 artifact revision 1:
+  `notes/theory/2026-10-17-local-use-existing-map-retention.md` SHA-256
+  `111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245`; handoff
+  `tasks/agent-loop/inbox/20261017-local-use-existing-map-retention.md` SHA-256
+  `9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c`.
+- The exact compiler-referee MAJOR receipt is recorded in `current.json`; the
+  reviewer STOPPED and the selector delta is applied here.
+- Current source baseline exact bytes were verified against the contract pin
+  before the primary wrote the snapshot. Only these paths are leased: source
+  snapshot, proof artifact, original proof inbox, pre-version-repair snapshot,
+  revision-2 repair inbox, proposal artifact, proposal inbox, sprint contract
+  and `current.json`. No source files, tests, fixtures, expectations, rules or
+  other worker paths may be written.
 
 Luna owns adjudication, current-state synchronization, explicit-path Git staging
 and non-forced pushes. Preserve the unrelated dirty
