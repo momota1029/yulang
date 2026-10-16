@@ -8,13 +8,13 @@
     "contract": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
     "revision": 1,
     "sha256": "3709fc3ee119b95583b2b92ce8c3aa7820e8ac8723b2f0441cc402b266433637",
-    "state": "REVIEW-RUNNING-COMPILER-REFEREE",
+    "state": "REVIEW-COMPILER-STOPPED-ARCHITECT-NEXT",
     "baseline": "ac838c252a6567cd92c186ebf928348565e8004e",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "fixed_outcome": "Prove/refute a post-solve candidate snapshot capability and checked live physical-slot resolver, then produce an unapplied API contract or exact blocker; no code.",
     "review": {
-      "state": "AUTHORS-STOPPED-SEQUENTIAL-REVIEWS",
-      "current_reviewer": "compiler_referee",
+      "state": "COMPILER-REFEREE-STOPPED-ARCHITECT-NEXT",
+      "current_reviewer": null,
       "sequence": [
         "Sol/high proof STOP",
         "Luna/high API-readiness STOP",
@@ -30,9 +30,9 @@
       "reviews_cap_seconds": 240,
       "coordination_seconds": 60,
       "reserve_seconds": 60,
-      "charged_seconds": 540,
-      "active_authors": 1,
-      "status": "Authors STOPPED; compiler_referee review live under 120s cap. 540s charged; architect/spec reviews and 60s reserve remain."
+      "charged_seconds": 660,
+      "active_authors": 0,
+      "status": "60s coordination +180s proof +300s readiness +120s compiler review charged. Two 60s reviews and 60s reserve remain; proof unused120 is not carried."
     },
     "lanes": {
       "proof": {
@@ -94,7 +94,7 @@
       "receive consumer",
       "production"
     ],
-    "next_boundary": "Fresh sequential compiler_referee review (120s), architect (60s), spec_auditor (60s); no code authorization."
+    "next_boundary": "Architect STOP then spec STOP; implementation remains WAITING on physical storage and quiescence/evidence owners."
   },
   "candidate": "tasks/agent-loop/sprints/npair-postsolve-snapshot-capability-20261017.md",
   "baseline": "ac838c252a6567cd92c186ebf928348565e8004e",
@@ -161,15 +161,15 @@
     {
       "id": "/root/npair_postsolve_snapshot_compiler_review",
       "role": "compiler_referee, exact post-solve owner/API review",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "cap_seconds": 120,
-      "elapsed_seconds_charged": 0,
-      "receipt": "Fresh read-only compiler/source correspondence review launched sequentially after both authors STOP; exact revision-1 artifacts and pins supplied; model telemetry unavailable."
+      "elapsed_seconds_charged": 120,
+      "receipt": "Compiler-referee STOPPED; proposal accepted as conditional blocker/API direction. BLOCKING physical-storage and quiescence/evidence prerequisites remain. Resource-probe transfer handling is explicit pre-code obligation."
     }
   ],
   "leases": [
@@ -238,7 +238,7 @@
     }
   ],
   "next_action": {
-    "state": "REVIEW-RUNNING-COMPILER-REFEREE",
+    "state": "REVIEW-COMPILER-STOPPED-ARCHITECT-NEXT",
     "dispatcher": "Post-solve proof STOPPED with decisive retention blocker. Luna readiness proceeds under pre-issued exact lease; no new source owner.",
     "implementation": "After proof STOP, propose owner-bound construction, complete retained-record enumeration, checked live-slot resolution, incomplete-evidence results and bounded traversal accounting.",
     "proof": "Establish/refute post-solve immutability/quiescence, same-owner identity and current slot resolution, including candidate_intrusion paths.",
@@ -253,12 +253,12 @@
     "reviews_cap_seconds": 240,
     "coordination_seconds": 60,
     "reserve_seconds": 60,
-    "charged_total_seconds": 540,
-    "active_authors": 1,
+    "charged_total_seconds": 660,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "540s charged of 960s; compiler_referee review RUNNING under 120s; architect/spec and reserve remain."
+    "status": "660s charged; architect and spec 60s each, reserve60 remain; proof unused120 retired."
   },
-  "history": "Forward-source-witness sprint REVIEWED-PARTIAL at a868fbe; receipt notes/progress/2026-10-17-npair-forward-source-witness.md. Operation supplier/snapshot-validator sprint REVIEWED-PARTIAL at 7a281f6; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. Snapshot-owner sprint revision 2 REVIEWED-PARTIAL at b62de85f; final receipts in tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Parent and production remain OPEN; eta_op/realization_op WAITING for adopted constructor evidence. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Prior owner-interface sprint REVIEWED-PARTIAL at ac838c252; final handoff tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Selector chose new post-solve capability proof followed by unapplied API-readiness contract; fresh 960s envelope, no carryover. Post-solve proof STOPPED: returned FrozenInferenceData omits live bounds/effect_bounds, so physical-slot resolver cannot inspect original storage. Proof artifact 9e1ae6e and handoff cb14c88; 142s measured/180s charged. Luna readiness begins under existing 300s lease; parent OPEN. Post-solve readiness STOPPED with unapplied move-only retention/API proposal; exact blocker is missing live physical bounds in FrozenInferenceData, and quiescence/antecedent authentication remain open. Design ee0cf98; handoff hash updated in artifact manifest. No code.",
+  "history": "Forward-source-witness sprint REVIEWED-PARTIAL at a868fbe; receipt notes/progress/2026-10-17-npair-forward-source-witness.md. Operation supplier/snapshot-validator sprint REVIEWED-PARTIAL at 7a281f6; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. Snapshot-owner sprint revision 2 REVIEWED-PARTIAL at b62de85f; final receipts in tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Parent and production remain OPEN; eta_op/realization_op WAITING for adopted constructor evidence. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Prior owner-interface sprint REVIEWED-PARTIAL at ac838c252; final handoff tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Selector chose new post-solve capability proof followed by unapplied API-readiness contract; fresh 960s envelope, no carryover. Post-solve proof STOPPED: returned FrozenInferenceData omits live bounds/effect_bounds, so physical-slot resolver cannot inspect original storage. Proof artifact 9e1ae6e and handoff cb14c88; 142s measured/180s charged. Luna readiness begins under existing 300s lease; parent OPEN. Post-solve readiness STOPPED with unapplied move-only retention/API proposal; exact blocker is missing live physical bounds in FrozenInferenceData, and quiescence/antecedent authentication remain open. Design ee0cf98; handoff hash updated in artifact manifest. No code. Compiler-referee reviewed the post-solve proof/API proposal with no wording defect; two BLOCKING implementation prerequisites remain (physical storage retention; quiescence and evidence antecedents). Resource-probe retention transfer is a required implementation obligation.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
