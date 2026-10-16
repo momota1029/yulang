@@ -4,19 +4,19 @@
   "phase": "ACTIVE",
   "session": "UNKNOWN",
   "active_sprint": {
-    "id": "source-constructor-instantiation-and-export-cut-20261017",
-    "contract": "tasks/agent-loop/sprints/source-constructor-instantiation-and-export-cut-20261017.json",
-    "revision": 2,
-    "sha256": "e7761d5f5bc60593f2f7f9c129b82fa2b6f83f8cebf815ee90fb0ae361eedca2",
-    "state": "ENDED-PARTIAL-REVIEWED",
-    "previous_sprint": "concrete-declaration-and-export-root-qualification-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-concrete-declaration-export-root-review.md",
-    "dispatcher": "Cross-lane selector chose dependency-only rev2: add frozen proof artifact/handoff hashes for implementation consumption. Proof remains rev1 conditional evidence; no semantic authority or budget transfer.",
+    "id": "authentic-source-and-forward-handler-20261017",
+    "contract": "tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json",
+    "revision": 1,
+    "sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290",
+    "state": "AUTHORS-ASSIGNED",
+    "previous_sprint": "source-constructor-instantiation-and-export-cut-20261017 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-17-source-constructor-export-cut-review.md",
+    "dispatcher": "Sprint-end proposal accepted with explicit source-authentication boundary; original F1 ForwardHandler case plus a newly materialized, non-historical source fixture/harness.",
     "proof": {
-      "state": "STOPPED-FROZEN-PENDING-SEQUENTIAL-REVIEW",
-      "assignment": "assignment-choose-operation-source-instantiation-20261017",
+      "state": "ASSIGNED-NOT-STARTED",
+      "assignment": "assignment-forward-handler-finite-action-20261017",
       "outputs": [
-        "notes/theory/2026-10-17-choose-operation-source-instantiation.md",
-        "tasks/agent-loop/inbox/20261017-choose-operation-source-instantiation.md"
+        "notes/theory/2026-10-17-forward-handler-finite-action.md",
+        "tasks/agent-loop/inbox/20261017-forward-handler-finite-action.md"
       ],
       "role": "astra_prover",
       "requested_model": "gpt-6-astra",
@@ -25,62 +25,36 @@
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 900,
       "contract_revision": 1,
-      "contract_sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
-      "receipt": "Seven stages; conservative active charge 480/900s, 420s unspent/no transfer. Conditional choose declaration/IF placement, Request/response gluing and structural D_tail specialization. Complete Sigma_choose.Lambda, independent G/Z/W, concrete source authentication and native demand transport remain open. All 52 pins match. Zero tests/builds/probes; no descendants/scratch. STOPPED.",
-      "worker_id": "/root/choose_operation_instantiation",
-      "runtime_receipt": "Explicit spawn returned /root/choose_operation_instantiation; worker acknowledgement confirms active work and STOP protocol. Session ID UNKNOWN.",
-      "artifact_sha256": "6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110",
-      "handoff_sha256": "658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81"
+      "contract_sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290"
     },
     "implementation": {
-      "state": "STOPPED-FROZEN-PENDING-SEQUENTIAL-REVIEW",
-      "assignment": "assignment-authentic-root-export-cut-20261017",
+      "state": "ASSIGNED-NOT-STARTED",
+      "assignment": "assignment-receive-choose-source-authentication-20261017",
       "outputs": [
-        "tasks/agent-loop/inbox/20261017-authentic-root-export-cut.md"
+        "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
+        "crates/yu-solver/examples/research_source_registration.rs",
+        "tasks/agent-loop/inbox/20261017-receive-choose-source-authentication.md"
       ],
       "role": "implementer",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "charge_seconds_cap": 360,
-      "contract_revision": 2,
-      "contract_sha256": "e7761d5f5bc60593f2f7f9c129b82fa2b6f83f8cebf815ee90fb0ae361eedca2",
-      "receipt": "Writer STOPPED; frozen handoff 6bb825b64d88699856cbae74c4ad0d3680e86f7185167cc9002d28be62c7c1a5; conservative charge 360/360s including 60s preflight; no descendants or scratch; zero tests/builds/probes/code/Git.",
-      "worker_id": "/root/authentic_root_export_cut",
-      "artifact_sha256": "6bb825b64d88699856cbae74c4ad0d3680e86f7185167cc9002d28be62c7c1a5"
+      "charge_seconds_cap": 600,
+      "contract_revision": 1,
+      "contract_sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290"
     },
     "review": {
-      "state": "ADJUDICATED-CLEAN-BOUNDED",
-      "budget_seconds": 300,
-      "execution": "Authors and descendants confirmed STOPPED from completed runtime receipts; fresh isolated proof review first, then implementation review after proof reviewer STOP.",
-      "current_assignment": null,
-      "receipt": "Both fresh sequential reviews CLEAN within conditional scope; proof rev1 52/52 and source rev2 54/54 direct pins match. See notes/progress/2026-10-17-source-constructor-export-cut-review.md. No parent closure.",
-      "proof_receipt": "CLEAN conditional-scope review; no blocking/major/minor correctness findings. Rev1 contract recovered at immutable e23c4b8af; 52/52 pins match. Reviewer STOPPED, no writes/descendants. Does not certify concrete emitted instance or close parent.",
-      "implementation_receipt": "CLEAN within conditional scope; 54/54 rev2 pins and both proof hashes match. Authentication, concrete root/use, §11 public cut and all parents remain OPEN. Reviewer STOPPED; no writes/descendants."
+      "state": "NOT-STARTED",
+      "budget_seconds": 360,
+      "execution": "After both authors/descendants STOP, sequential proof then implementation review."
     },
-    "open_parent": "D_tail, H1/H2/JOINT_DEC/F1/FK1/F5, source-Generalize/public-export field law, principality and production remain open.",
-    "baseline_reconciliation": {
-      "source_baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
-      "administrative_head_at_first_check": "1f624e3aa889fbdc5cf4a5bbbe70ebd45ce95440",
-      "administrative_head_at_resume_check": "5a171095344edc230003eb17fb05a988da10fd01",
-      "path_delta": "Only tasks/agent-loop/current.json and tasks/agent-loop/sprints/source-constructor-instantiation-and-export-cut-20261017.json changed from source baseline; pinned HIR/solver owner paths are byte-identical.",
-      "contract_sha256": "e7761d5f5bc60593f2f7f9c129b82fa2b6f83f8cebf815ee90fb0ae361eedca2",
-      "dependency_count": 54,
-      "dependency_state": "all 54 direct pins match",
-      "proof_artifact_sha256": "6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110",
-      "proof_handoff_sha256": "658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81",
-      "implementer_cessation": "Confirmed before writes; no descendants; output handoff absent.",
-      "dispatcher": "Keep rev2 and frozen source baseline; administrative HEAD is provenance only, direct pins authenticate inputs.",
-      "budget": "No reset or transfer; charge 60s conservative preflight against implementation 360s, leaving 300s."
-    },
-    "outcome_receipt": "notes/progress/2026-10-17-source-constructor-export-cut-review.md",
-    "outputs_committed": true,
-    "outcome_receipt_sha256": "74c17d790575bdf2e66e45a72c6e5a53779d9382ef95468f28c3570d9a568a01"
+    "open_parent": "F1 full frame inventory, FK1, FIRST-RESULT-ADEQUACY, H1/H2/JOINT_DEC/F5, source-Generalize/public-export, principality and production remain OPEN.",
+    "prior_sprint_receipt_sha256": "74c17d790575bdf2e66e45a72c6e5a53779d9382ef95468f28c3570d9a568a01"
   },
-  "candidate": "tasks/agent-loop/sprints/source-constructor-instantiation-and-export-cut-20261017.json",
+  "candidate": "tasks/agent-loop/sprints/authentic-source-and-forward-handler-20261017.json",
   "baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
-  "scope": "Apply source operation constructor to selected choose source; independently attempt authentic internal-root export cut.",
+  "scope": "Original F1 ForwardHandler action proof plus source identity tracing for one newly authored receive/choose research rendering.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -116,48 +90,26 @@
       "receipt": "Historical proof worker; current runtime does not expose identity or cessation. Preserve capacity reservation."
     },
     {
-      "id": "/root/choose_operation_instantiation",
+      "id": "assignment-forward-handler-finite-action-20261017",
       "role": "astra_prover",
-      "state": "STOPPED",
+      "state": "NOT_STARTED",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "STOPPED; artifact 6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110; handoff 658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81; 52 pins matched; seven stages, 480/900s; no descendants/scratch."
+      "session": null,
+      "receipt": "Exact lease/contract assigned; await actual spawn and current-session active-work acknowledgement."
     },
     {
-      "id": "/root/authentic_root_export_cut",
+      "id": "assignment-receive-choose-source-authentication-20261017",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "NOT_STARTED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "Completed runtime reports frozen exact handoff 6bb825b64d88699856cbae74c4ad0d3680e86f7185167cc9002d28be62c7c1a5; sole output; no descendants/scratch; charge 360/360s including 60s preflight; zero tests/builds/probes/code/Git."
-    },
-    {
-      "id": "/root/choose_operation_instantiation_review_fresh",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "UNKNOWN",
-      "requested_effort": "UNKNOWN",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "CLEAN conditional-scope review; contract rev1 recovered from immutable e23c4b8af; artifact/handoff hashes match; 52/52 pins match; no parent gate closure; no writes/descendants."
-    },
-    {
-      "id": "/root/authentic_root_export_review_fresh",
-      "role": "architect",
-      "state": "STOPPED",
-      "requested_model": "UNKNOWN",
-      "requested_effort": "UNKNOWN",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "CLEAN conditional source-owner obstruction review; handoff/contract hashes exact; 54/54 direct pins match; no authentication/public-cut/parent closure; no writes/descendants."
+      "session": null,
+      "receipt": "Exact lease/contract assigned; await actual spawn and current-session active-work acknowledgement."
     }
   ],
   "leases": [
@@ -168,18 +120,28 @@
       "reason": "Historical writer remains UNKNOWN; not visible in current runtime."
     },
     {
-      "path": "notes/theory/2026-10-17-choose-operation-source-instantiation.md",
-      "owner": "/root/choose_operation_instantiation",
-      "state": "FROZEN"
+      "path": "notes/theory/2026-10-17-forward-handler-finite-action.md",
+      "owner": "assignment-forward-handler-finite-action-20261017",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-choose-operation-source-instantiation.md",
-      "owner": "/root/choose_operation_instantiation",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261017-forward-handler-finite-action.md",
+      "owner": "assignment-forward-handler-finite-action-20261017",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-authentic-root-export-cut.md",
-      "owner": "/root/authentic_root_export_cut",
+      "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
+      "owner": "assignment-receive-choose-source-authentication-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/examples/research_source_registration.rs",
+      "owner": "assignment-receive-choose-source-authentication-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-receive-choose-source-authentication.md",
+      "owner": "assignment-receive-choose-source-authentication-20261017",
       "state": "HELD"
     }
   ],
@@ -191,35 +153,28 @@
   },
   "pending": [
     {
-      "id": "FIRST-RESULT-ADEQUACY / AM-MODEL-1",
+      "id": "F1-FORWARDHANDLER-CASE",
+      "state": "ASSIGNED",
+      "owner": "assignment-forward-handler-finite-action-20261017",
+      "needs": "Finite entry/child/exit/value-arm/future/parent-suffix actions and typed maps; full F1 stays OPEN."
+    },
+    {
+      "id": "CHOOSE-SOURCE-2 / RESEARCH-FIXTURE",
+      "state": "ASSIGNED",
+      "owner": "assignment-receive-choose-source-authentication-20261017",
+      "needs": "Authenticate only the newly materialized source fixture; no historic source identity or R_e inference."
+    },
+    {
+      "id": "FK1 / FIRST-RESULT-ADEQUACY / H1-H2 / JOINT_DEC / F5 / source-export / principality / production",
       "state": "OPEN",
-      "owner": "Original Call/effect parent",
-      "needs": "No repeat without new discriminator."
-    },
-    {
-      "id": "DPRI-DECL-1 / D_TAIL-CHOOSE-QUALIFICATION",
-      "state": "RESULT-PENDING-REVIEW",
-      "owner": "assignment-choose-operation-source-instantiation-20261017",
-      "needs": "Bounded rev1 proof result frozen and pinned in rev2; independent review still required."
-    },
-    {
-      "id": "F1-FULL / FK1-FOREIGN / H1-H2-U / JOINT_DEC / F5 / production",
-      "state": "OPEN",
-      "owner": "Original parents",
-      "needs": "Remain distinct; this source instance cannot close them."
-    },
-    {
-      "id": "SOURCE-FINAL-ROOT-EXPORT-CUT",
-      "state": "RUNNING",
-      "owner": "assignment-authentic-root-export-cut-20261017",
-      "needs": "Fresh resume acknowledgement verified before any write; bounded source-owner audit active under rev2."
+      "owner": "Original parent gates",
+      "needs": "Keep separately quantified and open; no one-instance closure."
     }
   ],
   "next_action": {
-    "state": "PROPOSED-PENDING-LUNA-VALIDATION",
+    "state": "ACTIVE-SPRINT-FROZEN",
     "selector": "/root/next_action_selector",
-    "proposal": "authentic-source-and-forward-handler-20261017; original F1 ForwardHandler finite action proof plus provisional source-authentication fixture/harness; no lease or authority granted yet.",
-    "end_consultation": "Selector consulted after both sequential reviews STOPPED; full proposal under Luna validation."
+    "proposal": "Original F1 ForwardHandler finite action proof plus newly authored receive/choose source-registration harness. Exact authority, dependencies, five output leases and resources frozen in contract."
   },
   "adoption_review": {
     "original_findings": [
@@ -230,23 +185,23 @@
   },
   "validation": "notes/progress/2026-10-16-goal-driven-sprints-validation.md",
   "resource_accounting": {
-    "historical_unknown": "Three old unknown identities and reservations remain; no capacity released.",
-    "previous_sprint": "Partial-reviewed; no seconds or lane remainder transfer.",
-    "current_sprint_id": "source-constructor-instantiation-and-export-cut-20261017",
-    "current_sprint_cap_seconds": 1800,
+    "historical_unknown": "Three UNKNOWN historical identities/reservations and quarantined tasks/agent-loop/board.md lease remain unchanged.",
+    "previous_sprint": "source-constructor-instantiation-and-export-cut-20261017 ENDED-PARTIAL-REVIEWED; receipt notes/progress/2026-10-17-source-constructor-export-cut-review.md; no seconds or lane remainders transfer.",
+    "current_sprint_id": "authentic-source-and-forward-handler-20261017",
+    "current_sprint_cap_seconds": 2400,
     "lane_budgets_seconds": {
       "proof": 900,
-      "implementation": 360,
-      "review": 300,
-      "coordination": 120,
-      "reserve": 120
+      "implementation": 600,
+      "review": 360,
+      "coordination": 180,
+      "reserve": 360
     },
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "Proof 480/900 under rev1; implementation 60s conservative preflight charge, resumed cap 300/360; review 0/300.",
-    "status": "Proof STOPPED. Implementation resumed after baseline reconciliation and explicit acknowledgement; max 300s remain; review not started.",
-    "sequencing": "Same assignment resumed after STOP, baseline reconciliation and fresh ack. Review only after implementation STOP. Three UNKNOWN reservations retained."
+    "spent_seconds": "Fresh envelope; no work started.",
+    "status": "Two author lanes ASSIGNED; require actual launch receipts before RUNNING. Three UNKNOWN reservations retained. One review slot available after author STOP; no transfers.",
+    "sequencing": "Proof and implementation may run in parallel on disjoint exact leases. Both STOP before sequential independent reviews. One primary-owned cargo run max 120s only after freeze; no tests."
   },
   "integration_outcome": "Proof artifact and handoff frozen under rev1 with exact SHA pins in rev2; conditional only and not semantically adopted.",
   "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-residual-public-export-review.md; notes/progress/2026-10-16-concrete-declaration-export-root-review.md"

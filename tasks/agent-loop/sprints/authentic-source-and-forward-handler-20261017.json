@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "sprint_id": "authentic-source-and-forward-handler-20261017",
+  "contract_revision": 1,
+  "status": "ACTIVE",
+  "branch": "research/simple-sub-intrusion",
+  "baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
+  "goal": "Advance the original inference/F5 goal by constructing the original F1 ForwardHandler action under the accepted decorated-kernel premises and tracing one explicit source rendering of the selected receive/choose graph through existing parser/HIR/candidate registration owners.",
+  "authority": "Preserve the original F1/FK1/First-Result and Call/effect quantifiers, source domain, full contexts, providers, guards, witnesses, pending suffixes, foreign continuations and later interactions. Proof results remain conditional. The source fixture is a newly materialized spelling for research and authenticates only its own emitted CST/HIR/candidate identities; it cannot be substituted for an absent historical source artifact or close source-domain correspondence. No inference/semantic/API representation changes or production cutover.",
+  "primary_approval": "Luna validated the sprint-end selector proposal against pinned F1 and source owners, corrected the source-provenance scope to an explicit newly materialized research rendering, and grants only the exact conditional proof and source-harness leases below. Three legacy UNKNOWN reservations remain quarantined; no prior budget transfers.",
+  "original_parent": {
+    "id": "Original finite F1 frame-action/Image obligation; independently FK1 and FIRST-RESULT-ADEQUACY remain separate. Source lane targets CHOOSE-SOURCE-2 for the receive/choose mathematical graph.",
+    "source": "Construct the original ForwardHandler(H, ownerSlot, K) finite action and its relation-preserving step inside the existing P3-r2 decorated-kernel packet. Independently materialize a fixed source spelling of the mathematical receive/choose graph and trace its own source identity through current parser/HIR/candidate owners.",
+    "quantifiers": "Keep fixed original Omega, nu, source root/cut, typed ports/maps, lexical environment, all saved occurrences, current C/rho, joint J, xi=(nu,K,D), admitted tau=(r,Cresume,eta), finite child/parent interactions and all providers/futures. Source artifact must retain one fixed declaration, operation occurrence and their exact CST/HIR identities; no quantifier is narrowed by a single fixture.",
+    "required_direction": "Construct explicit ForwardHandler entry, complete child image, handler exit, value arm, future forwarding and ordered parent suffix clauses; apply exactly to the original F1 case under supplied typed map/action premises. In parallel, emit a research fixture and executable inventory example using existing public parse/lower/solve/export paths; record exact identities and pass/refusal. A fixture does not establish historical provenance, phase-root R_e equality, semantic adequacy, detached export law or production behavior.",
+    "status": "OPEN"
+  },
+  "success_evidence": [
+    "Proof: finite source-level ForwardHandler action and typed current-configuration maps for entry, child, exact handler exit, value arm, requests/futures and parent suffix; constructor induction preserves original witnesses/configurations/ports. Apply only to F1 ForwardHandler case. Stop at the first missing original action/map premise. Full F1/FK1 and other original frame obligations remain open.",
+    "Implementation/source: fixed fixture bytes parse without structural recovery; report CST/source identity and exact actual declaration/use SourceNodeKeys; HIR declaration identity, operation resolution and root/occurrence ownership; invoke existing CandidateInference solve and export at the fixture-owned root without bypass; report successful exported root or exact public refusal/error. The result authenticates only the new fixture. Explicitly compare the missing historic CST/ModuleId/R_e operands and leave that crosswalk open.",
+    "No changes to compiler behavior, public API, accepted language, constraints, schemes, diagnostics, test expectations or production path. No theorem closure from source execution, HIR acceptance, candidate conflicts, or graph export."
+  ],
+  "accepted_meaning": "The original Call/effects/guards, F1/FK1 and source-Generalize contracts remain fixed. P3-r2 supplies only the conditional generated Owner dispatch repair; the independently reviewed View case remains conditional. The source harness reads existing registrations and is an evidence instrument only.",
+  "dependencies": {
+    "notes/theory/2026-10-16-owner-completion-positive-frame-presentation.md": "f7102ebb4b8b30a96c8e4d2d324c08cdf909a4dcb93d5373c4867d2b321cda9b",
+    "notes/theory/2026-10-16-owner-completion-positive-frame-presentation-r2.md": "726d6cabb6e1adb8941a4de582b48e4dbdf8a8ff561140967cdb344646851109",
+    "notes/theory/2026-10-16-call-contextual-effects-core.md": "83c3d3747e657440ac3cc240837936a978193f91d6f2f953c0a84f913df5698f",
+    "notes/theory/2026-10-16-choose-source-declaration-initial-installation.md": "b27eed06d5a3eae63b2dfacb62a1f76d01b71f92a478402b452cd8a3b3346471",
+    "notes/design/2026-10-02-typed-source-owner-realization.md": "5cbd8110736ee4d43e0c65460fa9ecf700228bfdbe9fbaa7642ea0302d86f1aa",
+    "notes/design/2026-10-02-typed-boundary-realization-draft.md": "1a5172366a1cb0d6b6cd84beac8994d6162793c217e11aef85872e642e2748bb",
+    "notes/design/2026-10-02-operation-instance-binding-package.md": "1eb2cbdb49368b0839d839d6a5e72698bb06252813b00200098e70371645c7c9",
+    "notes/design/2026-10-02-ordinary-computation-semantics-package.md": "ee3f5cf8185d516775b8915b0fda6dbb07390c3ecad7ac028eb5995581dff917",
+    "notes/design/2026-10-02-typed-computation-core-elaboration.md": "0dbd943a1254dd58c435ff295a8ac0a9d025af70ba37a17154d624da8a86ab2e",
+    "notes/design/2026-10-16-goal-driven-sprints.md": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+    "notes/progress/2026-10-16-call-contextual-effects-core-review.md": "43238a8ffdd1729fd0f0072cf87fe7009490f3da002736b6dc6cdf8f1d1a5745",
+    "notes/progress/2026-10-16-call-contextual-effects-source-review.md": "b31c213ddda255f2627d95a5ed970d424d116031c148aca7285828393c2b1b5f",
+    "notes/theory/2026-10-17-choose-operation-source-instantiation.md": "6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110",
+    "tasks/agent-loop/inbox/20261017-choose-operation-source-instantiation.md": "658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81",
+    "crates/yu-solver/Cargo.toml": "7a599e95800c67ca4688b0f91917609345a252aae6d2ea6cd0f413eb1c07893c",
+    "crates/yu-solver/src/lib.rs": "2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f",
+    "crates/yu-solver/src/shadow_apply.rs": "bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf",
+    "crates/yu-solver/src/candidate_source.rs": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38",
+    "crates/yu-solver/src/candidate_scheme.rs": "2ce5d664bdce1417379cd80767bc53643b6e40740a9fe7e942c24c2009da351e",
+    "crates/yu-solver/src/candidate_effect.rs": "44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9",
+    "crates/yu-hir/Cargo.toml": "a97f52fc6b9e577f23be4160ecdda9693bec8fe48c626d0e9b7c0e3b0c6fe8d1",
+    "crates/yu-hir/src/module.rs": "2e0c579a525efd5ac4c7ce0f06189c568ed46c7382d4576698a0b8d846c2228e",
+    "crates/yu-hir/src/module/local_source.rs": "ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5",
+    "crates/yu-hir/src/module/source_annotation.rs": "b8462b66eac24a48b6fc5e931a3d8b7c38c19bb8b2f1a7cdc4ecd9a8a7a1117f",
+    "crates/yu-hir/tests/operation_source.rs": "e6fe60c6e4c9b56ecc5164ef4ecb1b044a4cd58484941e09e27efcfc5ccb8af3",
+    "crates/yu-syntax/Cargo.toml": "567b705fabf7558250dbfa59e833d4ff04cb3041db8ed742311865d8cf3081d3",
+    "crates/yu-syntax/src/lib.rs": "18709b87b1b761374b5b81f90fcbf37d001fd7d981597e889aef05ad3f230f93"
+  },
+  "lanes": {
+    "proof": {
+      "assignment_id": "assignment-forward-handler-finite-action-20261017",
+      "role": "astra_prover",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
+      "claim": "Complete the missing original F1 ForwardHandler constructor action at the fixed typed ports of the accepted decorated kernel, with exact entry/exit/value-arm/future/parent suffix maps, and apply it to F1 without strengthening source admission or touching FK1/other frames.",
+      "method": "Reuse P3-r2 generated Owner-tag closure and the reviewed conditional View local case only at their original inputs. Derive finite fresh-handler entry beneath the current resolved owner; whole child shallow image and unchanged response/witness tuple; exact handler exit before ordinary value-arm completion; requests retain the handler/value-arm plus original parent suffix; forwarding preserves current C/rho and full futures. Give types for every typed map and induction by original constructor/finite step. Adversarially check a returning child cannot skip the value arm, a guard cannot run under selected handler, expired handler identity is not restored, and suffix order remains. First absent source action/map returns to Luna.",
+      "outputs": [
+        "notes/theory/2026-10-17-forward-handler-finite-action.md",
+        "tasks/agent-loop/inbox/20261017-forward-handler-finite-action.md"
+      ],
+      "budget": {
+        "active_seconds": 900,
+        "stages": 8,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "May run in parallel with the separate source-harness author after both exact leases are granted. Does not certify implementation or semantic completeness."
+    },
+    "implementation": {
+      "assignment_id": "assignment-receive-choose-source-authentication-20261017",
+      "role": "implementer",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "scope": "Create one frozen Yulang fixture spelling the mathematical receive/choose source positions, plus a small solver example that uses existing parse_file, lower_module_with_local_source, SourceNodeKey/HIR ownership/LocalSource resolution, CandidateInference::solve and export. Print auditable IDs and exact pass/refusal. No production/compiler/API edits and no test files.",
+      "outputs": [
+        "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
+        "crates/yu-solver/examples/research_source_registration.rs",
+        "tasks/agent-loop/inbox/20261017-receive-choose-source-authentication.md"
+      ],
+      "budget": {
+        "active_seconds": 600,
+        "stages": 7,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "Only its leased fixture/example/handoff paths. It cannot change Cargo manifests or source/API owners. A primary-owned single cargo run may be authorized after frozen output if metadata auto-discovers the example; one process <=120s, generated output isolated under /tmp/yulang-research-source-authentication-20261017. No tests."
+    }
+  },
+  "leases": [
+    {
+      "path": "notes/theory/2026-10-17-forward-handler-finite-action.md",
+      "owner": "assignment-forward-handler-finite-action-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-forward-handler-finite-action.md",
+      "owner": "assignment-forward-handler-finite-action-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
+      "owner": "assignment-receive-choose-source-authentication-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/examples/research_source_registration.rs",
+      "owner": "assignment-receive-choose-source-authentication-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-receive-choose-source-authentication.md",
+      "owner": "assignment-receive-choose-source-authentication-20261017",
+      "state": "HELD"
+    }
+  ],
+  "resources": {
+    "fresh_cap_seconds": 2400,
+    "lane_budgets_seconds": {
+      "proof": 900,
+      "implementation": 600,
+      "review": 360,
+      "coordination": 180,
+      "reserve": 360
+    },
+    "unknown_reservations": 3,
+    "max_active_and_unknown_assignments": 6,
+    "astra_assignments": 1,
+    "heavy_process_peak": 0,
+    "lightweight_probes_max": 0,
+    "review": "After both authors and descendants STOP, sequential fresh proof compiler_referee then source/code architect or regression_auditor; one primary Cargo run only after frozen outputs, max120s, isolated target dir; not a test."
+  },
+  "falsifiers": [
+    "ForwardHandler child normal return skips its source value arm; request resume bypasses it; selected handler runs its own guard while selected; expired handler activation is resurrected; owner/suffix order or admitted (r,Cresume,eta) tuple changes; a source typed map is invented or its premise omitted.",
+    "Fixture/source hash differs from bytes parsed; declaration/use SourceNodeKey points at another syntax node; HIR resolution does not point to the exact declared member; the HIR root is foreign; CandidateInference is accepted by a path bypassing normal solve/preflight; handoff reports source authentication when actual solver fails or only a synthetic detached collector was used."
+  ],
+  "non_goals": [
+    "No full F1/FK1/First-Result theorem closure, parent promotion, source-domain restriction, arbitrary-source decoration, or proof about all frame constructors.",
+    "No claim that the newly authored fixture is a pre-existing or historical source instance; no R_e/phase-root association inferred from a definition root or candidate graph root.",
+    "No compiler, API, schema, semantic, behavior, test, diagnostic, architecture, export representation or production edits. No tests, benchmarks, broad suites or nested CLI."
+  ],
+  "review": {
+    "proof": "Fresh compiler_referee, not proof author; check complete ForwardHandler action, typed maps, whole admitted tuples, requests/futures/value-arm/suffix, constructor application and exclusions.",
+    "implementation": "Fresh architect or regression_auditor, not source author; inspect fixture/parser/HIR identities, operation resolution, solve/preflight/export path, root distinction and exact errors. Separate from proof review.",
+    "budget_seconds": 360,
+    "execution": "Authors and descendants STOP first; sequential proof review then implementation review; record hashes for all frozen outputs/dependencies."
+  },
+  "dispatcher_decision": "At the previous sprint boundary, next_action_selector proposed ending the choose/export packet and moving to original F1 ForwardHandler plus a provisional source registration harness. Luna validated pins and narrowed the source claim: the fixture is newly materialized research input, never historical source provenance. Exact output leases and non-goals are frozen here.",
+  "next_consultation": "A first missing ForwardHandler typed action/map, parser or solve refusal, evidence requiring source or semantic change, any dependency/lease/resource boundary, review seam, or sprint end."
+}
