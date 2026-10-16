@@ -5,14 +5,15 @@
   "session": null,
   "active_sprint": {
     "id": "call-contextual-effects-20261016",
-    "contract": "tasks/agent-loop/sprints/call-contextual-effects-20261016-v2.json",
+    "contract": "tasks/agent-loop/sprints/call-contextual-effects-20261016-v2-amendment-1.json",
     "revision": 2,
-    "sha256": "b32ba5c51a3084bbc02761060608e2ea6eff0f5a1391d9aa7682b591f537f862",
+    "sha256": "37ba82bee8e5c7e0da71ad5f78671ce5bf1b08cdf870bc001f7f95e0b5c5519a",
     "state": "ACTIVE",
     "activation_receipt": "notes/progress/2026-10-16-call-contextual-effects-sprint-start.md",
     "migration_review": "CLOSED-CLEAN (major/minor repaired and delta reviewed)",
     "dispatcher": "start_dispatch: candidate retained; activation prerequisites resolved by Luna",
-    "dependency_revision_receipt": "notes/progress/2026-10-16-call-contextual-effects-dependency-revision.md"
+    "dependency_revision_receipt": "notes/progress/2026-10-16-call-contextual-effects-dependency-revision.md",
+    "amendment_revision": 1
   },
   "candidate": "tasks/agent-loop/sprints/call-contextual-effects.json",
   "baseline": "c4f007a8abe879b0ac5bfa0c87fd55b6c159855c",
@@ -65,35 +66,35 @@
     {
       "id": "/root/sol_source_attack",
       "role": "Sol source attack (researcher)",
-      "state": "UNKNOWN",
+      "state": "STOPPED",
       "requested_model": "UNKNOWN",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Current live collaboration reports RUNNING; acknowledged exact active contract v2 SHA-256 b32ba5c51a3084bbc02761060608e2ea6eff0f5a1391d9aa7682b591f537f862 and independently verified all 26 pinned dependency hashes. Continuing scoped source/counterexample audit; session/model/effort unavailable."
+      "receipt": "Current collaboration tool reports completion; frozen research-only source attack handoff revision 1 note SHA-256 7b7ebe509f1b013132b593e22495112f9d5d9007addf17c82d7e2de3c8fdd519 and inbox SHA-256 86a701b1623e39f8f8874f2f61d26b36316b98a0f707fe483de291afb80c6704. Rechecked all 26 base v2 dependency pins; no source-qualified counterexample; all parent gates OPEN; pending independent review."
     },
     {
       "id": "/root/luna_implementation",
       "role": "Luna implementation (implementer)",
-      "state": "STOPPED",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Current collaboration tool reports completed; worker explicitly reports STOPPED WRITING and frozen handoff SHA-256 51a6372c6716199b85565e127abcb18dca039c1d6e459cfff4dd72d18ea2f001. Session ID and observed model/effort unavailable."
+      "receipt": "Dispatcher authorized continuation revision 2 under same assignment ID. Original handoff remains frozen. Archived pre-edit test snapshot hash 91c646237401efcce24c457381bbb9c66d72cac7426b8e4f8a5cafc9df3bfa56; exact test path reopened for bounded repair only. No continuation launch acknowledgement yet."
     },
     {
       "id": "/root/implementation_review",
       "role": "independent implementation review (compiler_referee)",
-      "state": "UNKNOWN",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": null,
-      "receipt": "Live collaboration inventory reports RUNNING; fresh isolated reviewer is checking the frozen test/handoff against v2 and scoped pinned source. Session identifier unavailable; read-only review, no leased output file."
+      "receipt": "Fresh compiler_referee completed a read-only review against exact v2 and artifact hashes; accepted as provisional candidate regression evidence only. Two MINOR findings: strengthen conflict operand attribution to tick::next operation/occurrence; frozen handoff references v1 and needs primary-owned v2 reconciliation receipt. No major compiler defect identified."
     }
   ],
   "leases": [
@@ -118,14 +119,14 @@
     {
       "path": "notes/progress/2026-10-16-call-contextual-effects-source-attack.md",
       "owner": "/root/sol_source_attack",
-      "state": "QUARANTINED",
-      "reason": "Session identifier/cessation receipt unavailable; do not read or transfer the leased output until runtime state is reconciled."
+      "state": "FROZEN",
+      "reason": "Source attack completed; note and handoff are frozen awaiting independent review."
     },
     {
       "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-source-attack.md",
       "owner": "/root/sol_source_attack",
-      "state": "QUARANTINED",
-      "reason": "Session identifier/cessation receipt unavailable; do not read or transfer the leased output until runtime state is reconciled."
+      "state": "FROZEN",
+      "reason": "Source attack completed; note and handoff are frozen awaiting independent review."
     },
     {
       "path": "tasks/agent-loop/inbox/20261016-call-contextual-effects-implementation.md",
@@ -136,8 +137,8 @@
     {
       "path": "crates/yu-solver/tests/candidate_effect_annotation.rs",
       "owner": "/root/luna_implementation",
-      "state": "FROZEN",
-      "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
+      "state": "HELD",
+      "reason": "Dispatcher-approved bounded continuation revision 2 under same Luna assignment ID; only the named test may change. Worker not yet resumed; quarantine if current runtime/session is unavailable after launch."
     },
     {
       "path": "crates/yu-solver/src/candidate_source.rs",
@@ -176,7 +177,7 @@
       "reason": "Current collaboration tool reports assignment completed; frozen handoff and test-only artifact hashes recorded. Frozen for independent review; transfer awaits review."
     }
   ],
-  "worker_inventory_scope": "Current live inventory includes root, Astra core, Sol source attack, and fresh implementation reviewer; all appear RUNNING but session IDs are unavailable, so states remain UNKNOWN. Astra and Sol acknowledged exact v2 hash and verified all pinned inputs. Luna implementation is STOPPED (collaboration tool reports completed; worker froze handoff); its exact leases are FROZEN for independent review, not transferred. Historical legacy identities remain UNKNOWN/reserved as recorded. No protected untracked question/inbox paths are leased.",
+  "worker_inventory_scope": "Current inventory: root and Astra continue; Astra session metadata remains unavailable, so its state/lease are UNKNOWN/QUARANTINED. Sol has completed/STOPPED with frozen research-only note and handoff pending independent review. Luna is WAITING on dispatcher-approved same-assignment continuation r2; only candidate_effect_annotation.rs is reopened and held, with original test bytes archived at immutable r1 snapshot path. Luna runtime not yet resumed. Historical legacy identities remain UNKNOWN/reserved. No protected untracked question/inbox paths are leased.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Reconciliation completed conservatively: current live inventory checked; known historical identities, descendants and exact old paths retained; identities absent from runtime remain UNKNOWN and their known paths/resources are quarantined/reserved.",
@@ -211,12 +212,24 @@
     },
     {
       "id": "IMPLEMENTATION-REVIEW",
-      "state": "OPEN",
+      "state": "DONE",
       "owner": "fresh compiler_referee",
-      "needs": "Determine whether source Apply/native Call/root-effect test and handoff form an accepted narrow end-to-end slice; report exact limitations and any mismatches."
+      "needs": "Completed: accepted as provisional regression evidence only; see current compiler_referee receipt recorded in worker inventory. Two minor integration findings remain."
+    },
+    {
+      "id": "IMPLEMENTATION-REVIEW-FIXES",
+      "state": "OPEN",
+      "owner": "Luna primary / dispatcher ruling",
+      "needs": "Dispatcher approved bounded continuation r2 under same assignment ID; test path reopened after snapshot and versioned amendment. Await exact Luna acknowledgement, repaired output hash, and delta review. Frozen handoff must remain unchanged; add primary-owned reconciliation receipt."
+    },
+    {
+      "id": "SOL-SOURCE-ATTACK-REVIEW",
+      "state": "OPEN",
+      "owner": "fresh independent reviewer",
+      "needs": "Review frozen note/handoff against base v2 and report conditional constructions, counterexample coverage, original quantifier preservation and source/native limits."
     }
   ],
-  "next_action": "Complete fresh independent review of Luna’s frozen test-only slice; then determine whether a bounded, justified implementation follow-on fits the existing lease and sprint resources while Astra/Sol continue.",
+  "next_action": "Resume Luna same-assignment continuation r2 after recording assignment acknowledgement; Astra continues scoped proof. Review Sol’s frozen evidence and Luna’s repaired test before integration.",
   "adoption_review": {
     "reviewer": "/root/migration_review (fresh isolated spec_auditor)",
     "original_findings": [

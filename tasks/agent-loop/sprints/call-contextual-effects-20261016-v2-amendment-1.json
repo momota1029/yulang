@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "amendment_id": "call-contextual-effects-20261016-v2-implementation-r2",
+  "sprint_id": "call-contextual-effects-20261016",
+  "base_contract": "tasks/agent-loop/sprints/call-contextual-effects-20261016-v2.json",
+  "base_contract_sha256": "b32ba5c51a3084bbc02761060608e2ea6eff0f5a1391d9aa7682b591f537f862",
+  "contract_revision": 2,
+  "amendment_revision": 1,
+  "status": "ACTIVE",
+  "authority": "Dispatcher ruling permits a bounded repair continuation under the same sprint and assignment ID. This amendment grants only the one test-file write below; it does not change semantics, theorem claims, quantifiers, source domain, production authority, or resource ceilings.",
+  "review_finding": "Fresh compiler_referee accepted the original artifact only as provisional regression evidence and found two MINOR issues: weak conflict operand attribution and obsolete contract locator in the frozen handoff.",
+  "preserved_review_input": {
+    "path": "tasks/agent-loop/history/20261016-call-contextual-effects-implementation-r1.rs",
+    "sha256": "91c646237401efcce24c457381bbb9c66d72cac7426b8e4f8a5cafc9df3bfa56",
+    "identical_to_pre_amendment_path": "crates/yu-solver/tests/candidate_effect_annotation.rs",
+    "meaning": "Immutable snapshot of the exact test bytes reviewed under the base contract; retain unchanged."
+  },
+  "replaces_dependency": {
+    "base_contract_path": "crates/yu-solver/tests/candidate_effect_annotation.rs",
+    "base_sha256": "91c646237401efcce24c457381bbb9c66d72cac7426b8e4f8a5cafc9df3bfa56",
+    "replacement_research_input": "tasks/agent-loop/history/20261016-call-contextual-effects-implementation-r1.rs"
+  },
+  "authorized_output": {
+    "path": "crates/yu-solver/tests/candidate_effect_annotation.rs",
+    "owner": "/root/luna_implementation",
+    "assignment_id": "LUNA-IMPLEMENTATION",
+    "continuation_revision": 2,
+    "scope": "Only source_call_native_interface_reaches_its_root_effect_consumer. Tie the same conflict to the existing root annotation owner/position and CandidateEffectOperand::OperationInterfaceMember for the original tick::next declaration, occurrence, and effect member. Derive expected identities from retained HIR source operation/callee.",
+    "prohibitions": [
+      "No compiler instrumentation or provenance API.",
+      "No expected-behavior change.",
+      "Do not claim precise intervening propagation route from this assertion.",
+      "Do not edit other source/test files or the frozen handoff."
+    ],
+    "output_sha256": "PENDING_FROZEN_OUTPUT"
+  },
+  "frozen_inputs": {
+    "rules/goal-driven-sprints.md": "729fed88535671ebd128f0c70fd8618d2a2f7cb7df3a458698799fac9d9f1789",
+    "notes/design/2026-10-16-goal-driven-sprints.md": "2dfeb555c913d3142078de535ee4b7f68e9a27f2b91a5f0bb82d4d867db4fc4e",
+    "notes/design/2026-10-11-yulang-inference-top-level-principles.md": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+    "notes/design/2026-10-07-original-call-formation-definition.md": "4940e031b83d3d0315f17beb51ba2e952ec64ae7d57d9ae0d086024c7305ca9f",
+    "notes/design/2026-10-08-contextual-function-membership-definition.md": "0341e44bcc01b916ca5b2cd1c7e95622d8dd3b562a7c2480d2e0241542e1f5d0",
+    "notes/design/2026-10-07-complete-call-contribution-definition.md": "4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e",
+    "notes/design/2026-10-08-call-source-interface-definition.md": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c",
+    "notes/theory/2026-10-11-inference-rebuild-call-effects-proof.md": "a2662aff41d441295013d697ed730940cf0c4a820f9ebc62a1acbe53d6a66ed6",
+    "notes/theory/2026-10-16-owner-completion-positive-frame-presentation-r2.md": "726d6cabb6e1adb8941a4de582b48e4dbdf8a8ff561140967cdb344646851109",
+    "notes/theory/2026-10-16-first-result-source-judgment-preservation.md": "168075a1c6e5b77df844a258165cec1b1f383cc7f84f11843deb6c3e28853946",
+    "crates/yu-solver/src/candidate_source.rs": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38",
+    "crates/yu-solver/src/shadow_apply.rs": "bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf",
+    "crates/yu-solver/src/candidate_effect.rs": "44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9",
+    "crates/yu-solver/src/candidate_context.rs": "72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6",
+    "crates/yu-solver/src/candidate_call.rs": "cbad9cf51a05343eb7a29ab77aac520891467a8aa4edc3201ea3d91f978984a1",
+    "crates/yu-solver/tests/candidate_effect_annotation.rs": "91c646237401efcce24c457381bbb9c66d72cac7426b8e4f8a5cafc9df3bfa56",
+    "tools/inference-playground/tests/runtime.rs": "f8bebfd4eb4571e2814b83ea8473c035b429fe1eed4e07d26942a096143306ec",
+    "notes/theory/2026-10-16-owner-completion-positive-frame-presentation.md": "f7102ebb4b8b30a96c8e4d2d324c08cdf909a4dcb93d5373c4867d2b321cda9b",
+    "notes/theory/2026-10-16-parameterized-shallow-image-finite-presentation.md": "3a0bf3df4657dd0a6ccbb8690d990177ff19f30e10e91c93839b4601c634f61b",
+    "tasks/agent-loop/inbox/20261016-loop-a-proof-finite-image-003.md": "aa1e1be4d806bb302896fd07b34089bf09b2e24cc5d85463d0c0963d48582e43",
+    "notes/design/2026-10-16-primitive-interaction-graph-proposal-r2.md": "a1929f54e77335c413cc20230100bc9cad4d98bec4b51f6464db39417a07d63e",
+    "notes/design/2026-10-02-typed-source-owner-realization.md": "5cbd8110736ee4d43e0c65460fa9ecf700228bfdbe9fbaa7642ea0302d86f1aa",
+    "notes/design/2026-10-02-ordinary-computation-semantics-package.md": "ee3f5cf8185d516775b8915b0fda6dbb07390c3ecad7ac028eb5995581dff917",
+    "notes/design/2026-10-05-source-contracts-and-common-allowance.md": "1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186",
+    "notes/design/2026-10-02-typed-boundary-realization-draft.md": "1a5172366a1cb0d6b6cd84beac8994d6162793c217e11aef85872e642e2748bb",
+    "crates/yu-solver/src/lib.rs": "2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f"
+  },
+  "resource_delta": {
+    "new_worker": false,
+    "new_assignment": false,
+    "astra_assignment": false,
+    "budget_reset": false,
+    "heavy_process_limit": "unchanged; one focused regression rerun only; generated output authorized only for existing Cargo target scratch."
+  },
+  "handoff_disposition": "Keep tasks/agent-loop/inbox/20261016-call-contextual-effects-implementation.md byte-for-byte at SHA-256 51a6372c6716199b85565e127abcb18dca039c1d6e459cfff4dd72d18ea2f001. Luna primary will create a separate reconciliation receipt after delta review.",
+  "open_gates": [
+    "F1",
+    "FK1",
+    "FIRST-RESULT-ADEQUACY",
+    "production cutover"
+  ]
+}
