@@ -72,13 +72,28 @@
   },
   "limits": "Fresh budget, no carryover; proof-referee review before architecture writing; architecture then architect/spec review; one author at a time; no code/tests/Cargo/probes/builds; three historical UNKNOWN reservations and quarantined board lease retained.",
   "review": {
-   "state": "COMPILER-REFEREE-READY",
+   "state": "COMPILER-REFEREE-RUNNING",
    "required": [
     "compiler_referee"
    ],
    "budget_seconds": 120,
    "target_sha256": "cc9aee77661de00ac011a9da411b385e9e440277bb194bc13a83d71f973b0719",
-   "handoff_sha256": "8846a6804f1fe33cb66df54eee88642f57775d9d9f819a93d7e7eef0d75e13b3"
+   "handoff_sha256": "8846a6804f1fe33cb66df54eee88642f57775d9d9f819a93d7e7eef0d75e13b3",
+   "assignment": {
+    "id": "NPAIR-TRANSPORT-PROOF-REVIEW-20261017",
+    "worker_id": "/root/npair_transport_proof_review",
+    "role": "compiler_referee",
+    "state": "RUNNING",
+    "session": "current-session",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "medium",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "cap_seconds": 120,
+    "target_sha256": "cc9aee77661de00ac011a9da411b385e9e440277bb194bc13a83d71f973b0719",
+    "handoff_sha256": "8846a6804f1fe33cb66df54eee88642f57775d9d9f819a93d7e7eef0d75e13b3",
+    "active_work_receipt": "Fresh read-only review launched in current session; exact target and handoff frozen; no descendants."
+   }
   }
  },
  "candidate": "tasks/agent-loop/sprints/npair-whole-presentation-transport-architecture-20261017.md",
@@ -129,6 +144,17 @@
    "observed_effort": "UNKNOWN",
    "session": "current-session",
    "receipt": "Writer STOPPED after freeze; seven stages; 516s observed, 600s conservatively charged. Conditional anchor/J2 derivation; full native rho_u OPEN."
+  },
+  {
+   "id": "/root/npair_transport_proof_review",
+   "role": "compiler_referee",
+   "state": "RUNNING",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "receipt": "Fresh exact-artifact conditional-proof review; 120s cap; read-only; no descendants."
   }
  ],
  "leases": [
@@ -158,8 +184,8 @@
   },
   {
    "id": "NPAIR whole-presentation rho_u at install/capture/fresh use",
-   "state": "PENDING-INDEPENDENT-REVIEW",
-   "owner": "fresh compiler_referee"
+   "state": "INDEPENDENT-REVIEW-RUNNING",
+   "owner": "/root/npair_transport_proof_review"
   },
   {
    "id": "N-Transport extrusion/intrusion and association completeness",
@@ -196,8 +222,9 @@
   "astra_assignments": 0,
   "charged_total_seconds": 600,
   "review_reserved": 360,
-  "status": "Proof author STOPPED at 600/1200s; proof referee review ready; architecture author waits for adjudication.",
-  "authors_spent_seconds": 600
+  "status": "Proof author STOPPED at 600s; compiler-referee review RUNNING under 120s cap; Luna architecture waits.",
+  "authors_spent_seconds": 600,
+  "review_spent_seconds": 0
  },
  "history": "Prior proof, proposal adoption and corrected readiness plan hashes are pinned in the sprint contract. Previous correction closeout fe7aea7e is archived and pushed in 12a7eae7d. Three UNKNOWN reservations remain quarantined; unrelated dirty sprint file preserved.",
  "checkpoint_commits": [
