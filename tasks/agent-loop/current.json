@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-snapshot-owner-interface-20261017.md",
     "revision": 1,
     "sha256": "243525db31b3999778f6fd79eeb3de52399cff0e1a864c555615bb55bf6afed5",
-    "state": "READY-TO-LAUNCH-READINESS-FIRST",
+    "state": "PROOF-WAITING-TO-START",
     "baseline": "7a281f6e4ecfc34dc9b9a722714d845e205e17bd",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "fixed_outcome": "Qualify stable complete read-only snapshot borrowing and evidence enumeration across InferenceSession, candidate_effect::State, candidate_context::State and GraphState; produce owner table/proposed interface and independent lifetime/completeness proof, or exact blocker.",
@@ -30,25 +30,27 @@
       "reviews_cap_seconds": 180,
       "coordination_seconds": 60,
       "reserve_seconds": 0,
-      "charged_seconds": 0,
+      "charged_seconds": 300,
       "active_authors": 0,
-      "status": "Ready only. Readiness 240s first, proof 240s after STOP, three sequential reviews 60s each, coordination 60s, no reserve/extension."
+      "status": "60s coordination + 240s Luna readiness charged; readiness STOPPED. Sol/high proof is next, capped at 240s; reviews 3x60s follow; no reserve."
     },
     "lanes": {
       "implementation_readiness": {
         "owner": "/root",
         "role": "Luna/high",
-        "state": "READY",
+        "state": "STOPPED",
         "outputs": [
           "notes/design/2026-10-17-npair-snapshot-owner-interface.md",
           "tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md"
         ],
-        "compiler_lease": false
+        "compiler_lease": false,
+        "design_sha256": "45b789c89c81cf335b25e6ff79b622572cf5d6e4d58932023ab8fe7843225e27",
+        "handoff_sha256": "cef3388c3887e71cb292782a7813191f83ba467593fff4c5fe89408a95bdfafd"
       },
       "proof": {
         "owner": "/root/npair_snapshot_borrow_enumeration",
         "role": "prover (Sol/high)",
-        "state": "WAITING-FOR-READINESS-STOP",
+        "state": "NOT_STARTED",
         "outputs": [
           "notes/theory/2026-10-17-npair-snapshot-borrow-enumeration.md",
           "tasks/agent-loop/inbox/20261017-npair-snapshot-borrow-enumeration.md"
@@ -59,6 +61,14 @@
       {
         "path": "tasks/agent-loop/sprints/npair-snapshot-owner-interface-20261017.md",
         "sha256": "243525db31b3999778f6fd79eeb3de52399cff0e1a864c555615bb55bf6afed5"
+      },
+      {
+        "path": "notes/design/2026-10-17-npair-snapshot-owner-interface.md",
+        "sha256": "45b789c89c81cf335b25e6ff79b622572cf5d6e4d58932023ab8fe7843225e27"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md",
+        "sha256": "cef3388c3887e71cb292782a7813191f83ba467593fff4c5fe89408a95bdfafd"
       }
     ],
     "non_goals": [
@@ -115,13 +125,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole Git integrator",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Owns current.json and readiness outputs; readiness waits to start until sprint contract/state checkpoint is frozen."
+      "receipt": "Luna readiness STOPPED after read-only audit; design and handoff frozen with hashes in artifacts. No code or execution."
     },
     {
       "id": "/root/npair_snapshot_borrow_enumeration",
@@ -134,7 +144,7 @@
       "session": null,
       "cap_seconds": 240,
       "elapsed_seconds_charged": 0,
-      "receipt": "Exact leases frozen; launch prohibited until Luna readiness STOP."
+      "receipt": "Exact leases frozen; readiness STOPPED. Ready to launch independent Sol/high proof under 240s cap."
     }
   ],
   "leases": [
@@ -203,7 +213,7 @@
     }
   ],
   "next_action": {
-    "state": "OWNER-INTERFACE-SPRINT-READY-NOT-LAUNCHED",
+    "state": "READINESS-STOPPED-PROOF-NEXT",
     "dispatcher": "Selector chose Luna/high 240s owner-local snapshot-interface audit followed by Sol/high 240s borrow/enumeration proof; 3 reviews x60s; 60 coordination; cap720, no reserve.",
     "implementation": "Inspect four exact owners and define an audited borrowed evidence interface, deterministic qualifying enumeration, shared witness traversal and full repeated-work/storage accounting; identify blocker if absent.",
     "proof": "After readiness STOP, independently prove mutation exclusion, complete evidence, owner identity separation and expiry before rollback/reuse.",
@@ -218,12 +228,12 @@
     "reviews_cap_seconds": 180,
     "coordination_seconds": 60,
     "reserve_seconds": 0,
-    "charged_total_seconds": 0,
+    "charged_total_seconds": 300,
     "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "READY only; 3 historical UNKNOWN reservations and quarantined board preserved; no transfer."
+    "status": "60s coordination + 240s Luna readiness charged; readiness STOPPED; Sol/high proof next under 240s cap. Three historical UNKNOWN reservations preserved."
   },
-  "history": "Prior forward source-witness sprint closed REVIEWED-PARTIAL and pushed at a868fbe59334a90337e1a5daa8880c09440de70b; progress receipt notes/progress/2026-10-17-npair-forward-source-witness.md. New 1440s sprint contract frozen at 49d0676e745fc8b0c75f36ea20fd813b11d4f57d017756280488bc5aafa96c71 on baseline a868fbe. Proof is constrained to adopted visible clauses; exact selected 7dd4520d proof bytes unavailable and ead206bf cannot substitute. Readiness is one-shot snapshot-only; no code authority. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Operation supplier/snapshot-validator sprint closed REVIEWED-PARTIAL at c65445d347a7ee32b547c71920fde3da62776aeff29593b6b0b94ca6ed26bc94. Proof is boundary-only; readiness Draft is structural-only and unevaluated in code. Major implementation prerequisite is owner-local stable full-state read API/enumeration; minor traversal/accounting definition. No compiler changes. Parent OPEN. Selector chose bounded snapshot-owner interface readiness then independent borrow/enumeration proof (720s, no reserve); core Operation constructor stays WAITING for actual authority/input. No workers or leases started. Operation supplier/snapshot-validator sprint closed REVIEWED-PARTIAL and pushed at 7a281f6e4; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. New owner-interface sprint contract frozen at 243525db31b3999778f6fd79eeb3de52399cff0e1a864c555615bb55bf6afed5 on baseline 7a281f6e4. Readiness first, independent proof second, 3 fresh reviews; 720s cap, no reserve. Core eta_op/realization_op remains WAITING for actual adopted constructor input. Preserve foreign dirty JSON and unknown reservations.",
+  "history": "Prior forward source-witness sprint closed REVIEWED-PARTIAL and pushed at a868fbe59334a90337e1a5daa8880c09440de70b; progress receipt notes/progress/2026-10-17-npair-forward-source-witness.md. New 1440s sprint contract frozen at 49d0676e745fc8b0c75f36ea20fd813b11d4f57d017756280488bc5aafa96c71 on baseline a868fbe. Proof is constrained to adopted visible clauses; exact selected 7dd4520d proof bytes unavailable and ead206bf cannot substitute. Readiness is one-shot snapshot-only; no code authority. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Operation supplier/snapshot-validator sprint closed REVIEWED-PARTIAL at c65445d347a7ee32b547c71920fde3da62776aeff29593b6b0b94ca6ed26bc94. Proof is boundary-only; readiness Draft is structural-only and unevaluated in code. Major implementation prerequisite is owner-local stable full-state read API/enumeration; minor traversal/accounting definition. No compiler changes. Parent OPEN. Selector chose bounded snapshot-owner interface readiness then independent borrow/enumeration proof (720s, no reserve); core Operation constructor stays WAITING for actual authority/input. No workers or leases started. Operation supplier/snapshot-validator sprint closed REVIEWED-PARTIAL and pushed at 7a281f6e4; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. New owner-interface sprint contract frozen at 243525db31b3999778f6fd79eeb3de52399cff0e1a864c555615bb55bf6afed5 on baseline 7a281f6e4. Readiness first, independent proof second, 3 fresh reviews; 720s cap, no reserve. Core eta_op/realization_op remains WAITING for actual adopted constructor input. Preserve foreign dirty JSON and unknown reservations. Luna snapshot-owner readiness STOPPED with design 45b789c and handoff cef3388; exact interface gaps and traversal/lifetime constraints frozen. No code/execution. Independent proof lane is next.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
