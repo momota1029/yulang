@@ -204,7 +204,7 @@
     "unknown_reservations_preserved": 3,
     "status": "120s coordination charged. Astra proof within the same 900s cap; additional source reliance waits for acknowledged revision-2 pins. No authority, writer, or budget changed."
   },
-  "history": "Current branch HEAD/tracking matched at 4685eef7efb59314dc9d96cfcae692d1e09000fe; only unrelated authentic-source/forward-handler JSON is dirty. Previous producer proof was CLEAN reviewed; compiler implementation still waits for exact user approval. New fresh proof/readiness sprint follows the identified authentic-seed/processing antecedent frontier. Preserve parent OPEN, three UNKNOWN reservations and board quarantine. Fresh authenticated-seed proof sprint and active receipt pushed as 0aa192a88. Dispatcher authorized append-only sprint revision 2 for three read-only physical-emission/source-contribution dependencies; proof author paused reliance pending new-pin acknowledgement, same 900s cap.",
+  "history": "Current branch HEAD/tracking matched at 4685eef7efb59314dc9d96cfcae692d1e09000fe; only unrelated authentic-source/forward-handler JSON is dirty. Previous producer proof was CLEAN reviewed; compiler implementation still waits for exact user approval. New fresh proof/readiness sprint follows the identified authentic-seed/processing antecedent frontier. Preserve parent OPEN, three UNKNOWN reservations and board quarantine. Fresh authenticated-seed proof sprint and active receipt pushed as 0aa192a88. Dispatcher authorized append-only sprint revision 2 for three read-only physical-emission/source-contribution dependencies; proof author paused reliance pending new-pin acknowledgement, same 900s cap. Revision-2 read-only dependency pins and waiting-for-ack state pushed as 77cf984a6.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
@@ -214,7 +214,8 @@
     "49ce68f2a",
     "2bed9df18",
     "4685eef7e",
-    "0aa192a88"
+    "0aa192a88",
+    "77cf984a6"
   ],
   "waiting_sprint": {
     "id": "npair-concrete-producer-realization-20261017",
