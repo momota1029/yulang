@@ -8,16 +8,19 @@
     "contract": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
     "revision": 1,
     "sha256": "3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf",
-    "state": "ACTIVE-ASTRA-PROOF-IMPLEMENTATION-WAITING-APPROVAL",
+    "state": "PROOF-RESULT-FROZEN-WAITING-REVIEW-AND-CODE-APPROVAL",
     "baseline": "d1b706e83",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "proof": {
-      "state": "RUNNING-ACTIVE-RECEIPT-RECEIVED",
+      "state": "STOPPED-FROZEN",
       "owner": "astra_prover",
       "cap_seconds": 720,
       "artifact": "notes/theory/2026-10-17-npair-concrete-producer-refinement.md",
       "handoff": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-refinement.md",
-      "receipt": "ACTIVE current-session receipt received; accepts exact two-path lease and 720s/five-stage bound; no descendants/compiler execution."
+      "receipt": "Astra STOPPED after five stages; all pins matched; no source edits/execution/descendants. First authentic At gap is authenticated ordinary seed plus processing antecedents tied to Permission descriptor.",
+      "elapsed_seconds_charged": 720,
+      "artifact_sha256": "ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389",
+      "handoff_sha256": "bbd3314e965224379648a4633f54c21a630b62598e34d31a6114593c1d2c4103"
     },
     "implementation": {
       "state": "WAITING-EXPLICIT-USER-APPROVAL",
@@ -29,7 +32,7 @@
       "receipt": "Exact reviewed contract is integrated; no code lease until approval is recorded."
     },
     "review": {
-      "state": "NOT-STARTED",
+      "state": "WAITING-FOR-APPROVAL-AND-PROOF-REVIEW-PLAN",
       "sequence": [
         "compiler_referee:120s",
         "architect:120s",
@@ -98,14 +101,15 @@
     {
       "id": "/root/npair_concrete_producer_refinement",
       "role": "astra_prover, bounded concrete-only producer refinement proof author",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "cap_seconds": 720,
-      "receipt": "ACTIVE current-session receipt received; accepts exact two-path lease and 720s/five-stage bound; no descendants/compiler execution."
+      "receipt": "STOPPED; frozen exact proof/handoff hashes; no descendants. Conditional producer correspondence and precise authenticated-At obstruction.",
+      "elapsed_seconds_charged": 720
     }
   ],
   "leases": [
@@ -128,12 +132,14 @@
     {
       "path": "notes/theory/2026-10-17-npair-concrete-producer-refinement.md",
       "owner": "/root/npair_concrete_producer_refinement",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-refinement.md",
       "owner": "/root/npair_concrete_producer_refinement",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "bbd3314e965224379648a4633f54c21a630b62598e34d31a6114593c1d2c4103"
     }
   ],
   "pending": [
@@ -177,12 +183,12 @@
     "reviews_cap_seconds": 360,
     "coordination_seconds": 120,
     "reserve_seconds": 120,
-    "charged_total_seconds": 120,
-    "active_authors": 1,
+    "charged_total_seconds": 840,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "120s coordination charged. Astra proof active within 720s cap; implementation remains unleased pending explicit user approval."
+    "status": "120s coordination + full 720s proof envelope charged. Proof STOPPED; implementation remains unleased pending approval; review allocations unused."
   },
-  "history": "Previous NPAIR proof/contract sprint reviewed and committed/pushed as d1b706e83; all bounded reviews CLEAN after two major and one minor draft repairs. Conditional code proposal only; no compiler edits. New proof-first sprint is active while exact compiler approval is pending. Earlier structural-retention milestone remains notes/progress/2026-10-17-local-use-retention-implementation-closeout.md SHA 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Three UNKNOWN reservations, quarantined board lease, and unrelated modified JSON preserved. New sprint contract and Astra proof active receipt checkpointed and pushed as f17af2636; only exact proof paths are leased.",
+  "history": "Previous NPAIR proof/contract sprint reviewed and committed/pushed as d1b706e83; all bounded reviews CLEAN after two major and one minor draft repairs. Conditional code proposal only; no compiler edits. New proof-first sprint is active while exact compiler approval is pending. Earlier structural-retention milestone remains notes/progress/2026-10-17-local-use-retention-implementation-closeout.md SHA 674e67dc9f8a3484c58a2b706b8e634ed8b3ffa80495618bb3706d6fdd110087. Three UNKNOWN reservations, quarantined board lease, and unrelated modified JSON preserved. New sprint contract and Astra proof active receipt checkpointed and pushed as f17af2636; only exact proof paths are leased. Astra concrete-producer refinement proof frozen (720s charged) at ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389; handoff bbd3314e965224379648a4633f54c21a630b62598e34d31a6114593c1d2c4103. Authenticated-At frontier remains open at ordinary seed/processing antecedents.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
