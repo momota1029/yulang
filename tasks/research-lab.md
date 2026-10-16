@@ -483,6 +483,29 @@ does not prove it. A new independent 20-minute prover packet owns
 `notes/theory/2026-10-16-choose-producer-full-source-certificate.md`, constructing
 the ordinary f Value-entry full certificate and finite source description
 choices without assuming f membership, actual k, h/Catch admission or MODEL.
+That supplier is now independently mathematical/source CLEAN at repaired
+producer `eed54db7...b6a058`. One accepted MAJOR required the existing exact
+singleton relative H_f/B_H/S construction DURING membership, because admitted
+carriers may capture the tested H_f. The repaired proof closes all four sorts
+together, preserving every hole-dependent/non-source/divergent/future carrier.
+It supplies full f at one legitimate original-scope beta instance, with the
+two distinct port terms Ctrl/Ctrl and complete Sigma/world/map inputs; no native
+or Gamma-scheme theorem follows. M2 two reviewers, one batched repair and focused
+deltas; 15 dependency pins and static note checks, zero executable measurements.
+The complementary concrete Catch owner audit returns no artifact. It identifies
+a fresh receive-boundary B and original outer owner U: initial q precedes any
+g/result/arm receipt, and forwarding creates no U receipt of B's exposed view.
+Authenticating that exact prefix can exclude B protection against U even while
+receive is live, without claiming an empty profile. Original default applicability,
+all inherited profiles, Covers/activity, full OpCompat and normal-return/default
+branches still need their actual construction. Source RootCompGrant is absent.
+Prover `ordinary_carrier_proof` now owns the 25-minute disjoint packet
+`notes/theory/2026-10-16-choose-context-and-catch-source-construction.md`.
+Its order is independently formed root/open arm/Phi_B^H/d0, then selection/
+OpCompat and full f(d0), actual T_e/k and complete Catch. Actual T_e may not be
+used to type the arm needed for that same d0. New declared-value introductions
+must reuse the positive relative kernel; none may assume closed hole-dependent
+carriers prematurely. Profile/native/runtime parents remain distinct OPEN gates.
 An independent selector found no further proved runtime matcher expansion.
 The next runtime owner is Function-result projection: ground RootCompReturn
 uses ground(value), which cannot establish callable latent paths. A new

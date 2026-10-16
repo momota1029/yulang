@@ -418,9 +418,17 @@ Status: full objective remains active. Native extrusion now schedules current co
   Γ/d0/full-f/phase/map premises. Whole context/primitive supply, actual-k
   discharge, Catch/OpCompat and the ENTIRE installed support remain OPEN.
   The independent constituent audit found no authenticated separating tuple;
-  it is supporting evidence, not proof certification. A new bounded supplier
-  lane now constructs the actual ordinary choose producer's full f certificate,
-  preserving all admitted effectful/divergent/non-source carriers.
+  it is supporting evidence, not proof certification. The [choose-producer supplier](../notes/theory/2026-10-16-choose-producer-full-source-certificate.md)
+  now has CLEAN mathematical/source delta review after a carrier-domain MAJOR.
+  It constructs two distinct original E_A/E_R Desc ports and one legitimate
+  Ctrl/Ctrl source-term instance, using the ORIGINAL E_t<=E_A formula rather
+  than a negative literal permission cap. Exact-singleton H_f/B_H/S introduction
+  closes f, worlds and carriers together, including carriers that capture the
+  tested f; no closed plugged carrier is assumed during membership. This
+  supplies actual full f for this case under independent complete Sigma/maps,
+  not a generic Gamma scheme or native MODEL. A new source-context lane now
+  constructs punctured d0, initial receiver/receipt/profile flow and Catch/
+  OpCompat in the noncircular order: open arm first, actual T_e/k only afterward.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,

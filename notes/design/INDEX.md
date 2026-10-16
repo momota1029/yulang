@@ -137,6 +137,12 @@ This index is a navigation aid. The listed source document remains authoritative
   foreign rewrite, whole-k input cap or runtime implementation. Concrete
   context/Catch admission, full installed support and native/global parents
   remain OPEN.
+  The [full choose-producer certificate](../theory/2026-10-16-choose-producer-full-source-certificate.md)
+  now has CLEAN mathematical/source correction review. It constructs one beta
+  source instance and applies the existing exact-singleton relative kernel
+  during membership, retaining carriers which capture the tested f. This
+  discharges that case's full-f supplier under independent complete primitive/
+  world/map inputs; concrete context/Catch, schemes and native parents stay OPEN.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children
