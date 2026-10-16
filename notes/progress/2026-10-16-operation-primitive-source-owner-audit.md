@@ -1,7 +1,7 @@
 # Source operation declarations and the original primitive boundary
 
 Date: 2026-10-16
-Status: frozen research source audit; unreviewed
+Status: frozen source audit reviewed CLEAN within bounded source/contract scope
 Claim class: bounded constructor/consumer characterization and conditional source map
 Baseline: `48ef843ef20fe8856bc51c59a4264c3e7a62e584`, `research/simple-sub-intrusion`
 Exclusive lease: this note; source/contract audit only, no compiler changes
@@ -217,7 +217,9 @@ Commit packet:
 
 - Exact lease/change: `notes/progress/2026-10-16-operation-primitive-source-owner-audit.md`.
 - Baseline: `48ef843ef20fe8856bc51c59a4264c3e7a62e584`; no dependency edits.
-- Review: frozen unreviewed research characterization; no self-certification.
+- Review: paired `compiler_referee` and `spec_auditor` reviews are CLEAN within
+  the bounded source/contract characterization. No self-certification,
+  universal image discharge, source-validity or adoption claim.
 - Checks: static owner/contract reads and note integrity/hash checks only.
 - Proposed commit: `research: trace operation source owners to primitive contract boundary`.
 - Shared deltas intentionally left for primary/curator: retain the distinction

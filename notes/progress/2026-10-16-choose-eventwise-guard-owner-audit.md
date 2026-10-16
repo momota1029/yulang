@@ -1,7 +1,7 @@
 # Choose eventwise guards: source-owner audit
 
 Date: 2026-10-16
-Status: frozen, unreviewed research-only source audit
+Status: bounded source audit reviewed CLEAN; research only
 Claim class: bounded documentary characterization and conditional field derivation
 Baseline: `ef44424fd9c1d5929e8d5b9a203c410f2c7c40d5`
 Exclusive lease: this file only
@@ -155,8 +155,8 @@ e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240  notes/theory/2
 - Exact leased path: `notes/progress/2026-10-16-choose-eventwise-guard-owner-audit.md`.
 - Baseline: `ef44424fd9c1d5929e8d5b9a203c410f2c7c40d5`.
 - Changed dependency hashes: none at capture; revalidate before integration.
-- Review status: unreviewed producer audit; no independent certification or
-  theorem/production promotion.
+- Review status: `compiler_referee` and `spec_auditor` reviews are CLEAN within
+  scope. No independent theorem certification or production promotion.
 - Checks already run: static owner reads/searches, direct input hashes and
   baseline path comparison; final static integrity recheck at handoff.
 - Proposed commit message: `research: map choose eventwise guard suppliers to source owners`.

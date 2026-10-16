@@ -1,7 +1,7 @@
 # Operation declarations: concrete source image construction and abstraction boundary
 
 Date: 2026-10-16
-Status: research construction; unreviewed; no semantic adoption or implementation authority
+Status: bounded construction reviewed CLEAN; no semantic adoption or implementation authority
 Claim class: bounded source-constructor derivation and exact missing original clause
 Baseline: `48ef843ef20fe8856bc51c59a4264c3e7a62e584`, `research/simple-sub-intrusion`
 Exclusive lease: this file only; static prover leaf; no further delegation
@@ -475,8 +475,10 @@ Commit packet:
 - Baseline: `48ef843ef20fe8856bc51c59a4264c3e7a62e584`.
 - Changed dependency hashes: none observed; final static check compares all
   above current bytes with the pinned commit and checks recorded hashes.
-- Claim/review: unreviewed bounded source construction and conditional local
-  expansion; no original universal theorem or native implementation closure.
+- Claim/review: `compiler_referee` and `spec_auditor` reviews are CLEAN within
+  scope for this construction and its paired source-owner audit. Primary
+  accepts only the conditional local expansion and exact missing-clause
+  boundary; no original universal theorem or native implementation closure.
 - Checks: source/rule/pin inspection; Markdown links/fences/whitespace and
   exact dependency/hash/scope checks on handoff; no executable verification.
 - Proposed checkpoint: `research: construct operation source image and isolate abstraction clause`.

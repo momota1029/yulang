@@ -1,8 +1,9 @@
 # Runtime entry-plan import: source-owner audit
 
 Date: 2026-10-16
-Status: frozen, unreviewed static source characterization; no theorem closure,
-architecture selection, compiler change or production authority.
+Status: frozen static source characterization reviewed CLEAN within bounded
+source/authority scope; no theorem closure, architecture selection, compiler
+change or production authority.
 Baseline: `516cdedd9bb52f4f1d1e28a4f69f388d3c481bee`.
 Lease: this note only. Method: trace actual constructor outputs and public
 playground argument flow; no executable experiment.
@@ -169,7 +170,8 @@ mutation. Primary owns review and executable verification.
 
 - Exact leased/changed path: `notes/progress/2026-10-16-runtime-entry-plan-import-owner-audit.md`.
 - Baseline: `516cdedd9bb52f4f1d1e28a4f69f388d3c481bee`; changed dependency hashes: none.
-- Review status: unreviewed producer characterization; no independent certification.
+- Review status: `spec_auditor` review CLEAN within bounded source/authority
+  scope. No independent theorem certification or production promotion.
 - Checks: static constructor/consumer trace, 18 pinned dependency byte/hash
   comparisons, local link/whitespace/fence integrity; zero executable checks.
 - Proposed checkpoint: `research: map runtime typed-plan supplier and import owners`.

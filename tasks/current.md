@@ -102,15 +102,21 @@ Status: full objective remains active. Native extrusion now schedules current co
   invalid source or counterexample. Generic discharge, principality, adoption
   and cutover stay OPEN.
 
-- **Original primitive declaration image action:** a changed-method prover is
-  constructing the actual operation-declaration-local handler image law, while
-  an independent source map traces `SourceOperationDeclaration` through HIR,
-  native signature formation and the Catch consumer. The current source node
-  fixes signature identity and the operation's request/return/consumer phases;
-  it does not itself select the abstract W/Z output-provider contracts. The
-  generic unanchored primitive alternative therefore remains OPEN pending the
-  frozen derivation and source audit. No new primitive interpretation,
-  architecture, implementation or cutover is selected.
+- **Original primitive declaration image action:** the
+  [conditional source construction](../notes/theory/2026-10-16-operation-primitive-image-contract-construction.md)
+  and [actual HIR/native/VM owner trace](../notes/progress/2026-10-16-operation-primitive-source-owner-audit.md)
+  have CLEAN independent mathematical and source/contract review. The
+  authentic declaration determines signature identity and source
+  lookup/return/request/consumer phases; its finite local expansion preserves
+  the original upper-demand solution set when the named source laws hold. It
+  preserves the same full `G/W/Z` root and does not discharge the unanchored
+  Z or W image-to-U clause. The concrete root's complete W/Z contracts and
+  effective image action remain unselected. The original universal A/B,
+  principality, adoption and cutover gates remain OPEN; no implementation or
+  source-domain narrowing is selected. A bounded architecture review found
+  no decision-ready W/Z alternatives and no supplier for the full contract;
+  a source-owner audit is checking whether actual primitive constructors
+  define the missing fields before any design question is raised.
 
 - **Choose caller registration boundary:** the reviewed
   [caller-registration construction](../notes/theory/2026-10-16-choose-bootstrap-caller-registration-construction.md)
@@ -120,9 +126,19 @@ Status: full objective remains active. Native extrusion now schedules current co
   `JointRegistryScopeCurrentAuthorityIncidence(C0,w0,e0;xi)` and the separate
   license/incidence fields. No `j0/a0`, valid-world premise or empty-world
   marker is assumed; Sigma/world/Initial and full-f0 remain OPEN. The next
-  constructors are this exact source-root guard introduction and the original
-  eventwise history/transition suppliers, now on separate prover and source-map
-  leases. Checkpoint `ef44424fd`.
+  [semantic-introduction stop](../notes/theory/2026-10-16-choose-caller-registration-semantic-introduction.md)
+  and [eventwise owner audit](../notes/progress/2026-10-16-choose-eventwise-guard-owner-audit.md)
+  are also CLEAN under independent mathematical and source/authority reviews.
+  They identify the unenumerated dependent guard interpretation/root
+  introduction and the separate compatible-history update at actual
+  transitions. A read-only architecture pass found no concrete behavior change
+  or mandatory user decision yet; the next authorized candidate must supply
+  every original field at its scope without defining j0/a0 as its own premise.
+  A bounded candidate-construction proof is testing whether those original
+  fields have genuine source suppliers; no behavior-changing J-to-J_new
+  choice is established. This does not close registration, Sigma/world,
+  eventwise validity, Initial or full-f0. Checkpoints `ef44424fd` and
+  `46ce38136`/`3c65cfa9b`.
 
 - **Callable execution-view source/VM handoff:** the bounded
   [construction and transport note](../notes/theory/2026-10-16-runtime-callable-view-construction-and-transport.md)
@@ -134,7 +150,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   this is a proposed handoff, not current behavior or an adopted architecture.
   Source-plan import/export, general typed-map transport, Initial/Catch,
   native-plan supply and production remain OPEN. No code or tests changed.
-  Checkpoint `eb4de2ff9`.
+  The subsequent [actual plan-import owner audit](../notes/progress/2026-10-16-runtime-entry-plan-import-owner-audit.md)
+  is independently source-reviewed CLEAN. It finds that `execute()` discards
+  `CandidateInference`, `from_hir()` receives only HIR and Name evidence, and
+  the current source-plan observer returns no plan for a Value(Function)
+  formal. The native Catch result coordinates are not imported as the
+  continuation answer interface. This pinpoints separate semantic supplier
+  and runtime importer obligations; it selects neither. Separate bounded
+  constructive and source-owner lanes are testing whether the original
+  Value(Function) formal and both Calls have a checked T supplier. Checkpoint
+  `eb4de2ff9` and source audit `fae7be0c6`.
 
 - **All four primitive computation roots receive locally:** the
   [uniform source theorem](../notes/theory/2026-10-16-primitive-computation-root-receiving.md)

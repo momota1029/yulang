@@ -1,7 +1,7 @@
 # Choose caller registration: semantic introduction stops before guard formation
 
 Date: 2026-10-16
-Status: frozen unreviewed research checkpoint; no semantic selection
+Status: bounded obstruction reviewed CLEAN; no semantic selection
 Claim class: bounded source-constructor characterization and precise obstruction
 Baseline: `ef44424fd9c1d5929e8d5b9a203c410f2c7c40d5`
 Branch: `research/simple-sub-intrusion`
@@ -218,7 +218,8 @@ Commit packet:
 - Baseline SHA: `ef44424fd9c1d5929e8d5b9a203c410f2c7c40d5`.
 - Changed dependency hashes: none intentionally changed; current hashes below;
   primary must compare its integration snapshot before accepting the packet.
-- Review status: frozen unreviewed bounded obstruction; no self-certification,
+- Review status: `compiler_referee` and `spec_auditor` reviews are CLEAN within
+  scope. Primary accepts the missing-owner boundary only; no self-certification,
   selected semantics, production authority or parent-gate promotion.
 - Checks already run: source/consumer reads and searches; direct SHA-256 capture;
   local link, fence, whitespace and final-newline integrity checks.
