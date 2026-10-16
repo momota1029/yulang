@@ -51,11 +51,12 @@
       "artifact_sha256": "6bb825b64d88699856cbae74c4ad0d3680e86f7185167cc9002d28be62c7c1a5"
     },
     "review": {
-      "state": "PROOF-REVIEW-RUNNING",
+      "state": "IMPLEMENTATION-REVIEW-RUNNING",
       "budget_seconds": 300,
       "execution": "Authors and descendants confirmed STOPPED from completed runtime receipts; fresh isolated proof review first, then implementation review after proof reviewer STOP.",
-      "current_assignment": "/root/choose_operation_instantiation_review_fresh",
-      "receipt": "Fresh isolated compiler_referee spawned for frozen proof rev1 target; read-only, max 150s; implementation review waits for proof reviewer STOP."
+      "current_assignment": "/root/authentic_root_export_review_fresh",
+      "receipt": "Sequential boundary met: proof reviewer STOPPED before fresh architect launch. Implementation handoff rev1, contract rev2, 54 pins; read-only, max 150s.",
+      "proof_receipt": "CLEAN conditional-scope review; no blocking/major/minor correctness findings. Rev1 contract recovered at immutable e23c4b8af; 52/52 pins match. Reviewer STOPPED, no writes/descendants. Does not certify concrete emitted instance or close parent."
     },
     "open_parent": "D_tail, H1/H2/JOINT_DEC/F1/FK1/F5, source-Generalize/public-export field law, principality and production remain open.",
     "baseline_reconciliation": {
@@ -135,13 +136,24 @@
     {
       "id": "/root/choose_operation_instantiation_review_fresh",
       "role": "compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "UNKNOWN",
+      "receipt": "CLEAN conditional-scope review; contract rev1 recovered from immutable e23c4b8af; artifact/handoff hashes match; 52/52 pins match; no parent gate closure; no writes/descendants."
+    },
+    {
+      "id": "/root/authentic_root_export_review_fresh",
+      "role": "architect",
       "state": "RUNNING",
       "requested_model": "UNKNOWN",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Fresh reviewer spawned for proof rev1; exact artifact/handoff/contract hashes supplied; read-only review; 150s cap; no descendants."
+      "receipt": "Fresh sequential reviewer spawned after proof reviewer STOP; implementation handoff SHA 6bb825b64d88699856cbae74c4ad0d3680e86f7185167cc9002d28be62c7c1a5; contract rev2 and 54 pins; read-only, 150s cap; no descendants."
     }
   ],
   "leases": [
