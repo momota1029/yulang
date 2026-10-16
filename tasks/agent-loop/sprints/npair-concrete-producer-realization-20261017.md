@@ -91,3 +91,58 @@ any reviewer finding, or exhausted cap. Keep NPAIR mixed-source coverage,
 authentic ingress `At`, N-Transport, whole `rho_u`, J1/J2 future completeness,
 actual receive consumer, subtraction, F1/FK1, source/native adequacy and
 production OPEN.
+
+## Revision 2 — approved implementation continuation
+
+Revision 1 SHA-256:
+`3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf`.
+This append-only continuation preserves its original claim and separate
+resource accounting. The user explicitly approved the exact reviewed
+concrete-only patch with “採択で構いません”. Approval context and exact design
+and review handoff hashes are frozen in
+`notes/progress/2026-10-17-npair-concrete-producer-approval.md`, SHA-256
+`cd81ea1385b1304da283ef8ee15cdd626b98d1759cf79aa372f672e53c5bab67`.
+
+The authenticated-seed proof sprint completed its proof/readiness work and
+fresh sequential reviews, all authors/reviewers STOPPED. Its frozen proof and
+readiness review targets are unchanged. Before this continuation, Luna
+revalidated the effective reviewed proposal `a6b6f372…`, review handoff
+`6ec84d40…`, adoption/source-rule pins, and all four producer owners. Current
+source hashes equal the predecessor's reviewed pins:
+
+- `candidate_effect.rs`: `44ee33d077c61c9dea6359299ca49218afc6ca1b5b6807690838309b25c731c9`
+- `candidate_source.rs`: `efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38`
+- `candidate_context.rs`: `72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6`
+- `lib.rs`: `2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f`
+
+The predecessor envelope remains certified at 2400 seconds: 960 seconds
+already charged and 1440 seconds remaining. Allocate only that remainder:
+implementation 1080 seconds, fresh sequential compiler/architect/spec reviews
+80 seconds each, coordination 60 seconds reallocated from predecessor reserve,
+and 60 seconds reserve. No time transfers from the separate 1440-second
+authenticated-seed sprint. Preserve the three UNKNOWN reservations, board
+quarantine and foreign dirty JSON.
+
+Luna/high primary author acknowledges this continuation at its frozen
+revision-2 hash. Exact write leases are only:
+
+- `crates/yu-solver/src/candidate_effect.rs`
+- `tasks/agent-loop/inbox/20261017-npair-concrete-producer-implementation.md`
+
+Implementation must follow the reviewed revision 2.1 design and use the
+existing `candidate_effect::Checkpoint` length/byte snapshot for rollback (the
+design's “undo capacity” means this already-owned checkpoint bookkeeping; do
+not add another undo vector). SourceRootId, HirOccurrenceId, AnnotationScope
+and SourceNodeKey are retained through shared immutable Arc-backed identities;
+the new owned backing allocations are only the typed path and concrete-ID
+vectors and must be included in checked scratch/retained byte accounting.
+Construct the exact Permission path under the matching Function child while
+preserving argument-value, result-value, argument-effect, result-effect order.
+Publish records only after both formal links succeed. Any path/accounting or
+rollback requirement outside these exact two files stops before that edit.
+
+No builds, tests, probes, Cargo, compiler execution, source-preflight change,
+At authentication, transport, consumer/subtraction, mixed/multiple-symbolic
+or explicit-empty enablement. After primary STOP, freeze source and handoff
+hashes, then run fresh sequential reviews against the applied bytes under the
+remaining 80-second caps. Earlier reviews certify only the unapplied design.

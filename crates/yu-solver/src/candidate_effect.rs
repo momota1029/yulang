@@ -117,6 +117,8 @@ struct CaptureProbe {
 pub(super) struct State {
     pub context: candidate_context::State,
     pub formal_domains: HashMap<usize, Term>,
+    formal_permissions: Vec<FormalPermission>,
+    formal_permission_bytes: usize,
     pub(super) annotation_values: HashMap<(AnnotationScope, Box<str>), u32>,
     // Effect names share binding scope while remaining separate from value names.
     annotation_effects: HashMap<(AnnotationScope, Box<str>), u32>,
@@ -178,6 +180,21 @@ pub(super) struct View {
     pub allowed: Vec<SourceEffectId>,
     pub tail: Option<u32>,
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum FormalPortStep { Argument, Result }
+// This retained record describes local source permission only. It is not an
+// arrival, provider, contribution or consumer witness.
+#[allow(dead_code, reason = "the approved producer retains source permission; authentic arrival consumption remains open")]
+#[derive(Debug)]
+struct FormalPermission {
+    parameter: usize,
+    occurrence: HirOccurrenceId,
+    source_owner: SourceRootId,
+    scope: AnnotationScope,
+    path: Vec<FormalPortStep>,
+    source_row: SourceNodeKey,
+    concrete: Vec<SourceEffectId>,
+}
 pub(super) struct Checkpoint {
     context: candidate_context::Checkpoint,
     contributions: usize,
@@ -191,6 +208,8 @@ pub(super) struct Checkpoint {
     capture_records: usize,
     conflicts: Vec<TypedPairKey>,
     formal_domains: Vec<usize>,
+    formal_permissions: usize,
+    formal_permission_bytes: usize,
     annotation_values: Vec<(AnnotationScope, Box<str>)>,
     annotation_effects: Vec<(AnnotationScope, Box<str>)>,
     annotation_value_bytes: usize,
@@ -220,6 +239,13 @@ impl Checkpoint {
             .ok_or_else(exhausted)
     }
 }
+fn formal_permission_backing_bytes(permissions: &[FormalPermission]) -> Result<usize, SolveAvailabilityError> {
+    permissions.iter().try_fold(0usize, |total, permission| {
+        let path = bytes::<FormalPortStep>(permission.path.capacity())?;
+        let concrete = bytes::<SourceEffectId>(permission.concrete.capacity())?;
+        total.checked_add(path).and_then(|n| n.checked_add(concrete)).ok_or_else(exhausted)
+    })
+}
 impl State {
     pub fn initialize(&mut self) -> Result<(), SolveAvailabilityError> {
         self.brand = NEXT_BRAND
@@ -245,6 +271,8 @@ impl State {
             capture_records: self.capture_records.len(),
             conflicts: Vec::new(),
             formal_domains: Vec::new(),
+            formal_permissions: self.formal_permissions.len(),
+            formal_permission_bytes: self.formal_permission_bytes,
             annotation_values: Vec::new(),
             annotation_effects: Vec::new(),
             annotation_value_bytes: 0,
@@ -253,6 +281,8 @@ impl State {
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
         self.context.rollback(checkpoint.context);
         for key in checkpoint.formal_domains { self.formal_domains.remove(&key); }
+        self.formal_permissions.truncate(checkpoint.formal_permissions);
+        self.formal_permission_bytes = checkpoint.formal_permission_bytes;
         for key in checkpoint.annotation_values { self.annotation_values.remove(&key); }
         for key in checkpoint.annotation_effects { self.annotation_effects.remove(&key); }
         for key in checkpoint.conflicts {
@@ -305,9 +335,11 @@ impl State {
             bytes::<CaptureIncidence>(self.capture_records.capacity())?,
             bytes::<(TypedPairKey, Conflict)>(self.conflicts.capacity())?,
             bytes::<(usize, Term)>(self.formal_domains.capacity())?,
+            bytes::<FormalPermission>(self.formal_permissions.capacity())?,
             bytes::<((AnnotationScope, Box<str>), u32)>(self.annotation_values.capacity())?,
             bytes::<((AnnotationScope, Box<str>), u32)>(self.annotation_effects.capacity())?,
             self.nested_bytes,
+            self.formal_permission_bytes,
             self.evidence_bytes,
         ];
         parts
@@ -326,7 +358,12 @@ impl State {
         assert_eq!(state.evidence_bytes, evidence_bytes);
         let retained_names = state.annotation_values.keys().chain(state.annotation_effects.keys()).map(|(_, name)| name.len()).sum::<usize>();
         let retained_views = state.views.iter().map(|view| view.allowed.capacity() * std::mem::size_of::<SourceEffectId>()).sum::<usize>();
+        let retained_permissions = state.formal_permissions.iter().map(|permission| {
+            permission.path.capacity() * std::mem::size_of::<FormalPortStep>()
+                + permission.concrete.capacity() * std::mem::size_of::<SourceEffectId>()
+        }).sum::<usize>();
         assert_eq!(state.nested_bytes, retained_names + retained_views);
+        assert_eq!(state.formal_permission_bytes, retained_permissions);
         state.context.enumerated_bytes()
             + state.contributions.capacity() * std::mem::size_of::<Contribution>()
             + state.views.capacity() * std::mem::size_of::<View>()
@@ -337,9 +374,10 @@ impl State {
             + state.capture_records.capacity() * std::mem::size_of::<CaptureIncidence>()
             + state.conflicts.capacity() * std::mem::size_of::<(TypedPairKey, Conflict)>()
             + state.formal_domains.capacity() * std::mem::size_of::<(usize, Term)>()
+            + state.formal_permissions.capacity() * std::mem::size_of::<FormalPermission>()
             + state.annotation_values.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
             + state.annotation_effects.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
-            + retained_names + retained_views + evidence_bytes
+            + retained_names + retained_views + evidence_bytes + retained_permissions
     }
     pub fn observe(
         &self,
@@ -1116,12 +1154,25 @@ impl InferenceSession {
         Ok(())
     }
 
-    fn candidate_formal_pair(&mut self, annotation: &SourceAnnotation, ty: &SourceAnnotationType, scope: &AnnotationScope, variance: Polarity, level: u32, views: &mut HashMap<SourceNodeKey, u32>) -> Result<(Term, Term), SolveAvailabilityError> {
-        if ty.effects.as_ref().is_some_and(|row| row.variables.len() > 1 || (variance == Polarity::Negative && (!row.concrete.is_empty() || row.variables.len() != 1))) { return Err(exhausted()); }
-        self.candidate_formal_value_pair(annotation, ty, scope, variance, level, views)
+    fn candidate_formal_pair(
+        &mut self, annotation: &SourceAnnotation, ty: &SourceAnnotationType, scope: &AnnotationScope,
+        parameter: usize, occurrence: &HirOccurrenceId, variance: Polarity, level: u32,
+        views: &mut HashMap<SourceNodeKey, u32>, path: &mut Vec<FormalPortStep>,
+        permissions: &mut Vec<FormalPermission>, permission_nested_bytes: &mut usize, scratch_bytes: &mut usize,
+    ) -> Result<(Term, Term), SolveAvailabilityError> {
+        if ty.effects.as_ref().is_some_and(|row| row.variables.len() > 1 || (variance == Polarity::Negative
+            && !((row.concrete.is_empty() && row.variables.len() == 1) || (!row.concrete.is_empty() && row.variables.is_empty())))) {
+            return Err(exhausted());
+        }
+        self.candidate_formal_value_pair(annotation, ty, scope, parameter, occurrence, variance, level, views, path, permissions, permission_nested_bytes, scratch_bytes)
     }
 
-    fn candidate_formal_value_pair(&mut self, annotation: &SourceAnnotation, ty: &SourceAnnotationType, scope: &AnnotationScope, variance: Polarity, level: u32, views: &mut HashMap<SourceNodeKey, u32>) -> Result<(Term, Term), SolveAvailabilityError> {
+    fn candidate_formal_value_pair(
+        &mut self, annotation: &SourceAnnotation, ty: &SourceAnnotationType, scope: &AnnotationScope,
+        parameter: usize, occurrence: &HirOccurrenceId, variance: Polarity, level: u32,
+        views: &mut HashMap<SourceNodeKey, u32>, path: &mut Vec<FormalPortStep>,
+        permissions: &mut Vec<FormalPermission>, permission_nested_bytes: &mut usize, scratch_bytes: &mut usize,
+    ) -> Result<(Term, Term), SolveAvailabilityError> {
         match &ty.value {
             SourceAnnotationValue::Bool => Ok((self.batch.collected_leaf_term(Leaf::BoolPositive), self.batch.collected_leaf_term(Leaf::BoolNegative))),
             SourceAnnotationValue::Str => Ok((self.batch.collected_leaf_term(Leaf::StrPositive), self.batch.collected_leaf_term(Leaf::StrNegative))),
@@ -1133,20 +1184,72 @@ impl InferenceSession {
             }
             SourceAnnotationValue::Function { argument, result } => {
                 let reversed = if variance == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
-                let (ap, an) = self.candidate_formal_pair(annotation, argument, scope, reversed, level, views)?;
-                let (rp, rn) = self.candidate_formal_pair(annotation, result, scope, variance, level, views)?;
-                let (qap, qan) = self.candidate_formal_effect_port(annotation, argument.effects.as_ref(), scope, reversed, level, views)?;
-                let (qrp, qrn) = self.candidate_formal_effect_port(annotation, result.effects.as_ref(), scope, variance, level, views)?;
+                let base = path.len();
+                path.push(FormalPortStep::Argument);
+                let argument_pair = self.candidate_formal_pair(annotation, argument, scope, parameter, occurrence, reversed, level, views, path, permissions, permission_nested_bytes, scratch_bytes);
+                path.truncate(base);
+                let (ap, an) = argument_pair?;
+
+                let base = path.len();
+                path.push(FormalPortStep::Result);
+                let result_pair = self.candidate_formal_pair(annotation, result, scope, parameter, occurrence, variance, level, views, path, permissions, permission_nested_bytes, scratch_bytes);
+                path.truncate(base);
+                let (rp, rn) = result_pair?;
+
+                let base = path.len();
+                path.push(FormalPortStep::Argument);
+                let argument_effects = self.candidate_formal_effect_port(annotation, argument.effects.as_ref(), scope, parameter, occurrence, reversed, level, views, path, permissions, permission_nested_bytes, scratch_bytes);
+                path.truncate(base);
+                let (qap, qan) = argument_effects?;
+
+                let base = path.len();
+                path.push(FormalPortStep::Result);
+                let result_effects = self.candidate_formal_effect_port(annotation, result.effects.as_ref(), scope, parameter, occurrence, variance, level, views, path, permissions, permission_nested_bytes, scratch_bytes);
+                path.truncate(base);
+                let (qrp, qrn) = result_effects?;
                 Ok((self.positive_function_term(an, qan, qrp, rp)?, self.negative_function_term(ap, qap, qrn, rn)?))
             }
         }
     }
 
-    fn candidate_formal_effect_port(&mut self, annotation: &SourceAnnotation, effects: Option<&SourceEffectRow>, scope: &AnnotationScope, variance: Polarity, level: u32, views: &mut HashMap<SourceNodeKey, u32>) -> Result<(Term, Term), SolveAvailabilityError> {
+    fn candidate_formal_effect_port(
+        &mut self, annotation: &SourceAnnotation, effects: Option<&SourceEffectRow>, scope: &AnnotationScope,
+        parameter: usize, occurrence: &HirOccurrenceId, variance: Polarity, level: u32,
+        views: &mut HashMap<SourceNodeKey, u32>, path: &[FormalPortStep],
+        permissions: &mut Vec<FormalPermission>, permission_nested_bytes: &mut usize, scratch_bytes: &mut usize,
+    ) -> Result<(Term, Term), SolveAvailabilityError> {
         let port = match effects {
             None => self.fresh_effect_at_level(level)?,
             Some(row) if row.concrete.is_empty() && row.variables.len() == 1 =>
                 self.candidate_formal_effect_variable(scope, &row.variables[0], level)?,
+            Some(row) if variance == Polarity::Negative && !row.concrete.is_empty() && row.variables.is_empty() => {
+                let port = self.fresh_effect_at_level(level)?;
+                if permissions.len() == permissions.capacity() { return Err(exhausted()); }
+                let mut retained_path = Vec::new();
+                retained_path.try_reserve_exact(path.len()).map_err(|_| exhausted())?;
+                retained_path.extend_from_slice(path);
+                let mut concrete = Vec::new();
+                concrete.try_reserve_exact(row.concrete.len()).map_err(|_| exhausted())?;
+                concrete.extend(row.concrete.iter().cloned());
+                let backing = bytes::<FormalPortStep>(retained_path.capacity())?
+                    .checked_add(bytes::<SourceEffectId>(concrete.capacity())?).ok_or_else(exhausted)?;
+                let new_nested = permission_nested_bytes.checked_add(backing).ok_or_else(exhausted)?;
+                let new_scratch = scratch_bytes.checked_add(backing).ok_or_else(exhausted)?;
+                let graph = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                graph.scratch_bytes = graph.scratch_bytes.checked_add(backing).ok_or_else(exhausted)?;
+                *permission_nested_bytes = new_nested;
+                *scratch_bytes = new_scratch;
+                permissions.push(FormalPermission {
+                    parameter,
+                    occurrence: occurrence.clone(),
+                    source_owner: annotation.owner.clone(),
+                    scope: scope.clone(),
+                    path: retained_path,
+                    source_row: row.position.clone(),
+                    concrete,
+                });
+                port
+            }
             Some(row) if variance == Polarity::Positive && row.variables.len() <= 1 => {
                 // Explicit covariant rows use the same source-owned view on both
                 // sides; omitted and singleton symbolic ports stay shared rows.
@@ -1194,41 +1297,76 @@ impl InferenceSession {
         let row = self.parameter_live_base.checked_add(u32::try_from(parameter).map_err(|_| exhausted())?).ok_or_else(exhausted)?;
         let level = self.value_levels[row as usize];
         if self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_domains.contains_key(&parameter) { return Err(exhausted()); }
-        // Reserve a linear upper bound for the paired recursive constructor's
-        // temporary child ports; source admission already bounds its depth.
+        // Reserve source-bounded scratch for recursive child ports and their
+        // retained Permission paths; source admission already bounds depth.
+        let node_count = annotation.ty.node_count();
         let mut views = HashMap::new();
-        views.try_reserve(annotation.ty.node_count()).map_err(|_| exhausted())?;
-        let scratch = bytes::<(Term, Term, Term, Term, u32, u32)>(annotation.ty.node_count())?
-            .checked_add(bytes::<(SourceNodeKey, u32)>(views.capacity())?).ok_or_else(exhausted)?;
+        views.try_reserve(node_count).map_err(|_| exhausted())?;
+        let mut path = Vec::new();
+        path.try_reserve_exact(node_count).map_err(|_| exhausted())?;
+        let mut permissions = Vec::new();
+        permissions.try_reserve_exact(node_count).map_err(|_| exhausted())?;
+        let mut scratch = bytes::<(Term, Term, Term, Term, u32, u32)>(node_count)?
+            .checked_add(bytes::<(SourceNodeKey, u32)>(views.capacity())?)
+            .and_then(|n| n.checked_add(bytes::<FormalPortStep>(path.capacity()).ok()?))
+            .and_then(|n| n.checked_add(bytes::<FormalPermission>(permissions.capacity()).ok()?))
+            .ok_or_else(exhausted)?;
         let graph = self.candidate_graph.as_mut().unwrap();
         graph.scratch_bytes = graph.scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
-        let pair = (|| {
+        let mut permission_nested_bytes = 0usize;
+        let pair = (|| -> Result<(Term, Term), SolveAvailabilityError> {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-            self.candidate_formal_value_pair(annotation, &annotation.ty, scope, Polarity::Negative, level, &mut views)
+            self.candidate_formal_value_pair(annotation, &annotation.ty, scope, parameter, occurrence,
+                Polarity::Negative, level, &mut views, &mut path, &mut permissions,
+                &mut permission_nested_bytes, &mut scratch)
+        })();
+        let result = (|| -> Result<(), SolveAvailabilityError> {
+            let (positive, negative) = pair?;
+            #[cfg(test)]
+            if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 1 { stage.set(0); true } else { false }) { return Err(exhausted()); }
+            {
+                let graph = self.candidate_graph.as_mut().unwrap();
+                graph.intrusion.effect_algebra.formal_domains.try_reserve(1).map_err(|_| exhausted())?;
+                graph.intrusion.effect_algebra.formal_permissions.try_reserve(permissions.len()).map_err(|_| exhausted())?;
+            }
+            if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.formal_domains.try_reserve(1).map_err(|_| exhausted())?; }
+            let upper = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Negative)?;
+            self.admit_candidate_value_link(occurrence, 43, positive, upper)?;
+            #[cfg(test)]
+            if FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.replace(false)) { return Err(exhausted()); }
+            let lower = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Positive)?;
+            self.admit_candidate_value_link(occurrence, 44, lower, negative)?;
+            let retained_permission_bytes = formal_permission_backing_bytes(&permissions)?;
+            if retained_permission_bytes != permission_nested_bytes { return Err(exhausted()); }
+            // Validate the ownership transfer before publishing anything.
+            // State::bytes will own these nested vectors after the drain;
+            // scratch keeps only the still-live outer temporary allocation.
+            let scratch_after_transfer = scratch.checked_sub(retained_permission_bytes).ok_or_else(exhausted)?;
+            let graph_scratch_after_transfer = self.candidate_graph.as_ref().unwrap().scratch_bytes
+                .checked_sub(retained_permission_bytes).ok_or_else(exhausted)?;
+            {
+                let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+                state.formal_permission_bytes = state.formal_permission_bytes.checked_add(retained_permission_bytes).ok_or_else(exhausted)?;
+                state.formal_permissions.extend(permissions.drain(..));
+                if state.formal_domains.insert(parameter, negative).is_none() {
+                    if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.formal_domains.push(parameter); }
+                }
+            }
+            self.candidate_graph.as_mut().unwrap().scratch_bytes = graph_scratch_after_transfer;
+            scratch = scratch_after_transfer;
+            self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+            #[cfg(test)]
+            self.record_failed_formal_sample(2)?;
+            #[cfg(test)]
+            if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 2 { stage.set(0); true } else { false }) { return Err(exhausted()); }
+            Ok(())
         })();
         drop(views);
-        self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
-        let (positive, negative) = pair?;
-        #[cfg(test)]
-        if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 1 { stage.set(0); true } else { false }) { return Err(exhausted()); }
+        drop(path);
+        drop(permissions);
         let graph = self.candidate_graph.as_mut().unwrap();
-        graph.intrusion.effect_algebra.formal_domains.try_reserve(1).map_err(|_| exhausted())?;
-        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.formal_domains.try_reserve(1).map_err(|_| exhausted())?; }
-        let upper = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Negative)?;
-        self.admit_candidate_value_link(occurrence, 43, positive, upper)?;
-        #[cfg(test)]
-        if FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.replace(false)) { return Err(exhausted()); }
-        let lower = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Positive)?;
-        self.admit_candidate_value_link(occurrence, 44, lower, negative)?;
-        if self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.formal_domains.insert(parameter, negative).is_none() {
-            if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.formal_domains.push(parameter); }
-        }
-        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-        #[cfg(test)]
-        self.record_failed_formal_sample(2)?;
-        #[cfg(test)]
-        if FORMAL_ANNOTATION_FAIL_STAGE.with(|stage| if stage.get() == 2 { stage.set(0); true } else { false }) { return Err(exhausted()); }
-        Ok(())
+        graph.scratch_bytes = graph.scratch_bytes.checked_sub(scratch).ok_or_else(exhausted)?;
+        result
     }
 
     pub(super) fn candidate_local_annotation(

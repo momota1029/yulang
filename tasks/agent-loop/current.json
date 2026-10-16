@@ -4,42 +4,50 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-authentic-seed-antecedent-20261017",
-    "contract": "tasks/agent-loop/sprints/npair-authentic-seed-antecedent-20261017.md",
-    "revision": 2,
-    "sha256": "9556556e771c4d8bb666b771eb61dba0b926fdfc824ab51a2782ee912121a73f",
-    "state": "ACTIVE-PROOF-REV2-PINS-ACKNOWLEDGED",
-    "baseline": "4685eef7efb59314dc9d96cfcae692d1e09000fe",
+    "id": "npair-permission-publication-accounting-repair-20261017",
+    "contract": "tasks/agent-loop/sprints/npair-permission-publication-accounting-repair-20261017.md",
+    "revision": 1,
+    "sha256": "755aed57c162f46f2d3688bc07ef8ce078fb63da868c697e9b646de9ec4bfb21",
+    "state": "REVIEWED-PARTIAL-ADJUDICATED-INTEGRATION-READY",
+    "baseline": "d1b706e83",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
-    "proof": {
-      "state": "RUNNING-REV2-DEPENDENCIES-ACKNOWLEDGED",
-      "owner": "astra_prover",
-      "cap_seconds": 900,
-      "artifact": "notes/theory/2026-10-17-npair-authentic-seed-antecedent.md",
-      "handoff": "tasks/agent-loop/inbox/20261017-npair-authentic-seed-antecedent.md",
-      "receipt": "Author verified revision-2 contract SHA and all three added source pins. Same total 900s cap; now tracing actual OperationInterfaceMember/OperationOrigin seed."
+    "predecessor": {
+      "id": "npair-concrete-producer-realization-20261017",
+      "state": "PARTIAL-ACCOUNTING-MAJOR",
+      "charged_seconds": 2260,
+      "major_finding": "Permission backing bytes counted in retained state and scratch at post-publication sample; original failed target preserved."
     },
-    "implementation_readiness": {
-      "state": "SEQUENTIAL-AFTER-PROOF-STOP",
-      "owner": "/root",
-      "cap_seconds": 240,
-      "artifact": "notes/design/2026-10-17-npair-authenticated-seed-code-contract.md",
-      "handoff": "tasks/agent-loop/inbox/20261017-npair-authenticated-seed-code-contract.md"
+    "repair": {
+      "state": "STOPPED-FROZEN",
+      "owner": "/root Luna/high",
+      "cap_seconds": 60,
+      "source": "crates/yu-solver/src/candidate_effect.rs",
+      "source_sha256": "11a1477ff2c35c03dccb70bdc6121d89d3ced9fadb1921cb8cf8cd5c093b07fb",
+      "handoff": "tasks/agent-loop/inbox/20261017-npair-permission-accounting-repair.md",
+      "handoff_sha256": "5cc00163e67e3129b4fc57d59c89575644ea6c6258be39ec0f5988f7dc90a68f",
+      "receipt": "Transferred retained Permission backing out of scratch before post-publication sample; outer temp Vec remains scratch until drop. No execution or tests."
+    },
+    "snapshot": {
+      "path": "tasks/agent-loop/snapshots/20261017-npair-producer-pre-accounting-repair.rs",
+      "sha256": "f1b489b0aaa13718454223d8162893ff0c24f3ad17b790130eb19e0e862ac14d"
     },
     "review": {
-      "state": "NOT-STARTED",
+      "state": "ALL-THREE-CLEAN-PRIMARY-ADJUDICATED",
       "sequence": [
-        "compiler_referee:120s",
-        "architect:60s"
+        "compiler_referee:60s",
+        "architect:90s",
+        "spec_auditor:60s"
       ],
       "current_reviewer": null
     },
-    "predecessor": {
-      "id": "npair-concrete-producer-realization-20261017",
-      "state": "PROOF-REVIEWED-CLEAN-IMPLEMENTATION-WAITING-APPROVAL",
-      "contract_sha256": "3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf",
-      "proof_sha256": "ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389",
-      "proof_review": "CLEAN conditional compiler review; all pins matched; no implementation/source admission certified."
+    "resources": {
+      "cap_seconds": 360,
+      "repair_cap_seconds": 60,
+      "reviews_remaining_seconds": 0,
+      "coordination_seconds": 30,
+      "reserve_seconds": 0,
+      "charged_seconds": 300,
+      "status": "CLOSED REVIEWED-PARTIAL: repair, coordination and all three sequential reviews 300s charged; unused 60s reserve retired without transfer."
     }
   },
   "candidate": "tasks/agent-loop/sprints/npair-authentic-seed-antecedent-20261017.md",
@@ -81,32 +89,8 @@
       "receipt": "Historical identity/cessation unknown; reservation retained."
     },
     {
-      "id": "/root",
-      "role": "Luna/high primary and sole Git integrator",
-      "state": "WAITING",
-      "requested_model": "gpt-6-luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "New authenticated-seed proof sprint opened with fresh 1440s grant. Concrete producer code sprint remains WAITING for exact user approval; no source lease."
-    },
-    {
-      "id": "/root/npair_concrete_producer_refinement",
-      "role": "astra_prover, bounded concrete-only producer refinement proof author",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 720,
-      "receipt": "STOPPED; frozen exact proof/handoff hashes; no descendants. Conditional producer correspondence and precise authenticated-At obstruction.",
-      "elapsed_seconds_charged": 720
-    },
-    {
-      "id": "/root/npair_concrete_producer_compiler_review",
-      "role": "compiler_referee, fresh read-only proof reviewer",
+      "id": "/root/npair_authseed_compiler_review",
+      "role": "compiler_referee, fresh read-only proof/readiness reviewer",
       "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
@@ -114,20 +98,112 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "cap_seconds": 120,
-      "receipt": "CLEAN conditional proof review; all pins match; actual At gap confirmed; full 120s charged; STOPPED read-only.",
+      "receipt": "CLEAN bounded static review; all 13 pins and artifact hashes match; no findings; STOPPED with no writes/execution/descendants.",
       "elapsed_seconds_charged": 120
     },
     {
-      "id": "/root/npair_authentic_seed_antecedent",
-      "role": "astra_prover, bounded authentic source seed/antecedent proof author",
-      "state": "RUNNING",
-      "requested_model": "gpt-6-astra",
+      "id": "/root/npair_authseed_arch_review",
+      "role": "architect, fresh read-only proof/readiness reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 900,
-      "receipt": "ACTIVE current-session receipt received; accepts exact two-path lease and 900s/six-stage bound; no descendants or source execution."
+      "cap_seconds": 60,
+      "receipt": "CLEAN bounded architecture review; proof/readiness pins match; future executable consumer requirements named; STOPPED with no writes or execution.",
+      "elapsed_seconds_charged": 60
+    },
+    {
+      "id": "/root@npair-concrete-producer-realization",
+      "role": "Luna/high primary producer implementation author (predecessor)",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 1080,
+      "receipt": "Implementation and exact handoff frozen. Source SHA f1b489b0…ac14d; handoff SHA f24ba902…87cb5. Full implementation cap conservatively charged.",
+      "elapsed_seconds_charged": 1080
+    },
+    {
+      "id": "/root/npair_producer_applied_compiler_review",
+      "role": "compiler_referee, fresh applied-code reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 80,
+      "elapsed_seconds_charged": 80,
+      "receipt": "CLEAN bounded compiler review; all pins verified; no edits/execution/descendants."
+    },
+    {
+      "id": "/root/npair_producer_applied_arch_review",
+      "role": "architect, fresh applied-code reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 80,
+      "elapsed_seconds_charged": 80,
+      "receipt": "Major scratch/retained double-count finding; all pins verified; no edits/execution/descendants."
+    },
+    {
+      "id": "/root",
+      "role": "Luna/high primary repair author / sole Git integrator",
+      "state": "STOPPED",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 60,
+      "elapsed_seconds_charged": 60,
+      "receipt": "Accounting transfer repair and handoff frozen; no execution/tests; STOPPED."
+    },
+    {
+      "id": "/root/npair_accounting_compiler_delta",
+      "role": "compiler_referee, fresh repair delta reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 60,
+      "receipt": "CLEAN bounded compiler delta review; contract/source/pre-repair snapshot/handoff/design pins verified; ownership transfer removes double count; STOPPED with no writes/execution/descendants.",
+      "elapsed_seconds_charged": 60
+    },
+    {
+      "id": "/root/npair_accounting_arch_review",
+      "role": "architect, fresh read-only repair delta reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 90,
+      "receipt": "CLEAN bounded static architecture review; all pins match; ownership transfer, checked arithmetic, rollback, publication order and temporary Vec accounting accepted. Runtime resource-boundary behavior remains unverified; STOPPED with no writes/execution/descendants.",
+      "elapsed_seconds_charged": 90
+    },
+    {
+      "id": "/root/npair_accounting_spec_review",
+      "role": "spec_auditor, fresh read-only repair delta reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 60,
+      "receipt": "CLEAN exact specification audit; all pins match; approved concrete-only scope and boundaries preserved; static evidence only; STOPPED with no edits/execution/descendants.",
+      "elapsed_seconds_charged": 60
     }
   ],
   "leases": [
@@ -149,13 +225,51 @@
     },
     {
       "path": "notes/theory/2026-10-17-npair-authentic-seed-antecedent.md",
-      "owner": "/root/npair_authentic_seed_antecedent",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "0121e51f0f41da70c16f301df8f3ddebcbffc37171029a37d604401d8caa0be3"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-npair-authentic-seed-antecedent.md",
-      "owner": "/root/npair_authentic_seed_antecedent",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "a9c68beb7f9ba77feb7096927b37b123cc49fdc657b2b6c1a4700f1ff70fa8a8"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "54bb2bc76e518fb01ad66ec0f21426a0d623aa7d533ad09e0dda87af2594c239"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-implementation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "f24ba90278a70edbf4a601818755b7c43ee67ec34aa67bf0456ebbf359287cb5"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_effect.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "11a1477ff2c35c03dccb70bdc6121d89d3ced9fadb1921cb8cf8cd5c093b07fb"
+    },
+    {
+      "path": "tasks/agent-loop/snapshots/20261017-npair-producer-pre-accounting-repair.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "f1b489b0aaa13718454223d8162893ff0c24f3ad17b790130eb19e0e862ac14d"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/npair-permission-publication-accounting-repair-20261017.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "755aed57c162f46f2d3688bc07ef8ce078fb63da868c697e9b646de9ec4bfb21"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-npair-permission-accounting-repair.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "5cc00163e67e3129b4fc57d59c89575644ea6c6258be39ec0f5988f7dc90a68f"
     }
   ],
   "pending": [
@@ -186,25 +300,24 @@
     }
   ],
   "next_action": {
-    "state": "AUTHENTIC-SEED-PROOF-ACTIVE",
-    "dispatcher": "Opened a fresh bounded 1440s proof/readiness sprint; no transfer from prior 2400s envelope.",
-    "proof": "Astra/medium 900s, trace a real ordinary seed through lower emission, admission and FunctionPort dependencies; associate with exact Permission descriptor or show information-loss witness.",
-    "implementation": "Luna readiness contract after proof STOP. Separate concrete producer compiler code remains WAITING for exact user approval."
+    "state": "NEXT-SPRINT-SELECTED-NOT-YET-LEASED",
+    "dispatcher": "At sprint-end, selector proposed npair-applied-producer-and-seed-bridge-20261017; Luna validates and grants exact leases after checkpoint.",
+    "proof": "Sol/high 720s: derive implemented concrete pair/Permission formation and ordinary-edge correspondence; distinguish constructor from source admission/At; use complete retained evidence to construct descriptor-to-seed association or isolate missing producer field/event; apply to original receive obligation.",
+    "implementation": "Luna/high 360s after proof STOP: refine authenticated-seed contract against applied producer, including exact emission/admission/processing association, lifetime, accounting and rejection of fabricated authentication. No new compiler lease."
   },
   "resource_accounting": {
-    "current_sprint_id": "npair-authentic-seed-antecedent-20261017",
-    "cap_seconds": 1440,
-    "astra_proof_cap_seconds": 900,
-    "luna_contract_cap_seconds": 240,
-    "reviews_cap_seconds": 180,
-    "coordination_seconds": 120,
+    "current_sprint_id": "npair-permission-publication-accounting-repair-20261017",
+    "cap_seconds": 360,
+    "charged_total_seconds": 300,
+    "repair_cap_seconds": 60,
+    "reviews_remaining_seconds": 0,
+    "coordination_seconds": 30,
     "reserve_seconds": 0,
-    "charged_total_seconds": 120,
-    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "120s coordination charged. Astra proof active within same 900s cap; revision-2 dependency pins acknowledged; actual seed tracing in progress. No other authority/budget change."
+    "active_authors": 0,
+    "status": "Closed REVIEWED-PARTIAL; unused 60s reserve retired. All current-session authors/reviewers STOPPED; 3 historical UNKNOWN reservations and quarantined board lease preserved."
   },
-  "history": "Current branch HEAD/tracking matched at 4685eef7efb59314dc9d96cfcae692d1e09000fe; only unrelated authentic-source/forward-handler JSON is dirty. Previous producer proof was CLEAN reviewed; compiler implementation still waits for exact user approval. New fresh proof/readiness sprint follows the identified authentic-seed/processing antecedent frontier. Preserve parent OPEN, three UNKNOWN reservations and board quarantine. Fresh authenticated-seed proof sprint and active receipt pushed as 0aa192a88. Dispatcher authorized append-only sprint revision 2 for three read-only physical-emission/source-contribution dependencies; proof author paused reliance pending new-pin acknowledgement, same 900s cap. Revision-2 read-only dependency pins and waiting-for-ack state pushed as 77cf984a6. Astra acknowledged revision-2 pins; source seed tracing corrected to actual OperationInterfaceMember/OperationOrigin Support(view), while Contribution is created only in FreshUse cloning.",
+  "history": "Authenticated-seed sprint: 1440s charged; proof/readiness independently CLEAN, parent OPEN. Concrete producer predecessor: 2260s charged, PARTIAL after major scratch/retained double-count; failed target preserved. Fresh 360s accounting repair: 300s charged, all three sequential delta reviews CLEAN and STOPPED; primary adjudicated bounded integration, runtime resource-boundary behavior unverified; 60s reserve retired without transfer. Outcome receipt: notes/progress/2026-10-17-npair-permission-accounting-repair.md. Source 11a1477f…b07fb and handoff 5cc00163…a68f. Selector proposed next proof/readiness sprint; parent remains OPEN. Preserve three UNKNOWN reservations, board quarantine and unrelated dirty JSON.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
@@ -216,25 +329,5 @@
     "4685eef7e",
     "0aa192a88",
     "77cf984a6"
-  ],
-  "waiting_sprint": {
-    "id": "npair-concrete-producer-realization-20261017",
-    "state": "PROOF-REVIEWED-CLEAN-IMPLEMENTATION-WAITING-APPROVAL",
-    "contract": "tasks/agent-loop/sprints/npair-concrete-producer-realization-20261017.md",
-    "sha256": "3a08b14cb08027c39490615202cb6c18dc9b16a9171be5183fc40af4199483cf",
-    "baseline": "d1b706e83",
-    "proof_sha256": "ad7a89545c7318f0c19402313c495663af49a51279ab6376bded260740006389",
-    "proof_handoff_sha256": "bbd3314e965224379648a4633f54c21a630b62598e34d31a6114593c1d2c4103",
-    "review": "Fresh compiler_referee CLEAN within conditional proof scope; authentic ordinary seed/processing evidence tied to descriptor remains missing.",
-    "implementation": {
-      "state": "WAITING-EXPLICIT-USER-APPROVAL",
-      "owner": "/root",
-      "cap_seconds": 1080,
-      "path": "crates/yu-solver/src/candidate_effect.rs",
-      "handoff": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-implementation.md",
-      "compiler_code_authority": false,
-      "receipt": "Exact reviewed contract is integrated; no code lease until approval is recorded."
-    },
-    "next": "resume only after exact code approval; no new code worker or lease"
-  }
+  ]
 }
