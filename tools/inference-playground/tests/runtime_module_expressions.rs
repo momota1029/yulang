@@ -130,6 +130,14 @@ fn forward_name_demand_and_discarded_values_keep_selected_definition() {
 }
 
 #[test]
+fn polymorphic_expression_results_are_discarded_before_selected_definition() {
+    assert_selected(
+        r"my id x = x; id 1; id (\x -> x); my main = 7",
+        "7",
+    );
+}
+
+#[test]
 fn a_returned_expression_closure_is_discarded_without_invocation() {
     opt_in_assert_selected(&format!("{IO}\\ignored -> io::tick 99; my main = 7"), "7");
 }
