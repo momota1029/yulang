@@ -11,9 +11,10 @@ Status: full objective remains active. Native extrusion now schedules current co
   configured Luna/high (runtime-observed settings unknown). The legacy
   `/root/resident_implementer_idle` remains parked WAITING with its historical
   Sol/high request and no code lease; the prover `/root/runtime_source_supplier_proof`
-  remains WAITING after R21's bounded CLEAN; Luna accepts that result only for
-  the conditional generated-wrapper dispatch repair, with separate P3-R1
-  archival integration still pending. I2–I5 are
+  remains WAITING after R21's bounded CLEAN; A21 now archives the original and
+  repaired P3-R1 snapshots separately. The original R7 finding remains MAJOR;
+  R21's CLEAN applies only to the conditional generated-wrapper dispatch
+  repair, and no original proof or production gate closes. I2–I5 are
   pushed as bounded implementation checkpoints: `342f27633` covers expression
   FreshUse/execution regressions, `e8eadbd69` budgeted runtime resume,
   `df7bcadf9` borrowed source scheduling, and `902065188` reuse of the program
@@ -87,10 +88,11 @@ Status: full objective remains active. Native extrusion now schedules current co
   leave selected `main` equal to `7`. Both focused tests pass 1/1. R22 and its
   exact-diff C1 follow-up are CLEAN for the added tests and preservation of
   existing assertions. This is test-only coverage under approved G3/G4; no
-  production code, semantics, theorem, F5 or production gate changed. R21's
-  CLEAN review is accepted only for the conditional P3-R1 generated-wrapper
-  dispatch repair; its separate archival integration remains pending, and no
-  original proof or production gate closes. I14 replaces repeated conflict
+  production code, semantics, theorem, F5 or production gate changed. A21
+  archives the exact original and repaired P3-R1 note/inbox snapshots in a
+  separate checkpoint. R7's original finding remains MAJOR; R21's CLEAN review
+  is accepted only for the conditional generated-wrapper dispatch repair, and
+  no original proof or production gate closes. I14 replaces repeated conflict
   diagnostic carrier rescans and cloned ranges with a conflict-only index keyed
   by borrowed authentic occurrence IDs and retaining first-match HIR order.
   The caller prefetches at most K=min(E, 16,384) error records before indexing;
