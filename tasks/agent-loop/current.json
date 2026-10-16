@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/native-plan-authority-boundary-correction-20261017.md",
   "revision": 1,
   "sha256": "14939b5254a4f1cc26c05b10acc33538d31d8988b7e5a11273a1fe37356d71d1",
-  "state": "FROZEN-AWAITING-REPAIR-AUTHOR",
+  "state": "REPAIR-AUTHOR-RUNNING",
   "baseline": "3df4e0e289173cc26af99655d0a1c670fb0d48df",
   "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
   "previous_sprint": "adopted-npair-construction-and-native-plan-20261017 ended PARTIAL—MAJOR REPAIR PENDING; proof result and original plan/reviews frozen; no budget carries over.",
@@ -27,7 +27,7 @@
    "spec_auditor": "MAJOR: representation mechanisms mandated against unselected authority; repair means demote options, preserve invariants."
   },
   "repair": {
-   "state": "ASSIGNED-NOT-LAUNCHED",
+   "state": "RUNNING",
    "author": "/root",
    "outputs": [
     "notes/design/2026-10-17-negative-pair-native-implementation-contract.md",
@@ -36,7 +36,9 @@
    ],
    "snapshot": "tasks/agent-loop/snapshots/20261017-negative-pair-native-implementation-contract-pre-repair.md",
    "snapshot_sha256": "ff91cfa400bbf547b8cfa6a3ddf773eb54e36ca6aabf9023750fd5308b60a8d4",
-   "budget_seconds": 60
+   "budget_seconds": 60,
+   "session": "current-session",
+   "receipt": "Frozen contract rev1 and pre-repair snapshot committed; Luna has begun exact-path wording repair."
   },
   "review": {
    "state": "NOT-ASSIGNED",
@@ -97,13 +99,13 @@
   {
    "id": "/root",
    "role": "Luna repair author and primary",
-   "state": "NOT_STARTED",
+   "state": "RUNNING",
    "requested_model": "UNKNOWN",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "session": null,
-   "receipt": "Exact repair, closeout and handoff leases frozen; awaiting author start."
+   "session": "current-session",
+   "receipt": "Luna repair author active on the three exact leased output paths; no code lease."
   }
  ],
  "leases": [
@@ -159,7 +161,7 @@
   }
  ],
  "next_action": {
-  "state": "REPAIR-ASSIGNED-AWAITING-LAUNCH",
+  "state": "REPAIR-AUTHOR-RUNNING",
   "dispatcher": "Selector recommends separate 240s correction sprint; no carryover; author60/reviews120/coord30/reserve30.",
   "proof": "No new proof work; preserve reviewed L1/L2/P3 result and J2 conditional boundary.",
   "implementation": "Repair only wording so representation/storage/processing mechanisms are examples, not mandatory design. No compiler lease."
@@ -172,7 +174,7 @@
   "coordination": 30,
   "reserve": 30,
   "unknown_reservations_preserved": 3,
-  "active_authors": 0,
+  "active_authors": 1,
   "astra_assignments": 0,
   "charged_total_seconds": 0,
   "review_reserved": 120,
