@@ -47,7 +47,7 @@
       ]
     },
     "review": {
-      "state": "READY-COMPILER-REFEREE",
+      "state": "RUNNING-COMPILER-REFEREE",
       "sequence": [
         "compiler_referee",
         "architect",
@@ -59,7 +59,11 @@
         120
       ],
       "proof_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
-      "proof_handoff_sha256": "9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c"
+      "proof_handoff_sha256": "9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c",
+      "current_reviewer": "compiler_referee",
+      "current_cap_seconds": 120,
+      "session": "current-session",
+      "active_work_receipt": "Actual fresh compiler_referee spawn acknowledged; exact source snapshot, proof/handoff and contract pins supplied; read-only cap 120s."
     },
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; no source/native or consumer/production closure."
   },
@@ -104,13 +108,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary and sole integrator",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Proof author STOPPED and frozen; primary preparing fresh independent compiler_referee review."
+      "receipt": "Compiler-referee review running on frozen M1/M2 and exact candidate_scheme snapshot; primary waiting for STOP."
     },
     {
       "id": "/root/local_use_existing_map_retention",
@@ -204,7 +208,7 @@
     }
   ],
   "next_action": {
-    "state": "READY-COMPILER-REFEREE",
+    "state": "COMPILER-REFEREE-RUNNING",
     "dispatcher": "Selector proposes existing-map retention proof, then reviewed unapplied patch proposal; user approval gate before any compiler edit.",
     "proof": "M1/M2 frozen, bounded to actual structural Qmap; independent proof review required. Whole native rho_u remains OPEN.",
     "implementation": "Unapplied code-contract proposal waits for fresh compiler_referee review; no code writes or execution."
@@ -221,7 +225,7 @@
     "active_authors": 0,
     "astra_assignments": 0,
     "charged_total_seconds": 360,
-    "status": "Existing-map proof writer STOPPED at full 360s conservative charge; compiler_referee review is next; no compiler files changed.",
+    "status": "Proof author STOPPED; fresh compiler_referee review actually launched at 120s cap. Proposal author remains held until review STOP/adjudication.",
     "authors_spent_seconds": 360,
     "review_spent_seconds": 0,
     "architecture_spent_seconds": 0,
