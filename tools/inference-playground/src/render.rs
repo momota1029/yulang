@@ -44,16 +44,20 @@ pub(crate) fn graph_into(
     let mut node_indices = HashMap::new();
     let root = intern(&mut nodes, &mut node_indices, graph.root(), output)?;
     let mut rows: Vec<CandidateGraphRow<'_>> = Vec::new();
+    let mut row_indices = HashMap::new();
     for row in graph.rows() {
         output.observe(1)?;
-        if !rows.iter().any(|prior| prior.same_identity(row)) {
-            if rows.len() == OUTPUT_CAP {
-                return Err(format!(
-                    "tool output cap exceeded: more than {OUTPUT_CAP} rows"
-                ));
-            }
-            rows.push(row);
+        if row_indices.contains_key(&row) {
+            continue;
         }
+        if rows.len() == OUTPUT_CAP {
+            return Err(format!(
+                "tool output cap exceeded: more than {OUTPUT_CAP} rows"
+            ));
+        }
+        let index = rows.len();
+        rows.push(row);
+        row_indices.insert(row, index);
     }
     let mut bounds = Vec::new();
     for bound in graph.bounds() {
@@ -90,9 +94,9 @@ pub(crate) fn graph_into(
         if let Some(leaf) = node.leaf() {
             write!(output, "{leaf:?}").map_err(cap)?;
         } else if let Some(row) = node.row() {
-            let row_index = rows
-                .iter()
-                .position(|prior| prior.same_identity(row))
+            let row_index = row_indices
+                .get(&row)
+                .copied()
                 .ok_or_else(|| {
                     "candidate graph observation unavailable: missing row identity".to_owned()
                 })?;

@@ -559,6 +559,23 @@ impl CandidateGraphRow<'_> {
                 == other.state.intrusion.rep(other.graph.rows[other.index].key)
     }
 }
+impl PartialEq for CandidateGraphRow<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.state, other.state)
+            && self.state.intrusion.rep(self.graph.rows[self.index].key)
+                == other.state.intrusion.rep(other.graph.rows[other.index].key)
+    }
+}
+impl Eq for CandidateGraphRow<'_> {}
+impl Hash for CandidateGraphRow<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::from_ref(self.state).hash(state);
+        self.state
+            .intrusion
+            .rep(self.graph.rows[self.index].key)
+            .hash(state);
+    }
+}
 pub struct CandidateGraphBound<'a> {
     state: &'a crate::candidate_scheme::GraphState,
     graph: &'a crate::candidate_scheme::Graph,
@@ -2065,6 +2082,85 @@ mod tests {
         indices.insert(independent, 2);
         assert_eq!(indices.get(&same), Some(&0));
         assert_eq!(indices.len(), 3);
+    }
+
+    #[test]
+    fn candidate_graph_row_hashing_matches_identity() {
+        use crate::candidate_scheme::{Graph, GraphState, Row, RowKey};
+
+        let state = GraphState::default();
+        let graph = Graph {
+            source_frontier: Vec::new(),
+            owned_regions: Vec::new(),
+            negative_functions: HashMap::new(),
+            nodes: Vec::new(),
+            rows: vec![
+                Row { key: RowKey::Value(7), local: false },
+                Row { key: RowKey::Value(7), local: true },
+                Row { key: RowKey::Effect(7), local: false },
+            ],
+            bounds: Vec::new(),
+            bound_evidence: Vec::new(),
+            attachment_bundles: Vec::new(),
+            attachment_spans: HashMap::new(),
+            context_views: Vec::new(),
+            root: 0,
+            live_root: 0,
+            boundary: 0,
+        };
+        let first = CandidateGraphRow { state: &state, graph: &graph, index: 0 };
+        let repeated = CandidateGraphRow { state: &state, graph: &graph, index: 0 };
+        let duplicate = CandidateGraphRow { state: &state, graph: &graph, index: 1 };
+        let effect = CandidateGraphRow { state: &state, graph: &graph, index: 2 };
+        assert!(first.same_identity(repeated));
+        assert!(first == repeated);
+        assert!(first.same_identity(duplicate));
+        assert!(first == duplicate);
+        assert!(first != effect, "Value and Effect row namespaces stay distinct");
+
+        let mut indices = HashMap::new();
+        indices.insert(first, 0);
+        assert_eq!(indices.get(&repeated), Some(&0));
+        assert_eq!(indices.get(&duplicate), Some(&0));
+        indices.entry(duplicate).or_insert(1);
+        assert_eq!(indices.len(), 1, "duplicate stored rows share one index");
+        indices.insert(effect, 2);
+        assert_eq!(indices.len(), 2);
+        assert_eq!(graph.rows[first.index].local, false);
+        assert_eq!(graph.rows[duplicate.index].local, true);
+
+        let independent_state = GraphState::default();
+        let independent = CandidateGraphRow {
+            state: &independent_state,
+            graph: &graph,
+            index: 0,
+        };
+        assert!(!first.same_identity(independent));
+        assert!(first != independent, "separate inference states stay distinct");
+        indices.insert(independent, 3);
+        assert_eq!(indices.len(), 3);
+
+        let hir = crate::candidate_lifecycle_retirement::hir("my identity x = x");
+        let root = hir
+            .items()
+            .iter()
+            .find_map(|item| match item {
+                HirItem::Binding(binding) if binding.name().spelling() == "identity" => {
+                    Some(binding.definition_root())
+                }
+                _ => None,
+            })
+            .unwrap();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let candidate_row = candidate.export(root).unwrap().rows().next().unwrap();
+        let independent = CandidateInference::solve(hir.clone()).unwrap();
+        let independent_row = independent.export(root).unwrap().rows().next().unwrap();
+        assert!(!candidate_row.same_identity(independent_row));
+        assert!(candidate_row != independent_row);
+        let mut solve_indices = HashMap::new();
+        solve_indices.insert(candidate_row, 0);
+        solve_indices.insert(independent_row, 1);
+        assert_eq!(solve_indices.len(), 2);
     }
 
     #[test]

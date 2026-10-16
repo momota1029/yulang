@@ -63,9 +63,21 @@ Status: full objective remains active. Native extrusion now schedules current co
   not claim whole-renderer linearity or measured speedup. Benchmark budget is
   0 processes/0 samples; no allocation-recovery guarantee was added. The
   original source/admission, soundness, principality, N1, F5 and production
-  gates remain OPEN/BLOCKED. Full role, lease and inbox state is in
-  [the loop board](agent-loop/board.md); the next implementation is selected
-  by the dispatcher after this push.
+  gates remain OPEN/BLOCKED. I11 was pushed as
+  `7e1140c90b5743eb564b109d1fa4b88ae9b74c7b`. I12 adds `CandidateGraphRow`
+  Eq/Hash matching canonical typed identity (state address plus representative)
+  and a renderer row-index map while retaining the first row/locality and
+  Vec-driven output order. The identity and recursive-graph CLI tests pass 1/1
+  each; R19 compiler-referee and R20 performance reviews are CLEAN at their
+  bounded scopes. Expected row-index work is O((P+M+U)H), with collision-heavy
+  worst case O((P+M)UH); representative depth H is not bounded by the
+  per-renderer 4096-row cap. The extra O(U), U≤4096, map has ordinary allocation
+  exposure. Distinct raw keys merged to one representative and cap boundaries
+  were not directly unit-tested; no measured speedup or constant-time claim is
+  made. Original source/admission, soundness, principality, N1, F5 and
+  production gates remain OPEN/BLOCKED. Full role, lease and inbox state is in
+  [the loop board](agent-loop/board.md); after this push the dispatcher selects
+  the next implementation.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
