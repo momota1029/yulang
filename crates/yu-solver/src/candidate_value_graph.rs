@@ -10,6 +10,7 @@ pub(super) struct Association { pub origin: usize, pub receiver: usize }
 pub(super) struct Graph {
     modules: HashMap<DefinitionRootId, DefId>,
     vertices: HashMap<Value, usize>,
+    values_by_ordinal: HashMap<usize, Value>,
     edges: Vec<Vec<usize>>,
     reverse: Vec<Vec<usize>>,
     pub events: Vec<Association>,
@@ -18,6 +19,7 @@ pub(super) struct Graph {
     components: Vec<usize>,
     edge_bytes: usize,
     identity_bytes: usize,
+    copied_module_payload_bytes: usize,
     pub seal_scratch_peak: usize,
     pub construction_scratch_peak: usize,
 }
@@ -25,7 +27,7 @@ fn unavailable() -> CollectionAvailabilityError { CollectionAvailabilityError::C
 impl Graph {
     // Observation only: auxiliary fragment vertices have no Value descriptor.
     pub fn observed_value(&self, ordinal: usize) -> Option<(&Value, usize)> {
-        let value = self.vertices.iter().find_map(|(value, &id)| (id == ordinal).then_some(value))?;
+        let value = self.values_by_ordinal.get(&ordinal)?;
         Some((value, *self.components.get(ordinal)?))
     }
     pub fn observed_checking(&self, event: usize) -> Option<&ConstraintOccurrenceId> {
@@ -40,10 +42,22 @@ impl Graph {
     fn intern(&mut self, value: Value) -> Result<usize, CollectionAvailabilityError> {
         if let Some(&id) = self.vertices.get(&value) { return Ok(id); }
         self.vertices.try_reserve(1).map_err(|_| unavailable())?;
+        self.values_by_ordinal.try_reserve(1).map_err(|_| unavailable())?;
         self.edges.try_reserve(1).map_err(|_| unavailable())?;
         self.reverse.try_reserve(1).map_err(|_| unavailable())?;
+        let module_payload_bytes = match &value {
+            Value::Module(id) => id.hash_eq_payload_bytes(),
+            _ => 0,
+        };
         if let Value::Module(id) = &value { self.identity_bytes = checked_usize_sum([self.identity_bytes, id.hash_eq_payload_bytes()], "Value identity"); }
-        let id = self.edges.len(); self.vertices.insert(value, id);
+        self.copied_module_payload_bytes = checked_usize_sum(
+            [self.copied_module_payload_bytes, module_payload_bytes],
+            "Value ordinal module payload",
+        );
+        let id = self.edges.len();
+        let reverse_value = value.clone();
+        self.vertices.insert(value, id);
+        self.values_by_ordinal.insert(id, reverse_value);
         self.edges.push(Vec::new()); self.reverse.push(Vec::new()); Ok(id)
     }
     fn edge(&mut self, from: usize, to: usize) -> Result<(), CollectionAvailabilityError> {
@@ -221,9 +235,11 @@ impl Graph {
         checked_usize_sum([
             checked_capacity_bytes::<(DefinitionRootId, DefId)>(self.modules.capacity(), "Value modules"),
             checked_capacity_bytes::<(Value, usize)>(self.vertices.capacity(), "source Values"),
+            checked_capacity_bytes::<(usize, Value)>(self.values_by_ordinal.capacity(), "source Value ordinal index"),
             checked_capacity_bytes::<Vec<usize>>(self.edges.capacity() + self.reverse.capacity(), "Value adjacency"),
             self.edge_bytes,
             self.identity_bytes,
+            self.copied_module_payload_bytes,
             checked_capacity_bytes::<Association>(self.events.capacity(), "extrusion associations"),
             checked_capacity_bytes::<(ConstraintOccurrenceId, usize)>(self.checking.capacity(), "source associations"),
             checked_capacity_bytes::<ConstraintOccurrenceId>(self.checking_by_event.capacity(), "source checking event index"),
@@ -322,6 +338,59 @@ mod conditional_reference_tests {
         let added_bytes = checked_capacity_bytes::<ConstraintOccurrenceId>(
             graph.checking_by_event.capacity(),
             "source checking event index test",
+        );
+        assert_eq!(graph.bytes() - without_index_bytes, added_bytes);
+    }
+
+    #[test]
+    fn value_ordinal_lookup_matches_semantic_vertices() {
+        let (mut graph, _source) = fixture("my loop x = { my helper y = loop y; helper x }");
+        let semantic_count = graph.vertices.len();
+        assert!(semantic_count > 0);
+        assert_eq!(graph.values_by_ordinal.len(), semantic_count);
+        assert!(graph.values_by_ordinal.values().any(|value| matches!(value, Value::Module(_))));
+        assert!(graph.edges.len() > semantic_count, "fixture must retain auxiliary raw vertices");
+        assert_eq!(graph.observed_value(0), None, "unsealed observations have no component");
+
+        graph.seal().unwrap();
+        let mut auxiliary_count = 0;
+        for ordinal in 0..graph.edges.len() {
+            let expected = graph.vertices.iter().find_map(|(value, &id)| {
+                (id == ordinal).then(|| (value, *graph.components.get(ordinal).unwrap()))
+            });
+            assert_eq!(graph.observed_value(ordinal), expected, "raw vertex {ordinal}");
+            if expected.is_none() {
+                auxiliary_count += 1;
+            }
+        }
+        assert!(auxiliary_count > 0);
+        assert_eq!(graph.observed_value(graph.edges.len()), None, "out-of-bounds ordinal");
+        for event in &graph.events {
+            assert!(graph.observed_value(event.origin).is_some(), "event origin must be semantic");
+            assert!(graph.observed_value(event.receiver).is_some(), "event receiver must be semantic");
+        }
+
+        let semantic_len = graph.values_by_ordinal.len();
+        let copied_module_payload_bytes = graph.copied_module_payload_bytes;
+        let existing: Vec<_> = graph.values_by_ordinal.iter().map(|(&id, value)| (id, value.clone())).collect();
+        for (id, value) in existing {
+            assert_eq!(graph.intern(value).unwrap(), id);
+        }
+        assert_eq!(graph.vertices.len(), semantic_len);
+        assert_eq!(graph.values_by_ordinal.len(), semantic_len);
+        assert_eq!(graph.copied_module_payload_bytes, copied_module_payload_bytes);
+        let expected_module_payload_bytes = graph.values_by_ordinal.values().map(|value| match value {
+            Value::Module(id) => id.hash_eq_payload_bytes(),
+            _ => 0,
+        }).sum::<usize>();
+        assert_eq!(graph.copied_module_payload_bytes, expected_module_payload_bytes);
+
+        let value_ordinal_index = std::mem::take(&mut graph.values_by_ordinal);
+        let without_index_bytes = graph.bytes();
+        graph.values_by_ordinal = value_ordinal_index;
+        let added_bytes = checked_capacity_bytes::<(usize, Value)>(
+            graph.values_by_ordinal.capacity(),
+            "source Value ordinal index test",
         );
         assert_eq!(graph.bytes() - without_index_bytes, added_bytes);
     }

@@ -156,6 +156,26 @@ Status: full objective remains active. Native extrusion now schedules current co
   is expected O(E*V+E), worst O(E*(V+E)). Measurement budget: 0 processes / 0
   samples. No source inference semantics, theorem, F5 or production gate
   changed or closed; all original proof and cutover gates remain OPEN.
+  I20 adds a private semantic-Value-to-ordinal map to the native observation
+  graph, so retained event descriptors no longer scan every Value. The reverse
+  map contains only values interned in the existing forward map; auxiliary
+  fragments, unsealed components, and out-of-bounds ordinals retain `None`.
+  Duplicate interning, ordinals, endpoints, SCCs, event order, and I19's checking
+  index are unchanged. Fallible map reservation precedes registration, and
+  `Graph::bytes`/`Plan::bytes` charge table capacity plus copied `Module`
+  identity payload. The first unit run caught a new assertion that counted the
+  still-retained payload counter in the temporary map-capacity delta; I20-R1
+  corrected only that assertion while preserving the separate payload-sum
+  check. The three selected unit/native/playground checks then pass 1/3/1.
+  R31 compiler-referee and R32 performance reviews are CLEAN for the full
+  feature. Added retained storage is O(S+D) for semantic Values S and copied
+  Module bytes D; lookup is expected O(1), collision worst O(S), and event
+  iteration is expected O(E). Hash-collision bounds remain; ordinary Module
+  clone allocation has no recovery guarantee, retained-byte accounting is not
+  a transient peak guarantee, and no measured speedup is claimed. Measurement
+  budget: 0 processes / 0 samples. No inference semantics, theorem, F5 or
+  production gate changed or closed; original proof and cutover gates remain
+  OPEN/BLOCKED.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
