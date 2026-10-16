@@ -4,91 +4,58 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "local-use-existing-map-retention-20261017",
-    "contract": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
-    "revision": 3,
-    "sha256": "be13224abe1dcfbcbc9e1c9eea8bfb83e9b2192854e8bdfb9e28ba4ed584e049",
-    "state": "PROPOSAL-MAJOR-REPAIR-NEEDED",
-    "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
-    "source_baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
+    "id": "local-use-retention-proposal-repair-20261017",
+    "contract": "tasks/agent-loop/sprints/local-use-retention-proposal-repair-20261017.md",
+    "revision": 1,
+    "sha256": "8d1bd53dab64ae049a04ca506bc75f469479de3b7b4a525d6f1c0900c9578cb4",
+    "state": "AUTHOR-RUNNING",
+    "baseline": "c9993c2b3",
+    "source_baseline": "2ce5d664bdce1417379cd80767bc53643b6e40740a9fe7e942c24c2009da351e",
     "previous_sprint": {
-      "id": "npair-commit-retention-repair-20261017",
-      "outcome": "REVIEWED-PARTIAL; R1 and repaired Draft accepted only within bounded scopes; no code permission; 1080s charged/120 retired.",
-      "receipt": "notes/progress/2026-10-17-npair-commit-retention-repair-closeout.md",
-      "sha256": "93294d230f4dff06cf781d0be64a59391ee47b2e3bcf0d1f39f6170e569519cf"
+      "id": "local-use-existing-map-retention-20261017",
+      "outcome": "PARTIAL: M2 proof CLEAN within bounded scope; code proposal MAJOR; unused spec/coordination allocation retired.",
+      "receipt": "notes/progress/2026-10-17-local-use-retention-proposal-major-closeout.md",
+      "sha256": "c93eaf4b94f7f5bc4580ad392687a8724a1e6b78248809341f27e5cd49d53199"
     },
     "proof": {
-      "state": "STOPPED",
-      "owner": "/root/local_use_existing_map_retention",
-      "role": "prover",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "cap_seconds": 360,
-      "max_stages": 6,
-      "outputs": [
-        "notes/theory/2026-10-17-local-use-existing-map-retention.md",
-        "tasks/agent-loop/inbox/20261017-local-use-existing-map-retention.md"
-      ],
-      "session": "current-session",
-      "active_work_receipt": "Actual prover spawn acknowledged; exact frozen candidate_scheme snapshot/contract pins and two leased paths supplied; 360s/six-stage cap.",
+      "state": "FROZEN-CLEAN-BOUNDED",
+      "artifact": "notes/theory/2026-10-17-local-use-existing-map-retention.md",
       "artifact_sha256": "f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e",
-      "handoff_sha256": "2d3ca0ff0115f4098dd763b8c9ec3d8468d00c47007f51cca66d93bbad0218e2",
-      "receipt": "Six stages; full 360s charged; writer STOPPED; M1 actual constructor correspondence and conditional M2 for structural Qmap; current commit only preserves Graph/rows.",
-      "repair_cap_seconds": 60,
-      "original_v1_sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245",
-      "repair_handoff": "tasks/agent-loop/inbox/20261017-local-use-map-version-repair.md",
-      "correction": "Pin precommit version; state equality only for valid same-version evaluations; handle changed-version as invalidation or equality-or-invalidation; revise dependent claims.",
-      "repair_assignment": "NPAIR-M2-VERSION-REPAIR-20261017",
-      "repair_session": "current-session",
-      "repair_active_work_receipt": "Fresh current-session acknowledgement from original prover accepted rev2 exact artifact+handoff leases; 60s/two-stage cap; old revision snapshot immutable.",
-      "repair_receipt": "Correction frozen after two stages; 60s fully charged; writer STOPPED. M2 pins v0 and limits equality to valid same-version evaluations; Invalid carries no equality claim."
+      "review": "CLEAN narrow M2 delta; valid pinned-v0 evaluations only; Invalid(v0) separate; parent OPEN."
     },
     "proposal": {
-      "state": "MAJOR-REPAIR-NEEDED",
+      "state": "RUNNING",
       "owner": "/root",
-      "cap_seconds": 600,
+      "role": "Luna primary",
+      "cap_seconds": 120,
       "outputs": [
         "notes/design/2026-10-17-local-use-retention-code-contract.md",
-        "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal.md"
+        "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal-repair.md"
       ],
-      "active_work_receipt": "Luna completed the existing 600s author packet; both exact outputs frozen. Proposed move-only FreshUse retention patch, no compiler edits. Writer STOPPED.",
-      "artifact_sha256": "a346ef6812109eb181cf160127959ac8320389b1a8a2d52e566464039601fb55",
-      "handoff_sha256": "572e06a32b268dc3d089c5b4d27b4361fa194ca133857dc6bb2da8c7edec14ad"
+      "input_snapshot_sha256": "a346ef6812109eb181cf160127959ac8320389b1a8a2d52e566464039601fb55",
+      "handoff_snapshot_sha256": "572e06a32b268dc3d089c5b4d27b4361fa194ca133857dc6bb2da8c7edec14ad",
+      "active_work_receipt": "Luna accepted selector delta and acknowledged new 120s repair packet; preserve LocalFreshRoute.rows, move other FreshUse maps once, account exact bytes, state memory/resource tradeoff; exact two output paths only."
     },
     "review": {
-      "state": "MAJOR-ARCHITECT-REVIEW",
+      "state": "WAITING-FOR-AUTHOR-STOP",
       "sequence": [
-        "compiler_referee",
         "architect",
         "spec_auditor"
       ],
       "caps_seconds": [
-        120,
-        120,
-        120
+        90,
+        90
       ],
-      "proof_sha256": "f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e",
-      "proof_handoff_sha256": "2d3ca0ff0115f4098dd763b8c9ec3d8468d00c47007f51cca66d93bbad0218e2",
       "current_reviewer": null,
       "current_cap_seconds": null,
-      "session": "current-session",
-      "active_work_receipt": "Independent architect completed one-stage read-only review within 120s cap; exact seven pins verified; STOPPED.",
-      "verdict": "MAJOR: proposed removal of LocalFreshRoute.rows breaks shadow_apply.rs local route adapter and tests; FreshUse.rows is private across module boundary. All-map retention also increases memory and may shift resource-limit acceptance earlier; practical envelope unmeasured. Architect STOPPED; spec review blocked pending repair/reconciliation.",
-      "reviewer": "/root/local_use_map_version_delta_review",
-      "review_state": "STOPPED",
-      "delta_cap_seconds": 60,
-      "delta_reviewer": "/root/local_use_map_version_delta_review",
-      "original_v1_review": "MAJOR; reviewer STOPPED; superseded bytes preserved in snapshot.",
-      "proposal_sha256": "a346ef6812109eb181cf160127959ac8320389b1a8a2d52e566464039601fb55",
-      "proposal_handoff_sha256": "572e06a32b268dc3d089c5b4d27b4361fa194ca133857dc6bb2da8c7edec14ad"
+      "verdict": "Prior architect MAJOR is frozen in previous sprint closeout; fresh reviews wait for corrected proposal."
     },
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; no source/native or consumer/production closure."
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN; no source/native or consumer/production closure.",
+    "scope": "Repair only the unapplied code proposal for existing-map retention. No compiler/test edits, execution or language-semantic changes. User approval remains required before a code sprint."
   },
-  "candidate": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
-  "baseline": "c2ca891da23d791dfa661c7745864ef3613a32df",
-  "scope": "Prove retention only for existing FreshUse structural maps, then prepare a reviewed unapplied code proposal. No compiler source edits or execution; exact implementation representation still awaits user approval.",
+  "candidate": "tasks/agent-loop/sprints/local-use-retention-proposal-repair-20261017.md",
+  "baseline": "c9993c2b3",
+  "scope": "Luna proposal correction120s; architect90s and spec90s sequential; coordination30s; reserve30s. No compiler code permission.",
   "worker_inventory_scope": "Three historical UNKNOWN reservations and quarantined board lease retained. No current worker is RUNNING before actual launch acknowledgment.",
   "workers": [
     {
@@ -126,36 +93,14 @@
     },
     {
       "id": "/root",
-      "role": "Luna/high primary and sole integrator",
-      "state": "WAITING",
+      "role": "Luna/high primary proposal author and sole integrator",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Proposal is blocked on MAJOR source-applicability finding; awaiting selector delta and budget reconciliation."
-    },
-    {
-      "id": "/root/local_use_existing_map_retention",
-      "role": "prover",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Correction frozen after two stages; 60s fully charged; writer STOPPED. M2 pins v0 and limits equality to valid same-version evaluations; Invalid carries no equality claim."
-    },
-    {
-      "id": "/root/local_use_retention_arch_review",
-      "role": "architect",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "MAJOR: proposed removal of LocalFreshRoute.rows breaks shadow_apply.rs local route adapter and tests; FreshUse.rows is private across module boundary. All-map retention also increases memory and may shift resource-limit acceptance earlier; practical envelope unmeasured. Architect STOPPED; spec review blocked pending repair/reconciliation."
+      "receipt": "Luna accepted selector delta and acknowledged new 120s repair packet; preserve LocalFreshRoute.rows, move other FreshUse maps once, account exact bytes, state memory/resource tradeoff; exact two output paths only."
     }
   ],
   "leases": [
@@ -165,58 +110,49 @@
       "state": "QUARANTINED"
     },
     {
+      "path": "tasks/agent-loop/sprints/local-use-retention-proposal-repair-20261017.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "8d1bd53dab64ae049a04ca506bc75f469479de3b7b4a525d6f1c0900c9578cb4"
+    },
+    {
       "path": "tasks/agent-loop/sprints/local-use-existing-map-retention-20261017.md",
       "owner": "/root",
       "state": "FROZEN",
       "sha256": "be13224abe1dcfbcbc9e1c9eea8bfb83e9b2192854e8bdfb9e28ba4ed584e049"
     },
     {
-      "path": "tasks/agent-loop/snapshots/20261017-candidate_scheme-pre-local-use-retention.rs",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "2ce5d664bdce1417379cd80767bc53643b6e40740a9fe7e942c24c2009da351e"
-    },
-    {
-      "path": "notes/theory/2026-10-17-local-use-existing-map-retention.md",
-      "owner": "/root/local_use_existing_map_retention",
-      "state": "FROZEN",
-      "sha256": "f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261017-local-use-existing-map-retention.md",
-      "owner": "/root/local_use_existing_map_retention",
-      "state": "FROZEN",
-      "sha256": "9bedd42fc4860ba2e86d1ee2c2b4ea433c62db1e955b258441f16ac57b0fc99c"
-    },
-    {
-      "path": "notes/design/2026-10-17-local-use-retention-code-contract.md",
+      "path": "tasks/agent-loop/snapshots/20261017-local-use-retention-proposal-pre-repair.md",
       "owner": "/root",
       "state": "FROZEN",
       "sha256": "a346ef6812109eb181cf160127959ac8320389b1a8a2d52e566464039601fb55"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal.md",
+      "path": "tasks/agent-loop/snapshots/20261017-local-use-retention-proposal-handoff-pre-repair.md",
       "owner": "/root",
       "state": "FROZEN",
       "sha256": "572e06a32b268dc3d089c5b4d27b4361fa194ca133857dc6bb2da8c7edec14ad"
     },
     {
-      "path": "notes/progress/2026-10-17-npair-commit-retention-repair-closeout.md",
+      "path": "notes/theory/2026-10-17-local-use-existing-map-retention.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "93294d230f4dff06cf781d0be64a59391ee47b2e3bcf0d1f39f6170e569519cf"
+      "sha256": "f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e"
     },
     {
-      "path": "tasks/agent-loop/snapshots/20261017-local-use-existing-map-retention-pre-version-repair.md",
+      "path": "notes/design/2026-10-17-local-use-retention-code-contract.md",
       "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "111d19f4684a52b187997827d384f523e8c28c904f0516d0b9930aa5d864b245"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-local-use-map-version-repair.md",
-      "owner": "/root/local_use_existing_map_retention",
-      "state": "FROZEN",
-      "sha256": "2d3ca0ff0115f4098dd763b8c9ec3d8468d00c47007f51cca66d93bbad0218e2"
+      "path": "tasks/agent-loop/inbox/20261017-local-use-retention-code-proposal-repair.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/current.json",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -252,36 +188,31 @@
     },
     {
       "id": "LOCAL-USE-MAP-RETENTION M2 version/invalidation repair",
-      "state": "PROOF M2 CLEAN; PROPOSAL MAJOR: update existing rows consumer/test API and account memory tradeoff; spec review not launched.",
-      "owner": "Luna/selector; exact code scope still awaits user approval"
+      "state": "PROOF CLEAN bounded; old proposal MAJOR; new source-applicable proposal correction RUNNING.",
+      "owner": "Luna; then fresh architect and spec reviewers; user approval before code"
     }
   ],
   "next_action": {
-    "state": "PROPOSAL-MAJOR-REPAIR-NEEDED",
-    "dispatcher": "Selector delta accepted: exact v2 correction and fresh 60s delta review from reserve.",
-    "proof": "M2 v2 CLEAN within the corrected finite-query conditional scope; parent remains OPEN.",
-    "implementation": "Architect found removed LocalFreshRoute.rows breaks shadow_apply adapter/tests and sibling access; all-map retention memory acceptance change needs explicit treatment. No code edits."
+    "state": "AUTHOR-RUNNING",
+    "dispatcher": "New correction sprint accepted from selector delta at MAJOR review boundary.",
+    "proof": "M2 proof remains CLEAN only for valid same-version finite structural queries; parent OPEN.",
+    "implementation": "Preserve rows consumers while transferring each other map once; explicitly disclose possible earlier resource rejection."
   },
   "resource_accounting": {
-    "current_sprint_id": "local-use-existing-map-retention-20261017",
-    "cap_seconds": 1560,
-    "proof": 420,
-    "architecture": 600,
-    "review": 420,
-    "coordination": 120,
-    "reserve": 0,
+    "current_sprint_id": "local-use-retention-proposal-repair-20261017",
+    "cap_seconds": 360,
+    "proposal_author": 120,
+    "architect_review": 90,
+    "spec_review": 90,
+    "coordination": 30,
+    "reserve": 30,
+    "charged_total_seconds": 0,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "active_authors": 0,
-    "astra_assignments": 0,
-    "charged_total_seconds": 1320,
-    "status": "Proof authors 420s + proposal author 600s + proof/architect reviews 300s charged; remaining only spec120 and coordination120; reserve0; major proposal repair needs reconciliation.",
-    "authors_spent_seconds": 1020,
-    "review_spent_seconds": 300,
-    "architecture_spent_seconds": 0,
-    "coordination_spent_seconds": 0
+    "status": "New sprint started after prior sprint closed PARTIAL; no prior budget carried over."
   },
-  "history": "Previous correction sprint closeout records proof/architect/spec CLEAN within bounded conditional/Draft scopes. Three UNKNOWN reservations, board quarantine and unrelated modified JSON are preserved.",
+  "history": "Prior sprint closed PARTIAL at c93eaf4b94f7f5bc4580ad392687a8724a1e6b78248809341f27e5cd49d53199; its unused 240s retired. Foreign dirty JSON, three UNKNOWN reservations and board quarantine preserved.",
   "checkpoint_commits": [
-    "c2ca891da23d791dfa661c7745864ef3613a32df"
+    "c9993c2b3"
   ]
 }
