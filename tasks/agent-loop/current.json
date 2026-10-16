@@ -8,12 +8,12 @@
     "contract": "tasks/agent-loop/sprints/npair-applied-producer-and-seed-bridge-20261017.md",
     "revision": 3,
     "sha256": "4e4f0c9797044b8395305775d7c45192a10300ee9b9bceb7a7d0a15ddae1f883",
-    "state": "PROOF-LANE-RUNNING-REV3",
+    "state": "CLOSED-REVIEWED-PARTIAL-ADJUDICATED",
     "baseline": "24be694c5bd3c024faa20bea0efb19e38f73b0c5",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
     "fixed_outcome": "Prove applied concrete-only producer formation and ordinary-edge correspondence; then construct full descriptor-to-authentic-seed association or isolate exact missing field/event; apply to original receive obligation.",
     "review": {
-      "state": "PROOF-AUTHOR-RUNNING-REV3-ACKNOWLEDGED",
+      "state": "CLEAN-PRIMARY-ADJUDICATED-CLOSED",
       "current_reviewer": null,
       "sequence": [
         "compiler_referee:120s",
@@ -26,17 +26,17 @@
       "proof_cap_seconds": 720,
       "readiness_cap_seconds": 360,
       "reviews_cap_seconds": 240,
-      "optional_compile_only_cap_seconds": 120,
+      "optional_compile_only_cap_seconds": 0,
       "coordination_seconds": 60,
-      "reserve_seconds": 60,
-      "charged_seconds": 30,
-      "active_authors": 1,
-      "status": "30s coordination charged. Proof author acknowledged revision 3 and continues within original 720s cap without reset; readiness waits for proof STOP; reserve 60s remains."
+      "reserve_seconds": 0,
+      "charged_seconds": 1350,
+      "active_authors": 0,
+      "status": "Closed REVIEWED-PARTIAL: 1350s charged (proof720/readiness360/coordination30/reviews240); unused coordination, optional compile-only and reserve totaling 210s retired without transfer."
     },
     "lanes": {
       "proof": {
         "owner": "/root/npair_applied_producer_seed_bridge",
-        "state": "RUNNING",
+        "state": "STOPPED-FROZEN",
         "outputs": [
           "notes/theory/2026-10-17-npair-applied-producer-seed-bridge.md",
           "tasks/agent-loop/inbox/20261017-npair-applied-producer-seed-bridge.md"
@@ -44,14 +44,28 @@
       },
       "implementation_readiness": {
         "owner": "/root",
-        "state": "WAITING-PROOF-STOP",
+        "state": "STOPPED-FROZEN",
         "outputs": [
           "notes/design/2026-10-17-npair-descriptor-seed-association-contract.md",
           "tasks/agent-loop/inbox/20261017-npair-descriptor-seed-association-contract.md"
         ],
         "compiler_lease": false
       }
-    }
+    },
+    "artifacts": [
+      {
+        "path": "notes/theory/2026-10-17-npair-applied-producer-seed-bridge.md",
+        "sha256": "45cfefb49b6a1ca567ea603558c95b0dfed22a776b23d3b5ed200e373befa579"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-npair-applied-producer-seed-bridge.md",
+        "sha256": "986c4391063348592d6be13c9db549692b1fdcefcbc5eb72dd1ad5da68150a12"
+      },
+      {
+        "path": "notes/progress/2026-10-17-npair-applied-producer-seed-bridge.md",
+        "sha256": "82bcb3953191d2ab7a2504a75c896fcfb130181be916fcc83ac91ff4bc2adf1f"
+      }
+    ]
   },
   "candidate": "tasks/agent-loop/sprints/npair-applied-producer-and-seed-bridge-20261017.md",
   "baseline": "24be694c5bd3c024faa20bea0efb19e38f73b0c5",
@@ -94,26 +108,54 @@
     {
       "id": "/root/npair_applied_producer_seed_bridge",
       "role": "prover, applied producer and authentic seed bridge proof author",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "cap_seconds": 720,
-      "receipt": "ACTIVE current-session receipt; corrected pin and revision 3 contract SHA verified/acknowledged; original 720s cap continues; exact proof scope and output leases unchanged."
+      "receipt": "Frozen candidate proof and source/native evidence; artifact 45cfefb49b6a1ca567ea603558c95b0dfed22a776b23d3b5ed200e373befa579; handoff 986c4391063348592d6be13c9db549692b1fdcefcbc5eb72dd1ad5da68150a12. All 21 pins reverified; exact parent frontier preserved; no edits/execution/descendants.",
+      "elapsed_seconds_charged": 720
     },
     {
       "id": "/root",
       "role": "Luna/high primary, current-state owner and sole Git integrator",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 60,
-      "receipt": "Current-session primary receipt: validated selector proposal, corrected revision-2 contract pin, owns current state and exact integration path; no compiler source lease in this sprint."
+      "cap_seconds": 360,
+      "receipt": "Luna adjudicated the frozen proof as candidate static evidence and readiness as unapplied Draft after both independent reviews CLEAN. No source/compiler lease or semantic authority.",
+      "elapsed_seconds_charged": 360
+    },
+    {
+      "id": "/root/npair_bridge_compiler_review",
+      "role": "compiler_referee, fresh read-only applied proof/readiness reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 120,
+      "receipt": "CLEAN bounded source-to-claim review; all five bundle pins and seven source/authority pins match; conditional certificate and open parent boundaries confirmed; record-only HEAD descendant accepted. Static only; STOPPED.",
+      "elapsed_seconds_charged": 120
+    },
+    {
+      "id": "/root/npair_bridge_arch_review",
+      "role": "architect, fresh read-only applied proof/readiness reviewer",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 120,
+      "receipt": "CLEAN bounded architecture review; all five outputs/contract and seven direct source pins match; lifecycle, raw ordinal/representative, existing/later lowers and authority boundaries accepted; executable algorithm and runtime remain open. STOPPED.",
+      "elapsed_seconds_charged": 120
     }
   ],
   "leases": [
@@ -190,12 +232,32 @@
     {
       "path": "notes/theory/2026-10-17-npair-applied-producer-seed-bridge.md",
       "owner": "/root/npair_applied_producer_seed_bridge",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "45cfefb49b6a1ca567ea603558c95b0dfed22a776b23d3b5ed200e373befa579"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-npair-applied-producer-seed-bridge.md",
       "owner": "/root/npair_applied_producer_seed_bridge",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "986c4391063348592d6be13c9db549692b1fdcefcbc5eb72dd1ad5da68150a12"
+    },
+    {
+      "path": "notes/design/2026-10-17-npair-descriptor-seed-association-contract.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "9f4e2d9f2ccc6f972d9a6eb99910a0e9a44c982eda0646f512f687ec9d518395"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-npair-descriptor-seed-association-contract.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "b96b55b05992748f89842e417ce035f83a9df6cce12109043d28ec1a295c5dde"
+    },
+    {
+      "path": "notes/progress/2026-10-17-npair-applied-producer-seed-bridge.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "82bcb3953191d2ab7a2504a75c896fcfb130181be916fcc83ac91ff4bc2adf1f"
     }
   ],
   "pending": [
@@ -226,26 +288,26 @@
     }
   ],
   "next_action": {
-    "state": "PROOF-ACTIVE-REV3-ACKNOWLEDGED",
-    "dispatcher": "Selector selected fresh 1560s applied-producer/seed-bridge sprint; primary validated pins and granted exact leases.",
-    "proof": "Sol/high 720s, up to six stages: derive constructor/Permission/ordinary-edge correspondence, inspect full retained seed evidence, construct association or exact missing-field result, apply to parent.",
-    "implementation": "Luna/high 360s after proof STOP: refine descriptor-seed association authentication/readiness contract. No compiler lease."
+    "state": "NEXT-SPRINT-SELECTED-NOT-YET-LEASED",
+    "dispatcher": "Selector proposed forward realization from an independently supplied original Operation witness; Luna validates, commits the reviewed frontier, then issues exact leases.",
+    "proof": "Astra/medium 900s up to six stages: carry original contribution witness w forward through physical Operation emission/admission, checked FunctionPort and ordered Replay to recovered Permission port; classify adopted At(D,w,delta) versus structural incidence and apply to parent.",
+    "implementation": "Luna/high 600s after proof STOP: write executable-gate contract separating structural certificate, semantic witness/At, and source admission. No compiler or preflight lease."
   },
   "resource_accounting": {
     "current_sprint_id": "npair-applied-producer-and-seed-bridge-20261017",
     "cap_seconds": 1560,
+    "charged_total_seconds": 1350,
     "proof_cap_seconds": 720,
     "readiness_cap_seconds": 360,
     "reviews_cap_seconds": 240,
-    "optional_compile_only_cap_seconds": 120,
+    "optional_compile_only_cap_seconds": 0,
     "coordination_seconds": 60,
-    "reserve_seconds": 60,
-    "charged_total_seconds": 30,
-    "active_authors": 1,
+    "reserve_seconds": 0,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "30s coordination charged; proof author RUNNING on revision-3 acknowledgement within original 720s cap; readiness waits for STOP; 3 historical UNKNOWN reservations preserved."
+    "status": "Closed REVIEWED-PARTIAL, 1350s charged; unused 210s retired without transfer; all current-session workers STOPPED."
   },
-  "history": "Checkpoint `24be694c5` pushed: approved concrete-only producer and accounting repair integrated after compiler, architect and spec delta reviews were CLEAN; runtime resource-boundary behavior remains unverified. Correction sprint CLOSED REVIEWED-PARTIAL at 300/360s, reserve retired; see notes/progress/2026-10-17-npair-permission-accounting-repair.md. New applied producer/seed bridge sprint contract pinned at 502d039c…c95de3; baseline 24be694c5. Preserve 3 historical UNKNOWN reservations, quarantined board lease and unrelated dirty JSON. Earlier proof/readiness and failed targets remain frozen.",
+  "history": "Checkpoint 24be694c5 integrated the approved concrete-only Permission producer/accounting repair after all three delta reviews CLEAN. Applied producer/seed bridge sprint on record-only baseline descendant 2ce33a973: proof 45cfefb4…fa579, readiness 9f4e2d9f…18395; fresh compiler-referee and architect both CLEAN/STOPPED. Primary accepts candidate static evidence and unapplied readiness Draft only; parent/source admission/N-Ingress remain OPEN. Outcome receipt notes/progress/2026-10-17-npair-applied-producer-seed-bridge.md. Sprint closed REVIEWED-PARTIAL, 1350/1560s charged; remaining 210 retired. Preserve 3 UNKNOWN reservations, board quarantine and foreign dirty JSON.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
