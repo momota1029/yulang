@@ -159,6 +159,11 @@ This index is a navigation aid. The listed source document remains authoritative
   view and actual historical reference maps. Original monomorphic formation
   closes; satisfaction, original specialization, generalized/native maps and
   complete installed support remain OPEN.
+  The [declaration/Initial audit](../theory/2026-10-16-choose-source-declaration-initial-installation.md)
+  has bounded semantic review: full typed operation Lambda/bootstrap remains
+  the missing source owner. Sigma is an independent theorem parameter that
+  a genuinely constructed source package may instantiate; empty environment
+  and runtime activation do not prove OriginalInitial. Full admission stays OPEN.
 
 - [Native negative-formal consumer audit](../progress/2026-10-16-native-negative-formal-consumer-audit.md)
   — Independently CLEAN bounded source evidence: existing tail/closed-weight

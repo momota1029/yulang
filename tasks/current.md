@@ -471,6 +471,16 @@ Status: full objective remains active. Native extrusion now schedules current co
   satisfaction. This closes formation for the original monomorphic use only;
   actual source specialization, generalized/native maps and the entire FIX
   walk remain OPEN. No historical dependency is erased by formation alone.
+  The [declaration/Initial owner audit](../notes/theory/2026-10-16-choose-source-declaration-initial-installation.md)
+  has CLEAN bounded semantic review after a minor quantifier correction:
+  Sigma_choose is an independent theorem parameter, not an exhibited sealed
+  package. Authentic source Lambda/bootstrap construction may supply Sigma0
+  before f0 and instantiate that theorem directly. HIR signatures/runtime
+  operation ordering do not yet supply its complete typed Lambda or Initial
+  validity; coinduction does not discharge immediate guards. A separate source
+  constructor lane now builds that missing complete declaration/bootstrap,
+  preserving all carrier, private profile and history fields. Initial and
+  full source context admission remain OPEN.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,

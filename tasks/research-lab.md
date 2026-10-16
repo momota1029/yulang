@@ -519,6 +519,15 @@ the original Value-entry result/rebind path at actual receipt. It fabricates
 no directional seed, provider backflow, nested permission or empty full profile.
 Apply this result only to that first-call component; complete inventory,
 second-use, d0/Catch and native/runtime parents remain OPEN.
+The follow-on complete concrete-profile packet stopped with an empty artifact:
+two known Function call components do not prove an exhaustive inventory for
+the positive future whole-carrier/Force port or current incoming carrier.
+Positive interaction direction is not capture authority. The changed-method
+25-minute `function_result_projection` packet now owns
+`notes/theory/2026-10-16-receiving-profile-introduction-grammar.md`, constructing
+actual receipt/entry/result/capture/future-binder introductions and their
+exhaustive owner inversion for this finite source graph. No two-slot or empty
+inventory is selected; new source grammar needs independent review.
 The complementary full installed-support census produced no new artifact.
 Current Remaining's actual map eliminates its direct free-q path. The next
 owner is historical WholeContext: actual receive producer declaration AND
@@ -537,9 +546,22 @@ registration/use/capture maps, retaining every open profile/check clause.
 Original monomorphic-use formation is not generalized/native correspondence;
 actual historical eta and full installed FIX remain OPEN. No solve-at-generation
 gate or automatic Remaining-map transport is introduced.
-A complementary eight-minute initial-protection inventory audit examines the
-fresh original world, inherited profiles and other live prefix receivers;
-it may not replace missing source-world/primitive evidence with emptiness.
+A complementary eight-minute inventory audit returned no artifact: all fresh
+prefix boundaries have no B-bearing transport back to U; inherited inactivity
+still needs genuine original Initial evidence. Empty environment/runtime
+activation is not that evidence. The [declaration/Initial owner note](../notes/theory/2026-10-16-choose-source-declaration-initial-installation.md)
+is frozen at producer `e669836a...597f58`, bounded semantic CLEAN after one
+minor correction: Sigma is a theorem parameter, not an exhibited sealed
+constant, so a legitimate complete source Sigma0 can instantiate full-f
+directly. No extra equivalence-to-an-unspecified-package gate is introduced.
+The first unsupplied operand is the complete original Lambda/Initial bootstrap;
+actual HIR/runtime records and hereditary recursion alone do not provide it.
+`source_initial_installation` now owns the changed-method 25-minute packet
+`notes/theory/2026-10-16-choose-source-bootstrap-construction.md`, defining the
+authentic declaration Lambda0 and source bootstrap before caller/challenges,
+then attempting immediate guards and joint positive validity. Profile grammar
+is a separate lane; no live producer result or OriginalInitial is assumed.
+Audit M1 one reviewer, 32 dependency pins and static integrity only.
 M2 two reviewers on the frozen context artifact, 16 dependency pins and local
 integrity only; zero tests/builds/probes or benchmark samples/processes.
 Profile/native/runtime parents remain distinct OPEN gates.
