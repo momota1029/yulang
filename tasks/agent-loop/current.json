@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/source-constructor-instantiation-and-export-cut-20261017.json",
     "revision": 2,
     "sha256": "e7761d5f5bc60593f2f7f9c129b82fa2b6f83f8cebf815ee90fb0ae361eedca2",
-    "state": "AUTHORS-STOPPED-REVIEW-PENDING",
+    "state": "REVIEWS-COMPLETE-ADJUDICATION-PENDING",
     "previous_sprint": "concrete-declaration-and-export-root-qualification-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-concrete-declaration-export-root-review.md",
     "dispatcher": "Cross-lane selector chose dependency-only rev2: add frozen proof artifact/handoff hashes for implementation consumption. Proof remains rev1 conditional evidence; no semantic authority or budget transfer.",
     "proof": {
@@ -51,12 +51,13 @@
       "artifact_sha256": "6bb825b64d88699856cbae74c4ad0d3680e86f7185167cc9002d28be62c7c1a5"
     },
     "review": {
-      "state": "IMPLEMENTATION-REVIEW-RUNNING",
+      "state": "BOTH-CLEAN-BOUNDED",
       "budget_seconds": 300,
       "execution": "Authors and descendants confirmed STOPPED from completed runtime receipts; fresh isolated proof review first, then implementation review after proof reviewer STOP.",
-      "current_assignment": "/root/authentic_root_export_review_fresh",
-      "receipt": "Sequential boundary met: proof reviewer STOPPED before fresh architect launch. Implementation handoff rev1, contract rev2, 54 pins; read-only, max 150s.",
-      "proof_receipt": "CLEAN conditional-scope review; no blocking/major/minor correctness findings. Rev1 contract recovered at immutable e23c4b8af; 52/52 pins match. Reviewer STOPPED, no writes/descendants. Does not certify concrete emitted instance or close parent."
+      "current_assignment": null,
+      "receipt": "Both sequential fresh reviews STOPPED. Proof review CLEAN conditional scope; implementation review CLEAN conditional source-owner obstruction. Luna adjudication and sprint-end selector remain.",
+      "proof_receipt": "CLEAN conditional-scope review; no blocking/major/minor correctness findings. Rev1 contract recovered at immutable e23c4b8af; 52/52 pins match. Reviewer STOPPED, no writes/descendants. Does not certify concrete emitted instance or close parent.",
+      "implementation_receipt": "CLEAN within conditional scope; 54/54 rev2 pins and both proof hashes match. Authentication, concrete root/use, §11 public cut and all parents remain OPEN. Reviewer STOPPED; no writes/descendants."
     },
     "open_parent": "D_tail, H1/H2/JOINT_DEC/F1/FK1/F5, source-Generalize/public-export field law, principality and production remain open.",
     "baseline_reconciliation": {
@@ -147,13 +148,13 @@
     {
       "id": "/root/authentic_root_export_review_fresh",
       "role": "architect",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "UNKNOWN",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Fresh sequential reviewer spawned after proof reviewer STOP; implementation handoff SHA 6bb825b64d88699856cbae74c4ad0d3680e86f7185167cc9002d28be62c7c1a5; contract rev2 and 54 pins; read-only, 150s cap; no descendants."
+      "receipt": "CLEAN conditional source-owner obstruction review; handoff/contract hashes exact; 54/54 direct pins match; no authentication/public-cut/parent closure; no writes/descendants."
     }
   ],
   "leases": [
