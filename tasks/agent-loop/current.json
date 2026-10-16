@@ -46,7 +46,7 @@
       "spec_delta_receipt": "CLEAN exact delta; major closed for the changed sentence only; option-B explicit-user-approval scope confirmed; full 30s charged; UNKNOWN/UNKNOWN; STOPPED, no descendants."
     },
     "implementation": {
-      "state": "RUNNING-PROPOSAL-AUTHORING",
+      "state": "FROZEN-REVIEW-PENDING",
       "assignment": "CATCH-EXIT-INPUT-PROPOSAL-20261017",
       "role": "primary proposal author",
       "outputs": [
@@ -58,16 +58,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 600,
-      "receipt": "Packet 2 resumed after primary repair freeze; independent and proposal-only; requested Luna/high, observed UNKNOWN/UNKNOWN; exact packet-2 outputs only."
+      "receipt": "Primary proposal frozen; 15 applicable contract pins matched at entry/freeze; six stages; full 600s conservatively charged; requested Luna/high, observed UNKNOWN/UNKNOWN; no tests/builds/Cargo/runtime/descendants/scratch; parent OPEN.",
+      "artifact_sha256": "cd99aa19cfd301d0ad9f2396c6ef810fc0244f3f08e877ac3f8ce92dd307ba24",
+      "handoff_sha256": "7ddbd63c90c37a2b14cdd4d019cc035f2ebdb84f9b0f3c122849a120098b54c8"
     },
     "review": {
-      "state": "P1-REVIEW-CLOSED-P2-REVIEWS-RESERVED",
+      "state": "READY-CATCH-PROPOSAL-REVIEWS",
       "assignment": "NPAIR-PROPOSAL-INDEPENDENT-REVIEW-20261017",
       "reviewers": [
         "compiler_referee",
         "spec_auditor"
       ],
-      "receipt": "P1 compiler_referee CLEAN on rev1 scope and two 30s delta reviews CLEAN on repair; P1 remains proposal-only and all source/proof/implementation parents OPEN."
+      "receipt": "P1 proposal and exact delta are independently reviewed within scope; P2 candidate now frozen; fresh compiler_referee and spec_auditor reviews each capped at 120s, sequentially."
     },
     "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
     "workers": [
@@ -117,16 +119,16 @@
       }
     ],
     "next_action": {
-      "state": "P1-REVIEWED-PACKET-2-ACTIVE",
+      "state": "BOTH-PROPOSALS-FROZEN-CATCH-REVIEW-PENDING",
       "answers": {
         "NPAIR": "1ba10aabc1a3b7fb76b6423a1423b5220e4291f9, option B",
         "CATCH-EXIT-INPUT-1": "e7c976b9284c372667f5cabd2c80156624905402, option B"
       },
       "proposal": "Produce two independently reviewed source-definition proposals and exact source/native maps.",
-      "implementation": "Packet 2 CATCH input proposal authoring continues independently; 240s review remains allocated to its two reviewers.",
-      "proof": "P1 is a reviewed conditional source-definition proposal; it closes no parent proof or implementation gate."
+      "implementation": "Source/native maps are proposal artifacts only; compiler implementation awaits explicit user adoption and a new exact proof-backed contract.",
+      "proof": "NPAIR is a reviewed candidate proposal with no parent theorem closure; CATCH proposal is frozen and awaits independent reviews."
     },
-    "current_checkpoint": "1c50a7c9b",
+    "current_checkpoint": "c84f60116",
     "contract_revision": 2
   },
   "candidate": "tasks/agent-loop/sprints/source-formation-proposals-20261017.json",
@@ -181,13 +183,13 @@
     {
       "id": "/root",
       "role": "primary proposal author and integration",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Packet 2 proposal authoring resumed after repair was frozen; exact packet-2 leases only; Luna/high requested, observed UNKNOWN/UNKNOWN."
+      "receipt": "Packet 2 author STOPPED; frozen draft awaits fresh independent review."
     },
     {
       "id": "NPAIR-PROPOSAL-REFEREE-20261017",
@@ -210,6 +212,28 @@
       "observed_effort": "UNKNOWN",
       "session": null,
       "receipt": "Prior frozen rev1 target MAJOR; 120s charged; no descendants."
+    },
+    {
+      "id": "CATCH-PROPOSAL-REFEREE-20261017",
+      "role": "compiler_referee",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Fresh read-only review of frozen CATCH proposal; awaiting sequential launch."
+    },
+    {
+      "id": "CATCH-PROPOSAL-SPEC-REVIEW-20261017",
+      "role": "spec_auditor",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": null,
+      "receipt": "Fresh read-only review of frozen CATCH proposal; starts after referee STOP."
     }
   ],
   "leases": [
@@ -235,12 +259,14 @@
     {
       "path": "notes/design/2026-10-17-catch-matcher-input-formation-proposal.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "cd99aa19cfd301d0ad9f2396c6ef810fc0244f3f08e877ac3f8ce92dd307ba24"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-catch-matcher-input-formation-proposal.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "7ddbd63c90c37a2b14cdd4d019cc035f2ebdb84f9b0f3c122849a120098b54c8"
     },
     {
       "path": "notes/design/2026-10-17-negative-formal-pair-formation-proposal.md",
@@ -287,16 +313,16 @@
     "coordination": 180,
     "reserve": 240,
     "unknown_reservations_preserved": 3,
-    "active_authors": 1,
+    "active_authors": 0,
     "astra_assignments": 0,
     "heavy_process_peak": 0,
     "cargo_build_test_probe_invocations": 0,
     "review_reserved": 240,
     "coordination_reserved": 180,
     "pending_reviewers": 0,
-    "charged_total_seconds": 1260,
+    "charged_total_seconds": 1860,
     "reviewed_closeout": null,
-    "authors_spent_seconds": 900,
+    "authors_spent_seconds": 1500,
     "review_spent_seconds": 300,
     "repair_cap_seconds": 60,
     "review_cap_seconds": 540,
