@@ -1,10 +1,11 @@
 #![cfg(all(feature = "shadow-f5", feature = "shadow-apply-candidate"))]
 use std::sync::Arc;
 use yu_hir::shadow::{
-    LocalSourceForm, LocalSourceResolution, SourceAnnotationValue, lower_module_with_local_source,
+    LocalSourceForm, LocalSourceResolution, SourceAnnotationValue, SourceOperationResolution,
+    lower_module_with_local_source,
 };
 use yu_hir::{FileId, FileKey, HirItem, HirModule, ModuleIdentity, SemanticImports};
-use yu_solver::shadow_apply::{CandidateError, CandidateInference};
+use yu_solver::shadow_apply::{CandidateEffectOperand, CandidateError, CandidateInference};
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
 fn module(text: &str) -> Result<Arc<HirModule>, yu_hir::HirAvailabilityError> {
@@ -262,6 +263,87 @@ fn root_computation_rows_check_definition_and_local_initializers() {
             candidate.effect_conflict(error.kind()).is_ok_and(|conflict|
                 conflict.annotation.is_some_and(|boundary| boundary.position == position))
         }), "conflict retains the actual root annotation position");
+    }
+}
+
+#[test]
+fn source_call_native_interface_reaches_its_root_effect_consumer() {
+    for (allowed, expect_conflict) in [("tick", false), ("other", true)] {
+        let hir = module(&format!(
+            "act other\nact tick:\n    our next: () -> int\n\nmy answer:[{allowed}] int = tick::next()"
+        )).unwrap();
+        let answer = binding(&hir, "answer");
+        let owner = answer.definition_root();
+        let source_owner = hir.local_source(owner).unwrap();
+        let source = source_owner.unwrap();
+        let source_apply = source.expressions().iter().find(|expression|
+            matches!(&expression.form, LocalSourceForm::Apply { .. })
+        ).expect("the declaration initializer retains its source Apply");
+        let (operation, operation_occurrence) = source.expressions().iter().find_map(|expression|
+            match &expression.form {
+                LocalSourceForm::Operation {
+                    resolution: SourceOperationResolution::Resolved(declaration),
+                } => Some((declaration, &expression.occurrence)),
+                _ => None,
+            }
+        ).expect("the original tick::next operation remains in LocalSource");
+        let LocalSourceForm::Apply { callee, .. } = &source_apply.form else {
+            unreachable!();
+        };
+        assert_eq!(
+            &source.expression(callee).unwrap().occurrence,
+            operation_occurrence,
+            "the retained Apply callee is the authentic operation occurrence",
+        );
+
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let calls: Vec<_> = (0..candidate.source_call_count())
+            .map(|index| candidate.source_call(index).unwrap())
+            .collect();
+        let [call] = calls.as_slice() else {
+            panic!("the source declaration has one retained Call");
+        };
+        assert_eq!(call.source().occurrence, source_apply.occurrence);
+        let LocalSourceForm::Apply { callee, argument, .. } = &source_apply.form else {
+            unreachable!();
+        };
+        assert_eq!(call.callee_source().occurrence, source.expression(callee).unwrap().occurrence);
+        assert_eq!(call.argument_source().occurrence, source.expression(argument).unwrap().occurrence);
+        assert_ne!(call.native_callee(), call.native_demand());
+        assert_ne!(call.native_invocation_effect(), call.native_application_effect());
+        let pending = call.pending_construction();
+        assert!(pending.original_formation_inputs().len() >= 16);
+        assert!(pending.suppliers().any(|supplier|
+            supplier == yu_solver::shadow_apply::PendingCallSupplier::OriginalGenCall0
+        ));
+
+        let conflicts = candidate.candidate_conflicts();
+        assert_eq!(!conflicts.is_empty(), expect_conflict, "allowed row: {allowed}");
+        if expect_conflict {
+            let annotation = source.annotation().unwrap();
+            let position = &annotation.ty.effects.as_ref().unwrap().position;
+            assert!(conflicts.iter().any(|error| {
+                candidate.effect_conflict(error.kind()).is_ok_and(|conflict|
+                    matches!(conflict.operand,
+                        CandidateEffectOperand::OperationInterfaceMember {
+                            declaration,
+                            owner: operation_owner,
+                            occurrence,
+                            member: 0,
+                            effect,
+                            ..
+                        } if declaration.id == operation.id
+                            && operation_owner.definition_root() == Some(answer.definition_root())
+                            && occurrence == operation_occurrence
+                            && effect == &operation.id.family
+                    )
+                    && conflict.annotation.is_some_and(|boundary|
+                        boundary.owner.definition_root() == Some(answer.definition_root())
+                            && boundary.position == position
+                    )
+                )
+            }), "the propagated Call effect conflict returns to its source root annotation");
+        }
     }
 }
 
