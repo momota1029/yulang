@@ -4,98 +4,73 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-prefreeze-observation-boundary-20261017",
-    "contract": "tasks/agent-loop/sprints/npair-prefreeze-observation-boundary-20261017.md",
+    "id": "npair-concrete-producer-compile-validation-20261017",
+    "contract": "tasks/agent-loop/sprints/npair-concrete-producer-compile-validation-20261017.md",
     "revision": 1,
-    "sha256": "88a4a99d4b65cd7d582343455344e916300f168eb1d03d3b8aafed8066793b08",
-    "state": "REVIEWED-PARTIAL",
-    "baseline": "d28b83ed498b6fb8d3959ca33c0d19c40f816f6e",
+    "sha256": "6eb81e84fbf8fafe2dec7dd6cbb63cacacc00005f72e9a8602151b5c151221ee",
+    "state": "READY",
+    "baseline": "f2f95913cdcff78c4482b3556830483614c06e87",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
-    "fixed_outcome": "Establish/refute a safe borrow-scoped structural observation point after execute and before finish_observations; then specify one-shot API or exact blocker and stop snapshot work.",
+    "fixed_outcome": "One bounded compile-only validation of the reviewed integrated concrete Permission producer; no tests execute. Original constructor proof remains WAIT for exact eta_op/realization_op contribution evidence.",
     "review": {
-      "state": "COMPLETE",
+      "state": "PENDING",
       "current_reviewer": null,
       "sequence": [
-        "Sol/high proof STOP",
-        "Luna/high readiness STOP",
-        "compiler_referee:60s",
-        "architect:60s",
-        "spec_auditor:60s"
+        "Luna one cargo check <=120s",
+        "compiler_referee frozen receipt review <=90s"
       ]
     },
     "resources": {
-      "cap_seconds": 720,
-      "proof_cap_seconds": 240,
-      "readiness_cap_seconds": 240,
-      "reviews_cap_seconds": 180,
-      "coordination_seconds": 60,
-      "reserve_seconds": 0,
-      "charged_seconds": 660,
+      "cap_seconds": 300,
+      "compile_cap_seconds": 120,
+      "review_cap_seconds": 90,
+      "coordination_seconds": 30,
+      "reserve_seconds": 60,
+      "charged_seconds": 30,
       "active_authors": 0,
-      "status": "REVIEWED-PARTIAL: 660/720s charged; all proof/readiness/review writers STOPPED; 60s unused, no carry-over."
+      "status": "30s coordination charged; one primary compile invocation READY, not RUNNING; fresh review follows STOP; no carry-over."
     },
     "lanes": {
       "proof": {
-        "owner": "/root/npair_prefreeze_observation_boundary",
-        "role": "prover (Sol/high)",
-        "state": "STOPPED-BLOCKED",
-        "outputs": [
-          "notes/theory/2026-10-17-npair-prefreeze-observation-boundary.md",
-          "tasks/agent-loop/inbox/20261017-npair-prefreeze-observation-boundary.md"
-        ],
-        "cap_seconds": 240
+        "owner": "Luna / original Operation and Call constructor owners",
+        "role": "proof blocked on exact source contribution input",
+        "state": "WAITING-FOR-EXACT-SUPPLIER",
+        "outputs": [],
+        "cap_seconds": 0,
+        "receipt": "No lease or repeated source census. Required evidence: same complete w at exact source port/predecessor context and native Operation/emission/admission correspondence."
       },
-      "implementation_readiness": {
+      "implementation_validation": {
         "owner": "/root",
-        "role": "Luna/high",
-        "state": "STOPPED-WAIT",
+        "role": "Luna/high primary, one compile-only command",
+        "state": "READY",
         "outputs": [
-          "notes/design/2026-10-17-npair-prefreeze-snapshot-contract.md",
-          "tasks/agent-loop/inbox/20261017-npair-prefreeze-snapshot-contract.md"
+          "notes/progress/2026-10-17-npair-concrete-producer-compile-validation.md",
+          "tasks/agent-loop/inbox/20261017-npair-concrete-producer-compile-validation.md"
         ],
         "compiler_lease": false,
-        "cap_seconds": 240
+        "cap_seconds": 120
       }
     },
     "artifacts": [
       {
-        "path": "tasks/agent-loop/sprints/npair-prefreeze-observation-boundary-20261017.md",
-        "sha256": "88a4a99d4b65cd7d582343455344e916300f168eb1d03d3b8aafed8066793b08"
-      },
-      {
-        "path": "notes/theory/2026-10-17-npair-prefreeze-observation-boundary.md",
-        "sha256": "a80738cdb7ff40bc7f72b773490935a3657b8af442c2830e78d2a2208b5cda6b"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-npair-prefreeze-observation-boundary.md",
-        "sha256": "e64026fa9b51d4dfb20f34dd61db74be858f3f4c9c444a5e252c7e15db935837"
-      },
-      {
-        "path": "notes/design/2026-10-17-npair-prefreeze-snapshot-contract.md",
-        "sha256": "024440147f112cbecab59510f2f3d574729673d7b6789628d8adda87c9fc2415"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-npair-prefreeze-snapshot-contract.md",
-        "sha256": "c2df1ceeb6bc9e8747f452fa992519131c132033543bc9415a2dbf3f7fd3a639"
+        "path": "tasks/agent-loop/sprints/npair-concrete-producer-compile-validation-20261017.md",
+        "sha256": "6eb81e84fbf8fafe2dec7dd6cbb63cacacc00005f72e9a8602151b5c151221ee"
       }
     ],
     "non_goals": [
-      "compiler code",
-      "tests/builds/probes/Cargo/source execution",
+      "source edits or repair",
+      "test execution",
+      "examples/probes",
       "source admission",
-      "At/N-Ingress",
-      "later-lower subscription",
-      "subtraction",
-      "N-Transport",
-      "receive consumer",
-      "production"
+      "At/transport/receive/subtraction",
+      "parent theorem or production closure"
     ],
-    "next_boundary": "Proof STOP or exact unsafe/missing premise/cap. If no safe owner point, no further snapshot audit."
+    "next_boundary": "Exact single Cargo check exits, fails, or reaches 120s cap; then freeze receipt and obtain fresh compiler-referee review."
   },
-  "candidate": "tasks/agent-loop/sprints/npair-prefreeze-observation-boundary-20261017.md",
-  "baseline": "d28b83ed498b6fb8d3959ca33c0d19c40f816f6e",
-  "scope": "One-shot pre-freeze observation boundary over live candidate session state; proof then unapplied API readiness, no code.",
-  "worker_inventory_scope": "Three historical UNKNOWN reservations and board quarantine retained; proof STOPPED-BLOCKED with artifact/handoff frozen; Luna readiness RUNNING; no compiler source lease.",
+  "candidate": "tasks/agent-loop/sprints/npair-concrete-producer-compile-validation-20261017.md",
+  "baseline": "f2f95913cdcff78c4482b3556830483614c06e87",
+  "scope": "Compile-only validation of the exact approved integrated concrete Permission producer, plus an explicit proof WAIT for original constructor contribution evidence.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations and board quarantine retained; all prior sprint writers/reviewers STOPPED; one primary validation command not yet started.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -132,66 +107,14 @@
     },
     {
       "id": "/root",
-      "role": "Luna/high primary and sole Git integrator",
-      "state": "STOPPED",
+      "role": "Luna/high primary, sole authority and Git integrator",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Sprint adjudicated REVIEWED-PARTIAL; all outputs/reviews frozen, exact WAIT boundary recorded, Git integration completed. Parent remains OPEN."
-    },
-    {
-      "id": "/root/npair_prefreeze_observation_boundary",
-      "role": "prover, Sol/high pre-freeze observation proof",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 240,
-      "elapsed_seconds_charged": 180,
-      "receipt": "Frozen proof/handoff; 137s observed plus bounded startup/freeze overhead conservatively charged 180/240s. No code/execution/descendants; exact missing driver-return premise recorded."
-    },
-    {
-      "id": "/root/npair_prefreeze_compiler_review",
-      "role": "compiler_referee independent review",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 60,
-      "elapsed_seconds_charged": 60,
-      "receipt": "Fresh independent review: no actionable findings; global quiescence and parent not certified. Read-only STOP."
-    },
-    {
-      "id": "/root/npair_prefreeze_arch_review",
-      "role": "architect independent review",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 60,
-      "elapsed_seconds_charged": 60,
-      "receipt": "Fresh independent review: WAIT accepted in scope; no API endorsement; source correspondence unverified. Read-only STOP."
-    },
-    {
-      "id": "/root/npair_prefreeze_spec_review",
-      "role": "spec_auditor independent review",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 60,
-      "elapsed_seconds_charged": 60,
-      "receipt": "Fresh independent review CLEAN for conformance; source claims not independently reproved. Read-only STOP."
+      "receipt": "Current-session primary; prior pre-freeze sprint REVIEWED-PARTIAL and all children STOPPED. New compile-only contract frozen; command not yet started."
     }
   ],
   "leases": [
@@ -206,34 +129,20 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-prefreeze-observation-boundary-20261017.md",
+      "path": "tasks/agent-loop/sprints/npair-concrete-producer-compile-validation-20261017.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "88a4a99d4b65cd7d582343455344e916300f168eb1d03d3b8aafed8066793b08"
+      "sha256": "6eb81e84fbf8fafe2dec7dd6cbb63cacacc00005f72e9a8602151b5c151221ee"
     },
     {
-      "path": "notes/theory/2026-10-17-npair-prefreeze-observation-boundary.md",
-      "owner": "/root/npair_prefreeze_observation_boundary",
-      "state": "FROZEN",
-      "sha256": "a80738cdb7ff40bc7f72b773490935a3657b8af442c2830e78d2a2208b5cda6b"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261017-npair-prefreeze-observation-boundary.md",
-      "owner": "/root/npair_prefreeze_observation_boundary",
-      "state": "FROZEN",
-      "sha256": "e64026fa9b51d4dfb20f34dd61db74be858f3f4c9c444a5e252c7e15db935837"
-    },
-    {
-      "path": "notes/design/2026-10-17-npair-prefreeze-snapshot-contract.md",
+      "path": "notes/progress/2026-10-17-npair-concrete-producer-compile-validation.md",
       "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "024440147f112cbecab59510f2f3d574729673d7b6789628d8adda87c9fc2415"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-npair-prefreeze-snapshot-contract.md",
+      "path": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-compile-validation.md",
       "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "c2df1ceeb6bc9e8747f452fa992519131c132033543bc9415a2dbf3f7fd3a639"
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -264,27 +173,26 @@
     }
   ],
   "next_action": {
-    "state": "WAIT-FOR-NEW-SOURCE-AUTHORITY",
-    "dispatcher": "Sprint ended REVIEWED-PARTIAL after all fixed reviews. Snapshot work stopped at the contract boundary; any driver-body inspection requires new exact pins and a new Luna scope decision.",
-    "proof": "STOPPED-BLOCKED: current source-driver return/quiescence premise unproved.",
-    "implementation": "STOPPED-WAIT: no API/code contract endorsed; do not implement snapshot path under this sprint.",
-    "source_authority": "eta_op/realization_op WAITING for original constructor evidence; no source semantics changed.",
-    "workers_started": true
+    "state": "IMPLEMENTATION-READY",
+    "dispatcher": "Selector sprint-end delta accepted by Luna within the existing overall goal; exact pins revalidated, no tests or source edits authorized.",
+    "proof": "WAIT for exact independently justified Operation/Call clause supplying eta_op and realization_op at the actual declaration/reference.",
+    "implementation": "Run exactly one bounded cargo check -p yu-solver --features shadow-apply-candidate --tests; test targets compile only, no tests execute; no retry/repair.",
+    "source_authority": "Approved concrete producer/accounting repair remains unchanged. No source admission, At, transport, consumer, subtraction or production authority.",
+    "workers_started": false
   },
   "resource_accounting": {
-    "current_sprint_id": "npair-prefreeze-observation-boundary-20261017",
-    "cap_seconds": 720,
-    "proof_cap_seconds": 240,
-    "readiness_cap_seconds": 240,
-    "reviews_cap_seconds": 180,
-    "coordination_seconds": 60,
-    "reserve_seconds": 0,
-    "charged_total_seconds": 660,
+    "current_sprint_id": "npair-concrete-producer-compile-validation-20261017",
+    "cap_seconds": 300,
+    "compile_cap_seconds": 120,
+    "review_cap_seconds": 90,
+    "coordination_seconds": 30,
+    "reserve_seconds": 60,
+    "charged_total_seconds": 30,
     "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "REVIEWED-PARTIAL; 660/720s charged (coord60+proof180+readiness240+reviews180); 60s unused and not transferred; all writers/reviewers STOPPED."
+    "status": "30s coordination charged; compile invocation READY, not RUNNING; remaining envelope 270s. No carry-over."
   },
-  "history": "Forward-source-witness sprint REVIEWED-PARTIAL at a868fbe; receipt notes/progress/2026-10-17-npair-forward-source-witness.md. Operation supplier/snapshot-validator sprint REVIEWED-PARTIAL at 7a281f6; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. Snapshot-owner sprint revision 2 REVIEWED-PARTIAL at b62de85f; final receipts in tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Parent and production remain OPEN; eta_op/realization_op WAITING for adopted constructor evidence. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Prior owner-interface sprint REVIEWED-PARTIAL at ac838c252; final handoff tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Selector chose new post-solve capability proof followed by unapplied API-readiness contract; fresh 960s envelope, no carryover. Post-solve proof STOPPED: returned FrozenInferenceData omits live bounds/effect_bounds, so physical-slot resolver cannot inspect original storage. Proof artifact 9e1ae6e and handoff cb14c88; 142s measured/180s charged. Luna readiness begins under existing 300s lease; parent OPEN. Post-solve readiness STOPPED with unapplied move-only retention/API proposal; exact blocker is missing live physical bounds in FrozenInferenceData, and quiescence/antecedent authentication remain open. Design ee0cf98; handoff hash updated in artifact manifest. No code. Compiler-referee reviewed the post-solve proof/API proposal with no wording defect; two BLOCKING implementation prerequisites remain (physical storage retention; quiescence and evidence antecedents). Resource-probe retention transfer is a required implementation obligation. Architect review STOPPED: candidate-only vector move is coherent direction, but probe-path transfer/accounting and final owner-drop release must be specified before code; quiescence/evidence blockers remain. Post-solve snapshot sprint REVIEWED-PARTIAL at f7b3ed6fe plus review/state checkpoints; final API handoff revision2 records receipts. Missing physical storage and resource lifecycle, quiescence, evidence enumeration and antecedents keep implementation WAITING; parent OPEN. Post-solve snapshot sprint REVIEWED-PARTIAL at d28b83ed4; API handoff tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-api-contract.md. Selector chose one final pre-freeze observation discriminator, then an unapplied one-shot contract; no carry-over. Prefreeze proof STOPPED-BLOCKED: original physical vectors remain live after execute, but complete/quiescent successful driver return is unproved; exact bodies require new source-owner pins. Proof artifact a80738c and handoff e64026f; 137s observed/180s charged. Luna readiness records WAIT under existing contract; no further snapshot audit authorized. Luna readiness froze WAIT contract 0244401 and handoff cf41de0: no API-ready design because successful-path quiescence and current driver pins are missing. Charge 240s at readiness cap; sprint total 480/720s. Fresh sequential review pending; no source/code/tests. Prefreeze observation sprint REVIEWED-PARTIAL after sequential compiler_referee, architect and spec_auditor reviews; no actionable/blocking conformance finding, but no reviewer certifies global quiescence or parent. Final readiness handoff rev2 c2df1ce; exact missing driver-return premise requires fresh pins/scope. 660/720s charged; 60s retired. All workers STOPPED; parent OPEN.",
+  "history": "Forward-source-witness sprint REVIEWED-PARTIAL at a868fbe; receipt notes/progress/2026-10-17-npair-forward-source-witness.md. Operation supplier/snapshot-validator sprint REVIEWED-PARTIAL at 7a281f6; receipt notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md. Snapshot-owner sprint revision 2 REVIEWED-PARTIAL at b62de85f; final receipts in tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Parent and production remain OPEN; eta_op/realization_op WAITING for adopted constructor evidence. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Prior owner-interface sprint REVIEWED-PARTIAL at ac838c252; final handoff tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md. Selector chose new post-solve capability proof followed by unapplied API-readiness contract; fresh 960s envelope, no carryover. Post-solve proof STOPPED: returned FrozenInferenceData omits live bounds/effect_bounds, so physical-slot resolver cannot inspect original storage. Proof artifact 9e1ae6e and handoff cb14c88; 142s measured/180s charged. Luna readiness begins under existing 300s lease; parent OPEN. Post-solve readiness STOPPED with unapplied move-only retention/API proposal; exact blocker is missing live physical bounds in FrozenInferenceData, and quiescence/antecedent authentication remain open. Design ee0cf98; handoff hash updated in artifact manifest. No code. Compiler-referee reviewed the post-solve proof/API proposal with no wording defect; two BLOCKING implementation prerequisites remain (physical storage retention; quiescence and evidence antecedents). Resource-probe retention transfer is a required implementation obligation. Architect review STOPPED: candidate-only vector move is coherent direction, but probe-path transfer/accounting and final owner-drop release must be specified before code; quiescence/evidence blockers remain. Post-solve snapshot sprint REVIEWED-PARTIAL at f7b3ed6fe plus review/state checkpoints; final API handoff revision2 records receipts. Missing physical storage and resource lifecycle, quiescence, evidence enumeration and antecedents keep implementation WAITING; parent OPEN. Post-solve snapshot sprint REVIEWED-PARTIAL at d28b83ed4; API handoff tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-api-contract.md. Selector chose one final pre-freeze observation discriminator, then an unapplied one-shot contract; no carry-over. Prefreeze proof STOPPED-BLOCKED: original physical vectors remain live after execute, but complete/quiescent successful driver return is unproved; exact bodies require new source-owner pins. Proof artifact a80738c and handoff e64026f; 137s observed/180s charged. Luna readiness records WAIT under existing contract; no further snapshot audit authorized. Luna readiness froze WAIT contract 0244401 and handoff cf41de0: no API-ready design because successful-path quiescence and current driver pins are missing. Charge 240s at readiness cap; sprint total 480/720s. Fresh sequential review pending; no source/code/tests. Prefreeze observation sprint REVIEWED-PARTIAL after sequential compiler_referee, architect and spec_auditor reviews; no actionable/blocking conformance finding, but no reviewer certifies global quiescence or parent. Final readiness handoff rev2 c2df1ce; exact missing driver-return premise requires fresh pins/scope. 660/720s charged; 60s retired. All workers STOPPED; parent OPEN. Pre-freeze snapshot sprint REVIEWED-PARTIAL at f2f95913c; snapshot work stopped on unproved driver-return quiescence. Selector next delta assigned one fresh compile-only validation of the integrated producer and WAIT for the original constructor contribution clause; exact contract/input pins revalidated. Prior parent and production gates remain OPEN.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
@@ -304,6 +212,10 @@
     "ca69b78ec",
     "9ebef0f9c",
     "aa6b4357b",
-    "6ae362111"
+    "6ae362111",
+    "9ebef0f9c",
+    "aa6b4357b",
+    "6ae362111",
+    "f2f95913c"
   ]
 }
