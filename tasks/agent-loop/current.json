@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/adopted-npair-construction-and-native-plan-20261017.md",
   "revision": 1,
   "sha256": "b250de92ababcf950a0bfe6a75939905e2d504c103477f61c281a8a3c9029552",
-  "state": "FROZEN-AWAITING-PROOF-LAUNCH",
+  "state": "ACTIVE-PROOF-LANE",
   "baseline": "74bfaa6a8ce0a60051e40e531c54576516d6c151",
   "previous_sprint": "source-formation-proposals-20261017 ENDED-PROPOSALS-REVIEWED-DRAFT-ONLY; both exact reviewed proposals directly adopted by user; see adoption receipt.",
   "adoption_receipt": {
@@ -17,7 +17,7 @@
    "user_decision": "採択で構いません"
   },
   "proof": {
-   "state": "ASSIGNED-NOT-LAUNCHED",
+   "state": "RUNNING",
    "assignment": "ADOPTED-NPAIR-CONSTRUCTION-20261017",
    "target": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; P1–P3 and original-parent application",
    "leases": [
@@ -28,7 +28,10 @@
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "budget_seconds": 900
+   "budget_seconds": 900,
+   "worker_id": "/root/adopted_npair_construction",
+   "session": "current-session",
+   "launch_receipt": "collaboration.spawn_agent returned canonical worker /root/adopted_npair_construction; current-session assignment acknowledged; live agent inventory confirms RUNNING."
   },
   "implementation": {
    "state": "WAITING-FOR-PROOF-STOP-THEN-NATIVE-PLAN",
@@ -166,13 +169,13 @@
   {
    "id": "ADOPTED-NPAIR-CONSTRUCTION-20261017",
    "role": "astra_prover",
-   "state": "NOT_STARTED",
+   "state": "RUNNING",
    "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "session": null,
-   "receipt": "Exact proof leases granted by frozen contract; no launch acknowledgement yet."
+   "session": "current-session",
+   "receipt": "Actual current-session collaboration launch acknowledged as /root/adopted_npair_construction. Requested Astra/medium; observed runtime model/effort UNKNOWN. Exact two-path lease active."
   }
  ],
  "leases": [
@@ -274,8 +277,8 @@
   "coordination": 120,
   "reserve": 120,
   "unknown_reservations_preserved": 3,
-  "active_authors": 0,
-  "astra_assignments": 0,
+  "active_authors": 1,
+  "astra_assignments": 1,
   "heavy_process_peak": 0,
   "cargo_build_test_probe_invocations": 0,
   "review_reserved": 360,
