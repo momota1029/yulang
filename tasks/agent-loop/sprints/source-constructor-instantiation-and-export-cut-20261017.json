@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "sprint_id": "source-constructor-instantiation-and-export-cut-20261017",
-  "contract_revision": 1,
-  "status": "READY",
+  "contract_revision": 2,
+  "status": "ACTIVE",
   "branch": "research/simple-sub-intrusion",
   "baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
   "goal": "Advance the original inference/F5 goal by applying the concrete operation source constructor to the selected choose instance and attempting the public export cut from its authenticated internal root.",
   "authority": "Preserve the original Simple-sub A/B claims, quantifiers, source domains, complete Call/provider/guard/future obligations, source-Generalize and annotation hygiene. Operation-constructor and export-bridge inputs remain conditional research. No primitive semantics, semantic selection, public representation, compiler write or cutover is authorized.",
-  "primary_approval": "Luna validated the sprint-end selector delta, verified the new direct pins, preserved the reviewed bounded results and all open gates, and authorized proof first followed by implementation only after confirmed proof cessation. Three historical UNKNOWN identities/reservations remain quarantined; no resource transfer.",
+  "primary_approval": "Luna froze proof result under rev1, confirmed writer/descendant cessation and available capacity, and issued dependency-only rev2 for the implementation lane after the cross-lane selector consultation. Three UNKNOWN identities/reservations remain quarantined; no budget transfer. The proof stays a rev1 conditional result, not semantic authority.",
   "original_parent": {
     "id": "Original Call/effect H1/H2/JOINT_DEC and source-Generalize/public-export correspondence; F5 withdrawal remains downstream.",
     "source": "Instantiate the selected choose source position against HIR declaration/use and authoritative Call/IF source constructors. Independently trace that same selected source instance through HIR registration, candidate root, export/use and conditional abstraction cut.",
@@ -74,7 +74,9 @@
     "tasks/agent-loop/inbox/20261016-f5-consumer-migration-boundary.md": "62439df2322cc688eb83abf442261721b4e4b282b4fc81be0deaa0c7967c1981",
     "tasks/agent-loop/inbox/20261016-source-final-root-export-law.md": "7cc834e1c3fa627f1738b7638e6f08787c30c0d6766991061fba8f34fba48000",
     "tasks/agent-loop/inbox/20261016-successor-independent-use-correspondence.md": "2c8f10bd2530671777783c6a5b9eca96e74c186321c3d509aa981b60954e1af0",
-    "tasks/agent-loop/sprints/residual-and-public-export-correspondence-20261016.json": "378ee6daeefd817461032ce6b1cb68061302bb27c631033205df85453505e1ab"
+    "tasks/agent-loop/sprints/residual-and-public-export-correspondence-20261016.json": "378ee6daeefd817461032ce6b1cb68061302bb27c631033205df85453505e1ab",
+    "notes/theory/2026-10-17-choose-operation-source-instantiation.md": "6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110",
+    "tasks/agent-loop/inbox/20261017-choose-operation-source-instantiation.md": "658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81"
   },
   "lanes": {
     "proof": {
@@ -167,6 +169,14 @@
     "No generic residual solver closure, H1/H2/JOINT_DEC, F1/FK1, first-result adequacy, soundness, principality or F5 gate closure from one source instance.",
     "No tests/builds/probes, code writes, unpinned dependencies, nested CLI, worker Git operations or budget transfer."
   ],
-  "dispatcher_decision": "At the sprint boundary, next_action_selector proposed a bounded source-constructor instantiation followed by a conditional internal-root export-cut attempt. Luna verified the four new authority/source pins and additional exact HIR/Call/operation/selected-root dependencies, retained all open gates and three UNKNOWN reservations, and granted proof-first sequential work. No compiler implementation slice is authorized.",
-  "next_consultation": "Newly authenticated source instance that changes dependencies/authority, a source-qualified counterexample, exact unsupplied semantic clause, source-preflight refusal, lease/resource boundary, cross-lane seam or sprint end."
+  "dispatcher_decision": "At the cross-lane seam, next_action_selector recommended dependency-only rev2 for the implementation lane. Luna preserves proof rev1 unchanged, adds its frozen artifact/handoff as two exact direct pins, verifies capacity and cessation, and grants implementation after rev2 integration. No semantic authority or budget transfers.",
+  "next_consultation": "Newly authenticated source instance that changes dependencies/authority, a source-qualified counterexample, exact unsupplied semantic clause, source-preflight refusal, lease/resource boundary, cross-lane seam or sprint end.",
+  "proof_lane_binding": {
+    "produced_under_contract_revision": 1,
+    "contract_sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
+    "artifact_sha256": "6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110",
+    "handoff_sha256": "658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81",
+    "status": "FROZEN-CONDITIONAL; dependency pins added for successor implementation consumption only."
+  },
+  "implementation_lane_contract_revision": 2
 }

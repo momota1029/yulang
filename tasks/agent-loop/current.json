@@ -6,11 +6,11 @@
   "active_sprint": {
     "id": "source-constructor-instantiation-and-export-cut-20261017",
     "contract": "tasks/agent-loop/sprints/source-constructor-instantiation-and-export-cut-20261017.json",
-    "revision": 1,
-    "sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
-    "state": "PROOF-STOPPED-CROSS-LANE-REVIEW",
+    "revision": 2,
+    "sha256": "e7761d5f5bc60593f2f7f9c129b82fa2b6f83f8cebf815ee90fb0ae361eedca2",
+    "state": "AUTHORIZED-IMPLEMENTATION-READY",
     "previous_sprint": "concrete-declaration-and-export-root-qualification-20261016 ENDED-PARTIAL-REVIEWED; notes/progress/2026-10-16-concrete-declaration-export-root-review.md",
-    "dispatcher": "At sprint end, selector proposed applying the operation source constructor to the selected choose instance and attempting the conditional export cut at its authenticated internal root. Compiler changes remain unauthorized.",
+    "dispatcher": "Cross-lane selector chose dependency-only rev2: add frozen proof artifact/handoff hashes for implementation consumption. Proof remains rev1 conditional evidence; no semantic authority or budget transfer.",
     "proof": {
       "state": "STOPPED-FROZEN-PENDING-SEQUENTIAL-IMPLEMENTATION",
       "assignment": "assignment-choose-operation-source-instantiation-20261017",
@@ -33,7 +33,7 @@
       "handoff_sha256": "658e3b73fffc266f1e8f24d7d21acfc5d0a50ee29acc0930704857a1aeeaad81"
     },
     "implementation": {
-      "state": "AWAITING-CROSS-LANE-DISPATCH",
+      "state": "AUTHORIZED-NOT-STARTED",
       "assignment": "assignment-authentic-root-export-cut-20261017",
       "outputs": [
         "tasks/agent-loop/inbox/20261017-authentic-root-export-cut.md"
@@ -44,9 +44,9 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "charge_seconds_cap": 360,
-      "contract_revision": 1,
-      "contract_sha256": "0395ca891612e1f28750f6d764a3a00b206bc6a57c55fb266211be4c2258df9b",
-      "receipt": "Proof author STOPPED and result frozen. Selector consultation pending to add direct proof artifact/handoff dependency pins in a sequential contract revision before implementation launch."
+      "contract_revision": 2,
+      "contract_sha256": "e7761d5f5bc60593f2f7f9c129b82fa2b6f83f8cebf815ee90fb0ae361eedca2",
+      "receipt": "Dependency-only rev2 adds proof artifact/handoff as direct implementation inputs; author/descendants confirmed STOPPED; capacity and remaining lane/aggregate budgets sufficient. Awaiting actual worker launch."
     },
     "review": {
       "state": "NOT-STARTED",
@@ -122,7 +122,7 @@
       "state": "FROZEN"
     }
   ],
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain quarantined. Proof author /root/choose_operation_instantiation STOPPED; implementation awaits cross-lane dependency revision; no reviewer active.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain quarantined. Proof author /root/choose_operation_instantiation STOPPED. Implementation authorized, awaiting launch; no reviewer active.",
   "legacy_reconciliation": {
     "required": false,
     "history": "tasks/agent-loop/history/board-7336f290.md",
@@ -137,9 +137,9 @@
     },
     {
       "id": "DPRI-DECL-1 / D_TAIL-CHOOSE-QUALIFICATION",
-      "state": "RESULT-REVIEW-PENDING",
+      "state": "RESULT-PENDING-REVIEW",
       "owner": "assignment-choose-operation-source-instantiation-20261017",
-      "needs": "Proof handoff frozen; add direct artifact and handoff pins before successor implementation consumes it; proof review is sequential after authors STOP."
+      "needs": "Bounded rev1 proof result frozen and pinned in rev2; independent review still required."
     },
     {
       "id": "F1-FULL / FK1-FOREIGN / H1-H2-U / JOINT_DEC / F5 / production",
@@ -149,12 +149,12 @@
     },
     {
       "id": "SOURCE-FINAL-ROOT-EXPORT-CUT",
-      "state": "WAITING-SEQUENTIAL",
+      "state": "ASSIGNED",
       "owner": "assignment-authentic-root-export-cut-20261017",
-      "needs": "After proof author STOP, establish HIR registration to authenticated candidate root/use and attempt conditional public export cut at internal root."
+      "needs": "Launch after proof cessation and rev2 pin/capacity check; build the source-registration to authenticated candidate-root/export-use association and conditional public cut."
     }
   ],
-  "next_action": "Consult next_action_selector at the proof-to-implementation seam; pin proof outputs in rev2, then launch implementation after authority/capacity recheck.",
+  "next_action": "Launch Luna/high implementation under dependency-only rev2; authors/reviews remain sequential.",
   "adoption_review": {
     "original_findings": [
       "MAJOR: implementation escalation handoff validation",
@@ -178,10 +178,10 @@
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
     "astra_assignments": 1,
-    "spent_seconds": "Proof 480/900s; implementation 0/360; reviews not started; 420 proof seconds remain but do not transfer.",
-    "status": "Proof author STOPPED; cross-lane dependency review pending; implementation not started.",
-    "sequencing": "Proof author ceased; implementation waits for sequential contract revision and Luna lease grant. Three UNKNOWN reservations retained; two capacity slots."
+    "spent_seconds": "Proof 480/900s under rev1; implementation not started/360; reviews not started; no remaining proof time transfer.",
+    "status": "Proof STOPPED; implementation rev2 authorized; sufficient aggregate budget and capacity rechecked; no live implementation yet.",
+    "sequencing": "Proof result frozen under rev1; implementation under dependency-only rev2 after STOP/capacity check; sequential reviews after both authors stop. Three UNKNOWN reservations retained; two slots."
   },
-  "integration_outcome": "Previous sprint receipt committed and pushed at cba9d794d1f0498262b3668f9d5cc055c16749e9. New rev1 contract is pinned and ready for first author launch.",
+  "integration_outcome": "Proof artifact and handoff frozen under rev1 with exact SHA pins in rev2; conditional only and not semantically adopted.",
   "history": "tasks/agent-loop/history/20261016-catch-consumer-f5-boundary-review.md; notes/progress/2026-10-16-residual-public-export-review.md; notes/progress/2026-10-16-concrete-declaration-export-root-review.md"
 }
