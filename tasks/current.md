@@ -102,6 +102,40 @@ Status: full objective remains active. Native extrusion now schedules current co
   invalid source or counterexample. Generic discharge, principality, adoption
   and cutover stay OPEN.
 
+- **Original primitive declaration image action:** a changed-method prover is
+  constructing the actual operation-declaration-local handler image law, while
+  an independent source map traces `SourceOperationDeclaration` through HIR,
+  native signature formation and the Catch consumer. The current source node
+  fixes signature identity and the operation's request/return/consumer phases;
+  it does not itself select the abstract W/Z output-provider contracts. The
+  generic unanchored primitive alternative therefore remains OPEN pending the
+  frozen derivation and source audit. No new primitive interpretation,
+  architecture, implementation or cutover is selected.
+
+- **Choose caller registration boundary:** the reviewed
+  [caller-registration construction](../notes/theory/2026-10-16-choose-bootstrap-caller-registration-construction.md)
+  preserves the actual declaration, full instance, catalogue/root insertion
+  and structural alias projections. Fresh mathematical and source/authority
+  reviews are CLEAN. It stops at applying the original `ins_(r0,q0)` to
+  `JointRegistryScopeCurrentAuthorityIncidence(C0,w0,e0;xi)` and the separate
+  license/incidence fields. No `j0/a0`, valid-world premise or empty-world
+  marker is assumed; Sigma/world/Initial and full-f0 remain OPEN. The next
+  constructors are this exact source-root guard introduction and the original
+  eventwise history/transition suppliers, now on separate prover and source-map
+  leases. Checkpoint `ef44424fd`.
+
+- **Callable execution-view source/VM handoff:** the bounded
+  [construction and transport note](../notes/theory/2026-10-16-runtime-callable-view-construction-and-transport.md)
+  has CLEAN mathematical and source/authority review after correcting the
+  `RuntimeProgram::from_hir` owner locator. It maps original Entry/Exec/Return
+  interfaces, complete execution delimiters, two tagged result inputs, nested
+  callable views and saved-context reuse for the fixed `f`/`g` example. Current
+  HIR imports no independently typed plan, and the VM grounds callable results;
+  this is a proposed handoff, not current behavior or an adopted architecture.
+  Source-plan import/export, general typed-map transport, Initial/Catch,
+  native-plan supply and production remain OPEN. No code or tests changed.
+  Checkpoint `eb4de2ff9`.
+
 - **All four primitive computation roots receive locally:** the
   [uniform source theorem](../notes/theory/2026-10-16-primitive-computation-root-receiving.md)
   and its [actual matcher handoff](../notes/progress/2026-10-16-playground-primitive-root-receiving.md)

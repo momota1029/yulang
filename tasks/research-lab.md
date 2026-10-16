@@ -12,6 +12,16 @@ claim that the gates below are still open. At each restart, resolve the current
 HEAD, user corrections, question-board handoffs and theory map before dispatch.
 Do not reopen a closed gate merely because it appears in this seed.
 
+## Live queue (2026-10-16; resolved HEAD `ef44424fd9c1d5929e8d5b9a203c410f2c7c40d5`)
+
+| Gate / method | Baseline and exclusive output | State / next evidence |
+| --- | --- | --- |
+| Original primitive declaration: constructive local image action (`prover`) plus actual source-owner map (`researcher`) | `48ef843ef20fe8856bc51c59a4264c3e7a62e584`; `notes/theory/2026-10-16-operation-primitive-image-contract-construction.md` and `notes/progress/2026-10-16-operation-primitive-source-owner-audit.md` | Both running. Keep source-defined operation phases distinct from unselected W/Z output-provider contracts. No universal primitive discharge or architecture adoption yet. |
+| Choose caller registration: actual root guard introduction (`prover`) plus eventwise guard source map (`researcher`) | `ef44424fd9c1d5929e8d5b9a203c410f2c7c40d5`; `notes/theory/2026-10-16-choose-caller-registration-semantic-introduction.md` and `notes/progress/2026-10-16-choose-eventwise-guard-owner-audit.md` | Both running. Prior structural registration construction is reviewed CLEAN at `ef44424fd`; current root guard, transition guard preservation, Sigma/world/Initial and full-f0 remain OPEN. |
+| Callable receiving-view source/VM handoff | `eb4de2ff9cb6c2019179d350adc27387c59e1613`; `notes/theory/2026-10-16-runtime-callable-view-construction-and-transport.md` | Reviewed CLEAN within the bounded claim and pushed. Next source-plan import/export owner and architecture remain OPEN; no code or production adoption. |
+
+Queue states above reflect actual successful assignments/checkpoints, not proposals. Preserve the pending `questions/2026-10-16-forward-definition-initialization-context/answer-draft-revision-1.md` outside every staging/commit path.
+
 ## Current concrete-example discussion (2026-10-15)
 
 The three baseline Effect intrusion fixture failures are now
