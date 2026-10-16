@@ -448,8 +448,13 @@ Status: full objective remains active. Native extrusion now schedules current co
   HISTORICAL WholeContext root/use tuple: both receive's complete producer
   and the outer checked Function view, with their original historical maps.
   Neither result permits copying Remaining's current map onto saved evidence.
-  A separate source-formation prover packet now constructs that actual finite
-  producer/check/root/use tuple while retaining all open constraints.
+  The [historical context constructor](../notes/design/2026-10-16-source-whole-context-constructor.md)
+  now has CLEAN mathematical/source review of its [actual source tuple](../notes/theory/2026-10-16-choose-whole-context-reference-construction.md).
+  Complete Strict receive, independent outer checking origins/Q/D/IF and
+  registered historical body/use/capture maps are constructed before
+  satisfaction. This closes formation for the original monomorphic use only;
+  actual source specialization, generalized/native maps and the entire FIX
+  walk remain OPEN. No historical dependency is erased by formation alone.
   Original eligibility/typed-witness/native parents remain OPEN.
   M2: two reviewers, static checks only, zero executable checks/measurements.
   The independent primitive computation-root receiving slice is now proved,

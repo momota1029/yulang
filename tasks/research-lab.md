@@ -526,12 +526,17 @@ original outer checked-view/Name-use map. The outer ReadInvoke view is not
 automatically receive's producer type. Historical maps cannot inherit the
 current Remaining substitution; no surviving free-q path or entire no-free
 theorem is authenticated. The architect identified the actual source formation
-owner, not a new R_whole meaning. `ordinary_carrier_proof` now owns a 20-minute
-packet at `86733d315`, sole lease
+owner, not a new R_whole meaning. The 20-minute `ordinary_carrier_proof`
+packet at `86733d315` is frozen at
 `notes/theory/2026-10-16-choose-whole-context-reference-construction.md`,
-constructing receive's complete producer, independently formed outer checked
-view/check/Q/IF and actual original reference/use maps. Formation retains
-pending profile/check obligations and introduces no solve-at-generation gate.
+producer `e11041b6...ce02d68f`, independently mathematical/source CLEAN.
+The [bounded source constructor](../notes/design/2026-10-16-source-whole-context-constructor.md)
+is selected under existing definition permission. It supplies complete
+receive/outer checked-view/check/Q/IF formation and actual historical body/
+registration/use/capture maps, retaining every open profile/check clause.
+Original monomorphic-use formation is not generalized/native correspondence;
+actual historical eta and full installed FIX remain OPEN. No solve-at-generation
+gate or automatic Remaining-map transport is introduced.
 A complementary eight-minute initial-protection inventory audit examines the
 fresh original world, inherited profiles and other live prefix receivers;
 it may not replace missing source-world/primitive evidence with emptiness.

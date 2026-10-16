@@ -153,6 +153,12 @@ This index is a navigation aid. The listed source document remains authoritative
   now supply its outer complete-invocation component, first Name/Call
   applicability and Value-entry result-path introduction. The full profile
   inventory and concrete context/Catch/native parents remain OPEN.
+  The [historical source-context constructor](2026-10-16-source-whole-context-constructor.md)
+  and [reviewed formation](../theory/2026-10-16-choose-whole-context-reference-construction.md)
+  now exhibit complete receive/outer-Call declarations, an independent checked
+  view and actual historical reference maps. Original monomorphic formation
+  closes; satisfaction, original specialization, generalized/native maps and
+  complete installed support remain OPEN.
 
 - [Native Value rewrite provenance repair](../progress/2026-10-16-native-value-rewrite-provenance.md)
   — The native duplicate/source audit reaches ordinary diagnostic children
