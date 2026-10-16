@@ -138,6 +138,12 @@ Status: full objective remains active. Native extrusion now schedules current co
   the authentic Z declaration/telescope first unavailable and W plus
   image-to-U actions independent. This does not establish global absence or
   close the original universal A/B, principality, adoption or production gates.
+  The bounded E1-R2 construction attempt stops at D2 for the same unselected
+  original Z rule body/telescope before image-to-U processing. It adds no
+  theorem progress or complete proposal; source-contract §5.3 rules were not
+  inspected, and all parent gates remain OPEN. Frozen note/inbox checkpoint
+  `80e22d2e` records the unsuccessful attempt and routes declaration/local-rule
+  construction back to the primitive-contract authority.
 
 - **Choose caller registration boundary:** the reviewed
   [caller-registration construction](../notes/theory/2026-10-16-choose-bootstrap-caller-registration-construction.md)
