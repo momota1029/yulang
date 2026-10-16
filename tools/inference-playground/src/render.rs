@@ -1,7 +1,7 @@
 //! Finite observations of the existing private candidate graph.
 use std::collections::HashMap;
 use std::fmt::Write;
-use yu_hir::{HirItem, HirModule, LocalSource, SourceRootId};
+use yu_hir::{DefId, HirItem, HirLocalId, HirModule, LocalSource, SourceRootId};
 use yu_solver::shadow_apply::{CandidateGraphExport, CandidateGraphNode, CandidateGraphRow};
 use yu_solver::shadow_apply::{CandidateInference, CandidateSourceValueIdentity};
 
@@ -213,6 +213,8 @@ pub(crate) fn intrusion_into(
     )
     .map_err(cap)?;
     let mut conflict_ranges = None;
+    let mut module_names: HashMap<&DefId, &str> = HashMap::new();
+    let mut local_names: HashMap<&HirLocalId, &str> = HashMap::new();
     for event in observation.events() {
         output.observe(1)?;
         let occurrence = event.checking.occurrence();
@@ -232,14 +234,26 @@ pub(crate) fn intrusion_into(
             event.ordinal, event.origin.ordinal
         )
         .map_err(cap)?;
-        source_value_into(hir, event.origin.identity, output)?;
+        source_value_into(
+            hir,
+            event.origin.identity,
+            &mut module_names,
+            &mut local_names,
+            output,
+        )?;
         write!(
             output,
             ", SCC {}), receiver=v{} (",
             event.origin.component, event.receiver.ordinal
         )
         .map_err(cap)?;
-        source_value_into(hir, event.receiver.identity, output)?;
+        source_value_into(
+            hir,
+            event.receiver.identity,
+            &mut module_names,
+            &mut local_names,
+            output,
+        )?;
         write!(
             output,
             ", SCC {}), same_scc={} at retained call-tail occurrence ",
@@ -280,17 +294,31 @@ pub(crate) fn intrusion_into(
     Ok(())
 }
 
-fn source_value_into(
-    hir: &HirModule,
+fn source_value_into<'hir>(
+    hir: &'hir HirModule,
     identity: CandidateSourceValueIdentity<'_>,
+    module_names: &mut HashMap<&'hir DefId, &'hir str>,
+    local_names: &mut HashMap<&'hir HirLocalId, &'hir str>,
     output: &mut Output,
 ) -> Result<(), String> {
     match identity {
         CandidateSourceValueIdentity::Module(id) => {
-            let name = hir.items().iter().find_map(|item| match item {
-                HirItem::Binding(binding) if binding.id() == id => Some(binding.name().spelling()),
-                _ => None,
-            });
+            let name = if let Some(name) = module_names.get(&id) {
+                Some(*name)
+            } else {
+                let found = hir.items().iter().find_map(|item| match item {
+                    HirItem::Binding(binding) if binding.id() == id => {
+                        Some((binding.id(), binding.name().spelling()))
+                    }
+                    _ => None,
+                });
+                if let Some((key, name)) = found {
+                    module_names.insert(key, name);
+                    Some(name)
+                } else {
+                    None
+                }
+            };
             if let Some(name) = name {
                 write!(output, "module {name}").map_err(cap)
             } else {
@@ -298,14 +326,24 @@ fn source_value_into(
             }
         }
         CandidateSourceValueIdentity::Local(id) => {
-            let name = hir.items().iter().find_map(|item| {
-                let local = local_source_for_item(hir, item)?;
-                local
-                    .bindings()
-                    .iter()
-                    .find(|binding| &binding.id == id)
-                    .map(|binding| &*binding.spelling)
-            });
+            let name = if let Some(name) = local_names.get(&id) {
+                Some(*name)
+            } else {
+                let found = hir.items().iter().find_map(|item| {
+                    let local = local_source_for_item(hir, item)?;
+                    local
+                        .bindings()
+                        .iter()
+                        .find(|binding| &binding.id == id)
+                        .map(|binding| (&binding.id, &*binding.spelling))
+                });
+                if let Some((key, name)) = found {
+                    local_names.insert(key, name);
+                    Some(name)
+                } else {
+                    None
+                }
+            };
             if let Some(name) = name {
                 write!(output, "local {name}").map_err(cap)
             } else {

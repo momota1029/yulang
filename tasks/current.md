@@ -297,6 +297,25 @@ Status: full objective remains active. Native extrusion now schedules current co
   UNKNOWN. The staged whitespace check has no findings in either receipt or
   source diff. No runtime semantics, proof, F5 or production gate changed or
   closed; original gates remain OPEN/BLOCKED.
+  I28 adds per-render borrowed `DefId` and `HirLocalId` name caches in the two
+  existing intrusion source-value lookups. It inserts only successful original
+  first-match resolutions; misses keep scanning and fall back exactly as
+  before. Event order, charge/write timing, formatting, labels, errors and
+  output caps are unchanged. R41's M2 conformance and R42's M2 resource reviews
+  are CLEAN within scope. For K charged events, the successful cache has
+  D≤2K≤32,768 entries and retains O(D) borrowed rows until rendering returns.
+  Empty maps allocate no entry storage, but inserts use ordinary infallible
+  allocation; lookup hashing, misses, source/excerpt scans, and map growth stay
+  outside observation charges. A later byte-cap failure can retain entries
+  until return. No resource-equivalence, whole-renderer linearity, or measured
+  speedup claim. All three assigned CLI tests pass 1/1 (22 filtered each),
+  warning-free; no review/integration reruns and the benchmark budget is 0
+  processes / 0 samples. Receipt039 records the full diff and cost limits.
+  Producer requested Luna/high; both reviewers requested Sol (medium and low);
+  observed settings are UNKNOWN. The staged whitespace check reports only the
+  preserved empty diff-context markers in receipt039 (lines 81 and 123). No
+  output or inference semantics, proof, F5, or production gate changed or
+  closed; original gates remain OPEN/BLOCKED.
 
 - **Module expressions integrated through inference and execution:** the exact question revision 2 / a1
   revision 1 answer bundle is validated and integrated at `f40e4235d`. The
