@@ -12,7 +12,7 @@
     "baseline": "601e55cfaaf131644d770006532727da33e33059",
     "previous_sprint": "receive-negative-pair-construction-20261017 ENDED-REVIEWED-EXACT-OBSTRUCTION; its approved option-B answers authorize only proposal drafting.",
     "proof": {
-      "state": "REPAIRED-DELTA-SPEC-REVIEW-PENDING",
+      "state": "REVIEWED-DRAFT-CLEAN",
       "assignment": "NPAIR-FORMATION-PROPOSAL-20261017",
       "role": "astra_prover",
       "outputs": [
@@ -41,7 +41,9 @@
       "original_artifact_sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018",
       "snapshot_sha256": "9fa81e8ce39bf219ae088f4d8592e4613ca89bd155817d0eece6687daee69018",
       "compiler_delta_review": "CLEAN",
-      "compiler_delta_receipt": "Exact changed sentence reviewed against snapshot and approved answer; major closed for that sentence only; 30s full cap charged; UNKNOWN/UNKNOWN; STOPPED, no writes or descendants."
+      "compiler_delta_receipt": "Exact changed sentence reviewed against snapshot and approved answer; major closed for that sentence only; 30s full cap charged; UNKNOWN/UNKNOWN; STOPPED, no writes or descendants.",
+      "spec_delta_review": "CLOSED",
+      "spec_delta_receipt": "CLEAN exact delta; major closed for the changed sentence only; option-B explicit-user-approval scope confirmed; full 30s charged; UNKNOWN/UNKNOWN; STOPPED, no descendants."
     },
     "implementation": {
       "state": "RUNNING-PROPOSAL-AUTHORING",
@@ -59,13 +61,13 @@
       "receipt": "Packet 2 resumed after primary repair freeze; independent and proposal-only; requested Luna/high, observed UNKNOWN/UNKNOWN; exact packet-2 outputs only."
     },
     "review": {
-      "state": "RUNNING-DELTA-SPEC-REVIEW",
+      "state": "P1-REVIEW-CLOSED-P2-REVIEWS-RESERVED",
       "assignment": "NPAIR-PROPOSAL-INDEPENDENT-REVIEW-20261017",
       "reviewers": [
         "compiler_referee",
         "spec_auditor"
       ],
-      "receipt": "Compiler_referee delta CLEAN/STOPPED; spec_auditor delta active on same one-sentence repair, 30s cap."
+      "receipt": "P1 compiler_referee CLEAN on rev1 scope and two 30s delta reviews CLEAN on repair; P1 remains proposal-only and all source/proof/implementation parents OPEN."
     },
     "open_parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017, CATCH-EXIT-INPUT-1 and F1/FK1/FIRST-RESULT/H1-H2/JOINT_DEC/Call/effect/source-Generalize/soundness/principality/F5/production remain OPEN.",
     "workers": [
@@ -115,13 +117,14 @@
       }
     ],
     "next_action": {
-      "state": "READY-TO-LAUNCH-PACKET-1",
+      "state": "P1-REVIEWED-PACKET-2-ACTIVE",
       "answers": {
         "NPAIR": "1ba10aabc1a3b7fb76b6423a1423b5220e4291f9, option B",
         "CATCH-EXIT-INPUT-1": "e7c976b9284c372667f5cabd2c80156624905402, option B"
       },
       "proposal": "Produce two independently reviewed source-definition proposals and exact source/native maps.",
-      "implementation": "No compiler changes until reviewed proposals and a later explicit source-definition adoption; then issue a new proof-backed implementation contract."
+      "implementation": "Packet 2 CATCH input proposal authoring continues independently; 240s review remains allocated to its two reviewers.",
+      "proof": "P1 is a reviewed conditional source-definition proposal; it closes no parent proof or implementation gate."
     },
     "current_checkpoint": "1c50a7c9b",
     "contract_revision": 2
@@ -288,13 +291,13 @@
     "astra_assignments": 0,
     "heavy_process_peak": 0,
     "cargo_build_test_probe_invocations": 0,
-    "review_reserved": 270,
+    "review_reserved": 240,
     "coordination_reserved": 180,
-    "pending_reviewers": 1,
-    "charged_total_seconds": 1230,
+    "pending_reviewers": 0,
+    "charged_total_seconds": 1260,
     "reviewed_closeout": null,
     "authors_spent_seconds": 900,
-    "review_spent_seconds": 270,
+    "review_spent_seconds": 300,
     "repair_cap_seconds": 60,
     "review_cap_seconds": 540,
     "repair_spent_seconds": 60,
