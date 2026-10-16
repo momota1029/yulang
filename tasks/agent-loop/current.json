@@ -4,73 +4,59 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-applied-producer-and-seed-bridge-20261017",
-    "contract": "tasks/agent-loop/sprints/npair-applied-producer-and-seed-bridge-20261017.md",
-    "revision": 3,
-    "sha256": "4e4f0c9797044b8395305775d7c45192a10300ee9b9bceb7a7d0a15ddae1f883",
-    "state": "CLOSED-REVIEWED-PARTIAL-ADJUDICATED",
-    "baseline": "24be694c5bd3c024faa20bea0efb19e38f73b0c5",
+    "id": "npair-forward-source-witness-realization-20261017",
+    "contract": "tasks/agent-loop/sprints/npair-forward-source-witness-realization-20261017.md",
+    "revision": 1,
+    "sha256": "f3e55f3f8e0dc95658e69b85e0deb443265e9e5e1916fb5b90f4e688167309ef",
+    "state": "PROOF-LANE-RUNNING",
+    "baseline": "ad2fbba0871ea96a9e6dadca92354cfb094a874a",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
-    "fixed_outcome": "Prove applied concrete-only producer formation and ordinary-edge correspondence; then construct full descriptor-to-authentic-seed association or isolate exact missing field/event; apply to original receive obligation.",
+    "fixed_outcome": "Carry the original complete Operation witness w forward through actual source/native seed, emission/admission, FunctionPort/ordered Replay and recovered Permission port; establish adopted At(D,w,delta) or exact missing source premise; apply to parent.",
     "review": {
-      "state": "CLEAN-PRIMARY-ADJUDICATED-CLOSED",
+      "state": "PROOF-AUTHOR-RUNNING",
       "current_reviewer": null,
       "sequence": [
         "compiler_referee:120s",
-        "architect:120s"
+        "architect:120s",
+        "spec_auditor:120s"
       ],
       "after_proof": "Luna/high readiness contract lane; starts only after proof STOP"
     },
     "resources": {
-      "cap_seconds": 1560,
-      "proof_cap_seconds": 720,
-      "readiness_cap_seconds": 360,
-      "reviews_cap_seconds": 240,
-      "optional_compile_only_cap_seconds": 0,
-      "coordination_seconds": 60,
-      "reserve_seconds": 0,
-      "charged_seconds": 1350,
-      "active_authors": 0,
-      "status": "Closed REVIEWED-PARTIAL: 1350s charged (proof720/readiness360/coordination30/reviews240); unused coordination, optional compile-only and reserve totaling 210s retired without transfer."
+      "cap_seconds": 2100,
+      "proof_cap_seconds": 900,
+      "readiness_cap_seconds": 600,
+      "reviews_cap_seconds": 360,
+      "coordination_seconds": 120,
+      "reserve_seconds": 120,
+      "charged_seconds": 30,
+      "active_authors": 1,
+      "status": "30s coordination charged. Astra/medium proof author active within 900s/six-stage cap; readiness after STOP; three fresh reviews reserved; 120s reserve remains."
     },
     "lanes": {
       "proof": {
-        "owner": "/root/npair_applied_producer_seed_bridge",
-        "state": "STOPPED-FROZEN",
+        "owner": "/root/npair_forward_source_witness_realization",
+        "state": "RUNNING",
         "outputs": [
-          "notes/theory/2026-10-17-npair-applied-producer-seed-bridge.md",
-          "tasks/agent-loop/inbox/20261017-npair-applied-producer-seed-bridge.md"
+          "notes/theory/2026-10-17-npair-forward-source-witness-realization.md",
+          "tasks/agent-loop/inbox/20261017-npair-forward-source-witness-realization.md"
         ]
       },
       "implementation_readiness": {
         "owner": "/root",
-        "state": "STOPPED-FROZEN",
+        "state": "WAITING-PROOF-STOP",
         "outputs": [
-          "notes/design/2026-10-17-npair-descriptor-seed-association-contract.md",
-          "tasks/agent-loop/inbox/20261017-npair-descriptor-seed-association-contract.md"
+          "notes/design/2026-10-17-npair-forward-witness-ingress-code-contract.md",
+          "tasks/agent-loop/inbox/20261017-npair-forward-witness-ingress-code-contract.md"
         ],
         "compiler_lease": false
       }
-    },
-    "artifacts": [
-      {
-        "path": "notes/theory/2026-10-17-npair-applied-producer-seed-bridge.md",
-        "sha256": "45cfefb49b6a1ca567ea603558c95b0dfed22a776b23d3b5ed200e373befa579"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-npair-applied-producer-seed-bridge.md",
-        "sha256": "986c4391063348592d6be13c9db549692b1fdcefcbc5eb72dd1ad5da68150a12"
-      },
-      {
-        "path": "notes/progress/2026-10-17-npair-applied-producer-seed-bridge.md",
-        "sha256": "82bcb3953191d2ab7a2504a75c896fcfb130181be916fcc83ac91ff4bc2adf1f"
-      }
-    ]
+    }
   },
-  "candidate": "tasks/agent-loop/sprints/npair-applied-producer-and-seed-bridge-20261017.md",
-  "baseline": "24be694c5bd3c024faa20bea0efb19e38f73b0c5",
-  "scope": "Prove the applied concrete-only producer’s bounded construction and bridge its retained Permission descriptor to an authentic emission/admission/processing seed, or isolate the exact missing field/event; keep source admission and parent closure OPEN.",
-  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; current-session proof author has active receipt. Implementation-readiness owner waits for proof STOP; no compiler lease.",
+  "candidate": "tasks/agent-loop/sprints/npair-forward-source-witness-realization-20261017.md",
+  "baseline": "ad2fbba0871ea96a9e6dadca92354cfb094a874a",
+  "scope": "Forward-realize the original dependent Operation witness w through actual native source/emission/processing evidence to the recovered NPAIR Permission port; classify At(D,w,delta) or exact missing constructor premise; preserve original receive quantifiers and parent OPEN.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations remain; current-session Astra/medium author has active receipt. Luna readiness begins after proof STOP; no compiler source lease.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -107,7 +93,7 @@
     },
     {
       "id": "/root/npair_applied_producer_seed_bridge",
-      "role": "prover, applied producer and authentic seed bridge proof author",
+      "role": "astra_prover, prior forward native evidence proof author",
       "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
@@ -115,47 +101,32 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "cap_seconds": 720,
-      "receipt": "Frozen candidate proof and source/native evidence; artifact 45cfefb49b6a1ca567ea603558c95b0dfed22a776b23d3b5ed200e373befa579; handoff 986c4391063348592d6be13c9db549692b1fdcefcbc5eb72dd1ad5da68150a12. All 21 pins reverified; exact parent frontier preserved; no edits/execution/descendants.",
-      "elapsed_seconds_charged": 720
+      "elapsed_seconds_charged": 720,
+      "receipt": "Frozen prior proof/handoff at notes/theory/2026-10-17-npair-applied-producer-seed-bridge.md and inbox; both hashes stored on frozen leases. Parent only partially reduced; STOPPED, no descendants."
     },
     {
       "id": "/root",
-      "role": "Luna/high primary, current-state owner and sole Git integrator",
-      "state": "STOPPED",
+      "role": "Luna/high primary and sole Git integrator",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 360,
-      "receipt": "Luna adjudicated the frozen proof as candidate static evidence and readiness as unapplied Draft after both independent reviews CLEAN. No source/compiler lease or semantic authority.",
-      "elapsed_seconds_charged": 360
+      "cap_seconds": 120,
+      "receipt": "Current-session primary/coordinator receipt: validated selector outcome and exact pinned contract/leases; active sprint bookkeeping and author intake only. No compiler source lease."
     },
     {
-      "id": "/root/npair_bridge_compiler_review",
-      "role": "compiler_referee, fresh read-only applied proof/readiness reviewer",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
+      "id": "/root/npair_forward_source_witness_realization",
+      "role": "astra_prover, forward source-witness proof author",
+      "state": "RUNNING",
+      "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 120,
-      "receipt": "CLEAN bounded source-to-claim review; all five bundle pins and seven source/authority pins match; conditional certificate and open parent boundaries confirmed; record-only HEAD descendant accepted. Static only; STOPPED.",
-      "elapsed_seconds_charged": 120
-    },
-    {
-      "id": "/root/npair_bridge_arch_review",
-      "role": "architect, fresh read-only applied proof/readiness reviewer",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "cap_seconds": 120,
-      "receipt": "CLEAN bounded architecture review; all five outputs/contract and seven direct source pins match; lifecycle, raw ordinal/representative, existing/later lowers and authority boundaries accepted; executable algorithm and runtime remain open. STOPPED.",
-      "elapsed_seconds_charged": 120
+      "cap_seconds": 900,
+      "receipt": "ACTIVE receipt: exact contract hash f3e55f3f…7309ef, baseline ad2fbba0…4a874a, outputs and scope acknowledged; supplied pins being verified; no descendants/source execution."
     }
   ],
   "leases": [
@@ -258,6 +229,32 @@
       "owner": "/root",
       "state": "FROZEN",
       "sha256": "82bcb3953191d2ab7a2504a75c896fcfb130181be916fcc83ac91ff4bc2adf1f"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/npair-forward-source-witness-realization-20261017.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "f3e55f3f8e0dc95658e69b85e0deb443265e9e5e1916fb5b90f4e688167309ef"
+    },
+    {
+      "path": "notes/theory/2026-10-17-npair-forward-source-witness-realization.md",
+      "owner": "/root/npair_forward_source_witness_realization",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-npair-forward-source-witness-realization.md",
+      "owner": "/root/npair_forward_source_witness_realization",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/design/2026-10-17-npair-forward-witness-ingress-code-contract.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-npair-forward-witness-ingress-code-contract.md",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -288,26 +285,25 @@
     }
   ],
   "next_action": {
-    "state": "NEXT-SPRINT-SELECTED-NOT-YET-LEASED",
-    "dispatcher": "Selector proposed forward realization from an independently supplied original Operation witness; Luna validates, commits the reviewed frontier, then issues exact leases.",
-    "proof": "Astra/medium 900s up to six stages: carry original contribution witness w forward through physical Operation emission/admission, checked FunctionPort and ordered Replay to recovered Permission port; classify adopted At(D,w,delta) versus structural incidence and apply to parent.",
-    "implementation": "Luna/high 600s after proof STOP: write executable-gate contract separating structural certificate, semantic witness/At, and source admission. No compiler or preflight lease."
+    "state": "PROOF-ACTIVE",
+    "dispatcher": "Selector selected forward realization from original source witness w; Luna validated pins, exact leases and 2100s envelope.",
+    "proof": "Astra/medium 900s, six stages: construct original w, link to Operation seed/emission/admission, carry through actual FunctionPort/Replay to recovered Permission, classify At versus structural incidence or exact missing premise, apply parent.",
+    "implementation": "Luna/high 600s after proof STOP: bounded executable-gate readiness design separating structure, semantic witness/At and source admission. No compiler source or preflight lease."
   },
   "resource_accounting": {
-    "current_sprint_id": "npair-applied-producer-and-seed-bridge-20261017",
-    "cap_seconds": 1560,
-    "charged_total_seconds": 1350,
-    "proof_cap_seconds": 720,
-    "readiness_cap_seconds": 360,
-    "reviews_cap_seconds": 240,
-    "optional_compile_only_cap_seconds": 0,
-    "coordination_seconds": 60,
-    "reserve_seconds": 0,
-    "active_authors": 0,
+    "current_sprint_id": "npair-forward-source-witness-realization-20261017",
+    "cap_seconds": 2100,
+    "proof_cap_seconds": 900,
+    "readiness_cap_seconds": 600,
+    "reviews_cap_seconds": 360,
+    "coordination_seconds": 120,
+    "reserve_seconds": 120,
+    "charged_total_seconds": 30,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "Closed REVIEWED-PARTIAL, 1350s charged; unused 210s retired without transfer; all current-session workers STOPPED."
+    "status": "30s coordination charged; Astra/medium proof active under exact receipt; readiness waits for STOP; 3 historical UNKNOWN reservations preserved."
   },
-  "history": "Checkpoint 24be694c5 integrated the approved concrete-only Permission producer/accounting repair after all three delta reviews CLEAN. Applied producer/seed bridge sprint on record-only baseline descendant 2ce33a973: proof 45cfefb4…fa579, readiness 9f4e2d9f…18395; fresh compiler-referee and architect both CLEAN/STOPPED. Primary accepts candidate static evidence and unapplied readiness Draft only; parent/source admission/N-Ingress remain OPEN. Outcome receipt notes/progress/2026-10-17-npair-applied-producer-seed-bridge.md. Sprint closed REVIEWED-PARTIAL, 1350/1560s charged; remaining 210 retired. Preserve 3 UNKNOWN reservations, board quarantine and foreign dirty JSON.",
+  "history": "Checkpoint ad2fbba08: frozen prior producer-seed bridge and readiness Draft, both independently CLEAN; current review receipt and progress artifact preserved. New 2100s forward-source-witness sprint pinned at f3e55f3f…7309ef, baseline ad2fbba0871ea96a9e6dadca92354cfb094a874a; Astra/medium proof RUNNING with current receipt. Parent OPEN; source admission/N-Ingress unresolved. Preserve 3 historical UNKNOWN reservations, board quarantine and foreign dirty JSON.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
@@ -319,6 +315,7 @@
     "4685eef7e",
     "0aa192a88",
     "77cf984a6",
-    "24be694c5bd3c024faa20bea0efb19e38f73b0c5"
+    "24be694c5bd3c024faa20bea0efb19e38f73b0c5",
+    "ad2fbba0871ea96a9e6dadca92354cfb094a874a"
   ]
 }
