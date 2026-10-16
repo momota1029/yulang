@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "sprint_id": "source-authentication-admission-20261017",
+  "contract_revision": 6,
+  "status": "ENDED-PARTIAL-REVIEWED",
+  "branch": "research/simple-sub-intrusion",
+  "baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
+  "goal": "Establish the exact diagnostic-to-owner correspondence for the frozen receive/choose fixture, then let existing CandidateInference admission classify those diagnostics through its ordinary public solve path.",
+  "authority": "Continue the active top-level goal while preserving original source domains and theorem quantifiers. This packet concerns only the newly authored fixture at the pinned bytes. No historic source identity, mathematical phase-root R_e correspondence, complete choose contract, F1/FK1/First-Result closure, principality, F5, or production promotion follows. No compiler semantic/API change, diagnostic suppression, preflight bypass, fixture substitution, or test modification is authorized.",
+  "primary_approval": "Luna accepts the selector proposal after the previous sprint ended partial. The previous two-attempt Cargo cap is exhausted and does not transfer. New 1,200-second cap is separately allocated. Three legacy UNKNOWN reservations remain quarantined. Proof/source work precedes implementation; writers STOP before sequential independent reviews. Proof/source assignment finished STOPPED with frozen outputs. Luna adds both proof outputs as direct dependencies in proof-only-to-implementation continuation rev2; no scope, lease or budget expansion. Implementation author STOPPED and both outputs frozen under its rev2 binding. Luna adds those exact output hashes to the sprint dependency set in rev3 before the one authorized primary run. No author or source behavior change. The single primary run completed and returned CandidateError::Unsupported from the normal CandidateInference::solve entrypoint after source/HIR ownership inventory. Luna may record its exact observed evidence in the existing primary-owned run receipt path; no further execution is authorized. Luna froze the exact one-run receipt and pins it in rev5 for independent review. The one-run cap is exhausted; no more execution.",
+  "previous_sprint": {
+    "id": "authentic-source-and-forward-handler-20261017",
+    "state": "ENDED-PARTIAL-REVIEW-PENDING-DELTA",
+    "contract_sha256": "5b811dbae3871512b42da55ab5700e6f499feaaece5dfcb6f674ab5fa35d5853",
+    "receipts": {
+      "forward_handler_obstruction": "229b109cd4e271c9483e13f10a58afe3cefad5befc833dba6aa8927e2789c8d5",
+      "source_run_r1": "3e04e06afe50223241982d38cfbc7fc2903f29f23706456d7fdb39b3816ad06b",
+      "source_run_r2": "5a22271d31140c14de1c08c66fa6bf800509abfec25ae993709fa8eaee418429"
+    },
+    "pending": "Independent delta review of the receipt-only r2 correction remains pending; do not treat prior HIR diagnostics as classified."
+  },
+  "original_parent": {
+    "id": "CHOOSE-SOURCE-2 / RESEARCH-FIXTURE diagnostic-to-owner and candidate admission path.",
+    "source": "For the exact frozen 357-byte fixture, identify which of its three reported HIR diagnostic IDs belong to source declaration placeholders, LocalSource-owned expression placeholders, or genuine unsupported input. Then remove only the example harness’s blanket nonempty-HIR-errors stop so CandidateInference::solve and its existing preflight/permitted-error ownership decide whether it accepts or refuses the fixture.",
+    "quantifiers": "The proof/classification covers every HIR diagnostic emitted by this exact fixture and its precise owner identity under the pinned parser/HIR/source revision. It establishes no result for other source programs or historical source artifacts. Keep the family/declaration/use identities, exact fixture bytes and source roots fixed.",
+    "required_direction": "Trace declaration placeholder_errors from source formation, LocalSource-carried expression identities, candidate retain_placeholder_errors, and final solve_mode permitted_errors membership. Report each exact HirErrorId/kind/owner and whether the existing admission path allows it. Implementation retains all diagnostic reporting and source/root checks, removes only its own unconditional rejection before solve, and records solve/export success or exact first refusal using the standard entrypoint.",
+    "status": "OPEN"
+  },
+  "success_evidence": [
+    "Source/proof: table each fixture HirErrorId against HIR item/root, declaration.placeholder_errors where relevant, LocalSource expression ownership and candidate-source permitted-error rules; state exact classification or missing evidence. No blanket assumption that all UnsupportedItem/UnsupportedExpression diagnostics qualify.",
+    "Implementation: one minimal harness edit that stops rejecting solely because hir.errors() is nonempty, while preserving error output and all byte/source/HIR/root identity checks; after freeze, one primary Cargo run <=120s calls CandidateInference::solve, letting normal candidate preflight/admission return exact success/refusal; export remains conditional on successful solve.",
+    "No test changes or tests run, no compiler behavior/API/diagnostic/semantic changes. Successful fixture solve still authenticates only this new fixture and never proves R_e or complete choose semantics."
+  ],
+  "accepted_meaning": "CandidateInference::solve_mode is the owning admission boundary. HIR may contain placeholder diagnostics only where its existing declaration/source identities and LocalSource preflight authenticate those exact error IDs; the harness must not replace that decision with an unconditional all-errors veto.",
+  "dependencies": {
+    "crates/yu-hir/src/module.rs": "2e0c579a525efd5ac4c7ce0f06189c568ed46c7382d4576698a0b8d846c2228e",
+    "crates/yu-hir/src/module/source_annotation.rs": "b8462b66eac24a48b6fc5e931a3d8b7c38c19bb8b2f1a7cdc4ecd9a8a7a1117f",
+    "crates/yu-hir/src/module/local_source.rs": "ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5",
+    "crates/yu-hir/src/shadow.rs": "2dffd7fd6542eed9fd3346e0672e76197c248be9c84334f341c4d612234b7ee9",
+    "crates/yu-solver/src/candidate_source.rs": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38",
+    "crates/yu-solver/src/shadow_apply.rs": "bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf",
+    "tools/inference-playground/src/lib.rs": "b65cfd7200e459c9448438ec979ffeb9eddb35c282600349cebe7ddf3b759bbb",
+    "crates/yu-solver/examples/research_source_registration.rs": "10ea5f2c6db7c9d093d86780dbeb217d7eca11332e99a4d1ec40f4753f544e7c",
+    "tasks/agent-loop/fixtures/20261017-receive-choose.yu": "969e20e0f38a2c341a96ff4fe07028bf567ca134e0fb24602fadf6e4c723d9c0",
+    "tasks/agent-loop/snapshots/20261017-research-source-registration-pre-repair.rs": "2a58996b1085ca892dcb9a79465054fad9ac0ddfce4b02eb02c51aa9d464bfe1",
+    "notes/progress/2026-10-17-source-authentication-api-repair.md": "3e04e06afe50223241982d38cfbc7fc2903f29f23706456d7fdb39b3816ad06b",
+    "notes/progress/2026-10-17-source-authentication-api-repair-r2.md": "5a22271d31140c14de1c08c66fa6bf800509abfec25ae993709fa8eaee418429",
+    "tasks/agent-loop/inbox/20261017-receive-choose-source-authentication.md": "f52b07be8b6faef34a311fefd42ccd7254898a7476eddf858e19c6756ac3fab5",
+    "crates/yu-solver/Cargo.toml": "7a599e95800c67ca4688b0f91917609345a252aae6d2ea6cd0f413eb1c07893c",
+    "notes/theory/2026-10-17-source-authentication-admission-correspondence.md": "fde662725830095f4ea28e902449c34bc89ebbc237cdc30fee5ee214fc135601",
+    "tasks/agent-loop/inbox/20261017-source-authentication-admission-proof.md": "2c408c62f0d7937bf416d1a21b968a001ac55974974212b1141ac77b27e6af6b",
+    "tasks/agent-loop/inbox/20261017-source-authentication-admission-implementation.md": "b9ed6ef1d5df6c49a07dc0ecee2b05cdd4fc22ae6bc39bd43d6a8665b69557f6",
+    "notes/progress/2026-10-17-source-authentication-admission-run.md": "089474cbe650ec779fa60578857f10b0ed99cacc261aaaaccd5e26ab4190f8cc"
+  },
+  "lanes": {
+    "proof": {
+      "assignment_id": "assignment-source-authentication-admission-proof-20261017",
+      "role": "prover",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "claim": "For the exact pinned fixture/HIR artifact, construct the diagnostic-to-owner correspondence for every emitted HIR error and derive exactly which IDs can reach candidate permitted_errors or declaration placeholders under the existing source path; leave any unresolved classification OPEN.",
+      "outputs": [
+        "notes/theory/2026-10-17-source-authentication-admission-correspondence.md",
+        "tasks/agent-loop/inbox/20261017-source-authentication-admission-proof.md"
+      ],
+      "budget": {
+        "active_seconds": 300,
+        "stages": 5,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "Read-only source proof/classification first. Stop and freeze both outputs before any implementation writer starts. No compiler changes.",
+      "state": "FROZEN-STOPPED"
+    },
+    "implementation": {
+      "assignment_id": "assignment-source-authentication-admission-implementation-20261017",
+      "role": "implementer",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "scope": "After proof/source author STOP, Luna acknowledges and grants the exact write lease on the existing example and its single handoff. Preserve all printed diagnostics and byte/source/HIR/root checks; change only the harness blanket `if !hir.errors().is_empty()` early refusal so normal CandidateInference::solve owns exact classification. Do not suppress diagnostics, special-case error IDs, bypass solve/preflight, edit fixture, or change compiler source. Freeze outputs; Luna may then make one additional Cargo run <=120s using the isolated existing target directory.",
+      "outputs": [
+        "crates/yu-solver/examples/research_source_registration.rs",
+        "tasks/agent-loop/inbox/20261017-source-authentication-admission-implementation.md"
+      ],
+      "preserve_before_edit": "Luna primary snapshots the exact current example bytes (SHA-256 60592afdafd8b545ef0f4410a693bcc5815ce929d2ae64c8b527ec28bdf0643c) to tasks/agent-loop/snapshots/20261017-source-auth-admission-pre-edit.rs before granting the implementation lease.",
+      "budget": {
+        "active_seconds": 360,
+        "stages": 5,
+        "heavy_processes": 0,
+        "lightweight_probes": 0,
+        "tests": 0,
+        "builds": 0
+      },
+      "sequence": "Implementation begins only after proof author and descendants STOP and Luna intake. One primary execution is authorized only after frozen output; no second run or source edits after that outcome.",
+      "contract_revision": 2,
+      "new_dependencies": {
+        "notes/theory/2026-10-17-source-authentication-admission-correspondence.md": "fde662725830095f4ea28e902449c34bc89ebbc237cdc30fee5ee214fc135601",
+        "tasks/agent-loop/inbox/20261017-source-authentication-admission-proof.md": "2c408c62f0d7937bf416d1a21b968a001ac55974974212b1141ac77b27e6af6b"
+      },
+      "state": "FROZEN-STOPPED",
+      "contract_sha256": "aad68de68506f3857b11d72404bd424b7ea686a22121a31cb68cdb1207d201c9",
+      "result_sha256": "10ea5f2c6db7c9d093d86780dbeb217d7eca11332e99a4d1ec40f4753f544e7c",
+      "handoff_sha256": "b9ed6ef1d5df6c49a07dc0ecee2b05cdd4fc22ae6bc39bd43d6a8665b69557f6"
+    }
+  },
+  "leases": [
+    {
+      "path": "notes/theory/2026-10-17-source-authentication-admission-correspondence.md",
+      "owner": "assignment-source-authentication-admission-proof-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-source-authentication-admission-proof.md",
+      "owner": "assignment-source-authentication-admission-proof-20261017",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/examples/research_source_registration.rs",
+      "owner": "assignment-source-authentication-admission-implementation-20261017",
+      "state": "HELD-AFTER-PROOF-STOP"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-source-authentication-admission-implementation.md",
+      "owner": "assignment-source-authentication-admission-implementation-20261017",
+      "state": "HELD-AFTER-PROOF-STOP"
+    },
+    {
+      "path": "tasks/agent-loop/snapshots/20261017-source-auth-admission-pre-edit.rs",
+      "owner": "assignment-source-authentication-admission-implementation-20261017",
+      "state": "HELD",
+      "prepared_by": "Luna primary before author starts; frozen snapshot remains read-only."
+    },
+    {
+      "path": "notes/progress/2026-10-17-source-authentication-admission-run.md",
+      "owner": "Luna primary",
+      "state": "FROZEN-AFTER-RECEIPT"
+    }
+  ],
+  "resources": {
+    "fresh_cap_seconds": 1200,
+    "lane_budgets_seconds": {
+      "proof_source": 300,
+      "implementation": 360,
+      "review": 240,
+      "coordination": 120,
+      "reserve": 180
+    },
+    "unknown_reservations": 3,
+    "max_active_and_unknown_assignments": 6,
+    "astra_assignments": 0,
+    "heavy_process_peak": 1,
+    "lightweight_probes_max": 0,
+    "review": "Total 240s maximum; sequential proof and implementation reviewers only. Existing old receipt r2 delta may be covered within this same implementation review if capacity permits.",
+    "run_result": "One primary Cargo process completed under 120s; CandidateInference::solve returned Unsupported. Candidate export not reached. No third execution."
+  },
+  "falsifiers": [
+    "Any reported HIR diagnostic lacks one exact owner/ID classification; a declaration or expression placeholder is claimed without matching source/HIR identity; candidate permitted_errors are inferred without following retained source and preflight paths.",
+    "Implementation suppresses or special-cases diagnostic IDs, skips CandidateInference::solve/preflight, changes source/root checks, or calls export after solve refusal.",
+    "Fixture bytes differ from pinned 357-byte source or result is reported as historical source/R_e/semantic adequacy evidence."
+  ],
+  "non_goals": [
+    "No compiler/library behavior, API, HIR, candidate admission rule, diagnostic, semantic or production change.",
+    "No fixture rewrite, test update, tests, benchmarks, full suite, or second Cargo run.",
+    "No historic source identity, phase-root R_e, complete choose contract, F1/FK1/First-Result closure, source-Generalize, principality, F5 or production promotion."
+  ],
+  "review": {
+    "proof": "Fresh compiler_referee, no proof coauthor; verify exact diagnostic IDs/owners and application of the owner-specific placeholder rules; keep unclassified errors open.",
+    "implementation": "Fresh regression_auditor after proof review; verify minimal harness-only delta, preserved diagnostics and identity checks, actual exact solve refusal/pass, no admission bypass; include delta review of prior receipt r2 correction if capacity permits.",
+    "budget_seconds": 240,
+    "execution": "Both authors STOPPED. First fresh compiler_referee reviews proof/source correspondence and the old receipt r2 correction within the total 240s review cap; then fresh regression_auditor reviews the one-gate code diff and exact current run result. If old receipt delta review cannot fit, retain it pending. No more Cargo.",
+    "state": "CLEAN-BOUNDED",
+    "proof_result": "Fresh compiler_referee CLEAN; all 18 pins match; source-level owner/polarity route only.",
+    "implementation_result": "Fresh regression_auditor CLEAN; all 18 pins match; exact harness diff and one run receipt match.",
+    "prior_r2_delta": "Fresh regression_auditor CLEAN; r2 correction accurately withdraws HIR incompatibility and clarifies two cumulative attempts."
+  },
+  "dispatcher_decision": "Selector recommends a new diagnostic-to-owner/source-admission sprint. The prior two Cargo attempts are exhausted; this new sprint has its own cap and authorizations. The exact source discriminator is the blanket example guard versus candidate admission’s owner-qualified permitted errors. The proof author froze the exact source correspondence. Luna adds the two frozen outputs as direct implementation dependencies before fresh implementation acknowledgement. Luna freezes the exact one-gate example diff and handoff as rev3 dependencies before the single primary run.",
+  "next_consultation": "A diagnostic with no owner correspondence, solve refusal/pass, missing admission owner, dependency or lease change, review seam, or sprint end.",
+  "review_receipt": "notes/progress/2026-10-17-source-authentication-admission-review.md",
+  "review_receipt_sha256": "504788c9a80804aadb90a8b784d4e1b1183c2cd8287076350ded8011f22f06b1",
+  "previous_pending": "PRIOR-RECEIPT-DELTA-REVIEW resolved by the review receipt; parent proof/source/runtime gates remain open."
+}
