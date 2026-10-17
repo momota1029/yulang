@@ -1,6 +1,6 @@
 # Sprint `npair-written-conservative-lift-20261018`
 
-Status: ACTIVE, revision 1. Branch `research/simple-sub-intrusion`;
+Status: ACTIVE, revision 2. Branch `research/simple-sub-intrusion`;
 baseline `f68dc078152bd1a724057a1b12666f517fed5327`. Parent
 `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN, closure 0.
 Original theorem, quantifiers, source domain, receive route, C1/C2 and F1/FK1
@@ -53,6 +53,7 @@ accessor, infer At, or claim theorem progress from counts.
 | `notes/theory/2026-10-17-choose-operation-source-instantiation.md` | `6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110` | Selected choose source, conditional constructor/application |
 | `notes/theory/2026-10-17-adopted-negative-pair-construction.md` | `6a3c6b5754448b38430ee368feb52d87ebd38c1b7050c3b33652132ead5f0fb2` | Original receive parent and fixed `c` |
 | `notes/theory/2026-10-18-npair-operation-field-source-bridge.md` | `190d565e83b6cebf7d9d4666f5b0de3c7c06a69f14ee1ed9495e72f6feb098ca` | Reviewed obstruction and unadopted inert descriptor falsifier |
+| `notes/theory/2026-10-16-operation-primitive-image-contract-construction.md` | `4fe70b18cad9ded249869b21b84bbf26e2a5f95320f79632a29a5071ddb1c4e9` | Actual operation declaration/invocation/returned-provider source construction; §7 identifies independent Z declaration as missing and does not supply complete W/Z admission |
 | `notes/design/2026-10-07-complete-call-contribution-definition.md` | `4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e` | Adopted CallMem and return clauses |
 | `notes/theory/2026-10-07-owned-call-contribution-construction.md` | `ead206bff341c82993acbaecda25ae1d3a760397796bbbbb53ba3ef917a53fb1` | C1-Call whole-evidence identity, only within its premises |
 | `notes/theory/2026-10-08-call-source-interface-construction.md` | `278034197a90eab6e62a073545c09dd14415a0353f58aa3b3cc122a6af945d98` | Original Call source interface and return action |
@@ -68,9 +69,13 @@ accessor, infer At, or claim theorem progress from counts.
 | `crates/yu-solver/examples/research_source_registration.rs` | `25bcd770ed40e10f0f2b621dfe63d26d71178430ae8f787deb346c6a087985ca` | Reviewed current harness; implementation lease permits query-only edit |
 | `tasks/agent-loop/fixtures/20261017-receive-choose.yu` | `969e20e0f38a2c341a96ff4fe07028bf567ca134e0fb24602fadf6e4c723d9c0` | Baseline fixture; exact restoration required |
 
-Each lane verifies every direct hash before reliance. The exact original source
-constructor/elimination is not supplied by the listed candidates; identifying
-its true owner is part of the proof packet, not an assumption of existence.
+Each lane verifies every direct hash before reliance. The newly pinned source
+construction establishes an actual declared operation, invocation, and
+returned-provider shape. It does not itself identify the parent's fixed `c`
+with that provider's Written `s1` field, nor supply complete W/Z admission.
+Proof must use the actual R constructor where applicable and retain the exact
+missing Z declaration (and any needed W action) as an explicit premise; do not
+restate this as absence of all Operation source construction.
 
 ## Lanes and exclusive output leases
 
