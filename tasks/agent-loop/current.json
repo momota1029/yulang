@@ -36,7 +36,7 @@
       "proof": {
         "owner": "/root/astra_selected_source_vertical",
         "role": "astra_prover after admission",
-        "state": "RUNNING",
+        "state": "FROZEN-STOPPED",
         "cap_seconds": 900,
         "outputs": [
           "notes/theory/2026-10-17-selected-source-vertical-correspondence.md",
@@ -47,7 +47,13 @@
         "requested_effort": "medium",
         "session": "current-session",
         "launch_receipt": "Actual collaboration launch acknowledged; bounded proof packet only; no descendants.",
-        "charged_seconds": 0
+        "charged_seconds": 900,
+        "sha256": [
+          "0a174a481728eb97e381bfe5fb6e04fa090751606b44fd8fd4ee13b467f888d2",
+          "e60f29d59c3a9e4b608d5ac244bee55861526166d1747bef4aa6a8fb3841f826"
+        ],
+        "remaining_seconds": 0,
+        "stop_receipt": "Frozen exact source/native evidence and same-witness consumer obstruction; no source-qualified counterexample; no descendants. FIRST-RESULT-ADEQUACY remains OPEN."
       },
       "implementation": {
         "owner": "/root",
@@ -69,7 +75,7 @@
       "boundary": "Only a reversible example/test using existing APIs; no library, existing fixture or expected-output edits."
     },
     "review": {
-      "state": "SEQUENTIAL-AFTER-PROOF",
+      "state": "PROOF-REVIEW-READY",
       "reserve_seconds": 480,
       "sequence": [
         "compiler_referee <=180s",
@@ -77,16 +83,21 @@
         "regression_auditor pre-run <=90s",
         "one Cargo test <=120s",
         "regression_auditor post-run <=90s"
-      ]
+      ],
+      "target": [
+        "0a174a481728eb97e381bfe5fb6e04fa090751606b44fd8fd4ee13b467f888d2",
+        "e60f29d59c3a9e4b608d5ac244bee55861526166d1747bef4aa6a8fb3841f826"
+      ],
+      "active": null
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 300,
-      "available_seconds": 2100,
-      "active_authors": 1,
+      "charged_seconds": 1200,
+      "available_seconds": 1200,
+      "active_authors": 0,
       "active_reviewers": 0,
       "unknown_reservations_preserved": 3,
-      "status": "Selector boundary delta charged 120s; Astra proof RUNNING. Implementation and reviewers wait for freeze."
+      "status": "Astra STOPPED; compiler/spec proof review next. Implementation waits for review; budget remainder 1200s."
     },
     "workers": [
       {
@@ -145,15 +156,15 @@
       {
         "id": "/root/astra_selected_source_vertical",
         "role": "astra_prover",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "session": "current-session",
         "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "charged_seconds": 0,
+        "charged_seconds": 900,
         "cap_seconds": 900,
-        "receipt": "Actual launch acknowledged; exact two proof leases; no descendants."
+        "receipt": "Frozen proof/source obstruction; no counterexample; no descendants; 900s charged."
       }
     ],
     "leases": [
@@ -200,12 +211,12 @@
       {
         "path": "notes/theory/2026-10-17-selected-source-vertical-correspondence.md",
         "owner": "/root/astra_selected_source_vertical",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-selected-source-vertical-correspondence.md",
         "owner": "/root/astra_selected_source_vertical",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-solver/examples/research_accepted_call_vertical.rs",
@@ -270,7 +281,7 @@
         "owner": "Luna/Astra"
       }
     ],
-    "next_action": "Launch Astra proof packet. Await frozen proof result; reviewers then implementation; no semantic adoption.",
+    "next_action": "Independent compiler then spec review of frozen proof artifact. After CLEAN/adjudicated blockers, implement the independent accepted-source vertical; retain FIRST-RESULT-ADEQUACY OPEN.",
     "closeout_fields": [
       "original unresolved premises genuinely discharged",
       "new implementation/test behavior established",
