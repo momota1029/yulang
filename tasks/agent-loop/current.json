@@ -20,8 +20,8 @@
   },
   "resources": {
    "cap_seconds": 1800,
-   "charged_seconds": 1260,
-   "available_seconds": 540,
+   "charged_seconds": 1350,
+   "available_seconds": 450,
    "retired_seconds": 0,
    "allocation": "Astra proof600 + Luna implementation360 + independent reviews480 (compiler180, spec120, architect90, regression pre/post45 each) + coordination120 + one Cargo verification120 + reserve120."
   },
@@ -71,8 +71,8 @@
    {
     "id": "/root/module_use_architect_api_review",
     "role": "architect/API independent reviewer",
-    "state": "RUNNING",
-    "receipt": "Fresh read-only architecture/API review after compiler/source and spec CLEAN; cap90s."
+    "state": "STOPPED",
+    "receipt": "CLEAN; 90/90 seconds conservatively charged. Borrowed API O(1), zero allocation; proof/code boundaries and next obligations confirmed; 0 original conditions closed."
    }
   ],
   "leases": [
@@ -125,7 +125,7 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Architect/API reviewer RUNNING (cap90) after two CLEAN reviews; then regression pre-run cap45, then one Cargo invocation only after CLEAN.",
+  "next_action": "Architect/API review CLEAN and STOPPED (90 charged). Launch regression pre-run reviewer cap45. Execute sole Cargo target only after that reviewer returns CLEAN.",
   "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."
