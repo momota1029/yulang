@@ -1,7 +1,7 @@
 # Ordinary HIR applied-conformance repair: implementation handoff
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev5, SHA-256
-  `565d02e09284256b2e485f91203bcd8b3b4a991f4488df7a1fc7724cc0910163`.
+  `2e279e876af6db5aea40436ef9da87a7cea1941f6090cebaa013d6aaa73cff45`.
   Handoff revision 9 (Luna's post-coverage-amendment reconciliation); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
