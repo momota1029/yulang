@@ -4,24 +4,29 @@ use yu_hir::{
     FileId, FileKey, HirErrorId, HirErrorKind, HirItem, HirModule, ModuleIdentity, NameResolution,
     ResolvedExpr, SemanticImports, lower_module,
 };
-use yu_syntax::{SourceText, SyntaxEnvironment, SyntaxKind, parse_file, scan_header};
+use yu_syntax::{ParsedFile, SourceNode, SourceText, SyntaxEnvironment, SyntaxKind, parse_file, scan_header};
 
-fn lower(source_text: &str) -> HirModule {
+fn parsed(source_text: &str) -> ParsedFile {
     let source: Arc<SourceText> = Arc::from(source_text);
-    let parsed = parse_file(
-        source.clone(),
-        Arc::new(scan_header(source)),
-        Arc::new(SyntaxEnvironment::empty()),
-    );
+    parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()))
+}
+
+fn lower_parsed(parsed: &ParsedFile) -> HirModule {
     lower_module(
         ModuleIdentity::source_root(FileId::new(FileKey::new(
             "ordinary-application-admission",
             "admission.yu",
         ))),
-        &parsed,
+        parsed,
         SemanticImports::empty(),
-    )
-    .unwrap()
+    ).unwrap()
+}
+
+fn lower(source_text: &str) -> HirModule { lower_parsed(&parsed(source_text)) }
+
+fn source_nodes_of(root: SourceNode, kind: SyntaxKind, output: &mut Vec<SourceNode>) {
+    if root.syntax().kind() == kind { output.push(root.clone()); }
+    for child in root.children() { source_nodes_of(child, kind, output); }
 }
 
 fn binding<'a>(hir: &'a HirModule, name: &str) -> &'a yu_hir::HirBinding {
@@ -102,6 +107,8 @@ fn call_tail_group_and_nested_group_keep_distinct_occurrences() {
     let hir = lower(
         "my callee = f(x); my group_atom = f (x); my group = (f x); my nested = ((f x)); my root = ((f x))",
     );
+    assert_eq!(hir.errors().len(), 10, "each undeclared callee and argument retains its diagnostic");
+    assert!(hir.errors().iter().all(|error| error.kind() == HirErrorKind::UnresolvedName));
     for name in ["callee", "group_atom", "group", "nested", "root"] {
         let binding = binding(&hir, name);
         let mut nodes = Vec::new();
@@ -111,7 +118,7 @@ fn call_tail_group_and_nested_group_keep_distinct_occurrences() {
             .copied()
             .filter_map(|node| match node {
                 ResolvedExpr::Apply { source_form, occurrence, errors, .. } => {
-                    assert!(errors.is_empty());
+                    assert_eq!(errors.len(), 2, "unresolved callee and argument IDs stay attached");
                     assert!(hir.occurrence_source_key(occurrence).unwrap().is_some());
                     Some(*source_form)
                 }
@@ -229,16 +236,94 @@ fn ambiguous_operand_has_one_owned_event_and_is_referenced_once_per_descendant_l
 }
 
 #[test]
+fn grouped_unresolved_nodes_keep_exact_distinct_parse_owned_keys() {
+    let parsed = parsed("my grouped = (missing missing); my called = other(other)");
+    let hir = lower_parsed(&parsed);
+    assert_eq!(hir.errors().len(), 4);
+    assert!(hir.errors().iter().all(|error| error.kind() == HirErrorKind::UnresolvedName));
+    let ResolvedExpr::Group { occurrence: group_id, inner, .. } = binding(&hir, "grouped").value() else { panic!("Group root"); };
+    let ResolvedExpr::Apply { source_form: SyntaxKind::MlArgument, occurrence: apply_id, callee, argument, errors, .. } = inner.as_ref() else { panic!("inner Apply"); };
+    let (ResolvedExpr::Name { occurrence: callee_id, resolution: NameResolution::Unresolved, .. }, ResolvedExpr::Name { occurrence: argument_id, resolution: NameResolution::Unresolved, .. }) = (callee.as_ref(), argument.as_ref()) else { panic!("two unresolved names"); };
+    assert_eq!(errors.iter().map(|id| id.index()).collect::<Vec<_>>(), [0, 1]);
+
+    let ResolvedExpr::Apply { source_form: SyntaxKind::CallTail, occurrence: call_id, callee: call_callee, argument: call_argument, errors: call_errors, .. } = binding(&hir, "called").value() else { panic!("CallTail Apply"); };
+    let (ResolvedExpr::Name { occurrence: call_callee_id, .. }, ResolvedExpr::Name { occurrence: call_argument_id, .. }) = (call_callee.as_ref(), call_argument.as_ref()) else { panic!("CallTail leaves"); };
+    assert_eq!(call_errors.iter().map(|id| id.index()).collect::<Vec<_>>(), [2, 3]);
+
+    let mut identifiers = Vec::new();
+    source_nodes_of(parsed.source_root(), SyntaxKind::IdentifierExpression, &mut identifiers);
+    let mut groups = Vec::new();
+    source_nodes_of(parsed.source_root(), SyntaxKind::ParenthesizedExpression, &mut groups);
+    let mut applications = Vec::new();
+    source_nodes_of(parsed.source_root(), SyntaxKind::MlArgument, &mut applications);
+    let mut call_tails = Vec::new();
+    source_nodes_of(parsed.source_root(), SyntaxKind::CallTail, &mut call_tails);
+    assert_eq!(identifiers.len(), 4);
+    assert_eq!(groups.len(), 1);
+    assert_eq!(applications.len(), 1);
+    assert_eq!(call_tails.len(), 1);
+    let identifier_keys: Vec<_> = identifiers.iter().map(|node| node.key()).collect();
+    let group_key = groups[0].key();
+    let application_key = applications[0].key();
+    let call_tail_key = call_tails[0].key();
+    assert_ne!(identifier_keys[0], identifier_keys[1]);
+    assert_ne!(identifier_keys[2], identifier_keys[3]);
+    assert_eq!(hir.occurrence_source_key(callee_id).unwrap(), Some(&identifier_keys[0]));
+    assert_eq!(hir.occurrence_source_key(argument_id).unwrap(), Some(&identifier_keys[1]));
+    assert_eq!(hir.occurrence_source_key(group_id).unwrap(), Some(&group_key));
+    assert_eq!(hir.occurrence_source_key(apply_id).unwrap(), Some(&application_key));
+    assert_eq!(hir.occurrence_source_key(call_callee_id).unwrap(), Some(&identifier_keys[2]));
+    assert_eq!(hir.occurrence_source_key(call_argument_id).unwrap(), Some(&identifier_keys[3]));
+    assert_eq!(hir.occurrence_source_key(call_id).unwrap(), Some(&call_tail_key));
+}
+
+#[test]
+fn duplicate_event_precedes_staged_operand_diagnostics_and_lists_use_final_dense_ids() {
+    let hir = lower("my x = 1; my x = missing missing; my later = later_missing");
+    let kinds: Vec<_> = hir.errors().iter().map(|error| error.kind()).collect();
+    assert_eq!(kinds, [HirErrorKind::DuplicateDefinition, HirErrorKind::UnresolvedName, HirErrorKind::UnresolvedName, HirErrorKind::UnresolvedName]);
+    let duplicate_binding = hir.items().iter().filter_map(|item| match item {
+        HirItem::Binding(binding) if binding.name().spelling() == "x" => Some(binding),
+        _ => None,
+    }).nth(1).unwrap();
+    let applies = apply_nodes(duplicate_binding.value());
+    let outer = applies.iter().find_map(|node| match node {
+        ResolvedExpr::Apply { errors, callee, .. } if matches!(callee.as_ref(), ResolvedExpr::Name { .. }) => Some(errors),
+        _ => None,
+    }).unwrap();
+    assert_eq!(outer.iter().map(|id| id.index()).collect::<Vec<_>>(), [1, 2]);
+    assert_eq!(hir.errors().iter().map(|error| error.id().index()).collect::<Vec<_>>(), [0, 1, 2, 3]);
+}
+
+#[test]
+fn comma_bearing_call_tail_refuses_before_operand_resolution() {
+    let hir = lower("my bad = f(missing,)");
+    assert!(apply_nodes(binding(&hir, "bad").value()).is_empty());
+    assert!(!hir.errors().iter().any(|error| error.kind() == HirErrorKind::UnresolvedName));
+    assert!(hir.errors().iter().any(|error| error.kind() == HirErrorKind::UnsupportedExpression));
+
+    let grouped = lower("my grouped_tuple = (missing, missing)");
+    assert!(apply_nodes(binding(&grouped, "grouped_tuple").value()).is_empty());
+    assert!(!grouped.errors().iter().any(|error| error.kind() == HirErrorKind::UnresolvedName));
+}
+
+#[test]
 fn unsupported_and_recovery_bodies_keep_the_whole_body_refusal() {
     let unsupported = lower("my op = f(a, b)");
     assert!(apply_nodes(binding(&unsupported, "op").value()).is_empty());
+    assert!(!unsupported.errors().iter().any(|error| error.kind() == HirErrorKind::UnresolvedName));
     assert_eq!(
         unsupported.errors().iter().filter(|error| error.kind() == HirErrorKind::UnsupportedExpression).count(),
         1
     );
 
-    let recovered = lower("my broken = f(");
-    assert!(apply_nodes(binding(&recovered, "broken").value()).is_empty());
+    let recovered = lower("my prior = @; my broken = f(");
+    let broken = binding(&recovered, "broken");
+    assert!(apply_nodes(broken.value()).is_empty());
+    assert!(matches!(broken.value(), ResolvedExpr::Error { errors, .. } if !errors.is_empty()),
+        "preflight refusal retains its causal recovery IDs");
+    assert!(!recovered.errors().iter().any(|error| error.kind() == HirErrorKind::UnresolvedName));
+    assert!(recovered.errors().iter().any(|error| error.kind() == HirErrorKind::UnsupportedExpression));
     assert!(recovered.errors().iter().any(|error| matches!(
         error.kind(),
         HirErrorKind::InheritedMissing | HirErrorKind::InheritedRawError | HirErrorKind::InheritedInvalid

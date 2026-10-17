@@ -1,6 +1,6 @@
 //! The first, deliberately narrow, HIR-adjacent association product.
 
-use std::{cmp::Ordering, ops::Range};
+use std::{alloc::{Layout, alloc}, cmp::Ordering, ops::Range};
 
 use yu_syntax::{ParsedFile, SyntaxKind, SyntaxNode, SyntaxToken};
 
@@ -149,23 +149,47 @@ fn associate_chain_owned(
     parsed: &ParsedFile,
     node: SyntaxNode,
 ) -> Result<OwnedAssociatedExpr, AssociationError> {
+    associate_chain_owned_with_sources(parsed, node)
+}
+
+/// Association result used by ordinary lowering. Provenance is built by the
+/// same `ChainParser` operations as `expression`; callers which only need the
+/// public projection continue to discard it through `associate_chain_owned`.
+pub(crate) fn associate_chain_owned_with_sources(
+    parsed: &ParsedFile,
+    node: SyntaxNode,
+) -> Result<OwnedAssociatedExpr, AssociationError> {
     let atom = direct_atom(&node);
+    let (expression, provenance) = associate_chain_expression(&node, parsed)?;
     Ok(OwnedAssociatedExpr {
-        expression: associate_chain_expression(&node, parsed)?,
+        expression,
+        provenance,
         atom,
     })
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AssociationError {
+pub(crate) enum AssociationError {
     ExactOperatorEnvironment,
     StructuralInvariant,
+    Allocation,
 }
 
 #[derive(Debug)]
-struct OwnedAssociatedExpr {
+pub(crate) struct OwnedAssociatedExpr {
     expression: HirExpr,
+    provenance: AssociationProvenance,
     atom: Option<OwnedAtom>,
+}
+
+#[derive(Debug)]
+pub(crate) enum AssociationProvenance {
+    Node {
+        source: SyntaxNode,
+        children: Vec<AssociationProvenance>,
+    },
+    Token(SyntaxToken),
+    Synthetic(Vec<AssociationProvenance>),
 }
 
 impl OwnedAssociatedExpr {
@@ -176,10 +200,20 @@ impl OwnedAssociatedExpr {
     fn into_parts(self) -> (HirExpr, Option<OwnedAtom>) {
         (self.expression, self.atom)
     }
+
+    pub(crate) fn into_projection_parts(
+        self,
+    ) -> (HirExpr, AssociationProvenance, Option<OwnedAtom>) {
+        (self.expression, self.provenance, self.atom)
+    }
+
+    fn into_associated(self) -> AssociatedExpr {
+        AssociatedExpr { hir: self.expression, provenance: self.provenance }
+    }
 }
 
 #[derive(Debug)]
-struct OwnedAtom {
+pub(crate) struct OwnedAtom {
     source: SyntaxNode,
     kind: SyntaxKind,
     spelling: String,
@@ -216,34 +250,38 @@ fn direct_atom(node: &SyntaxNode) -> Option<OwnedAtom> {
 fn associate_chain_expression(
     node: &SyntaxNode,
     parsed: &ParsedFile,
-) -> Result<HirExpr, AssociationError> {
-    let children = node
-        .children_with_tokens()
-        .filter_map(|child| {
-            if let Some(node) = child.as_node() {
-                return Some(ChainItem::Node(node.clone()));
-            }
-            child
-                .into_token()
-                .filter(|token| token.kind() == SyntaxKind::Error)
-                .map(ChainItem::Error)
-        })
-        .collect::<Vec<_>>();
+) -> Result<(HirExpr, AssociationProvenance), AssociationError> {
+    let mut children = Vec::new();
+    children.try_reserve(node.children_with_tokens().count()).map_err(|_| AssociationError::Allocation)?;
+    for child in node.children_with_tokens() {
+        let item = if let Some(node) = child.as_node() {
+            Some(ChainItem::Node(node.clone()))
+        } else {
+            child.into_token().filter(|token| token.kind() == SyntaxKind::Error).map(ChainItem::Error)
+        };
+        if let Some(item) = item { children.push(item); }
+    }
     let mut parser = ChainParser {
         children: &children,
         cursor: 0,
         parsed,
     };
     let expression = parser.expression(None)?;
-    (parser.cursor == children.len())
-        .then_some(expression)
-        .ok_or(AssociationError::StructuralInvariant)
+    if parser.cursor != children.len() {
+        return Err(AssociationError::StructuralInvariant);
+    }
+    Ok((expression.hir, expression.provenance))
 }
 
 struct ChainParser<'a> {
     children: &'a [ChainItem],
     cursor: usize,
     parsed: &'a ParsedFile,
+}
+
+struct AssociatedExpr {
+    hir: HirExpr,
+    provenance: AssociationProvenance,
 }
 
 #[derive(Clone)]
@@ -292,9 +330,9 @@ impl ChainItem {
 }
 
 impl ChainParser<'_> {
-    fn expression(&mut self, minimum: Option<&[i8]>) -> Result<HirExpr, AssociationError> {
+    fn expression(&mut self, minimum: Option<&[i8]>) -> Result<AssociatedExpr, AssociationError> {
         let Some(item) = self.take() else {
-            return Ok(Self::error(SyntaxKind::Missing, 0..0));
+            return Ok(Self::error(SyntaxKind::Missing, 0..0, AssociationProvenance::Synthetic(Vec::new())));
         };
         let mut left = match self.classify_direct_item(&item)? {
             DirectChainItem::Recovery => self.recovered_operand(item, minimum)?,
@@ -303,7 +341,7 @@ impl ChainParser<'_> {
                 let (_, right) = self.operator(node, OperatorFixity::Prefix)?;
                 let operator = self.hir_operator(node, OperatorFixity::Prefix)?;
                 let operand = self.expression(Some(&right))?;
-                apply(operator, vec![operand])
+                apply_one(operator, operand)?
             }
             DirectChainItem::Infix | DirectChainItem::Suffix | DirectChainItem::Value => {
                 self.item_expression(&item)?
@@ -346,7 +384,7 @@ impl ChainParser<'_> {
                             | DirectChainItem::Suffix
                             | DirectChainItem::Value => self.item_expression(&residual)?,
                         };
-                        left = Self::recovery_sequence(left, residual);
+                        left = Self::recovery_sequence(left, residual)?;
                     }
                     break;
                 }
@@ -357,7 +395,7 @@ impl ChainParser<'_> {
                     }
                     let item = self.take().ok_or(AssociationError::StructuralInvariant)?;
                     let operator = self.hir_operator(item.node()?, OperatorFixity::Suffix)?;
-                    left = apply(operator, vec![left]);
+                    left = apply_one(operator, left)?;
                 }
                 SyntaxKind::InfixOperatorUse => {
                     let (left_power, _) = self.operator(next.node()?, OperatorFixity::Infix)?;
@@ -369,7 +407,7 @@ impl ChainParser<'_> {
                     let (_, right_power) = self.operator(node, OperatorFixity::Infix)?;
                     let operator = self.hir_operator(node, OperatorFixity::Infix)?;
                     let right = self.expression(Some(&right_power))?;
-                    left = apply(operator, vec![left, right]);
+                    left = apply_two(operator, left, right)?;
                 }
                 // The parser normally prevents a second operand at a completed
                 // chain cursor. Recovery can retain one, though. Keep every such
@@ -384,7 +422,7 @@ impl ChainParser<'_> {
                         | DirectChainItem::Suffix
                         | DirectChainItem::Value => self.item_expression(&item)?,
                     };
-                    left = Self::recovery_sequence(left, item);
+                    left = Self::recovery_sequence(left, item)?;
                 }
             }
         }
@@ -411,36 +449,36 @@ impl ChainParser<'_> {
         &mut self,
         item: ChainItem,
         minimum: Option<&[i8]>,
-    ) -> Result<HirExpr, AssociationError> {
+    ) -> Result<AssociatedExpr, AssociationError> {
         let recovery = self.item_expression(&item)?;
         let retry_operand = match self.peek() {
             Some(next) => self.classify_direct_item(next)?.is_retry_operand(),
             None => false,
         };
         if retry_operand {
-            Ok(Self::recovery_sequence(recovery, self.expression(minimum)?))
+            Ok(Self::recovery_sequence(recovery, self.expression(minimum)?)?)
         } else {
             Ok(recovery)
         }
     }
 
-    fn item_expression(&mut self, item: &ChainItem) -> Result<HirExpr, AssociationError> {
+    fn item_expression(&mut self, item: &ChainItem) -> Result<AssociatedExpr, AssociationError> {
         Ok(match item {
-            ChainItem::Error(token) => Self::error(token.kind(), range_of_token(token)),
+            ChainItem::Error(token) => Self::error(token.kind(), range_of_token(token), AssociationProvenance::Token(token.clone())),
             ChainItem::Node(node) => match node.kind() {
                 SyntaxKind::Invalid => self.invalid_expression(node)?,
-                SyntaxKind::Missing | SyntaxKind::Error => Self::error(node.kind(), range_of(node)),
+                SyntaxKind::Missing | SyntaxKind::Error => Self::error(node.kind(), range_of(node), AssociationProvenance::Node { source: node.clone(), children: Vec::new() }),
                 SyntaxKind::PrefixOperatorUse => {
                     self.definition(node, OperatorUseRole::Prefix)?;
-                    Self::error(node.kind(), range_of(node))
+                    Self::error(node.kind(), range_of(node), AssociationProvenance::Node { source: node.clone(), children: Vec::new() })
                 }
                 SyntaxKind::InfixOperatorUse => {
                     self.definition(node, OperatorUseRole::Infix)?;
-                    Self::error(node.kind(), range_of(node))
+                    Self::error(node.kind(), range_of(node), AssociationProvenance::Node { source: node.clone(), children: Vec::new() })
                 }
                 SyntaxKind::SuffixOperatorUse => {
                     self.definition(node, OperatorUseRole::Suffix)?;
-                    Self::error(node.kind(), range_of(node))
+                    Self::error(node.kind(), range_of(node), AssociationProvenance::Node { source: node.clone(), children: Vec::new() })
                 }
                 SyntaxKind::NullfixOperatorUse => {
                     self.definition(node, OperatorUseRole::Nullfix)?;
@@ -451,40 +489,49 @@ impl ChainParser<'_> {
         })
     }
 
-    fn error(kind: SyntaxKind, range: Range<usize>) -> HirExpr {
-        HirExpr::Error {
-            kind,
-            range,
-            children: Vec::new(),
-        }
+    fn error(kind: SyntaxKind, range: Range<usize>, provenance: AssociationProvenance) -> AssociatedExpr {
+        AssociatedExpr { hir: HirExpr::Error { kind, range, children: Vec::new() }, provenance }
     }
 
-    fn invalid_expression(&mut self, node: &SyntaxNode) -> Result<HirExpr, AssociationError> {
-        let mut children = Vec::new();
-        self.collect_nested_items(node, &mut children)?;
-        Ok(HirExpr::Error {
-            kind: SyntaxKind::Invalid,
-            range: range_of(node),
-            children,
+    fn invalid_expression(&mut self, node: &SyntaxNode) -> Result<AssociatedExpr, AssociationError> {
+        let children = self.collect_nested_items(node)?;
+        let (hir_children, provenance_children) = split_associated(children)?;
+        Ok(AssociatedExpr {
+            hir: HirExpr::Error { kind: SyntaxKind::Invalid, range: range_of(node), children: hir_children },
+            provenance: AssociationProvenance::Node { source: node.clone(), children: provenance_children },
         })
     }
 
     fn structural_continuation(
         &mut self,
-        left: HirExpr,
+        left: AssociatedExpr,
         node: &SyntaxNode,
-    ) -> Result<HirExpr, AssociationError> {
+    ) -> Result<AssociatedExpr, AssociationError> {
+        let tail = self.value(node)?;
         let HirExpr::Value {
             children: tail_children,
             ..
-        } = self.value(node)?
+        } = tail.hir
         else {
             return Err(AssociationError::StructuralInvariant);
         };
-        let mut children = Vec::with_capacity(tail_children.len() + 1);
-        children.push(left);
+        let child_count = tail_children.len().checked_add(1).ok_or(AssociationError::Allocation)?;
+        let mut children = Vec::new();
+        children.try_reserve_exact(child_count).map_err(|_| AssociationError::Allocation)?;
+        children.push(left.hir);
         children.extend(tail_children);
-        Ok(HirExpr::Value {
+        let AssociationProvenance::Node { children: mut tail_sources, .. } = tail.provenance else {
+            return Err(AssociationError::StructuralInvariant);
+        };
+        let source_count = tail_sources.len().checked_add(1).ok_or(AssociationError::Allocation)?;
+        let mut provenance_children = Vec::new();
+        provenance_children.try_reserve_exact(source_count).map_err(|_| AssociationError::Allocation)?;
+        // The continuation itself owns the actual tail node; child zero remains
+        // the previous left expression and nested tail items follow it.
+        let left_source = left.provenance;
+        provenance_children.push(left_source);
+        provenance_children.append(&mut tail_sources);
+        Ok(AssociatedExpr { hir: HirExpr::Value {
             kind: node.kind(),
             range: span(
                 children
@@ -493,53 +540,60 @@ impl ChainParser<'_> {
                 node,
             ),
             children,
-        })
+        }, provenance: AssociationProvenance::Node { source: node.clone(), children: provenance_children } })
     }
 
-    fn recovery_sequence(left: HirExpr, item: HirExpr) -> HirExpr {
+    fn recovery_sequence(left: AssociatedExpr, item: AssociatedExpr) -> Result<AssociatedExpr, AssociationError> {
         let range =
-            left.range().start.min(item.range().start)..left.range().end.max(item.range().end);
-        HirExpr::Value {
-            kind: SyntaxKind::OperatorChain,
-            range,
-            children: vec![left, item],
-        }
+            left.hir.range().start.min(item.hir.range().start)..left.hir.range().end.max(item.hir.range().end);
+        let mut hir_children = Vec::new();
+        hir_children.try_reserve_exact(2).map_err(|_| AssociationError::Allocation)?;
+        hir_children.push(left.hir);
+        hir_children.push(item.hir);
+        let mut provenance = Vec::new();
+        provenance.try_reserve_exact(2).map_err(|_| AssociationError::Allocation)?;
+        provenance.push(left.provenance);
+        provenance.push(item.provenance);
+        Ok(AssociatedExpr { hir: HirExpr::Value { kind: SyntaxKind::OperatorChain, range, children: hir_children }, provenance: AssociationProvenance::Synthetic(provenance) })
     }
 
-    fn value(&mut self, node: &SyntaxNode) -> Result<HirExpr, AssociationError> {
-        let mut children = Vec::new();
-        self.collect_nested_items(node, &mut children)?;
-        Ok(HirExpr::Value {
-            kind: node.kind(),
-            range: range_of(node),
-            children,
+    fn value(&mut self, node: &SyntaxNode) -> Result<AssociatedExpr, AssociationError> {
+        let children = self.collect_nested_items(node)?;
+        let (hir_children, provenance_children) = split_associated(children)?;
+        Ok(AssociatedExpr {
+            hir: HirExpr::Value { kind: node.kind(), range: range_of(node), children: hir_children },
+            provenance: AssociationProvenance::Node { source: node.clone(), children: provenance_children },
         })
     }
 
     fn collect_nested_items(
         &mut self,
         node: &SyntaxNode,
-        output: &mut Vec<HirExpr>,
-    ) -> Result<(), AssociationError> {
+    ) -> Result<Vec<AssociatedExpr>, AssociationError> {
+        let mut output = Vec::new();
         for child in node.children_with_tokens() {
             if let Some(child) = child.as_node() {
                 match child.kind() {
                     SyntaxKind::OperatorChain => {
-                        output.push(associate_chain_owned(self.parsed, child.clone())?.into_hir());
+                        push_associated(&mut output, associate_chain_owned_with_sources(self.parsed, child.clone())?.into_associated())?;
                     }
-                    SyntaxKind::Invalid => output.push(self.invalid_expression(child)?),
+                    SyntaxKind::Invalid => push_associated(&mut output, self.invalid_expression(child)?)?,
                     SyntaxKind::Missing | SyntaxKind::Error => {
-                        output.push(Self::error(child.kind(), range_of(child)));
+                        push_associated(&mut output, Self::error(child.kind(), range_of(child), AssociationProvenance::Node { source: child.clone(), children: Vec::new() }))?;
                     }
-                    _ => self.collect_nested_items(child, output)?,
+                    _ => {
+                        let mut nested = self.collect_nested_items(child)?;
+                        output.try_reserve(nested.len()).map_err(|_| AssociationError::Allocation)?;
+                        output.append(&mut nested);
+                    }
                 }
             } else if let Some(token) = child.into_token()
                 && token.kind() == SyntaxKind::Error
             {
-                output.push(Self::error(token.kind(), range_of_token(&token)));
+                push_associated(&mut output, Self::error(token.kind(), range_of_token(&token), AssociationProvenance::Token(token)))?;
             }
         }
-        Ok(())
+        Ok(output)
     }
 
     fn peek(&self) -> Option<&ChainItem> {
@@ -635,21 +689,72 @@ impl ChainParser<'_> {
     }
 }
 
-fn apply(operator: HirOperator, operands: Vec<HirExpr>) -> HirExpr {
+fn push_associated(output: &mut Vec<AssociatedExpr>, value: AssociatedExpr) -> Result<(), AssociationError> {
+    output.try_reserve(1).map_err(|_| AssociationError::Allocation)?;
+    output.push(value);
+    Ok(())
+}
+
+fn split_associated(children: Vec<AssociatedExpr>) -> Result<(Vec<HirExpr>, Vec<AssociationProvenance>), AssociationError> {
+    let mut hir = Vec::new();
+    let mut provenance = Vec::new();
+    hir.try_reserve_exact(children.len()).map_err(|_| AssociationError::Allocation)?;
+    provenance.try_reserve_exact(children.len()).map_err(|_| AssociationError::Allocation)?;
+    for child in children {
+        hir.push(child.hir);
+        provenance.push(child.provenance);
+    }
+    Ok((hir, provenance))
+}
+
+fn apply_one(operator: HirOperator, operand: AssociatedExpr) -> Result<AssociatedExpr, AssociationError> {
+    let mut operands = Vec::new();
+    operands.try_reserve_exact(1).map_err(|_| AssociationError::Allocation)?;
+    operands.push(operand);
+    apply(operator, operands)
+}
+
+fn apply_two(operator: HirOperator, callee: AssociatedExpr, argument: AssociatedExpr) -> Result<AssociatedExpr, AssociationError> {
+    let mut operands = Vec::new();
+    operands.try_reserve_exact(2).map_err(|_| AssociationError::Allocation)?;
+    operands.push(callee);
+    operands.push(argument);
+    apply(operator, operands)
+}
+
+fn apply(operator: HirOperator, operands: Vec<AssociatedExpr>) -> Result<AssociatedExpr, AssociationError> {
     let start = operator.range.start.min(
         operands
             .first()
-            .map_or(operator.range.start, |expr| expr.range().start),
+            .map_or(operator.range.start, |expr| expr.hir.range().start),
     );
     let end = operator.range.end.max(
         operands
             .last()
-            .map_or(operator.range.end, |expr| expr.range().end),
+            .map_or(operator.range.end, |expr| expr.hir.range().end),
     );
-    HirExpr::Apply {
-        operator,
-        operands: operands.into_boxed_slice(),
-        range: start..end,
+    let (hir_operands, provenance) = split_associated(operands)?;
+    Ok(AssociatedExpr {
+        hir: HirExpr::Apply { operator, operands: try_boxed_slice(hir_operands)?, range: start..end },
+        provenance: AssociationProvenance::Synthetic(provenance),
+    })
+}
+
+fn try_boxed_slice<T>(mut values: Vec<T>) -> Result<Box<[T]>, AssociationError> {
+    let len = values.len();
+    if len == 0 || std::mem::size_of::<T>() == 0 {
+        return Ok(values.into_boxed_slice());
+    }
+    let layout = Layout::array::<T>(len).map_err(|_| AssociationError::Allocation)?;
+    let raw = unsafe { alloc(layout).cast::<T>() };
+    if raw.is_null() { return Err(AssociationError::Allocation); }
+    // SAFETY: raw is a unique allocation of `len` initialized T slots; copying
+    // transfers the Vec elements, then setting its length to zero prevents drops.
+    unsafe {
+        std::ptr::copy_nonoverlapping(values.as_ptr(), raw, len);
+        values.set_len(0);
+        drop(values);
+        Ok(Box::from_raw(std::ptr::slice_from_raw_parts_mut(raw, len)))
     }
 }
 

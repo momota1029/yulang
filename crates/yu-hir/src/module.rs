@@ -13,7 +13,7 @@ use yu_syntax::{
     ParsedFile, SourceRevision, StructuralRecovery, StructuralRecoveryKind, SyntaxKind, SyntaxNode,
 };
 
-use crate::{AssociationError, HirExpr, associate_chain_owned, range_of};
+use crate::{AssociationError, AssociationProvenance, HirExpr, associate_chain_owned, associate_chain_owned_with_sources, range_of};
 
 pub(crate) mod local_source;
 pub(crate) mod source_annotation;
@@ -1262,10 +1262,12 @@ struct LoweringCounters {
     pending_ordinary_admissions: Vec<PendingOrdinaryAdmission>,
     aggregate_error_references: usize,
     aggregate_error_reference_bytes: usize,
+    ordinary_admission_item_visits: usize,
 }
 
 struct PendingOrdinaryAdmission {
     root: HirOccurrenceId,
+    owner_item_index: usize,
     nodes: Vec<PendingProjectionNode>,
 }
 
@@ -1276,65 +1278,53 @@ struct PendingProjectionNode {
     key: yu_syntax::SourceNodeKey,
     children: Vec<usize>,
     atom: Option<ResolvedExpr>,
+    staged_error: Option<(HirErrorKind, Range<usize>)>,
     error: Option<HirErrorId>,
     descendant_errors: usize,
 }
 
 #[derive(Clone, Copy)]
-enum PendingProjectionKind {
-    Apply(SyntaxKind),
-    Group,
-    Atom,
-}
+enum PendingProjectionKind { Apply(SyntaxKind), Group, Atom }
 
 fn lower_ordinary_admission(
     parsed: &ParsedFile,
     chain: &SyntaxNode,
     namespace: &HashMap<String, Vec<DefId>>,
-    id: &DefId,
-    causal_errors: Vec<HirErrorId>,
-    sink: &mut ErrorSink,
+    causal_errors: &[HirErrorId],
     counters: &mut LoweringCounters,
     root_occurrence: HirOccurrenceId,
+    owner_item_index: usize,
     scope: &ScopeStack,
 ) -> Result<Option<ResolvedExpr>, HirAvailabilityError> {
-    if !causal_errors.is_empty() {
-        return Ok(None);
-    }
-    let associated = associate_chain_owned(parsed, chain.clone())
+    if !causal_errors.is_empty() { return Ok(None); }
+    let associated = associate_chain_owned_with_sources(parsed, chain.clone())
         .map_err(|error| match error {
-            AssociationError::ExactOperatorEnvironment => {
-                HirAvailabilityError::ExactOperatorEnvironment
-            }
+            AssociationError::ExactOperatorEnvironment => HirAvailabilityError::ExactOperatorEnvironment,
             AssociationError::StructuralInvariant => HirAvailabilityError::StructuralProjection,
-        })?
-        .into_hir();
-    let source_lookup = projection_source_lookup(chain)?;
+            AssociationError::Allocation => HirAvailabilityError::IdentityExhausted,
+        })?;
+    let (hir, provenance, _) = associated.into_projection_parts();
     let mut nodes = Vec::new();
     let mut tasks = Vec::new();
     tasks.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-    tasks.push((&associated, None::<usize>));
-    while let Some((expression, parent)) = tasks.pop() {
+    tasks.push((&hir, &provenance, None::<usize>));
+    while let Some((expression, source_shape, parent)) = tasks.pop() {
         let (kind, range, children) = match expression {
             HirExpr::Value { kind, range, children } => (*kind, range.clone(), children.as_slice()),
             HirExpr::Error { .. } | HirExpr::Apply { .. } => return Ok(None),
         };
-        let source = match source_lookup.lookup(kind, &range) {
-            Some(source) => source,
-            None => return Ok(None),
+        let AssociationProvenance::Node { source, children: source_children } = source_shape else {
+            return Ok(None);
         };
+        if source.kind() != kind || children.len() != source_children.len() { return Ok(None); }
         let projection_kind = match kind {
-            SyntaxKind::IdentifierExpression | SyntaxKind::IntegerLiteral
-                if children.is_empty() => PendingProjectionKind::Atom,
+            SyntaxKind::IdentifierExpression | SyntaxKind::IntegerLiteral if children.is_empty() => PendingProjectionKind::Atom,
             SyntaxKind::ParenthesizedExpression if children.len() == 1 => {
-                if source.children_with_tokens().any(|element| {
-                    element.into_token().is_some_and(|token| token.kind() == SyntaxKind::Comma)
-                }) {
-                    return Ok(None);
-                }
+                if has_direct_comma_or_separator(source) { return Ok(None); }
                 PendingProjectionKind::Group
             }
             SyntaxKind::MlArgument | SyntaxKind::CallTail if children.len() == 2 => {
+                if kind == SyntaxKind::CallTail && has_direct_comma_or_separator(source) { return Ok(None); }
                 PendingProjectionKind::Apply(kind)
             }
             _ => return Ok(None),
@@ -1344,130 +1334,62 @@ fn lower_ordinary_admission(
                 .filter(|token| matches!(token.kind(), SyntaxKind::Identifier | SyntaxKind::Integer));
             let Some(token) = tokens.next() else { return Ok(None); };
             if tokens.next().is_some() { return Ok(None); }
-            Some(crate::OwnedAtom {
-                source: source.clone(),
-                kind: source.kind(),
-                spelling: token.text().to_owned(),
-                range: crate::range_of_token(&token),
-            })
-        } else {
-            None
-        };
-        let key = counters
-            .source_nodes
-            .get(&source)
-            .cloned()
-            .ok_or(HirAvailabilityError::StructuralProjection)?;
+            Some(crate::OwnedAtom { source: source.clone(), kind, spelling: token.text().to_owned(), range: crate::range_of_token(&token) })
+        } else { None };
+        let key = counters.source_nodes.get(source).cloned().ok_or(HirAvailabilityError::StructuralProjection)?;
         let index = nodes.len();
         index.checked_add(1).ok_or(HirAvailabilityError::IdentityExhausted)?;
         nodes.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-        nodes.push(PendingProjectionNode {
-            kind: projection_kind,
-            source_atom,
-            range,
-            key,
-            children: Vec::new(),
-            atom: None,
-            error: None,
-            descendant_errors: 0,
-        });
+        nodes.push(PendingProjectionNode { kind: projection_kind, source_atom, range, key, children: Vec::new(), atom: None, staged_error: None, error: None, descendant_errors: 0 });
         if let Some(parent) = parent {
             let parent_node = nodes.get_mut(parent).ok_or(HirAvailabilityError::StructuralProjection)?;
             parent_node.children.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
             parent_node.children.push(index);
         }
-        for child in children.iter().rev() {
+        for (child, child_source) in children.iter().zip(source_children).rev() {
             tasks.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-            tasks.push((child, Some(index)));
+            tasks.push((child, child_source, Some(index)));
         }
     }
-    if nodes.is_empty() {
-        return Ok(None);
-    }
+    if nodes.is_empty() { return Ok(None); }
 
+    // Preflight has fully accepted the source grammar before any operand is resolved.
+    // Diagnostics are only staged here; `lower_plan` assigns dense IDs after the
+    // existing duplicate-definition event at its established scheduling seam.
     for node in &mut nodes {
-        if !matches!(node.kind, PendingProjectionKind::Atom) {
-            continue;
-        }
+        if !matches!(node.kind, PendingProjectionKind::Atom) { continue; }
         let atom = node.source_atom.take().ok_or(HirAvailabilityError::StructuralProjection)?;
-        let lowered = lower_leaf_with_identity(
-            atom,
-            namespace,
-            counters,
-            root_occurrence.clone(),
-            scope,
-            false,
-        )?;
-        let SimpleChainLowering::Resolved { expression, semantic_error } = lowered else {
-            return Ok(None);
-        };
-        if let Some((kind, range)) = semantic_error {
-            node.error = Some(sink.lowering(
-                kind,
-                HirErrorAttachment::Value(id.clone()),
-                range,
-            )?);
-        }
+        let lowered = lower_leaf_with_identity(atom, namespace, counters, root_occurrence.clone(), scope, false)?;
+        let SimpleChainLowering::Resolved { expression, semantic_error } = lowered else { return Ok(None); };
+        node.staged_error = semantic_error;
         node.atom = Some(expression);
     }
-
-    counters.pending_ordinary_admissions.try_reserve(1)
-        .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-    counters.pending_ordinary_admissions.push(PendingOrdinaryAdmission {
-        root: root_occurrence.clone(),
-        nodes,
-    });
-    Ok(Some(ResolvedExpr::Error {
-        occurrence: root_occurrence,
-        errors: Vec::new().into_boxed_slice(),
-        range: range_of(chain),
-    }))
+    counters.pending_ordinary_admissions.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    counters.pending_ordinary_admissions.push(PendingOrdinaryAdmission { root: root_occurrence.clone(), owner_item_index, nodes });
+    Ok(Some(ResolvedExpr::Error { occurrence: root_occurrence, errors: Vec::new().into_boxed_slice(), range: range_of(chain) }))
 }
 
-struct ProjectionSourceLookup {
-    application_tails: HashMap<(SyntaxKind, usize), Option<SyntaxNode>>,
-    exact_nodes: HashMap<(SyntaxKind, usize, usize), Option<SyntaxNode>>,
-}
-
-impl ProjectionSourceLookup {
-    fn lookup(&self, kind: SyntaxKind, range: &Range<usize>) -> Option<SyntaxNode> {
-        if matches!(kind, SyntaxKind::MlArgument | SyntaxKind::CallTail) {
-            self.application_tails.get(&(kind, range.end))?.clone()
-        } else {
-            self.exact_nodes.get(&(kind, range.start, range.end))?.clone()
+fn emit_ordinary_admission_errors(
+    counters: &mut LoweringCounters,
+    admission_start: usize,
+    owner_item_index: usize,
+    id: &Arc<DefId>,
+    sink: &mut ErrorSink,
+) -> Result<(), HirAvailabilityError> {
+    let admissions = counters.pending_ordinary_admissions.get_mut(admission_start..)
+        .ok_or(HirAvailabilityError::StructuralProjection)?;
+    for admission in admissions {
+        if admission.owner_item_index != owner_item_index { return Err(HirAvailabilityError::StructuralProjection); }
+        for node in &mut admission.nodes {
+            let Some((kind, range)) = node.staged_error.take() else { continue; };
+            node.error = Some(sink.lowering(kind, HirErrorAttachment::Value((**id).clone()), range)?);
         }
     }
+    Ok(())
 }
 
-fn projection_source_lookup(chain: &SyntaxNode) -> Result<ProjectionSourceLookup, HirAvailabilityError> {
-    let mut lookup = ProjectionSourceLookup {
-        application_tails: HashMap::new(),
-        exact_nodes: HashMap::new(),
-    };
-    for node in chain.descendants() {
-        let kind = node.kind();
-        let range = range_of(&node);
-        if matches!(kind, SyntaxKind::MlArgument | SyntaxKind::CallTail) {
-            let key = (kind, range.end);
-            lookup.application_tails.try_reserve(1)
-                .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-            match lookup.application_tails.entry(key) {
-                std::collections::hash_map::Entry::Vacant(entry) => { entry.insert(Some(node)); }
-                std::collections::hash_map::Entry::Occupied(mut entry) => { entry.insert(None); }
-            }
-        } else if matches!(kind,
-            SyntaxKind::IdentifierExpression | SyntaxKind::IntegerLiteral | SyntaxKind::ParenthesizedExpression
-        ) {
-            let key = (kind, range.start, range.end);
-            lookup.exact_nodes.try_reserve(1)
-                .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-            match lookup.exact_nodes.entry(key) {
-                std::collections::hash_map::Entry::Vacant(entry) => { entry.insert(Some(node)); }
-                std::collections::hash_map::Entry::Occupied(mut entry) => { entry.insert(None); }
-            }
-        }
-    }
-    Ok(lookup)
+fn has_direct_comma_or_separator(source: &SyntaxNode) -> bool {
+    source.children_with_tokens().any(|element| matches!(element.kind(), SyntaxKind::Comma | SyntaxKind::ExpressionDelimitedSeparator))
 }
 
 fn finalize_ordinary_admissions(
@@ -1556,17 +1478,15 @@ fn finalize_ordinary_admissions(
                         .checked_add(count).ok_or(HirAvailabilityError::IdentityExhausted)?;
                     counters.aggregate_error_reference_bytes = counters.aggregate_error_reference_bytes
                         .checked_add(bytes).ok_or(HirAvailabilityError::IdentityExhausted)?;
-                    let mut errors = Vec::new();
-                    errors.try_reserve_exact(count).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
                     let callee_expr = lowered.get(*callee_index).and_then(Option::as_ref)
                         .ok_or(HirAvailabilityError::StructuralProjection)?;
                     let argument_expr = lowered.get(*argument_index).and_then(Option::as_ref)
                         .ok_or(HirAvailabilityError::StructuralProjection)?;
-                    collect_projection_errors(*callee_index, callee_expr, &admission.nodes, &mut errors)?;
-                    collect_projection_errors(*argument_index, argument_expr, &admission.nodes, &mut errors)?;
-                    if errors.len() != count {
-                        return Err(HirAvailabilityError::StructuralProjection);
-                    }
+                    let errors = build_projection_error_list(
+                        [(*callee_index, callee_expr), (*argument_index, argument_expr)],
+                        &admission.nodes,
+                        count,
+                    )?;
                     let callee = lowered.get_mut(*callee_index).and_then(Option::take)
                         .ok_or(HirAvailabilityError::StructuralProjection)?;
                     let argument = lowered.get_mut(*argument_index).and_then(Option::take)
@@ -1576,7 +1496,7 @@ fn finalize_ordinary_admissions(
                         source_form,
                         callee: try_box(callee)?,
                         argument: try_box(argument)?,
-                        errors: errors.into_boxed_slice(),
+                        errors,
                         range: admission.nodes[index].range.clone(),
                     }
                 }
@@ -1586,17 +1506,18 @@ fn finalize_ordinary_admissions(
         let root_expression = lowered.get_mut(0).and_then(Option::take)
             .ok_or(HirAvailabilityError::StructuralProjection)?;
         identity.append_stage(stage)?;
-        let mut replaced = false;
         let mut replacement = Some(root_expression);
-        for item in items.iter_mut() {
-            if let HirItem::Binding(binding) = item {
-                replaced |= replace_admission_root(&mut binding.value, &admission.root, &mut replacement)?;
-                if replaced { break; }
-            }
-        }
-        if !replaced {
+        counters.ordinary_admission_item_visits = counters.ordinary_admission_item_visits
+            .checked_add(1).ok_or(HirAvailabilityError::IdentityExhausted)?;
+        let item = items.get_mut(admission.owner_item_index)
+            .ok_or(HirAvailabilityError::StructuralProjection)?;
+        let HirItem::Binding(binding) = item else {
+            return Err(HirAvailabilityError::StructuralProjection);
+        };
+        if !replace_admission_root(&mut binding.value, &admission.root, &mut replacement)? {
             return Err(HirAvailabilityError::StructuralProjection);
         }
+        binding.evaluation_class = evaluation_class(&binding.value);
     }
     Ok(())
 }
@@ -1627,32 +1548,58 @@ fn validate_admission_root_mapping<'a>(
     }
 }
 
-fn collect_projection_errors(
+fn build_projection_error_list(
+    children: [(usize, &ResolvedExpr); 2],
+    nodes: &[PendingProjectionNode],
+    expected: usize,
+) -> Result<Box<[HirErrorId]>, HirAvailabilityError> {
+    if expected == 0 { return Ok(Box::new([])); }
+    let layout = Layout::array::<HirErrorId>(expected)
+        .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    let raw = unsafe { alloc(layout).cast::<HirErrorId>() };
+    if raw.is_null() { return Err(HirAvailabilityError::IdentityExhausted); }
+    let mut written = 0usize;
+    let result = children.into_iter().try_for_each(|(index, expr)| {
+        append_projection_errors(index, expr, nodes, raw, expected, &mut written)
+    });
+    if result.is_err() || written != expected {
+        // HirErrorId is Copy and no value owns a destructor in this raw buffer.
+        unsafe { std::alloc::dealloc(raw.cast(), layout); }
+        return result.and(Err(HirAvailabilityError::StructuralProjection));
+    }
+    // SAFETY: every slot in the exact-sized allocation has been initialized by
+    // append_projection_errors, and Box now owns the matching global allocation.
+    Ok(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(raw, expected)) })
+}
+
+fn append_projection_errors(
     root: usize,
     expression: &ResolvedExpr,
     nodes: &[PendingProjectionNode],
-    errors: &mut Vec<HirErrorId>,
+    output: *mut HirErrorId,
+    capacity: usize,
+    written: &mut usize,
 ) -> Result<(), HirAvailabilityError> {
-    let mut stack = Vec::new();
-    stack.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-    stack.push((root, expression));
-    while let Some((index, expression)) = stack.pop() {
-        let node = nodes.get(index).ok_or(HirAvailabilityError::StructuralProjection)?;
-        match (&node.kind, expression) {
-            (PendingProjectionKind::Atom, ResolvedExpr::Integer { .. } | ResolvedExpr::Name { .. }) => {
-                if let Some(error) = node.error { errors.push(error); }
+    let node = nodes.get(root).ok_or(HirAvailabilityError::StructuralProjection)?;
+    match (&node.kind, expression) {
+        (PendingProjectionKind::Atom, ResolvedExpr::Integer { .. } | ResolvedExpr::Name { .. }) => {
+            if let Some(error) = node.error {
+                if *written >= capacity { return Err(HirAvailabilityError::StructuralProjection); }
+                unsafe { output.add(*written).write(error); }
+                *written = written.checked_add(1).ok_or(HirAvailabilityError::IdentityExhausted)?;
             }
-            (PendingProjectionKind::Group, ResolvedExpr::Group { inner, .. }) => {
-                let child = *node.children.first().ok_or(HirAvailabilityError::StructuralProjection)?;
-                stack.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-                stack.push((child, inner.as_ref()));
-            }
-            (PendingProjectionKind::Apply(_), ResolvedExpr::Apply { errors: child_errors, .. }) => {
-                errors.try_reserve(child_errors.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-                errors.extend(child_errors.iter().copied());
-            }
-            _ => return Err(HirAvailabilityError::StructuralProjection),
         }
+        (PendingProjectionKind::Group, ResolvedExpr::Group { inner, .. }) => {
+            let [child] = node.children.as_slice() else { return Err(HirAvailabilityError::StructuralProjection); };
+            append_projection_errors(*child, inner.as_ref(), nodes, output, capacity, written)?;
+        }
+        (PendingProjectionKind::Apply(_), ResolvedExpr::Apply { errors, .. }) => {
+            let end = written.checked_add(errors.len()).ok_or(HirAvailabilityError::IdentityExhausted)?;
+            if end > capacity { return Err(HirAvailabilityError::StructuralProjection); }
+            unsafe { std::ptr::copy_nonoverlapping(errors.as_ptr(), output.add(*written), errors.len()); }
+            *written = end;
+        }
+        _ => return Err(HirAvailabilityError::StructuralProjection),
     }
     Ok(())
 }
@@ -2036,6 +1983,9 @@ fn lower_plan(
     for parameter in &parameters {
         scope.push_parameter(parameter.clone());
     }
+    let owner_item_index = usize::try_from(plan.ordinal)
+        .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    let admission_start = counters.pending_ordinary_admissions.len();
     let lowered = lower_body(
         plan,
         parsed,
@@ -2060,6 +2010,7 @@ fn lower_plan(
             admitted.name.range.clone(),
         )?;
     }
+    emit_ordinary_admission_errors(counters, admission_start, owner_item_index, &id, sink)?;
     if let Some((kind, range)) = body_semantic_error {
         sink.lowering(kind, HirErrorAttachment::Value((*id).clone()), range)?;
     }
@@ -2248,15 +2199,16 @@ fn lower_body(
         ));
     }
     if counters.ordinary_source_carriers {
+        let owner_item_index = usize::try_from(plan.ordinal)
+            .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
         if let Some(expression) = lower_ordinary_admission(
             parsed,
             chain,
             namespace,
-            id,
-            causal_errors,
-            sink,
+            &causal_errors,
             counters,
             occurrence.clone(),
+            owner_item_index,
             scope,
         )? {
             return Ok((expression, None));
@@ -2398,6 +2350,7 @@ fn shadow_application_plan(
                 HirAvailabilityError::ExactOperatorEnvironment
             }
             AssociationError::StructuralInvariant => HirAvailabilityError::StructuralProjection,
+            AssociationError::Allocation => HirAvailabilityError::IdentityExhausted,
         })?
         .into_hir();
     let HirExpr::Value {
@@ -2731,6 +2684,7 @@ fn lower_simple_chain(
                 HirAvailabilityError::ExactOperatorEnvironment
             }
             AssociationError::StructuralInvariant => HirAvailabilityError::StructuralProjection,
+            AssociationError::Allocation => HirAvailabilityError::IdentityExhausted,
         })?
         .into_parts();
     let Some(atom) = atom else {
@@ -3171,25 +3125,37 @@ mod tests {
     fn evaluation_classification_is_private_and_frozen_on_bindings() {
         let module = lower_module(
             identity(),
-            &parsed("my x = 1; my y = x; my f p = p; my missing = nope; my bad = @"),
+            &parsed("my x = 1; my y = x; my f p = p; my missing = nope; my bad = @; my app = f 1; my group = (1); my lambda_app p = p 1; my lambda_plain p = p"),
             SemanticImports::empty(),
         )
         .expect("lowering remains available");
-        let [
-            HirItem::Binding(x),
-            HirItem::Binding(y),
-            HirItem::Binding(f),
-            HirItem::Binding(missing),
-            HirItem::Binding(bad),
-        ] = module.items()
-        else {
-            panic!("five bindings")
-        };
+        let bindings: Vec<_> = module.items().iter().filter_map(|item| match item { HirItem::Binding(binding) => Some(binding), _ => None }).collect();
+        assert_eq!(bindings.len(), 9);
+        let [x, y, f, missing, bad, app, group, lambda_app, lambda_plain] = bindings.as_slice() else { panic!("nine bindings") };
         assert_eq!(x.evaluation_class, Some(EvaluationClass::FetchValue));
         assert_eq!(y.evaluation_class, Some(EvaluationClass::FetchValue));
         assert_eq!(f.evaluation_class, Some(EvaluationClass::FetchValue));
         assert_eq!(missing.evaluation_class, None);
         assert_eq!(bad.evaluation_class, None);
+        assert_eq!(app.evaluation_class, None);
+        assert_eq!(group.evaluation_class, None);
+        assert_eq!(lambda_app.evaluation_class, None);
+        assert_eq!(lambda_plain.evaluation_class, Some(EvaluationClass::FetchValue));
+    }
+
+    #[test]
+    fn many_simple_admissions_finalize_at_their_exact_item_indices() {
+        let count = 64usize;
+        let source = (0..count).map(|index| format!("my v{index} = {index}")).collect::<Vec<_>>().join("; ");
+        let parsed = parsed(&source);
+        let mut counters = LoweringCounters::default();
+        counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(&parsed));
+        counters.source_nodes = crate::source_identity::try_source_keys(&parsed).unwrap();
+        counters.ordinary_source_carriers = true;
+        let module = lower_module_with_counters(identity(), &parsed, SemanticImports::empty(), &mut counters).unwrap();
+        assert_eq!(module.items().len(), count);
+        assert_eq!(counters.ordinary_admission_item_visits, count,
+            "one indexed owning-item access per admitted body, independent of module length");
     }
 
     #[test]

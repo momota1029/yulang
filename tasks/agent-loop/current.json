@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
     "revision": 3,
     "sha256": "006ffcf86d526f6eb5f668307ab81a2ae6dda2067a547889095d74fd89b25fd2",
-    "state": "IMPLEMENTATION-RUNNING",
+    "state": "APPLIED-REVIEW",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -23,14 +23,14 @@
       "original_conditions_closed": 0,
       "behavior_executed": false,
       "proof_class": "Seven repair invariants and falsifiers frozen; candidate-only conditional construction, not an original theorem lemma.",
-      "implementation_class": "Pre-code architect gate CLEAN; Luna adjudicated and granted exact expanded lease. Luna/high implementer acknowledged fresh active assignment; code/test authoring underway, execution remains held for applied reviews.",
+      "implementation_class": "Candidate frozen after all seven repairs and authored falsifiers. Post-STOP git diff --check passed; no tests/builds/probes. Fresh independent compiler review next; no theorem result.",
       "HIR_APP_REPAIR_1": "OPEN; seven findings and exact repair obligations frozen.",
       "parent_application": "OPEN; no semantic Call/source T/native adequacy."
     },
     "resources": {
       "cap_seconds": 2760,
-      "charged_seconds": 930,
-      "available_seconds": 1830,
+      "charged_seconds": 1680,
+      "available_seconds": 1080,
       "retired_seconds": 0,
       "allocation": "Coordination120 charged; proof/source240; Luna plan90; pre-code architect120; implementation1110; applied reviews480; regressions240; Cargo240; reserve120. Fresh sprint; retired budget not carried."
     },
@@ -110,8 +110,8 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 1110,
-        "charged_seconds": 360,
-        "remaining_seconds": 750,
+        "charged_seconds": 1110,
+        "remaining_seconds": 0,
         "session": "current-session",
         "lease_paths": [
           "crates/yu-hir/src/lib.rs",
@@ -122,7 +122,7 @@
           "crates/yu-solver/tests/research_accepted_call_vertical.rs",
           "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md"
         ],
-        "active_receipt": "Fresh acknowledgment and seven input pins verified. Checkpoint estimate ~360s spent/~750s remain; paired provenance threaded through ChainParser same-construction path, public HirExpr unchanged, no range lookup/second source walk. Preflight/errors/item index/classification in progress. Allocation audit/fallible reservation remains. No tests/builds/probes; no descendants."
+        "active_receipt": "Worker STOPPED and all leased outputs frozen. Handoff revision 4 SHA 2aa369b9efc59e42ee8951a1bcf2f3f28b332791a800215f052ee594362bfa37. Conservatively charged full 1110s cap (exact elapsed unknown). Post-STOP git diff --check passed. No tests/builds/compiler probes; no descendants."
       }
     ],
     "leases": [
@@ -154,37 +154,37 @@
       {
         "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md",
         "owner": "/root plan then implementer handoff",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/src/lib.rs",
         "owner": "implementer after architect CLEAN and Luna adjudication",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/src/module.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/src/source_identity.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/src/shadow.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/tests/ordinary_application_admission.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -239,7 +239,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Luna/high implementation RUNNING under fresh acknowledgment with exact seven-path lease; charge up to1110s. Worker repairs all seven falsifiers, accounts output-sensitive allocations and stops before tests/builds. After STOP/freeze, sequential independent applied reviews then regression pre-run gate; original theorem gates remain OPEN.",
+    "next_action": "Candidate frozen after implementation STOP. Start sequential fresh applied compiler review <=180s, then spec <=120s, architect <=180s. After all CLEAN, regression pre-run <=120s; only then run two Cargo commands once each. Original theorem gates remain OPEN.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },
