@@ -13,8 +13,8 @@
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original A/B theorem and production gates OPEN.",
   "fixed_outcome": "Draft a concrete source inference-introduction constructor for original c2 F2 that derives L2, complete dependent fields and joint interpretation by a pinned existing constructor, then attempt local preservation. Keep the proposal unselected and all original parent domains/gates intact.",
   "review": {
-   "state": "PENDING",
-   "current_reviewer": null,
+   "state": "RUNNING",
+   "current_reviewer": "/root/receive_function_introduction_compiler_review",
    "sequence": [
     "compiler_referee",
     "spec_auditor"
@@ -29,7 +29,7 @@
    "reserve_seconds": 120,
    "charged_seconds": 840,
    "active_authors": 0,
-   "status": "Luna proposal charged 480s; Astra preservation STOPPED after 324s active / 360s conservative charge; 660s retired. Fresh compiler_referee then spec_auditor reviews pending."
+   "status": "Proposal480 + Astra360 = 840s. Fresh compiler_referee actively reviewing frozen bundle; spec_auditor follows sequentially."
   },
   "lanes": {
    "proposal": {
@@ -144,6 +144,17 @@
     "observed_effort": "UNKNOWN",
     "session": "current-session",
     "receipt": "STOP 2026-10-17 02:03:39 UTC; exact proof outputs frozen; 324s actual / 360s conservative charge; no descendants; no writes."
+   },
+   {
+    "id": "/root/receive_function_introduction_compiler_review",
+    "role": "fresh independent compiler_referee for frozen proposal+preservation bundle",
+    "state": "RUNNING",
+    "requested_model": "UNKNOWN",
+    "requested_effort": "UNKNOWN",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": "current-session",
+    "receipt": "Actual collaboration spawn accepted 2026-10-17 02:04:19 UTC; read-only exact frozen bundle; fresh from both authors; no descendants requested."
    }
   ]
  },
@@ -206,6 +217,17 @@
    "observed_effort": "UNKNOWN",
    "session": "current-session",
    "receipt": "STOP 2026-10-17 02:03:39 UTC; active 324s, charged 360s; outputs frozen; no descendants or writes; model/effort UNKNOWN."
+  },
+  {
+   "id": "/root/receive_function_introduction_compiler_review",
+   "role": "fresh independent compiler_referee for frozen proposal+preservation bundle",
+   "state": "RUNNING",
+   "requested_model": "UNKNOWN",
+   "requested_effort": "UNKNOWN",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "receipt": "Actual collaboration spawn accepted 2026-10-17 02:04:19 UTC; read-only exact frozen bundle; fresh from both authors; no descendants requested."
   }
  ],
  "leases": [
@@ -283,8 +305,8 @@
   }
  ],
  "next_action": {
-  "state": "REVIEW-PENDING",
-  "dispatcher": "Sprint-end selector consultation remains after fresh review and Luna adjudication; current exact obstruction bundle is frozen for review.",
+  "state": "REVIEW-RUNNING",
+  "dispatcher": "Selector-end consultation remains after sequential fresh reviews and Luna adjudication.",
   "proof": "Astra exact four-stage preservation attempt stopped; first absent local inlet/role introduction, Strict operands/specialization and primitive transport remain OPEN; artifact/hash pinned.",
   "implementation": "No code lease; frozen proposal/proof identify no authorized implementation slice until the missing source rule and its semantics are explicitly selected."
  },
@@ -299,7 +321,7 @@
   "charged_seconds": 840,
   "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Proposal480 + Astra conservative360 = 840/1500s; Astra stopped; 660s unspent/retired; fresh reviews pending."
+  "status": "Proposal480 + Astra360 = 840/1500s; compiler_referee review RUNNING; spec_auditor pending; no author active."
  },
  "history": "Concrete but unselected Gen-CallView? proposal frozen. Four-stage Astra attempt found first missing local inlet/role introduction; Strict operands/role specialization and primitive transport also unavailable. Original F2/A1/xi and all parent gates preserved. Fresh review is next."
 }
