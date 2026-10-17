@@ -1,0 +1,318 @@
+diff --git a/crates/yu-solver/src/candidate_call.rs b/crates/yu-solver/src/candidate_call.rs
+index be466d9ee..416cb1038 100644
+--- a/crates/yu-solver/src/candidate_call.rs
++++ b/crates/yu-solver/src/candidate_call.rs
+@@ -50,10 +50,19 @@ pub(super) struct ApplySourceInput {
+     pub checking: ConstraintOccurrenceId,
+     pub cause: CauseId,
+     pub formal_name: Option<usize>,
++    /// Exact source local identity when the admitted callee peels to a local
++    /// Name. This is source identity, not a route selected by publication order.
++    pub local_callee: Option<LocalCalleeRoute>,
+     pub native: Option<NativeInterface>,
+     pub introduction: Option<DirectionalIntroduction>,
+     pub receiver_attachment: Option<ReceiverBoundaryAttachment>,
+ }
++#[derive(Clone, Debug)]
++pub(super) struct LocalCalleeRoute {
++    pub expression: usize,
++    pub occurrence: HirOccurrenceId,
++    pub local: yu_hir::HirLocalId,
++}
+ /// Provisional source attachment only. The nominal scope inventory still owns
+ /// this scope at its lexical computation region; this is not an expiry rule.
+ #[derive(Clone, Debug)]
+diff --git a/crates/yu-solver/src/candidate_scheme.rs b/crates/yu-solver/src/candidate_scheme.rs
+index 2289ddba8..e163ae167 100644
+--- a/crates/yu-solver/src/candidate_scheme.rs
++++ b/crates/yu-solver/src/candidate_scheme.rs
+@@ -9,6 +9,9 @@ pub(super) struct GraphState {
+     pub routes: Vec<FreshRoute>,
+     pub locals: Vec<Option<LocalScheme>>,
+     pub local_routes: Vec<LocalFreshRoute>,
++    /// Direct authentication from a source local-use occurrence to its one
++    /// completed route. Publication order is not a route identity.
++    pub local_route_by_occurrence: HashMap<HirOccurrenceId, usize>,
+     pub local_use: Vec<LocalUse>,
+     #[cfg(test)]
+     pub local_use_census: Option<LocalUseCensus>,
+@@ -134,10 +137,16 @@ pub(super) struct LocalFreshRoute {
+     pub slot: usize,
+     pub local: yu_hir::HirLocalId,
+     pub occurrence: HirOccurrenceId,
++    pub use_instance: usize,
+     pub graph: Graph,
+     pub rows: Vec<RowKey>,
+     retained: RetainedFreshUseMaps,
+ }
++impl LocalFreshRoute {
++    pub(super) fn authentic_use_instance(&self) -> bool {
++        self.use_instance == self.retained.context_use
++    }
++}
+ #[derive(Debug)]
+ struct RetainedFreshUseMaps {
+     scope_remap: candidate_source::ScopeRemap,
+@@ -298,6 +307,11 @@ impl Graph {
+ impl GraphState {
+     pub(super) fn commit_local_use(&mut self) {
+         let frame = self.local_use.pop().expect("completed local parent");
++        let route_index = self.local_routes.len();
++        let occurrence = frame.occurrence.clone();
++        let slot = frame.slot;
++        let local = frame.local.clone();
++        let use_instance = frame.fresh.context_use;
+         #[cfg(test)]
+         if let Some(census) = &mut self.local_use_census {
+             if census.requested.contains(&frame.occurrence) {
+@@ -317,8 +331,10 @@ impl GraphState {
+         // All capacities and arithmetic were preflighted by frame accounting and
+         // final route reservation. Move retained maps without allocation.
+         let (rows, retained) = frame.fresh.into_retained_parts();
+-        self.local_routes.push(LocalFreshRoute { slot: frame.slot, local: frame.local,
+-            occurrence: frame.occurrence, graph: frame.graph, rows, retained });
++        let previous = self.local_route_by_occurrence.insert(occurrence.clone(), route_index);
++        assert!(previous.is_none(), "one exact Local occurrence publishes one fresh route");
++        self.local_routes.push(LocalFreshRoute { slot, local, occurrence,
++            use_instance, graph: frame.graph, rows, retained });
+     }
+     pub fn refresh_bytes(&mut self) -> Result<(), SolveAvailabilityError> {
+         let mut total = sum(&[
+@@ -326,6 +342,7 @@ impl GraphState {
+             bytes::<FreshRoute>(self.routes.capacity())?,
+             bytes::<Option<LocalScheme>>(self.locals.capacity())?,
+             bytes::<LocalFreshRoute>(self.local_routes.capacity())?,
++            bytes::<(HirOccurrenceId, usize)>(self.local_route_by_occurrence.capacity())?,
+             bytes::<LocalUse>(self.local_use.capacity())?,
+         ])?;
+         for graph in self.graphs.iter().flatten() {
+@@ -1600,7 +1617,20 @@ impl InferenceSession {
+                     let scheme = session.candidate_graph.as_ref().and_then(|state| state.locals.get(slot)).and_then(Option::as_ref).ok_or_else(exhausted)?;
+                     (scheme.root, scheme.boundary, scheme.id.clone(), scheme.capture_region)
+                 };
++                let scoped = session.batch.candidate_source.scoped_experiment;
+                 let state = session.candidate_graph.as_mut().unwrap();
++                if state.local_route_by_occurrence.contains_key(occurrence) { return Err(exhausted()); }
++                let old_index_capacity = state.local_route_by_occurrence.capacity();
++                if scoped {
++                    let reservation_work = if state.local_route_by_occurrence.len() == old_index_capacity {
++                        state.local_route_by_occurrence.len().checked_add(3).ok_or_else(exhausted)?
++                    } else { 3 };
++                    state.intrusion.effect_algebra.context.scope_inventory.charge(reservation_work)?;
++                }
++                state.local_route_by_occurrence.try_reserve(1).map_err(|_| exhausted())?;
++                state.retained_bytes = state.retained_bytes.checked_add(
++                    bytes::<(HirOccurrenceId, usize)>(state.local_route_by_occurrence.capacity() - old_index_capacity)?,
++                ).ok_or_else(exhausted)?;
+                 let old_capacity = state.local_use.capacity();
+                 state.local_use.try_reserve(1).map_err(|_| exhausted())?;
+                 state.retained_bytes = state.retained_bytes.checked_add(bytes::<LocalUse>(state.local_use.capacity() - old_capacity)?).ok_or_else(exhausted)?;
+@@ -1754,6 +1784,10 @@ impl InferenceSession {
+         }
+         let lower = frame.fresh.terms[frame.graph.root].ok_or_else(exhausted)?;
+         let upper = self.batch.component_term_at(frame.value);
++        if self.batch.candidate_source.scoped_experiment {
++            self.candidate_graph.as_mut().ok_or_else(exhausted)?
++                .intrusion.effect_algebra.context.scope_inventory.charge(1)?;
++        }
+         self.admit_candidate_value_link(&frame.occurrence, 0, lower, upper)?;
+         let state = self.candidate_graph.as_mut().unwrap();
+         let old = state.local_routes.capacity();
+@@ -1762,6 +1796,10 @@ impl InferenceSession {
+             // avoids cloning their graphs/rows, and rollback can move them back
+             // without allocating. Geometric growth keeps publication amortized.
+             let capacity = old.checked_mul(2).ok_or_else(exhausted)?.max(4);
++            if self.batch.candidate_source.scoped_experiment {
++                let work = state.local_routes.len().checked_mul(2).and_then(|n| n.checked_add(2)).ok_or_else(exhausted)?;
++                state.intrusion.effect_algebra.context.scope_inventory.charge(work)?;
++            }
+             let mut replacement = Vec::new();
+             replacement.try_reserve_exact(capacity).map_err(|_| exhausted())?;
+             let retained_bytes = state.retained_bytes.checked_add(
+diff --git a/crates/yu-solver/src/candidate_source.rs b/crates/yu-solver/src/candidate_source.rs
+index 6b6b8f783..8fc484092 100644
+--- a/crates/yu-solver/src/candidate_source.rs
++++ b/crates/yu-solver/src/candidate_source.rs
+@@ -1073,6 +1073,7 @@ impl ConstraintBatch {
+                             continue;
+                         }
+                         LocalSourceForm::Apply { callee, argument, .. } => {
++                            let mut local_callee = None;
+                             if self.candidate_source.scoped_experiment {
+                                 let mut argument_index = argument.ordinal() as usize;
+                                 loop {
+@@ -1091,11 +1092,21 @@ impl ConstraintBatch {
+                                 loop {
+                                     self.candidate_source.charge_scoped_work(1)?;
+                                     match &source.expressions()[callee_index].form {
+-                                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => callee_index = inner.ordinal() as usize,
++                                        LocalSourceForm::Group { inner } => callee_index = inner.ordinal() as usize,
+                                         LocalSourceForm::Block { final_expression, .. } => callee_index = final_expression.ordinal() as usize,
+                                         LocalSourceForm::Apply { .. } => { scoped_result_callee(source, callee_index, &mut self.candidate_source)?; break; }
+                                         LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. }
+-                                        | LocalSourceForm::Name { resolution: LocalSourceResolution::Local(_) | LocalSourceResolution::CatchBinder(_), .. } => return Err(unavailable()),
++                                        | LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(_), .. } => return Err(unavailable()),
++                                        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(local), .. } => {
++                                            if source.bindings().iter().any(|binding| &binding.id == local && binding.annotation.is_some()) {
++                                                return Err(unavailable());
++                                            }
++                                            let expression = source.expressions().get(callee_index).ok_or_else(invalid)?;
++                                            local_callee = Some(candidate_call::LocalCalleeRoute {
++                                                expression: callee_index, occurrence: expression.occurrence.clone(), local: local.clone(),
++                                            });
++                                            break;
++                                        }
+                                         _ => break,
+                                     }
+                                 }
+@@ -1139,7 +1150,8 @@ impl ConstraintBatch {
+                                 argument_value: endpoints[argument.ordinal() as usize], argument_effect: a.effect,
+                                 result: pos.value, application_effect: pos.effect,
+                                 cause: CauseId::for_occurrence(checking.clone()), checking,
+-                                formal_name: formal_names[callee.ordinal() as usize], native: None, introduction: None, receiver_attachment,
++                                formal_name: formal_names[callee.ordinal() as usize], local_callee,
++                                native: None, introduction: None, receiver_attachment,
+                             })?;
+                             self.candidate_recipes[recipe].source_input = Some(source_input);
+                             push(&mut actions, Action::Candidate(recipe))?;
+diff --git a/crates/yu-solver/src/lib.rs b/crates/yu-solver/src/lib.rs
+index 6c50e9360..96ead36d3 100644
+--- a/crates/yu-solver/src/lib.rs
++++ b/crates/yu-solver/src/lib.rs
+@@ -9470,6 +9470,11 @@ impl InferenceSession {
+             for slot in journal.candidate_local_slots.drain(..) {
+                 state.locals[slot] = None;
+             }
++            for index in journal.candidate_local_routes_len..state.local_routes.len() {
++                let occurrence = state.local_routes[index].occurrence.clone();
++                let removed = state.local_route_by_occurrence.remove(&occurrence);
++                debug_assert_eq!(removed, Some(index));
++            }
+             state.local_routes.truncate(journal.candidate_local_routes_len);
+             if let Some(mut allocation) = journal.candidate_local_routes_allocation.take() {
+                 allocation.append(&mut state.local_routes);
+diff --git a/crates/yu-solver/src/shadow_apply.rs b/crates/yu-solver/src/shadow_apply.rs
+index bcd1d14b9..97fb6282f 100644
+--- a/crates/yu-solver/src/shadow_apply.rs
++++ b/crates/yu-solver/src/shadow_apply.rs
+@@ -376,9 +376,12 @@ impl CandidateInference {
+             return None;
+         }
+         let state = self.solved.data.candidate_graph.as_ref()?;
+-        if let Some(route) = state.local_routes.iter().find(|route| &route.occurrence == occurrence) {
++        if let Some(&index) = state.local_route_by_occurrence.get(occurrence) {
++            let route = state.local_routes.get(index)?;
+             let scheme = state.locals.get(route.slot)?.as_ref()?;
+-            if scheme.id != route.local { return None; }
++            if route.occurrence != *occurrence || scheme.id != route.local
++                || !route.authentic_use_instance()
++            { return None; }
+             return Some(CandidateGraphFreshUse {
+                 state, occurrence: &route.occurrence, rows: &route.rows, graph: &route.graph,
+             });
+@@ -1581,6 +1584,32 @@ impl InferenceSession {
+                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+             let registered_recipe = self.batch.candidate_recipes.get(input.recipe)
+                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
++            if let Some(local_callee) = &input.local_callee {
++                if !self.batch.candidate_source.scoped_experiment { return Err(SolveAvailabilityError::IdentityExhausted); }
++                let source = self.batch.hir.local_source_for(&input.owner)
++                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
++                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
++                let expression = source.expressions().get(local_callee.expression)
++                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
++                if expression.occurrence != local_callee.occurrence
++                    || !matches!(&expression.form, yu_hir::shadow::LocalSourceForm::Name {
++                        resolution: yu_hir::shadow::LocalSourceResolution::Local(local), ..
++                    } if local == &local_callee.local)
++                { return Err(SolveAvailabilityError::IdentityExhausted); }
++                self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?
++                    .intrusion.effect_algebra.context.scope_inventory.charge(1)?;
++                let state = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?;
++                let route_index = *state.local_route_by_occurrence.get(&local_callee.occurrence)
++                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
++                let route = state.local_routes.get(route_index).ok_or(SolveAvailabilityError::IdentityExhausted)?;
++                let scheme = state.locals.get(route.slot).and_then(Option::as_ref)
++                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
++                if route.occurrence != local_callee.occurrence
++                    || route.local != local_callee.local
++                    || scheme.id != local_callee.local
++                    || !route.authentic_use_instance()
++                { return Err(SolveAvailabilityError::IdentityExhausted); }
++            }
+             let CandidateRelation::Apply {
+                 callee, callee_effect, argument, argument_effect, result, result_effect,
+             } = recipe.relation else { return Err(SolveAvailabilityError::IdentityExhausted); };
+diff --git a/crates/yu-solver/src/tests/candidate_graph_call.rs b/crates/yu-solver/src/tests/candidate_graph_call.rs
+index b7811309d..53f612c4a 100644
+--- a/crates/yu-solver/src/tests/candidate_graph_call.rs
++++ b/crates/yu-solver/src/tests/candidate_graph_call.rs
+@@ -5,6 +5,7 @@ use super::*;
+ use crate::shadow_apply::{
+     CandidateGraphExport, CandidateGraphLeaf, CandidateGraphNode, CandidateInference,
+ };
++use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
+ 
+ fn candidate_call_hir(text: &str) -> Arc<HirModule> {
+     let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+@@ -321,6 +322,60 @@ fn candidate_call_routes(candidate: &CandidateInference, hir: &Arc<HirModule>, n
+     // bounds. No mapped runtime incidence follows from these cardinalities.
+ }
+ 
++#[test]
++fn scoped_local_callee_route_survives_a_later_local_argument_use() {
++    let hir = candidate_call_hir(
++        "my id x = x\nmy outer = { my f = id; my a = 1; f a }",
++    );
++    let source = hir.local_source(candidate_call_root(&hir, "outer")).unwrap().unwrap();
++    let f = &source.bindings().iter().find(|binding| binding.spelling.as_ref() == "f").unwrap().id;
++    let a = &source.bindings().iter().find(|binding| binding.spelling.as_ref() == "a").unwrap().id;
++    let local_occurrence = |id: &yu_hir::HirLocalId| source.expressions().iter().find_map(|expression| {
++        matches!(&expression.form, LocalSourceForm::Name {
++            resolution: LocalSourceResolution::Local(found), ..
++        } if found == id).then(|| expression.occurrence.clone())
++    }).unwrap();
++    let callee = local_occurrence(f);
++    let later_argument = local_occurrence(a);
++
++    let candidate = CandidateInference::solve_scoped_experiment(hir).unwrap();
++    assert!(candidate.candidate_conflicts().is_empty());
++    let callee_route = candidate.fresh_use(&callee).expect("exact callee local-use route");
++    let argument_route = candidate.fresh_use(&later_argument).expect("later argument local-use route");
++    assert_eq!(callee_route.occurrence(), &callee);
++    assert_eq!(argument_route.occurrence(), &later_argument);
++}
++
++#[test]
++fn scoped_annotated_local_callee_remains_refused_without_annotation_validation() {
++    let hir = candidate_call_hir(
++        "my id x = x\nmy outer = { my f: int = 1; my a = 1; f a }",
++    );
++    let source = hir.local_source(candidate_call_root(&hir, "outer")).unwrap().unwrap();
++    let f = source.bindings().iter().find(|binding| binding.spelling.as_ref() == "f").unwrap();
++    assert!(f.annotation.is_some(), "regression source retains the local annotation");
++    let callee_is_the_annotated_local = source.expressions().iter().any(|expression| {
++        let LocalSourceForm::Apply { callee, .. } = &expression.form else { return false };
++        let Some(callee) = source.expression(callee) else { return false };
++        matches!(&callee.form, LocalSourceForm::Name {
++            resolution: LocalSourceResolution::Local(local), ..
++        } if local == &f.id)
++    });
++    assert!(callee_is_the_annotated_local, "Apply source retains the exact annotated local callee");
++    assert!(CandidateInference::solve_scoped_experiment(hir).is_err());
++}
++
++#[test]
++fn unscoped_candidate_collection_does_not_inherit_the_scoped_record_cap() {
++    let mut text = String::from("my id x = x\n");
++    for index in 0..=crate::candidate_source::SCOPED_RECORD_LIMIT {
++        text.push_str(&format!("my use{index} = id 1\n"));
++    }
++    let hir = candidate_call_hir(&text);
++    let batch = ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, false).unwrap();
++    assert!(batch.candidate_calls.calls.len() > crate::candidate_source::SCOPED_RECORD_LIMIT);
++}
++
+ #[test]
+ fn candidate_graph_call_retains_deferred_formal_demand_and_fresh_uses() {
+     let hir = candidate_call_hir("my invoke f = f 1\nmy first = invoke\nmy second = invoke");
