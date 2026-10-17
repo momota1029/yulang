@@ -46,15 +46,18 @@ pub(super) struct SourceRegion {
     pub inputs: Vec<candidate_scope::InputRouteId>,
 }
 impl Plan {
+    #[track_caller]
     fn charge_scoped_work(&mut self, work: usize) -> Result<(), CollectionAvailabilityError> {
         let next = self.scoped_work_used.checked_add(work).ok_or_else(unavailable)?;
         if next > SCOPED_WORK_LIMIT { return Err(unavailable()); }
         self.scoped_work_used = next; Ok(())
     }
+    #[track_caller]
     fn note_guard_stack(&mut self, capacity: usize) -> Result<(), CollectionAvailabilityError> {
         let bytes = capacity.checked_mul(std::mem::size_of::<usize>()).ok_or_else(unavailable)?;
         self.scoped_scratch_envelope = self.scoped_scratch_envelope.max(bytes); Ok(())
     }
+    #[track_caller]
     fn region(&mut self, parent: Option<SourceRegionId>) -> Result<SourceRegionId, CollectionAvailabilityError> {
         if !self.scoped_experiment { return Ok(SourceRegionId(usize::MAX)); }
         if self.regions.len() >= SCOPED_RECORD_LIMIT { return Err(unavailable()); }
@@ -68,6 +71,7 @@ impl Plan {
         if let Some(parent) = parent { self.regions[parent.0].children.push(id); }
         Ok(id)
     }
+    #[track_caller]
     fn computation_scope(&mut self, occurrence: &HirOccurrenceId, region: SourceRegionId) -> Result<(), CollectionAvailabilityError> {
         if !self.scoped_experiment { return Ok(()); }
         self.charge_scoped_work(1)?;
@@ -387,12 +391,18 @@ fn scoped_result_callee(source: &LocalSource, root: usize, plan: &mut Plan) -> R
     }
     Ok(())
 }
+#[track_caller]
 fn unavailable() -> CollectionAvailabilityError {
+    if std::env::var_os("YU_SCOPED_COLLECTION_DIAGNOSTIC").is_some() {
+        let caller = std::panic::Location::caller();
+        eprintln!("candidate_collection.unavailable branch={}:{}:{}", caller.file(), caller.line(), caller.column());
+    }
     CollectionAvailabilityError::ComponentIdentityExhausted
 }
 fn invalid() -> CollectionAvailabilityError {
     CollectionAvailabilityError::MissingDefinitionEndpoint
 }
+#[track_caller]
 fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), CollectionAvailabilityError> {
     values.try_reserve(1).map_err(|_| unavailable())?;
     values.push(value);

@@ -145,6 +145,12 @@ fn main() {
     {
         stop("received-source-owner", "received LocalSource does not belong to its exact HIR definition owner");
     }
+    if std::env::var_os("YU_SCOPED_COLLECTION_DIAGNOSTIC").is_some() {
+        for (index, expression) in received_source.expressions().iter().enumerate() {
+            println!("hir.received.expr[{index}] occurrence={:?} source={:?} range={:?} scope={:?} form={:?}",
+                expression.occurrence, expression.source, expression.range, expression.scope, expression.form);
+        }
+    }
     let applies: Vec<_> = received_source.expressions().iter().filter_map(|expression| {
         let LocalSourceForm::Apply { callee, argument, .. } = &expression.form else { return None };
         let callee = received_source.expression(callee)
@@ -181,8 +187,8 @@ fn main() {
         apply_argument.occurrence,
         apply.scope, apply_callee.scope, apply_argument.scope);
 
-    println!("candidate.solve=begin entry=CandidateInference::solve");
-    let candidate = match CandidateInference::solve(hir.clone()) {
+    println!("candidate.solve=begin entry=CandidateInference::solve_scoped_experiment");
+    let candidate = match CandidateInference::solve_scoped_experiment(hir.clone()) {
         Ok(candidate) => candidate,
         Err(error) => stop("candidate-solve", error),
     };
