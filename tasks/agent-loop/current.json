@@ -24,10 +24,10 @@
     },
     "resources": {
       "cap_seconds": 3000,
-      "charged_seconds": 1080,
-      "available_seconds": 1920,
+      "charged_seconds": 1380,
+      "available_seconds": 1620,
       "retired_seconds": 0,
-      "allocation": "Decomposition180 and frozen Astra proof cap900 charged (1080/3000). Remaining Luna implementation author720 after proof review CLEAN; independent reviews600; coordination120; conditional verification240; reserve240."
+      "allocation": "Decomposition180 + Astra proof900 + completed CLEAN spec review300 charged (1380/3000). Remaining compiler/source review300; Luna implementation author720 only after both proof reviews CLEAN; coordination120; conditional verification240; reserve240."
     },
     "workers": [
       {
@@ -85,18 +85,18 @@
       {
         "id": "/root/ordinary_call_generation_spec_review",
         "role": "spec_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 300,
-        "charged_seconds": 0,
-        "remaining_seconds": 300,
+        "charged_seconds": 300,
+        "remaining_seconds": 0,
         "session": "current-session",
         "launch_receipt": "Spawned after Astra proof STOP and frozen hash verification.",
         "lease_paths": [],
-        "active_receipt": "Read-only conformance review of exact source rule, proposed unadopted constructor, conservativity/reduct, quantifiers, O0 boundary and consumer substitution."
+        "active_receipt": "CLEAN within conditional/unadopted scope. Verified 16 dependency pins; no O0 before authentic e_c, no parent closure; implementation recipe may follow second review, no code lease. Full300 charged."
       },
       {
         "id": "/root/ordinary_call_generation_compiler_review",
@@ -160,7 +160,7 @@
         "state": "OPEN"
       }
     ],
-    "next_action": "Independent spec/conformance review and compiler/source-owner review are RUNNING in parallel on frozen proof/handoff, cap300s each. Luna author lane remains held until both proof reviews CLEAN. No code/commands/test authority.",
+    "next_action": "Spec review STOPPED CLEAN; compiler/source-owner review still RUNNING <=300s. Wait for its result. Luna implementation-contract author is not yet admitted; no code/tests/Cargo.",
     "decomposition": "Read-only task_decomposer found: old Gen-Call-0 is Name/Name; Gen-Call-Syntax is unannotated Value-formal callee; module Name + Literal matches neither. Native literal rule supplies only WholeArgCompatible at actual id Int inlet and excludes full Application/Gen-Call-0. Theorem progress requires authentic full rule derivation then replacing that premise in a named consumer; O0 alone is insufficient."
   },
   "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer. Previous sprint ordinary-hir-applied-conformance-repair-20261017 closed REVIEWED-PARTIAL at commit 0717a882c: focused unit8/8, corrected HIR9/9, solver candidate vertical1/1; original theorem conditions closed0. Exact receipts and rev8 CLEAN reporting review remain under notes/progress and prior handoff. Rev7 spent2760/2760; after-cap solver receipt documentation time UNKNOWN, not retrocharged. New original Call generation sprint starts at baseline0717a882c; decomposition180/180 charged. Prior rev8 review-only envelope charged auditor60 and Luna coordination30; final reserve30 retired without carryover. Documentation correction after rev7 had UNKNOWN actual duration, not retrocharged.",
