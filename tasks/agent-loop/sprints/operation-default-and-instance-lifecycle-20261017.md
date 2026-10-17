@@ -1,6 +1,10 @@
 # Sprint operation-default-and-instance-lifecycle-20261017 — qualify original defaults and map one instance witness
 
-Status: READY rev1 after sprint-start selector review and Luna approval.
+Status: READY rev2 after dependency-only selector review and Luna approval.
+Rev2 supersedes rev1 (SHA-256 `a903f3ad40d107068c5018e7228ea7eba60e9d8ccf5129b17f025616011702bf`)
+by adding two direct pins for the authentic frozen source specimen and its
+corrected Unit-pattern mapping only. Claims, exact leases, lane order, caps and
+semantic boundaries are unchanged.
 Branch: `research/simple-sub-intrusion`; baseline/checkpoint `0d60846f2`.
 Parent: original FORWARD-FIRST-CALL A/B, F1/FK1, `M_exit`, source/native and
 production remain OPEN. This sprint follows the REVIEWED-PARTIAL closeout at
@@ -82,6 +86,8 @@ Recompute before reliance. A mismatch returns to Luna before writing.
 | Input | SHA-256 | Scope limit |
 |---|---|---|
 | `notes/progress/2026-10-17-operation-response-signature-introduction-closeout.md` | `ca8c13d7f2d5171fe2f2ad8a4e1ad45885026d9431e2905dedbc8f810e8567f5` | Prior obstruction and review status only. |
+| `notes/theory/2026-10-17-source-matched-catch-actions.md` | `064e813a0bcf82019d9379dfa25fd1c825eabd2072c5933f32b28d6d1ea284ae` | Frozen selected 138-byte source literal and source owner inventory; not source acceptance or full B. |
+| `notes/theory/2026-10-17-catch-target-response-answer-instantiation.md` | `6a86f684b0dfd879cc0a14addea293b2bde2766edd53829c2404a4290397de03` | Corrected Unit-pattern/no-payload-binder mapping; not declaration default authority. |
 | `notes/design/2026-10-17-operation-response-signature-introduction-proposal.md` | `ed71da1c0d6d4cfb849e1c75bccfc2ab3262ac2ee233e4f8cef27e71f1fced18` | Candidate C-OMIT/B*; unadopted. |
 | `tasks/agent-loop/inbox/20261017-operation-response-signature-introduction-proposal.md` | `fd5a8cec6436adb4478a40eb843be03362facb871d87ded7438db5d6e22c2042` | Frozen proposal handoff. |
 | `notes/theory/2026-10-17-operation-catch-response-instance-correspondence.md` | `fcfded37c80a0fd8820fe85435115c3d2ec41886f51ef89eacc540a0451c4f1a` | Existing partial source/native joins. |
