@@ -1,8 +1,8 @@
 # Sprint ordinary-hir-applied-conformance-repair-20261017
 
-Status: PARTIAL RUN; RECOVERY-EXPECTATION ADJUDICATION. Revision 7 supersedes
-revision 6 only for a bounded spec adjudication and conditional regression-test
-repair/rerun. Revision 4 remains authoritative for semantics and implementation.
+Status: REVIEWED PARTIAL; REPORTING-DELTA REVIEW. Revision 8 supersedes
+revision 7 only for a bounded reporting review of the completed HIR and solver
+reruns. Revision 4 remains authoritative for semantics and implementation.
 Candidate baseline
 `4f4dcb7b9`; current operational base may include later record-only commits.
 The prior sprint closed `REVIEWED-PARTIAL`; its candidate and
@@ -224,3 +224,35 @@ semantics or resource amendment. No production promotion.
 
 Closeout reports only original conditions closed, newly established compiler
 behavior, and the exact remaining unproved condition/next cut.
+
+## Rev8 reporting-delta review only
+
+The rev7 execution sequence completed: focused units8/8, corrected HIR
+integration9/9, solver vertical1/1. The first post-run auditor found one MINOR
+reporting gap: the exact solver invocation/result was in current state but not
+yet fixed in a progress receipt or handoff. Luna then wrote the solver rerun
+receipt and synchronized handoff revision23. This documentation work happened
+after rev7 reached its 2760s cap; its extra coordination duration is UNKNOWN
+and is not retroactively charged to rev7.
+
+Fresh envelope: **120s** for review-only resolution. Independent regression
+auditor cap60s reviews only the solver receipt/handoff delta, command, single
+execution, exit/time, named assertion/result, consistency with earlier unit
+and HIR receipts, unchanged source/test pins, and candidate-only boundaries.
+Luna coordination cap30s; reserve30s. No author, code change, test, build,
+Cargo, probe, or retry is authorized. The reviewer must treat execution as
+primary-reported evidence and must not imply independent execution. On CLEAN,
+Luna may adjudicate and close the documentation finding. If not CLEAN or the
+cap is exhausted, close reviewed-partial with the finding explicit.
+
+Rev8 carries no original-theorem closure. Parent gates, source/native
+correspondence, Call, F1/FK1, N-Transport, soundness, principality,
+termination, and production remain OPEN. Exact frozen review inputs:
+
+```text
+solver receipt: notes/progress/2026-10-17-ordinary-hir-solver-vertical-rerun.md
+handoff: tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md (rev23)
+HIR receipt: notes/progress/2026-10-17-ordinary-hir-recovery-expectation-rerun.md
+unit receipt: notes/progress/2026-10-17-ordinary-hir-repair-unit-run.md
+source test: crates/yu-hir/tests/ordinary_application_admission.rs
+```

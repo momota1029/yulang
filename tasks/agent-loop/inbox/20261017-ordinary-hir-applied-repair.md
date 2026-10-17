@@ -303,3 +303,31 @@ did not affect compilation or execution. Exact receipt:
 The held solver vertical is now authorized exactly once with a 45s cap; on
 completion, obtain the required post-run review. Original theorem conditions
 remain OPEN; HIR candidate regression evidence closes none.
+
+## Rev7 solver vertical rerun — handoff revision 23
+
+After HIR PASS, Luna ran the held command exactly once:
+`timeout 45s cargo test -p yu-solver --features shadow-apply-candidate --test
+research_accepted_call_vertical`. Exit0 in 7.185s; the sole test
+`accepted_source_generates_calls_propagates_and_reaches_fresh_uses` passed,
+1/1. Exact receipt:
+`notes/progress/2026-10-17-ordinary-hir-solver-vertical-rerun.md`.
+Compilation succeeded with the same three pre-existing `yu-hir` dead-code
+warnings. This is candidate vertical execution evidence and closes no original
+theorem condition. A fresh post-run review is required before sprint closeout;
+all parent gates remain OPEN.
+
+## Rev8 solver receipt delta
+
+The first post-run reviewer found a MINOR documentation gap: the current-state
+row had solver PASS1/1 in7.185s, but the handoff had not yet recorded the
+command. Luna added the exact command, exit, duration, named test and bounded
+claim in
+`notes/progress/2026-10-17-ordinary-hir-solver-vertical-rerun.md` and synced
+the handoff above. This write occurred after rev7 exhausted its cap; additional
+coordination duration is UNKNOWN and is not retroactively charged. Rev8 grants
+only a fresh independent review of this reporting delta (<=60s, total fresh
+envelope120s with Luna coordination30s and reserve30s). No source, test,
+build, Cargo, probe or retry is authorized. The reviewer must treat execution
+as primary-reported evidence. Parent theorem conditions remain OPEN; closure
+count remains0.
