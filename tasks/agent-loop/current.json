@@ -19,9 +19,9 @@
     },
     "resources": {
       "cap_seconds": 2100,
-      "charged_seconds": 1378,
-      "available_seconds": 722,
-      "allocation": "Rev2: implementation cap1395 (943 consumed;452 remaining = protected verification360 + evidence/handoff92); Sol proof300 consumed; compiler review135/240 consumed, max90s delta; primary120; contingency45. Total2100, current charge1378, available722. Astra0; no new workers/descendants/rollover."
+      "charged_seconds": 1398,
+      "available_seconds": 702,
+      "allocation": "Rev2: implementation cap1395 (943 consumed;452 remaining = protected verification360 + evidence/handoff92); Sol proof300 consumed; compiler review155/240 consumed, max85s remains; primary120; contingency45. Total2100, current charge1398, available702. Astra0; no new workers/descendants/rollover."
     },
       "next_action": "Rev2 accepted after dispatch. Reopen only shadow_apply.rs and runtime evidence/handoff; restore final observer mode from retained CandidateGraph context.scoped_enabled. Preserve failed-command receipt. Fresh delta review <=90s; after CLEAN retry focused regression once and run fixture only on success. Parent closure0."
   },
@@ -64,13 +64,13 @@
     {
       "id": "/root/npair_local_route_authentication_review",
       "role": "fresh independent compiler review",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/compiler_referee",
-      "requested_effort": "high <=240s total;135s charged, rev2 delta <=90s",
+      "requested_effort": "high <=240s total;155s charged, rev2 CLEAN;85s remains",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Initial and test-delta review CLEAN; cumulative135/240s charged. Rev2 exact snapshot frozen and rehashed; reviewing only scoped GraphState mode handoff and prior final-auth guard under <=90s of remaining105s. No commands."
+      "receipt": "Rev1 source/test review CLEAN except MINOR, resolved by test delta. Rev2 final-observer mode delta CLEAN; cumulative155/240s charged, STOPPED, no commands. Retained CandidateGraph context.scoped_enabled flows from start_candidate_graph; fact-admission guard remains. Runtime note/inbox preserve failure/retry receipt."
     }
   ],
   "leases": [
@@ -146,5 +146,5 @@
     "required": false,
     "receipt": "All prior proof, implementation and review workers STOPPED; all prior exact leases FROZEN. Successor starts from clean restored baseline; no overlapping writers or rollover."
   },
-  "next_action": "Rev2 repair frozen at shadow_apply.rs 51d1d153; runtime note/inbox frozen at 8080158d/bf17500. Fresh review delta RUNNING <=90s. Then, only after CLEAN and fresh capacity>=120s, retry failed regression once; run fixture only if it passes. Implementation charge943/1395, remaining452=verification360+evidence92; reviewer remaining105, contingency45. Parent OPEN, closure0."
+  "next_action": "Rev2 source/test/proof/runtime snapshot CLEAN. After fresh capacity>=120s, retry the failed focused regression once (<=120s); only if it passes, run unchanged receive/choose fixture once with YU_CALL_REPLAY_OBSERVER=1. Implementation charge943/1395, remaining452=verification360+evidence92; review155/240, primary120, contingency45. Parent OPEN, closure0."
 }
