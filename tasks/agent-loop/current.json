@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/receive-function-introduction-proposal-20261017.md",
   "revision": 1,
   "sha256": "eeca47fc455c5aac9b5f9bb4e5ce6b10b7921599a07a693e2c4ac668442a7503",
-  "state": "PROPOSAL-FROZEN; PROOF-READY",
+  "state": "PROOF-RUNNING",
   "baseline": "3f159b109",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original A/B theorem and production gates OPEN.",
   "fixed_outcome": "Draft a concrete source inference-introduction constructor for original c2 F2 that derives L2, complete dependent fields and joint interpretation by a pinned existing constructor, then attempt local preservation. Keep the proposal unselected and all original parent domains/gates intact.",
@@ -28,8 +28,8 @@
    "coordination_seconds": 60,
    "reserve_seconds": 120,
    "charged_seconds": 480,
-   "active_authors": 0,
-   "status": "Luna proposal frozen; uninstrumented proposal effort conservatively charged full 480s cap. Astra preservation assignment is ready and NOT_STARTED; all reviews pending."
+   "active_authors": 1,
+   "status": "Luna proposal charged 480s. Astra preservation active on frozen proposal hash; 600s cap; reviews pending."
   },
   "lanes": {
    "proposal": {
@@ -44,13 +44,13 @@
    },
    "proof": {
     "owner": "/root/receive_function_introduction_proposal_preservation",
-    "state": "READY",
+    "state": "RUNNING",
     "outputs": [
      "notes/theory/2026-10-17-receive-function-introduction-proposal-preservation.md",
      "tasks/agent-loop/inbox/20261017-receive-function-introduction-proposal-preservation.md"
     ],
     "cap_seconds": 600,
-    "receipt": "Exact proof inputs now frozen: proposal a021cd088a9b0bab768a3fd509602012dae061c54b13a1353045aa80c15b71d4, handoff f999ac5f90c98cccfad271bd8729381afdb8442e201c61ef3a16babf737ff3f1, contract eeca47fc455c5aac9b5f9bb4e5ce6b10b7921599a07a693e2c4ac668442a7503; NOT_STARTED pending actual launch."
+    "receipt": "ACTIVE-WORK 2026-10-17 01:58:15 UTC; current-session Astra assignment accepted exact two proof leases; 600s cap; requested medium, observed model/effort UNKNOWN; no descendants."
    },
    "implementation": {
     "owner": "Luna after a later adoption/source-correspondence gate",
@@ -84,7 +84,7 @@
    "compiler code/tests/builds/probes/execution",
    "source T, native MODEL, production/cutover or parent closure"
   ],
-  "next_boundary": "Launch the bounded Astra preservation author on the frozen proposal hash; no edits to the candidate inputs.",
+  "next_boundary": "Astra applies the fixed candidate clauses to original F2/xi; no input artifact may change.",
   "workers": [
    {
     "id": "/root/resident_dispatcher_loop_a",
@@ -133,20 +133,20 @@
    {
     "id": "/root/receive_function_introduction_proposal_preservation",
     "role": "bounded Astra preservation proof author",
-    "state": "NOT_STARTED",
+    "state": "RUNNING",
     "requested_model": "gpt-6-astra",
     "requested_effort": "medium",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
-    "session": null,
-    "receipt": "Sequential proof lane; starts only after Luna freezes the exact candidate proposal and direct hash."
+    "session": "current-session",
+    "receipt": "ACTIVE-WORK 2026-10-17 01:58:15 UTC; current-session Astra assignment accepted exact two proof leases; 600s cap; requested medium, observed model/effort UNKNOWN; no descendants."
    }
   ]
  },
  "candidate": "tasks/agent-loop/sprints/receive-function-introduction-proposal-20261017.md",
  "baseline": "3f159b109",
  "scope": "Concrete candidate source inference introduction for original c2 F2 using a pinned existing complete descriptor constructor; bounded preservation proof; all parent gates stay OPEN.",
- "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. Luna proposal is frozen; one Astra assignment READY/NOT_STARTED on its exact hash.",
+ "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. Proposal frozen/pushed; one actual current-session Astra preservation author RUNNING on its exact hash.",
  "workers": [
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -195,13 +195,13 @@
   {
    "id": "/root/receive_function_introduction_proposal_preservation",
    "role": "bounded Astra preservation proof author",
-   "state": "NOT_STARTED",
+   "state": "RUNNING",
    "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "session": null,
-   "receipt": "Sequential Astra assignment ready on frozen proposal SHA a021cd088a9b0bab768a3fd509602012dae061c54b13a1353045aa80c15b71d4; NOT_STARTED; no active-work receipt yet."
+   "session": "current-session",
+   "receipt": "ACTIVE-WORK 2026-10-17 01:58:15 UTC; current-session Astra assignment accepted exact two proof leases; 600s cap; requested medium, observed model/effort UNKNOWN; no descendants."
   }
  ],
  "leases": [
@@ -277,7 +277,7 @@
   }
  ],
  "next_action": {
-  "state": "PROOF-READY",
+  "state": "PROOF-RUNNING",
   "dispatcher": "Selector-end plan accepted: concrete source-introduction proposal plus bounded preservation proof; no semantic adoption.",
   "proof": "Attempt preservation of frozen candidate proposal a021cd088a9b0bab768a3fd509602012dae061c54b13a1353045aa80c15b71d4 at original F2/xi; report exact missing local law if blocked.",
   "implementation": "No code lease; waits for later semantic adoption/source correspondence."
@@ -291,9 +291,9 @@
   "coordination_seconds": 60,
   "reserve_seconds": 120,
   "charged_seconds": 480,
-  "active_authors": 0,
+  "active_authors": 1,
   "unknown_reservations_preserved": 3,
-  "status": "Proposal lane charged full 480s cap because elapsed effort was not instrumented. Astra 600s proof and 240s reviews remain; reserve 180s coordination+reserve."
+  "status": "Proposal lane charged 480s; proof author RUNNING from current-session receipt at 01:58:15 UTC; reviews remain pending."
  },
  "history": "Prior reviewed F2 frontier remains partial. New candidate source-introduction proposal frozen at 6d30c44a; it compares selected Strict specialization with a role-indexed CallView bridge, leaving adoption open. Astra preservation lane is ready; implementation has no code authority."
 }
