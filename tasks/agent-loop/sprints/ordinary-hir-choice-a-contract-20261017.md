@@ -1,11 +1,12 @@
 # Sprint ordinary-hir-choice-a-contract-20261017
 
 Status: ACTIVE, Luna-admitted at baseline `0c0fda3974d1db2c91256667f93c46effa18c8d0`.
-Branch: `research/simple-sub-intrusion`; contract revision: 3.
-Rev3 supersedes rev2 SHA `7bbfcb0942b5b4681d9c686208dd236f291af0a74b48de5c7f7bb4f9931754dd`
-only to pin the fixed literal's lexical classifications, competing literal and
-operator branches, header scan and effective operator table. Outcome, output
-leases, budget and non-goals are unchanged.
+Branch: `research/simple-sub-intrusion`; contract revision: 4.
+Rev4 supersedes rev3 SHA `40ac81e1fae3b6e5157fbebc6d5773e7ba70e0416351ef0ddd4e2fe4e669ca22`
+only to pin the fixed literal's header/use/declaration selector routes.
+Outcome, output leases and 1500s total are unchanged. Transfer 120s from reserve
+to coordination: coordination240, reserve60; Astra's 270s remaining, Luna420
+and reviews300 remain unchanged.
 
 ## Parent and fixed outcome
 
@@ -76,6 +77,18 @@ crates/yu-syntax/src/operator_table.rs 369ce0a3a8f5ac39da9da572cfe4fab6f61dd4ca0
 crates/yu-syntax/src/lib.rs 18709b87b1b761374b5b81f90fcbf37d001fd7d981597e889aef05ad3f230f93
 crates/yu-syntax/src/header.rs cd3791144704226f67a05ae3d39aff9b42f4380073b3e9f9817951a493bce5ad
 crates/yu-syntax/src/declaration/operator_header.rs 021e79529445054e5d54bfccf93d2287e94221a99e1554fbd7c715cb0706edbd
+crates/yu-syntax/src/declaration/mod.rs cf1067280be3974a5702b18f47ac02cf824c9d8cf971c1bdbc1b143676fc5c71
+crates/yu-syntax/src/declaration/use_decl.rs 8a0143f4c7bb187211076f725e5116424b499c3d9c0929d9681e978e3ab83cb6
+crates/yu-syntax/src/declaration/mod_decl.rs 6adf9945e096ee027886a05857f6c187134a5331e4ab37493d95304255760741
+crates/yu-syntax/src/declaration/struct_decl.rs 7b36b18fc6ef3e149e756a37b0f74719a5ae40be195c6986efe2c44d57fa3de4
+crates/yu-syntax/src/declaration/type_decl.rs e01d1f30c1dca051fb590a9fddac1686621fc789444f9cb053dcc269e746c134
+crates/yu-syntax/src/declaration/enum_decl.rs 9c717571426927a3619330b372ec721d1f660377ecd45c6f0ab7f6cf9ed3ec31
+crates/yu-syntax/src/declaration/error_decl.rs 56eace59a91d156f59d27a348e98ea353e9cc96595a49fc0f7e58d36dcd7a028
+crates/yu-syntax/src/declaration/role_decl.rs 0ec972a3acc036764a9d1407e292a4c676a24beb4cd0b5c3348c093cf3cf8634
+crates/yu-syntax/src/declaration/impl_decl.rs 026edcb3e6d3c9f2214be8b9fa9fd510378b64152de55673c18cb93373f62066
+crates/yu-syntax/src/declaration/cast_decl.rs c4907b91f0cbe72606597fb6ef1918c757e9f78621a2c4c68bf0632fe629a0ed
+crates/yu-syntax/src/declaration/act_decl.rs f1af95a12df81900564c83d0aad541064eb2fff21ca41259b7a943ae3ad4fd74
+crates/yu-syntax/src/expression/for_decl.rs fd50ab8b049addc3c366a0eda5519fd38bda31a2b518ba139d90ad24949714ec
 crates/yu-hir/src/lib.rs 5bdcb7c0df022da919cef5402c62dc1c7baf0700a4d06e526a608cbd7db21464
 crates/yu-hir/src/module.rs 2e0c579a525efd5ac4c7ce0f06189c568ed46c7382d4576698a0b8d846c2228e
 crates/yu-hir/src/module/local_source.rs ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5
@@ -113,8 +126,14 @@ reliance. Process rules: `rules/goal-driven-sprints.md`,
    actual effective operator table from the pinned empty syntax environment,
    empty header and operator compilation/table owners; `SyntaxEnvironment::empty`
    alone is not that evidence. Do not generalize to comments, Unicode, fences,
-   strings or arbitrary layout. If an indispensable fact falls outside these
-   function branches, freeze the exact residual instead of assuming it.
+   strings or arbitrary layout. For root dispatch, rely only on header/use/
+   operator selection at the three `my` heads, negative declaration selectors
+   and reached prefix helpers for `id`, `apply`, `answer`, positive binding
+   selection and declaration reexports, and the negative word comparison in
+   `for_statement_selected`. Do not inspect declaration bodies or assert general
+   dispatch completeness. Any further unpinned dependency or budget exhaustion
+   ends this audit with the exact residual; no further pin amendment is allowed
+   in this sprint.
 2. After confirmed STOP and frozen audit, Luna/high, at most 420s: exact
    successor contract. Exact write leases:
    `notes/design/2026-10-17-ordinary-hir-application-admission-successor.md` and
@@ -125,7 +144,7 @@ reliance. Process rules: `rules/goal-driven-sprints.md`,
    overlap; freeze changed bytes as a new revision and delta-review findings.
 
 Fresh sprint cap: 1500s total: source audit 480, design 420, reviews 300,
-coordination 120 (including selector), reserve 180. One author or reviewer at a
+coordination 240 (including selector), reserve 60. One author or reviewer at a
 time. Preserve all three inherited UNKNOWN leases and their reservations; do
 not reclaim, overlap or misreport them. Authors report actual worker IDs,
 requested/observed model metadata (UNKNOWN if absent), STOP and write cessation.
