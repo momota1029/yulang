@@ -14,8 +14,8 @@
     "fixed_outcome": "Draft authentic source operand-use intro at μ_H; apply to M_exit/F1 P2 or freeze exact obstruction. Conditional static producer/consumer contract only if concrete fields emerge.",
     "authority": "User authorized continued Goal, proof and bridge-rule drafting. Adoption and compiler changes remain separately gated.",
     "review": {
-      "state": "COMPILER-CLEAN-SPEC-READY",
-      "current_reviewer": null,
+      "state": "SPEC-AUDITOR-RUNNING",
+      "current_reviewer": "/root/catch_operand_use_spec_review",
       "sequence": [
         "compiler_referee",
         "spec_auditor",
@@ -204,6 +204,18 @@
       "started_at_utc": "2026-10-17 05:22:23 UTC",
       "receipt": "CLEAN bounded read-only review by message; 120s conservatively charged; no edits or descendants.",
       "stopped_at_utc": "2026-10-17 05:22:54 UTC"
+    },
+    {
+      "id": "/root/catch_operand_use_spec_review",
+      "role": "spec_auditor",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "started_at_utc": "2026-10-17 05:23:16 UTC",
+      "receipt": "Actual read-only review task accepted; frozen artifact/contract pins supplied; effective model metadata unavailable."
     }
   ],
   "leases": [
