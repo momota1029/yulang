@@ -70,7 +70,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live receipt 21:57Z: contract and all direct dependency/source/fixture pins MATCH. Tracing exact Local route consumer and scoped-cap sites before edits; no blocker identified. No files touched; ~13 minutes implementation/review handoff estimate within 960s cap; requested Luna/high, observed UNKNOWN."
+      "receipt": "Code freeze 22:02Z; six source/test hashes verified by Luna. Added regressions scoped_local_callee_route_survives_a_later_local_argument_use and unscoped_candidate_collection_does_not_inherit_the_scoped_record_cap. No commands run. Direct peeled local callees supported; recursive Apply/alias/If/Catch still refused. ~390s left incl untouched360s verification reserve; author may finish progress/handoff only."
     },
     {
       "id": "/root/npair_original_formation_review",
@@ -86,13 +86,13 @@
     {
       "id": "/root/npair_exact_local_route_review",
       "role": "fresh independent compiler review",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Sol/compiler_referee",
       "requested_effort": "high <=180s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Wait for exact frozen source/regr/handoff changes; review both MAJOR regressions."
+      "receipt": "Fresh independent compiler review launched against six exact frozen source/test hashes; <=180s; no commands or edits authorized."
     }
   ],
   "leases": [
@@ -130,6 +130,36 @@
       "path": "tasks/agent-loop/inbox/20261018-operation-original-formation.md",
       "owner": "/root/npair_original_formation_compatibility",
       "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "owner": "/root/npair_exact_local_route",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_call.rs",
+      "owner": "/root/npair_exact_local_route",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root/npair_exact_local_route",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-solver/src/shadow_apply.rs",
+      "owner": "/root/npair_exact_local_route",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "owner": "/root/npair_exact_local_route",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-solver/src/tests/candidate_graph_call.rs",
+      "owner": "/root/npair_exact_local_route",
+      "state": "FROZEN"
     }
   ],
   "pending": [],
@@ -138,5 +168,5 @@
     "required": false,
     "receipt": "All prior sprint authors/reviewers STOPPED. New proof/implementation leases acknowledged with runtime start receipts; reviewers WAITING. No descendants or unknown live writers."
   },
-  "next_action": "Proof review CLEAN only for research checkpoint; retain all three adoption blockers and parent0. Continue local route source edits; wait for exact frozen code and handoff, then launch fresh compiler review before the two authorized verification commands."
+  "next_action": "Six source/test files frozen and hash-verified; fresh independent compiler review is RUNNING. No commands before CLEAN review; preserve 360s verification reserve."
 }
