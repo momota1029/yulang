@@ -8,18 +8,24 @@
   "contract": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
   "revision": 1,
   "sha256": "03220c10c137f2880b3f3736675e7ee720f7d36e2af069cd0503ae569c4298cc",
-  "state": "RUNNING",
+  "state": "REVIEW-PENDING",
   "baseline": "520398c4a0cd0b32b06792a5688b64a5af9100d5",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original A/B theorem and production gates OPEN.",
   "fixed_outcome": "Construct complete source formation for original inferred F2/xi in the existing descriptor universe with lawful transport, or freeze a reviewed precise bridge proposal and first indispensable producer/embedding law. Keep actual membership, VIncl(A1,F2), c2 image and ambient joins separate.",
   "review": {
-   "state": "NOT_STARTED",
-   "current_reviewer": null,
+   "state": "REVIEW-PENDING; frozen candidate not accepted",
+   "current_reviewer": "compiler_referee",
    "sequence": [
     "compiler_referee",
     "architect",
     "spec_auditor"
-   ]
+   ],
+   "target": {
+    "artifact": "notes/theory/2026-10-17-receive-inferred-function-view-formation.md",
+    "sha256": "7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590",
+    "handoff": "tasks/agent-loop/inbox/20261017-receive-inferred-function-view-formation.md",
+    "handoff_sha256": "a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a"
+   }
   },
   "resources": {
    "cap_seconds": 1800,
@@ -28,20 +34,20 @@
    "review_cap_seconds": 360,
    "coordination_seconds": 120,
    "reserve_seconds": 120,
-   "charged_seconds": 0,
-   "active_authors": 1,
-   "status": "Proof author active on exact leases; 900s cap, three inherited UNKNOWN reservations preserved. Implementation waits for proof STOP and clean review."
+   "charged_seconds": 420,
+   "active_authors": 0,
+   "status": "Proof STOPPED after 394s actual elapsed; 420s charged. Three fresh sequential reviews reserved up to 360s. Conditional implementation lane still WAITING; three inherited UNKNOWN reservations retained."
   },
   "lanes": {
    "proof": {
     "owner": "/root/receive_inferred_function_view_formation",
-    "state": "RUNNING",
+    "state": "FROZEN; REVIEW-PENDING",
     "outputs": [
      "notes/theory/2026-10-17-receive-inferred-function-view-formation.md",
      "tasks/agent-loop/inbox/20261017-receive-inferred-function-view-formation.md"
     ],
     "cap_seconds": 900,
-    "receipt": "ACTIVE-WORK received 2026-10-17 01:37:16 UTC; actual astra_prover launch, exact two-path proof lease; requested Astra/medium, observed model/effort UNKNOWN; no descendants."
+    "receipt": "Artifact 7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590; handoff a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a; all ten contract pins and two extra locators rechecked. Five stages; source-local F2 intro and joint embedding remain open."
    },
    "implementation": {
     "owner": "Luna/high, conditional after proof STOP and fresh review",
@@ -59,6 +65,14 @@
    {
     "path": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
     "sha256": "03220c10c137f2880b3f3736675e7ee720f7d36e2af069cd0503ae569c4298cc"
+   },
+   {
+    "path": "notes/theory/2026-10-17-receive-inferred-function-view-formation.md",
+    "sha256": "7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590"
+   },
+   {
+    "path": "tasks/agent-loop/inbox/20261017-receive-inferred-function-view-formation.md",
+    "sha256": "a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a"
    }
   ],
   "non_goals": [
@@ -67,7 +81,7 @@
    "actual provider membership or VIncl from descriptor formation alone",
    "source T closure, anchored native MODEL, production conformance/cutover or parent theorem closure"
   ],
-  "next_boundary": "Launch bounded Astra core proof on exact frozen dependencies; implementation is conditional and has no code lease.",
+  "next_boundary": "Fresh independent reviews sequentially; adjudicate candidate. Implementation design delta only if review confirms concrete new constructor evidence.",
   "workers": [
    {
     "id": "/root/resident_dispatcher_loop_a",
@@ -116,20 +130,20 @@
    {
     "id": "/root/receive_inferred_function_view_formation",
     "role": "bounded Astra constructive proof author",
-    "state": "RUNNING",
+    "state": "STOPPED",
     "requested_model": "gpt-6-astra",
     "requested_effort": "medium",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "ACTIVE-WORK received 2026-10-17 01:37:16 UTC; actual astra_prover launch, exact two-path proof lease; requested Astra/medium, observed model/effort UNKNOWN; no descendants."
+    "receipt": "FROZEN/STOPPED 2026-10-17 01:43:50 UTC; proof artifact frozen 01:43:02 UTC; 394s actual elapsed to stop, conservative charge 420/900s; five stages, no descendants/scratch. Handoff r1 and proof hashes recorded; effective model/effort UNKNOWN."
    }
   ]
  },
  "candidate": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
  "baseline": "520398c4a0cd0b32b06792a5688b64a5af9100d5",
  "scope": "Original inferred F2/xi source formation and exact existing-universe producer/transport bridge; full original source/native parent remains OPEN.",
- "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. One actual current-session Astra proof author RUNNING; no implementation author.",
+ "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. Proof author STOPPED; frozen candidate under sequential fresh review; no implementation author.",
  "workers": [
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -178,13 +192,13 @@
   {
    "id": "/root/receive_inferred_function_view_formation",
    "role": "bounded Astra constructive proof author",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "ACTIVE-WORK received 2026-10-17 01:37:16 UTC; actual astra_prover launch, exact two-path proof lease; requested Astra/medium, observed model/effort UNKNOWN; no descendants."
+   "receipt": "FROZEN/STOPPED 2026-10-17 01:43:50 UTC; proof artifact frozen 01:43:02 UTC; 394s actual elapsed to stop, conservative charge 420/900s; five stages, no descendants/scratch. Handoff r1 and proof hashes recorded; effective model/effort UNKNOWN."
   }
  ],
  "leases": [
@@ -206,12 +220,14 @@
   {
    "path": "notes/theory/2026-10-17-receive-inferred-function-view-formation.md",
    "owner": "/root/receive_inferred_function_view_formation",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590"
   },
   {
    "path": "tasks/agent-loop/inbox/20261017-receive-inferred-function-view-formation.md",
    "owner": "/root/receive_inferred_function_view_formation",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a"
   }
  ],
  "pending": [
@@ -247,10 +263,10 @@
   }
  ],
  "next_action": {
-  "state": "RUNNING",
-  "dispatcher": "Selector proposal adopted as sprint plan: original F2 formation; conditional producer-delta design only after proof and review; no semantic adoption or compiler-code authority.",
-  "proof": "Target existing descriptor universe; construct all source-owned dependent fields and lawful transport or identify the first missing producer/embedding law. Preserve original F2/A1/xi.",
-  "implementation": "WAITING conditional on concrete proof evidence and fresh review; design delta only, no compiler code."
+  "state": "REVIEW-PENDING",
+  "dispatcher": "Selector consulted at owner-level obstruction: preserve active packet, leases and cap; no resource change.",
+  "proof": "F2 introduction plus joint descriptor embedding still open; pinned Generalize supplies only downstream closure. Original parent and c2 residual obligations preserved.",
+  "implementation": "WAITING; only source-producer design delta if frozen proof supplies concrete new constructor evidence after review; no code lease."
  },
  "resource_accounting": {
   "sprint_id": "receive-inferred-function-view-formation-20261017",
@@ -260,12 +276,12 @@
   "review_cap_seconds": 360,
   "coordination_seconds": 120,
   "reserve_seconds": 120,
-  "charged_seconds": 0,
-  "active_authors": 1,
+  "charged_seconds": 420,
+  "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Proof author RUNNING from actual current-session launch receipt at 2026-10-17 01:37:16 UTC; effective model/effort UNKNOWN."
+  "status": "Proof STOPPED; 394s elapsed to STOP, conservatively charged 420s. Three sequential reviews pending; implementation remains conditional."
  },
- "history": "Prior checkpoint 520398c4a froze reviewed-partial c2 frontier: complete inferred F2 formation is the first unavailable law; candidate bridge remains unselected. New sprint targets the original source-owned Function formation judgment while retaining all existing descriptor/membership meanings and parent gates.",
+ "history": "Prior checkpoint 520398c4a froze reviewed-partial c2 frontier: complete inferred F2 formation is the first unavailable law; candidate bridge remains unselected. New sprint targets the original source-owned Function formation judgment while retaining all existing descriptor/membership meanings and parent gates. Frozen proof candidate and handoff r1: source-local F2 inference introduction and joint embedding remain unsupported; 420s charged; review sequence compiler_referee, architect, spec_auditor.",
  "checkpoint_commits": [
   "9948ca23f7034dd67d878257db3df2237a7e66bd",
   "d1b706e83",
