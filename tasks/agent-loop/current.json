@@ -20,8 +20,8 @@
   },
   "resources": {
    "cap_seconds": 1800,
-   "charged_seconds": 1140,
-   "available_seconds": 660,
+   "charged_seconds": 1260,
+   "available_seconds": 540,
    "retired_seconds": 0,
    "allocation": "Astra proof600 + Luna implementation360 + independent reviews480 (compiler180, spec120, architect90, regression pre/post45 each) + coordination120 + one Cargo verification120 + reserve120."
   },
@@ -65,8 +65,8 @@
    {
     "id": "/root/module_use_spec_review",
     "role": "spec independent reviewer",
-    "state": "RUNNING",
-    "receipt": "Fresh read-only spec review after compiler/source CLEAN; cap120s."
+    "state": "STOPPED",
+    "receipt": "CLEAN; 120/120 seconds conservatively charged; all 17 baseline pins and frozen output hashes matched; 0 original conditions closed."
    }
   ],
   "leases": [
@@ -119,7 +119,7 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Spec reviewer RUNNING (cap120) after compiler/source CLEAN; then architect/API90 and regression pre-run45 sequentially.",
+  "next_action": "Spec review CLEAN and STOPPED (120 charged). Launch architect/API review cap90, then regression pre-run cap45; Cargo only after CLEAN regression review.",
   "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."
