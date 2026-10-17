@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-native-introduction-correspondence-20261018.md",
     "revision": 2,
     "sha256": "91c4559c60a23b1f683dd26a63c777c98da26d45db5b95eb0ae2325d708501a7",
-    "state": "RUNNING-SOL-PROOF",
+    "state": "ASSIGNED-LUNA-REGRESSION",
     "baseline": "a47234eae",
     "parent": "Original Simple-sub theorem and N-Port-Intro; all original claims, quantifiers, source domain and source-native requirements unchanged.",
     "fixed_outcome": "Prove the applied internal concrete-only candidate_effect.rs producer corresponds to adopted N-Port-Intro, or isolate the first exact descriptor-to-row/source owner gap. Parent closure requires actual source constructor and consumer; this internal producer audit alone cannot close it.",
@@ -22,16 +22,16 @@
       "original_conditions_closed": 0,
       "local_conditions_closed": 0,
       "fixed_family_conditions_closed": 0,
-      "proof_class": "Luna audit frozen; Sol proof actively testing TermView recovery and all recursive variance paths.",
-      "implementation_class": "No code/test change yet; optional internal-only test after Sol STOP."
+      "proof_class": "Sol froze bounded constructor correspondence and authentic retained-row recovery proof; fresh independent review pending; parent gates remain open.",
+      "implementation_class": "Luna regression assignment started; no test execution yet."
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 720,
-      "available_seconds": 1080,
+      "charged_seconds": 1020,
+      "available_seconds": 780,
       "allocation": "Luna owner audit120 + Sol/high constructive proof600 after freeze + optional Luna code/test300 + compiler180 + spec120 + optional architecture120 + focused verification120 + integration120 + reserve120; Astra assignments0."
     },
-    "next_action": "After Sol STOP, Luna adds the exact internal producer regression if the proof confirms a safe test; then run scoped fresh reviews."
+    "next_action": "Add a focused internal-only candidate_effect regression for RR/AA permission paths, opposite paired projections, and first-edge/post-publication rollback; then run its single focused test and independent reviews."
   },
   "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer. Previous sprint ordinary-hir-applied-conformance-repair-20261017 closed REVIEWED-PARTIAL at commit 0717a882c: focused unit8/8, corrected HIR9/9, solver candidate vertical1/1; original theorem conditions closed0. Exact receipts and rev8 CLEAN reporting review remain under notes/progress and prior handoff. Rev7 spent2760/2760; after-cap solver receipt documentation time UNKNOWN, not retrocharged. New original Call generation sprint starts at baseline0717a882c; decomposition180/180 charged. Prior rev8 review-only envelope charged auditor60 and Luna coordination30; final reserve30 retired without carryover. Documentation correction after rev7 had UNKNOWN actual duration, not retrocharged. Previous `module-use-source-map-and-provisional-observer-20261017` closed REVIEWED-PARTIAL at 0114f997b: proof map actual structural route + conditional ModulePubUse* intro/inversion/conservation, original conditions0; candidate observer and fixed-source regression PASS 2/2. O(n^2)/O(n) proof annotation cost; no compiler complexity claim. Reviews technical CLEAN; post-run reviewer disclosed one read-only `git show --stat --oneline 185b0db29`, no file changes or essential unpinned evidence. Charged1442/1800; unused358 retired, no budget carry.; module-source-family-embedding-20261017 closed REVIEWED-PARTIAL: original conditions0; source handle owner premise unresolved; native field-map revision2 pending architect delta review; 2160/2160 charged, no code/tests; Closed module-source-family-embedding-20261017 REVIEWED-PARTIAL at full2160/2160, original conditions0. Conditional source proof corrected after compiler+spec reviewers found same-occurrence handle owner gap; compiler delta passed. Native field-map contract revision2 synchronizes conditional new, transient module FreshUse remaps and proposed/unverified complexity; architect delta review still pending in next sprint. No compiler behavior/tests. Closed module-source-handle-introduction-20261017 REVIEWED-PARTIAL at commit 9f8a03bdf: compiler and spec reviews CLEAN; original theorem conditions0; exact typed materialization owner HINTRO-OWNER-u_id remains open; no code/tests. Next action chose candidate module FreshUse remap retention with an ownership/accounting proof, independent of selecting handle semantics.; module-use-retained-native-transport-20261017 CLOSED-REVIEWED-PARTIAL at 20821b42d: original theorem conditions0; checked module FreshUse map ownership/accounting, cargo check and focused regression passed; independent compiler/architecture/spec reviews found no blocking/major findings, one minor source-comment wording note; commit pushed. Next selector chose module-reference-materialization-20261017.; module-reference-materialization-20261017 CLOSED-REVIEWED-PARTIAL at 14820b4eec8688efa84cf76135694082ccf4f966 and pushed: one local HINTRO-OWNER-u_id premise closed under adopted authority; global theorem conditions0; source/native readiness contract only, no implementation code; Astra policy reduced to default0/one named risk/300s/3 stages and independently CLEAN; tooling check and 53 simulator tests pass.; module-registered-root-embedding-20261017 CLOSED-REVIEWED-PARTIAL at fbb608f50: compiler/source and spec reviews CLEAN; original conditions0; conditional RetainModuleContract* is packaging only, no registration/embedding; owner audit NO_SAFE_CODE_SLICE, no code/tests; 1080/1800 charged,720 retired, Astra0. Next definition proposal for actual module contract registration.; module-contract-registration-definition-20261017 CLOSED-REVIEWED-PARTIAL: one local MODULE-REGISTERED-ROOT-u_id premise adopted/applied under Sigma_M; unchanged Reg_orig/global theorem gates closed0; compiler/source/spec/architecture CLEAN; no code/tests, NO_SAFE_CODE_SLICE; 1200/1500 charged,300 retired,Astra0. Next Sigma_M→IF/Call consumer applicability. Closed module-registration-call-consumer-20261017 contract at ff7e64375; active proof600 + read-only audit180; Astra0. Original theorem gates closed0. Closed module-registration-call-consumer-20261017 at partial adopted outcome: local MODULE-DATA-NAME-u_id@Sigma_MI +1 (total local2 including prior MReg); fixed-family/global closures0; NO_SAFE_CODE_SLICE; reviews CLEAN; 1200/1500,300 retired,Astra0. Closed module-registration-call-consumer-20261017 partial-adopted: MODULE-DATA-NAME-u_id@Sigma_MI local+1; fixed/global gates0; reviews CLEAN; NO_SAFE_CODE_SLICE;1200/1500,300 retired,Astra0. Started module-callee-result-formation-20261017 at baseline e92f44e; proof720 active,Astra0. Closed module-callee-result-formation-20261017 partial: original conditions0, no local closures, old raw-P/u_x mismatch exact; proposal unadopted; compiler/spec/architecture CLEAN; implementation WAITING;1140/1500,360 retired,Astra0. Closed module-callee-result-formation-20261017 partial: original/local closure0; exact u_x/source sort boundary; reviews CLEAN; proposal unadopted;1140/1500,360 retired,Astra0. Started module-source-owned-result-formation-20261017 at baseline d84b271; proof720 active,Astra0. Closed module-source-owned-result-formation-20261017 partial: actual same-u_id normalization derived/applied; no Return catalogue/port/q_f, local/full closures0; reviews CLEAN;1140/1500,360 retired,Astra0. Closed module-source-owned-result-formation-20261017 partial: same-u_id normalization derived/applied, no Return catalogue/port/q_f, closures0; reviews CLEAN;1140/1500,360 retired,Astra0. Started mi-return-clause-formation-20261018 at baseline e7749d3; proof720 active,Astra0.; mi-return-clause-formation-20261018 CLOSED-REVIEWED-PARTIAL: local/fixed/global closures0/0/0; same-site Cat/PortProv decomposition isolated missing H_Return/intro/maps/whole-interface law/license declaration; compiler/spec/architecture CLEAN; no port/q_f or implementation; charged1140/1500,360 retired,Astra0. Closeout notes/progress/2026-10-18-mi-return-clause-formation-closeout.md.; mi-return-clause-formation-20261018 CLOSED-REVIEWED-PARTIAL at 17ab5cd04: original/local/fixed closures0/0/0; Return-Form_MI relative composition CLEAN under compiler/spec/architecture review; precise independent H_Return/local-intro/maps/interface-law/license declaration remains unsupplied; no port/q_f/code/tests; 1140/1500 charged,360 retired,Astra0; closeout notes/progress/2026-10-18-mi-return-clause-formation-closeout.md. mi-return-local-declaration-20261018 CLOSED-REVIEWED-PARTIAL: ONE/TWO withdrawn after compiler major; rev2 compiler/spec delta CLEAN; original/local/fixed closure0/0/0; actual Return declaration/port/license/q_f absent; implementation WAITING under NO_SAFE_CODE_SLICE; 1560/1800 charged,240 retired,Astra0; closeout notes/progress/2026-10-18-mi-return-local-declaration-closeout.md. mi-return-port-license-construction-20261018 CLOSED-REVIEWED-PARTIAL: candidate phase split/source-owned license coherent but untyped; first consumer Port_Return(h_done)/i_result type/map absent; no mapping to SIG Op independent license (empty fiber falsifier); intro identity must be stratified; compiler no substantive issue with checksum minor repaired, spec/architecture CLEAN; candidate unadopted; original/local/fixed closures0/0/0, q_f absent; implementation WAITING/quarantine;1380/1500 charged,120 retired,Astra0; closeout notes/progress/2026-10-18-mi-return-port-license-closeout.md. mi-return-port-license-construction-20261018 CLOSED-REVIEWED-PARTIAL at f91645e1c: 0/0/0 closures; candidate phase schema coherent but untyped; i_result type/map missing at Port_Return; no independent license bridge, intro stratification unresolved; compiler/spec/architecture reviews complete; candidate unadopted; no q_f/code, Astra0. mi-return-incidence-telescope-20261018 CLOSED-REVIEWED-PARTIAL: original/local/fixed closure0/0/0; ReturnIntroId_MI forms pre-license; abstract MI schemas and completed ReturnMem pointwise reuse; no total prefix lift because chi_z CodeOccurrence_MI intro absent/empty-fiber zero-prefix counterinterpretation, EnvAt and witness coherence open; old Port_Return/license/registry/Code bridges absent, no q_f; compiler/spec/architecture CLEAN scoped reviews; unadopted; implementation WAITING/quarantine;1200/1200,Astra0; closeout notes/progress/2026-10-18-mi-return-incidence-telescope-closeout.md. mi-return-incidence-telescope-20261018 CLOSED-REVIEWED-PARTIAL at ab8344e4b: closure0/0/0; bare ReturnIntroId_MI pre-license; abstract phase product and completed ReturnMem pointwise on original domain; prefix lift fails chi_z CodeOccurrence_MI empty-fiber; EnvAt/coherence and all old bridges open; three reviews CLEAN scoped; no q_f/code, Astra0. mi-return-prefix-total-transport-20261018 CLOSED-REVIEWED-PARTIAL: original/local/fixed0/0/0; Sol proved retraction necessity and relative zero-prefix empty-CodeOccurrence obstruction; original typed prefix package/constructors/eliminators absent in bounded §4.2 owner; Draft C has no old map; compiler/spec/architecture CLEAN; no q_f/o_f/old bridges/code/tests; charged1140/1500,360 retired,Astra0; closeout notes/progress/2026-10-18-mi-return-prefix-total-transport-closeout.md. Selector next: adopted NPAIR native producer correspondence with Luna audit and conditional safe candidate_effect implementation.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN.",
@@ -39,13 +39,13 @@
     {
       "id": "/root",
       "role": "Luna-primary-source-owner",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna",
-      "requested_effort": "high, ≤120s / 3 stages",
+      "requested_effort": "high, ≤300s / 3 stages",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Luna owner audit STOP; frozen proposal/inbox SHA 45c8331a5d76ff1701ee5f5aacec710a13bb0088495b1c682ae6e4024dfef9eb / ee726fa84b59eb30522d2028deb75b6279b8d3e2d2b37b05505cd22360b784ee; no descendants."
+      "receipt": "Sol STOP confirmed; Luna focused regression assignment started in current session, exact code write lease candidate_effect.rs only; cap300s; no descendants/Astra."
     },
     {
       "id": "inherited UNKNOWN writer",
@@ -60,13 +60,13 @@
     {
       "id": "/root/registered_root_proof",
       "role": "Sol-constructive-source-native-proof",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high, ≤600s / 6 stages",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Launched by Luna followup_task this current session against frozen NPAIR rev2 handoff; cap600s, no descendants, no Astra."
+      "receipt": "Frozen proof/inbox SHA a26b7cea699597af0b8d56605169a0c2328030e139911573e2112c776039ea40 / 9bccfa35dff86b2fe857da6167fe96ca37e9440c90b99637ec7f3035a434b57b; six stages; full600 charged; runtime/model UNKNOWN; no descendants."
     }
   ],
   "leases": [
@@ -98,18 +98,23 @@
     {
       "path": "notes/theory/2026-10-18-npair-native-introduction-correspondence.md",
       "owner": "/root/registered_root_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-native-introduction-correspondence.md",
       "owner": "/root/registered_root_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_effect.rs",
+      "owner": "/root",
       "state": "HELD"
     }
   ],
   "pending": [
     {
       "id": "NPAIR-NATIVE-INTRO-CORRESPONDENCE-1",
-      "state": "Sol proof RUNNING against frozen proposal and exact pinned producer/term owners. Luna waits for writer STOP before implementation/test lease."
+      "state": "Sol proof STOPPED and frozen; Luna regression RUNNING under exact candidate_effect.rs-only code lease; verification is one focused unit test. Fresh compiler/source and spec reviews follow STOP."
     }
   ]
 }
