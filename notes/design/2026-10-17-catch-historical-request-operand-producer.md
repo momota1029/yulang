@@ -207,10 +207,14 @@ contract. This note is new and unadopted; none of those sources claims a
 complete historical operand producer.
 
 No tests, builds, runtime execution, probes, code edits or expected-output
-changes. Static source/design reading and exact SHA-256 checks only. The
-Function-response specimen remains rejected before capture/pop, and no
-successful fixed-case output is claimed. Independent compiler, spec and
-architect reviews are pending. Requested role: Luna/high; effective model
-metadata: UNKNOWN. Stop condition: any need to define accepted semantic
-formation, change a guard, or infer typed Event evidence returns to the source
-formation owner and dispatcher.
+changes. Static source/design reading and exact SHA-256 checks were used. The
+repository workflow command `python3 tools/agent_sprint.py check` also passed
+at the frozen-state checkpoint; this is static packet/metadata consistency
+evidence, not a compiler test, execution, or theorem check. The Function-
+response specimen remains rejected before capture/pop, and no successful
+fixed-case output is claimed. The compiler review was CLEAN for the substantive
+claims on the preceding artifact bytes; the reporting correction is under
+specification delta review, with final architecture review pending. Requested
+role: Luna/high; effective model metadata: UNKNOWN. Stop condition: any need
+to define accepted semantic formation, change a guard, or infer typed Event
+evidence returns to the source formation owner and dispatcher.

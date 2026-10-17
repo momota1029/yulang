@@ -1,8 +1,8 @@
 Sprint: `catch-response-challenge-and-historical-operand-20261017`, contract revision 2, SHA-256 `f5d781851e0a2babcf3a6ea4746c97ecb97acc0777fc8a73d7a6b7ab08a7e057`.
 
-Assignment ID: `CATCH-HISTORICAL-REQUEST-OPERAND-PRODUCER-20261017`, handoff revision 1. Parent: original FORWARD-FIRST-CALL A/B, F1/FK1, `M_exit`, source/native and production OPEN. Semantic baseline `7eb34a0a9`; exact source checkpoint `9d455a6f8`.
+Assignment ID: `CATCH-HISTORICAL-REQUEST-OPERAND-PRODUCER-20261017`, handoff revision 2. This revision supersedes handoff rev1 SHA-256 `102c722994260deb54f3b2492908ea3437f8bfd9e1edb2acc8f579d6b436e281` and updates only verification/review/resource receipts. Parent: original FORWARD-FIRST-CALL A/B, F1/FK1, `M_exit`, source/native and production OPEN. Semantic baseline `7eb34a0a9`; exact source checkpoint `9d455a6f8`.
 
-Role/owner: Luna primary, Luna/high source correspondence. Requested model/effort `UNKNOWN/UNKNOWN`; observed effective metadata `UNKNOWN/UNKNOWN`. Primary-owned exact leases: `notes/design/2026-10-17-catch-historical-request-operand-producer.md` and this handoff. No coauthor or descendant. Writer STOP receipt follows after commit of the frozen bytes.
+Role/owner: Luna primary, Luna/high source correspondence. Requested model/effort `UNKNOWN/UNKNOWN`; observed effective metadata `UNKNOWN/UNKNOWN`. Primary-owned exact leases: `notes/design/2026-10-17-catch-historical-request-operand-producer.md` and this handoff. No coauthor or descendant. Luna STOPPED after freezing artifact revision 2 and handoff revision 2; no pending writes or descendant leases remain.
 
 Outcome class: unapplied Draft source-contract / static producer-owner correspondence; no implementation, source-semantic theorem, source-qualified counterexample, or adoption.
 
@@ -24,11 +24,11 @@ Source/native chain: Request HIR/runtime producer → `PendingRequest` fields/ev
 
 All 25 pins in contract revision 2 matched before reliance and at freeze. The frozen input includes target proposal SHA `6fb1fa9844b98fb8173d2faef2c609e35ea65248d78bf193c39ab7a85cee00d4`, predecessor metadata rev2 SHA `08810547e1cfe405bd91f59d96fcc3d200075d36b3ebb92882f3a1d486f63983`, and the checked-challenge obstruction SHA `6c89912063c1c266ea974ead2e89c1a18cce109e2e94c78b42c95836e3d50591` with handoff `ddb186a0431bcd87603cc376ee6c093ec42e1a90e33ce50d7056632b7871dbf3`.
 
-Artifact: `notes/design/2026-10-17-catch-historical-request-operand-producer.md`, SHA-256 `601a9f92815d48a5cfd6962c8a4c1536c00775b904897b030e0dc4472c56a418`.
+Artifact revision 2: `notes/design/2026-10-17-catch-historical-request-operand-producer.md`, SHA-256 `ae6f035454acf297a578681eb44d6360eec0dc508ffa7a766597cdb1cc933b6b`.
 
-Review status: frozen snapshot awaits fresh independent compiler referee, spec auditor, architect in sequence. Their scope must not certify semantic adoption, all-response proof or production. Author STOPPED; no descendants or unresolved leases.
+Review status: compiler referee was CLEAN on the substantive claims in artifact rev1 SHA `601a9f92815d48a5cfd6962c8a4c1536c00775b904897b030e0dc4472c56a418`. The independent spec review found one MINOR verification-receipt inconsistency; this rev2 corrects it. A bounded spec delta and final architect review remain. These reviews must not certify semantic adoption, all-response proof or production. Author STOPPED; no descendants or unresolved leases.
 
-Checks/evidence: source, design, dependency hash inspection and `python3 tools/agent_sprint.py check` only. No tests, build, execution, probes, Git by author, network or compiler changes. Source lane charge and current-state STOP receipt are recorded by Luna. The prior proof author charged 270/720s; its unused 450s were retired. Current envelope remains ≤1050s total: 270 charged + 780 allocated/available, without reset or transfer.
+Checks/evidence: source/design inspection and SHA-256 checks; `python3 tools/agent_sprint.py check` passed as static packet/metadata consistency evidence only (not compiler execution, a test, or proof), and was not rerun for this reporting repair. No tests, builds, runtime execution, probes, network, or compiler changes. The repair used the existing frozen paths; Luna records 60/60 seconds conservatively. Accounting: proof270 + source260 + compiler120 + initial spec90 + reporting repair60 = **800s charged**; **490s retired** (proof450 + source40); **210s remain** for spec delta60 + architect90 + coordination60; reserve0 after its authorized transfer. Total is 1500s; no reset or unapproved transfer.
 
 ## Mutual TODOs
 
