@@ -4,226 +4,121 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "resultbind-local-interface-introduction-20261017",
-    "contract": "tasks/agent-loop/sprints/resultbind-local-interface-introduction-20261017.md",
-    "revision": 2,
-    "sha256": "c1f0cbde6a3d705524b31e747dee09a0b368e64a3409a1b23303cc8945cbad0c",
-    "state": "REVIEWED-CLEAN-BOUNDED",
-    "baseline": "995d83b58",
-    "parent": "Original FORWARD-FIRST-CALL A/B; c2 F2/IF(g) formation, VIEW/CHECK remain OPEN with original scope.",
-    "fixed_outcome": "Derive open g interface before c1 Return and actual same-Return ResultBind/Name-use projection; draft a precise unselected source rule if needed; map only concretely derived fields into an unapplied retention contract.",
+    "id": "f2-owning-inlet-introduction-proposal-20261017",
+    "contract": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
+    "revision": 1,
+    "sha256": "44a59f25404c691f3128963490327587aae9ad2f5becaa62071ecc2563badb90",
+    "state": "READY-AUTHOR-NOT-STARTED",
+    "baseline": "b7bda5cbb",
+    "parent": "Original FORWARD-FIRST-CALL A/B; original c2 F2/source-native formation and all parent gates remain OPEN.",
+    "fixed_outcome": "Draft the owning source inference-introduction rule at original F2 that derives role/entry and whole-carrier L2 from actual declared source operands, or freeze exact missing owner/primitive. Then prove its scoped preservation and assess any concrete compiler producer fields.",
+    "authority": "User authorizes proof/implementation research and draft bridge rules. Candidate only; semantic adoption and compiler code remain separate gates.",
     "review": {
-      "state": "ALL-REVIEWS-CLEAN-BOUNDED",
+      "state": "NOT-STARTED",
       "current_reviewer": null,
       "sequence": [
         "spec_auditor",
         "architect",
         "compiler_referee"
-      ],
-      "spec_auditor": {
-        "state": "FROZEN-CLEAN-CONDITIONAL",
-        "output": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-spec-review.md",
-        "sha256": "5d1704fd5a3de43a47f04632b8aa03d2bbeabd37550934c194ba0d7cc14b3268",
-        "receipt": "Reviewer STOP 04:32:16 UTC; 49s observed, 70s conservative charge. Read-only reviewer returned complete final report; Luna transcribed it after STOP."
-      },
-      "architect": {
-        "state": "FROZEN-CLEAN-CONDITIONAL",
-        "output": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-architect-review.md",
-        "started_at_utc": "2026-10-17 04:34:24 UTC",
-        "sha256": "65c8bd169e2e0fa8aa5ce66d305d0730b20c5545557bc16d620a986a43f5ab80"
-      },
-      "compiler_referee": {
-        "state": "FROZEN-CLEAN-BOUNDED",
-        "output": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-implementation-boundary-review.md",
-        "gate": "If a concrete-field retention contract is written, use its retention compiler-review receipt path instead.",
-        "started_at_utc": "2026-10-17 04:35:52 UTC",
-        "sha256": "f5b92888b683820e55658e516520dc5ddfd9c8e7e898dd138e9f9b9f1e8a7573"
-      }
+      ]
     },
     "resources": {
-      "cap_seconds": 1800,
-      "astra_proof_cap_seconds": 840,
-      "implementation_prep_cap_seconds": 360,
+      "cap_seconds": 1500,
+      "source_definition_cap_seconds": 360,
+      "proof_cap_seconds": 600,
       "review_cap_seconds": 360,
-      "coordination_seconds": 120,
+      "coordination_seconds": 60,
       "reserve_seconds": 120,
-      "charged_seconds": 610,
-      "active_authors": 1,
-      "status": "All review lanes stopped; 610/1800 conservative seconds charged; conditional implementation prep retired."
+      "charged_seconds": 0,
+      "active_authors": 0,
+      "status": "Contract pins validated; author not yet launched."
     },
     "lanes": {
-      "proof_source_rule": {
-        "owner": "/root/resultbind_local_interface_introduction",
-        "role": "astra_prover",
-        "state": "FROZEN",
+      "source_definition": {
+        "owner": "/root",
+        "role": "Luna/high source-definition author",
+        "state": "NOT-STARTED",
         "outputs": [
-          "notes/design/2026-10-17-resultbind-local-interface-introduction-proposal.md",
-          "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-proposal.md"
-        ],
-        "cap_seconds": 840,
-        "started_at_utc": "2026-10-17 04:25:49 UTC",
-        "receipt": "STOP/freeze after 300/840 charged. Artifact 9d35e92a…e57e; handoff b6f66df5…7b1ad; all 25 pins revalidated. Stage A still lacks original role/entry and L2 at F2; Stage B retention/use conditional on typed leaves."
-      },
-      "implementation_prep": {
-        "owner": "/root Luna/high",
-        "state": "RETIRED-NO-NEW-IMPLEMENTATION-FIELDS",
-        "outputs": [
-          "notes/design/2026-10-17-resultbind-interface-retention-contract.md",
-          "tasks/agent-loop/inbox/20261017-resultbind-interface-retention-contract.md"
+          "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
+          "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-proposal.md"
         ],
         "cap_seconds": 360,
-        "gate": "Architect confirms no new semantic fields; retire 360s; do not write generic retention map."
+        "gate": "Must build the owning declarations/clauses and joint existing-descriptor interpretation; if an indispensable primitive/owner is absent, freeze exact blocker and do not start proof lane."
+      },
+      "proof": {
+        "owner": "/root/f2_owning_inlet_introduction_preservation",
+        "role": "astra_prover",
+        "state": "CONDITIONAL-NOT-STARTED",
+        "outputs": [
+          "notes/theory/2026-10-17-f2-owning-inlet-introduction-preservation.md",
+          "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-preservation.md"
+        ],
+        "cap_seconds": 600,
+        "gate": "Starts only after source rule artifact passes explicit source gate and is frozen."
+      },
+      "implementation": {
+        "state": "NO_CODE_LEASE",
+        "gate": "Implementation-enabling source/code correspondence only; actual compiler edits require concrete source-owned fields, independent review and a later exact code lease."
       },
       "reviews": {
-        "state": "ALL-REVIEWS-CLEAN-BOUNDED",
-        "compiler_referee": {
-          "cap_seconds": 120,
-          "output": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-implementation-boundary-review.md",
-          "state": "FROZEN-CLEAN-BOUNDED",
-          "started_at_utc": "2026-10-17 04:35:52 UTC",
-          "sha256": "f5b92888b683820e55658e516520dc5ddfd9c8e7e898dd138e9f9b9f1e8a7573"
-        },
+        "state": "NOT-STARTED",
         "spec_auditor": {
           "cap_seconds": 120,
-          "output": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-spec-review.md",
-          "state": "FROZEN-CLEAN-CONDITIONAL",
-          "sha256": "5d1704fd5a3de43a47f04632b8aa03d2bbeabd37550934c194ba0d7cc14b3268"
+          "output": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-spec-review.md"
         },
         "architect": {
           "cap_seconds": 120,
-          "output": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-architect-review.md",
-          "state": "FROZEN-CLEAN-CONDITIONAL",
-          "started_at_utc": "2026-10-17 04:34:24 UTC",
-          "sha256": "65c8bd169e2e0fa8aa5ce66d305d0730b20c5545557bc16d620a986a43f5ab80"
+          "output": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-architect-review.md"
+        },
+        "compiler_referee": {
+          "cap_seconds": 120,
+          "output": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-compiler-review.md"
         }
-      },
-      "compiler": {
-        "state": "NO_CODE_LEASE",
-        "receipt": "Only a retained-field design may be written; semantic implementation requires later approval and exact code lease."
       }
     },
     "artifacts": [
       {
-        "path": "tasks/agent-loop/sprints/resultbind-local-interface-introduction-20261017.md",
-        "sha256": "c1f0cbde6a3d705524b31e747dee09a0b368e64a3409a1b23303cc8945cbad0c"
-      },
-      {
-        "path": "notes/design/2026-10-17-resultbind-local-interface-introduction-proposal.md",
-        "sha256": "9d35e92a8c6d3ef6b3b1adaaa671d497209a310189cf364b2b61d7f6e875e57e"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-proposal.md",
-        "sha256": "b6f66df515f7d275c10ac7f7cb1d386eac5f3e37a99099e29a6c6535fdf7b1ad"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-spec-review.md",
-        "sha256": "5d1704fd5a3de43a47f04632b8aa03d2bbeabd37550934c194ba0d7cc14b3268"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-architect-review.md",
-        "sha256": "65c8bd169e2e0fa8aa5ce66d305d0730b20c5545557bc16d620a986a43f5ab80"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-implementation-boundary-review.md",
-        "sha256": "f5b92888b683820e55658e516520dc5ddfd9c8e7e898dd138e9f9b9f1e8a7573"
-      },
-      {
-        "path": "notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md",
-        "sha256": "81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a"
+        "path": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
+        "sha256": "44a59f25404c691f3128963490327587aae9ad2f5becaa62071ecc2563badb90"
       }
     ],
     "non_goals": [
-      "adopt candidate local rule",
-      "treat actual ResultBind result as open-context formation premise",
-      "infer Pure/ValueEntry from Unit",
-      "use pending Q/provider success/selected output to form IF or F2",
-      "change original A/B scope or quantifiers",
+      "adopt proposed semantic rule",
+      "narrow original A/B or alpha/provider/carrier/context/world domains",
+      "use Unit to infer role/entry",
+      "use actual Return/Q/provider success to form F2",
       "compiler code/tests/builds/probes/runtime/expected-output/production"
     ],
-    "next_boundary": "Sprint closed; consult next_action_selector for next proof/implementation outcome.",
-    "workers": [
-      {
-        "id": "/root/resultbind_interface_spec_review",
-        "role": "fresh spec_auditor reviewer",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "low",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "STOP 04:32:16 UTC. CLEAN within conditional scope. 49s observed; 70s conservative charge. Read-only; Luna transcribed final report after STOP."
-      },
-      {
-        "id": "/root/resultbind_interface_arch_review",
-        "role": "fresh architect reviewer",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "STOP 04:35:03 UTC; exact elapsed unavailable, charge full 120 seconds. CLEAN within conditional scope. Read-only; primary transcribes full report after STOP."
-      },
-      {
-        "id": "/root/resultbind_implementation_boundary_review",
-        "role": "fresh compiler_referee reviewer",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "STOP 04:36:36 UTC; exact elapsed unavailable, charge full 120 seconds. CLEAN within packet implementation-boundary scope; read-only, Luna transcribed complete report after STOP."
-      }
-    ],
+    "next_boundary": "Validate contract, checkpoint, then start Luna source-definition lease.",
+    "workers": [],
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/resultbind-local-interface-introduction-20261017.md",
+        "path": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
         "owner": "/root",
         "state": "FROZEN",
-        "sha256": "c1f0cbde6a3d705524b31e747dee09a0b368e64a3409a1b23303cc8945cbad0c"
+        "sha256": "44a59f25404c691f3128963490327587aae9ad2f5becaa62071ecc2563badb90"
       },
       {
-        "path": "notes/design/2026-10-17-resultbind-local-interface-introduction-proposal.md",
-        "owner": "/root/resultbind_local_interface_introduction",
-        "state": "FROZEN",
-        "sha256": "9d35e92a8c6d3ef6b3b1adaaa671d497209a310189cf364b2b61d7f6e875e57e"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-proposal.md",
-        "owner": "/root/resultbind_local_interface_introduction",
-        "state": "FROZEN",
-        "sha256": "b6f66df515f7d275c10ac7f7cb1d386eac5f3e37a99099e29a6c6535fdf7b1ad"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-spec-review.md",
+        "path": "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
         "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "5d1704fd5a3de43a47f04632b8aa03d2bbeabd37550934c194ba0d7cc14b3268"
+        "state": "NOT-STARTED"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-architect-review.md",
+        "path": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-proposal.md",
         "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "65c8bd169e2e0fa8aa5ce66d305d0730b20c5545557bc16d620a986a43f5ab80"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-implementation-boundary-review.md",
-        "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "f5b92888b683820e55658e516520dc5ddfd9c8e7e898dd138e9f9b9f1e8a7573"
-      },
-      {
-        "path": "notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md",
-        "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a"
+        "state": "NOT-STARTED"
       }
-    ]
+    ],
+    "prior_sprint": {
+      "id": "resultbind-local-interface-introduction-20261017",
+      "state": "REVIEWED-CLEAN-BOUNDED",
+      "closeout": "notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md",
+      "sha256": "81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a"
+    }
   },
-  "candidate": "tasks/agent-loop/sprints/resultbind-local-interface-introduction-20261017.md",
-  "baseline": "995d83b58",
-  "scope": "Open-context and actual ResultBind/local interface for g; source-rule proposal plus conditional implementation retention design; no code/adoption.",
+  "candidate": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
+  "baseline": "b7bda5cbb",
+  "scope": "Owning c2 Function inlet/role-entry source introduction plus conditional proof/code correspondence; no semantic adoption or compiler code.",
   "worker_inventory_scope": "Three inherited UNKNOWN assignments retained; board lease remains quarantined. Current sprint has no active writer until exact launch receipt.",
   "workers": [
     {
@@ -315,18 +210,18 @@
     }
   ],
   "next_action": {
-    "state": "SPRINT-CLOSED-SELECT-NEXT",
-    "dispatcher": "ResultBind conditional source/interface packet reviewed CLEAN; no concrete fields and no safe code slice. Select next genuine source-owned introduction proof while keeping compiler work conditional on concrete producer evidence.",
-    "proof": "Conditional ResultBind retention/use derivation preserved; original pre-Return role/entry and L2 introduction remains open.",
-    "implementation": "Retired this sprint preparation; next code work requires source-owned, reviewed producer evidence."
+    "state": "CONTRACT-VALIDATED",
+    "dispatcher": "Selected owning inlet-introduction rule at original F2 after ResultBind review found no retention fields.",
+    "proof": "Source author must define exact L2, role/entry telescope and joint constructor or identify first missing source primitive. Astra preservation follows only after source gate.",
+    "implementation": "No code authority; inspect actual producer/consumer only for concrete fields after proof/review."
   },
   "resource_accounting": {
-    "sprint_id": "resultbind-local-interface-introduction-20261017",
-    "cap_seconds": 1800,
-    "charged_seconds": 610,
-    "active_authors": 1,
+    "sprint_id": "f2-owning-inlet-introduction-proposal-20261017",
+    "cap_seconds": 1500,
+    "charged_seconds": 0,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "Sprint closed REVIEWED-CLEAN-BOUNDED; 300 Astra + 70 spec + 120 architect + 120 compiler referee; 360s conditional implementation prep retired."
+    "status": "Fresh sprint contract validated; source author not started."
   },
-  "history": "Prior sprint c2-typed-call-occurrence-correction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-c2-typed-call-occurrence-correction-review.md SHA 945a99893e7dce56551b86db2c818598813a9488088158e32b56fe86a576c3fc; parent semantic gates OPEN."
+  "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN."
 }
