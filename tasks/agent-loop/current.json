@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
     "revision": 1,
     "sha256": "44a59f25404c691f3128963490327587aae9ad2f5becaa62071ecc2563badb90",
-    "state": "READY-AUTHOR-NOT-STARTED",
+    "state": "SOURCE-DEFINITION-RUNNING",
     "baseline": "b7bda5cbb",
     "parent": "Original FORWARD-FIRST-CALL A/B; original c2 F2/source-native formation and all parent gates remain OPEN.",
     "fixed_outcome": "Draft the owning source inference-introduction rule at original F2 that derives role/entry and whole-carrier L2 from actual declared source operands, or freeze exact missing owner/primitive. Then prove its scoped preservation and assess any concrete compiler producer fields.",
@@ -30,20 +30,24 @@
       "coordination_seconds": 60,
       "reserve_seconds": 120,
       "charged_seconds": 0,
-      "active_authors": 0,
-      "status": "Contract pins validated; author not yet launched."
+      "active_authors": 1,
+      "status": "Luna/high source-definition lease active; proof and reviewers wait for frozen source packet."
     },
     "lanes": {
       "source_definition": {
         "owner": "/root",
         "role": "Luna/high source-definition author",
-        "state": "NOT-STARTED",
+        "state": "RUNNING",
         "outputs": [
           "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
           "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-proposal.md"
         ],
         "cap_seconds": 360,
-        "gate": "Must build the owning declarations/clauses and joint existing-descriptor interpretation; if an indispensable primitive/owner is absent, freeze exact blocker and do not start proof lane."
+        "gate": "Must build the owning declarations/clauses and joint existing-descriptor interpretation; if an indispensable primitive/owner is absent, freeze exact blocker and do not start proof lane.",
+        "started_at_utc": "2026-10-17 04:40:09 UTC",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN"
       },
       "proof": {
         "owner": "/root/f2_owning_inlet_introduction_preservation",
@@ -89,8 +93,20 @@
       "use actual Return/Q/provider success to form F2",
       "compiler code/tests/builds/probes/runtime/expected-output/production"
     ],
-    "next_boundary": "Validate contract, checkpoint, then start Luna source-definition lease.",
-    "workers": [],
+    "next_boundary": "Source gate: freeze concrete owning rule and check every source/descriptor premise, or stop at exact first missing owner without launching Astra.",
+    "workers": [
+      {
+        "id": "/root",
+        "role": "Luna/high source-definition author",
+        "state": "RUNNING",
+        "requested_model": "UNKNOWN",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Exact source-definition lease started 2026-10-17 04:40:09 UTC after contract/state checkpoint 93bb6f50b; max 360 active seconds."
+      }
+    ],
     "leases": [
       {
         "path": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
@@ -101,12 +117,12 @@
       {
         "path": "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
         "owner": "/root",
-        "state": "NOT-STARTED"
+        "state": "ACTIVE"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-proposal.md",
         "owner": "/root",
-        "state": "NOT-STARTED"
+        "state": "ACTIVE"
       }
     ],
     "prior_sprint": {
@@ -210,7 +226,7 @@
     }
   ],
   "next_action": {
-    "state": "CONTRACT-VALIDATED",
+    "state": "SOURCE-DEFINITION-RUNNING",
     "dispatcher": "Selected owning inlet-introduction rule at original F2 after ResultBind review found no retention fields.",
     "proof": "Source author must define exact L2, role/entry telescope and joint constructor or identify first missing source primitive. Astra preservation follows only after source gate.",
     "implementation": "No code authority; inspect actual producer/consumer only for concrete fields after proof/review."
@@ -219,9 +235,9 @@
     "sprint_id": "f2-owning-inlet-introduction-proposal-20261017",
     "cap_seconds": 1500,
     "charged_seconds": 0,
-    "active_authors": 0,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "Fresh sprint contract validated; source author not started."
+    "status": "Luna source-definition author active after pushed contract/state checkpoint."
   },
   "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN."
 }
