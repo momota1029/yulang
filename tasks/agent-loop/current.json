@@ -20,8 +20,8 @@
   },
   "resources": {
    "cap_seconds": 1800,
-   "charged_seconds": 1397,
-   "available_seconds": 403,
+   "charged_seconds": 1442,
+   "available_seconds": 358,
    "retired_seconds": 0,
    "allocation": "Astra proof600 + Luna implementation360 + independent reviews480 (compiler180, spec120, architect90, regression pre/post45 each) + coordination120 + one Cargo verification120 + reserve120."
   },
@@ -89,8 +89,8 @@
    {
     "id": "/root/module_use_regression_post_run_review",
     "role": "regression independent post-run reviewer",
-    "state": "RUNNING",
-    "receipt": "Fresh read-only post-run review of authorized Cargo output and frozen assertions; cap45s."
+    "state": "STOPPED",
+    "receipt": "Technical CLEAN; 45/45s conservatively charged. One prohibited read-only Git command: `git show --stat --oneline 185b0db29`; summary only, no file changes and no essential unpinned evidence. Hash/assertion/output review otherwise matched."
    }
   ],
   "leases": [
@@ -143,10 +143,23 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Sole Cargo command PASS (2 tests); post-run regression receipt reviewer RUNNING cap45. Then reconcile review/runtime receipts, consult selector for next proof target MODULE-SOURCE-EMBED, close sprint and push.",
+  "next_action": "All authors/reviewers STOPPED; candidate target PASS once, technical post-review CLEAN with nonessential read-only Git process deviation recorded. Consult selector for next proof packet, archive sprint result, then close/push.",
   "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
-  "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."
+  "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed.",
+  "verification": {
+   "command": "cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical",
+   "invocations": 1,
+   "result": "PASS; 2 passed, 0 failed, 0 ignored. Tests: direct_module_name_literal_call_has_candidate_only_observer_and_pending_suppliers; accepted_source_generates_calls_propagates_and_reaches_fresh_uses.",
+   "warnings": [
+    "yu-hir/src/lib.rs:191 AssociationProvenance::Token field never read",
+    "yu-hir/src/lib.rs:192 AssociationProvenance::Synthetic field never read",
+    "yu-hir/src/module.rs:1620 replace_admission_root unused"
+   ],
+   "observed_tool_wall_seconds": 1.5,
+   "charged_seconds": 2,
+   "review": "Post-run regression technical CLEAN; no rerun. Reviewer process deviation: one read-only `git show --stat --oneline 185b0db29`, which changed no files and supplied no essential unpinned evidence."
+  }
  },
  "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer. Previous sprint ordinary-hir-applied-conformance-repair-20261017 closed REVIEWED-PARTIAL at commit 0717a882c: focused unit8/8, corrected HIR9/9, solver candidate vertical1/1; original theorem conditions closed0. Exact receipts and rev8 CLEAN reporting review remain under notes/progress and prior handoff. Rev7 spent2760/2760; after-cap solver receipt documentation time UNKNOWN, not retrocharged. New original Call generation sprint starts at baseline0717a882c; decomposition180/180 charged. Prior rev8 review-only envelope charged auditor60 and Luna coordination30; final reserve30 retired without carryover. Documentation correction after rev7 had UNKNOWN actual duration, not retrocharged.",
  "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN."
