@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-operation-contract-and-lexer-identity-20261018.md",
     "revision": 1,
     "sha256": "67ff7aefe2b696db00433305f42774aca02c53253d877ac1ffc6035c81dbc631",
-    "state": "READY",
+    "state": "ACTIVE",
     "baseline": "b3a9b1739b59d8c7991b5f798e98f71f96904b19",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, source domain and quantifiers unchanged; closure0.",
     "fixed_outcome": "Draft a complete Operation latent-self-effect contract candidate without adoption, and independently trace authentic lexer LBracket identity for the conditional cache-address lemma.",
@@ -19,11 +19,11 @@
     },
     "resources": {
       "cap_seconds": 900,
-      "charged_seconds": 0,
-      "available_seconds": 900,
+      "charged_seconds": 60,
+      "available_seconds": 840,
       "allocation": "semantic candidate300, lexer identity180, independent spec review120, compiler/source review120, Luna60, reserve120; Astra0."
     },
-    "next_action": "Launch parallel bounded semantic candidate and lexer identity lanes; freeze and independently review both."
+    "next_action": "Receive both bounded outputs; then fresh spec/compiler reviews and adjudicate candidate vs adopted semantics."
   },
   "history": "Closed `npair-parser-row-key-separation-20261018` rev3: parent conditions0. Eq/Hash and HIR key transport verified; distinct-start premise remains unproved. Parser recovery can carry empty Item/Token payload; actual lexer LBracket positivity remains an owner boundary. Composite compiler review CLEAN within conditional claim; historical contract blobs unverified to reviewer, primary comparison recorded. Full receipts in closeout.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
@@ -37,29 +37,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Prior parser sprint closed with composite clean review; new rev1 two-lane contract READY; no workers yet launched."
+      "receipt": "Prior sprint closeout/push complete; two authorized lanes actually launched in parallel with exact outputs and source pins."
     },
     {
       "id": "/root/npair_operation_contract_candidate",
       "role": "constructive semantic candidate prover",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=300s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact read authority and output leases issued; launch receipt pending."
+      "receipt": "Actual live launch under configured role; exact contract rev1, source pins, output leases and caps; requested model/effort recorded, effective UNKNOWN."
     },
     {
       "id": "/root/npair_lexer_bracket_identity",
       "role": "read-only lexical source researcher",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol/researcher",
       "requested_effort": "high <=180s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Four exact lexical source pins and output leases issued; launch receipt pending."
+      "receipt": "Actual live launch under configured role; exact contract rev1, source pins, output leases and caps; requested model/effort recorded, effective UNKNOWN."
     }
   ],
   "leases": [
