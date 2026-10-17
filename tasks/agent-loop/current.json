@@ -6,9 +6,9 @@
   "active_sprint": {
     "id": "ordinary-hir-applied-conformance-repair-20261017",
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
-    "revision": 5,
-    "sha256": "5c63c3829cd6275523b1799e0286837518e9fd7dd0213c13f3171d9d7b7a6125",
-    "state": "CARGO-STOPPED-COMPILE-FAILURE",
+    "revision": 6,
+    "sha256": "3d3f8fd3643bf3b1d27793f470f19b430779bc24f1698788d89295e770c258a4",
+    "state": "NARROW-TEST-REPAIR",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -29,10 +29,10 @@
     },
     "resources": {
       "cap_seconds": 2760,
-      "charged_seconds": 2352,
-      "available_seconds": 408,
+      "charged_seconds": 2367,
+      "available_seconds": 393,
       "retired_seconds": 0,
-      "allocation": "Charged through command failure: 2352/2760s (focused unit command 3s conservatively rounded from2.67s). Remaining resource reservations: unused focused-command cap42; two unrun integration commands240; post-run review120; reserve6=408. No implicit retry/command authority."
+      "allocation": "Through failed first unit invocation, 2352s charged; rev6 coordination15 charged. Remaining: test-only author30 + compiler delta30 + one post-repair unit invocation45 + HIR integration90 + solver integration90 + post-run review90 + reserve18 =393."
     },
     "workers": [
       {
@@ -331,7 +331,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "STOP per rev5 compile-failure rule. Focused unit command once failed exit101 after2.67s at lib.rs:2611 E0308 (`AssociatedExpr` vs `HirExpr::Error`); integrations not run, no retries or edits. Consult selector for bounded repair/review replan and preserve unrun-command reservations.",
+    "next_action": "Rev6 authorizes only lib.rs test match `expression`→`expression.hir` preserving expected HirExpr::Error structure, plus handoff. Fresh implementer cap30 then compiler delta review cap30. First failed invocation remains recorded. No execution until CLEAN delta; then exactly one post-repair unit command and each integration once, caps45/90/90.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },

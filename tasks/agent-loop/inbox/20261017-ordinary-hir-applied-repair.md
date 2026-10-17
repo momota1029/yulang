@@ -1,8 +1,8 @@
 # Ordinary HIR applied-conformance repair: implementation handoff
 
-- Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev5, SHA-256
-  `5c63c3829cd6275523b1799e0286837518e9fd7dd0213c13f3171d9d7b7a6125`.
-  Handoff revision 12 (Luna's post-unit-compile-failure reconciliation); failed candidate
+- Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev6, SHA-256
+  `3d3f8fd3643bf3b1d27793f470f19b430779bc24f1698788d89295e770c258a4`.
+  Handoff revision 13 (Luna's rev6 repair authorization); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -146,7 +146,7 @@ theorem gates remain OPEN.
 
 The focused unit command was then run exactly once and failed before test
 discovery with E0308 in a `lib.rs` unit-test match (`AssociatedExpr` matched
-as `HirExpr::Error`). Receipt `notes/progress/2026-10-17-ordinary-hir-repair-unit-run-failure.md`. Per rev5, execution stopped immediately: neither integration command ran; no retry or edit occurred. No named falsifier executed. Luna consults selector for a bounded repair/review replan; all theorem gates remain OPEN.
+as `HirExpr::Error`). Receipt `notes/progress/2026-10-17-ordinary-hir-repair-unit-run-failure.md`. Per rev5, execution stopped immediately: neither integration command ran; no retry or edit occurred. No named falsifier executed. Selector approved a rev6 test-only repair: change the assertion match to `expression.hir`, preserving its expected error shape; exact code lease `crates/yu-hir/src/lib.rs` plus this handoff, cap30s. Then fresh compiler delta review cap30s. One post-repair unit invocation is explicitly authorized only after CLEAN; integration caps are90s each. No further retry follows. All theorem gates remain OPEN.
 Post-run regression review remains required. Proof/source TODO
 `HIR-APP-PARENT-1` remains with the standard solver/source/native owners; first
 missing consumer is
