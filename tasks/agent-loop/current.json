@@ -27,9 +27,9 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 960,
-      "available_seconds": 540,
-      "allocation": "Proof600 + source audit180 + compiler review180 charged; remaining sequential spec120 + architecture120 if new cases remain + Luna coordination180 + reserve120; Astra0."
+      "charged_seconds": 1080,
+      "available_seconds": 420,
+      "allocation": "Proof600 + source audit180 + compiler review180 + spec review120 charged/assigned; architecture120 required due new consumer cases; Luna coordination180 + reserve120 remain. Astra0."
     },
     "workers": [
       {
@@ -55,12 +55,22 @@
       {
         "id": "/root/catch_target_instantiation_compiler_review",
         "role": "compiler_referee",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "receipt": "Fresh bounded review of frozen module IF/Call consumer artifact and attributed read-only owner audit; ≤180s. No writes/tests/builds/Git/descendants."
+        "receipt": "CLEAN bounded compiler/source review of frozen MRef/IF/Name/Result candidate. Complete Return application required; opaque old Return schema may still block. Demand cut only inside conditional consumer interpretation; original Call/global closure0; NO_SAFE_CODE_SLICE. Exact hashes matched; full180 charged; no writes/tests/Git."
+      },
+      {
+        "id": "/root/catch_historical_operand_spec_review",
+        "role": "spec_auditor",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Fresh spec review of frozen module consumer artifact; ≤120s. Verify original quantifiers/source domain, literal parent substitution, preserved Call operands and conditionality. Read-only."
       }
     ],
     "leases": [
