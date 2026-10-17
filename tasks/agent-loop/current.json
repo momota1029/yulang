@@ -4,86 +4,141 @@
  "phase": "ACTIVE",
  "session": "current-session",
  "active_sprint": {
-  "id": "receive-inferred-function-view-formation-20261017",
-  "contract": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
+  "id": "receive-function-introduction-proposal-20261017",
+  "contract": "tasks/agent-loop/sprints/receive-function-introduction-proposal-20261017.md",
   "revision": 1,
-  "sha256": "03220c10c137f2880b3f3736675e7ee720f7d36e2af069cd0503ae569c4298cc",
-  "state": "REVIEWED-PARTIAL",
-  "baseline": "520398c4a0cd0b32b06792a5688b64a5af9100d5",
+  "sha256": "eeca47fc455c5aac9b5f9bb4e5ce6b10b7921599a07a693e2c4ac668442a7503",
+  "state": "READY",
+  "baseline": "3f159b109",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original A/B theorem and production gates OPEN.",
-  "fixed_outcome": "Construct complete source formation for original inferred F2/xi in the existing descriptor universe with lawful transport, or freeze a reviewed precise bridge proposal and first indispensable producer/embedding law. Keep actual membership, VIncl(A1,F2), c2 image and ambient joins separate.",
+  "fixed_outcome": "Draft a concrete source inference-introduction constructor for original c2 F2 that derives L2, complete dependent fields and joint interpretation by a pinned existing constructor, then attempt local preservation. Keep the proposal unselected and all original parent domains/gates intact.",
   "review": {
-   "state": "CLEAN; all assigned reviews STOPPED",
+   "state": "NOT_STARTED",
    "current_reviewer": null,
    "sequence": [
-    "compiler_referee CLEAN: no findings; all direct pins and parent hash verified",
-    "architect CLEAN: ownership/bridge seam correct; no constructor evidence",
-    "spec_auditor CLEAN: exact conformance; original domains and OPEN gates preserved"
-   ],
-   "target": {
-    "artifact": "notes/theory/2026-10-17-receive-inferred-function-view-formation.md",
-    "sha256": "7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590",
-    "handoff": "tasks/agent-loop/inbox/20261017-receive-inferred-function-view-formation.md",
-    "handoff_sha256": "a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a"
-   }
+    "compiler_referee",
+    "spec_auditor"
+   ]
   },
   "resources": {
-   "cap_seconds": 1800,
-   "proof_cap_seconds": 900,
-   "implementation_cap_seconds": 300,
-   "review_cap_seconds": 360,
-   "coordination_seconds": 120,
+   "cap_seconds": 1500,
+   "proposal_cap_seconds": 480,
+   "proof_cap_seconds": 600,
+   "review_cap_seconds": 240,
+   "coordination_seconds": 60,
    "reserve_seconds": 120,
-   "charged_seconds": 780,
-   "active_authors": 0,
-   "status": "Proof 420s; three sequential fresh reviews charged 360s. All CLEAN. Conditional implementation lane retired: no concrete constructor evidence. Three inherited UNKNOWN reservations remain quarantined."
+   "charged_seconds": 0,
+   "active_authors": 1,
+   "status": "Luna proposal author active; Astra proof is assigned NOT_STARTED and starts after frozen proposal. Three inherited UNKNOWN reservations preserved."
   },
   "lanes": {
-   "proof": {
-    "owner": "/root/receive_inferred_function_view_formation",
-    "state": "FROZEN; REVIEW-PENDING",
+   "proposal": {
+    "owner": "/root (Luna/high)",
+    "state": "RUNNING",
     "outputs": [
-     "notes/theory/2026-10-17-receive-inferred-function-view-formation.md",
-     "tasks/agent-loop/inbox/20261017-receive-inferred-function-view-formation.md"
+     "notes/design/2026-10-17-receive-function-inference-introduction-proposal.md",
+     "tasks/agent-loop/inbox/20261017-receive-function-inference-introduction-proposal.md"
     ],
-    "cap_seconds": 900,
-    "receipt": "Artifact 7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590; handoff a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a; all ten contract pins and two extra locators rechecked. Five stages; source-local F2 intro and joint embedding remain open."
+    "cap_seconds": 480,
+    "receipt": "Current-session Luna owns proposal; no output frozen yet."
+   },
+   "proof": {
+    "owner": "/root/receive_function_introduction_proposal_preservation",
+    "state": "WAITING_FOR_PROPOSAL_FREEZE",
+    "outputs": [
+     "notes/theory/2026-10-17-receive-function-introduction-proposal-preservation.md",
+     "tasks/agent-loop/inbox/20261017-receive-function-introduction-proposal-preservation.md"
+    ],
+    "cap_seconds": 600,
+    "receipt": "Astra proof assigned but NOT_STARTED until proposal hash is frozen."
    },
    "implementation": {
-    "owner": "Luna/high, conditional after proof STOP and fresh review",
-    "state": "RETIRED; NO_SAFE_CODE_SLICE",
+    "owner": "Luna after a later adoption/source-correspondence gate",
+    "state": "WAITING_FOR_SEMANTIC_ADOPTION",
     "outputs": [],
     "code_lease": false,
     "cap_seconds": 0,
-    "receipt": "No new source producer/construction evidence; architect found conditional readiness ineligible. Allocation retired; no repeated code audit, no design delta, no compiler code."
+    "receipt": "No code authority in this proposal sprint; implementation can start only after the exact source rule is adopted and its proof/source obligations support an implementation slice."
    }
   },
   "artifacts": [
    {
-    "path": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
-    "sha256": "03220c10c137f2880b3f3736675e7ee720f7d36e2af069cd0503ae569c4298cc"
-   },
-   {
-    "path": "notes/theory/2026-10-17-receive-inferred-function-view-formation.md",
-    "sha256": "7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590"
-   },
-   {
-    "path": "tasks/agent-loop/inbox/20261017-receive-inferred-function-view-formation.md",
-    "sha256": "a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a"
+    "path": "tasks/agent-loop/sprints/receive-function-introduction-proposal-20261017.md",
+    "sha256": "eeca47fc455c5aac9b5f9bb4e5ce6b10b7921599a07a693e2c4ac668442a7503"
    }
   ],
   "non_goals": [
-   "change source/native meaning or approved Option A/Option 2 domain",
-   "compiler code, tests, builds, probes or execution",
-   "actual provider membership or VIncl from descriptor formation alone",
-   "source T closure, anchored native MODEL, production conformance/cutover or parent theorem closure"
+   "adopt the candidate source rule",
+   "change existing Function membership or Option A/Option 2",
+   "infer actual role or entry from Unit",
+   "restrict original alpha/provider/context/world/future domains",
+   "select W/Z or a new carrier",
+   "compiler code/tests/builds/probes/execution",
+   "source T, native MODEL, production/cutover or parent closure"
   ],
-  "next_boundary": "Consult selector at sprint end for exact next formation-owner action. Candidate bridge remains unselected; semantic adoption or implementation needs a later explicit gate."
+  "next_boundary": "Complete the concrete proposal, freeze its hash, then launch the bounded Astra preservation lane.",
+  "workers": [
+   {
+    "id": "/root/resident_dispatcher_loop_a",
+    "role": "legacy dispatcher",
+    "state": "UNKNOWN",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": null,
+    "receipt": "Historical identity/cessation unknown; reservation retained."
+   },
+   {
+    "id": "/root/resident_implementer_idle",
+    "role": "legacy implementation worker",
+    "state": "UNKNOWN",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": null,
+    "receipt": "Historical identity/cessation unknown; reservation retained."
+   },
+   {
+    "id": "/root/runtime_source_supplier_proof",
+    "role": "legacy proof worker",
+    "state": "UNKNOWN",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": null,
+    "receipt": "Historical identity/cessation unknown; reservation retained."
+   },
+   {
+    "id": "/root",
+    "role": "Luna primary and sole integrator; sprint coordinator",
+    "state": "RUNNING",
+    "requested_model": "gpt-6-luna",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": "current-session",
+    "receipt": "Luna owns the fixed-constructor proposal lane and sole Git integration; prior formation sprint reviewed-partial and pushed."
+   },
+   {
+    "id": "/root/receive_function_introduction_proposal_preservation",
+    "role": "bounded Astra preservation proof author",
+    "state": "NOT_STARTED",
+    "requested_model": "gpt-6-astra",
+    "requested_effort": "medium",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": null,
+    "receipt": "Sequential proof lane; starts only after Luna freezes the exact candidate proposal and direct hash."
+   }
+  ]
  },
- "candidate": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
- "baseline": "520398c4a0cd0b32b06792a5688b64a5af9100d5",
- "scope": "Original inferred F2/xi source formation and exact existing-universe producer/transport bridge; full original source/native parent remains OPEN.",
- "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. Proof author STOPPED; frozen candidate under sequential fresh review; no implementation author.",
+ "candidate": "tasks/agent-loop/sprints/receive-function-introduction-proposal-20261017.md",
+ "baseline": "3f159b109",
+ "scope": "Concrete candidate source inference introduction for original c2 F2 using a pinned existing complete descriptor constructor; bounded preservation proof; all parent gates stay OPEN.",
+ "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. Luna proposal author RUNNING; sequential Astra preservation assignment is NOT_STARTED until proposal freeze.",
  "workers": [
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -127,54 +182,18 @@
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Primary owns the newly frozen Function-view formation sprint and sole integration; proof author not yet launched."
+   "receipt": "Luna owns the fixed-constructor proposal lane and sole Git integration; prior formation sprint reviewed-partial and pushed."
   },
   {
-   "id": "/root/receive_inferred_function_view_formation",
-   "role": "bounded Astra constructive proof author",
-   "state": "STOPPED",
+   "id": "/root/receive_function_introduction_proposal_preservation",
+   "role": "bounded Astra preservation proof author",
+   "state": "NOT_STARTED",
    "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "receipt": "FROZEN/STOPPED 2026-10-17 01:43:50 UTC; proof artifact frozen 01:43:02 UTC; 394s actual elapsed to stop, conservative charge 420/900s; five stages, no descendants/scratch. Handoff r1 and proof hashes recorded; effective model/effort UNKNOWN."
-  },
-  {
-   "id": "/root/receive_inferred_function_view_formation_compiler_review",
-   "role": "fresh independent compiler_referee review",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "cap_seconds": 120,
-   "receipt": "Fresh independent compiler_referee completed CLEAN review of frozen artifact 7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590 and handoff a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a; all pins rechecked; read-only; STOPPED; observed model/effort UNKNOWN."
-  },
-  {
-   "id": "/root/receive_inferred_function_view_formation_arch_review",
-   "role": "fresh independent architect review",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "cap_seconds": 120,
-   "receipt": "Fresh independent architect review CLEAN within proposal scope; no producer evidence found; conditional implementation lane ineligible and remains WAITING/retired. Review targets match; read-only; STOPPED; observed model/effort UNKNOWN."
-  },
-  {
-   "id": "/root/receive_inferred_function_view_formation_spec_review",
-   "role": "fresh independent spec_auditor review",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "cap_seconds": 120,
-   "receipt": "Fresh independent spec_auditor CLEAN review of frozen candidate; artifact, handoff, contract, all ten inputs and original-parent hash matched; all original domains and OPEN gates preserved; read-only; STOPPED; observed model/effort UNKNOWN."
+   "session": null,
+   "receipt": "Sequential proof lane; starts only after Luna freezes the exact candidate proposal and direct hash."
   }
  ],
  "leases": [
@@ -189,21 +208,30 @@
    "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
+   "path": "tasks/agent-loop/sprints/receive-function-introduction-proposal-20261017.md",
    "owner": "/root",
-   "state": "FROZEN"
+   "state": "FROZEN",
+   "sha256": "eeca47fc455c5aac9b5f9bb4e5ce6b10b7921599a07a693e2c4ac668442a7503"
   },
   {
-   "path": "notes/theory/2026-10-17-receive-inferred-function-view-formation.md",
-   "owner": "/root/receive_inferred_function_view_formation",
-   "state": "FROZEN",
-   "sha256": "7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590"
+   "path": "notes/design/2026-10-17-receive-function-inference-introduction-proposal.md",
+   "owner": "/root",
+   "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/inbox/20261017-receive-inferred-function-view-formation.md",
-   "owner": "/root/receive_inferred_function_view_formation",
-   "state": "FROZEN",
-   "sha256": "a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a"
+   "path": "tasks/agent-loop/inbox/20261017-receive-function-inference-introduction-proposal.md",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "notes/theory/2026-10-17-receive-function-introduction-proposal-preservation.md",
+   "owner": "/root/receive_function_introduction_proposal_preservation",
+   "state": "HELD"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261017-receive-function-introduction-proposal-preservation.md",
+   "owner": "/root/receive_function_introduction_proposal_preservation",
+   "state": "HELD"
   }
  ],
  "pending": [
@@ -239,23 +267,23 @@
   }
  ],
  "next_action": {
-  "state": "REVIEWED-PARTIAL",
-  "dispatcher": "Sprint-end consultation requested after all three fresh reviews CLEAN.",
-  "proof": "Original F2 introduction constructing L2/complete fields and joint descriptor embedding remains OPEN at source inference-introduction owner; apply Generalize only after that local law exists.",
-  "implementation": "Retired/NO_SAFE_CODE_SLICE for this sprint: no concrete producer evidence; no compiler edit or design delta."
+  "state": "READY",
+  "dispatcher": "Selector recommends a concrete source-introduction proposal followed by preservation proof; exact selected Strict constructor is pinned, but its inlet/interface inputs do not yet produce c2 F2.",
+  "proof": "Attempt preservation only after concrete Luna proposal freeze; original F2/xi/c2 and OPEN obligations preserved.",
+  "implementation": "Waiting for candidate adoption and source correspondence; no compiler code lease."
  },
  "resource_accounting": {
-  "sprint_id": "receive-inferred-function-view-formation-20261017",
-  "cap_seconds": 1800,
-  "proof_cap_seconds": 900,
-  "implementation_cap_seconds": 300,
-  "review_cap_seconds": 360,
-  "coordination_seconds": 120,
+  "sprint_id": "receive-function-introduction-proposal-20261017",
+  "cap_seconds": 1500,
+  "proposal_cap_seconds": 480,
+  "proof_cap_seconds": 600,
+  "review_cap_seconds": 240,
+  "coordination_seconds": 60,
   "reserve_seconds": 120,
-  "charged_seconds": 780,
-  "active_authors": 0,
+  "charged_seconds": 0,
+  "active_authors": 1,
   "unknown_reservations_preserved": 3,
-  "status": "Proof 420s plus three review caps 120s each = 780s. All reviews CLEAN. Conditional implementation readiness retired because the proof provided no new constructor evidence."
+  "status": "Luna proposal author active; sequential Astra proof NOT_STARTED pending frozen proposal."
  },
- "history": "Checkpoint 520398c4a established the c2 F2 formation frontier. Sprint artifact/handoff are frozen at their recorded hashes; proof 420s, all three independent reviews CLEAN, 780s charged. Original F2 inference-introduction L2/complete-field construction and joint embedding remain OPEN. Candidate bridge unselected; no constructor evidence, so implementation lane retired. Source T, anchored native MODEL, production and parent theorem remain OPEN."
+ "history": "Prior sprint receive-inferred-function-view-formation (artifact 7cb867df, handoff a60a7ca1) completed as reviewed-partial: compiler_referee, architect, spec_auditor CLEAN; original F2 inference introduction and joint descriptor embedding remain OPEN; candidate unselected; no concrete producer evidence and implementation lane retired."
 }
