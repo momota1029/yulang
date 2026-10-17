@@ -6,9 +6,9 @@
   "active_sprint": {
     "id": "ordinary-hir-choice-a-contract-20261017",
     "contract": "tasks/agent-loop/sprints/ordinary-hir-choice-a-contract-20261017.md",
-    "revision": 1,
-    "sha256": "b69a514f20136ef78ce4502bd8f81b6ce3eb3c0407cf498485c6360666fff91f",
-    "state": "ACTIVE-SOURCE-AUDIT",
+    "revision": 2,
+    "sha256": "7bbfcb0942b5b4681d9c686208dd236f291af0a74b48de5c7f7bb4f9931754dd",
+    "state": "ACTIVE-SOURCE-AUDIT-REV2",
     "baseline": "0c0fda3974d1db2c91256667f93c46effa18c8d0",
     "parent": "Original inference/execution goal; all quantifiers and theorem gates preserved OPEN.",
     "fixed_outcome": "User selected direction A for drafting/review of ordinary structural application admission; audit CST/source keys, then complete and review exact successor contract. Code/tests require final explicit approval.",
@@ -21,9 +21,9 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 120,
-      "available_seconds": 1380,
-      "allocation": "Astra480; Luna420; reviews300; coordination120 incl selector already charged; reserve180. Selector120 charged."
+      "charged_seconds": 240,
+      "available_seconds": 1260,
+      "allocation": "Astra480 (120 conservatively charged, 360 remaining); Luna420; reviews300; coordination120 incl selector120 charged; reserve180."
     },
     "workers": [
       {
@@ -62,8 +62,10 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 480,
-        "charged_seconds": 0,
-        "receipt": "Sequential prior packet stopped; waiting for exact new lease."
+        "charged_seconds": 120,
+        "receipt": "Paused at unpinned root/lexical dependency; no outputs; waiting for rev2 exact lease.",
+        "active_receipt": "2026-10-17 08:24:04 UTC; confirmed 16 direct pins; source reads started",
+        "remaining_seconds": 360
       },
       {
         "id": "/root",
@@ -100,11 +102,6 @@
         "state": "QUARANTINED"
       },
       {
-        "path": "tasks/agent-loop/sprints/ordinary-hir-choice-a-contract-20261017.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
         "path": "notes/theory/2026-10-17-choice-a-call-cst-source-key-audit.md",
         "owner": "/root/astra_accepted_call_hir_projection",
         "state": "HELD"
@@ -113,6 +110,11 @@
         "path": "tasks/agent-loop/inbox/20261017-choice-a-call-cst-source-key-audit.md",
         "owner": "/root/astra_accepted_call_hir_projection",
         "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/sprints/ordinary-hir-choice-a-contract-20261017.md",
+        "owner": "/root",
+        "state": "FROZEN-REV2"
       }
     ],
     "pending": [
@@ -174,6 +176,11 @@
         "id": "accepted-call-hir-admission-contract-20261017",
         "state": "CLOSED-AWAITING-USER-DIRECTION",
         "closeout": "tasks/agent-loop/sprints/20261017-accepted-call-hir-admission-closeout.md"
+      },
+      {
+        "revision": 1,
+        "sha256": "b69a514f20136ef78ce4502bd8f81b6ce3eb3c0407cf498485c6360666fff91f",
+        "superseded_reason": "Added five exact root-to-body parser constructor owner pins for the literal CST derivation."
       }
     ]
   },

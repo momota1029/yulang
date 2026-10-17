@@ -1,7 +1,10 @@
 # Sprint ordinary-hir-choice-a-contract-20261017
 
 Status: ACTIVE, Luna-admitted at baseline `0c0fda3974d1db2c91256667f93c46effa18c8d0`.
-Branch: `research/simple-sub-intrusion`; contract revision: 1.
+Branch: `research/simple-sub-intrusion`; contract revision: 2.
+Rev2 supersedes rev1 SHA `b69a514f20136ef78ce4502bd8f81b6ce3eb3c0407cf498485c6360666fff91f`
+only to pin the root-to-body parser constructor owners required to prove the
+exact literal tree. Outcome, output leases, budget and non-goals are unchanged.
 
 ## Parent and fixed outcome
 
@@ -52,6 +55,11 @@ crates/yu-syntax/src/expression/operator_chain.rs 81db2aec4774f2cd1ddc12b64fd920
 crates/yu-syntax/src/expression/tails/mod.rs a3ee107c996e028765570c7ba89b12857cd072eddc988b5b4c8eb66ffc753b8c
 crates/yu-syntax/src/expression/delimited.rs e65c4d500ce0878faf13f1a8d31da816e5db9b6af4690b505c8875d27b700f95
 crates/yu-syntax/src/full_parse.rs 24fdbc0f792b748138bcb1b6fded72714dba7f02880f0d395c914fcff546a8d8
+crates/yu-syntax/src/cursor.rs f08aae49fcf048ad11890def7ef9cadab56825a63b8d87db44821a792fe9b142
+crates/yu-syntax/src/root_statement.rs c6d1dc49625d1687ff0dae8f6808f4c97c3f78398aae3bc061c44b6fc9661626
+crates/yu-syntax/src/statement.rs fe8ba4e144b0c3ea5c8f451dddea42f718e9c3087aa77bb81447c61a9d213797
+crates/yu-syntax/src/cursor/recovery/emit.rs de091c117486f7990dc6872bf2ee7659c0e3e7e148e255f47b56b7836fe7c59d
+crates/yu-syntax/src/lexical/item.rs 0a1dcbd84874f6abd571e0ce7035b9ba7682ebdf7c2348c030a1ba77deabcd25
 crates/yu-hir/src/lib.rs 5bdcb7c0df022da919cef5402c62dc1c7baf0700a4d06e526a608cbd7db21464
 crates/yu-hir/src/module.rs 2e0c579a525efd5ac4c7ce0f06189c568ed46c7382d4576698a0b8d846c2228e
 crates/yu-hir/src/module/local_source.rs ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5
@@ -77,7 +85,13 @@ reliance. Process rules: `rules/goal-driven-sprints.md`,
    and symbolic source-key evidence. Exact write leases:
    `notes/theory/2026-10-17-choice-a-call-cst-source-key-audit.md` and
    `tasks/agent-loop/inbox/20261017-choice-a-call-cst-source-key-audit.md`.
-   No numeric/runtime tree claims without execution.
+   No numeric/runtime tree claims without execution. Rev2's added owners permit
+   proving root wrapping, semicolon progression, statement selection, and
+   accepted identifier/integer token emission plus trivia placement. Keep
+   accepted-Item premises visible: these pins alone do not prove lexical
+   classification for the raw literal. Do not bulk-pin lexer/current-item/
+   trivia/observation/stops; if a specific lexical fact is indispensable,
+   return its function and antecedent to Luna before relying on it.
 2. After confirmed STOP and frozen audit, Luna/high, at most 420s: exact
    successor contract. Exact write leases:
    `notes/design/2026-10-17-ordinary-hir-application-admission-successor.md` and
