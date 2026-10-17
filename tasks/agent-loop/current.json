@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/module-source-family-embedding-20261017.md",
     "revision": 1,
     "sha256": "c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e",
-    "state": "SOURCE-EMBED-COMPILER-REVIEW-RUNNING",
+    "state": "SOURCE-EMBED-SPEC-REVIEW-READY",
     "baseline": "0114f997b",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Derive and substitute the original module publication/use family instance at original-generation §7.2 step 2 for `my id x = x; my answer = id 0`; independently specify the whole native field-map construction contract without a compiler lease.",
@@ -21,14 +21,14 @@
     },
     "result": {
       "original_conditions_closed": 0,
-      "proof_class": "Producer proof constructs original-source Module-Published-Name composite from selected SRC publication, lookup, Instance and allocation rules; full alpha map equality and substitution into §7.2(2). One condition is a closure candidate; 0 independently reviewed/adopted closures so far.",
+      "proof_class": "Producer proof constructs the selected Module-Published-Name composite, complete alpha map and §7.2(2) substitution, but compiler review found a major source-owner gap: original lookup/elaboration rules do not yet exclude same-occurrence Mono introduction. Original conditions closed remains 0 pending source handle-classification derivation and independent spec review.",
       "implementation_class": "Luna author now owns the 2-path MODULE-NATIVE-FIELD-MAP construction contract only; no compiler code lease.",
       "parent_application": "OPEN until authentic source embedding, original root and complete Call formation; all parent theorem gates unchanged."
     },
     "resources": {
       "cap_seconds": 2160,
-      "charged_seconds": 1500,
-      "available_seconds": 660,
+      "charged_seconds": 1680,
+      "available_seconds": 480,
       "retired_seconds": 0,
       "allocation": "Astra proof900 + Luna native-field-map contract480 sequentially; independent compiler180/spec120 on embedding and architect180 on field-map contract; coordination120 (dependency decomposition charged) + reserve180. No execution allocation."
     },
@@ -72,8 +72,8 @@
       {
         "id": "/root/module_source_embedding_compiler_review",
         "role": "compiler_referee",
-        "state": "RUNNING",
-        "receipt": "Independent read-only review of frozen MODULE-SOURCE-EMBED package, 180s cap. Requested gpt-6.1-sol/medium; observed session metadata pending. No writes/tests/Git."
+        "state": "STOPPED",
+        "receipt": "180/180s charged conservatively. One major source-owner conditional gap: original SRC does not derive unique Published source handle/exclude same-occurrence Mono; no compiler bug or semantic counterexample. Exact artifact pins and all 22 manifest inputs matched; no writes/tests/Git."
       }
     ],
     "leases": [
@@ -106,7 +106,7 @@
     "pending": [
       {
         "id": "MODULE-SOURCE-EMBED-20261017",
-        "state": "OPEN; construct original publication/use family derivation and substitute authentic b_use,mu_id into §7.2(2)."
+        "state": "OPEN; compiler review found source-owner conditional gap: derive exact Published handle at occurrence and exclude same-occurrence Mono; spec review next."
       },
       {
         "id": "MODULE-NATIVE-FIELD-MAP-20261017",
@@ -121,7 +121,7 @@
         "state": "OPEN independent parent gates."
       }
     ],
-    "next_action": "Compiler referee independently reviewing the frozen original-source embedding proof (180s cap). After STOP, run sequential spec review (120s), then architect review of the native field-map contract (180s).",
+    "next_action": "Compiler referee STOPPED with one major conditional gap and no semantic counterexample. Continue sequential spec review of frozen source embedding, then architect review of native field-map contract; consult dispatcher at the material blocker/closeout.",
     "user_clarification": "User explicitly authorized modifying computational complexity. Account time/space, retained storage, allocation/failure; preserve source admission, observable semantics, original quantifiers and fixed caps.",
     "history": "Previous module-use/observer sprint closed at 0114f997b, technical reviews CLEAN and the exact candidate target PASS 2/2. Original conditions0. One nonessential read-only reviewer command `git show --stat --oneline 185b0db29` recorded; no files changed, no essential unpinned evidence. 1442/1800 charged; unused358 retired.",
     "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused."
