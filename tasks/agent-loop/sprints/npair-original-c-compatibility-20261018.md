@@ -1,6 +1,6 @@
 # Sprint `npair-original-c-compatibility-20261018`
 
-Status: ACTIVE, revision 1. Branch `research/simple-sub-intrusion`.
+Status: ACTIVE, revision 2. Branch `research/simple-sub-intrusion`.
 Baseline `29a7ace306cca2b3959ed752c859125b01f89543`.
 Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN,
 closure 0. Original quantifiers, source domain, receive route, C1/C2, F1/FK1,
@@ -118,7 +118,7 @@ Baseline: `29a7ace306cca2b3959ed752c859125b01f89543`.
 | `notes/theory/2026-10-18-npair-reference-indexed-self-leaf.md` | `db9b4ab7894865bb8b67b502564fa193c9569ef205f9209e9cd6af894bc16187` | Actual-reference self leaf |
 | `notes/theory/2026-10-18-npair-function-incidence-rule-lift.md` | `2d7f2456deda74c68c34404425ecf1e2d88eaa8d2b747a960898b8f1a84bc505` | Conditional Result/ResultEffect/Replay lift |
 | `notes/design/2026-10-17-negative-formal-pair-formation-proposal.md` | `0a73aaf7016e86dd5babbdd5482b05a793764418bc003607207ef0375ee46006` | Parent proposal and unchanged P1-P6 |
-| `notes/design/2026-10-18-npair-source-admission-contract.md` | `692aa39ec37f522e921634134551dad1933b736e5afd2eff463213970a0fb6098` | Current source admission scope |
+| `notes/design/2026-10-18-npair-source-admission-contract.md` | `692aa39ec37f522e921634134551dad1933b736e5afd2eff463213970a0fb609` | Current source admission scope |
 | `notes/design/2026-10-18-npair-source-admission-proposal.md` | `398b4f8683503d41e79d4d09b7a0a9591161a5673d48338c224037fae26d3158` | Current source proposal and result clauses |
 
 Every lane rehashes its direct inputs before reliance. Any changed governing

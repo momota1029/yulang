@@ -6,8 +6,8 @@
   "active_sprint": {
     "id": "npair-original-c-compatibility-20261018",
     "contract": "tasks/agent-loop/sprints/npair-original-c-compatibility-20261018.md",
-    "revision": 1,
-    "sha256": "88d22296afc2653f5f9bf2eb2785d2de063c5e5f89a08f6967212ce4dbc6c02e",
+    "revision": 2,
+    "sha256": "a48ee14722783e6598e782e405e880f9efe14ae8f5558bb0369834ea01d4affd",
     "state": "ACTIVE",
     "baseline": "29a7ace306cca2b3959ed752c859125b01f89543",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, quantifiers, source domain, receive route, C1/C2, F1/FK1 unchanged; closure0.",
@@ -23,9 +23,9 @@
       "available_seconds": 2160,
       "allocation": "Sol constructive proof720; independent Sol falsifier420; Luna typed Replay observer420; fresh proof/spec review180; fresh compiler review180; Luna primary120; reserve120. Astra0, descendants0, no rollover."
     },
-    "next_action": "Verify every direct pin; start the three bounded lanes in parallel. Freeze and independently review each artifact. Keep all original theorem gates OPEN unless the original fixed-c condition is genuinely derived or refuted. Run at most one focused observer command only after CLEAN exact compiler review and >=120s measured capacity."
+    "next_action": "Rev2 corrects one 65-character dependency-pin typo (source admission contract actual SHA ends 609). Proof and implementation continue within their original caps; no budget reset. Verify rev2 contract and relevant direct pins before reliance. Original fixed-c condition and Replay observer remain targets."
   },
-  "history": "Closed `npair-swr1-output-origin-prototype-20261018` at commit29a7ace306cca2b3959ed752c859125b01f89543. Proof review CLEAN for five static Local joins and valid-state Missing/remap lemma; original fixed-c/output-origin remains NOT PROVED, parent0→0. Compiler review MAJOR: infallible wrapper Vec push, uncharged repeated scans, missing Plan storage accounting. Prototype source was restored to pinned baseline; no Cargo/tests in that sprint. Review closeout pushed as 29a7ace30. Successor contract uses current pinned semantic/source inputs and dispatcher delta; no semantic candidate is adopted. Prior complete call/demand lane still has exact runtime boundaries in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Parent and all other proof/production gates remain OPEN.",
+  "history": "Closed `npair-swr1-output-origin-prototype-20261018` at commit29a7ace306cca2b3959ed752c859125b01f89543. Proof review CLEAN for five static Local joins and valid-state Missing/remap lemma; original fixed-c/output-origin remains NOT PROVED, parent0→0. Compiler review MAJOR: infallible wrapper Vec push, uncharged repeated scans, missing Plan storage accounting. Prototype source was restored to pinned baseline; no Cargo/tests in that sprint. Review closeout pushed as 29a7ace30. Successor contract uses current pinned semantic/source inputs and dispatcher delta; no semantic candidate is adopted. Prior complete call/demand lane still has exact runtime boundaries in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Parent and all other proof/production gates remain OPEN. Sprint contract rev1 had one malformed 65-character source-admission-contract digest; the actual file digest is 692aa39ec37f522e921634134551dad1933b736e5afd2eff463213970a0fb609. Rev2 corrects that pin only. Proof and implementation authors paused contract-scoped reliance pending the corrected hash; budgets do not reset.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -64,13 +64,13 @@
     {
       "id": "/root/npair_ordered_replay_observer",
       "role": "bounded typed Replay observer implementation",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=420s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact leases: candidate_context.rs; shadow_apply.rs; research_source_registration.rs; notes/progress/2026-10-18-npair-ordered-replay-observer.md; matching inbox. No solver semantic changes; may return NO_SAFE_CODE_SLICE."
+      "receipt": "Started21:28:39 UTC; cap420s. Verifying pins. Contract rev2 corrects one malformed 65-character digest; hold contract-dependent edits/decisions pending rev2, read-only inspection of verified owners allowed. No budget reset."
     }
   ],
   "leases": [
