@@ -45,12 +45,12 @@
       {
         "id": "/root/module_root_source_owner_audit",
         "role": "researcher",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "requested_effort": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "receipt": "Fresh read-only IF/Name/Result/Call source/native consumer owner audit ≤180 s. No writes/tests/builds/Git/descendants. Inherited UNKNOWN code leases quarantined."
+        "receipt": "NO_SAFE_CODE_SLICE. Fresh read-only audit completed; exact Data-Name, Code-Result, IF and original Call consumer operands mapped. Sigma_M registration lacks formal bundle/registered Result port/Reg_orig; native records/tests do not supply total Phi_u or source consumer derivations. Candidate files remain quarantined; no code path leased. Full180 charged; no writes/tests/builds/Git."
       }
     ],
     "leases": [
