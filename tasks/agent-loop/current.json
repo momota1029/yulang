@@ -53,13 +53,13 @@
     {
       "id": "/root/npair_local_route_authentication_implementation",
       "role": "integrated final-auth route repair, tests and runtime",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=1320s incl360 verification reserve",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact leases in successor rev1; reuse prior unapproved patch only as an input; start only after contract commit."
+      "receipt": "Live checkpoint: production source_call dispatches scoped calls to observe_scoped(..., GraphState); admit_candidate_fact independently runs authenticate_scoped_apply before Apply admission. Both rederive callee from original input.callee; crossed-Ascription/annotated Local refuse, ordinary non-Local ascription preserves prior path. Six leased source/test files changed; example untouched. Three focused regressions added. No tests/build before CLEAN. Writer estimates ~12m remain from 1320s lane; verification360s untouched. Next: check index publication/rollback/accounting, peel parity and test sources, freeze and hash."
     },
     {
       "id": "/root/npair_local_route_authentication_review",
