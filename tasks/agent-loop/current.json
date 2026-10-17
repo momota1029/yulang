@@ -42,35 +42,35 @@
     {
       "id": "/root/npair_original_formation_compatibility",
       "role": "constructive original formation compatibility / decision",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact leases: notes/theory/2026-10-18-operation-original-formation-compatibility.md; notes/design/2026-10-18-operation-contribution-adoption-decision.md; tasks/agent-loop/inbox/20261018-operation-original-formation.md."
+      "receipt": "Live receipt 21:57Z: contract/all 18 pins MATCH. Original Prim/T_alpha c is still the first missing term; author is now preparing exact adoption decision analysis rather than repeating a conditional lemma. No files frozen yet; requested Sol/high, observed UNKNOWN."
     },
     {
       "id": "/root/npair_original_formation_falsifier",
       "role": "independent original-alternative falsification",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol/researcher",
       "requested_effort": "high <=300s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact leases: notes/theory/2026-10-18-operation-original-formation-falsification.md; tasks/agent-loop/inbox/20261018-operation-original-formation-falsification.md."
+      "receipt": "Live receipt 21:57Z: contract/all 18 pins MATCH. Independently attacking fixed-c attribution, active-consumer reflection and changed provider/output cases without repeating the earlier disjoint-fiber discriminator. No files frozen yet; requested Sol/high, observed UNKNOWN."
     },
     {
       "id": "/root/npair_exact_local_route",
       "role": "exact Local route repair, regressions and runtime",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=960s incl360 verification reserve",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact leases: five Rust source files, candidate_graph_call.rs regression, research harness and one progress/handoff pair. No fixture/expected-output edits."
+      "receipt": "Live receipt 21:57Z: contract and all direct dependency/source/fixture pins MATCH. Tracing exact Local route consumer and scoped-cap sites before edits; no blocker identified. No files touched; ~13 minutes implementation/review handoff estimate within 960s cap; requested Luna/high, observed UNKNOWN."
     },
     {
       "id": "/root/npair_original_formation_review",
@@ -113,5 +113,5 @@
     "required": false,
     "receipt": "All prior sprint authors/reviewers STOPPED. New proof/implementation leases acknowledged with runtime start receipts; reviewers WAITING. No descendants or unknown live writers."
   },
-  "next_action": "Verify contract SHA and all direct pins, commit/push successor start state, then dispatch proof and implementation lanes concurrently."
+  "next_action": "Parallel authors are active on original-c adoption decision/falsification and exact Local route repair. Freeze outputs when ready; only then assign fresh independent reviews. Do not run compiler commands before CLEAN code review."
 }
