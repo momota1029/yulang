@@ -43,35 +43,35 @@
     {
       "id": "/root/npair_written_conservative_lift",
       "role": "constructive source proof",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Assigned to trace original fixed-c constructor/selector at actual returned provider r.s1 through designated consumer and authentic Call; no work receipt yet."
+      "receipt": "Actual lane start20:58:44 UTC, Sol/prover/high requested, model/effort UNKNOWN. Verified contract SHA1142ab97..., 21 current direct pins +24 inherited manifest pins. Tracing original fixed c vs Apply-c/endpoint q_c through source installation/consumer; no writes/tests/children."
     },
     {
       "id": "/root/npair_written_lift_adversarial",
       "role": "independent source-case falsification",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Sol/researcher",
       "requested_effort": "high <=300s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Assigned to attack actual response admission, fixed-c identity and original consumer action; no work receipt yet."
+      "receipt": "Actual lane first clock20:58:47 UTC, cap300s, contract SHA1142ab97... and all21 direct pins matched. HEAD c3b3... advances metadata only; d9e6949 baseline remains authoritative. No children/tests/Git."
     },
     {
       "id": "/root/npair_native_demand_children",
       "role": "Luna scoped collection implementation",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=900s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Assigned exact owner/branch diagnosis, minimal semantics-preserving correction if authorized by existing invariants, and reviewed vertical validation; no work receipt yet."
+      "receipt": "Actual lane start20:58:48 UTC, cap900s. Reading exact contract/current pins and leased owners. No Cargo before diagnostic bytes and fresh compiler review."
     },
     {
       "id": "/root/npair_actual_argument_proof_review",
