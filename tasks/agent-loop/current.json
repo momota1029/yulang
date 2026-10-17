@@ -6,8 +6,8 @@
   "active_sprint": {
     "id": "npair-reference-indexed-source-lift-20261018",
     "contract": "tasks/agent-loop/sprints/npair-reference-indexed-source-lift-20261018.md",
-    "revision": 1,
-    "sha256": "b936d454650c75b1746d6998f2bbd435d2f8e429927e3158264b5a9dd0f7121f",
+    "revision": 2,
+    "sha256": "c7aab4ba2b95e59175e6d0065b70f83dc374e4be99054369b576c5fb6ed6b3c9",
     "state": "ACTIVE",
     "baseline": "aeb0659a1dacdb63f1f156e6596783eeb2c140c3",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, quantifiers and domain unchanged; closure0.",
@@ -48,7 +48,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live constructive proof assignment launched with exact reference-indexed sources and two output leases; effective model/effort UNKNOWN."
+      "receipt": "Live constructive proof assignment launched with exact reference-indexed sources and two output leases; effective model/effort UNKNOWN. Contract rev2 pins the cited source-contract §3.7 and approved Option 2 answer; goal, scope, leases, budgets unchanged."
     },
     {
       "id": "/root/npair_function_incidence_rule_lift",
@@ -59,7 +59,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live read-only source-rule lift assignment launched under exact source/output leases; effective model/effort UNKNOWN."
+      "receipt": "Live read-only source-rule lift assignment launched under exact source/output leases; effective model/effort UNKNOWN. Contract rev2 pins the cited source-contract §3.7 and approved Option 2 answer; goal, scope, leases, budgets unchanged."
     }
   ],
   "leases": [

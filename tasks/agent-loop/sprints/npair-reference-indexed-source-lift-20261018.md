@@ -1,7 +1,7 @@
 # Sprint `npair-reference-indexed-source-lift-20261018`
 
 Status: ACTIVE, primary-issued
-Contract revision: 1
+Contract revision: 2 (adds the exact source-contract/approved Option 2 inputs referenced by the existing IF grammar; claim, allocations, leases and baseline unchanged)
 Branch / compiler baseline: `research/simple-sub-intrusion` / `aeb0659a1dacdb63f1f156e6596783eeb2c140c3`
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`; original claim, quantifiers, source domain, and accepted semantics unchanged.
 Dispatcher: `/root/npair_replan_dispatch`; recommendation adopted within Luna's exact read/output leases below.
@@ -16,6 +16,8 @@ Do not select `u` independently of `w`; do not define a fiber by the desired inc
 
 - Compiler baseline: commit `aeb0659a1` (prior pushed HEAD at sprint issue).
 - Previous contract and adopted-source manifest: `tasks/agent-loop/sprints/npair-same-w-source-seed-20261018.md`, rev3 SHA-256 `4b506cfd8587e6fbb98370433c61c5219728a4687561c7cb32092827c6f2ebb7`.
+- Source contracts and common allowance, §3.7: `notes/design/2026-10-05-source-contracts-and-common-allowance.md`, SHA-256 `1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186`.
+- Approved Function-bound Option 2 answer: `questions/2026-10-05-production-function-bound-membership/approved-answer.md`, SHA-256 `d9ddea04a44d2307cf587bc4ae9b2a1c50d062c4077306a5bf9ea9da00eca179` (read-only; no question bundle edits).
 - Prior conditional proof: `notes/theory/2026-10-18-npair-same-w-source-seed.md`, SHA-256 `3ea8fd5631cdfb6142c49dcee3f40d6930017db8c0c5ecfd83429f2cf827a0a2`.
 - CLEAN exact-incidence audit: `notes/theory/2026-10-18-npair-exact-incidence-source-audit.md`, SHA-256 `2d47cd5d55272ff999ac87d0ebf93a2885a62beadb2f0f53f4d96ac572aa5431`.
 - Prior sprint closeout and review adjudication: `notes/progress/2026-10-18-npair-same-w-seed-closeout.md`, SHA-256 `8cf69cf50d2fe3fe52f167bb8cac5f9d82ef157aac468bd1adcb25b33d6dae18`.
