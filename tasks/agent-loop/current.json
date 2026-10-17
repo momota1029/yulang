@@ -27,9 +27,9 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 1080,
-      "available_seconds": 420,
-      "allocation": "Proof600 + source audit180 + compiler review180 + spec review120 charged/assigned; architecture120 required due new consumer cases; Luna coordination180 + reserve120 remain. Astra0."
+      "charged_seconds": 1200,
+      "available_seconds": 300,
+      "allocation": "Proof600 + source audit180 + compiler review180 + spec120 + architecture120 charged/assigned; Luna coordination180 + reserve120 remain. Astra0."
     },
     "workers": [
       {
@@ -65,12 +65,22 @@
       {
         "id": "/root/catch_historical_operand_spec_review",
         "role": "spec_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "receipt": "Fresh spec review of frozen module consumer artifact; ≤120s. Verify original quantifiers/source domain, literal parent substitution, preserved Call operands and conditionality. Read-only."
+        "receipt": "CLEAN assigned spec audit. Original indices/source domain/clients/guards/alternatives/strategies/futures/GC intact; Sigma_M vs proposed Sigma_MI distinct; q_f conditional on complete Fam_Return and registered port. Demand, argument registration, checks/e_c open. 20/20 pins match; full120 charged; no writes/tests/Git."
+      },
+      {
+        "id": "/root/module_reference_architecture_review",
+        "role": "architect",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Fresh architecture review of proposed Sigma_MI MRef/IF/Name/Result consumer rules, conditional Return-port premise and old-case preservation; ≤120s. Read-only."
       }
     ],
     "leases": [
