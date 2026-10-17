@@ -19,7 +19,7 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 120,
+      "charged_seconds": 720,
       "available_seconds": 0,
       "allocation": "Assigned envelope fully reserved: proof600 (active, remainder to receipt); implementation720 (active, first contracted Cargo command already consumed under rev1; no rev2 rerun authorized); proof/spec review180; implementation/compiler review120; Luna integration120 charged at rev1 start; reserve60. Astra0; descendants0."
     },
@@ -43,13 +43,13 @@
     {
       "id": "/root/npair_actual_argument_ingress",
       "role": "constructive proof",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Active rev2 proof progress: pinned Apply constructor, full Function children, `f0_use <: Outer-`, and same-R1 install/fresh-use derive at source level. Unfrozen proof draft written before rev2 hold; writer stopped writes until rev2 was committed/pushed, then resumed. Exact original eta, receive-use row map, runtime Replay inputs remain open."
+      "receipt": "Frozen proof artifact 3722104488fbd16bbc2c689798ee40d5e741f079403184c7bfdf784d58e891cd; inbox 015fbcd0a41cedf1f779485006e01d0f8a451b771032d06c97c1b412647d1b74. Actual Apply demand, all Function children, same-R1 install, and q_D^r=phi_r(rep(q_D)) successful-path native port map. Original eta, Permission/use T_rho, observed Replay remain OPEN; closure0. Full600 charged, writer STOPPED."
     },
     {
       "id": "/root/npair_actual_argument_source_path",
@@ -61,6 +61,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "Active rev2 implementation: HIR/LocalSource/source_call/native-demand query code and single fixture line are present; first exact Cargo command has already run once under rev1 before rev2 query completion. Exit/stdout/duration and implementation-cap remainder receipt pending. No rerun authority. Further edits/query review only; fixture currently has the one authorized line."
+    },
+    {
+      "id": "/root/npair_actual_argument_proof_review",
+      "role": "independent proof/spec reviewer",
+      "state": "RUNNING",
+      "requested_model": "Sol/spec_auditor",
+      "requested_effort": "high <=180s",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh followup review assigned to frozen proof artifact/inbox; no writes or descendants."
     }
   ],
   "leases": [
@@ -77,12 +88,12 @@
     {
       "path": "notes/theory/2026-10-18-npair-observed-apply-function-ingress.md",
       "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-observed-apply-function-ingress.md",
       "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-npair-observed-apply-source-evidence.md",
@@ -165,7 +176,15 @@
       "state": "HELD"
     }
   ],
-  "pending": [],
+  "pending": [
+    {
+      "id": "observed-apply-proof-review",
+      "state": "IN_REVIEW",
+      "owner": "/root/npair_actual_argument_proof_review",
+      "artifact_sha256": "3722104488fbd16bbc2c689798ee40d5e741f079403184c7bfdf784d58e891cd",
+      "handoff_sha256": "015fbcd0a41cedf1f779485006e01d0f8a451b771032d06c97c1b412647d1b74"
+    }
+  ],
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
