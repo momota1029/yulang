@@ -1,6 +1,6 @@
 # Sprint `npair-original-c-elimination-and-replay-cause-20261018`
 
-Status: ACTIVE revision2. Branch
+Status: CLOSED-REVIEWED-PARTIAL revision3. Branch
 `research/simple-sub-intrusion`. Baseline `f1b989ea0f2ad841201550173b26436a3b9db55c`.
 Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`: OPEN; original
 conditions closed0. Astra0; no rollover.
@@ -136,3 +136,26 @@ may not build the example's candidate API. Rev2 adds
 `--features shadow-apply-candidate` to both exact commands. No code, semantic,
 source, expected-output, lease or resource authority changes. Any reviewer must
 review this rev2 command snapshot; no Cargo command ran under rev1.
+
+## Luna closeout rev3
+
+Both frozen author packets received CLEAN bounded reviews. The proof packet
+identified the exact absent original same-c elimination at complete `A_decl`
+output; no parent condition closed. The implementation packet passed static
+review, then the sole released focused test command exited 101. Compilation
+succeeded and the five pre-existing selected tests passed; the new source/HIR
+test failed at `hir.errors().is_empty()` (test line 460). This is a fixture
+failure, not a formatting-only failure. The example command was not run under
+the stop-on-failure rule. The unverified example and test additions were
+removed; frozen progress/handoffs and complete stdout/stderr remain as audit
+evidence. No retry occurred.
+
+Runtime stdout SHA-256:
+`d6315a4c745e2d0882ecde5263c384579fac0b5d9b30406a16d874384f90e6b1`.
+Runtime stderr SHA-256:
+`4bec13c44600f93d05e998fe31375d0baee52778049bd4f9bbf44081e358c6a9`.
+Original parent closure remains 0; all P3/P4/P5/P6 and F1/FK1 residuals remain
+open. No semantic choice was adopted. All authors and reviewers are STOPPED;
+the 240 seconds of primary/reserve capacity expire with this sprint and do not
+roll over. The next implementation attempt must first inspect the accepted
+HIR/source fixture shape and produce a reviewed, materially corrected slice.

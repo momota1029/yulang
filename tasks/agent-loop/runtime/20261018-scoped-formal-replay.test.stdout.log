@@ -1,0 +1,23 @@
+
+running 6 tests
+test tests::candidate_graph_call::scoped_omitted_formal_introduction_is_attached_to_its_native_apply ... FAILED
+test tests::candidate_graph_call::candidate_graph_call_retains_deferred_formal_demand_and_fresh_uses ... ok
+test tests::candidate_graph_call::scoped_local_callee_route_survives_a_later_local_argument_use ... ok
+test tests::candidate_graph_call::scoped_annotated_and_ascribed_local_callees_remain_refused ... ok
+test tests::candidate_graph_call::candidate_graph_call_retains_capture_after_identity_providers_arrive ... ok
+test tests::candidate_graph_call::unscoped_candidate_collection_does_not_inherit_the_scoped_record_cap ... ok
+
+failures:
+
+---- tests::candidate_graph_call::scoped_omitted_formal_introduction_is_attached_to_its_native_apply stdout ----
+
+thread 'tests::candidate_graph_call::scoped_omitted_formal_introduction_is_attached_to_its_native_apply' (2920305) panicked at crates/yu-solver/src/tests/candidate_graph_call.rs:460:5:
+assertion failed: hir.errors().is_empty()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::candidate_graph_call::scoped_omitted_formal_introduction_is_attached_to_its_native_apply
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 718 filtered out; finished in 0.79s
+

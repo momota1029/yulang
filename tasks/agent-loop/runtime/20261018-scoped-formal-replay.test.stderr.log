@@ -1,0 +1,42 @@
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:191:11
+    |
+191 |     Token(SyntaxToken),
+    |     ----- ^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+191 -     Token(SyntaxToken),
+191 +     Token(()),
+    |
+
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:192:15
+    |
+192 |     Synthetic(Vec<AssociationProvenance>),
+    |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+192 -     Synthetic(Vec<AssociationProvenance>),
+192 +     Synthetic(()),
+    |
+
+warning: function `replace_admission_root` is never used
+    --> crates/yu-hir/src/module.rs:1620:4
+     |
+1620 | fn replace_admission_root(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `yu-hir` (lib) generated 3 warnings
+   Compiling yu-solver v0.1.0 (/home/momota1029/rust/yulang/crates/yu-solver)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.90s
+     Running unittests src/lib.rs (target/debug/deps/yu_solver-12ea9c1c0f03380a)
+error: test failed, to rerun pass `-p yu-solver --lib`

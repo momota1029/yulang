@@ -1,0 +1,45 @@
+{
+  "sprint": "npair-original-c-elimination-and-replay-cause-20261018",
+  "contract_revision": 2,
+  "contract_sha256": "a8f31edcdcb568e26fe49464811a241e07513cea25e39118950db4481351cd33",
+  "baseline": "f1b989ea0f2ad841201550173b26436a3b9db55c",
+  "start_commit": "79e86624c",
+  "implementation_snapshot_review": "CLEAN",
+  "implementation_review_artifacts_sha256": {
+    "example": "889a6665d6567ad25d889fb64b582c28da9227d2c330388369ffb352b55ae640",
+    "test": "6610fc337dad7d417ae227d12b7c74978741f7d4d2222f6a4c2d6005f2a62529",
+    "progress": "06645481e422dbf194bef1358a56be3c41cc5a25890e3cebac21f18ada6b8ccb",
+    "implementation_handoff": "8b9c78c0c61f6769a617ded7b23c40a9eb9ab16978008e92479b23db5fdf4fc6"
+  },
+  "primary_release": {
+    "status": "EXPLICIT_TEST_ONLY",
+    "released_utc": "2026-10-17 23:37:02 UTC",
+    "capacity_available_seconds": 240,
+    "required_seconds": 120,
+    "reviewer": "/root/npair_scoped_replay_review",
+    "review": "CLEAN",
+    "no_retry": true
+  },
+  "test_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver --features shadow-apply-candidate candidate_graph_call --lib",
+  "test_stdout_path": "tasks/agent-loop/runtime/20261018-scoped-formal-replay.test.stdout.log",
+  "test_stderr_path": "tasks/agent-loop/runtime/20261018-scoped-formal-replay.test.stderr.log",
+  "test_invocation": 1,
+  "test_status": "FAILED_EXIT_101",
+  "example_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo run --offline -p yu-solver --features shadow-apply-candidate --example research_scoped_formal_replay",
+  "example_stdout_path": "tasks/agent-loop/runtime/20261018-scoped-formal-replay.example.stdout.log",
+  "example_stderr_path": "tasks/agent-loop/runtime/20261018-scoped-formal-replay.example.stderr.log",
+  "example_invocation": 0,
+  "example_status": "NOT_RUN_STOPPED_AFTER_TEST_FAILURE",
+  "closeout": {
+    "status": "CLOSED-REVIEWED-PARTIAL",
+    "test_exit_code": 101,
+    "test_result": "FAILED: compilation succeeded; 5 existing selected tests passed; new test panicked at line 460 because hir.errors() was non-empty",
+    "test_stdout_sha256": "d6315a4c745e2d0882ecde5263c384579fac0b5d9b30406a16d874384f90e6b1",
+    "test_stderr_sha256": "4bec13c44600f93d05e998fe31375d0baee52778049bd4f9bbf44081e358c6a9",
+    "example_status": "NOT_RUN_STOPPED_AFTER_TEST_FAILURE",
+    "retry": "NONE; contract stop-on-failure applied",
+    "unverified_example_removed": true,
+    "parent_conditions_closed": 0,
+    "end_time_utc": "NOT_SEPARATELY_CLOCKED"
+  }
+}
