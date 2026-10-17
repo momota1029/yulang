@@ -6,12 +6,12 @@
   "active_sprint": {
     "id": "ordinary-hir-application-admission-implementation-20261017",
     "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
-    "revision": 2,
-    "sha256": "712fa3cfb7ba6ad89d0416f8e3b83f11c921084a35d8c0e88b7b918006e4a07e",
-    "state": "WAITING-USER-APPROVAL-RESOURCE-CLAUSE",
-    "baseline": "8be4b8248",
+    "revision": 3,
+    "sha256": "47d160176e72306e150675b2daf6e548d74e1e8d3dfc794c8dbf40ac0ba674e2",
+    "state": "IMPLEMENTATION-READY",
+    "baseline": "606416278",
     "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
-    "fixed_outcome": "Implement adopted rev4 structural HIR admission and prove projection preservation through ordinary HIR, applying only the exact structural premise of the original Call/source bridge. Current gate: frozen proof and resource-amendment review; implementation held until fresh compiler/spec/architect reviews are CLEAN and Luna adjudicates. No semantic Call or parent theorem closure.",
+    "fixed_outcome": "Implement adopted rev4 ordinary HIR admission and establish the bounded projection invariant in ordinary HIR. Resource contract now counts physical R references with O(V+E+R), worst O(V^2); exact adoption receipt and implementation obligations are frozen. Apply only to the structural premise of the original Call/source bridge; no semantic Call or parent theorem closure.",
     "proof_artifact": "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
     "adoption_receipt": "notes/progress/2026-10-17-ordinary-hir-application-admission-adoption.md",
     "adoption_receipt_sha256": "6d28dc76e321ce63588aab74d74caa6d9eb2655b2d11eb43ca700ba19edfe970",
@@ -21,18 +21,18 @@
       "original_conditions_closed": 0,
       "behavior_executed": false,
       "proof_class": "Frozen Astra candidate: structural/key/identity/carrier/diagnostic lemmas plus algebraic lower bound; independent review pending.",
-      "implementation_class": "HOLD pending user approval of the reviewed change to rev4 §2 performance guarantee; no code/tests.",
+      "implementation_class": "READY; user explicitly adopted the technically reviewed O(V+E+R) resource replacement; implementation may start under exact leases and obligations.",
       "HIR_APP_CST_1": "LOCALLY RESOLVED within pinned fixed-source scope; no parser-wide claim.",
-      "HIR_APP_ADMISSION_1": "ADOPTED rev4; projection proof candidate frozen; implementation held pending resource amendment review/adjudication; no semantic Call conclusion.",
+      "HIR_APP_ADMISSION_1": "ADOPTED rev4 plus resource-only §2 correction; proof candidate frozen; implementation ready; no semantic Call conclusion.",
       "parent_application": "Still to be derived by Astra from the actual original Call/source bridge; no Call typing, source T or adequacy inferred.",
-      "HIR_APP_ERRREF_1": "Rev1 linear-all-retained-entry bound falsified for flat Apply.errors: V=2m+1, E=m+1, R=m(m+3)/2. Proposed O(V+E+R), worst O(V^2), not adopted."
+      "HIR_APP_ERRREF_1": "ADOPTED resource correction: O(V+E+R), worst O(V^2) in V; flat descendant lists, API, diagnostics and IDs unchanged."
     },
     "resources": {
       "cap_seconds": 4020,
       "charged_seconds": 960,
-      "available_seconds": 2790,
-      "allocation": "Coordination120 charged; Astra450/720 charged, remaining270 retired; Luna amendment author90 charged; proof reviews300; pre-code architect90; implementation1710; applied reviews480; regression pre/post240; Cargo240; reserve30. Available includes only planned remaining allocations.",
-      "retired_seconds": 270
+      "available_seconds": 2700,
+      "allocation": "Coordination120 charged; Astra450/720 charged and remaining270 retired; proof reviews210 charged (compiler90, spec120), unused90 retired; amendment author90 charged; pre-code architect90 charged; implementation1710; applied reviews480; regression pre/post240; Cargo240; reserve30. Actual charged960 + retired360 + remaining2700 = cap4020.",
+      "retired_seconds": 360
     },
     "workers": [
       {
@@ -214,6 +214,11 @@
         "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/progress/2026-10-17-ordinary-hir-application-error-reference-adoption.md",
+        "owner": "/root",
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -268,7 +273,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Three sequential reviews complete: compiler CLEAN, spec and architect agree a resource-contract authority change requires explicit user approval; technical proposal is CLEAN. Ask user to approve the exact output-sensitive replacement for adopted rev4 §2 or commission a representation design. No implementation/tests/Cargo before approval; original theorem gates remain OPEN.",
+    "next_action": "Revalidate pins/leases at baseline 606416278, then obtain fresh implementer acknowledgment before RUNNING. Implement exact rev4 grammar with adopted O(V+E+R) accounting and architect obligations; freeze proof+diff+manifest for sequential applied reviews, pre-run regression review, then the two one-shot Cargo commands and post-run review.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
     "predecessor_commit": "5fbceb68d",
     "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
@@ -276,7 +281,9 @@
     "amendment_artifact": "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
     "amendment_artifact_sha256": "e8b53a773675ba54f0cb5dcc4d62a993e8dd16954e0c92c58fdfc80c620d411e",
     "amendment_handoff": "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md",
-    "amendment_handoff_sha256": "23f637cdb64ef6ab237fef6dacb4abeec06bf19efa75d8f8f2d0202c09a67d80"
+    "amendment_handoff_sha256": "23f637cdb64ef6ab237fef6dacb4abeec06bf19efa75d8f8f2d0202c09a67d80",
+    "adoption_resource_receipt": "notes/progress/2026-10-17-ordinary-hir-application-error-reference-adoption.md",
+    "adoption_resource_receipt_sha256": "bcbc089b62315bf38288e179ef992c7658a5a68a8054ce669258ec474a42b388"
   },
   "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review.",
   "quarantine_note": "Three inherited UNKNOWN assignments and their leases remain quarantined. No overlapping authors; two review/integration slots reserved. No production promotion follows structural HIR admission."
