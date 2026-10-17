@@ -4,164 +4,201 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "f2-owning-inlet-introduction-proposal-20261017",
-    "contract": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
+    "id": "catch-request-exit-construction-20261017",
+    "contract": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
     "revision": 1,
-    "sha256": "44a59f25404c691f3128963490327587aae9ad2f5becaa62071ecc2563badb90",
-    "state": "SOURCE-GATE-FAILED-STOPPED",
-    "baseline": "b7bda5cbb",
-    "parent": "Original FORWARD-FIRST-CALL A/B; original c2 F2/source-native formation and all parent gates remain OPEN.",
-    "fixed_outcome": "Draft the owning source inference-introduction rule at original F2 that derives role/entry and whole-carrier L2 from actual declared source operands, or freeze exact missing owner/primitive. Then prove its scoped preservation and assess any concrete compiler producer fields.",
-    "authority": "User authorizes proof/implementation research and draft bridge rules. Candidate only; semantic adoption and compiler code remain separate gates.",
+    "sha256": "3e539cee76b84db1e094ebb152e4e5c72226bf5ebeb09aa66bd1ba77bfd51de2",
+    "state": "PREPARED-AWAITING-ASTRA-LAUNCH",
+    "baseline": "e855987e642a02c6060fd2bdd93864a19b0dba3f",
+    "parent": "Original FORWARD-FIRST-CALL A/B and F1/FK1 remain OPEN at original domains. Target CATCH-EXIT-INPUT-1/M_exit bridge only.",
+    "fixed_outcome": "Draft typed yielded-Request to actual handler-exit to adopted outside matcher-entry rule, attempt preservation/erasure, then sequential static source/runtime instance if concrete fields exist.",
+    "authority": "User authorized proof and implementation research and drafting missing source/bridge rules. New semantics remain proposals until review and explicit adoption. No compiler code authority.",
     "review": {
       "state": "NOT-STARTED",
       "current_reviewer": null,
       "sequence": [
+        "compiler_referee",
         "spec_auditor",
-        "architect",
-        "compiler_referee"
+        "architect"
       ]
     },
     "resources": {
       "cap_seconds": 1500,
-      "source_definition_cap_seconds": 360,
-      "proof_cap_seconds": 600,
-      "review_cap_seconds": 360,
+      "astra_proof_cap_seconds": 720,
+      "luna_source_instance_cap_seconds": 300,
+      "review_cap_seconds": 300,
       "coordination_seconds": 60,
       "reserve_seconds": 120,
-      "charged_seconds": 600,
+      "charged_seconds": 0,
       "active_authors": 0,
-      "status": "Source gate not passed; author stopped. 600s charged including 240s overrun of 360s lane cap. Proof/review allocations retired."
+      "status": "Prepared; no author launched. Prior F2 600s charge and 240s lane overrun remain in prior sprint history."
     },
     "lanes": {
-      "source_definition": {
-        "owner": "/root",
-        "role": "Luna/high source-definition author",
-        "state": "STOPPED-SOURCE-GATE-FAILED",
-        "outputs": [
-          "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
-          "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-proposal.md"
-        ],
-        "cap_seconds": 360,
-        "gate": "Must build the owning declarations/clauses and joint existing-descriptor interpretation; if an indispensable primitive/owner is absent, freeze exact blocker and do not start proof lane.",
-        "started_at_utc": "2026-10-17 04:40:09 UTC",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "stopped_at_utc": "2026-10-17 04:50:09 UTC",
-        "charged_seconds": 600,
-        "cap_overrun_seconds": 240,
-        "output_hashes": [
-          "263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27",
-          "009132ddb136a1c1234f69ea7b0191172eb68feca929842cd75ab678017a96ca"
-        ]
-      },
-      "proof": {
-        "owner": "/root/f2_owning_inlet_introduction_preservation",
+      "proof_source_definition": {
+        "owner": "/root/catch_request_exit_introduction",
         "role": "astra_prover",
-        "state": "RETIRED-SOURCE-GATE-FAILED",
+        "state": "ASSIGNED-NOT-LAUNCHED",
         "outputs": [
-          "notes/theory/2026-10-17-f2-owning-inlet-introduction-preservation.md",
-          "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-preservation.md"
+          "notes/design/2026-10-17-catch-request-exit-introduction-proposal.md",
+          "tasks/agent-loop/inbox/20261017-catch-request-exit-introduction-proposal.md"
         ],
-        "cap_seconds": 600,
-        "gate": "Not launched; source rule and joint descriptor constructor were not derived."
+        "cap_seconds": 720,
+        "gate": "Construct full scoped candidate rule and M_exit field map from original yielded Request and actual exit; do not assume missing correspondence."
+      },
+      "source_runtime_instance": {
+        "owner": "/root",
+        "role": "Luna/high primary",
+        "state": "WAITING-SEQUENTIAL-AFTER-ASTRA",
+        "outputs": [
+          "notes/theory/2026-10-17-catch-exit-source-runtime-instance.md",
+          "tasks/agent-loop/inbox/20261017-catch-exit-source-runtime-instance.md"
+        ],
+        "cap_seconds": 300,
+        "gate": "Only instantiate concrete fields after Astra STOP/freeze; report exact equations or first broken join. No code edit."
       },
       "implementation": {
-        "state": "NO_CODE_LEASE",
-        "gate": "Implementation-enabling source/code correspondence only; actual compiler edits require concrete source-owned fields, independent review and a later exact code lease."
+        "state": "NO_COMPILER_CODE_LEASE",
+        "gate": "No production change authorized. This sprint yields source/runtime correspondence only."
       },
       "reviews": {
-        "state": "NOT-STARTED-SOURCE-GATE-FAILED",
-        "spec_auditor": {
-          "cap_seconds": 120,
-          "output": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-spec-review.md"
-        },
-        "architect": {
-          "cap_seconds": 120,
-          "output": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-architect-review.md"
-        },
+        "state": "NOT-STARTED-AFTER-AUTHORS",
         "compiler_referee": {
           "cap_seconds": 120,
-          "output": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-compiler-review.md"
+          "output": "tasks/agent-loop/inbox/20261017-catch-request-exit-compiler-review.md"
+        },
+        "spec_auditor": {
+          "cap_seconds": 90,
+          "output": "tasks/agent-loop/inbox/20261017-catch-request-exit-spec-review.md"
+        },
+        "architect": {
+          "cap_seconds": 90,
+          "output": "tasks/agent-loop/inbox/20261017-catch-request-exit-architect-review.md"
         }
       }
     },
     "artifacts": [
       {
-        "path": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
-        "sha256": "44a59f25404c691f3128963490327587aae9ad2f5becaa62071ecc2563badb90"
-      },
-      {
-        "path": "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
-        "sha256": "263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-proposal.md",
-        "sha256": "009132ddb136a1c1234f69ea7b0191172eb68feca929842cd75ab678017a96ca"
-      },
-      {
-        "path": "notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md",
-        "sha256": "f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c"
+        "path": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
+        "sha256": "3e539cee76b84db1e094ebb152e4e5c72226bf5ebeb09aa66bd1ba77bfd51de2"
       }
     ],
     "non_goals": [
-      "adopt proposed semantic rule",
-      "narrow original A/B or alpha/provider/carrier/context/world domains",
-      "use Unit to infer role/entry",
-      "use actual Return/Q/provider success to form F2",
-      "compiler code/tests/builds/probes/runtime/expected-output/production"
+      "semantic adoption",
+      "compiler code/tests/builds/Cargo/runtime/probes",
+      "narrow or close original A/B, F1/FK1 or parent domains",
+      "assuming M_exit/profile/active consumed-H incidence or treating partial HIR as accepted source"
     ],
-    "next_boundary": "Sprint ended at failed source gate; consult next_action_selector before any new lease.",
-    "workers": [
-      {
-        "id": "/root",
-        "role": "Luna/high source-definition author",
-        "state": "STOPPED",
-        "requested_model": "UNKNOWN",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "STOP 04:50:09 UTC. Exact first unsupported source-owned CallView introduction recorded. 600s wall charged; 240s overrun against 360s lane cap. No descendants."
-      }
-    ],
+    "next_boundary": "Astra exact-role launch acknowledgement; if unsupported, record degraded serial route and do not claim independent proof.",
+    "workers": [],
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
+        "path": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
         "owner": "/root",
         "state": "FROZEN",
-        "sha256": "44a59f25404c691f3128963490327587aae9ad2f5becaa62071ecc2563badb90"
+        "sha256": "3e539cee76b84db1e094ebb152e4e5c72226bf5ebeb09aa66bd1ba77bfd51de2"
       },
       {
-        "path": "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
-        "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27"
+        "path": "notes/design/2026-10-17-catch-request-exit-introduction-proposal.md",
+        "owner": "/root/catch_request_exit_introduction",
+        "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-proposal.md",
-        "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "009132ddb136a1c1234f69ea7b0191172eb68feca929842cd75ab678017a96ca"
+        "path": "tasks/agent-loop/inbox/20261017-catch-request-exit-introduction-proposal.md",
+        "owner": "/root/catch_request_exit_introduction",
+        "state": "HELD"
       },
       {
-        "path": "notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md",
+        "path": "notes/theory/2026-10-17-catch-exit-source-runtime-instance.md",
         "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c"
+        "state": "HELD-SEQUENTIAL"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-catch-exit-source-runtime-instance.md",
+        "owner": "/root",
+        "state": "HELD-SEQUENTIAL"
+      }
+    ],
+    "dependencies": [
+      {
+        "path": "notes/design/2026-10-17-source-formation-proposals-adoption.md",
+        "sha256": "d94e24656854fd2d67ed0f600619349c728dfafa26ca6e312f1faa6d3f3532fa"
+      },
+      {
+        "path": "notes/design/2026-10-17-catch-matcher-input-formation-proposal.md",
+        "sha256": "cd99aa19cfd301d0ad9f2396c6ef810fc0244f3f08e877ac3f8ce92dd307ba24"
+      },
+      {
+        "path": "notes/theory/2026-10-17-catch-matcher-input-constructor.md",
+        "sha256": "ea0b96693114f9cbe9c8e6306b4dcff6fd522baef2c9076277de1a33801a2936"
+      },
+      {
+        "path": "notes/theory/2026-10-17-catch-exit-typed-incidence.md",
+        "sha256": "414cafbe5bbe1b940ffa96fb6f6a9c0b3a3bef5fd3a1aec0dfec3aa5be41329e"
+      },
+      {
+        "path": "notes/theory/2026-10-17-source-matched-catch-actions.md",
+        "sha256": "064e813a0bcf82019d9379dfa25fd1c825eabd2072c5933f32b28d6d1ea284ae"
+      },
+      {
+        "path": "notes/progress/2026-10-17-catch-source-observation.md",
+        "sha256": "83ee9f49bcf9d18be267f0d7c8297cdfd6b585ff3c5913f899f64c2dc6391ed4"
+      },
+      {
+        "path": "crates/yu-solver/tests/candidate_operation_catch.rs",
+        "sha256": "8c580da56de25c76146073919840f6d15dec3b11a53c0787309a082dc59e5484"
+      },
+      {
+        "path": "crates/yu-hir/src/module/local_source.rs",
+        "sha256": "ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5"
+      },
+      {
+        "path": "crates/yu-solver/src/candidate_source.rs",
+        "sha256": "efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38"
+      },
+      {
+        "path": "crates/yu-solver/src/candidate_effect.rs",
+        "sha256": "11a1477ff2c35c03dccb70bdc6121d89d3ced9fadb1921cb8cf8cd5c093b07fb"
+      },
+      {
+        "path": "crates/yu-solver/src/candidate_context.rs",
+        "sha256": "72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6"
+      },
+      {
+        "path": "tools/inference-playground/src/runtime/machine.rs",
+        "sha256": "b8f15e4617a9d66940183c7327499ff8a2beb1e9cae2abb997137fc1ca464b82"
+      },
+      {
+        "path": "tools/inference-playground/src/runtime/continuation.rs",
+        "sha256": "194e925c2e19816e05e8d0cdf773123f205dce47d36d83a70385daa07a77e2b3"
+      },
+      {
+        "path": "tools/inference-playground/src/runtime/receiving.rs",
+        "sha256": "8c81deadc48c4770f25760e9086d2053815785ff16cfd5580fa814fb83af9bd9"
+      },
+      {
+        "path": "rules/design-authority.md",
+        "sha256": "e4055100f6e75b9c8a6294ec6c68643d8677d7b35b45e430450f7e2c2ad97eb1"
+      },
+      {
+        "path": "notes/theory/2026-10-16-call-contextual-effects-core.md",
+        "sha256": "83c3d3747e657440ac3cc240837936a978193f91d6f2f953c0a84f913df5698f"
       }
     ],
     "prior_sprint": {
-      "id": "resultbind-local-interface-introduction-20261017",
-      "state": "REVIEWED-CLEAN-BOUNDED",
-      "closeout": "notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md",
-      "sha256": "81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a"
+      "id": "f2-owning-inlet-introduction-proposal-20261017",
+      "state": "SOURCE-GATE-FAILED-STOPPED",
+      "contract_sha256": "44a59f25404c691f3128963490327587aae9ad2f5becaa62071ecc2563badb90",
+      "artifact": "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
+      "artifact_sha256": "263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27",
+      "charged_seconds": 600,
+      "cap_overrun_seconds": 240,
+      "closeout": "notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md",
+      "closeout_sha256": "f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c"
     }
   },
-  "candidate": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
-  "baseline": "b7bda5cbb",
-  "scope": "Owning c2 Function inlet/role-entry source introduction plus conditional proof/code correspondence; no semantic adoption or compiler code.",
+  "candidate": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
+  "baseline": "e855987e642a02c6060fd2bdd93864a19b0dba3f",
+  "scope": "CATCH-EXIT-INPUT-1/M_exit yielded Request to actual Catch exit to adopted matcher entry; source/runtime specimen instance only; no semantic adoption or compiler-code lease.",
   "worker_inventory_scope": "Three inherited UNKNOWN assignments retained; board lease remains quarantined. Current sprint has no active writer until exact launch receipt.",
   "workers": [
     {
@@ -253,18 +290,18 @@
     }
   ],
   "next_action": {
-    "state": "SOURCE-GATE-FAILED-SELECT-NEXT",
-    "dispatcher": "Source owner still lacks a selected local CallView introduction and joint existing-descriptor constructor; SAT/RG restatement is insufficient. Select a different evidence-producing route, preserving OPEN parent scope and no code authority.",
-    "proof": "Astra lane retired before launch because source gate failed. Exact missing local inlet/role-entry/interface owner recorded.",
-    "implementation": "No code lease; no proved field producer. A separate safe gate must be selected if implementation is to progress."
+    "state": "SPRINT-PREPARED-AWAITING-ASTRA-LAUNCH",
+    "dispatcher": "Selected Catch Request-exit construction under existing adopted matcher interface; source proposal then sequential Luna source/runtime instantiation; no compiler-code authority.",
+    "proof": "Astra constructive source-definition lane assigned but not RUNNING until actual launch acknowledgement.",
+    "implementation": "Luna sequential static producer/consumer equation lane; zero tests/builds/probes and no code edits."
   },
   "resource_accounting": {
-    "sprint_id": "f2-owning-inlet-introduction-proposal-20261017",
+    "sprint_id": "catch-request-exit-construction-20261017",
     "cap_seconds": 1500,
-    "charged_seconds": 600,
+    "charged_seconds": 0,
     "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "Sprint incomplete at source gate; 600/1500 charged overall, with 240s source-lane cap overrun; proof/reviews unstarted and retired."
+    "status": "Prepared; awaiting actual Astra launch receipt. Prior F2 overrun retained in active_sprint.prior_sprint."
   },
   "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN. Previous sprint f2-owning-inlet-introduction-proposal-20261017 stopped at source gate; artifact SHA 263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27; closeout notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md SHA f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c."
 }
