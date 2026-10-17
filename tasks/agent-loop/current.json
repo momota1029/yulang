@@ -43,24 +43,24 @@
     {
       "id": "/root/npair_written_conservative_lift",
       "role": "constructive proof",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact packet ready; launch after central contract/state checkpoint."
+      "receipt": "Actual launch acknowledged 2026-10-17 20:43:52 UTC, Sol/high requested, effective model/effort UNKNOWN; verified contract SHA and is reading original fixed-c/R/W/Z sources. Assignment baseline typo clarified: contract f68dc078 is authoritative; 78c2b11cb was metadata-only."
     },
     {
       "id": "/root/npair_written_lift_adversarial",
       "role": "independent falsification",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Sol/researcher",
       "requested_effort": "high <=450s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact admitted-case falsification packet ready; launch after central contract/state checkpoint."
+      "receipt": "Contract SHA84549487 verified; all 23 listed dependency hashes matched. First clock receipt 20:44:18 UTC; launch time UNKNOWN so full 450s reservation charged. Read-only original admission/field cases, no Git/tests/descendants."
     },
     {
       "id": "/root/npair_native_demand_children",
