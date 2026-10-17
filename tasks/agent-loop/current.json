@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/module-source-family-embedding-20261017.md",
     "revision": 1,
     "sha256": "c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e",
-    "state": "LUNA-CONTRACT-RUNNING",
+    "state": "READY-FOR-INDEPENDENT-REVIEWS",
     "baseline": "0114f997b",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Derive and substitute the original module publication/use family instance at original-generation §7.2 step 2 for `my id x = x; my answer = id 0`; independently specify the whole native field-map construction contract without a compiler lease.",
@@ -27,8 +27,8 @@
     },
     "resources": {
       "cap_seconds": 2160,
-      "charged_seconds": 1020,
-      "available_seconds": 1140,
+      "charged_seconds": 1500,
+      "available_seconds": 660,
       "retired_seconds": 0,
       "allocation": "Astra proof900 + Luna native-field-map contract480 sequentially; independent compiler180/spec120 on embedding and architect180 on field-map contract; coordination120 (dependency decomposition charged) + reserve180. No execution allocation."
     },
@@ -66,8 +66,8 @@
       {
         "id": "/root/native_field_map_contract",
         "role": "implementer (Luna/high)",
-        "state": "RUNNING",
-        "receipt": "Spawned with exact 2-path construction-contract lease, 480s cap. Requested Luna/high; observed runtime model/effort pending session metadata. No compiler/test/Git authority."
+        "state": "STOPPED",
+        "receipt": "480/480s charged conservatively including initial tool-boundary delay. Contract SHA 132f2abefe1e29f2c3d18359c0f94e61c2b47635182333a6d4b7bce6f70c2b83; handoff b7f81bd2d7bb5c7ec747fd94b5d9e159b3c28bf85af0d33fd76940f5bc554164; exact blocker is source rule owner Sig/field keys/ownership/event witness mapping to capture/FreshUse. No code/tests/Git."
       }
     ],
     "leases": [
@@ -89,12 +89,12 @@
       {
         "path": "notes/design/2026-10-17-module-native-field-map-contract.md",
         "owner": "/root",
-        "state": "ACTIVE"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-module-native-field-map-contract.md",
         "owner": "/root",
-        "state": "ACTIVE"
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -104,7 +104,7 @@
       },
       {
         "id": "MODULE-NATIVE-FIELD-MAP-20261017",
-        "state": "OPEN; specify actual producer/representation for every source-owned field under capture/FreshUse; contract only, no code lease."
+        "state": "OPEN; author contract frozen and hash-checked, independent architect review pending; no native whole-tuple construction claimed."
       },
       {
         "id": "MODULE-CALL-SIGNATURE-APPLICATION / MODULE-GENCALL-ORIGINAL-EMBED",
@@ -115,7 +115,7 @@
         "state": "OPEN independent parent gates."
       }
     ],
-    "next_action": "Luna/high native-field-map construction contract running on the exact two leased paths (480s); no compiler/tests lease. On STOP, freeze both author artifacts and run the sequential independent reviews.",
+    "next_action": "Both authors STOP and artifacts are frozen/hash-checked. Run sequential compiler/source then spec review of MODULE-SOURCE-EMBED, followed by architect review of MODULE-NATIVE-FIELD-MAP contract; no test execution allocated.",
     "user_clarification": "User explicitly authorized modifying computational complexity. Account time/space, retained storage, allocation/failure; preserve source admission, observable semantics, original quantifiers and fixed caps.",
     "history": "Previous module-use/observer sprint closed at 0114f997b, technical reviews CLEAN and the exact candidate target PASS 2/2. Original conditions0. One nonessential read-only reviewer command `git show --stat --oneline 185b0db29` recorded; no files changed, no essential unpinned evidence. 1442/1800 charged; unused358 retired.",
     "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused."
