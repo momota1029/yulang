@@ -75,7 +75,7 @@
       "boundary": "Only a reversible example/test using existing APIs; no library, existing fixture or expected-output edits."
     },
     "review": {
-      "state": "COMPILER-REVIEW-RUNNING",
+      "state": "SPEC-REVIEW-RUNNING",
       "reserve_seconds": 480,
       "sequence": [
         "compiler_referee <=180s",
@@ -88,16 +88,17 @@
         "0a174a481728eb97e381bfe5fb6e04fa090751606b44fd8fd4ee13b467f888d2",
         "e60f29d59c3a9e4b608d5ac244bee55861526166d1747bef4aa6a8fb3841f826"
       ],
-      "active": "/root/selected_source_vertical_compiler_review"
+      "active": "/root/selected_source_vertical_spec_review",
+      "compiler_receipt": "CLEAN; source/native evidence plus exact obstruction; no parent premise discharged."
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 1200,
-      "available_seconds": 1200,
+      "charged_seconds": 1380,
+      "available_seconds": 1020,
       "active_authors": 0,
       "active_reviewers": 1,
       "unknown_reservations_preserved": 3,
-      "status": "Compiler review RUNNING on frozen proof; spec review follows sequentially."
+      "status": "Compiler review STOPPED CLEAN; spec review RUNNING; implementation waits for spec review."
     },
     "workers": [
       {
@@ -169,15 +170,28 @@
       {
         "id": "/root/selected_source_vertical_compiler_review",
         "role": "compiler_referee",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "session": "current-session",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "charged_seconds": 0,
+        "charged_seconds": 180,
         "cap_seconds": 180,
-        "receipt": "Actual read-only independent review launch; exact frozen proof artifact and handoff."
+        "receipt": "CLEAN; all 19 proof dependency pins matched; no writes, tests, probes or descendants."
+      },
+      {
+        "id": "/root/selected_source_vertical_spec_review",
+        "role": "spec_auditor",
+        "state": "RUNNING",
+        "session": "current-session",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 0,
+        "cap_seconds": 120,
+        "receipt": "Actual sequential read-only spec review launch after compiler reviewer STOPPED."
       }
     ],
     "leases": [
