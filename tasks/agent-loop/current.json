@@ -6,8 +6,8 @@
   "active_sprint": {
     "id": "npair-operation-self-effect-decision-20261018",
     "contract": "tasks/agent-loop/sprints/npair-operation-self-effect-decision-20261018.md",
-    "revision": 1,
-    "sha256": "7751165b11b2c286ee1d2021a1bd5b6784d743ace78c4124cb6e80ee6b822aa3",
+    "revision": 3,
+    "sha256": "0ab0e6a7353810204825ffd05815b2a42195a0915c5380c72831061b7355cd94",
     "state": "ACTIVE",
     "baseline": "d4db1bda69e53628d362d33ced23f4e0f37563a3",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, quantifiers and domain unchanged; closure0.",
@@ -19,13 +19,13 @@
     },
     "resources": {
       "cap_seconds": 900,
-      "charged_seconds": 540,
-      "available_seconds": 360,
+      "charged_seconds": 750,
+      "available_seconds": 150,
       "allocation": "semantic/proof300, address audit180, primary60, independent compiler/source review120, spec review90, reserve150; Astra0."
     },
-    "next_action": "Adjudicate both fresh reviews; if CLEAN, close with exact remaining primitive-owner/SourceNodeKey inputs and original closure0."
+    "next_action": "Primary will re-read the newly pinned syntax identity and HIR construction sources under rev3, derive/falsify BracketRow key injectivity, then obtain fresh compiler review."
   },
-  "history": "Closed `npair-reference-indexed-source-lift-20261018`: reviewed same-reference IF placement; Operation latent self-effect projection remains missing; conditional Function/Replay lift reviewed CLEAN but H0/provider tree unresolved; parent closure0. Closeout records hashes and reviews.",
+  "history": "Closed `npair-reference-indexed-source-lift-20261018`: reviewed same-reference IF placement; Operation latent self-effect projection remains missing; conditional Function/Replay lift reviewed CLEAN but H0/provider tree unresolved; parent closure0. Closeout records hashes and reviews. Rev1 dependency pin typo found by independent spec/compiler review; corrected in rev2 without changing scope; rev2 recheck pending. Rev3 spends the pre-existing 150s reserve on source-node key injectivity; primary did preliminary symbol-location reads before exact rev3 lease, which are not admitted as evidence and will be re-read under the pinned lease.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
   "workers": [
     {
@@ -37,7 +37,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Both bounded lanes STOPPED/FROZEN; independent spec review of semantic classification and compiler/source review of address invariant launched."
+      "receipt": "Rev1 pin issue corrected and rechecked in rev2; dispatcher allocated final existing reserve to SourceNodeKey injectivity. Formal source derivation begins after rev3 lease."
     },
     {
       "id": "/root/npair_operation_self_effect_decision",
@@ -64,24 +64,24 @@
     {
       "id": "/root/npair_incidence_compiler_review",
       "role": "independent compiler/source reviewer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/compiler_referee",
       "requested_effort": "high <=120s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh independent read-only review launched on frozen explicit-row address result; no write lease."
+      "receipt": "Fresh independent review completed; reported only minor rev1 dependency-pin typo plus clean scoped findings; awaiting targeted rev2 pin confirmation."
     },
     {
       "id": "/root/npair_incidence_spec_review",
       "role": "independent spec reviewer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/spec_auditor",
       "requested_effort": "low <=90s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh independent read-only review launched on frozen Operation authority classification; no write lease."
+      "receipt": "Rev2 exact prior-lift pin correction independently verified; review stopped."
     }
   ],
   "leases": [
@@ -129,6 +129,26 @@
       "path": "crates/yu-hir/src/source_identity.rs",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-syntax/src/full_parse.rs",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-hir/src/module.rs",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-npair-source-node-key-injectivity.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-source-node-key-injectivity.md",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [],

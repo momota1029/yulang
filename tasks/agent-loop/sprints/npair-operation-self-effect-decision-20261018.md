@@ -1,7 +1,8 @@
 # Sprint `npair-operation-self-effect-decision-20261018`
 
 Status: ACTIVE, primary-issued 2026-10-18.
-Contract revision: 1.
+Revision 1 SHA-256: `7751165b11b2c286ee1d2021a1bd5b6784d743ace78c4124cb6e80ee6b822aa3`.
+Contract revision: 2 (corrects the exact prior Function/Replay artifact hash; goals, scopes, resources, leases, and assignments unchanged).
 Branch / compiler baseline: `research/simple-sub-intrusion` / `d4db1bda69e53628d362d33ced23f4e0f37563a3`.
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`; original claim, quantifiers, source domain and adopted semantics unchanged.
 Dispatcher: `/root/npair_replan_dispatch`; closeout recommendation adopted within Luna's exact read/output leases.
@@ -16,7 +17,7 @@ Preserve the same actual `w`, reference/occurrence, `theta`, provider, world, as
 
 - Prior contract: `tasks/agent-loop/sprints/npair-reference-indexed-source-lift-20261018.md`, rev2 SHA-256 `c7aab4ba2b95e59175e6d0065b70f83dc374e4be99054369b576c5fb6ed6b3c9`.
 - Prior proof: `notes/theory/2026-10-18-npair-reference-indexed-self-leaf.md`, SHA-256 `db9b4ab7894865bb8b67b502564fa193c9569ef205f9209e9cd6af894bc16187`.
-- Prior conditional lift: `notes/theory/2026-10-18-npair-function-incidence-rule-lift.md`, SHA-256 `2d7f2456deda74c68c34404425ecf1e2d88aee8d2b747a960898b8f1a84bc505`.
+- Prior conditional lift: `notes/theory/2026-10-18-npair-function-incidence-rule-lift.md`, SHA-256 `2d7f2456deda74c68c34404425ecf1e2d88eaa8d2b747a960898b8f1a84bc505`.
 - Prior sprint closeout: `notes/progress/2026-10-18-npair-reference-indexed-lift-closeout.md`, SHA-256 `aa8df192adc0f42be89651a93450319f8a28a5c7445ebb774260251f9c75b265`.
 - Source/meaning authority remains pinned by prior contract rev2, including source contracts §3.7, approved Function-bound Option 2 answer, Operation instance package, complete-Call and source-interface definitions/adoption.
 
@@ -43,3 +44,16 @@ Freeze both outputs and dependencies before fresh independent review. The compil
 Fresh envelope: **900 seconds** total: semantic/proof lane 300; address lane 180; primary 60; compiler review 120; spec review 90; reserve 150. Astra 0; children 0. Do not exceed 4 active/reserved/unknown assignments. Prior 1200 seconds remain charged and do not roll over. Requested/effective runtime settings are reported separately; effective model/effort UNKNOWN absent runtime evidence.
 
 Stop on any reference mismatch, incidence assumed in a premise, omitted original constructor case, unjustified scope move, unknown/competing writer, new semantic choice requiring adjudication, or budget exhaustion. At closeout apply each reviewed result to the original parent; closure count may increase only for a genuinely proved original condition. Consult the dispatcher at a material blocker or integration seam, not per lemma.
+
+
+## Final reserved identity step (added by revision 3)
+
+The prior address result is conditional on distinct parsed explicit rows receiving distinct `SourceNodeKey`s. Use the existing 150-second reserve once to close or precisely retain that premise; do not restart the supplier proof.
+
+**Primary source-identity derivation — `/root`, Luna/high, cap 90s.** Read only `crates/yu-syntax/src/full_parse.rs`, `crates/yu-hir/src/source_identity.rs`, and `crates/yu-hir/src/module.rs` at the source-node map construction, together with the frozen address artifact. The prior contract already pins `crates/yu-hir/src/module/source_annotation.rs`. Establish whether distinct explicit `BracketRow` nodes in one authentic parsed Operation signature have unequal keys under the exact `SourceNodeKey` Eq/Hash and node generation. Trace each needed identity premise to its owner; do not infer global syntax-tree injectivity from a HashMap. If proof requires another owner/file, stop at that first boundary. Apply the result only to the conditional cache-miss lemma; this does not prove semantic incidence or close a parent condition.
+
+Write only:
+- `notes/theory/2026-10-18-npair-source-node-key-injectivity.md`
+- `tasks/agent-loop/inbox/20261018-npair-source-node-key-injectivity.md`
+
+Then obtain one **fresh independent compiler/source review**, cap 60s, by an identity not authoring either the address or identity artifact. Total sprint cap remains 900s: the 150s final reserve is now allocated 90+60; remaining reserve 0. Astra0; no tests/builds/probes/code. Update current state before reading; freeze exact new source pins and leases. Any unresolved ownership is recorded, not chased beyond budget.
