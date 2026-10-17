@@ -63,14 +63,20 @@
       {
         "id": "/root/astra_accepted_call_hir_projection",
         "role": "astra_prover",
-        "state": "NOT_STARTED",
+        "state": "RUNNING",
         "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
         "cap_seconds": 720,
         "lease_paths": [
           "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
           "tasks/agent-loop/inbox/20261017-ordinary-hir-call-projection-preservation.md"
-        ]
+        ],
+        "session": "current-session",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "active_receipt": "Acknowledged fresh structural-preservation assignment; reading contract/adopted rev4 under exact two-file lease; no code/tests/probes/descendants.",
+        "charged_seconds": 0,
+        "remaining_seconds": 720
       }
     ],
     "leases": [
