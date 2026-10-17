@@ -4,7 +4,7 @@ Sprint-ID: `module-reference-materialization-20261017`
 Contract revision: 1  
 Contract SHA-256: `8e3d43ac44ece28e056a2c49bb72c4a2e8fcc9679246d25c346aa4005d81dcc7`  
 Assignment-ID: `module-reference-materialization-proof`  
-Handoff revision: 1  
+Handoff revision: 2 (Luna coordinate correction)  
 Baseline supplied: `20821b42d` (no Git inspection)
 
 ## Runtime, lease and provenance
@@ -114,7 +114,7 @@ The O(n^2) time/O(n) storage construction bound counts explicit output graph
 incidences and concerns only proposed finite annotation, not solver/global
 inference complexity or termination.
 
-Artifact revision 1 SHA-256: `ba6d5fcaf8ca7c63b275165dd4d2aca940bbbdb16ead97c8972438123c54a0e2`
+Artifact revision 2 SHA-256: `f1971e53ef62a5b3d94897ca9774d67c021d21524d9774b14439748a00fee9eb`
 
 Writer state: **STOPPED** after this handoff; both outputs frozen. No descendant
 leases. Ready for independent review and research-only preservation, with no

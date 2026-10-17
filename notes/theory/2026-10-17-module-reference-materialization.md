@@ -2,7 +2,7 @@
 
 Date: 2026-10-17  
 Status: **UNADOPTED candidate completion; original owner premise OPEN**  
-Revision: 1  
+Revision: 2  
 Author: `/root/module_reference_materialization_proof`; no descendants  
 Sprint: `module-reference-materialization-20261017`, revision 1  
 Contract SHA-256: `8e3d43ac44ece28e056a2c49bb72c4a2e8fcc9679246d25c346aa4005d81dcc7`  
@@ -250,16 +250,16 @@ insert such an introduction. No Lambdas/captures are inferred from the shape
 of the returned value. `id`'s own formal is not the looked-up module binding.
 
 The looked-up Pub now supplies the antecedent of the existing Published Name
-rule. The real Instance **within this proposed source formation** has static
-origin `i_id*=(u_id,Instance-introduction-node)` and member `d_id`. The origin is
-fixed before assignments or histories. The original independent definition
+rule. The real Instance **within this proposed source formation** has publication
+owner `p_id`, static introduction origin `i_id*` tied to occurrence `u_id`, and
+member `d_id`. The origin is fixed before assignments or histories. The original independent definition
 derivation in D_pub and SRC §3.4 construct `new(p_id,i_id*,d_id)`; §5.2 constructs
 the allocation, without asking whether the generated clauses are satisfiable:
 
 ```text
 mu_id* = SRC-Allocate(G_id, new(p_id,i_id*,d_id), E_original)
-b_use* = (d_id,u_id,Resolve(u_id,d_id),D_pub,ModuleEnv-Expose*,lookup,
-          Instance(u_id,i_id*,d_id),a_id,G_id,mu_id*,mu_id*(r_id),
+b_use* = (d_id,u_id,Resolve(u_id,d_id),p_id,D_pub,ModuleEnv-Expose*,lookup,
+          Instance(p_id,i_id*,d_id),a_id,G_id,mu_id*,mu_id*(r_id),
           complete original dependent rule/operand incidences).
 ```
 
