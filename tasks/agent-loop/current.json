@@ -54,205 +54,24 @@
         "receipt": "Legacy lease remains quarantined; no cessation evidence."
       },
       {
-        "id": "/root/next_action_selector",
-        "role": "next_action_selector",
-        "state": "STOPPED",
-        "requested_model": "UNKNOWN",
-        "observed_model": "UNKNOWN",
-        "receipt": "After compiler review MINOR, replan: <=30s module.rs+handoff repair and <=30s compiler delta review from reserve120; leave reserve60. Stop/hold execution if either cap exhausted."
-      },
-      {
-        "id": "/root",
-        "role": "Luna primary",
-        "state": "STOPPED",
-        "charged_seconds": 120,
-        "receipt": "Closed prior sprint reviewed-partial, composed repair sprint rev1 and receipt; next proof/source author not launched."
-      },
-      {
-        "id": "/root/ordinary_hir_repair_invariants",
-        "role": "prover",
-        "state": "STOPPED",
-        "requested_model": "gpt-6-sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 240,
-        "charged_seconds": 240,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "lease_paths": [
-          "notes/theory/2026-10-17-ordinary-hir-applied-repair-invariants.md",
-          "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair-invariants.md"
-        ],
-        "active_receipt": "Writer stopped after source-owner boundary; frozen handoff 7bd7cfe427f498c88bab2fab71ae1f24b4ab7f30c24552bbd2030404dcbdf6c3 and theory 1f3afae18e36ca0abf5a9be1fbf2d1220fad0836a0cce3c370e6cce15a027a28. Exact elapsed UNKNOWN; full 240s cap conservatively charged. Static source/hash inspection only; no code/tests/Git/probes/descendants."
-      },
-      {
-        "id": "/root/ordinary_hir_repair_architect_rev2",
-        "role": "architect",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 120,
-        "charged_seconds": 120,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "lease_paths": [],
-        "active_receipt": "Read-only review STOPPED CLEAN; receipt notes/progress/2026-10-17-ordinary-hir-repair-architect-review.md SHA 635cd68b611d652f4d6760026888945518423b8be69729560418807d9fbbc339. Exact elapsed UNKNOWN; full 120s cap charged. No edits/tests/builds/probes/Git/descendants."
-      },
-      {
-        "id": "/root/ordinary_hir_application_implementation",
-        "role": "implementer",
-        "state": "STOPPED",
-        "requested_model": "gpt-6-luna",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 1140,
-        "charged_seconds": 1134,
-        "remaining_seconds": 6,
-        "session": "current-session",
-        "lease_paths": [
-          "crates/yu-hir/src/module.rs",
-          "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md"
-        ],
-        "active_receipt": "Both assignments STOPPED; first1110s conservatively charged, narrow ordering repair used about24/30s. Final module.rs SHA 60e91c9a51394b04af42b3ec7c284062b34fcd9faa4ea79c35b4ae58aaf460ed; handoff revision7. Post-STOP git diff --check passed. No tests/builds/probes/Git/descendants."
-      },
-      {
-        "id": "/root/ordinary_hir_repair_applied_compiler_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 180,
-        "charged_seconds": 180,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "lease_paths": [],
-        "active_receipt": "STOPPED with no BLOCKING/major and one MINOR ordering finding; receipt notes/progress/2026-10-17-ordinary-hir-repair-applied-compiler-review.md SHA 2395d3ca4abd65b5c4a530f691cef5cb0b4688e8ec91913b255c48625b117191. Full 180s cap conservatively charged. No edits/tests/builds/probes."
-      },
-      {
-        "id": "/root/ordinary_hir_repair_compiler_delta_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 30,
-        "charged_seconds": 30,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "lease_paths": [],
-        "active_receipt": "Fresh read-only delta review STOPPED CLEAN; receipt notes/progress/2026-10-17-ordinary-hir-repair-compiler-delta-review.md SHA 7976bdab264e72ce197cf923e0a0cabfac3f1b1646e38e04402b9429973824f8. Exact elapsed UNKNOWN; full 30s cap conservatively charged. No edits/tests/builds/probes/Git/descendants."
-      },
-      {
-        "id": "/root/ordinary_hir_repair_spec_review",
+        "id": "/root/ordinary_hir_recovery_expectation_spec_adjudication",
         "role": "spec_auditor",
-        "state": "STOPPED",
+        "state": "RUNNING",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "cap_seconds": 120,
-        "charged_seconds": 120,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "lease_paths": [
-          "notes/progress/2026-10-17-ordinary-hir-repair-spec-review.md"
-        ],
-        "active_receipt": "Fresh read-only spec review STOPPED; one MAJOR execution-coverage gap, no code/spec conflict. Receipt notes/progress/2026-10-17-ordinary-hir-repair-spec-review.md (primary transcription; reviewer was read-only). Exact elapsed/model/effort unavailable; full120s cap charged. No Git/tests/builds/probes/writes/descendants."
-      },
-      {
-        "id": "/root/ordinary_hir_repair_final_architect_review",
-        "role": "architect",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 180,
-        "charged_seconds": 180,
-        "remaining_seconds": 0,
+        "cap_seconds": 40,
+        "charged_seconds": 0,
+        "remaining_seconds": 40,
         "session": "current-session",
         "lease_paths": [],
-        "active_receipt": "STOPPED CLEAN on corrected rev5 SHA 5c63c3829cd6275523b1799e0286837518e9fd7dd0213c13f3171d9d7b7a6125; receipt notes/progress/2026-10-17-ordinary-hir-repair-final-architect-review.md. Exact elapsed UNKNOWN; full180s charged. No edits/tests/builds/Cargo/probes/Git/descendants."
-      },
-      {
-        "id": "/root/ordinary_hir_repair_regression_prerun_review",
-        "role": "regression_auditor",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "low",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 120,
-        "charged_seconds": 120,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "lease_paths": [],
-        "active_receipt": "STOPPED CLEAN; receipt notes/progress/2026-10-17-ordinary-hir-repair-regression-prerun-review.md. Exact elapsed UNKNOWN; full120s charged. Static only, no tests/builds/Cargo/probes/Git/writes/descendants."
-      },
-      {
-        "id": "/root/ordinary_hir_unit_test_match_repair",
-        "role": "implementer",
-        "state": "STOPPED",
-        "requested_model": "gpt-6-luna",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 30,
-        "charged_seconds": 30,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "lease_paths": [
-          "crates/yu-hir/src/lib.rs",
-          "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md"
-        ],
-        "active_receipt": "STOPPED after one test-only edit. lib.rs SHA cf0a2d537df793986509175fbde2785731ac28f4bc3f2024f4f0fbca2127c5ed; handoff rev14. Exact elapsed UNKNOWN; full30s charged. No tests/builds/Cargo/probes/formatter/Git/network/descendants."
-      },
-      {
-        "id": "/root/ordinary_hir_unit_compile_repair_delta",
-        "role": "compiler_referee",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 30,
-        "charged_seconds": 30,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "lease_paths": [],
-        "active_receipt": "STOPPED CLEAN for exact test-only delta. Receipt notes/progress/2026-10-17-ordinary-hir-unit-compile-repair-delta-review.md; full30s conservatively charged. Exact pins verified; no execution/Git/writes/descendants."
-      },
-      {
-        "id": "/root/ordinary_hir_repair_hir_failure_review",
-        "role": "regression_auditor",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "low",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 90,
-        "charged_seconds": 90,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "lease_paths": [],
-        "active_receipt": "STOPPED with MAJOR test-contract inconsistency, no demonstrated source defect; receipt notes/progress/2026-10-17-ordinary-hir-repair-hir-failure-review.md SHA c9ea17dc6570f3cb2ffe9b7f871534c17c956dc80372e00f602fb5346b57a22a. Exact elapsed UNKNOWN; full90s charged."
+        "active_receipt": "Fresh read-only narrow spec adjudication launched for adopted §2 vs §§3–4 recovery expectation. Collaboration runtime listed RUNNING. No edits/tests/builds/Cargo/probes/Git/network/descendants."
       }
     ],
     "leases": [
       {
         "path": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
         "owner": "/root",
         "state": "FROZEN"
       },
@@ -304,46 +123,6 @@
       {
         "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-ordinary-hir-repair-spec-review.md",
-        "owner": "/root/ordinary_hir_repair_spec_review",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-ordinary-hir-repair-final-architect-review.md",
-        "owner": "/root (transcribed read-only review)",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-ordinary-hir-repair-regression-prerun-review.md",
-        "owner": "/root (transcribed read-only review)",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-ordinary-hir-repair-unit-run-failure.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-ordinary-hir-unit-compile-repair-delta-review.md",
-        "owner": "/root (transcribed read-only review)",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-ordinary-hir-repair-unit-run.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-ordinary-hir-repair-hir-integration-failure.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-ordinary-hir-repair-hir-failure-review.md",
-        "owner": "/root (transcribed read-only review)",
         "state": "FROZEN"
       }
     ],
@@ -399,10 +178,10 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Rev7 conditional scope frozen: fresh independent spec adjudication <=40s compares adopted §2 vs §§3–4 and states exact binding-specific expected relation. No expectation edit until CLEAN; no code/test execution pending. If approved, test-only author30, regression delta30, HIR rerun45, solver45 only on pass, post-review30.",
+    "next_action": "Narrow spec adjudication RUNNING <=40s. Determine exact recovery records for broken binding; no expectation edits or execution until CLEAN result and Luna adjudication.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },
-  "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed.",
+  "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer.",
   "quarantine_note": "Three inherited UNKNOWN assignments and leases remain quarantined. Prior candidate worker/reviewer STOPPED. No overlapping author; proof/source must finish before Luna plan and implementation."
 }
