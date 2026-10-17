@@ -98,7 +98,7 @@
       "active_authors": 0,
       "active_reviewers": 1,
       "unknown_reservations_preserved": 3,
-      "status": "Compiler review STOPPED CLEAN; spec review RUNNING; implementation waits for spec review."
+      "status": "Spec review RUNNING after compiler review CLEAN; implementation waits for spec review."
     },
     "workers": [
       {
@@ -192,6 +192,19 @@
         "charged_seconds": 0,
         "cap_seconds": 120,
         "receipt": "Actual sequential read-only spec review launch after compiler reviewer STOPPED."
+      },
+      {
+        "id": "/root/selected_source_vertical_spec_review",
+        "role": "spec_auditor",
+        "state": "RUNNING",
+        "session": "current-session",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 0,
+        "cap_seconds": 120,
+        "receipt": "Actual sequential read-only spec review launch; frozen artifact/handoff."
       }
     ],
     "leases": [
