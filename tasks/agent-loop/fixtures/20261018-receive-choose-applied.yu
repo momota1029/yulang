@@ -1,0 +1,14 @@
+// Newly authored research rendering; this is not a historical source artifact.
+act ctrl:
+    our choose: () -> (() -> [ctrl] int)
+
+my f0 (u:()) = ctrl::choose ()
+
+// Retain the source graph's receive/choose shape: obtain f, invoke f(Unit),
+// bind the returned g, then invoke g(Unit).
+my receive (f:() -> (() -> [ctrl] int)) = {
+    my g = f ()
+    g ()
+}
+
+my received = receive f0

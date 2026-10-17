@@ -1,4 +1,4 @@
-//! Source identity inventory for the newly authored receive/choose fixture.
+//! Source identity inventory for the applied companion receive/choose fixture.
 //!
 //! This only records this fixture's own parser, HIR, and candidate identities.
 //! It does not identify a historical CST or infer the mathematical phase root.
@@ -21,11 +21,11 @@ use yu_syntax::{
     SourceText, SyntaxEnvironment, parse_file, scan_header,
 };
 
-const FIXTURE: &str = include_str!("../../../tasks/agent-loop/fixtures/20261017-receive-choose.yu");
+const FIXTURE: &str = include_str!("../../../tasks/agent-loop/fixtures/20261018-receive-choose-applied.yu");
 
 fn main() {
     let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tasks/agent-loop/fixtures/20261017-receive-choose.yu");
+        .join("../../tasks/agent-loop/fixtures/20261018-receive-choose-applied.yu");
     let disk = match fs::read_to_string(&fixture_path) {
         Ok(source) => source,
         Err(error) => stop("fixture-read", error),
@@ -49,7 +49,7 @@ fn main() {
 
     let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
         "yulang-research",
-        "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
+        "tasks/agent-loop/fixtures/20261018-receive-choose-applied.yu",
     )));
     println!("hir.module_identity={identity:?}");
     let hir = match lower_module_with_local_source(identity, &parsed, SemanticImports::empty()) {
@@ -181,6 +181,16 @@ fn main() {
         stop("received-apply-inventory", format!("expected one authentic Apply in received, found {}", applies.len()));
     }
     let (apply, apply_callee, apply_argument, apply_key, apply_callee_key, apply_argument_key) = applies[0];
+    let LocalSourceForm::Name { resolution: yu_hir::shadow::LocalSourceResolution::ModuleDef(receive_def), .. } = &apply_callee.form else {
+        stop("received-apply-callee-definition", format!("received Apply callee is not a ModuleDef: {:?}", apply_callee.form));
+    };
+    let LocalSourceForm::Name { resolution: yu_hir::shadow::LocalSourceResolution::ModuleDef(f0_def), .. } = &apply_argument.form else {
+        stop("received-apply-argument-definition", format!("received Apply argument is not a ModuleDef: {:?}", apply_argument.form));
+    };
+    if receive_def != receive.id() || f0_def != f0.id() {
+        stop("received-apply-operands", format!("expected ModuleDef(receive)/ModuleDef(f0), found {receive_def:?}/{f0_def:?}"));
+    }
+    println!("hir.received.operands=ModuleDef(receive:{receive_def:?}) ModuleDef(f0:{f0_def:?})");
     println!("hir.received.owner={received_owner:?} root={received_root:?} source_key={:?} parse_owns_key={} apply={:?}/{apply_key:?} callee={:?}/{apply_callee_key:?} argument={:?}/{apply_argument_key:?} scopes=({:?},{:?},{:?})",
         hir.definition_source_key(received_root), parsed.owns_source_key(apply_key),
         apply.occurrence, apply_callee.occurrence,
@@ -242,6 +252,15 @@ fn main() {
         let source_scope_exact = same_scope(&source.scope, &apply.scope);
         let call_source_root_exact = hir.owns_source_root(call.owner())
             && received_source.source_root() == call.owner();
+        let source_call_module_operands_exact = matches!(
+            &callee.form,
+            LocalSourceForm::Name { resolution: yu_hir::shadow::LocalSourceResolution::ModuleDef(definition), .. }
+                if definition == receive.id()
+        ) && matches!(
+            &argument.form,
+            LocalSourceForm::Name { resolution: yu_hir::shadow::LocalSourceResolution::ModuleDef(definition), .. }
+                if definition == f0.id()
+        );
         let checking_matches_apply = call.checking_occurrence().occurrence() == &apply.occurrence;
         let cause_matches_checking = call.checking_cause().occurrence() == call.checking_occurrence();
         let demand = call.native_demand();
@@ -249,11 +268,12 @@ fn main() {
         let demand_argument_effect = call.native_argument_evaluation_effect();
         let demand_invocation_effect = call.native_invocation_effect();
         let demand_result = call.native_result();
-        println!("candidate.source_call[{index}].owner={:?} apply={:?}/{source_key:?} callee={:?}/{callee_key:?} argument={:?}/{argument_key:?} exact=(owner:{call_source_root_exact},apply:{source_exact},callee:{callee_exact},argument:{argument_exact},scope:{source_scope_exact},checking:{checking_matches_apply},cause:{cause_matches_checking})",
+        println!("candidate.source_call[{index}].owner={:?} apply={:?}/{source_key:?} callee={:?}/{callee_key:?} argument={:?}/{argument_key:?} exact=(owner:{call_source_root_exact},apply:{source_exact},callee:{callee_exact},argument:{argument_exact},scope:{source_scope_exact},module_operands:{source_call_module_operands_exact},checking:{checking_matches_apply},cause:{cause_matches_checking})",
             call.owner(), source.occurrence, callee.occurrence, argument.occurrence);
         println!("candidate.source_call[{index}].validated_native_demand={demand:?} native_demand_children=(native_argument:{demand_argument:?}, native_argument_evaluation_effect:{demand_argument_effect:?}, native_invocation_effect:{demand_invocation_effect:?}, native_result:{demand_result:?})");
         if !call_source_root_exact || !source_exact || !callee_exact || !argument_exact
-            || !source_scope_exact || !checking_matches_apply || !cause_matches_checking
+            || !source_scope_exact || !source_call_module_operands_exact
+            || !checking_matches_apply || !cause_matches_checking
         {
             stop("source-call-correspondence", "validated source_call differs from the exact received Apply owner/occurrence/operands/source keys/scopes");
         }
