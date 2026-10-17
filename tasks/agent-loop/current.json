@@ -6,9 +6,9 @@
   "active_sprint": {
     "id": "ordinary-hir-choice-a-contract-20261017",
     "contract": "tasks/agent-loop/sprints/ordinary-hir-choice-a-contract-20261017.md",
-    "revision": 2,
-    "sha256": "7bbfcb0942b5b4681d9c686208dd236f291af0a74b48de5c7f7bb4f9931754dd",
-    "state": "ACTIVE-SOURCE-AUDIT-REV2",
+    "revision": 3,
+    "sha256": "40ac81e1fae3b6e5157fbebc6d5773e7ba70e0416351ef0ddd4e2fe4e669ca22",
+    "state": "ACTIVE-SOURCE-AUDIT-REV3",
     "baseline": "0c0fda3974d1db2c91256667f93c46effa18c8d0",
     "parent": "Original inference/execution goal; all quantifiers and theorem gates preserved OPEN.",
     "fixed_outcome": "User selected direction A for drafting/review of ordinary structural application admission; audit CST/source keys, then complete and review exact successor contract. Code/tests require final explicit approval.",
@@ -21,9 +21,9 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 240,
-      "available_seconds": 1260,
-      "allocation": "Astra480 (120 conservatively charged, 360 remaining); Luna420; reviews300; coordination120 incl selector120 charged; reserve180."
+      "charged_seconds": 270,
+      "available_seconds": 1230,
+      "allocation": "Astra480 (150 conservatively charged, 330 remaining); Luna420; reviews300; coordination120 incl selector120 charged; reserve180."
     },
     "workers": [
       {
@@ -62,10 +62,10 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 480,
-        "charged_seconds": 120,
-        "receipt": "Paused at unpinned root/lexical dependency; no outputs; waiting for rev2 exact lease.",
+        "charged_seconds": 150,
+        "receipt": "Paused before relying on raw lexical classification; rev3 pins frozen; awaiting exact re-acknowledgment.",
         "active_receipt": "2026-10-17 08:24:04 UTC; confirmed 16 direct pins; source reads started",
-        "remaining_seconds": 360
+        "remaining_seconds": 330
       },
       {
         "id": "/root",
@@ -114,7 +114,7 @@
       {
         "path": "tasks/agent-loop/sprints/ordinary-hir-choice-a-contract-20261017.md",
         "owner": "/root",
-        "state": "FROZEN-REV2"
+        "state": "FROZEN-REV3"
       }
     ],
     "pending": [
@@ -181,6 +181,11 @@
         "revision": 1,
         "sha256": "b69a514f20136ef78ce4502bd8f81b6ce3eb3c0407cf498485c6360666fff91f",
         "superseded_reason": "Added five exact root-to-body parser constructor owner pins for the literal CST derivation."
+      },
+      {
+        "revision": 2,
+        "sha256": "7bbfcb0942b5b4681d9c686208dd236f291af0a74b48de5c7f7bb4f9931754dd",
+        "superseded_reason": "Added targeted lexical classification, competing-branch, header-scan and effective-operator-table pins for raw-literal derivation."
       }
     ]
   },

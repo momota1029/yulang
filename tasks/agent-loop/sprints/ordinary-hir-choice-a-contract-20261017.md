@@ -1,10 +1,11 @@
 # Sprint ordinary-hir-choice-a-contract-20261017
 
 Status: ACTIVE, Luna-admitted at baseline `0c0fda3974d1db2c91256667f93c46effa18c8d0`.
-Branch: `research/simple-sub-intrusion`; contract revision: 2.
-Rev2 supersedes rev1 SHA `b69a514f20136ef78ce4502bd8f81b6ce3eb3c0407cf498485c6360666fff91f`
-only to pin the root-to-body parser constructor owners required to prove the
-exact literal tree. Outcome, output leases, budget and non-goals are unchanged.
+Branch: `research/simple-sub-intrusion`; contract revision: 3.
+Rev3 supersedes rev2 SHA `7bbfcb0942b5b4681d9c686208dd236f291af0a74b48de5c7f7bb4f9931754dd`
+only to pin the fixed literal's lexical classifications, competing literal and
+operator branches, header scan and effective operator table. Outcome, output
+leases, budget and non-goals are unchanged.
 
 ## Parent and fixed outcome
 
@@ -60,6 +61,21 @@ crates/yu-syntax/src/root_statement.rs c6d1dc49625d1687ff0dae8f6808f4c97c3f78398
 crates/yu-syntax/src/statement.rs fe8ba4e144b0c3ea5c8f451dddea42f718e9c3087aa77bb81447c61a9d213797
 crates/yu-syntax/src/cursor/recovery/emit.rs de091c117486f7990dc6872bf2ee7659c0e3e7e148e255f47b56b7836fe7c59d
 crates/yu-syntax/src/lexical/item.rs 0a1dcbd84874f6abd571e0ce7035b9ba7682ebdf7c2348c030a1ba77deabcd25
+crates/yu-syntax/src/lexical/current_item.rs 41efcce2b737a0362484e854a8549bda5f7bf0d2b911499553f1e449c6782a84
+crates/yu-syntax/src/lexical/lexer.rs 97c69c86888784ee4b3eb04d8e4685f6370dbf451631c83ec1838fe7abfc36e1
+crates/yu-syntax/src/lexical/expression_item.rs c981a994a11c539256ef34382c4ae154395e5d438371db4959e914df58aa8c7c
+crates/yu-syntax/src/lexical/trivia.rs 887f1499fe63d870a70777626f0357c502a356d106c623d9a79e3596a17aba19
+crates/yu-syntax/src/lexical/observation.rs 730e65947f889ef07014aa003eb846012d5cec6ae1434f77edf1cbd0e7096641
+crates/yu-syntax/src/lexical/stops.rs edcf37bbe061c0966ba786d9090361c6c3befdbe3f99aa79f29271bd5230bf5b
+crates/yu-syntax/src/literal/mod.rs d54b4ef01cb3c9d46048b5638f9837eb050816a5e7edd35460f20cf1e557fd40
+crates/yu-syntax/src/literal/rule_literal.rs d21f7e27eb89dfa3c6717b895726e827974728be962faefcb08c9ce9092753ee
+crates/yu-syntax/src/lexical/operator_scan.rs 145002d4254aaf186fa5176d0c6c56d89c88235e29e2da9ab1d33790a31ca3a2
+crates/yu-syntax/src/operator_compilation.rs f1a5bd012f064d414d476acbc326c6a9804dc8128bf2e4f1800acb718a7d423b
+crates/yu-syntax/src/syntax_environment.rs 3f1e2c97c49318e02c595aa739bfb48532f7631d38afaaac4d8dfca6142cb973
+crates/yu-syntax/src/operator_table.rs 369ce0a3a8f5ac39da9da572cfe4fab6f61dd4ca07c554848cfcc44aa7051643
+crates/yu-syntax/src/lib.rs 18709b87b1b761374b5b81f90fcbf37d001fd7d981597e889aef05ad3f230f93
+crates/yu-syntax/src/header.rs cd3791144704226f67a05ae3d39aff9b42f4380073b3e9f9817951a493bce5ad
+crates/yu-syntax/src/declaration/operator_header.rs 021e79529445054e5d54bfccf93d2287e94221a99e1554fbd7c715cb0706edbd
 crates/yu-hir/src/lib.rs 5bdcb7c0df022da919cef5402c62dc1c7baf0700a4d06e526a608cbd7db21464
 crates/yu-hir/src/module.rs 2e0c579a525efd5ac4c7ce0f06189c568ed46c7382d4576698a0b8d846c2228e
 crates/yu-hir/src/module/local_source.rs ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5
@@ -88,10 +104,17 @@ reliance. Process rules: `rules/goal-driven-sprints.md`,
    No numeric/runtime tree claims without execution. Rev2's added owners permit
    proving root wrapping, semicolon progression, statement selection, and
    accepted identifier/integer token emission plus trivia placement. Keep
-   accepted-Item premises visible: these pins alone do not prove lexical
-   classification for the raw literal. Do not bulk-pin lexer/current-item/
-   trivia/observation/stops; if a specific lexical fact is indispensable,
-   return its function and antecedent to Luna before relying on it.
+   Restrict lexical derivation to this unfenced, single-line ASCII literal:
+   current-Item assembly/EOF, statement and expression payload dispatch,
+   statement keyword, identifier, integer, exact equals and semicolon scanners,
+   ordinary horizontal-space scanning/observation, ML-gap classification and
+   semicolon stopping. The three negative-branch owners establish that literal
+   and dynamic-operator parsing do not take over these operands. Establish the
+   actual effective operator table from the pinned empty syntax environment,
+   empty header and operator compilation/table owners; `SyntaxEnvironment::empty`
+   alone is not that evidence. Do not generalize to comments, Unicode, fences,
+   strings or arbitrary layout. If an indispensable fact falls outside these
+   function branches, freeze the exact residual instead of assuming it.
 2. After confirmed STOP and frozen audit, Luna/high, at most 420s: exact
    successor contract. Exact write leases:
    `notes/design/2026-10-17-ordinary-hir-application-admission-successor.md` and
