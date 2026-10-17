@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/minimal-cut-and-accepted-source-vertical-20261017.md",
     "revision": 2,
     "sha256": "95f0f1a3751ffa276c89bedd48d969b430b34771db3f528dbf7473c92a036acf",
-    "state": "PROOF-ADMITTED",
+    "state": "REPLAN-REQUIRED",
     "baseline": "d33b01033625ef69d1d844e6400191dd84e73b2f",
     "checkpoint": "d33b01033625ef69d1d844e6400191dd84e73b2f",
     "parent": "Original inference/execution goal: preserve A/B, F1/FK1, N-Transport, Call, soundness, principality, termination, source/native quantifiers.",
@@ -58,7 +58,7 @@
       "implementation": {
         "owner": "/root",
         "role": "implementer/Luna-high after admission",
-        "state": "FROZEN-STOPPED",
+        "state": "STOPPED-HIR-ERROR-GATE",
         "cap_seconds": 480,
         "outputs": [
           "crates/yu-solver/examples/research_accepted_call_vertical.rs",
@@ -73,9 +73,9 @@
         "sha256": [
           "79936fb0de85fbe49509623a6fb325d76517254f7adea45439cfbc995e95b8f7",
           "78fd0d4c38df86def4cd4aefb37e164f71269eb58cd9a53b370bc42e42f9a963",
-          "af6673f064bc95f14163d65350c0ce83da4f9c724e213919ea8ef2976c9ca84e"
+          "83cbbc35366b188a2a8b9ae7b5561027407a0f21433e1e793b2ba24f1b0a53f0"
         ],
-        "stop_receipt": "Example, source-based integration test and handoff frozen. Only rustfmt ran on the two new Rust files; no Cargo/test/runtime execution."
+        "stop_receipt": "Sole test invocation failed required hir.errors().is_empty() at line 36 before CandidateInference::solve; no retry; example not executed."
       }
     },
     "implementation": {
@@ -84,7 +84,7 @@
       "boundary": "Only a reversible example/test using existing APIs; no library, existing fixture or expected-output edits."
     },
     "review": {
-      "state": "REGRESSION-PRERUN-CLEAN",
+      "state": "POSTRUN-REVIEW-PENDING-REPLAN",
       "reserve_seconds": 480,
       "sequence": [
         "compiler_referee <=180s",
@@ -100,16 +100,30 @@
       "active": null,
       "compiler_receipt": "CLEAN; source/native evidence plus exact obstruction; no parent premise discharged.",
       "spec_receipt": "CLEAN; FIRST-RESULT-ADEQUACY OPEN; exact challenge/observation/nonidentity premise retained.",
-      "prerun_receipt": "CLEAN; all 19 pins, source literal SHA and API assertions match; no test executed by reviewer."
+      "prerun_receipt": "CLEAN; source/API/hash/assertions reviewed; no run by reviewer.",
+      "test_receipt": {
+        "command": "cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical",
+        "exit_code": 101,
+        "duration_seconds": 7.8,
+        "compiled": "yu-solver test target in 7.73s",
+        "tests": {
+          "started": 1,
+          "passed": 0,
+          "failed": 1
+        },
+        "failure": "required zero-HIR-errors assertion before CandidateInference::solve",
+        "retry": false,
+        "example_executed": false
+      }
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 2070,
-      "available_seconds": 330,
+      "charged_seconds": 2190,
+      "available_seconds": 210,
       "active_authors": 0,
       "active_reviewers": 0,
       "unknown_reservations_preserved": 3,
-      "status": "Pre-run review CLEAN; one bounded Cargo test is now authorized; post-run review and reserve remain."
+      "status": "One Cargo invocation consumed its 120s reservation and failed at HIR errors gate; no retry. Remaining postrun review90+reserve120."
     },
     "workers": [
       {
@@ -242,6 +256,19 @@
         "charged_seconds": 90,
         "cap_seconds": 90,
         "receipt": "CLEAN pre-run review; source SHA, APIs, assertions, target command and scope match; no tests executed."
+      },
+      {
+        "id": "/root",
+        "role": "authorized Cargo test runner",
+        "state": "STOPPED",
+        "session": "current-session",
+        "requested_model": "UNKNOWN",
+        "requested_effort": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 120,
+        "cap_seconds": 120,
+        "receipt": "One exact cargo test invocation; exit101 in 7.8s; no retry."
       }
     ],
     "leases": [
@@ -358,7 +385,7 @@
         "owner": "Luna/Astra"
       }
     ],
-    "next_action": "Run the sole authorized command exactly once: cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical (<=120s). No retry or example execution.",
+    "next_action": "Selector replan on source HIR-error failure: preserve zero-HIR requirement, determine whether another already-supported accepted source can traverse the required call path without a new library change. Do not rerun Cargo under this envelope.",
     "closeout_fields": [
       "original unresolved premises genuinely discharged",
       "new implementation/test behavior established",

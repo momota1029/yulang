@@ -2,7 +2,7 @@
 
 Sprint / contract: `minimal-cut-and-accepted-source-vertical-20261017`, rev2,
 `95f0f1a3751ffa276c89bedd48d969b430b34771db3f528dbf7473c92a036acf`.
-Assignment / handoff revision: accepted-call-vertical-20261017 / 1.
+Assignment / handoff revision: accepted-call-vertical-20261017 / 2.
 Parent and scope: original inference/execution goal; independent accepted-source
 verification contribution only. Original A/B, Call, FIRST-RESULT-ADEQUACY,
 N-Transport, soundness, principality and termination remain OPEN.
@@ -62,5 +62,24 @@ and distinguish known repository formatter failures from new-code results.
 
 Proof disposition remains separate: frozen Astra artifact `0a174a481728eb97e381bfe5fb6e04fa090751606b44fd8fd4ee13b467f888d2`; compiler review CLEAN and spec review CLEAN. FIRST-RESULT-ADEQUACY is OPEN at complete same-provider challenge inclusion, correlated Result/Effect/future observation action, and nonidentity residual discharge. OPRESP-DEFAULT-1, ENTRY-1 and C-OMIT remain unresolved/unadopted. No original theorem premise is discharged by this implementation.
 
-Worker state: Luna authoring STOPPED; outputs frozen for pre-run review. No
-tests, builds or runtime executions have run in this assignment.
+Worker state: Luna authoring STOPPED; source files remain frozen after the sole test run.
+No example execution or other Cargo/runtime command was performed.
+
+## Sole test receipt — revision 2
+
+The pre-run regression review was CLEAN, but the one authorized command was
+executed once and failed at the required zero-HIR-error assertion:
+
+```text
+cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical
+```
+
+Observed: `yu-solver` test target compiled in 7.73s; one test started, zero
+passed, and `accepted source must produce no HIR errors` failed at test line 36.
+Exit code 101; total command duration 7.8s. The failure occurs before
+`CandidateInference::solve`, so this run establishes neither source acceptance
+through the solver nor the later export/FreshUse assertions. It does establish
+that this exact fixture is not a zero-HIR-error source under this lowering path.
+No retry was made or authorized. No unrelated formatter/CI check ran; formatter
+status is therefore separate and unknown. The companion example was neither
+compiled as an example target nor executed.
