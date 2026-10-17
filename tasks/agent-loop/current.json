@@ -29,9 +29,9 @@
       "review_cap_seconds": 300,
       "coordination_seconds": 60,
       "reserve_seconds": 120,
-      "charged_seconds": 150,
+      "charged_seconds": 418,
       "active_authors": 1,
-      "status": "Same Astra author resumed under rev2 at 2026-10-17 05:00:54 UTC; initial read/hash attempt charged approximately 150s; 570s remain in the cumulative 720s lane cap."
+      "status": "Astra resumed at 05:00:54 UTC; conservative current charge is ~418s total (150s initial read/hash attempt + 268s resume wall), leaving ~302s in cumulative 720s lane cap. Actual active-vs-idle instrumentation unavailable."
     },
     "lanes": {
       "proof_source_definition": {
@@ -51,8 +51,8 @@
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "charged_seconds": 150,
-        "remaining_seconds": 570,
+        "charged_seconds": 418,
+        "remaining_seconds": 302,
         "stop_receipt": "Writer confirmed zero writes, both paths untouched, zero descendants/processes; 16 dependency hashes matched; requested Astra/medium, observed UNKNOWN.",
         "contract_revision": 2,
         "contract_sha256": "fd45f91858c063665ab51ce0c581ad179dfbfc24a6d60e87d552a2c14a094781",
@@ -79,7 +79,8 @@
             "path": "notes/theory/2026-10-16-parameterized-shallow-image-finite-presentation.md",
             "sha256": "3a0bf3df4657dd0a6ccbb8690d990177ff19f30e10e91c93839b4601c634f61b"
           }
-        ]
+        ],
+        "charge_basis": "Conservative wall accounting: ~150s initial read/hash attempt plus 268s since resume timestamp; active-vs-idle instrumentation unavailable."
       },
       "source_runtime_instance": {
         "owner": "/root",
@@ -348,10 +349,10 @@
   "resource_accounting": {
     "sprint_id": "catch-request-exit-construction-20261017",
     "cap_seconds": 1500,
-    "charged_seconds": 150,
+    "charged_seconds": 418,
     "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "Astra resumed under rev2; 150s prior read/hash charge, 570s remaining in proof lane."
+    "status": "Astra running under rev2; conservative 418/720s proof-lane charge, ~302s remaining."
   },
   "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN. Previous sprint f2-owning-inlet-introduction-proposal-20261017 stopped at source gate; artifact SHA 263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27; closeout notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md SHA f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c."
 }
