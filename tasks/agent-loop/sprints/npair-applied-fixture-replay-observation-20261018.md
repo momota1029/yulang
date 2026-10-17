@@ -1,6 +1,6 @@
 # Sprint `npair-applied-fixture-replay-observation-20261018`
 
-Status: READY pending start commit and live receipts. Branch
+Status: CLOSED-REVIEWED-PARTIAL. Branch
 `research/simple-sub-intrusion`. Parent `CHOOSE-SOURCE-2 /
 RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN; original conditions closed0.
 Baseline: `aa808f96543474d85fe70fba92161f94cf4cfd9a`.
@@ -96,3 +96,43 @@ Freeze exact hashes and fresh review/runtime receipts. Report whether the
 companion reaches a demand-bearing Replay and the exact stopping point. Report
 original theorem conditions closed (expected0); do not promote reachability to
 semantic attribution or theorem closure.
+
+## Primary closeout rev2
+
+The companion fixture and harness were independently reviewed CLEAN at the
+frozen rev1 hashes and committed with the source/native proof as `ad4af2393`.
+The proof establishes conditional source/HIR/Apply correspondence through the
+exact `ModuleDef(receive)` and `ModuleDef(f0)` operands and final observer
+target. It does not establish the original semantic `c` or close a parent
+condition.
+
+After CLEAN review and capacity remeasurement, the exact authorized observer
+command ran once and exited `0`. Available captured output confirms the
+383-byte companion, zero parser structural recoveries, the expected
+ModuleIdentity, the exact `received` operands, candidate inference start and
+`candidate.source_call[3]` source correspondence. The tool truncated stdout
+inside the relation/Replay rows; the complete transcript is unavailable.
+Therefore demand-bearing Replay status is **UNKNOWN**, not present or absent.
+The run was not retried. Detailed primary runtime evidence is in
+`notes/progress/2026-10-18-receive-applied-replay-observation.md` and its inbox
+receipt. The CLEAN review applies to the committed rev1 snapshot; the later
+runtime addendum records only the execution facts and capture limitation.
+
+Original conditions resolved: **0**. Parent remains OPEN. No semantic rule,
+quantifier, source domain, test expectation or production gate changed. Only the
+previously passing five focused tests remain test evidence; the new companion
+harness completed once with exit0.
+
+Conservative sprint accounting: **660/900 seconds charged** (proof120,
+implementation edit/freeze cap240 because elapsed was unavailable, review120,
+single runtime command120, primary60). **240 seconds retired**; no rollover.
+The runtime command allocation is consumed, and a second invocation is outside
+this sprint.
+
+Next useful sprint: keep the reviewed companion and harness bytes fixed, capture
+the one authorized run to a durable bounded log so output cannot be truncated,
+then independently join any Replay row to the authenticated
+`candidate.source_call[index]`, matching native root and ordered endpoints. If
+no row survives the full capture, record the exact obstruction. This follow-up
+must use a fresh sprint budget and must not treat the current `UNKNOWN` as
+evidence of absence.
