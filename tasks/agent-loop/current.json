@@ -27,9 +27,9 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 1020,
-      "available_seconds": 480,
-      "allocation": "Proof720 + compiler180 + spec120 charged/assigned; architecture120 (new MI-domain case), Luna180 and reserve180 remain. Astra0."
+      "charged_seconds": 1140,
+      "available_seconds": 360,
+      "allocation": "Proof720 + compiler180 + spec120 + architecture120 charged/assigned; Luna180 + reserve180 remain. Astra0."
     },
     "workers": [
       {
@@ -55,12 +55,22 @@
       {
         "id": "/root/catch_historical_operand_spec_review",
         "role": "spec_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "receipt": "Fresh spec review of complete Return obstruction and bounded MI-domain proposal; ≤120s. Verify original Return scope and parent quantifiers/operands, no inherited q_f. Read-only."
+        "receipt": "CLEAN bounded spec audit. Original indices, quantifiers, clients, guards, alternatives, providers, futures and GC preserved; u_x/d_x transport cannot yield u_id/d_id; raw-P module/context and Data_MI sort mismatch explicit; MI proposal does not widen old domains. 12/12 pins match; full120 charged; no writes/tests/Git."
+      },
+      {
+        "id": "/root/module_reference_architecture_review",
+        "role": "architect",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Fresh architecture review of proposed MI-Result-Header*/MI-Return-Apply* domain and old-consumer preservation; ≤120s. Read-only."
       }
     ],
     "leases": [
