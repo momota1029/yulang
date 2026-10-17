@@ -6,8 +6,8 @@
   "active_sprint": {
     "id": "npair-same-w-source-seed-20261018",
     "contract": "tasks/agent-loop/sprints/npair-same-w-source-seed-20261018.md",
-    "revision": 1,
-    "sha256": "e414fb6b60aa0b18220da69c9118dfe1173c309b4e6c60d831eb38ba7eb25918",
+    "revision": 2,
+    "sha256": "74b91ccf9d4cb7dc493ddcf4e59222d688f605087c8e4d714c0d91863d017af5",
     "state": "ACTIVE",
     "baseline": "902dfd2923bc1f90328387bd1e3f58888ccf4fa3",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original claims, quantifiers and source domain unchanged.",
@@ -59,7 +59,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live collaboration assignment launched under exact read-only source/output leases; actual model and effort metadata unavailable."
+      "receipt": "Live collaboration assignment launched under exact read-only source/output leases; actual model and effort metadata unavailable; contract rev2 corrects requested role routing."
     }
   ],
   "leases": [
