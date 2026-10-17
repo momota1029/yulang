@@ -13,11 +13,11 @@
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original A/B theorem and production gates OPEN.",
   "fixed_outcome": "Construct complete source formation for original inferred F2/xi in the existing descriptor universe with lawful transport, or freeze a reviewed precise bridge proposal and first indispensable producer/embedding law. Keep actual membership, VIncl(A1,F2), c2 image and ambient joins separate.",
   "review": {
-   "state": "SEQUENTIAL REVIEW; first CLEAN, remaining two pending",
-   "current_reviewer": "architect",
+   "state": "SEQUENTIAL REVIEW; compiler_referee and architect CLEAN; spec_auditor pending",
+   "current_reviewer": "spec_auditor",
    "sequence": [
     "compiler_referee CLEAN: no findings; all pins verified",
-    "architect",
+    "architect CLEAN: bridge/owner seam correct; no producer evidence; implementation lane ineligible",
     "spec_auditor"
    ],
    "target": {
@@ -34,9 +34,9 @@
    "review_cap_seconds": 360,
    "coordination_seconds": 120,
    "reserve_seconds": 120,
-   "charged_seconds": 540,
+   "charged_seconds": 660,
    "active_authors": 0,
-   "status": "Proof 420s charged; compiler_referee CLEAN and 120s review capacity conservatively charged. Architect and spec_auditor remain sequential; implementation lane conditional."
+   "status": "Proof 420s; compiler_referee and architect each charged 120s. Both CLEAN. Spec_auditor remains; implementation lane ineligible because no concrete producer evidence."
   },
   "lanes": {
    "proof": {
@@ -51,14 +51,14 @@
    },
    "implementation": {
     "owner": "Luna/high, conditional after proof STOP and fresh review",
-    "state": "WAITING",
+    "state": "INELIGIBLE; WAITING/RETIRE",
     "outputs": [
      "notes/design/2026-10-17-receive-function-view-producer-delta.md",
      "tasks/agent-loop/inbox/20261017-receive-function-view-producer-delta.md"
     ],
     "code_lease": false,
-    "cap_seconds": 300,
-    "receipt": "Design delta only if reviewed proof supplies concrete producer evidence; otherwise retire without repeating generic source-owner audit."
+    "cap_seconds": 0,
+    "receipt": "Architect confirms frozen proof provides no concrete producer evidence; conditional design/code lane not eligible. No repeated audit or compiler work."
    }
   },
   "artifacts": [
@@ -81,7 +81,7 @@
    "actual provider membership or VIncl from descriptor formation alone",
    "source T closure, anchored native MODEL, production conformance/cutover or parent theorem closure"
   ],
-  "next_boundary": "Continue architect then spec_auditor review of the same frozen bytes; no semantic adoption. Then decide whether proof supplies concrete implementation producer evidence.",
+  "next_boundary": "Complete fresh spec_auditor review of frozen bytes; then Luna adjudicates and closes conditional implementation lane as WAITING/retired.",
   "workers": [
    {
     "id": "/root/resident_dispatcher_loop_a",
@@ -149,6 +149,18 @@
     "session": "current-session",
     "cap_seconds": 120,
     "receipt": "Fresh independent compiler_referee completed CLEAN review of frozen artifact 7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590 and handoff a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a; all pins rechecked; read-only; STOPPED; observed model/effort UNKNOWN."
+   },
+   {
+    "id": "/root/receive_inferred_function_view_formation_arch_review",
+    "role": "fresh independent architect review",
+    "state": "STOPPED",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": "current-session",
+    "cap_seconds": 120,
+    "receipt": "Fresh independent architect review CLEAN within proposal scope; no producer evidence found; conditional implementation lane ineligible and remains WAITING/retired. Review targets match; read-only; STOPPED; observed model/effort UNKNOWN."
    }
   ]
  },
@@ -223,6 +235,18 @@
    "session": "current-session",
    "cap_seconds": 120,
    "receipt": "Fresh independent compiler_referee completed CLEAN review of frozen artifact 7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590 and handoff a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a; all pins rechecked; read-only; STOPPED; observed model/effort UNKNOWN."
+  },
+  {
+   "id": "/root/receive_inferred_function_view_formation_arch_review",
+   "role": "fresh independent architect review",
+   "state": "STOPPED",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "cap_seconds": 120,
+   "receipt": "Fresh independent architect review CLEAN within proposal scope; no producer evidence found; conditional implementation lane ineligible and remains WAITING/retired. Review targets match; read-only; STOPPED; observed model/effort UNKNOWN."
   }
  ],
  "leases": [
@@ -290,7 +314,7 @@
   "state": "REVIEW-PENDING",
   "dispatcher": "Selector consulted at owner-level obstruction: preserve active packet, leases and cap; no resource change.",
   "proof": "F2 introduction plus joint descriptor embedding still open; pinned Generalize supplies only downstream closure. Original parent and c2 residual obligations preserved.",
-  "implementation": "WAITING; only source-producer design delta if frozen proof supplies concrete new constructor evidence after review; no code lease."
+  "implementation": "INELIGIBLE: no concrete new constructor evidence; keep WAITING/retire allocation; no code lease."
  },
  "resource_accounting": {
   "sprint_id": "receive-inferred-function-view-formation-20261017",
@@ -300,12 +324,12 @@
   "review_cap_seconds": 360,
   "coordination_seconds": 120,
   "reserve_seconds": 120,
-  "charged_seconds": 540,
+  "charged_seconds": 660,
   "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Proof 420s plus compiler_referee review cap 120s charged. First review CLEAN; architect and spec_auditor pending."
+  "status": "Proof 420s plus two review caps 120s each. Compiler_referee and architect CLEAN; spec_auditor pending; implementation lane ineligible and its allocation retired."
  },
- "history": "Prior checkpoint 520398c4a froze reviewed-partial c2 frontier: complete inferred F2 formation is the first unavailable law; candidate bridge remains unselected. New sprint targets the original source-owned Function formation judgment while retaining all existing descriptor/membership meanings and parent gates. Frozen proof candidate and handoff r1: source-local F2 inference introduction and joint embedding remain unsupported; 420s charged; review sequence compiler_referee, architect, spec_auditor. Independent compiler_referee review CLEAN at exact frozen hashes; all ten direct pins and original-parent hash match. Two fresh reviews remain.",
+ "history": "Prior checkpoint 520398c4a froze reviewed-partial c2 frontier: complete inferred F2 formation is the first unavailable law; candidate bridge remains unselected. New sprint targets the original source-owned Function formation judgment while retaining all existing descriptor/membership meanings and parent gates. Frozen proof candidate and handoff r1: source-local F2 inference introduction and joint embedding remain unsupported; 420s charged; review sequence compiler_referee, architect, spec_auditor. Independent compiler_referee review CLEAN at exact frozen hashes; all ten direct pins and original-parent hash match. Two fresh reviews remain. Fresh architect review CLEAN; confirmed no concrete constructor evidence, so implementation readiness allocation is retired; no code/design producer delta is eligible.",
  "checkpoint_commits": [
   "9948ca23f7034dd67d878257db3df2237a7e66bd",
   "d1b706e83",
