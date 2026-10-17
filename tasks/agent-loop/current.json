@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
     "revision": 2,
     "sha256": "fd45f91858c063665ab51ce0c581ad179dfbfc24a6d60e87d552a2c14a094781",
-    "state": "ARCHITECT-REVIEW-RUNNING",
+    "state": "REVIEWS-CLEAN-SPRINT-END-SELECTOR",
     "baseline": "8f517045d",
     "parent": "FORWARD-FIRST-CALL A/B and F1/FK1 open; target CATCH-EXIT-INPUT-1/M_exit only.",
     "fixed_outcome": "Draft typed Request-exit bridge; map exact specimen source/runtime; report first missing join. No semantics adoption/code.",
@@ -24,9 +24,9 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 823,
-      "active_authors": 1,
-      "status": "Authors STOPPED. Compiler and spec reviews CLEAN/STOPPED. Final architect review launched 2026-10-17 05:11:29 UTC, 90s cap; receipt message-only due read-only role."
+      "charged_seconds": 913,
+      "active_authors": 0,
+      "status": "Both authors stopped. Compiler_referee, spec_auditor, architect CLEAN within bounded scopes; each cap charged (120+90+90). Total conservative sprint charge 913s/1500s; no semantic adoption or parent closure."
     },
     "lanes": {
       "proof_source_definition": {
@@ -66,16 +66,16 @@
         "gate": "Removing runtime guard would not supply typed M_exit; code remains unauthorized."
       },
       "reviews": {
-        "state": "RUNNING-ARCHITECT",
+        "state": "CLEAN-BOUNDED-ALL-STOPPED",
         "sequence": [
           "compiler_referee",
           "spec_auditor",
           "architect"
         ],
-        "current": "/root/catch_request_exit_architect_review",
+        "current": null,
         "cap_seconds": 300,
         "compiler_referee": {
-          "state": "CLEAN-STOPPED",
+          "state": "CLEAN-STOPPED-FROZEN-RECEIPT",
           "cap_seconds": 120,
           "started_at_utc": "2026-10-17 05:08:56 UTC",
           "output": "tasks/agent-loop/inbox/20261017-catch-request-exit-compiler-review.md",
@@ -96,13 +96,15 @@
           "receipt": "CLEAN bounded conformance; 16+5 pins match; read-only message received 2026-10-17 05:11:15 UTC; exact stop time UNKNOWN; no file write."
         },
         "architect": {
-          "state": "RUNNING-MESSAGE-ONLY",
+          "state": "CLEAN-STOPPED-MESSAGE",
           "cap_seconds": 90,
           "output": "tasks/agent-loop/inbox/20261017-catch-request-exit-architect-review.md",
           "started_at_utc": "2026-10-17 05:11:29 UTC",
           "requested": "gpt-6.1-sol/medium",
           "observed": "UNKNOWN/UNKNOWN",
-          "receipt_mode": "read-only message; no file lease"
+          "receipt_mode": "read-only message; no file lease",
+          "receipt": "CLEAN bounded architecture; independent authorship; reviewed message received 2026-10-17 05:12:13 UTC; exact stop time UNKNOWN; no file write.",
+          "charged_seconds": 90
         }
       }
     },
@@ -129,7 +131,7 @@
       "compiler code/tests/builds/runtime probes",
       "narrowing or closing parent domains"
     ],
-    "next_boundary": "Architect STOP and Luna adjudication; then write durable closeout and primary-only push.",
+    "next_boundary": "Consult next_action_selector at sprint end, then primary adjudication/closeout and push.",
     "leases": [
       {
         "path": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
@@ -237,19 +239,19 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "started_at_utc": "2026-10-17 05:10:23 UTC",
-      "receipt": "CLEAN bounded spec conformance via read-only message received 2026-10-17 05:11:15 UTC; exact stop time UNKNOWN; 90s charged; no file write or descendants."
+      "receipt": "CLEAN bounded spec conformance by read-only message; all pins matched; exact stop time UNKNOWN; 90s charged."
     },
     {
       "id": "/root/catch_request_exit_architect_review",
       "role": "architect",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "started_at_utc": "2026-10-17 05:11:29 UTC",
-      "receipt": "Actual spawn acknowledged; fresh read-only architectural review of frozen targets; message-only receipt."
+      "receipt": "CLEAN bounded architecture by read-only message received 2026-10-17 05:12:13 UTC; exact stop time UNKNOWN; 90s charged."
     }
   ],
   "leases": [
@@ -307,19 +309,19 @@
     }
   ],
   "next_action": {
-    "state": "ARCHITECT-REVIEW-RUNNING",
-    "dispatcher": "Selected Catch Request-exit construction under existing adopted matcher interface; source proposal then sequential Luna source/runtime instantiation; no compiler-code authority.",
+    "state": "SPRINT-END-SELECTOR-REQUIRED",
+    "dispatcher": "Both authors and all three reviewers stopped. Select next owner/evidence route from clean bounded candidate plus exact missing μ_H typed operand-use; no safe code slice this seam.",
     "proof": "Draft source introduction has a complete attempted telescope and preservation/erasure analysis but stops at actual typed μ_H operand-use introduction; M_exit remains open.",
-    "implementation": "Static source/runtime path is mapped. NO_SAFE_CODE_SLICE for this seam; playground Function-response guard is local noncoverage only.",
-    "review": "Final fresh architect review in progress; prior compiler/spec reviews CLEAN within bounded scopes."
+    "implementation": "NO_SAFE_CODE_SLICE for this seam; no compiler edit. Parent theorem remains open.",
+    "review": "All three independent reviews CLEAN within bounded scopes; spec and architect receipts delivered by read-only message."
   },
   "resource_accounting": {
     "sprint_id": "catch-request-exit-construction-20261017",
     "cap_seconds": 1500,
-    "charged_seconds": 823,
-    "active_authors": 1,
+    "charged_seconds": 913,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "Architect review running under 90s cap; no authors active."
+    "status": "All lanes stopped; three independent bounded reviews CLEAN. Sprint ready for next-action selection and Luna closeout."
   },
   "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN. Previous sprint f2-owning-inlet-introduction-proposal-20261017 stopped at source gate; artifact SHA 263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27; closeout notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md SHA f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c."
 }
