@@ -1,8 +1,8 @@
 # Ordinary HIR applied-conformance repair: implementation handoff
 
-- Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev6, SHA-256
-  `3d3f8fd3643bf3b1d27793f470f19b430779bc24f1698788d89295e770c258a4`.
-  Handoff revision 17 (Luna's HIR integration failure receipt); failed candidate
+- Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev7, SHA-256
+  `5572d93a543c49780c1275fea3a4450695f2c997e3944e18f5ba8f67194f5960`.
+  Handoff revision 18 (Luna's recovery expectation adjudication route); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -218,3 +218,22 @@ retry or expectation change occurred. A fresh independent post-run regression
 review is next and will adjudicate this exact failure against the adopted
 refusal/recovery contract. All parent theorem gates remain OPEN; original
 conditions closed: 0.
+
+
+## Rev7 recovery expectation review route — handoff revision 18
+
+The independent post-run regression review is frozen at
+`notes/progress/2026-10-17-ordinary-hir-repair-hir-failure-review.md`, SHA
+`c9ea17dc6570f3cb2ffe9b7f871534c17c956dc80372e00f602fb5346b57a22a`. It found
+that `has_recovery` returns existing causal Error before UnsupportedExpression
+fallback, matching adopted §§3–4; the test's module-wide unsupported assertion
+failed and its inherited-kind assertion did not run. This is not yet an approved
+expectation edit. Fresh spec adjudication (40s) compares §2's broader wording
+against §§3–4 and must state exact binding-specific expected records. If CLEAN
+on this scoped reading, a test-only edit may replace the inconsistent module-wide
+check with causal-ID/attachment/kind checks on `broken`, preserving no Apply,
+nonempty exact causes and no hidden unresolved operand. Delta review (30s) must
+be CLEAN before one HIR integration rerun (45s); solver integration (45s) only
+on HIR PASS; post-run review cap30s. Budget after the charged coordination is
+220s exactly. No source behavior or expectations changed yet; no solver command
+ran. Original theorem conditions remain OPEN.

@@ -6,9 +6,9 @@
   "active_sprint": {
     "id": "ordinary-hir-applied-conformance-repair-20261017",
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
-    "revision": 6,
-    "sha256": "3d3f8fd3643bf3b1d27793f470f19b430779bc24f1698788d89295e770c258a4",
-    "state": "POST-RUN-REVIEW",
+    "revision": 7,
+    "sha256": "5572d93a543c49780c1275fea3a4450695f2c997e3944e18f5ba8f67194f5960",
+    "state": "RECOVERY-SPEC-ADJUDICATION",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -29,10 +29,10 @@
     },
     "resources": {
       "cap_seconds": 2760,
-      "charged_seconds": 2435,
-      "available_seconds": 325,
+      "charged_seconds": 2540,
+      "available_seconds": 220,
       "retired_seconds": 0,
-      "allocation": "Charged through HIR integration failure2435/2760s (2.315s rounded to3). Remaining reserved: post-run regression review90; solver command90 (held by stop); unused HIR integration cap87; unused focused-command cap40; reserve18 =325. No retries or dependent command authorized."
+      "allocation": "Charged through post-run review2525 + rev7 coordination15 =2540/2760. Remaining: fresh spec40 + conditional test repair30 + regression delta30 + one HIR rerun45 + held solver integration45 + post-run review30 =220; no reserve."
     },
     "workers": [
       {
@@ -232,17 +232,17 @@
       {
         "id": "/root/ordinary_hir_repair_hir_failure_review",
         "role": "regression_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 90,
-        "charged_seconds": 0,
-        "remaining_seconds": 90,
+        "charged_seconds": 90,
+        "remaining_seconds": 0,
         "session": "current-session",
         "lease_paths": [],
-        "active_receipt": "Fresh read-only post-run reviewer spawned for assertion failure at ordinary_application_admission.rs:326. Collaboration runtime listed RUNNING; no test/build/Cargo/probe/Git/write/descendant authority."
+        "active_receipt": "STOPPED with MAJOR test-contract inconsistency, no demonstrated source defect; receipt notes/progress/2026-10-17-ordinary-hir-repair-hir-failure-review.md SHA c9ea17dc6570f3cb2ffe9b7f871534c17c956dc80372e00f602fb5346b57a22a. Exact elapsed UNKNOWN; full90s charged."
       }
     ],
     "leases": [
@@ -340,6 +340,11 @@
         "path": "notes/progress/2026-10-17-ordinary-hir-repair-hir-integration-failure.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/progress/2026-10-17-ordinary-hir-repair-hir-failure-review.md",
+        "owner": "/root (transcribed read-only review)",
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -394,7 +399,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Fresh post-run regression reviewer RUNNING <=90s on failure semantics. Solver integration remains stopped. After STOP, adjudicate and consult selector for any repair/contract/resource change; no test rerun or expectation edit before replan.",
+    "next_action": "Rev7 conditional scope frozen: fresh independent spec adjudication <=40s compares adopted §2 vs §§3–4 and states exact binding-specific expected relation. No expectation edit until CLEAN; no code/test execution pending. If approved, test-only author30, regression delta30, HIR rerun45, solver45 only on pass, post-review30.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },

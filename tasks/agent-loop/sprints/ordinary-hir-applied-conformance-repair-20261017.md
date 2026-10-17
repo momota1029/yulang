@@ -1,9 +1,8 @@
 # Sprint ordinary-hir-applied-conformance-repair-20261017
 
-Status: APPLIED REVIEW IN PROGRESS; TEST-ADAPTATION AMENDMENT. Revision
-6 supersedes revision 5 only for the one test-only compile repair, one explicit
-post-repair unit invocation, integration caps and remaining resource allocation.
-Revision 4 remains authoritative for semantics and implementation.
+Status: PARTIAL RUN; RECOVERY-EXPECTATION ADJUDICATION. Revision 7 supersedes
+revision 6 only for a bounded spec adjudication and conditional regression-test
+repair/rerun. Revision 4 remains authoritative for semantics and implementation.
 Candidate baseline
 `4f4dcb7b9`; current operational base may include later record-only commits.
 The prior sprint closed `REVIEWED-PARTIAL`; its candidate and
@@ -148,6 +147,45 @@ for Apply/Group and records `ApplicationTypingRuleUnresolved`; keep it OPEN.
 This sprint supplies no standard Call typing, source T, native adequacy or
 parent theorem result.
 
+
+## Rev7 recovery-expectation adjudication after partial run
+
+The focused unit target passed8/8 after rev6's test-only compile repair. The HIR
+integration target then passed8/9; `unsupported_and_recovery_bodies_keep_the_whole_body_refusal`
+failed only because line326 expected a module-wide `UnsupportedExpression` for
+a recovery-bearing body. The post-run review at
+`notes/progress/2026-10-17-ordinary-hir-repair-hir-failure-review.md` found the
+existing `has_recovery` branch returns causal `ResolvedExpr::Error` before the
+unsupported-shape fallback, consistent with adopted §§3–4. The following
+inherited-kind assertion did not execute. This is a test/spec wording issue to
+adjudicate, not established implementation regression. No expectation or
+production-source change is yet authorized.
+
+A fresh independent spec auditor has 40s to compare adopted successor §§2–4,
+the exact fixture and source gate. If it confirms an expectation defect and
+states the binding-specific expected relation, Luna may authorize a test-only
+repair, cap30s, limited to
+`crates/yu-hir/tests/ordinary_application_admission.rs` and the existing
+implementation handoff. Keep no-Apply, exact causal-ID retention and no
+unresolved-name/hidden-operand assertions. Make the inherited-error-kind
+assertion execute against causal IDs attached to the `broken` binding; do not
+merely delete the failing assertion or broaden expectations. No production code
+or other test path is writable.
+
+After author STOP/freeze, a fresh regression delta reviewer <=30s checks the
+spec-derived assertion and unchanged accepted behavior. Only CLEAN delta and
+Luna adjudication authorize one HIR integration invocation <=45s. On PASS, run
+the previously held solver vertical exactly once <=45s. A fresh post-run
+regression reviewer <=30s audits both new receipts and prior unit/HIR evidence.
+Any authority conflict, cap exhaustion, timeout, compile failure or assertion
+failure closes this candidate partial; no further rerun/retry is funded.
+
+Rev7 budget: 2525s were charged through the first post-run review. Charge
+coordination15 for this amendment (cumulative2540), leaving220s: independent
+spec adjudication40; conditional test author30; regression delta review30; one
+HIR integration rerun45; held solver integration45; post-run delta review30.
+Total remaining allocations equal220; no reserve remains.
+
 ## Pins, resources and stop
 
 The current-input pin for newly proposed `lib.rs` is
@@ -172,14 +210,12 @@ crates/yu-hir/src/shadow.rs                                       2dffd7fd6542ee
 crates/yu-solver/tests/research_accepted_call_vertical.rs         78fd0d4c38df86def4cd4aefb37e164f71269eb58cd9a53b370bc42e42f9a963
 ```
 
-Fresh cap: 2760s. Through the first unit-command compile failure, 2352s are
-charged. Remaining 408s are allocated: narrow repair author30; compiler delta
-review30; one post-repair unit invocation45; first integration90; second
-integration90; post-run regression review90; contract/adjudication coordination
-15; reserve18. These sums include all explicit command caps; no retry or implicit
-command is funded. No retired budget carries. Preserve all three inherited
-UNKNOWN writer leases and their reservations. At most one author at a time;
-proof, plan, architect, implementation and reviews are sequential.
+Fresh cap: 2760s. Through the first post-run review, 2525s were charged; rev7
+coordination15 is charged at amendment, total2540. Remaining220s are allocated
+exactly to spec40 + conditional test author30 + regression delta review30 + one
+HIR rerun45 + held solver integration45 + post-run review30. Total2760. No
+reserve remains; no retry or implicit command is funded. Preserve all three
+inherited UNKNOWN writer leases and their reservations.
 
 Stop at another counterexample, hash/pin mismatch, grammar breach, unreviewed
 identity representation, source owner outside exact leases, unaccounted
