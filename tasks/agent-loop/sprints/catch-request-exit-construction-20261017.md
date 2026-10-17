@@ -1,9 +1,9 @@
 # Sprint catch-request-exit-construction-20261017 — derive and instantiate the Catch Request exit bridge
 
 Status: ACTIVE; candidate source rule only, no semantic adoption or compiler-code authority.
-Branch / baseline commit / frozen dependency hashes: `research/simple-sub-intrusion` / `e855987e642a02c6060fd2bdd93864a19b0dba3f`; dependencies below.
+Branch / baseline commit / frozen dependency hashes: `research/simple-sub-intrusion` / `8f517045d` (sprint-start repository baseline); inherited semantic source checkpoint `e855987e642a02c6060fd2bdd93864a19b0dba3f`; dependencies below.
 Authority: user's authorization to continue the existing Goal and draft missing source/bridge rules; already-adopted Catch matcher-input interface option B (`CATCH-EXIT-INPUT-1`); `rules/design-authority.md`; `rules/goal-driven-sprints.md`.
-Contract revision / SHA-256 / primary approval receipt: revision 1 / SHA recorded in `current.json` / Luna primary, 2026-10-17.
+Contract revision / SHA-256 / primary approval receipt: revision 2 / SHA recorded in `current.json`; revision 1 was committed at `8f517045d`; Luna primary, 2026-10-17.
 
 ## Original outcome and success evidence
 
@@ -32,14 +32,14 @@ Exact source reads / artifact, generated, scratch and handoff file leases:
 - Reviewers read frozen bytes only; no other write paths. No scratch/output directories.
 - Primary `tasks/agent-loop/current.json` lease only for Luna.
 Authority/dependency/lease boundary that requires returning to Luna: Any changed meaning of the adopted entry interface, new source rule with semantic force beyond the scoped proposal, new dependency/path/author, current-owner rule change, work on other parent quantifiers, runtime/test/build authorization or code edit.
-Available runtime capacity; aggregate assignment/descendant budget and review reserve: fresh sprint cap 1500s = Astra 720 + Luna 300 + reviews 300 + coordination 60 + reserve 120. Unknown inherited reservations stay quarantined. Prior F2 sprint's 600s charge and 240s lane overrun remain in its history and are not erased.
+Available runtime capacity; aggregate assignment/descendant budget and review reserve: sprint cap 1500s = Astra 720 + Luna 300 + reviews 300 + coordination 60 + reserve 120. The first launch was stopped before any writes after 150s conservative proof-lane read/hash work due a baseline-label conflict; current proof lane has 570s remaining. Total sprint charge is 150s, leaving 1350s. Unknown inherited reservations stay quarantined. Prior F2 sprint's 600s charge and 240s lane overrun remain in its history and are not erased.
 Global Astra concurrency <=1 and assignments <=2; finite stages and active wall time: one Astra, max 8 stages, 720s hard assignment cap; sequential authors and reviews; stop before cap.
 Lightweight probes <=4, heavyweight build <=1; CPU/RAM/process/time/check owner: zero probes and zero heavy processes authorized. Luna owns static `python3 tools/agent_sprint.py check` and hash checks only. No tests/builds/Cargo/runtime/network.
 Stop conditions: accepted source rule candidate and its bounded preservation/erasure attempt frozen, or first exact missing source premise; specimen equations complete or exact absent producer/consumer join; review finding; cap; user STOP; session end. Unknown writers retain their paths and reservations. If author cancellation can't be confirmed, quarantine rather than transfer.
 
 ## Frozen seams and handoff
 
-Immutable artifact/dependency snapshot and author list for each coherent review: 15 direct dependency hashes pinned below; authors are `/root/catch_request_exit_introduction` then `/root` sequentially. Review only after artifact bytes and dependencies freeze. No author reviews combined work.
+Immutable artifact/dependency snapshot and author list for each coherent review: 16 direct dependency hashes pinned below; authors are `/root/catch_request_exit_introduction` then `/root` sequentially. Review only after artifact bytes and dependencies freeze. No author reviews combined work.
 Required independent reviewer(s) and acceptance criteria under M0-M3: fresh compiler_referee checks source/native equations and no invented producer; fresh spec_auditor checks original scope, adopted interface, branch/eligibility distinctions; fresh architect checks constructive owner assignment and no circularity. All direct pins must match. Blocking/major findings close before acceptance. A clean bounded review does not adopt semantics or close parent.
 How an established lemma is applied back to each original parent: replace only F1 P2 `I_Request -> Select_0-H`'s unspecified exit-to-matcher-input edge with the derived local equation, conditional on original Call/Request/Bind premises. Every other original case and quantifier remains untouched.
 Which dependent production gates remain OPEN until which source/native evidence: `CATCH-EXIT-INPUT-1`, original A/B, F1/FK1, full handler matcher/forwarding, complete source/HIR acceptance, source-Generalize/export, soundness, principality and production remain OPEN. No code lane.
