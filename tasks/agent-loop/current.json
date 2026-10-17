@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
     "revision": 2,
     "sha256": "712fa3cfb7ba6ad89d0416f8e3b83f11c921084a35d8c0e88b7b918006e4a07e",
-    "state": "AMENDMENT-REVIEW-ARCHITECT-RUNNING",
+    "state": "WAITING-USER-APPROVAL-RESOURCE-CLAUSE",
     "baseline": "8be4b8248",
     "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Implement adopted rev4 structural HIR admission and prove projection preservation through ordinary HIR, applying only the exact structural premise of the original Call/source bridge. Current gate: frozen proof and resource-amendment review; implementation held until fresh compiler/spec/architect reviews are CLEAN and Luna adjudicates. No semantic Call or parent theorem closure.",
@@ -21,7 +21,7 @@
       "original_conditions_closed": 0,
       "behavior_executed": false,
       "proof_class": "Frozen Astra candidate: structural/key/identity/carrier/diagnostic lemmas plus algebraic lower bound; independent review pending.",
-      "implementation_class": "HOLD until resource amendment has fresh compiler/spec/architect CLEAN reviews and Luna adjudication; no code/tests.",
+      "implementation_class": "HOLD pending user approval of the reviewed change to rev4 §2 performance guarantee; no code/tests.",
       "HIR_APP_CST_1": "LOCALLY RESOLVED within pinned fixed-source scope; no parser-wide claim.",
       "HIR_APP_ADMISSION_1": "ADOPTED rev4; projection proof candidate frozen; implementation held pending resource amendment review/adjudication; no semantic Call conclusion.",
       "parent_application": "Still to be derived by Astra from the actual original Call/source bridge; no Call typing, source T or adequacy inferred.",
@@ -29,8 +29,8 @@
     },
     "resources": {
       "cap_seconds": 4020,
-      "charged_seconds": 870,
-      "available_seconds": 2880,
+      "charged_seconds": 960,
+      "available_seconds": 2790,
       "allocation": "Coordination120 charged; Astra450/720 charged, remaining270 retired; Luna amendment author90 charged; proof reviews300; pre-code architect90; implementation1710; applied reviews480; regression pre/post240; Cargo240; reserve30. Available includes only planned remaining allocations.",
       "retired_seconds": 270
     },
@@ -135,7 +135,7 @@
       {
         "id": "/root/accepted_call_hir_admission_architect_review",
         "role": "architect",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "cap_seconds": 90,
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
@@ -148,7 +148,10 @@
           "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md"
         ],
         "session": "current-session",
-        "active_receipt": "Pre-code architect review dispatched sequentially after compiler STOP/CLEAN and spec STOP/MAJOR; exact proof/amendment/sprint hashes supplied; read-only."
+        "active_receipt": "Pre-code architect review dispatched sequentially after compiler STOP/CLEAN and spec STOP/MAJOR; exact proof/amendment/sprint hashes supplied; read-only.",
+        "charged_seconds": 90,
+        "remaining_seconds": 0,
+        "receipt": "MAJOR authority finding agrees with spec reviewer: explicit user approval is required for changing authoritative rev4 §2 performance guarantee; existing adoption/delegation does not cover worst-case quadratic output-sensitive replacement. Technical resource/accounting review CLEAN. Implementation obligations: one materialization per Apply, Group forwarding without cloning, checked child/R/byte/ordinal arithmetic, full fallible reservations before publication, no partial module, no truncation/duplicate diagnostics; report R and actual ref allocation/storage counts with unresolved/clean spines and Group wrapping. All five hashes match. Budget transfer balanced; no authority follows. Requested Sol/medium, observed UNKNOWN; 90s charged; no writes/tests/probes."
       }
     ],
     "leases": [
@@ -265,7 +268,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Compiler referee CLEAN; spec auditor reports one MAJOR approval-gate finding for the changed authoritative resource guarantee. Dispatch fresh pre-code architect <=90s to assess exact supersession, checked-R allocation/failure atomicity and authority path. Implementation remains held; if no existing user delegation covers this performance decision, request approval of the reviewed replacement.",
+    "next_action": "Three sequential reviews complete: compiler CLEAN, spec and architect agree a resource-contract authority change requires explicit user approval; technical proposal is CLEAN. Ask user to approve the exact output-sensitive replacement for adopted rev4 §2 or commission a representation design. No implementation/tests/Cargo before approval; original theorem gates remain OPEN.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
     "predecessor_commit": "5fbceb68d",
     "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
