@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-source-admission-proposal-20261018.md",
     "revision": 1,
     "sha256": "eaf10ceaf86df64c0bd2c522520b3e0b060e1cf1430b8ef6abf39440b063558c",
-    "state": "WAITING-SPEC-REVIEW",
+    "state": "SPEC-REVIEW-ASSIGNED",
     "baseline": "368ee4bfe",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original claims, quantifiers and source domain unchanged.",
     "fixed_outcome": "Freeze an independently reviewable proposal for the adopted nonempty concrete-only negative formal-port source-admission case, including exact source-to-FormalAnnotation evidence, falsifiers, refusals and prerequisites. Proposal only; no source read or implementation.",
@@ -27,8 +27,8 @@
     },
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 300,
-      "available_seconds": 120,
+      "charged_seconds": 420,
+      "available_seconds": 0,
       "allocation": "Luna documentation-only proposal ≤300s/3 stages + fresh independent spec review ≤120s/3 stages. Astra0; no extra workers; no tests/builds; old sprint budget does not carry."
     },
     "artifacts": {
@@ -41,7 +41,7 @@
         "sha256": "0d5231fffdaf001787b626eb279b1ce1182951472b88218938e2442228ec4e02"
       }
     },
-    "next_action": "Luna author STOP with exact contract/proposal/handoff hashes; assign a fresh independent spec_auditor for proposal-scope review. Preserve source/call quarantine and all three inherited UNKNOWN reservations.",
+    "next_action": "Assign fresh independent spec auditor to the frozen contract/proposal/handoff. Review only scope, source-domain preservation, exact authority prerequisites and false-claim boundaries; source/call remain quarantined.",
     "closeout": null
   },
   "history": "All prior sprint closeouts, proof artifacts, implementation receipts, independent reviews, runtime/check evidence and Git outcomes remain in their uniquely named frozen notes/design, notes/theory, notes/progress and tasks/agent-loop inbox artifacts; Git history preserves associated source commits. No historical worker or lease is live. Highlights: earlier HIR/source mapping and module work closed REVIEWED-PARTIAL with original theorem gates still open; Return-prefix transport ended at a typed-prefix-package obstruction; adopted NPAIR is now receiving its first integrated native producer proof/test. Astra default remains 0. Consult each archived artifact for exact evidence and limits. Latest closeout: notes/progress/2026-10-18-npair-native-introduction-correspondence-closeout.md SHA-256 7bee0f6ff2b0e6f8d3db3df6dde3240ae801551e5b8f88a5d9fcbd1886547cf4; original parent closure0, bounded local producer condition1. ",
@@ -111,6 +111,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "Fresh independent delta review STOP; sole minor finding CLOSED. Exact two-comment delta verified by stripping comments and reproducing pre-comment source SHA b9283216400a4635ca048dd9408946ed30e089b15b5c335ce5c5a760da7391c6. Current candidate_effect SHA 9ea9498692bdff12c2a7ebd8546ca2b443a095c0700f3e87ad6c956cc690e212. Parent closure0; source preflight refused; no source/call reads; no tests/builds; Astra0; runtime/model UNKNOWN."
+    },
+    {
+      "id": "/root/npair_source_admission_spec_review",
+      "role": "fresh-independent-spec-auditor",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6.1-sol / spec_auditor",
+      "requested_effort": "low, ≤120s / 3 stages",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Assigned against frozen proposal contract and design; read-only, no source/call reads, tests/builds, edits or Git. Full120 reserved/charged. Astra0."
     }
   ],
   "leases": [
@@ -178,7 +189,7 @@
   "pending": [
     {
       "id": "NPAIR-SOURCE-ADMISSION-PROPOSAL-REVIEW",
-      "state": "Fresh spec review pending against frozen proposal/contract; no source/call access. Review cannot adopt semantics or release leases."
+      "state": "Spec reviewer assignment recorded; awaiting current-session launch acknowledgement. Frozen docs commit b4315164d; source/call quarantined."
     }
   ]
 }
