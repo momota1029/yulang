@@ -8,17 +8,16 @@
     "contract": "tasks/agent-loop/sprints/receive-resultbind-context-plug-20261017.md",
     "revision": 1,
     "sha256": "5ae922e68fa123cd99484a4cc1589c757b1cd418d9b582eb0c056edd43b7061d",
-    "state": "PROOF-AUTHOR-RUNNING",
+    "state": "REVIEWED-PARTIAL-CHECKPOINT-READY",
     "baseline": "e92374886346d0b561246514b02558f02cad7a48",
     "parent": "型推論と実行器が証明込みで実装できるまで続ける; parent theorem and production gates OPEN.",
     "fixed_outcome": "Determine whether the exact initial-context source-generation inversion constructs full Phi_B^H from the open g(Unit) suffix at original A1,E1,xi, or identify the first missing local/import/world premise.",
     "review": {
-      "state": "NOT-YET-STARTED",
+      "state": "CLEAN; all assigned reviews STOPPED",
       "current_reviewer": null,
       "sequence": [
-        "Astra proof author STOP/freeze",
-        "Fresh independent compiler_referee120s",
-        "Fresh independent spec_auditor120s"
+        "compiler_referee CLEAN for exact inversion/source witness analysis",
+        "spec_auditor CLEAN for all original Phi_B^H conjuncts/domain/premises"
       ]
     },
     "resources": {
@@ -27,20 +26,20 @@
       "review_cap_seconds": 240,
       "coordination_seconds": 60,
       "reserve_seconds": 180,
-      "charged_seconds": 0,
-      "active_authors": 1,
-      "status": "Astra proof author actively assigned under exact two-file lease, 720s cap; 3 inherited UNKNOWN reservations retained; implementation waits."
+      "charged_seconds": 960,
+      "active_authors": 0,
+      "status": "All sprint authors/reviewers STOPPED. 960s charged of 1200; unused allocation retired at boundary; 3 inherited UNKNOWN reservations retained."
     },
     "lanes": {
       "proof": {
         "owner": "/root/receive_resultbind_context_plug (Astra proof lane)",
-        "state": "RUNNING",
+        "state": "REVIEWED-CONDITIONAL",
         "outputs": [
           "notes/theory/2026-10-17-receive-resultbind-context-plug.md",
           "tasks/agent-loop/inbox/20261017-receive-resultbind-context-plug.md"
         ],
         "cap_seconds": 720,
-        "receipt": "Fresh assignment launched in current session, 720s cap; exact theory+handoff leases; direct pins rechecked by primary."
+        "receipt": "Proof 90a0844f10ea433bb21c0d98e67a278e288930752987c233c86290354067bf87; handoff cc883103ed36f538be299215061b23b0f4e12c18d9e85e8fd439fab993e48482. Existing inversion applies conditionally. Actual c2 WF_Dec/VIncl/whole-call-image and Bind/ambient same-tuple witnesses remain absent."
       },
       "implementation": {
         "owner": "Luna/high after this result",
@@ -55,6 +54,14 @@
       {
         "path": "tasks/agent-loop/sprints/receive-resultbind-context-plug-20261017.md",
         "sha256": "5ae922e68fa123cd99484a4cc1589c757b1cd418d9b582eb0c056edd43b7061d"
+      },
+      {
+        "path": "notes/theory/2026-10-17-receive-resultbind-context-plug.md",
+        "sha256": "90a0844f10ea433bb21c0d98e67a278e288930752987c233c86290354067bf87"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-receive-resultbind-context-plug.md",
+        "sha256": "cc883103ed36f538be299215061b23b0f4e12c18d9e85e8fd439fab993e48482"
       }
     ],
     "non_goals": [
@@ -67,7 +74,7 @@
       "production cutover",
       "parent theorem closure"
     ],
-    "next_boundary": "Frozen proof/counterexample/first missing premise; then sequential independent review. Implementation remains waiting.",
+    "next_boundary": "Next selector packet proposed: receive-c2-open-check-20261017; no compiler code seam ready.",
     "workers": [
       {
         "id": "/root/resident_dispatcher_loop_a",
@@ -111,19 +118,43 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "New contract revision1 frozen; preparing exact Astra proof assignment."
+        "receipt": "Both reviews integrated; primary prepares boundary consultation and checkpoint."
       },
       {
         "id": "/root/receive_resultbind_context_plug",
         "role": "Astra bounded constructive proof author",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6-astra",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
         "cap_seconds": 720,
-        "receipt": "Actual fresh assignment launched; writes limited to exact proof and handoff files; no descendants."
+        "receipt": "FROZEN/STOPPED at 2026-10-17 01:13:33 UTC; artifact 90a0844f10ea433bb21c0d98e67a278e288930752987c233c86290354067bf87; handoff cc883103ed36f538be299215061b23b0f4e12c18d9e85e8fd439fab993e48482; no descendants or scratch paths; exact elapsed unavailable."
+      },
+      {
+        "id": "/root/receive_source_plan_bridge_review",
+        "role": "independent compiler_referee review of new context inversion application",
+        "state": "STOPPED",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "cap_seconds": 120,
+        "receipt": "Bounded review CLEAN; no writes or descendants."
+      },
+      {
+        "id": "/root/receive_plan_contract_spec_review",
+        "role": "independent spec_auditor review of context inversion proof",
+        "state": "STOPPED",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "cap_seconds": 120,
+        "receipt": "Bounded review CLEAN; no writes or descendants."
       }
     ]
   },
@@ -209,12 +240,14 @@
     {
       "path": "notes/theory/2026-10-17-receive-resultbind-context-plug.md",
       "owner": "/root/receive_resultbind_context_plug",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "90a0844f10ea433bb21c0d98e67a278e288930752987c233c86290354067bf87"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-receive-resultbind-context-plug.md",
       "owner": "/root/receive_resultbind_context_plug",
-      "state": "HELD"
+      "state": "FROZEN",
+      "sha256": "cc883103ed36f538be299215061b23b0f4e12c18d9e85e8fd439fab993e48482"
     }
   ],
   "pending": [
@@ -250,10 +283,10 @@
     }
   ],
   "next_action": {
-    "state": "PROOF-AUTHOR-RUNNING",
-    "dispatcher": "Sprint-end selector outcome active; no code seam ready.",
-    "proof": "Construct exact Phi_B^H from open suffix using the pinned initial-context forward inversion, or identify first missing premise.",
-    "implementation": "WAIT on proof; reuse reviewed producer/importer docs, no code."
+    "state": "NEXT-SPRINT-PROPOSED",
+    "dispatcher": "Selector recommends receive-c2-open-check-20261017 with proof-only allocation; implementation waits.",
+    "proof": "Construct c2 open check at original A1,xi: WF_Dec(F2), full VIncl(A1,F2), Unit whole-carrier/ReceiveSchema, complete invocation-image CIncl; never substitute alpha+ for A1.",
+    "implementation": "WAITING; reviewed producer/importer contracts remain frozen. No code-ready producer while T/ambient join and native MODEL are open."
   },
   "resource_accounting": {
     "sprint_id": "receive-resultbind-context-plug-20261017",
@@ -262,10 +295,10 @@
     "review_cap_seconds": 240,
     "coordination_seconds": 60,
     "reserve_seconds": 180,
-    "charged_seconds": 0,
-    "active_authors": 1,
+    "charged_seconds": 960,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "Astra proof author active, 720s cap; exact lease and current-session launch recorded; 3 unknown reservations preserved."
+    "status": "Sprint reviewed-partial; all authors/reviewers STOPPED; 960s charged, remainder retired; 3 unknown reservations preserved."
   },
   "history": "Earlier NPAIR checkpoints and adoption receipt are preserved in prior current.json/Git history; pending parent-gate entries retain exact OPEN owners. Current proof artifact `notes/theory/2026-10-17-receive-source-derivation-and-plan-bridge.md` hash 597830364071d165c46f18175b51753521fb237b0bed67e08bec8781f24e251c; proof handoff rev2 6d988521fa369bae56e674611cd692ea236a10d77c5c3757378a0b4555cf057a. Proof review found one minor Return-destination issue, repaired and delta CLEAN. Importer review found one major missing instance/scope/xi join plus stale locators; primary repair underway. Previous reviewed partial NPAIR compile checkpoint 5ca96586f remains limited; no source admission/parent closure. Contract revision 2 frozen after review repairs; final proof source premise still OPEN. Final handoff rev3/design hash 05e702...; final spec metadata typo repaired under sprint revision 5. Final handoff revision 4 hash recorded in artifacts; last spec metadata locator corrected to sprint rev6. Sprint-end selector recommends receive-caller-context-formation-20261017: exact punctured caller-context formation and well-foundedness, plus sequential unapplied source-producer contract; no code seam ready. Final importer spec locator delta CLEAN at revision 6; all current sprint writers STOPPED. Prior sprint `receive-source-derivation-and-plan-bridge-20261017` checkpointed/pushed as a30d4a961: conditional proof reviewed, importer draft reviewed CLEAN but unapplied; final metadata review CLEAN; parent OPEN. New selector outcome started under the user-authorized bridge-drafting process. Prior sprint receive-caller-context-formation-20261017 completed as REVIEWED-PARTIAL and was committed/pushed at e92374886: conditional proof and producer map both independently CLEAN; direct source T still depends on exact ResultBind context plug, native anchored MODEL OPEN. Dispatcher chose this next proof packet.",
   "checkpoint_commits": [
