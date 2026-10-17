@@ -30,7 +30,7 @@
    "reserve_seconds": 120,
    "charged_seconds": 810,
    "active_authors": 1,
-   "status": "Astra STOPPED, 660/840 charged; Luna source trace STOPPED, 150/360 charged; sequential fresh reviews pending."
+   "status": "Astra STOPPED (660/840); source trace STOPPED (150/360); compiler_referee review RUNNING (120 cap); two sequential reviews pending."
   },
   "lanes": {
    "proof": {
@@ -210,6 +210,17 @@
    "observed_effort": "UNKNOWN",
    "session": "current-session",
    "receipt": "Luna source trace active 2026-10-17 02:21:47 UTC after all direct/inherited pins matched; 360s cap; read-only only."
+  },
+  {
+   "id": "/root/role_inlet_compiler_review",
+   "role": "fresh compiler_referee for frozen inlet/source-trace bundle",
+   "state": "RUNNING",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "receipt": "Actual collaboration launch 2026-10-17 02:26:19 UTC; read-only review of frozen artifact/handoff hashes at commit 3b16bb603; 120s maximum; no writes/tests/builds/probes/execution."
   }
  ],
  "leases": [
@@ -310,10 +321,10 @@
   "review_cap_seconds": 360,
   "coordination_seconds": 120,
   "reserve_seconds": 120,
-  "charged_seconds": 660,
-  "active_authors": 1,
+  "charged_seconds": 810,
+  "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Astra660/840 spent, STOPPED; Luna source trace RUNNING with 360s cap; reviews remain pending."
+  "status": "Astra and Luna author lanes STOPPED; compiler_referee read-only review RUNNING under 120s cap; total completed author charge 810/1800; three UNKNOWN reservations retained."
  },
- "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants. ACTIVE-WORK 02:10:56 UTC; all 22 direct and inherited governing pins matched before writing. Milestone stages1–3 at ~02:15:19 UTC; 300s conservative charge; arbitrary-graft lift failed; equality with original inlet remains an unselected semantic boundary. Astra four-stage result frozen at 02:21:21 UTC: SAT/RG candidate, SAT2/RG2 OPEN, 180s unused retired. Luna source trace began 02:21:47 after all pins matched; read-only. Luna source trace frozen 2026-10-17 02:24:03 UTC: 136s elapsed, 150/360 charged; selected formal identity retained through HIR/Call, structural local fresh-use maps omit HIR formal provenance, playground execute discards CandidateInference and runtime from_hir reclassifies entry from source annotation. No safe code slice. Fresh sequential review pending."
+ "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants. ACTIVE-WORK 02:10:56 UTC; all 22 direct and inherited governing pins matched before writing. Milestone stages1–3 at ~02:15:19 UTC; 300s conservative charge; arbitrary-graft lift failed; equality with original inlet remains an unselected semantic boundary. Astra four-stage result frozen at 02:21:21 UTC: SAT/RG candidate, SAT2/RG2 OPEN, 180s unused retired. Luna source trace began 02:21:47 after all pins matched; read-only. Luna source trace frozen 2026-10-17 02:24:03 UTC: 136s elapsed, 150/360 charged; selected formal identity retained through HIR/Call, structural local fresh-use maps omit HIR formal provenance, playground execute discards CandidateInference and runtime from_hir reclassifies entry from source annotation. No safe code slice. Fresh sequential review pending. Fresh compiler_referee launched 2026-10-17 02:26:19 UTC for frozen bundle commit 3b16bb603; read-only, 120s cap, observed model/effort UNKNOWN."
 }
