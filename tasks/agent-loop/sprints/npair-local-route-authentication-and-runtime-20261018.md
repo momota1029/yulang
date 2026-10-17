@@ -1,6 +1,6 @@
 # Sprint `npair-local-route-authentication-and-runtime-20261018`
 
-Status: ACTIVE, revision 2. Branch `research/simple-sub-intrusion`.
+Status: ACTIVE, revision 3. Branch `research/simple-sub-intrusion`.
 Baseline: `066cd49ec29a9718a884d44a325fe5580a382a66`. This is a fresh budget; no
 time rolls over from `npair-original-formation-and-exact-local-route-20261018`.
 Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN; original
@@ -182,3 +182,47 @@ End with exact frozen source hashes, fresh compiler review receipt, results from
 commands actually executed, implementation/runtime evidence limits, and original
 conditions closed count. Do not report a green compile or demand-bearing Replay
 without the corresponding command receipt.
+
+## Revision 3 — focused test harness source mode
+
+Rev2's focused command compiled but two new LocalSource tests failed to find
+their expected binding/source records, while the new unscoped-cap test failed
+its call-count assertion. Two pre-existing tests in the same filtered run
+passed. Preserve this exact exit101 and all failure output; do not count any of
+the new tests as passed.
+
+Dispatcher inspection attributes the shared test setup mismatch to
+`candidate_call_hir()`, which lowers with
+`lower_module_with_shadow_applications` and does not enable LocalSource. The
+existing `lower_module_with_local_source` route is the authorized construction
+for the three new discriminators. This is a test-harness repair only; it cannot
+establish that the production Local route succeeds.
+
+Reopen only:
+
+- `crates/yu-solver/src/tests/candidate_graph_call.rs`
+- `notes/progress/2026-10-18-local-route-runtime-validation.md`
+- `tasks/agent-loop/inbox/20261018-local-route-runtime-validation.md`
+
+Add a LocalSource-enabled helper for the three new tests and leave the existing
+`candidate_call_hir()` and two pre-existing tests unchanged. Confirm parse
+recovery, expected bindings/Ascription nodes, and actual Apply record presence
+by source inspection. Do not weaken the scoped route, annotation/ascription
+refusal, non-Local observer, or `SCOPED_RECORD_LIMIT` assertions. Do not edit
+production source, example, fixture, proof, expected output or public API. If a
+production defect is found, stop and dispatch it separately.
+
+After the exact test/evidence snapshot receives CLEAN independent review, rev3
+authorizes at most two additional commands, each <=120s with capacity
+remeasured >=120s immediately beforehand: (1) run the same focused regression
+command once; (2) only if it passes, run the unchanged receive/choose fixture
+with `YU_CALL_REPLAY_OBSERVER=1`. Preserve both prior exit101 receipts. Any
+failure, scope expansion or capacity shortage stops this revision; no retry.
+
+Resource reallocation remains within2100s and does not roll over: implementation
+cap1395→1530 by moving confirmed unused contingency45s and primary90s.
+Implementation consumed973/1530, remaining557 = test repair/freeze/review105 +
+protected verification360 + evidence/handoff92. Review consumed155/240, with
+at most60s used for this delta; primary remaining30, contingency0. Proof300
+consumed; Astra0; no new workers/descendants. Parent and original conditions
+remain OPEN/0.
