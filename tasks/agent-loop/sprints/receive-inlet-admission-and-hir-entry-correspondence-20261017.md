@@ -2,7 +2,7 @@
 
 Status: READY / Luna-approved for bounded proof comparison and source correspondence  
 Branch / baseline: `research/simple-sub-intrusion` / `14a830e6f`  
-Contract revision: 1  
+Contract revision: 2  
 Authority: parent goal and user-authorized autonomous drafting/review workflow; no semantic adoption or compiler-code lease.
 
 ## Original outcome and success evidence
@@ -46,6 +46,7 @@ All pins are current bytes at preparation and must be recomputed before reliance
 | `notes/design/2026-10-08-captured-closure-constructor-definition.md` | `6292b778e804988b32d48df663061d01e1593340ccb584fb6a8c0565bd817cfd` | Selected constructor scope/entry laws, not assumed c2 specialization. |
 | `notes/theory/2026-10-08-captured-call-closure-introduction.md` | `0f8adcf70a72d1f46bd4ca95f3984554d8cf2ff6af6434b679e991e346ffd50f` | Selected Value-entry proof package; only within its true premises. |
 | `notes/design/2026-10-08-contextual-function-membership-definition.md` | `0341e44bcc01b916ca5b2cd1c7e95622d8dd3b562a7c2480d2e0241542e1f5d0` | Complete membership and independent admission separation. |
+| `notes/theory/2026-10-08-call-semantic-input-realization.md` | `fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a` | Selected complete Call-input admission/observation law; exact theorem premises only. |
 | `notes/design/2026-10-17-receive-role-indexed-inlet-introduction.md` | `7716a71d6bf6f5212bd455e1a3959569748e558238d0a164649ec1c57d92b72c` | Unselected SAT/RG formulas and exact SAT2/RG2 gaps. |
 | `tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md` | `70dc1e462150474fa7f404bb4aa9aa844825b77b985e9187fa80d74ac4f97138` | Frozen candidate handoff and owner TODOs. |
 | `notes/theory/2026-10-17-value-entry-formal-provenance-through-local-use.md` | `76855d9330a9b5404dfa83bffc4c033dea4c40763b8104bda04849474278deec` | Revision 2 trace, source correspondence lead only. |

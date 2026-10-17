@@ -6,9 +6,9 @@
  "active_sprint": {
   "id": "receive-inlet-admission-and-hir-entry-correspondence-20261017",
   "contract": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
-  "revision": 1,
-  "sha256": "6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878",
-  "state": "PROOF-RUNNING",
+  "revision": 2,
+  "sha256": "39c71ebbb64ec86b893d1397c67ce708a0cc00d446fc23aa28efb66eda72f959",
+  "state": "DEPENDENCY-REVISION-ACK-PENDING",
   "baseline": "14a830e6f",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original FORWARD-FIRST-CALL A/B and production gates OPEN.",
   "fixed_outcome": "At original c2/xi, compare original inlet with SAT universal designated-execution typing in both directions or isolate the missing original admission law; separately prove/refute selected HIR-owned runtime Value/Computation entry correspondence through closure, aliases/capture and saved frames. No semantic adoption or code.",
@@ -29,19 +29,19 @@
    "coordination_seconds": 60,
    "reserve_seconds": 120,
    "charged_seconds": 0,
-   "active_authors": 1,
-   "status": "Proof lane Astra RUNNING from 2026-10-17 02:35:46 UTC under 720s cap; Luna runtime source lane waits for proof STOP; no code lease."
+   "active_authors": 0,
+   "status": "Astra proof lane WAITING while Luna adds and validates the exact selected call-semantic input law it requested; no added time/cap; source lane waits; no code lease."
   },
   "lanes": {
    "proof": {
     "owner": "/root/receive_sat_admission_comparison",
-    "state": "RUNNING",
+    "state": "WAITING_FOR_CONTRACT_REVISION_2",
     "outputs": [
      "notes/theory/2026-10-17-receive-sat-admission-comparison.md",
      "tasks/agent-loop/inbox/20261017-receive-sat-admission-comparison.md"
     ],
     "cap_seconds": 720,
-    "receipt": "Actual collaboration launch /root/receive_sat_admission_comparison at 2026-10-17 02:35:46 UTC; requested Astra/medium, observed model UNKNOWN; all 15 direct pins matched at baseline eaf443396; exact two files; 720s cap; no descendants."
+    "receipt": "Astra identified selected call-semantic-input-realization as necessary; Luna paused reliance before reading beyond locator search. Added exact dependency SHA fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a in contract rev2. Awaiting worker acknowledgment and revalidation; spent budget not reset."
    },
    "runtime_source": {
     "owner": "/root (Luna/high)",
@@ -64,7 +64,7 @@
   "artifacts": [
    {
     "path": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
-    "sha256": "6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878"
+    "sha256": "39c71ebbb64ec86b893d1397c67ce708a0cc00d446fc23aa28efb66eda72f959"
    },
    {
     "path": "notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md",
@@ -128,13 +128,13 @@
    {
     "id": "/root/receive_sat_admission_comparison",
     "role": "Astra prover assigned original inlet/SAT comparison",
-    "state": "RUNNING",
+    "state": "WAITING",
     "requested_model": "gpt-6-astra",
     "requested_effort": "medium",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "ACTIVE-WORK 2026-10-17 02:35:46 UTC; exact output leases; all pins matched; 720s cap; descendants none."
+    "receipt": "Paused before relying on unlisted dependency; awaiting contract rev2 acknowledgment. Prior pins matched; no output writes."
    }
   ]
  },
@@ -190,13 +190,13 @@
   {
    "id": "/root/receive_sat_admission_comparison",
    "role": "Astra prover assigned original inlet/SAT comparison",
-   "state": "RUNNING",
+   "state": "WAITING",
    "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "ACTIVE-WORK 2026-10-17 02:35:46 UTC; exact output leases; all pins matched; 720s cap; descendants none."
+   "receipt": "Paused before relying on unlisted dependency; awaiting contract rev2 acknowledgment. Prior pins matched; no output writes."
   }
  ],
  "leases": [
@@ -214,7 +214,7 @@
    "path": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
    "owner": "/root",
    "state": "FROZEN",
-   "sha256": "6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878"
+   "sha256": "39c71ebbb64ec86b893d1397c67ce708a0cc00d446fc23aa28efb66eda72f959"
   },
   {
    "path": "notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md",
@@ -291,7 +291,7 @@
   }
  ],
  "next_action": {
-  "state": "PROOF-RUNNING",
+  "state": "DEPENDENCY-REVISION-ACK-PENDING",
   "dispatcher": "Selector proposed admission comparison plus independent HIR-owned runtime-entry proof; Luna accepted and granted these exact sequential lanes.",
   "proof": "Attempt both inclusions of original F2 inlet vs unselected SAT, preserving full admission/observation domains; source-qualified case or exact missing law.",
   "implementation": "Trace whether runtime-only Value/Computation entry follows retained HIR identity through closure/capture/aliases/saved frames without candidate evidence. No code lease."
@@ -305,9 +305,9 @@
   "coordination_seconds": 60,
   "reserve_seconds": 120,
   "charged_seconds": 0,
-  "active_authors": 1,
+  "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Astra original-inlet/SAT proof RUNNING under 720s cap; Luna source trace waits; no code lease; three inherited UNKNOWN reservations retained."
+  "status": "Astra proof waiting on contract rev2 acknowledgment after requested selected inlet-law dependency was added; author budget remains charged as previously observed; source lane waits; no code lease."
  },
- "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f. Astra proof lane actually launched 2026-10-17 02:35:46 UTC after 15 dependency pins matched; requested Astra/medium, effective model UNKNOWN; 720s cap."
+ "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f. Astra proof lane actually launched 2026-10-17 02:35:46 UTC after 15 dependency pins matched; requested Astra/medium, effective model UNKNOWN; 720s cap. Contract rev2 adds the selected call-semantic-input-realization dependency requested by Astra; its hash matched current bytes. Worker paused reliance pending sequential pin/contract acknowledgment; no output writes; budget not reset."
 }
