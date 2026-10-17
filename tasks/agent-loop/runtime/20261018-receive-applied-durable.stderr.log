@@ -1,0 +1,52 @@
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:191:11
+    |
+191 |     Token(SyntaxToken),
+    |     ----- ^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+191 -     Token(SyntaxToken),
+191 +     Token(()),
+    |
+
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:192:15
+    |
+192 |     Synthetic(Vec<AssociationProvenance>),
+    |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+192 -     Synthetic(Vec<AssociationProvenance>),
+192 +     Synthetic(()),
+    |
+
+warning: function `replace_admission_root` is never used
+    --> crates/yu-hir/src/module.rs:1620:4
+     |
+1620 | fn replace_admission_root(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `yu-hir` (lib) generated 3 warnings
+warning: method `freshen_candidate_graph` is never used
+    --> crates/yu-solver/src/candidate_scheme.rs:1128:19
+     |
+ 799 | impl InferenceSession {
+     | --------------------- method in this implementation
+...
+1128 |     pub(super) fn freshen_candidate_graph(
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `yu-solver` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running `target/debug/examples/research_source_registration`

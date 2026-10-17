@@ -1,0 +1,23 @@
+{
+  "sprint": "npair-replay-durable-capture-20261018",
+  "contract_sha256": "ec72f581fd6e3857bb3181996da605d0638c3d739960d976093872e2ea77e76b",
+  "baseline": "551773b8692540a55f69014c2194ff081331b2cb",
+  "status": "CAPTURE_FROZEN",
+  "preflight_review": "CLEAN",
+  "luna_run_release": "EXPLICIT",
+  "cwd": "/home/momota1029/rust/yulang",
+  "command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo run --offline --manifest-path crates/yu-solver/Cargo.toml --example research_source_registration --features shadow-apply-candidate",
+  "environment": {"YU_CALL_REPLAY_OBSERVER": "1"},
+  "stdout_path": "tasks/agent-loop/runtime/20261018-receive-applied-durable.stdout.log",
+  "stderr_path": "tasks/agent-loop/runtime/20261018-receive-applied-durable.stderr.log",
+  "redirection": "direct stdout/stderr file redirection; no pipeline, tee, or filtering",
+  "invocation": 1,
+  "started_utc": "2026-10-17 23:20:14 UTC",
+  "ended_utc": "2026-10-17 23:20:20 UTC",
+  "exit_code": 0,
+  "stdout_bytes": 79315,
+  "stdout_sha256": "5bb1dd3bcbabd97bb94fca9a12fdc17a882d1c9a916c692fe55f1a302984d311",
+  "stderr_bytes": 1986,
+  "stderr_sha256": "9a56194c1d4734309880847cd18ee2a9a0dab194815b0a40aad2378a5448f7e9",
+  "capture_complete": true
+}

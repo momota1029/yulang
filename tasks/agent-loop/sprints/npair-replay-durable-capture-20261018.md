@@ -1,6 +1,6 @@
 # Sprint `npair-replay-durable-capture-20261018`
 
-Status: READY pending start commit and live receipts. Branch
+Status: CLOSED-REVIEWED-PARTIAL. Branch
 `research/simple-sub-intrusion`. Parent `CHOOSE-SOURCE-2 /
 RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN; original conditions closed0.
 Baseline: `551773b8692540a55f69014c2194ff081331b2cb`. Astra0; no rollover.
@@ -91,3 +91,26 @@ Freeze capture hashes and fresh final review. Report whether a matching
 demand-bearing Replay row exists in the complete capture, the exact source and
 native join, or the exact obstruction. Original theorem conditions closed0;
 parent remains OPEN. No budget rollover.
+
+## Luna closeout rev2
+
+The one authorized invocation exited0, with direct durable stdout/stderr
+capture. The final independent review was CLEAN: all 13 direct dependency pins
+and all seven frozen artifact hashes matched. The complete capture contains no
+typed `candidate.call_replay` row. The companion `source_call[3]` authenticates
+all eight checks and maps to native demand root379, but no Replay row exists to
+join to that root. This is a bounded observation about this run; it does not
+show semantic impossibility or consumer coverage. The observer can silently
+stop on stderr write failure and omits entries with absent demand.
+
+Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN;
+original conditions closed0. No code, fixture, test or semantic change was
+made. The prior focused suite remains 5/5 from its separate reviewed sprint.
+Workers are STOPPED; exact artifacts remain FROZEN. Runtime300 + proof120 +
+review180 + Luna primary60 = 660/720 seconds charged; reserve60 expires and
+does not roll over.
+
+Next discriminating work: trace existing demand retention and child scoped
+demand availability through their owners, then determine from existing rules
+whether the absent row is caused by missing retained dependencies or by the
+consumer's scope/availability path. Do not infer either cause from this run.
