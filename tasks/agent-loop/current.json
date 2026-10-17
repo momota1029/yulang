@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
   "revision": 2,
   "sha256": "39c71ebbb64ec86b893d1397c67ce708a0cc00d446fc23aa28efb66eda72f959",
-  "state": "DEPENDENCY-REVISION-ACK-PENDING",
+  "state": "PROOF-RUNNING",
   "baseline": "14a830e6f",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original FORWARD-FIRST-CALL A/B and production gates OPEN.",
   "fixed_outcome": "At original c2/xi, compare original inlet with SAT universal designated-execution typing in both directions or isolate the missing original admission law; separately prove/refute selected HIR-owned runtime Value/Computation entry correspondence through closure, aliases/capture and saved frames. No semantic adoption or code.",
@@ -28,20 +28,20 @@
    "review_cap_seconds": 300,
    "coordination_seconds": 60,
    "reserve_seconds": 120,
-   "charged_seconds": 90,
-   "active_authors": 0,
-   "status": "Astra proof active analysis 86s elapsed, conservatively 90s charged; now WAITING for contract rev2 acknowledgement after dependency pin update; remaining proof cap 630s; source lane waits."
+   "charged_seconds": 120,
+   "active_authors": 1,
+   "status": "Astra acknowledged contract rev2 at 02:37:31 UTC; added call-semantic input pin matched. Proof RUNNING, 103s elapsed, 120s charged/720; source trace waits."
   },
   "lanes": {
    "proof": {
     "owner": "/root/receive_sat_admission_comparison",
-    "state": "WAITING_FOR_CONTRACT_REVISION_2",
+    "state": "RUNNING",
     "outputs": [
      "notes/theory/2026-10-17-receive-sat-admission-comparison.md",
      "tasks/agent-loop/inbox/20261017-receive-sat-admission-comparison.md"
     ],
     "cap_seconds": 720,
-    "receipt": "Astra identified selected call-semantic-input-realization as necessary; Luna paused reliance before reading beyond locator search. Added exact dependency SHA fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a in contract rev2. Awaiting worker acknowledgment and revalidation; spent budget not reset. Strict selected proof confirms full-T typing at its own designated Force view; original F2/B_in-to-view correspondence and reverse guard completeness still OPEN. 86s elapsed, 90s charged; rev2 acknowledgment pending."
+    "receipt": "Astra acknowledged contract rev2 SHA 39c71ebbb64ec86b893d1397c67ce708a0cc00d446fc23aa28efb66eda72f959 and added source SHA fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a at 02:37:31 UTC; all revised pins match. Active work resumes under original 720s cap, 103s elapsed, 120s charge. Missing law narrowed to original F2 incoming-port/carrier-view identity plus complete domain correspondence; both SAT2 inclusions remain open."
    },
    "runtime_source": {
     "owner": "/root (Luna/high)",
@@ -128,13 +128,13 @@
    {
     "id": "/root/receive_sat_admission_comparison",
     "role": "Astra prover assigned original inlet/SAT comparison",
-    "state": "WAITING",
+    "state": "RUNNING",
     "requested_model": "gpt-6-astra",
     "requested_effort": "medium",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "Paused before relying on unlisted dependency; awaiting contract rev2 acknowledgment. Prior pins matched; no output writes."
+    "receipt": "ACTIVE-WORK resumed after contract rev2 acknowledgment at 2026-10-17 02:37:31 UTC; cap measured from 02:35:48, 103s elapsed, 120s charge; no reset."
    }
   ]
  },
@@ -190,13 +190,13 @@
   {
    "id": "/root/receive_sat_admission_comparison",
    "role": "Astra prover assigned original inlet/SAT comparison",
-   "state": "WAITING",
+   "state": "RUNNING",
    "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Paused before relying on unlisted dependency; awaiting contract rev2 acknowledgment. Prior pins matched; no output writes."
+   "receipt": "ACTIVE-WORK resumed after contract rev2 acknowledgment at 2026-10-17 02:37:31 UTC; cap measured from 02:35:48, 103s elapsed, 120s charge; no reset."
   }
  ],
  "leases": [
@@ -291,7 +291,7 @@
   }
  ],
  "next_action": {
-  "state": "DEPENDENCY-REVISION-ACK-PENDING",
+  "state": "PROOF-RUNNING",
   "dispatcher": "Selector proposed admission comparison plus independent HIR-owned runtime-entry proof; Luna accepted and granted these exact sequential lanes.",
   "proof": "Strict entails full T at its own Force view. Remaining decisive input is authentic correspondence of original F2 incoming B_in/Dem/Obs to that view; reverse SAT inclusion needs complete original guard/checking inventory. Both SAT2 directions open.",
   "implementation": "Trace whether runtime-only Value/Computation entry follows retained HIR identity through closure/capture/aliases/saved frames without candidate evidence. No code lease."
@@ -304,10 +304,10 @@
   "review_cap_seconds": 300,
   "coordination_seconds": 60,
   "reserve_seconds": 120,
-  "charged_seconds": 90,
-  "active_authors": 0,
+  "charged_seconds": 120,
+  "active_authors": 1,
   "unknown_reservations_preserved": 3,
-  "status": "Astra proof lane has 90s conservative charge, waiting for contract rev2 acknowledgment; 630s proof cap remains; source lane waits; three UNKNOWN reservations retained."
+  "status": "Astra proof RUNNING after rev2 pin acknowledgment, 120/720s conservatively charged; Luna source lane sequential; three UNKNOWN reservations retained."
  },
- "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f. Astra proof lane actually launched 2026-10-17 02:35:46 UTC after 15 dependency pins matched; requested Astra/medium, effective model UNKNOWN; 720s cap. Contract rev2 adds the selected call-semantic-input-realization dependency requested by Astra; its hash matched current bytes. Worker paused reliance pending sequential pin/contract acknowledgment; no output writes; budget not reset. Astra interim: Strict selected proof unfolds full T at its own designated Force view; this does not establish original F2 incoming-port correspondence or reverse guard completeness. 86s elapsed, 90s charged; waiting for rev2 acknowledgment."
+ "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f. Astra proof lane actually launched 2026-10-17 02:35:46 UTC after 15 dependency pins matched; requested Astra/medium, effective model UNKNOWN; 720s cap. Contract rev2 adds the selected call-semantic-input-realization dependency requested by Astra; its hash matched current bytes. Worker paused reliance pending sequential pin/contract acknowledgment; no output writes; budget not reset. Astra interim: Strict selected proof unfolds full T at its own designated Force view; this does not establish original F2 incoming-port correspondence or reverse guard completeness. 86s elapsed, 90s charged; waiting for rev2 acknowledgment. Astra acknowledged rev2 contract and call-semantic input pin at 02:37:31 UTC; all revised pins matched, budget not reset. Exact missing source law narrowed to original incoming-port/carrier-view identity plus complete domains."
 }
