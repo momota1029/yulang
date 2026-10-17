@@ -6,8 +6,8 @@
   "active_sprint": {
     "id": "npair-same-w-source-seed-20261018",
     "contract": "tasks/agent-loop/sprints/npair-same-w-source-seed-20261018.md",
-    "revision": 2,
-    "sha256": "74b91ccf9d4cb7dc493ddcf4e59222d688f605087c8e4d714c0d91863d017af5",
+    "revision": 3,
+    "sha256": "4b506cfd8587e6fbb98370433c61c5219728a4687561c7cb32092827c6f2ebb7",
     "state": "ACTIVE",
     "baseline": "902dfd2923bc1f90328387bd1e3f58888ccf4fa3",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original claims, quantifiers and source domain unchanged.",
@@ -48,7 +48,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live collaboration assignment launched under exact contract/output leases; actual model and effort metadata unavailable."
+      "receipt": "Live collaboration assignment launched under exact contract/output leases; actual model and effort metadata unavailable. Contract rev3 adds exact adopted Operation/Call/source-interface/NPAIR authority pins; claim, budget, paths unchanged."
     },
     {
       "id": "/root/npair_exact_incidence_audit",
@@ -59,7 +59,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live collaboration assignment launched under exact read-only source/output leases; actual model and effort metadata unavailable; contract rev2 corrects requested role routing."
+      "receipt": "Live collaboration assignment launched under exact read-only source/output leases; actual model and effort metadata unavailable; contract rev2 corrects requested role routing. Contract rev3 adds exact adopted Operation/Call/source-interface/NPAIR authority pins; claim, budget, paths unchanged."
     }
   ],
   "leases": [

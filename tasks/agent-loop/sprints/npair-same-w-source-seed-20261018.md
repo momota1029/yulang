@@ -1,7 +1,7 @@
 # Sprint `npair-same-w-source-seed-20261018`
 
 Status: ACTIVE, primary-issued
-Contract revision: 2 (corrects the source-audit assignment routing to the actually launched read-only `researcher`/Sol lane; claim, scope, budget, dependencies, and leases are unchanged from revision 1)
+Contract revision: 3 (records the adopted Operation/Call/source-interface and NPAIR authority inputs needed to adjudicate the source constructor; claim, scope, budget, and leases are unchanged from revision 2)
 Branch / baseline: `research/simple-sub-intrusion` / `902dfd2923bc1f90328387bd1e3f58888ccf4fa3`
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`; original claims, quantifiers, source domain, and accepted semantics remain unchanged.
 Dispatcher: `/root/npair_replan_dispatch`; recommendation adopted with the primary's exact leases below.
@@ -22,6 +22,13 @@ The original source witness, provider/world/assignment/lineage quantifiers, inde
 | Forward witness/ingress contract (Draft; no code authority) | `f1615c43ef74829cde9e53b7169614f015733eb81e40dc5966ba4430189081fe` |
 | Negative formal-pair proposal | `0a73aaf7016e86dd5babbdd5482b05a793764418bc003607207ef0375ee46006` |
 | Formation proposal adoption | `d94e24656854fd2d67ed0f600619349c728dfafa26ca6e312f1faa6d3f3532fa` |
+| Operation instance binding package | `1eb2cbdb49368b0839d839d6a5e72698bb06252813b00200098e70371645c7c9` |
+| Complete Call contribution definition | `4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e` |
+| Call source-interface definition | `20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c` |
+| Call source-interface construction candidate | `278034197a90eab6e62a073545c09dd14415a0353f58aa3b3cc122a6af945d98` |
+| Top-level inference principles | `7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81` |
+| Adopted NPAIR native-plan repair closeout | `fe7aea7e501bca1ed90064ea4bf10f08bc3be7cb4ccefe7b869097e99b4bdf6b` |
+| NPAIR source-admission adoption | `fe06a42da82d9bc66da133d0266b0fa1133ffbcfb1128100377c715c0ace0d06` |
 | `candidate_source.rs` | `4ea9d89e4a31e7be4ce170517e50eea31dd9e054c360cedba9ccc9cb7ced69ce` |
 | `candidate_effect.rs` | `9ea9498692bdff12c2a7ebd8546ca2b443a095c0700f3e87ad6c956cc690e212` |
 | `candidate_context.rs` | `72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6` |
