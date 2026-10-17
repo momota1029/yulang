@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev4, SHA-256
   `896981171937cba0e98a3f0499ae79ddf97f180db97427cde908752ac042f3fd`.
-  Handoff revision 6 (Luna's post-repair reconciliation); failed candidate
+  Handoff revision 7 (Luna's post-delta-review reconciliation); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -110,13 +110,15 @@ saved item index, binding kind, exact empty-error placeholder/root and checked
 visit-count successor are validated before `append_stage`; replacement after
 merge has no fallible validation or arithmetic. The implementer stopped after
 about 24s of the 30s cap. Post-STOP `git diff --check` passed. No tests, builds
-or probes ran. This ordering change awaits a fresh <=30s compiler delta review.
-The repair and delta review were allocated from reserve120, leaving reserve60
-plus six unused seconds of the repair cap. No other code/test path is reopened.
+or probes ran. Fresh independent compiler delta review STOPPED CLEAN; receipt
+`notes/progress/2026-10-17-ordinary-hir-repair-compiler-delta-review.md`, SHA
+`7976bdab264e72ce197cf923e0a0cabfac3f1b1646e38e04402b9429973824f8`. It found
+no BLOCKING, major or minor issue and confirmed the prior seven fixes remain.
+Repair and delta-review charges are 24s and 30s from reserve120, leaving 66s
+reserve. No other code/test path is reopened.
 
-After a CLEAN delta review, sequential spec and architect reviews and regression
-pre-run review remain required before the two frozen Cargo commands. Original
-theorem gates remain OPEN.
+Sequential final spec and architect reviews and regression pre-run review remain
+required before the two frozen Cargo commands. Original theorem gates remain OPEN.
 
 Next in-envelope owner: Luna freezes these exact bytes, obtains those sequential
 reviews, then authorizes the two exact commands once each only after CLEAN
