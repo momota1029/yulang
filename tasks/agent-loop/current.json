@@ -53,13 +53,13 @@
     {
       "id": "/root/npair_original_formation_falsifier",
       "role": "independent original-alternative falsification",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/researcher",
       "requested_effort": "high <=300s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live receipt 21:57Z: contract/all 18 pins MATCH. Independently attacking fixed-c attribution, active-consumer reflection and changed provider/output cases without repeating the earlier disjoint-fiber discriminator. No files frozen yet; requested Sol/high, observed UNKNOWN."
+      "receipt": "FROZEN/STOPPED 21:58:54Z. Conditional one-output active-consumer discriminator; no admitted source counterexample, parent0→0. Artifact SHA 426e1e5ec2971655a6b0c2cde807cb3765c79a15b694f1780a17ce97d8228f62; handoff SHA 3f48adb457ba96b50565a10357f7ad0b2cf879bb78c065ed0f9674f55236fa4b. Direct and transitive pins MATCH at freeze; full300s charged; no runtime/tests; descendants0."
     },
     {
       "id": "/root/npair_exact_local_route",
@@ -105,6 +105,16 @@
       "path": "tasks/agent-loop/sprints/npair-original-formation-and-exact-local-route-20261018.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-operation-original-formation-falsification.md",
+      "owner": "/root/npair_original_formation_falsifier",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-operation-original-formation-falsification.md",
+      "owner": "/root/npair_original_formation_falsifier",
+      "state": "FROZEN"
     }
   ],
   "pending": [],
@@ -113,5 +123,5 @@
     "required": false,
     "receipt": "All prior sprint authors/reviewers STOPPED. New proof/implementation leases acknowledged with runtime start receipts; reviewers WAITING. No descendants or unknown live writers."
   },
-  "next_action": "Parallel authors are active on original-c adoption decision/falsification and exact Local route repair. Freeze outputs when ready; only then assign fresh independent reviews. Do not run compiler commands before CLEAN code review."
+  "next_action": "Falsifier artifact frozen and hash verified; primary will commit state/artifact checkpoint. Continue proof and implementation lanes. Apply falsifier criterion to proof packet; obtain independent review of frozen proof/decision and compiler route before any commands."
 }
