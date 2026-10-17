@@ -4,29 +4,29 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-written-conservative-lift-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-written-conservative-lift-20261018.md",
-    "revision": 2,
-    "sha256": "704a20cf457ed02ff07b52a399f6440c2fb145d02d6f840db10896f8d892c856",
+    "id": "npair-fixed-c-source-selection-scoped-collection-20261018",
+    "contract": "tasks/agent-loop/sprints/npair-fixed-c-source-selection-scoped-collection-20261018.md",
+    "revision": 1,
+    "sha256": "1142ab97ef43b696bcd972fa8c88f2630493389da424b19ce0302baa7922cff3",
     "state": "ACTIVE",
-    "baseline": "f68dc078152bd1a724057a1b12666f517fed5327",
+    "baseline": "d9e6949a4cdc2d1899f55d5e7a75a014d4630606",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem/domain/quantifiers/receive route/C1/C2/F1/FK1 unchanged; closure0.",
-    "fixed_outcome": "Use the actual operation declaration/invocation/returned-provider R action to derive or precisely isolate fixed-c incidence at returned-provider Written s1; retain full original W/Z alternatives and identity. In parallel link exact received Apply/source_call to scoped relation/scope and report ordered Replay BoundKeys if typed APIs permit, else exact UNOBSERVED boundary.",
+    "fixed_outcome": "Derive the original fixed-c field proof at actual returned provider r.s1 from its source constructor/consumer or identify the exact missing rule with a reversible candidate; diagnose and, if semantics-preserving, fix scoped collection ComponentIdentityExhausted while preserving exact source identity and Install/Capture/FreshUse.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "prior_closeout": "notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md#sha256:222c7c34335f0f6a32b55ab5e43c6292a73325f73a918b9219add49a2fe63faf"
+      "prior_closeout": "notes/progress/2026-10-18-npair-written-conservative-lift-closeout.md#sha256:d27386f25325dbbbf229817bbdfe84ad9bb0d85aa7619605abf09f54e1abd97c"
     },
     "resources": {
-      "cap_seconds": 2100,
-      "charged_seconds": 2100,
+      "cap_seconds": 2700,
+      "charged_seconds": 2700,
       "available_seconds": 0,
-      "allocation": "New fully reserved envelope: constructive Sol/prover600; independent Sol/researcher falsification450; Luna/high implementation450; fresh proof/spec review180; compiler review180; Luna primary120; reserve120 now assigned to independent adversarial-artifact audit. Astra0, descendants0, no prior cap rollover."
+      "allocation": "New fully reserved envelope: constructive Sol/prover600; independent Sol/researcher falsification300; Luna/high implementation900; fresh proof/spec review180; two fresh compiler reviews120 each; Luna primary120; reserve360. Astra0, descendants0, no previous-cap rollover."
     },
-    "next_action": "Complete bounded independent audit of the adversarial artifact; then close this sprint with closure0, the verified R/Call conditional calculation, the exact ComponentIdentityExhausted implementation failure, and one next task: derive the original fixed-c introduction at returned r.s1 from an actual selector/consumer rule.",
+    "next_action": "First reviewed exact diagnostic on original fixture to identify the precise collection refusal. In parallel derive the original fixed-c selector/projection at actual returned r.s1 and check authentic consumer/Call composition.",
     "available_seconds": 0
   },
-  "history": "Prior reviewed implementation evidence and obstructions are preserved in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Current sprint rev2 added operation-image source owner pin (commit 85ea24bbe). Proof artifact CLEAN: R bare response preserves actual responder and existing pi; CallMem preserves supplied evidence; neither constructs fixed c at r.s1. Adversarial artifact review CLEAN after correcting 23+1 dependency receipt. No admitted counterexample; W/Z admission remains open. Exact scoped query received compiler CLEAN, then one run exited2 at ComponentIdentityExhausted before returning candidate/source-call/scoped relations. Example and fixture restored exactly. Current sprint parent conditions closed 0; next target is the original fixed-c introduction/projection at actual returned provider r.s1.",
+  "history": "Prior reviewed implementation evidence and obstructions are preserved in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Current sprint rev2 added operation-image source owner pin (commit 85ea24bbe). Proof artifact CLEAN: R bare response preserves actual responder and existing pi; CallMem preserves supplied evidence; neither constructs fixed c at r.s1. Adversarial artifact review CLEAN after correcting 23+1 dependency receipt. No admitted counterexample; W/Z admission remains open. Exact scoped query received compiler CLEAN, then one run exited2 at ComponentIdentityExhausted before returning candidate/source-call/scoped relations. Example and fixture restored exactly. Current sprint parent conditions closed 0; next target is the original fixed-c introduction/projection at actual returned provider r.s1. Closed npair-written-conservative-lift rev2: closure0. Fresh review proved only conditional retention and actual R response/Call identity; fixed-c at returned r.s1 remains missing. Adversarial audit found no admitted counterexample, W/Z inputs remain open. One reviewed scoped collection run exited2 ComponentIdentityExhausted before candidate/source_call/relation; harness/fixture restored. See closeout note d27386f... Results pushed through d9e6949a4. Successor sprint targets fixed-c source selection and exact scoped collection branch.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -38,73 +38,62 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Successor contract frozen after rev2 closeout; launching exact proof, adversarial and query lanes."
+      "receipt": "Closed prior lift sprint at commit d9e6949a4; new contract rev1 SHA1142ab97... frozen and pushed; exact leases reserved, dispatching proof/falsification/implementation."
     },
     {
       "id": "/root/npair_written_conservative_lift",
-      "role": "constructive proof",
-      "state": "STOPPED",
+      "role": "constructive source proof",
+      "state": "WAITING",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen proof artifact SHA3482f86bb48869507f0ac89e304d01ad52f378f17456664cf751ad4e97e8e8a6, handoff SHA82894316952c34f71f05804d608382443aa4d0631ff817d9b4c91bb0b709bc2b, under contract rev2 SHA704a20cf.... Derived identity on old pi through source k0 Return and CallMem; cannot create fixed-c proof at actual responder r.s1. Parent closure0; writer STOPPED20:49:29 UTC."
+      "receipt": "Assigned to trace original fixed-c constructor/selector at actual returned provider r.s1 through designated consumer and authentic Call; no work receipt yet."
     },
     {
       "id": "/root/npair_written_lift_adversarial",
-      "role": "independent falsification",
-      "state": "STOPPED",
+      "role": "independent source-case falsification",
+      "state": "WAITING",
       "requested_model": "Sol/researcher",
-      "requested_effort": "high <=450s",
+      "requested_effort": "high <=300s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen rev2 artifact SHAc447f90dba0018b139485c9b5cbdc4eeef08e345214d8bf3de245fa9d8b143ed; handoff SHA31ebad0b439745993c0a287be46f1e2518e0aba346dca501d022426edcd0ebf3. Actual R response preserved; no admitted counterexample; W/Z inputs absent, fixed-c at r.s1 remains missing. Writer STOPPED, descendants0."
+      "receipt": "Assigned to attack actual response admission, fixed-c identity and original consumer action; no work receipt yet."
     },
     {
       "id": "/root/npair_native_demand_children",
-      "role": "Luna implementation/source path",
-      "state": "STOPPED",
+      "role": "Luna scoped collection implementation",
+      "state": "WAITING",
       "requested_model": "Luna/implementer",
-      "requested_effort": "high <=450s",
+      "requested_effort": "high <=900s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Compiler CLEAN for frozen query SHA5e4e4b9... under rev2; one authorized command20:48:35 UTC exited2: Collection(ComponentIdentityExhausted), no CandidateInference/source-call/scoped relation. No rerun. Example restored SHA25bcd770..., fixture baseline SHA969e20e. Evidence note SHA25fd000de4f3c9b7bf358b511a29ef28d23171e9b8feae44bfb0f35c53d6492b; inbox SHA9db7c01263c8d242165ba5ce5967328cdad67ca1d9f515fac7265e807a0718c7. STOPPED20:49:46 UTC."
+      "receipt": "Assigned exact owner/branch diagnosis, minimal semantics-preserving correction if authorized by existing invariants, and reviewed vertical validation; no work receipt yet."
     },
     {
       "id": "/root/npair_actual_argument_proof_review",
-      "role": "independent proof/spec reviewer",
-      "state": "STOPPED",
+      "role": "fresh independent proof/spec reviewer",
+      "state": "WAITING",
       "requested_model": "Sol/spec_auditor",
       "requested_effort": "high <=180s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh proof/spec review CLEAN for lift artifact SHA3482f86... and handoff SHA828943... under rev2. R Return preserves r/old pi; reflection requires existing pi and does not derive fixed-c at r.s1, eta, H0 or At; W/Z remain open. Parent closure0. Review STOP."
+      "receipt": "Reserved; primary assigns after mathematical artifact freeze."
     },
     {
       "id": "/root/npair_actual_argument_impl_review",
-      "role": "independent compiler reviewer",
-      "state": "STOPPED",
+      "role": "fresh compiler reviewer",
+      "state": "WAITING",
       "requested_model": "Sol/compiler_referee",
-      "requested_effort": "high <=180s",
+      "requested_effort": "high <=120s per gate",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh compiler review CLEAN for exact query SHA5e4e4b9... under rev2. Typed route/relation/scope join sound; Replay BoundKeys remain UNOBSERVED. Followed by one run exit2 as recorded on implementation lane."
-    },
-    {
-      "id": "/root/npair_adversarial_review",
-      "role": "independent adversarial spec review",
-      "state": "STOPPED",
-      "requested_model": "Sol/spec_auditor",
-      "requested_effort": "high <=120s from contingency",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Fresh bounded spec audit of adversarial artifact/handoff CLEAN substantively. One minor discrepancy: inbox said all23 inputs though rev2 manifest has24. Primary corrected to 23 rev1 inputs + added rev2 source-owner pin; no theory change. Reviewer STOPPED; no edits/tests/Git."
+      "receipt": "Reserved for exact diagnostic bytes before first Cargo and final code/test bytes before later commands."
     }
   ],
   "leases": [
@@ -114,70 +103,95 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-written-conservative-lift-20261018.md",
+      "path": "tasks/agent-loop/sprints/npair-fixed-c-source-selection-scoped-collection-20261018.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md",
+      "path": "notes/progress/2026-10-18-npair-written-conservative-lift-closeout.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-written-conservative-lift.md",
+      "path": "notes/theory/2026-10-18-npair-fixed-c-source-selection.md",
       "owner": "/root/npair_written_conservative_lift",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-written-conservative-lift.md",
+      "path": "tasks/agent-loop/inbox/20261018-npair-fixed-c-source-selection.md",
       "owner": "/root/npair_written_conservative_lift",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-written-lift-adversarial.md",
+      "path": "notes/theory/2026-10-18-npair-fixed-c-source-selection-adversarial.md",
       "owner": "/root/npair_written_lift_adversarial",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-written-lift-adversarial.md",
+      "path": "tasks/agent-loop/inbox/20261018-npair-fixed-c-source-selection-adversarial.md",
       "owner": "/root/npair_written_lift_adversarial",
-      "state": "FROZEN"
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "owner": "/root/npair_native_demand_children",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/shadow_apply.rs",
+      "owner": "/root/npair_native_demand_children",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_call.rs",
+      "owner": "/root/npair_native_demand_children",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root/npair_native_demand_children",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_context.rs",
+      "owner": "/root/npair_native_demand_children",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/lib.rs",
+      "owner": "/root/npair_native_demand_children",
+      "state": "HELD"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
       "owner": "/root/npair_native_demand_children",
-      "state": "FROZEN"
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/tests/candidate_scoped_collection.rs",
+      "owner": "/root/npair_native_demand_children",
+      "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
       "owner": "/root/npair_native_demand_children",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-18-npair-call-scoped-replay-evidence.md",
+      "path": "notes/progress/2026-10-18-npair-scoped-collection-repair.md",
       "owner": "/root/npair_native_demand_children",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-call-scoped-replay-evidence.md",
+      "path": "tasks/agent-loop/inbox/20261018-npair-scoped-collection-repair.md",
       "owner": "/root/npair_native_demand_children",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-18-npair-operation-field-source-bridge.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-18-npair-native-demand-children-evidence.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     }
   ],
   "pending": [],
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "Prior proof, implementation and reviewer writers STOPPED; unreviewed query reverted exactly, no active processes or descendants. Successor source/proof lanes launched after integration."
+    "receipt": "Previous proof, adversarial, implementation and review lanes STOPPED; code/fixture restored and prior outputs frozen. New rev1 lanes have not yet acknowledged start; no descendants."
   }
 }
