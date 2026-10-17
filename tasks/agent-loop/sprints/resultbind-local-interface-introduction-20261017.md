@@ -1,6 +1,6 @@
 # Sprint resultbind-local-interface-introduction-20261017 — original g interface at ResultBind
 
-Revision: 1  
+Revision: 2
 Status: READY for Luna validation and exact sequential leases  
 Branch: `research/simple-sub-intrusion`  
 Baseline: `995d83b58` (c2 typed occurrence correction REVIEWED-CLEAN-BOUNDED)  
@@ -48,27 +48,24 @@ No code/tests/builds/probes/runtime/Git, no semantic adoption, no source restric
 
 ## Review, then implementation preparation — sequential exact leases
 
-After Astra freezes, fresh independent reviewers inspect its source/proof artifact in order:
+After Astra freezes, fresh independent reviewers inspect the frozen source/proof artifact sequentially:
 
 1. `spec_auditor`, max 120 seconds, exact receipt `tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-spec-review.md`.
 2. `architect`, max 120 seconds, exact receipt `tasks/agent-loop/inbox/20261017-resultbind-local-interface-introduction-architect-review.md`.
 
-They check stage separation, source scope, original quantifiers/meaning, complete typed telescope, genuine operand ownership, no circular dependency on Return/Q/provider success, exact first missing field, selected-constructor applicability and non-promotion. Any MAJOR/BLOCKING finding stops the dependent implementation-preparation lane pending Luna adjudication and versioned repair.
+They check stage separation, source scope, original quantifiers/meaning, complete typed telescope, genuine operand ownership, no circular dependency on Return/Q/provider success, exact first missing field, selected-constructor applicability and non-promotion. Any MAJOR/BLOCKING finding stops further design work pending Luna adjudication and versioned repair.
 
-Only after those reviews STOP and Luna adjudicates the frozen source packet may the implementation-preparation lease start. Luna/high, max 360 active seconds; exact outputs:
+Reviewers have read-only role authority. When a reviewer cannot write its exact receipt file, Luna records the reviewer’s complete final report verbatim there only after STOP, labeling Luna as recorder and preserving the reviewer identity, timing and exact reviewed-byte hashes. Luna does not alter reviewer conclusions.
 
-- `notes/design/2026-10-17-resultbind-interface-retention-contract.md`
-- `tasks/agent-loop/inbox/20261017-resultbind-interface-retention-contract.md`
+After both reviewers STOP, Luna adjudicates whether the source packet contains concrete new implementation fields. If it does, Luna may use the conditional 360-second implementation-preparation lease to draft an unapplied retention contract mapping only those fields through actual producer → local scheme → fresh-use → source-use paths in `candidate_source`, `candidate_scheme` and `candidate_call`; specify owner/identity, dependency substitution, lifetime, accounting/capacity and validation, and distinguish structural remaps from semantic interface evidence. Exact outputs: `notes/design/2026-10-17-resultbind-interface-retention-contract.md` and `tasks/agent-loop/inbox/20261017-resultbind-interface-retention-contract.md`. If the proof packet and reviews produce no concrete new fields, retire this allocation, write no generic producer map, and give the compiler reviewer a bounded code-seam review of the frozen source/proof packet.
 
-This is an unapplied design/retention contract, never compiler code. Map only fields concretely produced by the reviewed packet through actual producer → local scheme → fresh-use → source-use paths in `candidate_source`, `candidate_scheme` and `candidate_call`. Specify owner/identity, dependency substitution, lifetime, accounting/capacity and validation, plus which parts are structural remaps versus semantic interface evidence. If proof/review produced no concrete new fields, record `NO_NEW_IMPLEMENTATION_FIELDS`, retire the 360-second allocation and do not write a generic producer map. Any implementation edit requires a later exact code lease after semantic approval and proof prerequisites.
-
-A fresh compiler_referee then reviews the retention contract, max 120 seconds, exact receipt `tasks/agent-loop/inbox/20261017-resultbind-interface-retention-compiler-review.md`. It checks actual code-owner paths, scope/identity, absence of claims about unimplemented semantics, and whether any future safe local code slice exists. No compiler code is authorized here.
+A fresh `compiler_referee` reviews sequentially, max 120 seconds. If a retention contract exists, exact receipt is `tasks/agent-loop/inbox/20261017-resultbind-interface-retention-compiler-review.md`; otherwise exact receipt is `tasks/agent-loop/inbox/20261017-resultbind-local-interface-implementation-boundary-review.md`. Review actual code-owner paths, scope/identity, absence of claims about unimplemented semantics, and whether a future safe local code slice exists. No compiler code is authorized here.
 
 Luna adjudication/closeout exact path: `notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md`.
 
 ## Resources, checks and integration
 
-Fresh sprint envelope **1800 seconds**: Astra840 + Luna360 + independent review360 + coordination120 + reserve120. Unused conditional implementation/review allocation is retired at closeout, no carryover. One Astra assignment, no children; authors/reviewers sequential. Three inherited UNKNOWN reservations remain quarantined. No test, compiler, probe, build or runtime process is authorized. Permitted workflow check: `python3 tools/agent_sprint.py check`; it is static evidence only.
+Fresh sprint envelope **1800 seconds**: Astra840 + conditional Luna implementation preparation360 + independent review360 + coordination120 + reserve120. Unused conditional implementation allocation is retired when no concrete fields exist; unused budget does not carry over. One Astra assignment, no children; authors/reviewers sequential. Three inherited UNKNOWN reservations remain quarantined. No test, compiler, probe, build or runtime process is authorized. Permitted workflow check: `python3 tools/agent_sprint.py check`; it is static evidence only.
 
 Pin all 25 exact dependencies below before Astra starts and rehash before Luna's implementation-prep write and each review. A mismatch means no reliance: return to Luna and version the contract before proceeding. Do not read historical RUNNING records as live runtime evidence. Checkpoint the validated contract/state before dispatch; freeze each exact output and current-state receipt promptly. Only Luna stages/commits/pushes explicit intended paths; never force-push.
 
