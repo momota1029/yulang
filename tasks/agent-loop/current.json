@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/receive-role-indexed-inlet-introduction-20261017.md",
   "revision": 1,
   "sha256": "c2422818a92a6666ab9672b45d4d8bf1abf069116c82d4a91228374fc07e10cc",
-  "state": "PROOF-RUNNING",
+  "state": "SOURCE-TRACE-RUNNING",
   "baseline": "b89ed524fd7b2bbd3d69bb9c997b5bd8132fdf49",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original FORWARD-FIRST-CALL A/B and production gates OPEN.",
   "fixed_outcome": "Draft and attempt preservation of the first source-local inlet/role-entry introduction at original c2 F2/xi; separately trace selected local returned-function formal identity through capture/fresh-use to runtime Lambda entry classification. Keep rule unselected and parent gates unchanged.",
@@ -28,30 +28,30 @@
    "review_cap_seconds": 360,
    "coordination_seconds": 120,
    "reserve_seconds": 120,
-   "charged_seconds": 300,
+   "charged_seconds": 660,
    "active_authors": 1,
-   "status": "Astra stages 1–3 complete, stage 4 applying at original c2; 270s elapsed / 300s conservatively charged; 540s remains; exact semantic boundary reported for explicit unselected treatment."
+   "status": "Astra STOPPED; Luna source correspondence RUNNING with 360s cap; fresh definition/source reviewers pending after both lanes freeze."
   },
   "lanes": {
    "proof": {
     "owner": "/root/receive_role_indexed_inlet_introduction",
-    "state": "RUNNING",
+    "state": "FROZEN",
     "outputs": [
      "notes/design/2026-10-17-receive-role-indexed-inlet-introduction.md",
      "tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md"
     ],
     "cap_seconds": 840,
-    "receipt": "Milestone at ~02:15:19 UTC: stages 1–2 constructed/audited; stage 3 has syntactic substitution and event-subtree restriction, but arbitrary-graft lifting failed. Candidate I_sat uses original independent contextual guards, inert carrier formation and universal designated-execution typing at incoming ports; relational role graph retains each actual Act decomposition/metadata. First remaining semantic obligation: equality with original F2 complete inlet/residual correlations, then role-indexed joint descriptor embedding. Local(g) has no formal identity. ~270s elapsed / 300s conservative charge; continuing stage 4, 540s cap remains; proof author RUNNING."
+    "receipt": "STOP 2026-10-17 02:21:21 UTC; ACTIVE-WORK 02:10:56; 625s elapsed, conservative charge 660/840, 180 retired; artifact 7716a71d6bf6f5212bd455e1a3959569748e558238d0a164649ec1c57d92b72c; handoff 70dc1e462150474fa7f404bb4aa9aa844825b77b985e9187fa80d74ac4f97138; SAT2 equality both directions and RG2 embedding OPEN; observed model/effort UNKNOWN; no descendants/writes."
    },
    "source_trace": {
     "owner": "/root (Luna/high)",
-    "state": "WAITING_FOR_PROOF_FREEZE",
+    "state": "RUNNING",
     "outputs": [
      "notes/theory/2026-10-17-value-entry-formal-provenance-through-local-use.md",
      "tasks/agent-loop/inbox/20261017-value-entry-formal-provenance-through-local-use.md"
     ],
     "cap_seconds": 360,
-    "receipt": "Read-only correspondence trace of selected local returned-function case; no compiler code authority."
+    "receipt": "Luna began read-only trace at 2026-10-17 02:21:47 UTC; all 21 direct pins and five inherited authority pins matched before reliance; exact two source outputs; 360s cap; no code writes."
    },
    "implementation": {
     "owner": "Luna after selected source rule and source correspondence",
@@ -66,6 +66,14 @@
    {
     "path": "tasks/agent-loop/sprints/receive-role-indexed-inlet-introduction-20261017.md",
     "sha256": "c2422818a92a6666ab9672b45d4d8bf1abf069116c82d4a91228374fc07e10cc"
+   },
+   {
+    "path": "notes/design/2026-10-17-receive-role-indexed-inlet-introduction.md",
+    "sha256": "7716a71d6bf6f5212bd455e1a3959569748e558238d0a164649ec1c57d92b72c"
+   },
+   {
+    "path": "tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md",
+    "sha256": "70dc1e462150474fa7f404bb4aa9aa844825b77b985e9187fa80d74ac4f97138"
    }
   ],
   "non_goals": [
@@ -112,33 +120,33 @@
     "receipt": "Historical identity/cessation unknown; reservation retained."
    },
    {
+    "id": "/root/receive_role_indexed_inlet_introduction",
+    "role": "bounded Astra source-rule and preservation author",
+    "state": "STOPPED",
+    "requested_model": "gpt-6-astra",
+    "requested_effort": "medium",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": "current-session",
+    "receipt": "STOP 2026-10-17 02:21:21 UTC; exact proof outputs frozen; 625s elapsed, charge660; no descendants or writes."
+   },
+   {
     "id": "/root",
-    "role": "Luna primary and sole integrator; subsequent source correspondence author",
+    "role": "Luna primary and sole integrator; source-correspondence author",
     "state": "RUNNING",
     "requested_model": "gpt-6-luna",
     "requested_effort": "high",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "Current-session primary; will not start source lane until proof freeze."
-   },
-   {
-    "id": "/root/receive_role_indexed_inlet_introduction",
-    "role": "bounded Astra source-rule and preservation author",
-    "state": "RUNNING",
-    "requested_model": "gpt-6-astra",
-    "requested_effort": "medium",
-    "observed_model": "UNKNOWN",
-    "observed_effort": "UNKNOWN",
-    "session": "current-session",
-    "receipt": "Spawn 2026-10-17 02:10:54 UTC; ACTIVE-WORK 02:10:56 UTC. All 22 direct and inherited governing pins matched; requested Astra/medium, observed UNKNOWN; no writes/descendants yet."
+    "receipt": "Luna source trace active 2026-10-17 02:21:47 UTC after all direct/inherited pins matched; 360s cap; read-only only."
    }
   ]
  },
  "candidate": "tasks/agent-loop/sprints/receive-role-indexed-inlet-introduction-20261017.md",
  "baseline": "b89ed524fd7b2bbd3d69bb9c997b5bd8132fdf49",
  "scope": "Concrete first local inlet/role introduction plus selected-source formal identity correspondence; semantic adoption and code remain gated.",
- "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. Previous proof and both reviewers are stopped. New Astra author will start only after the exact contract is pushed.",
+ "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. Astra author STOPPED with frozen proof; Luna actively holds the disjoint source-trace outputs.",
  "workers": [
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -174,26 +182,26 @@
    "receipt": "Historical identity/cessation unknown; reservation retained."
   },
   {
+   "id": "/root/receive_role_indexed_inlet_introduction",
+   "role": "bounded Astra source-rule and preservation author",
+   "state": "STOPPED",
+   "requested_model": "gpt-6-astra",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "receipt": "STOP 2026-10-17 02:21:21 UTC; exact proof outputs frozen; 625s elapsed, charge660; no descendants or writes."
+  },
+  {
    "id": "/root",
-   "role": "Luna primary and sole integrator; subsequent source correspondence author",
+   "role": "Luna primary and sole integrator; source-correspondence author",
    "state": "RUNNING",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Current-session primary; will not start source lane until proof freeze."
-  },
-  {
-   "id": "/root/receive_role_indexed_inlet_introduction",
-   "role": "bounded Astra source-rule and preservation author",
-   "state": "RUNNING",
-   "requested_model": "gpt-6-astra",
-   "requested_effort": "medium",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "receipt": "Spawn 2026-10-17 02:10:54 UTC; ACTIVE-WORK 02:10:56 UTC. All 22 direct and inherited governing pins matched; requested Astra/medium, observed UNKNOWN; no writes/descendants yet."
+   "receipt": "Luna source trace active 2026-10-17 02:21:47 UTC after all direct/inherited pins matched; 360s cap; read-only only."
   }
  ],
  "leases": [
@@ -216,12 +224,14 @@
   {
    "path": "notes/design/2026-10-17-receive-role-indexed-inlet-introduction.md",
    "owner": "/root/receive_role_indexed_inlet_introduction",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "7716a71d6bf6f5212bd455e1a3959569748e558238d0a164649ec1c57d92b72c"
   },
   {
    "path": "tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md",
    "owner": "/root/receive_role_indexed_inlet_introduction",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "70dc1e462150474fa7f404bb4aa9aa844825b77b985e9187fa80d74ac4f97138"
   },
   {
    "path": "notes/theory/2026-10-17-value-entry-formal-provenance-through-local-use.md",
@@ -272,10 +282,10 @@
   }
  ],
  "next_action": {
-  "state": "PROOF-RUNNING",
+  "state": "SOURCE-TRACE-RUNNING",
   "dispatcher": "Selector recommendation accepted for a bounded exact first-clause sprint; implementation has no safe code slice pending rule/source evidence.",
-  "proof": "Candidate saturated inlet and role graph drafted; transport attempted; apply exact semantic differences/failure to original c2 without treating as original F2 equality.",
-  "implementation": "After proof freeze, inspect the selected local returned-function formal/capture/fresh-use path to runtime Lambda role; read-only correspondence only."
+  "proof": "Astra candidate SAT/RG formulas and finite transport countermodel frozen; SAT2/F2 admission equality both directions, full contextual inventory and RG2 embedding OPEN.",
+  "implementation": "Luna traces selected local returned-function formal identity through capture/alias/native fresh-use to runtime Lambda entry classification; no compiler edit authority."
  },
  "resource_accounting": {
   "sprint_id": "receive-role-indexed-inlet-introduction-20261017",
@@ -285,10 +295,10 @@
   "review_cap_seconds": 360,
   "coordination_seconds": 120,
   "reserve_seconds": 120,
-  "charged_seconds": 300,
+  "charged_seconds": 660,
   "active_authors": 1,
   "unknown_reservations_preserved": 3,
-  "status": "Astra active: 270s elapsed / 300s charged of 840s; stages1–3 complete, stage4 c2 application underway; source lane waits."
+  "status": "Astra660/840 spent, STOPPED; Luna source trace RUNNING with 360s cap; reviews remain pending."
  },
- "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants. ACTIVE-WORK 02:10:56 UTC; all 22 direct and inherited governing pins matched before writing. Milestone stages1–3 at ~02:15:19 UTC; 300s conservative charge; arbitrary-graft lift failed; equality with original inlet remains an unselected semantic boundary."
+ "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants. ACTIVE-WORK 02:10:56 UTC; all 22 direct and inherited governing pins matched before writing. Milestone stages1–3 at ~02:15:19 UTC; 300s conservative charge; arbitrary-graft lift failed; equality with original inlet remains an unselected semantic boundary. Astra four-stage result frozen at 02:21:21 UTC: SAT/RG candidate, SAT2/RG2 OPEN, 180s unused retired. Luna source trace began 02:21:47 after all pins matched; read-only."
 }
