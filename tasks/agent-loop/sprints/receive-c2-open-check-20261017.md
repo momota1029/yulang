@@ -1,10 +1,10 @@
 # Sprint `receive-c2-open-check-20261017` — derive the actual open second Call
 
-Status: CANDIDATE until the primary freezes the hashes and grants the exact proof lease.  
+Status: ACTIVE under the primary-approved revision 2 dependency delta.
 Branch / baseline: `research/simple-sub-intrusion` / `a65ce9d07`.  
 Parent: user goal `型推論と実行器が証明込みで実装できるまで続ける`; original theorem and production gates remain OPEN.  
 Authority: user-authorized process change permits drafting candidate bridges for independent review. It does not adopt new semantics, narrow the original domain, authorize compiler code or close a parent.  
-Contract revision: 1.
+Contract revision: 2. Revision 1 was `e70967adc462e983f7ac8cc54f66ada64241c46dae61ebb8d4e62cf067a7cefa`.
 
 ## Original outcome and success evidence
 
@@ -97,6 +97,8 @@ inference pending a primary-authorized delta.
 | `notes/design/2026-10-16-source-application-checked-result.md` | `c9207625887d78aaccef988324e8505f6dd08fdfe076e0f564f8b7dca3c54076` | Original Apply-owned A1/E1 coordinates and complete source result view. |
 | `notes/design/2026-10-08-contextual-function-membership-definition.md` | `0341e44bcc01b916ca5b2cd1c7e95622d8dd3b562a7c2480d2e0241542e1f5d0` | Full Function membership domain; no narrowing to one convenient provider. |
 | `notes/design/2026-10-17-receive-context-plan-producer-contract.md` | `f491aa97bb2828111c7f46eb4f65cca9b7d3e00886c83cfa3ff21a7f43856f05` | Confirms current source T producer gap; reuse without redoing the mapping. |
+| `notes/design/2026-10-02-typed-computation-core-elaboration.md` | `0dbd943a1254dd58c435ff295a8ac0a9d025af70ba37a17154d624da8a86ab2e` | Typed-core §7 distinguishes checking from source introduction and leaves Function formation/complete inclusion obligations explicit; does not prove this F2. |
+| `notes/design/2026-10-05-inferred-function-call-views.md` | `4b3363b79901e84b87cc8e02b59b023ff82c33e76d0be6d255e2b7bbab1a65c1` | Approved role-indexed source-formation direction and its remaining open judgments; not an automatic F2 membership rule. |
 
 Implementation audit pins, for read-only evidence only:
 
@@ -133,3 +135,12 @@ compiler change, semantic adoption, tests, builds, probes, execution, native
 MODEL establishment, source admission, parent closure or production cutover.
 Only Luna integrates, stages the explicit reviewed files, checks the full
 outbound range and pushes non-forced.
+
+## Revision history
+
+Revision 2 adds only the two exact read-only source-definition dependencies
+above, after the proof author identified the transitive Function-formation
+seam and Luna verified both byte hashes and relevant sections. The meaning,
+quantifiers, source instance, output leases, budget and implementation
+disposition are unchanged. This grants no new rule, code authority or
+semantic adoption.

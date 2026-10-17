@@ -6,8 +6,8 @@
   "active_sprint": {
     "id": "receive-c2-open-check-20261017",
     "contract": "tasks/agent-loop/sprints/receive-c2-open-check-20261017.md",
-    "revision": 1,
-    "sha256": "e70967adc462e983f7ac8cc54f66ada64241c46dae61ebb8d4e62cf067a7cefa",
+    "revision": 2,
+    "sha256": "269580db8174fb3ed5c6b036a2816b7d70f56294c8df11199b0dc61dac30962d",
     "state": "PROOF-AUTHOR-RUNNING",
     "baseline": "a65ce9d07",
     "parent": "型推論と実行器が証明込みで実装できるまで続ける; original theorem and production gates OPEN.",
@@ -29,7 +29,7 @@
       "reserve_seconds": 180,
       "charged_seconds": 0,
       "active_authors": 1,
-      "status": "Astra author actively assigned, 720s cap; current-session launch receipt recorded; three inherited UNKNOWN reservations retained; implementation NO_SAFE_CODE_SLICE."
+      "status": "Astra author active under rev2; 720s cap; two additional read-only source pins approved by Luna; three inherited UNKNOWN reservations retained; implementation NO_SAFE_CODE_SLICE."
     },
     "lanes": {
       "proof": {
@@ -40,7 +40,7 @@
           "tasks/agent-loop/inbox/20261017-receive-c2-open-check.md"
         ],
         "cap_seconds": 720,
-        "receipt": "Actual task assignment launched in current session; outputs restricted to exact two-file lease; baseline a65ce9d07; observed model/effort UNKNOWN."
+        "receipt": "Actual current-session astra_prover launch; requested gpt-6-astra/medium, effective UNKNOWN/UNKNOWN. Rev2 adds typed-core §7 and inferred Function-call-view source-definition pins; outputs unchanged."
       },
       "implementation": {
         "owner": "Luna/high",
@@ -54,7 +54,7 @@
     "artifacts": [
       {
         "path": "tasks/agent-loop/sprints/receive-c2-open-check-20261017.md",
-        "sha256": "e70967adc462e983f7ac8cc54f66ada64241c46dae61ebb8d4e62cf067a7cefa"
+        "sha256": "269580db8174fb3ed5c6b036a2816b7d70f56294c8df11199b0dc61dac30962d"
       },
       {
         "path": "notes/theory/2026-10-17-receive-resultbind-context-plug.md",
@@ -92,12 +92,12 @@
         "role": "bounded Astra constructive proof author",
         "state": "RUNNING",
         "requested_model": "gpt-6-astra",
-        "requested_effort": "UNKNOWN",
+        "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
         "cap_seconds": 720,
-        "receipt": "Actual astra_prover assignment launched in current session for exact proof+handoff lease; received baseline clarification; no descendants."
+        "receipt": "Actual astra_prover assignment launched; requested gpt-6-astra/medium, observed UNKNOWN/UNKNOWN; rev2 dependencies granted; no descendants; exact two output leases."
       }
     ]
   },
@@ -155,12 +155,12 @@
       "role": "bounded Astra constructive proof author",
       "state": "RUNNING",
       "requested_model": "gpt-6-astra",
-      "requested_effort": "UNKNOWN",
+      "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "cap_seconds": 720,
-      "receipt": "Actual astra_prover assignment launched in current session for exact proof+handoff lease; received baseline clarification; no descendants."
+      "receipt": "Actual astra_prover assignment launched; requested gpt-6-astra/medium, observed UNKNOWN/UNKNOWN; rev2 dependencies granted; no descendants; exact two output leases."
     }
   ],
   "leases": [
@@ -196,7 +196,7 @@
       "path": "tasks/agent-loop/sprints/receive-c2-open-check-20261017.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "e70967adc462e983f7ac8cc54f66ada64241c46dae61ebb8d4e62cf067a7cefa"
+      "sha256": "269580db8174fb3ed5c6b036a2816b7d70f56294c8df11199b0dc61dac30962d"
     },
     {
       "path": "notes/theory/2026-10-17-receive-c2-open-check.md",
@@ -243,7 +243,7 @@
   ],
   "next_action": {
     "state": "PROOF-AUTHOR-RUNNING",
-    "dispatcher": "Selector selected receive-c2-open-check-20261017, proof-only allocation; implementation waits after three-owner read-only audit.",
+    "dispatcher": "Selector-selected c2 proof sprint remains active; Luna-approved rev2 adds only two pinned source-definition dependencies.",
     "proof": "Derive the actual source c2 open check at original A1,xi across all five obligations, or isolate the first unavailable descriptor/checking law; alpha+ is not a substitute for A1.",
     "implementation": "NO_SAFE_CODE_SLICE: current HIR/CandidateInference path has no imported source T; wait for proof to change evidence."
   },
