@@ -53,24 +53,24 @@
     {
       "id": "/root/npair_local_route_authentication_implementation",
       "role": "integrated final-auth route repair, tests and runtime",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=1320s incl360 verification reserve",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "STOPPED/frozen at 2026-10-17 22:29:41 UTC. Conservative elapsed672/1320s; 648s allocation remains, protected verification360s untouched. No test/build/compiler command; descendants0. Six changed Rust paths match primary rehash: candidate_source 1a65c7af; candidate_call e038ad0d; candidate_scheme ea48b5ec; shadow_apply 76f2ea39; lib ddd13958; candidate_graph_call 35809954. Example unchanged d76cbae2. No runtime note/handoff written. Fresh independent compiler review now RUNNING; runtime/regressions unverified."
+      "receipt": "Review delta lease reopened only for candidate_graph_call.rs, cap108s of first-phase allocation. The six-path snapshot passed fresh review CLEAN except MINOR regression specificity: annotation cases use integer types and non-Local parity lacks explicit source_call observation. Author will strengthen valid Function annotation/ascription and non-Local observer regressions only; no tests/build. Remaining protected verification360s untouched."
     },
     {
       "id": "/root/npair_local_route_authentication_review",
       "role": "fresh independent compiler review",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/compiler_referee",
       "requested_effort": "high <=240s total incl diff review",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh reviewer dispatched after author STOP and primary SHA-256 rehash of exact six-file diff plus unchanged example. Reviews source/test/proof, actual final-auth and fact-admission sites, annotation refusal, scoped caps, accounting/rollback, regressions and API; no commands."
+      "receipt": "CLEAN at frozen snapshot except MINOR regression-specificity finding. Reviewer STOPPED after112s, charged120/240s; 120s remains for focused delta review. No commands."
     }
   ],
   "leases": [
@@ -122,7 +122,7 @@
     {
       "path": "crates/yu-solver/src/tests/candidate_graph_call.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
@@ -146,5 +146,5 @@
     "required": false,
     "receipt": "All prior proof, implementation and review workers STOPPED; all prior exact leases FROZEN. Successor starts from clean restored baseline; no overlapping writers or rollover."
   },
-  "next_action": "Proof STOPPED and committed; implementation RUNNING on final observe integration and regressions. Reviewer WAITING. Preserve360s verification reserve."
+  "next_action": "Proof STOPPED and committed. Fresh review CLEAN with one nonblocking regression-specificity minor; focused test-only delta is active under108s cap, then use remaining120s reviewer delta. Preserve360s verification reserve; commands remain after final CLEAN only."
 }
