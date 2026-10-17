@@ -6,9 +6,9 @@
   "active_sprint": {
     "id": "minimal-cut-and-accepted-source-vertical-20261017",
     "contract": "tasks/agent-loop/sprints/minimal-cut-and-accepted-source-vertical-20261017.md",
-    "revision": 1,
-    "sha256": "357e99cc4c6a71527313b45a3d547955b2f26958bd550c98a8d7fb4fd861ad7f",
-    "state": "ADMISSION-DECOMPOSITION",
+    "revision": 2,
+    "sha256": "95f0f1a3751ffa276c89bedd48d969b430b34771db3f528dbf7473c92a036acf",
+    "state": "PROOF-ADMITTED",
     "baseline": "d33b01033625ef69d1d844e6400191dd84e73b2f",
     "checkpoint": "d33b01033625ef69d1d844e6400191dd84e73b2f",
     "parent": "Original inference/execution goal: preserve A/B, F1/FK1, N-Transport, Call, soundness, principality, termination, source/native quantifiers.",
@@ -36,24 +36,28 @@
       "proof": {
         "owner": "/root",
         "role": "astra_prover after admission",
-        "state": "NOT_ADMITTED",
+        "state": "READY",
         "cap_seconds": 900,
         "outputs": [
           "notes/theory/2026-10-17-selected-source-vertical-correspondence.md",
           "tasks/agent-loop/inbox/20261017-selected-source-vertical-correspondence.md"
-        ]
+        ],
+        "basis": "Outer-use §6 same-witness Result/Effect/entry consumer implication; original xi,z/provider/challenge/two packet images; FIRST-RESULT-ADEQUACY application.",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium"
       },
       "implementation": {
         "owner": "/root",
         "role": "implementer/Luna-high after admission",
-        "state": "NOT_ADMITTED",
+        "state": "ADMITTED-WAITING-ASTRA-AND-REVIEWS",
         "cap_seconds": 480,
         "outputs": [
           "crates/yu-solver/examples/research_accepted_call_vertical.rs",
           "crates/yu-solver/tests/research_accepted_call_vertical.rs",
           "tasks/agent-loop/inbox/20261017-accepted-call-vertical.md"
         ],
-        "library_edits": false
+        "library_edits": false,
+        "authority": "Independent source vertical only; no OPRESP, source T, native theorem or library edit implication."
       }
     },
     "implementation": {
@@ -62,12 +66,14 @@
       "boundary": "Only a reversible example/test using existing APIs; no library, existing fixture or expected-output edits."
     },
     "review": {
-      "state": "NOT_ADMITTED",
+      "state": "SEQUENTIAL-AFTER-PROOF",
       "reserve_seconds": 480,
       "sequence": [
-        "compiler_referee pre-run 180s",
-        "spec_auditor 120s",
-        "regression_auditor pre/post, total 180s"
+        "compiler_referee <=180s",
+        "spec_auditor <=120s",
+        "regression_auditor pre-run <=90s",
+        "one Cargo test <=120s",
+        "regression_auditor post-run <=90s"
       ]
     },
     "resources": {
@@ -77,7 +83,7 @@
       "active_authors": 0,
       "active_reviewers": 0,
       "unknown_reservations_preserved": 3,
-      "status": "Dependency map frozen; proof/implementation admission seam awaits selector delta."
+      "status": "Proof admitted. Astra first; review and implementation lanes await frozen proof."
     },
     "workers": [
       {
@@ -120,6 +126,18 @@
         "charged_seconds": 180,
         "cap_seconds": 180,
         "receipt": "Read-only dependency DAG frozen; all 27 pins matched per worker; no writes or descendants."
+      },
+      {
+        "id": "/root/next_action_selector",
+        "role": "next_action_selector",
+        "state": "STOPPED",
+        "session": "current-session",
+        "requested_model": "UNKNOWN",
+        "requested_effort": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 120,
+        "receipt": "Material-boundary delta returned: proof exact scope, independent vertical admission, serial author/reviewer sequence; no writes or descendants."
       }
     ],
     "leases": [
@@ -162,6 +180,31 @@
         "path": "tasks/agent-loop/inbox/20261017-original-goal-minimal-cut.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-17-selected-source-vertical-correspondence.md",
+        "owner": "/root/astra_selected_source_vertical",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-selected-source-vertical-correspondence.md",
+        "owner": "/root/astra_selected_source_vertical",
+        "state": "HELD"
+      },
+      {
+        "path": "crates/yu-solver/examples/research_accepted_call_vertical.rs",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-accepted-call-vertical.md",
+        "owner": "/root",
+        "state": "HELD"
       }
     ],
     "pending": [
@@ -211,12 +254,13 @@
         "owner": "Luna/Astra"
       }
     ],
-    "next_action": "Selector: admit one proof-resolvable same-witness native consumer cut after adding exact occurrence-rule and implementation-owner pins; decide whether independent accepted-source vertical can proceed alongside it. No semantic adoption.",
+    "next_action": "Launch Astra proof packet. Await frozen proof result; reviewers then implementation; no semantic adoption.",
     "closeout_fields": [
       "original unresolved premises genuinely discharged",
       "new implementation/test behavior established",
       "next single unproved item"
-    ]
+    ],
+    "selector_delta": "Admit same-witness native consumer cut plus independent accepted-source vertical; Astra first, stop/freeze, compiler/spec reviews, then Luna implementation; no author parallelism due three quarantined UNKNOWN reservations and two review slots."
   },
   "history": "Older Catch and response-signature sprints REVIEWED-PARTIAL.",
   "quarantine_note": "Three inherited UNKNOWN assignments and the legacy board lease remain quarantined; elapsed time or this state update does not release them."

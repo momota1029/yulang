@@ -1,6 +1,7 @@
 # Sprint minimal-cut-and-accepted-source-vertical-20261017 — reduce one original-goal cut and prove an accepted source path
 
-Status: ACTIVE, Luna admission in progress. No semantic adoption.
+Status: ACTIVE, proof cut and independent vertical conditionally admitted by Luna
+under selector delta. No semantic adoption.
 Branch/baseline: `research/simple-sub-intrusion` / `d33b01033625ef69d1d844e6400191dd84e73b2f`.
 Contract revision 1; SHA-256 recorded in `current.json` after freeze.
 
@@ -72,6 +73,36 @@ bytes before reliance. Existing October 17 response/lifecycle proposals remain
 unadopted; C-OMIT is unanswered and unadopted. The decomposer may not recommend
 semantic adoption as if it followed from the code.
 
+Frozen decomposition outputs:
+
+```text
+notes/progress/2026-10-17-original-goal-minimal-cut.md ee28746816f843e9e5729a879492c7b7415dcbf6a85d96e81f3eee439f5dcb8c
+tasks/agent-loop/inbox/20261017-original-goal-minimal-cut.md fa242aa25fcbcfccc49bc58dac17fa541e4088ac91eea693f12dbb68100ab2bd
+```
+
+Additional proof-cut and source-owner pins, independently rehashed before
+admission:
+
+```text
+notes/design/2026-10-12-intrusion-value-type-association.md 531a9efae0ab7e03bfbd2f41cd7da86078e2fc8e67675d2c5c941972409f4e89
+notes/design/2026-10-08-contextual-function-membership-definition.md 0341e44bcc01b916ca5b2cd1c7e95622d8dd3b562a7c2480d2e0241542e1f5d0
+notes/design/2026-10-07-complete-call-contribution-definition.md 4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e
+notes/design/2026-10-08-call-source-interface-definition.md 20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c
+notes/design/2026-10-02-typed-boundary-realization-draft.md 1a5172366a1cb0d6b6cd84beac8994d6162793c217e11aef85872e642e2748bb
+notes/theory/2026-10-13-fresh-use-function-port-joint-transport.md 786cf5da327aa97329ebc29f57cc328ebd55ad50ef6fd07424e3b70ce40760a1
+notes/theory/2026-10-14-fresh-use-function-disposition.md 97bc16f074411914b292cfddcb57e39e1e4df93948b7e1a9bebbc4bcc30b5fd6
+crates/yu-solver/src/candidate_context.rs 72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6
+crates/yu-solver/src/candidate_scheme.rs 52b7281946de755003ee8f3b3d18cbc2df6cc6db5566b4e5ecf391b74a92640a
+crates/yu-solver/src/candidate_call.rs cbad9cf51a05343eb7a29ab77aac520891467a8aa4edc3201ea3d91f978984a1
+crates/yu-solver/src/candidate_extrusion.rs 2c535e0906a9cf6221fa4746ae815dc45ce18cf37f19a8e811f996d8422b7f6b
+```
+
+The typed-boundary source is Draft and may inform falsification/source ownership
+only; it grants no semantic premise. The selected occurrence rule governs
+actual extrusion pairs, not FreshUse identity. The local proof must keep
+nonidentity post-check contexts explicit. N-Transport as a whole remains
+outside this proof result.
+
 ## Lanes, exact leases and admission
 
 Phase 1, read-only, max 180s: `task_decomposer` maps the graph and reconciles
@@ -87,13 +118,21 @@ every applicable cut needs a semantic choice, stop before proof/example
 admission and provide the choice, compatibility and spec impact to the user.
 No conditional-wrapper packet.
 
-After admission, one bounded `astra_prover` assignment (medium, <=900s) may
-construct across related stages and apply its result to the original parent.
+Proof lane, admitted now: one bounded `astra_prover` assignment (medium,
+<=900s) targets the selected same-witness native consumer cut. Authenticate the
+actual Function parent, Result/Effect/entry children and same-use Transport
+against current owners; construct or source-qualify a counterexample to the
+implication using the same original `xi,z`, provider, challenge and both packet
+images; then apply the result to FIRST-RESULT-ADEQUACY and name the exact
+remaining premise. Do not assume complete native interpretation as antecedent;
+FreshUse is not an extrusion occurrence.
 Lease: `notes/theory/2026-10-17-selected-source-vertical-correspondence.md` and
 `tasks/agent-loop/inbox/20261017-selected-source-vertical-correspondence.md`.
 Keep original quantifiers and source domain.
 
-After admission, one Luna/high implementation assignment (<=480s) builds a
+Independent implementation lane, also admitted now, but does not start until
+the Astra result is frozen and compiler/spec review completes: Luna/high
+(<=480s) builds a
 reversible source example and a regression using only existing APIs. Exact
 leases: `crates/yu-solver/examples/research_accepted_call_vertical.rs` and
 `crates/yu-solver/tests/research_accepted_call_vertical.rs` and
@@ -101,7 +140,14 @@ leases: `crates/yu-solver/examples/research_accepted_call_vertical.rs` and
 existing fixture edits, expected-output edits or semantic choices. Regression
 requires zero parser recovery, zero HIR errors, successful ordinary
 CandidateInference, and source-authenticated fresh-use/export observations.
-An example is not proven executed by the test target.
+An example is not proven executed by the test target. This vertical establishes
+no OPRESP clause, source T, or same-witness native theorem.
+
+After Astra freezes, obtain sequential independent compiler review (<=180s)
+and spec review (<=120s). Then Luna implements. Regression review gets <=90s
+before and <=90s after the one test invocation. Authors do not overlap: three
+inherited UNKNOWN reservations plus two authors would consume five slots and
+leave fewer than two review/integration slots.
 
 One exact verification, <=120s, after pre-run regression review:
 `cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical`
@@ -115,10 +161,11 @@ review assignments, adjudication, central state, staging and Git.
 
 ## Resources, non-goals and stop
 
-Sprint envelope 2400s: decomposer 180; Astra 900; implementation 480; reviews
-480 (compiler 180, spec 120, regression 180 split pre/post); coordination 120;
-one Cargo command 120; reserve 120. Retire unused time; no rollover. One Astra
-at a time, no worker descendants. No production promotion, theorem weakening,
+Sprint envelope 2400s; 180s already charged for decomposition, 2220s remain:
+Astra 900; compiler/spec reviews 300; implementation 480; regression reviews
+180 split pre/post; coordination 120; one Cargo command 120; reserve 120.
+Retire unused time; no rollover. One Astra at a time, no worker descendants.
+No production promotion, theorem weakening,
 semantic adoption, fixture or expected-output edits, or broad CI cleanup.
 
 The implementation slice must advance accepted source through generation,
