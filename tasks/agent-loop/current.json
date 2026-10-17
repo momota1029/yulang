@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
     "revision": 2,
     "sha256": "fd45f91858c063665ab51ce0c581ad179dfbfc24a6d60e87d552a2c14a094781",
-    "state": "LUNA-SOURCE-RUNTIME-INSTANCE-RUNNING",
+    "state": "REVIEW-PENDING-AUTHORS-FROZEN",
     "baseline": "8f517045d",
     "parent": "Original FORWARD-FIRST-CALL A/B and F1/FK1 remain OPEN at original domains. Target CATCH-EXIT-INPUT-1/M_exit bridge only.",
     "fixed_outcome": "Draft typed yielded-Request to actual handler-exit to adopted outside matcher-entry rule, attempt preservation/erasure, then sequential static source/runtime instance if concrete fields exist.",
@@ -29,9 +29,9 @@
       "review_cap_seconds": 300,
       "coordination_seconds": 60,
       "reserve_seconds": 120,
-      "charged_seconds": 540,
-      "active_authors": 1,
-      "status": "Astra proof/source-definition froze and STOPPED after conservative 540/720s. Luna sequential source/runtime instance started 2026-10-17 05:07:32 UTC with a 300s cap. Independent reviews wait until both authors stop."
+      "charged_seconds": 613,
+      "active_authors": 0,
+      "status": "Astra proof frozen at 540/720s. Luna static source/runtime instance frozen; conservative charge ~73/300s. Direct 16 dependency pins rechecked. Reviews pending, sequenced one at a time to preserve capacity with quarantined UNKNOWN reservations."
     },
     "lanes": {
       "proof_source_definition": {
@@ -91,7 +91,7 @@
       "source_runtime_instance": {
         "owner": "/root",
         "role": "Luna/high primary",
-        "state": "RUNNING",
+        "state": "FROZEN-STOPPED-NO-SAFE-CODE-SLICE",
         "outputs": [
           "notes/theory/2026-10-17-catch-exit-source-runtime-instance.md",
           "tasks/agent-loop/inbox/20261017-catch-exit-source-runtime-instance.md"
@@ -104,14 +104,23 @@
         "requested_model": "UNKNOWN",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN"
+        "observed_effort": "UNKNOWN",
+        "stopped_at_utc": "2026-10-17 05:08:25 UTC",
+        "charged_seconds": 73,
+        "remaining_seconds": 227,
+        "output_hashes": [
+          "5b7177e3f185c6c777dd2b0794c1f30fe17815c7ac99ee03dbb1d5f82a91376f",
+          "3ee51d3ac4713ba7f73371bf8521a7a1b2ae5d070bea0489fc5c8c8b78833e7c"
+        ],
+        "handoff_id": "CATCH-EXIT-NATIVE-INSTANCE-20261017 rev1",
+        "stop_receipt": "Sole author froze both outputs, no descendants. Static-only source/runtime correspondence; NO_SAFE_CODE_SLICE for this seam because runtime guard removal would not supply typed M_exit."
       },
       "implementation": {
-        "state": "NO_COMPILER_CODE_LEASE",
+        "state": "NO_SAFE_CODE_SLICE-SEAM",
         "gate": "No production change authorized. This sprint yields source/runtime correspondence only."
       },
       "reviews": {
-        "state": "NOT-STARTED-AFTER-AUTHORS",
+        "state": "READY-SEQUENTIAL",
         "compiler_referee": {
           "cap_seconds": 120,
           "output": "tasks/agent-loop/inbox/20261017-catch-request-exit-compiler-review.md"
@@ -123,7 +132,8 @@
         "architect": {
           "cap_seconds": 90,
           "output": "tasks/agent-loop/inbox/20261017-catch-request-exit-architect-review.md"
-        }
+        },
+        "current_reviewer": "compiler_referee"
       }
     },
     "artifacts": [
@@ -139,6 +149,14 @@
       {
         "path": "tasks/agent-loop/inbox/20261017-catch-request-exit-introduction-proposal.md",
         "sha256": "edce02b4c4736d5f59f59ba31071a5aa9cb7e31b526fc6834f9e4043982164e4"
+      },
+      {
+        "path": "notes/theory/2026-10-17-catch-exit-source-runtime-instance.md",
+        "sha256": "5b7177e3f185c6c777dd2b0794c1f30fe17815c7ac99ee03dbb1d5f82a91376f"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-catch-exit-source-runtime-instance.md",
+        "sha256": "3ee51d3ac4713ba7f73371bf8521a7a1b2ae5d070bea0489fc5c8c8b78833e7c"
       }
     ],
     "non_goals": [
@@ -147,7 +165,7 @@
       "narrow or close original A/B, F1/FK1 or parent domains",
       "assuming M_exit/profile/active consumed-H incidence or treating partial HIR as accepted source"
     ],
-    "next_boundary": "Luna freeze/STOP by 300s, then sequential review assignments.",
+    "next_boundary": "Fresh sequential compiler_referee, then spec_auditor, then architect review over the same frozen result; Luna adjudication, closeout and primary-only push.",
     "workers": [
       {
         "id": "/root/catch_request_exit_introduction",
@@ -166,14 +184,16 @@
       {
         "id": "/root",
         "role": "Luna/high source-runtime instance author",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
         "started_at_utc": "2026-10-17 05:07:32 UTC",
-        "receipt": "Sequential exact-path source/runtime correspondence on pinned Catch specimen; 300s cap; no tests/builds/code."
+        "stopped_at_utc": "2026-10-17 05:08:25 UTC",
+        "charged_seconds": 73,
+        "receipt": "FROZEN both exact outputs; direct 16 dependency pins independently rechecked. No tests/builds/probes/code or descendants."
       }
     ],
     "leases": [
@@ -198,12 +218,14 @@
       {
         "path": "notes/theory/2026-10-17-catch-exit-source-runtime-instance.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN",
+        "sha256": "5b7177e3f185c6c777dd2b0794c1f30fe17815c7ac99ee03dbb1d5f82a91376f"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-catch-exit-source-runtime-instance.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN",
+        "sha256": "3ee51d3ac4713ba7f73371bf8521a7a1b2ae5d070bea0489fc5c8c8b78833e7c"
       }
     ],
     "dependencies": [
@@ -378,18 +400,18 @@
     }
   ],
   "next_action": {
-    "state": "LUNA-SOURCE-RUNTIME-INSTANCE-RUNNING",
+    "state": "REVIEWS-SEQUENTIAL-READY",
     "dispatcher": "Selected Catch Request-exit construction under existing adopted matcher interface; source proposal then sequential Luna source/runtime instantiation; no compiler-code authority.",
-    "proof": "Candidate frozen incomplete at the actual outside μ_H typed operand-use introduction; M_exit, F1/FK1 and parent remain OPEN.",
-    "implementation": "Luna static source/runtime field instance in progress; conditional playground Function-response guard is a local noncoverage discriminator only."
+    "proof": "Draft source introduction has a complete attempted telescope and preservation/erasure analysis but stops at actual typed μ_H operand-use introduction; M_exit remains open.",
+    "implementation": "Static source/runtime path is mapped. NO_SAFE_CODE_SLICE for this seam; playground Function-response guard is local noncoverage only."
   },
   "resource_accounting": {
     "sprint_id": "catch-request-exit-construction-20261017",
     "cap_seconds": 1500,
-    "charged_seconds": 540,
-    "active_authors": 1,
+    "charged_seconds": 613,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "Astra 540/720s charged and STOPPED; Luna source/runtime lane now active, 300s cap."
+    "status": "Both authors STOPPED. Astra 540/720s; Luna source/runtime approx73/300s; three fresh sequential reviews pending."
   },
   "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN. Previous sprint f2-owning-inlet-introduction-proposal-20261017 stopped at source gate; artifact SHA 263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27; closeout notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md SHA f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c."
 }
