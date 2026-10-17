@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
     "revision": 2,
     "sha256": "fd45f91858c063665ab51ce0c581ad179dfbfc24a6d60e87d552a2c14a094781",
-    "state": "ASTRA-STOPPED-REVISION-REQUIRED",
+    "state": "ASTRA-PROOF-SOURCE-RUNNING",
     "baseline": "8f517045d",
     "parent": "Original FORWARD-FIRST-CALL A/B and F1/FK1 remain OPEN at original domains. Target CATCH-EXIT-INPUT-1/M_exit bridge only.",
     "fixed_outcome": "Draft typed yielded-Request to actual handler-exit to adopted outside matcher-entry rule, attempt preservation/erasure, then sequential static source/runtime instance if concrete fields exist.",
@@ -30,14 +30,14 @@
       "coordination_seconds": 60,
       "reserve_seconds": 120,
       "charged_seconds": 150,
-      "active_authors": 0,
-      "status": "Initial author attempt stopped before writes after approximately 150s of reads/hash validation because the contract baseline label disagreed with the launch assignment. Revision 2 corrects baseline and dependency count; 570s remain in Astra lane."
+      "active_authors": 1,
+      "status": "Same Astra author resumed under rev2 at 2026-10-17 05:00:54 UTC; initial read/hash attempt charged approximately 150s; 570s remain in the cumulative 720s lane cap."
     },
     "lanes": {
       "proof_source_definition": {
         "owner": "/root/catch_request_exit_introduction",
         "role": "astra_prover",
-        "state": "STOPPED-REVISION-REQUIRED",
+        "state": "RUNNING",
         "outputs": [
           "notes/design/2026-10-17-catch-request-exit-introduction-proposal.md",
           "tasks/agent-loop/inbox/20261017-catch-request-exit-introduction-proposal.md"
@@ -46,17 +46,40 @@
         "gate": "Construct full scoped candidate rule and M_exit field map from original yielded Request and actual exit; do not assume missing correspondence.",
         "started_at_utc": "2026-10-17 04:59:52 UTC",
         "actual_worker_id": "/root/catch_request_exit_introduction",
-        "session": "current-session",
+        "session": "UNKNOWN",
         "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "stopped_at_utc": "2026-10-17 05:02:28 UTC",
         "charged_seconds": 150,
         "remaining_seconds": 570,
         "stop_receipt": "Writer confirmed zero writes, both paths untouched, zero descendants/processes; 16 dependency hashes matched; requested Astra/medium, observed UNKNOWN.",
         "contract_revision": 2,
-        "contract_sha256": "fd45f91858c063665ab51ce0c581ad179dfbfc24a6d60e87d552a2c14a094781"
+        "contract_sha256": "fd45f91858c063665ab51ce0c581ad179dfbfc24a6d60e87d552a2c14a094781",
+        "resume_at_utc": "2026-10-17 05:00:54 UTC",
+        "active_receipt": "Same actual worker resumed under contract revision 2; 16 direct pins matched on rev1; five source clauses authorized only by exact matching transitive pins in frozen typed-incidence audit. Runtime path discriminator to be recorded as playground-local only.",
+        "transitive_dependencies": [
+          {
+            "path": "notes/design/2026-10-02-typed-source-owner-realization.md",
+            "sha256": "5cbd8110736ee4d43e0c65460fa9ecf700228bfdbe9fbaa7642ea0302d86f1aa"
+          },
+          {
+            "path": "notes/design/2026-10-02-typed-boundary-realization-draft.md",
+            "sha256": "1a5172366a1cb0d6b6cd84beac8994d6162793c217e11aef85872e642e2748bb"
+          },
+          {
+            "path": "notes/design/2026-10-05-source-contracts-and-common-allowance.md",
+            "sha256": "1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186"
+          },
+          {
+            "path": "notes/design/2026-10-08-call-source-interface-definition.md",
+            "sha256": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c"
+          },
+          {
+            "path": "notes/theory/2026-10-16-parameterized-shallow-image-finite-presentation.md",
+            "sha256": "3a0bf3df4657dd0a6ccbb8690d990177ff19f30e10e91c93839b4601c634f61b"
+          }
+        ]
       },
       "source_runtime_instance": {
         "owner": "/root",
@@ -102,20 +125,19 @@
       "narrow or close original A/B, F1/FK1 or parent domains",
       "assuming M_exit/profile/active consumed-H incidence or treating partial HIR as accepted source"
     ],
-    "next_boundary": "Re-launch same bounded author packet only against corrected contract revision 2; cap is cumulative 720s with 570s remaining.",
+    "next_boundary": "Astra freeze/STOP or first material missing source owner; then Luna sequential source/runtime instance.",
     "workers": [
       {
         "id": "/root/catch_request_exit_introduction",
         "role": "astra_prover",
-        "state": "STOPPED",
+        "state": "RUNNING",
         "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "started_at_utc": "2026-10-17 04:59:52 UTC",
-        "stopped_at_utc": "2026-10-17 05:02:28 UTC",
-        "receipt": "Stopped before writes on baseline conflict; all 16 pins matched; no descendant/process; charged approximately 150s."
+        "session": "UNKNOWN",
+        "resumed_at_utc": "2026-10-17 05:00:54 UTC",
+        "receipt": "Actual same-agent resume under rev2 acknowledged. Previous attempt stopped before writes; approximately 150s charged. No descendants."
       }
     ],
     "leases": [
@@ -318,18 +340,18 @@
     }
   ],
   "next_action": {
-    "state": "ASTRA-STOPPED-REVISION-REQUIRED",
+    "state": "ASTRA-PROOF-SOURCE-RUNNING",
     "dispatcher": "Selected Catch Request-exit construction under existing adopted matcher interface; source proposal then sequential Luna source/runtime instantiation; no compiler-code authority.",
-    "proof": "Astra stopped before writes; corrected rev2 resolves baseline mismatch; 150s charged, 570s remain.",
+    "proof": "Astra resumed under corrected revision 2; conditional transition construction continues, with 570s cumulative assignment budget remaining.",
     "implementation": "Luna sequential static producer/consumer equation lane; zero tests/builds/probes and no code edits."
   },
   "resource_accounting": {
     "sprint_id": "catch-request-exit-construction-20261017",
     "cap_seconds": 1500,
     "charged_seconds": 150,
-    "active_authors": 0,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "Astra stopped before writes at baseline conflict; 150/1500s charged; 570s remain in Astra assignment."
+    "status": "Astra resumed under rev2; 150s prior read/hash charge, 570s remaining in proof lane."
   },
   "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN. Previous sprint f2-owning-inlet-introduction-proposal-20261017 stopped at source gate; artifact SHA 263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27; closeout notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md SHA f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c."
 }
