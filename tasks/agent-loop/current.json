@@ -19,8 +19,8 @@
     },
     "resources": {
       "cap_seconds": 2100,
-      "charged_seconds": 300,
-      "available_seconds": 1800,
+      "charged_seconds": 1303,
+      "available_seconds": 797,
       "allocation": "Luna implementation1320 (780 repair/freeze/review wait + protected360 verification +180 evidence/handoff); Sol constructive proof300; fresh compiler review240; Luna primary120; contingency120. Astra0; descendants0; no rollover."
     },
     "next_action": "Constructive route invariant proof frozen; implementation continues. Final observe call-site integration remains the critical seam. Fresh compiler review waits for exact source/test/proof freeze; no commands before CLEAN."
@@ -53,13 +53,13 @@
     {
       "id": "/root/npair_local_route_authentication_implementation",
       "role": "integrated final-auth route repair, tests and runtime",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=1320s incl360 verification reserve",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Review delta lease reopened only for candidate_graph_call.rs, cap108s of first-phase allocation. The six-path snapshot passed fresh review CLEAN except MINOR regression specificity: annotation cases use integer types and non-Local parity lacks explicit source_call observation. Author will strengthen valid Function annotation/ascription and non-Local observer regressions only; no tests/build. Remaining protected verification360s untouched."
+      "receipt": "STOPPED after test-only delta; candidate_graph_call.rs now e3b5c426f1f2891bddcf5c81e5845fa8d5145a242ab1d2f5dd29807b03925c16 (primary rehash matched). Regressions use function-typed Local binding/ascription and non-Local ascription asserts source_call(0) callee Group/Ascription. No tests/build; descendants0. Author reports196s wall against108s assigned cap (88s overrun), charged conservatively; total implementation charge868/1320. Verification360s remains untouched, 92s evidence/handoff remains. Focused reviewer delta RUNNING within remaining120/240s."
     },
     {
       "id": "/root/npair_local_route_authentication_review",
@@ -70,7 +70,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "CLEAN at frozen snapshot except MINOR regression-specificity finding. Reviewer STOPPED after112s, charged120/240s; 120s remains for focused delta review. No commands."
+      "receipt": "Initial review CLEAN except MINOR regression-specificity; final focused delta CLEAN, MINOR closed. Cumulative135/240s charged; STOPPED, no commands. Exact test hash e3b5c426f1f2891bddcf5c81e5845fa8d5145a242ab1d2f5dd29807b03925c16 MATCH."
     }
   ],
   "leases": [
@@ -122,7 +122,7 @@
     {
       "path": "crates/yu-solver/src/tests/candidate_graph_call.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
@@ -146,5 +146,5 @@
     "required": false,
     "receipt": "All prior proof, implementation and review workers STOPPED; all prior exact leases FROZEN. Successor starts from clean restored baseline; no overlapping writers or rollover."
   },
-  "next_action": "Proof STOPPED and committed. Fresh review CLEAN with one nonblocking regression-specificity minor; focused test-only delta is active under108s cap, then use remaining120s reviewer delta. Preserve360s verification reserve; commands remain after final CLEAN only."
+  "next_action": "Fresh source/test/proof compiler review CLEAN at final frozen bytes; regression-specificity MINOR closed. Implementation STOPPED after 88s overrun against edit-phase cap, charged conservatively; total implementation charge868/1320 with protected verification360s intact and92s evidence/handoff remaining. Re-measure >=120s before each of two authorized commands, then write runtime receipt and close sprint with parent theorem OPEN/closure0."
 }
