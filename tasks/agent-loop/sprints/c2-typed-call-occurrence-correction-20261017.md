@@ -1,6 +1,6 @@
 # Sprint c2-typed-call-occurrence-correction-20261017 — typed native call seam
 
-Revision: 2 (pin correction before any research lease).
+Revision: 3 (pin correction and exact sequential review output leases).
 Status: READY for Luna validation and sequential exact leases.  
 Branch: `research/simple-sub-intrusion`  
 Baseline: `8f012935e` (prior sprint REVIEWED-PARTIAL).  
@@ -36,6 +36,14 @@ Independently derive source-to-native operand correspondence for the corrected a
 ## Review, implementation, resources
 
 Fresh sequential compiler_referee and spec_auditor reviews, each max90s. Require correct polarities, source identities/causes and scope, exact conditionality, clear separation from admission, and no overclaim. Both outputs stop before review. Luna alone adjudicates and integrates.
+
+Review outputs are exact sequential leases, opened only after each preceding reviewer STOPs:
+
+- compiler_referee: `tasks/agent-loop/inbox/20261017-c2-native-call-operand-correspondence-compiler-review.md`
+- spec_auditor: `tasks/agent-loop/inbox/20261017-c2-native-call-operand-correspondence-spec-review.md`
+- Luna adjudication/closeout: `notes/progress/2026-10-17-c2-typed-call-occurrence-correction-review.md`
+
+Reviewers are read-only against the frozen source/proof bytes and may write only their assigned receipt. They must review the typed source equations, constructor-success premises, slot/cause ownership, conditional Function decomposition, the versioned source pins, and non-promotion limits.
 
 Useful implementation contribution is the corrected source/native correspondence only. `NO_SAFE_CODE_SLICE` remains: no compiler change until an independently reviewed/adopted semantic rule and exact end-to-end code authorization. No code, tests/builds/probes/runtime, expected-output changes or production promotion.
 
