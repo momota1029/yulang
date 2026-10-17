@@ -4,10 +4,10 @@ Status: repaired concrete proposal for independent review; not adopted. The user
 direction A as a drafting target. This text alone grants no code, test, language
 semantics or production authority.
 
-Sprint: `choice-a-carrier-and-diagnostic-contract-repair-20261017`, contract revision 1,
-SHA-256 `72622fda6e699ff6fdac22c362212e4a355eba0fe55690df5bd6e46f7de906b5`.
-Successor artifact revision 2; revision 1 is preserved at
-`tasks/agent-loop/archive/20261017-ordinary-hir-application-admission-successor-r1.md`.
+Sprint: `choice-a-root-source-key-contract-repair-20261017`, contract revision 1,
+SHA-256 `9314b4c6acb0948bbd59bd45c0342296fa53043eec7c2b8b82bf8581217bfe69`.
+Successor artifact revision 3; revision 2 is preserved at
+`tasks/agent-loop/archive/20261017-ordinary-hir-application-admission-successor-r2.md`.
 Parent remains the original Yulang inference/execution goal with the original
 A/B claims, quantifiers and source/native correspondence unchanged.
 
@@ -91,14 +91,16 @@ expression keeps the existing error form and diagnostics.
 The ordinary route continues to form exactly the existing `SourceCarrierOutcome`
 for every admitted binding, with the existing direct-expression outcomes, source
 identity sidecar and availability behavior. Apply admission changes the
-canonical `ResolvedExpr` tree and its ordinary error sink, and extends the source
-identity sidecar only with mappings for new HIR child occurrences. It neither
-skips nor changes carrier formation, Supported/Unsupported classification,
-carrier forms, root/parameter ownership, existing source-key mappings or
-pre-existing carrier occurrence IDs. The carrier and canonical HIR may
-represent the same parsed node with distinct occurrence IDs; both IDs map to
-that exact same parse-branded `SourceNodeKey` and belong to the same HIR
-artifact. They are separate projections, not a one-to-one occurrence crosswalk.
+canonical `ResolvedExpr` tree and its ordinary error sink. It may add source-key
+mappings for a retained body-root occurrence that previously represented an
+unsupported application without a mapping, and for newly allocated canonical-HIR
+descendants. It neither skips nor changes carrier formation,
+Supported/Unsupported classification, carrier forms, root/parameter ownership,
+existing mappings or pre-existing carrier occurrence IDs. The carrier and
+canonical HIR may represent the same parsed node with distinct occurrence IDs;
+both IDs map to that exact same parse-branded `SourceNodeKey` and belong to the
+same HIR artifact. They are separate projections, not a one-to-one occurrence
+crosswalk.
 
 The opt-in `lower_module_with_local_source`/shadow route retains its current
 source-carrier and placeholder-error behavior in this contract. Its
@@ -181,6 +183,37 @@ occurrence ID. No additional canonical-HIR child occurrence is allocated for a r
 recovery-bearing shape. The full module remains unpublished until the canonical nodes,
 additional IDs and source mappings succeed.
 
+When the old body was an unsupported application, the preserved body-root
+occurrence may have no entry in `HirSourceIdentity::occurrences`: ordinary
+`lower_body` returns an unsupported projection before `lower_leaf` records an
+atom mapping. The accepted Apply root must therefore add its exact outer
+`MlArgument`/`CallTail` key under that same existing occurrence ID. Stage this
+mapping together with all new descendant mappings. Preserve every existing
+entry: if the root already maps to this exact key, keep it without staging a
+duplicate; if it maps to another key, return
+`HirAvailabilityError::InconsistentIdentity` without overwrite. Do not use
+`record_occurrence`'s overwriting insertion as the publication mechanism.
+Build one occurrence-only `empty_stage`, reserve all required capacity, and
+publish it through the existing atomic `HirSourceIdentity::append_stage` only
+after ordinary source-carrier formation and before the `HirModule` is returned.
+Any reservation, collision, or ordinal failure returns the specified
+availability error and publishes no module or partial mapping.
+
+The ordinary lowering loop currently constructs `ResolvedExpr` values before
+`form_ordinary` allocates carrier occurrences. To preserve both established
+carrier ordinals and the required final allocation order, keep accepted
+application projections private until the legacy ordinary and carrier passes
+finish. Preserve error-sink emission order while staging their resolution and
+error references in source order, then finalize canonical HIR child IDs and the
+atomic identity stage after carriers. This is an internal finalization boundary;
+it does not change public HIR shape, diagnostics, or the selected admission
+grammar. The pinned construction paths establish feasibility: unsupported
+`lower_body` returns before `lower_leaf` records the body mapping;
+`form_ordinary` stages and merges carrier identities before module publication;
+`append_stage` rejects duplicate occurrence IDs and reserves before extending.
+Implementation must add an explicit preflight for same-key versus conflicting
+root mappings and use `append_stage` for non-overwriting atomic publication.
+
 ## 6. Apply producer/consumer contract
 
 All affected `ResolvedExpr::Apply` routes must be checked against this split
@@ -257,6 +290,10 @@ regression set must establish:
    carrier outcomes, carrier structure, source-key mappings and carrier
    occurrence ordinals also stay stable. New HIR-only child IDs are unique,
    artifact-branded, source-ordered and allocated after the carrier pass.
+   The preserved body-root ID receives its exact outer application key when it
+   previously lacked a mapping; matching existing mappings are retained and a
+   conflicting mapping fails without overwrite. Descendant mappings are exact
+   and added atomically; refused/recovery bodies gain no application mappings.
 4. Error and diagnostic vectors are dense and internally cross-referenced in
    each resulting module. Retained record payloads, multiplicity and relative
    order are unchanged; IDs are resolved to final vector positions. A fixture

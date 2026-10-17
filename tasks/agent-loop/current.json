@@ -4,28 +4,28 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "choice-a-carrier-and-diagnostic-contract-repair-20261017",
-    "contract": "tasks/agent-loop/sprints/choice-a-carrier-and-diagnostic-contract-repair-20261017.md",
+    "id": "choice-a-root-source-key-contract-repair-20261017",
+    "contract": "tasks/agent-loop/sprints/choice-a-root-source-key-contract-repair-20261017.md",
     "revision": 1,
-    "sha256": "72622fda6e699ff6fdac22c362212e4a355eba0fe55690df5bd6e46f7de906b5",
+    "sha256": "9314b4c6acb0948bbd59bd45c0342296fa53043eec7c2b8b82bf8581217bfe69",
     "state": "REVIEW-PENDING-SPEC",
-    "baseline": "1a14f115ec3811f8f8133a09027ce9b5d6ad359d",
-    "parent": "Original inference/execution goal; all quantifiers and theorem gates preserved OPEN.",
-    "fixed_outcome": "Repair direction-A successor contract for ordinary source-carrier preservation and dense error/diagnostic IDs, then obtain sequential independent reviews. No code/tests before exact final user approval.",
+    "baseline": "768476b933118fa6e0912e620addc9c6a2ee3a4c",
+    "parent": "Original inference/execution goal; all original quantifiers and theorem gates preserved OPEN.",
+    "fixed_outcome": "Repair source-key mapping contract for retained Apply body-root IDs and statically trace safe implementation feasibility; then fresh spec/compiler/architect review. No code/tests.",
     "proof_artifact": "notes/theory/2026-10-17-choice-a-call-cst-source-key-audit.md",
     "design_artifact": "notes/design/2026-10-17-ordinary-hir-application-admission-successor.md",
     "result": {
       "original_conditions_closed": 0,
       "behavior_executed": false,
-      "proof_class": "source/CST constructor candidate remains pending combined compiler review",
-      "HIR_APP_CST_1": "candidate discharge; compiler review pending",
-      "HIR_APP_ADMISSION_1": "OPEN; rev1 has 2 MAJOR findings; revision2 + reviews + explicit final user approval required"
+      "proof_class": "source/CST constructor candidate pending compiler review; static identity feasibility in progress",
+      "HIR_APP_CST_1": "candidate discharge pending compiler review",
+      "HIR_APP_ADMISSION_1": "OPEN; root source-key mapping contradiction in rev2; repair/review/final approval pending"
     },
     "resources": {
-      "cap_seconds": 720,
-      "charged_seconds": 300,
+      "cap_seconds": 600,
+      "charged_seconds": 180,
       "available_seconds": 420,
-      "allocation": "Luna240 conservatively charged and STOPPED; selector/coordination60 charged; spec/compiler/architect300 available, reserve120."
+      "allocation": "Luna120 conservatively charged and STOPPED; selector/coordination60 charged; spec/compiler/architect300 available, reserve120."
     },
     "workers": [
       {
@@ -48,15 +48,15 @@
       },
       {
         "id": "/root",
-        "role": "Luna primary author/integrator",
+        "role": "Luna primary contract author and static feasibility investigator",
         "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "observed_model": "UNKNOWN",
-        "cap_seconds": 240,
-        "charged_seconds": 240,
-        "active_receipt": "Admitted selector correction packet; preserving rev1 snapshots and revising carrier/diagnostic contracts.",
+        "cap_seconds": 120,
+        "charged_seconds": 120,
+        "active_receipt": "Admitted root-source-key repair packet; reading pinned lower_body/lower_leaf/append_stage/form_ordinary owners before revising contract.",
         "remaining_seconds": 0,
-        "receipt": "Successor design revision2 and handoff revision2 frozen; exact author duration UNKNOWN, full240 conservatively charged; no code/tests."
+        "receipt": "Successor revision3 and static feasibility trace frozen; exact author duration UNKNOWN, full120 conservatively charged; no code/tests."
       },
       {
         "id": "/root/accepted_call_hir_admission_spec_review",
@@ -95,27 +95,27 @@
         "requested_model": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "charged_seconds": 60,
-        "receipt": "Recommended distinct 720s correction sprint; no approval needed before drafting repair."
+        "receipt": "Recommended separate 600s root-source-key correction sprint after second partial review."
       }
     ],
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/choice-a-carrier-and-diagnostic-contract-repair-20261017.md",
-        "owner": "/root",
-        "state": "FROZEN-REV1"
-      },
-      {
-        "path": "tasks/agent-loop/sprints/20261017-ordinary-hir-choice-a-reviewed-partial-closeout.md",
+        "path": "tasks/agent-loop/sprints/choice-a-root-source-key-contract-repair-20261017.md",
         "owner": "/root",
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/archive/20261017-ordinary-hir-application-admission-successor-r1.md",
+        "path": "tasks/agent-loop/sprints/20261017-choice-a-carrier-and-diagnostic-contract-repair-closeout.md",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/archive/20261017-ordinary-hir-application-admission-successor-r2.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "tasks/agent-loop/archive/20261017-ordinary-hir-application-admission-successor-handoff-r1.md",
+        "path": "tasks/agent-loop/archive/20261017-ordinary-hir-application-admission-successor-handoff-r2.md",
         "owner": "/root",
         "state": "FROZEN"
       },
@@ -133,12 +133,12 @@
     "pending": [
       {
         "id": "HIR-APP-CST-1",
-        "state": "CANDIDATE DISCHARGE; fresh combined compiler/source review pending",
+        "state": "CANDIDATE DISCHARGE pending compiler review",
         "owner": "compiler referee"
       },
       {
         "id": "HIR-APP-ADMISSION-1",
-        "state": "OPEN; direction A proposal repair/review only, exact final user approval pending",
+        "state": "OPEN; preserve root occurrence and register exact Apply key; rev3/reviews/final approval pending",
         "owner": "Luna then reviewers then user"
       },
       {
@@ -182,23 +182,13 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Successor revision2 frozen with carrier and dense-ID repairs; fresh sequential spec -> compiler -> architect review before final user approval. No code/tests.",
-    "predecessor": "tasks/agent-loop/sprints/20261017-ordinary-hir-choice-a-reviewed-partial-closeout.md",
+    "next_action": "Successor revision3 frozen with root Apply source-key mapping, staged after carriers; fresh spec -> compiler (source audit + feasibility) -> architect review. No tests/code.",
+    "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-carrier-and-diagnostic-contract-repair-closeout.md",
     "source_sha256": "e8a320be0e78ecc2c5ee5210338476740c03a1fae61fb2747ec39636286ad501",
-    "predecessor_design_sha256": "a1bf05f113c3b870cf15045f398c6d1d243ea65db80e746fa2951aac37135d70",
-    "predecessor_handoff_sha256": "107c7cadb9160acbd2a440fd5d668b8ec17d578a79b2c7a52ba9f2fb007ff2cd",
-    "design_sha256": "9773bfe7631ccf2325435177c0a438cc637ca404bfb3b5863b7a827018d14c24",
-    "design_handoff_sha256": "5aa27034165a3d02e9de2fdd969b29c70f4ebed99e80c5edd31de3634f04ff05",
-    "archive_sha256": {
-      "successor_r1": "a1bf05f113c3b870cf15045f398c6d1d243ea65db80e746fa2951aac37135d70",
-      "handoff_r1": "107c7cadb9160acbd2a440fd5d668b8ec17d578a79b2c7a52ba9f2fb007ff2cd"
-    },
-    "predecessor_spec_review": {
-      "worker": "/root/accepted_call_hir_admission_spec_review",
-      "charged_seconds": 100,
-      "state": "STOPPED",
-      "findings": "Two MAJOR conflicts in predecessor artifact rev1: omitted existing ordinary LocalSource carrier; promised stable later numeric IDs despite dense vector indexing. Full independent receipt remains in conversation history; predecessor closeout locator recorded."
-    }
+    "predecessor_design_sha256": "9773bfe7631ccf2325435177c0a438cc637ca404bfb3b5863b7a827018d14c24",
+    "predecessor_handoff_sha256": "5aa27034165a3d02e9de2fdd969b29c70f4ebed99e80c5edd31de3634f04ff05",
+    "design_sha256": "ae572403ec4e36c56f034135f9e223e93dc9f0bad5c01fbed1d368048713eb2a",
+    "design_handoff_sha256": "f2eff28c5087f406332e284290f0c651527caf2d607dc310ee89c3da3ff1e4c5"
   },
   "history": "Prior accepted-call vertical and HIR directional proposal closed without parent theorem closure; see frozen closeouts.",
   "quarantine_note": "Three inherited UNKNOWN assignments and legacy board lease remain quarantined. Direction A permits a reviewed proposal only."
