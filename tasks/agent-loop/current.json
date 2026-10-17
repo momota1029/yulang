@@ -8,13 +8,13 @@
   "contract": "tasks/agent-loop/sprints/receive-role-indexed-inlet-introduction-20261017.md",
   "revision": 1,
   "sha256": "c2422818a92a6666ab9672b45d4d8bf1abf069116c82d4a91228374fc07e10cc",
-  "state": "COMPILER-DELTA-REVIEW-PENDING",
+  "state": "SPEC-REVIEW-RUNNING",
   "baseline": "b89ed524fd7b2bbd3d69bb9c997b5bd8132fdf49",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original FORWARD-FIRST-CALL A/B and production gates OPEN.",
   "fixed_outcome": "Draft and attempt preservation of the first source-local inlet/role-entry introduction at original c2 F2/xi; separately trace selected local returned-function formal identity through capture/fresh-use to runtime Lambda entry classification. Keep rule unselected and parent gates unchanged.",
   "review": {
-   "state": "DELTA-REVIEW-RUNNING",
-   "current_reviewer": "compiler_referee",
+   "state": "IN_PROGRESS",
+   "current_reviewer": "spec_auditor",
    "sequence": [
     "compiler_referee",
     "spec_auditor",
@@ -28,9 +28,9 @@
    "review_cap_seconds": 360,
    "coordination_seconds": 120,
    "reserve_seconds": 120,
-   "charged_seconds": 900,
+   "charged_seconds": 930,
    "active_authors": 1,
-   "status": "Astra 660/840 and source trace 150/360 charged; first compiler review 90s; minor source-origin finding repaired in revision 2; compiler delta review RUNNING; spec and architect pending."
+   "status": "Astra 660/840; source trace 150/360; compiler review + delta clean, conservatively charged 120s; spec_auditor review RUNNING; architect pending."
   },
   "lanes": {
    "proof": {
@@ -214,13 +214,24 @@
   {
    "id": "/root/role_inlet_compiler_review",
    "role": "fresh compiler_referee for frozen inlet/source-trace bundle",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "requested_model": "gpt-6.1-sol",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Follow-up delta review launch 2026-10-17 02:27:24 UTC on revision 2 trace/handoff; prior review STOPPED after 65s; cumulative review charge 90s of 120 per-review cap; read-only."
+   "receipt": "Revision 1 review MINOR named-formal producer mislocator; revision 2 delta CLEAN and prior minor CLOSED. STOP 2026-10-17 02:27:53 UTC; conservative cumulative review charge 120s; hashes verified; no writes/descendants."
+  },
+  {
+   "id": "/root/role_inlet_spec_review",
+   "role": "fresh spec_auditor for frozen inlet/source-trace bundle",
+   "state": "RUNNING",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "low",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "receipt": "Actual collaboration launch 2026-10-17 02:27:53 UTC; read-only exact-conformance review of frozen revision 2/source rule bundle; 120s maximum; no writes/tests/builds/probes/execution."
   }
  ],
  "leases": [
@@ -308,7 +319,7 @@
   }
  ],
  "next_action": {
-  "state": "REVIEW-PENDING",
+  "state": "SPEC-REVIEW-RUNNING",
   "dispatcher": "Selector recommendation accepted for a bounded exact first-clause sprint; implementation has no safe code slice pending rule/source evidence.",
   "proof": "Astra candidate SAT/RG formulas and finite transport countermodel frozen; SAT2/F2 admission equality both directions, full contextual inventory and RG2 embedding OPEN.",
   "implementation": "Source trace identifies missing candidate-to-runtime formal/entry transport; NO_SAFE_CODE_SLICE remains. Review frozen rule and trace before next-action selection."
@@ -321,10 +332,10 @@
   "review_cap_seconds": 360,
   "coordination_seconds": 120,
   "reserve_seconds": 120,
-  "charged_seconds": 900,
+  "charged_seconds": 930,
   "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Author lanes STOPPED; first compiler review and correction consumed conservatively 90s; revision 2 compiler delta review RUNNING; spec and architect reviews pending; three UNKNOWN reservations retained."
+  "status": "Author lanes STOPPED; compiler review and delta CLEAN (minor closed), 120s conservatively charged; spec_auditor read-only review RUNNING under 120s cap; architect pending; three UNKNOWN reservations retained."
  },
- "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants. ACTIVE-WORK 02:10:56 UTC; all 22 direct and inherited governing pins matched before writing. Milestone stages1–3 at ~02:15:19 UTC; 300s conservative charge; arbitrary-graft lift failed; equality with original inlet remains an unselected semantic boundary. Astra four-stage result frozen at 02:21:21 UTC: SAT/RG candidate, SAT2/RG2 OPEN, 180s unused retired. Luna source trace began 02:21:47 after all pins matched; read-only. Luna source trace frozen 2026-10-17 02:24:03 UTC: 136s elapsed, 150/360 charged; selected formal identity retained through HIR/Call, structural local fresh-use maps omit HIR formal provenance, playground execute discards CandidateInference and runtime from_hir reclassifies entry from source annotation. No safe code slice. Fresh sequential review pending. Fresh compiler_referee launched 2026-10-17 02:26:19 UTC for frozen bundle commit 3b16bb603; read-only, 120s cap, observed model/effort UNKNOWN. Compiler review of revision 1 returned one MINOR source-origin locator finding and no BLOCKING/major findings; selected named parameter producer corrected in revision 2, old bytes preserved by commit 3b16bb603. Delta review launched 2026-10-17 02:27:24 UTC; cumulative compiler reviewer charge conservatively 90s."
+ "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants. ACTIVE-WORK 02:10:56 UTC; all 22 direct and inherited governing pins matched before writing. Milestone stages1–3 at ~02:15:19 UTC; 300s conservative charge; arbitrary-graft lift failed; equality with original inlet remains an unselected semantic boundary. Astra four-stage result frozen at 02:21:21 UTC: SAT/RG candidate, SAT2/RG2 OPEN, 180s unused retired. Luna source trace began 02:21:47 after all pins matched; read-only. Luna source trace frozen 2026-10-17 02:24:03 UTC: 136s elapsed, 150/360 charged; selected formal identity retained through HIR/Call, structural local fresh-use maps omit HIR formal provenance, playground execute discards CandidateInference and runtime from_hir reclassifies entry from source annotation. No safe code slice. Fresh sequential review pending. Fresh compiler_referee launched 2026-10-17 02:26:19 UTC for frozen bundle commit 3b16bb603; read-only, 120s cap, observed model/effort UNKNOWN. Compiler review of revision 1 returned one MINOR source-origin locator finding and no BLOCKING/major findings; selected named parameter producer corrected in revision 2, old bytes preserved by commit 3b16bb603. Delta review launched 2026-10-17 02:27:24 UTC; cumulative compiler reviewer charge conservatively 90s. Compiler-referee revision-2 delta CLEAN, prior minor CLOSED; selected named IdentifierPattern producer and owner at local_source.rs:1285-1312, Lambda wrapping :651-690 verified. Spec review launched 2026-10-17 02:27:53 UTC, read-only, 120s cap."
 }
