@@ -1,8 +1,8 @@
 # Module-use retained native transport
 
 Date: 2026-10-17  
-Status: candidate source-byte proof; independent review pending  
-Sprint: `module-use-retained-native-transport-20261017`, revision 1  
+Status: corrected candidate source-byte proof; independent review pending
+Sprint: `module-use-retained-native-transport-20261017`, revision 2
 Author: `/root/module_freshuse_retention_proof` (prover; sole author)
 
 ## 1. Claim and exact parent application
@@ -106,19 +106,28 @@ term payloads remain owned/accounted by their original owners; an ID-map entry
 does not duplicate those native payloads. Graph.bytes separately enumerates
 its ten backing collections. The identity uses their existing compiler model.
 
-Let E be scratch on entry to the retained helper, P the prior retained charge,
-C0 and C1 the route capacities before/after successful reservation, and
-D = B(FreshRoute,C1-C0). On successful return the wrapper normalizes scratch
-to E+(R+M), eliminating expired constructor temporaries from this completed
-transition charge. The move computes exactly:
+Let S be caller scratch before graph capture, G = Graph.bytes() for the
+captured graph, and F = R+M for the actual returned FreshUse. Capture adds G to
+scratch before calling the retained helper, so that helper's entry charge is
+E = S+G. On successful return the helper normalizes scratch to E+F,
+eliminating expired constructor temporaries from this completed transition
+charge. Let P be the prior retained charge, C0 and C1 the route capacities
+before/after successful reservation, and D = B(FreshRoute,C1-C0). Instantiation
+transfers both the already-captured graph and the completed FreshUse payload
+out of scratch. The checked move computes exactly:
 
 ```text
-retained' = P + D + G.bytes() + R + M
-scratch'  = (E + R + M) - (R + M) = E.
+retained' = P + D + G + F
+scratch'  = (E + F) - (G + F) = S.
 ```
 
 The charge subtraction is checked; multiplication, addition, Graph and map
-charges are checked; reservation is fallible. No wraparound is accepted.
+charges are checked; reservation is fallible. Since E=S+G and F=R+M, the
+transfer leaves the caller's original scratch S while adding each transferred
+capacity to retained ownership exactly once. The focused regression asserts
+`scratch_bytes == entry_scratch` immediately before the prepublication resource
+sample, after the transfer and before the tentative route is pushed. No
+wraparound is accepted.
 Before push the retained counter deliberately precharges the private pending
 route for resource sampling; it is not at that instant an enumeration of only
 published route entries. On successful push and transaction completion the
@@ -211,9 +220,9 @@ found in the frozen control flow; independent review remains required.
 ## 6. Frozen source/dependency pins and cessation
 
 ```text
-contract 1cdbd0706203b0d34c13aa0f7e7342e3413dbc3fbd90b40e335b294bdbe820c2
-candidate_scheme.rs 2c334b62c61285954a6dfdb6639f81016fabb045ab0df6414ba03b86ab8e7407
-implementation handoff rev2 cee5c9770483b41c1660b7ede3448e2865a87a8802368ed8c14a88ba21ae1790
+contract rev2 b193043d56e60af7bfea4f8de7310a1230ae39546df70455bc4fa4b788184604 (rev1 1cdbd0706203b0d34c13aa0f7e7342e3413dbc3fbd90b40e335b294bdbe820c2 superseded)
+candidate_scheme.rs abe1eb6d6176c035d237c3f51f7ccfe99dea5224df20de285465c510c6c2a494
+implementation handoff rev3 7537cd9744d77ca2d100b7996237daaa858123ae0f84c2ded35d00eacfd12a28
 candidate_source.rs efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38
 lib.rs 2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f
 native field-map contract rev2 1465b65979b2742de020c2bc7b44ff6fb53adefa7158d9fa3947d0b4d5923502
@@ -221,13 +230,14 @@ handle introduction df0e684bad2da05741e39db12bd06bb400ad8b5b15af4116abab4df6c9df
 local-map retention f214960d2e1ac04f361a01f0802539ea9c961099fc9b55faa93d023f8cabac2e
 ```
 
-All contract input pins and the implementation revision2 pins matched at intake.
+All contract input pins and the implementation revision3 source/handoff pins matched at correction.
 Candidate-context type declarations were inspected only to check that the
 counted value records contain inline IDs/values, not separately owned hidden
 payload collections; observed SHA-256
 `72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6`.
-Requested model/effort: Sol/high. Observed effective model/effort: UNKNOWN.
-Budget: at most 300 seconds; exact runtime telemetry unavailable, charge the
-full cap conservatively. Only this note and the exact paired proof handoff
-were written. No scratch paths or descendants. Writer STOP after handoff
-freeze; this is a candidate proof submitted for Luna's independent review.
+Revision 2 corrects the transfer equation after compiler review found that
+Graph bytes were already present in helper-entry scratch. It uses E=S+G and
+transfers G+F, and records Luna's focused prepublication assertion and
+targeted test receipt. Luna owns this bounded correction. The initial proof
+author remains STOPPED. No source, theorem scope or semantic rule changed;
+independent review of these corrected pins remains required.

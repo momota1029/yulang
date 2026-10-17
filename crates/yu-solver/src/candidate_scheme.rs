@@ -120,6 +120,7 @@ pub(super) struct FreshRoute {
     pub use_id: DefinitionUseId,
     pub graph: Graph,
     pub rows: Vec<RowKey>,
+    retained: RetainedFreshUseMaps,
 }
 #[derive(Debug)]
 pub(super) struct LocalScheme {
@@ -331,7 +332,7 @@ impl GraphState {
             total = total.checked_add(graph.bytes()?).ok_or_else(exhausted)?;
         }
         for route in &self.routes {
-            total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?])?;
+            total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?, route.retained.bytes()?])?;
         }
         for route in &self.local_routes {
             total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?, route.retained.bytes()?])?;
@@ -1113,7 +1114,44 @@ impl InferenceSession {
         occurrence: &ConstraintOccurrenceId, cause: &CauseId,
     ) -> Result<(Term, Vec<RowKey>), SolveAvailabilityError> {
         let entry = self.candidate_graph.as_ref().ok_or_else(exhausted)?.scratch_bytes;
-        let result = (|| {
+        let result = self.freshen_candidate_graph_core(graph, use_level, occurrence, cause);
+        match result {
+            Ok((root, fresh)) => {
+                let (rows, retained) = fresh.into_retained_parts();
+                drop(retained);
+                self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry;
+                Ok((root, rows))
+            }
+            Err(error) => {
+                self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry;
+                Err(error)
+            }
+        }
+    }
+
+    fn freshen_candidate_graph_retained(
+        &mut self, graph: &Graph, use_level: u32,
+        occurrence: &ConstraintOccurrenceId, cause: &CauseId,
+    ) -> Result<(Term, FreshUse), SolveAvailabilityError> {
+        let entry = self.candidate_graph.as_ref().ok_or_else(exhausted)?.scratch_bytes;
+        let result = self.freshen_candidate_graph_core(graph, use_level, occurrence, cause)
+            .and_then(|(root, fresh)| {
+                let transition = fresh.bytes()?;
+                let charged = entry.checked_add(transition).ok_or_else(exhausted)?;
+                self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = charged;
+                Ok((root, fresh))
+            });
+        if result.is_err() {
+            self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry;
+        }
+        result
+    }
+
+    fn freshen_candidate_graph_core(
+        &mut self, graph: &Graph, use_level: u32,
+        occurrence: &ConstraintOccurrenceId, cause: &CauseId,
+    ) -> Result<(Term, FreshUse), SolveAvailabilityError> {
+        (|| {
             let caller = self.batch.candidate_source.occurrence_regions.get(occurrence.occurrence()).copied();
             let fresh = self.prepare_candidate_fresh_use(graph, use_level, caller)?;
             for index in 0..graph.bounds.len() {
@@ -1126,10 +1164,9 @@ impl InferenceSession {
                     census.module_uses.push((occurrence.occurrence().clone(), fresh.context_use));
                 }
             }
-            Ok((fresh.terms[graph.root].ok_or_else(exhausted)?, fresh.rows))
-        })();
-        self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry;
-        result
+            let root = fresh.terms[graph.root].ok_or_else(exhausted)?;
+            Ok((root, fresh))
+        })()
     }
     fn prepare_candidate_fresh_use(
         &mut self, graph: &Graph, use_level: u32, caller: Option<candidate_source::SourceRegionId>,
@@ -1464,7 +1501,9 @@ impl InferenceSession {
     ) -> Result<usize, SolveAvailabilityError> {
         let occurrence = ConstraintOccurrenceId::new(record.occurrence.clone(), 0);
         let cause = CauseId::for_occurrence(occurrence.clone());
-        let (lower, rows) = self.freshen_candidate_graph(&graph, record.use_level, &occurrence, &cause)?;
+        let (lower, fresh) = self.freshen_candidate_graph_retained(&graph, record.use_level, &occurrence, &cause)?;
+        let (rows, retained_maps) = fresh.into_retained_parts();
+        let remap_bytes = sum(&[bytes::<RowKey>(rows.capacity())?, retained_maps.bytes()?])?;
         let upper = self.batch.component_term_at(record.use_value_component);
         let key = CanonicalValuePairKey {
             lower: self.value_endpoint(lower, Polarity::Positive),
@@ -1477,12 +1516,18 @@ impl InferenceSession {
         let old_capacity = state.routes.capacity();
         state.routes.try_reserve(1).map_err(|_| exhausted())?;
         let growth = bytes::<FreshRoute>(state.routes.capacity() - old_capacity)?;
-        let retained = sum(&[state.retained_bytes, growth, graph.bytes()?,
-            bytes::<RowKey>(rows.capacity())?])?;
-        state.retained_bytes = state
-            .retained_bytes
-            .checked_add(growth)
-            .ok_or_else(exhausted)?;
+        let graph_bytes = graph.bytes()?;
+        let retained = sum(&[state.retained_bytes, growth, graph_bytes, remap_bytes])?;
+        // The captured Graph is already present in scratch at entry_scratch;
+        // FreshUse rows/maps were added by the retained helper. Transfer both
+        // categories to route ownership and leave the caller's scratch intact.
+        let transfer_bytes = sum(&[graph_bytes, remap_bytes])?;
+        let scratch = state.scratch_bytes.checked_sub(transfer_bytes).ok_or_else(exhausted)?;
+        state.retained_bytes = retained;
+        state.scratch_bytes = scratch;
+        #[cfg(test)]
+        assert_eq!(state.scratch_bytes, entry_scratch,
+            "module route transfer preserves caller scratch before resource sampling");
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         let transitions = self.route(
             id,
@@ -1497,8 +1542,8 @@ impl InferenceSession {
             use_id: id.clone(),
             graph,
             rows,
+            retained: retained_maps,
         });
-        state.retained_bytes = retained;
         state.scratch_bytes = entry_scratch;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         Ok(transitions)
@@ -1736,6 +1781,49 @@ impl InferenceSession {
 #[cfg(test)]
 mod authentic_demand_capture_tests {
     use super::*;
+
+    #[test]
+    fn module_fresh_route_retains_full_remap_crosswalk_and_capacity_accounting() {
+        let text: Arc<yu_syntax::SourceText> = Arc::from(
+            "my identity x = x\nmy first = identity 0\nmy second = identity true",
+        );
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("module-retained-map", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+
+        let state = session.candidate_graph.as_mut().unwrap();
+        let route = state.routes.iter().find(|route| !route.rows.is_empty()).unwrap();
+        assert_eq!(route.rows.len(), route.graph.rows.len());
+        assert_eq!(route.retained.terms.len(), route.graph.nodes.len());
+        assert_eq!(route.retained.evidence_remap.len(), route.graph.bound_evidence.len());
+        // All FreshUse fields move together, including currently empty maps;
+        // the retained record's backing capacities are included once in the
+        // route total, while the route's inline headers are in FreshRoute.
+        let route_maps = route.retained.bytes().unwrap();
+        assert_eq!(
+            route_maps,
+            sum(&[
+                route.retained.scope_remap.bytes().unwrap(),
+                bytes::<(candidate_context::RelationId, candidate_context::ScopedFlow)>(route.retained.scoped_relations.capacity()).unwrap(),
+                bytes::<Option<Term>>(route.retained.terms.capacity()).unwrap(),
+                bytes::<(usize, EffectEndpointKey)>(route.retained.effect_operands.capacity()).unwrap(),
+                bytes::<(candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId)>(route.retained.bundle_remap.capacity()).unwrap(),
+                bytes::<(candidate_context::ContextId, candidate_context::ContextId)>(route.retained.context_remap.capacity()).unwrap(),
+                bytes::<candidate_context::EvidenceSnapshotId>(route.retained.evidence_remap.capacity()).unwrap(),
+            ]).unwrap(),
+        );
+        let accounted = state.retained_bytes;
+        state.refresh_bytes().unwrap();
+        assert_eq!(state.retained_bytes, accounted);
+        assert!(state.scratch_bytes == 0, "completed module routes leave no crosswalk in transition scratch");
+    }
 
     #[test]
     fn structural_bound_scoped_payload_authentic_capture_uses_shared_reconstruction() {
