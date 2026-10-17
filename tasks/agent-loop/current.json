@@ -20,8 +20,8 @@
   },
   "resources": {
    "cap_seconds": 1800,
-   "charged_seconds": 960,
-   "available_seconds": 840,
+   "charged_seconds": 1140,
+   "available_seconds": 660,
    "retired_seconds": 0,
    "allocation": "Astra proof600 + Luna implementation360 + independent reviews480 (compiler180, spec120, architect90, regression pre/post45 each) + coordination120 + one Cargo verification120 + reserve120."
   },
@@ -59,8 +59,8 @@
    {
     "id": "/root/module_use_compiler_source_review",
     "role": "compiler/source independent reviewer",
-    "state": "RUNNING",
-    "receipt": "Fresh read-only review launched after both authors STOP; cap180s; review of frozen proof and candidate observer."
+    "state": "STOPPED",
+    "receipt": "CLEAN; 180/180 seconds conservatively charged; source/module route and proof boundary reviewed; 0 original conditions closed."
    }
   ],
   "leases": [
@@ -113,7 +113,7 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Compiler/source independent reviewer RUNNING (cap180). Reviews remain sequential; then spec120, architect90, regression pre-run45; Cargo only after CLEAN pre-run.",
+  "next_action": "Compiler/source review CLEAN and STOPPED (180 charged). Launch fresh spec review cap120, then architect/API90, regression pre-run45. Cargo only after CLEAN regression review.",
   "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."
