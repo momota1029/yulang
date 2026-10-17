@@ -1,7 +1,7 @@
 # Sprint ordinary-hir-applied-conformance-repair-20261017
 
-Status: PLAN FROZEN; AWAITING PRE-CODE ARCHITECT REVIEW. Revision 2 supersedes
-revision 1 for the live dependency/lease sequence. Candidate baseline
+Status: ARCHITECT CLEAN; IMPLEMENTATION ACTIVE. Revision 3 supersedes revision
+2 for live execution and adjudication. Candidate baseline
 `4f4dcb7b9`; current operational base may include later record-only commits.
 The prior sprint closed `REVIEWED-PARTIAL`; its candidate and
 exact compiler findings remain immutable:
@@ -71,6 +71,11 @@ precede publication; no partial module/list or duplicate/truncated diagnostic.
    without a public representation change, second association walk, unleased
    owner or unsupported resource claim, STOP before edits and name the exact
    boundary. Luna adjudicates the frozen result.
+   **Completed CLEAN:** `notes/progress/2026-10-17-ordinary-hir-repair-architect-review.md`,
+   SHA-256 `635cd68b611d652f4d6760026888945518423b8be69729560418807d9fbbc339`.
+   Luna authorizes the private `lib.rs` provenance seam and the exact expanded
+   implementation lease below; this is not implementation evidence or theorem
+   closure.
 4. Only after CLEAN architecture review and Luna adjudication, Luna/high
    implementer <=1110s may write only:
    - `crates/yu-hir/src/lib.rs` (newly added: private provenance seam only)

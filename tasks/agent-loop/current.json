@@ -6,9 +6,9 @@
   "active_sprint": {
     "id": "ordinary-hir-applied-conformance-repair-20261017",
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
-    "revision": 2,
-    "sha256": "056ac4651fbba8a5062d5cd61f9100b33937712c34bd9579f3c8af8960d5dbc3",
-    "state": "PRE-CODE-ARCHITECT-REVIEW",
+    "revision": 3,
+    "sha256": "006ffcf86d526f6eb5f668307ab81a2ae6dda2067a547889095d74fd89b25fd2",
+    "state": "IMPLEMENTATION-READY",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -22,15 +22,15 @@
     "result": {
       "original_conditions_closed": 0,
       "behavior_executed": false,
-      "proof_class": "Seven repair invariants and falsifiers frozen; authentic association provenance requires a narrow unleased lib.rs source-owner seam and architect gate. Candidate-only conditional construction; not an original theorem lemma.",
-      "implementation_class": "Failed candidate preserved; no repair edits or tests admitted until a concrete plan and fresh pre-code architect review are CLEAN.",
+      "proof_class": "Seven repair invariants and falsifiers frozen; candidate-only conditional construction, not an original theorem lemma.",
+      "implementation_class": "Pre-code architect gate CLEAN for private constructor-owned provenance seam; exact expanded lease authorized. Implementation not yet acknowledged; no edits/tests admitted before fresh active receipt.",
       "HIR_APP_REPAIR_1": "OPEN; seven findings and exact repair obligations frozen.",
       "parent_application": "OPEN; no semantic Call/source T/native adequacy."
     },
     "resources": {
       "cap_seconds": 2760,
-      "charged_seconds": 450,
-      "available_seconds": 2310,
+      "charged_seconds": 570,
+      "available_seconds": 2190,
       "retired_seconds": 0,
       "allocation": "Coordination120 charged; proof/source240; Luna plan90; pre-code architect120; implementation1110; applied reviews480; regressions240; Cargo240; reserve120. Fresh sprint; retired budget not carried."
     },
@@ -89,17 +89,17 @@
       {
         "id": "/root/ordinary_hir_repair_architect_rev2",
         "role": "architect",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 120,
-        "charged_seconds": 0,
-        "remaining_seconds": 120,
+        "charged_seconds": 120,
+        "remaining_seconds": 0,
         "session": "current-session",
         "lease_paths": [],
-        "active_receipt": "Fresh read-only review spawned for frozen plan 45c4cebfc6b5f35cf2f081db61959558721757f6a3a3f802ae310181f5ea4dc3 and sprint rev2 056ac4651fbba8a5062d5cd61f9100b33937712c34bd9579f3c8af8960d5dbc3. No write/test/build/probe/Git/descendant authority."
+        "active_receipt": "Read-only review STOPPED CLEAN; receipt notes/progress/2026-10-17-ordinary-hir-repair-architect-review.md SHA 635cd68b611d652f4d6760026888945518423b8be69729560418807d9fbbc339. Exact elapsed UNKNOWN; full 120s cap charged. No edits/tests/builds/probes/Git/descendants."
       }
     ],
     "leases": [
@@ -216,7 +216,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Frozen plan proposes a crate-private construction-owned lib.rs provenance seam with unchanged public HirExpr. Fresh architect review <=120s is active; no code edit until its frozen result and Luna adjudication. Preserve output-sensitive resource authority and all original parent gates OPEN.",
+    "next_action": "Architect review CLEAN and Luna adjudication authorize the exact seven-path implementation lease including private lib.rs provenance seam. Obtain a fresh active implementer acknowledgment <=1110s; then repair all seven falsifiers and freeze code before independent reviews. No Cargo until review/pre-run gates; original theorem gates remain OPEN.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },
