@@ -2326,6 +2326,8 @@ mod tests {
 
     #[test]
     fn negative_concrete_formal_permission_recovers_its_shared_port_and_rolls_back() {
+        // Internal-producer regression only: the direct method call below bypasses
+        // source preflight and does not establish source acceptance.
         // The same declared family occurs at distinct negative source paths:
         // AA reverses twice, while RR preserves variance throughout.
         let text = "act io\nmy bridge (consume: ((int -> [io] ()) -> ()) -> (() -> (int -> [io] ()))) = consume";
