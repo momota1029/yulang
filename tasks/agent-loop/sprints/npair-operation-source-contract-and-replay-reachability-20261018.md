@@ -1,6 +1,6 @@
 # Sprint `npair-operation-source-contract-and-replay-reachability-20261018`
 
-Status: READY pending start receipts. Branch `research/simple-sub-intrusion`.
+Status: ACTIVE, revision 2. Branch `research/simple-sub-intrusion`.
 Baseline: `759f9d0b7bdfd8a557a587bf095c2581c213ced1`.
 Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN, original conditions closed 0. Preserve its quantifiers, source domain, receive route, C1/C2, F1/FK1, Call, N-Transport, soundness, principality and termination requirements.
 
@@ -40,12 +40,13 @@ Advance the original fixed-c obligation at its semantic owner while making the a
 
 ## Frozen direct pins
 
-The parent/source meaning and implementation baseline are pinned by this baseline commit and the hashes below. Rehash direct inputs before reliance; any changed governing meaning returns to Luna.
+The parent/source meaning and implementation baseline are pinned by this baseline commit and the hashes below. Rehash direct inputs before reliance; any changed governing meaning returns to Luna. Rev2 adds the already reviewed concrete Operation source-construction input below; budgets and leases are unchanged.
 
 | Path | SHA-256 |
 | --- | --- |
 | `notes/design/2026-10-11-yulang-inference-top-level-principles.md` | `7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81` |
 | `notes/design/2026-10-18-npair-operation-self-effect-decision.md` | `fe258f9f5d3d40f80814fe478e9cde7019dc2436462b77a3ad6b9f6fe847f1e5` |
+| `notes/theory/2026-10-16-operation-primitive-image-contract-construction.md` | `4fe70b18cad9ded249869b21b84bbf26e2a5f95320f79632a29a5071ddb1c4e9` |
 | `notes/design/2026-10-18-npair-operation-self-effect-contract-candidate.md` | `c8c9854c32cdb3dc5e9fe8e1be15293e3b05bb0b393daff3632f9ba516df1455` |
 | `notes/design/2026-10-18-npair-source-admission-contract.md` | `692aa39ec37f522e921634134551dad1933b736e5afd2eff463213970a0fb609` |
 | `notes/design/2026-10-18-npair-source-admission-proposal.md` | `398b4f8683503d41e79d4d09b7a0a9591161a5673d48338c224037fae26d3158` |
