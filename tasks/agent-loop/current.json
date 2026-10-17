@@ -34,7 +34,7 @@
     "next_action": "NPAIR-SOURCE-ADMISSION successor proposed by dispatcher. Blocked until exact STOP/lease handoff for inherited UNKNOWN source/call owners; then new admission contract review and approval. Do not repeat producer audit. Astra0; old budget does not carry.",
     "closeout": {
       "path": "notes/progress/2026-10-18-npair-native-introduction-correspondence-closeout.md",
-      "sha256": "07fb25830261c399b004bc85ff39452f6d014ff0578ca3ddbb24fe03a3cd06ac",
+      "sha256": "7bee0f6ff2b0e6f8d3db3df6dde3240ae801551e5b8f88a5d9fcbd1886547cf4",
       "review": "compiler clean; spec minor repaired and delta-closed; sprint-end dispatcher consulted"
     }
   },
