@@ -84,7 +84,7 @@
       "boundary": "Only a reversible example/test using existing APIs; no library, existing fixture or expected-output edits."
     },
     "review": {
-      "state": "REGRESSION-PRERUN-READY",
+      "state": "REGRESSION-PRERUN-RUNNING",
       "reserve_seconds": 480,
       "sequence": [
         "compiler_referee <=180s",
@@ -106,9 +106,9 @@
       "charged_seconds": 1980,
       "available_seconds": 420,
       "active_authors": 0,
-      "active_reviewers": 0,
+      "active_reviewers": 1,
       "unknown_reservations_preserved": 3,
-      "status": "Implementation frozen; regression pre-run review and one Cargo test remain within 420s plus reserve accounting."
+      "status": "Regression pre-run review RUNNING; Cargo command not yet run."
     },
     "workers": [
       {
@@ -228,6 +228,19 @@
         "charged_seconds": 480,
         "cap_seconds": 480,
         "receipt": "Three exact leased outputs frozen; existing APIs only, no library/fixture/expected-output edits."
+      },
+      {
+        "id": "/root/accepted_call_vertical_regression_prerun",
+        "role": "regression_auditor",
+        "state": "RUNNING",
+        "session": "current-session",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 0,
+        "cap_seconds": 90,
+        "receipt": "Actual read-only pre-run review launch on three frozen implementation outputs; no tests by reviewer."
       }
     ],
     "leases": [
