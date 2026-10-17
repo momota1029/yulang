@@ -4,183 +4,83 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "minimal-cut-and-accepted-source-vertical-20261017",
-    "contract": "tasks/agent-loop/sprints/minimal-cut-and-accepted-source-vertical-20261017.md",
-    "revision": 2,
-    "sha256": "95f0f1a3751ffa276c89bedd48d969b430b34771db3f528dbf7473c92a036acf",
-    "state": "CLOSED-HIR-ADMISSION-REPLAN",
-    "baseline": "d33b01033625ef69d1d844e6400191dd84e73b2f",
-    "checkpoint": "d33b01033625ef69d1d844e6400191dd84e73b2f",
-    "parent": "Original inference/execution goal: preserve A/B, F1/FK1, N-Transport, Call, soundness, principality, termination, source/native quantifiers.",
-    "fixed_outcome": "Evidence-backed minimum unresolved cut relative to pinned sources, then one admitted proof-resolvable cut plus accepted source-to-fresh-use test if authority permits.",
-    "authority": "User authorized autonomous proof, implementation and regression tests within approved semantics. No new semantic adoption or compiler-library edit authority.",
-    "selector": "Replanned from latest user instruction; exact integration-test path and single cargo test approved. Contract pins old compact state only for reconciliation.",
-    "phase": "Closed after reviewed negative HIR admission result. No original premise discharged; next sprint requires a source-to-HIR admission contract or authority decision.",
+    "id": "accepted-call-hir-admission-contract-20261017",
+    "contract": "tasks/agent-loop/sprints/accepted-call-hir-admission-contract-20261017.md",
+    "revision": 1,
+    "sha256": "84bc071ca1b07de11eb0374f522e59f3e6bec97a990a0c652990575b8efab2d9",
+    "state": "ACTIVE-PROOF-ASSIGNMENT",
+    "baseline": "577172e30fe9e282f910cb5ff8267a42beea4a75",
+    "parent": "Original inference/execution goal; unchanged A/B, F1/FK1, N-Transport, Call, soundness, principality, termination and source/native quantifiers.",
+    "fixed_outcome": "Reviewed source-Call to HIR projection/admission contract for exact failed source, or exact unresolved admission decision before code.",
+    "authority": "Structural association is authoritative; ordinary HIR application admission is not. User allows drafting/review, not new semantic adoption or code edits.",
+    "selector_delta": "Validate structural association first. Separate error-free ordinary HIR admission as proposed extension unless existing authority proves it. Astra proof <=480, compiler review, Luna design <=420, spec then architect reviews; no tests/code.",
+    "resources": {
+      "cap_seconds": 1500,
+      "charged_seconds": 120,
+      "available_seconds": 1380,
+      "selector_seconds": 120,
+      "unknown_reservations_preserved": 3,
+      "status": "No carryover; sequential author/reviewer; 180s reserve."
+    },
     "lanes": {
-      "dependency_map": {
-        "owner": "/root/task_decomposer",
-        "role": "task_decomposer",
-        "state": "FROZEN-STOPPED",
-        "cap_seconds": 180,
-        "outputs": [
-          "notes/progress/2026-10-17-original-goal-minimal-cut.md",
-          "tasks/agent-loop/inbox/20261017-original-goal-minimal-cut.md"
-        ],
-        "write_authority": "Read-only worker reports; Luna writes frozen artifacts.",
-        "sha256": [
-          "ee28746816f843e9e5729a879492c7b7415dcbf6a85d96e81f3eee439f5dcb8c",
-          "fa242aa25fcbcfccc49bc58dac17fa541e4088ac91eea693f12dbb68100ab2bd"
-        ],
-        "actual_worker": "/root/original_goal_minimal_cut_map"
-      },
       "proof": {
-        "owner": "/root/astra_selected_source_vertical",
-        "role": "astra_prover after admission",
-        "state": "FROZEN-STOPPED",
-        "cap_seconds": 900,
-        "outputs": [
-          "notes/theory/2026-10-17-selected-source-vertical-correspondence.md",
-          "tasks/agent-loop/inbox/20261017-selected-source-vertical-correspondence.md"
-        ],
-        "basis": "Outer-use §6 same-witness Result/Effect/entry consumer implication; original xi,z/provider/challenge/two packet images; FIRST-RESULT-ADEQUACY application.",
+        "owner": "/root/accepted_call_hir_projection",
+        "role": "astra_prover",
+        "state": "ASSIGNED",
         "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
-        "session": "current-session",
-        "launch_receipt": "Actual collaboration launch acknowledged; bounded proof packet only; no descendants.",
-        "charged_seconds": 900,
-        "sha256": [
-          "0a174a481728eb97e381bfe5fb6e04fa090751606b44fd8fd4ee13b467f888d2",
-          "e60f29d59c3a9e4b608d5ac244bee55861526166d1747bef4aa6a8fb3841f826"
-        ],
-        "remaining_seconds": 0,
-        "stop_receipt": "Frozen exact source/native evidence and same-witness consumer obstruction; no source-qualified counterexample; no descendants. FIRST-RESULT-ADEQUACY remains OPEN."
-      },
-      "implementation": {
-        "owner": "/root",
-        "role": "implementer/Luna-high after admission",
-        "state": "STOPPED-HIR-ERROR-GATE",
         "cap_seconds": 480,
         "outputs": [
-          "crates/yu-solver/examples/research_accepted_call_vertical.rs",
-          "crates/yu-solver/tests/research_accepted_call_vertical.rs",
-          "tasks/agent-loop/inbox/20261017-accepted-call-vertical.md"
-        ],
-        "library_edits": false,
-        "authority": "Independent source vertical only; no OPRESP, source T, native theorem or library edit implication.",
-        "session": "current-session",
-        "start_receipt": "Luna begins independent source vertical after both proof reviews CLEAN; existing APIs only.",
-        "charged_seconds": 480,
-        "sha256": [
-          "79936fb0de85fbe49509623a6fb325d76517254f7adea45439cfbc995e95b8f7",
-          "78fd0d4c38df86def4cd4aefb37e164f71269eb58cd9a53b370bc42e42f9a963",
-          "e4fa2d76284f6713fef74fb34467f9b29e5c91d3c2b9e52ee10f6874f496362a"
-        ],
-        "stop_receipt": "Sole test invocation failed required hir.errors().is_empty() at line 36 before CandidateInference::solve; no retry; example not executed.",
-        "handoff_revision": 3
-      }
-    },
-    "implementation": {
-      "state": "NOT_ADMITTED",
-      "code_authority": false,
-      "boundary": "Only a reversible example/test using existing APIs; no library, existing fixture or expected-output edits."
-    },
-    "review": {
-      "state": "POSTRUN-REVIEW-CLEAN-AFTER-REPORTING-CORRECTION",
-      "reserve_seconds": 480,
-      "sequence": [
-        "compiler_referee <=180s",
-        "spec_auditor <=120s",
-        "regression_auditor pre-run <=90s",
-        "one Cargo test <=120s",
-        "regression_auditor post-run <=90s"
-      ],
-      "target": [
-        "0a174a481728eb97e381bfe5fb6e04fa090751606b44fd8fd4ee13b467f888d2",
-        "e60f29d59c3a9e4b608d5ac244bee55861526166d1747bef4aa6a8fb3841f826"
-      ],
-      "active": null,
-      "compiler_receipt": "CLEAN; source/native evidence plus exact obstruction; no parent premise discharged.",
-      "spec_receipt": "CLEAN; FIRST-RESULT-ADEQUACY OPEN; exact challenge/observation/nonidentity premise retained.",
-      "prerun_receipt": "CLEAN; source/API/hash/assertions reviewed; no run by reviewer.",
-      "test_receipt": {
-        "command": "cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical",
-        "exit_code": 101,
-        "duration_seconds": 7.8,
-        "compiled": "yu-solver test target in 7.73s",
-        "tests": {
-          "started": 1,
-          "passed": 0,
-          "failed": 1
-        },
-        "failure": "required zero-HIR-errors assertion before CandidateInference::solve",
-        "retry": false,
-        "example_executed": false
+          "notes/theory/2026-10-17-accepted-call-hir-projection.md",
+          "tasks/agent-loop/inbox/20261017-accepted-call-hir-projection.md"
+        ]
       },
-      "postrun_receipt": "CLEAN on execution facts and source scope; low-severity reporting issue in rev2 handoff corrected in revision 3. No code or run changed.",
-      "postrun_worker": {
-        "id": "/root/accepted_call_vertical_regression_postrun",
-        "role": "regression_auditor",
-        "state": "STOPPED",
-        "session": "current-session",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "low",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 90,
-        "cap_seconds": 90,
-        "receipt": "All source/output pins and transcript matched. Test failed before CandidateInference::solve. Low-severity inaccurate intended-coverage prose was corrected; no edits/reruns/descendants."
-      }
-    },
-    "resources": {
-      "cap_seconds": 2400,
-      "charged_seconds": 2280,
-      "available_seconds": 0,
-      "active_authors": 0,
-      "active_reviewers": 0,
-      "unknown_reservations_preserved": 3,
-      "status": "Closed: postrun review charged 90s; 120s closeout reserve retired. No work or budget rollover."
+      "proof_review": {
+        "role": "compiler_referee",
+        "state": "WAITING-ON-PROOF",
+        "cap_seconds": 100
+      },
+      "design": {
+        "owner": "/root",
+        "role": "Luna/high",
+        "state": "WAITING-ON-PROOF-REVIEW",
+        "cap_seconds": 420,
+        "outputs": [
+          "notes/design/2026-10-17-accepted-call-hir-admission-contract.md",
+          "tasks/agent-loop/inbox/20261017-accepted-call-hir-admission-contract.md"
+        ]
+      },
+      "final_reviews": [
+        {
+          "role": "spec_auditor",
+          "state": "WAITING-ON-DESIGN",
+          "cap_seconds": 100
+        },
+        {
+          "role": "architect",
+          "state": "WAITING-ON-DESIGN",
+          "cap_seconds": 100
+        }
+      ]
     },
     "workers": [
       {
         "id": "/root/resident_dispatcher_loop_a",
         "role": "legacy dispatcher",
         "state": "UNKNOWN",
-        "session": null,
-        "receipt": "Historical lease quarantined; no current cessation evidence."
+        "receipt": "Historical board lease quarantined; no cessation evidence."
       },
       {
         "id": "/root/resident_implementer_idle",
         "role": "legacy implementation worker",
         "state": "UNKNOWN",
-        "session": null,
-        "receipt": "Historical lease quarantined; no current cessation evidence."
+        "receipt": "Historical lease quarantined; no cessation evidence."
       },
       {
         "id": "/root/runtime_source_supplier_proof",
         "role": "legacy proof worker",
         "state": "UNKNOWN",
-        "session": null,
-        "receipt": "Historical lease quarantined; no current cessation evidence."
-      },
-      {
-        "id": "/root",
-        "role": "Luna primary",
-        "state": "RUNNING",
-        "session": "current-session",
-        "receipt": "New contract pinned; preparing dependency-map assignment."
-      },
-      {
-        "id": "/root/original_goal_minimal_cut_map",
-        "role": "task_decomposer",
-        "state": "STOPPED",
-        "session": "current-session",
-        "requested_model": "UNKNOWN",
-        "requested_effort": "UNKNOWN",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 180,
-        "cap_seconds": 180,
-        "receipt": "Read-only dependency DAG frozen; all 27 pins matched per worker; no writes or descendants."
+        "receipt": "Historical lease quarantined; no cessation evidence."
       },
       {
         "id": "/root/next_action_selector",
@@ -192,98 +92,14 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "charged_seconds": 120,
-        "receipt": "Material-boundary delta returned: proof exact scope, independent vertical admission, serial author/reviewer sequence; no writes or descendants."
-      },
-      {
-        "id": "/root/astra_selected_source_vertical",
-        "role": "astra_prover",
-        "state": "STOPPED",
-        "session": "current-session",
-        "requested_model": "gpt-6-astra",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 900,
-        "cap_seconds": 900,
-        "receipt": "Frozen proof/source obstruction; no counterexample; no descendants; 900s charged."
-      },
-      {
-        "id": "/root/selected_source_vertical_compiler_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
-        "session": "current-session",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 180,
-        "cap_seconds": 180,
-        "receipt": "CLEAN; all 19 proof dependency pins matched; no writes, tests, probes or descendants."
-      },
-      {
-        "id": "/root/selected_source_vertical_spec_review",
-        "role": "spec_auditor",
-        "state": "STOPPED",
-        "session": "current-session",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "low",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 120,
-        "cap_seconds": 120,
-        "receipt": "CLEAN exact-conformance review; original quantifiers preserved; no files written or descendants."
-      },
-      {
-        "id": "/root/selected_source_vertical_spec_review",
-        "role": "spec_auditor",
-        "state": "STOPPED",
-        "session": "current-session",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "low",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 120,
-        "cap_seconds": 120,
-        "receipt": "CLEAN exact-conformance review; original quantifiers preserved; no files written or descendants."
+        "receipt": "Fresh-sprint recommendation; structural authority first, no compiler/test lease."
       },
       {
         "id": "/root",
-        "role": "Luna/high implementation",
-        "state": "STOPPED",
+        "role": "Luna primary",
+        "state": "RUNNING",
         "session": "current-session",
-        "requested_model": "UNKNOWN",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 480,
-        "cap_seconds": 480,
-        "receipt": "Three exact leased outputs frozen; existing APIs only, no library/fixture/expected-output edits."
-      },
-      {
-        "id": "/root/accepted_call_vertical_regression_prerun",
-        "role": "regression_auditor",
-        "state": "STOPPED",
-        "session": "current-session",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "low",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 90,
-        "cap_seconds": 90,
-        "receipt": "CLEAN pre-run review; source SHA, APIs, assertions, target command and scope match; no tests executed."
-      },
-      {
-        "id": "/root",
-        "role": "authorized Cargo test runner",
-        "state": "STOPPED",
-        "session": "current-session",
-        "requested_model": "UNKNOWN",
-        "requested_effort": "UNKNOWN",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 120,
-        "cap_seconds": 120,
-        "receipt": "One exact cargo test invocation; exit101 in 7.8s; no retry."
+        "receipt": "Fixed contract and exact leases frozen; preparing proof author launch."
       }
     ],
     "leases": [
@@ -293,126 +109,52 @@
         "state": "QUARANTINED"
       },
       {
-        "path": "notes/theory/2026-10-17-operation-signature-default-source-qualification.md",
-        "owner": "/root/operation_signature_default_source_qualification",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-operation-signature-default-source-qualification.md",
-        "owner": "/root/operation_signature_default_source_qualification",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/design/2026-10-17-operation-response-instance-witness-lifecycle-proposal.md",
+        "path": "tasks/agent-loop/sprints/accepted-call-hir-admission-contract-20261017.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261017-operation-response-instance-witness-lifecycle-proposal.md",
+        "path": "notes/theory/2026-10-17-accepted-call-hir-projection.md",
+        "owner": "/root/accepted_call_hir_projection",
+        "state": "ASSIGNED"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-accepted-call-hir-projection.md",
+        "owner": "/root/accepted_call_hir_projection",
+        "state": "ASSIGNED"
+      },
+      {
+        "path": "notes/design/2026-10-17-accepted-call-hir-admission-contract.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "ASSIGNED-AFTER-PROOF"
       },
       {
-        "path": "tasks/agent-loop/sprints/minimal-cut-and-accepted-source-vertical-20261017.md",
+        "path": "tasks/agent-loop/inbox/20261017-accepted-call-hir-admission-contract.md",
         "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-original-goal-minimal-cut.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-original-goal-minimal-cut.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/theory/2026-10-17-selected-source-vertical-correspondence.md",
-        "owner": "/root/astra_selected_source_vertical",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-selected-source-vertical-correspondence.md",
-        "owner": "/root/astra_selected_source_vertical",
-        "state": "FROZEN"
-      },
-      {
-        "path": "crates/yu-solver/examples/research_accepted_call_vertical.rs",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-accepted-call-vertical.md",
-        "owner": "/root",
-        "state": "FROZEN"
+        "state": "ASSIGNED-AFTER-PROOF"
       }
     ],
     "pending": [
       {
-        "id": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017",
-        "state": "OPEN",
-        "owner": "Source formation owners"
+        "id": "OPRESP-DEFAULT-1 / OPRESP-ENTRY-1 / C-OMIT",
+        "state": "OPEN / unadopted",
+        "owner": "Operation response semantics"
       },
       {
-        "id": "NPAIR native rho_u and authentic formation/replay",
-        "state": "OPEN; authentic At/whole rho_u and full transport unproved",
-        "owner": "Luna/source-native owners"
-      },
-      {
-        "id": "N-Transport extrusion/intrusion and future association completeness",
-        "state": "OPEN; extrusion/intrusion and future association completeness unproved",
-        "owner": "Propagation/extrusion owners"
-      },
-      {
-        "id": "N-Subtract-Elim actual receive consumer",
-        "state": "OPEN; actual receive consumer unproved",
-        "owner": "Effect-elimination owner"
-      },
-      {
-        "id": "mixed/multiple-symbolic coverage; F1/FK1 and independent parent gates",
-        "state": "OPEN; F1/FK1 and parent gates",
-        "owner": "Original theorem owners"
-      },
-      {
-        "id": "PLAYGROUND-RUNTIME-T-PLAN-IMPORT",
-        "state": "OPEN; independent T and complete Entry/Exec/Return export/import unproved",
-        "owner": "Typing/runtime Entry-Exec-Return owners"
-      },
-      {
-        "id": "F2-ROLE-INTRO-20261017",
-        "state": "REVIEWED-PARTIAL; SAT2/RG2 and source guard OPEN; no adoption",
-        "owner": "Rule author/Luna"
-      },
-      {
-        "id": "F2-SAT-ADMISSION-20261017",
-        "state": "PROOF-FROZEN; VIEW/CHECK and source guard OPEN",
-        "owner": "Proof/source descriptor owners"
-      },
-      {
-        "id": "F2-ADMISSION-CLAUSE-CONSTRUCTION-20261017",
-        "state": "REVIEWED-PARTIAL; original clauses, VIEW/CHECK OPEN",
-        "owner": "Luna/Astra"
+        "id": "F1/FK1, N-Transport, Call, soundness, principality, termination",
+        "state": "OPEN; original quantifiers unchanged",
+        "owner": "Original theorem/source owners"
       }
     ],
-    "next_action": "Fresh sprint candidate: source-Call to HIR admission contract. Preserve zero-HIR requirement. Proof applicability for the exact failed source and Luna owner-local design/review first; no compiler edit or test authority until contract review/adjudication.",
-    "closeout_fields": [
-      "original unresolved premises genuinely discharged",
-      "new implementation/test behavior established",
-      "next single unproved item"
+    "stop_conditions": [
+      "budget exhaustion",
+      "contradictory authoritative rule",
+      "semantic/admission choice requires user decision",
+      "user STOP or session end"
     ],
-    "selector_delta": "Admit same-witness native consumer cut plus independent accepted-source vertical; Astra first, stop/freeze, compiler/spec reviews, then Luna implementation; no author parallelism due three quarantined UNKNOWN reservations and two review slots.",
-    "closeout": {
-      "original_parent_gates_closed": 0,
-      "implementation_behavior_established": "Exact selected source parses without structural recovery but lowering emits HIR errors; sole test fails at required zero-HIR assertion before CandidateInference::solve. Solver, propagation, export, FreshUse and call records remain unestablished.",
-      "remaining_and_next": "No original parent gate closed. Next single cut: establish an authority-qualified structural projection/admission contract for this exact ordinary source Call into HIR, or freeze the specific admission decision needed."
-    }
+    "next_action": "Launch Astra proof on exact source association/projection. Keep source T and parent Call theorem open; do not change HIR or rerun tests.",
+    "prior_sprint_closeout": "tasks/agent-loop/sprints/20261017-accepted-call-vertical-closeout.md"
   },
-  "history": "Older Catch and response-signature sprints REVIEWED-PARTIAL; 2026-10-17 accepted source vertical closed; 0 parent premises discharged; postrun failure reviewed and handoff wording corrected in rev3",
-  "quarantine_note": "Three inherited UNKNOWN assignments and the legacy board lease remain quarantined; elapsed time or this state update does not release them."
+  "history": "Prior accepted source vertical closed at 577172e30; 0 original premises discharged. Full output/review evidence in its closeout and frozen artifacts.",
+  "quarantine_note": "Three inherited UNKNOWN assignments and the legacy board lease remain quarantined; elapsed time or a state update does not release them."
 }
