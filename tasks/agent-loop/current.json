@@ -75,7 +75,7 @@
       "boundary": "Only a reversible example/test using existing APIs; no library, existing fixture or expected-output edits."
     },
     "review": {
-      "state": "PROOF-REVIEW-READY",
+      "state": "COMPILER-REVIEW-RUNNING",
       "reserve_seconds": 480,
       "sequence": [
         "compiler_referee <=180s",
@@ -88,16 +88,16 @@
         "0a174a481728eb97e381bfe5fb6e04fa090751606b44fd8fd4ee13b467f888d2",
         "e60f29d59c3a9e4b608d5ac244bee55861526166d1747bef4aa6a8fb3841f826"
       ],
-      "active": null
+      "active": "/root/selected_source_vertical_compiler_review"
     },
     "resources": {
       "cap_seconds": 2400,
       "charged_seconds": 1200,
       "available_seconds": 1200,
       "active_authors": 0,
-      "active_reviewers": 0,
+      "active_reviewers": 1,
       "unknown_reservations_preserved": 3,
-      "status": "Astra STOPPED; compiler/spec proof review next. Implementation waits for review; budget remainder 1200s."
+      "status": "Compiler review RUNNING on frozen proof; spec review follows sequentially."
     },
     "workers": [
       {
@@ -165,6 +165,19 @@
         "charged_seconds": 900,
         "cap_seconds": 900,
         "receipt": "Frozen proof/source obstruction; no counterexample; no descendants; 900s charged."
+      },
+      {
+        "id": "/root/selected_source_vertical_compiler_review",
+        "role": "compiler_referee",
+        "state": "RUNNING",
+        "session": "current-session",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 0,
+        "cap_seconds": 180,
+        "receipt": "Actual read-only independent review launch; exact frozen proof artifact and handoff."
       }
     ],
     "leases": [
