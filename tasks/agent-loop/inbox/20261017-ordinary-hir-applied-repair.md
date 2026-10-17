@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev7, SHA-256
   `5572d93a543c49780c1275fea3a4450695f2c997e3944e18f5ba8f67194f5960`.
-  Handoff revision 19 (Luna's spec adjudication and test repair lease); failed candidate
+  Handoff revision 22 (Luna's HIR recovery rerun); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -259,3 +259,47 @@ No source or other test changes. Fresh regression delta review <=30s is required
 before one HIR integration rerun <=45s. On PASS, run held solver vertical once
 <=45s; then fresh post-run review <=30s. Any failure or cap ends this candidate
 partial; no retry.
+
+## Rev7 test-only recovery expectation repair — handoff revision 20
+
+Assignment `/root/ordinary_hir_recovery_expectation_repair`; requested model/effort
+`gpt-6-luna`/high, observed model/effort UNKNOWN; cap30s. Exact leased paths only:
+`crates/yu-hir/tests/ordinary_application_admission.rs` and this handoff.
+Removed only the contradictory module-wide `UnsupportedExpression` assertion
+from the recovery-bearing `broken` case. The test now resolves every causal ID
+from `broken.value()` to an authoritative module error, checks every record is
+an inherited recovery kind attached to `Value(broken.id())`, and checks the
+ordered IDs equal the complete inherited record sequence attached to that
+binding. This equality also rejects missing, duplicated, substituted, or extra
+records. Existing no-Apply, nonempty-causal-ID, and no-UnresolvedName assertions
+remain. The inherited-kind check now executes on `broken`'s own causal IDs.
+
+No production source or other test path changed. No tests, builds, Cargo,
+probes, formatter, Git, network, descendants, or scratch/generated paths were
+used. Writes STOPPED. Fresh regression delta review <=30s is required before the
+single HIR integration invocation <=45s; the solver vertical remains gated on
+HIR PASS. This is test expectation evidence only and closes no parent theorem
+condition.
+
+## Rev7 recovery expectation delta review — handoff revision 21
+
+Fresh independent regression delta review is CLEAN. Receipt:
+`notes/progress/2026-10-17-ordinary-hir-recovery-expectation-delta-review.md`.
+It confirms the exact ordered causal-ID relation is checked against inherited
+records attached to `Value(broken.id())`, and the no-Apply, nonempty-ID,
+no-UnresolvedName, and unsupported-sibling assertions remain. No source, API,
+or diagnostic behavior changed. HIR integration is now authorized exactly once
+with a 45s cap. Run the held solver vertical exactly once only if HIR passes;
+then obtain the required post-run review. Any failure or timeout stops the
+sequence without retry. All original theorem conditions remain OPEN.
+
+## Rev7 HIR integration rerun — handoff revision 22
+
+The post-review HIR command ran exactly once and passed: exit0 in 1.444s,
+9 passed, 0 failed. The repaired recovery/refusal test executed successfully;
+all eight sibling tests passed. Three existing dead-code warnings remain and
+did not affect compilation or execution. Exact receipt:
+`notes/progress/2026-10-17-ordinary-hir-recovery-expectation-rerun.md`.
+The held solver vertical is now authorized exactly once with a 45s cap; on
+completion, obtain the required post-run review. Original theorem conditions
+remain OPEN; HIR candidate regression evidence closes none.

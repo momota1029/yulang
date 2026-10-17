@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use yu_hir::{
-    FileId, FileKey, HirErrorId, HirErrorKind, HirItem, HirModule, ModuleIdentity, NameResolution,
+    FileId, FileKey, HirErrorAttachment, HirErrorId, HirErrorKind, HirItem, HirModule, ModuleIdentity, NameResolution,
     ResolvedExpr, SemanticImports, lower_module,
 };
 use yu_syntax::{ParsedFile, SourceNode, SourceText, SyntaxEnvironment, SyntaxKind, parse_file, scan_header};
@@ -323,9 +323,25 @@ fn unsupported_and_recovery_bodies_keep_the_whole_body_refusal() {
     assert!(matches!(broken.value(), ResolvedExpr::Error { errors, .. } if !errors.is_empty()),
         "preflight refusal retains its causal recovery IDs");
     assert!(!recovered.errors().iter().any(|error| error.kind() == HirErrorKind::UnresolvedName));
-    assert!(recovered.errors().iter().any(|error| error.kind() == HirErrorKind::UnsupportedExpression));
-    assert!(recovered.errors().iter().any(|error| matches!(
-        error.kind(),
+    let ResolvedExpr::Error { errors: broken_ids, .. } = broken.value() else {
+        unreachable!("the recovery refusal retains its causal IDs");
+    };
+    let broken_attachment = HirErrorAttachment::Value(broken.id().clone());
+    let is_inherited_recovery = |kind| matches!(
+        kind,
         HirErrorKind::InheritedMissing | HirErrorKind::InheritedRawError | HirErrorKind::InheritedInvalid
-    )));
+    );
+    let broken_records = broken_ids.iter().map(|id| {
+        recovered.errors().iter().find(|error| error.id() == *id)
+            .expect("each causal ID resolves to an authoritative module error")
+    }).collect::<Vec<_>>();
+    assert!(broken_records.iter().all(|error|
+        is_inherited_recovery(error.kind()) && error.attachment() == &broken_attachment
+    ), "every causal ID belongs to broken's inherited recovery records");
+    let attached_inherited_ids = recovered.errors().iter()
+        .filter(|error| is_inherited_recovery(error.kind()) && error.attachment() == &broken_attachment)
+        .map(|error| error.id())
+        .collect::<Vec<_>>();
+    assert_eq!(broken_ids.as_ref(), attached_inherited_ids.as_slice(),
+        "broken's ordered causal IDs are its complete inherited record set");
 }

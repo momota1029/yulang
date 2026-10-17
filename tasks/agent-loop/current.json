@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
     "revision": 7,
     "sha256": "5572d93a543c49780c1275fea3a4450695f2c997e3944e18f5ba8f67194f5960",
-    "state": "TEST-EXPECTATION-REPAIR",
+    "state": "SOLVER-INTEGRATION-RUN",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -23,16 +23,16 @@
       "original_conditions_closed": 0,
       "behavior_executed": true,
       "proof_class": "Seven repair invariants and falsifiers frozen; candidate-only conditional construction, not an original theorem lemma.",
-      "implementation_class": "Focused unit filter passed 8/8 including three named falsifiers. HIR integration ran 9: 8 passed, recovery refusal test failed because expected UnsupportedExpression was absent at line326. Solver integration not run; execution stopped per rev6.",
+      "implementation_class": "Focused unit filter 8/8; corrected HIR integration rerun passed 9/9. Solver integration now authorized once and pending. Original conditions closed: 0.",
       "HIR_APP_REPAIR_1": "OPEN; seven findings and exact repair obligations frozen.",
       "parent_application": "OPEN; no semantic Call/source T/native adequacy."
     },
     "resources": {
       "cap_seconds": 2760,
-      "charged_seconds": 2580,
-      "available_seconds": 180,
+      "charged_seconds": 2685,
+      "available_seconds": 75,
       "retired_seconds": 0,
-      "allocation": "Charged through rev7 spec adjudication2580/2760s. Remaining: test-only author30; regression delta review30; one HIR integration run45; held solver integration45; post-run regression review30 =180. No reserve."
+      "allocation": "Charged through one HIR integration invocation45: 2685/2760. Remaining: held solver integration45; post-run review30 =75; no reserve."
     },
     "workers": [
       {
@@ -66,25 +66,40 @@
         "remaining_seconds": 0,
         "session": "current-session",
         "lease_paths": [],
-        "active_receipt": "STOPPED; expectation defect adjudicated under adopted §§3–4, no source defect. Receipt notes/progress/2026-10-17-ordinary-hir-recovery-expectation-spec-review.md; runtime about35s, full40s charged. Read-only."
+        "active_receipt": "STOPPED; adjudicated expectation defect under rev4 §§3–4. Receipt notes/progress/2026-10-17-ordinary-hir-recovery-expectation-spec-review.md; about35s, full40s charged."
       },
       {
         "id": "/root/ordinary_hir_recovery_expectation_repair",
         "role": "implementer",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6-luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 30,
-        "charged_seconds": 0,
-        "remaining_seconds": 30,
+        "charged_seconds": 30,
+        "remaining_seconds": 0,
         "session": "current-session",
         "lease_paths": [
           "crates/yu-hir/tests/ordinary_application_admission.rs",
           "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md"
         ],
-        "active_receipt": "Fresh test-only implementer launched after CLEAN spec adjudication. Exact per-broken causal ID/attachment/order check; preserve refusal assertions. No production source changes or verification/Git authority."
+        "active_receipt": "STOPPED after exact test-only repair. Test SHA 46402bb4fe7a8e41eed3590c9788248e2fc4f769ccbdafcd8d98b1c57e891d79; handoff revision20 SHA e25b4e4405d2bb7fe8799819c132bf36f92551fb6d0f380553acfd630a7b2920. Full30s charged; no tests/builds/Cargo/probes/Git."
+      },
+      {
+        "id": "/root/ordinary_hir_recovery_expectation_delta_review",
+        "role": "regression_auditor",
+        "state": "STOPPED",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "cap_seconds": 30,
+        "charged_seconds": 30,
+        "remaining_seconds": 0,
+        "session": "current-session",
+        "lease_paths": [],
+        "active_receipt": "CLEAN; exact test delta follows spec adjudication and preserves recovery/refusal assertions. Receipt notes/progress/2026-10-17-ordinary-hir-recovery-expectation-delta-review.md; full30s charged."
       }
     ],
     "leases": [
@@ -110,8 +125,8 @@
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md",
-        "owner": "/root/ordinary_hir_recovery_expectation_repair",
-        "state": "LIVE"
+        "owner": "/root",
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/src/lib.rs",
@@ -135,8 +150,8 @@
       },
       {
         "path": "crates/yu-hir/tests/ordinary_application_admission.rs",
-        "owner": "/root/ordinary_hir_recovery_expectation_repair",
-        "state": "LIVE"
+        "owner": "/root",
+        "state": "HELD FOR LUNA"
       },
       {
         "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
@@ -201,7 +216,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Spec adjudication CLEAN; test-only author RUNNING <=30s on HIR integration test+handoff. After STOP freeze bytes; independent regression delta review <=30s. Do not run HIR/solver command until CLEAN.",
+    "next_action": "HIR integration PASS (9/9, 1.444s). Run cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical exactly once, cap45s. Then fresh post-run review cap30s. Failure/timeout stops; no retry.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },
