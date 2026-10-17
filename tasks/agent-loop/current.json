@@ -49,6 +49,12 @@
     "role": "Astra proof author",
     "state": "STOPPED",
     "receipt": "600/600 seconds conservatively charged; proof bab0392a58451c84e77892c6a88d9eb434bcf9a6995afc80c404e7f29aaa448d; handoff 810e9190aa3fbc8e366f12077f5ea61bfcf9dd984f0fe332914e3e43a0d22c8d. Original conditions closed 0. Actual link/publication/use route and conditional full-tuple map constructed; original module source-family embedding remains open."
+   },
+   {
+    "id": "/root/module_call_provisional_observer_implementation",
+    "role": "Luna implementation author",
+    "state": "RUNNING",
+    "receipt": "Live assignment launched after Astra STOP; exact three-path lease; cap 360s. Runtime not yet observed."
    }
   ],
   "leases": [
@@ -69,17 +75,17 @@
    },
    {
     "path": "crates/yu-solver/src/candidate_call.rs",
-    "owner": "/root",
+    "owner": "/root/module_call_provisional_observer_implementation",
     "state": "ACTIVE"
    },
    {
     "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
-    "owner": "/root",
+    "owner": "/root/module_call_provisional_observer_implementation",
     "state": "ACTIVE"
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-module-call-provisional-observer.md",
-    "owner": "/root",
+    "owner": "/root/module_call_provisional_observer_implementation",
     "state": "ACTIVE"
    }
   ],
@@ -101,7 +107,7 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Astra STOPPED; outputs frozen and 17/17 contract pins match. Commit proof/handoff/state, then launch Luna implementation on exact candidate observer paths. Reviews after both authors STOP.",
+  "next_action": "Luna implementation author RUNNING after Astra STOP; exact three-path lease, cap360. No tests/commands until frozen artifacts pass independent pre-run review.",
   "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."
