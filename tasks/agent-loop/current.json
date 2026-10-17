@@ -19,11 +19,12 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 1500,
+      "charged_seconds": 1800,
       "available_seconds": 300,
-      "allocation": "proof600 (charged/active), implementation720 (charged/active; one exact fixture/harness path), reviews300 remaining, Luna180 already charged; Astra0."
+      "allocation": "proof600 (frozen at unleased shadow_apply/lib.rs), implementation720 (frozen after one specified command/refusal; fixture restored), two independent reviews150 each active; primary180 already charged; total1800, Astra0."
     },
-    "next_action": "Allow the actual-argument proof and one-line fixture/harness implementation lanes to complete; freeze both results, obtain independent proof/spec and compiler review within300s, then decide which exact edge is established."
+    "next_action": "Receive both fresh reviews; close this sprint at exact HIR/call-demand boundary. Obtain current SHA pins and a new source lease for HIR lowering, shadow_apply.rs and lib.rs only in the next outcome-driven sprint.",
+    "available_seconds": 0
   },
   "history": "Closed npair-operation-self-source-realization-20261018: reviewed C1/C2 descriptor intro/elimination and root address; original conditions0, H0/L2 eta remain OPEN. Implementation NO_SAFE_EVIDENCE_SLICE CLEAN: no f0→receive edge or Permission consumer. Full detail in closeout.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
@@ -42,24 +43,24 @@
     {
       "id": "/root/npair_actual_argument_ingress",
       "role": "constructive proof",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual prover role launched this session under exact proof outputs and pinned read owners; 600s cap; fixture writer is disjoint; effective model/effort UNKNOWN."
+      "receipt": "Frozen rev1 artifact c5365821565f8043f1d63fe50a209ce24777cf506a26098852f01db33d0d2d09; exact Apply native=None boundary, unleased shadow_apply.rs/lib.rs not read; consumed/residual not measured, charge full600."
     },
     {
       "id": "/root/npair_actual_argument_source_path",
       "role": "Luna implementation/source path",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=720s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual Luna implementer role launched this session with one-line fixture write lease, six read-only owners and one exact cargo run; 720s cap; effective model/effort UNKNOWN."
+      "receipt": "One exact cargo example run: exit0 but added binding received HIR UnsupportedExpression; fixture restored to baseline SHA969e20e0f38a2c341a96ff4fe07028bf567ca134e0fb24602fadf6e4c723d9c0; outputs frozen, charge720."
     }
   ],
   "leases": [
@@ -71,27 +72,27 @@
     {
       "path": "notes/theory/2026-10-18-npair-actual-argument-ingress.md",
       "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-actual-argument-ingress.md",
       "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-npair-actual-argument-source-path.md",
       "owner": "/root/npair_actual_argument_source_path",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-actual-argument-source-path.md",
       "owner": "/root/npair_actual_argument_source_path",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
       "owner": "/root/npair_actual_argument_source_path",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_source.rs",
@@ -129,8 +130,31 @@
       "state": "FROZEN"
     }
   ],
-  "pending": [],
-  "ready_next_work": null,
+  "pending": [
+    {
+      "id": "actual-argument-proof-review",
+      "state": "IN_REVIEW",
+      "owner": "/root/npair_actual_argument_proof_review",
+      "artifact_sha256": "c5365821565f8043f1d63fe50a209ce24777cf506a26098852f01db33d0d2d09"
+    },
+    {
+      "id": "actual-argument-implementation-review",
+      "state": "IN_REVIEW",
+      "owner": "/root/npair_actual_argument_impl_review",
+      "artifact_sha256": "a856822836623c031e1fe545da2821ebab725298ce79f8208fd2c5442d1180ef",
+      "fixture_sha256": "969e20e0f38a2c341a96ff4fe07028bf567ca134e0fb24602fadf6e4c723d9c0"
+    }
+  ],
+  "ready_next_work": {
+    "id": "npair-actual-argument-ingress-source-owners",
+    "status": "PROPOSED only; no read/write authority",
+    "candidate_owners": [
+      "crates/yu-solver/src/shadow_apply.rs",
+      "crates/yu-solver/src/lib.rs",
+      "exact HIR lowering owner to identify/pin"
+    ],
+    "first_boundary": "actual Apply native-demand construction; then full Function-child dispatch."
+  },
   "legacy_reconciliation": {
     "required": false,
     "receipt": "All prior proof, implementation and review writers STOPPED; prior artifacts frozen and recorded in closeout."
