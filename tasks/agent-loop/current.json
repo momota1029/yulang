@@ -90,7 +90,7 @@
       "source restriction",
       "parent closure"
     ],
-    "next_boundary": "Launch proof only after checking contract/dependency pins; consult selector at sprint end or material conflict.",
+    "next_boundary": "Selector consulted on missing target declaration. Freeze exact obstruction within current pins; resolve only concrete Event operand candidate; no broader locator search or added dependency. Next consultation after frozen review or concrete approved declaration.",
     "leases": [
       {
         "path": "tasks/agent-loop/sprints/catch-matcher-operand-use-introduction-20261017.md",
@@ -224,11 +224,11 @@
     }
   ],
   "next_action": {
-    "state": "SPRINT-READY",
-    "dispatcher": "Selected catch-matcher-operand-use-introduction-20261017; Luna accepted boundary and fixed rev1 contract.",
-    "proof": "Need authentic source read/binding typing at μ_H; then align adopted MatchRequest_H and apply to M_exit/F1 P2.",
-    "implementation": "Conditional unapplied response-entry vs continuation-answer contract only after concrete typed fields and compiler review.",
-    "review": "Fresh sequential compiler referee, spec auditor, architect after artifacts freeze."
+    "state": "SELECTOR-BOUNDARY-FIXED",
+    "dispatcher": "Freeze exact missing-declaration obstruction under rev1; no new pin/search absent concrete qualifying locator. A concrete Event operand may qualify only if actual μ_H read/binding and field-7 alignment are proved.",
+    "proof": "Continue only the bounded Event candidate check, then freeze exact typed-judgment gap for payload/raw/complete operand-use as applicable.",
+    "implementation": "Retire conditional 300s source lane if no concrete typed use emerges; otherwise proceed only after proof freeze and compiler review.",
+    "review": "Proceed with planned independent reviews on frozen result."
   },
   "resource_accounting": {
     "sprint_id": "catch-matcher-operand-use-introduction-20261017",
