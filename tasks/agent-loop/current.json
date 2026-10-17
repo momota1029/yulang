@@ -20,8 +20,8 @@
   },
   "resources": {
    "cap_seconds": 1800,
-   "charged_seconds": 1350,
-   "available_seconds": 450,
+   "charged_seconds": 1395,
+   "available_seconds": 405,
    "retired_seconds": 0,
    "allocation": "Astra proof600 + Luna implementation360 + independent reviews480 (compiler180, spec120, architect90, regression pre/post45 each) + coordination120 + one Cargo verification120 + reserve120."
   },
@@ -77,8 +77,14 @@
    {
     "id": "/root/module_use_regression_pre_run_review",
     "role": "regression independent pre-run reviewer",
+    "state": "STOPPED",
+    "receipt": "CLEAN; 45/45 seconds conservatively charged. Exact source hash, all required assertions, no expectation changes, and sole target verified."
+   },
+   {
+    "id": "/root/verification_owner_luna",
+    "role": "single Cargo verification owner",
     "state": "RUNNING",
-    "receipt": "Fresh read-only execution gate review after three CLEAN reviews; cap45s."
+    "receipt": "Pre-run regression review CLEAN; authorized exactly one command: cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical; cap120s."
    }
   ],
   "leases": [
@@ -131,7 +137,7 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Regression pre-run reviewer RUNNING (cap45); sole Cargo command remains unauthorized until CLEAN receipt.",
+  "next_action": "Pre-run regression review CLEAN and STOPPED. One authorized Cargo test target now RUNNING; no retries. Post-run regression receipt review follows.",
   "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."
