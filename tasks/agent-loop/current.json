@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
     "revision": 3,
     "sha256": "47d160176e72306e150675b2daf6e548d74e1e8d3dfc794c8dbf40ac0ba674e2",
-    "state": "IMPLEMENTATION-READY",
+    "state": "IMPLEMENTATION-RUNNING",
     "baseline": "606416278",
     "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Implement adopted rev4 ordinary HIR admission and establish the bounded projection invariant in ordinary HIR. Resource contract now counts physical R references with O(V+E+R), worst O(V^2); exact adoption receipt and implementation obligations are frozen. Apply only to the structural premise of the original Call/source bridge; no semantic Call or parent theorem closure.",
@@ -152,6 +152,20 @@
         "charged_seconds": 90,
         "remaining_seconds": 0,
         "receipt": "MAJOR authority finding agrees with spec reviewer: explicit user approval is required for changing authoritative rev4 §2 performance guarantee; existing adoption/delegation does not cover worst-case quadratic output-sensitive replacement. Technical resource/accounting review CLEAN. Implementation obligations: one materialization per Apply, Group forwarding without cloning, checked child/R/byte/ordinal arithmetic, full fallible reservations before publication, no partial module, no truncation/duplicate diagnostics; report R and actual ref allocation/storage counts with unresolved/clean spines and Group wrapping. All five hashes match. Budget transfer balanced; no authority follows. Requested Sol/medium, observed UNKNOWN; 90s charged; no writes/tests/probes."
+      },
+      {
+        "id": "/root/ordinary_hir_application_implementation",
+        "role": "implementer",
+        "state": "RUNNING",
+        "requested_model": "gpt-6-luna",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "cap_seconds": 1710,
+        "charged_seconds": 0,
+        "remaining_seconds": 1710,
+        "session": "current-session",
+        "active_receipt": "Fresh active acknowledgment received: inspected rev3/adopted rev4/resource receipt; workspace clean at HEAD 1ed35f0cb; exact four source pins match. Exact six write leases confirmed. Cargo/tests held until reviews."
       }
     ],
     "leases": [
@@ -177,33 +191,33 @@
       },
       {
         "path": "crates/yu-hir/src/module.rs",
-        "owner": "Luna/high after proof review",
-        "state": "RESERVED-SEQUENTIAL"
+        "owner": "/root/ordinary_hir_application_implementation",
+        "state": "HELD"
       },
       {
         "path": "crates/yu-hir/src/source_identity.rs",
-        "owner": "Luna/high after proof review",
-        "state": "RESERVED-SEQUENTIAL"
+        "owner": "/root/ordinary_hir_application_implementation",
+        "state": "HELD"
       },
       {
         "path": "crates/yu-hir/src/shadow.rs",
-        "owner": "Luna/high after proof review",
-        "state": "RESERVED-SEQUENTIAL"
+        "owner": "/root/ordinary_hir_application_implementation",
+        "state": "HELD"
       },
       {
         "path": "crates/yu-hir/tests/ordinary_application_admission.rs",
-        "owner": "Luna/high after proof review",
-        "state": "RESERVED-SEQUENTIAL"
+        "owner": "/root/ordinary_hir_application_implementation",
+        "state": "HELD"
       },
       {
         "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
-        "owner": "Luna/high after proof review",
-        "state": "RESERVED-SEQUENTIAL"
+        "owner": "/root/ordinary_hir_application_implementation",
+        "state": "HELD"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-application-implementation.md",
-        "owner": "Luna/high after proof review",
-        "state": "RESERVED-SEQUENTIAL"
+        "owner": "/root/ordinary_hir_application_implementation",
+        "state": "HELD"
       },
       {
         "path": "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
@@ -273,7 +287,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Revalidate pins/leases at baseline 606416278, then obtain fresh implementer acknowledgment before RUNNING. Implement exact rev4 grammar with adopted O(V+E+R) accounting and architect obligations; freeze proof+diff+manifest for sequential applied reviews, pre-run regression review, then the two one-shot Cargo commands and post-run review.",
+    "next_action": "Implementer RUNNING with fresh session acknowledgment, 1710s cap and exact leases. Continue in-scope source implementation and tests, holding Cargo/build/runtime until applied reviews and pre-run regression review are CLEAN.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
     "predecessor_commit": "5fbceb68d",
     "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
