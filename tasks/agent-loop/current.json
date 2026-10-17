@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
     "revision": 2,
     "sha256": "712fa3cfb7ba6ad89d0416f8e3b83f11c921084a35d8c0e88b7b918006e4a07e",
-    "state": "AMENDMENT-REVIEW-SPEC-RUNNING",
+    "state": "AMENDMENT-REVIEW-PENDING-ARCHITECT-AUTHORITY",
     "baseline": "8be4b8248",
     "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Implement adopted rev4 structural HIR admission and prove projection preservation through ordinary HIR, applying only the exact structural premise of the original Call/source bridge. Current gate: frozen proof and resource-amendment review; implementation held until fresh compiler/spec/architect reviews are CLEAN and Luna adjudicates. No semantic Call or parent theorem closure.",
@@ -29,8 +29,8 @@
     },
     "resources": {
       "cap_seconds": 4020,
-      "charged_seconds": 750,
-      "available_seconds": 3000,
+      "charged_seconds": 870,
+      "available_seconds": 2880,
       "allocation": "Coordination120 charged; Astra450/720 charged, remaining270 retired; Luna amendment author90 charged; proof reviews300; pre-code architect90; implementation1710; applied reviews480; regression pre/post240; Cargo240; reserve30. Available includes only planned remaining allocations.",
       "retired_seconds": 270
     },
@@ -115,7 +115,7 @@
       {
         "id": "/root/accepted_call_hir_admission_spec_review",
         "role": "spec_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "cap_seconds": 120,
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
@@ -127,7 +127,10 @@
           "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md"
         ],
         "session": "current-session",
-        "active_receipt": "Fresh sequential spec review dispatched only after compiler referee STOP/CLEAN; exact frozen artifact hashes and sprint rev2 SHA included in assignment; read-only."
+        "active_receipt": "Fresh sequential spec review dispatched only after compiler referee STOP/CLEAN; exact frozen artifact hashes and sprint rev2 SHA included in assignment; read-only.",
+        "charged_seconds": 120,
+        "remaining_seconds": 0,
+        "receipt": "MAJOR authority finding: amendment changes authoritative §2 performance/resource guarantee from uniform linear retained-storage/construction to output-sensitive O(V+E+R), worst O(V^2); design-authority requires explicit user approval before implementation. Otherwise CLEAN for unchanged syntax, errors, API/IDs/source and theorem quantifiers. All five hashes and 57 proof pins match. Requested Sol/low, observed UNKNOWN; charge full120s conservatively; no writes/tests/probes."
       },
       {
         "id": "/root/accepted_call_hir_admission_architect_review",
@@ -260,7 +263,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Compiler review CLEAN and STOPPED (90s charged). Dispatch fresh spec audit <=120s of same frozen proof/amendment; then fresh architect <=90s, then Luna adjudication before code/test.",
+    "next_action": "Compiler referee CLEAN; spec auditor reports one MAJOR approval-gate finding for the changed authoritative resource guarantee. Dispatch fresh pre-code architect <=90s to assess exact supersession, checked-R allocation/failure atomicity and authority path. Implementation remains held; if no existing user delegation covers this performance decision, request approval of the reviewed replacement.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
     "predecessor_commit": "5fbceb68d",
     "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
