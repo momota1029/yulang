@@ -29,8 +29,8 @@
     },
     "resources": {
       "cap_seconds": 4020,
-      "charged_seconds": 960,
-      "available_seconds": 2700,
+      "charged_seconds": 1860,
+      "available_seconds": 1800,
       "allocation": "Coordination120 charged; Astra450/720 charged and remaining270 retired; proof reviews210 charged (compiler90, spec120), unused90 retired; amendment author90 charged; pre-code architect90 charged; implementation1710; applied reviews480; regression pre/post240; Cargo240; reserve30. Actual charged960 + retired360 + remaining2700 = cap4020.",
       "retired_seconds": 360
     },
@@ -162,10 +162,10 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 1710,
-        "charged_seconds": 0,
-        "remaining_seconds": 1710,
+        "charged_seconds": 900,
+        "remaining_seconds": 810,
         "session": "current-session",
-        "active_receipt": "Fresh active acknowledgment received: inspected rev3/adopted rev4/resource receipt; workspace clean at HEAD 1ed35f0cb; exact four source pins match. Exact six write leases confirmed. Cargo/tests held until reviews."
+        "active_receipt": "Checkpoint: owner/source audit complete; private ordinary projection with post-carrier allocation/staging and checked aggregate error accounting/reservation implemented in progress; shadow inventory admits authentic ordinary Apply; vertical entry changed to ordinary lower_module. Four leased Rust paths touched; Cargo/tests/builds not run. Approx 900s conservatively charged per worker wall estimate; focused HIR tests and exact handoff remain."
       }
     ],
     "leases": [
@@ -287,7 +287,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Implementer RUNNING with fresh session acknowledgment, 1710s cap and exact leases. Continue in-scope source implementation and tests, holding Cargo/build/runtime until applied reviews and pre-run regression review are CLEAN.",
+    "next_action": "Implementation checkpoint at 900/1710s; worker remains RUNNING with 810s. Finish focused regression cases and handoff under leases, run static diff checks only, then STOP/freeze; sequential applied compiler/spec/architect and regression pre-run reviews precede Cargo.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
     "predecessor_commit": "5fbceb68d",
     "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
