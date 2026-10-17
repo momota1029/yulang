@@ -6,8 +6,8 @@
   "active_sprint": {
     "id": "npair-local-route-authentication-and-runtime-20261018",
     "contract": "tasks/agent-loop/sprints/npair-local-route-authentication-and-runtime-20261018.md",
-    "revision": 1,
-    "sha256": "3b54cd4c8350929015fa814abeefe441533daac398fa5437eb60244b272566a1",
+    "revision": 2,
+    "sha256": "3062bcefae30d70cac63a511698e3418813d2227777b788c3605a73f6e5151d4",
     "state": "ACTIVE",
     "baseline": "066cd49ec29a9718a884d44a325fe5580a382a66",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem and quantifiers/domain unchanged; closure0.",
@@ -21,9 +21,9 @@
       "cap_seconds": 2100,
       "charged_seconds": 1318,
       "available_seconds": 782,
-      "allocation": "Luna implementation1320 (780 repair/freeze/review wait + protected360 verification +180 evidence/handoff); Sol constructive proof300; fresh compiler review240; Luna primary120; contingency120. Astra0; descendants0; no rollover."
+      "allocation": "Rev2: implementation cap1395 (883 consumed;512 remaining = repair/freeze/review60 + protected verification360 + evidence/handoff92); Sol proof300 consumed; compiler review135/240 consumed, max90s delta; primary120; contingency45. Total2100, current charge1318, available782. Astra0; no new workers/descendants/rollover."
     },
-      "next_action": "Final snapshot reviewed CLEAN, but first authorized regression command failed compilation; per contract stop, do not run fixture. `FrozenInferenceData` has no `candidate_source` field used at shadow_apply.rs:417. Dispatcher preparing successor repair gate. Parent closure remains0."
+      "next_action": "Rev2 accepted after dispatch. Reopen only shadow_apply.rs and runtime evidence/handoff; restore final observer mode from retained CandidateGraph context.scoped_enabled. Preserve failed-command receipt. Fresh delta review <=90s; after CLEAN retry focused regression once and run fixture only on success. Parent closure0."
   },
   "history": "Closed `npair-swr1-output-origin-prototype-20261018` at commit29a7ace306cca2b3959ed752c859125b01f89543. Proof review CLEAN for five static Local joins and valid-state Missing/remap lemma; original fixed-c/output-origin remains NOT PROVED, parent0→0. Compiler review MAJOR: infallible wrapper Vec push, uncharged repeated scans, missing Plan storage accounting. Prototype source was restored to pinned baseline; no Cargo/tests in that sprint. Review closeout pushed as 29a7ace30. Successor contract uses current pinned semantic/source inputs and dispatcher delta; no semantic candidate is adopted. Prior complete call/demand lane still has exact runtime boundaries in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Parent and all other proof/production gates remain OPEN. Sprint contract rev1 had one malformed 65-character source-admission-contract digest; the actual file digest is 692aa39ec37f522e921634134551dad1933b736e5afd2eff463213970a0fb609. Rev2 corrects that pin only. Proof and implementation authors paused contract-scoped reliance pending the corrected hash; budgets do not reset. Successor progress: independent alternative falsifier froze 69ffae28.../9a7421c4... after 420s conservative charge: no admitted counterexample; only conditional distinct-identity discriminator, original c introduction/output field remains missing, parent0→0. Proof lane at21:34:11 elapsed337/rem383: actual IF Prim elimination is first unavailable original c judgment; native Support→AnnotationMember/FreshUse only establishes forward native target, not semantic c; artifact/handoff freeze pending. Implementation code froze at candidate_context46f0b74c..., shadow_apply d29d5f64..., harness d76cbae2... after246s/rem174; fresh compiler review CLEAN for demand-bearing Replay rows only, linear scan/constant storage, opt-in stderr/no API/no solver effects. Review limit: missing demand rows outside scope; truncated stderr cannot prove absence or completeness. No command yet; author preparing evidence and must remeasure >=120s. Closed `npair-original-c-compatibility-20261018` after all bounded writers/reviewers stopped. Frozen proof artifact e72f73ed... and handoff54a60964... independently reviewed CLEAN; source/native forward member lemma retained, original fixed-c/complete-output Written-s1 derivation not proved, no counterexample, parent0→0. Frozen falsifier69ffae28.../9a7421c4... found no admitted original counterexample. Frozen Replay observer code46f0b74c.../d29d5f64.../d76cbae2... independently compiler-reviewed CLEAN; no Cargo/test/build/probe was run (remaining lane cap below120s), so runtime remains unverified. Static diff check only. Conservatively charge full2160s, no rollover. All authors and reviewers STOPPED; exact artifact leases FROZEN. Successor proposal: concrete Operation contribution introduction/elimination and complete-output action plus independently attacked compatibility; in parallel make actual Local supplier and reviewed observer reachable and run the exact fixture. Parent OPEN, original conditions closed0. Closed `npair-operation-source-contract-and-replay-reachability-20261018` at frozen rev3 inputs. Source lane derived actual Operation request/consumer/A_decl output phi but failed to identify phi with original fixed c and prove universal reflection; proof review CLEAN only for conditional artifact and named two BLOCKING adoption gaps. Falsifier produced a conditional disjoint-fiber quantifier attack, no admitted counterexample. Implementation review MAJOR: local_routes.last() is wrong after argument LocalUse; scoped record caps leak into ordinary mode. Candidate not integrated; restored four files exactly to pinned hashes. No Cargo/test/fixture command; observer runtime unverified. Parent closure0. Full author budgets charged (600+300+900), both review caps conservatively charged; 240 seconds unused and expired, no rollover. See notes/progress/2026-10-18-operation-source-and-local-route-closeout.md#sha256:55a1b5310901b0cded3efa3e2dc1b24aab17368c0d191c07965d9faeb9a4662a. Dispatcher successor: exact local route keyed to actual callee under later argument LocalUses; scoped caps apply only scoped mode; add regression+unscoped noninterference; source formation compatibility/decision packet; execute fixture after review. Closed `npair-original-formation-and-exact-local-route-20261018` at dispatcher resource limit. Proof/decision/falsifier packets preserved; proof review CLEAN only for conditional checkpoint, original closure0. Local candidate had indexed route association, scoped-only cap and later-argument/unscoped regressions, but compiler review MAJOR: annotation/ascription Local callees lacked same-owner origin validation at final auth. Exact six-file candidate diff a2e3f699... and stop receipt22:11:37Z preserved in notes/progress/2026-10-18-local-route-authentication-unapproved.patch and closeout note; candidate never integrated. No tests/build/fixture ran. Total remaining345s < protected360s verification reserve; dispatcher refused further edit/review/test, no rollover. Proposed fresh successor `npair-local-route-authentication-and-runtime-20261018`,2100s, integrated source/call/shadow auth proof, annotation refusal, fresh review and two commands; Astra0. Closed npair-original-formation-and-exact-local-route-20261018 at dispatcher resource limit; no code promotion. Conditional proof/decision review CLEAN; original closure0. Local route candidate had one compiler MAJOR (annotation/ascription Local callee bypasses refused boundary), no tests/runtime. Unapproved diff and hashes in notes/progress/2026-10-18-local-route-authentication-unapproved.patch; code restored after writer STOP22:11:37Z. Total capacity345s < verification reserve360, no rollover.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -53,24 +53,24 @@
     {
       "id": "/root/npair_local_route_authentication_implementation",
       "role": "integrated final-auth route repair, tests and runtime",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna/implementer",
-      "requested_effort": "high <=1320s incl360 verification reserve",
+      "requested_effort": "high <=1395s total; rev2 repair/freeze/review<=60s, verification360s, evidence92s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "STOPPED after test-only delta; candidate_graph_call.rs now e3b5c426f1f2891bddcf5c81e5845fa8d5145a242ab1d2f5dd29807b03925c16 (primary rehash matched). Regressions use function-typed Local binding/ascription and non-Local ascription asserts source_call(0) callee Group/Ascription. No tests/build; descendants0. Author reports196s wall against108s assigned cap (88s overrun), charged conservatively; total implementation charge868/1320. Verification360s remains untouched, 92s evidence/handoff remains. Focused reviewer delta RUNNING within remaining120/240s."
+      "receipt": "Rev2 active after dispatcher replan. Writer reopens only shadow_apply.rs (repair of final observer mode from retained GraphState context.scoped_enabled) plus runtime note/inbox. Immutable inputs: other five Rust files, example, proof, fixture, failed command output. Repair/freeze/review cap60s; overall implementation883/1395 charged, verification360s/evidence92s protected."
     },
     {
       "id": "/root/npair_local_route_authentication_review",
       "role": "fresh independent compiler review",
-      "state": "STOPPED",
+      "state": "WAITING",
       "requested_model": "Sol/compiler_referee",
-      "requested_effort": "high <=240s total incl diff review",
+      "requested_effort": "high <=240s total;135s charged, rev2 delta <=90s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Initial review CLEAN except MINOR regression-specificity; final focused delta CLEAN, MINOR closed. Cumulative135/240s charged; STOPPED. Exact test hash e3b5c426f1f2891bddcf5c81e5845fa8d5145a242ab1d2f5dd29807b03925c16 MATCH. No execution by reviewer."
+      "receipt": "Initial and test-delta review CLEAN; cumulative135/240s charged. Wait for rev2 shadow_apply/runtime note/inbox freeze, then review only scoped GraphState mode handoff and prior final-auth guard; cap90s. No commands."
     }
   ],
   "leases": [
@@ -112,7 +112,7 @@
     {
       "path": "crates/yu-solver/src/shadow_apply.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "crates/yu-solver/src/lib.rs",
@@ -132,12 +132,12 @@
     {
       "path": "notes/progress/2026-10-18-local-route-runtime-validation.md",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-local-route-runtime-validation.md",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "FROZEN"
+      "state": "HELD"
     }
   ],
   "pending": [],
@@ -146,5 +146,5 @@
     "required": false,
     "receipt": "All prior proof, implementation and review workers STOPPED; all prior exact leases FROZEN. Successor starts from clean restored baseline; no overlapping writers or rollover."
   },
-  "next_action": "Final compiler review CLEAN at frozen source/test/proof bytes; regression-specificity MINOR closed. First authorized regression command failed compilation after ~9s with E0609 at shadow_apply.rs:417 (`FrozenInferenceData.candidate_source` absent); no tests ran and the fixture command was skipped per contract. Implementation STOPPED after88s overrun; total implementation charge883/1320 including conservative15s command charge, with verification reserve345s and evidence92s remaining. Dispatcher preparing successor. Parent OPEN, closure0."
+  "next_action": "Rev2 active: failed command preserved; only shadow_apply.rs plus runtime evidence/handoff reopened. Implement from retained context.scoped_enabled, freeze, <=90s review delta, then remeasure and retry focused regression once; fixture only if successful. Implementation charge883/1395, remaining512 incl verification360/evidence92; reviewer remaining105, contingency45. Parent OPEN, closure0."
 }

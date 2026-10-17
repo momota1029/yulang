@@ -1,6 +1,6 @@
 # Sprint `npair-local-route-authentication-and-runtime-20261018`
 
-Status: READY pending start commit and live receipts. Branch `research/simple-sub-intrusion`.
+Status: ACTIVE, revision 2. Branch `research/simple-sub-intrusion`.
 Baseline: `066cd49ec29a9718a884d44a325fe5580a382a66`. This is a fresh budget; no
 time rolls over from `npair-original-formation-and-exact-local-route-20261018`.
 Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN; original
@@ -87,6 +87,63 @@ them under this contract. Prior MAJOR and closeout:
 4. **Luna primary120s; contingency120s; total2100s.** Allocation: implementation
    1320 + proof300 + compiler review240 + primary120 + contingency120. Astra0,
    descendants0, no rollover. Reconcile only actual current-session receipts.
+
+## Revision 2 — bounded final-observer repair after compile failure
+
+This delta preserves the fixed outcome, theorem statement, source domain and
+existing proof. It is authorized by the primary after the dispatcher’s
+material-blocker recommendation. The failed command and its output remain part
+of the record; this revision does not relabel it as a pass.
+
+Rev1 frozen code/test snapshot, used as immutable inputs except for the exact
+repair path below:
+
+| Path | Frozen SHA-256 |
+| --- | --- |
+| `crates/yu-solver/src/candidate_source.rs` | `1a65c7afb02a4afd538a34c34086108959579e06aafe8fbcab8ad6a6b3a65f3e` |
+| `crates/yu-solver/src/candidate_call.rs` | `e038ad0dfc4b12bd0d513d6cd6b34cee6b2b062d8b33368bc1c0dcdef980d479` |
+| `crates/yu-solver/src/candidate_scheme.rs` | `ea48b5ec33ba9724bb761e3e04aa05cbf3eea22641830c442c8ecdcde54243d6` |
+| `crates/yu-solver/src/shadow_apply.rs` | `76f2ea39151d06ba5c58aaa672488d733046e941a2c344c4e81604003d4a34ac` |
+| `crates/yu-solver/src/lib.rs` | `ddd1395877d4a76e27a1dcf32af90c6fcb0e58c739610a0115c03955628350e1` |
+| `crates/yu-solver/src/tests/candidate_graph_call.rs` | `e3b5c426f1f2891bddcf5c81e5845fa8d5145a242ab1d2f5dd29807b03925c16` |
+| `crates/yu-solver/examples/research_source_registration.rs` | `d76cbae29f5f095ffdb5068a49556149fe4a0fcc0f5d0702ff17ad71aed35f28` |
+| `notes/theory/2026-10-18-local-route-final-authentication.md` | `0fe4956c6af8ca5f909dd910fa5e38812b0d6120abcb38daaf14a9e1c4d64c4e` |
+| `tasks/agent-loop/inbox/20261018-local-route-final-authentication.md` | `6da7c4ea0f26d3e0d774ca339a1ba23658f66d9c1a34ead3c2877a2bcc830aff` |
+
+The first authorized regression command was
+`timeout 120s cargo test --offline --manifest-path crates/yu-solver/Cargo.toml --features shadow-apply-candidate --lib candidate_graph_call -- --test-threads=1`.
+It exited 101 before tests ran: `shadow_apply.rs:417` read nonexistent
+`FrozenInferenceData.candidate_source` (E0609). This is a Rust plumbing error,
+not a semantic counterexample. Dispatcher source inspection identifies the
+retained mode at `candidate_graph.intrusion.effect_algebra.context.scoped_enabled`,
+initialized from source mode in `start_candidate_graph`.
+
+Reopen only these exact paths:
+
+- `crates/yu-solver/src/shadow_apply.rs`: replace the invalid frozen-source
+  access at `CandidateInference::source_call` with the retained graph mode.
+  Keep the already-reviewed `observe_scoped` authentication and independent
+  `admit_candidate_fact` guard unchanged. No new field or inventory heuristic.
+- `notes/progress/2026-10-18-local-route-runtime-validation.md`
+- `tasks/agent-loop/inbox/20261018-local-route-runtime-validation.md`
+
+All other Rust paths, example and fixture are frozen inputs. The author may use
+at most60 seconds for the exact code repair, freeze and review wait. Independent
+compiler review has105 seconds left; the focused delta review is capped at90s.
+The failed command is retained. After exact new hashes receive CLEAN review,
+rev2 permits at most two additional commands, each bounded by120 seconds and
+remeasured before start: first retry the failed focused regression command;
+only if it passes, second run the unchanged receive/choose fixture with
+`YU_CALL_REPLAY_OBSERVER=1`. Any new compile/test failure or capacity below120s
+stops the sprint; no further retry is authorized in this revision.
+
+Resource correction preserves total2100s without rollover: implementation
+1320→1395, contingency120→45, proof300, review240, primary120. Previously
+consumed implementation is883s (including15s conservative charge for the
+failed command), so remaining implementation512s = repair/freeze/review60 +
+verification360 + evidence/handoff92. Review135/240 is charged; at most90s of
+its105s remaining may be used. Astra0, no new workers/descendants. Parent stays
+OPEN and original conditions closed remain0.
 
 ## Frozen baseline and direct pins
 
