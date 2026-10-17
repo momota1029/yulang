@@ -11,7 +11,9 @@ from agent_sprint import (ASTRA, LUNA, SOL, ProtocolError, SprintModel,
 class SprintTransitions(unittest.TestCase):
     def setUp(self) -> None:
         self.m = SprintModel("parent", "approved fixture ONLY",
-                             ["proof.md", "impl.rs", "aux.md", "leaf1.md", "leaf2.md", "leaf3.md"])
+                             ["proof.md", "impl.rs", "aux.md", "leaf1.md", "leaf2.md", "leaf3.md"],
+                             astra_total=300, astra_assignments=1,
+                             astra_risk="fixture named core risk")
         self.m.begin("fixture-session-1")
         self.m.dependencies["core"] = "v1"
 
@@ -20,6 +22,7 @@ class SprintTransitions(unittest.TestCase):
                       role="astra_prover" if astra else "prover",
                       model=ASTRA if astra else SOL,
                       effort="medium" if astra else "high",
+                      seconds=300 if astra else 1800,
                       dependencies={"core": "v1"} if deps else {})
         self.m.launch("P", "fixture-producer", "fixture-launch-P", self.m.session)
 
@@ -80,7 +83,8 @@ class SprintTransitions(unittest.TestCase):
 
     def test_astra_core_needs_no_prior_sol_failure(self) -> None:
         self.proof(astra=True)
-        self.assertEqual(self.m.astra_spent, 1)
+        self.assertEqual(self.m.astra_spent, 300)
+        self.assertEqual(self.m.astra_assignments, 1)
         self.assertEqual(self.m.jobs["P"]["requested_model"], ASTRA)
         self.assertEqual(self.m.jobs["P"]["observed_model"], "UNKNOWN")
 
@@ -117,22 +121,40 @@ class SprintTransitions(unittest.TestCase):
                           implementation_handoff_receipt="fixture-primary-transfer")
         self.m.assign("E", "implementation", ["impl.rs"], ["repair obstruction"],
                       role="implementation_escalation", model=ASTRA,
+                      effort="medium", seconds=300,
                       implementation_evidence="L#artifact:sha256:" + "a" * 64,
                       implementation_handoff_from="L",
                       implementation_handoff_receipt="fixture-primary-transfer")
         self.assertEqual(self.m.leases["impl.rs"], "E")
 
-    def test_astra_budget_persists_across_completed_workers_and_restart(self) -> None:
-        for n in range(2):
-            ident = f"A{n}"
-            self.m.assign(ident, "proof", ["proof.md"], ["construct"], model=ASTRA)
-            self.m.launch(ident, ident, f"fixture-launch-{n}", self.m.session)
-            self.m.stopped(ident, ident, f"fixture-stop-{n}")
+    def test_astra_assignment_and_seconds_caps_persist_across_restart(self) -> None:
+        self.m.assign("A0", "proof", ["proof.md"], ["construct"],
+                      model=ASTRA, effort="medium", seconds=300)
+        self.m.launch("A0", "A0", "fixture-launch-0", self.m.session)
+        self.m.stopped("A0", "A0", "fixture-stop-0")
         self.m.pause(end=True)
         self.m.begin("fixture-session-2")
         with self.assertRaises(ProtocolError):
-            self.m.assign("A3", "proof", ["proof.md"], ["construct"], model=ASTRA)
-        self.assertEqual(self.m.astra_spent, 2)
+            self.m.assign("A1", "proof", ["proof.md"], ["construct"],
+                          model=ASTRA, effort="medium", seconds=1)
+        self.assertEqual(self.m.astra_spent, 300)
+        self.assertEqual(self.m.astra_assignments, 1)
+
+    def test_astra_defaults_to_zero_and_rejects_long_packets(self) -> None:
+        zero = SprintModel("parent", "fixture", ["x"])
+        zero.begin("zero-session")
+        with self.assertRaises(ProtocolError):
+            zero.assign("A", "proof", ["x"], ["risk"], model=ASTRA,
+                        effort="medium", seconds=1)
+        with self.assertRaises(ProtocolError):
+            SprintModel("parent", "fixture", ["x"], astra_total=300,
+                        astra_assignments=1)
+        with self.assertRaises(ProtocolError):
+            self.m.assign("long", "proof", ["proof.md"], ["s1", "s2", "s3", "s4"],
+                          model=ASTRA, effort="medium", seconds=300)
+        with self.assertRaises(ProtocolError):
+            self.m.assign("over-budget", "proof", ["proof.md"], ["risk"],
+                          model=ASTRA, effort="medium", seconds=301)
 
     def test_astra_stages_and_wall_time_are_finite(self) -> None:
         with self.assertRaises(ProtocolError):
@@ -261,6 +283,15 @@ class SprintTransitions(unittest.TestCase):
         with self.assertRaises(ProtocolError):
             self.m.launch_failed("I", "unsupported")
 
+    def test_unexpected_observed_astra_consumes_full_grant(self) -> None:
+        self.m.assign("P", "proof", ["proof.md"], ["risk"], seconds=300)
+        self.m.launch("P", "actual-astra-worker", "fixture-launch",
+                      self.m.session, observed_model=ASTRA)
+        self.assertEqual(self.m.jobs["P"]["worker_state"], "UNKNOWN")
+        self.assertEqual(self.m.jobs["P"]["status"], "ROUTING_MISMATCH")
+        self.assertEqual(self.m.astra_spent, 300)
+        self.assertEqual(self.m.astra_assignments, 1)
+
     def test_implementation_cannot_silently_downgrade_to_sol(self) -> None:
         with self.assertRaises(ProtocolError):
             self.m.assign("I", "implementation", ["impl.rs"], ["code"], role="implementer", model=SOL)
@@ -281,7 +312,7 @@ class SprintTransitions(unittest.TestCase):
         self.m.begin("fixture-session-2")
         self.assertEqual(self.m.jobs["P"]["worker_state"], "UNKNOWN")
         self.assertEqual(self.m.jobs["P"]["spent"], 12)
-        self.assertEqual(self.m.astra_spent, 1)
+        self.assertEqual(self.m.astra_spent, 300)
         with self.assertRaises(ProtocolError):
             self.m.assign("another-astra", "proof", ["aux.md"], ["proof"], model=ASTRA)
 
@@ -295,7 +326,7 @@ class SprintTransitions(unittest.TestCase):
         self.m.resume_worker("P", "fixture-producer", "fixture-resume-P", self.m.session)
         self.assertEqual(self.m.jobs["P"]["cursor"], 1)
         self.assertEqual(self.m.jobs["P"]["spent"], 12)
-        self.assertEqual(self.m.astra_spent, 1)
+        self.assertEqual(self.m.astra_spent, 300)
         self.m.step("P", "application", "parent reduced further")
 
     def test_blocked_resume_needs_resolution(self) -> None:

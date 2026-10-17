@@ -69,14 +69,16 @@ owner-specific dependencies. Do not turn this audit into a per-test ritual.
 After two materially different proof methods leave the exact premise unchanged,
 change method/input/owner or seek a bounded core assignment; do not rename it.
 
-## 3. Astra as a bounded core producer
+## 3. Astra as a tightly bounded core producer
 
 Luna remains primary. `implementer` stays pinned Luna/high, never silently Sol.
-`prover` and `next_action_selector` normally inherit Sol/high. Add `astra_prover`
-for a proactive core mathematical/semantic assignment; prior Sol failure is not
-required. Normal requested effort is medium for a substantive core packet;
-higher effort needs a named unresolved risk within the pre-granted budget.
-Use the role files and actual spawn schema, not prose, for model resolution.
+`prover` and `next_action_selector` normally inherit Sol/high. Astra is an
+exceptional, tightly bounded resource for a named core mathematical risk, not a
+default lane. Start with Sol/high or Luna's own construction. Assign Astra only
+when the packet names a specific unresolved mathematical risk and explains why
+the bounded specialist pass is useful. A prior Sol failure is not required.
+Use medium effort, the actual spawn schema, and a frozen deliverable; do not
+upgrade effort to compensate for an unclear claim or missing inputs.
 
 An Astra packet can include F1 and related frame actions, FK1 as a distinct
 quantifier, FIRST-RESULT-ADEQUACY, source constructor investigation and native
@@ -89,8 +91,14 @@ Default sprint envelope (tighten for the observed runtime and shared machine):
 - at most 6 active/reserved/unknown agent assignments, within the existing global
   ceiling of 12 including coordinators/leaves; reserve 2 slots for review/integration;
 - at most 1 Astra assignment at a time across astra_prover, native overrides,
-  implementation_escalation and every subtree; at most 2 Astra assignments per
-  sprint, each with at most 8 substantive stages and 1800 seconds of active work;
+  implementation_escalation and every subtree; default to zero Astra assignments.
+  If the named risk warrants one, allow at most 1 assignment and 300 seconds of
+  aggregate Astra active work per sprint, medium effort and at most 3 substantive
+  stages. Count all descendants and escalation routes in this same total. No
+  automatic renewal or per-stage reset; continue with Sol/Luna at the bound.
+  Reserve and charge the entire grant when issued. If actual duration is UNKNOWN,
+  or an interrupted/cancellation-pending descendant has no cessation receipt,
+  do not return that unobserved time to the sprint budget.
 - sprint active-work envelope 7200 seconds; each assignment has finite stages,
   wall time and checks; renew only at a material budget boundary, not per lemma;
 - at most 4 known lightweight single-process probes and 1 heavy Cargo/build/test

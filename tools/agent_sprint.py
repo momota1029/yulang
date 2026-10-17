@@ -65,14 +65,22 @@ class SprintModel:
     """
 
     def __init__(self, goal: str, authority: str, paths: list[str], *,
-                 agents: int = 6, astra_total: int = 2,
+                 agents: int = 6, astra_total: int = 0,
+                 astra_assignments: int = 0, astra_risk: str | None = None,
                  wall_seconds: int = 7200, reconciled: bool = True) -> None:
         require(bool(goal) and bool(authority), "fixed goal and authority required")
-        require(3 <= agents <= 12 and 1 <= astra_total <= 2, "invalid resource cap")
+        require(3 <= agents <= 12 and 0 <= astra_total <= 300,
+                "invalid resource cap")
+        require(0 <= astra_assignments <= 1, "invalid Astra assignment cap")
+        if astra_total or astra_assignments:
+            require(bool(astra_risk and astra_risk.strip()),
+                    "Astra exception requires a named core mathematical risk")
         require(0 < wall_seconds <= 7200, "invalid sprint wall budget")
         require(all(exact_path(p) for p in paths), "exact repo-relative paths required")
         self.contract = {"goal": goal, "authority": authority, "paths": sorted(set(paths)),
                          "agents": agents, "astra_total": astra_total,
+                         "astra_assignments": astra_assignments,
+                         "astra_risk": astra_risk.strip() if astra_risk else None,
                          "wall_seconds": wall_seconds}
         self.contract_hash = digest(self.contract)
         self.reconciled = reconciled
@@ -86,6 +94,7 @@ class SprintModel:
         self.refuted_gates: set[str] = set()
         self.gate_owners: dict[str, str] = {}
         self.astra_spent = 0
+        self.astra_assignments = 0
         self.seconds_spent = 0
         self.consultations: list[str] = []
         self.intake: dict[tuple[str, int], str] = {}
@@ -181,7 +190,12 @@ class SprintModel:
                         for j in self.jobs.values()) < 2, "at most two active leaves")
         if model == ASTRA:
             require(not any(is_astra(j) for j in self._slots()), "one global Astra slot")
-            require(self.astra_spent < self.contract["astra_total"], "Astra sprint budget exhausted")
+            require(self.astra_assignments < self.contract["astra_assignments"],
+                    "Astra assignment cap exhausted")
+            require(effort == "medium" and len(steps) <= 3,
+                    "Astra requires medium effort and at most three stages")
+            require(self.astra_spent + seconds <= self.contract["astra_total"],
+                    "Astra sprint seconds exhausted")
         job = {"id": ident, "lane": lane, "role": role, "paths": list(paths),
                "steps": list(steps), "cursor": 0, "status": "ASSIGNED",
                "worker_state": "NOT_STARTED", "worker_id": None,
@@ -195,7 +209,11 @@ class SprintModel:
                "stop_receipt": None, "stale": False}
         self.jobs[ident] = job
         self.leases.update({p: ident for p in paths})
-        self.astra_spent += int(model == ASTRA)
+        # Charge the full grant up front. Unknown runtime duration, interruption,
+        # or a later STOP cannot silently return unobserved Astra capacity.
+        if model == ASTRA:
+            self.astra_spent += seconds
+            self.astra_assignments += 1
 
     def launch(self, ident: str, worker: str, receipt: str, session: str, *,
                observed_model: str = "UNKNOWN", observed_effort: str = "UNKNOWN") -> None:
@@ -215,6 +233,12 @@ class SprintModel:
                  status="ROUTING_MISMATCH" if mismatch else "RUNNING",
                  observed_model=observed_model, observed_effort=observed_effort)
         j["attempts"] += 1
+        if observed_model == ASTRA and j["requested_model"] != ASTRA:
+            # A real routing mismatch cannot be undone by the simulator. Charge
+            # its whole grant and retain UNKNOWN/ROUTING_MISMATCH for Luna to
+            # reconcile; never hide unexpected Astra consumption.
+            self.astra_spent += j["seconds"]
+            self.astra_assignments += 1
 
     def resume_worker(self, ident: str, worker: str, receipt: str, session: str, *,
                       unblock_receipt: str | None = None) -> None:
@@ -498,23 +522,29 @@ def check_repository(root: Path, *, inventory: dict[str, str] | None = None) -> 
     seed = json.loads((root / "tasks/agent-loop/sprints/call-contextual-effects.json").read_text())
     require(seed["status"] == "CANDIDATE" and bool(seed["unresolved_before_activation"]), "seed must not pretend to be executable")
     require(set(seed["lanes"]) == {"proof", "implementation"}, "both seed lanes required")
-    require(seed["resources"]["astra_concurrent"] == 1 and seed["resources"]["astra_assignments"] == 2,
+    require(seed["resources"]["astra_concurrent"] == 1 and
+            seed["resources"]["astra_default_assignments"] == 0 and
+            seed["resources"]["astra_assignments"] == 1 and
+            seed["resources"]["astra_stages_per_assignment"] == 3 and
+            seed["resources"]["astra_active_seconds_per_assignment"] == 300 and
+            seed["resources"]["astra_active_seconds_per_sprint"] == 300,
             "seed Astra budget drift")
     checked.append("entrypoints, skill metadata, compact state and candidate: checked")
     return checked
 
 
 def simulation() -> list[str]:
-    s = SprintModel("SIMULATION-parent", "fixture-only", ["proof.md", "impl.rs"])
+    s = SprintModel("SIMULATION-parent", "fixture-only", ["proof.md", "impl.rs"],
+                    astra_total=0, astra_assignments=0)
     s.begin("SIMULATION-session-1")
     s.assign("P", "proof", ["proof.md"], ["construct", "apply to parent"],
-             role="astra_prover", model=ASTRA, effort="medium")
+             role="prover", model=SOL, effort="high")
     s.assign("I", "implementation", ["impl.rs"], ["generate", "propagate", "execute"],
              role="implementer", model=LUNA)
-    s.launch("P", "SIMULATION-astra", "SIMULATION-launch-P", s.session)
+    s.launch("P", "SIMULATION-sol", "SIMULATION-launch-P", s.session)
     s.launch("I", "SIMULATION-luna", "SIMULATION-launch-I", s.session)
     lines = ["SIMULATION ONLY: no agents, compiler execution or real receipts.",
-             "Proof RUNNING + implementation RUNNING; effective models UNKNOWN."]
+             "Sol proof RUNNING + implementation RUNNING; effective models UNKNOWN."]
     s.step("P", "fixture lemma", "removes one parent premise")
     s.step("I", "fixture source path", "generation reaches propagation")
     lines.append(f"Internal successors retain {s.contract['goal']}; dispatcher consultations={len(s.consultations)}.")

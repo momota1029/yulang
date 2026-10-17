@@ -6,56 +6,62 @@
   "active_sprint": {
     "id": "module-reference-materialization-20261017",
     "contract": "tasks/agent-loop/sprints/module-reference-materialization-20261017.md",
-    "revision": 1,
-    "sha256": "8e3d43ac44ece28e056a2c49bb72c4a2e8fcc9679246d25c346aa4005d81dcc7",
-    "state": "REVIEWED-UNADOPTED-USER-DECISION",
-    "baseline": "20821b42d",
+    "revision": 2,
+    "sha256": "64c89cb6566de76cfaca4cf483ae278d16720962358db1ec6a2d016d9e11aa77",
+    "state": "REVIEWED-LOCAL-HINTRO-CLOSED-PENDING-INTEGRATION",
+    "baseline": "2b563076a0ac2c4f0b66a277c1b557dac8134313",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
-    "fixed_outcome": "Derive authentic typed module Name handle owner HINTRO-OWNER-u_id at the same external occurrence from original declaration/publication and environment transport; recover complete branch-specific b_use, mu_id and substitute into original-generation §7.2(2), or freeze exact premise and reviewed minimal proposal. No semantic branch selected by the contract.",
+    "fixed_outcome": "Under adopted ModuleEnv-Expose*, derive the exact fixed occurrence u_id handle, full branch-specific b_use,mu_id and literal original §7.2(2) substitution, then independently review. In parallel define source/native entry-provenance representation and exact owner/lifetime fields; no compiler lease in rev2 because an inherited implementation lease remains UNKNOWN.",
     "dependency_snapshot": {
-      "established": "CLEAN handle boundary; source-family and whole module source-use maps conditionally establish publication/whole map; module FreshUse native remaps retained through GraphState at 20821b42d.",
-      "conditional": "Authentic source materialization of resolved module declaration to occurrence handle remains missing; source Sig/field map, total Phi_u, registered root and complete Call remain open.",
-      "next_downstream": "Only after same-occurrence HINTRO-OWNER-u_id: source/native field bridge, root and Call telescope; then parent F1/FK1, N-Transport, soundness, principality, termination.",
-      "independent_open": "F1/FK1, N-Transport, soundness, principality, termination remain open; original domain/quantifiers preserved.",
-      "implementation_blockers": "No safe semantic code before owner derivation and independent review/adjudication; no candidate_source/candidate_call lease yet."
+      "established": "Reviewed ModuleEnv-Expose* adopted by user at notes/design/2026-10-17-module-environment-exposure-definition.md; corrected Instance(p_id,i_id*,d_id); prior publication, whole-map and FreshUse retention proofs remain at their exact premises.",
+      "conditional": "Fixed-source HINTRO-OWNER-u_id application under adopted authority is accepted by fresh compiler and spec reviews and adjudicated locally CLOSED by Luna. Whole-source admission/observation equivalence remains unproved.",
+      "next_downstream": "Registered ModuleContractRoot*, complete Call telescope, source Sig and native Phi_u; then N-Transport, F1/FK1, soundness, principality, termination.",
+      "independent_open": "Admission equivalence and all original parent quantifiers/gates remain open.",
+      "implementation_blockers": "No code lease: inherited historical implementation writer/path remains UNKNOWN and quarantined. Data contract and proof proceed without touching candidate_source.rs/candidate_call.rs."
     },
     "result": {
-      "original_conditions_closed": 0,
-      "proof_class": "Astra proposed UNADOPTED ModuleEnv-Expose* and the complete fixed-source owner/§7.2 operand construction. Compiler rev1 MAJOR Instance-coordinate issue corrected in artifact rev2; fresh compiler delta CLEAN. Spec and architecture reviews CLEAN for preservation as proposal, but both require explicit user adoption before the new formation rule or implementation can proceed.",
-      "implementation_class": "No compiler edits or tests in this sprint. Existing retained FreshUse implementation from 20821b42d remains committed; it does not authenticate source handles.",
-      "parent_application": "HINTRO-OWNER-u_id remains OPEN under current original authority. Adoption would add new source formation authority; original admission/observation equivalence is not proved. Registered root and complete Call remain open."
+      "original_conditions_closed": 1,
+      "proof_class": "One local original premise, HINTRO-OWNER-u_id, is CLOSED for the fixed source under user-adopted ModuleEnv-Expose*. The exact application was reviewed CLEAN by fresh compiler/source and spec reviewers. No global theorem gate is closed; registered ModuleContractRoot* and its original-family embedding are next.",
+      "implementation_class": "No compiler edit or compiler behavior/test established. The source/native entry-provenance contract rev2 (44f33397a45f5d17a0302c6b1efbfe1f7bbdf018caed2ece2acc18176a746bd9) is independently reviewed as a readiness contract only; no safe code slice exists in the inspected owners. candidate_source.rs and candidate_call.rs remain quarantined under inherited UNKNOWN ownership.",
+      "parent_application": "HINTRO-OWNER-u_id closed locally under adopted formation. Whole-source admission/observation equivalence, registered root, complete Call, Sig/Phi_u correspondence, N-Transport, F1/FK1, soundness, principality, termination and production remain OPEN."
     },
     "resources": {
       "cap_seconds": 3600,
-      "charged_seconds": 2370,
-      "available_seconds": 1230,
-      "retired_seconds": 0,
-      "allocation": "Coordination/setup180 + Astra1500 + compiler review allocation300 (includes fresh coordinate delta review) + primary proof correction30 from reserve + spec180 + architecture180 =2370 conservatively; remaining1230. No implementation/verification lane was run; no carry."
+      "charged_seconds": 3330,
+      "available_seconds": 90,
+      "retired_seconds": 180,
+      "allocation": "Prior charge2370 + Luna coordination/adoption180 + data contract120 + Sol proof full240 + compiler review120 + spec review90 + architecture review120 (90 original plus 30 delta) + verification reserve90 =3330. 90 remains for integration/closeout; 180 retired. Separate Astra resource-policy review used two 120-second full-grant reservations. Astra use in this continuation: zero; prior 1500 remains spent."
     },
     "workers": [
       {
-        "id": "/root/module_reference_materialization_proof",
-        "role": "Astra constructive proof",
+        "id": "/root/adopted_module_application_proof",
+        "role": "constructive prover (Sol/high requested)",
         "state": "STOPPED",
-        "receipt": "Seven stages; direct pins matched; exact elapsed UNKNOWN/full1500 cap charged. Proof rev1 coordinate mismatch repaired by Luna in proof rev2. No code/tests/Git."
+        "receipt": "Frozen artifact 418055486f31ff7e3895a7f5ea1d86ce10a6ff83424f716a0203d4f276105765 and handoff afcff0e877c764c62f6e920a93dc501147cd530c323b868475789e3ced3ef58f. Exact HINTRO application, corrected Instance, whole map and §7.2 substitution; root remains absent. Duration/model UNKNOWN; full240 charged."
       },
       {
         "id": "/root/module_reference_compiler_review",
-        "role": "independent compiler/source reviewer",
+        "role": "fresh independent compiler/source application reviewer",
         "state": "STOPPED",
-        "receipt": "All input pins matched. Rev1 MAJOR: Instance publication coordinate used u_id instead of p_id. Fresh exact-pin delta on rev2 CLEAN; u_id remains separate use provenance. No other finding."
+        "receipt": "CLEAN on exact artifact/handoff/contract/adoption pins; verified coordinates, fields, quantifiers and stop at registered root. Runtime/model UNKNOWN; full120 charged."
       },
       {
         "id": "/root/module_reference_spec_review",
-        "role": "independent spec auditor",
+        "role": "fresh independent spec auditor",
         "state": "STOPPED",
-        "receipt": "CLEAN for preserving unadopted candidate; all pins match. BLOCKING for adoption/implementation until user adopts new ModuleEnv-Expose* formation or original owner is produced. Original source admission equivalence and registered root remain open."
+        "receipt": "CLEAN on exact artifact/handoff/contract/adoption pins; confirms local HINTRO under adopted authority, all global gates open. Runtime/model UNKNOWN; full90 charged."
       },
       {
         "id": "/root/module_reference_architecture_review",
         "role": "independent architecture/resource reviewer",
         "state": "STOPPED",
-        "receipt": "CLEAN for research-only preservation; no contradiction. Proposed identity transport/direct Pub are only proposed choices. Implementation data contract and lifetimes described; source/native field interpretation remains blocked."
+        "receipt": "Data contract readiness review and narrow rev2/handoff rev3 delta CLEAN; semantic-image mapping excludes ordinary native bookkeeping. No implementable code slice; native feasibility unverified. Runtime/model UNKNOWN; full120 charged."
+      },
+      {
+        "id": "/root/astra_budget_review",
+        "role": "independent performance/resource auditor",
+        "state": "STOPPED",
+        "receipt": "Delta CLEAN after fixing default-zero simulator caps and named-risk requirement. Rule, note, simulator, tests and seed hashes verified; no compiler/runtime or theorem closure. Runtime/model UNKNOWN; two full120 review grants tracked separately."
       }
     ],
     "leases": [
@@ -73,23 +79,51 @@
         "path": "tasks/agent-loop/inbox/20261017-module-reference-materialization.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/design/2026-10-17-module-entry-provenance-contract.md",
+        "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-module-entry-provenance-contract.md",
+        "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-17-adopted-module-reference-application.md",
+        "owner": "/root/adopted_module_application_proof",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-adopted-module-reference-application.md",
+        "owner": "/root/adopted_module_application_proof",
+        "state": "FROZEN"
       }
     ],
     "pending": [
       {
         "id": "HINTRO-OWNER-u_id",
-        "state": "OPEN under current original authority; exact source owner not supplied. Reviewed ModuleEnv-Expose* is a new UNADOPTED formation proposal."
+        "state": "CLOSED locally under adopted formation authority; one premise discharged for the fixed source after fresh compiler and spec CLEAN reviews."
+      },
+      {
+        "id": "MODULE-ENTRY-PROVENANCE",
+        "state": "Reviewed readiness contract only; no safe code slice; source producer and exact write ownership remain unresolved."
       },
       {
         "id": "MODULE-NATIVE-FIELD-MAP",
-        "state": "OPEN; source Sig/field ownership, total Phi_u, root and Call correspondence."
+        "state": "OPEN; source Sig/field ownership, total Phi_u, registered root and Call correspondence."
+      },
+      {
+        "id": "ADMISSION-EQUIVALENCE",
+        "state": "OPEN; equality of old whole-source admission/observation fibers remains unproved."
       },
       {
         "id": "F1/FK1/N-Transport/soundness/principality/termination",
         "state": "OPEN independent parent gates."
       }
     ],
-    "next_action": "Await user decision on adopting the reviewed ModuleEnv-Expose* rule as new formation authority, with explicit known admission-equivalence gap, or require further search for an original owner. No implementation lease until authority is settled."
+    "next_action": "Finish integration of this reviewed milestone. At the next sprint boundary pursue the registered ModuleContractRoot* and original-family embedding. Astra allocation remains zero. Implementation waits for exact inherited UNKNOWN lease reconciliation and an authentic source producer."
   },
   "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer. Previous sprint ordinary-hir-applied-conformance-repair-20261017 closed REVIEWED-PARTIAL at commit 0717a882c: focused unit8/8, corrected HIR9/9, solver candidate vertical1/1; original theorem conditions closed0. Exact receipts and rev8 CLEAN reporting review remain under notes/progress and prior handoff. Rev7 spent2760/2760; after-cap solver receipt documentation time UNKNOWN, not retrocharged. New original Call generation sprint starts at baseline0717a882c; decomposition180/180 charged. Prior rev8 review-only envelope charged auditor60 and Luna coordination30; final reserve30 retired without carryover. Documentation correction after rev7 had UNKNOWN actual duration, not retrocharged. Previous `module-use-source-map-and-provisional-observer-20261017` closed REVIEWED-PARTIAL at 0114f997b: proof map actual structural route + conditional ModulePubUse* intro/inversion/conservation, original conditions0; candidate observer and fixed-source regression PASS 2/2. O(n^2)/O(n) proof annotation cost; no compiler complexity claim. Reviews technical CLEAN; post-run reviewer disclosed one read-only `git show --stat --oneline 185b0db29`, no file changes or essential unpinned evidence. Charged1442/1800; unused358 retired, no budget carry.; module-source-family-embedding-20261017 closed REVIEWED-PARTIAL: original conditions0; source handle owner premise unresolved; native field-map revision2 pending architect delta review; 2160/2160 charged, no code/tests; Closed module-source-family-embedding-20261017 REVIEWED-PARTIAL at full2160/2160, original conditions0. Conditional source proof corrected after compiler+spec reviewers found same-occurrence handle owner gap; compiler delta passed. Native field-map contract revision2 synchronizes conditional new, transient module FreshUse remaps and proposed/unverified complexity; architect delta review still pending in next sprint. No compiler behavior/tests. Closed module-source-handle-introduction-20261017 REVIEWED-PARTIAL at commit 9f8a03bdf: compiler and spec reviews CLEAN; original theorem conditions0; exact typed materialization owner HINTRO-OWNER-u_id remains open; no code/tests. Next action chose candidate module FreshUse remap retention with an ownership/accounting proof, independent of selecting handle semantics.; module-use-retained-native-transport-20261017 CLOSED-REVIEWED-PARTIAL at 20821b42d: original theorem conditions0; checked module FreshUse map ownership/accounting, cargo check and focused regression passed; independent compiler/architecture/spec reviews found no blocking/major findings, one minor source-comment wording note; commit pushed. Next selector chose module-reference-materialization-20261017.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN."

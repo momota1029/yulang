@@ -19,7 +19,7 @@
   ],
   "lanes": {
     "proof": {
-      "preferred_core_role": "astra_prover",
+      "preferred_core_role": "prover",
       "complementary_role": "prover or researcher (Sol/high)",
       "stages": [
         "Pin original statements, source constructors and previously rejected constructions.",
@@ -46,15 +46,17 @@
     "global_ceiling": 12,
     "reserved_review_slots": 2,
     "astra_concurrent": 1,
-    "astra_assignments": 2,
-    "astra_stages_per_assignment": 8,
-    "astra_active_seconds_per_assignment": 1800,
+    "astra_assignments": 1,
+    "astra_stages_per_assignment": 3,
+    "astra_active_seconds_per_assignment": 300,
     "sprint_active_seconds": 7200,
     "lightweight_probes": 4,
     "heavy_builds": 1,
     "probe_cpu": 1,
     "probe_ram_mib": 1024,
-    "probe_seconds": 120
+    "probe_seconds": 120,
+    "astra_default_assignments": 0,
+    "astra_active_seconds_per_sprint": 300
   },
   "unresolved_before_activation": [
     "Exact original theorem statements/quantifiers and authoritative source locators with hashes",

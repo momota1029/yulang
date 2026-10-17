@@ -4,6 +4,17 @@ This index is a navigation aid. The listed source document remains authoritative
 
 ## Resident Yulang orchestration (2026-10-16)
 
+- [Reduced Astra use in goal-driven sprints](2026-10-17-astra-budget-reduction.md)
+  — User-directed resource amendment: default zero, with one named-risk
+  assignment capped at 300 seconds and three stages per sprint.
+- [Module environment exposure](2026-10-17-module-environment-exposure-definition.md)
+  — Adopts the independently reviewed typed module environment formation and
+  occurrence lookup rule; admission equivalence, registered root and parent
+  call theorem remain open.
+- [Module entry provenance contract](2026-10-17-module-entry-provenance-contract.md)
+  — Reviewed source/native readiness contract; identifies missing typed source
+  owners and does not authorize an implementation representation or code.
+
 - [Adoption of the reviewed source-formation proposals](2026-10-17-source-formation-proposals-adoption.md)
   — Direct user adoption of the exact reviewed NPAIR and Catch source interfaces.
   Their proof obligations, including N-Transport and source-derived M_exit,

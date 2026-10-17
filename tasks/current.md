@@ -1,8 +1,31 @@
 # Current task: complete type inference and replace F5
 
-Date: 2026-10-16
+Date: 2026-10-17
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active. Native extrusion now schedules current copied Allowance replay after initialization, with an independently reviewed sparse queue-admission invariant and focused runtime evidence. Source H1/H2/U and production correspondence remain open, with H3/P disabled.
+Status: full objective remains active; one local module-use owner premise is now discharged under adopted formation authority. Registered module contract root, Call, global inference/execution theorem and compiler source/native implementation remain open. Native extrusion now schedules current copied Allowance replay after initialization, with an independently reviewed sparse queue-admission invariant and focused runtime evidence. Source H1/H2/U and production correspondence remain open, with H3/P disabled.
+
+## Current checkpoint (2026-10-17)
+
+The user adopted the reviewed `ModuleEnv-Expose*` formation rule. A fresh
+compiler/source review and fresh spec review accepted the exact fixed-source
+application at `u_id`; Luna adjudicated `HINTRO-OWNER-u_id` CLOSED locally under
+that authority. This is one local premise only: no global theorem gate is closed,
+and old whole-source admission/observation equivalence remains open. Next proof
+condition is the authentic registered `ModuleContractRoot*` and its embedding in
+the original family.
+
+The source/native entry-provenance contract is reviewed as a readiness contract,
+not an implementable design. The inspected owners do not supply an authentic
+source constructor, complete `Sig`/`Phi_u`, or registration root; no safe code
+slice was found. The inherited implementation writer/path lease remains UNKNOWN
+and quarantined, so no compiler files were changed.
+
+Astra allocation is now zero by default; the only exception is one named core
+risk with medium effort, at most three stages and 300 seconds, charged at the
+full grant. The simulator, seed and tests now match that rule; its independent
+resource-policy delta review is CLEAN. Focused tooling checks and 53 tests pass.
+Detailed pins, review scope, budget, exclusions and next action are recorded in
+[the closeout receipt](notes/progress/2026-10-17-module-reference-materialization-closeout.md).
 
 ## Current checkpoint (2026-10-16)
 
