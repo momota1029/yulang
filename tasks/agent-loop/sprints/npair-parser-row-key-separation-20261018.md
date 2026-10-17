@@ -1,8 +1,9 @@
 # Sprint `npair-parser-row-key-separation-20261018`
 
 Status: ACTIVE, primary-issued 2026-10-18.
-Contract revision: 2 (spends only the previously reserved 60s to inspect the exact recovery token emitter and payload owners; goal and semantic scope unchanged).
-Revision 1 SHA-256: `e1725be0d9a6ea80251d83a5c206cb51d3535895dc859580825a7da3c507a1ff`.
+Contract revision: 3 (corrects the recorded rev1 hash; no claim, scope, resource, or lease change).
+Revision 2 SHA-256: `4de607f76986b6f97e11e1fcaebca8a32cc8e46c8d2d758458ba7333301e3798`.
+Revision 1 SHA-256: `f9e0c7476e2cd03d0d83ef7c608807b01f2cdc9e9bb1677440692556f7d24b96`.
 Branch / compiler baseline: `research/simple-sub-intrusion` / `515b705f6879bd8fd4a57fd1f6732e11ea9c0a29`.
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`; original claim, quantifiers, source domain and adopted semantics unchanged.
 Dispatcher: `/root/npair_replan_dispatch`; recommendation adopted after independent major finding against unconditional SourceNodeKey injectivity.
