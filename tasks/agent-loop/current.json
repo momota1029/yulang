@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
     "revision": 3,
     "sha256": "006ffcf86d526f6eb5f668307ab81a2ae6dda2067a547889095d74fd89b25fd2",
-    "state": "IMPLEMENTATION-READY",
+    "state": "IMPLEMENTATION-RUNNING",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -23,7 +23,7 @@
       "original_conditions_closed": 0,
       "behavior_executed": false,
       "proof_class": "Seven repair invariants and falsifiers frozen; candidate-only conditional construction, not an original theorem lemma.",
-      "implementation_class": "Pre-code architect gate CLEAN for private constructor-owned provenance seam; exact expanded lease authorized. Implementation not yet acknowledged; no edits/tests admitted before fresh active receipt.",
+      "implementation_class": "Pre-code architect gate CLEAN; Luna adjudicated and granted exact expanded lease. Luna/high implementer acknowledged fresh active assignment; code/test authoring underway, execution remains held for applied reviews.",
       "HIR_APP_REPAIR_1": "OPEN; seven findings and exact repair obligations frozen.",
       "parent_application": "OPEN; no semantic Call/source T/native adequacy."
     },
@@ -100,6 +100,29 @@
         "session": "current-session",
         "lease_paths": [],
         "active_receipt": "Read-only review STOPPED CLEAN; receipt notes/progress/2026-10-17-ordinary-hir-repair-architect-review.md SHA 635cd68b611d652f4d6760026888945518423b8be69729560418807d9fbbc339. Exact elapsed UNKNOWN; full 120s cap charged. No edits/tests/builds/probes/Git/descendants."
+      },
+      {
+        "id": "/root/ordinary_hir_application_implementation",
+        "role": "implementer",
+        "state": "RUNNING",
+        "requested_model": "gpt-6-luna",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "cap_seconds": 1110,
+        "charged_seconds": 0,
+        "remaining_seconds": 1110,
+        "session": "current-session",
+        "lease_paths": [
+          "crates/yu-hir/src/lib.rs",
+          "crates/yu-hir/src/module.rs",
+          "crates/yu-hir/src/source_identity.rs",
+          "crates/yu-hir/src/shadow.rs",
+          "crates/yu-hir/tests/ordinary_application_admission.rs",
+          "crates/yu-solver/tests/research_accepted_call_vertical.rs",
+          "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md"
+        ],
+        "active_receipt": "Fresh acknowledgment received: current-session, requested Luna/high, observed UNKNOWN/UNKNOWN, no descendants. Rechecking frozen pins before writes. Code/test authoring only; no Cargo/test/build/probes before independent applied reviews and regression pre-run clearance."
       }
     ],
     "leases": [
@@ -131,37 +154,37 @@
       {
         "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md",
         "owner": "/root plan then implementer handoff",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
         "path": "crates/yu-hir/src/lib.rs",
         "owner": "implementer after architect CLEAN and Luna adjudication",
-        "state": "RESERVED-SEQUENTIAL"
+        "state": "HELD"
       },
       {
         "path": "crates/yu-hir/src/module.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "RESERVED-SEQUENTIAL"
+        "state": "HELD"
       },
       {
         "path": "crates/yu-hir/src/source_identity.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "RESERVED-SEQUENTIAL"
+        "state": "HELD"
       },
       {
         "path": "crates/yu-hir/src/shadow.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "RESERVED-SEQUENTIAL"
+        "state": "HELD"
       },
       {
         "path": "crates/yu-hir/tests/ordinary_application_admission.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "RESERVED-SEQUENTIAL"
+        "state": "HELD"
       },
       {
         "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
         "owner": "implementer after architect CLEAN",
-        "state": "RESERVED-SEQUENTIAL"
+        "state": "HELD"
       }
     ],
     "pending": [
@@ -216,7 +239,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Architect review CLEAN and Luna adjudication authorize the exact seven-path implementation lease including private lib.rs provenance seam. Obtain a fresh active implementer acknowledgment <=1110s; then repair all seven falsifiers and freeze code before independent reviews. No Cargo until review/pre-run gates; original theorem gates remain OPEN.",
+    "next_action": "Luna/high implementation RUNNING under fresh acknowledgment with exact seven-path lease; charge up to1110s. Worker repairs all seven falsifiers, accounts output-sensitive allocations and stops before tests/builds. After STOP/freeze, sequential independent applied reviews then regression pre-run gate; original theorem gates remain OPEN.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },
