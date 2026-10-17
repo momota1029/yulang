@@ -78,7 +78,7 @@
   "candidate": "tasks/agent-loop/sprints/npair-concrete-producer-compile-validation-20261017.md",
   "baseline": "f2f95913cdcff78c4482b3556830483614c06e87",
   "scope": "Compile-only validation of the exact approved integrated concrete Permission producer, plus an explicit proof WAIT for original constructor contribution evidence.",
-  "worker_inventory_scope": "Three historical UNKNOWN reservations and board quarantine retained; prior authors/reviewers stopped. This session completed read-only adoption/Catch-source reconciliation and dispatcher consultation; no compiler/source process or write lease exists.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations and board quarantine retained; prior authors/reviewers stopped. Current session completed read-only source-owner audit for runtime/F5/Catch and selector consultation; no compiler/source process or write lease.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -122,7 +122,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Current-session read-only reconciliation and sprint-boundary consultation complete; no compiler/source process or write lease."
+      "receipt": "Current-session read-only runtime/F5/Catch owner audit and selector consultation complete; no compiler/source process or write lease."
     },
     {
       "id": "/root/npair_concrete_producer_compile_review",
@@ -146,7 +146,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh boundary delta after user adoption reconfirmation: Catch telescope/conditional MI-Intro already adopted; CATCH-EXIT-INPUT-1 M_exit still OPEN. No proof-backed implementation slice or new lease; need original exit/matcher clause or authority to draft M_exit."
+      "receipt": "Fresh broad-goal audit: owner-specific NO_SAFE_CODE_SLICE, not global impossibility. Runtime needs independently valid T plus complete Entry/Exec/Return export/import; F5 needs source-qualified export/restore correspondence; Catch needs authentic M_exit. No new leases. Current moved source pins not assumed unchanged."
     },
     {
       "id": "/root/independent_path_decomposition",
@@ -215,14 +215,19 @@
       "id": "mixed/multiple-symbolic coverage; F1/FK1 and independent parent gates",
       "state": "OPEN",
       "owner": "original source signature / theorem owners"
+    },
+    {
+      "id": "PLAYGROUND-RUNTIME-T-PLAN-IMPORT",
+      "state": "OPEN; current execute discards CandidateInference and imports only HIR plus default name-consumption evidence; no independently valid T/complete Entry-Exec-Return plan exporter or importer is established",
+      "owner": "original source typing/action derivation owner, runtime plan export/import owner, and Entry/Exec/Return consumers"
     }
   ],
   "next_action": {
-    "state": "WAIT-EXACT-M_EXIT-CLAUSE-OR-DRAFT-AUTHORITY",
-    "dispatcher": "Catch source telescope and conditional MI-Intro are already adopted under receipt d94e2465; the repeated user approval does not adopt a new M_exit rule. Fresh selector found no safe proof-backed implementation slice for CATCH-EXIT-INPUT-1.",
-    "proof": "CATCH-EXIT-INPUT-1 remains OPEN: need the original exit/matcher formation clause deriving typed M_exit from the actual yielded request and exit, preserving q/raw and the complete dependent ports before matching.",
-    "implementation": "NO_SAFE_CODE_SLICE for this obligation: Work::CatchArms has declarations/occurrences/binders/endpoints; candidate_catch_operation has scalar Function/effect constraints; neither produces or consumes an authentic typed exit/matcher certificate. No code lease.",
-    "source_authority": "Adoption receipt d94e24656854fd2d67ed0f600619349c728dfafa26ca6e312f1faa6d3f3532fa adopts the Catch input telescope and conditional MI-Intro only. Next input: actual governing source clause/derivation, or explicit authority to draft a narrowly scoped M_exit source/transition definition for independent review and later adoption.",
+    "state": "WAIT-QUALIFIED-TYPED-PLAN-OWNER-INPUT",
+    "dispatcher": "Fresh bounded selector review finds owner-specific NO_SAFE_CODE_SLICE, not global impossibility. Runtime, F5 and Catch each lack their source-qualified producer/consumer bridge; do not open another equivalent research packet.",
+    "proof": "For the broader inference/executor goal, choose one concrete source fragment with independently justified T and its governing Entry/Exec/Return rule; prove plan construction and correspondence for the original source judgment. Catch M_exit and NPAIR source contributions remain separate OPEN gates.",
+    "implementation": "No approved exporter/importer path yet: execute still discards CandidateInference, and RuntimeProgram::from_hir receives HIR plus default name-consumption evidence. F5 replacement lacks export/restore field correspondence; Catch owners lack M_exit. No source/code lease.",
+    "source_authority": "Smallest unlock: original source derivation T plus an authoritative complete Entry/Exec/Return plan rule and producer/consumer correspondence for one selected fragment; if absent, explicit authority to draft that exact bridge for independent review and later adoption.",
     "workers_started": false
   },
   "resource_accounting": {
