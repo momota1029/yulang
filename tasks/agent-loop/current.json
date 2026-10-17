@@ -6,12 +6,12 @@
   "active_sprint": {
     "id": "ordinary-hir-application-admission-implementation-20261017",
     "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
-    "revision": 1,
-    "sha256": "a9220bc8dab9019a3b8d362ea6ed447cdbc0e70373f2b10845e6b02b8d8cc496",
-    "state": "PROOF-COUNTEREXAMPLE-OPEN",
-    "baseline": "5fbceb68d",
+    "revision": 2,
+    "sha256": "712fa3cfb7ba6ad89d0416f8e3b83f11c921084a35d8c0e88b7b918006e4a07e",
+    "state": "AMENDMENT-REVIEW-PENDING-COMPILER",
+    "baseline": "8be4b8248",
     "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
-    "fixed_outcome": "Implement adopted rev4 structural HIR admission and prove projection preservation through ordinary HIR. Apply only to the exact structural premise of the original Call/source bridge; no semantic Call or parent theorem closure.",
+    "fixed_outcome": "Implement adopted rev4 structural HIR admission and prove projection preservation through ordinary HIR, applying only the exact structural premise of the original Call/source bridge. Current gate: frozen proof and resource-amendment review; implementation held until fresh compiler/spec/architect reviews are CLEAN and Luna adjudicates. No semantic Call or parent theorem closure.",
     "proof_artifact": "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
     "adoption_receipt": "notes/progress/2026-10-17-ordinary-hir-application-admission-adoption.md",
     "adoption_receipt_sha256": "6d28dc76e321ce63588aab74d74caa6d9eb2655b2d11eb43ca700ba19edfe970",
@@ -20,18 +20,19 @@
     "result": {
       "original_conditions_closed": 0,
       "behavior_executed": false,
-      "proof_class": "Not started; bounded structural projection theorem under adopted rev4 contract.",
-      "implementation_class": "HOLD; no code/tests until the resource-only amendment is reviewed CLEAN and primary adoption is recorded.",
+      "proof_class": "Frozen Astra candidate: structural/key/identity/carrier/diagnostic lemmas plus algebraic lower bound; independent review pending.",
+      "implementation_class": "HOLD until resource amendment has fresh compiler/spec/architect CLEAN reviews and Luna adjudication; no code/tests.",
       "HIR_APP_CST_1": "LOCALLY RESOLVED within pinned fixed-source scope; no parser-wide claim.",
-      "HIR_APP_ADMISSION_1": "ADOPTED; implementation and proof active under exact rev4 contract.",
+      "HIR_APP_ADMISSION_1": "ADOPTED rev4; projection proof candidate frozen; implementation held pending resource amendment review/adjudication; no semantic Call conclusion.",
       "parent_application": "Still to be derived by Astra from the actual original Call/source bridge; no Call typing, source T or adequacy inferred.",
-      "HIR_APP_ERRREF_1": "COUNTEREXAMPLE: left-associated n-application chain with unresolved operands has n(n+1)/2 descendant error-ID references in Apply.errors (up to n(n+3)/2 counting unresolved callee), despite O(n) nodes. Rev4 §2 linear retained-entry bound conflicts with §4 complete descendant error lists."
+      "HIR_APP_ERRREF_1": "Rev1 linear-all-retained-entry bound falsified for flat Apply.errors: V=2m+1, E=m+1, R=m(m+3)/2. Proposed O(V+E+R), worst O(V^2), not adopted."
     },
     "resources": {
       "cap_seconds": 4020,
-      "charged_seconds": 240,
-      "available_seconds": 3780,
-      "allocation": "Coordination120 + Astra active interval conservatively charged120; after counterexample, planned transfer reserve120 -> amendment author90/reserve30 and implementation1800 -> implementation1710/pre-code architect90; cap remains subject to rev2 freeze."
+      "charged_seconds": 660,
+      "available_seconds": 3090,
+      "allocation": "Coordination120 charged; Astra450/720 charged, remaining270 retired; Luna amendment author90 charged; proof reviews300; pre-code architect90; implementation1710; applied reviews480; regression pre/post240; Cargo240; reserve30. Available includes only planned remaining allocations.",
+      "retired_seconds": 270
     },
     "workers": [
       {
@@ -59,12 +60,12 @@
         "requested_model": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "charged_seconds": 60,
-        "receipt": "Confirmed corrected 4020s envelope after reconciling distinct proof and applied review seams; no overlap, preserve quarantine."
+        "receipt": "Boundary delta: suspend code admission; preserve quadratic R lower bound, revise only resource clause, compiler->spec->architect before code. Confirmed 4020 cap with reserve120->amendment90+30 and implementation1800->1710+pre-code architect90."
       },
       {
         "id": "/root/astra_accepted_call_hir_projection",
         "role": "astra_prover",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
         "cap_seconds": 720,
@@ -76,8 +77,66 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "active_receipt": "Counterexample found: nested Apply.errors duplicates all descendant IDs, yielding Theta(n^2) references. Freezing exact lower bound and independently valid structural/identity lemmas; full linear-storage contract claim STOP after freeze.",
-        "charged_seconds": 120,
-        "remaining_seconds": 600
+        "charged_seconds": 450,
+        "remaining_seconds": 0,
+        "receipt": "Both leases frozen; final STOP wall interval 429s, conservatively charged450/720. Artifact/handoff show an earlier 420s freeze-checkpoint estimate; final worker STOP message reports 450s charge. Remaining270s retired, not carried. No code/tests."
+      },
+      {
+        "id": "/root",
+        "role": "Luna primary amendment author and sprint owner",
+        "state": "STOPPED",
+        "requested_model": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "cap_seconds": 90,
+        "charged_seconds": 90,
+        "remaining_seconds": 0,
+        "receipt": "Frozen resource-only output-sensitive amendment and rev2 sprint; charged full90s conservatively; no code/tests."
+      },
+      {
+        "id": "/root/accepted_call_hir_projection_compiler_review",
+        "role": "compiler_referee",
+        "state": "NOT_STARTED",
+        "cap_seconds": 180,
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "lease_paths": [
+          "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
+          "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
+          "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md"
+        ]
+      },
+      {
+        "id": "/root/accepted_call_hir_admission_spec_review",
+        "role": "spec_auditor",
+        "state": "NOT_STARTED",
+        "cap_seconds": 120,
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "lease_paths": [
+          "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
+          "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
+          "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md"
+        ]
+      },
+      {
+        "id": "/root/accepted_call_hir_admission_architect_review",
+        "role": "architect",
+        "state": "NOT_STARTED",
+        "cap_seconds": 90,
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "lease_paths": [
+          "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
+          "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
+          "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md",
+          "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md"
+        ]
       }
     ],
     "leases": [
@@ -89,17 +148,17 @@
       {
         "path": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
         "owner": "/root",
-        "state": "FROZEN-REV1"
+        "state": "FROZEN-REV2"
       },
       {
         "path": "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
         "owner": "/root/astra_accepted_call_hir_projection",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-call-projection-preservation.md",
         "owner": "/root/astra_accepted_call_hir_projection",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/src/module.rs",
@@ -130,6 +189,16 @@
         "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-application-implementation.md",
         "owner": "Luna/high after proof review",
         "state": "RESERVED-SEQUENTIAL"
+      },
+      {
+        "path": "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
+        "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md",
+        "owner": "/root",
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -184,10 +253,16 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Wait for Astra STOP/frozen proof counterexample; then author resource-only amendment under exact two-file lease, obtain compiler/spec and pre-code architect review, adjudicate before implementation. No code/tests meanwhile.",
+    "next_action": "Fresh sequential compiler review <=180s of frozen Astra result + resource amendment, then spec <=120s, then architect <=90s including checked-R allocation/failure atomicity and resource transfer. Luna adjudicates before any code/test lease starts.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
-    "predecessor_commit": "5fbceb68d"
+    "predecessor_commit": "5fbceb68d",
+    "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
+    "proof_handoff_sha256": "28cc30876831203661ea237c20925249ac48ed5a9cc7fa648c36491dcb51d062",
+    "amendment_artifact": "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
+    "amendment_artifact_sha256": "e8b53a773675ba54f0cb5dcc4d62a993e8dd16954e0c92c58fdfc80c620d411e",
+    "amendment_handoff": "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md",
+    "amendment_handoff_sha256": "23f637cdb64ef6ab237fef6dacb4abeec06bf19efa75d8f8f2d0202c09a67d80"
   },
-  "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts.",
+  "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review.",
   "quarantine_note": "Three inherited UNKNOWN assignments and their leases remain quarantined. No overlapping authors; two review/integration slots reserved. No production promotion follows structural HIR admission."
 }

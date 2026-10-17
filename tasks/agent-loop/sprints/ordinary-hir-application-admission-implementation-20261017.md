@@ -1,7 +1,10 @@
 # Sprint ordinary-hir-application-admission-implementation-20261017
 
-Status: ADMITTED by Luna after exact user adoption of rev4. Branch
-`research/simple-sub-intrusion`; baseline `5fbceb68d`; revision 1.
+Status: SUSPENDED-RESOURCE-COUNTEREXAMPLE; revision 2. Rev1 remains frozen in
+commit `b1f15a81a`. Branch `research/simple-sub-intrusion`; operational
+baseline `8be4b8248`. User adoption of rev4 is preserved; its aggregate-list
+linear-resource clause is counterexample-falsified, pending bounded amendment
+review/adjudication. No code/test author is active.
 
 ## Parent and fixed outcome
 
@@ -23,7 +26,10 @@ following bounded projection invariant by structural induction and regression:
 > Every admitted expression preserves its associated operand tree, lexical
 > resolution, exact source-key ownership, body-root identity, and dense local
 > error/diagnostic references through ordinary HIR, while all existing source
-> carrier outcomes and occurrence ordinals remain unchanged.
+> carrier outcomes and occurrence ordinals remain unchanged. Resource accounting
+> must count every physically retained aggregate error-ID reference R; the
+> admitted flat-list API permits worst-case quadratic R in V. No linear-all-
+> retained-entries claim is used until amended and independently reviewed.
 
 Apply the invariant to the fixed accepted source and identify exactly which
 structural premise of the original Call/source bridge follows. It establishes
@@ -52,9 +58,10 @@ premises are independently available; never infer semantic callability from
 structural Apply. Preserve all A/B and F1/FK1 quantifiers. STOP and freeze before
 the implementation writer starts.
 
-## Implementation lane — Luna/high after proof freeze and review
+## Implementation lane — Luna/high after amendment and pre-code review
 
-Owner: Luna/implementer, <=1800 active seconds; exact writable paths:
+Owner: Luna/implementer, <=1710 active seconds after the amendment and
+pre-code architect review are CLEAN and Luna records adjudication; exact writable paths:
 
 - `crates/yu-hir/src/module.rs`
 - `crates/yu-hir/src/source_identity.rs`
@@ -80,6 +87,12 @@ No solver-semantic edits, blanket expected-output updates, fixture rewrites or
 unleased consumers. If another owner is required, stop that change and return
 its exact path and dependency to Luna before writing it. A passing vertical is
 implementation evidence only, not source T or theorem proof.
+
+## Frozen counterexample and amendment review gate
+
+Astra's frozen proof candidate: `notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md`, SHA-256 `226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad`; handoff rev1 SHA-256 `28cc30876831203661ea237c20925249ac48ed5a9cc7fa648c36491dcb51d062`. Its family falsifies rev1's uniform linear bound on all retained flat Apply error references. It does not refute an original Call theorem or authorize narrowing. The exact frozen amendment candidate is `notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md`, SHA-256 `e8b53a773675ba54f0cb5dcc4d62a993e8dd16954e0c92c58fdfc80c620d411e`; handoff SHA-256 `23f637cdb64ef6ab237fef6dacb4abeec06bf19efa75d8f8f2d0202c09a67d80`.
+
+Sequential pre-code review is fresh compiler referee <=180s, fresh spec auditor <=120s, then fresh architect <=90s. All inspect the exact Astra result and amendment; the architect also checks resource transfer, checked R accumulation/reservation and no partial publication. Luna adjudicates only after all three receipts are frozen CLEAN. No implementation, tests, Cargo, build or runtime probe before adjudication. A remedy changing the error-list API, diagnostics, observable IDs or source grammar returns to the semantic/architecture authority boundary.
 
 ## Pins and relevant prior evidence
 
@@ -107,9 +120,12 @@ OPRESP-DEFAULT/ENTRY semantic cut. Keep F1 distinct from FK1; both remain OPEN.
 ## Review and verification
 
 After Astra STOP/freeze, primary checks handoff hashes and assigns fresh,
-sequential reviews of the immutable proof: compiler referee <=180s, spec auditor
-<=120s. Then Luna implementation begins. Freeze the combined proof, applied
-source diff and source manifest. Obtain sequential fresh reviews: compiler
+sequential reviews of the immutable proof and amendment: compiler referee
+<=180s, spec auditor <=120s. Then a fresh pre-code architect review <=90s
+checks checked R arithmetic, allocation/failure atomicity and the explicit
+resource transfer. Luna may start implementation only after all three reviews
+are CLEAN and primary adjudication is recorded. After implementation, freeze
+the combined proof, applied source diff and source manifest. Obtain sequential fresh reviews: compiler
 referee <=180s, spec auditor <=120s, architect <=180s. A separate regression
 auditor <=120s reviews the exact pre-run diff and commands. Only after CLEAN
 pre-run acceptance, one primary verification owner runs these commands
@@ -126,19 +142,23 @@ separately from the two exact new command outcomes.
 
 ## Resources, runtime truth, and stop conditions
 
-Fresh cap 4020s: selector/primary coordination120, Astra720, proof reviews300,
-implementation1800, applied reviews480, pre/post regression reviews240, Cargo
-verification240, reserve120. Reconcile prior assignments; charge real current
-runtime receipts. At most one author runs at once. Three inherited UNKNOWN
+Fresh cap 4020s (rev2 transfer): coordination120; Astra720 (450 charged,
+remaining270 retired at STOP); proof reviews300; Luna amendment author90
+(charged); pre-code architect review90; implementation1710; applied reviews480;
+regression pre/post reviews240; two Cargo invocations240; reserve30. These sum
+to4020. Charge actual runtime; no prior sprint budget carries over. At most one
+author runs at once. Three inherited UNKNOWN
 assignments retain quarantined leases and capacity; reserve two slots for
 review/integration. One Astra assignment only, <=8 substantive stages, no
 children. One heavyweight Cargo process at a time. Do not exceed the two listed
 Cargo invocations or 120s each.
 
-Stop at cap, counterexample, dependency/pin mismatch, recovery outside the
-adopted grammar, conflicting identity, allocation/publication failure with no
-specified recovery, need for an unleased owner, or any proposed semantic change
-outside the adoption receipt. Continue the other lane only if its exact lease and
+Stop at cap, another counterexample, dependency/pin mismatch, recovery outside
+the adopted grammar, conflicting identity, allocation/publication failure with
+no specified recovery, need for an unleased owner, or a proposed semantic
+change outside the adoption receipt. The known R lower bound is not a new stop: it is
+recorded and handled only by the resource amendment review gate; implementation
+remains suspended until that gate is CLEAN and adjudicated. Continue the other lane only if its exact lease and
 inputs remain independent. No blanket cleanup, reset/stash, unknown-lease
 reclamation, theorem weakening or production promotion.
 
