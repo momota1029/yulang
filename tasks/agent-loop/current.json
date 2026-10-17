@@ -19,9 +19,9 @@
     },
     "resources": {
       "cap_seconds": 2100,
-      "charged_seconds": 1318,
-      "available_seconds": 782,
-      "allocation": "Rev2: implementation cap1395 (883 consumed;512 remaining = repair/freeze/review60 + protected verification360 + evidence/handoff92); Sol proof300 consumed; compiler review135/240 consumed, max90s delta; primary120; contingency45. Total2100, current charge1318, available782. Astra0; no new workers/descendants/rollover."
+      "charged_seconds": 1378,
+      "available_seconds": 722,
+      "allocation": "Rev2: implementation cap1395 (943 consumed;452 remaining = protected verification360 + evidence/handoff92); Sol proof300 consumed; compiler review135/240 consumed, max90s delta; primary120; contingency45. Total2100, current charge1378, available722. Astra0; no new workers/descendants/rollover."
     },
       "next_action": "Rev2 accepted after dispatch. Reopen only shadow_apply.rs and runtime evidence/handoff; restore final observer mode from retained CandidateGraph context.scoped_enabled. Preserve failed-command receipt. Fresh delta review <=90s; after CLEAN retry focused regression once and run fixture only on success. Parent closure0."
   },
@@ -31,7 +31,7 @@
     {
       "id": "/root",
       "role": "Luna-primary",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
@@ -53,24 +53,24 @@
     {
       "id": "/root/npair_local_route_authentication_implementation",
       "role": "integrated final-auth route repair, tests and runtime",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=1395s total; rev2 repair/freeze/review<=60s, verification360s, evidence92s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev2 active after dispatcher replan. Writer reopens only shadow_apply.rs (repair of final observer mode from retained GraphState context.scoped_enabled) plus runtime note/inbox. Immutable inputs: other five Rust files, example, proof, fixture, failed command output. Repair/freeze/review cap60s; overall implementation883/1395 charged, verification360s/evidence92s protected."
+      "receipt": "Rev2 repair STOPPED/frozen within60s. shadow_apply.rs SHA 51d1d1534d86181dce6caf0638f5c55e7c3bad6d764c3da5c4c9af10421335ac now selects mode from retained graph context.scoped_enabled. Runtime note SHA8080158d3b6a8e56b495b7beb123bd72a5446034bce3f8bc9519f6886a1e7cd7 and inbox SHA bf17500c802581b64f167c9ad82622c192b11da7980cc80cad46ecb170db2a81 preserve E0609/no-tests receipt and rev2 retry cap. No commands; descendants0. Implementation943/1395 charged, verification360/evidence92 remain."
     },
     {
       "id": "/root/npair_local_route_authentication_review",
       "role": "fresh independent compiler review",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Sol/compiler_referee",
       "requested_effort": "high <=240s total;135s charged, rev2 delta <=90s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Initial and test-delta review CLEAN; cumulative135/240s charged. Wait for rev2 shadow_apply/runtime note/inbox freeze, then review only scoped GraphState mode handoff and prior final-auth guard; cap90s. No commands."
+      "receipt": "Initial and test-delta review CLEAN; cumulative135/240s charged. Rev2 exact snapshot frozen and rehashed; reviewing only scoped GraphState mode handoff and prior final-auth guard under <=90s of remaining105s. No commands."
     }
   ],
   "leases": [
@@ -112,7 +112,7 @@
     {
       "path": "crates/yu-solver/src/shadow_apply.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/lib.rs",
@@ -132,12 +132,12 @@
     {
       "path": "notes/progress/2026-10-18-local-route-runtime-validation.md",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-local-route-runtime-validation.md",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [],
@@ -146,5 +146,5 @@
     "required": false,
     "receipt": "All prior proof, implementation and review workers STOPPED; all prior exact leases FROZEN. Successor starts from clean restored baseline; no overlapping writers or rollover."
   },
-  "next_action": "Rev2 active: failed command preserved; only shadow_apply.rs plus runtime evidence/handoff reopened. Implement from retained context.scoped_enabled, freeze, <=90s review delta, then remeasure and retry focused regression once; fixture only if successful. Implementation charge883/1395, remaining512 incl verification360/evidence92; reviewer remaining105, contingency45. Parent OPEN, closure0."
+  "next_action": "Rev2 repair frozen at shadow_apply.rs 51d1d153; runtime note/inbox frozen at 8080158d/bf17500. Fresh review delta RUNNING <=90s. Then, only after CLEAN and fresh capacity>=120s, retry failed regression once; run fixture only if it passes. Implementation charge943/1395, remaining452=verification360+evidence92; reviewer remaining105, contingency45. Parent OPEN, closure0."
 }
