@@ -19,8 +19,8 @@
     },
     "resources": {
       "cap_seconds": 1920,
-      "charged_seconds": 960,
-      "available_seconds": 960,
+      "charged_seconds": 780,
+      "available_seconds": 1140,
       "allocation": "Proof600 + implementation720 (runtime240 protected) + proof review180 + compiler review180 + primary120 + reserve120. Astra0; no rollover."
     },
     "next_action": "Proof candidate review STOPPED with 2 BLOCKING + 1 MAJOR; no adoption/closure. Proof lane exhausted. Implementation author continues; reserve compiler review180, primary120, reserve120 and impl720. Runtime unreleased."
