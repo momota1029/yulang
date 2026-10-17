@@ -4,76 +4,70 @@
  "phase": "ACTIVE",
  "session": "current-session",
  "active_sprint": {
-  "id": "receive-c2-open-check-20261017",
-  "contract": "tasks/agent-loop/sprints/receive-c2-open-check-20261017.md",
-  "revision": 2,
-  "sha256": "269580db8174fb3ed5c6b036a2816b7d70f56294c8df11199b0dc61dac30962d",
-  "state": "REVIEWED-PARTIAL-CHECKPOINT-READY",
-  "baseline": "a65ce9d07",
-  "parent": "型推論と実行器が証明込みで実装できるまで続ける; original theorem and production gates OPEN.",
-  "fixed_outcome": "At original A1,xi derive all five source-selected c2 obligations (WF_Dec, full VIncl, WholeArgCompatible, ReceiveSchema, complete invocation-image CIncl), or freeze the first exact unavailable descriptor/checking law; apply to reviewed structural plug and retain ambient joins.",
+  "id": "receive-inferred-function-view-formation-20261017",
+  "contract": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
+  "revision": 1,
+  "sha256": "03220c10c137f2880b3f3736675e7ee720f7d36e2af069cd0503ae569c4298cc",
+  "state": "READY",
+  "baseline": "520398c4a0cd0b32b06792a5688b64a5af9100d5",
+  "parent": "型推論と実行器が証明込みで実装できるまで続ける; original A/B theorem and production gates OPEN.",
+  "fixed_outcome": "Construct complete source formation for original inferred F2/xi in the existing descriptor universe with lawful transport, or freeze a reviewed precise bridge proposal and first indispensable producer/embedding law. Keep actual membership, VIncl(A1,F2), c2 image and ambient joins separate.",
   "review": {
-   "state": "CLEAN; all assigned reviews STOPPED",
+   "state": "NOT_STARTED",
    "current_reviewer": null,
    "sequence": [
-    "compiler_referee CLEAN: no findings; proposal interface only, not derivation",
-    "spec_auditor CLEAN: candidate remains unselected; all original scopes/domains retained"
+    "compiler_referee",
+    "architect",
+    "spec_auditor"
    ]
   },
   "resources": {
-   "cap_seconds": 1200,
-   "proof_cap_seconds": 720,
-   "review_cap_seconds": 240,
-   "coordination_seconds": 60,
-   "reserve_seconds": 180,
-   "charged_seconds": 622,
+   "cap_seconds": 1800,
+   "proof_cap_seconds": 900,
+   "implementation_cap_seconds": 300,
+   "review_cap_seconds": 360,
+   "coordination_seconds": 120,
+   "reserve_seconds": 120,
+   "charged_seconds": 0,
    "active_authors": 0,
-   "status": "Proof 382s plus full 240s review reservation charged (622/1200); all workers STOPPED; remaining unused allocation retires; 3 inherited UNKNOWN reservations retained."
+   "status": "Proof author pending actual launch. Three inherited UNKNOWN reservations remain quarantined; unused conditional implementation/review capacity retires."
   },
   "lanes": {
    "proof": {
-    "owner": "/root/receive_c2_open_check (astra_prover)",
-    "state": "REVIEWED-CONDITIONAL",
+    "owner": "astra_prover (pending actual assignment)",
+    "state": "READY",
     "outputs": [
-     "notes/theory/2026-10-17-receive-c2-open-check.md",
-     "tasks/agent-loop/inbox/20261017-receive-c2-open-check.md"
+     "notes/theory/2026-10-17-receive-inferred-function-view-formation.md",
+     "tasks/agent-loop/inbox/20261017-receive-inferred-function-view-formation.md"
     ],
-    "cap_seconds": 720,
-    "receipt": "Proof 8ad6272b9ef0612e7d7cf6915d5bb242ab29fe3968a38124d803758f56b82f02; handoff e858cb0049ef85f506c57c5d74568cdc476a84521e0ff73ecba7aa086292bcf3. Both fresh reviews CLEAN. Candidate bridge unselected."
+    "cap_seconds": 900,
+    "receipt": "Exact leases ready; no launch or work claimed yet."
    },
    "implementation": {
-    "owner": "Luna/high",
-    "state": "NO_SAFE_CODE_SLICE",
-    "outputs": [],
+    "owner": "Luna/high, conditional after proof STOP and fresh review",
+    "state": "WAITING",
+    "outputs": [
+     "notes/design/2026-10-17-receive-function-view-producer-delta.md",
+     "tasks/agent-loop/inbox/20261017-receive-function-view-producer-delta.md"
+    ],
     "code_lease": false,
-    "cap_seconds": 0,
-    "receipt": "Read-only inspection: playground prepare returns HIR+CandidateInference; RuntimeProgram::from_hir builds from HIR without source T import; CandidateInference is not T. Pins: lib.rs b65cfd72; program.rs b9798ac4; shadow_apply.rs bb1e63c2. Existing reviewed producer/importer contracts remain unapplied."
+    "cap_seconds": 300,
+    "receipt": "Design delta only if reviewed proof supplies concrete producer evidence; otherwise retire without repeating generic source-owner audit."
    }
   },
   "artifacts": [
    {
-    "path": "tasks/agent-loop/sprints/receive-c2-open-check-20261017.md",
-    "sha256": "269580db8174fb3ed5c6b036a2816b7d70f56294c8df11199b0dc61dac30962d"
-   },
-   {
-    "path": "notes/theory/2026-10-17-receive-resultbind-context-plug.md",
-    "sha256": "90a0844f10ea433bb21c0d98e67a278e288930752987c233c86290354067bf87"
-   },
-   {
-    "path": "tasks/agent-loop/inbox/20261017-receive-resultbind-context-plug.md",
-    "sha256": "cc883103ed36f538be299215061b23b0f4e12c18d9e85e8fd439fab993e48482"
+    "path": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
+    "sha256": "03220c10c137f2880b3f3736675e7ee720f7d36e2af069cd0503ae569c4298cc"
    }
   ],
   "non_goals": [
-   "replace/narrow original Phi_B^H",
-   "semantic adoption absent a proper fresh gate",
-   "compiler code or tests/builds/probes/execution",
-   "native anchored MODEL establishment",
-   "source admission",
-   "production cutover",
-   "parent theorem closure"
+   "change source/native meaning or approved Option A/Option 2 domain",
+   "compiler code, tests, builds, probes or execution",
+   "actual provider membership or VIncl from descriptor formation alone",
+   "source T closure, anchored native MODEL, production conformance/cutover or parent theorem closure"
   ],
-  "next_boundary": "Next owner: original inferred Function-view formation judgment. Do not repeat c2 checks before formation evidence; implementation remains NO_SAFE_CODE_SLICE.",
+  "next_boundary": "Launch bounded Astra core proof on exact frozen dependencies; implementation is conditional and has no code lease.",
   "workers": [
    {
     "id": "/root/resident_dispatcher_loop_a",
@@ -117,50 +111,25 @@
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "Primary integrated frozen result after fresh compiler_referee and spec_auditor CLEAN reviews; next owner is inferred Function-view formation."
+    "receipt": "Primary owns the newly frozen Function-view formation sprint and sole integration; proof author not yet launched."
    },
    {
-    "id": "/root/receive_c2_open_check",
+    "id": "/root/receive_inferred_function_view_formation",
     "role": "bounded Astra constructive proof author",
-    "state": "STOPPED",
+    "state": "NOT_STARTED",
     "requested_model": "gpt-6-astra",
     "requested_effort": "medium",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
-    "session": "current-session",
-    "cap_seconds": 720,
-    "receipt": "FROZEN/STOPPED 2026-10-17 01:27:50 UTC; proof and handoff hashes recorded; no descendants/scratch paths."
-   },
-   {
-    "id": "/root/receive_c2_formation_compiler_review",
-    "role": "fresh independent compiler_referee review of frozen c2 formation result",
-    "state": "STOPPED",
-    "requested_model": "gpt-6.1-sol",
-    "requested_effort": "medium",
-    "observed_model": "UNKNOWN",
-    "observed_effort": "UNKNOWN",
-    "session": "current-session",
-    "cap_seconds": 120,
-    "receipt": "Fresh independent review CLEAN; no findings; read-only; STOPPED, no descendants."
-   },
-   {
-    "id": "/root/receive_c2_formation_spec_review",
-    "role": "fresh independent spec_auditor review of frozen c2 result",
-    "state": "STOPPED",
-    "requested_model": "gpt-6.1-sol",
-    "requested_effort": "medium",
-    "observed_model": "UNKNOWN",
-    "observed_effort": "UNKNOWN",
-    "session": "current-session",
-    "cap_seconds": 120,
-    "receipt": "Fresh sequential independent review CLEAN; no findings; read-only; STOPPED, no descendants."
+    "session": null,
+    "receipt": "Assigned exact proof leases; no launch yet."
    }
   ]
  },
- "candidate": "tasks/agent-loop/sprints/receive-c2-open-check-20261017.md",
- "baseline": "a65ce9d07",
- "scope": "Construct the actual open c2 source check at original A1,xi and apply it to the reviewed structural plug; implementation lane read-only audit found no safe code slice.",
- "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. One bounded proof author actively assigned from actual current-session launch; no implementation author.",
+ "candidate": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
+ "baseline": "520398c4a0cd0b32b06792a5688b64a5af9100d5",
+ "scope": "Original inferred F2/xi source formation and exact existing-universe producer/transport bridge; full original source/native parent remains OPEN.",
+ "worker_inventory_scope": "Preserve three inherited UNKNOWN reservations/quarantined leases. No new author RUNNING until a current-session launch receipt is observed.",
  "workers": [
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -204,43 +173,18 @@
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Primary integrated frozen result after fresh compiler_referee and spec_auditor CLEAN reviews; next owner is inferred Function-view formation."
+   "receipt": "Primary owns the newly frozen Function-view formation sprint and sole integration; proof author not yet launched."
   },
   {
-   "id": "/root/receive_c2_open_check",
+   "id": "/root/receive_inferred_function_view_formation",
    "role": "bounded Astra constructive proof author",
-   "state": "STOPPED",
+   "state": "NOT_STARTED",
    "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "cap_seconds": 720,
-   "receipt": "FROZEN/STOPPED 2026-10-17 01:27:50 UTC; proof and handoff hashes recorded; no descendants/scratch paths."
-  },
-  {
-   "id": "/root/receive_c2_formation_compiler_review",
-   "role": "fresh independent compiler_referee review of frozen c2 formation result",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "medium",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "cap_seconds": 120,
-   "receipt": "Fresh independent review CLEAN; no findings; read-only; STOPPED, no descendants."
-  },
-  {
-   "id": "/root/receive_c2_formation_spec_review",
-   "role": "fresh independent spec_auditor review of frozen c2 result",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "medium",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "cap_seconds": 120,
-   "receipt": "Fresh sequential independent review CLEAN; no findings; read-only; STOPPED, no descendants."
+   "session": null,
+   "receipt": "Assigned exact proof leases; no launch yet."
   }
  ],
  "leases": [
@@ -255,40 +199,19 @@
    "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/sprints/receive-resultbind-context-plug-20261017.md",
+   "path": "tasks/agent-loop/sprints/receive-inferred-function-view-formation-20261017.md",
    "owner": "/root",
-   "state": "FROZEN",
-   "sha256": "5ae922e68fa123cd99484a4cc1589c757b1cd418d9b582eb0c056edd43b7061d"
+   "state": "FROZEN"
   },
   {
-   "path": "notes/theory/2026-10-17-receive-resultbind-context-plug.md",
-   "owner": "/root",
-   "state": "FROZEN",
-   "sha256": "90a0844f10ea433bb21c0d98e67a278e288930752987c233c86290354067bf87"
+   "path": "notes/theory/2026-10-17-receive-inferred-function-view-formation.md",
+   "owner": "/root/receive_inferred_function_view_formation",
+   "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/inbox/20261017-receive-resultbind-context-plug.md",
-   "owner": "/root",
-   "state": "FROZEN",
-   "sha256": "cc883103ed36f538be299215061b23b0f4e12c18d9e85e8fd439fab993e48482"
-  },
-  {
-   "path": "tasks/agent-loop/sprints/receive-c2-open-check-20261017.md",
-   "owner": "/root",
-   "state": "FROZEN",
-   "sha256": "269580db8174fb3ed5c6b036a2816b7d70f56294c8df11199b0dc61dac30962d"
-  },
-  {
-   "path": "notes/theory/2026-10-17-receive-c2-open-check.md",
-   "owner": "/root/receive_c2_open_check",
-   "state": "FROZEN",
-   "sha256": "8ad6272b9ef0612e7d7cf6915d5bb242ab29fe3968a38124d803758f56b82f02"
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261017-receive-c2-open-check.md",
-   "owner": "/root/receive_c2_open_check",
-   "state": "FROZEN",
-   "sha256": "e858cb0049ef85f506c57c5d74568cdc476a84521e0ff73ecba7aa086292bcf3"
+   "path": "tasks/agent-loop/inbox/20261017-receive-inferred-function-view-formation.md",
+   "owner": "/root/receive_inferred_function_view_formation",
+   "state": "HELD"
   }
  ],
  "pending": [
@@ -324,24 +247,25 @@
   }
  ],
  "next_action": {
-  "state": "REVIEWED-PARTIAL-CHECKPOINT-READY",
-  "dispatcher": "Selector: preserve this sprint and complete planned reviews; next select exact inferred Function-view formation owner. No new authority/resource change.",
-  "proof": "Name/ground Unit/symbolic ReceiveSchema constructed. First missing source law is complete inferred F2 formation at original scope/xi; candidate §3.1 is unselected and needs descriptor-universe/adoption review.",
-  "implementation": "NO_SAFE_CODE_SLICE: current source T exporter/importer remains unproved; no compiler code or preflight relaxation."
+  "state": "READY",
+  "dispatcher": "Selector proposal adopted as sprint plan: original F2 formation; conditional producer-delta design only after proof and review; no semantic adoption or compiler-code authority.",
+  "proof": "Target existing descriptor universe; construct all source-owned dependent fields and lawful transport or identify the first missing producer/embedding law. Preserve original F2/A1/xi.",
+  "implementation": "WAITING conditional on concrete proof evidence and fresh review; design delta only, no compiler code."
  },
  "resource_accounting": {
-  "sprint_id": "receive-c2-open-check-20261017",
-  "cap_seconds": 1200,
-  "proof_cap_seconds": 720,
-  "review_cap_seconds": 240,
-  "coordination_seconds": 60,
-  "reserve_seconds": 180,
-  "charged_seconds": 622,
+  "sprint_id": "receive-inferred-function-view-formation-20261017",
+  "cap_seconds": 1800,
+  "proof_cap_seconds": 900,
+  "implementation_cap_seconds": 300,
+  "review_cap_seconds": 360,
+  "coordination_seconds": 120,
+  "reserve_seconds": 120,
+  "charged_seconds": 0,
   "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Reviewed-partial; proof 382s plus review caps 240s charged; all assigned workers STOPPED; three unknown reservations preserved."
+  "status": "Author not yet launched; no proof work claimed."
  },
- "history": "Checkpointed receive-resultbind-context-plug as a65ce9d07 after CLEAN compiler_referee and spec_auditor reviews: existing structural inversion applies, but actual c2 and ambient witnesses remain OPEN. Sprint setup `receive-c2-open-check-20261017` committed/pushed as 9e11255d0; proof-only. Implementation audit pins current playground prepare/runtime program and CandidateInference path; no source T exporter/importer, so NO_SAFE_CODE_SLICE. Prior source/parent gates remain OPEN; see checkpoint_commits and frozen proof/handoff artifacts. Current c2 proof frozen: Name/ground Unit/symbolic ReceiveSchema constructible; inferred complete F2 view formation absent; provisional CANDIDATE-SOURCE-F2-FORM unselected. Fresh independent reviews pending. C2 proof and handoff reviewed CLEAN by fresh compiler_referee and spec_auditor; checkpoint-ready as reviewed-partial. Next owner is original Function-view formation; source T/native MODEL/production remain OPEN.",
+ "history": "Prior checkpoint 520398c4a froze reviewed-partial c2 frontier: complete inferred F2 formation is the first unavailable law; candidate bridge remains unselected. New sprint targets the original source-owned Function formation judgment while retaining all existing descriptor/membership meanings and parent gates.",
  "checkpoint_commits": [
   "9948ca23f7034dd67d878257db3df2237a7e66bd",
   "d1b706e83",
