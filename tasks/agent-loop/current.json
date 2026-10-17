@@ -4,28 +4,28 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-operation-self-effect-decision-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-operation-self-effect-decision-20261018.md",
-    "revision": 3,
-    "sha256": "0ab0e6a7353810204825ffd05815b2a42195a0915c5380c72831061b7355cd94",
-    "state": "ACTIVE",
-    "baseline": "d4db1bda69e53628d362d33ced23f4e0f37563a3",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, quantifiers and domain unchanged; closure0.",
-    "fixed_outcome": "Classify whether Operation latent self-effect projection is fixed by original judgments or a semantic choice; independently settle explicit-row address/cache invariant.",
+    "id": "npair-parser-row-key-separation-20261018",
+    "contract": "tasks/agent-loop/sprints/npair-parser-row-key-separation-20261018.md",
+    "revision": 1,
+    "sha256": "f9e0c7476e2cd03d0d83ef7c608807b01f2cdc9e9bb1677440692556f7d24b96",
+    "state": "READY",
+    "baseline": "515b705f6879bd8fd4a57fd1f6732e11ea9c0a29",
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, source domain and quantifiers unchanged; closure0.",
+    "fixed_outcome": "Prove or precisely retain key separation for every earlier explicit row that can seed the Operation root cache, including parser recovery paths.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "prior_closeout": "notes/progress/2026-10-18-npair-reference-indexed-lift-closeout.md#sha256:aa8df192adc0f42be89651a93450319f8a28a5c7445ebb774260251f9c75b265"
+      "prior_closeout": "notes/progress/2026-10-18-npair-operation-self-effect-decision-closeout.md#sha256:4efd9fccf44fd905a6e0e1446f019c18842d45f0dd27491aa63113fa06b8d3be"
     },
     "resources": {
-      "cap_seconds": 900,
-      "charged_seconds": 840,
-      "available_seconds": 60,
-      "allocation": "semantic/proof300, address audit180, primary60, independent compiler/source review120, spec review90, reserve150; Astra0."
+      "cap_seconds": 480,
+      "charged_seconds": 0,
+      "available_seconds": 480,
+      "allocation": "parser proof240, fresh compiler/source review120, Luna integration60, reserve60; Astra0."
     },
-    "next_action": "Fresh independent compiler/source review of the pinned SourceNodeKey-to-explicit-row derivation; then close with closure0."
+    "next_action": "Launch one bounded source-constructor proof over ordinary and recovery row creation; then fresh compiler review."
   },
-  "history": "Closed `npair-reference-indexed-source-lift-20261018`: reviewed same-reference IF placement; Operation latent self-effect projection remains missing; conditional Function/Replay lift reviewed CLEAN but H0/provider tree unresolved; parent closure0. Closeout records hashes and reviews. Rev1 dependency pin typo found by independent spec/compiler review; corrected in rev2 without changing scope; rev2 recheck pending. Rev3 spends the pre-existing 150s reserve on source-node key injectivity; primary did preliminary symbol-location reads before exact rev3 lease, which are not admitted as evidence and will be re-read under the pinned lease.",
+  "history": "Closed `npair-operation-self-effect-decision-20261018` rev3: parent conditions0. Semantic classification finds missing original Operation primitive projection but no demonstrated semantic ambiguity. Address result remains conditional; primary injectivity candidate rejected as unconditional after major review because parser/recovery distinct-start property is unproved. Corrected rev1 dependency pin typo in rev2 and independently verified. Full receipts in closeout.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
   "workers": [
     {
@@ -37,117 +37,64 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev3 source identity derivation frozen at exact hashes; fresh independent compiler/source review launched within final 60s reserve."
+      "receipt": "Previous sprint closed with 900s charged; new rev1 exact parser-owner contract issued READY; no new worker yet launched."
     },
     {
-      "id": "/root/npair_operation_self_effect_decision",
-      "role": "constructive-prover / semantic-boundary classifier",
-      "state": "STOPPED",
+      "id": "/root/npair_parser_row_key_separation",
+      "role": "constructive parser/source identity prover",
+      "state": "NOT_STARTED",
       "requested_model": "Sol/prover",
-      "requested_effort": "high <=300s",
+      "requested_effort": "high <=240s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen candidate authority classification; no semantic choice demonstrated; full 300s charged; no source/code/test/Git."
-    },
-    {
-      "id": "/root/npair_explicit_row_address_invariant",
-      "role": "read-only compiler source auditor",
-      "state": "STOPPED",
-      "requested_model": "Luna",
-      "requested_effort": "high <=180s",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen conditional explicit-row address theorem; malformed-key alias is hypothetical only; 180s charged; no At/test/code/Git."
-    },
-    {
-      "id": "/root/npair_incidence_compiler_review",
-      "role": "independent compiler/source reviewer",
-      "state": "RUNNING",
-      "requested_model": "Sol/compiler_referee",
-      "requested_effort": "high <=120s",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Fresh independent review launched on primary-authored injectivity artifact; exact read-only scope, <=60s; no write lease."
-    },
-    {
-      "id": "/root/npair_incidence_spec_review",
-      "role": "independent spec reviewer",
-      "state": "STOPPED",
-      "requested_model": "Sol/spec_auditor",
-      "requested_effort": "low <=90s",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Rev2 exact prior-lift pin correction independently verified; review stopped."
+      "receipt": "Exact rev1 source pins and exclusive outputs issued; launch receipt pending."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/npair-operation-self-effect-decision-20261018.md",
+      "path": "tasks/agent-loop/sprints/npair-parser-row-key-separation-20261018.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/design/2026-10-18-npair-operation-self-effect-decision.md",
-      "owner": "/root/npair_operation_self_effect_decision",
+      "path": "notes/theory/2026-10-18-npair-parser-row-key-separation.md",
+      "owner": "/root/npair_parser_row_key_separation",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-parser-row-key-separation.md",
+      "owner": "/root/npair_parser_row_key_separation",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-syntax/src/cursor.rs",
+      "owner": "/root/npair_parser_row_key_separation",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-operation-self-effect-decision.md",
-      "owner": "/root/npair_operation_self_effect_decision",
+      "path": "crates/yu-syntax/src/type_expr/mod.rs",
+      "owner": "/root/npair_parser_row_key_separation",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-explicit-row-address-invariant.md",
-      "owner": "/root/npair_explicit_row_address_invariant",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-npair-explicit-row-address-invariant.md",
-      "owner": "/root/npair_explicit_row_address_invariant",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_source.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_effect.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-hir/src/module/source_annotation.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-hir/src/source_identity.rs",
-      "owner": "/root",
+      "path": "crates/yu-syntax/src/type_expr/delimited.rs",
+      "owner": "/root/npair_parser_row_key_separation",
       "state": "FROZEN"
     },
     {
       "path": "crates/yu-syntax/src/full_parse.rs",
-      "owner": "/root",
+      "owner": "/root/npair_parser_row_key_separation",
       "state": "FROZEN"
     },
     {
-      "path": "crates/yu-hir/src/module.rs",
-      "owner": "/root",
+      "path": "crates/yu-hir/src/module/source_annotation.rs",
+      "owner": "/root/npair_parser_row_key_separation",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-source-node-key-injectivity.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-npair-source-node-key-injectivity.md",
-      "owner": "/root",
+      "path": "crates/yu-hir/src/source_identity.rs",
+      "owner": "/root/npair_parser_row_key_separation",
       "state": "FROZEN"
     }
   ],
@@ -155,6 +102,6 @@
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "Prior sprint authors and all independent reviewers STOPPED; new sprint lanes are READY but not launched."
+    "receipt": "Prior authors/reviewers STOPPED; next proof writer READY but not launched."
   }
 }
