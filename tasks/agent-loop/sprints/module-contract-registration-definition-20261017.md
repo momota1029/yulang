@@ -1,7 +1,7 @@
 # Sprint: `module-contract-registration-definition-20261017`
 
 Status: READY — Luna-approved continuation from the reviewed prior sprint  
-Revision: 1  
+Revision: 2
 Baseline: `dd67b5f07595dc4e5a8436b59bba6844419d5db4`  
 Parent: original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.
 
@@ -11,29 +11,35 @@ Continue from the adopted `Decl*, b_use, mu_id` for exactly
 `my id x=x; my answer=id 0`. Construct the complete module contract declaration
 from actual source-owned operands, construct its whole typed image, specify a
 registration operation with introduction, elimination and semantic meaning, and
-relate its result to the unchanged original registered-root family at the same
-`B,X,xi,Delta_c,d_id,u_id`. Apply the resulting root to original-generation
+either derive its member in the currently fixed registered-root family or
+propose a reviewed explicit family extension preserving all existing
+constructors. Keep the same `B,X,xi,Delta_c,d_id,u_id`. Apply the resulting root to original-generation
 §7.2(2) without selecting a provider, assignment, strategy, observation,
 carrier, guard or future.
 
 The user explicitly authorized proof-oriented semantic interpretations and
-complexity changes. Within that authority, the proof may formulate a genuinely
-new registration interpretation and its laws; it must distinguish existing
-adopted rules from new clauses and show consistency with the fixed source,
-original constructors and downstream consumers. The interpretation does not
-weaken any original quantifier or source domain. Admission/observation
-equivalence, source/native correspondence, soundness and production remain
-separate obligations. Luna may adopt a reviewed definition within this user
-authority; a proposal alone closes no original theorem condition.
+complexity changes. First try to derive a member of the currently fixed
+registered-root family using its actual existing introduction. If no such
+introduction applies, the proof may propose an explicit extension/interpretation
+of that family with a new module registration constructor. Such an extension
+must preserve every existing constructor and its meaning, state all new
+introduction/elimination/semantic clauses, and be labeled a semantic change; it
+must not be called an embedding into the unchanged family. The original theorem's
+quantifiers, source domain, clients, guards, alternatives, assignment/strategy
+requirements and source/native obligations remain unchanged. Admission /
+observation equivalence, source/native correspondence, soundness and production
+remain separate obligations. Luna may adopt a reviewed definition within this
+user authority; a proposal alone closes no original theorem condition.
 
 Do not use `C_decl` or `m_C` as unexplained premises: derive their fields and
 typing from the actual source declaration and the adopted local map, or identify
 the exact source owner that supplies each missing operand. No cast, assumed
-registered root, new-family injection, native ID, selected VP/Echo or
-satisfiability result may stand in for registration or original-family
-interpretation. Preserve all complete telescope fields, original alternatives,
-provider anchors, same-occurrence incidence, and whole-map scope/dependency
-coherence.
+registered root, native ID, selected VP/Echo or satisfiability result may stand
+in for registration. If a family extension is necessary, define its relation to
+the old family and preserve every old constructor; do not present a new-family
+injection as an old-family embedding. Preserve all complete telescope fields,
+original alternatives, provider anchors, same-occurrence incidence, and
+whole-map scope/dependency coherence.
 
 Success evidence is an actual field-by-field construction plus a reviewed
 registration introduction/elimination/meaning and original-family application
