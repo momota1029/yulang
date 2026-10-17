@@ -5,9 +5,9 @@
   "session": "current-session",
   "active_sprint": {
     "id": "npair-observed-apply-function-ingress-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-observed-apply-function-ingress-20261018.md",
-    "revision": 1,
-    "sha256": "f1b4610c17189becb92ba9e773c6cd667f265bb2129424ef1f3bf7f5cfae9be3",
+    "contract": "tasks/agent-loop/sprints/npair-observed-apply-function-ingress-20261018-rev2.md",
+    "revision": 2,
+    "sha256": "6792708386e9d977d8905716a2f79cc831fd5e37ad8f5e1d1b683919ddf8d0c8",
     "state": "ACTIVE",
     "baseline": "5c45c1807fc6f4fa495a2f0b85c4bdba1672820d",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, source domain, quantifiers, receive route, C1/C2 and F1/FK1 unchanged; closure0.",
@@ -23,10 +23,10 @@
       "available_seconds": 1680,
       "allocation": "proof600 Sol/high; implementation720 Luna/high including one existing harness command; fresh proof/spec review180; fresh implementation/compiler review120; Luna integration120; reserve60; Astra0; descendants0."
     },
-    "next_action": "Start both exact-lease lanes; first material consultation at a source-owner mismatch, actual missing edge, review seam or budget boundary.",
+    "next_action": "Continue both lanes under rev2; independently review the frozen source_call/native/Replay harness query before using the single permitted run.",
     "available_seconds": 1680
   },
-  "history": "Closed npair-actual-argument-ingress-20261018 rev1: original conditions0->0. Proof artifact review CLEAN within bounded constructor-obstruction claim. Implementation submission had a major overclaim about unobserved received LocalSource/collector absence; correction supersedes it and independent delta review CLEAN. One authorized harness run exit0 on partial HIR; fixture restored. See notes/progress/2026-10-18-npair-actual-argument-ingress-closeout.md.",
+  "history": "Closed npair-actual-argument-ingress-20261018 rev1: original conditions0->0. Proof artifact review CLEAN within bounded constructor-obstruction claim. Implementation submission had a major overclaim about unobserved received LocalSource/collector absence; correction supersedes it and independent delta review CLEAN. One authorized harness run exit0 on partial HIR; fixture restored. See notes/progress/2026-10-18-npair-actual-argument-ingress-closeout.md. Successor contract rev2 adds same-snapshot source_call/native-demand/Function-child/ordered-Replay observation, with independent query review before the sole run; no source writes began under rev1.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -67,7 +67,7 @@
     {
       "path": "tasks/agent-loop/sprints/npair-observed-apply-function-ingress-20261018.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/current.json",
@@ -152,6 +152,16 @@
     {
       "path": "crates/yu-hir/src/module/local_source.rs",
       "owner": "/root/npair_actual_argument_source_path",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/npair-observed-apply-function-ingress-20261018-rev1.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/npair-observed-apply-function-ingress-20261018-rev2.md",
+      "owner": "/root",
       "state": "HELD"
     }
   ],
