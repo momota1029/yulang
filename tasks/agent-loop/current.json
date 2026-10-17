@@ -15,13 +15,13 @@
   "result": {
    "original_conditions_closed": 0,
    "proof_class": "Actual candidate structural route; full typed ModulePubUse* introduction/inversion/conservation only relative to a fixed-source annotated reduct. Not embedded in the original module family; conditional and unadopted.",
-   "implementation_class": "Candidate-only two-path observer/test slice authorized; implementation now may start independently of proof embedding.",
+   "implementation_class": "Exact-source candidate-only direct ModuleDef observer, conditional module pending suppliers, and formal-callee negative-control regression; no original typing/admission/runtime claim. Frozen, execution pending.",
    "parent_application": "OPEN; all original theorem gates unchanged."
   },
   "resources": {
    "cap_seconds": 1800,
-   "charged_seconds": 600,
-   "available_seconds": 1200,
+   "charged_seconds": 960,
+   "available_seconds": 840,
    "retired_seconds": 0,
    "allocation": "Astra proof600 + Luna implementation360 + independent reviews480 (compiler180, spec120, architect90, regression pre/post45 each) + coordination120 + one Cargo verification120 + reserve120."
   },
@@ -53,8 +53,8 @@
    {
     "id": "/root/module_call_provisional_observer_implementation",
     "role": "Luna implementation author",
-    "state": "RUNNING",
-    "receipt": "Live assignment launched after Astra STOP; exact three-path lease; cap 360s. Runtime not yet observed."
+    "state": "STOPPED",
+    "receipt": "360/360 seconds conservatively charged; code candidate_call.rs 2bcbab3d27e259fc4b22824980bd625014d4a19f4fa257cd74c69683c1be0359; regression dfc0a48087772f78e404e6f1daa6770bf5d6b4c23d88bd3f61fe967a78736162; handoff 4d4f33a692c4322726f0b6e4d347e5b1e31c702da7171fecc6a18f42ccfaaa07. No Cargo; recommends sole contracted command after CLEAN pre-run review."
    }
   ],
   "leases": [
@@ -76,17 +76,17 @@
    {
     "path": "crates/yu-solver/src/candidate_call.rs",
     "owner": "/root/module_call_provisional_observer_implementation",
-    "state": "ACTIVE"
+    "state": "FROZEN"
    },
    {
     "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
     "owner": "/root/module_call_provisional_observer_implementation",
-    "state": "ACTIVE"
+    "state": "FROZEN"
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-module-call-provisional-observer.md",
     "owner": "/root/module_call_provisional_observer_implementation",
-    "state": "ACTIVE"
+    "state": "FROZEN"
    }
   ],
   "pending": [
@@ -107,7 +107,7 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Luna implementation author RUNNING after Astra STOP; exact three-path lease, cap360. No tests/commands until frozen artifacts pass independent pre-run review.",
+  "next_action": "Both authors STOPPED and exact artifacts frozen. Run sequential independent reviews: compiler/source, spec, architect/API, regression pre-run. Only after CLEAN pre-run, execute exactly the contracted Cargo command once, then post-run regression review.",
   "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."

@@ -164,6 +164,8 @@ pub enum PendingCallSupplier {
     OriginalGenCall0,
     ArgumentReifyAndWholeCarrier,
     ReceiverDispatchAndCompleteResultFutureInterfaces,
+    ModuleNameSourceTypingAndAdmission,
+    ModuleUseReceivingExportCorrespondence,
 }
 /// Borrowed original source construction at an explicitly annotated computation
 /// root. Static provenance does not identify a live receiver or authorize a
@@ -288,6 +290,17 @@ impl<'a> CandidateSourceCall<'a> {
     pub fn callee_source(&self) -> &'a LocalSourceExpr {
         self.callee
     }
+    /// Candidate-only observation of an already validated direct module-name
+    /// callee. It does not inspect solved endpoints or peel source wrappers.
+    pub fn module_callee_target(&self) -> Option<&'a yu_hir::DefId> {
+        match &self.callee.form {
+            LocalSourceForm::Name {
+                resolution: LocalSourceResolution::ModuleDef(target),
+                ..
+            } => Some(target),
+            _ => None,
+        }
+    }
     pub fn argument_source(&self) -> &'a LocalSourceExpr {
         self.argument
     }
@@ -374,6 +387,7 @@ impl<'b, 'a> PendingCallConstruction<'b, 'a> {
     }
     pub fn suppliers(&self) -> impl Iterator<Item = PendingCallSupplier> {
         let formal = self.call.formal.is_some();
+        let module_callee = self.call.module_callee_target().is_some();
         [
             (
                 formal,
@@ -389,6 +403,14 @@ impl<'b, 'a> PendingCallConstruction<'b, 'a> {
             (
                 true,
                 PendingCallSupplier::ReceiverDispatchAndCompleteResultFutureInterfaces,
+            ),
+            (
+                module_callee,
+                PendingCallSupplier::ModuleNameSourceTypingAndAdmission,
+            ),
+            (
+                module_callee,
+                PendingCallSupplier::ModuleUseReceivingExportCorrespondence,
             ),
         ]
         .into_iter()
