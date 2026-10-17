@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "sprint_id": "authentic-source-and-forward-handler-20261017",
-  "contract_revision": 1,
-  "status": "ACTIVE",
+  "contract_revision": 4,
+  "status": "ENDED-PARTIAL-REVIEW-PENDING-DELTA",
   "branch": "research/simple-sub-intrusion",
   "baseline": "cba9d794d1f0498262b3668f9d5cc055c16749e9",
   "goal": "Advance the original inference/F5 goal by constructing the original F1 ForwardHandler action under the accepted decorated-kernel premises and tracing one explicit source rendering of the selected receive/choose graph through existing parser/HIR/candidate registration owners.",
   "authority": "Preserve the original F1/FK1/First-Result and Call/effect quantifiers, source domain, full contexts, providers, guards, witnesses, pending suffixes, foreign continuations and later interactions. Proof results remain conditional. The source fixture is a newly materialized spelling for research and authenticates only its own emitted CST/HIR/candidate identities; it cannot be substituted for an absent historical source artifact or close source-domain correspondence. No inference/semantic/API representation changes or production cutover.",
-  "primary_approval": "Luna validated the sprint-end selector proposal against pinned F1 and source owners, corrected the source-provenance scope to an explicit newly materialized research rendering, and grants only the exact conditional proof and source-harness leases below. Three legacy UNKNOWN reservations remain quarantined; no prior budget transfers.",
+  "primary_approval": "Luna validated the sprint-end selector proposal against pinned F1 and source owners, corrected the source-provenance scope to an explicit newly materialized research rendering, and grants only the exact conditional proof and source-harness leases below. Three legacy UNKNOWN reservations remain quarantined; no prior budget transfers. Proof-only dependency revision 2 adds four selector-pinned sources after the implementation author STOPPED; source-authentication lane remains bound to rev1. Following the selector boundary recommendation, Luna grants a one-time repair/run envelope before proof resumption. The pre-repair example is preserved byte-for-byte; only the example argument borrow may change. One additional primary Cargo run is authorized, <=120s; any further refusal stops this packet. Up to 180s from existing reserve covers snapshot, one-line repair, rerun and receipt; no proof-budget transfer. Review adjudication accepts one medium and one low wording finding. Luna will preserve the original rev1 run receipt and issue a separate r2 reconciliation receipt that narrows the refusal to the example harness guard and clarifies two total Cargo attempts. No new execution or code change. The delta review remains pending because both reviewers conservatively reserve the full 360-second review envelope; no remaining review capacity is certified.",
   "original_parent": {
     "id": "Original finite F1 frame-action/Image obligation; independently FK1 and FIRST-RESULT-ADEQUACY remain separate. Source lane targets CHOOSE-SOURCE-2 for the receive/choose mathematical graph.",
     "source": "Construct the original ForwardHandler(H, ownerSlot, K) finite action and its relation-preserving step inside the existing P3-r2 decorated-kernel packet. Independently materialize a fixed source spelling of the mathematical receive/choose graph and trace its own source identity through current parser/HIR/candidate owners.",
@@ -48,7 +48,11 @@
     "crates/yu-hir/src/module/source_annotation.rs": "b8462b66eac24a48b6fc5e931a3d8b7c38c19bb8b2f1a7cdc4ecd9a8a7a1117f",
     "crates/yu-hir/tests/operation_source.rs": "e6fe60c6e4c9b56ecc5164ef4ecb1b044a4cd58484941e09e27efcfc5ccb8af3",
     "crates/yu-syntax/Cargo.toml": "567b705fabf7558250dbfa59e833d4ff04cb3041db8ed742311865d8cf3081d3",
-    "crates/yu-syntax/src/lib.rs": "18709b87b1b761374b5b81f90fcbf37d001fd7d981597e889aef05ad3f230f93"
+    "crates/yu-syntax/src/lib.rs": "18709b87b1b761374b5b81f90fcbf37d001fd7d981597e889aef05ad3f230f93",
+    "notes/theory/2026-10-16-parameterized-shallow-image-finite-presentation.md": "3a0bf3df4657dd0a6ccbb8690d990177ff19f30e10e91c93839b4601c634f61b",
+    "notes/design/2026-10-16-primitive-interaction-graph-proposal-r2.md": "a1929f54e77335c413cc20230100bc9cad4d98bec4b51f6464db39417a07d63e",
+    "notes/design/2026-10-05-source-contracts-and-common-allowance.md": "1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186",
+    "notes/theory/2026-10-16-primitive-interaction-graph-a2-r2-withdrawal.md": "f963405835082252abbbc54381bf08fdb6a760cf508ae34416d7960fe0a2e729"
   },
   "lanes": {
     "proof": {
@@ -70,7 +74,19 @@
         "tests": 0,
         "builds": 0
       },
-      "sequence": "May run in parallel with the separate source-harness author after both exact leases are granted. Does not certify implementation or semantic completeness."
+      "sequence": "Proof author STOPPED at stage 3/8 with no outputs or writes. Preserve prior 180s charge and conservatively reserve all remaining 720s because incremental reasoning time was not instrumented; no further work until Luna reconciles a safe remaining budget. This is not a budget reset.",
+      "contract_revision": 3,
+      "new_dependencies": {
+        "notes/theory/2026-10-16-parameterized-shallow-image-finite-presentation.md": "3a0bf3df4657dd0a6ccbb8690d990177ff19f30e10e91c93839b4601c634f61b",
+        "notes/design/2026-10-16-primitive-interaction-graph-proposal-r2.md": "a1929f54e77335c413cc20230100bc9cad4d98bec4b51f6464db39417a07d63e",
+        "notes/design/2026-10-05-source-contracts-and-common-allowance.md": "1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186",
+        "notes/theory/2026-10-16-primitive-interaction-graph-a2-r2-withdrawal.md": "f963405835082252abbbc54381bf08fdb6a760cf508ae34416d7960fe0a2e729"
+      },
+      "resume_charge_seconds": 180,
+      "remaining_seconds": 0,
+      "state": "STOPPED-AWAITING-POST-REPAIR-RESOURCE-RECONCILIATION",
+      "incremental_since_resume": "At least 34 seconds recorded read interval; reasoning uninstrumented. Conservatively reserve the entire 720-second remainder pending reconciliation. No further proof work authorized now.",
+      "stopped_work_receipt": "notes/progress/2026-10-17-forward-handler-stage3-obstruction.md"
     },
     "implementation": {
       "assignment_id": "assignment-receive-choose-source-authentication-20261017",
@@ -91,7 +107,22 @@
         "tests": 0,
         "builds": 0
       },
-      "sequence": "Only its leased fixture/example/handoff paths. It cannot change Cargo manifests or source/API owners. A primary-owned single cargo run may be authorized after frozen output if metadata auto-discovers the example; one process <=120s, generated output isolated under /tmp/yulang-research-source-authentication-20261017. No tests."
+      "sequence": "Frozen and STOPPED under rev1; only Luna may run the single authorized post-freeze cargo example, <=120s, isolated target dir. No tests.",
+      "contract_revision": 3,
+      "contract_sha256": "fb5f4be5a15b6697a745abdb3a3620c5c28415b60c05447747ce2e6e319ac290",
+      "primary_repair": {
+        "owner": "Luna primary only",
+        "scope": "Copy the frozen rev1 example bytes to an immutable snapshot, change only &identity to identity at the lower_module_with_local_source call, freeze the result, run one additional Cargo example attempt, <=120 seconds, then record exact outcome and hashes.",
+        "pre_repair_sha256": "2a58996b1085ca892dcb9a79465054fad9ac0ddfce4b02eb02c51aa9d464bfe1",
+        "snapshot_path": "tasks/agent-loop/snapshots/20261017-research-source-registration-pre-repair.rs",
+        "progress_path": "notes/progress/2026-10-17-source-authentication-api-repair.md",
+        "max_seconds_from_reserve": 180,
+        "cargo_attempts_total": 2,
+        "rerun_cap_seconds": 120,
+        "rerun_command": "timeout 120s env CARGO_TARGET_DIR=/tmp/yulang-research-source-authentication-20261017 cargo run --offline --manifest-path crates/yu-solver/Cargo.toml --example research_source_registration --features shadow-apply-candidate",
+        "further_failure": "Stop; no third attempt or broader edits."
+      },
+      "reconciliation_receipt": "notes/progress/2026-10-17-source-authentication-api-repair-r2.md"
     }
   },
   "leases": [
@@ -119,6 +150,31 @@
       "path": "tasks/agent-loop/inbox/20261017-receive-choose-source-authentication.md",
       "owner": "assignment-receive-choose-source-authentication-20261017",
       "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/examples/research_source_registration.rs",
+      "owner": "Luna primary repair",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/snapshots/20261017-research-source-registration-pre-repair.rs",
+      "owner": "Luna primary repair",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-17-source-authentication-api-repair.md",
+      "owner": "Luna primary repair",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-17-source-authentication-api-repair-r2.md",
+      "owner": "Luna primary",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/progress/2026-10-17-forward-handler-stage3-obstruction.md",
+      "owner": "Luna primary",
+      "state": "FROZEN"
     }
   ],
   "resources": {
@@ -135,7 +191,9 @@
     "astra_assignments": 1,
     "heavy_process_peak": 0,
     "lightweight_probes_max": 0,
-    "review": "After both authors and descendants STOP, sequential fresh proof compiler_referee then source/code architect or regression_auditor; one primary Cargo run only after frozen outputs, max120s, isolated target dir; not a test."
+    "review": "Both reviews STOPPED. Proof obstruction review supported the narrow claim. Implementation review found two receipt corrections; delta review cannot be authorized until review-capacity is certified. No new run.",
+    "repair_reserve_allocation_seconds": 180,
+    "sequence": "STOP proof author; primary completes one narrowly leased source API repair, single rerun, and immutable receipt; then separately reconcile proof assignment budget. Reserve two slots for review/integration."
   },
   "falsifiers": [
     "ForwardHandler child normal return skips its source value arm; request resume bypasses it; selected handler runs its own guard while selected; expired handler activation is resurrected; owner/suffix order or admitted (r,Cresume,eta) tuple changes; a source typed map is invented or its premise omitted.",
@@ -150,8 +208,20 @@
     "proof": "Fresh compiler_referee, not proof author; check complete ForwardHandler action, typed maps, whole admitted tuples, requests/futures/value-arm/suffix, constructor application and exclusions.",
     "implementation": "Fresh architect or regression_auditor, not source author; inspect fixture/parser/HIR identities, operation resolution, solve/preflight/export path, root distinction and exact errors. Separate from proof review.",
     "budget_seconds": 360,
-    "execution": "Authors and descendants STOP first; sequential proof review then implementation review; record hashes for all frozen outputs/dependencies."
+    "execution": "Authors and descendants STOP first; sequential proof review then implementation review; record hashes for all frozen outputs/dependencies.",
+    "proof_disposition": "Fresh compiler_referee supports the bounded source obstruction; exact F1 maps remain missing. No theorem artifact was produced.",
+    "implementation_disposition": "Fresh regression_auditor found medium and low receipt wording issues. Luna adjudicated; corrected r2 receipt is unreviewed pending delta review. Original rev1 receipt stays immutable."
   },
-  "dispatcher_decision": "At the previous sprint boundary, next_action_selector proposed ending the choose/export packet and moving to original F1 ForwardHandler plus a provisional source registration harness. Luna validated pins and narrowed the source claim: the fixture is newly materialized research input, never historical source provenance. Exact output leases and non-goals are frozen here.",
-  "next_consultation": "A first missing ForwardHandler typed action/map, parser or solve refusal, evidence requiring source or semantic change, any dependency/lease/resource boundary, review seam, or sprint end."
+  "dispatcher_decision": "At the previous sprint boundary, next_action_selector proposed ending the choose/export packet and moving to original F1 ForwardHandler plus a provisional source registration harness. Luna validated pins and narrowed the source claim: the fixture is newly materialized research input, never historical source provenance. Exact output leases and non-goals are frozen here. At the proof dependency boundary the selector recommended these four exact proof-only additions; Luna froze revision 2 after the implementation author stopped, preserving all claims, leases and budgets. Selector recommends a primary-only repair before proof resumes, with immutable pre-repair bytes, one changed argument, one rerun, <=180s reserve allocation, and proof budget preserved. Luna grants that exact envelope in rev3 after proof writer STOP.",
+  "next_consultation": "Next sprint start; or if delta-review capacity is certified; any new proof action/map, diagnostic owner classification, source/semantic change, refusal, or integration seam.",
+  "closeout": {
+    "proof": "Bounded stage-3 obstruction independently reviewed SUPPORTED; no theorem artifact/output; original F1 remains OPEN.",
+    "implementation": "Two Cargo attempts total; parser accepted, example blanket HIR-error guard refused before candidate admission; no source diagnostic classified.",
+    "pending_review": "Luna receipt correction r2 withdraws “HIR incompatibility” and clarifies two attempts. Independent delta review pending: full 360s review budget conservatively reserved by both reviewers.",
+    "receipts": [
+      "notes/progress/2026-10-17-forward-handler-stage3-obstruction.md",
+      "notes/progress/2026-10-17-source-authentication-api-repair.md",
+      "notes/progress/2026-10-17-source-authentication-api-repair-r2.md"
+    ]
+  }
 }
