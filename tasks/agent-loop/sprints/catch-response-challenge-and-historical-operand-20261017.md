@@ -1,6 +1,8 @@
 # Sprint catch-response-challenge-and-historical-operand-20261017
 
-Status: READY after the prior sprint closeout. Work is analysis and draft source-contract authoring only; no code, semantic adoption or production authority.
+Status: READY rev2 after proof-lane freeze. This revision adds the frozen proof obstruction as a source-lane dependency; it does not reopen the proof assignment. Work is analysis and draft source-contract authoring only; no code, semantic adoption or production authority.
+
+Contract revision 2 supersedes revision 1 (SHA-256 `d788b14a73ea330313863268ebde5445255df3d92b2d9af85f9edb99505d8669`). Revision 1 was frozen before the proof author launched; rev2 adds only the completed proof/handoff pins below. The stopped proof assignment's unused 450 seconds are retired.
 
 Branch: `research/simple-sub-intrusion`. Semantic baseline: `7eb34a0a9`. Exact source/control checkpoint: `9d455a6f8`. Parent: original FORWARD-FIRST-CALL A/B, F1/FK1, `M_exit`, source/native acceptance and production, all OPEN.
 
@@ -71,4 +73,6 @@ b8f15e4617a9d66940183c7327499ff8a2beb1e9cae2abb997137fc1ca464b82 tools/inference
 08810547e1cfe405bd91f59d96fcc3d200075d36b3ebb92882f3a1d486f63983 notes/theory/2026-10-17-catch-metadata-read-exit-commutation.md
 f237aa5e83a6f0fc33adae16ad26623ec895eb52bc85731912330262de2f98e0 tasks/agent-loop/inbox/20261017-catch-metadata-read-exit-commutation.md
 0309a6773860971bbcdbbc74ba988f460b2c9d9f343ec2cf9c617e970e551912 notes/progress/2026-10-17-catch-raw-answer-and-metadata-closeout.md
+6c89912063c1c266ea974ead2e89c1a18cce109e2e94c78b42c95836e3d50591 notes/theory/2026-10-17-catch-applyone-checked-challenge-construction.md
+ddb186a0431bcd87603cc376ee6c093ec42e1a90e33ce50d7056632b7871dbf3 tasks/agent-loop/inbox/20261017-catch-applyone-checked-challenge-construction.md
 ```
