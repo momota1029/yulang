@@ -95,8 +95,8 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Revision2 freezes the user-authorized conservative interpretation amendment; launch Astra proof author. Implementation starts after Astra STOP.",
-  "user_clarification": "Computational complexity may change; report time/space costs. This alone does not authorize source-admission or observable-language changes.",
+  "next_action": "Astra proof author active on revision2 exact lease; read-only source inspection allowed. User-authorized complexity changes require cost accounting only; no contract revision/resource change. Implementation starts after Astra STOP.",
+  "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."
  },
