@@ -28,9 +28,9 @@
    "review_cap_seconds": 300,
    "coordination_seconds": 60,
    "reserve_seconds": 120,
-   "charged_seconds": 120,
+   "charged_seconds": 330,
    "active_authors": 1,
-   "status": "Astra acknowledged contract rev2 at 02:37:31 UTC; added call-semantic input pin matched. Proof RUNNING, 103s elapsed, 120s charged/720; source trace waits."
+   "status": "Astra proof RUNNING; 316s elapsed, 330s charged/720; no new dependencies; Luna source lane waits; total sprint time cap 1500s."
   },
   "lanes": {
    "proof": {
@@ -41,7 +41,7 @@
      "tasks/agent-loop/inbox/20261017-receive-sat-admission-comparison.md"
     ],
     "cap_seconds": 720,
-    "receipt": "Astra acknowledged contract rev2 SHA 39c71ebbb64ec86b893d1397c67ce708a0cc00d446fc23aa28efb66eda72f959 and added source SHA fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a at 02:37:31 UTC; all revised pins match. Active work resumes under original 720s cap, 103s elapsed, 120s charge. Missing law narrowed to original F2 incoming-port/carrier-view identity plus complete domain correspondence; both SAT2 inclusions remain open."
+    "receipt": "Astra acknowledged contract rev2 SHA 39c71ebbb64ec86b893d1397c67ce708a0cc00d446fc23aa28efb66eda72f959 and added source SHA fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a at 02:37:31 UTC; all revised pins match. Active work resumes under original 720s cap, 103s elapsed, 120s charge. Missing law narrowed to original F2 incoming-port/carrier-view identity plus complete domain correspondence; both SAT2 inclusions remain open. Midpoint receipt 2026-10-17 02:41:04 UTC: 316s elapsed, 330s conservative charge, remaining 390s; original F2-to-Strict incoming-port/carrier-view and complete-domain identification remains decisive."
    },
    "runtime_source": {
     "owner": "/root (Luna/high)",
@@ -304,10 +304,10 @@
   "review_cap_seconds": 300,
   "coordination_seconds": 60,
   "reserve_seconds": 120,
-  "charged_seconds": 120,
+  "charged_seconds": 330,
   "active_authors": 1,
   "unknown_reservations_preserved": 3,
-  "status": "Astra proof RUNNING after rev2 pin acknowledgment, 120/720s conservatively charged; Luna source lane sequential; three UNKNOWN reservations retained."
+  "status": "Astra proof RUNNING, 330/720s charged, 390s proof cap remains; source lane sequential; three inherited UNKNOWN reservations retained."
  },
- "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f. Astra proof lane actually launched 2026-10-17 02:35:46 UTC after 15 dependency pins matched; requested Astra/medium, effective model UNKNOWN; 720s cap. Contract rev2 adds the selected call-semantic-input-realization dependency requested by Astra; its hash matched current bytes. Worker paused reliance pending sequential pin/contract acknowledgment; no output writes; budget not reset. Astra interim: Strict selected proof unfolds full T at its own designated Force view; this does not establish original F2 incoming-port correspondence or reverse guard completeness. 86s elapsed, 90s charged; waiting for rev2 acknowledgment. Astra acknowledged rev2 contract and call-semantic input pin at 02:37:31 UTC; all revised pins matched, budget not reset. Exact missing source law narrowed to original incoming-port/carrier-view identity plus complete domains."
+ "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f. Astra proof lane actually launched 2026-10-17 02:35:46 UTC after 15 dependency pins matched; requested Astra/medium, effective model UNKNOWN; 720s cap. Contract rev2 adds the selected call-semantic-input-realization dependency requested by Astra; its hash matched current bytes. Worker paused reliance pending sequential pin/contract acknowledgment; no output writes; budget not reset. Astra interim: Strict selected proof unfolds full T at its own designated Force view; this does not establish original F2 incoming-port correspondence or reverse guard completeness. 86s elapsed, 90s charged; waiting for rev2 acknowledgment. Astra acknowledged rev2 contract and call-semantic input pin at 02:37:31 UTC; all revised pins matched, budget not reset. Exact missing source law narrowed to original incoming-port/carrier-view identity plus complete domains. Proof midpoint recorded 02:41:04 UTC (316s elapsed, 330s charged); decisive F2-to-Strict inlet/view/domain identity remains open."
 }
