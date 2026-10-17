@@ -4,54 +4,54 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "ordinary-hir-application-admission-implementation-20261017",
-    "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
-    "revision": 3,
-    "sha256": "47d160176e72306e150675b2daf6e548d74e1e8d3dfc794c8dbf40ac0ba674e2",
-    "state": "IMPLEMENTATION-REPAIR-REPLAN-REQUIRED",
-    "baseline": "606416278",
-    "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
-    "fixed_outcome": "Implement adopted rev4 ordinary HIR admission and establish the bounded projection invariant in ordinary HIR. Resource contract now counts physical R references with O(V+E+R), worst O(V^2); exact adoption receipt and implementation obligations are frozen. Apply only to the structural premise of the original Call/source bridge; no semantic Call or parent theorem closure.",
-    "proof_artifact": "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
-    "adoption_receipt": "notes/progress/2026-10-17-ordinary-hir-application-admission-adoption.md",
-    "adoption_receipt_sha256": "6d28dc76e321ce63588aab74d74caa6d9eb2655b2d11eb43ca700ba19edfe970",
-    "design_artifact": "notes/design/2026-10-17-ordinary-hir-application-admission-successor.md",
-    "design_sha256": "2e61e2acb1a8981bb78592accc48207a24a5cc4c75278e100f63eb960acfeea3",
+    "id": "ordinary-hir-applied-conformance-repair-20261017",
+    "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
+    "revision": 1,
+    "sha256": "05c07691781bbf737c901bc5ca514268a36404d5bf79a446e4953aaaca6c0f39",
+    "state": "PROOF-SOURCE-NOT-STARTED",
+    "baseline": "4f4dcb7b9",
+    "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
+    "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
+    "failed_candidate_commit": "4f4dcb7b9",
+    "review_receipt": "notes/progress/2026-10-17-ordinary-hir-applied-compiler-review.md",
+    "review_receipt_sha256": "9f576d7f6362f87ae21d01d997dc7418c529aade689d7eafbd22d78b5cf239a6",
+    "closeout_receipt": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
+    "closeout_receipt_sha256": "349a97f70d320a86c4e651292d4ebfba9b7276579f6be1a8d79bfc251c9bb9b8",
+    "adopted_design_sha256": "2e61e2acb1a8981bb78592accc48207a24a5cc4c75278e100f63eb960acfeea3",
+    "adopted_resource_amendment_sha256": "e8b53a773675ba54f0cb5dcc4d62a993e8dd16954e0c92c58fdfc80c620d411e",
     "result": {
       "original_conditions_closed": 0,
       "behavior_executed": false,
-      "proof_class": "Frozen Astra candidate: structural/key/identity/carrier/diagnostic lemmas plus algebraic lower bound; independent review pending.",
-      "implementation_class": "Frozen implementation candidate, pending sequential applied compiler/spec/architect and regression pre-run reviews; no Cargo/tests executed.",
-      "HIR_APP_CST_1": "LOCALLY RESOLVED within pinned fixed-source scope; no parser-wide claim.",
-      "HIR_APP_ADMISSION_1": "ADOPTED rev4 plus resource-only §2 correction; proof candidate frozen; implementation ready; no semantic Call conclusion.",
-      "parent_application": "Still to be derived by Astra from the actual original Call/source bridge; no Call typing, source T or adequacy inferred.",
-      "HIR_APP_ERRREF_1": "ADOPTED resource correction: O(V+E+R), worst O(V^2) in V; flat descendant lists, API, diagnostics and IDs unchanged."
+      "proof_class": "Next proof/source packet not started; exact candidate findings falsified by static review.",
+      "implementation_class": "Failed candidate preserved; no implementation or tests admitted until proof/source invariants and fresh pre-code architect review are CLEAN.",
+      "HIR_APP_REPAIR_1": "OPEN; seven findings frozen in review receipt.",
+      "parent_application": "OPEN; no semantic Call/source T/native adequacy."
     },
     "resources": {
-      "cap_seconds": 4020,
-      "charged_seconds": 2600,
-      "available_seconds": 810,
-      "allocation": "Actual charged2420 + retired610 (Astra unused270, proof-review unused90, implementation unused250) + remaining990 (applied reviews480, regression240, Cargo240, reserve30) = cap4020.",
-      "retired_seconds": 610
+      "cap_seconds": 2760,
+      "charged_seconds": 120,
+      "available_seconds": 2640,
+      "retired_seconds": 0,
+      "allocation": "Coordination120 charged; proof/source240; Luna plan90; pre-code architect120; implementation1110; applied reviews480; regressions240; Cargo240; reserve120. Fresh sprint; retired budget not carried."
     },
     "workers": [
       {
         "id": "/root/resident_dispatcher_loop_a",
         "role": "legacy dispatcher",
         "state": "UNKNOWN",
-        "receipt": "board.md lease remains quarantined; no cessation evidence."
+        "receipt": "Legacy lease remains quarantined; no cessation evidence."
       },
       {
         "id": "/root/resident_implementer_idle",
         "role": "legacy implementation worker",
         "state": "UNKNOWN",
-        "receipt": "legacy lease remains quarantined; no cessation evidence."
+        "receipt": "Legacy lease remains quarantined; no cessation evidence."
       },
       {
         "id": "/root/runtime_source_supplier_proof",
         "role": "legacy proof worker",
         "state": "UNKNOWN",
-        "receipt": "legacy lease remains quarantined; no cessation evidence."
+        "receipt": "Legacy lease remains quarantined; no cessation evidence."
       },
       {
         "id": "/root/next_action_selector",
@@ -59,144 +59,71 @@
         "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "observed_model": "UNKNOWN",
-        "charged_seconds": 60,
-        "receipt": "Boundary delta: suspend code admission; preserve quadratic R lower bound, revise only resource clause, compiler->spec->architect before code. Confirmed 4020 cap with reserve120->amendment90+30 and implementation1800->1710+pre-code architect90."
-      },
-      {
-        "id": "/root/astra_accepted_call_hir_projection",
-        "role": "astra_prover",
-        "state": "STOPPED",
-        "requested_model": "gpt-6-astra",
-        "requested_effort": "medium",
-        "cap_seconds": 720,
-        "lease_paths": [
-          "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
-          "tasks/agent-loop/inbox/20261017-ordinary-hir-call-projection-preservation.md"
-        ],
-        "session": "current-session",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "active_receipt": "Counterexample found: nested Apply.errors duplicates all descendant IDs, yielding Theta(n^2) references. Freezing exact lower bound and independently valid structural/identity lemmas; full linear-storage contract claim STOP after freeze.",
-        "charged_seconds": 450,
-        "remaining_seconds": 0,
-        "receipt": "Both leases frozen; final STOP wall interval 429s, conservatively charged450/720. Artifact/handoff show an earlier 420s freeze-checkpoint estimate; final worker STOP message reports 450s charge. Remaining270s retired, not carried. No code/tests."
+        "receipt": "Fresh repair sprint proposed after 1 BLOCKING+6 major findings; preserve invalid candidate, do not rerun; proof/source240 -> Luna plan90 -> architect120 -> implementation1110 -> reviews/regression/Cargo."
       },
       {
         "id": "/root",
-        "role": "Luna primary amendment author and sprint owner",
+        "role": "Luna primary",
         "state": "STOPPED",
-        "requested_model": "UNKNOWN",
-        "observed_model": "UNKNOWN",
-        "cap_seconds": 90,
-        "charged_seconds": 90,
-        "remaining_seconds": 0,
-        "receipt": "Frozen resource-only output-sensitive amendment and rev2 sprint; charged full90s conservatively; no code/tests."
-      },
-      {
-        "id": "/root/ordinary_hir_application_implementation",
-        "role": "implementer",
-        "state": "STOPPED",
-        "requested_model": "gpt-6-luna",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 1710,
-        "charged_seconds": 1460,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "active_receipt": "Frozen implementation handoff revision1 SHA-256 7c9bfe915052638e915694b5c61790ecff8682e360d8a849df6540af1e7f05f5; implementation source/test candidate complete; five source/test output hashes independently recomputed. Writes ceased; 1460/1710s charged, unused250 retired. git diff --check clean. No Cargo/tests/builds/probes; independent reviews pending; parent theorem gates closed0.",
-        "receipt": "Frozen implementation handoff revision1 SHA-256 7c9bfe915052638e915694b5c61790ecff8682e360d8a849df6540af1e7f05f5; five source/test output hashes are in handoff and independently recomputed by Luna. Writes ceased; ~1460/1710s conservatively charged, unused250 retired. git diff --check clean. No Cargo/tests/builds/probes; applied review pending. Implementation is candidate only; parent theorem gates closed0."
-      },
-      {
-        "id": "/root/accepted_call_hir_projection_compiler_review",
-        "role": "compiler_referee",
-        "assignment_id": "HIR-APP-IMPLEMENTATION-REVIEW-1",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "cap_seconds": 180,
-        "charged_seconds": 180,
-        "remaining_seconds": 0,
-        "session": "current-session",
-        "lease_paths": [
-          "crates/yu-hir/src/module.rs",
-          "crates/yu-hir/src/source_identity.rs",
-          "crates/yu-hir/src/shadow.rs",
-          "crates/yu-hir/tests/ordinary_application_admission.rs",
-          "crates/yu-solver/tests/research_accepted_call_vertical.rs",
-          "tasks/agent-loop/inbox/20261017-ordinary-hir-application-implementation.md"
-        ],
-        "active_receipt": "Followup invoked after STOPPED implementation commit 4f4dcb7b9; exact frozen handoff and six target hashes supplied. Read-only applied compiler review; commands held.",
-        "receipt": "BLOCKING static ownership error plus six major findings; exact findings frozen in notes/progress/2026-10-17-ordinary-hir-applied-compiler-review.md (SHA-256 9f576d7f6362f87ae21d01d997dc7418c529aade689d7eafbd22d78b5cf239a6). No commands ran. Requested Sol/medium, observed UNKNOWN; 180s charged."
+        "charged_seconds": 120,
+        "receipt": "Closed prior sprint reviewed-partial, composed repair sprint rev1 and receipt; next proof/source author not launched."
       }
     ],
     "leases": [
       {
-        "path": "notes/progress/2026-10-17-ordinary-hir-application-admission-adoption.md",
+        "path": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
+        "path": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
         "owner": "/root",
-        "state": "FROZEN-REV2"
-      },
-      {
-        "path": "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
-        "owner": "/root/astra_accepted_call_hir_projection",
         "state": "FROZEN"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-call-projection-preservation.md",
-        "owner": "/root/astra_accepted_call_hir_projection",
-        "state": "FROZEN"
+        "path": "notes/theory/2026-10-17-ordinary-hir-applied-repair-invariants.md",
+        "owner": "proof/source worker after dispatch",
+        "state": "RESERVED"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair-invariants.md",
+        "owner": "proof/source worker after dispatch",
+        "state": "RESERVED"
+      },
+      {
+        "path": "notes/design/2026-10-17-ordinary-hir-applied-repair-plan.md",
+        "owner": "/root after proof STOP",
+        "state": "RESERVED-SEQUENTIAL"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md",
+        "owner": "/root plan then implementer handoff",
+        "state": "RESERVED-SEQUENTIAL"
       },
       {
         "path": "crates/yu-hir/src/module.rs",
-        "owner": "/root/ordinary_hir_application_implementation",
-        "state": "HELD"
+        "owner": "implementer after architect CLEAN",
+        "state": "RESERVED-SEQUENTIAL"
       },
       {
         "path": "crates/yu-hir/src/source_identity.rs",
-        "owner": "/root/ordinary_hir_application_implementation",
-        "state": "HELD"
+        "owner": "implementer after architect CLEAN",
+        "state": "RESERVED-SEQUENTIAL"
       },
       {
         "path": "crates/yu-hir/src/shadow.rs",
-        "owner": "/root/ordinary_hir_application_implementation",
-        "state": "HELD"
+        "owner": "implementer after architect CLEAN",
+        "state": "RESERVED-SEQUENTIAL"
       },
       {
         "path": "crates/yu-hir/tests/ordinary_application_admission.rs",
-        "owner": "/root/ordinary_hir_application_implementation",
-        "state": "HELD"
+        "owner": "implementer after architect CLEAN",
+        "state": "RESERVED-SEQUENTIAL"
       },
       {
         "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
-        "owner": "/root/ordinary_hir_application_implementation",
-        "state": "HELD"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-application-implementation.md",
-        "owner": "/root/ordinary_hir_application_implementation",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-17-ordinary-hir-application-error-reference-adoption.md",
-        "owner": "/root",
-        "state": "FROZEN"
+        "owner": "implementer after architect CLEAN",
+        "state": "RESERVED-SEQUENTIAL"
       }
     ],
     "pending": [
@@ -251,23 +178,10 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Applied compiler review STOPPED with 1 BLOCKING and 6 major findings; implementation author is stopped. Preserve exact candidate, seek selector resource/lease replan before repairs: 810s remain but existing clean-review, regression and Cargo allocations consume all 810s.",
-    "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
-    "predecessor_commit": "5fbceb68d",
-    "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
-    "proof_handoff_sha256": "28cc30876831203661ea237c20925249ac48ed5a9cc7fa648c36491dcb51d062",
-    "amendment_artifact": "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
-    "amendment_artifact_sha256": "e8b53a773675ba54f0cb5dcc4d62a993e8dd16954e0c92c58fdfc80c620d411e",
-    "amendment_handoff": "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md",
-    "amendment_handoff_sha256": "23f637cdb64ef6ab237fef6dacb4abeec06bf19efa75d8f8f2d0202c09a67d80",
-    "adoption_resource_receipt": "notes/progress/2026-10-17-ordinary-hir-application-error-reference-adoption.md",
-    "adoption_resource_receipt_sha256": "bcbc089b62315bf38288e179ef992c7658a5a68a8054ce669258ec474a42b388",
-    "history": " Pre-code resource review receipts: notes/progress/2026-10-17-ordinary-hir-resource-review-receipts.md; exact output-sensitive correction adopted in the following receipt.",
-    "resource_review_receipts": "notes/progress/2026-10-17-ordinary-hir-resource-review-receipts.md",
-    "resource_review_receipts_sha256": "6e2bd8638076728ef2d25a098d027c0aec4bde5df598df1a9cfcdccc2773c38e",
-    "applied_compiler_review_receipt": "notes/progress/2026-10-17-ordinary-hir-applied-compiler-review.md",
-    "applied_compiler_review_sha256": "9f576d7f6362f87ae21d01d997dc7418c529aade689d7eafbd22d78b5cf239a6"
+    "next_action": "Start one read-only-code-writing proof/source packet <=240s to derive authentic node/key provenance without ranges, original error scheduling, final-value classification and falsifiers for all seven findings. Then Luna authors exact plan, fresh architect feasibility review before compiler edits.",
+    "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
+    "predecessor_commit": "2dccbe2cf"
   },
-  "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review.",
-  "quarantine_note": "Three inherited UNKNOWN assignments and their leases remain quarantined. No overlapping authors; two review/integration slots reserved. No production promotion follows structural HIR admission."
+  "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed.",
+  "quarantine_note": "Three inherited UNKNOWN assignments and leases remain quarantined. Prior candidate worker/reviewer STOPPED. No overlapping author; proof/source must finish before Luna plan and implementation."
 }
