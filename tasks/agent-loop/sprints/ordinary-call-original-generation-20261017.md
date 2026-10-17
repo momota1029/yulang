@@ -1,8 +1,11 @@
 # Sprint ordinary-call-original-generation-20261017
 
-Status: READY FOR PROOF. Revision1; baseline `0717a882c`. This sprint targets
-one authentic module-binding Call and leaves the original theorem, quantifiers,
-source domain, and every unrelated parent gate unchanged.
+Status: ACTIVE — proof frozen and independently reviewed; implementation recipe
+under authoring. Revision2 supersedes rev1 only for the implementation-owner
+dependency pins, user complexity clarification, and remaining resource
+allocation. Baseline `0717a882c`. This sprint targets one authentic
+module-binding Call and leaves the original theorem, quantifiers, source domain,
+and every unrelated parent gate unchanged.
 
 ## Original outcome and decisive success
 
@@ -96,15 +99,23 @@ No Cargo, tests, build, or formatter is authorized in this lane.
 If the proof leaves a supplier open, state its source owner and concrete
 missing input; do not replace it with an Opaque “complete Call” record.
 
+User clarification (2026-10-17): implementation computational complexity may be
+changed. Algorithmic time/space tradeoffs are negotiable and must be reported;
+this does not by itself authorize changing source admission, provider/challenge
+domains, or observable language behavior.
+
 ## Review, verification, resources, stop
 
 Fresh spec/conformance and compiler/architect reviews receive frozen proof and
-implementation artifacts, sequentially as the dependency graph requires, from
-the combined review allocation600s (cap300s each). A clean proof review is
+implementation artifacts, sequentially as the dependency graph requires. The
+proof reviews consumed the original600s allocation. A clean proof review is
 required before Luna starts the implementation author lane. A clean
 implementation recipe review is required before any exact compiler lease or
-source code. Conditional verification240s remains unadmitted and is retired if
-no reviewed code gate opens. Reserve240s; Luna coordination120s. No retries.
+source code. The remaining1320s are allocated as: Luna recipe author720s;
+recipe spec review120s then architect/source-feasibility review180s; coordination
+120s; conditional verification0s (retired unless separately reauthorized); and
+reserve180s. No retries. Any later code lease requires a new bounded revision or
+fresh sprint and new resource allocation.
 
 The read-only dependency decomposition was run before dispatch, exact source
 pins matched, and its 180s envelope is charged in full because telemetry is
@@ -139,4 +150,8 @@ crates/yu-solver/src/candidate_source.rs efeacdc547cd71e2a95f83f1c844592b81b6f26
 crates/yu-solver/src/candidate_call.rs cbad9cf51a05343eb7a29ab77aac520891467a8aa4edc3201ea3d91f978984a1
 crates/yu-solver/src/shadow_apply.rs bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf
 crates/yu-hir/tests/ordinary_application_admission.rs 46402bb4fe7a8e41eed3590c9788248e2fc4f769ccbdafcd8d98b1c57e891d79
+crates/yu-solver/src/lib.rs 2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f
+crates/yu-solver/src/candidate_scheme.rs 52b7281946de755003ee8f3b3d18cbc2df6cc6db5566b4e5ecf391b74a92640a
+notes/theory/2026-10-17-ordinary-call-original-generation.md bd2a690517118c8826dfe1a2fe9db53c829a1638bd2e6a1fd5aa01a252735aab
+tasks/agent-loop/inbox/20261017-ordinary-call-original-generation.md 1ff0c3dc71c4b7e09de5e00ff47b158627cc67320d29d820d38d76ed330b98d3
 ```

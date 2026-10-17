@@ -6,9 +6,9 @@
   "active_sprint": {
     "id": "ordinary-call-original-generation-20261017",
     "contract": "tasks/agent-loop/sprints/ordinary-call-original-generation-20261017.md",
-    "revision": 1,
-    "sha256": "be869090bbf2b359122849973017b6896bd916a05c7de8687d696a4f99966d5e",
-    "state": "PROOF-REVIEW",
+    "revision": 2,
+    "sha256": "a1a409b84b5f9750266eea3790a9e098fce8af32e30348f17ee2d1ac1ffb1c21",
+    "state": "IMPLEMENTATION-RECIPE",
     "baseline": "0717a882c",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Construct complete original Application for actual module Name(id) + Literal(0), emit unsolved Call and actual record, apply adopted O0 only to that record and a named original consumer; or isolate the first missing constructor/owner. No semantic silent adoption.",
@@ -19,15 +19,15 @@
     "result": {
       "original_conditions_closed": 0,
       "proof_class": "Frozen conditional formation construction and erasure conservativity over generic open source-rule reduct; actual module publication/root-use map and complete Call declaration substitution are open. No authentic e_c/O0 consumer substitution; original conditions closed0.",
-      "implementation_class": "Not started. No compiler source or test lease; implementation lane drafts an owner-mapped recipe after proof STOP.",
+      "implementation_class": "Luna/high recipe author RUNNING under exact two-document leases; no source/test/Cargo authority. Computational complexity may change per user clarification; language admission/provider/challenge/observable semantics remain unadopted.",
       "parent_application": "OPEN; all original parent gates unchanged."
     },
     "resources": {
       "cap_seconds": 3000,
-      "charged_seconds": 1380,
-      "available_seconds": 1620,
+      "charged_seconds": 1680,
+      "available_seconds": 1320,
       "retired_seconds": 0,
-      "allocation": "Decomposition180 + Astra proof900 + completed CLEAN spec review300 charged (1380/3000). Remaining compiler/source review300; Luna implementation author720 only after both proof reviews CLEAN; coordination120; conditional verification240; reserve240."
+      "allocation": "Decomposition180 + Astra proof900 + two CLEAN proof reviews600 charged (1680/3000). Remaining1320: Luna recipe author720; recipe spec review120 then architect/source-feasibility review180; coordination120; conditional verification0 (retired unless separately reauthorized); reserve180."
     },
     "workers": [
       {
@@ -101,25 +101,44 @@
       {
         "id": "/root/ordinary_call_generation_compiler_review",
         "role": "compiler_referee",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 300,
-        "charged_seconds": 0,
-        "remaining_seconds": 300,
+        "charged_seconds": 300,
+        "remaining_seconds": 0,
         "session": "current-session",
         "launch_receipt": "Spawned after Astra proof STOP and frozen hash verification.",
         "lease_paths": [],
-        "active_receipt": "Read-only source-owner and Code-Call review; module Name/formal distinction, exact operand/Call telescope and original-vs-candidate evidence."
+        "active_receipt": "CLEAN; verified module-vs-formal producer distinction, no original complete Call evidence in Apply, actual collection gate, O0 requires authentic e_c. Parent closure0. Read-only; STOPPED."
+      },
+      {
+        "id": "/root/ordinary_call_generation_implementation_recipe",
+        "role": "implementer",
+        "state": "RUNNING",
+        "requested_model": "gpt-6-luna",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "cap_seconds": 720,
+        "charged_seconds": 0,
+        "remaining_seconds": 720,
+        "session": "current-session",
+        "launch_receipt": "Direct assignment acknowledged after both proof reviews STOPPED CLEAN and contract rev2 frozen.",
+        "lease_paths": [
+          "notes/design/2026-10-17-ordinary-call-generation-implementation-contract.md",
+          "tasks/agent-loop/inbox/20261017-ordinary-call-generation-implementation-contract.md"
+        ],
+        "active_receipt": "Owner-mapped implementation recipe for exact `my id x = x; my answer = id 0`; source→constraint→propagation→consumer, missing suppliers, complexity tradeoffs, falsifier, and exact future code paths. No code/tests/Cargo/Git."
       }
     ],
     "leases": [
       {
         "path": "tasks/agent-loop/sprints/ordinary-call-original-generation-20261017.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "FROZEN-REV2"
       },
       {
         "path": "notes/theory/2026-10-17-ordinary-call-original-generation.md",
@@ -133,13 +152,13 @@
       },
       {
         "path": "notes/design/2026-10-17-ordinary-call-generation-implementation-contract.md",
-        "owner": "Luna after proof STOP",
-        "state": "HELD"
+        "owner": "/root/ordinary_call_generation_implementation_recipe",
+        "state": "ACTIVE"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-ordinary-call-generation-implementation-contract.md",
-        "owner": "Luna after proof STOP",
-        "state": "HELD"
+        "owner": "/root/ordinary_call_generation_implementation_recipe",
+        "state": "ACTIVE"
       }
     ],
     "pending": [
@@ -160,8 +179,9 @@
         "state": "OPEN"
       }
     ],
-    "next_action": "Spec review STOPPED CLEAN; compiler/source-owner review still RUNNING <=300s. Wait for its result. Luna implementation-contract author is not yet admitted; no code/tests/Cargo.",
-    "decomposition": "Read-only task_decomposer found: old Gen-Call-0 is Name/Name; Gen-Call-Syntax is unannotated Value-formal callee; module Name + Literal matches neither. Native literal rule supplies only WholeArgCompatible at actual id Int inlet and excludes full Application/Gen-Call-0. Theorem progress requires authentic full rule derivation then replacing that premise in a named consumer; O0 alone is insufficient."
+    "next_action": "Both proof reviews STOPPED CLEAN. Luna/high recipe author RUNNING <=720s under rev2. Await owner-mapped source→constraint→propagation→consumer contract. No code lease or tests/Cargo. After frozen recipe, perform fresh spec120 then architect/source-feasibility180 review; code authority still requires a new exact bounded revision.",
+    "decomposition": "Read-only task_decomposer found: old Gen-Call-0 is Name/Name; Gen-Call-Syntax is unannotated Value-formal callee; module Name + Literal matches neither. Native literal rule supplies only WholeArgCompatible at actual id Int inlet and excludes full Application/Gen-Call-0. Theorem progress requires authentic full rule derivation then replacing that premise in a named consumer; O0 alone is insufficient.",
+    "user_clarification": "Computational complexity may change. Report time/space costs; this alone does not authorize changing source admission, provider/challenge domains, or observable language behavior."
   },
   "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer. Previous sprint ordinary-hir-applied-conformance-repair-20261017 closed REVIEWED-PARTIAL at commit 0717a882c: focused unit8/8, corrected HIR9/9, solver candidate vertical1/1; original theorem conditions closed0. Exact receipts and rev8 CLEAN reporting review remain under notes/progress and prior handoff. Rev7 spent2760/2760; after-cap solver receipt documentation time UNKNOWN, not retrocharged. New original Call generation sprint starts at baseline0717a882c; decomposition180/180 charged. Prior rev8 review-only envelope charged auditor60 and Luna coordination30; final reserve30 retired without carryover. Documentation correction after rev7 had UNKNOWN actual duration, not retrocharged.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN."
