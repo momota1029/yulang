@@ -1,0 +1,243 @@
+# Ordinary HIR admission for associated applications: successor contract
+
+Status: concrete proposal for independent review; not adopted. The user selected
+direction A as a drafting target. This text alone grants no code, test, language
+semantics or production authority.
+
+Sprint: `ordinary-hir-choice-a-contract-20261017`, contract revision 4,
+SHA-256 `88f9674294f001e33bc9c29803d329f2d76c1059c21bbd9362c35ab1d84d7f93`.
+Parent remains the original Yulang inference/execution goal with the original
+A/B claims, quantifiers and source/native correspondence unchanged.
+
+Source constructor input: [Choice A CST/source-key audit](../theory/2026-10-17-choice-a-call-cst-source-key-audit.md),
+SHA-256 `e8a320be0e78ecc2c5ee5210338476740c03a1fae61fb2747ec39636286ad501`,
+candidate proof pending fresh review. Its fixed source is
+`my id x = x; my apply f = f 1; my answer = apply id`.
+
+## 1. Contract decision
+
+Direction A admits a defined structural subgrammar of recovery-free applications
+into canonical ordinary binding-body HIR. An admitted `Apply` records the
+existing parser association and source operands only. Its existence does not
+assert that the callee is callable, choose a Call typing rule, solve a type or
+effect, establish source T, or authorize production inference.
+
+For a supported application node itself, ordinary HIR emits no
+`UnsupportedExpression`. Operand name-resolution errors retain their current
+kind, source range, owner and order. The fixed three-binding source therefore
+has zero structural HIR errors if all names resolve as established by the
+constructor audit. This is an admission result, not a successful solver result.
+
+## 2. General admitted source grammar
+
+The grammar is inductive over the associated `HirExpr` tree, not a source-text
+specimen list. `Atom` means exactly one childless `IdentifierExpression` or
+`IntegerLiteral` whose CST node maps uniquely to the retained parse. `E` is:
+
+```text
+E ::= Atom
+    | Group(E)
+    | Apply_ml(E, E)
+    | Apply_call(E, E)
+```
+
+`Apply_ml` is one `MlArgument` continuation and `Apply_call` one `CallTail`
+continuation. Each continuation must associate to exactly two children in
+callee/argument order. Nested applications follow the authoritative association
+recursively, including left-associated callees such as `(f x) y`. A Group is
+admitted only when a `ParenthesizedExpression` contains exactly one supported
+expression and no comma/tuple punctuation. Group is retained as structural
+provenance and introduces no semantic grouping rule. Parentheses around atoms
+may be represented by the existing atom source node when association elides the
+wrapper; whenever a Group HIR node is retained, it receives its own source key
+and occurrence.
+
+No recovery node, missing required child, ambiguous source-node mapping, or
+unsupported child occurs in a successful tree. Infix/prefix/suffix/unknown
+operator nodes, tuple or comma arguments (including one-tuples), empty/unit
+arguments, strings, lambdas, blocks, and other non-Atom/non-application forms
+are outside this grammar. The whole enclosing application is refused
+atomically; existing ordinary `UnsupportedExpression` attachment and range are
+retained, and no hidden operand is name-resolved. This is a deliberate bounded
+HIR grammar, not a claim that those source forms are invalid in Yulang.
+
+There is no arbitrary syntax-depth constant borrowed from shadow lowering.
+Projection uses an explicit worklist and visits each reached CST/HIR node once.
+The number of pending and retained entries is linear in the accepted expression
+subtree. Arithmetic and occurrence-ordinal conversions are checked; each new
+collection reserves before publication. The actual hard identity ceiling is
+the existing `u32` occurrence ordinal. Exhausted identity or allocation
+capacity returns the existing availability failure for the enclosing module;
+it does not publish partial HIR. A later implementation receipt must report
+actual allocation strategy and measured fixture counts. No universal parser,
+solver or termination bound follows here.
+
+## 3. Ordinary and opt-in API behavior
+
+`lower_module` is the canonical ordinary entry point. On an admitted body it
+retains `ResolvedExpr::Apply { source_form, callee, argument, errors, range }`
+for each associated application. `source_form` is exactly `MlArgument` or
+`CallTail`; callee and argument match the associated left-to-right HIR children.
+Application structure contributes no error ID. A resolved atom has its usual
+`NameResolution`; an unresolved or ambiguous atom keeps its current resolution
+and diagnostic. An unsupported/recovery-bearing expression keeps the existing
+error form and diagnostics.
+
+The opt-in `lower_module_with_local_source`/shadow route retains its current
+source-carrier and placeholder-error behavior in this contract. Its
+`UnsupportedExpression` IDs remain authentic evidence that semantic lowering is
+pending there. The two separately branded module artifacts are not occurrence-
+identity equal merely because they came from one ParsedFile. The ordinary
+route does not create a `LocalSource` carrier as a side effect.
+
+The fixed literal lowers to `id = Lambda(x, Name(Parameter(x)))`,
+`apply = Lambda(f, Apply_ml(Name(Parameter(f)), Integer(1)))`, and
+`answer = Apply_ml(Name(ModuleDef(apply)), Name(ModuleDef(id)))`. The two outer
+body occurrences are the existing body-root occurrences. This does not identify
+any application result with an accepted function type.
+
+## 4. Errors, recovery and publication
+
+The existing pre-body causal-error gate remains first. If a binding already has
+a header/item error that suppresses its body, it does not inspect application
+operands. `has_recovery` remains before structural projection. Missing,
+Invalid, Error, retry/recovery, comma/tuple and unsupported operator shapes
+refuse the complete enclosing expression using the existing cause and
+attachment; the lowerer never resolves only the visible subset of operands.
+
+For an admitted shape, only the structural-application `UnsupportedExpression`
+that the old ordinary path emitted for that whole body is removed. No other
+`HirError` is removed, reclassified, reordered or cloned. Operand diagnostics
+are emitted once in existing source/lowering order, with the same
+`HirErrorAttachment::Value(DefId)` and operand range as ordinary atom lowering.
+Each `Apply.errors` is the ordered, duplicate-free list of authentic non-
+admission error IDs within that retained subtree; for the fixed literal it is
+empty. Parent aggregation may reference a child error ID but cannot create
+another `HirError`. `HirModule::errors()` remains the authoritative diagnostic
+collection.
+
+The implementation preflights the complete expression and all unique source
+keys before replacing the old unsupported body. It constructs a private result,
+then publishes the node and error-sink delta together. Structural mismatch
+falls back to the old unsupported result; identity/allocation exhaustion aborts
+module lowering with no partially published module. Existing unrelated
+diagnostic IDs, item order and attachment ownership remain unchanged.
+
+## 5. Identities and allocation order
+
+Every retained expression node maps to its exact parse-branded `SourceNodeKey`;
+keys are not reconstructed from spelling/range or matched by text. An Apply
+maps to its `MlArgument`/`CallTail` node; leaves map to their exact
+IdentifierExpression/IntegerLiteral; retained Group nodes map to their
+ParenthesizedExpression. Callee and argument always have distinct source keys.
+Equal text or coincident ranges do not merge nodes. Source parse brands,
+`HirArtifactToken` brands, HIR occurrence IDs, parameter IDs and DefIds remain
+distinct identity domains.
+
+For each admitted body the existing body-root occurrence becomes the outermost
+Apply (or sole atom), preserving that already allocated identity. Existing
+binding roots, lambda and parameter identities, ordinary root order and all
+previously observable ordinary occurrence ordinals remain byte-for-byte stable.
+Additional child/Group occurrences are allocated only after the complete
+legacy ordinary pass has reserved its previous IDs, from the same artifact,
+deterministically in source preorder. No child occurrence is allocated for a
+refused or recovery-bearing shape. The full module remains unpublished until
+all additional IDs and source mappings succeed.
+
+## 6. Apply producer/consumer contract
+
+All affected `ResolvedExpr::Apply` routes must be checked against this split
+between ordinary structural admission and opt-in pending structure:
+
+| Owner/API | Required behavior under this contract |
+|---|---|
+| `yu_hir::module::lower_module` / ordinary binding lowering | Produce error-free structural Apply only for the grammar above; preserve old errors for every refused form. |
+| `lower_module_with_local_source`, shadow lowerer, `LocalSource::form` | Keep current opt-in carrier, placeholder IDs and no-partial-projection behavior; do not silently consume/clear ordinary diagnostics. |
+| `HirModule::shadow_resolved_call_inventory` | Accept authentic ordinary Apply with empty `errors`, as well as opt-in Apply with valid existing IDs. It reports structure/identity only; empty errors do not mean typed Call. Continue rejecting foreign, missing, duplicate or ambiguous occurrences. |
+| ordinary `ConstraintBatch::collect` in `yu_solver::lib` | Do not infer or emit Call typing from ordinary Apply. Preserve its current non-complete/error body status until an independently approved Call source rule exists. |
+| `CandidateInference`/`shadow_apply` and candidate source crosswalk | Remain feature-gated/private-candidate paths. Their result is not standard inference or theorem evidence. This contract does not widen candidate semantics, its ownership/resource limits, or candidate acceptance. |
+| test-only Apply source crosswalks and equality/traversal consumers | Preserve exact operand order, source form, artifact ownership, recovery causes and refusal behavior; update assumptions that equate Apply with nonempty errors only where ordinary HIR is explicitly accepted. |
+
+The unconditional `ResolvedExpr::Apply` enum variant is reused; no new type,
+term, callable judgment, desugaring, constraint recipe or syntax meaning is
+introduced. Its public documentation must distinguish structural source
+admission from semantic Call lowering. An implementation audit must search the
+whole repository for every producer and exhaustive consumer before editing.
+
+## 7. Exact supersessions and preserved authority
+
+Only after explicit user approval of this exact reviewed text, the implementation
+may supersede these specific clauses, and only for the grammar in section 2:
+
+1. `notes/design/2026-09-19-hir-simple-module-resolution-first-slice-draft.md`:
+   the clause excluding application syntax from ordinary simple-module bodies
+   and requiring `UnsupportedExpression` solely for an otherwise supported
+   structural application.
+2. `notes/design/2026-10-10-ordinary-hir-successor-carrier.md`: the promise to
+   leave ordinary HIR application admission, application diagnostics and
+   application-owned occurrence structure unchanged. All its unrelated
+   carrier, root, identity and error guarantees remain in force.
+3. `ResolvedExpr::Apply`'s opt-in-only documentation and
+   `shadow_resolved_call_inventory`'s nonempty-error requirement, solely to
+   permit structural observations of ordinary accepted Apply nodes. Opt-in
+   placeholder/error ownership remains unchanged.
+
+The September 18 association rules, September 19 nested-chain ownership
+amendment, September 20 direct-root behavior, lexical/name-resolution rules,
+recovery policy and operator environment remain unchanged. Direct-root
+application admission is not included: it retains the separately approved
+direct-root contract. No rule about function/call typing, effects, generalization,
+solver acceptance, native behavior, error recovery beyond the listed boundary,
+or any original theorem is changed.
+
+## 8. Required implementation regression contract
+
+After final approval and a separate exact code/test lease, the vertical
+regression set must establish:
+
+1. The fixed source has zero HIR errors, exactly two retained body applications,
+   correct formal/module resolutions and exact distinct operand source keys.
+2. General inductive cases: multiple left-associated ML tails; CallTail with one
+   supported operand; nested application in callee and argument; one comma-free
+   group at arbitrary accepted depth; identical spellings at distinct source
+   positions and repeated parse artifacts.
+3. Existing ordinary items, DefIds, parameters, roots, diagnostics, error IDs
+   and old occurrence ordinals stay stable when a later root gains Apply
+   children. New child IDs are unique, artifact-branded, source-ordered and
+   appended after old ordinals.
+4. Unresolved/ambiguous atoms keep their exact resolution and one diagnostic;
+   applications do not duplicate or suppress it.
+5. Recovery, malformed delimiters, one-tuples, unit/empty calls, operator
+   operands, lambdas, blocks and unsupported forms preserve old refusal,
+   attachments and diagnostic order and allocate no child occurrences.
+6. Source identity inventory accepts ordinary empty-error Apply but rejects
+   foreign/missing/ambiguous keys and duplicate occurrences. Opt-in local-source
+   placeholders and shadow error ownership remain unchanged.
+7. Checked ordinal/collection exhaustion fails atomically. A stress fixture
+   reports CST node count, admitted Apply count, worklist peak, storage growth
+   and failure disposition; no shadow-only bound is reported as universal.
+8. The regular solver does not emit a Call typing constraint from the new HIR
+   alone. Any candidate-only path is labelled and tested separately, without
+   promoting its result to standard inference.
+
+No tests or compiler runs were performed while drafting. Existing red CI format
+checks, if encountered later, must be reported separately from new code checks.
+
+## 9. Open gates and required approval sequence
+
+Fresh independent spec, compiler and architecture reviews must examine this
+exact artifact, the source audit and direct dependency pins in that order. The
+compiler review includes the raw-source constructor audit. Repair all
+blocking/major findings in a new frozen revision and delta-review those bytes;
+there is no additional source-review pass beyond this combined bundle.
+
+Then ask the user to explicitly approve this exact successor contract and the
+three supersessions in section 7. Direction A alone is not this approval. No
+compiler or test lease starts before that answer.
+
+Even after adoption, the following remain OPEN: generated Call constraints,
+accumulation/propagation and actual consumer; semantic Call and source T;
+SV-CONSUMER-1; OPRESP-DEFAULT-1/OPRESP-ENTRY-1/C-OMIT; NPAIR formation/replay,
+N-Transport, N-Subtract-Elim; F1/FK1 and the original A/B quantifiers;
+soundness, principality, termination and production promotion. A HIR regression
+can close only its exact admission/identity behavior.

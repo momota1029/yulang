@@ -1,11 +1,13 @@
 # Ordinary HIR admission for associated applications: successor contract
 
-Status: concrete proposal for independent review; not adopted. The user selected
+Status: repaired concrete proposal for independent review; not adopted. The user selected
 direction A as a drafting target. This text alone grants no code, test, language
 semantics or production authority.
 
-Sprint: `ordinary-hir-choice-a-contract-20261017`, contract revision 4,
-SHA-256 `88f9674294f001e33bc9c29803d329f2d76c1059c21bbd9362c35ab1d84d7f93`.
+Sprint: `choice-a-carrier-and-diagnostic-contract-repair-20261017`, contract revision 1,
+SHA-256 `72622fda6e699ff6fdac22c362212e4a355eba0fe55690df5bd6e46f7de906b5`.
+Successor artifact revision 2; revision 1 is preserved at
+`tasks/agent-loop/archive/20261017-ordinary-hir-application-admission-successor-r1.md`.
 Parent remains the original Yulang inference/execution goal with the original
 A/B claims, quantifiers and source/native correspondence unchanged.
 
@@ -23,10 +25,13 @@ assert that the callee is callable, choose a Call typing rule, solve a type or
 effect, establish source T, or authorize production inference.
 
 For a supported application node itself, ordinary HIR emits no
-`UnsupportedExpression`. Operand name-resolution errors retain their current
-kind, source range, owner and order. The fixed three-binding source therefore
-has zero structural HIR errors if all names resolve as established by the
-constructor audit. This is an admission result, not a successful solver result.
+`UnsupportedExpression`. An unresolved or ambiguous operand receives the same
+`NameResolution`, error kind, source range and value attachment as ordinary
+atom lowering, once, in the specified source order. Such operand errors are
+newly materialized compared with the old whole-body refusal. The fixed
+three-binding source therefore has zero structural HIR errors if all names
+resolve as established by the constructor audit. This is an admission result,
+not a successful solver result.
 
 ## 2. General admitted source grammar
 
@@ -79,16 +84,27 @@ retains `ResolvedExpr::Apply { source_form, callee, argument, errors, range }`
 for each associated application. `source_form` is exactly `MlArgument` or
 `CallTail`; callee and argument match the associated left-to-right HIR children.
 Application structure contributes no error ID. A resolved atom has its usual
-`NameResolution`; an unresolved or ambiguous atom keeps its current resolution
-and diagnostic. An unsupported/recovery-bearing expression keeps the existing
-error form and diagnostics.
+`NameResolution`; an unresolved or ambiguous atom receives its usual resolution
+and exactly one ordinary lowering diagnostic. An unsupported/recovery-bearing
+expression keeps the existing error form and diagnostics.
+
+The ordinary route continues to form exactly the existing `SourceCarrierOutcome`
+for every admitted binding, with the existing direct-expression outcomes, source
+identity sidecar and availability behavior. Apply admission changes the
+canonical `ResolvedExpr` tree and its ordinary error sink, and extends the source
+identity sidecar only with mappings for new HIR child occurrences. It neither
+skips nor changes carrier formation, Supported/Unsupported classification,
+carrier forms, root/parameter ownership, existing source-key mappings or
+pre-existing carrier occurrence IDs. The carrier and canonical HIR may
+represent the same parsed node with distinct occurrence IDs; both IDs map to
+that exact same parse-branded `SourceNodeKey` and belong to the same HIR
+artifact. They are separate projections, not a one-to-one occurrence crosswalk.
 
 The opt-in `lower_module_with_local_source`/shadow route retains its current
 source-carrier and placeholder-error behavior in this contract. Its
-`UnsupportedExpression` IDs remain authentic evidence that semantic lowering is
-pending there. The two separately branded module artifacts are not occurrence-
-identity equal merely because they came from one ParsedFile. The ordinary
-route does not create a `LocalSource` carrier as a side effect.
+`UnsupportedExpression` IDs remain authentic evidence that semantic lowering
+is pending there. The two separately branded module artifacts are not occurrence-
+identity equal merely because they came from one ParsedFile.
 
 The fixed literal lowers to `id = Lambda(x, Name(Parameter(x)))`,
 `apply = Lambda(f, Apply_ml(Name(Parameter(f)), Integer(1)))`, and
@@ -106,22 +122,38 @@ refuse the complete enclosing expression using the existing cause and
 attachment; the lowerer never resolves only the visible subset of operands.
 
 For an admitted shape, only the structural-application `UnsupportedExpression`
-that the old ordinary path emitted for that whole body is removed. No other
-`HirError` is removed, reclassified, reordered or cloned. Operand diagnostics
-are emitted once in existing source/lowering order, with the same
-`HirErrorAttachment::Value(DefId)` and operand range as ordinary atom lowering.
-Each `Apply.errors` is the ordered, duplicate-free list of authentic non-
-admission error IDs within that retained subtree; for the fixed literal it is
-empty. Parent aggregation may reference a child error ID but cannot create
-another `HirError`. `HirModule::errors()` remains the authoritative diagnostic
-collection.
+that the old ordinary path emitted for that body is removed. No other pre-existing
+`HirError` is removed, reclassified, reordered relative to other retained
+records, or cloned. Operand diagnostics are emitted once in the existing
+atom-lowering source order, with
+`HirErrorAttachment::Value(DefId)` and the exact operand range. Each
+`Apply.errors` is the ordered, duplicate-free list of authentic error IDs within
+that retained subtree; for the fixed literal it is empty. Parent aggregation may
+reference a child error ID but cannot create another `HirError`.
+`HirModule::errors()` remains the authoritative error collection.
+
+Within every resulting module, `HirErrorId` and `HirDiagnosticId` remain dense
+phase-local vector indices in the existing emission order, and all cross-references
+point to the records at those final indices. Every retained non-admission error
+and diagnostic keeps its exact payload (origin, attachment, range, kind and
+diagnostic association), multiplicity, and relative order with other retained
+records. Newly discovered operand errors are inserted according to ordinary
+source/lowering order. Because IDs are assigned from the final vector positions,
+removing an earlier application-admission error or adding a newly visited
+operand error may change the numeric IDs of later retained errors and
+diagnostics. Numeric equality across pre- and post-admission module products is
+not guaranteed; corresponding retained records are matched by their full
+payload and ordered multiplicity, never by numeric ID. No sparse IDs,
+tombstones, or alternate ID storage are introduced. This preserves the
+authoritative dense-index invariant while stating its observable consequence.
 
 The implementation preflights the complete expression and all unique source
 keys before replacing the old unsupported body. It constructs a private result,
 then publishes the node and error-sink delta together. Structural mismatch
 falls back to the old unsupported result; identity/allocation exhaustion aborts
-module lowering with no partially published module. Existing unrelated
-diagnostic IDs, item order and attachment ownership remain unchanged.
+module lowering with no partially published module. Existing item order,
+retained error payloads/order and attachment ownership remain unchanged; final
+dense IDs are assigned from the resulting vectors as described above.
 
 ## 5. Identities and allocation order
 
@@ -137,12 +169,17 @@ distinct identity domains.
 For each admitted body the existing body-root occurrence becomes the outermost
 Apply (or sole atom), preserving that already allocated identity. Existing
 binding roots, lambda and parameter identities, ordinary root order and all
-previously observable ordinary occurrence ordinals remain byte-for-byte stable.
-Additional child/Group occurrences are allocated only after the complete
-legacy ordinary pass has reserved its previous IDs, from the same artifact,
-deterministically in source preorder. No child occurrence is allocated for a
-refused or recovery-bearing shape. The full module remains unpublished until
-all additional IDs and source mappings succeed.
+previously observable ordinary HIR occurrence ordinals remain unchanged. The
+existing ordinary source-carrier pass then runs with the same roots, source
+keys, traversal, outcomes and occurrence allocation as before; all previously
+published carrier occurrence ordinals therefore remain unchanged too. Only
+after that pass completes are additional canonical-HIR child/Group occurrences
+allocated from the same artifact, deterministically in source preorder. Each
+new HIR occurrence is unique and maps to the exact same parse key used by the
+corresponding carrier node when one exists; it does not reuse that carrier
+occurrence ID. No additional canonical-HIR child occurrence is allocated for a refused or
+recovery-bearing shape. The full module remains unpublished until the canonical nodes,
+additional IDs and source mappings succeed.
 
 ## 6. Apply producer/consumer contract
 
@@ -173,14 +210,28 @@ may supersede these specific clauses, and only for the grammar in section 2:
    the clause excluding application syntax from ordinary simple-module bodies
    and requiring `UnsupportedExpression` solely for an otherwise supported
    structural application.
-2. `notes/design/2026-10-10-ordinary-hir-successor-carrier.md`: the promise to
-   leave ordinary HIR application admission, application diagnostics and
-   application-owned occurrence structure unchanged. All its unrelated
-   carrier, root, identity and error guarantees remain in force.
+2. `notes/design/2026-10-10-ordinary-hir-successor-carrier.md`: only its promise
+   to leave ordinary application admission, application-owned HIR diagnostics
+   and canonical-HIR application occurrence structure unchanged. Its binding
+   and expression `SourceCarrierOutcome`s, Supported/Unsupported results,
+   carrier forms, source identity mappings, root/parameter/artifact reuse,
+   availability failures and every pre-existing carrier occurrence ordinal
+   remain in force unchanged. The added canonical-HIR child occurrences are
+   allocated after those carrier ordinals and map to exact parse keys without
+   replacing carrier IDs.
 3. `ResolvedExpr::Apply`'s opt-in-only documentation and
    `shadow_resolved_call_inventory`'s nonempty-error requirement, solely to
    permit structural observations of ordinary accepted Apply nodes. Opt-in
    placeholder/error ownership remains unchanged.
+4. The September 19 dense phase-local error/diagnostic ID clause remains in
+   force within each resulting module. This proposal makes no change to that
+   invariant. The exact compatibility rule for this admission change is that
+   numeric IDs for later retained records are not guaranteed equal across the
+   old and new module products: dense indices are recomputed from each final
+   ordered vector, so removing an application error or inserting an operand
+   diagnostic can shift those values. This consequence is part of the exact
+   user-approval request; no expected-output or implementation changes before
+   that approval.
 
 The September 18 association rules, September 19 nested-chain ownership
 amendment, September 20 direct-root behavior, lexical/name-resolution rules,
@@ -201,22 +252,30 @@ regression set must establish:
    supported operand; nested application in callee and argument; one comma-free
    group at arbitrary accepted depth; identical spellings at distinct source
    positions and repeated parse artifacts.
-3. Existing ordinary items, DefIds, parameters, roots, diagnostics, error IDs
-   and old occurrence ordinals stay stable when a later root gains Apply
-   children. New child IDs are unique, artifact-branded, source-ordered and
-   appended after old ordinals.
-4. Unresolved/ambiguous atoms keep their exact resolution and one diagnostic;
+3. Existing ordinary items, DefIds, parameters, roots and ordinary HIR
+   occurrence ordinals stay stable when a body gains Apply children. Existing
+   carrier outcomes, carrier structure, source-key mappings and carrier
+   occurrence ordinals also stay stable. New HIR-only child IDs are unique,
+   artifact-branded, source-ordered and allocated after the carrier pass.
+4. Error and diagnostic vectors are dense and internally cross-referenced in
+   each resulting module. Retained record payloads, multiplicity and relative
+   order are unchanged; IDs are resolved to final vector positions. A fixture
+   with an application admission error before a later unresolved name asserts
+   the later diagnostic's unchanged semantic payload and its newly dense ID,
+   without asserting numeric equality with the pre-admission product.
+5. Unresolved/ambiguous atoms keep their exact resolution and one diagnostic;
    applications do not duplicate or suppress it.
-5. Recovery, malformed delimiters, one-tuples, unit/empty calls, operator
+6. Recovery, malformed delimiters, one-tuples, unit/empty calls, operator
    operands, lambdas, blocks and unsupported forms preserve old refusal,
    attachments and diagnostic order and allocate no child occurrences.
-6. Source identity inventory accepts ordinary empty-error Apply but rejects
-   foreign/missing/ambiguous keys and duplicate occurrences. Opt-in local-source
-   placeholders and shadow error ownership remain unchanged.
-7. Checked ordinal/collection exhaustion fails atomically. A stress fixture
+7. Source identity inventory accepts ordinary empty-error Apply but rejects
+   foreign/missing/ambiguous keys and duplicate occurrences. Ordinary carrier
+   outcomes and opt-in local-source placeholders/error ownership remain
+   unchanged.
+8. Checked ordinal/collection exhaustion fails atomically. A stress fixture
    reports CST node count, admitted Apply count, worklist peak, storage growth
    and failure disposition; no shadow-only bound is reported as universal.
-8. The regular solver does not emit a Call typing constraint from the new HIR
+9. The regular solver does not emit a Call typing constraint from the new HIR
    alone. Any candidate-only path is labelled and tested separately, without
    promoting its result to standard inference.
 
@@ -226,13 +285,15 @@ checks, if encountered later, must be reported separately from new code checks.
 ## 9. Open gates and required approval sequence
 
 Fresh independent spec, compiler and architecture reviews must examine this
-exact artifact, the source audit and direct dependency pins in that order. The
-compiler review includes the raw-source constructor audit. Repair all
-blocking/major findings in a new frozen revision and delta-review those bytes;
+exact artifact, the frozen source audit, current `module.rs`, `local_source.rs`,
+`source_identity.rs`, the ordinary-carrier authority and direct dependency pins
+in that order. The compiler review includes the raw-source constructor audit.
+Repair blocking/major findings in a new frozen revision and review those bytes;
 there is no additional source-review pass beyond this combined bundle.
 
-Then ask the user to explicitly approve this exact successor contract and the
-three supersessions in section 7. Direction A alone is not this approval. No
+Then ask the user to explicitly approve this exact successor contract, the
+named supersessions and the stated downstream numeric error/diagnostic-ID
+shifting consequence in section 7. Direction A alone is not this approval. No
 compiler or test lease starts before that answer.
 
 Even after adoption, the following remain OPEN: generated Call constraints,
