@@ -4,91 +4,60 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "module-callee-result-formation-20261017",
-    "contract": "tasks/agent-loop/sprints/module-callee-result-formation-20261017.md",
+    "id": "module-source-owned-result-formation-20261017",
+    "contract": "tasks/agent-loop/sprints/module-source-owned-result-formation-20261017.md",
     "revision": 1,
-    "sha256": "ef988640072e6a3cbbdda7a21cb7112575ce09a05262372feb897cd3ef0687cc",
-    "state": "CLOSED-REVIEWED-PARTIAL",
-    "baseline": "e92f44e5b85cc6da574ec0ca16995bacd40009cf",
+    "sha256": "3f6b59d8de5626411da6e83974f79bea7f4c7f71e87dbb0b0f2828485ad12f23",
+    "state": "ACTIVE-PROOF",
+    "baseline": "d84b271e4a1a13dfc15d0ac53095a02d97c4d0d6",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native obligations unchanged.",
-    "fixed_outcome": "Construct actual complete Fam_Return and registered Result port from original typed source constructors after adopted Data_MI; derive q_f_M/Comp(E_f,A_id_use), substitute at unchanged §7.2(2), and freeze next missing Call operand. Do not assume Family/port/q_f.",
+    "fixed_outcome": "Derive same-occurrence Result(Name) normalization at u_id, then construct complete source-owned Result_MI formation/port/Code-Result from actual SRC L2 Return law and original Return meaning, yielding q_f_M at unchanged §7.2(2), or freeze exact first absent field/law.",
     "dependency_snapshot": {
-      "established": "Adopted Sigma_M registration plus reviewed Sigma_MI MRef/IF/Name/Data-Name derivation applied at actual u_id. One local MODULE-DATA-NAME-u_id@Sigma_MI closed; fixed-family/global gates0.",
-      "conditional": "MResult/Code-Result require actual complete Fam_Return application, source normalization and registered Result port; prior packet supplied no such instance. Old consumers require actual compatibility.",
-      "next_downstream": "After q_f, module/literal scoped demand rho_c/F_c; Call-owned argument Reify registration/license/attachment; all checks/origins, guards/alternatives, elimination and authentic e_c.",
-      "implementation_blockers": "NO_SAFE_CODE_SLICE and inherited UNKNOWN writer leases remain; do not repeat prior owner audit. Code WAITING unless this proof yields an exact new typed producer/consumer contract at an unquarantined owner."
+      "established": "Adopted Sigma_M registration and reviewed Sigma_MI MRef/IF/Name/Data-Name at actual u_id. Source result synthesis A selects Result(Value(A))=Comp(empty,A), but does not alone construct full Return family.",
+      "conditional": "No source-owned Result_MI complete family/port/q_f yet. Need same-occurrence normalization derivation, full SRC Return schema and preserved scopes/providers/guards/arms/futures.",
+      "next_downstream": "If q_f_M is derived: module/literal demand rho_c/F_c, Call-owned argument Reify, all original checking clauses/origins, guards/alternatives and authentic e_c.",
+      "implementation_blockers": "NO_SAFE_CODE_SLICE and inherited UNKNOWN writer quarantine remain; no repeated raw-P audit. Code WAITING unless a concrete unquarantined producer/consumer contract emerges."
     },
     "result": {
       "original_conditions_closed": 0,
-      "proof_class": "No complete Fam_Return/port/q_f. u_x Return cannot transport to u_id; old raw-P route mismatches module context and Data_MI sort. Frozen bounded checked-application proposal only; unadopted. Compiler/spec/architecture reviews CLEAN.",
-      "implementation_class": "WAITING; previous NO_SAFE_CODE_SLICE and UNKNOWN writer quarantine unchanged. No code/tests/builds/runtime behavior.",
-      "parent_application": "Prior local Data-Name remains fixed; Result and complete Call remain OPEN.",
-      "local_conditions_closed": 1
+      "proof_class": "Active Sol/high source-owned Result_MI construction; no new condition closure yet.",
+      "implementation_class": "WAITING; no code/tests/builds in this contract.",
+      "parent_application": "Prior local Data-Name fixed; complete Result/q_f and complete Call remain open.",
+      "local_conditions_closed": 2
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 1140,
-      "available_seconds": 0,
-      "retired_seconds": 360,
-      "allocation": "Proof720 + compiler180 + spec120 + architecture120 charged; unused360 retired. Astra0."
+      "charged_seconds": 720,
+      "available_seconds": 780,
+      "allocation": "Proof720 charged at assignment; compiler180 + spec120 + architecture120 if new Result case + Luna integration180 + reserve180. Astra0; unused retires, no carryover."
     },
     "workers": [
       {
         "id": "/root/registered_root_proof",
         "role": "prover",
-        "state": "STOPPED",
+        "state": "RUNNING",
         "requested_model": "gpt-6-sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "receipt": "Frozen revision1 artifact SHA a512218d69fe63d2be64b1b11ad53e450abba9c7d1984e609d847c0e7e565885; handoff SHA 29ba01cad536b0ca304abf4324c68408b054a89235538ef567d83df1078101dc. No complete Fam_Return/port/q_f. Body Return remains u_x; raw-P API lacks module context and Data_MI is wrong old sort. Bounded checked-application proposal stops UNRESOLVED at first missing declared signature/arg. Full720 charged; no code/tests."
-      },
-      {
-        "id": "/root/catch_target_instantiation_compiler_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "receipt": "CLEAN bounded compiler/source review. u_x Return stays source-scoped under mu_id; raw-P route lacks actual module context/Data sort; MI proposal retains inputs only and checked substitution stops UNRESOLVED, no Family/port/q_f assumption. 7 direct + 5 linked pins match; full180 charged; no edits/tests/Git."
-      },
-      {
-        "id": "/root/catch_historical_operand_spec_review",
-        "role": "spec_auditor",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "low",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "receipt": "CLEAN bounded spec audit. Original indices, quantifiers, clients, guards, alternatives, providers, futures and GC preserved; u_x/d_x transport cannot yield u_id/d_id; raw-P module/context and Data_MI sort mismatch explicit; MI proposal does not widen old domains. 12/12 pins match; full120 charged; no writes/tests/Git."
-      },
-      {
-        "id": "/root/module_reference_architecture_review",
-        "role": "architect",
-        "state": "STOPPED",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "receipt": "Fresh architecture review of proposed MI-Result-Header*/MI-Return-Apply* domain and old-consumer preservation; ≤120s. Read-only."
+        "receipt": "Active source-owned Result_MI proof; exact contract SHA 3f6b59d8de5626411da6e83974f79bea7f4c7f71e87dbb0b0f2828485ad12f23; ≤720s/8 stages; output leases theory artifact/inbox; Astra0."
       }
     ],
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/module-callee-result-formation-20261017.md",
+        "path": "tasks/agent-loop/sprints/module-source-owned-result-formation-20261017.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "notes/theory/2026-10-17-module-callee-result-formation.md",
+        "path": "notes/theory/2026-10-17-module-source-owned-result-formation.md",
         "owner": "/root/registered_root_proof",
-        "state": "FROZEN"
+        "state": "LEASED"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261017-module-callee-result-formation.md",
+        "path": "tasks/agent-loop/inbox/20261017-module-source-owned-result-formation.md",
         "owner": "/root/registered_root_proof",
-        "state": "FROZEN"
+        "state": "LEASED"
       },
       {
         "path": "candidate_source.rs",
@@ -103,28 +72,24 @@
     ],
     "pending": [
       {
-        "id": "MODULE-RESULT-q_f",
-        "state": "OPEN; actual complete Return at u_id, registered port and q_f absent."
+        "id": "MODULE-DATA-NAME-u_id@Sigma_MI",
+        "state": "CLOSED-LOCAL; adopted actual derivation."
       },
       {
-        "id": "MODULE-RESULT-MI-DOMAIN",
-        "state": "UNADOPTED; checked-application proposal is only a boundary tool, not an actual application."
+        "id": "MODULE-RESULT-MI-q_f",
+        "state": "ACTIVE; actual normalization + complete source Return + MI port + Code-Result, or exact first missing field/law."
       },
       {
         "id": "MODULE-CALL-DEMAND-REIFY",
         "state": "OPEN; rho_c/F_c, argument registration, checks/origins and authentic e_c."
       },
       {
-        "id": "MODULE-DATA-NAME-u_id@Sigma_MI",
-        "state": "CLOSED-LOCAL at prior adopted premise."
-      },
-      {
         "id": "MODULE-ROOT-ORIGINAL-COMPAT / ADMISSION-EQUIVALENCE / F1/FK1/N-Transport/soundness/principality/termination",
         "state": "OPEN independent parent gates."
       }
     ],
-    "next_action": "Next sprint: derive same-occurrence Result(Name) normalization, instantiate the complete source Return declaration from its SRC L2 owner, and propose a reviewed Result_MI formation/port/Code-Result route to actual q_f. If any field/law is absent, freeze its exact typed boundary. No repeated raw-P mismatch audit. Astra0; implementation WAITING."
+    "next_action": "Finish source-owned Result_MI application, preserving original Return meaning and every field. Review sequentially. Do not claim q_f without complete actual formation. Astra0; implementation WAITING."
   },
-  "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer. Previous sprint ordinary-hir-applied-conformance-repair-20261017 closed REVIEWED-PARTIAL at commit 0717a882c: focused unit8/8, corrected HIR9/9, solver candidate vertical1/1; original theorem conditions closed0. Exact receipts and rev8 CLEAN reporting review remain under notes/progress and prior handoff. Rev7 spent2760/2760; after-cap solver receipt documentation time UNKNOWN, not retrocharged. New original Call generation sprint starts at baseline0717a882c; decomposition180/180 charged. Prior rev8 review-only envelope charged auditor60 and Luna coordination30; final reserve30 retired without carryover. Documentation correction after rev7 had UNKNOWN actual duration, not retrocharged. Previous `module-use-source-map-and-provisional-observer-20261017` closed REVIEWED-PARTIAL at 0114f997b: proof map actual structural route + conditional ModulePubUse* intro/inversion/conservation, original conditions0; candidate observer and fixed-source regression PASS 2/2. O(n^2)/O(n) proof annotation cost; no compiler complexity claim. Reviews technical CLEAN; post-run reviewer disclosed one read-only `git show --stat --oneline 185b0db29`, no file changes or essential unpinned evidence. Charged1442/1800; unused358 retired, no budget carry.; module-source-family-embedding-20261017 closed REVIEWED-PARTIAL: original conditions0; source handle owner premise unresolved; native field-map revision2 pending architect delta review; 2160/2160 charged, no code/tests; Closed module-source-family-embedding-20261017 REVIEWED-PARTIAL at full2160/2160, original conditions0. Conditional source proof corrected after compiler+spec reviewers found same-occurrence handle owner gap; compiler delta passed. Native field-map contract revision2 synchronizes conditional new, transient module FreshUse remaps and proposed/unverified complexity; architect delta review still pending in next sprint. No compiler behavior/tests. Closed module-source-handle-introduction-20261017 REVIEWED-PARTIAL at commit 9f8a03bdf: compiler and spec reviews CLEAN; original theorem conditions0; exact typed materialization owner HINTRO-OWNER-u_id remains open; no code/tests. Next action chose candidate module FreshUse remap retention with an ownership/accounting proof, independent of selecting handle semantics.; module-use-retained-native-transport-20261017 CLOSED-REVIEWED-PARTIAL at 20821b42d: original theorem conditions0; checked module FreshUse map ownership/accounting, cargo check and focused regression passed; independent compiler/architecture/spec reviews found no blocking/major findings, one minor source-comment wording note; commit pushed. Next selector chose module-reference-materialization-20261017.; module-reference-materialization-20261017 CLOSED-REVIEWED-PARTIAL at 14820b4eec8688efa84cf76135694082ccf4f966 and pushed: one local HINTRO-OWNER-u_id premise closed under adopted authority; global theorem conditions0; source/native readiness contract only, no implementation code; Astra policy reduced to default0/one named risk/300s/3 stages and independently CLEAN; tooling check and 53 simulator tests pass.; module-registered-root-embedding-20261017 CLOSED-REVIEWED-PARTIAL at fbb608f50: compiler/source and spec reviews CLEAN; original conditions0; conditional RetainModuleContract* is packaging only, no registration/embedding; owner audit NO_SAFE_CODE_SLICE, no code/tests; 1080/1800 charged,720 retired, Astra0. Next definition proposal for actual module contract registration.; module-contract-registration-definition-20261017 CLOSED-REVIEWED-PARTIAL: one local MODULE-REGISTERED-ROOT-u_id premise adopted/applied under Sigma_M; unchanged Reg_orig/global theorem gates closed0; compiler/source/spec/architecture CLEAN; no code/tests, NO_SAFE_CODE_SLICE; 1200/1500 charged,300 retired,Astra0. Next Sigma_M→IF/Call consumer applicability. Closed module-registration-call-consumer-20261017 contract at ff7e64375; active proof600 + read-only audit180; Astra0. Original theorem gates closed0. Closed module-registration-call-consumer-20261017 at partial adopted outcome: local MODULE-DATA-NAME-u_id@Sigma_MI +1 (total local2 including prior MReg); fixed-family/global closures0; NO_SAFE_CODE_SLICE; reviews CLEAN; 1200/1500,300 retired,Astra0. Closed module-registration-call-consumer-20261017 partial-adopted: MODULE-DATA-NAME-u_id@Sigma_MI local+1; fixed/global gates0; reviews CLEAN; NO_SAFE_CODE_SLICE;1200/1500,300 retired,Astra0. Started module-callee-result-formation-20261017 at baseline e92f44e; proof720 active,Astra0. Closed module-callee-result-formation-20261017 partial: original conditions0, no local closures, old raw-P/u_x mismatch exact; proposal unadopted; compiler/spec/architecture CLEAN; implementation WAITING;1140/1500,360 retired,Astra0.",
+  "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer. Previous sprint ordinary-hir-applied-conformance-repair-20261017 closed REVIEWED-PARTIAL at commit 0717a882c: focused unit8/8, corrected HIR9/9, solver candidate vertical1/1; original theorem conditions closed0. Exact receipts and rev8 CLEAN reporting review remain under notes/progress and prior handoff. Rev7 spent2760/2760; after-cap solver receipt documentation time UNKNOWN, not retrocharged. New original Call generation sprint starts at baseline0717a882c; decomposition180/180 charged. Prior rev8 review-only envelope charged auditor60 and Luna coordination30; final reserve30 retired without carryover. Documentation correction after rev7 had UNKNOWN actual duration, not retrocharged. Previous `module-use-source-map-and-provisional-observer-20261017` closed REVIEWED-PARTIAL at 0114f997b: proof map actual structural route + conditional ModulePubUse* intro/inversion/conservation, original conditions0; candidate observer and fixed-source regression PASS 2/2. O(n^2)/O(n) proof annotation cost; no compiler complexity claim. Reviews technical CLEAN; post-run reviewer disclosed one read-only `git show --stat --oneline 185b0db29`, no file changes or essential unpinned evidence. Charged1442/1800; unused358 retired, no budget carry.; module-source-family-embedding-20261017 closed REVIEWED-PARTIAL: original conditions0; source handle owner premise unresolved; native field-map revision2 pending architect delta review; 2160/2160 charged, no code/tests; Closed module-source-family-embedding-20261017 REVIEWED-PARTIAL at full2160/2160, original conditions0. Conditional source proof corrected after compiler+spec reviewers found same-occurrence handle owner gap; compiler delta passed. Native field-map contract revision2 synchronizes conditional new, transient module FreshUse remaps and proposed/unverified complexity; architect delta review still pending in next sprint. No compiler behavior/tests. Closed module-source-handle-introduction-20261017 REVIEWED-PARTIAL at commit 9f8a03bdf: compiler and spec reviews CLEAN; original theorem conditions0; exact typed materialization owner HINTRO-OWNER-u_id remains open; no code/tests. Next action chose candidate module FreshUse remap retention with an ownership/accounting proof, independent of selecting handle semantics.; module-use-retained-native-transport-20261017 CLOSED-REVIEWED-PARTIAL at 20821b42d: original theorem conditions0; checked module FreshUse map ownership/accounting, cargo check and focused regression passed; independent compiler/architecture/spec reviews found no blocking/major findings, one minor source-comment wording note; commit pushed. Next selector chose module-reference-materialization-20261017.; module-reference-materialization-20261017 CLOSED-REVIEWED-PARTIAL at 14820b4eec8688efa84cf76135694082ccf4f966 and pushed: one local HINTRO-OWNER-u_id premise closed under adopted authority; global theorem conditions0; source/native readiness contract only, no implementation code; Astra policy reduced to default0/one named risk/300s/3 stages and independently CLEAN; tooling check and 53 simulator tests pass.; module-registered-root-embedding-20261017 CLOSED-REVIEWED-PARTIAL at fbb608f50: compiler/source and spec reviews CLEAN; original conditions0; conditional RetainModuleContract* is packaging only, no registration/embedding; owner audit NO_SAFE_CODE_SLICE, no code/tests; 1080/1800 charged,720 retired, Astra0. Next definition proposal for actual module contract registration.; module-contract-registration-definition-20261017 CLOSED-REVIEWED-PARTIAL: one local MODULE-REGISTERED-ROOT-u_id premise adopted/applied under Sigma_M; unchanged Reg_orig/global theorem gates closed0; compiler/source/spec/architecture CLEAN; no code/tests, NO_SAFE_CODE_SLICE; 1200/1500 charged,300 retired,Astra0. Next Sigma_M→IF/Call consumer applicability. Closed module-registration-call-consumer-20261017 contract at ff7e64375; active proof600 + read-only audit180; Astra0. Original theorem gates closed0. Closed module-registration-call-consumer-20261017 at partial adopted outcome: local MODULE-DATA-NAME-u_id@Sigma_MI +1 (total local2 including prior MReg); fixed-family/global closures0; NO_SAFE_CODE_SLICE; reviews CLEAN; 1200/1500,300 retired,Astra0. Closed module-registration-call-consumer-20261017 partial-adopted: MODULE-DATA-NAME-u_id@Sigma_MI local+1; fixed/global gates0; reviews CLEAN; NO_SAFE_CODE_SLICE;1200/1500,300 retired,Astra0. Started module-callee-result-formation-20261017 at baseline e92f44e; proof720 active,Astra0. Closed module-callee-result-formation-20261017 partial: original conditions0, no local closures, old raw-P/u_x mismatch exact; proposal unadopted; compiler/spec/architecture CLEAN; implementation WAITING;1140/1500,360 retired,Astra0. Closed module-callee-result-formation-20261017 partial: original/local closure0; exact u_x/source sort boundary; reviews CLEAN; proposal unadopted;1140/1500,360 retired,Astra0. Started module-source-owned-result-formation-20261017 at baseline d84b271; proof720 active,Astra0.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN."
 }
