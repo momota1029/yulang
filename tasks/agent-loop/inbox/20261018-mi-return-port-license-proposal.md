@@ -3,14 +3,16 @@
 Sprint: `mi-return-port-license-construction-20261018`, revision 1
 Contract: `tasks/agent-loop/sprints/mi-return-port-license-construction-20261018.md`
 Contract SHA-256: `99268e4934da9b6d95ddcc6984034ea9c9dd05ee5049ec345da75c09f35688c0`
-Assignment: `mi-return-port-license-proposal-20261018`, revision 1
+Assignment: `mi-return-port-license-proposal-20261018`, revision 2; supersedes handoff r1 for artifact-SHA metadata
 Artifact: `notes/design/2026-10-18-mi-return-port-license-proposal.md`
-Artifact SHA-256: `3848f26a899bd7ee75a991564e98a78729e334fa631ef9177aa23f88f8f56e43`
+Artifact SHA-256: `68b3051fa23c443210e80118c1232d101093a6e8a32108efd297fb500fb8b4cf`
 Author: `/root`, primary definition owner; no descendants; writer STOP after freeze.
 
 ## Parent and outcome class
 
 Original Yulang inference/execution theorem and §7.2(2), with original claims, source domain, independent quantifiers and all source/native obligations unchanged. Outcome class: **candidate source-law proposal**, not proof, adoption, implementation, or theorem closure.
+
+Handoff r1 was frozen before the proposal acquired its final contract pin. This revision repairs only its artifact SHA reference; the proposal semantics and bytes are unchanged. Handoff r1 remains the exact input cited by the already frozen Sol application.
 
 The proposal chooses a completed/prefix phase split for the local operator schema and proposes a source-owned static `ReturnDeclLicense` introduced by the actual local ResultName source declaration at `site_f`. The license is expressly distinct from runtime authority, Return observations, support, provenance, and owner permission. It is not yet shown that the source grammar supplies this license.
 
