@@ -2325,6 +2325,147 @@ mod tests {
     }
 
     #[test]
+    fn negative_concrete_formal_permission_recovers_its_shared_port_and_rolls_back() {
+        // The same declared family occurs at distinct negative source paths:
+        // AA reverses twice, while RR preserves variance throughout.
+        let text = "act io\nmy bridge (consume: ((int -> [io] ()) -> ()) -> (() -> (int -> [io] ()))) = consume";
+        let mut session = make_session(text);
+        let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
+            .find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
+        let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+
+        let SourceAnnotationValue::Function { argument: outer_argument, result: outer_result } = &annotation.ty.value else { panic!("outer Function"); };
+        let SourceAnnotationValue::Function { argument: aa_function, .. } = &outer_argument.value else { panic!("AA Function"); };
+        let SourceAnnotationValue::Function { result: aa_effect_node, .. } = &aa_function.value else { panic!("AAR Function"); };
+        let aa_row = aa_effect_node.effects.as_ref().expect("AAR effect row");
+        let SourceAnnotationValue::Function { result: rr_function, .. } = &outer_result.value else { panic!("RR Function"); };
+        let SourceAnnotationValue::Function { result: rr_effect_node, .. } = &rr_function.value else { panic!("RRR Function"); };
+        let rr_row = rr_effect_node.effects.as_ref().expect("RRR effect row");
+
+        session.with_route_transaction(|session| {
+            session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)
+        }).unwrap();
+
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        assert_eq!(state.formal_permissions.len(), 2);
+        let paths: Vec<_> = state.formal_permissions.iter().map(|permission| permission.path.clone()).collect();
+        assert_eq!(paths, vec![
+            vec![FormalPortStep::Argument, FormalPortStep::Argument, FormalPortStep::Result],
+            vec![FormalPortStep::Result, FormalPortStep::Result, FormalPortStep::Result],
+        ], "parsed Function effects are attached to each result child: {paths:?}");
+        for permission in &state.formal_permissions {
+            assert_eq!(permission.parameter, parameter);
+            assert_eq!(permission.occurrence, occurrence);
+            assert_eq!(permission.source_owner, annotation.owner);
+            assert_eq!(permission.scope, scope);
+        }
+        assert_ne!(state.formal_permissions[0].source_row, state.formal_permissions[1].source_row);
+        assert_eq!(state.formal_permissions[0].concrete, state.formal_permissions[1].concrete,
+            "equal families must not merge distinct paths");
+        for (permission, row) in state.formal_permissions.iter().zip([aa_row, rr_row]) {
+            assert_eq!(permission.source_row, row.position);
+            assert_eq!(permission.concrete, row.concrete);
+        }
+
+        let negative_root = state.formal_domains[&parameter];
+        let facts = session.store.facts();
+        let positive_root = facts[facts.len() - 2].lower(); // ordinary link 43
+        assert_eq!(facts[facts.len() - 1].upper(), negative_root); // ordinary link 44
+
+        fn effect_at_path(session: &InferenceSession, mut value: Term, path: &[FormalPortStep]) -> crate::LiveVariableView {
+            let mut effect = None;
+            for (index, step) in path.iter().enumerate() {
+                let (argument, argument_effect, result_effect, result) = match session.store.term_view(value).unwrap() {
+                    TermView::PositiveFunction { argument, argument_effect, result_effect, result }
+                    | TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
+                        (argument, argument_effect, result_effect, result),
+                    other => panic!("path crosses non-Function term: {other:?}"),
+                };
+                for child in [argument, argument_effect, result_effect, result] {
+                    session.store.term_view(child).expect("all four Function children remain retained");
+                }
+                let (child, child_effect) = match step {
+                    FormalPortStep::Argument => (argument, argument_effect),
+                    FormalPortStep::Result => (result, result_effect),
+                };
+                effect = Some(child_effect);
+                if index + 1 != path.len() { value = child; }
+            }
+            let TermView::LiveVariable(view) = session.store.term_view(effect.expect("nonempty permission path")).unwrap()
+                else { panic!("permission effect is a live projection"); };
+            assert_eq!(view.kind(), ComponentKind::Effect);
+            view
+        }
+
+        let mut recovered_ordinals = Vec::with_capacity(state.formal_permissions.len());
+        for permission in &state.formal_permissions {
+            let negative = effect_at_path(&session, negative_root, &permission.path);
+            let positive = effect_at_path(&session, positive_root, &permission.path);
+            assert_eq!(negative.polarity(), Polarity::Negative);
+            assert_eq!(positive.polarity(), Polarity::Positive);
+            assert_eq!(negative.ordinal(), positive.ordinal(), "both terms project the one constructor row");
+            recovered_ordinals.push(negative.ordinal());
+        }
+        assert_ne!(recovered_ordinals[0], recovered_ordinals[1],
+            "equal source families at distinct paths keep distinct fresh rows");
+
+        let before_duplicate = {
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            (
+                state.formal_permissions.iter().map(|permission| (
+                    permission.parameter, permission.occurrence.clone(), permission.source_owner.clone(),
+                    permission.scope.clone(), permission.path.clone(), permission.source_row.clone(), permission.concrete.clone(),
+                )).collect::<Vec<_>>(),
+                state.formal_domains.clone(),
+                state.formal_permission_bytes,
+                session.store.facts().len(),
+                session.store.provenance().len(),
+            )
+        };
+        assert_eq!(session.with_route_transaction(|session| {
+            session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)
+        }), Err(exhausted()));
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let after_duplicate = (
+            state.formal_permissions.iter().map(|permission| (
+                permission.parameter, permission.occurrence.clone(), permission.source_owner.clone(),
+                permission.scope.clone(), permission.path.clone(), permission.source_row.clone(), permission.concrete.clone(),
+            )).collect::<Vec<_>>(),
+            state.formal_domains.clone(),
+            state.formal_permission_bytes,
+            session.store.facts().len(),
+            session.store.provenance().len(),
+        );
+        assert_eq!(after_duplicate, before_duplicate,
+            "duplicate parameter refusal preserves descriptors, roots, links and accounted bytes");
+
+        // A failure after slot 43 occurs before descriptor publication; a
+        // post-publication failure exercises descriptor/root byte rollback.
+        for after_publication in [false, true] {
+            let mut failing = make_session(text);
+            let action = failing.batch.candidate_source.schedules.values().next().unwrap().iter()
+                .find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
+            let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+            let mut checkpoint = None;
+            if after_publication {
+                FORMAL_ANNOTATION_FAIL_STAGE.with(|hook| hook.set(2));
+            } else {
+                FORMAL_ANNOTATION_FAIL_AFTER_FIRST_EDGE.with(|hook| hook.set(true));
+            }
+            assert_eq!(failing.with_route_transaction(|session| {
+                checkpoint = Some(RouteCheckpoint::capture(session));
+                session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)
+            }), Err(exhausted()));
+            checkpoint.unwrap().assert_restored(&failing);
+            let state = &failing.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            assert!(state.formal_permissions.is_empty());
+            assert_eq!(state.formal_permission_bytes, 0);
+            assert!(state.formal_domains.is_empty());
+            assert_eq!(failing.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
+        }
+    }
+
+    #[test]
     fn distinct_covariant_formal_positions_share_only_the_scoped_tail_and_freshen_independently() {
         let mut session = make_session("act io\nact other\nmy bridge (consume:(int -> [io, 'e] ()) -> (int -> [other, 'e] ()) -> ()) = consume");
         let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
