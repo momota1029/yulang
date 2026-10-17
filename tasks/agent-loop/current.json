@@ -21,12 +21,12 @@
       "cap_seconds": 1200,
       "charged_seconds": 1200,
       "available_seconds": 0,
-      "allocation": "proof600 Sol/high; implementation240 Luna/high with one run only after pre-run query review; proof review120; implementation review120 before run; Luna integration120; Astra0; descendants0; no prior budget rollover."
+      "allocation": "proof600 Sol/high; implementation240 Luna/high with one run only after pre-run query review; proof review120; implementation review120 before run; Luna integration120; Astra0; descendants0; no prior budget rollover. Proof author STOPPED; proof fresh review in progress; implementation query quarantined with cessation receipt pending."
     },
     "next_action": "Prove eta at the real returned Written s1 while implementation lane freezes the exact received-Apply/Replay query for independent pre-run review.",
     "available_seconds": 0
   },
-  "history": "Closed npair-observed-apply-function-ingress-20261018 rev2: original conditions0->0. Constructor proof CLEAN within scope (actual Apply demand, all Function children, same-R1 fresh-use and native port equation); eta/T_rho/runtime Replay remain open. Single source run preceded rev2 frozen-query review gate; implementation review MAJOR process deviation, delta correction CLEAN. Run retained only as provisional author-reported observation; later strict query reverted unexecuted; fixture baseline restored; no second run because elapsed/remainder UNKNOWN. See notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md and provenance correction. New bounded sprint targets authentic same-w eta at returned Written s1 plus one pre-reviewed source/native observation; no theorem scope or prior budget rollover. Pre-run implementation review of successor query stopped at a concurrent frozen-hash mismatch (expected 7ba198d..., observed c68ae06d...); no run authorized, runtime cap still UNKNOWN. Query lease quarantined pending writer cessation and exact stable hash; proof lane continues independently.",
+  "history": "Closed npair-observed-apply-function-ingress-20261018 rev2: original conditions0->0. Constructor proof CLEAN within scope (actual Apply demand, all Function children, same-R1 fresh-use and native port equation); eta/T_rho/runtime Replay remain open. Single source run preceded rev2 frozen-query review gate; implementation review MAJOR process deviation, delta correction CLEAN. Run retained only as provisional author-reported observation; later strict query reverted unexecuted; fixture baseline restored; no second run because elapsed/remainder UNKNOWN. See notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md and provenance correction. New bounded sprint targets authentic same-w eta at returned Written s1 plus one pre-reviewed source/native observation; no theorem scope or prior budget rollover. Pre-run implementation review of successor query stopped at a concurrent frozen-hash mismatch (expected 7ba198d..., observed c68ae06d...); no run authorized, runtime cap still UNKNOWN. Query lease quarantined pending writer cessation and exact stable hash; proof lane continues independently. Proof lane frozen an owner-specific obstruction: actual constructor laws route Written s1 to the nested comparison, but original Operation Prim/T projection and Call returned-provider/result action are absent; eta not proved. Fresh independent review pending. Example query remains quarantined at observed hash while writer-cessation/provenance receipt is pending.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -43,13 +43,13 @@
     {
       "id": "/root/npair_s1_contribution",
       "role": "constructive proof",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Spawned for authentic same-w Written-s1 eta from source constructors; exact proof artifact and handoff lease."
+      "receipt": "Frozen proof artifact bd1013cee8b0637b2fc35171f338b95117ceb8b33c34dea8d0c5e0256607c477 and handoff dcb0b969870ee8f775af7f0ee43426c5fc9d72b4ab187a08dcbb56d43bcb32af. 23 direct dependency hashes match. Source-level eta not established; first missing premise is original Operation Prim/T projection plus Call returned-provider/result action. Full600 charged; writer STOPPED."
     },
     {
       "id": "/root/npair_s1_source_path",
@@ -60,7 +60,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen-hash mismatch reported by fresh reviewer: expected 7ba198d... observed c68ae06d...; writing cessation requested, Cargo forbidden, runtime remaining UNKNOWN."
+      "receipt": "Expected frozen SHA 7ba198d... differed from reviewer-observed c68ae06d...; queried for cessation receipt and change provenance. Example lease QUARANTINED; Cargo forbidden; runtime remainder UNKNOWN."
+    },
+    {
+      "id": "/root/npair_actual_argument_proof_review",
+      "role": "independent proof/spec reviewer",
+      "state": "RUNNING",
+      "requested_model": "Sol/spec_auditor",
+      "requested_effort": "high <=120s",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh independent review assigned to frozen s1-incidence proof candidate and exact dependency pins; read-only."
     }
   ],
   "leases": [
@@ -107,12 +118,12 @@
     {
       "path": "notes/theory/2026-10-18-npair-s1-contribution-incidence.md",
       "owner": "/root/npair_s1_contribution",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-s1-contribution-incidence.md",
       "owner": "/root/npair_s1_contribution",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-npair-s1-contribution-source-evidence.md",
@@ -137,12 +148,19 @@
   ],
   "pending": [
     {
+      "id": "s1-incidence-proof-review",
+      "state": "IN_REVIEW",
+      "owner": "/root/npair_actual_argument_proof_review",
+      "artifact_sha256": "bd1013cee8b0637b2fc35171f338b95117ceb8b33c34dea8d0c5e0256607c477",
+      "handoff_sha256": "dcb0b969870ee8f775af7f0ee43426c5fc9d72b4ab187a08dcbb56d43bcb32af"
+    },
+    {
       "id": "s1-incidence-pre-run-query-review",
       "state": "BLOCKED",
       "owner": "/root/npair_actual_argument_impl_review",
       "expected_sha256": "7ba198d03474c256a4e0502a40d26d1c3c282266b309ff53d1a0ba9cb05b6a1c",
       "observed_sha256": "c68ae06d5cd0b9b5c96dd06e817accf6eaa7b55667b25916d7eb917d89842181",
-      "finding": "Pin mismatch; no CLEAN/no execution. Source writer cessation and exact stable bytes pending."
+      "finding": "Pin mismatch; no CLEAN/no execution. Exact source writer cessation/provenance pending."
     }
   ],
   "ready_next_work": null,
