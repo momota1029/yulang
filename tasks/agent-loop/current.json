@@ -29,8 +29,8 @@
     },
     "resources": {
       "cap_seconds": 2760,
-      "charged_seconds": 570,
-      "available_seconds": 2190,
+      "charged_seconds": 930,
+      "available_seconds": 1830,
       "retired_seconds": 0,
       "allocation": "Coordination120 charged; proof/source240; Luna plan90; pre-code architect120; implementation1110; applied reviews480; regressions240; Cargo240; reserve120. Fresh sprint; retired budget not carried."
     },
@@ -110,8 +110,8 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 1110,
-        "charged_seconds": 0,
-        "remaining_seconds": 1110,
+        "charged_seconds": 360,
+        "remaining_seconds": 750,
         "session": "current-session",
         "lease_paths": [
           "crates/yu-hir/src/lib.rs",
@@ -122,7 +122,7 @@
           "crates/yu-solver/tests/research_accepted_call_vertical.rs",
           "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md"
         ],
-        "active_receipt": "Fresh acknowledgment received: current-session, requested Luna/high, observed UNKNOWN/UNKNOWN, no descendants. Rechecking frozen pins before writes. Code/test authoring only; no Cargo/test/build/probes before independent applied reviews and regression pre-run clearance."
+        "active_receipt": "Fresh acknowledgment and seven input pins verified. Checkpoint estimate ~360s spent/~750s remain; paired provenance threaded through ChainParser same-construction path, public HirExpr unchanged, no range lookup/second source walk. Preflight/errors/item index/classification in progress. Allocation audit/fallible reservation remains. No tests/builds/probes; no descendants."
       }
     ],
     "leases": [
