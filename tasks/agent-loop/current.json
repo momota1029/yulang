@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-operation-source-contract-and-replay-reachability-20261018.md",
     "revision": 3,
     "sha256": "1fa25ac715f9bd583c7dc56e11b1fe027f71e953faac0fc6130b2e2b009ed94d",
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "759f9d0b784c71f19dc489199edf2d268174cbbc",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, quantifiers, domain and closure0 unchanged.",
     "fixed_outcome": "Draft and review a concrete source-owned Operation fixed-c introduction/elimination and complete-output Written-s1 action. In parallel admit the resource-safe Local supplier path and execute the reviewed structural Replay observer on the exact fixture.",
@@ -19,13 +19,13 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 1800,
-      "available_seconds": 600,
+      "charged_seconds": 2160,
+      "available_seconds": 240,
       "allocation": "Sol source construction600; independent Sol falsifier300; Luna implementation900; fresh independent proof review180; fresh independent compiler review180; Luna primary120; reserve120. Astra0; descendants0; no rollover."
     },
-    "next_action": "Proof/source contract author STOPPED with exact frozen proposal/application and handoff; review RUNNING. Independent falsifier STOPPED. Implementation author STOPPED; compiler review RUNNING has found MAJOR ordering defect: Apply authenticates local callee via local_routes.last() after argument processing can publish a later route. No execution command. Primary must inspect a narrowly scoped repair within its120s allocation or retain/revert this code; do not run fixture until CLEAN review."
+    "next_action": "Closed after fresh proof/spec review CLEAN only for conditional preservation with two BLOCKING adoption items; parent fixed-c identity and all-R/W/Z compatibility/reflection remain unproved. Independent falsifier found no admitted counterexample. Compiler review NOT CLEAN with two MAJOR findings; four code paths restored to pinned baseline. No Cargo/test/fixture execution; Replay runtime remains unverified. Original closure0."
   },
-  "history": "Closed `npair-swr1-output-origin-prototype-20261018` at commit29a7ace306cca2b3959ed752c859125b01f89543. Proof review CLEAN for five static Local joins and valid-state Missing/remap lemma; original fixed-c/output-origin remains NOT PROVED, parent0→0. Compiler review MAJOR: infallible wrapper Vec push, uncharged repeated scans, missing Plan storage accounting. Prototype source was restored to pinned baseline; no Cargo/tests in that sprint. Review closeout pushed as 29a7ace30. Successor contract uses current pinned semantic/source inputs and dispatcher delta; no semantic candidate is adopted. Prior complete call/demand lane still has exact runtime boundaries in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Parent and all other proof/production gates remain OPEN. Sprint contract rev1 had one malformed 65-character source-admission-contract digest; the actual file digest is 692aa39ec37f522e921634134551dad1933b736e5afd2eff463213970a0fb609. Rev2 corrects that pin only. Proof and implementation authors paused contract-scoped reliance pending the corrected hash; budgets do not reset. Successor progress: independent alternative falsifier froze 69ffae28.../9a7421c4... after 420s conservative charge: no admitted counterexample; only conditional distinct-identity discriminator, original c introduction/output field remains missing, parent0→0. Proof lane at21:34:11 elapsed337/rem383: actual IF Prim elimination is first unavailable original c judgment; native Support→AnnotationMember/FreshUse only establishes forward native target, not semantic c; artifact/handoff freeze pending. Implementation code froze at candidate_context46f0b74c..., shadow_apply d29d5f64..., harness d76cbae2... after246s/rem174; fresh compiler review CLEAN for demand-bearing Replay rows only, linear scan/constant storage, opt-in stderr/no API/no solver effects. Review limit: missing demand rows outside scope; truncated stderr cannot prove absence or completeness. No command yet; author preparing evidence and must remeasure >=120s. Closed `npair-original-c-compatibility-20261018` after all bounded writers/reviewers stopped. Frozen proof artifact e72f73ed... and handoff54a60964... independently reviewed CLEAN; source/native forward member lemma retained, original fixed-c/complete-output Written-s1 derivation not proved, no counterexample, parent0→0. Frozen falsifier69ffae28.../9a7421c4... found no admitted original counterexample. Frozen Replay observer code46f0b74c.../d29d5f64.../d76cbae2... independently compiler-reviewed CLEAN; no Cargo/test/build/probe was run (remaining lane cap below120s), so runtime remains unverified. Static diff check only. Conservatively charge full2160s, no rollover. All authors and reviewers STOPPED; exact artifact leases FROZEN. Successor proposal: concrete Operation contribution introduction/elimination and complete-output action plus independently attacked compatibility; in parallel make actual Local supplier and reviewed observer reachable and run the exact fixture. Parent OPEN, original conditions closed0.",
+  "history": "Closed `npair-swr1-output-origin-prototype-20261018` at commit29a7ace306cca2b3959ed752c859125b01f89543. Proof review CLEAN for five static Local joins and valid-state Missing/remap lemma; original fixed-c/output-origin remains NOT PROVED, parent0→0. Compiler review MAJOR: infallible wrapper Vec push, uncharged repeated scans, missing Plan storage accounting. Prototype source was restored to pinned baseline; no Cargo/tests in that sprint. Review closeout pushed as 29a7ace30. Successor contract uses current pinned semantic/source inputs and dispatcher delta; no semantic candidate is adopted. Prior complete call/demand lane still has exact runtime boundaries in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Parent and all other proof/production gates remain OPEN. Sprint contract rev1 had one malformed 65-character source-admission-contract digest; the actual file digest is 692aa39ec37f522e921634134551dad1933b736e5afd2eff463213970a0fb609. Rev2 corrects that pin only. Proof and implementation authors paused contract-scoped reliance pending the corrected hash; budgets do not reset. Successor progress: independent alternative falsifier froze 69ffae28.../9a7421c4... after 420s conservative charge: no admitted counterexample; only conditional distinct-identity discriminator, original c introduction/output field remains missing, parent0→0. Proof lane at21:34:11 elapsed337/rem383: actual IF Prim elimination is first unavailable original c judgment; native Support→AnnotationMember/FreshUse only establishes forward native target, not semantic c; artifact/handoff freeze pending. Implementation code froze at candidate_context46f0b74c..., shadow_apply d29d5f64..., harness d76cbae2... after246s/rem174; fresh compiler review CLEAN for demand-bearing Replay rows only, linear scan/constant storage, opt-in stderr/no API/no solver effects. Review limit: missing demand rows outside scope; truncated stderr cannot prove absence or completeness. No command yet; author preparing evidence and must remeasure >=120s. Closed `npair-original-c-compatibility-20261018` after all bounded writers/reviewers stopped. Frozen proof artifact e72f73ed... and handoff54a60964... independently reviewed CLEAN; source/native forward member lemma retained, original fixed-c/complete-output Written-s1 derivation not proved, no counterexample, parent0→0. Frozen falsifier69ffae28.../9a7421c4... found no admitted original counterexample. Frozen Replay observer code46f0b74c.../d29d5f64.../d76cbae2... independently compiler-reviewed CLEAN; no Cargo/test/build/probe was run (remaining lane cap below120s), so runtime remains unverified. Static diff check only. Conservatively charge full2160s, no rollover. All authors and reviewers STOPPED; exact artifact leases FROZEN. Successor proposal: concrete Operation contribution introduction/elimination and complete-output action plus independently attacked compatibility; in parallel make actual Local supplier and reviewed observer reachable and run the exact fixture. Parent OPEN, original conditions closed0. Closed `npair-operation-source-contract-and-replay-reachability-20261018` at frozen rev3 inputs. Source lane derived actual Operation request/consumer/A_decl output phi but failed to identify phi with original fixed c and prove universal reflection; proof review CLEAN only for conditional artifact and named two BLOCKING adoption gaps. Falsifier produced a conditional disjoint-fiber quantifier attack, no admitted counterexample. Implementation review MAJOR: local_routes.last() is wrong after argument LocalUse; scoped record caps leak into ordinary mode. Candidate not integrated; restored four files exactly to pinned hashes. No Cargo/test/fixture command; observer runtime unverified. Parent closure0. Full author budgets charged (600+300+900), both review caps conservatively charged; 240 seconds unused and expired, no rollover. See notes/progress/2026-10-18-operation-source-and-local-route-closeout.md#sha256:55a1b5310901b0cded3efa3e2dc1b24aab17368c0d191c07965d9faeb9a4662a. Dispatcher successor: exact local route keyed to actual callee under later argument LocalUses; scoped caps apply only scoped mode; add regression+unscoped noninterference; source formation compatibility/decision packet; execute fixture after review.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -37,7 +37,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Closed sprint checkpoint 759f9d0b7 pushed; successor contract drafted; primary owns state/Git. Contract rev2 adds pinned Operation source-construction input; rehash before relying. Budgets/leases unchanged."
+      "receipt": "Closed prior sprint, restored MAJOR candidate, froze reviewed research artifacts; sole primary/Git integrator."
     },
     {
       "id": "/root/npair_operation_source_contract",
@@ -75,24 +75,24 @@
     {
       "id": "/root/npair_operation_proof_review",
       "role": "fresh independent proof/spec review",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/spec_auditor",
       "requested_effort": "high <=180s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh reviewer spawned after proof author STOP; exact frozen proposal/application/falsifier hashes supplied with contract rev3. Requested Sol/spec_auditor/high <=180s; effective model/effort UNKNOWN."
+      "receipt": "CLEAN only for research-only preservation. Two BLOCKING: original fixed-c identification at same formation/reference/theta; universal all-R/W/Z compatibility/reflection including source transport and active consumer. Hashes matched; no edits/tests."
     },
     {
       "id": "/root/npair_local_replay_compiler_review",
       "role": "fresh independent compiler review",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/compiler_referee",
       "requested_effort": "high <=180s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh reviewer spawned after author STOP and exact hashes rechecked. Requested Sol/compiler_referee/high <=180s; effective model/effort UNKNOWN. Exact review target handoff f8cf0a434ebeb1e3aeb92922ed502dd3d44b94a576e08e2e4b14cabbfda531cc and four code hashes in author receipt; no commands or writes. Initial finding MAJOR at shadow_apply.rs:1597: authenticates using local_routes.last() even though candidate source schedules callee before argument; argument-local route may supersede callee route and cause false IdentityExhausted. Reviewer continues narrow verification."
+      "receipt": "NOT CLEAN, two MAJOR: route selection via last() fails with Local argument; scoped record cap leaks into unscoped inference. Exact frozen hashes verified; no tests/probes; no edits."
     }
   ],
   "leases": [
@@ -168,10 +168,15 @@
     }
   ],
   "pending": [],
-  "ready_next_work": null,
+  "ready_next_work": {
+    "id": "npair-original-formation-and-exact-local-route-20261018",
+    "state": "READY",
+    "dispatcher": "Sol proof600; Sol independent falsifier300; Luna implementation960 including360 verification; independent proof/compiler review180 each; primary120; reserve120. Astra0; no rollover.",
+    "outcome": "Resolve fixed-c source formation and universal reflection/adoption blockers or prepare an exact semantic decision packet; repair exact LocalFreshRoute association so later argument LocalUses cannot supersede the callee route, gate scoped caps to scoped experiment, add focused regressions and run the exact receive fixture after CLEAN review."
+  },
   "legacy_reconciliation": {
     "required": false,
     "receipt": "All prior sprint authors/reviewers STOPPED. New proof/implementation leases acknowledged with runtime start receipts; reviewers WAITING. No descendants or unknown live writers."
   },
-  "next_action": "Proof author and implementation author STOPPED; exact proposal/falsifier/code review underway. Inspect the compiler MAJOR for a small primary-owned repair or safely restore the implementation baseline. Do not execute unreviewed code. Keep parent OPEN/closure0."
+  "next_action": "Commit/push the reviewed proof/falsifier research and closeout note while keeping restored compiler baseline; then start READY successor with a fresh baseline and parallel proof/implementation lanes."
 }
