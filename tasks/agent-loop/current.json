@@ -56,6 +56,12 @@
     "role": "task_decomposer",
     "state": "STOPPED",
     "receipt": "Read-only decomposition; 120/120 seconds conservatively charged. Minimal immediate original source-use gap is MODULE-SOURCE-EMBED; native whole-field map is independent compiler correspondence; F1/FK1/N-Transport are not prerequisites of this local introduction."
+   },
+   {
+    "id": "/root/module_source_family_embedding_proof",
+    "role": "Astra proof author",
+    "state": "RUNNING",
+    "receipt": "Launched after contract/state push; exact two-path lease; cap900s. Runtime not yet observed."
    }
   ],
   "leases": [
@@ -66,13 +72,13 @@
    },
    {
     "path": "notes/theory/2026-10-17-module-source-family-embedding.md",
-    "owner": "Astra after launch",
-    "state": "HELD"
+    "owner": "/root/module_source_family_embedding_proof",
+    "state": "ACTIVE"
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-module-source-family-embedding.md",
-    "owner": "Astra after launch",
-    "state": "HELD"
+    "owner": "/root/module_source_family_embedding_proof",
+    "state": "ACTIVE"
    },
    {
     "path": "notes/design/2026-10-17-module-native-field-map-contract.md",
@@ -103,7 +109,7 @@
     "state": "OPEN independent parent gates."
    }
   ],
-  "next_action": "Dependency decomposition complete. 22/22 sprint input pins verified. Freeze contract/state and commit/push before launching Astra proof900; Luna implementation-readiness author starts only after Astra STOP.",
+  "next_action": "Astra proof author RUNNING under exact two-path lease cap900. Luna native-field-map contract waits for Astra STOP.",
   "user_clarification": "User explicitly authorized modifying computational complexity. Account time/space, retained storage, allocation/failure; preserve source admission, observable semantics, original quantifiers and fixed caps.",
   "history": "Previous module-use/observer sprint closed at 0114f997b, technical reviews CLEAN and the exact candidate target PASS 2/2. Original conditions0. One nonessential read-only reviewer command `git show --stat --oneline 185b0db29` recorded; no files changed, no essential unpinned evidence. 1442/1800 charged; unused358 retired.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused."
