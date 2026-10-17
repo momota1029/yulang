@@ -6,8 +6,8 @@
   "active_sprint": {
     "id": "npair-parser-row-key-separation-20261018",
     "contract": "tasks/agent-loop/sprints/npair-parser-row-key-separation-20261018.md",
-    "revision": 1,
-    "sha256": "f9e0c7476e2cd03d0d83ef7c608807b01f2cdc9e9bb1677440692556f7d24b96",
+    "revision": 2,
+    "sha256": "4de607f76986b6f97e11e1fcaebca8a32cc8e46c8d2d758458ba7333301e3798",
     "state": "ACTIVE",
     "baseline": "515b705f6879bd8fd4a57fd1f6732e11ea9c0a29",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, source domain and quantifiers unchanged; closure0.",
@@ -19,11 +19,11 @@
     },
     "resources": {
       "cap_seconds": 480,
-      "charged_seconds": 60,
-      "available_seconds": 420,
-      "allocation": "parser proof240, fresh compiler/source review120, Luna integration60, reserve60; Astra0."
+      "charged_seconds": 300,
+      "available_seconds": 180,
+      "allocation": "parser proof240 + recovery-emitter extension60, fresh compiler/source review120, Luna integration60; Astra0, reserve0."
     },
-    "next_action": "Receive bounded ordinary/recovery constructor proof, then fresh independent compiler review and adjudicate remaining address condition."
+    "next_action": "Continue same writer on exactly the recovery emitter and Item payload owners for 60s; then freeze delta and use existing independent review reservation."
   },
   "history": "Closed `npair-operation-self-effect-decision-20261018` rev3: parent conditions0. Semantic classification finds missing original Operation primitive projection but no demonstrated semantic ambiguity. Address result remains conditional; primary injectivity candidate rejected as unconditional after major review because parser/recovery distinct-start property is unproved. Corrected rev1 dependency pin typo in rev2 and independently verified. Full receipts in closeout.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
@@ -37,7 +37,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Prior sprint closeout/replan committed and pushed; parser-row key separation proof lane live with exact rev1 leases."
+      "receipt": "Dispatcher approved spending only the existing 60s reserve; rev2 pins two exact recovery source owners and preserves rev1 outputs."
     },
     {
       "id": "/root/npair_parser_row_key_separation",
@@ -48,7 +48,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual live configured prover launch; exact 240s cap and pinned read/output leases; requested Sol/high, effective UNKNOWN."
+      "receipt": "Revision1 frozen STOPPED; explicit rev2 continuation launched on exact emit_token_item and Item payload owners, cap60s; no new owner beyond these two."
     }
   ],
   "leases": [
@@ -60,12 +60,12 @@
     {
       "path": "notes/theory/2026-10-18-npair-parser-row-key-separation.md",
       "owner": "/root/npair_parser_row_key_separation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-parser-row-key-separation.md",
       "owner": "/root/npair_parser_row_key_separation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-syntax/src/cursor.rs",
@@ -96,6 +96,26 @@
       "path": "crates/yu-hir/src/source_identity.rs",
       "owner": "/root/npair_parser_row_key_separation",
       "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-syntax/src/cursor/recovery/emit.rs",
+      "owner": "/root/npair_parser_row_key_separation",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-syntax/src/lexical/item.rs",
+      "owner": "/root/npair_parser_row_key_separation",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-npair-parser-recovery-token-width.md",
+      "owner": "/root/npair_parser_row_key_separation",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-parser-recovery-token-width.md",
+      "owner": "/root/npair_parser_row_key_separation",
+      "state": "HELD"
     }
   ],
   "pending": [],

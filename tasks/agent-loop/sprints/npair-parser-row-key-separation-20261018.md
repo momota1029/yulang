@@ -1,7 +1,8 @@
 # Sprint `npair-parser-row-key-separation-20261018`
 
 Status: ACTIVE, primary-issued 2026-10-18.
-Contract revision: 1.
+Contract revision: 2 (spends only the previously reserved 60s to inspect the exact recovery token emitter and payload owners; goal and semantic scope unchanged).
+Revision 1 SHA-256: `e1725be0d9a6ea80251d83a5c206cb51d3535895dc859580825a7da3c507a1ff`.
 Branch / compiler baseline: `research/simple-sub-intrusion` / `515b705f6879bd8fd4a57fd1f6732e11ea9c0a29`.
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`; original claim, quantifiers, source domain and adopted semantics unchanged.
 Dispatcher: `/root/npair_replan_dispatch`; recommendation adopted after independent major finding against unconditional SourceNodeKey injectivity.
@@ -37,3 +38,19 @@ Write only:
 - `tasks/agent-loop/inbox/20261018-npair-parser-row-key-separation.md`
 
 No code/tests/builds/probes/Cargo/compiler execution. After freeze, obtain a **fresh independent compiler/source review**, cap 120s, not authored by this lane or the prior address/injectivity authors. Luna owns 60s integration. Fresh envelope: **480s total**: proof 240, compiler review 120, primary 60, reserve 60. Astra0, children0. Previous 900s are fully charged. Effective runtime settings remain UNKNOWN without runtime evidence. At closeout parent closure increases only if a proof is reviewed and applied; this local identity lemma alone closes no parent condition.
+
+
+## Bounded recovery-emitter continuation (revision 2)
+
+Revision 1 froze a precise missing owner: `crate::cursor::recovery::emit::emit_token_item(open)` and the `Item`/token payload constructor. It also confirmed `parse_row` permits an empty child-element list, so HIR admission alone does not prove positive width. Spend exactly the existing 60-second reserve once on those two source owners; keep the rev1 artifact immutable and add only this delta.
+
+**Same proof author, cap 60s**, `/root/npair_parser_row_key_separation`, continuing under an exact new lease. Read only:
+- `crates/yu-syntax/src/cursor/recovery/emit.rs`, SHA-256 `de091c117486f7990dc6872bf2ee7659c0e3e7e148e255f47b56b7836fe7c59d`
+- `crates/yu-syntax/src/lexical/item.rs`, SHA-256 `0a1dcbd84874f6abd571e0ce7035b9ba7682ebdf7c2348c030a1ba77deabcd25`
+plus the frozen rev1 artifact and already pinned parser sources. Determine only whether the BracketRow's opening delimiter, including recovery cases, is emitted exactly once as a positive-width token and retained by the emitted Item payload through parsing. Empty child elements are not a reason to exclude a recovered row. Do not infer uniqueness from token names.
+
+Write only new outputs:
+- `notes/theory/2026-10-18-npair-parser-recovery-token-width.md`
+- `tasks/agent-loop/inbox/20261018-npair-parser-recovery-token-width.md`
+
+Stop at any synthetic/empty payload, duplicate emission, or further indispensable owner; retain the conclusion as conditional. No tests/builds/probes/code. Fresh independent compiler review later covers rev1 plus this delta inside the original 120s allocation, without resetting or increasing it. Resource accounting remains 480s total: 300 proof, 120 review, 60 primary, reserve0; Astra0.
