@@ -27,9 +27,9 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 1020,
-      "available_seconds": 480,
-      "allocation": "Proof720 + compiler180 + spec120 charged/assigned; architecture120 if adopting/proposing Result_MI semantic case, Luna180 + reserve180 remain. Astra0."
+      "charged_seconds": 1140,
+      "available_seconds": 360,
+      "allocation": "Proof720 + compiler180 + spec120 + architecture120 charged/assigned; Luna180 + reserve180 remain. Astra0."
     },
     "workers": [
       {
@@ -55,12 +55,22 @@
       {
         "id": "/root/catch_historical_operand_spec_review",
         "role": "spec_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "receipt": "Fresh spec audit of same-occurrence source normalization and missing Return formation clause boundary; ≤120s. Read-only."
+        "receipt": "CLEAN bounded spec audit. Synthesis A supports only same-u_id normalization/interface; SRC L2 is local law premise, §4.2 meaning only. Original indices/source/client domains/guards/arms/providers/futures/GC intact; no family/port/q_f/fixed/global closure. 9 pins match; full120 charged; no writes/tests/Git."
+      },
+      {
+        "id": "/root/module_reference_architecture_review",
+        "role": "architect",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Bounded architecture review of source Result formation obstruction, unfilled Return clause-catalogue/port operation and parent boundary; ≤120s. Read-only."
       }
     ],
     "leases": [
