@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-parser-row-key-separation-20261018.md",
     "revision": 1,
     "sha256": "f9e0c7476e2cd03d0d83ef7c608807b01f2cdc9e9bb1677440692556f7d24b96",
-    "state": "READY",
+    "state": "ACTIVE",
     "baseline": "515b705f6879bd8fd4a57fd1f6732e11ea9c0a29",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, source domain and quantifiers unchanged; closure0.",
     "fixed_outcome": "Prove or precisely retain key separation for every earlier explicit row that can seed the Operation root cache, including parser recovery paths.",
@@ -19,11 +19,11 @@
     },
     "resources": {
       "cap_seconds": 480,
-      "charged_seconds": 0,
-      "available_seconds": 480,
+      "charged_seconds": 60,
+      "available_seconds": 420,
       "allocation": "parser proof240, fresh compiler/source review120, Luna integration60, reserve60; Astra0."
     },
-    "next_action": "Launch one bounded source-constructor proof over ordinary and recovery row creation; then fresh compiler review."
+    "next_action": "Receive bounded ordinary/recovery constructor proof, then fresh independent compiler review and adjudicate remaining address condition."
   },
   "history": "Closed `npair-operation-self-effect-decision-20261018` rev3: parent conditions0. Semantic classification finds missing original Operation primitive projection but no demonstrated semantic ambiguity. Address result remains conditional; primary injectivity candidate rejected as unconditional after major review because parser/recovery distinct-start property is unproved. Corrected rev1 dependency pin typo in rev2 and independently verified. Full receipts in closeout.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
@@ -37,18 +37,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Previous sprint closed with 900s charged; new rev1 exact parser-owner contract issued READY; no new worker yet launched."
+      "receipt": "Prior sprint closeout/replan committed and pushed; parser-row key separation proof lane live with exact rev1 leases."
     },
     {
       "id": "/root/npair_parser_row_key_separation",
       "role": "constructive parser/source identity prover",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=240s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact rev1 source pins and exclusive outputs issued; launch receipt pending."
+      "receipt": "Actual live configured prover launch; exact 240s cap and pinned read/output leases; requested Sol/high, effective UNKNOWN."
     }
   ],
   "leases": [
