@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
     "revision": 2,
     "sha256": "712fa3cfb7ba6ad89d0416f8e3b83f11c921084a35d8c0e88b7b918006e4a07e",
-    "state": "AMENDMENT-REVIEW-COMPILER-RUNNING",
+    "state": "AMENDMENT-REVIEW-PENDING-SPEC",
     "baseline": "8be4b8248",
     "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Implement adopted rev4 structural HIR admission and prove projection preservation through ordinary HIR, applying only the exact structural premise of the original Call/source bridge. Current gate: frozen proof and resource-amendment review; implementation held until fresh compiler/spec/architect reviews are CLEAN and Luna adjudicates. No semantic Call or parent theorem closure.",
@@ -29,8 +29,8 @@
     },
     "resources": {
       "cap_seconds": 4020,
-      "charged_seconds": 660,
-      "available_seconds": 3090,
+      "charged_seconds": 750,
+      "available_seconds": 3000,
       "allocation": "Coordination120 charged; Astra450/720 charged, remaining270 retired; Luna amendment author90 charged; proof reviews300; pre-code architect90; implementation1710; applied reviews480; regression pre/post240; Cargo240; reserve30. Available includes only planned remaining allocations.",
       "retired_seconds": 270
     },
@@ -95,7 +95,7 @@
       {
         "id": "/root/accepted_call_hir_projection_compiler_review",
         "role": "compiler_referee",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "cap_seconds": 180,
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
@@ -107,7 +107,10 @@
           "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md"
         ],
         "session": "current-session",
-        "active_receipt": "Followup dispatched after proof/amendment freeze commit a949c2807; read-only review of exact hashes recorded in task; all four artifact pins plus sprint SHA-256 8baa53c23fb83e3cdefb393b41c6d92a51aeba3c5090f4f5b52f8cc3f6f4714a."
+        "active_receipt": "Followup dispatched after proof/amendment freeze commit a949c2807; read-only review of exact hashes recorded in task; all four artifact pins plus sprint SHA-256 8baa53c23fb83e3cdefb393b41c6d92a51aeba3c5090f4f5b52f8cc3f6f4714a.",
+        "charged_seconds": 90,
+        "remaining_seconds": 0,
+        "receipt": "CLEAN within resource/error-reference scope; verified V=2m+1, E=m+1, R=m(m+3)/2; O(V+E+R) concatenation argument holds under one materialization per Apply and Group forwarding; checked arithmetic/reservations/publication remain implementation obligations. All five hashes and 57 proof pins match. Requested Sol/medium, observed UNKNOWN; 90s charged; no writes/tests/probes."
       },
       {
         "id": "/root/accepted_call_hir_admission_spec_review",
@@ -255,7 +258,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Compiler referee is reviewing frozen proof/amendment (<=180s); after STOP, update receipt then dispatch spec auditor <=120s, architect <=90s, and Luna adjudication before any code/test.",
+    "next_action": "Compiler review CLEAN and STOPPED (90s charged). Dispatch fresh spec audit <=120s of same frozen proof/amendment; then fresh architect <=90s, then Luna adjudication before code/test.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
     "predecessor_commit": "5fbceb68d",
     "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
