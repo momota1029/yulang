@@ -1,10 +1,12 @@
 # Value-entry formal provenance through selected local use
 
 Date: 2026-10-17  
-Status: **Frozen source correspondence trace; experimental playground only**  
+Status: **Revision 2; source-correction delta pending review; experimental playground only**  
 Author: `/root` (Luna primary)  
 Sprint: `receive-role-indexed-inlet-introduction-20261017`, contract revision 1  
 Contract SHA-256: `c2422818a92a6666ab9672b45d4d8bf1abf069116c82d4a91228374fc07e10cc`  
+Revision 2 corrects the selected named-formal producer after independent
+compiler review. Revision 1 remains preserved in commit `3b16bb603`.
 Scope: selected `my apply f = { my step x = f x; step }` source path. This trace neither adopts a semantic rule nor closes an original theorem gate.
 
 ## Result
@@ -31,7 +33,7 @@ provider-indexed role proof for original c2.
 
 | Stage | Retained fields / operation | Correspondence limit |
 |---|---|---|
-| Source identity and HIR | `local_source.rs:974-1002` creates the inline Lambda's `HirParameterId` and records its Lambda source key and binder range; body names resolve to `Parameter(id)`. `source_identity.rs:120-124` records either source-pattern origin or inline Lambda identity plus binder range. | Establishes the real source formal identity; does not classify the value passed through it as Pure/Handler. |
+| Source identity and HIR | For selected named `my step x = ...`, `local_source.rs:1285-1312` allocates the parameter ID, calls `record_parameter` with the `IdentifierPattern` source identity, and records `local_parameter_owners[id] = step`'s `HirLocalId`. `:651-690` wraps that formal in the retained local Lambda and resolves its body names to `Parameter(id)`. `source_identity.rs:120-124` distinguishes source-pattern origin from the separate inline-Lambda identity plus binder-range origin. | Establishes the real named source formal identity and owner; the inline-Lambda branch is not the producer for this selected source. Neither origin classifies the value passed through it as Pure/Handler. |
 | Candidate formal registration | `candidate_source.rs:594-609` emits a registration with owner, Lambda index, parameter ID, scope and a candidate entry role. Here `Value`/`Computation` follows the outer formal's computation annotation. `:617-625` maps a parameter Name to its registration endpoint. | The entry role belongs to this Lambda formal. It is not a semantic role for the callable `f`. |
 | Apply and formal-name observation | `candidate_source.rs:646-657` emits `FormalNameInput` only when a Name resolves to `Parameter(id)`; local binding names follow Local/Link handling at `:961-974`. Apply stores the authentic source callee, argument, effect/result incidences and formal-name index at `:1023-1048`. `candidate_call::observe` (:437 onward) rechecks owner, occurrence, scope, Name(Parameter(id)), owning Lambda and native ports. | The original `f x` has an authentic formal-name route. The returned local `step` and its name are not promoted to a new formal. `candidate_call::observe` yields no formal when `formal_name` is absent. |
 | Local capture and fresh use | `candidate_scheme.rs:1537-1575` captures the local scheme graph with its source-region frontier and prepares a `FreshUse`; `:1111-1135` begins fresh use and remaps owned scopes/regions. `RetainedFreshUseMaps` (:132-149) and `LocalFreshRoute` retain scope/relation/row/term/effect/bundle/context/evidence maps, local ID, slot, occurrence and graph. `commit_local_use` (:298-320) publishes those retained maps after ordinary constraints are admitted. | These are structural solver provenance and route records. No `HirParameterId`, owning Lambda identity, or relation to runtime `ParameterRole` occurs in the retained local route maps. A solver graph endpoint is not a source-formal proof by itself. |
