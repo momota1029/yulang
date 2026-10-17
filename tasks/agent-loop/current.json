@@ -19,11 +19,11 @@
     },
     "resources": {
       "cap_seconds": 900,
-      "charged_seconds": 750,
-      "available_seconds": 150,
+      "charged_seconds": 840,
+      "available_seconds": 60,
       "allocation": "semantic/proof300, address audit180, primary60, independent compiler/source review120, spec review90, reserve150; Astra0."
     },
-    "next_action": "Primary will re-read the newly pinned syntax identity and HIR construction sources under rev3, derive/falsify BracketRow key injectivity, then obtain fresh compiler review."
+    "next_action": "Fresh independent compiler/source review of the pinned SourceNodeKey-to-explicit-row derivation; then close with closure0."
   },
   "history": "Closed `npair-reference-indexed-source-lift-20261018`: reviewed same-reference IF placement; Operation latent self-effect projection remains missing; conditional Function/Replay lift reviewed CLEAN but H0/provider tree unresolved; parent closure0. Closeout records hashes and reviews. Rev1 dependency pin typo found by independent spec/compiler review; corrected in rev2 without changing scope; rev2 recheck pending. Rev3 spends the pre-existing 150s reserve on source-node key injectivity; primary did preliminary symbol-location reads before exact rev3 lease, which are not admitted as evidence and will be re-read under the pinned lease.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
@@ -37,7 +37,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev1 pin issue corrected and rechecked in rev2; dispatcher allocated final existing reserve to SourceNodeKey injectivity. Formal source derivation begins after rev3 lease."
+      "receipt": "Rev3 source identity derivation frozen at exact hashes; fresh independent compiler/source review launched within final 60s reserve."
     },
     {
       "id": "/root/npair_operation_self_effect_decision",
@@ -64,13 +64,13 @@
     {
       "id": "/root/npair_incidence_compiler_review",
       "role": "independent compiler/source reviewer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol/compiler_referee",
       "requested_effort": "high <=120s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh independent review completed; reported only minor rev1 dependency-pin typo plus clean scoped findings; awaiting targeted rev2 pin confirmation."
+      "receipt": "Fresh independent review launched on primary-authored injectivity artifact; exact read-only scope, <=60s; no write lease."
     },
     {
       "id": "/root/npair_incidence_spec_review",
@@ -143,12 +143,12 @@
     {
       "path": "notes/theory/2026-10-18-npair-source-node-key-injectivity.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-source-node-key-injectivity.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [],
