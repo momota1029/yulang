@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/receive-c2-open-check-20261017.md",
     "revision": 1,
     "sha256": "e70967adc462e983f7ac8cc54f66ada64241c46dae61ebb8d4e62cf067a7cefa",
-    "state": "READY-TO-ASSIGN",
+    "state": "PROOF-AUTHOR-RUNNING",
     "baseline": "a65ce9d07",
     "parent": "型推論と実行器が証明込みで実装できるまで続ける; original theorem and production gates OPEN.",
     "fixed_outcome": "At original A1,xi derive all five source-selected c2 obligations (WF_Dec, full VIncl, WholeArgCompatible, ReceiveSchema, complete invocation-image CIncl), or freeze the first exact unavailable descriptor/checking law; apply to reviewed structural plug and retain ambient joins.",
@@ -28,19 +28,19 @@
       "coordination_seconds": 60,
       "reserve_seconds": 180,
       "charged_seconds": 0,
-      "active_authors": 0,
-      "status": "Contract frozen; proof author not yet launched. Three inherited UNKNOWN reservations retained; implementation is NO_SAFE_CODE_SLICE pending proof."
+      "active_authors": 1,
+      "status": "Astra author actively assigned, 720s cap; current-session launch receipt recorded; three inherited UNKNOWN reservations retained; implementation NO_SAFE_CODE_SLICE."
     },
     "lanes": {
       "proof": {
-        "owner": "Astra bounded constructive proof lane",
-        "state": "READY",
+        "owner": "/root/receive_c2_open_check (astra_prover)",
+        "state": "RUNNING",
         "outputs": [
           "notes/theory/2026-10-17-receive-c2-open-check.md",
           "tasks/agent-loop/inbox/20261017-receive-c2-open-check.md"
         ],
         "cap_seconds": 720,
-        "receipt": "Frozen contract e70967adc462e983f7ac8cc54f66ada64241c46dae61ebb8d4e62cf067a7cefa; exact source pins rechecked."
+        "receipt": "Actual task assignment launched in current session; outputs restricted to exact two-file lease; baseline a65ce9d07; observed model/effort UNKNOWN."
       },
       "implementation": {
         "owner": "Luna/high",
@@ -77,39 +77,6 @@
     "next_boundary": "Frozen c2 derivation/counterexample/first missing law; then sequential fresh reviews. Reconsult selector at any material dependency change or code-ready producer.",
     "workers": [
       {
-        "id": "/root/resident_dispatcher_loop_a",
-        "role": "legacy dispatcher",
-        "state": "UNKNOWN",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": null,
-        "receipt": "Historical identity/cessation unknown; reservation retained."
-      },
-      {
-        "id": "/root/resident_implementer_idle",
-        "role": "legacy implementation worker",
-        "state": "UNKNOWN",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": null,
-        "receipt": "Historical identity/cessation unknown; reservation retained."
-      },
-      {
-        "id": "/root/runtime_source_supplier_proof",
-        "role": "legacy proof worker",
-        "state": "UNKNOWN",
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": null,
-        "receipt": "Historical identity/cessation unknown; reservation retained."
-      },
-      {
         "id": "/root",
         "role": "Luna primary and sole integrator; sprint coordinator",
         "state": "RUNNING",
@@ -118,14 +85,26 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Primary freezes exact c2 proof contract and assigns bounded proof lane; read-only implementation owner audit completed."
+        "receipt": "Primary dispatched /root/receive_c2_open_check under frozen contract; implementation audit remains read-only NO_SAFE_CODE_SLICE."
+      },
+      {
+        "id": "/root/receive_c2_open_check",
+        "role": "bounded Astra constructive proof author",
+        "state": "RUNNING",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "cap_seconds": 720,
+        "receipt": "Actual astra_prover assignment launched in current session for exact proof+handoff lease; received baseline clarification; no descendants."
       }
     ]
   },
   "candidate": "tasks/agent-loop/sprints/receive-c2-open-check-20261017.md",
   "baseline": "a65ce9d07",
   "scope": "Construct the actual open c2 source check at original A1,xi and apply it to the reviewed structural plug; implementation lane read-only audit found no safe code slice.",
-  "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. New proof contract is frozen and ready; no new author is recorded RUNNING before actual launch receipt.",
+  "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. One bounded proof author actively assigned from actual current-session launch; no implementation author.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -161,18 +140,6 @@
       "receipt": "Historical identity/cessation unknown; reservation retained."
     },
     {
-      "id": "/root/receive_resultbind_context_plug",
-      "role": "stopped bounded Astra proof author from prior sprint",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "prior-session",
-      "cap_seconds": 720,
-      "receipt": "Frozen prior outputs 90a0844f... and cc883103...; write cessation recorded; no descendants."
-    },
-    {
       "id": "/root",
       "role": "Luna primary and sole integrator; sprint coordinator",
       "state": "RUNNING",
@@ -181,7 +148,19 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Primary freezes exact c2 proof contract and assigns bounded proof lane; read-only implementation owner audit completed."
+      "receipt": "Primary dispatched /root/receive_c2_open_check under frozen contract; implementation audit remains read-only NO_SAFE_CODE_SLICE."
+    },
+    {
+      "id": "/root/receive_c2_open_check",
+      "role": "bounded Astra constructive proof author",
+      "state": "RUNNING",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "cap_seconds": 720,
+      "receipt": "Actual astra_prover assignment launched in current session for exact proof+handoff lease; received baseline clarification; no descendants."
     }
   ],
   "leases": [
@@ -203,13 +182,13 @@
     },
     {
       "path": "notes/theory/2026-10-17-receive-resultbind-context-plug.md",
-      "owner": "/root/receive_resultbind_context_plug",
+      "owner": "/root",
       "state": "FROZEN",
       "sha256": "90a0844f10ea433bb21c0d98e67a278e288930752987c233c86290354067bf87"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-receive-resultbind-context-plug.md",
-      "owner": "/root/receive_resultbind_context_plug",
+      "owner": "/root",
       "state": "FROZEN",
       "sha256": "cc883103ed36f538be299215061b23b0f4e12c18d9e85e8fd439fab993e48482"
     },
@@ -221,12 +200,12 @@
     },
     {
       "path": "notes/theory/2026-10-17-receive-c2-open-check.md",
-      "owner": "/root",
+      "owner": "/root/receive_c2_open_check",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261017-receive-c2-open-check.md",
-      "owner": "/root",
+      "owner": "/root/receive_c2_open_check",
       "state": "HELD"
     }
   ],
@@ -263,7 +242,7 @@
     }
   ],
   "next_action": {
-    "state": "READY-TO-ASSIGN",
+    "state": "PROOF-AUTHOR-RUNNING",
     "dispatcher": "Selector selected receive-c2-open-check-20261017, proof-only allocation; implementation waits after three-owner read-only audit.",
     "proof": "Derive the actual source c2 open check at original A1,xi across all five obligations, or isolate the first unavailable descriptor/checking law; alpha+ is not a substitute for A1.",
     "implementation": "NO_SAFE_CODE_SLICE: current HIR/CandidateInference path has no imported source T; wait for proof to change evidence."
@@ -276,11 +255,11 @@
     "coordination_seconds": 60,
     "reserve_seconds": 180,
     "charged_seconds": 0,
-    "active_authors": 0,
+    "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "Frozen ready-to-assign contract; implementation NO_SAFE_CODE_SLICE; three unknown reservations preserved."
+    "status": "Astra proof author RUNNING, 720s cap; implementation NO_SAFE_CODE_SLICE; three unknown reservations preserved."
   },
-  "history": "Earlier NPAIR checkpoints and adoption receipt are preserved in prior current.json/Git history; pending parent-gate entries retain exact OPEN owners. Current proof artifact `notes/theory/2026-10-17-receive-source-derivation-and-plan-bridge.md` hash 597830364071d165c46f18175b51753521fb237b0bed67e08bec8781f24e251c; proof handoff rev2 6d988521fa369bae56e674611cd692ea236a10d77c5c3757378a0b4555cf057a. Proof review found one minor Return-destination issue, repaired and delta CLEAN. Importer review found one major missing instance/scope/xi join plus stale locators; primary repair underway. Previous reviewed partial NPAIR compile checkpoint 5ca96586f remains limited; no source admission/parent closure. Contract revision 2 frozen after review repairs; final proof source premise still OPEN. Final handoff rev3/design hash 05e702...; final spec metadata typo repaired under sprint revision 5. Final handoff revision 4 hash recorded in artifacts; last spec metadata locator corrected to sprint rev6. Sprint-end selector recommends receive-caller-context-formation-20261017: exact punctured caller-context formation and well-foundedness, plus sequential unapplied source-producer contract; no code seam ready. Final importer spec locator delta CLEAN at revision 6; all current sprint writers STOPPED. Prior sprint `receive-source-derivation-and-plan-bridge-20261017` checkpointed/pushed as a30d4a961: conditional proof reviewed, importer draft reviewed CLEAN but unapplied; final metadata review CLEAN; parent OPEN. New selector outcome started under the user-authorized bridge-drafting process. Prior sprint receive-caller-context-formation-20261017 completed as REVIEWED-PARTIAL and was committed/pushed at e92374886: conditional proof and producer map both independently CLEAN; direct source T still depends on exact ResultBind context plug, native anchored MODEL OPEN. Dispatcher chose this next proof packet. Prior sprint receive-resultbind-context-plug-20261017 reviewed-partial checkpoint committed/pushed as a65ce9d07; existing structural inversion and both fresh reviews CLEAN, c2/Bind/world premises OPEN. New selector outcome receive-c2-open-check-20261017 frozen with proof-only lease; implementation owner audit inspected playground prepare/runtime program and CandidateInference, found no safe code slice while source T is absent.",
+  "history": "Checkpointed receive-resultbind-context-plug as a65ce9d07 after CLEAN compiler_referee and spec_auditor reviews: existing structural inversion applies, but actual c2 and ambient witnesses remain OPEN. Sprint setup `receive-c2-open-check-20261017` committed/pushed as 9e11255d0; proof-only. Implementation audit pins current playground prepare/runtime program and CandidateInference path; no source T exporter/importer, so NO_SAFE_CODE_SLICE. Prior source/parent gates remain OPEN; see checkpoint_commits and frozen proof/handoff artifacts.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
