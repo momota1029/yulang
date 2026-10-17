@@ -5,7 +5,7 @@ Branch: `research/simple-sub-intrusion`
 Dependency baseline: `3ba3e0f38` (previous sprint review receipt pushed; exact dependencies below).  
 Parent Goal: **型推論と実行器が証明込みで実装できるまで続ける**.  
 Authority: current user authorization to continue proof and implementation work and to draft source bridge rules for independent review; `rules/goal-driven-sprints.md`; `rules/design-authority.md`; original FORWARD-FIRST-CALL §1–2; accepted selected captured-closure constructor scope.  
-Revision: 1. Luna activation receipt is recorded in `tasks/agent-loop/current.json` after all hashes match.
+Revision: 2. Luna versioned the direct guard-inventory dependency before reliance; all pins are recorded in `tasks/agent-loop/current.json`.
 
 ## Original outcome and success evidence
 
@@ -43,7 +43,7 @@ Leases:
 
 Work from original F2/ξ and the frozen comparison. State the complete original binder order and tuple before writing clauses. Separate: (a) what the current authoritative source laws already prove, (b) candidate VIEW elimination, (c) candidate CHECK introduction, (d) exact laws/domains/guards still missing. Include all original demand and observation classes, pending/raw resumption/future branches and every original guard. An arbitrary descriptor model is not a source-qualified c₂ case. Try the two local directions separately and apply any result to the original obstruction. Reuse the rejected/partial SAT package only to avoid repeating its settled work; SAT remains unselected. No semantic adoption, no code or execution.
 
-The packet may formulate a new bridge rule because the user authorized drafting. If the rule adds source meaning, report alternatives and consequences as unselected choices; do not hide that choice in an opaque “complete guard” premise.
+The packet may formulate a new bridge rule because the user authorized drafting. If the rule adds source meaning, report alternatives and consequences as unselected choices; do not hide that choice in an opaque “complete guard” premise. The Draft source-contracts §3.7 input below may help enumerate candidate guard shapes, but it is not the original F2 guard inventory and cannot authorize its semantics.
 
 ### Implementation/source correspondence — Luna/high, max 480 active seconds, starts only after proof lane STOP/freeze
 
@@ -75,6 +75,7 @@ Recompute all pins before activation and again at each author's reliance boundar
 | `notes/theory/2026-10-08-captured-call-closure-introduction.md` | `0f8adcf70a72d1f46bd4ca95f3984554d8cf2ff6af6434b679e991e346ffd50f` | Strict phase obligations and actual premise boundaries. |
 | `notes/theory/2026-10-08-call-semantic-input-realization.md` | `fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a` | Selected whole-carrier admission/observation law within its premises. |
 | `notes/design/2026-10-08-call-source-interface-definition.md` | `20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c` | Complete source Call interfaces; not an F2 inlet introduction. |
+| `notes/design/2026-10-05-source-contracts-and-common-allowance.md` | `1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186` | Draft §3.7 may inform a candidate guard inventory only; its concrete grammar is not adopted as original F2. |
 | `notes/design/2026-10-17-receive-role-indexed-inlet-introduction.md` | `7716a71d6bf6f5212bd455e1a3959569748e558238d0a164649ec1c57d92b72c` | Unselected SAT/RG candidate clauses and gaps. |
 | `tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md` | `70dc1e462150474fa7f404bb4aa9aa844825b77b985e9187fa80d74ac4f97138` | Prior candidate owner requests; no authority. |
 | `notes/theory/2026-10-17-receive-sat-admission-comparison.md` | `956b710546be0446ae6fd054a597196e467ce59202a08812d4c6ac349455a6e1` | Both original SAT2 inclusions OPEN; exact VIEW/CHECK obstruction. |
