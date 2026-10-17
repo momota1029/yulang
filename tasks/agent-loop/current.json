@@ -49,7 +49,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Active receipt received: /root/npair_actual_argument_ingress, current-session, clock sample 2026-10-17 19:53:21 UTC; contract read; starting pinned shadow_apply Apply/Lambda constructors and lib full Function dispatch; no writes/processes or descendants yet. Requested Sol/high; observed UNKNOWN/UNKNOWN."
+      "receipt": "Active proof progress (not frozen/reviewed): shadow_apply::admit_candidate_fact constructs native Fun- demand from actual argument/effects/invocation row/result; lib::admit_lambda_fact uses formal_domains[parameter], yielding receive formal comparison f0_use <: Outer-; complete four Function children and same-R1 install/fresh-use traced at source level. Continuing exact s1/D and Replay inputs; no parent premise claimed yet."
     },
     {
       "id": "/root/npair_actual_argument_source_path",
@@ -60,7 +60,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "followup_task launched in current-session; collaboration runtime reports RUNNING for the exact leased source-observation packet."
+      "receipt": "Active receipt received: /root/npair_actual_argument_source_path, current-session, Luna implementation/source lane; requested Luna/high, observed UNKNOWN/UNKNOWN. Exact write leases acknowledged. All pins checked; no writes/processes active at receipt."
     }
   ],
   "leases": [
