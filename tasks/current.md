@@ -30,8 +30,11 @@ Detailed pins, review scope, budget, exclusions and next action are recorded in
 The next active proof packet is `module-registered-root-embedding-20261017` at
 baseline `14820b4eec8688efa84cf76135694082ccf4f966`. It targets the authentic
 registered `ModuleContractRoot*` plus its embedding into the original root
-family. A parallel read-only source-owner audit will map the real producer and
-whether any unquarantined vertical code slice exists. Astra is budgeted at zero.
+family. A parallel read-only source-owner audit has frozen a bounded `NO_SAFE_CODE_SLICE`
+result: ModuleDef Name/Apply routing is present, while typed entry/root formation
+and source/native field mapping are absent from the inspected records. The report
+is not independently reviewed yet; the candidate source/call files stay
+quarantined. Astra is budgeted at zero.
 
 ## Current checkpoint (2026-10-16)
 
