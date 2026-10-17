@@ -19,8 +19,8 @@
     },
     "resources": {
       "cap_seconds": 900,
-      "charged_seconds": 0,
-      "available_seconds": 900,
+      "charged_seconds": 120,
+      "available_seconds": 780,
       "allocation": "source/native120 + Luna implementation540 (edit/freeze/review240 + protected verification240 + evidence60) + fresh compiler review120 + primary60 + reserve60; Astra0; no rollover."
     },
     "next_action": "Proof and implementation resumed on exact leases; primary reconciled live agent identities and baseline pins at 2026-10-18. Preserve baseline fixture. No command until fresh exact-byte CLEAN review; one run maximum."
@@ -37,18 +37,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Primary owns current state and exact dispatch; successor start commit pending."
+      "receipt": "Primary owns current state and exact dispatch; start commit c3e42d07d and resume-state commit 26f70c93f are pushed."
     },
     {
       "id": "/root/npair_local_route_authentication_proof",
       "role": "source/native companion fixture correspondence proof",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=120s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live identity confirmed in collaboration roster after primary resume; 12/12 direct contract pins MATCH at 2026-10-18. Resume checkpoint requested. Exact two theory/handoff paths only; source proof must resolve both received Apply operands to ModuleDef(receive) and ModuleDef(f0)."
+      "receipt": "Frozen RECEIVE-APPLIED-SOURCE-CORRESPONDENCE-20261018 rev1. All intake pins match. Theory SHA e636422256e63af9cb04b8962f95fd0fbc845283aabcc7635c07fe5483d4e503; handoff SHA 5401a12dccbbe997734bc6887c30e0d8b22f74de83271bd256d491a438dbfac9. Exact companion prefix+trailing application, ModuleDef(receive/f0) operand mapping and final observer target are covered conditionally; runtime unobserved, parent0. Writes stopped within120s; no descendants/scratch/commands; model/effort UNKNOWN."
     },
     {
       "id": "/root/npair_local_route_authentication_implementation",
@@ -59,7 +59,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live identity confirmed in collaboration roster after primary resume; exact lease reissued. Resume static inspection and companion fixture/harness work; no command before fresh exact-byte CLEAN review. All other solver/test inputs remain frozen."
+      "receipt": "Live identity confirmed; exact lease reissued. Resume static inspection and companion fixture/harness work; current edit/freeze checkpoint requested. No command before fresh exact-byte CLEAN review. All other solver/test inputs remain frozen."
     },
     {
       "id": "/root/npair_applied_fixture_review",
@@ -87,12 +87,12 @@
     {
       "path": "notes/theory/2026-10-18-receive-applied-source-correspondence.md",
       "owner": "/root/npair_local_route_authentication_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-receive-applied-source-correspondence.md",
       "owner": "/root/npair_local_route_authentication_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/fixtures/20261018-receive-choose-applied.yu",
@@ -121,5 +121,5 @@
     "required": false,
     "receipt": "Previous proof, implementation and review workers STOPPED; all prior leases FROZEN. Successor uses fresh900s; no prior budget rollover."
   },
-  "next_action": "Successor start commit pending; no workers dispatched and no compiler command started."
+  "next_action": "Proof artifact is frozen; implementation is finishing the companion/harness and runtime evidence bundle. Fresh review will start after that exact snapshot freezes; no compiler command before CLEAN review."
 }
