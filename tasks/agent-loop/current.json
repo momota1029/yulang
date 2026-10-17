@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-source-admission-proposal-20261018.md",
     "revision": 1,
     "sha256": "eaf10ceaf86df64c0bd2c522520b3e0b060e1cf1430b8ef6abf39440b063558c",
-    "state": "RUNNING-SPEC-REVIEW",
+    "state": "CLOSED-REVIEWED-PROPOSAL",
     "baseline": "368ee4bfe",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original claims, quantifiers and source domain unchanged.",
     "fixed_outcome": "Freeze an independently reviewable proposal for the adopted nonempty concrete-only negative formal-port source-admission case, including exact source-to-FormalAnnotation evidence, falsifiers, refusals and prerequisites. Proposal only; no source read or implementation.",
@@ -41,8 +41,17 @@
         "sha256": "0d5231fffdaf001787b626eb279b1ce1182951472b88218938e2442228ec4e02"
       }
     },
-    "next_action": "Assign fresh independent spec auditor to the frozen contract/proposal/handoff. Review only scope, source-domain preservation, exact authority prerequisites and false-claim boundaries; source/call remain quarantined.",
-    "closeout": null
+    "next_action": "Present the reviewed proposal for explicit admission approval. Keep inherited source/call quarantine until exact STOP/descendant/output/overlap-lease handoff; then issue a fresh bounded source-read lease. No further proposal sprint or code slice before those gates.",
+    "closeout": {
+      "path": "notes/progress/2026-10-18-npair-source-admission-proposal-closeout.md",
+      "sha256": "947f4b7263c97d3d1e015ad53840230692ec00076417b4d0a99dfedf9ebcbc73",
+      "review": "fresh independent spec audit clean within proposal scope; no semantic adoption or source access"
+    },
+    "dispatch": {
+      "path": "notes/progress/2026-10-18-npair-source-admission-dispatch.md",
+      "sha256": "72eb466556e1b5759cd194c6730061909906147173fd3f3c40125d5ded380dfd",
+      "recommendation": "No further proposal sprint; wait for explicit admission approval and exact owner handoff. No new workers/leases/resources."
+    }
   },
   "history": "All prior sprint closeouts, proof artifacts, implementation receipts, independent reviews, runtime/check evidence and Git outcomes remain in their uniquely named frozen notes/design, notes/theory, notes/progress and tasks/agent-loop inbox artifacts; Git history preserves associated source commits. No historical worker or lease is live. Highlights: earlier HIR/source mapping and module work closed REVIEWED-PARTIAL with original theorem gates still open; Return-prefix transport ended at a typed-prefix-package obstruction; adopted NPAIR is now receiving its first integrated native producer proof/test. Astra default remains 0. Consult each archived artifact for exact evidence and limits. Latest closeout: notes/progress/2026-10-18-npair-native-introduction-correspondence-closeout.md SHA-256 7bee0f6ff2b0e6f8d3db3df6dde3240ae801551e5b8f88a5d9fcbd1886547cf4; original parent closure0, bounded local producer condition1. ",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN.",
@@ -115,13 +124,13 @@
     {
       "id": "/root/npair_source_admission_spec_review",
       "role": "fresh-independent-spec-auditor",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol / spec_auditor",
       "requested_effort": "low, ≤120s / 3 stages",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Current-session launch acknowledged; exact effective model/effort/runtime UNKNOWN. Read-only frozen-doc review only; source/call paths excluded. No tests/builds/writes/Git/descendants. Full120 charged; Astra0."
+      "receipt": "Fresh independent spec review STOP; no blocking/major/minor findings. Verified frozen contract/proposal/handoff and adopted dependencies. Reviewed proposal may be returned without semantic adoption; no source-read/code authority. Parent closure0; quarantined source/call were not read/hashed. Astra0; runtime/model UNKNOWN."
     }
   ],
   "leases": [
@@ -184,12 +193,17 @@
       "path": "tasks/agent-loop/inbox/20261018-npair-source-admission-proposal.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/progress/2026-10-18-npair-source-admission-proposal-closeout.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
-      "id": "NPAIR-SOURCE-ADMISSION-PROPOSAL-REVIEW",
-      "state": "Fresh independent spec auditor RUNNING against frozen contract/proposal/handoff. Source/call remain quarantined; no implementation authority."
+      "id": "NPAIR-SOURCE-ADMISSION-AUTHORIZATION",
+      "state": "WAITING explicit admission approval plus verified exact STOP, descendant/generated-output and overlapping-lease handoff for inherited UNKNOWN owners. Source/call remain quarantined; parent closure0."
     }
   ]
 }
