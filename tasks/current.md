@@ -27,6 +27,12 @@ resource-policy delta review is CLEAN. Focused tooling checks and 53 tests pass.
 Detailed pins, review scope, budget, exclusions and next action are recorded in
 [the closeout receipt](notes/progress/2026-10-17-module-reference-materialization-closeout.md).
 
+The next active proof packet is `module-registered-root-embedding-20261017` at
+baseline `14820b4eec8688efa84cf76135694082ccf4f966`. It targets the authentic
+registered `ModuleContractRoot*` plus its embedding into the original root
+family. A parallel read-only source-owner audit will map the real producer and
+whether any unquarantined vertical code slice exists. Astra is budgeted at zero.
+
 ## Current checkpoint (2026-10-16)
 
 - **Resident research loop (session `2026-10-16-loop-a`):** the dispatcher is
