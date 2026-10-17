@@ -1,8 +1,9 @@
 # Sprint ordinary-hir-applied-conformance-repair-20261017
 
-Status: READY FOR PROOF/SOURCE PACKET. Revision 1. Candidate baseline
+Status: PLAN FROZEN; AWAITING PRE-CODE ARCHITECT REVIEW. Revision 2 supersedes
+revision 1 for the live dependency/lease sequence. Candidate baseline
 `4f4dcb7b9`; current operational base may include later record-only commits.
-No author active. The prior sprint closed `REVIEWED-PARTIAL`; its candidate and
+The prior sprint closed `REVIEWED-PARTIAL`; its candidate and
 exact compiler findings remain immutable:
 
 - Candidate: commit `4f4dcb7b9`.
@@ -49,15 +50,30 @@ precede publication; no partial module/list or duplicate/truncated diagnostic.
    determined by final canonical expression. Pin actual source constructors,
    association implementation, carrier boundary, error sink and all seven
    counterexamples. Do not edit code. STOP/freeze.
+   **Completed:** worker `/root/ordinary_hir_repair_invariants` STOPPED with
+   frozen theory SHA-256
+   `1f3afae18e36ca0abf5a9be1fbf2d1220fad0836a0cce3c370e6cce15a027a28` and
+   handoff SHA-256
+   `7bd7cfe427f498c88bab2fab71ae1f24b4ab7f30c24552bbd2030404dcbdf6c3`.
+   Exact elapsed UNKNOWN; charge full 240s reservation. No implementation or
+   tests ran.
 2. Luna authors a narrow implementation plan <=90s, then STOP/freeze:
    - `notes/design/2026-10-17-ordinary-hir-applied-repair-plan.md`
    - `tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md`
+   **Completed:** frozen plan SHA-256
+   `45c4cebfc6b5f35cf2f081db61959558721757f6a3a3f802ae310181f5ea4dc3`; see
+   the shared handoff for exact source pins and feasibility questions.
 3. Fresh architect <=120s reviews only authentic provenance feasibility,
-   staging/order, linear root indexing and exact source-owner leases. If the
-   route needs a new public representation, semantic choice or unleased owner,
-   STOP before edits and identify the exact authority boundary.
-4. After CLEAN architecture review and Luna adjudication, Luna/high implementer
-   <=1110s may write only:
+   public-surface preservation, association allocation/resource accounting,
+   staging/order, linear root indexing and the proposed exact source-owner
+   lease. The proposed source seam is crate-private and construction-owned in
+   `lib.rs`; public `HirExpr` remains unchanged. If this cannot be implemented
+   without a public representation change, second association walk, unleased
+   owner or unsupported resource claim, STOP before edits and name the exact
+   boundary. Luna adjudicates the frozen result.
+4. Only after CLEAN architecture review and Luna adjudication, Luna/high
+   implementer <=1110s may write only:
+   - `crates/yu-hir/src/lib.rs` (newly added: private provenance seam only)
    - `crates/yu-hir/src/module.rs`
    - `crates/yu-hir/src/source_identity.rs`
    - `crates/yu-hir/src/shadow.rs`
@@ -82,6 +98,12 @@ This sprint supplies no standard Call typing, source T, native adequacy or
 parent theorem result.
 
 ## Pins, resources and stop
+
+The current-input pin for newly proposed `lib.rs` is
+`5bdcb7c0df022da919cef5402c62dc1c7baf0700a4d06e526a608cbd7db21464`. Exact
+current candidate pins and frozen proof outputs are listed in the frozen Luna
+plan and shared handoff. The original `5fbceb68d` table below is historical
+baseline evidence only; it is not the implementation input manifest.
 
 Baseline pins from `5fbceb68d`:
 
