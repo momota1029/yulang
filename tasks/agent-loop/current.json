@@ -4,28 +4,28 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-same-w-source-seed-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-same-w-source-seed-20261018.md",
-    "revision": 3,
-    "sha256": "4b506cfd8587e6fbb98370433c61c5219728a4687561c7cb32092827c6f2ebb7",
+    "id": "npair-reference-indexed-source-lift-20261018",
+    "contract": "tasks/agent-loop/sprints/npair-reference-indexed-source-lift-20261018.md",
+    "revision": 1,
+    "sha256": "b936d454650c75b1746d6998f2bbd435d2f8e429927e3158264b5a9dd0f7121f",
     "state": "ACTIVE",
-    "baseline": "902dfd2923bc1f90328387bd1e3f58888ccf4fa3",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original claims, quantifiers and source domain unchanged.",
-    "fixed_outcome": "Construct same original w at exact Operation seed and apply to parent; otherwise identify minimum missing constructor clause with consistency and language-surface consequences. New proposal alone closes nothing.",
+    "baseline": "aeb0659a1dacdb63f1f156e6596783eeb2c140c3",
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, quantifiers and domain unchanged; closure0.",
+    "fixed_outcome": "Try exact original reference-indexed Operation self-leaf derivation; in parallel derive conditional outer Result/inner ResultEffect + ordered Replay/scope source lift. New rules alone close no premise.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "prior_closeout": "notes/progress/2026-10-18-npair-source-admission-closeout.md#sha256:c56bc875ea5be7ea982de673e7e3b7f0fad5137ecbf9997472362849568cbef6"
+      "prior_closeout": "notes/progress/2026-10-18-npair-same-w-seed-closeout.md#sha256:8cf69cf50d2fe3fe52f167bb8cac5f9d82ef157aac468bd1adcb25b33d6dae18"
     },
     "resources": {
-      "cap_seconds": 1800,
-      "charged_seconds": 1800,
+      "cap_seconds": 1200,
+      "charged_seconds": 1200,
       "available_seconds": 0,
-      "allocation": "proof600, exact-incidence source audit450, primary150, fresh compiler review180, fresh spec review120, reserve300; Astra0; prior4980 remains charged."
+      "allocation": "proof450, conditional rule-lift source audit300, primary90, independent proof review150, compiler review90, spec review60, reserve60; Astra0."
     },
-    "next_action": "Apply a reviewed same-w seed derivation to the unchanged receive premise; then open the first proof-backed ingress implementation slice."
+    "next_action": "Apply reference-indexed self-leaf derivation and conditional Function/Replay lift to the unchanged parent; only then issue proof-backed implementation contract."
   },
-  "history": "Closed prior source-admission sprint receipts and prior leases archived; parent closure 0. Prior branch pushes recorded in previous closeout. Same-w seed sprint contract is active.",
+  "history": "Closed `npair-same-w-source-seed-20261018`: proof candidate has major/minor findings and remains non-authoritative; exact-incidence audit reviewed CLEAN; parent closure0. Full receipts in prior closeout note.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
   "workers": [
     {
@@ -37,95 +37,85 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh primary resume; baseline, dependencies, closed prior sprint, and leases reconciled."
+      "receipt": "Fresh primary continuation; prior proof/audit authors and reviewers STOPPED, findings adjudicated, dependency baseline revalidated."
     },
     {
-      "id": "/root/npair_same_w_source_seed_proof",
+      "id": "/root/npair_reference_indexed_self_leaf",
       "role": "constructive-prover",
       "state": "RUNNING",
       "requested_model": "Sol/prover",
-      "requested_effort": "high <=600s",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Live collaboration assignment launched under exact contract/output leases; actual model and effort metadata unavailable. Contract rev3 adds exact adopted Operation/Call/source-interface/NPAIR authority pins; claim, budget, paths unchanged."
-    },
-    {
-      "id": "/root/npair_exact_incidence_audit",
-      "role": "read-only source/implementation readiness auditor",
-      "state": "RUNNING",
-      "requested_model": "Sol/researcher",
       "requested_effort": "high <=450s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live collaboration assignment launched under exact read-only source/output leases; actual model and effort metadata unavailable; contract rev2 corrects requested role routing. Contract rev3 adds exact adopted Operation/Call/source-interface/NPAIR authority pins; claim, budget, paths unchanged."
+      "receipt": "Live constructive proof assignment launched with exact reference-indexed sources and two output leases; effective model/effort UNKNOWN."
+    },
+    {
+      "id": "/root/npair_function_incidence_rule_lift",
+      "role": "read-only source-rule lift auditor",
+      "state": "RUNNING",
+      "requested_model": "Sol/researcher",
+      "requested_effort": "high <=300s",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Live read-only source-rule lift assignment launched under exact source/output leases; effective model/effort UNKNOWN."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/npair-same-w-source-seed-20261018.md",
+      "path": "tasks/agent-loop/sprints/npair-reference-indexed-source-lift-20261018.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-same-w-source-seed.md",
-      "owner": "/root/npair_same_w_source_seed_proof",
+      "path": "notes/theory/2026-10-18-npair-reference-indexed-self-leaf.md",
+      "owner": "/root/npair_reference_indexed_self_leaf",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-same-w-source-seed.md",
-      "owner": "/root/npair_same_w_source_seed_proof",
+      "path": "tasks/agent-loop/inbox/20261018-npair-reference-indexed-self-leaf.md",
+      "owner": "/root/npair_reference_indexed_self_leaf",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-exact-incidence-source-audit.md",
-      "owner": "/root/npair_exact_incidence_audit",
+      "path": "notes/theory/2026-10-18-npair-function-incidence-rule-lift.md",
+      "owner": "/root/npair_function_incidence_rule_lift",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-exact-incidence-source-audit.md",
-      "owner": "/root/npair_exact_incidence_audit",
+      "path": "tasks/agent-loop/inbox/20261018-npair-function-incidence-rule-lift.md",
+      "owner": "/root/npair_function_incidence_rule_lift",
       "state": "HELD"
     },
     {
       "path": "crates/yu-solver/src/candidate_source.rs",
-      "owner": "/root/npair_same_w_source_seed_proof",
+      "owner": "/root",
       "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_effect.rs",
-      "owner": "/root/npair_same_w_source_seed_proof",
+      "owner": "/root",
       "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_context.rs",
-      "owner": "/root/npair_exact_incidence_audit",
+      "owner": "/root",
       "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_extrusion.rs",
-      "owner": "/root/npair_exact_incidence_audit",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_scheme.rs",
-      "owner": "/root/npair_exact_incidence_audit",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_call.rs",
-      "owner": "/root/npair_exact_incidence_audit",
+      "owner": "/root",
       "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_scope.rs",
-      "owner": "/root/npair_exact_incidence_audit",
+      "owner": "/root",
       "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/lib.rs",
-      "owner": "/root/npair_exact_incidence_audit",
+      "owner": "/root",
       "state": "FROZEN"
     }
   ],
@@ -133,6 +123,6 @@
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "Prior source-admission writers and reviewers STOPPED; no unknown active writer in the current snapshot."
+    "receipt": "Both prior proof/source authors and all independent reviewers stopped; no active or unknown writer remains."
   }
 }
