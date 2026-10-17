@@ -1505,18 +1505,19 @@ fn finalize_ordinary_admissions(
         }
         let root_expression = lowered.get_mut(0).and_then(Option::take)
             .ok_or(HirAvailabilityError::StructuralProjection)?;
-        identity.append_stage(stage)?;
-        let mut replacement = Some(root_expression);
-        counters.ordinary_admission_item_visits = counters.ordinary_admission_item_visits
+        let next_item_visits = counters.ordinary_admission_item_visits
             .checked_add(1).ok_or(HirAvailabilityError::IdentityExhausted)?;
         let item = items.get_mut(admission.owner_item_index)
             .ok_or(HirAvailabilityError::StructuralProjection)?;
         let HirItem::Binding(binding) = item else {
             return Err(HirAvailabilityError::StructuralProjection);
         };
-        if !replace_admission_root(&mut binding.value, &admission.root, &mut replacement)? {
+        if !admission_root_placeholder_matches(&binding.value, &admission.root) {
             return Err(HirAvailabilityError::StructuralProjection);
         }
+        identity.append_stage(stage)?;
+        replace_validated_admission_root(&mut binding.value, &admission.root, root_expression);
+        counters.ordinary_admission_item_visits = next_item_visits;
         binding.evaluation_class = evaluation_class(&binding.value);
     }
     Ok(())
@@ -1633,6 +1634,40 @@ fn replace_admission_root(
         match current {
             ResolvedExpr::Lambda { body, .. } => current = body,
             _ => return Ok(false),
+        }
+    }
+}
+
+fn admission_root_placeholder_matches(
+    expression: &ResolvedExpr,
+    target: &HirOccurrenceId,
+) -> bool {
+    let mut current = expression;
+    loop {
+        if current.occurrence() == target {
+            return matches!(current, ResolvedExpr::Error { errors, .. } if errors.is_empty());
+        }
+        match current {
+            ResolvedExpr::Lambda { body, .. } => current = body,
+            _ => return false,
+        }
+    }
+}
+
+fn replace_validated_admission_root(
+    expression: &mut ResolvedExpr,
+    target: &HirOccurrenceId,
+    replacement: ResolvedExpr,
+) {
+    let mut current = expression;
+    loop {
+        if current.occurrence() == target {
+            *current = replacement;
+            return;
+        }
+        match current {
+            ResolvedExpr::Lambda { body, .. } => current = body,
+            _ => unreachable!("validated admission root path changed"),
         }
     }
 }

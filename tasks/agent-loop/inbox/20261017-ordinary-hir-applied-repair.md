@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev4, SHA-256
   `896981171937cba0e98a3f0499ae79ddf97f180db97427cde908752ac042f3fd`.
-  Handoff revision 5 (Luna's review/replan update); failed candidate
+  Handoff revision 6 (Luna's post-repair reconciliation); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -83,7 +83,7 @@ Changed authored paths:
 
 ```text
 crates/yu-hir/src/lib.rs a50d7b70c76906e009c0a7f7ae74c29f485d6e65365e0f29c2c7e0dc8b481cee
-crates/yu-hir/src/module.rs 1644c4d1ceffde5780737f87bee9f1fca1bdfc35a8b332dcd9556679462e4ac4
+crates/yu-hir/src/module.rs 60e91c9a51394b04af42b3ec7c284062b34fcd9faa4ea79c35b4ae58aaf460ed
 crates/yu-hir/tests/ordinary_application_admission.rs dd6c2ac5f5e8b50e37637a84e3f7427a1f628cd0f8edcaa2803775ab702ba972
 ```
 
@@ -91,9 +91,9 @@ Other leased paths are unchanged at the frozen input pins:
 `source_identity.rs` `7f0ba057a28ec8c42d2b08bcbe698ee9b422819bfde8ea43ce184457ea586bb3`;
 `shadow.rs` `460c813cb0d2e21565df011b1d816abbc2b180cef13797a1b7b453e9ee413f66`;
 `research_accepted_call_vertical.rs` `9c3dea05d11c49bae09520d5f6fe27430f1706185232daf2cf8e8d801a42d71a`.
-The handoff is an exact leased path; its own hash is sent with this frozen
-revision. Luna concurrently modified `tasks/agent-loop/current.json`; this
-worker did not edit it. No scratch/generated paths were created.
+The handoff is an exact leased path. Luna concurrently modified
+`tasks/agent-loop/current.json`; this worker did not edit it. No
+scratch/generated paths were created.
 
 After author STOP, Luna ran `git diff --check` successfully (exit 0). No Cargo,
 tests, build, compiler/format probe or execution probe was run; those remain
@@ -101,15 +101,18 @@ held for sequential independent applied reviews and regression pre-run
 clearance. Static source inspection only; the producer cannot self-certify.
 The fresh compiler review is recorded in
 `notes/progress/2026-10-17-ordinary-hir-repair-applied-compiler-review.md`, SHA
-`2395d3ca4abd65b5c4a530f691cef5cb0b4688e8ec91913b255c48625b117191`. It is
-CLEAN on the seven fixes with one MINOR: `module.rs` merges `append_stage`
-before validating owning item index/kind/root and checked counter arithmetic.
-Luna grants a fresh <=30s repair author lease for only `module.rs` and this
-handoff, then a fresh <=30s compiler delta review of that ordering. Both caps
-come from reserve120, leaving reserve60. If either cap is exhausted, STOP and
-hold execution. The repair must validate the exact empty-error placeholder and
-counter increment before stage merge, then perform a no-fail validated replace.
-No other code/test path is reopened.
+`2395d3ca4abd65b5c4a530f691cef5cb0b4688e8ec91913b255c48625b117191`. It
+identified one MINOR: `module.rs` merged `append_stage` before validating
+owning item index/kind/root and checked counter arithmetic. The narrow repair
+is now applied. In frozen `module.rs` SHA-256
+`60e91c9a51394b04af42b3ec7c284062b34fcd9faa4ea79c35b4ae58aaf460ed`, the
+saved item index, binding kind, exact empty-error placeholder/root and checked
+visit-count successor are validated before `append_stage`; replacement after
+merge has no fallible validation or arithmetic. The implementer stopped after
+about 24s of the 30s cap. Post-STOP `git diff --check` passed. No tests, builds
+or probes ran. This ordering change awaits a fresh <=30s compiler delta review.
+The repair and delta review were allocated from reserve120, leaving reserve60
+plus six unused seconds of the repair cap. No other code/test path is reopened.
 
 After a CLEAN delta review, sequential spec and architect reviews and regression
 pre-run review remain required before the two frozen Cargo commands. Original
