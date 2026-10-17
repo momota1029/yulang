@@ -21,14 +21,14 @@
   },
   "result": {
    "original_conditions_closed": 0,
-   "proof_class": "Target MODULE-SOURCE-EMBED-20261017; exact minimal closure is authentic b_use,mu_id substituted into §7.2(2).",
-   "implementation_class": "Target MODULE-NATIVE-FIELD-MAP construction contract only; no compiler/test edits or execution.",
+   "proof_class": "Producer proof constructs original-source Module-Published-Name composite from selected SRC publication, lookup, Instance and allocation rules; full alpha map equality and substitution into §7.2(2). One condition is a closure candidate; 0 independently reviewed/adopted closures so far.",
+   "implementation_class": "Luna author now owns the 2-path MODULE-NATIVE-FIELD-MAP construction contract only; no compiler code lease.",
    "parent_application": "OPEN until authentic source embedding, original root and complete Call formation; all parent theorem gates unchanged."
   },
   "resources": {
    "cap_seconds": 2160,
-   "charged_seconds": 120,
-   "available_seconds": 2040,
+   "charged_seconds": 1020,
+   "available_seconds": 1140,
    "retired_seconds": 0,
    "allocation": "Astra proof900 + Luna native-field-map contract480 sequentially; independent compiler180/spec120 on embedding and architect180 on field-map contract; coordination120 (dependency decomposition charged) + reserve180. No execution allocation."
   },
@@ -60,8 +60,8 @@
    {
     "id": "/root/module_source_family_embedding_proof",
     "role": "Astra proof author",
-    "state": "RUNNING",
-    "receipt": "Launched after contract/state push; exact two-path lease; cap900s. Runtime not yet observed."
+    "state": "STOPPED",
+    "receipt": "900/900s conservatively charged; all 22 pins matched. Proof c921db323ef1e1ce0f90465f4c51fbd5c6708ac84213bd670f8fe5d46fc4ba99; handoff 456733314dccc0e9cb08d574911e3c069099f3ceaf03c4d6f8a21021b5639474. Module-Published-Name intro/inversion/independent-source erasure, complete alpha(mu*(z))=mu_id(z), substituted into §7.2(2); reviewed closures 0 pending review/adoption."
    }
   ],
   "leases": [
@@ -73,22 +73,22 @@
    {
     "path": "notes/theory/2026-10-17-module-source-family-embedding.md",
     "owner": "/root/module_source_family_embedding_proof",
-    "state": "ACTIVE"
+    "state": "FROZEN"
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-module-source-family-embedding.md",
     "owner": "/root/module_source_family_embedding_proof",
-    "state": "ACTIVE"
+    "state": "FROZEN"
    },
    {
     "path": "notes/design/2026-10-17-module-native-field-map-contract.md",
-    "owner": "Luna after Astra STOP",
-    "state": "HELD"
+    "owner": "/root",
+    "state": "ACTIVE"
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-module-native-field-map-contract.md",
-    "owner": "Luna after Astra STOP",
-    "state": "HELD"
+    "owner": "/root",
+    "state": "ACTIVE"
    }
   ],
   "pending": [
@@ -109,7 +109,7 @@
     "state": "OPEN independent parent gates."
    }
   ],
-  "next_action": "Astra proof author RUNNING under exact two-path lease cap900. Luna native-field-map contract waits for Astra STOP.",
+  "next_action": "Astra STOPPED, proof artifacts frozen, 22 pins matched. Start Luna/high 480s native-field-map construction contract; after STOP, assign sequential compiler/spec reviews of embedding and architect review of field-map contract.",
   "user_clarification": "User explicitly authorized modifying computational complexity. Account time/space, retained storage, allocation/failure; preserve source admission, observable semantics, original quantifiers and fixed caps.",
   "history": "Previous module-use/observer sprint closed at 0114f997b, technical reviews CLEAN and the exact candidate target PASS 2/2. Original conditions0. One nonessential read-only reviewer command `git show --stat --oneline 185b0db29` recorded; no files changed, no essential unpinned evidence. 1442/1800 charged; unused358 retired.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused."
