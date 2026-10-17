@@ -4,15 +4,15 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "catch-request-exit-construction-20261017",
-    "contract": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
-    "revision": 2,
-    "sha256": "fd45f91858c063665ab51ce0c581ad179dfbfc24a6d60e87d552a2c14a094781",
-    "state": "REVIEWS-CLEAN-SPRINT-END-SELECTOR",
-    "baseline": "8f517045d",
-    "parent": "FORWARD-FIRST-CALL A/B and F1/FK1 open; target CATCH-EXIT-INPUT-1/M_exit only.",
-    "fixed_outcome": "Draft typed Request-exit bridge; map exact specimen source/runtime; report first missing join. No semantics adoption/code.",
-    "authority": "User authorized proof and bridge drafting; new semantics need review and explicit adoption.",
+    "id": "catch-matcher-operand-use-introduction-20261017",
+    "contract": "tasks/agent-loop/sprints/catch-matcher-operand-use-introduction-20261017.md",
+    "revision": 1,
+    "sha256": "573fd8f9849f321ceab62c0714987209e129af760b58f2b5aee83afcc3fad9e9",
+    "state": "READY-FOR-ASTRA-LAUNCH",
+    "baseline": "6d45b5b64",
+    "parent": "Original FORWARD-FIRST-CALL A/B, F1/FK1 OPEN; advance only μ_H typed operand-use toward CATCH-EXIT-INPUT-1/M_exit.",
+    "fixed_outcome": "Draft authentic source operand-use intro at μ_H; apply to M_exit/F1 P2 or freeze exact obstruction. Conditional static producer/consumer contract only if concrete fields emerge.",
+    "authority": "User authorized continued Goal, proof and bridge-rule drafting. Adoption and compiler changes remain separately gated.",
     "review": {
       "state": "NOT-STARTED",
       "current_reviewer": null,
@@ -24,164 +24,97 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 913,
+      "charged_seconds": 0,
       "active_authors": 0,
-      "status": "Both authors stopped. Compiler_referee, spec_auditor, architect CLEAN within bounded scopes; each cap charged (120+90+90). Total conservative sprint charge 913s/1500s; no semantic adoption or parent closure."
+      "status": "READY; proof 720s, conditional source 300s, reviews 300s, coordination 60s, reserve 120s."
     },
     "lanes": {
-      "proof_source_definition": {
-        "owner": "/root/catch_request_exit_introduction",
+      "proof_operand_use": {
+        "owner": "/root/catch_matcher_operand_use_introduction",
         "role": "astra_prover",
-        "state": "FROZEN-STOPPED",
+        "state": "READY",
         "cap_seconds": 720,
-        "charged_seconds": 540,
+        "charged_seconds": 0,
         "outputs": [
-          "notes/design/2026-10-17-catch-request-exit-introduction-proposal.md",
-          "tasks/agent-loop/inbox/20261017-catch-request-exit-introduction-proposal.md"
+          "notes/design/2026-10-17-catch-matcher-operand-use-introduction.md",
+          "tasks/agent-loop/inbox/20261017-catch-matcher-operand-use-introduction.md"
         ],
-        "sha256": [
-          "b0881f12db88442cc0cdbc0f13c08671ec1f083e78f21898bca09575f0be700f",
-          "edce02b4c4736d5f59f59ba31071a5aa9cb7e31b526fc6834f9e4043982164e4"
-        ],
-        "result": "Partial CE-Intro; stops at actual typed μ_H operand-use introduction; M_exit/F1/FK1 open. No descendants."
+        "result": "No launch receipt yet; no RUNNING claim."
       },
-      "source_runtime_instance": {
+      "source_response_answer_contract": {
         "owner": "/root",
         "role": "Luna/high",
-        "state": "FROZEN-STOPPED-NO-SAFE-CODE-SLICE",
+        "state": "CONDITIONAL-WAIT-PROOF-AND-COMPILER-REVIEW",
         "cap_seconds": 300,
-        "charged_seconds": 73,
+        "charged_seconds": 0,
         "outputs": [
-          "notes/theory/2026-10-17-catch-exit-source-runtime-instance.md",
-          "tasks/agent-loop/inbox/20261017-catch-exit-source-runtime-instance.md"
+          "notes/design/2026-10-17-catch-operand-response-answer-contract.md",
+          "tasks/agent-loop/inbox/20261017-catch-operand-response-answer-contract.md"
         ],
-        "sha256": [
-          "5b7177e3f185c6c777dd2b0794c1f30fe17815c7ac99ee03dbb1d5f82a91376f",
-          "3ee51d3ac4713ba7f73371bf8521a7a1b2ae5d070bea0489fc5c8c8b78833e7c"
-        ],
-        "result": "Exact source owners mapped; playground Function response guard fails before capture/pop if reached; local noncoverage only; no compiler code."
+        "result": "Retire allocation if no concrete typed-use fields emerge."
       },
       "implementation": {
-        "state": "NO_SAFE_CODE_SLICE-SEAM",
-        "gate": "Removing runtime guard would not supply typed M_exit; code remains unauthorized."
+        "state": "NO-CODE-AUTHORITY",
+        "gate": "No tests/builds/probes or compiler changes."
       },
       "reviews": {
-        "state": "CLEAN-BOUNDED-ALL-STOPPED",
+        "state": "NOT-STARTED",
         "sequence": [
           "compiler_referee",
           "spec_auditor",
           "architect"
         ],
-        "current": null,
-        "cap_seconds": 300,
-        "compiler_referee": {
-          "state": "CLEAN-STOPPED-FROZEN-RECEIPT",
-          "cap_seconds": 120,
-          "started_at_utc": "2026-10-17 05:08:56 UTC",
-          "output": "tasks/agent-loop/inbox/20261017-catch-request-exit-compiler-review.md",
-          "requested": "gpt-6.1-sol/medium",
-          "observed": "UNKNOWN/UNKNOWN",
-          "stopped_at_utc": "2026-10-17 05:09:28 UTC",
-          "charged_seconds": 120,
-          "sha256": "d1f886f163857b60d926e4a8eb559db68f3f8980bfb7452e63ca0067c2f4a98c"
-        },
-        "spec_auditor": {
-          "state": "CLEAN-STOPPED-MESSAGE",
-          "cap_seconds": 90,
-          "output": "tasks/agent-loop/inbox/20261017-catch-request-exit-spec-review.md",
-          "started_at_utc": "2026-10-17 05:10:23 UTC",
-          "requested": "gpt-6.1-sol/medium",
-          "observed": "UNKNOWN/UNKNOWN",
-          "charged_seconds": 90,
-          "receipt": "CLEAN bounded conformance; 16+5 pins match; read-only message received 2026-10-17 05:11:15 UTC; exact stop time UNKNOWN; no file write."
-        },
-        "architect": {
-          "state": "CLEAN-STOPPED-MESSAGE",
-          "cap_seconds": 90,
-          "output": "tasks/agent-loop/inbox/20261017-catch-request-exit-architect-review.md",
-          "started_at_utc": "2026-10-17 05:11:29 UTC",
-          "requested": "gpt-6.1-sol/medium",
-          "observed": "UNKNOWN/UNKNOWN",
-          "receipt_mode": "read-only message; no file lease",
-          "receipt": "CLEAN bounded architecture; independent authorship; reviewed message received 2026-10-17 05:12:13 UTC; exact stop time UNKNOWN; no file write.",
-          "charged_seconds": 90
-        }
+        "cap_seconds": 300
       }
     },
     "artifacts": [
       {
-        "path": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
-        "sha256": "fd45f91858c063665ab51ce0c581ad179dfbfc24a6d60e87d552a2c14a094781"
+        "path": "tasks/agent-loop/sprints/catch-matcher-operand-use-introduction-20261017.md",
+        "sha256": "573fd8f9849f321ceab62c0714987209e129af760b58f2b5aee83afcc3fad9e9"
       },
       {
-        "path": "notes/design/2026-10-17-catch-request-exit-introduction-proposal.md",
-        "sha256": "b0881f12db88442cc0cdbc0f13c08671ec1f083e78f21898bca09575f0be700f"
-      },
-      {
-        "path": "notes/theory/2026-10-17-catch-exit-source-runtime-instance.md",
-        "sha256": "5b7177e3f185c6c777dd2b0794c1f30fe17815c7ac99ee03dbb1d5f82a91376f"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-catch-request-exit-compiler-review.md",
-        "sha256": "d1f886f163857b60d926e4a8eb559db68f3f8980bfb7452e63ca0067c2f4a98c"
+        "path": "notes/progress/2026-10-17-catch-request-exit-closeout.md",
+        "sha256": "22a77fc686130fcace9ea1d35cec1bfa2d6c8414cf451579ef74238bf0831908"
       }
     ],
     "non_goals": [
-      "adoption",
-      "compiler code/tests/builds/runtime probes",
-      "narrowing or closing parent domains"
+      "semantic adoption",
+      "compiler code/tests/builds/probes",
+      "source restriction",
+      "parent closure"
     ],
-    "next_boundary": "Consult next_action_selector at sprint end, then primary adjudication/closeout and push.",
+    "next_boundary": "Launch proof only after checking contract/dependency pins; consult selector at sprint end or material conflict.",
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
+        "path": "tasks/agent-loop/sprints/catch-matcher-operand-use-introduction-20261017.md",
         "owner": "/root",
         "state": "FROZEN",
-        "sha256": "fd45f91858c063665ab51ce0c581ad179dfbfc24a6d60e87d552a2c14a094781"
+        "sha256": "573fd8f9849f321ceab62c0714987209e129af760b58f2b5aee83afcc3fad9e9"
       },
       {
-        "path": "notes/design/2026-10-17-catch-request-exit-introduction-proposal.md",
-        "owner": "/root/catch_request_exit_introduction",
-        "state": "FROZEN",
-        "sha256": "b0881f12db88442cc0cdbc0f13c08671ec1f083e78f21898bca09575f0be700f"
+        "path": "notes/design/2026-10-17-catch-matcher-operand-use-introduction.md",
+        "owner": "/root/catch_matcher_operand_use_introduction",
+        "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261017-catch-request-exit-introduction-proposal.md",
-        "owner": "/root/catch_request_exit_introduction",
-        "state": "FROZEN",
-        "sha256": "edce02b4c4736d5f59f59ba31071a5aa9cb7e31b526fc6834f9e4043982164e4"
-      },
-      {
-        "path": "notes/theory/2026-10-17-catch-exit-source-runtime-instance.md",
-        "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "5b7177e3f185c6c777dd2b0794c1f30fe17815c7ac99ee03dbb1d5f82a91376f"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-catch-exit-source-runtime-instance.md",
-        "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "3ee51d3ac4713ba7f73371bf8521a7a1b2ae5d070bea0489fc5c8c8b78833e7c"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-catch-request-exit-compiler-review.md",
-        "owner": "/root/catch_request_exit_compiler_review",
-        "state": "FROZEN",
-        "sha256": "d1f886f163857b60d926e4a8eb559db68f3f8980bfb7452e63ca0067c2f4a98c"
+        "path": "tasks/agent-loop/inbox/20261017-catch-matcher-operand-use-introduction.md",
+        "owner": "/root/catch_matcher_operand_use_introduction",
+        "state": "HELD"
       }
     ],
     "prior_sprint": {
-      "id": "f2-owning-inlet-introduction-proposal-20261017",
-      "state": "SOURCE-GATE-FAILED-STOPPED",
-      "charged_seconds": 600,
-      "cap_overrun_seconds": 240,
-      "closeout": "notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md"
+      "id": "catch-request-exit-construction-20261017",
+      "state": "REVIEWED-PARTIAL",
+      "charged_seconds": 913,
+      "cap_seconds": 1500,
+      "closeout": "notes/progress/2026-10-17-catch-request-exit-closeout.md",
+      "candidate_sha256": "b0881f12db88442cc0cdbc0f13c08671ec1f083e78f21898bca09575f0be700f"
     }
   },
-  "candidate": "tasks/agent-loop/sprints/catch-request-exit-construction-20261017.md",
-  "baseline": "e855987e642a02c6060fd2bdd93864a19b0dba3f",
-  "scope": "CATCH-EXIT-INPUT-1/M_exit yielded Request to actual Catch exit to adopted matcher entry; source/runtime specimen instance only; no semantic adoption or compiler-code lease.",
-  "worker_inventory_scope": "Three inherited UNKNOWN assignments retained; board lease remains quarantined. Current sprint has no active writer until exact launch receipt.",
+  "candidate": "tasks/agent-loop/sprints/catch-matcher-operand-use-introduction-20261017.md",
+  "baseline": "6d45b5b64",
+  "scope": "CATCH-EXIT-INPUT-1/M_exit: actual typed matcher operand-use introduction at μ_H, source proposal only.",
+  "worker_inventory_scope": "Three inherited UNKNOWN assignments retained; board lease quarantined. No new RUNNING assignment until actual launch receipt.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -215,43 +148,6 @@
       "observed_effort": "UNKNOWN",
       "session": null,
       "receipt": "Historical identity/cessation unknown; reservation retained."
-    },
-    {
-      "id": "/root/catch_request_exit_compiler_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "started_at_utc": "2026-10-17 05:08:56 UTC",
-      "receipt": "CLEAN bounded static correspondence review; receipt d1f886f163857b60d926e4a8eb559db68f3f8980bfb7452e63ca0067c2f4a98c; 120s charged; no descendants.",
-      "stopped_at_utc": "2026-10-17 05:09:28 UTC"
-    },
-    {
-      "id": "/root/catch_request_exit_spec_review",
-      "role": "spec_auditor",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "started_at_utc": "2026-10-17 05:10:23 UTC",
-      "receipt": "CLEAN bounded spec conformance by read-only message; all pins matched; exact stop time UNKNOWN; 90s charged."
-    },
-    {
-      "id": "/root/catch_request_exit_architect_review",
-      "role": "architect",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "started_at_utc": "2026-10-17 05:11:29 UTC",
-      "receipt": "CLEAN bounded architecture by read-only message received 2026-10-17 05:12:13 UTC; exact stop time UNKNOWN; 90s charged."
     }
   ],
   "leases": [
@@ -309,19 +205,19 @@
     }
   ],
   "next_action": {
-    "state": "SPRINT-END-SELECTOR-REQUIRED",
-    "dispatcher": "Both authors and all three reviewers stopped. Select next owner/evidence route from clean bounded candidate plus exact missing μ_H typed operand-use; no safe code slice this seam.",
-    "proof": "Draft source introduction has a complete attempted telescope and preservation/erasure analysis but stops at actual typed μ_H operand-use introduction; M_exit remains open.",
-    "implementation": "NO_SAFE_CODE_SLICE for this seam; no compiler edit. Parent theorem remains open.",
-    "review": "All three independent reviews CLEAN within bounded scopes; spec and architect receipts delivered by read-only message."
+    "state": "SPRINT-READY",
+    "dispatcher": "Selected catch-matcher-operand-use-introduction-20261017; Luna accepted boundary and fixed rev1 contract.",
+    "proof": "Need authentic source read/binding typing at μ_H; then align adopted MatchRequest_H and apply to M_exit/F1 P2.",
+    "implementation": "Conditional unapplied response-entry vs continuation-answer contract only after concrete typed fields and compiler review.",
+    "review": "Fresh sequential compiler referee, spec auditor, architect after artifacts freeze."
   },
   "resource_accounting": {
-    "sprint_id": "catch-request-exit-construction-20261017",
+    "sprint_id": "catch-matcher-operand-use-introduction-20261017",
     "cap_seconds": 1500,
-    "charged_seconds": 913,
+    "charged_seconds": 0,
     "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "All lanes stopped; three independent bounded reviews CLEAN. Sprint ready for next-action selection and Luna closeout."
+    "status": "READY; no worker launched yet."
   },
-  "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN. Previous sprint f2-owning-inlet-introduction-proposal-20261017 stopped at source gate; artifact SHA 263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27; closeout notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md SHA f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c."
+  "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN. Previous sprint f2-owning-inlet-introduction-proposal-20261017 stopped at source gate; artifact SHA 263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27; closeout notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md SHA f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c. Previous sprint catch-request-exit-construction-20261017 REVIEWED-PARTIAL; closeout notes/progress/2026-10-17-catch-request-exit-closeout.md; next-action selector chose actual μ_H operand-use introduction."
 }
