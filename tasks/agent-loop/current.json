@@ -133,6 +133,21 @@
         "session": "current-session",
         "lease_paths": [],
         "active_receipt": "STOPPED with no BLOCKING/major and one MINOR ordering finding; receipt notes/progress/2026-10-17-ordinary-hir-repair-applied-compiler-review.md SHA 2395d3ca4abd65b5c4a530f691cef5cb0b4688e8ec91913b255c48625b117191. Full 180s cap conservatively charged. No edits/tests/builds/probes."
+      },
+      {
+        "id": "/root/ordinary_hir_repair_compiler_delta_review",
+        "role": "compiler_referee",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "cap_seconds": 30,
+        "charged_seconds": 0,
+        "remaining_seconds": 30,
+        "session": "current-session",
+        "lease_paths": [],
+        "active_receipt": "Fresh read-only delta review spawned for frozen ordering-fix commit f5bb5a42ff7a33e0630d9fe46202c0bb029f5a5b and module.rs hash 60e91c9a51394b04af42b3ec7c284062b34fcd9faa4ea79c35b4ae58aaf460ed. Scope: validate-before-append sequence and preservation of prior seven fixes. No edit/test/build/probe/Git/descendant authority."
       }
     ],
     "leases": [
