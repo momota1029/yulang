@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-source-admission-proposal-20261018.md",
     "revision": 1,
     "sha256": "eaf10ceaf86df64c0bd2c522520b3e0b060e1cf1430b8ef6abf39440b063558c",
-    "state": "SPEC-REVIEW-ASSIGNED",
+    "state": "RUNNING-SPEC-REVIEW",
     "baseline": "368ee4bfe",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original claims, quantifiers and source domain unchanged.",
     "fixed_outcome": "Freeze an independently reviewable proposal for the adopted nonempty concrete-only negative formal-port source-admission case, including exact source-to-FormalAnnotation evidence, falsifiers, refusals and prerequisites. Proposal only; no source read or implementation.",
@@ -115,13 +115,13 @@
     {
       "id": "/root/npair_source_admission_spec_review",
       "role": "fresh-independent-spec-auditor",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol / spec_auditor",
       "requested_effort": "low, ≤120s / 3 stages",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Assigned against frozen proposal contract and design; read-only, no source/call reads, tests/builds, edits or Git. Full120 reserved/charged. Astra0."
+      "receipt": "Current-session launch acknowledged; exact effective model/effort/runtime UNKNOWN. Read-only frozen-doc review only; source/call paths excluded. No tests/builds/writes/Git/descendants. Full120 charged; Astra0."
     }
   ],
   "leases": [
@@ -189,7 +189,7 @@
   "pending": [
     {
       "id": "NPAIR-SOURCE-ADMISSION-PROPOSAL-REVIEW",
-      "state": "Spec reviewer assignment recorded; awaiting current-session launch acknowledgement. Frozen docs commit b4315164d; source/call quarantined."
+      "state": "Fresh independent spec auditor RUNNING against frozen contract/proposal/handoff. Source/call remain quarantined; no implementation authority."
     }
   ]
 }
