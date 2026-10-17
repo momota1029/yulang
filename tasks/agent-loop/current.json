@@ -15,13 +15,13 @@
   "result": {
    "original_conditions_closed": 0,
    "proof_class": "Actual candidate structural route; full typed ModulePubUse* introduction/inversion/conservation only relative to a fixed-source annotated reduct. Not embedded in the original module family; conditional and unadopted.",
-   "implementation_class": "Exact-source candidate-only direct ModuleDef observer, conditional module pending suppliers, and formal-callee negative-control regression; no original typing/admission/runtime claim. Frozen, execution pending.",
+   "implementation_class": "Exact candidate observer/test slice executed successfully: authorized feature target 2 passed, 0 failed. Evidence is candidate-source only. Build emitted three yu-hir dead-code warnings.",
    "parent_application": "OPEN; all original theorem gates unchanged."
   },
   "resources": {
    "cap_seconds": 1800,
-   "charged_seconds": 1395,
-   "available_seconds": 405,
+   "charged_seconds": 1397,
+   "available_seconds": 403,
    "retired_seconds": 0,
    "allocation": "Astra proof600 + Luna implementation360 + independent reviews480 (compiler180, spec120, architect90, regression pre/post45 each) + coordination120 + one Cargo verification120 + reserve120."
   },
@@ -83,8 +83,14 @@
    {
     "id": "/root/verification_owner_luna",
     "role": "single Cargo verification owner",
+    "state": "STOPPED",
+    "receipt": "Exactly one authorized command completed successfully: cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical; 2 passed, 0 failed. Tool wall receipt 1.5s, charged 2s. Three existing yu-hir dead-code warnings appeared; no retry."
+   },
+   {
+    "id": "/root/module_use_regression_post_run_review",
+    "role": "regression independent post-run reviewer",
     "state": "RUNNING",
-    "receipt": "Pre-run regression review CLEAN; authorized exactly one command: cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical; cap120s."
+    "receipt": "Fresh read-only post-run review of authorized Cargo output and frozen assertions; cap45s."
    }
   ],
   "leases": [
@@ -137,7 +143,7 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Pre-run regression review CLEAN and STOPPED. One authorized Cargo test target now RUNNING; no retries. Post-run regression receipt review follows.",
+  "next_action": "Sole Cargo command PASS (2 tests); post-run regression receipt reviewer RUNNING cap45. Then reconcile review/runtime receipts, consult selector for next proof target MODULE-SOURCE-EMBED, close sprint and push.",
   "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."
