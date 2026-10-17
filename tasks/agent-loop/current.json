@@ -49,7 +49,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Active proof progress (not frozen/reviewed): shadow_apply::admit_candidate_fact constructs native Fun- demand from actual argument/effects/invocation row/result; lib::admit_lambda_fact uses formal_domains[parameter], yielding receive formal comparison f0_use <: Outer-; complete four Function children and same-R1 install/fresh-use traced at source level. Continuing exact s1/D and Replay inputs; no parent premise claimed yet."
+      "receipt": "Active rev2 proof progress: pinned Apply constructor, full Function children, `f0_use <: Outer-`, and same-R1 install/fresh-use derive at source level. Unfrozen proof draft written before rev2 hold; writer stopped writes until rev2 was committed/pushed, then resumed. Exact original eta, receive-use row map, runtime Replay inputs remain open."
     },
     {
       "id": "/root/npair_actual_argument_source_path",
@@ -60,7 +60,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Active receipt received: /root/npair_actual_argument_source_path, current-session, Luna implementation/source lane; requested Luna/high, observed UNKNOWN/UNKNOWN. Exact write leases acknowledged. All pins checked; no writes/processes active at receipt."
+      "receipt": "Active rev2 implementation progress: exact HIR received binding/LocalSource/Apply plus source_call/native-demand query edits are present in leased harness and fixture. Writer paused during sequential contract revision; rev2 is committed/pushed and writer instructed to add strict endpoint/scope and ordered Replay correlation, freeze query diff for independent review before the sole Cargo run."
     }
   ],
   "leases": [
