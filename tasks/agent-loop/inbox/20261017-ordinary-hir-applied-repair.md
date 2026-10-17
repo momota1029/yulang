@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev5, SHA-256
   `5c63c3829cd6275523b1799e0286837518e9fd7dd0213c13f3171d9d7b7a6125`.
-  Handoff revision 9 (Luna's post-coverage-amendment reconciliation); failed candidate
+  Handoff revision 10 (Luna's post-final-architect reconciliation); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -126,8 +126,12 @@ unit falsifiers for conflicting roots, final private classification, or the
 adjudicated this as an internal execution-scope correction. Sprint rev5 adds
 exactly one focused command,
 `cargo test -p yu-hir --features shadow --lib module::tests::`, with a 45s cap;
-the two original integration commands remain unchanged and exact-once. A fresh
-architect and pre-run regression review must clear the three-command map.
+the two original integration commands remain unchanged and exact-once. The
+final architect review is CLEAN: receipt
+`notes/progress/2026-10-17-ordinary-hir-repair-final-architect-review.md`. It
+confirmed the three-test filter, all pins, atomic finalization, and exact budget
+`180+240+285+6=711`; actual test discovery/run remains pending. A fresh pre-run
+regression review must clear the three-command map.
 The rev5 resource table charges each command cap explicitly: 285s total for
 unit45+integration120+integration120, leaving final architect180, regression240
 and reserve6 within 711s. Cargo.lock and root/member manifests are frozen by
@@ -136,9 +140,9 @@ compile failure, zero named falsifiers, or any assertion failure stops with no
 retry/filter substitution. Assertions are authored but no tests have run. Parent
 theorem gates remain OPEN.
 
-Next owner: Luna runs the final architect review, then pre-run regression
-clearance; only then the focused unit command followed by the two original
-integration commands, sequentially. Post-run regression review remains required. Proof/source TODO
+Next owner: Luna obtains pre-run regression clearance; only then the focused
+unit command followed by the two original integration commands, sequentially.
+Post-run regression review remains required. Proof/source TODO
 `HIR-APP-PARENT-1` remains with the standard solver/source/native owners; first
 missing consumer is
 `ConstraintBatch::collect`/`collect_mode`. Worker STOPPED, no unresolved child
