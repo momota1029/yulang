@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/module-source-family-embedding-20261017.md",
     "revision": 1,
     "sha256": "c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e",
-    "state": "SOURCE-PROOF-CORRECTION-RUNNING",
+    "state": "SOURCE-PROOF-CORRECTED-READY-COMPILER-DELTA",
     "baseline": "0114f997b",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Derive and substitute the original module publication/use family instance at original-generation §7.2 step 2 for `my id x = x; my answer = id 0`; independently specify the whole native field-map construction contract without a compiler lease.",
@@ -21,14 +21,14 @@
     },
     "result": {
       "original_conditions_closed": 0,
-      "proof_class": "Producer proof constructs the selected Module-Published-Name composite, complete alpha map and §7.2(2) substitution, but compiler review found a major source-owner gap: original lookup/elaboration rules do not yet exclude same-occurrence Mono introduction. Original conditions closed remains 0 pending source handle-classification derivation and independent spec review.",
+      "proof_class": "Revision 2 withdraws the invalid inference from no intermediate AST handle to Published/new. Source allocation, full-map commuting equality and §7.2(2) substitution are conditional on an authentic same-occurrence Published handle derivation; reviewers found no source-qualified Mono witness/counterexample. Original conditions closed 0.",
       "implementation_class": "Luna author now owns the 2-path MODULE-NATIVE-FIELD-MAP construction contract only; no compiler code lease.",
       "parent_application": "OPEN until authentic source embedding, original root and complete Call formation; all parent theorem gates unchanged."
     },
     "resources": {
       "cap_seconds": 2160,
-      "charged_seconds": 1800,
-      "available_seconds": 360,
+      "charged_seconds": 1860,
+      "available_seconds": 300,
       "retired_seconds": 0,
       "allocation": "Astra900 + Luna contract480 + compiler review180 + spec review120 + primary proof correction60 + compiler delta review60 + architect contract review180 + final reserve60; no execution allocation."
     },
@@ -79,7 +79,13 @@
         "id": "/root/module_source_embedding_spec_review",
         "role": "spec_auditor",
         "state": "STOPPED",
-        "receipt": "120/120s charged conservatively. Independent spec review confirms BLOCKING source-owner gap at direct syntax→handle classification; SRC permits Mono via external import/capture/rebind, but no actual Mono witness or semantic counterexample. Published installation itself is specified; no writes/tests/Git."
+        "receipt": "120/120s charged. Independent spec review: BLOCKING missing direct syntax→handle derivation; SRC allows external Mono but supplies no same-occurrence witness or counterexample. All 22 pins match; no field-loss defect."
+      },
+      {
+        "id": "/root",
+        "role": "Luna primary correction",
+        "state": "STOPPED",
+        "receipt": "60/60s charged conservatively. Corrected exact proof/handoff leases to condition Published allocation, comparison, full-map equality and §7.2(2) substitution on authentic source handle owner; withdrew AST-node absence inference. No semantics chosen, tests/build/compiler/Git by correction lane."
       }
     ],
     "leases": [
@@ -111,14 +117,16 @@
       {
         "path": "notes/theory/2026-10-17-module-source-family-embedding.md",
         "owner": "/root",
-        "state": "ACTIVE",
+        "state": "FROZEN",
         "cap_seconds": 60,
-        "purpose": "Correct reviewed overclaim: make Published/new classification conditional on authentic source handle constructor; retain valid conditional map/substitution."
+        "purpose": "Correct reviewed overclaim: make Published/new classification conditional on authentic source handle constructor; retain valid conditional map/substitution.",
+        "artifact_sha256": "1eac108b03866ff5b2a0b1ba19f7974f3b9272ce7a5a55b17a3ccb7801fec73e",
+        "handoff_sha256": "0b47d992fee92ea6ee15fe8699123cdb57fa4ce80bea9f4b90b77e2fcd3c0aae"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-module-source-family-embedding.md",
         "owner": "/root",
-        "state": "ACTIVE",
+        "state": "FROZEN",
         "cap_seconds": 60,
         "purpose": "Synchronize handoff with conditional source-handle gap; preserve original source proof claim boundaries."
       }
@@ -126,7 +134,7 @@
     "pending": [
       {
         "id": "MODULE-SOURCE-EMBED-20261017",
-        "state": "OPEN; compiler review found source-owner conditional gap: derive exact Published handle at occurrence and exclude same-occurrence Mono; spec review next."
+        "state": "OPEN; source owner must derive direct occurrence handle classification (Published/new or complete Mono branch); after that replay comparison/map/substitution."
       },
       {
         "id": "MODULE-NATIVE-FIELD-MAP-20261017",
@@ -141,7 +149,7 @@
         "state": "OPEN independent parent gates."
       }
     ],
-    "next_action": "Both source reviews independently confirm a missing source-owned handle classification, not a semantic counterexample. Luna has a fresh ≤60s repair lease on the original proof/handoff only: withdraw AST-node-based Published/new inference and mark it conditional. Then fresh compiler delta review≤60s and architect review of native-field contract≤180s; preserve final60s reserve.",
+    "next_action": "Revision-2 proof and handoff are frozen; fresh compiler delta review≤60s checks correction, then architect review≤180s of native-field readiness contract. Final reserve60s.",
     "user_clarification": "User explicitly authorized modifying computational complexity. Account time/space, retained storage, allocation/failure; preserve source admission, observable semantics, original quantifiers and fixed caps.",
     "history": "Previous module-use/observer sprint closed at 0114f997b, technical reviews CLEAN and the exact candidate target PASS 2/2. Original conditions0. One nonessential read-only reviewer command `git show --stat --oneline 185b0db29` recorded; no files changed, no essential unpinned evidence. 1442/1800 charged; unused358 retired.",
     "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused."

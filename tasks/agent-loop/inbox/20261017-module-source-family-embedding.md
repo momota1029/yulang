@@ -1,45 +1,45 @@
 # Frozen handoff: MODULE-SOURCE-EMBED-20261017
 
-Assignment / handoff revision: `MODULE-SOURCE-EMBED-20261017`, revision **1**
+Assignment / handoff revision: `MODULE-SOURCE-EMBED-20261017`, revision **2**
 Sprint: `module-source-family-embedding-20261017`, contract revision 1
 Contract SHA-256: `c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e`
 Baseline: `0114f997b`; assignment freeze commit: `fac2bf9b9`
-Author / worker: `/root/module_source_family_embedding_proof`
+Original author / worker: `/root/module_source_family_embedding_proof`; reviewed correction by `/root`
 Requested: `gpt-6-astra` / medium; observed: **UNKNOWN / UNKNOWN**
 Descendants: none. Primary supplied target clarification; no other writer.
 
 ## Outcome and parent application
 
-Outcome class: **producer proof of a transparent source constructor
-completion; independent review and adoption pending**.
+Outcome class: **conditional source-family construction; original handle
+classification remains open**.
 
-The note constructs `Module-Published-Name` by expansion into selected
-original SRC publication, resolved lookup, Published Instance and complete
-allocation. For the exact direct `ModuleDef` edge, publication installs
-Published; Mono would require a separate actual handle introduction absent
-on that edge, and Live would require an intra-component use. The constructor
-retains the actual inert Lambda/provider anchor and complete synthesis root
-`r_syn`, with no VP/Echo substitution and no assumed binding certificate.
+The note conditionally constructs `Module-Published-Name` by expansion into
+selected original SRC publication, resolved lookup, Published Instance and
+complete allocation. For the exact direct `ModuleDef` edge, publication
+installs Published and Live is excluded by the external component edge. The
+original rules supplied so far do not derive whether the handle owner
+classifies this same direct occurrence as Published or external Mono. The
+absence of an intermediate AST node is not such a derivation. Under an
+authentic Published handle derivation, the constructor retains the actual
+inert Lambda/provider anchor and complete synthesis root `r_syn`, with no
+VP/Echo substitution and no assumed binding certificate.
 
-It proves introduction, elimination and erasure against SRC's **independent
-source judgment** rather than the earlier proposal's reduct, then gives
-`alpha(mu*(z)) = mu_id(z)` on the full typed presentation, all scopes,
-guards, witnesses, dependency edges and reference arguments. The original
-`B,X,xi,Delta_c,d_id,u_id` remain fixed. §7 supplies `b_use,mu_id` directly
-to original-generation §7.2(2).
+Conditionally, it proves introduction, elimination, erasure against SRC's
+**independent source judgment** rather than the earlier proposal's reduct,
+and `alpha(mu*(z)) = mu_id(z)` on the full typed presentation, scopes, guards,
+witnesses, dependency edges and reference arguments. The original
+`B,X,xi,Delta_c,d_id,u_id` remain fixed. §7 supplies `b_use,mu_id` to
+original-generation §7.2(2) only under that unproved handle classification.
 
-Current independently reviewed original closure count: **0**. The claimed
-result, if accepted and transparently adopted, closes **one** original
-condition: source publication/use embedding. This is not a claim that merely
-introducing a proposed rule closed that condition. The review must validate
-the original Published elimination and the independent-source comparison.
+Original conditions closed: **0**. Both independent reviews found a blocking
+source-owner gap and no semantic counterexample. The actual source rule that
+creates the handle at `u_id` must derive Published/new or supply the complete
+Mono certificate and source incidence; neither branch may be selected from
+AST shape alone. The conditional map proof is not a closure.
 
-The newly proposed part is the explicit syntax-to-client annotation adapter.
-Its neutrality condition is that the original direct Published expression
-Name takes SRC's Instance/new case; §3 proves this from the original handle
-constructors. A separately fixed owner producing a different case at these
-same indices would invalidate that argument and require its actual
-comparison. No semantic alternative or production behavior is adopted here.
+The initially claimed inference from “no intermediate AST handle” to
+Published/new was withdrawn after review. No source restriction, semantic
+alternative or production behavior is adopted.
 
 Remaining: original registered contract-root embedding (`R_f*` is still a
 proposal), complete generic Call/literal formation and authentic `e_c`, then
@@ -52,7 +52,7 @@ Only research output:
 
 `notes/theory/2026-10-17-module-source-family-embedding.md`
 
-SHA-256: `c921db323ef1e1ce0f90465f4c51fbd5c6708ac84213bd670f8fe5d46fc4ba99`
+SHA-256: `1eac108b03866ff5b2a0b1ba19f7974f3b9272ce7a5a55b17a3ccb7801fec73e`
 
 All **22** input pins in the frozen contract matched on entry and before
 freeze. Main direct dependencies:
@@ -105,19 +105,44 @@ is not a solver complexity bound. Checked private allocation, publish only
 complete records, and explicit resource failure are the implementation plan;
 no source-rejection limit, rollback or retry guarantee is inferred.
 
-**STOP: all writes ceased after this handoff freeze.** Both exact leases may
-be frozen for independent intake. No descendants, unresolved output writers
-or processes remain from this assignment. Do not record this author RUNNING
-while awaiting review. No self-certification or adoption is claimed.
+The original Astra author stopped at revision 1. Luna received a separate
+60-second correction lease after both reviews STOPPED; the revision-2
+correction withdrew the AST-node-based handle inference and preserved the
+rest conditionally. Exact active telemetry was unavailable, so the full
+60-second cap is charged. No tests or compiler commands were run.
 
-## Mutual TODOs and next step
+## Independent review, correction and next step
 
-- `MODULE-SOURCE-EMBED-REVIEW`: Luna assigns independent review of §3's
-  Published/Mono/Live inversion and §5's comparison with the actual selected
-  judgment. Falsifier: a genuine same-edge Mono/other source introduction,
-  an actual different final boundary, or a lost original binder/arm. Accept
-  the transparent adapter only after that review; then update the original
-  publication/use condition with the concrete §7 substitution.
+The compiler referee independently verified all 22 input pins and reported
+one major conditional gap: the selected SRC client judgment begins with a
+source-directed handle; external import/capture/rebind may introduce Mono;
+the handle-creating owner decides Published versus Mono. Publication
+installation and direct `Resolve` do not derive a unique source annotation.
+No same-edge Mono witness or source-qualified semantic counterexample was
+found. Runtime/model metadata was UNKNOWN; the 180-second cap was charged
+conservatively. Review was read-only, with no tests, writes, Git or children.
+
+The independent spec auditor confirmed the gap as BLOCKING, distinguished it
+from the already specified Published installation, and found no separate
+field-loss or source-semantic counterexample. All 22 pins matched. Runtime
+metadata was UNKNOWN; 120 seconds were charged conservatively. Review was
+read-only, with no tests, writes, Git or children.
+
+Luna's revision-2 correction withdraws the AST-node inference and labels the
+Published allocation, comparison, full-map equality and §7.2(2) substitution
+conditional on an authentic handle-owner derivation. It does not select a
+semantic branch or restrict source admission. A fresh compiler delta review
+must check this correction before integration.
+
+Revision 2 artifact SHA-256 is `1eac108b03866ff5b2a0b1ba19f7974f3b9272ce7a5a55b17a3ccb7801fec73e`.
+The primary STOPPED after the exact two files were frozen. No descendants, scratch paths,
+tests, builds, compiler edits or semantic adoption occurred.
+
+- `MODULE-SOURCE-EMBED-OWNER`: locate the authoritative syntax-to-handle
+  constructor/elimination for `u_id`, prove Published/new for this source or
+  carry the actual complete Mono branch, then replay the original comparison,
+  map equality and §7.2(2) substitution. Until then the original condition is
+  open. No further route census is needed.
 - `MODULE-NATIVE-FIELD-MAP`: paired implementation-readiness lane supplies
   actual source-owning classification and capture/FreshUse interpretation
   for §4's full tuple, by retention or authenticated reconstruction. Native

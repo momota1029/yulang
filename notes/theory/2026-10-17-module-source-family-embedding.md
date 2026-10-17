@@ -1,8 +1,8 @@
 # Module publication and direct external Name: source-family embedding
 
 Date: 2026-10-17
-Status: producer proof and transparent constructor completion; independent review pending
-Author: `/root/module_source_family_embedding_proof`
+Status: conditional producer construction; source handle classification open
+Author: `/root/module_source_family_embedding_proof`; reviewed correction by `/root`
 Sprint: `module-source-family-embedding-20261017`, revision 1
 Contract SHA-256: `c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e`
 Assignment freeze: `fac2bf9b9`; baseline: `0114f997b`
@@ -11,23 +11,22 @@ Implementation / production authority: none
 
 ## 1. Result and exact review boundary
 
-This note supplies the missing source-to-client adapter for the direct
+This note derives a conditional source-to-client adapter for the direct
 external reference to the immutable declaration `id`. Its expansion uses
 the **selected original Source Generalize judgments**, not the proposed
-`G_mod` reduct. The source registration installs a Published entry; this
-direct reference selects that entry. It does not select an existing Mono
-handle. Its single description-instance introduction is consequently `new`.
-The complete synthesis root remains `r_syn`; no VP/Echo root is selected.
+`G_mod` reduct. The source registration installs a Published entry, but the
+selected rules do not derive whether this direct expression occurrence is
+classified by its owner as Published or as an external Mono handle. If its
+authentic handle owner derives Published, its description-instance
+introduction is `new`. The complete synthesis root remains `r_syn`; no
+VP/Echo root is selected.
 
-The adapter below is a new name for a composite constructor, with every
-premise expanded at its original owner. It is proposed for transparent
-adoption after review; writing the name does not adopt it. The substantive
-claim for review is admissibility of that expansion in the selected original
-source publication/Name family and preservation of its independent checking
-judgment. On acceptance of this claim and transparent adoption, the concrete
-substitution in §7 closes **one** original condition, the publication/use
-part of original-generation §7.2(2). The producer does not mark an original
-gate independently reviewed or administratively closed.
+The adapter below is a conditional name for a composite constructor. Its
+premises expand at their original owners once the direct occurrence has an
+authentic Published handle derivation. That handle-owner derivation is not
+present in the selected source material. Therefore the concrete substitution
+in §7 does not close the publication/use part of original-generation
+§7.2(2). Original conditions closed: **0**.
 
 The registered contract-root output later required in that same step is
 separate. No original `e_c`, complete Call theorem, compiler interpretation,
@@ -106,20 +105,27 @@ environment hypothesis. It retains `a_id` and the entire fixed package.
 Other ambient declarations are unchanged. In particular, the presence of
 that same provider in a description never installs a Mono entry by itself.
 
-Now eliminate the actual direct resolved reference `u_id -> d_id` against
-this installed entry. There are three distinct original cases:
+Now separate source routing from source-handle classification for the direct
+resolved reference `u_id -> d_id`. Publication installation and resolution
+are fixed here, but the selected source rules start their client judgment
+with a source-directed handle and delegate its constructor to the owning
+source rule. They do not, by themselves, derive which handle constructor the
+direct expression occurrence uses. There are three relevant cases once that
+owner supplies the classification:
 
 1. A registered live intra-component reference uses the live tuple. Here
    `u_id` is outside `C_id`, so that case has a false source-incidence premise.
 2. An Alias/Mono reference selects an already introduced monomorphic handle
-   and its existing whole certificate. Here the target of the direct edge
-   is the declaration's Published entry. There is no intermediate handle
-   introduction on that edge. The formal `d_x` and any unrelated ambient
-   handles cannot satisfy it. One cannot manufacture a Mono handle merely
-   because the source definition returns a value.
+   and its existing whole certificate. The selected SRC rules permit an
+   owning external import/capture/rebind constructor to introduce Mono and
+   assign Published-versus-Mono classification to the rule that creates the
+   handle. The available source material does not establish whether that
+   constructor can classify this same direct occurrence. The absence of an
+   intermediate AST node does not exclude such an owning introduction.
 3. A direct Published reference eliminates that publication by the published
    polymorphic Name/Instance rule of §3.3 and the new convention of §3.4.
-   This introduces `i_id` at this actual use and selects member `d_id`.
+   Conditional on the handle owner deriving this case, it introduces `i_id`
+   at this actual use and selects member `d_id`.
 
 These are cases for the actual source **expression** Name. Retaining a closed
 Published/Family record as a capture dependency is another operation: it
@@ -128,42 +134,43 @@ does not evaluate this `u_id` or introduce its expression interface. Here
 edge or a first-class scheme introduction. No Call satisfaction or choice of
 callee descriptor is used to make that syntactic distinction.
 
-Thus its source-client annotation is
+The remaining conditional construction is:
 
 ```text
 U_id = new(p_id,i_id,d_id),  i_id = the Instance introduction at u_id.
 ```
 
-This argument uses the **handle constructor**, as §5.3 requires. Externality
-alone is not a general rule that every Name instantiates: an external Mono
-handle would take case 2. Conversely, whether `Q_id` happens to be empty is
-irrelevant to this classification; the incoming frame then has no eligible
-Desc to copy but retains all other original binder rules.
+If the authentic owner derives Published at `u_id`, its source-client
+annotation is `U_id = new(p_id,i_id,d_id)`, and the complete allocation below
+is a conditional consequence. Externality alone is not a general rule that
+every Name instantiates: an external Mono handle would take case 2. Conversely,
+whether `Q_id` happens to be empty is irrelevant once the source handle is
+classified; the incoming frame then has no eligible Desc to copy but retains
+all other original binder rules.
 
-The absent concrete adapter was the composition of publication installation,
-resolved environment selection and Published elimination. It was not a
-missing choice between two kernels. The review-critical inversion is that
-case 2 requires an actual Mono/alias introduction on this reference route;
-neither the raw binding object nor a mere native row provides one.
+The absent concrete adapter would compose publication installation, resolved
+environment selection and the source owner's handle introduction. It is not
+a missing choice between two kernels. The review-critical premise is the
+actual same-occurrence Published-versus-Mono classification; neither the raw
+binding object, an AST-node census nor a native row provides it.
 
-The proposed addition is precisely that **syntax-directed composition**,
-not a new semantic clause for Published. Its decision procedure reads the
-actual declaration publication and direct resolution constructor, emits the
-corresponding existing source-use annotation and retains their derivations.
-It does not ask whether an endpoint is generalizable or whether the Call
-succeeds. The semantic-neutrality condition is that Published elimination at
-this source expression is the original §3.3 Instance / §3.4 new case. The
-case analysis above establishes that condition in the selected source
-constructor grammar. It does not identify an independently fixed foreign
-module emitter with that grammar. If another actual owner supplies a
-different rule for these same original indices, its comparison must replace
-this argument before the parent condition can be counted closed.
+The proposed composition is conditional on the actual source handle owner
+deriving Published at this occurrence. It does not add a new semantic clause
+for Published and does not ask whether an endpoint is generalizable or
+whether the Call succeeds. The semantic-neutrality condition is that the
+owner's handle derivation selects the original §3.3 Instance / §3.4 new case.
+That derivation has not been supplied by the selected source constructor
+grammar. If another actual owner supplies a different rule for these same
+original indices, its comparison must replace this argument before the
+parent condition can be counted closed.
 
-## 4. The transparent constructor and complete telescope
+## 4. Conditional constructor and complete telescope
 
-Define `Module-Published-Name` as the composite just expanded in §3. Its
-inputs are the actual source declaration and resolved edge, the original
-local constructor declarations, and the original ambient indices. Its
+Define `Module-Published-Name` conditionally as the composite just expanded
+in §3, with the authentic handle-owner derivation classifying this direct
+occurrence as Published. Its inputs are the actual source declaration and
+resolved edge, that handle derivation, the original local constructor
+declarations, and the original ambient indices. Its
 outputs are the retained publication derivation, the `Instance` origin,
 the original allocation derivation, and the complete use record. It does
 not accept a binding certificate, typed module, supplied use map, root
@@ -180,8 +187,9 @@ b_use = (d_id,u_id,Resolve(u_id,d_id),p_id,i_id,
 ```
 
 `E_original` here is the original local proof grammar already present in
-`P_id`, with the unchanged Name/Result introduction at the use; it is not an
-assumed valid proof or a newly chosen checking alternative. Additional
+`P_id`, with the unchanged Name/Result introduction at the use when the
+source owner classifies this occurrence as Published; it is not an assumed
+valid proof or a newly chosen checking alternative. Additional
 actual checking nodes are retained at their original positions when supplied
 by their own owner. `J_id` is the complete allocated open program. The
 component `mu_id(r_id)` is the source-use root reference. This definition
@@ -217,8 +225,9 @@ new L1–L5 instance for an unknown foreign declaration.
 
 ## 5. Introduction, elimination and comparison with the original judgment
 
-**Introduction.** For the fixed authentic source and genuine original local
-rules, §3 builds the publication and correct client annotation. §4 applies
+**Conditional introduction.** For the fixed authentic source and genuine
+original local rules, if the source handle owner derives Published at this
+occurrence, §3 builds the publication and correct client annotation. §4 applies
 the selected allocation constructor. Every field of `b_use` is an output.
 Type correctness follows by the original allocation's binder-tree induction:
 dependencies precede the declarations using them; fixed base binders stay
@@ -227,23 +236,28 @@ actual event. Registered cyclic references retain the same argument lists.
 This is an open formation derivation at the original indices. It uses no
 proof of `Sat(J_id)`.
 
-**Elimination.** Expand the composite constructor, then invert the original
+**Conditional elimination.** Expand the composite constructor, then invert the original
 publication, resolved lookup, Instance and allocation constructors. This
 recovers the actual `d_id`, `u_id`, `a_id`, `p_id`, `C_id`, complete program,
 FinalRoot branch and every map incidence in §4. It also recovers the source
-fact that the selected handle was Published. It cannot yield a Mono use
-without a Mono introduction, nor the formal's binding, nor a different
-provider or a narrower root. Elimination does not assert satisfaction.
+fact that the selected handle was Published, from its explicit owner
+derivation. It cannot yield a Mono use without a Mono introduction, nor the
+formal's binding, nor a different provider or a narrower root. Elimination
+does not assert satisfaction.
 
 **Independent checking comparison.** Compare to the selected independent
 judgment in SRC §3.4, at `actual(id)` and the source annotation produced by
-the original publication/Name cases above. For every original ambient
+the original publication/Name cases above, conditional on the authentic
+handle-owner derivation. For every original ambient
 assignment, every well-scoped client constraint `W` and every original joint
 strategy, expand `Module-Published-Name` into those original rules. A source
 derivation becomes an original derivation with the same complete premises.
-Conversely a derivation with this exact declaration/reference incidence
-must select the installed Published entry; the three-case inversion in §3
-excludes Live and Mono. Its new premise is precisely the original independent
+Conversely, a derivation with this exact declaration/reference incidence and
+a Published handle-owner derivation selects the installed Published entry;
+the three-case inversion excludes Live and Mono under that explicit
+classification. The selected rules supplied so far do not establish this
+classification for every same-occurrence direct Name. Its new premise is
+precisely the original independent
 definition derivation at the same binding. Pack its publication, lookup and
 Instance subderivations into the composite constructor. These maps are
 inverse on derivations modulo the one canonical fresh-label convention.
@@ -261,14 +275,17 @@ The executable source is the same closure introduction and same resolved
 lookup/Return. Provider, initialization, admitted challenges, complete
 conservative alternatives, guards, pending suffixes and future fields are
 identical. No alternative needs an extra source-execution witness. Hence the
-adapter introduces no new source acceptance or observable behavior within
-this original indexed source fragment. This is a conservative completion of
-formation notation, not a proof of any missing primitive law or native row
-interpretation.
+conditional adapter introduces no new source acceptance or observable
+behavior when its Published handle premise holds. This is not yet a
+conservative completion of the original formation judgment: the handle
+owner must supply that premise for this occurrence. No missing primitive
+law or native row interpretation is proved.
 
-## 6. Commutation with the frozen full map
+## 6. Conditional commutation with the frozen full map
 
-The previous map used administrative names `p*=(d_id,publication)` and
+Assume the authentic source handle owner classifies this occurrence as
+Published. Under that premise, the previous map used administrative names
+`p*=(d_id,publication)` and
 `i*=(p*,u_id)`. Let `alpha` identify those constructor-occurrence labels with
 the actual publication and Instance occurrences constructed in §3. It is
 identity on every original source identity and original `B,X,xi,Delta_c`
@@ -309,7 +326,8 @@ quantifier is discharged.
 ## 7. Apply immediately to the parent
 
 At [original-generation §7.2(2)](2026-10-17-ordinary-call-original-generation.md),
-the publication/use inputs can now be supplied as
+the publication/use inputs can be supplied conditionally, if the authentic
+source handle owner classifies `u_id` as Published, as
 
 ```text
 Decl* := retained original Build(L_id) and FinalRoot derivation
@@ -318,26 +336,27 @@ mu_id := original SRC allocation at the actual Published Instance u_id
 b_use := the complete retained output of Module-Published-Name
 ```
 
-The comparison and commuting theorem show that these have the unchanged
-original indices and the entire tuple required there. There is no assumed
-binding-certificate input and no appeal to successful inference. Following
-review and transparent adoption, this replaces the publication/use hole in
-that step by an expanded original derivation. It does **not** erase the
+Under that explicit premise, the conditional comparison and commuting
+theorem show that these have the unchanged original indices and the entire
+tuple required there. There is no assumed binding-certificate input and no
+appeal to successful inference. The handle-classification premise remains
+unproved, so this does not yet replace the publication/use hole in that step
+by an unconditional original derivation. It does **not** erase the
 asterisk from `R_f* := ModuleContractRoot*(Decl*,b_use,mu_id)`: the registered
 contract-root embedding remains the next owner obligation. Complete generic
 Call telescope/literal formation and original `e_c` remain downstream;
 O0 cannot yet be applied to a fabricated occurrence.
 
-If independent review finds an original constructor permitting this same
-direct Published reference to select a Mono handle **without** its own
-handle introduction, that is the precise falsifier of §3 and the original
-embedding claim. Such a constructor must supply its whole certificate and
-source incidence; raw provider equality or a native row is insufficient.
-If the selected publication is actually a different final source boundary,
-its complete root and evidence must replace the premise: this note cannot
-equate it with `r_syn`. Neither discrepancy was found in the frozen original
-owners. Both are semantic/formation questions for Luna, not license to weaken
-the theorem. No source restriction is proposed as a repair.
+The original handle-creating source rule and its syntax-to-handle elimination
+are the exact missing owner evidence. A same-occurrence Mono introduction
+would require its whole certificate and source incidence; raw provider
+equality or a native row is insufficient. If the selected publication is
+actually a different final source boundary, its complete root and evidence
+must replace the premise: this note cannot equate it with `r_syn`. Independent
+reviews found no source-qualified Mono witness or semantic counterexample,
+but also could not derive its exclusion. This is an unresolved source-owner
+condition, not a repair by restricting the source language. No source
+restriction is proposed.
 
 ## 8. Native boundary, costs and receipt
 
