@@ -67,6 +67,12 @@
     "role": "spec independent reviewer",
     "state": "STOPPED",
     "receipt": "CLEAN; 120/120 seconds conservatively charged; all 17 baseline pins and frozen output hashes matched; 0 original conditions closed."
+   },
+   {
+    "id": "/root/module_use_architect_api_review",
+    "role": "architect/API independent reviewer",
+    "state": "RUNNING",
+    "receipt": "Fresh read-only architecture/API review after compiler/source and spec CLEAN; cap90s."
    }
   ],
   "leases": [
@@ -119,7 +125,7 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Spec review CLEAN and STOPPED (120 charged). Launch architect/API review cap90, then regression pre-run cap45; Cargo only after CLEAN regression review.",
+  "next_action": "Architect/API reviewer RUNNING (cap90) after two CLEAN reviews; then regression pre-run cap45, then one Cargo invocation only after CLEAN.",
   "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."
