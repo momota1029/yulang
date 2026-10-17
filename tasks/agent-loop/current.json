@@ -27,9 +27,9 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 900,
-      "available_seconds": 600,
-      "allocation": "Proof720 + compiler review180 charged; spec120 + architecture120 (new MI consumer proposal) + Luna180 + reserve180 remain. Astra0."
+      "charged_seconds": 1020,
+      "available_seconds": 480,
+      "allocation": "Proof720 + compiler180 + spec120 charged/assigned; architecture120 (new MI-domain case), Luna180 and reserve180 remain. Astra0."
     },
     "workers": [
       {
@@ -45,12 +45,22 @@
       {
         "id": "/root/catch_target_instantiation_compiler_review",
         "role": "compiler_referee",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "receipt": "Fresh compiler/source review of frozen complete Return application obstruction and bounded MI-domain proposal; ≤180s. Read-only."
+        "receipt": "CLEAN bounded compiler/source review. u_x Return stays source-scoped under mu_id; raw-P route lacks actual module context/Data sort; MI proposal retains inputs only and checked substitution stops UNRESOLVED, no Family/port/q_f assumption. 7 direct + 5 linked pins match; full180 charged; no edits/tests/Git."
+      },
+      {
+        "id": "/root/catch_historical_operand_spec_review",
+        "role": "spec_auditor",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Fresh spec review of complete Return obstruction and bounded MI-domain proposal; ≤120s. Verify original Return scope and parent quantifiers/operands, no inherited q_f. Read-only."
       }
     ],
     "leases": [
