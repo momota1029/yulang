@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution, lower_module_with_local_source};
-use yu_hir::{FileId, FileKey, HirItem, HirModule, ModuleIdentity, SemanticImports};
+use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
+use yu_hir::{FileId, FileKey, HirItem, HirModule, ModuleIdentity, SemanticImports, lower_module};
 use yu_solver::shadow_apply::CandidateInference;
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
@@ -23,7 +23,7 @@ fn module(source_text: &str) -> (Arc<HirModule>, CandidateInference) {
         "source must parse without structural recovery"
     );
     let hir = Arc::new(
-        lower_module_with_local_source(
+        lower_module(
             ModuleIdentity::source_root(FileId::new(FileKey::new(
                 "research",
                 "accepted-call-vertical.yu",
@@ -61,6 +61,11 @@ fn accepted_source_generates_calls_propagates_and_reaches_fresh_uses() {
 
     assert!(candidate.observes_hir(&hir));
     assert!(candidate.candidate_conflicts().is_empty());
+    assert_eq!(
+        hir.source_carrier_outcomes().len(),
+        3,
+        "ordinary lowering forms one carrier outcome for each binding"
+    );
 
     for name in ["id", "apply", "answer"] {
         assert!(

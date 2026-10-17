@@ -102,7 +102,6 @@ impl HirSourceIdentity {
     pub(crate) fn maximum_occurrence_ordinal(&self) -> Option<u32> {
         self.occurrences.keys().map(HirOccurrenceId::ordinal).max()
     }
-    #[cfg(any(feature = "shadow", test))]
     pub(crate) fn record_unique_occurrence(
         &mut self,
         id: HirOccurrenceId,

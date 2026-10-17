@@ -245,7 +245,6 @@ impl HirModule {
                         || !source.occurrences.contains_key(occurrence)
                         || !source.occurrences.contains_key(callee.occurrence())
                         || !source.occurrences.contains_key(argument.occurrence())
-                        || errors.is_empty()
                         || errors
                             .iter()
                             .any(|id| !self.errors().iter().any(|error| error.id() == *id))

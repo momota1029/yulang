@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
     "revision": 3,
     "sha256": "47d160176e72306e150675b2daf6e548d74e1e8d3dfc794c8dbf40ac0ba674e2",
-    "state": "IMPLEMENTATION-RUNNING",
+    "state": "IMPLEMENTATION-FROZEN-PENDING-COMPILER-REVIEW",
     "baseline": "606416278",
     "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Implement adopted rev4 ordinary HIR admission and establish the bounded projection invariant in ordinary HIR. Resource contract now counts physical R references with O(V+E+R), worst O(V^2); exact adoption receipt and implementation obligations are frozen. Apply only to the structural premise of the original Call/source bridge; no semantic Call or parent theorem closure.",
@@ -21,7 +21,7 @@
       "original_conditions_closed": 0,
       "behavior_executed": false,
       "proof_class": "Frozen Astra candidate: structural/key/identity/carrier/diagnostic lemmas plus algebraic lower bound; independent review pending.",
-      "implementation_class": "READY; user explicitly adopted the technically reviewed O(V+E+R) resource replacement; implementation may start under exact leases and obligations.",
+      "implementation_class": "Frozen implementation candidate, pending sequential applied compiler/spec/architect and regression pre-run reviews; no Cargo/tests executed.",
       "HIR_APP_CST_1": "LOCALLY RESOLVED within pinned fixed-source scope; no parser-wide claim.",
       "HIR_APP_ADMISSION_1": "ADOPTED rev4 plus resource-only §2 correction; proof candidate frozen; implementation ready; no semantic Call conclusion.",
       "parent_application": "Still to be derived by Astra from the actual original Call/source bridge; no Call typing, source T or adequacy inferred.",
@@ -29,10 +29,10 @@
     },
     "resources": {
       "cap_seconds": 4020,
-      "charged_seconds": 2360,
-      "available_seconds": 1300,
+      "charged_seconds": 2420,
+      "available_seconds": 1240,
       "allocation": "Coordination120 charged; Astra450/720 charged and remaining270 retired; proof reviews210 charged (compiler90, spec120), unused90 retired; amendment author90 charged; pre-code architect90 charged; implementation1710; applied reviews480; regression pre/post240; Cargo240; reserve30. Actual charged960 + retired360 + remaining2700 = cap4020.",
-      "retired_seconds": 360
+      "retired_seconds": 610
     },
     "workers": [
       {
@@ -156,16 +156,17 @@
       {
         "id": "/root/ordinary_hir_application_implementation",
         "role": "implementer",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6-luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 1710,
-        "charged_seconds": 1400,
-        "remaining_seconds": 310,
+        "charged_seconds": 1460,
+        "remaining_seconds": 0,
         "session": "current-session",
-        "active_receipt": "Implementation complete in leased source/test paths; focused regression cases authored for constructors/Groups, error resolution, recovery refusal, carrier ordinals, collisions and R/reference-storage cases. Exact SHA manifest and static whitespace/status checks remain before STOP. No test/build/Cargo run; fallible reservations used for allocation-sensitive collections; Box::new allocation boundary disclosed for review. 1400s conservatively charged; 310s remain."
+        "active_receipt": "Implementation complete in leased source/test paths; focused regression cases authored for constructors/Groups, error resolution, recovery refusal, carrier ordinals, collisions and R/reference-storage cases. Exact SHA manifest and static whitespace/status checks remain before STOP. No test/build/Cargo run; fallible reservations used for allocation-sensitive collections; Box::new allocation boundary disclosed for review. 1400s conservatively charged; 310s remain.",
+        "receipt": "Frozen implementation handoff revision1 SHA-256 7c9bfe915052638e915694b5c61790ecff8682e360d8a849df6540af1e7f05f5; five source/test output hashes are in handoff and independently recomputed by Luna. Writes ceased; ~1460/1710s conservatively charged, unused250 retired. git diff --check clean. No Cargo/tests/builds/probes; applied review pending. Implementation is candidate only; parent theorem gates closed0."
       }
     ],
     "leases": [
@@ -217,7 +218,7 @@
       {
         "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-application-implementation.md",
         "owner": "/root/ordinary_hir_application_implementation",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
@@ -287,7 +288,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Implementation author reports 1400/1710s charged, 310s remain; source implementation and focused regressions complete. Await frozen artifact hashes, static checks and STOP, then begin sequential applied code reviews; hold Cargo.",
+    "next_action": "Implementer STOPPED and all six exact outputs frozen; hashes match handoff, git diff --check clean. Commit explicit unreviewed preservation snapshot; dispatch fresh compiler review <=180s, then spec <=120s, architect <=180s, regression pre-run <=120s. No test/build/Cargo until all CLEAN.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
     "predecessor_commit": "5fbceb68d",
     "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
