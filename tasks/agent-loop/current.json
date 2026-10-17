@@ -84,7 +84,7 @@
       "boundary": "Only a reversible example/test using existing APIs; no library, existing fixture or expected-output edits."
     },
     "review": {
-      "state": "REGRESSION-PRERUN-RUNNING",
+      "state": "REGRESSION-PRERUN-CLEAN",
       "reserve_seconds": 480,
       "sequence": [
         "compiler_referee <=180s",
@@ -97,18 +97,19 @@
         "0a174a481728eb97e381bfe5fb6e04fa090751606b44fd8fd4ee13b467f888d2",
         "e60f29d59c3a9e4b608d5ac244bee55861526166d1747bef4aa6a8fb3841f826"
       ],
-      "active": "/root/accepted_call_vertical_regression_prerun",
+      "active": null,
       "compiler_receipt": "CLEAN; source/native evidence plus exact obstruction; no parent premise discharged.",
-      "spec_receipt": "CLEAN; FIRST-RESULT-ADEQUACY OPEN; exact challenge/observation/nonidentity premise retained."
+      "spec_receipt": "CLEAN; FIRST-RESULT-ADEQUACY OPEN; exact challenge/observation/nonidentity premise retained.",
+      "prerun_receipt": "CLEAN; all 19 pins, source literal SHA and API assertions match; no test executed by reviewer."
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 1980,
-      "available_seconds": 420,
+      "charged_seconds": 2070,
+      "available_seconds": 330,
       "active_authors": 0,
-      "active_reviewers": 1,
+      "active_reviewers": 0,
       "unknown_reservations_preserved": 3,
-      "status": "Regression pre-run review RUNNING; Cargo command not yet run."
+      "status": "Pre-run review CLEAN; one bounded Cargo test is now authorized; post-run review and reserve remain."
     },
     "workers": [
       {
@@ -232,15 +233,15 @@
       {
         "id": "/root/accepted_call_vertical_regression_prerun",
         "role": "regression_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "session": "current-session",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "charged_seconds": 0,
+        "charged_seconds": 90,
         "cap_seconds": 90,
-        "receipt": "Actual read-only pre-run review launch on three frozen implementation outputs; no tests by reviewer."
+        "receipt": "CLEAN pre-run review; source SHA, APIs, assertions, target command and scope match; no tests executed."
       }
     ],
     "leases": [
@@ -357,7 +358,7 @@
         "owner": "Luna/Astra"
       }
     ],
-    "next_action": "Launch regression auditor pre-run review of exact frozen files and single command; if clean run exactly one Cargo test, no retry.",
+    "next_action": "Run the sole authorized command exactly once: cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical (<=120s). No retry or example execution.",
     "closeout_fields": [
       "original unresolved premises genuinely discharged",
       "new implementation/test behavior established",
