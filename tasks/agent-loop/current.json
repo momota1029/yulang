@@ -29,8 +29,8 @@
     },
     "resources": {
       "cap_seconds": 4020,
-      "charged_seconds": 1860,
-      "available_seconds": 1800,
+      "charged_seconds": 2360,
+      "available_seconds": 1300,
       "allocation": "Coordination120 charged; Astra450/720 charged and remaining270 retired; proof reviews210 charged (compiler90, spec120), unused90 retired; amendment author90 charged; pre-code architect90 charged; implementation1710; applied reviews480; regression pre/post240; Cargo240; reserve30. Actual charged960 + retired360 + remaining2700 = cap4020.",
       "retired_seconds": 360
     },
@@ -162,10 +162,10 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 1710,
-        "charged_seconds": 900,
-        "remaining_seconds": 810,
+        "charged_seconds": 1400,
+        "remaining_seconds": 310,
         "session": "current-session",
-        "active_receipt": "Checkpoint: owner/source audit complete; private ordinary projection with post-carrier allocation/staging and checked aggregate error accounting/reservation implemented in progress; shadow inventory admits authentic ordinary Apply; vertical entry changed to ordinary lower_module. Four leased Rust paths touched; Cargo/tests/builds not run. Approx 900s conservatively charged per worker wall estimate; focused HIR tests and exact handoff remain."
+        "active_receipt": "Implementation complete in leased source/test paths; focused regression cases authored for constructors/Groups, error resolution, recovery refusal, carrier ordinals, collisions and R/reference-storage cases. Exact SHA manifest and static whitespace/status checks remain before STOP. No test/build/Cargo run; fallible reservations used for allocation-sensitive collections; Box::new allocation boundary disclosed for review. 1400s conservatively charged; 310s remain."
       }
     ],
     "leases": [
@@ -287,7 +287,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Implementation checkpoint at 900/1710s; worker remains RUNNING with 810s. Finish focused regression cases and handoff under leases, run static diff checks only, then STOP/freeze; sequential applied compiler/spec/architect and regression pre-run reviews precede Cargo.",
+    "next_action": "Implementation author reports 1400/1710s charged, 310s remain; source implementation and focused regressions complete. Await frozen artifact hashes, static checks and STOP, then begin sequential applied code reviews; hold Cargo.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
     "predecessor_commit": "5fbceb68d",
     "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
