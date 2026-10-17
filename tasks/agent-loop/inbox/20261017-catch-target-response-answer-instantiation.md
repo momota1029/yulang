@@ -1,4 +1,4 @@
-# Frozen Luna source/native instantiation handoff — revision 2
+# Frozen Luna source/native instantiation handoff — revision 3
 
 Sprint: `catch-matcher-target-declaration-20261017`, contract rev1 SHA
 `ccb332b41ae50c5361a977bbe6ba9791c5854123c3a20958e70a732ab5262170`.
@@ -32,8 +32,8 @@ Frozen target rule and prior review inputs:
 
 Corrected pair:
 - `notes/theory/2026-10-17-catch-target-response-answer-instantiation.md`
-  SHA-256 `9a559adca00baaec6874b6e0597fe36757b83b2cad91255e96e1d37744db39b7`.
-- This handoff is revision 2; its byte hash is recorded by Luna after freeze.
+  SHA-256 `6a86f684b0dfd879cc0a14addea293b2bde2766edd53829c2404a4290397de03`.
+- This handoff is revision 3; revision2 SHA-256 was `379e0eeef5c002cbe0af51350e446a4de523ce27099c8afc6efd3fe101cf2aee`. Revision2 remains in Git history; revision3 binds the corrected instance hash.
 
 Exact instance skeleton: P=Unit under a Unit pattern, with no payload binder;
 B=Int→Int is the operation response; `ApplyOne(r)=Call(r,1)` yields A_S=Int.
@@ -59,3 +59,6 @@ The reviewer finding is repaired at the source-evidence layer. A fresh
 independent compiler delta review is required; earlier reviews certify only
 revision 1 bytes. Spec and architect reviews follow the delta review. Semantic
 adoption and any code change require separate authority.
+
+
+Revision 3 is a hash-only correction to the instance reference. No instance or proof bytes changed from revision2.
