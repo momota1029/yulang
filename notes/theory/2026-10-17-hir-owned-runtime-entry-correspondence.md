@@ -1,11 +1,15 @@
 # HIR-owned runtime entry correspondence for returned `step`
 
 Date: 2026-10-17  
-Status: **Frozen narrow source correspondence; experimental playground only**  
+Status: **Revision 2; source-owner correction delta pending review; experimental playground only**  
 Author: `/root` (Luna primary)  
 Sprint: `receive-inlet-admission-and-hir-entry-correspondence-20261017`, contract revision 3  
 Contract SHA-256: `e7300e34dbf87ca0dab862acd340d25a0cae84d7226caf97ea370cc39233a45d`  
 Source: `my apply f = { my step x = f x; step }`
+
+Revision 2 corrects the distinct source owners for the outer definition formal
+`f` and local initializer formal `x`, following independent compiler review.
+Revision 1 remains preserved in commit `fad55c382`.
 
 ## Claim and result
 
@@ -32,7 +36,7 @@ F2 admission law is independent of this runtime result.
 
 | Path stage | Identity/role carried | Source consequence |
 |---|---|---|
-| Named HIR binders | `local_source.rs:1285-1312` records each named parameter ID at its `IdentifierPattern` and maps it to the owning `HirLocalId`. `:651-690` wraps those named parameters in local `Lambda` forms and resolves their body names to `Parameter(id)`. | `step` has its original parameter ID `p_x`; the outer `apply` formal has its own ID `p_f`. The body reference to `f` remains `Name(Parameter(p_f))`. |
+| Named HIR binders | Local `step x`: `local_source.rs:1285-1312` records the parameter ID at its `IdentifierPattern` and maps it through `local_parameter_owners` to the owning `HirLocalId`; `:651-690` wraps that parameter in a local `Lambda`. Outer definition `apply f`: `:597-632` retains the definition's existing parameter ID in its `Lambda` and records `LocalSourceNamedGroupOwner::Definition`; it does not use the local-parameter-owner map. Resolved body names use `Parameter(id)`. | `step` has its original parameter ID `p_x`; outer `apply` has its separately owned ID `p_f`. The body reference to `f` remains `Name(Parameter(p_f))`. |
 | Runtime code generation | `program.rs:382-395` emits `Instruction::Lambda { parameter: parameter.id.clone(), role, ... }`; role is `Computation` exactly when that formal's own annotation has an effect row, otherwise `Value`. The `Name` instruction retains source resolution; parameter names consult the role registry derived from those Lambda records (`:310-367`). | Role is owned by the Lambda/formal. For this unannotated `x`, entry is Value. No role is inferred from `Unit`, callable shape or candidate inference. |
 | Closure creation and capture | `machine.rs:491-508` allocates `ExecutableValue::Closure` with the instruction's parameter ID, role, body and current environment handle. | The closure owns the same formal ID and captures the lexical environment by a stable runtime handle, preserving the cell chain containing `p_f`. |
 | Local return and alias read | `machine.rs:850-895` stores the initializer's returned `ValueHandle` in its cell and extends the environment with `Binder::Local(bindings[next-1].id.clone())`; `:440-476` resolves a Local Name by exact `HirLocalId` and passes the retrieved `ReceivedValue` to `consume`. | `step` remains the same closure value under its source local ID. A local alias can refer to that value, but does not become a formal or rewrite the closure's formal ID. |
