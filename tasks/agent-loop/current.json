@@ -19,13 +19,13 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 180,
-      "available_seconds": 2220,
-      "allocation": "proof600, implementation720, independent reviews360, Luna180 charged, reserve540; Astra0; previous sprint900 fully charged."
+      "charged_seconds": 1500,
+      "available_seconds": 900,
+      "allocation": "proof600 (charged on launch), implementation720 (charged on launch), independent reviews360, Luna180 charged, reserve540; Astra0."
     },
-    "next_action": "Launch one Sol constructive proof lane and one Luna implementer lane under exact disjoint paths; review frozen artifacts independently; keep compatibility/WZ/P1-P6 gates open."
+    "next_action": "Allow both lanes to complete related in-scope stages; at frozen results obtain independent proof/source and implementation/compiler reviews, then adjudicate parent application and code."
   },
-  "history": "Closed npair-operation-contract-and-lexer-identity-20261018: parent closure0; candidate C1/C2 adopted as a working interpretation under user authorization, but universal compatibility is unproved. Lexer identity remains conditional with two minor findings, excluded from successor premises. Full receipts in closeout.",
+  "history": "Closed npair-operation-contract-and-lexer-identity-20261018: parent closure0; candidate C1/C2 adopted as a working interpretation under user authorization, but universal compatibility is unproved. Lexer identity remains conditional with two minor findings, excluded from successor premises. Full receipts in closeout. Successor sprint contract committed and pushed as 8732e2326; proof and implementation lanes actually launched, 1320s reserved/charged.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
   "workers": [
     {
@@ -42,24 +42,24 @@
     {
       "id": "/root/npair_operation_self_source_realization",
       "role": "constructive proof",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact outputs leased under successor contract; launch pending primary checkpoint push."
+      "receipt": "Actual prover role launched this session under exact proof outputs and 600s cap; source/candidate pins and parent application recorded; effective model/effort UNKNOWN."
     },
     {
       "id": "/root/npair_operation_self_source_evidence",
       "role": "Luna implementation",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=720s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Two exact source owners write-leased for private evidence only; launch pending primary checkpoint push."
+      "receipt": "Actual Luna implementer role launched this session under two pinned source owners and evidence outputs; 720s cap; private evidence-only authority; effective model/effort UNKNOWN."
     }
   ],
   "leases": [
