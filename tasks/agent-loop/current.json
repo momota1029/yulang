@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
     "revision": 2,
     "sha256": "712fa3cfb7ba6ad89d0416f8e3b83f11c921084a35d8c0e88b7b918006e4a07e",
-    "state": "AMENDMENT-REVIEW-PENDING-ARCHITECT-AUTHORITY",
+    "state": "AMENDMENT-REVIEW-ARCHITECT-RUNNING",
     "baseline": "8be4b8248",
     "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Implement adopted rev4 structural HIR admission and prove projection preservation through ordinary HIR, applying only the exact structural premise of the original Call/source bridge. Current gate: frozen proof and resource-amendment review; implementation held until fresh compiler/spec/architect reviews are CLEAN and Luna adjudicates. No semantic Call or parent theorem closure.",
@@ -135,7 +135,7 @@
       {
         "id": "/root/accepted_call_hir_admission_architect_review",
         "role": "architect",
-        "state": "NOT_STARTED",
+        "state": "RUNNING",
         "cap_seconds": 90,
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
@@ -146,7 +146,9 @@
           "notes/design/2026-10-17-ordinary-hir-application-error-reference-accounting-amendment.md",
           "tasks/agent-loop/inbox/20261017-ordinary-hir-error-reference-accounting-amendment.md",
           "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md"
-        ]
+        ],
+        "session": "current-session",
+        "active_receipt": "Pre-code architect review dispatched sequentially after compiler STOP/CLEAN and spec STOP/MAJOR; exact proof/amendment/sprint hashes supplied; read-only."
       }
     ],
     "leases": [
