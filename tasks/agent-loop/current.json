@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-choice-a-contract-20261017.md",
     "revision": 4,
     "sha256": "88f9674294f001e33bc9c29803d329f2d76c1059c21bbd9362c35ab1d84d7f93",
-    "state": "ACTIVE-SUCCESSOR-DESIGN",
+    "state": "REVIEW-PENDING-SPEC",
     "baseline": "0c0fda3974d1db2c91256667f93c46effa18c8d0",
     "parent": "Original inference/execution goal; all quantifiers and theorem gates preserved OPEN.",
     "fixed_outcome": "User selected direction A for drafting/review of ordinary structural application admission; audit CST/source keys, then complete and review exact successor contract. Code/tests require final explicit approval.",
@@ -17,15 +17,15 @@
     "result": {
       "original_conditions_closed": 0,
       "behavior_executed": false,
-      "proof_class": "candidate raw-source/CST/source-key constructor derivation; independent review pending",
-      "HIR_APP_CST_1": "candidate discharged pending independent review/adjudication",
-      "HIR_APP_ADMISSION_1": "OPEN; direction A successor draft active"
+      "proof_class": "candidate source/CST/source-key constructor derivation; independent review pending",
+      "HIR_APP_CST_1": "candidate discharge pending review",
+      "HIR_APP_ADMISSION_1": "complete proposal frozen; review and explicit final user approval required; no code/test lease"
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 720,
-      "available_seconds": 780,
-      "allocation": "Astra480 fully charged; Luna420; reviews300; coordination240 incl selector240 charged; reserve60."
+      "charged_seconds": 1140,
+      "available_seconds": 360,
+      "allocation": "Astra480 fully charged; Luna420 conservatively charged; reviews300; coordination240 charged; reserve60."
     },
     "workers": [
       {
@@ -72,30 +72,44 @@
       {
         "id": "/root",
         "role": "Luna/high design author and integrator",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "cap_seconds": 420,
-        "charged_seconds": 0,
-        "active_receipt": "Astra STOP confirmed; successor contract drafting started"
+        "charged_seconds": 420,
+        "active_receipt": "Astra STOP confirmed; successor contract drafting started",
+        "remaining_seconds": 0,
+        "receipt": "Frozen successor contract+handoff; exact active time UNKNOWN, full420 conservatively charged; no code/tests."
       },
       {
         "id": "/root/ordinary_hir_spec_review",
         "role": "spec_auditor",
         "state": "NOT_STARTED",
-        "cap_seconds": 100
+        "cap_seconds": 100,
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN"
       },
       {
         "id": "/root/ordinary_hir_compiler_review",
         "role": "compiler_referee",
         "state": "NOT_STARTED",
-        "cap_seconds": 100
+        "cap_seconds": 100,
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN"
       },
       {
         "id": "/root/ordinary_hir_architect_review",
         "role": "architect",
         "state": "NOT_STARTED",
-        "cap_seconds": 100
+        "cap_seconds": 100,
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN"
       }
     ],
     "leases": [
@@ -207,7 +221,9 @@
       }
     ],
     "proof_sha256": "e8a320be0e78ecc2c5ee5210338476740c03a1fae61fb2747ec39636286ad501",
-    "proof_handoff_sha256": "68d43689a506a7c22152ecbe90d49c55b83390489541837956b34f397e9ce88a"
+    "proof_handoff_sha256": "68d43689a506a7c22152ecbe90d49c55b83390489541837956b34f397e9ce88a",
+    "design_sha256": "a1bf05f113c3b870cf15045f398c6d1d243ea65db80e746fa2951aac37135d70",
+    "design_handoff_sha256": "107c7cadb9160acbd2a440fd5d668b8ec17d578a79b2c7a52ba9f2fb007ff2cd"
   },
   "history": "Prior accepted-call vertical and HIR directional proposal closed without parent theorem closure; see frozen closeouts.",
   "quarantine_note": "Three inherited UNKNOWN assignments and legacy board lease remain quarantined. Direction A permits a reviewed proposal only."
