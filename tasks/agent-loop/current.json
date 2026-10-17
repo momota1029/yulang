@@ -38,7 +38,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Closed reviewed s1 obstruction sprint; rolled back unreviewed query and issued exact next contract. Preparing new proof and implementation lanes."
+      "receipt": "Next sprint contract frozen and pushed; source-proof and native-demand query lanes launched with disjoint exact writes."
+    },
+    {
+      "id": "/root/npair_operation_field_bridge",
+      "role": "constructive source proof",
+      "state": "RUNNING",
+      "requested_model": "Sol/prover",
+      "requested_effort": "high <=450s",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Launched to derive authentic same-c Written-s1 field projection and Call returned-provider action, or draft a noncircular bridge from original constructors while preserving R/W/Z alternatives."
+    },
+    {
+      "id": "/root/npair_native_demand_children",
+      "role": "Luna implementation/source path",
+      "state": "RUNNING",
+      "requested_model": "Luna/implementer",
+      "requested_effort": "high <=360s",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Launched with measured 360s clock to repair research query to use source_call-validated native demand child accessors; no Cargo until exact query hash reviewed CLEAN and remaining cap measured."
     }
   ],
   "leases": [
@@ -59,32 +81,32 @@
     },
     {
       "path": "notes/theory/2026-10-18-npair-operation-field-source-bridge.md",
-      "owner": "/root",
+      "owner": "/root/npair_operation_field_bridge",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-operation-field-source-bridge.md",
-      "owner": "/root",
+      "owner": "/root/npair_operation_field_bridge",
       "state": "HELD"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
-      "owner": "/root",
+      "owner": "/root/npair_native_demand_children",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
-      "owner": "/root",
+      "owner": "/root/npair_native_demand_children",
       "state": "HELD"
     },
     {
       "path": "notes/progress/2026-10-18-npair-native-demand-children-evidence.md",
-      "owner": "/root",
+      "owner": "/root/npair_native_demand_children",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-native-demand-children-evidence.md",
-      "owner": "/root",
+      "owner": "/root/npair_native_demand_children",
       "state": "HELD"
     },
     {
@@ -102,6 +124,6 @@
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "All previous proof/source/reviewer writers STOPPED; prior unreviewed research query explicitly reverted to baseline; fixture baseline hash verified. New disjoint leases granted only after current successor lanes launch."
+    "receipt": "Prior proof, implementation and reviewer writers STOPPED; unreviewed query reverted exactly, no active processes or descendants. Successor source/proof lanes launched after integration."
   }
 }
