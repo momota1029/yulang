@@ -14,8 +14,8 @@
     "fixed_outcome": "Draft authentic source operand-use intro at μ_H; apply to M_exit/F1 P2 or freeze exact obstruction. Conditional static producer/consumer contract only if concrete fields emerge.",
     "authority": "User authorized continued Goal, proof and bridge-rule drafting. Adoption and compiler changes remain separately gated.",
     "review": {
-      "state": "SPEC-AUDITOR-RUNNING",
-      "current_reviewer": "/root/catch_operand_use_spec_review",
+      "state": "SPEC-CLEAN-ARCHITECT-READY",
+      "current_reviewer": null,
       "sequence": [
         "compiler_referee",
         "spec_auditor",
@@ -29,13 +29,22 @@
         "observed": "UNKNOWN/UNKNOWN",
         "charged_seconds": 120,
         "receipt": "CLEAN bounded obstruction review; all 21 pins matched; supports missing μ_H typed-use and bounded NO_SAFE_CODE_SLICE, no global absence/impossibility or source rejection. No edits/tests/Git; reviewer STOPPED."
+      },
+      "spec_auditor": {
+        "state": "CLEAN-STOPPED-MESSAGE",
+        "cap_seconds": 90,
+        "output": "read-only receipt by message",
+        "requested": "gpt-6.1-sol/medium",
+        "observed": "UNKNOWN/UNKNOWN",
+        "charged_seconds": 90,
+        "receipt": "CLEAN bounded conformance; 21 deps MATCH; original domains OPEN; no global impossibility or source-refusal claim; static only; writer STOPPED."
       }
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 540,
+      "charged_seconds": 630,
       "active_authors": 0,
-      "status": "Astra 420s + compiler referee 120s charged; proof frozen, conditional source lane retired; specification review next."
+      "status": "Astra 420s + compiler 120s + spec 90s charged; proof frozen, conditional source lane retired; architect review next."
     },
     "lanes": {
       "proof_operand_use": {
@@ -208,14 +217,15 @@
     {
       "id": "/root/catch_operand_use_spec_review",
       "role": "spec_auditor",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "started_at_utc": "2026-10-17 05:23:16 UTC",
-      "receipt": "Actual read-only review task accepted; frozen artifact/contract pins supplied; effective model metadata unavailable."
+      "receipt": "CLEAN bounded read-only review by message; 90s charged; no edits or descendants.",
+      "stopped_at_utc": "2026-10-17 05:24:36 UTC"
     }
   ],
   "leases": [
@@ -273,19 +283,19 @@
     }
   ],
   "next_action": {
-    "state": "SPEC-REVIEW-READY",
+    "state": "ARCHITECT-REVIEW-READY",
     "dispatcher": "Freeze exact missing-declaration obstruction under rev1; no new pin/search absent concrete qualifying locator. A concrete Event operand may qualify only if actual μ_H read/binding and field-7 alignment are proved.",
     "proof": "Exact missing target declaration frozen. Historical Event typing is not actual μ_H use; native metadata/payload and raw binding occur on distinct sides of Catch pop.",
     "implementation": "Conditional source contract retired: no concrete typed-use producer; NO_SAFE_CODE_SLICE.",
-    "review": "Compiler referee CLEAN and STOPPED; assign fresh spec_auditor, then architect."
+    "review": "Compiler referee and spec auditor CLEAN/STOPPED; assign fresh architect."
   },
   "resource_accounting": {
     "sprint_id": "catch-matcher-operand-use-introduction-20261017",
     "cap_seconds": 1500,
-    "charged_seconds": 540,
+    "charged_seconds": 630,
     "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "Proof and compiler review frozen; spec review next; no safe implementation slice."
+    "status": "Proof and first two independent reviews frozen; architect review next; no safe implementation slice."
   },
   "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN. Previous sprint f2-owning-inlet-introduction-proposal-20261017 stopped at source gate; artifact SHA 263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27; closeout notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md SHA f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c. Previous sprint catch-request-exit-construction-20261017 REVIEWED-PARTIAL; closeout notes/progress/2026-10-17-catch-request-exit-closeout.md; next-action selector chose actual μ_H operand-use introduction."
 }
