@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-call-original-generation-20261017.md",
     "revision": 1,
     "sha256": "be869090bbf2b359122849973017b6896bd916a05c7de8687d696a4f99966d5e",
-    "state": "PROOF-RUN",
+    "state": "PROOF-REVIEW",
     "baseline": "0717a882c",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Construct complete original Application for actual module Name(id) + Literal(0), emit unsolved Call and actual record, apply adopted O0 only to that record and a named original consumer; or isolate the first missing constructor/owner. No semantic silent adoption.",
@@ -18,16 +18,16 @@
     "predecessor_commit": "0717a882c",
     "result": {
       "original_conditions_closed": 0,
-      "proof_class": "Not started. Exact module-Name/Literal Application constructor is the decisive original source-generation dependency.",
+      "proof_class": "Frozen conditional formation construction and erasure conservativity over generic open source-rule reduct; actual module publication/root-use map and complete Call declaration substitution are open. No authentic e_c/O0 consumer substitution; original conditions closed0.",
       "implementation_class": "Not started. No compiler source or test lease; implementation lane drafts an owner-mapped recipe after proof STOP.",
       "parent_application": "OPEN; all original parent gates unchanged."
     },
     "resources": {
       "cap_seconds": 3000,
-      "charged_seconds": 180,
-      "available_seconds": 2820,
+      "charged_seconds": 1080,
+      "available_seconds": 1920,
       "retired_seconds": 0,
-      "allocation": "Task decomposition cap180 charged in full (telemetry unavailable); Astra proof900; Luna implementation-contract author720 after proof STOP; independent reviews600; coordination120; conditional verification240; reserve240. Prior sprint reserve does not carry. Three inherited UNKNOWN reservations remain quarantined and unreclaimed."
+      "allocation": "Decomposition180 and frozen Astra proof cap900 charged (1080/3000). Remaining Luna implementation author720 after proof review CLEAN; independent reviews600; coordination120; conditional verification240; reserve240."
     },
     "workers": [
       {
@@ -66,21 +66,21 @@
       {
         "id": "/root/ordinary_call_original_generation_proof",
         "role": "astra_prover",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 900,
-        "charged_seconds": 0,
-        "remaining_seconds": 900,
+        "charged_seconds": 900,
+        "remaining_seconds": 0,
         "session": "current-session",
         "launch_receipt": "Spawn acknowledged in current session after frozen contract rev1; direct assignment ID /root/ordinary_call_original_generation_proof.",
         "lease_paths": [
           "notes/theory/2026-10-17-ordinary-call-original-generation.md",
           "tasks/agent-loop/inbox/20261017-ordinary-call-original-generation.md"
         ],
-        "active_receipt": "Construct complete original Application for module Name(id)+Literal(0), actual unsolved record and O0 consumer substitution, or exact missing owner. No tests/Cargo/code/Git."
+        "active_receipt": "Frozen proof artifact SHA bd2a690517118c8826dfe1a2fe9db53c829a1638bd2e6a1fd5aa01a252735aab; inbox rev1 SHA 1ff0c3dc71c4b7e09de5e00ff47b158627cc67320d29d820d38d76ed330b98d3. Conservative Gen-ModuleName-Literal* completion proven relative to generic open source-rule reduct; actual publication/root-use and complete Call declaration application missing. O0 consumer substitution unavailable; parent closure0. Observed span546s; cap900 charged, effective model/cost UNKNOWN. STOPPED."
       }
     ],
     "leases": [
@@ -92,12 +92,12 @@
       {
         "path": "notes/theory/2026-10-17-ordinary-call-original-generation.md",
         "owner": "/root/ordinary_call_original_generation_proof",
-        "state": "LIVE"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-ordinary-call-original-generation.md",
         "owner": "/root/ordinary_call_original_generation_proof",
-        "state": "LIVE"
+        "state": "FROZEN"
       },
       {
         "path": "notes/design/2026-10-17-ordinary-call-generation-implementation-contract.md",
@@ -128,7 +128,7 @@
         "state": "OPEN"
       }
     ],
-    "next_action": "Astra proof assignment RUNNING <=900s, current session; Luna tracks lease and may proceed only with independent implementation contract lane after proof STOP. No source/code/test authority.",
+    "next_action": "Astra STOPPED; independently review frozen proof: spec/conformance cap300 then compiler/architect cap300, no changes. On both CLEAN Luna authors implementation contract (720). If either identifies missing source premise, adjudicate and keep parent open; no compiler lease.",
     "decomposition": "Read-only task_decomposer found: old Gen-Call-0 is Name/Name; Gen-Call-Syntax is unannotated Value-formal callee; module Name + Literal matches neither. Native literal rule supplies only WholeArgCompatible at actual id Int inlet and excludes full Application/Gen-Call-0. Theorem progress requires authentic full rule derivation then replacing that premise in a named consumer; O0 alone is insufficient."
   },
   "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer. Previous sprint ordinary-hir-applied-conformance-repair-20261017 closed REVIEWED-PARTIAL at commit 0717a882c: focused unit8/8, corrected HIR9/9, solver candidate vertical1/1; original theorem conditions closed0. Exact receipts and rev8 CLEAN reporting review remain under notes/progress and prior handoff. Rev7 spent2760/2760; after-cap solver receipt documentation time UNKNOWN, not retrocharged. New original Call generation sprint starts at baseline0717a882c; decomposition180/180 charged. Prior rev8 review-only envelope charged auditor60 and Luna coordination30; final reserve30 retired without carryover. Documentation correction after rev7 had UNKNOWN actual duration, not retrocharged.",
