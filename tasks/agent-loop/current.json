@@ -6,12 +6,12 @@
   "active_sprint": {
     "id": "npair-fixed-c-source-selection-scoped-collection-20261018",
     "contract": "tasks/agent-loop/sprints/npair-fixed-c-source-selection-scoped-collection-20261018.md",
-    "revision": 1,
-    "sha256": "1142ab97ef43b696bcd972fa8c88f2630493389da424b19ce0302baa7922cff3",
+    "revision": 2,
+    "sha256": "2fc605a1795744f98ea79ed6748a27abef8b396322b0611645da853f2d8a4a79",
     "state": "ACTIVE",
     "baseline": "d9e6949a4cdc2d1899f55d5e7a75a014d4630606",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem/domain/quantifiers/receive route/C1/C2/F1/FK1 unchanged; closure0.",
-    "fixed_outcome": "Derive the original fixed-c field proof at actual returned provider r.s1 from its source constructor/consumer or identify the exact missing rule with a reversible candidate; diagnose and, if semantics-preserving, fix scoped collection ComponentIdentityExhausted while preserving exact source identity and Install/Capture/FreshUse.",
+    "fixed_outcome": "Trace the independent Sigma_choose.Lambda declaration/result consumer: the typed core only Forces the result and the full-f certificate supplies membership conditionally but constructs neither Sigma nor response nor selection of fixed c. Prove fixed c at actual r.s1 from an original introduction or supply a reversible candidate. Diagnose/fix scoped collection rejection while preserving Install/Capture/FreshUse.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
@@ -23,7 +23,7 @@
       "available_seconds": 0,
       "allocation": "New fully reserved envelope: constructive Sol/prover600; independent Sol/researcher falsification300; Luna/high implementation900; fresh proof/spec review180; two fresh compiler reviews120 each; Luna primary120; reserve360. Astra0, descendants0, no previous-cap rollover."
     },
-    "next_action": "First reviewed exact diagnostic on original fixture to identify the precise collection refusal. In parallel derive the original fixed-c selector/projection at actual returned r.s1 and check authentic consumer/Call composition.",
+    "next_action": "Apply newly pinned Execute_decl_result and full-f certificate to distinguish conditional full result membership from the original fixed-c selector; freeze any candidate rule without promoting it. Independently pinpoint exact scoped collection refusal with reviewed diagnostics.",
     "available_seconds": 0
   },
   "history": "Prior reviewed implementation evidence and obstructions are preserved in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Current sprint rev2 added operation-image source owner pin (commit 85ea24bbe). Proof artifact CLEAN: R bare response preserves actual responder and existing pi; CallMem preserves supplied evidence; neither constructs fixed c at r.s1. Adversarial artifact review CLEAN after correcting 23+1 dependency receipt. No admitted counterexample; W/Z admission remains open. Exact scoped query received compiler CLEAN, then one run exited2 at ComponentIdentityExhausted before returning candidate/source-call/scoped relations. Example and fixture restored exactly. Current sprint parent conditions closed 0; next target is the original fixed-c introduction/projection at actual returned provider r.s1. Closed npair-written-conservative-lift rev2: closure0. Fresh review proved only conditional retention and actual R response/Call identity; fixed-c at returned r.s1 remains missing. Adversarial audit found no admitted counterexample, W/Z inputs remain open. One reviewed scoped collection run exited2 ComponentIdentityExhausted before candidate/source_call/relation; harness/fixture restored. See closeout note d27386f... Results pushed through d9e6949a4. Successor sprint targets fixed-c source selection and exact scoped collection branch.",
@@ -49,7 +49,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual lane start20:58:44 UTC, Sol/prover/high requested, model/effort UNKNOWN. Verified contract SHA1142ab97..., 21 current direct pins +24 inherited manifest pins. Tracing original fixed c vs Apply-c/endpoint q_c through source installation/consumer; no writes/tests/children."
+      "receipt": "Actual lane start20:58:44 UTC, Sol/prover/high requested, model/effort UNKNOWN. Verified contract SHA1142ab97..., 21 current direct pins +24 inherited manifest pins. Tracing original fixed c vs Apply-c/endpoint q_c through source installation/consumer; no writes/tests/children. Contract rev2 adds typed-core SHA0dbd943... and full-f certificate SHA5abbe5f...: actual Return yields full membership only conditionally from independent Sigma; neither selects fixed c. Author confirmed pins and is considering a separate suspended Written-result contract candidate."
     },
     {
       "id": "/root/npair_written_lift_adversarial",
@@ -60,7 +60,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual lane first clock20:58:47 UTC, cap300s, contract SHA1142ab97... and all21 direct pins matched. HEAD c3b3... advances metadata only; d9e6949 baseline remains authoritative. No children/tests/Git."
+      "receipt": "Actual lane first clock20:58:47 UTC, cap300s, contract SHA1142ab97... and all21 direct pins matched. HEAD c3b3... advances metadata only; d9e6949 baseline remains authoritative. No children/tests/Git. New direct sources pinned in rev2: typed computation core SHA0dbd943... (one-layer Force preserves A_decl) and producer full-source certificate SHA5abbe5f... (full-f membership conditional on independent Sigma, constructs neither Sigma/response and no fixed-c selector). Author continues exact source-field comparison."
     },
     {
       "id": "/root/npair_native_demand_children",
@@ -71,7 +71,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual lane start20:58:48 UTC, cap900s. Reading exact contract/current pins and leased owners. No Cargo before diagnostic bytes and fresh compiler review."
+      "receipt": "Actual lane start20:58:48 UTC, cap900s. Reading exact contract/current pins and leased owners. No Cargo before diagnostic bytes and fresh compiler review. Contract rev2 adds only proof-source pins (typed core/full-f certificate); implementation owner pins unchanged. Revalidate revised contract hash before relying further."
     },
     {
       "id": "/root/npair_actual_argument_proof_review",

@@ -1,6 +1,6 @@
 # Sprint `npair-fixed-c-source-selection-scoped-collection-20261018`
 
-Status: ACTIVE, revision 1. Branch `research/simple-sub-intrusion`;
+Status: ACTIVE, revision 2. Branch `research/simple-sub-intrusion`;
 baseline `d9e6949a4cdc2d1899f55d5e7a75a014d4630606`. Parent
 `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN, closure 0.
 Original theorem, quantifiers, source domain, receive route, C1/C2 and F1/FK1
@@ -52,6 +52,8 @@ pins were checked at this sprint baseline:
 | `notes/theory/2026-10-16-first-call-fresh-use-semantic-application.md` | `9d5ec6a410c2b358187c1fcf105ba9efe5b2f5f9f4ede37ea2bb5364801ff46b` | Original call/fresh-use consumer |
 | `notes/theory/2026-10-16-receiving-local-install-freshuse-correspondence.md` | `7537cb02f2d01532ad97ecddf4ddd4f75abccd791b028785d714f3d55ec0bc70` | Install/Capture/FreshUse correspondence |
 | `notes/theory/2026-10-17-choose-operation-source-instantiation.md` | `6075d45f38787bd5a981a2da177504450239a05e6dbec6f19ccf526ca0d4a110` | Selected choose source, conditional constructor/application |
+| `notes/design/2026-10-02-typed-computation-core-elaboration.md` | `0dbd943a1254dd58c435ff295a8ac0a9d025af70ba37a17154d624da8a86ab2e` | `Execute_decl_result` is one-layer Force; latent A is not eliminated |
+| `notes/theory/2026-10-16-choose-producer-full-source-certificate.md` | `5abbe5f849cbe3f92ba743e0a51c5928350cead62ed8d688766895c2035e1971` | Full independent Sigma yields full result membership at actual Return, but builds neither Sigma nor response and selects no fixed c |
 | `notes/design/2026-10-05-source-contracts-and-common-allowance.md` | `1acc5bd069d14b6493cd279e54ca7db6d600347431fdac62f8fd199bdb32d186` | Original R/W/Z hard envelope |
 | `notes/design/2026-10-07-complete-call-contribution-definition.md` | `4c83a095dce3636ada842bfc32c18cf0ef598db0e361861fb8e659745b74411e` | Adopted CallMem/result clauses |
 | `notes/theory/2026-10-07-owned-call-contribution-construction.md` | `ead206bff341c82993acbaecda25ae1d3a760397796bbbbb53ba3ef917a53fb1` | Whole-evidence Call identity under premises |
