@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/module-use-retained-native-transport-20261017.md",
     "revision": 1,
     "sha256": "1cdbd0706203b0d34c13aa0f7e7342e3413dbc3fbd90b40e335b294bdbe820c2",
-    "state": "READY-FOR-IMPLEMENTATION-AND-PROOF",
+    "state": "IMPLEMENTATION-RUNNING",
     "baseline": "9f8a03bdf",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Retain each committed candidate module route’s actual Graph and complete FreshUse remap crosswalk through route rollback/session destruction; prove ownership/lifetime/checked accounting and apply only the native field-map remap-retention premise.",
@@ -56,6 +56,12 @@
         "role": "next_action_selector",
         "state": "STOPPED",
         "receipt": "Selected module-use-retained-native-transport-20261017: retain existing module FreshUse maps through committed route lifetime, with ownership/accounting proof; source-handle branch remains untouched. Coordination allocation charged 120s."
+      },
+      {
+        "id": "/root/module_freshuse_retention_implementation",
+        "role": "implementer",
+        "state": "RUNNING",
+        "receipt": "Luna/high candidate-only implementation, max480s; exact two-path lease. Disjoint from inherited quarantines; historical resident has no task/output/inbox lease and is not assigned. User explicitly authorizes complexity revision."
       }
     ],
     "leases": [
@@ -63,6 +69,16 @@
         "path": "tasks/agent-loop/sprints/module-use-retained-native-transport-20261017.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "crates/yu-solver/src/candidate_scheme.rs",
+        "owner": "/root/module_freshuse_retention_implementation",
+        "state": "ACTIVE"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-module-use-retained-native-transport-implementation.md",
+        "owner": "/root/module_freshuse_retention_implementation",
+        "state": "ACTIVE"
       }
     ],
     "pending": [
@@ -83,7 +99,7 @@
         "state": "OPEN independent parent gates."
       }
     ],
-    "next_action": "Contract/current checkpoint ready. Verify exact pins and no overlapping unknown code lease, then dispatch sole implementation writer. Proof starts only after code freeze and focused checks."
+    "next_action": "Sole implementation author RUNNING on the exact two-path lease; after STOP, Luna runs the single focused verification envelope, then assigns proof."
   },
   "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer. Previous sprint ordinary-hir-applied-conformance-repair-20261017 closed REVIEWED-PARTIAL at commit 0717a882c: focused unit8/8, corrected HIR9/9, solver candidate vertical1/1; original theorem conditions closed0. Exact receipts and rev8 CLEAN reporting review remain under notes/progress and prior handoff. Rev7 spent2760/2760; after-cap solver receipt documentation time UNKNOWN, not retrocharged. New original Call generation sprint starts at baseline0717a882c; decomposition180/180 charged. Prior rev8 review-only envelope charged auditor60 and Luna coordination30; final reserve30 retired without carryover. Documentation correction after rev7 had UNKNOWN actual duration, not retrocharged. Previous `module-use-source-map-and-provisional-observer-20261017` closed REVIEWED-PARTIAL at 0114f997b: proof map actual structural route + conditional ModulePubUse* intro/inversion/conservation, original conditions0; candidate observer and fixed-source regression PASS 2/2. O(n^2)/O(n) proof annotation cost; no compiler complexity claim. Reviews technical CLEAN; post-run reviewer disclosed one read-only `git show --stat --oneline 185b0db29`, no file changes or essential unpinned evidence. Charged1442/1800; unused358 retired, no budget carry.; module-source-family-embedding-20261017 closed REVIEWED-PARTIAL: original conditions0; source handle owner premise unresolved; native field-map revision2 pending architect delta review; 2160/2160 charged, no code/tests; Closed module-source-family-embedding-20261017 REVIEWED-PARTIAL at full2160/2160, original conditions0. Conditional source proof corrected after compiler+spec reviewers found same-occurrence handle owner gap; compiler delta passed. Native field-map contract revision2 synchronizes conditional new, transient module FreshUse remaps and proposed/unverified complexity; architect delta review still pending in next sprint. No compiler behavior/tests. Closed module-source-handle-introduction-20261017 REVIEWED-PARTIAL at commit 9f8a03bdf: compiler and spec reviews CLEAN; original theorem conditions0; exact typed materialization owner HINTRO-OWNER-u_id remains open; no code/tests. Next action chose candidate module FreshUse remap retention with an ownership/accounting proof, independent of selecting handle semantics.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN."
