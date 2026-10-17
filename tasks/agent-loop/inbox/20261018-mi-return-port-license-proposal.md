@@ -2,7 +2,7 @@
 
 Sprint: `mi-return-port-license-construction-20261018`, revision 1
 Contract: `tasks/agent-loop/sprints/mi-return-port-license-construction-20261018.md`
-Contract SHA-256: `9855a9dea3da71281c44b464f3d5383f8aee182de32d1e83c0d5757a43070f69`
+Contract SHA-256: `99268e4934da9b6d95ddcc6984034ea9c9dd05ee5049ec345da75c09f35688c0`
 Assignment: `mi-return-port-license-proposal-20261018`, revision 1
 Artifact: `notes/design/2026-10-18-mi-return-port-license-proposal.md`
 Artifact SHA-256: `3848f26a899bd7ee75a991564e98a78729e334fa631ef9177aa23f88f8f56e43`

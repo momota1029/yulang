@@ -2,7 +2,7 @@
 
 Date: 2026-10-18
 Sprint: `mi-return-port-license-construction-20261018`, revision 1
-Contract SHA-256: `9855a9dea3da71281c44b464f3d5383f8aee182de32d1e83c0d5757a43070f69`
+Contract SHA-256: `99268e4934da9b6d95ddcc6984034ea9c9dd05ee5049ec345da75c09f35688c0`
 Baseline: `8f7e5c6fe`
 Status: **candidate definition; not adopted; actual application not yet checked**
 Original/local/fixed-family conditions closed: **0/0/0**
