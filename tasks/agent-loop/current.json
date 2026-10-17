@@ -6,9 +6,9 @@
  "active_sprint": {
   "id": "receive-inlet-admission-and-hir-entry-correspondence-20261017",
   "contract": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
-  "revision": 2,
-  "sha256": "39c71ebbb64ec86b893d1397c67ce708a0cc00d446fc23aa28efb66eda72f959",
-  "state": "PROOF-RUNNING",
+  "revision": 3,
+  "sha256": "e7300e34dbf87ca0dab862acd340d25a0cae84d7226caf97ea370cc39233a45d",
+  "state": "PROOF-FROZEN-SOURCE-PIN-REVALIDATION",
   "baseline": "14a830e6f",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original FORWARD-FIRST-CALL A/B and production gates OPEN.",
   "fixed_outcome": "At original c2/xi, compare original inlet with SAT universal designated-execution typing in both directions or isolate the missing original admission law; separately prove/refute selected HIR-owned runtime Value/Computation entry correspondence through closure, aliases/capture and saved frames. No semantic adoption or code.",
@@ -28,24 +28,24 @@
    "review_cap_seconds": 300,
    "coordination_seconds": 60,
    "reserve_seconds": 120,
-   "charged_seconds": 330,
-   "active_authors": 1,
-   "status": "Astra proof RUNNING; 316s elapsed, 330s charged/720; no new dependencies; Luna source lane waits; total sprint time cap 1500s."
+   "charged_seconds": 420,
+   "active_authors": 0,
+   "status": "Astra STOPPED after 368s elapsed, 420/720 charged; source lane waits while proof artifact pins are incorporated into contract rev3 and all direct dependencies revalidated."
   },
   "lanes": {
    "proof": {
     "owner": "/root/receive_sat_admission_comparison",
-    "state": "RUNNING",
+    "state": "FROZEN",
     "outputs": [
      "notes/theory/2026-10-17-receive-sat-admission-comparison.md",
      "tasks/agent-loop/inbox/20261017-receive-sat-admission-comparison.md"
     ],
     "cap_seconds": 720,
-    "receipt": "Astra acknowledged contract rev2 SHA 39c71ebbb64ec86b893d1397c67ce708a0cc00d446fc23aa28efb66eda72f959 and added source SHA fd781ba2d76b239724b86183985c612fe3bbd3542ff8d47860705c9c3752226a at 02:37:31 UTC; all revised pins match. Active work resumes under original 720s cap, 103s elapsed, 120s charge. Missing law narrowed to original F2 incoming-port/carrier-view identity plus complete domain correspondence; both SAT2 inclusions remain open. Midpoint receipt 2026-10-17 02:41:04 UTC: 316s elapsed, 330s conservative charge, remaining 390s; original F2-to-Strict incoming-port/carrier-view and complete-domain identification remains decisive."
+    "receipt": "STOP 2026-10-17 02:41:56 UTC; active-work 02:35:48; 368s elapsed, 420/720 charged; artifact SHA 956b710546be0446ae6fd054a597196e467ce59202a08812d4c6ac349455a6e1; handoff SHA e8e0052c6337b28f6c252e5761f882f30574c1e2cdefdca79408cef9523d8822. All 16 rev2 pins matched. Both inclusions OPEN; first missing law is original F2/I2 to B_in/domain correspondence, with separate VIEW and CHECK owner requests. No descendants/writes."
    },
    "runtime_source": {
     "owner": "/root (Luna/high)",
-    "state": "WAITING_FOR_PROOF_STOP",
+    "state": "WAITING_FOR_PINNED_PROOF_AND_REV3_REVALIDATION",
     "outputs": [
      "notes/theory/2026-10-17-hir-owned-runtime-entry-correspondence.md",
      "tasks/agent-loop/inbox/20261017-hir-owned-runtime-entry-correspondence.md"
@@ -69,6 +69,14 @@
    {
     "path": "notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md",
     "sha256": "e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f"
+   },
+   {
+    "path": "notes/theory/2026-10-17-receive-sat-admission-comparison.md",
+    "sha256": "956b710546be0446ae6fd054a597196e467ce59202a08812d4c6ac349455a6e1"
+   },
+   {
+    "path": "tasks/agent-loop/inbox/20261017-receive-sat-admission-comparison.md",
+    "sha256": "e8e0052c6337b28f6c252e5761f882f30574c1e2cdefdca79408cef9523d8822"
    }
   ],
   "non_goals": [
@@ -123,18 +131,18 @@
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "Selector proposal validated; new contract/archive prepared; proof lane awaits contract checkpoint; no child launched yet."
+    "receipt": "Proof lane STOPPED; Luna holds sequential runtime-source output lease and revalidates contract rev3 before starting."
    },
    {
     "id": "/root/receive_sat_admission_comparison",
     "role": "Astra prover assigned original inlet/SAT comparison",
-    "state": "RUNNING",
+    "state": "STOPPED",
     "requested_model": "gpt-6-astra",
     "requested_effort": "medium",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "ACTIVE-WORK resumed after contract rev2 acknowledgment at 2026-10-17 02:37:31 UTC; cap measured from 02:35:48, 103s elapsed, 120s charge; no reset."
+    "receipt": "STOP 2026-10-17 02:41:56 UTC; 368s elapsed, 420/720 charged; both exact outputs frozen; no descendants."
    }
   ]
  },
@@ -185,18 +193,18 @@
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "New sprint contract and review archive staged for exact checkpoint; no child launched yet."
+   "receipt": "Proof lane STOPPED; Luna holds sequential runtime-source output lease and revalidates contract rev3 before starting."
   },
   {
    "id": "/root/receive_sat_admission_comparison",
    "role": "Astra prover assigned original inlet/SAT comparison",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "ACTIVE-WORK resumed after contract rev2 acknowledgment at 2026-10-17 02:37:31 UTC; cap measured from 02:35:48, 103s elapsed, 120s charge; no reset."
+   "receipt": "STOP 2026-10-17 02:41:56 UTC; 368s elapsed, 420/720 charged; both exact outputs frozen; no descendants."
   }
  ],
  "leases": [
@@ -214,7 +222,7 @@
    "path": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
    "owner": "/root",
    "state": "FROZEN",
-   "sha256": "39c71ebbb64ec86b893d1397c67ce708a0cc00d446fc23aa28efb66eda72f959"
+   "sha256": "e7300e34dbf87ca0dab862acd340d25a0cae84d7226caf97ea370cc39233a45d"
   },
   {
    "path": "notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md",
@@ -225,12 +233,14 @@
   {
    "path": "notes/theory/2026-10-17-receive-sat-admission-comparison.md",
    "owner": "/root/receive_sat_admission_comparison",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "956b710546be0446ae6fd054a597196e467ce59202a08812d4c6ac349455a6e1"
   },
   {
    "path": "tasks/agent-loop/inbox/20261017-receive-sat-admission-comparison.md",
    "owner": "/root/receive_sat_admission_comparison",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "e8e0052c6337b28f6c252e5761f882f30574c1e2cdefdca79408cef9523d8822"
   },
   {
    "path": "notes/theory/2026-10-17-hir-owned-runtime-entry-correspondence.md",
@@ -281,7 +291,7 @@
   },
   {
    "id": "F2-SAT-ADMISSION-20261017",
-   "state": "READY; compare both SAT2 inclusions against original source-selected inlet; do not assume either",
+   "state": "PROOF-FROZEN; both inclusions OPEN; VIEW elimination and CHECK introduction owners/falsifiers recorded in handoff",
    "owner": "Astra proof lane; original inlet/source descriptor owner for missing clause"
   },
   {
@@ -291,10 +301,10 @@
   }
  ],
  "next_action": {
-  "state": "PROOF-RUNNING",
+  "state": "PROOF-FROZEN-SOURCE-PIN-REVALIDATION",
   "dispatcher": "Selector proposed admission comparison plus independent HIR-owned runtime-entry proof; Luna accepted and granted these exact sequential lanes.",
-  "proof": "Strict entails full T at its own Force view. Remaining decisive input is authentic correspondence of original F2 incoming B_in/Dem/Obs to that view; reverse SAT inclusion needs complete original guard/checking inventory. Both SAT2 directions open.",
-  "implementation": "Trace whether runtime-only Value/Computation entry follows retained HIR identity through closure/capture/aliases/saved frames without candidate evidence. No code lease."
+  "proof": "Both SAT2 inclusions OPEN; exact missing law is original F2/I2 to B_in admission and full domain correspondence. VIEW elimination and CHECK introduction have distinct falsifiers in frozen handoff.",
+  "implementation": "Sequential HIR-owned runtime-entry correspondence begins after rev3 dependency revalidation; no compiler code lease."
  },
  "resource_accounting": {
   "sprint_id": "receive-inlet-admission-and-hir-entry-correspondence-20261017",
@@ -304,10 +314,10 @@
   "review_cap_seconds": 300,
   "coordination_seconds": 60,
   "reserve_seconds": 120,
-  "charged_seconds": 330,
-  "active_authors": 1,
+  "charged_seconds": 420,
+  "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Astra proof RUNNING, 330/720s charged, 390s proof cap remains; source lane sequential; three inherited UNKNOWN reservations retained."
+  "status": "Astra proof STOPPED, 420/720s charged; source lane waits for rev3 pin revalidation; no code lease; three UNKNOWN reservations retained."
  },
- "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f. Astra proof lane actually launched 2026-10-17 02:35:46 UTC after 15 dependency pins matched; requested Astra/medium, effective model UNKNOWN; 720s cap. Contract rev2 adds the selected call-semantic-input-realization dependency requested by Astra; its hash matched current bytes. Worker paused reliance pending sequential pin/contract acknowledgment; no output writes; budget not reset. Astra interim: Strict selected proof unfolds full T at its own designated Force view; this does not establish original F2 incoming-port correspondence or reverse guard completeness. 86s elapsed, 90s charged; waiting for rev2 acknowledgment. Astra acknowledged rev2 contract and call-semantic input pin at 02:37:31 UTC; all revised pins matched, budget not reset. Exact missing source law narrowed to original incoming-port/carrier-view identity plus complete domains. Proof midpoint recorded 02:41:04 UTC (316s elapsed, 330s charged); decisive F2-to-Strict inlet/view/domain identity remains open."
+ "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f. Astra proof lane actually launched 2026-10-17 02:35:46 UTC after 15 dependency pins matched; requested Astra/medium, effective model UNKNOWN; 720s cap. Contract rev2 adds the selected call-semantic-input-realization dependency requested by Astra; its hash matched current bytes. Worker paused reliance pending sequential pin/contract acknowledgment; no output writes; budget not reset. Astra interim: Strict selected proof unfolds full T at its own designated Force view; this does not establish original F2 incoming-port correspondence or reverse guard completeness. 86s elapsed, 90s charged; waiting for rev2 acknowledgment. Astra acknowledged rev2 contract and call-semantic input pin at 02:37:31 UTC; all revised pins matched, budget not reset. Exact missing source law narrowed to original incoming-port/carrier-view identity plus complete domains. Proof midpoint recorded 02:41:04 UTC (316s elapsed, 330s charged); decisive F2-to-Strict inlet/view/domain identity remains open. Astra STOP/freeze 02:41:56 UTC: 368s elapsed, 420 charged; both SAT2 directions OPEN; exact F2/I2-to-B_in/domain source-law gaps frozen. Contract rev3 pins proof outputs before Luna starts source trace."
 }

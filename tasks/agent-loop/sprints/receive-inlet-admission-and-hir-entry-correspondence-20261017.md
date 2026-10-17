@@ -2,7 +2,7 @@
 
 Status: READY / Luna-approved for bounded proof comparison and source correspondence  
 Branch / baseline: `research/simple-sub-intrusion` / `14a830e6f`  
-Contract revision: 2  
+Contract revision: 3  
 Authority: parent goal and user-authorized autonomous drafting/review workflow; no semantic adoption or compiler-code lease.
 
 ## Original outcome and success evidence
@@ -51,6 +51,8 @@ All pins are current bytes at preparation and must be recomputed before reliance
 | `tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md` | `70dc1e462150474fa7f404bb4aa9aa844825b77b985e9187fa80d74ac4f97138` | Frozen candidate handoff and owner TODOs. |
 | `notes/theory/2026-10-17-value-entry-formal-provenance-through-local-use.md` | `76855d9330a9b5404dfa83bffc4c033dea4c40763b8104bda04849474278deec` | Revision 2 trace, source correspondence lead only. |
 | `tasks/agent-loop/inbox/20261017-value-entry-formal-provenance-through-local-use.md` | `a0ace650412579127e2a210b6fba5b22603d0f9e3818564ef3240fd605eba3d0` | Frozen revision 2 handoff. |
+| `notes/theory/2026-10-17-receive-sat-admission-comparison.md` | `956b710546be0446ae6fd054a597196e467ce59202a08812d4c6ac349455a6e1` | Frozen Astra comparison; both SAT2 inclusions remain open. |
+| `tasks/agent-loop/inbox/20261017-receive-sat-admission-comparison.md` | `e8e0052c6337b28f6c252e5761f882f30574c1e2cdefdca79408cef9523d8822` | Exact VIEW/CHECK owners and falsifiers for the sequential source lane. |
 | `crates/yu-hir/src/module/local_source.rs` | `ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5` | Named formal construction, Lambda wrapping and local identity. |
 | `crates/yu-hir/src/source_identity.rs` | `aa97bc34be51644cf944b2813af47ad9243a8eb270850eeb6df34b9cddb3b3a2` | Named/inline formal source origins. |
 | `crates/yu-solver/src/candidate_scheme.rs` | `52b7281946de755003ee8f3b3d18cbc2df6cc6db5566b4e5ecf391b74a92640a` | Structural local fresh-use maps; no runtime authority. |
