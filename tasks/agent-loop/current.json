@@ -4,16 +4,16 @@
  "phase": "ACTIVE",
  "session": "current-session",
  "active_sprint": {
-  "id": "receive-role-indexed-inlet-introduction-20261017",
-  "contract": "tasks/agent-loop/sprints/receive-role-indexed-inlet-introduction-20261017.md",
+  "id": "receive-inlet-admission-and-hir-entry-correspondence-20261017",
+  "contract": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
   "revision": 1,
-  "sha256": "c2422818a92a6666ab9672b45d4d8bf1abf069116c82d4a91228374fc07e10cc",
-  "state": "REVIEWED-PARTIAL",
-  "baseline": "b89ed524fd7b2bbd3d69bb9c997b5bd8132fdf49",
+  "sha256": "6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878",
+  "state": "READY",
+  "baseline": "14a830e6f",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original FORWARD-FIRST-CALL A/B and production gates OPEN.",
-  "fixed_outcome": "Draft and attempt preservation of the first source-local inlet/role-entry introduction at original c2 F2/xi; separately trace selected local returned-function formal identity through capture/fresh-use to runtime Lambda entry classification. Keep rule unselected and parent gates unchanged.",
+  "fixed_outcome": "At original c2/xi, compare original inlet with SAT universal designated-execution typing in both directions or isolate the missing original admission law; separately prove/refute selected HIR-owned runtime Value/Computation entry correspondence through closure, aliases/capture and saved frames. No semantic adoption or code.",
   "review": {
-   "state": "COMPLETE-CLEAN",
+   "state": "NOT_STARTED",
    "current_reviewer": null,
    "sequence": [
     "compiler_referee",
@@ -22,77 +22,64 @@
    ]
   },
   "resources": {
-   "cap_seconds": 1800,
-   "proof_cap_seconds": 840,
-   "source_trace_cap_seconds": 360,
-   "review_cap_seconds": 360,
-   "coordination_seconds": 120,
+   "cap_seconds": 1500,
+   "proof_cap_seconds": 720,
+   "source_trace_cap_seconds": 300,
+   "review_cap_seconds": 300,
+   "coordination_seconds": 60,
    "reserve_seconds": 120,
-   "charged_seconds": 1080,
-   "active_authors": 1,
-   "status": "Astra 660/840; source trace 150/360; compiler+delta 120s, spec 60s, architect 90s; all three reviews complete, no open findings; parent gates OPEN."
+   "charged_seconds": 0,
+   "active_authors": 0,
+   "status": "Contract frozen and pushed; proof lane starts first, runtime source trace only after proof STOP; reviews sequential after both freeze."
   },
   "lanes": {
    "proof": {
-    "owner": "/root/receive_role_indexed_inlet_introduction",
-    "state": "FROZEN",
+    "owner": "/root/receive_sat_admission_comparison",
+    "state": "READY",
     "outputs": [
-     "notes/design/2026-10-17-receive-role-indexed-inlet-introduction.md",
-     "tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md"
+     "notes/theory/2026-10-17-receive-sat-admission-comparison.md",
+     "tasks/agent-loop/inbox/20261017-receive-sat-admission-comparison.md"
     ],
-    "cap_seconds": 840,
-    "receipt": "STOP 2026-10-17 02:21:21 UTC; ACTIVE-WORK 02:10:56; 625s elapsed, conservative charge 660/840, 180 retired; artifact 7716a71d6bf6f5212bd455e1a3959569748e558238d0a164649ec1c57d92b72c; handoff 70dc1e462150474fa7f404bb4aa9aa844825b77b985e9187fa80d74ac4f97138; SAT2 equality both directions and RG2 embedding OPEN; observed model/effort UNKNOWN; no descendants/writes."
+    "cap_seconds": 720,
+    "receipt": "Exact paths reserved; launch only after contract commit/push; Astra active-work and dependency-hash revalidation required."
    },
-   "source_trace": {
+   "runtime_source": {
     "owner": "/root (Luna/high)",
-    "state": "REVISION-2-DELTA-REVIEW",
+    "state": "WAITING_FOR_PROOF_STOP",
     "outputs": [
-     "notes/theory/2026-10-17-value-entry-formal-provenance-through-local-use.md",
-     "tasks/agent-loop/inbox/20261017-value-entry-formal-provenance-through-local-use.md"
+     "notes/theory/2026-10-17-hir-owned-runtime-entry-correspondence.md",
+     "tasks/agent-loop/inbox/20261017-hir-owned-runtime-entry-correspondence.md"
     ],
-    "cap_seconds": 360,
-    "receipt": "Revision 1 source trace 85d489... reviewed; compiler_referee minor: selected named formal producer was mislocated at inline-Lambda path. Luna acknowledged and corrected named IdentifierPattern source/owner at local_source.rs:1285-1312 and Lambda wrapping at :651-690. Revision 2 artifact 76855d9330a9b5404dfa83bffc4c033dea4c40763b8104bda04849474278deec; handoff rev2 a0ace650412579127e2a210b6fba5b22603d0f9e3818564ef3240fd605eba3d0. Delta review pending."
+    "cap_seconds": 300,
+    "receipt": "Sequential read-only lane; exact paths reserved; no code lease."
    },
    "implementation": {
-    "owner": "Luna after selected source rule and source correspondence",
-    "state": "NO_SAFE_CODE_SLICE_YET",
+    "owner": "Luna after source result and separate authority",
+    "state": "NO_CODE_LEASE",
     "outputs": [],
-    "code_lease": false,
     "cap_seconds": 0,
-    "receipt": "NO_SAFE_CODE_SLICE: selected playground path has no candidate-to-runtime formal/entry evidence transport; compiler and semantic adoption remain gated."
+    "receipt": "Only narrow runtime identity correspondence authorized; compiler changes and semantic adoption remain gated."
    }
   },
   "artifacts": [
    {
-    "path": "tasks/agent-loop/sprints/receive-role-indexed-inlet-introduction-20261017.md",
-    "sha256": "c2422818a92a6666ab9672b45d4d8bf1abf069116c82d4a91228374fc07e10cc"
+    "path": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
+    "sha256": "6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878"
    },
    {
-    "path": "notes/design/2026-10-17-receive-role-indexed-inlet-introduction.md",
-    "sha256": "7716a71d6bf6f5212bd455e1a3959569748e558238d0a164649ec1c57d92b72c"
-   },
-   {
-    "path": "tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md",
-    "sha256": "70dc1e462150474fa7f404bb4aa9aa844825b77b985e9187fa80d74ac4f97138"
-   },
-   {
-    "path": "notes/theory/2026-10-17-value-entry-formal-provenance-through-local-use.md",
-    "sha256": "76855d9330a9b5404dfa83bffc4c033dea4c40763b8104bda04849474278deec"
-   },
-   {
-    "path": "tasks/agent-loop/inbox/20261017-value-entry-formal-provenance-through-local-use.md",
-    "sha256": "a0ace650412579127e2a210b6fba5b22603d0f9e3818564ef3240fd605eba3d0"
+    "path": "notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md",
+    "sha256": "e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f"
    }
   ],
   "non_goals": [
-   "adopt the candidate semantic rule",
-   "infer Pure/Handler or ValueEntry/Computation from Unit or shape",
-   "construct complete arbitrary R/IF or prove joint DescMem",
-   "restrict original alpha/provider/context/world/future domains",
-   "compiler edits, tests, builds, probes, execution or expected-output changes",
-   "source T, anchored native MODEL, production/principality/cutover or parent closure"
+   "adopt SAT as original inlet",
+   "restrict original provider/context/world/future/observation domains",
+   "infer Pure/Handler from Value/Computation, Unit or shape",
+   "construct complete RG2/R/IF or arbitrary joint descriptor embedding",
+   "compiler edits/tests/builds/probes/execution/expected-output changes",
+   "source T, anchored MODEL, production/principality/cutover or parent closure"
   ],
-  "next_boundary": "Astra freezes the first-clause candidate and preservation attempt; then Luna begins the disjoint read-only source identity trace.",
+  "next_boundary": "Astra freezes original-source SAT comparison; then Luna begins the disjoint HIR/runtime identity trace.",
   "workers": [
    {
     "id": "/root/resident_dispatcher_loop_a",
@@ -128,33 +115,33 @@
     "receipt": "Historical identity/cessation unknown; reservation retained."
    },
    {
-    "id": "/root/receive_role_indexed_inlet_introduction",
-    "role": "bounded Astra source-rule and preservation author",
-    "state": "STOPPED",
-    "requested_model": "gpt-6-astra",
-    "requested_effort": "medium",
-    "observed_model": "UNKNOWN",
-    "observed_effort": "UNKNOWN",
-    "session": "current-session",
-    "receipt": "STOP 2026-10-17 02:21:21 UTC; exact proof outputs frozen; 625s elapsed, charge660; no descendants or writes."
-   },
-   {
     "id": "/root",
-    "role": "Luna primary and sole integrator; source-correspondence author",
-    "state": "STOPPED",
+    "role": "Luna primary; contract/award and sole Git integrator",
+    "state": "RUNNING",
     "requested_model": "gpt-6-luna",
     "requested_effort": "high",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "Luna source trace STOP/freeze 2026-10-17 02:24:03 UTC; 136s elapsed, conservative charge 150/360; outputs frozen; no descendants or writes."
+    "receipt": "Selector proposal validated; new contract/archive prepared; proof lane awaits contract checkpoint; no child launched yet."
+   },
+   {
+    "id": "/root/receive_sat_admission_comparison",
+    "role": "Astra prover assigned original inlet/SAT comparison",
+    "state": "NOT_STARTED",
+    "requested_model": "gpt-6-astra",
+    "requested_effort": "medium",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": null,
+    "receipt": "Exact two output paths leased; launch pending contract checkpoint; do not infer runtime from planned assignment."
    }
   ]
  },
- "candidate": "tasks/agent-loop/sprints/receive-role-indexed-inlet-introduction-20261017.md",
- "baseline": "b89ed524fd7b2bbd3d69bb9c997b5bd8132fdf49",
- "scope": "Concrete first local inlet/role introduction plus selected-source formal identity correspondence; semantic adoption and code remain gated.",
- "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. Astra author STOPPED with frozen proof; Luna actively holds the disjoint source-trace outputs.",
+ "candidate": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
+ "baseline": "14a830e6f",
+ "scope": "Original c2 admission comparison and selected HIR-owned runtime entry correspondence; no compiler code or semantic adoption.",
+ "worker_inventory_scope": "Three inherited UNKNOWN reservations/quarantined leases retained. No child worker started for this sprint yet.",
  "workers": [
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -190,59 +177,26 @@
    "receipt": "Historical identity/cessation unknown; reservation retained."
   },
   {
-   "id": "/root/receive_role_indexed_inlet_introduction",
-   "role": "bounded Astra source-rule and preservation author",
-   "state": "STOPPED",
-   "requested_model": "gpt-6-astra",
-   "requested_effort": "medium",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "receipt": "STOP 2026-10-17 02:21:21 UTC; exact proof outputs frozen; 625s elapsed, charge660; no descendants or writes."
-  },
-  {
    "id": "/root",
-   "role": "Luna primary and sole integrator; source-correspondence author",
+   "role": "Luna primary and sole integrator",
    "state": "RUNNING",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Luna source trace active 2026-10-17 02:21:47 UTC after all direct/inherited pins matched; 360s cap; read-only only."
+   "receipt": "New sprint contract and review archive staged for exact checkpoint; no child launched yet."
   },
   {
-   "id": "/root/role_inlet_compiler_review",
-   "role": "fresh compiler_referee for frozen inlet/source-trace bundle",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
+   "id": "/root/receive_sat_admission_comparison",
+   "role": "Astra prover assigned original inlet/SAT comparison",
+   "state": "NOT_STARTED",
+   "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "receipt": "Revision 1 review MINOR named-formal producer mislocator; revision 2 delta CLEAN and prior minor CLOSED. STOP 2026-10-17 02:27:53 UTC; conservative cumulative review charge 120s; hashes verified; no writes/descendants."
-  },
-  {
-   "id": "/root/role_inlet_spec_review",
-   "role": "fresh spec_auditor for frozen inlet/source-trace bundle",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "low",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "receipt": "Fresh spec_auditor CLEAN, no blocking/major/minor findings; STOP 2026-10-17 02:28:34 UTC; 41s elapsed, conservative 60s charge; exact hashes verified; read-only."
-  },
-  {
-   "id": "/root/role_inlet_arch_review",
-   "role": "fresh architect for frozen inlet/source-trace bundle",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "medium",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "session": "current-session",
-   "receipt": "Architect review CLEAN within inspected scope; STOP 2026-10-17 02:29:44 UTC; 70s elapsed, conservative 90s charge; exact artifact/pin hashes matched; read-only, no descendants."
+   "session": null,
+   "receipt": "Exact two output paths leased; launch pending contract checkpoint; do not infer runtime from planned assignment."
   }
  ],
  "leases": [
@@ -257,34 +211,36 @@
    "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/sprints/receive-role-indexed-inlet-introduction-20261017.md",
+   "path": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
    "owner": "/root",
    "state": "FROZEN",
-   "sha256": "c2422818a92a6666ab9672b45d4d8bf1abf069116c82d4a91228374fc07e10cc"
+   "sha256": "6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878"
   },
   {
-   "path": "notes/design/2026-10-17-receive-role-indexed-inlet-introduction.md",
-   "owner": "/root/receive_role_indexed_inlet_introduction",
-   "state": "FROZEN",
-   "sha256": "7716a71d6bf6f5212bd455e1a3959569748e558238d0a164649ec1c57d92b72c"
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md",
-   "owner": "/root/receive_role_indexed_inlet_introduction",
-   "state": "FROZEN",
-   "sha256": "70dc1e462150474fa7f404bb4aa9aa844825b77b985e9187fa80d74ac4f97138"
-  },
-  {
-   "path": "notes/theory/2026-10-17-value-entry-formal-provenance-through-local-use.md",
+   "path": "notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md",
    "owner": "/root",
    "state": "FROZEN",
-   "sha256": "76855d9330a9b5404dfa83bffc4c033dea4c40763b8104bda04849474278deec"
+   "sha256": "e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f"
   },
   {
-   "path": "tasks/agent-loop/inbox/20261017-value-entry-formal-provenance-through-local-use.md",
+   "path": "notes/theory/2026-10-17-receive-sat-admission-comparison.md",
+   "owner": "/root/receive_sat_admission_comparison",
+   "state": "HELD"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261017-receive-sat-admission-comparison.md",
+   "owner": "/root/receive_sat_admission_comparison",
+   "state": "HELD"
+  },
+  {
+   "path": "notes/theory/2026-10-17-hir-owned-runtime-entry-correspondence.md",
    "owner": "/root",
-   "state": "FROZEN",
-   "sha256": "a0ace650412579127e2a210b6fba5b22603d0f9e3818564ef3240fd605eba3d0"
+   "state": "HELD"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261017-hir-owned-runtime-entry-correspondence.md",
+   "owner": "/root",
+   "state": "HELD"
   }
  ],
  "pending": [
@@ -320,33 +276,38 @@
   },
   {
    "id": "F2-ROLE-INTRO-20261017",
-   "state": "IN_PROGRESS; exact introduction clause and scope/transport attempt assigned",
+   "state": "REVIEWED-PARTIAL; SAT2/RG2 and original guard ownership OPEN; no semantic adoption",
    "owner": "Astra source-rule proposal author; Luna adjudication"
   },
   {
-   "id": "INDEPENDENT-REVIEW-ROLE-INDEXED-INLET-20261017",
-   "state": "COMPLETE-CLEAN; compiler minor repaired and delta closed; spec and architect clean; Luna adjudication recorded",
-   "owner": "Luna assigns and adjudicates"
+   "id": "F2-SAT-ADMISSION-20261017",
+   "state": "READY; compare both SAT2 inclusions against original source-selected inlet; do not assume either",
+   "owner": "Astra proof lane; original inlet/source descriptor owner for missing clause"
+  },
+  {
+   "id": "HIR-RUNTIME-ENTRY-CORRESPONDENCE-20261017",
+   "state": "WAITING_FOR_PROOF_STOP; exact selected runtime-only path, read-only",
+   "owner": "Luna/HIR and playground runtime owner"
   }
  ],
  "next_action": {
-  "state": "SPRINT-END-SELECTOR-PENDING",
-  "dispatcher": "Selector recommendation accepted for a bounded exact first-clause sprint; implementation has no safe code slice pending rule/source evidence.",
-  "proof": "Unselected SAT/RG candidate and preservation attempt are reviewed-partial; SAT2 both inclusions, RG2 complete embedding, original guard ownership and arbitrary transport remain OPEN.",
-  "implementation": "Selected playground trace has no safe code slice: candidate-to-runtime formal/entry transport absent; seek source-authorized end-to-end producer/consumer path or keep WAITING."
+  "state": "READY",
+  "dispatcher": "Selector proposed admission comparison plus independent HIR-owned runtime-entry proof; Luna accepted and granted these exact sequential lanes.",
+  "proof": "Attempt both inclusions of original F2 inlet vs unselected SAT, preserving full admission/observation domains; source-qualified case or exact missing law.",
+  "implementation": "Trace whether runtime-only Value/Computation entry follows retained HIR identity through closure/capture/aliases/saved frames without candidate evidence. No code lease."
  },
  "resource_accounting": {
-  "sprint_id": "receive-role-indexed-inlet-introduction-20261017",
-  "cap_seconds": 1800,
-  "proof_cap_seconds": 840,
-  "source_trace_cap_seconds": 360,
-  "review_cap_seconds": 360,
-  "coordination_seconds": 120,
+  "sprint_id": "receive-inlet-admission-and-hir-entry-correspondence-20261017",
+  "cap_seconds": 1500,
+  "proof_cap_seconds": 720,
+  "source_trace_cap_seconds": 300,
+  "review_cap_seconds": 300,
+  "coordination_seconds": 60,
   "reserve_seconds": 120,
-  "charged_seconds": 1080,
+  "charged_seconds": 0,
   "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Author lanes STOPPED; compiler (including delta) CLEAN 120s, spec CLEAN 60s, architect CLEAN 90s; all fresh reviews complete; parent theorem and implementation gates remain OPEN; three UNKNOWN reservations retained."
+  "status": "Contract frozen; proof starts first, source trace sequential after proof STOP; reviews after both freeze."
  },
- "history": "Prior sprint b89ed524f closed REVIEWED-PARTIAL; proof-pinned proposal revision 1 preserved. Selector approved first local source-clause draft plus separate read-only runtime provenance trace. Astra froze SAT/RG candidate at 02:21:21 UTC (660/840 charged); SAT2/RG2 OPEN. Luna froze source trace 02:24:03 UTC (150/360 charged): HIR/Call formal identity retained, local fresh-use maps omit HIR provenance, playground discards CandidateInference before annotation-based runtime entry. No safe code slice. Compiler review rev1: one MINOR named-formal source locator; rev2 repaired and old bytes remain at 3b16bb603. Compiler delta CLEAN at 02:27:53 UTC (120s cumulative charge); spec review CLEAN same time window. Architect review launched 02:28:34 UTC, read-only, 120s cap. Architect review CLEAN 2026-10-17 02:29:44 UTC; all three independent reviews complete. Candidate SAT2/RG2, all original A/B and production gates stay OPEN. Sprint boundary ready for next-action selector."
+ "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f."
 }
