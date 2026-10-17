@@ -42,13 +42,13 @@
     {
       "id": "/root/npair_original_formation_compatibility",
       "role": "constructive original formation compatibility / decision",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live receipt 21:57Z: contract/all 18 pins MATCH. Original Prim/T_alpha c is still the first missing term; author is now preparing exact adoption decision analysis rather than repeating a conditional lemma. No files frozen yet; requested Sol/high, observed UNKNOWN."
+      "receipt": "FROZEN/STOPPED 22:00:55Z. Literal Old(c)/New(q) additive rule cannot close original fixed-c premise; identity-preserving original eliminator and universal consumer reflection remain. Parent0→0. Theory SHA 30e6c9604f5d848ca4998295eced4acb158844944ca77982f2e82ff9b8341672; decision SHA da4309a9e00ed136ac80ade55d7140dcd201ecd3ea8ea98bcad9649649cfa783; handoff SHA 37c0dbfff51fc5802c777acfd5464793b5c1c96169c2098de84fa039deac603e. All18 pins MATCH; static only; full600s charged; descendants0."
     },
     {
       "id": "/root/npair_original_formation_falsifier",
@@ -75,13 +75,13 @@
     {
       "id": "/root/npair_original_formation_review",
       "role": "fresh independent proof/spec review",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Sol/spec_auditor",
       "requested_effort": "high <=180s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Wait for frozen proof/decision packet and handoff."
+      "receipt": "Launched fresh independent spec review after author freeze; exact target hashes pinned in assignment; <=180s. Requested Sol/spec_auditor/high, observed UNKNOWN; no descendant; no write lease."
     },
     {
       "id": "/root/npair_exact_local_route_review",
@@ -115,6 +115,21 @@
       "path": "tasks/agent-loop/inbox/20261018-operation-original-formation-falsification.md",
       "owner": "/root/npair_original_formation_falsifier",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-operation-original-formation-compatibility.md",
+      "owner": "/root/npair_original_formation_compatibility",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/design/2026-10-18-operation-contribution-adoption-decision.md",
+      "owner": "/root/npair_original_formation_compatibility",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-operation-original-formation.md",
+      "owner": "/root/npair_original_formation_compatibility",
+      "state": "FROZEN"
     }
   ],
   "pending": [],
@@ -123,5 +138,5 @@
     "required": false,
     "receipt": "All prior sprint authors/reviewers STOPPED. New proof/implementation leases acknowledged with runtime start receipts; reviewers WAITING. No descendants or unknown live writers."
   },
-  "next_action": "Falsifier artifact frozen and hash verified; primary will commit state/artifact checkpoint. Continue proof and implementation lanes. Apply falsifier criterion to proof packet; obtain independent review of frozen proof/decision and compiler route before any commands."
+  "next_action": "Proof/decision packet frozen and assigned fresh independent review; falsifier criterion is included. Continue exact Local route implementation concurrently; do not run commands until clean review and measured verification reserve."
 }
