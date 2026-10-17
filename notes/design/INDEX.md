@@ -15,6 +15,8 @@ This index is a navigation aid. The listed source document remains authoritative
   — Reviewed source/native readiness contract; identifies missing typed source
   owners and does not authorize an implementation representation or code.
 
+- [Concrete-only negative formal-port source admission](2026-10-18-npair-source-admission-adoption.md)
+  — Adopts only the reviewed nonempty concrete-only source case; explicit rollback conditions are recorded. Source/call access still requires a real UNKNOWN-owner STOP and lease handoff.
 - [Adoption of the reviewed source-formation proposals](2026-10-17-source-formation-proposals-adoption.md)
   — Direct user adoption of the exact reviewed NPAIR and Catch source interfaces.
   Their proof obligations, including N-Transport and source-derived M_exit,

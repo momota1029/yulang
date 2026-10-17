@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-source-admission-proposal-20261018.md",
     "revision": 1,
     "sha256": "eaf10ceaf86df64c0bd2c522520b3e0b060e1cf1430b8ef6abf39440b063558c",
-    "state": "CLOSED-REVIEWED-PROPOSAL",
+    "state": "CLOSED-REVIEWED-PROPOSAL-ADOPTED",
     "baseline": "368ee4bfe",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original claims, quantifiers and source domain unchanged.",
     "fixed_outcome": "Freeze an independently reviewable proposal for the adopted nonempty concrete-only negative formal-port source-admission case, including exact source-to-FormalAnnotation evidence, falsifiers, refusals and prerequisites. Proposal only; no source read or implementation.",
@@ -41,7 +41,7 @@
         "sha256": "0d5231fffdaf001787b626eb279b1ce1182951472b88218938e2442228ec4e02"
       }
     },
-    "next_action": "Present the reviewed proposal for explicit admission approval. Keep inherited source/call quarantine until exact STOP/descendant/output/overlap-lease handoff; then issue a fresh bounded source-read lease. No further proposal sprint or code slice before those gates.",
+    "next_action": "Proposal is now Authoritative. Next evidence is source-owner STOP/descendant/output/overlap-lease handoff; then a fresh bounded source-read lease and source-to-action proof/audit. No source code until exact lease and reviewed implementation contract.",
     "closeout": {
       "path": "notes/progress/2026-10-18-npair-source-admission-proposal-closeout.md",
       "sha256": "947f4b7263c97d3d1e015ad53840230692ec00076417b4d0a99dfedf9ebcbc73",
@@ -51,9 +51,14 @@
       "path": "notes/progress/2026-10-18-npair-source-admission-dispatch.md",
       "sha256": "72eb466556e1b5759cd194c6730061909906147173fd3f3c40125d5ded380dfd",
       "recommendation": "No further proposal sprint; wait for explicit admission approval and exact owner handoff. No new workers/leases/resources."
+    },
+    "adoption": {
+      "path": "notes/design/2026-10-18-npair-source-admission-adoption.md",
+      "sha256": "fe06a42da82d9bc66da133d0266b0fa1133ffbcfb1128100377c715c0ace0d06",
+      "authority": "direct user approval after clean independent spec review; exact proposal only; source/call lease transfer still barred"
     }
   },
-  "history": "All prior sprint closeouts, proof artifacts, implementation receipts, independent reviews, runtime/check evidence and Git outcomes remain in their uniquely named frozen notes/design, notes/theory, notes/progress and tasks/agent-loop inbox artifacts; Git history preserves associated source commits. No historical worker or lease is live. Highlights: earlier HIR/source mapping and module work closed REVIEWED-PARTIAL with original theorem gates still open; Return-prefix transport ended at a typed-prefix-package obstruction; adopted NPAIR is now receiving its first integrated native producer proof/test. Astra default remains 0. Consult each archived artifact for exact evidence and limits. Latest closeout: notes/progress/2026-10-18-npair-native-introduction-correspondence-closeout.md SHA-256 7bee0f6ff2b0e6f8d3db3df6dde3240ae801551e5b8f88a5d9fcbd1886547cf4; original parent closure0, bounded local producer condition1. ",
+  "history": "All prior sprint closeouts, proof artifacts, implementation receipts, independent reviews, runtime/check evidence and Git outcomes remain in their uniquely named frozen notes/design, notes/theory, notes/progress and tasks/agent-loop inbox artifacts; Git history preserves associated source commits. No inherited worker identity is present in this collaboration tree; the inherited UNKNOWN writer leases remain quarantined and are not treated as STOPPED or released. Highlights: earlier HIR/source mapping and module work closed REVIEWED-PARTIAL with original theorem gates still open; Return-prefix transport ended at a typed-prefix-package obstruction; adopted NPAIR is now receiving its first integrated native producer proof/test. Astra default remains 0. Consult each archived artifact for exact evidence and limits. Latest closeout: notes/progress/2026-10-18-npair-native-introduction-correspondence-closeout.md SHA-256 7bee0f6ff2b0e6f8d3db3df6dde3240ae801551e5b8f88a5d9fcbd1886547cf4; original parent closure0, bounded local producer condition1. ",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN.",
   "workers": [
     {
@@ -198,12 +203,17 @@
       "path": "notes/progress/2026-10-18-npair-source-admission-proposal-closeout.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/design/2026-10-18-npair-source-admission-adoption.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
-      "id": "NPAIR-SOURCE-ADMISSION-AUTHORIZATION",
-      "state": "WAITING explicit admission approval plus verified exact STOP, descendant/generated-output and overlapping-lease handoff for inherited UNKNOWN owners. Source/call remain quarantined; parent closure0."
+      "id": "NPAIR-SOURCE-ADMISSION-SOURCE-AUDIT",
+      "state": "ADOPTED source case; WAITING exact STOP/writes-stopped evidence and descendant/generated-output/overlapping-lease accounting for inherited UNKNOWN owners. Do not read/write quarantined source/call."
     }
   ]
 }
