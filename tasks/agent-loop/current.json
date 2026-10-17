@@ -20,13 +20,18 @@
       "dependency_map": {
         "owner": "/root/task_decomposer",
         "role": "task_decomposer",
-        "state": "ASSIGNED",
+        "state": "FROZEN-STOPPED",
         "cap_seconds": 180,
         "outputs": [
           "notes/progress/2026-10-17-original-goal-minimal-cut.md",
           "tasks/agent-loop/inbox/20261017-original-goal-minimal-cut.md"
         ],
-        "write_authority": "Read-only worker reports; Luna writes frozen artifacts."
+        "write_authority": "Read-only worker reports; Luna writes frozen artifacts.",
+        "sha256": [
+          "ee28746816f843e9e5729a879492c7b7415dcbf6a85d96e81f3eee439f5dcb8c",
+          "fa242aa25fcbcfccc49bc58dac17fa541e4088ac91eea693f12dbb68100ab2bd"
+        ],
+        "actual_worker": "/root/original_goal_minimal_cut_map"
       },
       "proof": {
         "owner": "/root",
@@ -67,12 +72,12 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 0,
-      "available_seconds": 2400,
-      "active_authors": 1,
+      "charged_seconds": 180,
+      "available_seconds": 2220,
+      "active_authors": 0,
       "active_reviewers": 0,
       "unknown_reservations_preserved": 3,
-      "status": "Dependency mapper RUNNING under actual current-session launch; remaining lanes not admitted."
+      "status": "Dependency map frozen; proof/implementation admission seam awaits selector delta."
     },
     "workers": [
       {
@@ -106,15 +111,15 @@
       {
         "id": "/root/original_goal_minimal_cut_map",
         "role": "task_decomposer",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "session": "current-session",
         "requested_model": "UNKNOWN",
         "requested_effort": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "charged_seconds": 0,
+        "charged_seconds": 180,
         "cap_seconds": 180,
-        "receipt": "Actual launch acknowledged by collaboration runtime; read-only dependency map; no write lease."
+        "receipt": "Read-only dependency DAG frozen; all 27 pins matched per worker; no writes or descendants."
       }
     ],
     "leases": [
@@ -151,12 +156,12 @@
       {
         "path": "notes/progress/2026-10-17-original-goal-minimal-cut.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-original-goal-minimal-cut.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -206,7 +211,7 @@
         "owner": "Luna/Astra"
       }
     ],
-    "next_action": "Receive dependency map, reconcile pins, freeze exact cut and decide if semantic authority suffices.",
+    "next_action": "Selector: admit one proof-resolvable same-witness native consumer cut after adding exact occurrence-rule and implementation-owner pins; decide whether independent accepted-source vertical can proceed alongside it. No semantic adoption.",
     "closeout_fields": [
       "original unresolved premises genuinely discharged",
       "new implementation/test behavior established",
