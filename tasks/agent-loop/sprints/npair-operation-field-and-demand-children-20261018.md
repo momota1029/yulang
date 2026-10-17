@@ -1,6 +1,6 @@
 # Sprint `npair-operation-field-and-demand-children-20261018`
 
-Status: ACTIVE after closeout of
+Status: ACTIVE revision 2 after closeout of
 `npair-s1-contribution-incidence-20261018`. Branch
 `research/simple-sub-intrusion`; frozen baseline
 `e5fa371ad5c9b941db45dcb55010759e17682e56`. Parent
@@ -115,3 +115,35 @@ workers retain or quarantine their exact leases until Luna reconciles cessation.
 
 At closeout report original conditions closed, actual compiler behavior and
 tests (or explicitly none), and the next single missing original premise.
+
+## Revision 2 continuation envelope
+
+Reason: revision 1's 1200-second allocation is fully charged. Its one allowed
+Cargo command was consumed and exited 101 before runtime output; the author then
+made compiler-diagnostic-only edits, stopped, and restored the fixture. The
+proof author froze its candidate and stopped within its 450-second reservation.
+No old measured remainder rolls over. The original theorem, source domain,
+quantifiers, receive route, C1/C2 and F1/FK1 remain unchanged; closure remains 0.
+
+The source proof candidate is frozen for fresh independent review; this is a
+review of a proposed rule, not adoption or original-theorem closure. The query
+continuation receives a fresh, separate 360-second Luna/high assignment over
+the same example and fixture paths after the previous writer's cessation was
+confirmed. It may make only the exact source-query corrections needed to use
+the existing typed native-demand child accessors and source/operand/scope
+checks. It must not change compiler APIs, source semantics, expected outputs,
+or infer Replay linkage. Freeze the exact corrected query and all direct input
+hashes; only after fresh independent CLEAN review and a measured remaining
+receipt of at least 120 seconds may it run the same Cargo command once. This is
+one new attempt; compile failure consumes it. Fixture must be restored exactly.
+
+Additional continuation envelope: 900 seconds, all new and separately charged:
+implementation360, fresh compiler review150, fresh proof/spec review150,
+Luna primary120, reserve120. Astra0; descendants0. No rollover beyond this
+envelope. Fresh source-query review must include all modified code bytes and the
+contract. Fresh proof/spec review must cover BR-OpWritten-1, its R/W/Z cases,
+identity/provider falsifier and compatibility boundary. If it finds no valid
+original-source derivation, the result remains an unadopted proposal and the
+first missing constructor stays named; no assertion that proposal alone
+advances the parent. Resource or runtime UNKNOWN forbids execution. End at the
+first material result or cap boundary and report parent closure honestly.
