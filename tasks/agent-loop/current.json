@@ -19,9 +19,9 @@
     },
     "resources": {
       "cap_seconds": 2100,
-      "charged_seconds": 1428,
-      "available_seconds": 672,
-      "allocation": "Rev3: implementation cap1530 (973 consumed;557 remaining = test repair/freeze/review105 + protected verification360 + evidence/handoff92); Sol proof300 consumed; compiler review155/240 consumed, max60s delta; primary30 remaining; contingency0. Total2100, current charge1428, available672. Astra0; no new workers/descendants/rollover."
+      "charged_seconds": 1548,
+      "available_seconds": 552,
+      "allocation": "Rev3: implementation cap1530 (1078 consumed;452 remaining = protected verification360 + evidence/handoff92); Sol proof300 consumed; compiler review170/240 consumed,70s remains; primary30 remaining; contingency0. Total2100, current charge1548, available552. Astra0; no new workers/descendants/rollover."
     },
       "next_action": "Rev3 accepted after dispatcher: reopen only candidate_graph_call.rs and runtime receipt paths. Add LocalSource-enabled helper to the three new tests; preserve existing helper/tests and assertion strength. Fresh review <=60s, then retry focused command once; fixture only on success. Parent OPEN/closure0."
   },
@@ -53,24 +53,24 @@
     {
       "id": "/root/npair_local_route_authentication_implementation",
       "role": "integrated final-auth route repair, tests and runtime",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna/implementer",
-      "requested_effort": "high <=1530s total; rev3 test/freeze/review105s, verification360s, evidence92s",
+      "requested_effort": "high <=1530s total; rev3 test delta hard cap105s consumed, verification360s, evidence92s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev3 active after dispatcher. Only candidate_graph_call.rs and runtime note/inbox reopen. Previous exact test helper lacks LocalSource lowering; new three tests should use lower_module_with_local_source while preserving legacy helper/tests. Production source/example/fixture/proof frozen. Prior rev2 retry failure recorded (2 existing pass,3 new fail), fixture not run. Implementation973/1530 charged; 557 remains incl test105, verification360 and evidence92."
+      "receipt": "Rev3 author STOPPED after test-only delta; candidate_graph_call.rs SHA21c555b57a8684c9f8971e9180ac0ee732dc7a82834db606241653869987f55b; runtime note SHA446200e400434368176e1bc987dc1a50b58bd1ee8368cbe3c627872bfc7140cb; inbox SHA2c8b75839c633c0ec976a536cfd84d4adab9b6532477a409dbe55a7c02f1892e. Three new tests use lower_module_with_local_source, assert syntax diagnostics empty and expected structural recoveries; legacy helper/tests untouched. Notes preserve rev2 outcome. No commands; descendants0. Full105s charged; author reported cap may be exceeded. Implementation1078/1530; verification360/evidence92 protected."
     },
     {
       "id": "/root/npair_local_route_authentication_review",
       "role": "fresh independent compiler review",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "Sol/compiler_referee",
-      "requested_effort": "high <=240s total;155s charged, rev3 test delta <=60s",
+      "requested_effort": "high <=240s total;170s charged, rev3 CLEAN;70s remains",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev1 and rev2 source/test/compiler review CLEAN; cumulative155/240s charged, STOPPED, no commands. Rev3 waits for test harness/evidence freeze; review only the exact LocalSource setup delta within60s."
+      "receipt": "Rev3 test-only delta CLEAN; total review charge170/240s, STOPPED, no commands. LocalSource lowering helper preserves legacy tests and all new structural/apply/cap assertions. All changed test/evidence hashes MATCH. Runtime success remains unverified."
     }
   ],
   "leases": [
@@ -122,7 +122,7 @@
     {
       "path": "crates/yu-solver/src/tests/candidate_graph_call.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
@@ -132,12 +132,12 @@
     {
       "path": "notes/progress/2026-10-18-local-route-runtime-validation.md",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-local-route-runtime-validation.md",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [],
@@ -146,5 +146,5 @@
     "required": false,
     "receipt": "All prior proof, implementation and review workers STOPPED; all prior exact leases FROZEN. Successor starts from clean restored baseline; no overlapping writers or rollover."
   },
-  "next_action": "Rev3 focused test-only repair active: new three tests switch to LocalSource lowering helper; production source remains frozen. Preserve rev1 compile exit101 and rev2 2/5 pass + 3/5 fail. Review <=60s, then one retry command and fixture only on success. Implementation973/1530, remaining557=repair105+verification360+evidence92; reviewer155/240, primary30, contingency0. Parent OPEN/closure0."
+  "next_action": "Rev3 exact test/evidence snapshot CLEAN. Remeasure capacity>=120s and rerun focused regression once. If it passes, remeasure and run original fixture once; otherwise stop. Implementation1078/1530 with verification360+evidence92 protected; reviewer170/240; primary30; contingency0. Parent OPEN/closure0."
 }
