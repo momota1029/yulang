@@ -4,28 +4,33 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "choice-a-group-root-ownership-repair-20261017",
-    "contract": "tasks/agent-loop/sprints/choice-a-group-root-ownership-repair-20261017.md",
+    "id": "ordinary-hir-application-admission-implementation-20261017",
+    "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
     "revision": 1,
-    "sha256": "21f4e33adebb4e92894bfe5fbc96eb96dac49135bbb06f65c18d0211991c332e",
-    "state": "REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL",
-    "baseline": "a640dd909132b2be1d1bbbe35a4249e16642b84b",
-    "parent": "Original inference/execution goal; all theorem gates and quantifiers remain OPEN.",
-    "fixed_outcome": "Unify preserved body-root occurrence ownership across Atom, Apply and retained Group; prove static Group source-key availability; fresh bounded reviews. Proposal only.",
-    "proof_artifact": "notes/theory/2026-10-17-choice-a-call-cst-source-key-audit.md",
+    "sha256": "a9220bc8dab9019a3b8d362ea6ed447cdbc0e70373f2b10845e6b02b8d8cc496",
+    "state": "PROOF-LANE-READY",
+    "baseline": "5fbceb68d",
+    "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
+    "fixed_outcome": "Implement adopted rev4 structural HIR admission and prove projection preservation through ordinary HIR. Apply only to the exact structural premise of the original Call/source bridge; no semantic Call or parent theorem closure.",
+    "proof_artifact": "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
+    "adoption_receipt": "notes/progress/2026-10-17-ordinary-hir-application-admission-adoption.md",
+    "adoption_receipt_sha256": "6d28dc76e321ce63588aab74d74caa6d9eb2655b2d11eb43ca700ba19edfe970",
     "design_artifact": "notes/design/2026-10-17-ordinary-hir-application-admission-successor.md",
+    "design_sha256": "2e61e2acb1a8981bb78592accc48207a24a5cc4c75278e100f63eb960acfeea3",
     "result": {
       "original_conditions_closed": 0,
       "behavior_executed": false,
-      "proof_class": "Bounded pinned-source Group-key derivation, independently reviewed CLEAN; no parser-wide or parent-theorem claim.",
-      "HIR_APP_CST_1": "LOCALLY RESOLVED within pinned fixed-source scope: fresh compiler review confirms source_keys includes parse-owned nodes and the ParenthesizedExpression key is checked and retained for Group; no parser-wide theorem claim.",
-      "HIR_APP_ADMISSION_1": "OPEN; rev4 contract is reviewed CLEAN, but explicit user adoption is required before code/tests. Direction A selected the target, not these detailed consequences."
+      "proof_class": "Not started; bounded structural projection theorem under adopted rev4 contract.",
+      "implementation_class": "Not started; ordinary lowering and fixed-source vertical required.",
+      "HIR_APP_CST_1": "LOCALLY RESOLVED within pinned fixed-source scope; no parser-wide claim.",
+      "HIR_APP_ADMISSION_1": "ADOPTED; implementation and proof active under exact rev4 contract.",
+      "parent_application": "Still to be derived by Astra from the actual original Call/source bridge; no Call typing, source T or adequacy inferred."
     },
     "resources": {
-      "cap_seconds": 480,
-      "charged_seconds": 390,
-      "available_seconds": 0,
-      "allocation": "Luna90, selector/coordination60, spec60, compiler90 and architect90 charged; unused reserve90 retired."
+      "cap_seconds": 4020,
+      "charged_seconds": 120,
+      "available_seconds": 3900,
+      "allocation": "Coordination120 charged; Astra720; proof reviews300; Luna/high implementation1800; applied reviews480; regression pre/post reviews240; two sequential Cargo invocations240; reserve120."
     },
     "workers": [
       {
@@ -47,99 +52,88 @@
         "receipt": "legacy lease remains quarantined; no cessation evidence."
       },
       {
-        "id": "/root",
-        "role": "Luna primary contract author and static Group-key investigator",
-        "state": "STOPPED",
-        "requested_model": "UNKNOWN",
-        "observed_model": "UNKNOWN",
-        "cap_seconds": 90,
-        "charged_seconds": 90,
-        "active_receipt": "Admitted deterministic Atom/Apply/Group root ownership packet; tracing pinned source_keys and ParenthesizedExpression key path.",
-        "remaining_seconds": 0,
-        "receipt": "Successor revision4 and static Group key trace frozen; exact author duration UNKNOWN, full90 conservatively charged; no code/tests."
-      },
-      {
-        "id": "/root/accepted_call_hir_admission_spec_review",
-        "role": "spec_auditor",
-        "state": "STOPPED",
-        "cap_seconds": 60,
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "low",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 60,
-        "receipt": "Fresh spec delta rev4 CLEAN; root Atom/Apply/Group, no-elision distinction, scoped Group key and supersessions consistent; pins matched; STOPPED."
-      },
-      {
-        "id": "/root/accepted_call_hir_projection_compiler_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
-        "cap_seconds": 90,
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 90,
-        "receipt": "Fresh compiler delta rev4 CLEAN; Group key and root mapping verified within scope; prior source-audit limits preserved; pins matched; STOPPED."
-      },
-      {
-        "id": "/root/accepted_call_hir_admission_architect_review",
-        "role": "architect",
-        "state": "STOPPED",
-        "cap_seconds": 90,
-        "requested_model": "gpt-6.1-sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "charged_seconds": 90,
-        "receipt": "Fresh architect delta rev4 CLEAN; checked pinned source, exact Group key path, occurrence staging, post-carrier finalization and adoption boundary; all pins matched; STOPPED."
-      },
-      {
         "id": "/root/next_action_selector",
         "role": "next_action_selector",
         "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "charged_seconds": 60,
-        "receipt": "Sprint-end dispatch: close REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL; no more authors/reviewers. Freeze rev4 hashes, commit/push state and closeout, preserve UNKNOWN quarantines; no code/test lease until exact user approval."
+        "receipt": "Confirmed corrected 4020s envelope after reconciling distinct proof and applied review seams; no overlap, preserve quarantine."
+      },
+      {
+        "id": "/root/astra_accepted_call_hir_projection",
+        "role": "astra_prover",
+        "state": "NOT_STARTED",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "cap_seconds": 720,
+        "lease_paths": [
+          "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
+          "tasks/agent-loop/inbox/20261017-ordinary-hir-call-projection-preservation.md"
+        ]
       }
     ],
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/choice-a-group-root-ownership-repair-20261017.md",
-        "owner": "/root",
-        "state": "CLOSED-REVIEWED-REV1"
-      },
-      {
-        "path": "tasks/agent-loop/sprints/20261017-choice-a-root-source-key-contract-repair-closeout.md",
-        "owner": "/root",
-        "state": "CLOSED-REVIEWED-PARTIAL"
-      },
-      {
-        "path": "notes/design/2026-10-17-ordinary-hir-application-admission-successor.md",
-        "owner": "/root",
-        "state": "FROZEN-REV4"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-application-admission-successor.md",
-        "owner": "/root",
-        "state": "FROZEN-REV4"
-      },
-      {
-        "path": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
+        "path": "notes/progress/2026-10-17-ordinary-hir-application-admission-adoption.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
+        "owner": "/root",
+        "state": "FROZEN-REV1"
+      },
+      {
+        "path": "notes/theory/2026-10-17-ordinary-hir-call-projection-preservation.md",
+        "owner": "/root/astra_accepted_call_hir_projection",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-call-projection-preservation.md",
+        "owner": "/root/astra_accepted_call_hir_projection",
+        "state": "HELD"
+      },
+      {
+        "path": "crates/yu-hir/src/module.rs",
+        "owner": "Luna/high after proof review",
+        "state": "RESERVED-SEQUENTIAL"
+      },
+      {
+        "path": "crates/yu-hir/src/source_identity.rs",
+        "owner": "Luna/high after proof review",
+        "state": "RESERVED-SEQUENTIAL"
+      },
+      {
+        "path": "crates/yu-hir/src/shadow.rs",
+        "owner": "Luna/high after proof review",
+        "state": "RESERVED-SEQUENTIAL"
+      },
+      {
+        "path": "crates/yu-hir/tests/ordinary_application_admission.rs",
+        "owner": "Luna/high after proof review",
+        "state": "RESERVED-SEQUENTIAL"
+      },
+      {
+        "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
+        "owner": "Luna/high after proof review",
+        "state": "RESERVED-SEQUENTIAL"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-application-implementation.md",
+        "owner": "Luna/high after proof review",
+        "state": "RESERVED-SEQUENTIAL"
       }
     ],
     "pending": [
       {
         "id": "HIR-APP-CST-1",
-        "state": "CANDIDATE pending compiler review",
+        "state": "LOCALLY RESOLVED within fixed-source pinned scope; no parser-wide theorem claim.",
         "owner": "compiler referee"
       },
       {
         "id": "HIR-APP-ADMISSION-1",
-        "state": "OPEN; formalize root mapping by retained Atom/Apply/Group constructor; final approval pending",
+        "state": "ADOPTED rev4; proof and implementation active; no semantic Call conclusion.",
         "owner": "Luna then reviewers then user"
       },
       {
@@ -183,14 +177,10 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Await explicit user approval of exact rev4 contract and its §7 supersessions and downstream numerical Error/Diagnostic ID shifts. After approval, consult selector at the authority boundary and open a fresh proof-backed implementation/regression sprint with exact leases.",
-    "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-root-source-key-contract-repair-closeout.md",
-    "source_sha256": "e8a320be0e78ecc2c5ee5210338476740c03a1fae61fb2747ec39636286ad501",
-    "predecessor_design_sha256": "ae572403ec4e36c56f034135f9e223e93dc9f0bad5c01fbed1d368048713eb2a",
-    "predecessor_handoff_sha256": "f2eff28c5087f406332e284290f0c651527caf2d607dc310ee89c3da3ff1e4c5",
-    "design_sha256": "2e61e2acb1a8981bb78592accc48207a24a5cc4c75278e100f63eb960acfeea3",
-    "design_handoff_sha256": "22d681495c339d9635f8d86f9fe14809304ab56044a373ce607279035fbbfbfa"
+    "next_action": "Launch bounded Astra proof assignment after contract checkpoint; freeze and independently review proof before Luna starts implementation. Next dispatcher boundary: proof counterexample, dependency/lease change, integrated review seam or sprint end.",
+    "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
+    "predecessor_commit": "5fbceb68d"
   },
-  "history": "Prior accepted-call vertical and HIR directional proposal closed without parent theorem closure; see frozen closeouts. Group-root ownership repair is reviewed CLEAN and awaits exact user adoption; no code/test authority opened.",
-  "quarantine_note": "Three inherited UNKNOWN assignments and legacy board lease remain quarantined. Direction A permits a reviewed proposal only; no code/test leases before exact user approval."
+  "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts.",
+  "quarantine_note": "Three inherited UNKNOWN assignments and their leases remain quarantined. No overlapping authors; two review/integration slots reserved. No production promotion follows structural HIR admission."
 }
