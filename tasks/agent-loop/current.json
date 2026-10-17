@@ -4,28 +4,28 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-operation-self-source-realization-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-operation-self-source-realization-20261018.md",
+    "id": "npair-actual-argument-ingress-20261018",
+    "contract": "tasks/agent-loop/sprints/npair-actual-argument-ingress-20261018.md",
     "revision": 1,
-    "sha256": "66df3255cc83d18009238dc4e7e18ff4963003ebc8beb6f489f526de1f8fba19",
+    "sha256": "c0754dc6de94c15e923ce24cc58b8208d0934dcf7bc92abcae34589185ec9d32",
     "state": "ACTIVE",
     "baseline": "b3a9b1739b59d8c7991b5f798e98f71f96904b19",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem/source domain/quantifiers unchanged; closure0.",
-    "fixed_outcome": "Apply adopted working C-OpFields Self contribution at an authentic accepted Operation source use and trace its native emission to formal Permission; produce either a reviewed parent-applicable lemma or reviewed executable private evidence.",
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, source domain, quantifiers, receive route and C1/C2 unchanged; closure0.",
+    "fixed_outcome": "Trace actual f0 Apply to receive formal, same returned R1 through Install(g)/FreshUse/g(), and its written s1 field to D through real comparisons and ordered Replay; one reversible fixture call added and one existing harness command run.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "prior_closeout": "notes/progress/2026-10-18-npair-operation-contract-and-lexer-closeout.md#sha256:a0a57d982567c4cb96de16c2c691c9da8bae3626d55729d488966c6409912c51"
+      "prior_closeout": "notes/progress/2026-10-18-npair-operation-self-source-realization-closeout.md#sha256:886af9097fafe0bab83e1e87f9382750f0e12d1de9d5490e0dc9b93ae2171add"
     },
     "resources": {
-      "cap_seconds": 2400,
-      "charged_seconds": 1860,
-      "available_seconds": 540,
-      "allocation": "proof600 (frozen), implementation720 (frozen NO_SAFE_EVIDENCE_SLICE), implementation/compiler review180 CLEAN, proof/source review180 (active), Luna180+reserve540 remaining; Astra0."
+      "cap_seconds": 1800,
+      "charged_seconds": 180,
+      "available_seconds": 1620,
+      "allocation": "proof600, implementation720 incl one focused cargo run, independent reviews300, Luna180 charged; Astra0, descendants0."
     },
-    "next_action": "Receive fresh proof/source review; then adjudicate root-descriptor result and open original H0/L2 field action. Dispatcher identifies next actual argument-ingress owners for a successor contract."
+    "next_action": "After checkpoint push, launch one Sol constructive source proof lane and one Luna fixture/source lane under exact leases; fresh proof/spec and implementation/compiler reviews after freeze; parent closure starts0."
   },
-  "history": "Closed npair-operation-contract-and-lexer-identity-20261018: parent closure0; candidate C1/C2 adopted as a working interpretation under user authorization, but universal compatibility is unproved. Lexer identity remains conditional with two minor findings, excluded from successor premises. Full receipts in closeout. Successor sprint contract committed and pushed as 8732e2326; proof and implementation lanes actually launched, 1320s reserved/charged.",
+  "history": "Closed npair-operation-self-source-realization-20261018: reviewed C1/C2 descriptor intro/elimination and root address; original conditions0, H0/L2 eta remain OPEN. Implementation NO_SAFE_EVIDENCE_SLICE CLEAN: no f0→receive edge or Permission consumer. Full detail in closeout.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
   "workers": [
     {
@@ -37,93 +37,102 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Previous sprint closed with all authors/reviewers STOPPED; successor contract issued and source pins checked; two exact lanes READY for launch."
+      "receipt": "Prior proof/evidence outputs STOPPED and reviewed CLEAN. Successor contract pins all source owners and authorizes one reversible call-site input plus one existing harness run; exact leases READY."
     },
     {
-      "id": "/root/npair_operation_self_source_realization",
+      "id": "/root/npair_actual_argument_ingress",
       "role": "constructive proof",
-      "state": "STOPPED",
+      "state": "NOT_STARTED",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen proof artifact cc8c96d288ae5fb548acbb8437a504ee0691e86f9f8e2915ded2e67ecbca0b85; handoff 5ba8ae33287ef3c78ffe580cb5f14732ec21cc1f7959c25855eccbebc78ac06a; descriptor intro/elimination plus root address; H0/L2 not instantiated; parent closure0."
+      "receipt": "Exact proof outputs and authority pins in successor contract; launch after checkpoint push."
     },
     {
-      "id": "/root/npair_operation_self_source_evidence",
-      "role": "Luna implementation",
-      "state": "STOPPED",
+      "id": "/root/npair_actual_argument_source_path",
+      "role": "Luna implementation/source path",
+      "state": "NOT_STARTED",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=720s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "NO_SAFE_EVIDENCE_SLICE frozen and independently reviewed CLEAN; no source/test code change."
+      "receipt": "Six read-only compiler owners, one harness, one-line fixture write, one exact command and two output paths; launch after checkpoint push."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/npair-operation-self-source-realization-20261018.md",
+      "path": "tasks/agent-loop/sprints/npair-actual-argument-ingress-20261018.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-operation-self-source-realization.md",
-      "owner": "/root/npair_operation_self_source_realization",
+      "path": "notes/theory/2026-10-18-npair-actual-argument-ingress.md",
+      "owner": "/root/npair_actual_argument_ingress",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-actual-argument-ingress.md",
+      "owner": "/root/npair_actual_argument_ingress",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-18-npair-actual-argument-source-path.md",
+      "owner": "/root/npair_actual_argument_source_path",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-actual-argument-source-path.md",
+      "owner": "/root/npair_actual_argument_source_path",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
+      "owner": "/root/npair_actual_argument_source_path",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_source.rs",
+      "owner": "/root/npair_actual_argument_source_path",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-operation-self-source-realization.md",
-      "owner": "/root/npair_operation_self_source_realization",
+      "path": "crates/yu-solver/src/candidate_call.rs",
+      "owner": "/root/npair_actual_argument_source_path",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root/npair_actual_argument_source_path",
       "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_effect.rs",
-      "owner": "/root/npair_operation_self_source_evidence",
+      "owner": "/root/npair_actual_argument_source_path",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_context.rs",
+      "owner": "/root/npair_actual_argument_source_path",
+      "state": "FROZEN"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_extrusion.rs",
+      "owner": "/root/npair_actual_argument_source_path",
       "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
-      "owner": "/root/npair_operation_self_source_evidence",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-18-npair-operation-self-source-evidence.md",
-      "owner": "/root/npair_operation_self_source_evidence",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-npair-operation-self-source-evidence.md",
-      "owner": "/root/npair_operation_self_source_evidence",
+      "owner": "/root/npair_actual_argument_source_path",
       "state": "FROZEN"
     }
   ],
-  "pending": [
-    {
-      "id": "operation-self-source-proof-review",
-      "state": "IN_REVIEW",
-      "owner": "/root/npair_operation_self_source_proof_review",
-      "artifact_sha256": "cc8c96d288ae5fb548acbb8437a504ee0691e86f9f8e2915ded2e67ecbca0b85",
-      "handoff_sha256": "5ba8ae33287ef3c78ffe580cb5f14732ec21cc1f7959c25855eccbebc78ac06a"
-    }
-  ],
-  "ready_next_work": {
-    "id": "npair-actual-argument-ingress-20261018",
-    "dispatcher": "/root/npair_replan_dispatch",
-    "fixed_outcome": "Trace actual f0 use to receive formal, returned Function inner ResultEffect, and D negative port with same field origin; no unrelated key/Astra loop.",
-    "candidate_read_owners": [
-      "crates/yu-solver/src/candidate_source.rs",
-      "crates/yu-solver/src/candidate_call.rs",
-      "crates/yu-solver/src/candidate_scheme.rs",
-      "crates/yu-solver/src/candidate_effect.rs",
-      "crates/yu-solver/src/candidate_context.rs",
-      "crates/yu-solver/src/candidate_extrusion.rs"
-    ],
-    "status": "PROPOSED; requires exact hashes and Luna contract before any read/write."
-  },
+  "pending": [],
+  "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "All preceding candidate, lexer and review authors STOPPED; their outputs are frozen and recorded in the prior closeout."
+    "receipt": "All prior proof, implementation and review writers STOPPED; prior artifacts frozen and recorded in closeout."
   }
 }
