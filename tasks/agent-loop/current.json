@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/receive-role-indexed-inlet-introduction-20261017.md",
   "revision": 1,
   "sha256": "c2422818a92a6666ab9672b45d4d8bf1abf069116c82d4a91228374fc07e10cc",
-  "state": "READY",
+  "state": "PROOF-RUNNING",
   "baseline": "b89ed524fd7b2bbd3d69bb9c997b5bd8132fdf49",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original FORWARD-FIRST-CALL A/B and production gates OPEN.",
   "fixed_outcome": "Draft and attempt preservation of the first source-local inlet/role-entry introduction at original c2 F2/xi; separately trace selected local returned-function formal identity through capture/fresh-use to runtime Lambda entry classification. Keep rule unselected and parent gates unchanged.",
@@ -29,19 +29,19 @@
    "coordination_seconds": 120,
    "reserve_seconds": 120,
    "charged_seconds": 0,
-   "active_authors": 0,
-   "status": "Ready; authors sequential. Astra proof/definition lane first; Luna source-correspondence lane after proof freeze."
+   "active_authors": 1,
+   "status": "Astra proof/design lane RUNNING from actual current-session receipt; 840s cap; source trace waits for exact proof freeze."
   },
   "lanes": {
    "proof": {
     "owner": "/root/receive_role_indexed_inlet_introduction",
-    "state": "READY",
+    "state": "RUNNING",
     "outputs": [
      "notes/design/2026-10-17-receive-role-indexed-inlet-introduction.md",
      "tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md"
     ],
     "cap_seconds": 840,
-    "receipt": "Exact assignment paths and contract fixed; Astra launch not yet recorded."
+    "receipt": "Actual collaboration spawn accepted 2026-10-17 02:10:54 UTC; Astra role, requested medium, observed model/effort UNKNOWN; exact two leases; 840s cap; no descendants authorized."
    },
    "source_trace": {
     "owner": "/root (Luna/high)",
@@ -124,14 +124,14 @@
    },
    {
     "id": "/root/receive_role_indexed_inlet_introduction",
-    "role": "bounded Astra proof and candidate source-rule author",
-    "state": "NOT_STARTED",
+    "role": "bounded Astra source-rule and preservation author",
+    "state": "RUNNING",
     "requested_model": "gpt-6-astra",
     "requested_effort": "medium",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
-    "session": null,
-    "receipt": "Exact proof leases granted in contract; not RUNNING until actual spawn/active-work receipt."
+    "session": "current-session",
+    "receipt": "Actual spawn accepted 2026-10-17 02:10:54 UTC; exact two proof outputs; 840s cap; no descendants."
    }
   ]
  },
@@ -186,14 +186,14 @@
   },
   {
    "id": "/root/receive_role_indexed_inlet_introduction",
-   "role": "bounded Astra proof and candidate source-rule author",
-   "state": "NOT_STARTED",
+   "role": "bounded Astra source-rule and preservation author",
+   "state": "RUNNING",
    "requested_model": "gpt-6-astra",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "session": null,
-   "receipt": "Exact proof leases granted in contract; not RUNNING until actual spawn/active-work receipt."
+   "session": "current-session",
+   "receipt": "Actual spawn accepted 2026-10-17 02:10:54 UTC; exact two proof outputs; 840s cap; no descendants."
   }
  ],
  "leases": [
@@ -272,9 +272,9 @@
   }
  ],
  "next_action": {
-  "state": "SPRINT-READY",
+  "state": "PROOF-RUNNING",
   "dispatcher": "Selector recommendation accepted for a bounded exact first-clause sprint; implementation has no safe code slice pending rule/source evidence.",
-  "proof": "Construct inlet/role-entry introduction, telescope and lawful transport at original F2/xi; no opaque completed L2/F2 input.",
+  "proof": "Astra is drafting and attempting preservation of the first inlet/role-entry clause at original c2 F2/xi.",
   "implementation": "After proof freeze, inspect the selected local returned-function formal/capture/fresh-use path to runtime Lambda role; read-only correspondence only."
  },
  "resource_accounting": {
@@ -286,9 +286,9 @@
   "coordination_seconds": 120,
   "reserve_seconds": 120,
   "charged_seconds": 0,
-  "active_authors": 0,
+  "active_authors": 1,
   "unknown_reservations_preserved": 3,
-  "status": "Contract ready at baseline b89ed524f; no current-sprint author launched."
+  "status": "Astra proof lane RUNNING from actual current-session receipt; 840s cap; source trace waits for proof freeze."
  },
- "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet."
+ "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants."
 }
