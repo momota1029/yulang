@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
     "revision": 3,
     "sha256": "006ffcf86d526f6eb5f668307ab81a2ae6dda2067a547889095d74fd89b25fd2",
-    "state": "APPLIED-REVIEW",
+    "state": "APPLIED-COMPILER-REVIEW",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -104,7 +104,7 @@
       {
         "id": "/root/ordinary_hir_application_implementation",
         "role": "implementer",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6-luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
@@ -123,6 +123,21 @@
           "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md"
         ],
         "active_receipt": "Worker STOPPED and all leased outputs frozen. Handoff revision 4 SHA 2aa369b9efc59e42ee8951a1bcf2f3f28b332791a800215f052ee594362bfa37. Conservatively charged full 1110s cap (exact elapsed unknown). Post-STOP git diff --check passed. No tests/builds/compiler probes; no descendants."
+      },
+      {
+        "id": "/root/ordinary_hir_repair_applied_compiler_review",
+        "role": "compiler_referee",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "cap_seconds": 180,
+        "charged_seconds": 0,
+        "remaining_seconds": 180,
+        "session": "current-session",
+        "lease_paths": [],
+        "active_receipt": "Fresh read-only applied review spawned for frozen candidate commit 5d9ecdfff75d2b93de5b33958496ad9f82586bff, handoff 2aa369b9efc59e42ee8951a1bcf2f3f28b332791a800215f052ee594362bfa37 and exact source hashes in assignment. No edit/test/build/probe/Git/descendant authority."
       }
     ],
     "leases": [
