@@ -1,7 +1,7 @@
 # Sprint: `npair-native-introduction-correspondence-20261018`
 
 Status: READY — prove the applied concrete producer's exact N-Port-Intro correspondence
-Revision: 1
+Revision: 2
 Baseline: `a47234eae`
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`; all original source and quantifier requirements unchanged.
 
@@ -42,10 +42,12 @@ remain inherited UNKNOWN/quarantined and are outside all read/write leases.
    - `notes/design/2026-10-18-npair-native-introduction-correspondence-proposal.md`
    - `tasks/agent-loop/inbox/20261018-npair-native-introduction-correspondence-proposal.md`
    - Revalidate exact adoption, approved code scope, applied source bytes, and
-     prior implementation/compile receipts. Inspect only the pinned
-     `candidate_effect.rs` owners and named test owners inside that file.
-     Freeze a concrete constructor correspondence/test target or its exact
-     missing owner. Do not touch quarantined files or change source admission.
+     prior implementation/compile receipts. Inspect the pinned `candidate_effect.rs` owners and named test owners, plus
+     only the exact term-construction helpers in `lib.rs` and `Term`/`TermView`
+     APIs in `term.rs` needed to decide retained-row recovery. Freeze a concrete
+     constructor correspondence/test target or its exact missing owner. These
+     added owners are read-only. Do not touch quarantined files or change source
+     admission.
 
 2. **Sol/high constructive source/native proof, ≤600s / 6 stages after freeze**
    - `notes/theory/2026-10-18-npair-native-introduction-correspondence.md`
