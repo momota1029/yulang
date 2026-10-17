@@ -27,9 +27,9 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 900,
-      "available_seconds": 600,
-      "allocation": "Proof720 + compiler review180 charged; spec120 + architecture120 (new formation proposal) + Luna180 + reserve180 remain. Astra0."
+      "charged_seconds": 1020,
+      "available_seconds": 480,
+      "allocation": "Proof720 + compiler180 + spec120 charged/assigned; architecture120 if adopting/proposing Result_MI semantic case, Luna180 + reserve180 remain. Astra0."
     },
     "workers": [
       {
@@ -45,12 +45,22 @@
       {
         "id": "/root/catch_target_instantiation_compiler_review",
         "role": "compiler_referee",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "receipt": "Fresh compiler/source review of same-occurrence normalization and exact Return clause-formation obstruction; ≤180s. Read-only."
+        "receipt": "CLEAN bounded compiler/source review. Normalize and Return skeleton at u_id valid; L2/Build/§3.1 require actual law/instances but expose no full Return clause/output-port catalogue; §4.2 gives meaning only. All inputs/limits retained; no q_f/port/native/code claims. 9 pins match; full180 charged; no writes/tests/Git."
+      },
+      {
+        "id": "/root/catch_historical_operand_spec_review",
+        "role": "spec_auditor",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Fresh spec audit of same-occurrence source normalization and missing Return formation clause boundary; ≤120s. Read-only."
       }
     ],
     "leases": [
