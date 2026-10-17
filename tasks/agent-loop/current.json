@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
     "revision": 1,
     "sha256": "44a59f25404c691f3128963490327587aae9ad2f5becaa62071ecc2563badb90",
-    "state": "SOURCE-DEFINITION-RUNNING",
+    "state": "SOURCE-GATE-FAILED-STOPPED",
     "baseline": "b7bda5cbb",
     "parent": "Original FORWARD-FIRST-CALL A/B; original c2 F2/source-native formation and all parent gates remain OPEN.",
     "fixed_outcome": "Draft the owning source inference-introduction rule at original F2 that derives role/entry and whole-carrier L2 from actual declared source operands, or freeze exact missing owner/primitive. Then prove its scoped preservation and assess any concrete compiler producer fields.",
@@ -29,15 +29,15 @@
       "review_cap_seconds": 360,
       "coordination_seconds": 60,
       "reserve_seconds": 120,
-      "charged_seconds": 0,
-      "active_authors": 1,
-      "status": "Luna/high source-definition lease active; proof and reviewers wait for frozen source packet."
+      "charged_seconds": 600,
+      "active_authors": 0,
+      "status": "Source gate not passed; author stopped. 600s charged including 240s overrun of 360s lane cap. Proof/review allocations retired."
     },
     "lanes": {
       "source_definition": {
         "owner": "/root",
         "role": "Luna/high source-definition author",
-        "state": "RUNNING",
+        "state": "STOPPED-SOURCE-GATE-FAILED",
         "outputs": [
           "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
           "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-proposal.md"
@@ -47,25 +47,32 @@
         "started_at_utc": "2026-10-17 04:40:09 UTC",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN"
+        "observed_effort": "UNKNOWN",
+        "stopped_at_utc": "2026-10-17 04:50:09 UTC",
+        "charged_seconds": 600,
+        "cap_overrun_seconds": 240,
+        "output_hashes": [
+          "263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27",
+          "009132ddb136a1c1234f69ea7b0191172eb68feca929842cd75ab678017a96ca"
+        ]
       },
       "proof": {
         "owner": "/root/f2_owning_inlet_introduction_preservation",
         "role": "astra_prover",
-        "state": "CONDITIONAL-NOT-STARTED",
+        "state": "RETIRED-SOURCE-GATE-FAILED",
         "outputs": [
           "notes/theory/2026-10-17-f2-owning-inlet-introduction-preservation.md",
           "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-preservation.md"
         ],
         "cap_seconds": 600,
-        "gate": "Starts only after source rule artifact passes explicit source gate and is frozen."
+        "gate": "Not launched; source rule and joint descriptor constructor were not derived."
       },
       "implementation": {
         "state": "NO_CODE_LEASE",
         "gate": "Implementation-enabling source/code correspondence only; actual compiler edits require concrete source-owned fields, independent review and a later exact code lease."
       },
       "reviews": {
-        "state": "NOT-STARTED",
+        "state": "NOT-STARTED-SOURCE-GATE-FAILED",
         "spec_auditor": {
           "cap_seconds": 120,
           "output": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-spec-review.md"
@@ -84,6 +91,18 @@
       {
         "path": "tasks/agent-loop/sprints/f2-owning-inlet-introduction-proposal-20261017.md",
         "sha256": "44a59f25404c691f3128963490327587aae9ad2f5becaa62071ecc2563badb90"
+      },
+      {
+        "path": "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
+        "sha256": "263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-proposal.md",
+        "sha256": "009132ddb136a1c1234f69ea7b0191172eb68feca929842cd75ab678017a96ca"
+      },
+      {
+        "path": "notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md",
+        "sha256": "f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c"
       }
     ],
     "non_goals": [
@@ -93,18 +112,18 @@
       "use actual Return/Q/provider success to form F2",
       "compiler code/tests/builds/probes/runtime/expected-output/production"
     ],
-    "next_boundary": "Source gate: freeze concrete owning rule and check every source/descriptor premise, or stop at exact first missing owner without launching Astra.",
+    "next_boundary": "Sprint ended at failed source gate; consult next_action_selector before any new lease.",
     "workers": [
       {
         "id": "/root",
         "role": "Luna/high source-definition author",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Exact source-definition lease started 2026-10-17 04:40:09 UTC after contract/state checkpoint 93bb6f50b; max 360 active seconds."
+        "receipt": "STOP 04:50:09 UTC. Exact first unsupported source-owned CallView introduction recorded. 600s wall charged; 240s overrun against 360s lane cap. No descendants."
       }
     ],
     "leases": [
@@ -117,12 +136,20 @@
       {
         "path": "notes/design/2026-10-17-f2-owning-inlet-introduction-proposal.md",
         "owner": "/root",
-        "state": "ACTIVE"
+        "state": "FROZEN",
+        "sha256": "263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-f2-owning-inlet-introduction-proposal.md",
         "owner": "/root",
-        "state": "ACTIVE"
+        "state": "FROZEN",
+        "sha256": "009132ddb136a1c1234f69ea7b0191172eb68feca929842cd75ab678017a96ca"
+      },
+      {
+        "path": "notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md",
+        "owner": "/root",
+        "state": "FROZEN",
+        "sha256": "f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c"
       }
     ],
     "prior_sprint": {
@@ -226,18 +253,18 @@
     }
   ],
   "next_action": {
-    "state": "SOURCE-DEFINITION-RUNNING",
-    "dispatcher": "Selected owning inlet-introduction rule at original F2 after ResultBind review found no retention fields.",
-    "proof": "Source author must define exact L2, role/entry telescope and joint constructor or identify first missing source primitive. Astra preservation follows only after source gate.",
-    "implementation": "No code authority; inspect actual producer/consumer only for concrete fields after proof/review."
+    "state": "SOURCE-GATE-FAILED-SELECT-NEXT",
+    "dispatcher": "Source owner still lacks a selected local CallView introduction and joint existing-descriptor constructor; SAT/RG restatement is insufficient. Select a different evidence-producing route, preserving OPEN parent scope and no code authority.",
+    "proof": "Astra lane retired before launch because source gate failed. Exact missing local inlet/role-entry/interface owner recorded.",
+    "implementation": "No code lease; no proved field producer. A separate safe gate must be selected if implementation is to progress."
   },
   "resource_accounting": {
     "sprint_id": "f2-owning-inlet-introduction-proposal-20261017",
     "cap_seconds": 1500,
-    "charged_seconds": 0,
-    "active_authors": 1,
+    "charged_seconds": 600,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "Luna source-definition author active after pushed contract/state checkpoint."
+    "status": "Sprint incomplete at source gate; 600/1500 charged overall, with 240s source-lane cap overrun; proof/reviews unstarted and retired."
   },
-  "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN."
+  "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN. Previous sprint f2-owning-inlet-introduction-proposal-20261017 stopped at source gate; artifact SHA 263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27; closeout notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md SHA f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c."
 }
