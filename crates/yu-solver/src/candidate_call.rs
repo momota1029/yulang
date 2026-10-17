@@ -50,9 +50,19 @@ pub(super) struct ApplySourceInput {
     pub checking: ConstraintOccurrenceId,
     pub cause: CauseId,
     pub formal_name: Option<usize>,
+    /// Exact source local identity for a scoped callee that peels to a bare,
+    /// unannotated Local Name. It is never selected by publication order.
+    pub local_callee: Option<LocalCalleeRoute>,
     pub native: Option<NativeInterface>,
     pub introduction: Option<DirectionalIntroduction>,
     pub receiver_attachment: Option<ReceiverBoundaryAttachment>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct LocalCalleeRoute {
+    pub expression: usize,
+    pub occurrence: HirOccurrenceId,
+    pub local: yu_hir::HirLocalId,
+    pub slot: usize,
 }
 /// Provisional source attachment only. The nominal scope inventory still owns
 /// this scope at its lexical computation region; this is not an expiry rule.
@@ -462,6 +472,14 @@ pub(super) fn observe<'a>(
     state: &'a State,
     index: usize,
 ) -> Result<CandidateSourceCall<'a>, ArtifactMismatch> {
+    observe_inner(hir, store, state, index)
+}
+fn observe_inner<'a>(
+    hir: &'a HirModule,
+    store: &ConstraintStore,
+    state: &'a State,
+    index: usize,
+) -> Result<CandidateSourceCall<'a>, ArtifactMismatch> {
     let input = state.calls.get(index).ok_or(ArtifactMismatch)?;
     let source = hir
         .local_source_for(&input.owner)
@@ -652,6 +670,73 @@ pub(super) fn observe<'a>(
         native,
         formal,
     })
+}
+
+/// Scoped Local calls require an exact retained FreshUse route. Ordinary
+/// observations keep their existing behavior, including non-Local ascriptions.
+pub(super) fn observe_scoped<'a>(
+    hir: &'a HirModule,
+    store: &ConstraintStore,
+    state: &'a State,
+    index: usize,
+    graph: &crate::candidate_scheme::GraphState,
+) -> Result<CandidateSourceCall<'a>, ArtifactMismatch> {
+    let call = observe_inner(hir, store, state, index)?;
+    authenticate_scoped_apply(hir, call.input, graph)?;
+    Ok(call)
+}
+
+pub(super) fn authenticate_scoped_apply(
+    hir: &HirModule,
+    input: &ApplySourceInput,
+    graph: &crate::candidate_scheme::GraphState,
+) -> Result<(), ArtifactMismatch> {
+    let source = hir.local_source_for(&input.owner).map_err(|_| ArtifactMismatch)?.ok_or(ArtifactMismatch)?;
+    let mut cursor = input.callee.ordinal() as usize;
+    let mut crossed_ascription = false;
+    let mut crossed_nonempty_block = false;
+    let mut steps = 0usize;
+    let mut work = 0usize;
+    loop {
+        steps = steps.checked_add(1).ok_or(ArtifactMismatch)?;
+        work = work.checked_add(1).ok_or(ArtifactMismatch)?;
+        if steps > candidate_source::SCOPED_RECORD_LIMIT || work > candidate_source::SCOPED_WORK_LIMIT { return Err(ArtifactMismatch); }
+        let expr = source.expressions().get(cursor).ok_or(ArtifactMismatch)?;
+        match &expr.form {
+            LocalSourceForm::Group { inner } => cursor = inner.ordinal() as usize,
+            LocalSourceForm::Ascription { inner, .. } => { crossed_ascription = true; cursor = inner.ordinal() as usize; },
+            LocalSourceForm::Block { bindings, final_expression } => {
+                crossed_nonempty_block |= !bindings.is_empty();
+                cursor = final_expression.ordinal() as usize;
+            }
+            LocalSourceForm::Name { resolution: LocalSourceResolution::Local(local), .. } => {
+                if crossed_ascription || crossed_nonempty_block || local.source_root() != source.source_root() { return Err(ArtifactMismatch); }
+                let mut binding_work = 0usize;
+                let mut annotated = false;
+                for binding in source.bindings() {
+                    binding_work = binding_work.checked_add(1).ok_or(ArtifactMismatch)?;
+                    work = work.checked_add(1).ok_or(ArtifactMismatch)?;
+                    if binding_work > candidate_source::SCOPED_RECORD_LIMIT || work > candidate_source::SCOPED_WORK_LIMIT { return Err(ArtifactMismatch); }
+                    if &binding.id == local { annotated = binding.annotation.is_some(); break; }
+                }
+                if annotated { return Err(ArtifactMismatch); }
+                let witness = input.local_callee.as_ref().ok_or(ArtifactMismatch)?;
+                if witness.expression != cursor || witness.occurrence != expr.occurrence || &witness.local != local
+                    || witness.local.source_root() != source.source_root() || !hir.owns_occurrence(&expr.occurrence)
+                { return Err(ArtifactMismatch); }
+                let route_index = *graph.local_route_by_occurrence.get(&witness.occurrence).ok_or(ArtifactMismatch)?;
+                work = work.checked_add(1).ok_or(ArtifactMismatch)?;
+                if work > candidate_source::SCOPED_WORK_LIMIT { return Err(ArtifactMismatch); }
+                let route = graph.local_routes.get(route_index).ok_or(ArtifactMismatch)?;
+                let scheme = graph.locals.get(witness.slot).and_then(Option::as_ref).ok_or(ArtifactMismatch)?;
+                if route.occurrence != witness.occurrence || route.local != witness.local || route.slot != witness.slot
+                    || scheme.id != witness.local || !route.authentic_use_instance()
+                { return Err(ArtifactMismatch); }
+                return Ok(());
+            }
+            _ => return if input.local_callee.is_none() { Ok(()) } else { Err(ArtifactMismatch) },
+        }
+    }
 }
 
 pub(super) fn same_endpoint(left: CandidateEndpoint, right: CandidateEndpoint) -> bool {

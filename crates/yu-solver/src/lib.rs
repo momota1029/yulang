@@ -9470,6 +9470,11 @@ impl InferenceSession {
             for slot in journal.candidate_local_slots.drain(..) {
                 state.locals[slot] = None;
             }
+            for index in journal.candidate_local_routes_len..state.local_routes.len() {
+                let occurrence = state.local_routes[index].occurrence.clone();
+                let removed = state.local_route_by_occurrence.remove(&occurrence);
+                debug_assert_eq!(removed, Some(index));
+            }
             state.local_routes.truncate(journal.candidate_local_routes_len);
             if let Some(mut allocation) = journal.candidate_local_routes_allocation.take() {
                 allocation.append(&mut state.local_routes);

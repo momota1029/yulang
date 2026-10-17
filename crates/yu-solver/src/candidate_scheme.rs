@@ -9,6 +9,8 @@ pub(super) struct GraphState {
     pub routes: Vec<FreshRoute>,
     pub locals: Vec<Option<LocalScheme>>,
     pub local_routes: Vec<LocalFreshRoute>,
+    /// Exact source Local-use occurrence to completed retained route index.
+    pub local_route_by_occurrence: HashMap<HirOccurrenceId, usize>,
     pub local_use: Vec<LocalUse>,
     #[cfg(test)]
     pub local_use_census: Option<LocalUseCensus>,
@@ -134,9 +136,15 @@ pub(super) struct LocalFreshRoute {
     pub slot: usize,
     pub local: yu_hir::HirLocalId,
     pub occurrence: HirOccurrenceId,
+    pub use_instance: usize,
     pub graph: Graph,
     pub rows: Vec<RowKey>,
     retained: RetainedFreshUseMaps,
+}
+impl LocalFreshRoute {
+    pub(super) fn authentic_use_instance(&self) -> bool {
+        self.use_instance == self.retained.context_use
+    }
 }
 #[derive(Debug)]
 struct RetainedFreshUseMaps {
@@ -298,6 +306,11 @@ impl Graph {
 impl GraphState {
     pub(super) fn commit_local_use(&mut self) {
         let frame = self.local_use.pop().expect("completed local parent");
+        let route_index = self.local_routes.len();
+        let occurrence = frame.occurrence.clone();
+        let slot = frame.slot;
+        let local = frame.local.clone();
+        let use_instance = frame.fresh.context_use;
         #[cfg(test)]
         if let Some(census) = &mut self.local_use_census {
             if census.requested.contains(&frame.occurrence) {
@@ -317,8 +330,10 @@ impl GraphState {
         // All capacities and arithmetic were preflighted by frame accounting and
         // final route reservation. Move retained maps without allocation.
         let (rows, retained) = frame.fresh.into_retained_parts();
-        self.local_routes.push(LocalFreshRoute { slot: frame.slot, local: frame.local,
-            occurrence: frame.occurrence, graph: frame.graph, rows, retained });
+        let previous = self.local_route_by_occurrence.insert(occurrence.clone(), route_index);
+        debug_assert!(previous.is_none(), "one exact Local occurrence publishes one fresh route");
+        self.local_routes.push(LocalFreshRoute { slot, local, occurrence,
+            use_instance, graph: frame.graph, rows, retained });
     }
     pub fn refresh_bytes(&mut self) -> Result<(), SolveAvailabilityError> {
         let mut total = sum(&[
@@ -326,6 +341,7 @@ impl GraphState {
             bytes::<FreshRoute>(self.routes.capacity())?,
             bytes::<Option<LocalScheme>>(self.locals.capacity())?,
             bytes::<LocalFreshRoute>(self.local_routes.capacity())?,
+            bytes::<(HirOccurrenceId, usize)>(self.local_route_by_occurrence.capacity())?,
             bytes::<LocalUse>(self.local_use.capacity())?,
         ])?;
         for graph in self.graphs.iter().flatten() {
@@ -1600,7 +1616,20 @@ impl InferenceSession {
                     let scheme = session.candidate_graph.as_ref().and_then(|state| state.locals.get(slot)).and_then(Option::as_ref).ok_or_else(exhausted)?;
                     (scheme.root, scheme.boundary, scheme.id.clone(), scheme.capture_region)
                 };
+                let scoped = session.batch.candidate_source.scoped_experiment;
                 let state = session.candidate_graph.as_mut().unwrap();
+                if state.local_route_by_occurrence.contains_key(occurrence) { return Err(exhausted()); }
+                let old_index_capacity = state.local_route_by_occurrence.capacity();
+                if scoped {
+                    let work = if state.local_route_by_occurrence.len() == old_index_capacity {
+                        state.local_route_by_occurrence.len().checked_add(4).ok_or_else(exhausted)?
+                    } else { 4 };
+                    state.intrusion.effect_algebra.context.scope_inventory.charge(work)?;
+                }
+                state.local_route_by_occurrence.try_reserve(1).map_err(|_| exhausted())?;
+                state.retained_bytes = state.retained_bytes.checked_add(
+                    bytes::<(HirOccurrenceId, usize)>(state.local_route_by_occurrence.capacity() - old_index_capacity)?,
+                ).ok_or_else(exhausted)?;
                 let old_capacity = state.local_use.capacity();
                 state.local_use.try_reserve(1).map_err(|_| exhausted())?;
                 state.retained_bytes = state.retained_bytes.checked_add(bytes::<LocalUse>(state.local_use.capacity() - old_capacity)?).ok_or_else(exhausted)?;
@@ -1755,6 +1784,13 @@ impl InferenceSession {
         let lower = frame.fresh.terms[frame.graph.root].ok_or_else(exhausted)?;
         let upper = self.batch.component_term_at(frame.value);
         self.admit_candidate_value_link(&frame.occurrence, 0, lower, upper)?;
+        if self.batch.candidate_source.scoped_experiment {
+            self.candidate_graph.as_mut().ok_or_else(exhausted)?
+                .intrusion.effect_algebra.context.scope_inventory.charge(1)?;
+            if self.candidate_graph.as_ref().ok_or_else(exhausted)?.local_routes.len() >= candidate_source::SCOPED_RECORD_LIMIT {
+                return Err(exhausted());
+            }
+        }
         let state = self.candidate_graph.as_mut().unwrap();
         let old = state.local_routes.capacity();
         if state.local_routes.len() == old {
@@ -1762,6 +1798,10 @@ impl InferenceSession {
             // avoids cloning their graphs/rows, and rollback can move them back
             // without allocating. Geometric growth keeps publication amortized.
             let capacity = old.checked_mul(2).ok_or_else(exhausted)?.max(4);
+            if self.batch.candidate_source.scoped_experiment {
+                let work = state.local_routes.len().checked_mul(2).and_then(|n| n.checked_add(2)).ok_or_else(exhausted)?;
+                state.intrusion.effect_algebra.context.scope_inventory.charge(work)?;
+            }
             let mut replacement = Vec::new();
             replacement.try_reserve_exact(capacity).map_err(|_| exhausted())?;
             let retained_bytes = state.retained_bytes.checked_add(

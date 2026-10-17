@@ -1073,6 +1073,7 @@ impl ConstraintBatch {
                             continue;
                         }
                         LocalSourceForm::Apply { callee, argument, .. } => {
+                            let mut local_callee = None;
                             if self.candidate_source.scoped_experiment {
                                 let mut argument_index = argument.ordinal() as usize;
                                 loop {
@@ -1088,14 +1089,43 @@ impl ConstraintBatch {
                                     }
                                 }
                                 let mut callee_index = callee.ordinal() as usize;
+                                let mut crossed_ascription = false;
+                                let mut crossed_nonempty_block = false;
+                                let mut callee_steps = 0usize;
                                 loop {
                                     self.candidate_source.charge_scoped_work(1)?;
+                                    callee_steps = callee_steps.checked_add(1).ok_or_else(unavailable)?;
+                                    if callee_steps > SCOPED_RECORD_LIMIT { return Err(unavailable()); }
                                     match &source.expressions()[callee_index].form {
-                                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => callee_index = inner.ordinal() as usize,
-                                        LocalSourceForm::Block { final_expression, .. } => callee_index = final_expression.ordinal() as usize,
+                                        LocalSourceForm::Group { inner } => callee_index = inner.ordinal() as usize,
+                                        LocalSourceForm::Ascription { inner, .. } => { crossed_ascription = true; callee_index = inner.ordinal() as usize; },
+                                        LocalSourceForm::Block { bindings, final_expression } => {
+                                            crossed_nonempty_block |= !bindings.is_empty();
+                                            callee_index = final_expression.ordinal() as usize;
+                                        }
                                         LocalSourceForm::Apply { .. } => { scoped_result_callee(source, callee_index, &mut self.candidate_source)?; break; }
                                         LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. }
-                                        | LocalSourceForm::Name { resolution: LocalSourceResolution::Local(_) | LocalSourceResolution::CatchBinder(_), .. } => return Err(unavailable()),
+                                        | LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(_), .. } => return Err(unavailable()),
+                                        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(local), .. } => {
+                                            if crossed_ascription || crossed_nonempty_block || local.source_root() != source.source_root() { return Err(unavailable()); }
+                                            let mut binding_work = 0usize;
+                                            let mut annotated = false;
+                                            for binding in source.bindings() {
+                                                self.candidate_source.charge_scoped_work(1)?;
+                                                binding_work = binding_work.checked_add(1).ok_or_else(unavailable)?;
+                                                if binding_work > SCOPED_RECORD_LIMIT { return Err(unavailable()); }
+                                                if &binding.id == local { annotated = binding.annotation.is_some(); break; }
+                                            }
+                                            if annotated { return Err(unavailable()); }
+                                            let expression = source.expressions().get(callee_index).ok_or_else(invalid)?;
+                                            let authentication_work = callee_steps.checked_add(binding_work).and_then(|n| n.checked_add(1)).ok_or_else(unavailable)?;
+                                            self.candidate_source.charge_scoped_work(authentication_work.checked_mul(2).ok_or_else(unavailable)?)?;
+                                            local_callee = Some(candidate_call::LocalCalleeRoute {
+                                                expression: callee_index, occurrence: expression.occurrence.clone(),
+                                                local: local.clone(), slot: *local_slots.get(local).ok_or_else(invalid)?,
+                                            });
+                                            break;
+                                        }
                                         _ => break,
                                     }
                                 }
@@ -1139,7 +1169,8 @@ impl ConstraintBatch {
                                 argument_value: endpoints[argument.ordinal() as usize], argument_effect: a.effect,
                                 result: pos.value, application_effect: pos.effect,
                                 cause: CauseId::for_occurrence(checking.clone()), checking,
-                                formal_name: formal_names[callee.ordinal() as usize], native: None, introduction: None, receiver_attachment,
+                                formal_name: formal_names[callee.ordinal() as usize], local_callee,
+                                native: None, introduction: None, receiver_attachment,
                             })?;
                             self.candidate_recipes[recipe].source_input = Some(source_input);
                             push(&mut actions, Action::Candidate(recipe))?;

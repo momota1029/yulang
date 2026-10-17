@@ -5,6 +5,7 @@ use super::*;
 use crate::shadow_apply::{
     CandidateGraphExport, CandidateGraphLeaf, CandidateGraphNode, CandidateInference,
 };
+use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
 
 fn candidate_call_hir(text: &str) -> Arc<HirModule> {
     let source: Arc<yu_syntax::SourceText> = Arc::from(text);
@@ -17,6 +18,28 @@ fn candidate_call_hir(text: &str) -> Arc<HirModule> {
         yu_hir::shadow::lower_module_with_shadow_applications(
             yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
                 "candidate-graph",
+                "call.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        )
+        .unwrap(),
+    )
+}
+
+fn candidate_call_hir_with_local_source(text: &str) -> Arc<HirModule> {
+    let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+    let parsed = yu_syntax::parse_file(
+        source.clone(),
+        Arc::new(yu_syntax::scan_header(source)),
+        Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+    );
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "healthy local-source fixture: {text}");
+    assert!(parsed.structural_recoveries().is_empty(), "no parse recovery in local-source fixture: {text}");
+    Arc::new(
+        yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "candidate-graph-local-source",
                 "call.yu",
             ))),
             &parsed,
@@ -319,6 +342,58 @@ fn candidate_call_routes(candidate: &CandidateInference, hir: &Arc<HirModule>, n
     }
     // The public observer retains maps, but does not expose installed fresh
     // bounds. No mapped runtime incidence follows from these cardinalities.
+}
+
+#[test]
+fn scoped_local_callee_route_survives_a_later_local_argument_use() {
+    let hir = candidate_call_hir_with_local_source("my id x = x\nmy outer = { my f = id; my a = 1; f a }");
+    let source = hir.local_source(candidate_call_root(&hir, "outer")).unwrap().unwrap();
+    let f = &source.bindings().iter().find(|binding| binding.spelling.as_ref() == "f").unwrap().id;
+    let a = &source.bindings().iter().find(|binding| binding.spelling.as_ref() == "a").unwrap().id;
+    let local_occurrence = |id: &yu_hir::HirLocalId| source.expressions().iter().find_map(|expression| {
+        matches!(&expression.form, LocalSourceForm::Name {
+            resolution: LocalSourceResolution::Local(found), ..
+        } if found == id).then(|| expression.occurrence.clone())
+    }).unwrap();
+    let callee = local_occurrence(f);
+    let later_argument = local_occurrence(a);
+
+    let candidate = CandidateInference::solve_scoped_experiment(hir).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_eq!(candidate.fresh_use(&callee).unwrap().occurrence(), &callee);
+    assert_eq!(candidate.fresh_use(&later_argument).unwrap().occurrence(), &later_argument);
+    let call = candidate.source_call(0).unwrap();
+    assert_eq!(call.callee_source().occurrence, callee);
+}
+
+#[test]
+fn scoped_annotated_and_ascribed_local_callees_remain_refused() {
+    let annotated = candidate_call_hir_with_local_source("my id x = x\nmy outer = { my f: int -> int = id; my a = 1; f a }");
+    let source = annotated.local_source(candidate_call_root(&annotated, "outer")).unwrap().unwrap();
+    assert!(source.bindings().iter().any(|binding| binding.spelling.as_ref() == "f" && binding.annotation.is_some()));
+    assert!(CandidateInference::solve_scoped_experiment(annotated).is_err());
+
+    let ascribed = candidate_call_hir_with_local_source("my id x = x\nmy outer = { my f = id; my a = 1; (f as int -> int) a }");
+    let source = ascribed.local_source(candidate_call_root(&ascribed, "outer")).unwrap().unwrap();
+    assert!(source.expressions().iter().any(|expression| matches!(&expression.form, LocalSourceForm::Ascription { .. })));
+    assert!(CandidateInference::solve_scoped_experiment(ascribed).is_err());
+
+    let non_local_ascription = candidate_call_hir_with_local_source("my id x = x\nmy outer = (id as int -> int) 1");
+    let candidate = CandidateInference::solve_scoped_experiment(non_local_ascription).unwrap();
+    let call = candidate.source_call(0).expect("the non-Local ascribed Apply remains observable");
+    assert!(matches!(&call.callee_source().form,
+        LocalSourceForm::Ascription { .. } | LocalSourceForm::Group { .. }));
+}
+
+#[test]
+fn unscoped_candidate_collection_does_not_inherit_the_scoped_record_cap() {
+    let mut text = String::from("my id x = x\n");
+    for index in 0..=crate::candidate_source::SCOPED_RECORD_LIMIT {
+        text.push_str(&format!("my use{index} = id 1\n"));
+    }
+    let hir = candidate_call_hir_with_local_source(&text);
+    let batch = ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, false).unwrap();
+    assert!(batch.candidate_calls.calls.len() > crate::candidate_source::SCOPED_RECORD_LIMIT);
 }
 
 #[test]

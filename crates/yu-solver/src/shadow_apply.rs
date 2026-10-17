@@ -376,9 +376,12 @@ impl CandidateInference {
             return None;
         }
         let state = self.solved.data.candidate_graph.as_ref()?;
-        if let Some(route) = state.local_routes.iter().find(|route| &route.occurrence == occurrence) {
+        if let Some(&route_index) = state.local_route_by_occurrence.get(occurrence) {
+            let route = state.local_routes.get(route_index)?;
             let scheme = state.locals.get(route.slot)?.as_ref()?;
-            if scheme.id != route.local { return None; }
+            if route.occurrence != *occurrence || scheme.id != route.local
+                || !route.authentic_use_instance()
+            { return None; }
             return Some(CandidateGraphFreshUse {
                 state, occurrence: &route.occurrence, rows: &route.rows, graph: &route.graph,
             });
@@ -410,7 +413,13 @@ impl CandidateInference {
     /// Indexed observations retain one pending construction request per source Call.
     pub fn source_call_count(&self) -> usize { self.solved.data.candidate_calls.calls.len() }
     pub fn source_call(&self, index: usize) -> Result<CandidateSourceCall<'_>, ArtifactMismatch> {
-        crate::candidate_call::observe(&self.solved.data.hir, &self.solved.data.store, &self.solved.data.candidate_calls, index)
+        let data = &self.solved.data;
+        if let Some(graph) = data.candidate_graph.as_ref() {
+            if graph.intrusion.effect_algebra.context.scoped_enabled {
+                return crate::candidate_call::observe_scoped(&data.hir, &data.store, &data.candidate_calls, index, graph);
+            }
+        }
+        crate::candidate_call::observe(&data.hir, &data.store, &data.candidate_calls, index)
     }
     /// Indexed by original formal registration, including Value formals whose
     /// computation source plan is absent. Observation borrows constructor outputs
@@ -1581,6 +1590,11 @@ impl InferenceSession {
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             let registered_recipe = self.batch.candidate_recipes.get(input.recipe)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            if self.batch.candidate_source.scoped_experiment {
+                let graph = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                crate::candidate_call::authenticate_scoped_apply(&self.batch.hir, input, graph)
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            }
             let CandidateRelation::Apply {
                 callee, callee_effect, argument, argument_effect, result, result_effect,
             } = recipe.relation else { return Err(SolveAvailabilityError::IdentityExhausted); };
