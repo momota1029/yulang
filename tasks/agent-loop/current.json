@@ -53,24 +53,24 @@
     {
       "id": "/root/npair_local_route_authentication_implementation",
       "role": "integrated final-auth route repair, tests and runtime",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=1320s incl360 verification reserve",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live checkpoint: production source_call dispatches scoped calls to observe_scoped(..., GraphState); admit_candidate_fact independently runs authenticate_scoped_apply before Apply admission. Both rederive callee from original input.callee; crossed-Ascription/annotated Local refuse, ordinary non-Local ascription preserves prior path. Six leased source/test files changed; example untouched. Three focused regressions added. No tests/build before CLEAN. Writer estimates ~12m remain from 1320s lane; verification360s untouched. Next: check index publication/rollback/accounting, peel parity and test sources, freeze and hash."
+      "receipt": "STOPPED/frozen at 2026-10-17 22:29:41 UTC. Conservative elapsed672/1320s; 648s allocation remains, protected verification360s untouched. No test/build/compiler command; descendants0. Six changed Rust paths match primary rehash: candidate_source 1a65c7af; candidate_call e038ad0d; candidate_scheme ea48b5ec; shadow_apply 76f2ea39; lib ddd13958; candidate_graph_call 35809954. Example unchanged d76cbae2. No runtime note/handoff written. Fresh independent compiler review now RUNNING; runtime/regressions unverified."
     },
     {
       "id": "/root/npair_local_route_authentication_review",
       "role": "fresh independent compiler review",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Sol/compiler_referee",
       "requested_effort": "high <=240s total incl diff review",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Wait for proof/source/test/handoff bytes frozen; no commands."
+      "receipt": "Fresh reviewer dispatched after author STOP and primary SHA-256 rehash of exact six-file diff plus unchanged example. Reviews source/test/proof, actual final-auth and fact-admission sites, annotation refusal, scoped caps, accounting/rollback, regressions and API; no commands."
     }
   ],
   "leases": [
@@ -97,47 +97,47 @@
     {
       "path": "crates/yu-solver/src/candidate_source.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_call.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/shadow_apply.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/lib.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/tests/candidate_graph_call.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-local-route-runtime-validation.md",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-local-route-runtime-validation.md",
       "owner": "/root/npair_local_route_authentication_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [],
