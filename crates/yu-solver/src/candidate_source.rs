@@ -455,12 +455,97 @@ pub(super) fn preflight_local_annotation(ty: &yu_hir::shadow::SourceAnnotationTy
     preflight_annotation(ty, true)
 }
 fn preflight_formal(ty: &yu_hir::shadow::SourceAnnotationType, positive: bool) -> bool {
-    ty.effects.as_ref().is_none_or(|row| if positive { row.variables.len() <= 1 } else { row.concrete.is_empty() && row.variables.len() == 1 }) && preflight_formal_value(&ty.value, positive)
+    ty.effects.as_ref().is_none_or(|row| if positive {
+        row.variables.len() <= 1
+    } else {
+        (row.concrete.is_empty() && row.variables.len() == 1)
+            || (!row.concrete.is_empty() && row.variables.is_empty())
+    }) && preflight_formal_value(&ty.value, positive)
 }
 fn preflight_formal_value(value: &yu_hir::shadow::SourceAnnotationValue, positive: bool) -> bool {
     match value {
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => preflight_formal(argument, !positive) && preflight_formal(result, positive),
         _ => true,
+    }
+}
+
+#[cfg(all(test, feature = "shadow-apply-candidate"))]
+mod formal_concrete_negative_source_tests {
+    use super::*;
+
+    fn parse_and_lower(text: &str) -> Result<Arc<yu_hir::HirModule>, yu_hir::HirAvailabilityError> {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.structural_recoveries().is_empty(), "source must parse structurally: {text}");
+        yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "formal-concrete-negative-source", "source.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        ).map(Arc::new)
+    }
+
+    fn source_for(formal: &str) -> String {
+        format!("act io\nmy receive (f: {formal}) = f")
+    }
+
+    fn solve_formal(formal: &str) -> Result<crate::shadow_apply::CandidateInference, String> {
+        let hir = parse_and_lower(&source_for(formal))
+            .unwrap_or_else(|error| panic!("previously admitted `{formal}` failed HIR lowering: {error:?}"));
+        crate::shadow_apply::CandidateInference::solve(hir)
+            .map_err(|error| format!("solver: {error:?}"))
+    }
+
+    #[test]
+    fn source_entry_admits_only_nonempty_concrete_negative_formal_rows() {
+        let target = parse_and_lower(&source_for("((int -> [io] ()) -> ()) -> (() -> (int -> [io] ()))")).unwrap();
+        let binding = target.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "receive" => Some(binding),
+            _ => None,
+        }).expect("receive binding");
+        let local_source = target.local_source(binding.definition_root()).unwrap().unwrap();
+        let parameter = local_source.expressions().iter().find_map(|expression| match &expression.form {
+            LocalSourceForm::Lambda { parameter, .. } => Some(parameter),
+            _ => None,
+        }).expect("annotated source lambda");
+        let annotation = parameter.annotation.as_ref().expect("source formal annotation");
+        let yu_hir::shadow::SourceAnnotationValue::Function { argument: outer_argument, .. } = &annotation.ty.value else { panic!("outer function"); };
+        let yu_hir::shadow::SourceAnnotationValue::Function { argument: middle_argument, .. } = &outer_argument.value else { panic!("outer argument function"); };
+        let yu_hir::shadow::SourceAnnotationValue::Function { result: row_owner, .. } = &middle_argument.value else { panic!("nested result function"); };
+        let row = row_owner.effects.as_ref().expect("negative concrete effect row");
+        assert!(row.variables.is_empty());
+        assert_eq!(row.concrete, vec![target.source_effect_declarations()[0].id.clone()]);
+        assert!(target.local_source_for(&annotation.owner).unwrap().is_some());
+
+        let candidate = crate::shadow_apply::CandidateInference::solve(target.clone()).unwrap();
+        assert!(candidate.observes_hir(&target));
+        assert!(candidate.candidate_conflicts().is_empty());
+
+        for formal in [
+            "() -> (() -> int)",
+            "() -> (() -> ['e] int)",
+            "(() -> [io] int) -> ()",
+        ] {
+            let candidate = solve_formal(formal).unwrap_or_else(|error| panic!("previously admitted `{formal}` refused: {error:?}"));
+            assert!(candidate.candidate_conflicts().is_empty(), "{formal}");
+        }
+
+        for formal in [
+            "() -> (() -> [] int)",
+            "() -> (() -> ['e, io] int)",
+        ] {
+            let hir = parse_and_lower(&source_for(formal))
+                .unwrap_or_else(|error| panic!("expected HIR-supported refusal `{formal}`, got {error:?}"));
+            let result = crate::shadow_apply::CandidateInference::solve(hir);
+            assert!(result.is_err(), "neighboring negative row admitted: {formal}");
+        }
+        let multiple_symbol = parse_and_lower(&source_for("() -> (() -> ['e, 'f] int)"));
+        assert!(matches!(multiple_symbol, Err(yu_hir::HirAvailabilityError::StructuralProjection)));
     }
 }
 fn preflight_annotation(ty: &yu_hir::shadow::SourceAnnotationType, positive: bool) -> bool {
