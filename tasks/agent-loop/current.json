@@ -19,11 +19,11 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 180,
-      "available_seconds": 1620,
-      "allocation": "proof600, implementation720 incl one focused cargo run, independent reviews300, Luna180 charged; Astra0, descendants0."
+      "charged_seconds": 1500,
+      "available_seconds": 300,
+      "allocation": "proof600 (charged/active), implementation720 (charged/active; one exact fixture/harness path), reviews300 remaining, Luna180 already charged; Astra0."
     },
-    "next_action": "After checkpoint push, launch one Sol constructive source proof lane and one Luna fixture/source lane under exact leases; fresh proof/spec and implementation/compiler reviews after freeze; parent closure starts0."
+    "next_action": "Allow the actual-argument proof and one-line fixture/harness implementation lanes to complete; freeze both results, obtain independent proof/spec and compiler review within300s, then decide which exact edge is established."
   },
   "history": "Closed npair-operation-self-source-realization-20261018: reviewed C1/C2 descriptor intro/elimination and root address; original conditions0, H0/L2 eta remain OPEN. Implementation NO_SAFE_EVIDENCE_SLICE CLEAN: no f0→receive edge or Permission consumer. Full detail in closeout.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
@@ -42,24 +42,24 @@
     {
       "id": "/root/npair_actual_argument_ingress",
       "role": "constructive proof",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact proof outputs and authority pins in successor contract; launch after checkpoint push."
+      "receipt": "Actual prover role launched this session under exact proof outputs and pinned read owners; 600s cap; fixture writer is disjoint; effective model/effort UNKNOWN."
     },
     {
       "id": "/root/npair_actual_argument_source_path",
       "role": "Luna implementation/source path",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=720s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Six read-only compiler owners, one harness, one-line fixture write, one exact command and two output paths; launch after checkpoint push."
+      "receipt": "Actual Luna implementer role launched this session with one-line fixture write lease, six read-only owners and one exact cargo run; 720s cap; effective model/effort UNKNOWN."
     }
   ],
   "leases": [
