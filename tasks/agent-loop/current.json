@@ -14,14 +14,14 @@
   "fixed_outcome": "Derive or isolate the actual module declaration/final-root/reference and whole-tuple use map for Name(id) at `my id x = x; my answer = id 0`, and independently implement only the reviewed candidate observer slice with a focused fixed-source regression.",
   "result": {
    "original_conditions_closed": 0,
-   "proof_class": "Target MODULE-DECL-USE-SCOPE; complete Call formation, original-family embedding and e_c/O0 consumer substitution remain downstream/open.",
-   "implementation_class": "Exact candidate-only two-path observer/test slice approved for this sprint after CLEAN recipe reviews; not production typing or runtime.",
+   "proof_class": "Actual candidate structural route; full typed ModulePubUse* introduction/inversion/conservation only relative to a fixed-source annotated reduct. Not embedded in the original module family; conditional and unadopted.",
+   "implementation_class": "Candidate-only two-path observer/test slice authorized; implementation now may start independently of proof embedding.",
    "parent_application": "OPEN; all original theorem gates unchanged."
   },
   "resources": {
    "cap_seconds": 1800,
-   "charged_seconds": 0,
-   "available_seconds": 1800,
+   "charged_seconds": 600,
+   "available_seconds": 1200,
    "retired_seconds": 0,
    "allocation": "Astra proof600 + Luna implementation360 + independent reviews480 (compiler180, spec120, architect90, regression pre/post45 each) + coordination120 + one Cargo verification120 + reserve120."
   },
@@ -43,6 +43,12 @@
     "role": "legacy proof worker",
     "state": "UNKNOWN",
     "receipt": "Legacy lease remains quarantined; no cessation evidence."
+   },
+   {
+    "id": "/root/module_declaration_source_use_map_proof",
+    "role": "Astra proof author",
+    "state": "STOPPED",
+    "receipt": "600/600 seconds conservatively charged; proof bab0392a58451c84e77892c6a88d9eb434bcf9a6995afc80c404e7f29aaa448d; handoff 810e9190aa3fbc8e366f12077f5ea61bfcf9dd984f0fe332914e3e43a0d22c8d. Original conditions closed 0. Actual link/publication/use route and conditional full-tuple map constructed; original module source-family embedding remains open."
    }
   ],
   "leases": [
@@ -54,33 +60,33 @@
    {
     "path": "notes/theory/2026-10-17-module-declaration-source-use-map.md",
     "owner": "Astra after launch",
-    "state": "HELD"
+    "state": "FROZEN"
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-module-declaration-source-use-map.md",
     "owner": "Astra after launch",
-    "state": "HELD"
+    "state": "FROZEN"
    },
    {
     "path": "crates/yu-solver/src/candidate_call.rs",
-    "owner": "Luna after Astra STOP",
-    "state": "HELD"
+    "owner": "/root",
+    "state": "ACTIVE"
    },
    {
     "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
-    "owner": "Luna after Astra STOP",
-    "state": "HELD"
+    "owner": "/root",
+    "state": "ACTIVE"
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-module-call-provisional-observer.md",
-    "owner": "Luna after Astra STOP",
-    "state": "HELD"
+    "owner": "/root",
+    "state": "ACTIVE"
    }
   ],
   "pending": [
    {
     "id": "MODULE-DECL-USE-SCOPE",
-    "state": "OPEN; derive authentic module publication/final-root/use map or exact missing owner/premise."
+    "state": "OPEN; source/native actual route traced and conditional module-use annotation constructed; original module-family embedding still needed."
    },
    {
     "id": "MODULE-CALL-SIGNATURE-APPLICATION",
@@ -95,7 +101,7 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Astra proof author active on revision2 exact lease; read-only source inspection allowed. User-authorized complexity changes require cost accounting only; no contract revision/resource change. Implementation starts after Astra STOP.",
+  "next_action": "Astra STOPPED; outputs frozen and 17/17 contract pins match. Commit proof/handoff/state, then launch Luna implementation on exact candidate observer paths. Reviews after both authors STOP.",
   "user_clarification": "Computational complexity may change when useful to the construction. Record the algorithm, asymptotic time/space costs, retained storage, and allocation/failure behavior. Preserve source admission, observable semantics, original quantifiers, exact leases, and fixed sprint caps; this grants no additional resource allowance or paths.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."
