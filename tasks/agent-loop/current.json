@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/module-registered-root-embedding-20261017.md",
     "revision": 1,
     "sha256": "198504dd9d648dd2eefc1dc565e0d2b1a5fb5f3fccfd33e7b9e788ec980d6ae7",
-    "state": "READY-AUTHORIZED-NO-WORKERS-LAUNCHED",
+    "state": "ACTIVE-PROOF-AND-SOURCE-OWNER-AUDIT",
     "baseline": "14820b4eec8688efa84cf76135694082ccf4f966",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Construct actual registered ModuleContractRoot* and its original-family embedding from the reviewed fixed-source b_use/mu_id at unchanged indices, then substitute into original §7.2(2); in parallel map the authentic source registration owner and implementation seam. No new semantic bridge is adopted by this contract; any proposal remains conditional pending review/adjudication.",
@@ -27,12 +27,33 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 0,
-      "available_seconds": 1800,
+      "charged_seconds": 780,
+      "available_seconds": 1020,
       "retired_seconds": 0,
-      "allocation": "Envelope: Sol600 + source-owner audit180 + compiler180 + spec120 + conditional architecture120 + verification/lease reserve120 + Luna coordination/integration360 =1800. Astra allocation0. Charge full worker grants on assignment; inherited UNKNOWN reservations remain quarantined and outside this new envelope."
+      "allocation": "Assigned Sol proof full600 + source-owner audit full180; charged at assignment because exact runtime is not yet known. 1020 remains for compiler180/spec120/conditional architecture120/verification reserve120/Luna coordination and integration360 plus future reserve accounting. Astra0; inherited UNKNOWN reservations remain quarantined."
     },
-    "workers": [],
+    "workers": [
+      {
+        "id": "/root/registered_root_proof",
+        "role": "prover",
+        "state": "RUNNING",
+        "requested_model": "UNKNOWN",
+        "requested_effort": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Direct launch in current session acknowledged; exact contract rev1 SHA 198504dd9d648dd2eefc1dc565e0d2b1a5fb5f3fccfd33e7b9e788ec980d6ae7 and proof-only output leases; cap600/eight stages; no descendants authorized."
+      },
+      {
+        "id": "/root/module_root_source_owner_audit",
+        "role": "researcher",
+        "state": "RUNNING",
+        "requested_model": "UNKNOWN",
+        "requested_effort": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "receipt": "Direct launch in current session acknowledged; exact contract rev1 SHA 198504dd9d648dd2eefc1dc565e0d2b1a5fb5f3fccfd33e7b9e788ec980d6ae7; read-only source-owner audit paths; cap180; candidate_source/candidate_call remain quarantined."
+      }
+    ],
     "leases": [
       {
         "path": "tasks/agent-loop/sprints/module-registered-root-embedding-20261017.md",
