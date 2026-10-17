@@ -2,7 +2,7 @@
 
 Sprint / contract: `minimal-cut-and-accepted-source-vertical-20261017`, rev2,
 `95f0f1a3751ffa276c89bedd48d969b430b34771db3f528dbf7473c92a036acf`.
-Assignment / handoff revision: accepted-call-vertical-20261017 / 2.
+Assignment / handoff revision: accepted-call-vertical-20261017 / 3 (post-run correction).
 Parent and scope: original inference/execution goal; independent accepted-source
 verification contribution only. Original A/B, Call, FIRST-RESULT-ADEQUACY,
 N-Transport, soundness, principality and termination remain OPEN.
@@ -19,15 +19,16 @@ my id x = x; my apply f = f 1; my answer = apply id
 Source UTF-8 SHA-256:
 `bdf41b8059d37dea354a6b6e45a4e0a9f5a0dc412bcee40efb44a0a8bff10ba1`.
 
-The regression asserts no structural parser recovery and no HIR errors, then
-runs ordinary `CandidateInference::solve`. It checks that the candidate owns
-that HIR, has no candidate conflicts, exports all three source definitions,
-authenticates both module-definition uses in `answer` as FreshUses, and retains
-the source-owned formal and module call records expected from the two actual
-source applications. These checks exercise the accepted source → local HIR →
-candidate source/call records → solve → export/FreshUse path. They establish
-bounded implementation behavior only; they do not prove source T, original
-Call soundness, any native same-witness theorem, or OPRESP semantics.
+The regression was designed to require no structural parser recovery and no HIR
+errors before ordinary `CandidateInference::solve`, then check candidate
+ownership, conflicts, all three exports, the two module-definition FreshUses,
+and source-owned call records. The sole authorized run had no parser recovery,
+but failed the zero-HIR-error assertion at line 36 before `solve`; none of the
+subsequent solver, propagation, export, FreshUse, or call-record assertions ran.
+The only established implementation fact is that this exact source is not
+zero-HIR-error under the selected lowering path. No accepted-source vertical
+was established, and the run proves no source T, original Call soundness,
+native same-witness theorem, or OPRESP semantics.
 
 ## Frozen leased outputs
 
@@ -36,7 +37,7 @@ Call soundness, any native same-witness theorem, or OPRESP semantics.
 - `crates/yu-solver/tests/research_accepted_call_vertical.rs`
   SHA-256: `78fd0d4c38df86def4cd4aefb37e164f71269eb58cd9a53b370bc42e42f9a963`
 - `tasks/agent-loop/inbox/20261017-accepted-call-vertical.md`
-  SHA-256: `TO_FILL_HANDOFF_HASH`
+  SHA-256: recorded by the post-run correction receipt.
 
 Direct owners and pins are those in the rev2 contract: HIR diagnostics and
 local-source accessors, parser recovery, CandidateInference, source/call and
@@ -83,3 +84,15 @@ that this exact fixture is not a zero-HIR-error source under this lowering path.
 No retry was made or authorized. No unrelated formatter/CI check ran; formatter
 status is therefore separate and unknown. The companion example was neither
 compiled as an example target nor executed.
+
+
+## Independent post-run review
+
+A fresh read-only regression review confirmed all supplied source and output
+hashes, the one-run transcript, and the failure boundary above. It found one
+low-severity reporting issue in revision 2: the intended downstream assertions
+were described as established behavior. This revision corrects that wording.
+No code, test, example, diagnostic expectation, or execution transcript changed.
+The review author was `/root/accepted_call_vertical_regression_postrun`; requested
+regression_auditor / gpt-6.1-sol / low, observed model and effort UNKNOWN; charged
+90 seconds; STOPPED with no edits, reruns, or descendants.

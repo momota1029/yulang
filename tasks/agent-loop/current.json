@@ -8,14 +8,14 @@
     "contract": "tasks/agent-loop/sprints/minimal-cut-and-accepted-source-vertical-20261017.md",
     "revision": 2,
     "sha256": "95f0f1a3751ffa276c89bedd48d969b430b34771db3f528dbf7473c92a036acf",
-    "state": "REPLAN-REQUIRED",
+    "state": "CLOSED-HIR-ADMISSION-REPLAN",
     "baseline": "d33b01033625ef69d1d844e6400191dd84e73b2f",
     "checkpoint": "d33b01033625ef69d1d844e6400191dd84e73b2f",
     "parent": "Original inference/execution goal: preserve A/B, F1/FK1, N-Transport, Call, soundness, principality, termination, source/native quantifiers.",
     "fixed_outcome": "Evidence-backed minimum unresolved cut relative to pinned sources, then one admitted proof-resolvable cut plus accepted source-to-fresh-use test if authority permits.",
     "authority": "User authorized autonomous proof, implementation and regression tests within approved semantics. No new semantic adoption or compiler-library edit authority.",
     "selector": "Replanned from latest user instruction; exact integration-test path and single cargo test approved. Contract pins old compact state only for reconciliation.",
-    "phase": "Task-dependency map first. Luna freezes the cut; Astra and Luna implementation may start after admission. C-OMIT and October 17 semantic proposals remain unadopted.",
+    "phase": "Closed after reviewed negative HIR admission result. No original premise discharged; next sprint requires a source-to-HIR admission contract or authority decision.",
     "lanes": {
       "dependency_map": {
         "owner": "/root/task_decomposer",
@@ -73,9 +73,10 @@
         "sha256": [
           "79936fb0de85fbe49509623a6fb325d76517254f7adea45439cfbc995e95b8f7",
           "78fd0d4c38df86def4cd4aefb37e164f71269eb58cd9a53b370bc42e42f9a963",
-          "83cbbc35366b188a2a8b9ae7b5561027407a0f21433e1e793b2ba24f1b0a53f0"
+          "e4fa2d76284f6713fef74fb34467f9b29e5c91d3c2b9e52ee10f6874f496362a"
         ],
-        "stop_receipt": "Sole test invocation failed required hir.errors().is_empty() at line 36 before CandidateInference::solve; no retry; example not executed."
+        "stop_receipt": "Sole test invocation failed required hir.errors().is_empty() at line 36 before CandidateInference::solve; no retry; example not executed.",
+        "handoff_revision": 3
       }
     },
     "implementation": {
@@ -84,7 +85,7 @@
       "boundary": "Only a reversible example/test using existing APIs; no library, existing fixture or expected-output edits."
     },
     "review": {
-      "state": "POSTRUN-REVIEW-PENDING-REPLAN",
+      "state": "POSTRUN-REVIEW-CLEAN-AFTER-REPORTING-CORRECTION",
       "reserve_seconds": 480,
       "sequence": [
         "compiler_referee <=180s",
@@ -114,16 +115,30 @@
         "failure": "required zero-HIR-errors assertion before CandidateInference::solve",
         "retry": false,
         "example_executed": false
+      },
+      "postrun_receipt": "CLEAN on execution facts and source scope; low-severity reporting issue in rev2 handoff corrected in revision 3. No code or run changed.",
+      "postrun_worker": {
+        "id": "/root/accepted_call_vertical_regression_postrun",
+        "role": "regression_auditor",
+        "state": "STOPPED",
+        "session": "current-session",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 90,
+        "cap_seconds": 90,
+        "receipt": "All source/output pins and transcript matched. Test failed before CandidateInference::solve. Low-severity inaccurate intended-coverage prose was corrected; no edits/reruns/descendants."
       }
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 2190,
-      "available_seconds": 210,
+      "charged_seconds": 2280,
+      "available_seconds": 0,
       "active_authors": 0,
       "active_reviewers": 0,
       "unknown_reservations_preserved": 3,
-      "status": "One Cargo invocation consumed its 120s reservation and failed at HIR errors gate; no retry. Remaining postrun review90+reserve120."
+      "status": "Closed: postrun review charged 90s; 120s closeout reserve retired. No work or budget rollover."
     },
     "workers": [
       {
@@ -385,14 +400,19 @@
         "owner": "Luna/Astra"
       }
     ],
-    "next_action": "Selector replan on source HIR-error failure: preserve zero-HIR requirement, determine whether another already-supported accepted source can traverse the required call path without a new library change. Do not rerun Cargo under this envelope.",
+    "next_action": "Fresh sprint candidate: source-Call to HIR admission contract. Preserve zero-HIR requirement. Proof applicability for the exact failed source and Luna owner-local design/review first; no compiler edit or test authority until contract review/adjudication.",
     "closeout_fields": [
       "original unresolved premises genuinely discharged",
       "new implementation/test behavior established",
       "next single unproved item"
     ],
-    "selector_delta": "Admit same-witness native consumer cut plus independent accepted-source vertical; Astra first, stop/freeze, compiler/spec reviews, then Luna implementation; no author parallelism due three quarantined UNKNOWN reservations and two review slots."
+    "selector_delta": "Admit same-witness native consumer cut plus independent accepted-source vertical; Astra first, stop/freeze, compiler/spec reviews, then Luna implementation; no author parallelism due three quarantined UNKNOWN reservations and two review slots.",
+    "closeout": {
+      "original_parent_gates_closed": 0,
+      "implementation_behavior_established": "Exact selected source parses without structural recovery but lowering emits HIR errors; sole test fails at required zero-HIR assertion before CandidateInference::solve. Solver, propagation, export, FreshUse and call records remain unestablished.",
+      "remaining_and_next": "No original parent gate closed. Next single cut: establish an authority-qualified structural projection/admission contract for this exact ordinary source Call into HIR, or freeze the specific admission decision needed."
+    }
   },
-  "history": "Older Catch and response-signature sprints REVIEWED-PARTIAL.",
+  "history": "Older Catch and response-signature sprints REVIEWED-PARTIAL; 2026-10-17 accepted source vertical closed; 0 parent premises discharged; postrun failure reviewed and handoff wording corrected in rev3",
   "quarantine_note": "Three inherited UNKNOWN assignments and the legacy board lease remain quarantined; elapsed time or this state update does not release them."
 }
