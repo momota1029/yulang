@@ -1,9 +1,9 @@
 # Sprint `npair-original-c-elimination-and-replay-cause-20261018`
 
-Status: READY pending start commit and live acknowledgements. Branch
+Status: ACTIVE revision2. Branch
 `research/simple-sub-intrusion`. Baseline `f1b989ea0f2ad841201550173b26436a3b9db55c`.
 Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`: OPEN; original
-conditions closed0. Contract revision1; Astra0; no rollover.
+conditions closed0. Astra0; no rollover.
 
 ## Fixed outcome
 
@@ -99,8 +99,8 @@ stdout/stderr and exact exit status at the primary-owned paths above. Exact
 commands:
 
 ```sh
-timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver candidate_graph_call --lib
-timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo run --offline -p yu-solver --example research_scoped_formal_replay
+timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver --features shadow-apply-candidate candidate_graph_call --lib
+timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo run --offline -p yu-solver --features shadow-apply-candidate --example research_scoped_formal_replay
 ```
 
 No rerun on failure.
@@ -126,3 +126,13 @@ N-Transport, soundness, principality, termination and cutover are not implied.
 Next dispatcher consultation: first exact missing original rule or successful
 same-c elimination, first implementation falsifier, lease/dependency change,
 or the 1800s sprint boundary.
+
+## Luna verification correction rev2
+
+Before execution the implementation owner found that the `candidate_graph_call`
+test module is gated by `shadow-apply-candidate` and the crate has no default
+feature enabling it. Rev1's commands would therefore omit the focused test and
+may not build the example's candidate API. Rev2 adds
+`--features shadow-apply-candidate` to both exact commands. No code, semantic,
+source, expected-output, lease or resource authority changes. Any reviewer must
+review this rev2 command snapshot; no Cargo command ran under rev1.
