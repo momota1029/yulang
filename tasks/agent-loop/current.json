@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/module-source-family-embedding-20261017.md",
     "revision": 1,
     "sha256": "c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e",
-    "state": "READY-FOR-INDEPENDENT-REVIEWS",
+    "state": "SOURCE-EMBED-COMPILER-REVIEW-RUNNING",
     "baseline": "0114f997b",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Derive and substitute the original module publication/use family instance at original-generation §7.2 step 2 for `my id x = x; my answer = id 0`; independently specify the whole native field-map construction contract without a compiler lease.",
@@ -68,6 +68,12 @@
         "role": "implementer (Luna/high)",
         "state": "STOPPED",
         "receipt": "480/480s charged conservatively including initial tool-boundary delay. Contract SHA 132f2abefe1e29f2c3d18359c0f94e61c2b47635182333a6d4b7bce6f70c2b83; handoff b7f81bd2d7bb5c7ec747fd94b5d9e159b3c28bf85af0d33fd76940f5bc554164; exact blocker is source rule owner Sig/field keys/ownership/event witness mapping to capture/FreshUse. No code/tests/Git."
+      },
+      {
+        "id": "/root/module_source_embedding_compiler_review",
+        "role": "compiler_referee",
+        "state": "RUNNING",
+        "receipt": "Independent read-only review of frozen MODULE-SOURCE-EMBED package, 180s cap. Requested gpt-6.1-sol/medium; observed session metadata pending. No writes/tests/Git."
       }
     ],
     "leases": [
@@ -115,7 +121,7 @@
         "state": "OPEN independent parent gates."
       }
     ],
-    "next_action": "Both authors STOP and artifacts are frozen/hash-checked. Run sequential compiler/source then spec review of MODULE-SOURCE-EMBED, followed by architect review of MODULE-NATIVE-FIELD-MAP contract; no test execution allocated.",
+    "next_action": "Compiler referee independently reviewing the frozen original-source embedding proof (180s cap). After STOP, run sequential spec review (120s), then architect review of the native field-map contract (180s).",
     "user_clarification": "User explicitly authorized modifying computational complexity. Account time/space, retained storage, allocation/failure; preserve source admission, observable semantics, original quantifiers and fixed caps.",
     "history": "Previous module-use/observer sprint closed at 0114f997b, technical reviews CLEAN and the exact candidate target PASS 2/2. Original conditions0. One nonessential read-only reviewer command `git show --stat --oneline 185b0db29` recorded; no files changed, no essential unpinned evidence. 1442/1800 charged; unused358 retired.",
     "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused."
