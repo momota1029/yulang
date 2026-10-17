@@ -4,33 +4,28 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-replay-durable-capture-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-replay-durable-capture-20261018.md",
-    "revision": 2,
-    "sha256": "a55415df7c87890128ca55331ef5648db7b2ddb1ece0dde8383b1071200e6108",
-    "state": "CLOSED-REVIEWED-PARTIAL",
-    "baseline": "551773b8692540a55f69014c2194ff081331b2cb",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; preserve original theorem/quantifiers/domain; closure0.",
-    "fixed_outcome": "Run the unchanged CLEAN-reviewed companion/harness exactly once with durable stdout/stderr capture. Classify any demand-bearing Replay by the authenticated source_call index, native root, and ordered endpoints. Original closure0.",
+    "id": "npair-original-c-elimination-and-replay-cause-20261018",
+    "contract": "tasks/agent-loop/sprints/npair-original-c-elimination-and-replay-cause-20261018.md",
+    "revision": 1,
+    "sha256": "26b496e86b2030614c7a9d4227b42cb86da729869df3ccc5982d7ef2a834aad0",
+    "state": "ACTIVE",
+    "baseline": "f1b989ea0f2ad841201550173b26436a3b9db55c",
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; preserve original claim, quantifiers, source domain and fixed-c requirement.",
+    "fixed_outcome": "Try original-rule derivation from fixed c at Prim/T_alpha through complete A_decl output to Written-s1 and apply to parent; independently implement accepted omitted-formal source -> native introduction -> Replay -> demand-bearing observer with focused regression. Prior complete capture: 80 Replay dependencies, 186 relation flows, zero demand-bearing flows; implementation diagnosis only.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "runtime": "Prior run exit0 reached candidate inference; Replay status UNKNOWN because tool capture truncated the relation rows. Prior 240s retired."
+      "runtime": "Prior capture uncertainty resolved: 80 retained Replay deps, 186 aggregate flows, zero demand:Some flows; no semantic frontier change."
     },
     "resources": {
-      "cap_seconds": 720,
-      "charged_seconds": 660,
-      "available_seconds": 0,
-      "allocation": "Spent: implementation/runtime300 + proof120 + fresh independent review180 + Luna primary60 = 660/720 seconds. Reserve60 expired, no rollover; Astra0."
+      "cap_seconds": 1800,
+      "charged_seconds": 0,
+      "available_seconds": 1800,
+      "allocation": "Sol constructive fixed-c proof600 + Luna/high vertical implementation600 (includes at most two sequential <=120s commands after CLEAN) + fresh proof review180 + fresh compiler review180 + Luna primary120 + reserve120. Astra0; no rollover."
     },
-    "next_action": "Sprint closed CLEAN/PARTIAL: logs, source/native attribution and all13 direct pins independently verified. Parent closure0. New sprint should trace retained Replay dependencies against child scoped-demand availability using existing rules; keep implementation and proof lanes active.",
-    "after": {
-      "original_conditions_closed": 0,
-      "parent": "OPEN",
-      "runtime": "Exit0; complete durable capture contains zero typed Replay rows. source_call[3] authenticates all eight checks and maps to native demand root379; no join exists. Observation only."
-    }
+    "next_action": "Commit exact contract/current start snapshot, then acknowledge Sol proof and Luna/high implementation assignments with fresh session receipts; separate fresh reviews after frozen lanes."
   },
-  "history": "Closed `npair-swr1-output-origin-prototype-20261018` at commit29a7ace306cca2b3959ed752c859125b01f89543. Proof review CLEAN for five static Local joins and valid-state Missing/remap lemma; original fixed-c/output-origin remains NOT PROVED, parent0→0. Compiler review MAJOR: infallible wrapper Vec push, uncharged repeated scans, missing Plan storage accounting. Prototype source was restored to pinned baseline; no Cargo/tests in that sprint. Review closeout pushed as 29a7ace30. Successor contract uses current pinned semantic/source inputs and dispatcher delta; no semantic candidate is adopted. Prior complete call/demand lane still has exact runtime boundaries in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Parent and all other proof/production gates remain OPEN. Sprint contract rev1 had one malformed 65-character source-admission-contract digest; the actual file digest is 692aa39ec37f522e921634134551dad1933b736e5afd2eff463213970a0fb609. Rev2 corrects that pin only. Proof and implementation authors paused contract-scoped reliance pending the corrected hash; budgets do not reset. Successor progress: independent alternative falsifier froze 69ffae28.../9a7421c4... after 420s conservative charge: no admitted counterexample; only conditional distinct-identity discriminator, original c introduction/output field remains missing, parent0→0. Proof lane at21:34:11 elapsed337/rem383: actual IF Prim elimination is first unavailable original c judgment; native Support→AnnotationMember/FreshUse only establishes forward native target, not semantic c; artifact/handoff freeze pending. Implementation code froze at candidate_context46f0b74c..., shadow_apply d29d5f64..., harness d76cbae2... after246s/rem174; fresh compiler review CLEAN for demand-bearing Replay rows only, linear scan/constant storage, opt-in stderr/no API/no solver effects. Review limit: missing demand rows outside scope; truncated stderr cannot prove absence or completeness. No command yet; author preparing evidence and must remeasure >=120s. Closed `npair-original-c-compatibility-20261018` after all bounded writers/reviewers stopped. Frozen proof artifact e72f73ed... and handoff54a60964... independently reviewed CLEAN; source/native forward member lemma retained, original fixed-c/complete-output Written-s1 derivation not proved, no counterexample, parent0→0. Frozen falsifier69ffae28.../9a7421c4... found no admitted original counterexample. Frozen Replay observer code46f0b74c.../d29d5f64.../d76cbae2... independently compiler-reviewed CLEAN; no Cargo/test/build/probe was run (remaining lane cap below120s), so runtime remains unverified. Static diff check only. Conservatively charge full2160s, no rollover. All authors and reviewers STOPPED; exact artifact leases FROZEN. Successor proposal: concrete Operation contribution introduction/elimination and complete-output action plus independently attacked compatibility; in parallel make actual Local supplier and reviewed observer reachable and run the exact fixture. Parent OPEN, original conditions closed0. Closed `npair-operation-source-contract-and-replay-reachability-20261018` at frozen rev3 inputs. Source lane derived actual Operation request/consumer/A_decl output phi but failed to identify phi with original fixed c and prove universal reflection; proof review CLEAN only for conditional artifact and named two BLOCKING adoption gaps. Falsifier produced a conditional disjoint-fiber quantifier attack, no admitted counterexample. Implementation review MAJOR: local_routes.last() is wrong after argument LocalUse; scoped record caps leak into ordinary mode. Candidate not integrated; restored four files exactly to pinned hashes. No Cargo/test/fixture command; observer runtime unverified. Parent closure0. Full author budgets charged (600+300+900), both review caps conservatively charged; 240 seconds unused and expired, no rollover. See notes/progress/2026-10-18-operation-source-and-local-route-closeout.md#sha256:55a1b5310901b0cded3efa3e2dc1b24aab17368c0d191c07965d9faeb9a4662a. Dispatcher successor: exact local route keyed to actual callee under later argument LocalUses; scoped caps apply only scoped mode; add regression+unscoped noninterference; source formation compatibility/decision packet; execute fixture after review. Closed `npair-original-formation-and-exact-local-route-20261018` at dispatcher resource limit. Proof/decision/falsifier packets preserved; proof review CLEAN only for conditional checkpoint, original closure0. Local candidate had indexed route association, scoped-only cap and later-argument/unscoped regressions, but compiler review MAJOR: annotation/ascription Local callees lacked same-owner origin validation at final auth. Exact six-file candidate diff a2e3f699... and stop receipt22:11:37Z preserved in notes/progress/2026-10-18-local-route-authentication-unapproved.patch and closeout note; candidate never integrated. No tests/build/fixture ran. Total remaining345s < protected360s verification reserve; dispatcher refused further edit/review/test, no rollover. Proposed fresh successor `npair-local-route-authentication-and-runtime-20261018`,2100s, integrated source/call/shadow auth proof, annotation refusal, fresh review and two commands; Astra0. Closed npair-original-formation-and-exact-local-route-20261018 at dispatcher resource limit; no code promotion. Conditional proof/decision review CLEAN; original closure0. Local route candidate had one compiler MAJOR (annotation/ascription Local callee bypasses refused boundary), no tests/runtime. Unapproved diff and hashes in notes/progress/2026-10-18-local-route-authentication-unapproved.patch; code restored after writer STOP22:11:37Z. Total capacity345s < verification reserve360, no rollover. Closed `npair-local-route-authentication-and-runtime-20261018` at commit aa808f96543474d85fe70fba92161f94cf4cfd9a. Rev3 source/test snapshot received CLEAN review; focused candidate_graph_call tests passed5/5. Unchanged fixture exited2 at missing module binding `received`, no Replay row; parent OPEN, original conditions closed0. Runtime evidence: notes/progress/2026-10-18-local-route-runtime-validation.md. Prior budget 1578/2100 closed with no rollover.",
+  "history": "Closed `npair-swr1-output-origin-prototype-20261018` at commit29a7ace306cca2b3959ed752c859125b01f89543. Proof review CLEAN for five static Local joins and valid-state Missing/remap lemma; original fixed-c/output-origin remains NOT PROVED, parent0→0. Compiler review MAJOR: infallible wrapper Vec push, uncharged repeated scans, missing Plan storage accounting. Prototype source was restored to pinned baseline; no Cargo/tests in that sprint. Review closeout pushed as 29a7ace30. Successor contract uses current pinned semantic/source inputs and dispatcher delta; no semantic candidate is adopted. Prior complete call/demand lane still has exact runtime boundaries in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Parent and all other proof/production gates remain OPEN. Sprint contract rev1 had one malformed 65-character source-admission-contract digest; the actual file digest is 692aa39ec37f522e921634134551dad1933b736e5afd2eff463213970a0fb609. Rev2 corrects that pin only. Proof and implementation authors paused contract-scoped reliance pending the corrected hash; budgets do not reset. Successor progress: independent alternative falsifier froze 69ffae28.../9a7421c4... after 420s conservative charge: no admitted counterexample; only conditional distinct-identity discriminator, original c introduction/output field remains missing, parent0→0. Proof lane at21:34:11 elapsed337/rem383: actual IF Prim elimination is first unavailable original c judgment; native Support→AnnotationMember/FreshUse only establishes forward native target, not semantic c; artifact/handoff freeze pending. Implementation code froze at candidate_context46f0b74c..., shadow_apply d29d5f64..., harness d76cbae2... after246s/rem174; fresh compiler review CLEAN for demand-bearing Replay rows only, linear scan/constant storage, opt-in stderr/no API/no solver effects. Review limit: missing demand rows outside scope; truncated stderr cannot prove absence or completeness. No command yet; author preparing evidence and must remeasure >=120s. Closed `npair-original-c-compatibility-20261018` after all bounded writers/reviewers stopped. Frozen proof artifact e72f73ed... and handoff54a60964... independently reviewed CLEAN; source/native forward member lemma retained, original fixed-c/complete-output Written-s1 derivation not proved, no counterexample, parent0→0. Frozen falsifier69ffae28.../9a7421c4... found no admitted original counterexample. Frozen Replay observer code46f0b74c.../d29d5f64.../d76cbae2... independently compiler-reviewed CLEAN; no Cargo/test/build/probe was run (remaining lane cap below120s), so runtime remains unverified. Static diff check only. Conservatively charge full2160s, no rollover. All authors and reviewers STOPPED; exact artifact leases FROZEN. Successor proposal: concrete Operation contribution introduction/elimination and complete-output action plus independently attacked compatibility; in parallel make actual Local supplier and reviewed observer reachable and run the exact fixture. Parent OPEN, original conditions closed0. Closed `npair-operation-source-contract-and-replay-reachability-20261018` at frozen rev3 inputs. Source lane derived actual Operation request/consumer/A_decl output phi but failed to identify phi with original fixed c and prove universal reflection; proof review CLEAN only for conditional artifact and named two BLOCKING adoption gaps. Falsifier produced a conditional disjoint-fiber quantifier attack, no admitted counterexample. Implementation review MAJOR: local_routes.last() is wrong after argument LocalUse; scoped record caps leak into ordinary mode. Candidate not integrated; restored four files exactly to pinned hashes. No Cargo/test/fixture command; observer runtime unverified. Parent closure0. Full author budgets charged (600+300+900), both review caps conservatively charged; 240 seconds unused and expired, no rollover. See notes/progress/2026-10-18-operation-source-and-local-route-closeout.md#sha256:55a1b5310901b0cded3efa3e2dc1b24aab17368c0d191c07965d9faeb9a4662a. Dispatcher successor: exact local route keyed to actual callee under later argument LocalUses; scoped caps apply only scoped mode; add regression+unscoped noninterference; source formation compatibility/decision packet; execute fixture after review. Closed `npair-original-formation-and-exact-local-route-20261018` at dispatcher resource limit. Proof/decision/falsifier packets preserved; proof review CLEAN only for conditional checkpoint, original closure0. Local candidate had indexed route association, scoped-only cap and later-argument/unscoped regressions, but compiler review MAJOR: annotation/ascription Local callees lacked same-owner origin validation at final auth. Exact six-file candidate diff a2e3f699... and stop receipt22:11:37Z preserved in notes/progress/2026-10-18-local-route-authentication-unapproved.patch and closeout note; candidate never integrated. No tests/build/fixture ran. Total remaining345s < protected360s verification reserve; dispatcher refused further edit/review/test, no rollover. Proposed fresh successor `npair-local-route-authentication-and-runtime-20261018`,2100s, integrated source/call/shadow auth proof, annotation refusal, fresh review and two commands; Astra0. Closed npair-original-formation-and-exact-local-route-20261018 at dispatcher resource limit; no code promotion. Conditional proof/decision review CLEAN; original closure0. Local route candidate had one compiler MAJOR (annotation/ascription Local callee bypasses refused boundary), no tests/runtime. Unapproved diff and hashes in notes/progress/2026-10-18-local-route-authentication-unapproved.patch; code restored after writer STOP22:11:37Z. Total capacity345s < verification reserve360, no rollover. Closed `npair-local-route-authentication-and-runtime-20261018` at commit aa808f96543474d85fe70fba92161f94cf4cfd9a. Rev3 source/test snapshot received CLEAN review; focused candidate_graph_call tests passed5/5. Unchanged fixture exited2 at missing module binding `received`, no Replay row; parent OPEN, original conditions closed0. Runtime evidence: notes/progress/2026-10-18-local-route-runtime-validation.md. Prior budget 1578/2100 closed with no rollover. Closed `npair-replay-durable-capture-20261018` CLEAN/PARTIAL at f1b989ea0: complete run has80 Replay dependencies,186 scoped relation flows,0 demand-bearing flows; prior capture and attribution independently reviewed CLEAN; parent closure0. See sprint closeout rev2 a55415df....",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -38,44 +33,33 @@
       "role": "Luna-primary",
       "state": "RUNNING",
       "requested_model": "Luna",
-      "requested_effort": "high <=60s",
+      "requested_effort": "high <=120s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Primary owns current state, exact dispatch, review and Git. Successor start commit 11deed74b and release-state commit bf5d0b348 pushed."
+      "receipt": "Primary owns exact dispatch, current state, review and Git. Current sprint contract is frozen in the start commit; no compiler commands released."
     },
     {
-      "id": "/root/npair_durable_capture_proof",
-      "role": "Replay row source/native attribution proof",
-      "state": "STOPPED",
+      "id": "/root/npair_original_c_proof",
+      "role": "constructive original fixed-c elimination proof",
+      "state": "NOT_STARTED",
       "requested_model": "Sol/prover",
-      "requested_effort": "high <=120s (criteria30 + frozen-log attribution90)",
+      "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "FROZEN revision1; theory f39055008cd8b1168229ad34993a088ca3fdeabd7b1a1af2548fc081acedf791; handoff 347b1e3781e7424b691cc5f6d224a2a2e723f640076243bdc763ceaa9de69966. source_call[3] and native root379 authenticated. Complete stdout/stderr contain zero typed Replay rows; no join exists; this is observational only, not impossibility. Full120s charged, STOPPED, descendants0. Fresh independent review CLEAN; exact bounded conclusion accepted."
+      "session": "not-launched",
+      "receipt": "Exact proof/theory and handoff leases granted by contract rev1; awaiting live launch acknowledgement."
     },
     {
-      "id": "/root/npair_durable_capture_impl",
-      "role": "durable output capture and runtime receipt",
-      "state": "STOPPED",
+      "id": "/root/npair_scoped_replay_impl",
+      "role": "Luna/high scoped formal Replay vertical implementation",
+      "state": "NOT_STARTED",
       "requested_model": "Luna/implementer",
-      "requested_effort": "high <=300s incl one <=120s run after CLEAN",
+      "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "STOPPED after exactly one authorized invocation, exit0, UTC 2026-10-17 23:20:14–23:20:20, cwd /home/momota1029/rust/yulang, env YU_CALL_REPLAY_OBSERVER=1. stdout79315B SHA 5bb1dd3bcbabd97bb94fca9a12fdc17a882d1c9a916c692fe55f1a302984d311; stderr1986B SHA 9a56194c1d4734309880847cd18ee2a9a0dab194815b0a40aad2378a5448f7e9; metadata SHA 142edef3b35d58279421013c44e81ac96ac8123be50ab4e75186824f583ca2ad; progress 2a8ccff7c1aa05a02cd4f807a44e90558d5a54b24940c7b90e169bee0cf64abc; inbox dd3a0df069f2a21ce8c0e63a682eea0ef1e2a2f9a9f4c5bee6dab55e791c3b48. Complete files frozen; no scratch/descendants. Proof lane reports zero Replay rows, final review pending. Final independent review CLEAN; complete capture has zero typed Replay rows. Attribution is observation only; parent OPEN/closure0."
-    },
-    {
-      "id": "/root/npair_durable_capture_review",
-      "role": "fresh independent compiler review",
-      "state": "STOPPED",
-      "requested_model": "Sol/compiler_referee",
-      "requested_effort": "high <=180s (preflight60 + final attribution120)",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Final independent review CLEAN, all seven artifact hashes and all13 dependency pins MATCH. Complete capture has zero typed Replay rows; source_call[3] authenticates and maps to native root379. Observation only; no consumer coverage or semantic impossibility. Full180s charged; no writes, commands or descendants."
+      "session": "not-launched",
+      "receipt": "Exact example/test/progress/handoff leases granted by contract rev1; commands require CLEAN independent review and primary release."
     }
   ],
   "leases": [
@@ -85,56 +69,71 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-replay-durable-capture-20261018.md",
+      "path": "tasks/agent-loop/sprints/npair-original-c-elimination-and-replay-cause-20261018.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/runtime/20261018-receive-applied-durable.stdout.log",
-      "owner": "/root/npair_durable_capture_impl",
-      "state": "FROZEN"
+      "path": "notes/theory/2026-10-18-original-c-complete-output-elimination.md",
+      "owner": "/root/npair_original_c_proof",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/runtime/20261018-receive-applied-durable.stderr.log",
-      "owner": "/root/npair_durable_capture_impl",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-original-c-complete-output-elimination.md",
+      "owner": "/root/npair_original_c_proof",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/runtime/20261018-receive-applied-durable.meta.json",
-      "owner": "/root/npair_durable_capture_impl",
-      "state": "FROZEN"
+      "path": "crates/yu-solver/examples/research_scoped_formal_replay.rs",
+      "owner": "/root/npair_scoped_replay_impl",
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-18-receive-applied-durable-capture.md",
-      "owner": "/root/npair_durable_capture_impl",
-      "state": "FROZEN"
+      "path": "crates/yu-solver/src/tests/candidate_graph_call.rs",
+      "owner": "/root/npair_scoped_replay_impl",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-receive-applied-durable-capture.md",
-      "owner": "/root/npair_durable_capture_impl",
-      "state": "FROZEN"
+      "path": "notes/progress/2026-10-18-scoped-formal-replay.md",
+      "owner": "/root/npair_scoped_replay_impl",
+      "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-receive-applied-replay-attribution.md",
-      "owner": "/root/npair_durable_capture_proof",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-scoped-formal-replay-impl.md",
+      "owner": "/root/npair_scoped_replay_impl",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-receive-applied-replay-attribution.md",
-      "owner": "/root/npair_durable_capture_proof",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/runtime/20261018-scoped-formal-replay.meta.json",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/runtime/20261018-scoped-formal-replay.test.stdout.log",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/runtime/20261018-scoped-formal-replay.test.stderr.log",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/runtime/20261018-scoped-formal-replay.example.stdout.log",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/runtime/20261018-scoped-formal-replay.example.stderr.log",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [],
-  "ready_next_work": {
-    "candidate": "Trace retained Replay dependency creation and child scoped-demand availability through existing rules and owners; identify whether current observation is explained by absent dependencies or scope/availability. In parallel select only an already-approved implementation slice with independent end-to-end value.",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017",
-    "original_conditions_closed": 0,
-    "dispatcher": "consult at sprint boundary before successor contract"
-  },
+  "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "Previous sprint CLOSED-REVIEWED-PARTIAL at 551773b86; unused240s retired. Current successor has fresh720s and no rollover."
+    "receipt": "Previous npair-replay-durable-capture sprint closed CLEAN/PARTIAL at f1b989ea0; no unused time rolls over. New 1800s sprint starts at baseline f1b989ea0."
   },
-  "next_action": "Sprint closed CLEAN/PARTIAL: logs, source/native attribution and all13 direct pins independently verified. Parent closure0. New sprint should trace retained Replay dependencies against child scoped-demand availability using existing rules; keep implementation and proof lanes active."
+  "next_action": "Commit exact contract/current start snapshot, then acknowledge Sol proof and Luna/high implementation assignments with fresh session receipts; separate fresh reviews after frozen lanes."
 }
