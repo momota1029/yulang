@@ -1,7 +1,7 @@
 # Sprint `npair-operation-source-contract-and-replay-reachability-20261018`
 
-Status: ACTIVE, revision 2. Branch `research/simple-sub-intrusion`.
-Baseline: `759f9d0b7bdfd8a557a587bf095c2581c213ced1`.
+Status: ACTIVE, revision 3. Branch `research/simple-sub-intrusion`.
+Baseline: `759f9d0b784c71f19dc489199edf2d268174cbbc`.
 Parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN, original conditions closed 0. Preserve its quantifiers, source domain, receive route, C1/C2, F1/FK1, Call, N-Transport, soundness, principality and termination requirements.
 
 ## One outcome
