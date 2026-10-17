@@ -92,9 +92,8 @@
           "started_at_utc": "2026-10-17 05:10:23 UTC",
           "requested": "gpt-6.1-sol/medium",
           "observed": "UNKNOWN/UNKNOWN",
-          "stopped_at_utc": "2026-10-17 05:11:53 UTC",
           "charged_seconds": 90,
-          "receipt": "CLEAN bounded conformance; all 16+5 pins match; no semantic adoption/parent closure; reviewer read-only message, no file write."
+          "receipt": "CLEAN bounded conformance; 16+5 pins match; read-only message received 2026-10-17 05:11:15 UTC; exact stop time UNKNOWN; no file write."
         },
         "architect": {
           "state": "ASSIGNED-NOT-LAUNCHED",
@@ -234,8 +233,7 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "started_at_utc": "2026-10-17 05:10:23 UTC",
-      "receipt": "CLEAN bounded spec conformance by read-only message; 90s charged; all pins match; no file write or descendants.",
-      "stopped_at_utc": "2026-10-17 05:11:53 UTC"
+      "receipt": "CLEAN bounded spec conformance via read-only message received 2026-10-17 05:11:15 UTC; exact stop time UNKNOWN; 90s charged; no file write or descendants."
     }
   ],
   "leases": [
