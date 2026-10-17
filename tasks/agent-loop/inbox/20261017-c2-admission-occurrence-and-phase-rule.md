@@ -1,40 +1,68 @@
-# c2 rooted admission occurrence and phase rule — source handoff
+# c2 native call occurrence correction — source handoff
 
-Sprint-ID / contract rev / SHA-256: `c2-admission-occurrence-and-phase-rule-20261017` / 1 / `1b2c953011a2ffbfb7fdc8d0783869b7b85ef2e2a9824e23d284de1417fdf491`  
-Assignment-ID / handoff revision: `C2-ADMISSION-OCCURRENCE-PHASE-20261017` / 1  
-Parent: original FORWARD-FIRST-CALL §§1–2, all original A/B quantifiers, c2=`g(Unit)`, F2 at `(sigma2,Delta2)`, `xi=(nu,K,D)`; parent OPEN  
-Baseline: `d67aa4ba8`; no semantic/code adoption  
+Sprint-ID / contract revision / SHA-256: `c2-typed-call-occurrence-correction-20261017` / 2 / `56dfb9a7eec800088341b99d659b9fcabacedbe969f8891b31f1784cd166f54e`  
+Assignment-ID / handoff revision: `C2-TYPED-CALL-OCCURRENCE-CORRECTION-20261017` / 2  
+Parent: original FORWARD-FIRST-CALL A/B and c2 admission/VIEW/CHECK remain OPEN  
+Baseline: `8f012935e`; no semantic/code adoption  
 Author / worker: `/root`, Luna primary and sole Git integrator; current session  
 Requested model/effort: `gpt-6-luna / high`; observed effective settings: UNKNOWN  
-Launch: 2026-10-17 03:53:37 UTC after 22/22 contract pins matched
+Launch: 2026-10-17 04:09:16 UTC; STOP/freeze: 2026-10-17 04:11:51 UTC; 155 seconds active
 
-## Frozen outcome
+## Frozen source outcome
 
-Class: unselected candidate rule plus source/native occurrence evidence.  
+Class: corrected typed source/native call-use correspondence; no admission proposal.  
 Artifact: `notes/design/2026-10-17-c2-admission-occurrence-and-phase-rule.md`  
-Artifact SHA-256: `e835e269207666ba25f03680c80d1c3da32f5da8883598574b344e6d0f78d5d9`
+Artifact SHA-256: `a78c3b32db064e3e6add46daeb7395703fe453fb6aba74ba9d98ce82ed409d25`
 
-The artifact instantiates `Aarg_c2^cand(tau2) := Unit+ <= arg(N2)` at the actual `Apply(Name(g),Unit)` call, identifies its full surrounding dependent coordinate list, and distinguishes that candidate admission meaning from the native port relation and any original F2 meaning. Its exact proposed local insertion is `ins_c2^cand = id_tau2`; native source maps from the actual callee/argument children into the retained Apply record are identity on their recorded occurrence/expression. The source resolver authenticates the `Name(g)` root at the `Bind` result. The semantic dependent substitution `m_g` / full `IF(g)` remains absent, named as `use_g^sem`; no selected IF-Use is falsely instantiated.
+The revision withdraws rev1's `Aarg_c2^cand := Unit+ <= arg(N2)` and
+`C-AppArg` admission claim. The native Apply constructor embeds the actual
+argument endpoint as the positive argument child of the negative Function
+Demand, then constrains the positive callee against that negative Demand at
+c2 checking slot 0:
 
-The actual source graph is rooted as `Scope(receive, Lambda(f,annotation, Bind(g,Call(c1,Ref(f),Unit), Call(c2,Ref(g),Unit))))`. It gives concrete scope/Bind/Ref/Call placement, without inventing descriptor-level Union/Conj nodes. A candidate staged residualization is stated recursively over Prim/Conj/Union/Bind/Scope/Ref, preserving tags, dependent scopes, shared witnesses and opaque substitutions. Actual semantic F2 graph and its phase labels are not established; those non-instantiated cases remain explicitly unverified.
+```text
+callee2+ <= N2-
+```
 
-The candidate predicate is a new meaning and remains unselected. It says only what this one leaf would admit, with exact formula `Unit+ <= arg(N2)`. A potentially distinguishing tuple against original F2 admission is not established, so the semantic difference is explicitly UNVERIFIED and not decision-ready. No original F2 predicate or complete inlet law was discovered. The implementation contribution is a candidate rooted construction and exact source/native seam; `NO_SAFE_CODE_SLICE` remains.
+The source observer authenticates the same `LocalSourceForm::Apply`, exact
+callee and argument child identities, c2 occurrence/cause, and the native
+Demand's child/port identity and polarity. Construction does not emit a
+separate `Unit+ <= arg(N2)` pair. Only if an actual positive Function `P+` is
+compared and decomposed against `N2-` does ordinary contravariant Function
+decomposition yield `arg(N2)+ <= arg(P)-`; this is explicitly conditional on
+the parent comparison and remains a call-check consequence, not F2 admission.
 
-## Parent application, checks and limitations
+The useful prior wrapper-graph retention and conditional identity-substitution
+facts are retained with their typing limits. No semantic `IF(g)`, F2 clause,
+complete inlet, VIEW, CHECK or parent theorem is constructed. Original A/B
+domains and all quantifiers remain unchanged and OPEN.
 
-This concretizes one c2 candidate leaf and the surrounding source use graph, not the full F2 descriptor constructor. It does not prove original I2, full VIEW target coverage into `B_in`, CHECK introduction, `WF_Dec(F2)`, `VIncl`, whole argument compatibility or `CIncl`. The selected IF rules retain authentic declaration/use telescopes only when supplied; the semantic g-root interface/substitution needed for a full IF-Use is precisely missing. Astra may use the frozen candidate graph to prove only phase-preservation consequences within this instantiated scope, and must keep consequences conditional on candidate adoption separate from selected-rule facts. Any broadened descriptor-level rule requires a contract revision/new input.
+## Source pins and static gate
 
-All 22 contract pins matched at source start and at freeze. The producer/failed proof/closeout bytes are the exact pinned predecessors. No external dependency added. No tests, builds, probes, compiler/runtime execution, expected-output changes, code edits, semantic adoption or descendants. The static sprint checker is run by Luna at integration and is not proof.
+Before the correction, all twelve contract pins matched the recorded values:
 
-Six substantive stages; actual author interval 03:53:37–03:57:24 UTC (227 seconds), conservatively charged 240/360; unused 120 retired. No cap extension. All source writes are stopped. Exact leased output paths are this artifact and handoff only; both are FROZEN for proof input/review.
+- prior source-gate review: `35536c07acd17b8531eae9e62f12c7089f712385685812814df2a58c7bea1bf2`
+- prior contract: `1b2c953011a2ffbfb7fdc8d0783869b7b85ef2e2a9824e23d284de1417fdf491`
+- prior source artifact / handoff: `e835e269207666ba25f03680c80d1c3da32f5da8883598574b344e6d0f78d5d9` / `814f3a723664b9a48d81a282efb8c9becaca20ffaae7d0f807b15cf2695b6204`
+- prior proof artifact / handoff: `3dc2aee3594ecadbf42a6dee4b52c6767d058cbc5fcca0ee89067fd81f28c865` / `cdea6601d58bf41c812209bb48eb385801770d976646b1fd36632d499eaab04f`
+- `shadow_apply.rs`: `bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf`
+- `candidate_call.rs`: `cbad9cf51a05343eb7a29ab77aac520891467a8aa4edc3201ea3d91f978984a1`
+- `candidate_source.rs`: `efeacdc547cd71e2a95f83f1c844592b81b6f2649835d77aac00eeca73757d38`
+- `lib.rs`: `2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f`
+- approved Function-view direction: `4b3363b79901e84b87cc8e02b59b023ff82c33e76d0be6d255e2b7bbab1a65c1`
+- original joint forward parent: `f71cc442bcccb23f7e6f1aa6221b089abb8c24d1c4ce01fecef37995541c16b6`
 
-Next: revalidate all 22 contract pins and both source output hashes, then start the reserved Astra proof lane. If Astra cannot preserve/apply the actual graph, stop at its first premise. Semantic adoption and compiler work remain unassigned.
+`python3 tools/agent_sprint.py check` passed after correction. This is
+workflow/static validation only, not proof, runtime evidence, or independent
+review. No compiler edit, tests, builds, probes, or execution were performed.
 
-Mutual TODOs:
+## Next exact lease
 
-- `C2-SEMANTIC-INTRO-20261017`: original Function-view/declaration owner supplies the actual complete F2 introduction/predicate and semantic `IF(g)[m_g]` use map. Falsifier: any field lacks source introduction or depends on later output/query.
-- `C2-PHASE-GRAPH-20261017`: actual F2 owner identifies the real descriptor nodes and owner phases; preserve Union branch choice and the same Bind/Scope witness. Falsifier: flattening changes an accepted tuple, splits a shared witness or hoists a result.
-- `C2-CARRIER-VIEW-20261017`: inlet owner supplies lawful action covering every original `B_in` target. Falsifier: one admitted original tuple has an uncovered target.
-- `C2-CARRIER-CHECK-20261017`: whole-argument owner supplies CHECK introduction from actual clauses and full carrier evidence. Falsifier: missing prerequisite or proof sourced from Q/membership/provider success.
-
-Worker STOP: Luna source-design writing ended 03:57:24 UTC; no descendants or scratch/generated paths. Primary ownership now awaits pin revalidation and proof-start gate adjudication.
+The selected next lane is the independent Sol proof at
+`notes/theory/2026-10-17-c2-native-call-operand-correspondence.md` with handoff
+`tasks/agent-loop/inbox/20261017-c2-native-call-operand-correspondence.md`,
+maximum 180 active seconds. It must prove the typed equations and conditional
+Function child consequence from the pinned source, then state the admission
+limits. It must not use the withdrawn candidate predicate as a theorem or
+upgrade the call-check constraint into F2 admission. Fresh sequential
+compiler_referee and spec_auditor reviews follow proof freeze.

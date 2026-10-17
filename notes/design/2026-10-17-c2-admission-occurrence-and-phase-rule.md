@@ -1,190 +1,137 @@
-# c2 admission occurrence and phase rule — rooted candidate
+# c2 native call occurrence correction — typed source candidate
 
 Date: 2026-10-17  
-Status: Draft / unselected candidate; no semantic adoption  
-Sprint: `c2-admission-occurrence-and-phase-rule-20261017`, contract rev1  
-Parent: original FORWARD-FIRST-CALL A/B OPEN  
+Revision: 2; corrects and withdraws the rev1 `C-AppArg` claim  
+Status: source/native correspondence only; no semantic adoption  
+Sprint: `c2-typed-call-occurrence-correction-20261017`, contract rev2  
+Parent: original FORWARD-FIRST-CALL A/B and c2 admission/VIEW/CHECK remain OPEN  
 Compiler-code authority: none
 
-## 1. Root and ownership
+## 1. Fixed source occurrence and source identity
 
-The exact source is
+Keep the original source and quantifiers unchanged:
 
 ```text
 receive(f : Unit -> alpha+) = let g = f(Unit) in g(Unit)
 ```
 
-Let `c1` be the RHS `Apply(Name(f), Unit)` and `c2` the body
-`Apply(Name(g), Unit)`. The root is the single resolved c2 occurrence, with its
-original argument `a2=Unit`, descriptor variable `F2@(sigma2,Delta2)`, fixed
-`xi=(nu,K,D)`, and full incoming view `B_in`. The body remains under the same
-`Bind(g,c1,...)`; `Name(g)` resolves to that binding, whose value comes from c1.
-No new provider is chosen. The outer declaration/definition/use component is
-owned by the selected source Function-view direction §2. That authority
-selects shared inference from declarations, definitions and uses but expressly
-does not supply a detailed introduction judgment. The F2 formation frontier
-and exact open-check are recorded in the pinned parent notes.
+`c1` is `Apply(Name(f), Unit)`; `c2` is the suffix `Apply(Name(g), Unit)`;
+`a2` is its actual Unit child. The original target remains `F2@(sigma2,Delta2)`,
+`xi=(nu,K,D)`, and the complete original incoming view `B_in`. The enclosing
+source path is `Scope(receive, Lambda(f, annotation, Bind(g, c1, c2)))`; c2
+stays beneath the actual Bind result. No provider, carrier, world, or context
+is selected or projected.
 
-The source implementation confirms only the operational occurrence:
-`candidate_source` sees `LocalSourceForm::Apply`, retains its callee/argument
-endpoints and `CandidateRelation::Apply`; `candidate_call::observe` authenticates
-the same owner, expression, `Name(g)`, `a2`, scope and negative-function native
-`Demand`. The native argument port and the semantic descriptor inlet are
-separate objects. No inspected native constructor defines the latter.
+The pinned source constructor `candidate_source` retains the `LocalSourceForm::Apply`
+expression and its exact callee and argument children in `ApplySourceInput`.
+For that input it records the source owner/expression, child IDs, source level,
+callee and argument value/effect endpoints, result endpoints, and
+`checking = ConstraintOccurrenceId(c2, 0)` with cause derived from that same
+checking occurrence. `candidate_call::observe` re-fetches the same source
+Apply and verifies the stored callee and argument identities, occurrence and
+cause; it also checks that the native demand's children match the retained
+native ports. This authenticates a source/native call record. It does not type
+an original semantic F2 inlet.
 
-## 2. One fully instantiated candidate predicate
+## 2. Actual native construction and relation
 
-Because no selected source rule introduces original F2 admission here, this
-section proposes a new, narrow candidate leaf. It is not called an original
-clause and is not identified with `I2`.
-
-At the actual `Apply(c2)` occurrence, let `N2` be its retained native call
-Demand and `arg(N2)` its native negative argument port. Let `Unit+` be the
-positive native endpoint at the actual literal child `a2`. Instantiate the
-candidate predicate at the original call telescope `tau2`:
+At this Apply recipe, `shadow_apply::admit_candidate_fact` constructs:
 
 ```text
-Aarg_c2^cand(tau2) := Unit+ <= arg(N2)
+callee₂ = candidate_endpoint(Name(g), Positive)
+argument₂ = candidate_endpoint(a₂, Positive)
+N₂ = NegativeFunction(
+       argument = argument₂⁺,
+       argument_effect = argument_effect₂⁺,
+       invocation_effect = invocation_effect₂⁻,
+       result = result₂⁻)
 ```
 
-Here `tau2` retains, without projection, the original
-`(sigma2,Delta2,xi, owner(c2), c2, Name(g), a2, N2, F2, h, k, C_e, w_e,
-Dems(k,h), Obs(k,delta), K, D, licensed descriptions)` coordinates in their
-original scopes. No actual provider is an input; it remains universally
-quantified by the parent. The formula uses one actual literal, one actual
-Apply Demand and one endpoint relation. It does not assert that the native
-port is the whole inlet, that this leaf is exhaustive, or that the port
-relation has a semantic interpretation at `F2`.
-
-Candidate rule `C-AppArg` places this leaf at the c2-use slot only when the
-source resolver supplies that exact `Apply(Name(g),Unit)` occurrence and its
-native Demand record. Its proposed behavior is exact for this leaf: a tuple
-satisfies it iff `Unit+ <= arg(N2)`. The unselected alternative leaves this
-native relation as an ordinary call-check constraint with no claim that it is
-an admission clause of `F2`. These alternatives could differ on a tuple whose
-native argument relation holds while an independently fixed F2 inlet guard
-fails, but no source-qualified tuple of that form is established here; the
-difference is **UNVERIFIED**, not decision-ready. `C-AppArg` is not adopted.
-
-## 3. Actual graph and phase behavior
-
-The concrete source/occurrence graph is
+The native demand observer verifies that `arg(N₂)` is exactly `argument₂` and
+that this port is a `Value/Positive` term. The initial candidate constraint
+then admits and records this pair, owned by the same c2 checking occurrence
+and cause:
 
 ```text
-Scope(receive-definition,
-  Lambda(f, annotation Unit -> alpha+,
-    Bind(g,
-      Call(c1, Ref(f@declaration), Unit),
-      Call(c2, Ref(g@Bind-result), Unit))))
+callee₂⁺ ≤ N₂⁻       (ordinary call-check constraint at c2, slot 0)
 ```
 
-`Ref(f)` and `Ref(g)` retain distinct root/use identities. `Bind(g,...)`
-keeps the c2 body beneath the actual c1 Return result; it cannot be hoisted to
-the declaration, and the c2 provider/result fields stay under their actual
-Return. The candidate leaf sits at `Call(c2)` and references `a2` and `N2` in
-that slot. No source-level Union or Conj node occurs in this concrete HIR
-subtree, so none is invented. The semantic descriptor graph for the inferred
-`F2` is still absent; its Union/Conj grammar cannot be claimed as an actual c2
-graph.
+The literal's positive term is used to build the demand's positive argument
+child. Construction does not emit a second pair `Unit⁺ ≤ arg(N₂)`; those
+expressions name the same retained term, and no distinct source relation is
+created by that equality of identity. Therefore rev1's displayed
+`Aarg_c2^cand := Unit⁺ ≤ arg(N₂)` and its `C-AppArg` admission claim are
+withdrawn as ill-typed and unsupported by the constructor. No replacement
+admission predicate is proposed here.
 
-For any proposed descriptor graph containing this rooted leaf, use the
-following **candidate staged residualization**, which preserves syntax rather
-than flattening phases. Every primitive carries its original predicate,
-complete telescope and source owner. `phase(q)` is supplied only by that
-owner; a missing label yields `Unclassified(q)` and blocks admission use.
+A separate conditional fact applies only if an actual positive Function
+endpoint `P⁺` is supplied to and decomposed against this negative Function
+`N₂⁻` under the ordinary subtype relation:
 
 ```text
-split(Prim(q))       = Ready_A(q)                 if phase(q)=A and scope-ready(q)
-                     | Residual_C(Prim(q))        if phase(q)=C
-                     | Residual_P(Prim(q))        if phase(q)=P
-                     | Unclassified(Prim(q))      otherwise
-split(Conj(q,r))     = Conj(split(q), split(r))   same joint tuple/witness
-split(Union(q,r))    = Union(split(q), split(r))  preserve original branch tag
-split(Bind(x,q,r))   = Bind(x, split(q), split(r under the same x/result/world))
-split(Scope(b,q))    = Scope(b, split(q))         bind b once, below original scope
-split(Ref(t,m))      = Ref(t,m)                   classify at t; retain whole m
+P⁺ ≤ N₂⁻  implies the Function argument child comparison
+arg(N₂)⁺ ≤ arg(P)⁻
 ```
 
-`scope-ready(q)` means every free coordinate of the original predicate is
-bound at that exact node. Otherwise the whole node remains residual under its
-original Bind/Scope. In particular a later Return/provider/live-authority
-predicate cannot be promoted into A merely because it is stored. Conj retains
-one correlated witness. Union admits through the selected tagged branch;
-it does not require every branch. Bind's continuation remains dependent on the
-same preceding Return and current world. Scope retains one hiding witness.
-Ref does not duplicate or re-root the source predicate; its complete telescope
-is instantiated by the authentic `m` at IF-Use.
+This follows from the existing contravariant Function decomposition and is
+conditional on the parent comparison and its decomposition actually being
+present. The call constructor alone does not supply `P`, prove that `callee₂`
+is that Function, or authorize this premise. This child is also an ordinary
+call-check consequence, not an F2 admission clause.
 
-This is a candidate graph operation, not an existing selected phase law. The
-concrete source subtree has one candidate `Prim(C-AppArg)` beneath its actual
-Scope/Bind/Ref/Call positions. There is no instantiated F2 descriptor graph on
-which to demonstrate Union/Conj/Bind/Scope/Ref cases; those additional cases
-are **unverified**, not claimed by this single occurrence.
+The two operand owners are distinct: the whole-call lower operand is the
+callee child; its upper operand is the newly built negative Demand. The
+argument child is embedded inside that Demand from the Apply's source argument
+endpoint, with Positive polarity. A negative Function constructor does not
+make all its children negative.
 
-## 4. Insertion, use, and current evidence
+## 3. Retained source-graph facts and their limits
 
-The actual source path is `declaration f -> c1 use of f -> Bind result g ->
-c2 use of g`. IF-Insert may retain an actual declaration clause at its real
-root; IF-Use carries an authenticated root and the whole original dependent
-substitution. At c2, selected IF-Use applies only after a genuine typed
-`g`-root/interface exists. Current evidence gives the resolved local reference
-and native Apply endpoints, but not a semantic complete `IF(g)` or a
-source-authenticated insertion for `Aarg_c2^cand`. Thus no IF theorem is
-instantiated with absent semantic operands. The candidate use slot may be
-written explicitly as
+The previous source artifact correctly identified the concrete wrapper graph
+and retained the suffix under `Bind(g,c1,c2)`. Keep only that bounded result:
+`Scope`, `Lambda`, `Bind`, `Call`, and `Ref` retain their source labels, child
+identities and binding edges; `Ref(g)` resolves to the existing Bind result
+root; c2's own checking occurrence remains local to c2. The raw c1 Return or
+Request substitution acts on the same dependent suffix under the same binder.
+This graph-retention calculation does not assert a typed installed `IF(g)` or
+a selected IF-Use rule.
 
-```text
-Use_c2(Aarg_c2^cand[tau2])
-  -- IF-Use(m_g) --> CallSlot(c2, N2)
-```
+Likewise, identity substitution on any already supplied well-formed telescope
+preserves that telescope and any already typed witness. It does not build the
+telescope, type a new predicate, or prove a semantic insertion. Source-child
+identity (`Name(g)` and `a2` into the retained Apply record), native-port
+identity (`arg(N2)=argument2`), and a semantic interface substitution
+`m_g : IF(g) -> c2` remain different maps. Only the first two are authenticated
+here; a complete semantic interface and substitution are not supplied.
 
-conditional on a real `m_g`; `m_g` is not synthesized by the native port map.
-The ground Unit carrier remains only its own supplied certificate and does not
-prove all original `B_in` fibers.
+The prior graph proof has no source-qualified counterexample and no authority
+to assign meaning to the original F2 constructor. Preserve those limits; do
+not reuse its conditional `C-AppArg` argument as an admission theorem.
 
-For exact incidence accounting, distinguish these three maps:
+## 4. Admission boundary and parent gates
 
-```text
-m_arg : source child a2 -> Apply(c2).argument
-       = identity on the retained expression/occurrence; verified by observe.
-m_callee : source child Name(g) -> Apply(c2).callee
-          = identity on the retained expression/occurrence; verified by observe.
-ins_c2^cand : CandidateLeaf(tau2) -> CandidateRoot(F2@c2)
-            = id_tau2 (proposed local root insertion, not selected IF-Insert).
-```
+The corrected relation establishes where an ordinary native call check is
+attached and which source/native children it uses. It establishes none of the
+following: semantic `IF(g)`, an original F2 clause or introduction, `I2`,
+`I2=SAT`, equality of a native argument port with the complete inlet, original
+VIEW, or original CHECK. Pending call-check `Q` cannot form F2 admission.
+No relation between `N2` and the complete original `B_in` carrier is derived.
 
-The resolver authenticates `Name(g)` against the existing `Bind` result root;
-that root identity is not yet a typed `IF(g)` interface substitution. Name the
-missing map `use_g^sem : IF(g)[m_g] -> CallSlot(c2)`: its source-side
-root-resolution component is present, but its complete semantic telescope and
-instantiation `m_g` are not supplied. Therefore `IF-Use` on the semantic
-interface is not claimed. `C-AppArg` is inserted only into its proposed local
-F2 candidate root by `id_tau2`; it does not masquerade as an imported clause
-from g. This makes the missing source bridge an explicit proof obligation.
+Original F2 VIEW still requires the complete carrier action for every original
+`(delta,O)` in `B_in`, including its original contexts, worlds, observations,
+responses, resumptions and futures. Original CHECK still requires the actual
+original clauses and correlated witnesses. Both remain OPEN at original c2;
+all original A/B domains, providers, and quantifiers stay intact. Parent
+`FORWARD-FIRST-CALL` A/B, source/native correspondence for those full claims,
+semantic approval, soundness, principality and production remain OPEN.
 
-Original VIEW still requires the admitted `I2` tuple to produce complete
-carrier evidence for every target `(delta,O)` in `B_in`, including the original
-non-source, request/resume/future and independent-alternative cases. The
-candidate leaf gives no such action. Original CHECK still requires actual
-original clauses, correlated witnesses and an introduction into original `I2`;
-`C-AppArg` cannot introduce `I2` by itself. Both remain OPEN at original c2.
-No Q, membership, provider success, `I2=SAT`, `B_in=J_U`, or port equality is
-used to bridge the gap.
+## 5. Exact next proof target
 
-## 5. Limits and next proof gate
-
-This output instantiates one *candidate* predicate at the actual c2 Apply and
-records the real enclosing source graph and scope behavior. It does not meet a
-source-origin theorem by relabeling a native relation. Astra may proceed only
-to prove the staged operation's graph-preservation consequences for the
-specified graph, and to attempt VIEW/CHECK conditional on separately stated
-candidate adoption. Every uninstantiated descriptor node remains out of scope.
-
-Exact unresolved owners: original Function-view/declaration owner for a
-semantic introduction and the full `F2` constructor graph; original inlet
-owner for the total carrier VIEW action; original whole-argument-check owner
-for original CHECK. No actual source-qualified tuple distinguishing
-`C-AppArg` from those original rules is known. Parent FORWARD-FIRST-CALL A/B,
-source `T`, native `MODEL`, `WF_Dec(F2)`, `VIncl`, whole-argument compatibility,
-`CIncl`, F1/FK1, hygiene, soundness, principality and production remain OPEN.
-No code lease or semantic adoption follows.
+An independent proof may establish the source/native equations above and the
+conditional Function decomposition consequence from the pinned constructors,
+with graph retention used only within its stated premises. It must keep the
+conditional premise explicit and state exactly what evidence the actual call
+relation contributes. If it contributes no F2 admission, VIEW, or CHECK
+premise, that is the correct bounded result. No compiler code, tests, probes,
+execution, semantic adoption, expected-output change, or production promotion
+is authorized by this artifact.
