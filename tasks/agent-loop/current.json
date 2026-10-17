@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/module-source-handle-introduction-20261017.md",
     "revision": 1,
     "sha256": "f821aa46f9dc7f331dfbcd6618b5fcf0f5b0da709d5f322d7b6207b9db1b4f3c",
-    "state": "HANDLE-SPEC-REVIEW-RUNNING",
+    "state": "REVIEWED-PARTIAL",
     "baseline": "9a1e07f0a",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Derive the authentic source-owned syntax-to-handle introduction/elimination for direct module Name u_id, preserve Published/new and lawful external Mono branches, compose the full tuple, and substitute only authentic b_use,mu_id into original-generation §7.2(2); in parallel review native contract revision 2 as a readiness delta.",
@@ -21,15 +21,15 @@
     },
     "result": {
       "original_conditions_closed": 0,
-      "proof_class": "Open target: typed materialization from Resolve(u_id,d_id) and publication environment to this occurrence’s source handle is absent. No authentic b_use,mu_id was substituted into §7.2(2); preserve all existing Published/Mono branches.",
-      "implementation_class": "Native readiness delta independently CLEAN; no code or behavior/test changes. User authorizes complexity changes, which can affect retention cost but cannot supply a missing semantic owner derivation.",
-      "parent_application": "OPEN; exact owner gate HINTRO-OWNER-u_id pending independent compiler/spec review."
+      "proof_class": "CLEAN under independent compiler and spec reviews. Exact local owner gap HINTRO-OWNER-u_id remains; no authentic b_use,mu_id was substituted into §7.2(2). Original theorem conditions closed: 0.",
+      "implementation_class": "Native readiness delta CLEAN under architect review; no code/test behavior changed. Complexity changes authorized, but retained derivation cost cannot create the absent source owner rule.",
+      "parent_application": "OPEN; next single gate is HINTRO-OWNER-u_id, subject to selecting an exact owner interpretation and proving source/native correspondence."
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 900,
-      "available_seconds": 900,
-      "retired_seconds": 0,
+      "charged_seconds": 1020,
+      "available_seconds": 780,
+      "retired_seconds": 780,
       "allocation": "Astra proof900; independent architect delta review180 (parallel with proof author); compiler review180 then spec review120 after author STOP; conditional native-doc correction120 if findings; coordination120 incl selector/contract/pinning; reserve180. No execution allocation."
     },
     "workers": [
@@ -109,12 +109,12 @@
       {
         "path": "notes/theory/2026-10-17-module-source-handle-introduction.md",
         "owner": "/root/module_handle_spec_review",
-        "state": "ACTIVE-READ-ONLY"
+        "state": "RELEASED"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-module-source-handle-introduction.md",
         "owner": "/root/module_handle_spec_review",
-        "state": "ACTIVE-READ-ONLY"
+        "state": "RELEASED"
       }
     ],
     "pending": [
@@ -135,7 +135,7 @@
         "state": "OPEN independent parent gates."
       }
     ],
-    "next_action": "Compiler/source review STOPPED/CLEAN; its read-only lease is released. Fresh spec review RUNNING (≤120s), exact frozen inputs."
+    "next_action": "All author/reviewer lanes STOPPED. Sprint result CLEAN/REVIEWED-PARTIAL; next-action selector is assessing one follow-up packet, preferably an implementation outcome independent of HINTRO-OWNER-u_id."
   },
   "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review. Prior HIR application implementation sprint closed REVIEWED-PARTIAL with 1 BLOCKING+6 major static review findings; preserved candidate commit 4f4dcb7b9, no behavior or parent gates closed. Resolved current-sprint worker/receipt rows archived at their frozen notes: compiler delta receipts, spec/final-architect/pre-run/post-run review receipts, unit run/failure and HIR integration failure. Current snapshot retains only inherited UNKNOWN quarantine rows and the live spec reviewer. Previous sprint ordinary-hir-applied-conformance-repair-20261017 closed REVIEWED-PARTIAL at commit 0717a882c: focused unit8/8, corrected HIR9/9, solver candidate vertical1/1; original theorem conditions closed0. Exact receipts and rev8 CLEAN reporting review remain under notes/progress and prior handoff. Rev7 spent2760/2760; after-cap solver receipt documentation time UNKNOWN, not retrocharged. New original Call generation sprint starts at baseline0717a882c; decomposition180/180 charged. Prior rev8 review-only envelope charged auditor60 and Luna coordination30; final reserve30 retired without carryover. Documentation correction after rev7 had UNKNOWN actual duration, not retrocharged. Previous `module-use-source-map-and-provisional-observer-20261017` closed REVIEWED-PARTIAL at 0114f997b: proof map actual structural route + conditional ModulePubUse* intro/inversion/conservation, original conditions0; candidate observer and fixed-source regression PASS 2/2. O(n^2)/O(n) proof annotation cost; no compiler complexity claim. Reviews technical CLEAN; post-run reviewer disclosed one read-only `git show --stat --oneline 185b0db29`, no file changes or essential unpinned evidence. Charged1442/1800; unused358 retired, no budget carry.; module-source-family-embedding-20261017 closed REVIEWED-PARTIAL: original conditions0; source handle owner premise unresolved; native field-map revision2 pending architect delta review; 2160/2160 charged, no code/tests; Closed module-source-family-embedding-20261017 REVIEWED-PARTIAL at full2160/2160, original conditions0. Conditional source proof corrected after compiler+spec reviewers found same-occurrence handle owner gap; compiler delta passed. Native field-map contract revision2 synchronizes conditional new, transient module FreshUse remaps and proposed/unverified complexity; architect delta review still pending in next sprint. No compiler behavior/tests.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN."
