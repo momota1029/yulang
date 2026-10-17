@@ -1,6 +1,6 @@
 # Sprint `npair-swr1-output-origin-prototype-20261018`
 
-Status: ACTIVE, revision 2. Branch `research/simple-sub-intrusion`.
+Status: ACTIVE, revision 3. Branch `research/simple-sub-intrusion`.
 Baseline `77bc688cb587a73559ba1e8d37234e739a9f8848`. Parent
 `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN, closure 0.
 Original quantifiers, source domain, receive route, C1/C2 and F1/FK1 are
@@ -57,13 +57,14 @@ New result and runtime evidence pins:
 | `crates/yu-solver/src/candidate_call.rs` | `2bcbab3d27e259fc4b22824980bd625014d4a19f4fa257cd74c69683c1be0359` | baseline candidate-call owner |
 | `crates/yu-solver/src/candidate_scheme.rs` | `abe1eb6d6176c035d237c3f51f7ccfe99dea5224df20de285465c510c6c2a494` | baseline scheme/install owner |
 | `crates/yu-solver/src/shadow_apply.rs` | `bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf` | baseline capture/fresh-use consumer |
+| `crates/yu-solver/src/candidate_scope.rs` | `9fdb36b4bbd66d702fbd3fcfaf593bfbc5dce0c52ff3252442aeb998bbb52c2a` | scoped region/input/scope remap owner for Local FreshUse identity |
 | `crates/yu-solver/src/candidate_context.rs` | `72da8a6e7b3f04ed3f7054b6151410c7d2b35f9f91b756ade1f6f008244c1ce6` | baseline scope/remap owner |
 | `crates/yu-hir/src/module/local_source.rs` | `ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5` | exact HIR LocalSource ownership, index, bindings and forms used by the Local supplier identity proof |
 | `crates/yu-solver/src/lib.rs` | `2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f` | public experiment boundary |
 | `crates/yu-solver/examples/research_source_registration.rs` | `f5c61bd5a4515545fad49bfc24158ef235c6ac2ebc6f00e15daabade394e79ad` | reviewed harness |
 | `tasks/agent-loop/fixtures/20261017-receive-choose.yu` | `969e20e0f38a2c341a96ff4fe07028bf567ca134e0fb24602fadf6e4c723d9c0` | exact restored input |
 
-Revision 2 adds the exact HIR `LocalSource` owner contract as a direct dependency after the proof lane identified it as necessary. Every lane verifies relevant direct pins before use. Any changed theory owner,
+Revision 2 adds the exact HIR `LocalSource` owner contract as a direct dependency after the proof lane identified it as necessary. Revision 3 adds the scoped region/input/scope owner after implementation identified it as necessary for the FreshUse remap edge. Every lane verifies relevant direct pins before use. Any changed theory owner,
 source contract or unrelated mutable code requires Luna to revise this contract
 before dependent work proceeds.
 
