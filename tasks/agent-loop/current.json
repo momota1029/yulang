@@ -6,8 +6,8 @@
   "active_sprint": {
     "id": "accepted-call-hir-admission-contract-20261017",
     "contract": "tasks/agent-loop/sprints/accepted-call-hir-admission-contract-20261017.md",
-    "revision": 1,
-    "sha256": "84bc071ca1b07de11eb0374f522e59f3e6bec97a990a0c652990575b8efab2d9",
+    "revision": 2,
+    "sha256": "f92c1269f47ae1ba3c002244f7254ebc7792af5270ad6a634f033e91323cf19a",
     "state": "ACTIVE-PROOF-ASSIGNMENT",
     "baseline": "577172e30fe9e282f910cb5ff8267a42beea4a75",
     "parent": "Original inference/execution goal; unchanged A/B, F1/FK1, N-Transport, Call, soundness, principality, termination and source/native quantifiers.",
@@ -16,24 +16,31 @@
     "selector_delta": "Validate structural association first. Separate error-free ordinary HIR admission as proposed extension unless existing authority proves it. Astra proof <=480, compiler review, Luna design <=420, spec then architect reviews; no tests/code.",
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 120,
-      "available_seconds": 1380,
+      "charged_seconds": 210,
+      "available_seconds": 1290,
       "selector_seconds": 120,
       "unknown_reservations_preserved": 3,
-      "status": "No carryover; sequential author/reviewer; 180s reserve."
+      "status": "Selector 120s + proof initial source-owner audit conservatively charged 90s; rev2 adds direct pins only; no rollover."
     },
     "lanes": {
       "proof": {
         "owner": "/root/accepted_call_hir_projection",
         "role": "astra_prover",
-        "state": "ASSIGNED",
+        "state": "WAITING-DEPENDENCY-REVISION",
         "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
         "cap_seconds": 480,
         "outputs": [
           "notes/theory/2026-10-17-accepted-call-hir-projection.md",
           "tasks/agent-loop/inbox/20261017-accepted-call-hir-projection.md"
-        ]
+        ],
+        "actual_worker": "/root/astra_accepted_call_hir_projection",
+        "session": "current-session",
+        "launch_receipt": "Collaboration launch acknowledged; exact artifact/handoff paths only; no descendants; no compiler/test rights.",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 90,
+        "remaining_seconds": 390
       },
       "proof_review": {
         "role": "compiler_referee",
@@ -100,6 +107,19 @@
         "state": "RUNNING",
         "session": "current-session",
         "receipt": "Fixed contract and exact leases frozen; preparing proof author launch."
+      },
+      {
+        "id": "/root/astra_accepted_call_hir_projection",
+        "role": "astra_prover",
+        "state": "RUNNING",
+        "session": "current-session",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 0,
+        "cap_seconds": 480,
+        "receipt": "Actual launch acknowledged; proof only, exact leased outputs, no descendants."
       }
     ],
     "leases": [
@@ -152,8 +172,15 @@
       "semantic/admission choice requires user decision",
       "user STOP or session end"
     ],
-    "next_action": "Launch Astra proof on exact source association/projection. Keep source T and parent Call theorem open; do not change HIR or rerun tests.",
-    "prior_sprint_closeout": "tasks/agent-loop/sprints/20261017-accepted-call-vertical-closeout.md"
+    "next_action": "Contract rev2 frozen to include exact association/local-source/identity owners. Await Astra acknowledgement and resume proof under rev2.",
+    "prior_sprint_closeout": "tasks/agent-loop/sprints/20261017-accepted-call-vertical-closeout.md",
+    "contract_history": [
+      {
+        "revision": 1,
+        "sha256": "84bc071ca1b07de11eb0374f522e59f3e6bec97a990a0c652990575b8efab2d9",
+        "superseded_reason": "Added direct source dependency pins after Astra identified associate_chain_owned, simple_body_projection and source identity owners before writing."
+      }
+    ]
   },
   "history": "Prior accepted source vertical closed at 577172e30; 0 original premises discharged. Full output/review evidence in its closeout and frozen artifacts.",
   "quarantine_note": "Three inherited UNKNOWN assignments and the legacy board lease remain quarantined; elapsed time or a state update does not release them."

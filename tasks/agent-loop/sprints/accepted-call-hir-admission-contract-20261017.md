@@ -2,7 +2,7 @@
 
 Status: ACTIVE, Luna-admitted at baseline `577172e30`.
 Branch: `research/simple-sub-intrusion`; baseline commit: `577172e30c7b...`.
-Contract revision: 1. Original source and dependency pins are frozen below.
+Contract revision: 2, supersedes rev1 SHA `84bc071ca1b07de11eb0374f522e59f3e6bec97a990a0c652990575b8efab2d9` only to add three direct source dependencies requested before proof writing. Original outcome, leases, scope and budget are unchanged.
 
 ## Original outcome and success evidence
 
@@ -60,6 +60,9 @@ Exact direct dependency pins at baseline:
 
 ```text
 crates/yu-hir/src/module.rs                                      2e0c579a525efd5ac4c7ce0f06189c568ed46c7382d4576698a0b8d846c2228e
+crates/yu-hir/src/lib.rs                                         5bdcb7c0df022da919cef5402c62dc1c7baf0700a4d06e526a608cbd7db21464
+crates/yu-hir/src/module/local_source.rs                          ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5
+crates/yu-hir/src/source_identity.rs                              aa97bc34be51644cf944b2813af47ad9243a8eb270850eeb6df34b9cddb3b3a2
 crates/yu-hir/src/shadow.rs                                      2dffd7fd6542eed9fd3346e0672e76197c248be9c84334f341c4d612234b7ee9
 notes/design/2026-09-18-hir-operator-association-first-slice-draft.md ff113c3641f791788bea97e22b4f5dfcb91037be523e8198d3add8e6e89e17ed
 notes/design/2026-09-19-hir-associated-chains-ownership-amendment.md e78d2d9865e35828e38c353ee77c359850d8be1884828f75aa931be2bf1556f3
@@ -78,6 +81,9 @@ Base/authority also includes `rules/goal-driven-sprints.md`,
 `tasks/agent-loop/README.md`. These govern process and are not semantic
 premises. Mutable current state is not an author dependency. If a pinned input
 changes, stop dependent writing and return to Luna for a versioned contract.
+Rev2 records the requested direct owners for `associate_chain_owned`, the
+local-source body projection, and source identity; no authority or task scope
+changed.
 
 ## Continuing lanes and sequence
 
