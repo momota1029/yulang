@@ -8,13 +8,13 @@
     "contract": "tasks/agent-loop/sprints/catch-matcher-operand-use-introduction-20261017.md",
     "revision": 1,
     "sha256": "573fd8f9849f321ceab62c0714987209e129af760b58f2b5aee83afcc3fad9e9",
-    "state": "PROOF-RUNNING",
+    "state": "PROOF-FROZEN-AWAIT-COMPILER-REVIEW",
     "baseline": "6d45b5b64",
     "parent": "Original FORWARD-FIRST-CALL A/B, F1/FK1 OPEN; advance only μ_H typed operand-use toward CATCH-EXIT-INPUT-1/M_exit.",
     "fixed_outcome": "Draft authentic source operand-use intro at μ_H; apply to M_exit/F1 P2 or freeze exact obstruction. Conditional static producer/consumer contract only if concrete fields emerge.",
     "authority": "User authorized continued Goal, proof and bridge-rule drafting. Adoption and compiler changes remain separately gated.",
     "review": {
-      "state": "NOT-STARTED",
+      "state": "READY-COMPILER-REFEREE",
       "current_reviewer": null,
       "sequence": [
         "compiler_referee",
@@ -24,45 +24,49 @@
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 0,
-      "active_authors": 1,
-      "status": "Astra proof worker actually launched; 720s assignment cap. Conditional source lane waits for frozen proof and independent compiler review."
+      "charged_seconds": 420,
+      "active_authors": 0,
+      "status": "Astra stopped/frozen after 5 stages; 420/720s charged. Conditional source lane retired as NO_SAFE_CODE_SLICE; compiler review pending."
     },
     "lanes": {
       "proof_operand_use": {
         "owner": "/root/catch_matcher_operand_use_introduction",
         "role": "astra_prover",
-        "state": "RUNNING",
+        "state": "FROZEN-STOPPED",
         "cap_seconds": 720,
-        "charged_seconds": 0,
+        "charged_seconds": 420,
         "outputs": [
           "notes/design/2026-10-17-catch-matcher-operand-use-introduction.md",
           "tasks/agent-loop/inbox/20261017-catch-matcher-operand-use-introduction.md"
         ],
-        "result": "No launch receipt yet; no RUNNING claim.",
+        "result": "Exact missing μ_H operand-use declaration; Event Var retains historical type only. Native metadata/payload checks precede Catch pop; raw answer binding follows pop and is opaque. Response B and suffix answer A stay distinct. M_exit/F1/FK1 OPEN; NO_SAFE_CODE_SLICE. Five stages; 420/720s charged; writer STOPPED.",
         "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
         "started_at_utc": "2026-10-17 05:15:17 UTC",
-        "launch_receipt": "collaboration.spawn_agent accepted task /root/catch_matcher_operand_use_introduction; active assignment, no runtime model metadata."
+        "launch_receipt": "collaboration.spawn_agent accepted task /root/catch_matcher_operand_use_introduction; active assignment, no runtime model metadata.",
+        "sha256": [
+          "51e6990ad8499fc93fd8d3b5ff718d4b10d990068aa9ec9994a7b8266fa557ba",
+          "a874e1288003fa83fe9321c1d92a1e865267aedf3db79cd5e7410644c61ea5e2"
+        ]
       },
       "source_response_answer_contract": {
         "owner": "/root",
         "role": "Luna/high",
-        "state": "CONDITIONAL-WAIT-PROOF-AND-COMPILER-REVIEW",
+        "state": "RETIRED-NO-SAFE-CODE-SLICE",
         "cap_seconds": 300,
         "charged_seconds": 0,
         "outputs": [
           "notes/design/2026-10-17-catch-operand-response-answer-contract.md",
           "tasks/agent-loop/inbox/20261017-catch-operand-response-answer-contract.md"
         ],
-        "result": "Retire allocation if no concrete typed-use fields emerge."
+        "result": "No complete typed-use fields emerged; no code or unapplied field contract authorized in this sprint."
       },
       "implementation": {
-        "state": "NO-CODE-AUTHORITY",
-        "gate": "No tests/builds/probes or compiler changes."
+        "state": "NO_SAFE_CODE_SLICE",
+        "gate": "No concrete typed operand-use producer; no safe implementation slice in this seam."
       },
       "reviews": {
         "state": "NOT-STARTED",
@@ -82,6 +86,14 @@
       {
         "path": "notes/progress/2026-10-17-catch-request-exit-closeout.md",
         "sha256": "22a77fc686130fcace9ea1d35cec1bfa2d6c8414cf451579ef74238bf0831908"
+      },
+      {
+        "path": "notes/design/2026-10-17-catch-matcher-operand-use-introduction.md",
+        "sha256": "51e6990ad8499fc93fd8d3b5ff718d4b10d990068aa9ec9994a7b8266fa557ba"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-catch-matcher-operand-use-introduction.md",
+        "sha256": "a874e1288003fa83fe9321c1d92a1e865267aedf3db79cd5e7410644c61ea5e2"
       }
     ],
     "non_goals": [
@@ -101,12 +113,14 @@
       {
         "path": "notes/design/2026-10-17-catch-matcher-operand-use-introduction.md",
         "owner": "/root/catch_matcher_operand_use_introduction",
-        "state": "HELD"
+        "state": "FROZEN",
+        "sha256": "51e6990ad8499fc93fd8d3b5ff718d4b10d990068aa9ec9994a7b8266fa557ba"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-catch-matcher-operand-use-introduction.md",
         "owner": "/root/catch_matcher_operand_use_introduction",
-        "state": "HELD"
+        "state": "FROZEN",
+        "sha256": "a874e1288003fa83fe9321c1d92a1e865267aedf3db79cd5e7410644c61ea5e2"
       }
     ],
     "prior_sprint": {
@@ -159,14 +173,15 @@
     {
       "id": "/root/catch_matcher_operand_use_introduction",
       "role": "astra_prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "started_at_utc": "2026-10-17 05:15:17 UTC",
-      "receipt": "Actual collaboration spawn accepted; assigned exact proof artifact and handoff leases; no runtime model metadata."
+      "receipt": "Frozen two-path result; hashes in active sprint; writer STOPPED; 420s charged; no descendants.",
+      "stopped_at_utc": "2026-10-17 05:21:35 UTC"
     }
   ],
   "leases": [
@@ -224,19 +239,19 @@
     }
   ],
   "next_action": {
-    "state": "SELECTOR-BOUNDARY-FIXED",
+    "state": "PROOF-FROZEN-REVIEW-PENDING",
     "dispatcher": "Freeze exact missing-declaration obstruction under rev1; no new pin/search absent concrete qualifying locator. A concrete Event operand may qualify only if actual μ_H read/binding and field-7 alignment are proved.",
-    "proof": "Continue only the bounded Event candidate check, then freeze exact typed-judgment gap for payload/raw/complete operand-use as applicable.",
-    "implementation": "Retire conditional 300s source lane if no concrete typed use emerges; otherwise proceed only after proof freeze and compiler review.",
-    "review": "Proceed with planned independent reviews on frozen result."
+    "proof": "Exact missing target declaration frozen. Historical Event typing is not actual μ_H use; native metadata/payload and raw binding occur on distinct sides of Catch pop.",
+    "implementation": "Conditional source contract retired: no concrete typed-use producer; NO_SAFE_CODE_SLICE.",
+    "review": "Fresh compiler_referee first; spec auditor and architect follow after receipt."
   },
   "resource_accounting": {
     "sprint_id": "catch-matcher-operand-use-introduction-20261017",
     "cap_seconds": 1500,
-    "charged_seconds": 0,
-    "active_authors": 1,
+    "charged_seconds": 420,
+    "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "Astra proof lane RUNNING on actual launch receipt; source lane conditional and waiting."
+    "status": "Proof frozen/stopped; compiler review pending; no safe implementation slice."
   },
   "history": "Previous sprint resultbind-local-interface-introduction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-resultbind-local-interface-introduction-review.md SHA 81da6c0cec57e307fa0ed370bb1fb98749f35b2733033471b0182a41184e9a0a; source-owned inlet/role-entry law remains OPEN. Previous sprint f2-owning-inlet-introduction-proposal-20261017 stopped at source gate; artifact SHA 263b666d9bbd7fc5525ecb691f31222d91bcd0ce0aaeee12eec05a7740bb5a27; closeout notes/progress/2026-10-17-f2-owning-inlet-introduction-review.md SHA f74e5de3d79ccfdac95a813bf0a1750ce3f02dad3f82e884426597948a155c9c. Previous sprint catch-request-exit-construction-20261017 REVIEWED-PARTIAL; closeout notes/progress/2026-10-17-catch-request-exit-closeout.md; next-action selector chose actual μ_H operand-use introduction."
 }
