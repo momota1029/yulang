@@ -23,7 +23,7 @@
       "available_seconds": 720,
       "allocation": "proof600 (charged, active), implementation720 (charged, STOPPED NO_SAFE_EVIDENCE_SLICE), implementation/compiler review180 (charged, active), remaining reviews180+Luna180+reserve540; Astra0."
     },
-    "next_action": "Continue proof lane; review frozen implementation NO_SAFE_EVIDENCE_SLICE; use dispatcher result to identify the exact Permission-to-provider/receiver owner before any new lease."
+    "next_action": "Finish the in-scope proof and apply it to the exact original NPAIR field; current compiler/source audit is CLEAN for NO_SAFE_EVIDENCE_SLICE. Review proof result, then dispatch actual argument-ingress owners if the same parent edge remains open."
   },
   "history": "Closed npair-operation-contract-and-lexer-identity-20261018: parent closure0; candidate C1/C2 adopted as a working interpretation under user authorization, but universal compatibility is unproved. Lexer identity remains conditional with two minor findings, excluded from successor premises. Full receipts in closeout. Successor sprint contract committed and pushed as 8732e2326; proof and implementation lanes actually launched, 1320s reserved/charged.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
@@ -59,7 +59,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen NO_SAFE_EVIDENCE_SLICE note ae65cf84502e60bab5743f177ef6f8369c0c793564e0a96e22c729ddbd0343d6 and handoff 471aa20c3df46b2232c9784596e627bf632b209664ecf01c566ddf05e5264893; no code change/check; writes stopped."
+      "receipt": "NO_SAFE_EVIDENCE_SLICE frozen and independently reviewed CLEAN; no source/test code change."
     }
   ],
   "leases": [
@@ -99,15 +99,7 @@
       "state": "FROZEN"
     }
   ],
-  "pending": [
-    {
-      "id": "source-evidence-review",
-      "state": "IN_REVIEW",
-      "owner": "/root/npair_operation_source_evidence_review",
-      "artifact_sha256": "ae65cf84502e60bab5743f177ef6f8369c0c793564e0a96e22c729ddbd0343d6",
-      "handoff_sha256": "471aa20c3df46b2232c9784596e627bf632b209664ecf01c566ddf05e5264893"
-    }
-  ],
+  "pending": [],
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
