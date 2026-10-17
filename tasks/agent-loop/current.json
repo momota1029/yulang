@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/module-source-family-embedding-20261017.md",
     "revision": 1,
     "sha256": "c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e",
-    "state": "NATIVE-FIELD-CONTRACT-ARCHITECT-REVIEW-RUNNING",
+    "state": "ARCHITECT-REVIEW-STOPPED-FINDINGS-PENDING-ADJUDICATION",
     "baseline": "0114f997b",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Derive and substitute the original module publication/use family instance at original-generation §7.2 step 2 for `my id x = x; my answer = id 0`; independently specify the whole native field-map construction contract without a compiler lease.",
@@ -22,13 +22,13 @@
     "result": {
       "original_conditions_closed": 0,
       "proof_class": "Revision 2 withdraws the invalid inference from no intermediate AST handle to Published/new. Source allocation, full-map commuting equality and §7.2(2) substitution are conditional on an authentic same-occurrence Published handle derivation; reviewers found no source-qualified Mono witness/counterexample. Original conditions closed 0.",
-      "implementation_class": "Luna author now owns the 2-path MODULE-NATIVE-FIELD-MAP construction contract only; no compiler code lease.",
+      "implementation_class": "Conditional readiness contract only; architect review says no executable bridge is established or authorized. Contract needs synchronization with corrected conditional handle premise, explicit module FreshUse remap lifetime/storage, and bound caveats; no code behavior/tests changed.",
       "parent_application": "OPEN until authentic source embedding, original root and complete Call formation; all parent theorem gates unchanged."
     },
     "resources": {
       "cap_seconds": 2160,
-      "charged_seconds": 1920,
-      "available_seconds": 240,
+      "charged_seconds": 2100,
+      "available_seconds": 60,
       "retired_seconds": 0,
       "allocation": "Astra900 + Luna contract480 + compiler review180 + spec review120 + primary proof correction60 + compiler delta review60 + architect contract review180 + final reserve60; no execution allocation."
     },
@@ -96,8 +96,8 @@
       {
         "id": "/root/module_native_field_contract_architect_review",
         "role": "architect",
-        "state": "RUNNING",
-        "receipt": "Independent read-only architecture review of frozen MODULE-NATIVE-FIELD-MAP readiness/blocker contract, 180s cap. Requested gpt-6.1-sol/medium; observed session metadata pending."
+        "state": "STOPPED",
+        "receipt": "180/180s conservatively charged; independent review finds stale unconditional new premise, module FreshUse map lifetime/storage caveat, and asymptotic bound is proposed/unverified pending payload accounting. No total bridge or executable lease. Full hashes matched; read-only, no tests/Git."
       }
     ],
     "leases": [
@@ -150,7 +150,7 @@
       },
       {
         "id": "MODULE-NATIVE-FIELD-MAP-20261017",
-        "state": "OPEN; author contract frozen and hash-checked, independent architect review pending; no native whole-tuple construction claimed."
+        "state": "OPEN; architect review found stale unconditional new claim, module FreshUse remaps are not durably retained today, and asymptotic bounds require explicit payload/source-derivation accounting. No total native bridge or code lease."
       },
       {
         "id": "MODULE-CALL-SIGNATURE-APPLICATION / MODULE-GENCALL-ORIGINAL-EMBED",
@@ -161,7 +161,7 @@
         "state": "OPEN independent parent gates."
       }
     ],
-    "next_action": "Architect independently reviews the source/native field-map construction contract (180s). After STOP, adjudicate and close the sprint honestly with the 60s reserve retained/retired; no execution allocation.",
+    "next_action": "Architect STOPPED at 180/180. Material findings sent to dispatcher; only 60s reserve remains. Await bounded closeout choice; no execution allocation.",
     "user_clarification": "User explicitly authorized modifying computational complexity. Account time/space, retained storage, allocation/failure; preserve source admission, observable semantics, original quantifiers and fixed caps.",
     "history": "Previous module-use/observer sprint closed at 0114f997b, technical reviews CLEAN and the exact candidate target PASS 2/2. Original conditions0. One nonessential read-only reviewer command `git show --stat --oneline 185b0db29` recorded; no files changed, no essential unpinned evidence. 1442/1800 charged; unused358 retired.",
     "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused."
