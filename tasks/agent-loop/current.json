@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-operation-self-effect-decision-20261018.md",
     "revision": 1,
     "sha256": "7751165b11b2c286ee1d2021a1bd5b6784d743ace78c4124cb6e80ee6b822aa3",
-    "state": "READY",
+    "state": "ACTIVE",
     "baseline": "d4db1bda69e53628d362d33ced23f4e0f37563a3",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, quantifiers and domain unchanged; closure0.",
     "fixed_outcome": "Classify whether Operation latent self-effect projection is fixed by original judgments or a semantic choice; independently settle explicit-row address/cache invariant.",
@@ -19,11 +19,11 @@
     },
     "resources": {
       "cap_seconds": 900,
-      "charged_seconds": 0,
-      "available_seconds": 900,
+      "charged_seconds": 60,
+      "available_seconds": 840,
       "allocation": "semantic/proof300, address audit180, primary60, independent compiler/source review120, spec review90, reserve150; Astra0."
     },
-    "next_action": "Launch exact read-only proof/semantic classification and explicit-row address audit; then independently review both frozen outputs."
+    "next_action": "Receive both bounded read-only results, freeze exact bytes, then run fresh proof/source and spec review inside reserved allocations."
   },
   "history": "Closed `npair-reference-indexed-source-lift-20261018`: reviewed same-reference IF placement; Operation latent self-effect projection remains missing; conditional Function/Replay lift reviewed CLEAN but H0/provider tree unresolved; parent closure0. Closeout records hashes and reviews.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
@@ -37,29 +37,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Closed prior sprint with frozen proof/compiler/spec reviews; new 900s contract issued READY, assignments not yet launched."
+      "receipt": "New sprint active; two actual live read-only lanes launched; contract/output leases pinned; requested/effective runtime settings kept distinct."
     },
     {
       "id": "/root/npair_operation_self_effect_decision",
       "role": "constructive-prover / semantic-boundary classifier",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol/prover",
       "requested_effort": "high <=300s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact output/read leases issued in contract rev1; launch receipt pending."
+      "receipt": "Actual live launch through configured prover role; exact output leases and 300s cap; requested Sol/high, effective UNKNOWN."
     },
     {
       "id": "/root/npair_explicit_row_address_invariant",
       "role": "read-only compiler source auditor",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high <=180s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact source/output leases issued in contract rev1; launch receipt pending."
+      "receipt": "Actual live launch through configured researcher role; exact read/output leases and 180s cap; requested Luna/high, effective UNKNOWN."
     }
   ],
   "leases": [
