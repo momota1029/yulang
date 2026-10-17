@@ -8,13 +8,13 @@
     "contract": "tasks/agent-loop/sprints/resultbind-local-interface-introduction-20261017.md",
     "revision": 2,
     "sha256": "c1f0cbde6a3d705524b31e747dee09a0b368e64a3409a1b23303cc8945cbad0c",
-    "state": "REVIEW-ARCHITECT-FROZEN",
+    "state": "REVIEW-COMPILER-BOUNDARY-RUNNING",
     "baseline": "995d83b58",
     "parent": "Original FORWARD-FIRST-CALL A/B; c2 F2/IF(g) formation, VIEW/CHECK remain OPEN with original scope.",
     "fixed_outcome": "Derive open g interface before c1 Return and actual same-Return ResultBind/Name-use projection; draft a precise unselected source rule if needed; map only concretely derived fields into an unapplied retention contract.",
     "review": {
-      "state": "SPEC+ARCHITECT-CLEAN; COMPILER-BOUNDARY-NEXT",
-      "current_reviewer": null,
+      "state": "SPEC+ARCHITECT-CLEAN; COMPILER-BOUNDARY-RUNNING",
+      "current_reviewer": "/root/resultbind_implementation_boundary_review",
       "sequence": [
         "spec_auditor",
         "architect",
@@ -33,9 +33,10 @@
         "sha256": "65c8bd169e2e0fa8aa5ce66d305d0730b20c5545557bc16d620a986a43f5ab80"
       },
       "compiler_referee": {
-        "state": "CONDITIONAL-NOT-STARTED",
+        "state": "RUNNING",
         "output": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-implementation-boundary-review.md",
-        "gate": "If a concrete-field retention contract is written, use its retention compiler-review receipt path instead."
+        "gate": "If a concrete-field retention contract is written, use its retention compiler-review receipt path instead.",
+        "started_at_utc": "2026-10-17 04:35:52 UTC"
       }
     },
     "resources": {
@@ -47,7 +48,7 @@
       "reserve_seconds": 120,
       "charged_seconds": 490,
       "active_authors": 1,
-      "status": "Astra STOP; spec and architect reviews STOP/CLEAN within conditional scope. No concrete implementation fields; conditional prep retired. Compiler boundary review next."
+      "status": "Compiler_referee reviewing actual source/scheme/call producer-consumer seam against frozen packet; max 120s. No code lease."
     },
     "lanes": {
       "proof_source_rule": {
@@ -73,11 +74,12 @@
         "gate": "Architect confirms no new semantic fields; retire 360s; do not write generic retention map."
       },
       "reviews": {
-        "state": "SPEC+ARCHITECT-CLEAN; COMPILER-BOUNDARY-NOT-STARTED",
+        "state": "SPEC+ARCHITECT-CLEAN; COMPILER-BOUNDARY-RUNNING",
         "compiler_referee": {
           "cap_seconds": 120,
           "output": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-implementation-boundary-review.md",
-          "state": "NOT-STARTED"
+          "state": "RUNNING",
+          "started_at_utc": "2026-10-17 04:35:52 UTC"
         },
         "spec_auditor": {
           "cap_seconds": 120,
@@ -128,7 +130,7 @@
       "change original A/B scope or quantifiers",
       "compiler code/tests/builds/probes/runtime/expected-output/production"
     ],
-    "next_boundary": "Compiler_referee STOP on the frozen code-seam lease; then Luna closeout and selector.",
+    "next_boundary": "STOP compiler_referee; then Luna closeout and next-action selection.",
     "workers": [
       {
         "id": "/root/resultbind_interface_spec_review",
@@ -151,6 +153,17 @@
         "observed_effort": "UNKNOWN",
         "session": "current-session",
         "receipt": "STOP 04:35:03 UTC; exact elapsed unavailable, charge full 120 seconds. CLEAN within conditional scope. Read-only; primary transcribes full report after STOP."
+      },
+      {
+        "id": "/root/resultbind_implementation_boundary_review",
+        "role": "fresh compiler_referee reviewer",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Exact read-only source/code-seam lease launched 04:35:52 UTC after architect STOP; all contract pins and review target hashes revalidated; cap 120s."
       }
     ],
     "leases": [
@@ -187,7 +200,7 @@
       {
         "path": "tasks/agent-loop/inbox/20261017-resultbind-local-interface-implementation-boundary-review.md",
         "owner": "/root/resultbind_implementation_boundary_review",
-        "state": "NOT-STARTED"
+        "state": "ACTIVE"
       }
     ]
   },
@@ -285,7 +298,7 @@
     }
   ],
   "next_action": {
-    "state": "REVIEW-ARCHITECT-FROZEN",
+    "state": "REVIEW-COMPILER-BOUNDARY-RUNNING",
     "dispatcher": "Architect review CLEAN within conditional scope; it confirms no concrete new implementation fields. Retire retention-design preparation and conduct the bounded compiler code-seam review.",
     "proof": "Conditional whole substitution and Name projection proved; no complete open c2 IF. Exact missing role/entry and L2 remain.",
     "implementation": "No compiler code. After source proof and initial reviews, map concrete fields through candidate_source/candidate_scheme/candidate_call or record NO_NEW_IMPLEMENTATION_FIELDS."
@@ -296,7 +309,7 @@
     "charged_seconds": 490,
     "active_authors": 1,
     "unknown_reservations_preserved": 3,
-    "status": "Astra 300s + spec 70s + architect full cap 120s; implementation prep retired; compiler boundary reviewer next."
+    "status": "Astra 300s + spec 70s + architect 120s; conditional implementation prep retired; compiler boundary reviewer active."
   },
   "history": "Prior sprint c2-typed-call-occurrence-correction-20261017 REVIEWED-CLEAN-BOUNDED; closeout notes/progress/2026-10-17-c2-typed-call-occurrence-correction-review.md SHA 945a99893e7dce56551b86db2c818598813a9488088158e32b56fe86a576c3fc; parent semantic gates OPEN."
 }
