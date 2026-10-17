@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-call-original-generation-20261017.md",
     "revision": 2,
     "sha256": "a1a409b84b5f9750266eea3790a9e098fce8af32e30348f17ee2d1ac1ffb1c21",
-    "state": "IMPLEMENTATION-RECIPE",
+    "state": "ARCHITECT-RECIPE-REVIEW",
     "baseline": "0717a882c",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Construct complete original Application for actual module Name(id) + Literal(0), emit unsolved Call and actual record, apply adopted O0 only to that record and a named original consumer; or isolate the first missing constructor/owner. No semantic silent adoption.",
@@ -19,15 +19,15 @@
     "result": {
       "original_conditions_closed": 0,
       "proof_class": "Frozen conditional formation construction and erasure conservativity over generic open source-rule reduct; actual module publication/root-use map and complete Call declaration substitution are open. No authentic e_c/O0 consumer substitution; original conditions closed0.",
-      "implementation_class": "Luna/high recipe author RUNNING under exact two-document leases; no source/test/Cargo authority. Computational complexity may change per user clarification; language admission/provider/challenge/observable semantics remain unadopted.",
+      "implementation_class": "Frozen owner-mapped recipe proposes a provisional candidate-only observation slice; no code lease and no original condition closed. Fresh spec review RUNNING <=120s, followed by architect/source-feasibility review <=180s.",
       "parent_application": "OPEN; all original parent gates unchanged."
     },
     "resources": {
       "cap_seconds": 3000,
-      "charged_seconds": 1680,
-      "available_seconds": 1320,
+      "charged_seconds": 2520,
+      "available_seconds": 480,
       "retired_seconds": 0,
-      "allocation": "Decomposition180 + Astra proof900 + two CLEAN proof reviews600 charged (1680/3000). Remaining1320: Luna recipe author720; recipe spec review120 then architect/source-feasibility review180; coordination120; conditional verification0 (retired unless separately reauthorized); reserve180."
+      "allocation": "Decomposition180 + Astra proof900 + two CLEAN proof reviews600 + Luna recipe720 + CLEAN spec recipe review120 charged (2520/3000). Remaining480: architect/source-feasibility review180; coordination120; reserve180. Conditional verification retired."
     },
     "workers": [
       {
@@ -117,21 +117,53 @@
       {
         "id": "/root/ordinary_call_generation_implementation_recipe",
         "role": "implementer",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6-luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 720,
-        "charged_seconds": 0,
-        "remaining_seconds": 720,
+        "charged_seconds": 720,
+        "remaining_seconds": 0,
         "session": "current-session",
         "launch_receipt": "Direct assignment acknowledged after both proof reviews STOPPED CLEAN and contract rev2 frozen.",
         "lease_paths": [
           "notes/design/2026-10-17-ordinary-call-generation-implementation-contract.md",
           "tasks/agent-loop/inbox/20261017-ordinary-call-generation-implementation-contract.md"
         ],
-        "active_receipt": "Owner-mapped implementation recipe for exact `my id x = x; my answer = id 0`; source→constraint→propagation→consumer, missing suppliers, complexity tradeoffs, falsifier, and exact future code paths. No code/tests/Cargo/Git."
+        "active_receipt": "Frozen recipe SHA d1be33f49459fa6539aebf9e80fd213ab3dccb64fa8cfe56749563d3609c8f5b and handoff SHA 90a26953b62a6ec71f503491668689f84c418ee77a06a0499bd943a330da384d. Candidate-only provisional observation proposal; no code/tests/Cargo. Effective model/time UNKNOWN; full720 charged."
+      },
+      {
+        "id": "/root/ordinary_call_recipe_spec_review",
+        "role": "spec_auditor",
+        "state": "STOPPED",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "cap_seconds": 120,
+        "charged_seconds": 120,
+        "remaining_seconds": 0,
+        "session": "current-session",
+        "launch_receipt": "Spawned after both recipe outputs frozen and SHA-verified.",
+        "lease_paths": [],
+        "active_receipt": "CLEAN within provisional candidate-observation scope. Frozen recipe/handoff hashes matched; no source/original/e_c/runtime/O0 overclaim; no semantic adoption or code/test authority. Read-only; STOPPED."
+      },
+      {
+        "id": "/root/ordinary_call_recipe_architect_review",
+        "role": "architect",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "cap_seconds": 180,
+        "charged_seconds": 0,
+        "remaining_seconds": 180,
+        "session": "current-session",
+        "launch_receipt": "Spawned after spec recipe review STOPPED CLEAN and exact recipe hashes revalidated.",
+        "lease_paths": [],
+        "active_receipt": "Read-only source-feasibility/API consumer audit of exact provisional candidate observer and regression slice; complexity claims, unadopted rule boundary and exact future lease. No writes/tests/Git/probes."
       }
     ],
     "leases": [
@@ -153,12 +185,12 @@
       {
         "path": "notes/design/2026-10-17-ordinary-call-generation-implementation-contract.md",
         "owner": "/root/ordinary_call_generation_implementation_recipe",
-        "state": "ACTIVE"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-ordinary-call-generation-implementation-contract.md",
         "owner": "/root/ordinary_call_generation_implementation_recipe",
-        "state": "ACTIVE"
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -179,7 +211,7 @@
         "state": "OPEN"
       }
     ],
-    "next_action": "Both proof reviews STOPPED CLEAN. Luna/high recipe author RUNNING <=720s under rev2. Await owner-mapped source→constraint→propagation→consumer contract. No code lease or tests/Cargo. After frozen recipe, perform fresh spec120 then architect/source-feasibility180 review; code authority still requires a new exact bounded revision.",
+    "next_action": "Spec recipe review STOPPED CLEAN (120/120). Architect/source-feasibility review RUNNING <=180s. No code lease. After review, adjudicate exact candidate-only observation slice and rule-adoption wording; any implementation requires a new bounded contract/resources.",
     "decomposition": "Read-only task_decomposer found: old Gen-Call-0 is Name/Name; Gen-Call-Syntax is unannotated Value-formal callee; module Name + Literal matches neither. Native literal rule supplies only WholeArgCompatible at actual id Int inlet and excludes full Application/Gen-Call-0. Theorem progress requires authentic full rule derivation then replacing that premise in a named consumer; O0 alone is insufficient.",
     "user_clarification": "Computational complexity may change. Report time/space costs; this alone does not authorize changing source admission, provider/challenge domains, or observable language behavior."
   },
