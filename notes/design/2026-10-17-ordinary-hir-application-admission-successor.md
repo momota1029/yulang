@@ -4,10 +4,10 @@ Status: repaired concrete proposal for independent review; not adopted. The user
 direction A as a drafting target. This text alone grants no code, test, language
 semantics or production authority.
 
-Sprint: `choice-a-root-source-key-contract-repair-20261017`, contract revision 1,
-SHA-256 `9314b4c6acb0948bbd59bd45c0342296fa53043eec7c2b8b82bf8581217bfe69`.
-Successor artifact revision 3; revision 2 is preserved at
-`tasks/agent-loop/archive/20261017-ordinary-hir-application-admission-successor-r2.md`.
+Sprint: `choice-a-group-root-ownership-repair-20261017`, contract revision 1,
+SHA-256 `21f4e33adebb4e92894bfe5fbc96eb96dac49135bbb06f65c18d0211991c332e`.
+Successor artifact revision 4; revision 3 is preserved in Git commit
+`a640dd909132b2be1d1bbbe35a4249e16642b84b`.
 Parent remains the original Yulang inference/execution goal with the original
 A/B claims, quantifiers and source/native correspondence unchanged.
 
@@ -91,10 +91,10 @@ expression keeps the existing error form and diagnostics.
 The ordinary route continues to form exactly the existing `SourceCarrierOutcome`
 for every admitted binding, with the existing direct-expression outcomes, source
 identity sidecar and availability behavior. Apply admission changes the
-canonical `ResolvedExpr` tree and its ordinary error sink. It may add source-key
-mappings for a retained body-root occurrence that previously represented an
-unsupported application without a mapping, and for newly allocated canonical-HIR
-descendants. It neither skips nor changes carrier formation,
+canonical `ResolvedExpr` tree and its ordinary error sink. It may add the exact
+source-key mapping for a retained body-root occurrence that previously
+represented an unsupported expression without a mapping, and mappings for
+newly allocated canonical-HIR descendants. It neither skips nor changes carrier formation,
 Supported/Unsupported classification, carrier forms, root/parameter ownership,
 existing mappings or pre-existing carrier occurrence IDs. The carrier and
 canonical HIR may represent the same parsed node with distinct occurrence IDs;
@@ -168,8 +168,22 @@ Equal text or coincident ranges do not merge nodes. Source parse brands,
 `HirArtifactToken` brands, HIR occurrence IDs, parameter IDs and DefIds remain
 distinct identity domains.
 
-For each admitted body the existing body-root occurrence becomes the outermost
-Apply (or sole atom), preserving that already allocated identity. Existing
+For each admitted body the existing body-root occurrence belongs to the
+outermost retained canonical HIR node, preserving that already allocated
+identity for every grammar constructor:
+
+| Retained root | Preserved body-root occurrence maps to |
+|---|---|
+| `Atom` | Its exact `IdentifierExpression` or `IntegerLiteral` key |
+| `Apply_ml` / `Apply_call` | Its exact outer `MlArgument` / `CallTail` key |
+| `Group(E)` | Its exact `ParenthesizedExpression` key |
+
+Do not elide a retained Group to give its inner Apply the root ID. For
+`my z = (f x)`, Group owns the existing body-root ID and parenthesized key;
+the inner Apply, callee and argument receive distinct appended occurrences and
+their exact keys. Existing association-level elision around an atom remains
+only where the association adapter actually elides the wrapper; in that case
+the retained Atom owns the root ID and its own exact key. Existing
 binding roots, lambda and parameter identities, ordinary root order and all
 previously observable ordinary HIR occurrence ordinals remain unchanged. The
 existing ordinary source-carrier pass then runs with the same roots, source
@@ -183,14 +197,13 @@ occurrence ID. No additional canonical-HIR child occurrence is allocated for a r
 recovery-bearing shape. The full module remains unpublished until the canonical nodes,
 additional IDs and source mappings succeed.
 
-When the old body was an unsupported application, the preserved body-root
+When the old body was an unsupported expression, the preserved body-root
 occurrence may have no entry in `HirSourceIdentity::occurrences`: ordinary
 `lower_body` returns an unsupported projection before `lower_leaf` records an
-atom mapping. The accepted Apply root must therefore add its exact outer
-`MlArgument`/`CallTail` key under that same existing occurrence ID. Stage this
-mapping together with all new descendant mappings. Preserve every existing
-entry: if the root already maps to this exact key, keep it without staging a
-duplicate; if it maps to another key, return
+atom mapping. The root's mapping must be the exact key for its retained
+constructor from the table above. Stage this mapping together with all new
+descendant mappings. Preserve every existing entry: if the root already maps
+to this exact key, keep it without staging a duplicate; if it maps to another key, return
 `HirAvailabilityError::InconsistentIdentity` without overwrite. Do not use
 `record_occurrence`'s overwriting insertion as the publication mechanism.
 Build one occurrence-only `empty_stage`, reserve all required capacity, and
@@ -211,8 +224,14 @@ grammar. The pinned construction paths establish feasibility: unsupported
 `lower_body` returns before `lower_leaf` records the body mapping;
 `form_ordinary` stages and merges carrier identities before module publication;
 `append_stage` rejects duplicate occurrence IDs and reserves before extending.
-Implementation must add an explicit preflight for same-key versus conflicting
-root mappings and use `append_stage` for non-overwriting atomic publication.
+The exact Group key is available through the same existing source-key map:
+`source_keys(parsed)` records every parse-owned syntax node, and the
+`ParenthesizedExpression` carrier branch resolves that exact node through the
+checked `self.key` lookup before retaining a Group. This establishes key
+availability for an actual mapped Group node, not general parser acceptance or
+the fixed-literal source audit. Implementation must add an explicit preflight
+for same-key versus conflicting root mappings and use `append_stage` for
+non-overwriting atomic publication.
 
 ## 6. Apply producer/consumer contract
 
@@ -240,9 +259,11 @@ Only after explicit user approval of this exact reviewed text, the implementatio
 may supersede these specific clauses, and only for the grammar in section 2:
 
 1. `notes/design/2026-09-19-hir-simple-module-resolution-first-slice-draft.md`:
-   the clause excluding application syntax from ordinary simple-module bodies
-   and requiring `UnsupportedExpression` solely for an otherwise supported
-   structural application.
+   its flat ordinary expression product and the clause excluding application
+   syntax from ordinary simple-module bodies and requiring
+   `UnsupportedExpression` for otherwise supported Apply or retained Group
+   forms in section 2's grammar. The scope is limited to those constructor
+   forms in binding bodies; all refusal behavior outside the grammar remains.
 2. `notes/design/2026-10-10-ordinary-hir-successor-carrier.md`: only its promise
    to leave ordinary application admission, application-owned HIR diagnostics
    and canonical-HIR application occurrence structure unchanged. Its binding
@@ -252,10 +273,11 @@ may supersede these specific clauses, and only for the grammar in section 2:
    remain in force unchanged. The added canonical-HIR child occurrences are
    allocated after those carrier ordinals and map to exact parse keys without
    replacing carrier IDs.
-3. `ResolvedExpr::Apply`'s opt-in-only documentation and
-   `shadow_resolved_call_inventory`'s nonempty-error requirement, solely to
-   permit structural observations of ordinary accepted Apply nodes. Opt-in
-   placeholder/error ownership remains unchanged.
+3. `ResolvedExpr::Apply` and `ResolvedExpr::Group`'s opt-in-only documentation,
+   and any `shadow_resolved_call_inventory` restriction that rejects ordinary
+   structurally admitted nodes, solely to permit structural observations of
+   accepted Apply/Group nodes. Opt-in placeholder/error ownership remains
+   unchanged.
 4. The September 19 dense phase-local error/diagnostic ID clause remains in
    force within each resulting module. This proposal makes no change to that
    invariant. The exact compatibility rule for this admission change is that
@@ -282,18 +304,21 @@ regression set must establish:
 1. The fixed source has zero HIR errors, exactly two retained body applications,
    correct formal/module resolutions and exact distinct operand source keys.
 2. General inductive cases: multiple left-associated ML tails; CallTail with one
-   supported operand; nested application in callee and argument; one comma-free
-   group at arbitrary accepted depth; identical spellings at distinct source
-   positions and repeated parse artifacts.
+   supported operand; nested application in callee and argument; Group over
+   Atom; root Group over Apply (`my z = (f x)`); nested retained Groups at
+   accepted depths; identical spellings at distinct source positions and
+   repeated parse artifacts. Each Group retains its key and is not elided.
 3. Existing ordinary items, DefIds, parameters, roots and ordinary HIR
    occurrence ordinals stay stable when a body gains Apply children. Existing
    carrier outcomes, carrier structure, source-key mappings and carrier
    occurrence ordinals also stay stable. New HIR-only child IDs are unique,
    artifact-branded, source-ordered and allocated after the carrier pass.
-   The preserved body-root ID receives its exact outer application key when it
-   previously lacked a mapping; matching existing mappings are retained and a
-   conflicting mapping fails without overwrite. Descendant mappings are exact
-   and added atomically; refused/recovery bodies gain no application mappings.
+   The preserved body-root ID maps to the exact key for its outer retained
+   Atom, Apply or Group constructor; in particular a root Group maps to its
+   `ParenthesizedExpression`, not its inner Apply. Matching existing mappings
+   are retained and a conflicting mapping fails without overwrite. Descendant
+   mappings are exact and added atomically; refused/recovery bodies gain no
+   application mappings.
 4. Error and diagnostic vectors are dense and internally cross-referenced in
    each resulting module. Retained record payloads, multiplicity and relative
    order are unchanged; IDs are resolved to final vector positions. A fixture
