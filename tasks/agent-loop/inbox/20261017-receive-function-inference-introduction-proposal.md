@@ -1,7 +1,7 @@
 # Luna handoff: candidate source Function inference introduction
 
 Sprint: `receive-function-introduction-proposal-20261017`, revision 1, contract SHA-256 `eeca47fc455c5aac9b5f9bb4e5ce6b10b7921599a07a693e2c4ac668442a7503`.
-Assignment / revision: `receive-function-inference-introduction-proposal` / 1.
+Assignment / revision: `receive-function-inference-introduction-proposal` / 2.
 Author: Luna, sole author. Outcome: unselected source-rule proposal. Review: not yet run; preservation lane starts only after this proposal is frozen and pinned.
 
 ## Parent and fixed scope
@@ -48,3 +48,8 @@ Falsifiers include: any field depends on a later Return/receipt/Q; `Unit` select
 Fresh independent compiler_referee and spec_auditor review the combined proposal/proof after both freeze. Neither author reviews the bundle. Any new interpretation remains unselected pending user adoption. No code lease, compiler edit, tests, build, probe, execution, source `T`, native MODEL, production conformance or parent closure is supplied.
 
 Luna's proposal work is complete and frozen; no further writes under this lease. Proposal author elapsed time, model telemetry and active-time breakdown were not instrumented. No independent result is claimed. Astra remains NOT_STARTED until Luna confirms this exact hash as the proof input.
+
+
+## Revision 2 clarification
+
+This revision corrects the revision-1 summary after the independent compiler review. The proposal is an obligation/schema outline, not an implemented or mathematically complete constructor. Its source premises still require a real inlet/role introduction with an owning telescope. The proposal artifact bytes remain unchanged. Revision 1 is preserved in Git at commit `79b2d9a4f`; the preservation proof records its exact hash as an input.

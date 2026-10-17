@@ -14,7 +14,7 @@
   "fixed_outcome": "Draft a concrete source inference-introduction constructor for original c2 F2 that derives L2, complete dependent fields and joint interpretation by a pinned existing constructor, then attempt local preservation. Keep the proposal unselected and all original parent domains/gates intact.",
   "review": {
    "state": "RUNNING",
-   "current_reviewer": "/root/receive_function_introduction_compiler_review",
+   "current_reviewer": "/root/receive_function_introduction_spec_review",
    "sequence": [
     "compiler_referee",
     "spec_auditor"
@@ -27,9 +27,9 @@
    "review_cap_seconds": 240,
    "coordination_seconds": 60,
    "reserve_seconds": 120,
-   "charged_seconds": 840,
+   "charged_seconds": 960,
    "active_authors": 0,
-   "status": "Proposal480 + Astra360 = 840s. Fresh compiler_referee actively reviewing frozen bundle; spec_auditor follows sequentially."
+   "status": "Proposal480 + Astra360 + compiler review120 conservatively charged; handoff wording finding clarified in revision 2; spec_auditor active."
   },
   "lanes": {
    "proposal": {
@@ -72,7 +72,7 @@
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-receive-function-inference-introduction-proposal.md",
-    "sha256": "f999ac5f90c98cccfad271bd8729381afdb8442e201c61ef3a16babf737ff3f1"
+    "sha256": "4df933a747894a996c34ed10f0ba48367378fa4695a015f379e8f697c543bd70"
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-receive-function-introduction-proposal-preservation.md",
@@ -148,13 +148,24 @@
    {
     "id": "/root/receive_function_introduction_compiler_review",
     "role": "fresh independent compiler_referee for frozen proposal+preservation bundle",
+    "state": "STOPPED",
+    "requested_model": "UNKNOWN",
+    "requested_effort": "UNKNOWN",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": "current-session",
+    "receipt": "STOP after frozen-bundle review; all five target hashes and 15 contract pins matched. No writes/descendants. Found one MINOR: proposal handoff overstated derivation; primary issued revision 2 clarification, proposal bytes unchanged."
+   },
+   {
+    "id": "/root/receive_function_introduction_spec_review",
+    "role": "fresh independent spec_auditor for frozen proposal+preservation bundle and corrected handoff",
     "state": "RUNNING",
     "requested_model": "UNKNOWN",
     "requested_effort": "UNKNOWN",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "Actual collaboration spawn accepted 2026-10-17 02:04:19 UTC; read-only exact frozen bundle; fresh from both authors; no descendants requested."
+    "receipt": "Actual sequential collaboration spawn accepted 2026-10-17 02:06:38 UTC; read-only; fresh from both authors and compiler reviewer; target handoff revision 2."
    }
   ]
  },
@@ -221,13 +232,24 @@
   {
    "id": "/root/receive_function_introduction_compiler_review",
    "role": "fresh independent compiler_referee for frozen proposal+preservation bundle",
+   "state": "STOPPED",
+   "requested_model": "UNKNOWN",
+   "requested_effort": "UNKNOWN",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "receipt": "STOP after frozen-bundle review; all five target hashes and 15 contract pins matched. No writes/descendants. Found one MINOR, clarified by primary handoff revision 2; proposal bytes unchanged."
+  },
+  {
+   "id": "/root/receive_function_introduction_spec_review",
+   "role": "fresh independent spec_auditor for frozen proposal+preservation bundle and corrected handoff",
    "state": "RUNNING",
    "requested_model": "UNKNOWN",
    "requested_effort": "UNKNOWN",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Actual collaboration spawn accepted 2026-10-17 02:04:19 UTC; read-only exact frozen bundle; fresh from both authors; no descendants requested."
+   "receipt": "Actual sequential collaboration spawn accepted 2026-10-17 02:06:38 UTC; read-only; fresh from both authors and compiler reviewer; target handoff revision 2."
   }
  ],
  "leases": [
@@ -257,7 +279,8 @@
    "path": "tasks/agent-loop/inbox/20261017-receive-function-inference-introduction-proposal.md",
    "owner": "/root",
    "state": "FROZEN",
-   "sha256": "f999ac5f90c98cccfad271bd8729381afdb8442e201c61ef3a16babf737ff3f1"
+   "sha256": "4df933a747894a996c34ed10f0ba48367378fa4695a015f379e8f697c543bd70",
+   "revision": 2
   },
   {
    "path": "notes/theory/2026-10-17-receive-function-introduction-proposal-preservation.md",
@@ -306,8 +329,8 @@
  ],
  "next_action": {
   "state": "REVIEW-RUNNING",
-  "dispatcher": "Selector-end consultation remains after sequential fresh reviews and Luna adjudication.",
-  "proof": "Astra exact four-stage preservation attempt stopped; first absent local inlet/role introduction, Strict operands/specialization and primitive transport remain OPEN; artifact/hash pinned.",
+  "dispatcher": "Selector-end consultation remains after spec review and Luna adjudication.",
+  "proof": "Preservation audit frozen and reviewed; first missing inlet/role clause, Strict specialization, joint embedding and transport remain OPEN.",
   "implementation": "No code lease; frozen proposal/proof identify no authorized implementation slice until the missing source rule and its semantics are explicitly selected."
  },
  "resource_accounting": {
@@ -318,10 +341,10 @@
   "review_cap_seconds": 240,
   "coordination_seconds": 60,
   "reserve_seconds": 120,
-  "charged_seconds": 840,
+  "charged_seconds": 960,
   "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Proposal480 + Astra360 = 840/1500s; compiler_referee review RUNNING; spec_auditor pending; no author active."
+  "status": "Proposal480 + Astra360 + compiler review120 = 960/1500s; spec_auditor running; no author active."
  },
- "history": "Concrete but unselected Gen-CallView? proposal frozen. Four-stage Astra attempt found first missing local inlet/role introduction; Strict operands/role specialization and primitive transport also unavailable. Original F2/A1/xi and all parent gates preserved. Fresh review is next."
+ "history": "Compiler referee found one minor overstatement in proposal handoff revision 1; Luna issued revision 2 clarifying that the proposal names required outputs but omits the inlet/role introduction. Proposal bytes and preservation proof inputs unchanged. Spec audit now running."
 }
