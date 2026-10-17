@@ -4,7 +4,7 @@ Sprint-ID: `operation-default-and-instance-lifecycle-20261017`.
 Contract revision 2 / SHA-256:
 `ed45bd2b259173a09897b7121e00fd7000a29286024571606edbfa631ce40f50`.
 Assignment-ID: `OPERATION-RESPONSE-INSTANCE-WITNESS-LIFECYCLE-20261017`.
-Handoff revision: 1; frozen bytes, pending independent review and Luna intake.
+Handoff revision: 3; frozen bytes, pending independent review and Luna intake.
 
 ## Assignment and parent
 
