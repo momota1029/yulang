@@ -1,7 +1,7 @@
 # Sprint: `module-use-retained-native-transport-20261017`
 
-Status: READY FOR CANDIDATE IMPLEMENTATION
-Revision: 1
+Status: REPAIR AFTER BLOCKING REVIEW FINDING
+Revision: 2
 Baseline: `9f8a03bdf`
 Parent: original Yulang inference/execution theorem; source domain, admissions,
 observations, original A/B claims and quantifiers remain unchanged.
@@ -54,8 +54,18 @@ original theorem condition.
    heavy process. If the focused command cannot finish within its envelope,
    report it accurately without retrying or promoting static evidence.
 
-Fresh cap 1800 seconds: implementation480 + proof300 + compiler180 +
-architect180 + spec120 + focused verification180 + coordination120 + reserve240.
+Revision 2 review correction: compiler review found the captured Graph charge
+was still in scratch when it was added to retained route bytes. Repair must
+transfer `Graph.bytes()` together with row/remap capacities, preserve unrelated
+caller scratch, and assert that identity immediately before the prepublication
+resource sample in the focused test. Update the proof equation from the actual
+post-capture scratch entry. Preserve and report the initial API-compatibility
+failure and its already completed repair.
+
+Fresh cap remains 1800 seconds. Reallocated after the blocking finding:
+implementation480 + compatibility repair120 + accounting/test repair120 +
+proof300 + primary proof correction30 + compiler180 + architect/resource150 +
+spec120 + focused verification180 + coordination120 = 1800. No reserve remains.
 No author overlap; proof starts only after implementation and checks are frozen.
 
 ## Complexity and failure boundary
