@@ -71,7 +71,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual lane start20:58:48 UTC, cap900s. Reading exact contract/current pins and leased owners. No Cargo before diagnostic bytes and fresh compiler review. Contract rev2 adds only proof-source pins (typed core/full-f certificate); implementation owner pins unchanged. Revalidate revised contract hash before relying further. Contract rev3 adds only source declaration owner pin SHAb27eed06...; implementation owners unchanged. Verify revised hash. Rev3 acknowledged21:02:55; elapsed247s/rem653; all nine direct implementation owner pins + baseline example/fixture hashes match. Diagnostic-only delta being frozen; no command before independent compiler review."
+      "receipt": "Rev3 exact-owner pins revalidated. Diagnostic-only candidate_source.rs SHA09a29794eafd2c93aac69b3335120878308a6804ebd6e95c2272556b744e943b; harness SHAa1f6cf01ca7db0978698721f6f6c48d93460b26799229b51c5a70064d5c460e7; fixture SHA7d7ad10d00773ecef583c53a1d546737dbf92daf75a9637f45c03798eb893fad. Caller file:line provenance diagnostic with track_caller; env-gated harness metadata. At21:03:15 elapsed267/rem633. Awaiting exact-byte compiler review gate1; no run."
     },
     {
       "id": "/root/npair_actual_argument_proof_review",
@@ -87,13 +87,13 @@
     {
       "id": "/root/npair_actual_argument_impl_review",
       "role": "fresh compiler reviewer",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Sol/compiler_referee",
       "requested_effort": "high <=120s per gate",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Reserved for exact diagnostic bytes before first Cargo and final code/test bytes before later commands."
+      "receipt": "Fresh compiler review gate1 assigned read-only for exact diagnostic bytes under rev3; candidate_source09a29794..., harnessa1f6cf01..., fixture7d7ad10...; cap120s; no command authorized until CLEAN."
     }
   ],
   "leases": [
