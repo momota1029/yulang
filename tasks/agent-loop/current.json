@@ -34,9 +34,9 @@
         "actual_worker": "/root/original_goal_minimal_cut_map"
       },
       "proof": {
-        "owner": "/root",
+        "owner": "/root/astra_selected_source_vertical",
         "role": "astra_prover after admission",
-        "state": "READY",
+        "state": "RUNNING",
         "cap_seconds": 900,
         "outputs": [
           "notes/theory/2026-10-17-selected-source-vertical-correspondence.md",
@@ -44,7 +44,10 @@
         ],
         "basis": "Outer-use §6 same-witness Result/Effect/entry consumer implication; original xi,z/provider/challenge/two packet images; FIRST-RESULT-ADEQUACY application.",
         "requested_model": "gpt-6-astra",
-        "requested_effort": "medium"
+        "requested_effort": "medium",
+        "session": "current-session",
+        "launch_receipt": "Actual collaboration launch acknowledged; bounded proof packet only; no descendants.",
+        "charged_seconds": 0
       },
       "implementation": {
         "owner": "/root",
@@ -78,12 +81,12 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 180,
-      "available_seconds": 2220,
-      "active_authors": 0,
+      "charged_seconds": 300,
+      "available_seconds": 2100,
+      "active_authors": 1,
       "active_reviewers": 0,
       "unknown_reservations_preserved": 3,
-      "status": "Proof admitted. Astra first; review and implementation lanes await frozen proof."
+      "status": "Selector boundary delta charged 120s; Astra proof RUNNING. Implementation and reviewers wait for freeze."
     },
     "workers": [
       {
@@ -138,6 +141,19 @@
         "observed_effort": "UNKNOWN",
         "charged_seconds": 120,
         "receipt": "Material-boundary delta returned: proof exact scope, independent vertical admission, serial author/reviewer sequence; no writes or descendants."
+      },
+      {
+        "id": "/root/astra_selected_source_vertical",
+        "role": "astra_prover",
+        "state": "RUNNING",
+        "session": "current-session",
+        "requested_model": "gpt-6-astra",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 0,
+        "cap_seconds": 900,
+        "receipt": "Actual launch acknowledged; exact two proof leases; no descendants."
       }
     ],
     "leases": [
