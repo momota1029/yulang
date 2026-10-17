@@ -78,7 +78,7 @@
   "candidate": "tasks/agent-loop/sprints/npair-concrete-producer-compile-validation-20261017.md",
   "baseline": "f2f95913cdcff78c4482b3556830483614c06e87",
   "scope": "Compile-only validation of the exact approved integrated concrete Permission producer, plus an explicit proof WAIT for original constructor contribution evidence.",
-  "worker_inventory_scope": "Three historical UNKNOWN reservations and board quarantine retained; prior authors/reviewers/selector STOPPED. Luna resumed current-session evidence reconciliation; no build or compiler process active, no code lease.",
+  "worker_inventory_scope": "Three historical UNKNOWN reservations and board quarantine retained; prior authors/reviewers stopped. This session completed read-only adoption/Catch-source reconciliation and dispatcher consultation; no compiler/source process or write lease exists.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -116,13 +116,13 @@
     {
       "id": "/root",
       "role": "Luna/high primary, sole authority and Git integrator",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Current session resumed after compile sprint; read-only reconciliation of adopted source interface and prior exact supplier analysis. No compiler/source lease or process."
+      "receipt": "Current-session read-only reconciliation and sprint-boundary consultation complete; no compiler/source process or write lease."
     },
     {
       "id": "/root/npair_concrete_producer_compile_review",
@@ -146,7 +146,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Sprint-end delta: WAIT; no ready proof/compiler sprint or new lease. Exact next input is original source-definition clause or authority for a reviewed definition proposal. No work started."
+      "receipt": "Fresh boundary delta after user adoption reconfirmation: Catch telescope/conditional MI-Intro already adopted; CATCH-EXIT-INPUT-1 M_exit still OPEN. No proof-backed implementation slice or new lease; need original exit/matcher clause or authority to draft M_exit."
+    },
+    {
+      "id": "/root/independent_path_decomposition",
+      "role": "read-only task decomposition",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Returned no independently ready lane from inherited evidence; no writes, commands or leases."
     }
   ],
   "leases": [
@@ -207,11 +218,11 @@
     }
   ],
   "next_action": {
-    "state": "WAIT-VERIFIED-INDEPENDENT-LANE-SEARCH",
-    "dispatcher": "NPAIR is already adopted. Focused supplier packet found the exact source/native input absent. Sprint-end selector found no approved independent code slice among module/runtime, initialization or F5 migration. Decompose only for another independent approved path; no source or implementation lease yet.",
-    "proof": "Prior exact supplier result remains the evidence-qualified boundary; do not repeat. Need original source-owner clause for same-w eta_op and native realization_op.",
-    "implementation": "No approved source-admission, At/transport or receive-consumer slice. Producer compile validation complete. Current FreshUse maps are retained structural data; semantic association remains OPEN.",
-    "source_authority": "Approved concrete producer/accounting repair remains unchanged. No source admission, At, transport, consumer, subtraction or production authority.",
+    "state": "WAIT-EXACT-M_EXIT-CLAUSE-OR-DRAFT-AUTHORITY",
+    "dispatcher": "Catch source telescope and conditional MI-Intro are already adopted under receipt d94e2465; the repeated user approval does not adopt a new M_exit rule. Fresh selector found no safe proof-backed implementation slice for CATCH-EXIT-INPUT-1.",
+    "proof": "CATCH-EXIT-INPUT-1 remains OPEN: need the original exit/matcher formation clause deriving typed M_exit from the actual yielded request and exit, preserving q/raw and the complete dependent ports before matching.",
+    "implementation": "NO_SAFE_CODE_SLICE for this obligation: Work::CatchArms has declarations/occurrences/binders/endpoints; candidate_catch_operation has scalar Function/effect constraints; neither produces or consumes an authentic typed exit/matcher certificate. No code lease.",
+    "source_authority": "Adoption receipt d94e24656854fd2d67ed0f600619349c728dfafa26ca6e312f1faa6d3f3532fa adopts the Catch input telescope and conditional MI-Intro only. Next input: actual governing source clause/derivation, or explicit authority to draft a narrowly scoped M_exit source/transition definition for independent review and later adoption.",
     "workers_started": false
   },
   "resource_accounting": {
