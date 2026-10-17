@@ -4,28 +4,28 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-reference-indexed-source-lift-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-reference-indexed-source-lift-20261018.md",
-    "revision": 2,
-    "sha256": "c7aab4ba2b95e59175e6d0065b70f83dc374e4be99054369b576c5fb6ed6b3c9",
-    "state": "ACTIVE",
-    "baseline": "aeb0659a1dacdb63f1f156e6596783eeb2c140c3",
+    "id": "npair-operation-self-effect-decision-20261018",
+    "contract": "tasks/agent-loop/sprints/npair-operation-self-effect-decision-20261018.md",
+    "revision": 1,
+    "sha256": "7751165b11b2c286ee1d2021a1bd5b6784d743ace78c4124cb6e80ee6b822aa3",
+    "state": "READY",
+    "baseline": "d4db1bda69e53628d362d33ced23f4e0f37563a3",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, quantifiers and domain unchanged; closure0.",
-    "fixed_outcome": "Try exact original reference-indexed Operation self-leaf derivation; in parallel derive conditional outer Result/inner ResultEffect + ordered Replay/scope source lift. New rules alone close no premise.",
+    "fixed_outcome": "Classify whether Operation latent self-effect projection is fixed by original judgments or a semantic choice; independently settle explicit-row address/cache invariant.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "prior_closeout": "notes/progress/2026-10-18-npair-same-w-seed-closeout.md#sha256:8cf69cf50d2fe3fe52f167bb8cac5f9d82ef157aac468bd1adcb25b33d6dae18"
+      "prior_closeout": "notes/progress/2026-10-18-npair-reference-indexed-lift-closeout.md#sha256:aa8df192adc0f42be89651a93450319f8a28a5c7445ebb774260251f9c75b265"
     },
     "resources": {
-      "cap_seconds": 1200,
-      "charged_seconds": 1200,
-      "available_seconds": 0,
-      "allocation": "proof450, conditional rule-lift source audit300, primary90, independent proof review150, compiler review90, spec review60, reserve60; Astra0."
+      "cap_seconds": 900,
+      "charged_seconds": 0,
+      "available_seconds": 900,
+      "allocation": "semantic/proof300, address audit180, primary60, independent compiler/source review120, spec review90, reserve150; Astra0."
     },
-    "next_action": "Apply reference-indexed self-leaf derivation and conditional Function/Replay lift to the unchanged parent; only then issue proof-backed implementation contract."
+    "next_action": "Launch exact read-only proof/semantic classification and explicit-row address audit; then independently review both frozen outputs."
   },
-  "history": "Closed `npair-same-w-source-seed-20261018`: proof candidate has major/minor findings and remains non-authoritative; exact-incidence audit reviewed CLEAN; parent closure0. Full receipts in prior closeout note.",
+  "history": "Closed `npair-reference-indexed-source-lift-20261018`: reviewed same-reference IF placement; Operation latent self-effect projection remains missing; conditional Function/Replay lift reviewed CLEAN but H0/provider tree unresolved; parent closure0. Closeout records hashes and reviews.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
   "workers": [
     {
@@ -37,55 +37,55 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh primary continuation; prior proof/audit authors and reviewers STOPPED, findings adjudicated, dependency baseline revalidated."
+      "receipt": "Closed prior sprint with frozen proof/compiler/spec reviews; new 900s contract issued READY, assignments not yet launched."
     },
     {
-      "id": "/root/npair_reference_indexed_self_leaf",
-      "role": "constructive-prover",
-      "state": "RUNNING",
+      "id": "/root/npair_operation_self_effect_decision",
+      "role": "constructive-prover / semantic-boundary classifier",
+      "state": "NOT_STARTED",
       "requested_model": "Sol/prover",
-      "requested_effort": "high <=450s",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Live constructive proof assignment launched with exact reference-indexed sources and two output leases; effective model/effort UNKNOWN. Contract rev2 pins the cited source-contract §3.7 and approved Option 2 answer; goal, scope, leases, budgets unchanged."
-    },
-    {
-      "id": "/root/npair_function_incidence_rule_lift",
-      "role": "read-only source-rule lift auditor",
-      "state": "RUNNING",
-      "requested_model": "Sol/researcher",
       "requested_effort": "high <=300s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Live read-only source-rule lift assignment launched under exact source/output leases; effective model/effort UNKNOWN. Contract rev2 pins the cited source-contract §3.7 and approved Option 2 answer; goal, scope, leases, budgets unchanged."
+      "receipt": "Exact output/read leases issued in contract rev1; launch receipt pending."
+    },
+    {
+      "id": "/root/npair_explicit_row_address_invariant",
+      "role": "read-only compiler source auditor",
+      "state": "NOT_STARTED",
+      "requested_model": "Luna",
+      "requested_effort": "high <=180s",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Exact source/output leases issued in contract rev1; launch receipt pending."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/npair-reference-indexed-source-lift-20261018.md",
+      "path": "tasks/agent-loop/sprints/npair-operation-self-effect-decision-20261018.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-reference-indexed-self-leaf.md",
-      "owner": "/root/npair_reference_indexed_self_leaf",
+      "path": "notes/design/2026-10-18-npair-operation-self-effect-decision.md",
+      "owner": "/root/npair_operation_self_effect_decision",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-reference-indexed-self-leaf.md",
-      "owner": "/root/npair_reference_indexed_self_leaf",
+      "path": "tasks/agent-loop/inbox/20261018-npair-operation-self-effect-decision.md",
+      "owner": "/root/npair_operation_self_effect_decision",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-function-incidence-rule-lift.md",
-      "owner": "/root/npair_function_incidence_rule_lift",
+      "path": "notes/theory/2026-10-18-npair-explicit-row-address-invariant.md",
+      "owner": "/root/npair_explicit_row_address_invariant",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-function-incidence-rule-lift.md",
-      "owner": "/root/npair_function_incidence_rule_lift",
+      "path": "tasks/agent-loop/inbox/20261018-npair-explicit-row-address-invariant.md",
+      "owner": "/root/npair_explicit_row_address_invariant",
       "state": "HELD"
     },
     {
@@ -99,22 +99,12 @@
       "state": "FROZEN"
     },
     {
-      "path": "crates/yu-solver/src/candidate_context.rs",
+      "path": "crates/yu-hir/src/module/source_annotation.rs",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "crates/yu-solver/src/candidate_extrusion.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_scope.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/src/lib.rs",
+      "path": "crates/yu-hir/src/source_identity.rs",
       "owner": "/root",
       "state": "FROZEN"
     }
@@ -123,6 +113,6 @@
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "Both prior proof/source authors and all independent reviewers stopped; no active or unknown writer remains."
+    "receipt": "Prior sprint authors and all independent reviewers STOPPED; new sprint lanes are READY but not launched."
   }
 }
