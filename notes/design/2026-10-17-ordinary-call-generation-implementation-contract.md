@@ -2,9 +2,10 @@
 
 Date: 2026-10-17  
 Status: frozen Luna implementation recipe; no code lease  
+Artifact revision: 3; stale owner-table citation corrected after spec delta review  
 Claim class: provisional candidate source evidence and owner-mapped implementation recipe  
-Sprint: `ordinary-call-original-generation-20261017`, revision 2  
-Contract SHA-256: `a1a409b84b5f9750266eea3790a9e098fce8af32e30348f17ee2d1ac1ffb1c21`  
+Sprint: `ordinary-call-original-generation-20261017`, revision 4  
+Contract SHA-256: `519a77276d1455ad25da0cd1284e7686a130ee7bec7b86192f1d411c137c43b0`  
 Baseline: `0717a882c`  
 Exact source: `my id x = x; my answer = id 0`  
 Original theorem conditions discharged: **0**
@@ -25,7 +26,7 @@ All rev2 dependencies were rechecked before this recipe. Relevant direct pins:
 | `candidate_call.rs` | `cbad9cf51a05343eb7a29ab77aac520891467a8aa4edc3201ea3d91f978984a1` | Borrowed source-call observation, formal-only provenance, pending suppliers |
 | `shadow_apply.rs` | `bb1e63c2ea33bf0b6e7408bd015d2498a9aed4dd45e250a85433169c9da334bf` | Candidate solver entry/consumer APIs and explicit unresolved-premise set |
 | `candidate_scheme.rs` | `52b7281946de755003ee8f3b3d18cbc2df6cc6db5566b4e5ecf391b74a92640a` | Candidate SCC graph capture and open-use routing |
-| `lib.rs` | `2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f` | Ordinary batch collection, `Action::Module` routing and candidate Apply admission |
+| `lib.rs` | `2c1fff385e5270ef7b7eb5fc4d9ed5f6edb6a4c01886887b183401212c5f398f` | Ordinary batch collection and `route_incoming` transaction |
 | `research_accepted_call_vertical.rs` | `9c3dea05d11c49bae09520d5f6fe27430f1706185232daf2cf8e8d801a42d71a` | Existing candidate vertical regression and observation assertions |
 | original-generation proof | `bd2a690517118c8826dfe1a2fe9db53c829a1638bd2e6a1fd5aa01a252735aab` | First missing original introduction and owner TODOs |
 | original-generation handoff | `1ff0c3dc71c4b7e09de5e00ff47b158627cc67320d29d820d38d76ed330b98d3` | Frozen proof obligations and exact falsifiers |
@@ -42,13 +43,14 @@ The actual path in the inspected code is:
    checking occurrence, cause, and an optional formal-name identity. The direct
    module Name has no formal-name identity. The literal is an actual Integer
    source child, not a lexical Name use.
-3. When its scheduled actions execute, `Action::Module` routes the actual
-   definition use through `route_candidate_open_use` for an active SCC use or
-   `route_incoming` otherwise. `candidate_scheme.rs` retains candidate graph
-   capture and distinct fresh-use routing; `lib.rs` owns the incoming route and
-   transaction. This is candidate graph/use behavior, not source publication
+3. `candidate_source.rs:1370` executes the scheduled `Action::Module`. It routes
+   the actual definition use through `candidate_scheme.rs:1079`
+   `route_candidate_open_use` for an active SCC use or through
+   `lib.rs:16653` `route_incoming` otherwise. These retain candidate graph
+   capture and distinct fresh-use routing; they are not source-publication
    correspondence for the original typing rules.
-4. The Apply action reaches `InferenceSession::admit_candidate_fact`. It checks
+4. The Apply action reaches `shadow_apply.rs:1558`
+   `InferenceSession::admit_candidate_fact`. It checks
    that the retained Apply input and recipe have matching source occurrence and
    endpoints, constructs a native four-port negative Function demand with a
    fresh invocation-effect row, then admits the callee-to-demand pair and
@@ -151,25 +153,19 @@ pressure justifies it. Either algorithm still must validate the actual source
 identity and owner; complexity tradeoffs cannot supply missing judgments or
 change admission. No such index is needed or licensed by this slice.
 
-No production or observable language behavior changes under the recipe.
-Adopting the proof's `Gen-ModuleName-Literal*` formation proposal remains a
-separate semantic decision because the pinned original formation family has
-no constructor for this module Name plus literal Application. The proposal
-preserves the generic open source-rule reduct under its stated local premises,
-but has not been embedded into the original family at the full indices and
-does not prove that the existing Code-Call consumer accepts the new record.
-Options at that boundary are:
-
-- leave the source producer open and keep these candidate observations
-  provisional; or
-- review and adopt an explicit formation extension, while separately proving
-  its original-family embedding, source publication/root-use map, complete
-  Call telescope and consumer substitution.
-
-The second option changes which source derivations are available. This recipe
-does not choose it. Neither option licenses changing whole-carrier meaning,
-provider/challenge domains, guards, full Call arms, diagnostics, or runtime
-behavior to obtain a green test.
+No production or observable language behavior changes under this recipe. The
+missing constructor name alone does not establish that adding a conservative
+formation rule changes source admission or observable meaning, or that a user
+choice is needed. The proof's relative conservation over the generic reduct
+does not establish applicability to the actual module emitter or embedding
+into the pinned original formation family. Those require the actual
+publication/root-use map, complete Call telescope and an owner proof of
+embedding at the full indices. If validating that embedding requires a choice
+that changes source admission, provider/challenge domains, whole-carrier
+meaning, guards, full Call arms, or observable behavior, present that choice
+for selection. This recipe does not adopt the rule or claim the missing
+embedding. Neither rule adoption nor this observer licenses changing
+diagnostics or runtime behavior to obtain a green test.
 
 ## 4. Original proof/source work that remains
 

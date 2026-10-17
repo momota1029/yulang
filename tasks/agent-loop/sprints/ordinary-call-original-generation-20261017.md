@@ -1,9 +1,9 @@
 # Sprint ordinary-call-original-generation-20261017
 
-Status: ACTIVE — proof frozen and independently reviewed; implementation recipe
-under authoring. Revision2 supersedes rev1 only for the implementation-owner
-dependency pins, user complexity clarification, and remaining resource
-allocation. Baseline `0717a882c`. This sprint targets one authentic
+Status: ACTIVE — proof and recipe frozen; one owner-table citation correction
+under Luna. Revision4 supersedes rev3 only for the remaining table citation and
+final resource allocation. Baseline
+`0717a882c`. This sprint targets one authentic
 module-binding Call and leaves the original theorem, quantifiers, source domain,
 and every unrelated parent gate unchanged.
 
@@ -108,20 +108,27 @@ domains, or observable language behavior.
 
 Fresh spec/conformance and compiler/architect reviews receive frozen proof and
 implementation artifacts, sequentially as the dependency graph requires. The
-proof reviews consumed the original600s allocation. A clean proof review is
-required before Luna starts the implementation author lane. A clean
-implementation recipe review is required before any exact compiler lease or
-source code. The remaining1320s are allocated as: Luna recipe author720s;
-recipe spec review120s then architect/source-feasibility review180s; coordination
-120s; conditional verification0s (retired unless separately reauthorized); and
-reserve180s. No retries. Any later code lease requires a new bounded revision or
-fresh sprint and new resource allocation.
+Proof reviews consumed600s; recipe author720s and initial reviews300s are
+charged. The two adoption-boundary/source-owner corrections and their architect
+delta are complete; the spec delta found one stale `lib.rs` owner-table row.
+Preserve existing recipe/handoff history in Git. Luna has <=30s for that exact
+table correction; then a spec delta review gets <=30s. Closeout coordination is
+<=60s; reserve0s. No code, tests, Cargo, build or formatter. Any later code
+lease requires a new bounded revision or fresh sprint and new resources.
+
+The architectural correction must distinguish a new rule name or conservative
+derived formation from a change to language admission/observable behavior.
+Validate applicability and original-family embedding; seek user selection only
+if a required choice materially changes admission, providers, carrier or
+challenge domains, guards, independently licensed arms, or observable behavior.
 
 The read-only dependency decomposition was run before dispatch, exact source
 pins matched, and its 180s envelope is charged in full because telemetry is
 unavailable. Fresh cap3000s total: decomposition180 + Astra900 + Luna720 +
 reviews600 + coordination120 + conditional verification240 + reserve240.
-Spent180; available2820. Prior sprint's 30s reserve does not carry over.
+At rev4 entry, 2880s are charged and 120s remain: Luna table correction30 + spec
+delta30 + closeout coordination60. No reserve or code verification budget
+remains. Prior sprint reserves do not carry over.
 
 Stop on pin mismatch, a changed source domain, endpoint-only rule substitution,
 unaccounted carrier/owner, semantic choice affecting admission or observation,

@@ -1,10 +1,10 @@
 # Frozen Luna implementation-recipe handoff
 
 Sprint-ID: `ordinary-call-original-generation-20261017`  
-Contract revision: 2  
-Contract SHA-256: `a1a409b84b5f9750266eea3790a9e098fce8af32e30348f17ee2d1ac1ffb1c21`  
+Contract revision: 4  
+Contract SHA-256: `519a77276d1455ad25da0cd1284e7686a130ee7bec7b86192f1d411c137c43b0`  
 Assignment-ID: `/root/ordinary_call_generation_implementation_recipe`  
-Handoff revision: **1**  
+Handoff revision: **3**  
 Parent gate: original Simple-sub inference/execution theorem; original A/B
 claims, quantifiers, source domain and source/native correspondence unchanged  
 Baseline: `0717a882c`
@@ -27,8 +27,12 @@ formatter/Git operation was run. No scratch or generated paths were created.
 
 ## Frozen evidence and outcome
 
-Recipe SHA-256:
+Recipe revision 1 SHA-256 (initial spec/architecture review target):
 `d1be33f49459fa6539aebf9e80fd213ab3dccb64fa8cfe56749563d3609c8f5b`  
+Recipe revision 2 SHA-256 (corrected target):
+`cdba9f0ba96c87ac253ea8c97648ee5e06877a445d265e8afdb5e45358ab34a3`  
+Recipe revision 3 SHA-256 (owner-table correction):
+`04f67087908e0658fb20dfea492c11b43979e84333d7a32ab43ad3f92b48e794`  
 Original-generation proof SHA-256:
 `bd2a690517118c8826dfe1a2fe9db53c829a1638bd2e6a1fd5aa01a252735aab`  
 Proof handoff revision 1 SHA-256:
@@ -50,6 +54,11 @@ Original theorem conditions closed: **0**. There is no authentic original
 `e_c`, no O0 application/substitution into Code-Call, and no production
 promotion. The proof's `Gen-ModuleName-Literal*` remains a conditional,
 unadopted formation proposal.
+
+Architecture review found two precision issues in revision 1. This revision
+corrects source-owner locations and clarifies the boundary between a
+conservative formation extension and a change to language meaning. No source
+or test code lease follows from the review.
 
 ## Exact future code slice and falsifier
 
@@ -91,8 +100,9 @@ expanding the lease.
 source Lambda/formal + module Name(id) + Integer literal 0
   -> LambdaRecipe / formal table; separate PendingDefinitionUse + Action::Module
   -> ApplySourceInput + CandidateRelation::Apply
-  -> module-use route in candidate_scheme/lib.rs
-  -> candidate negative Function demand and callee <: demand in lib.rs
+  -> Action::Module executes in candidate_source.rs
+  -> route_candidate_open_use in candidate_scheme.rs or route_incoming in lib.rs
+  -> admit_candidate_fact and candidate negative Function demand in shadow_apply.rs
   -> candidate propagation, borrowed source_call, candidate fresh_use/export
 ```
 
@@ -125,9 +135,14 @@ index space is the default; repeated scans cost O(U*C) and less index space.
 The user's complexity clarification permits either measured tradeoff, but
 neither can alter admission or supply missing semantic judgments.
 
-No semantic selection is made. The possible formation extension remains
-unadopted because its original-family embedding and consumer acceptance are
-unproved. All parent gates, including F1/FK1, N-Transport, complete Call
+The missing constructor name alone does not establish a change to source
+admission or observable meaning and is not by itself a reason to ask for a
+semantic choice. The formation extension remains unadopted because actual
+module-emitter applicability and original-family embedding, including
+consumer acceptance, are unproved. If validation requires a choice changing
+admission, providers, whole-carrier or challenge domains, guards, licensed
+arms, or observable behavior, present that choice for user selection. All
+parent gates, including F1/FK1, N-Transport, complete Call
 satisfaction, source/native adequacy, soundness, principality and termination,
 remain open.
 
@@ -140,3 +155,31 @@ full 720-second author envelope conservatively; remaining assignment budget:
 No tests were run. Writes stop when this handoff is submitted. Pending review
 is the recipe spec review followed by architect/source-feasibility review;
 only a clean independent review can precede a separate code-lease decision.
+
+## Revision 2 correction receipt
+
+The architecture review of revision 1 found two documentation issues and
+confirmed the proposed two-path observer slice is source-feasible, without
+granting code authority:
+
+1. `Action::Module` execution belongs to `candidate_source.rs:1370`; routing
+   branches through `candidate_scheme.rs:1079` (`route_candidate_open_use`)
+   and `lib.rs:16653` (`route_incoming`). `InferenceSession::admit_candidate_fact`
+   is at `shadow_apply.rs:1558`.
+2. A missing constructor name alone does not establish a changed language
+   meaning or require user selection. The corrected text follows proof §7.4:
+   validate the actual module-emitter applicability and original-family
+   embedding; request selection only if a necessary choice changes source
+   admission or observable behavior.
+
+The original author STOPPED with the frozen rev1 files. Luna primary then
+revised only this recipe and handoff under sprint contract rev3, preserving
+rev1 in Git history. Primary correction cap: 60 seconds; exact active runtime
+telemetry is unavailable, so the full cap is conservatively charged. No code,
+tests, Cargo, build, probe, formatter or generated paths were touched. The
+architect delta review was CLEAN; the following spec delta found one stale
+`lib.rs` input-table description. Under contract rev4, Luna corrected only
+that row and updated this handoff to revision 3. The correction cap is 30
+seconds; exact active telemetry is unavailable, so the full cap is charged.
+Only the spec delta review (<=30s) remains. No original condition is closed,
+and no semantic rule or compiler behavior is adopted by these corrections.
