@@ -10,9 +10,10 @@ use std::{
 };
 
 use yu_hir::{
-    FileId, FileKey, HirItem, ModuleIdentity, SemanticImports,
+    FileId, FileKey, HirItem, ModuleIdentity, SemanticImports, SourceRootId,
     shadow::{
-        LocalSourceForm, SourceOperationResolution, lower_module_with_local_source,
+        LocalSourceForm, LocalSourceScope, SourceOperationResolution,
+        lower_module_with_local_source,
     },
 };
 use yu_solver::shadow_apply::CandidateInference;
@@ -131,29 +132,149 @@ fn main() {
             expression.occurrence, expression.source, expression.range, expression.form);
     }
 
+    let received = binding(&hir, "received");
+    let received_root = received.definition_root();
+    let received_owner = SourceRootId::Definition(received_root.clone());
+    let received_source = match hir.local_source(received_root) {
+        Ok(Some(source)) => source,
+        other => stop("received-local-source", format!("expected HIR-owned LocalSource, got {other:?}")),
+    };
+    if received_source.definition_root() != Some(received_root)
+        || received_source.source_root() != &received_owner
+        || !hir.owns_source_root(&received_owner)
+    {
+        stop("received-source-owner", "received LocalSource does not belong to its exact HIR definition owner");
+    }
+    let applies: Vec<_> = received_source.expressions().iter().filter_map(|expression| {
+        let LocalSourceForm::Apply { callee, argument, .. } = &expression.form else { return None };
+        let callee = received_source.expression(callee)
+            .unwrap_or_else(|| stop("received-apply-callee", "Apply callee index is not owned by received LocalSource"));
+        let argument = received_source.expression(argument)
+            .unwrap_or_else(|| stop("received-apply-argument", "Apply argument index is not owned by received LocalSource"));
+        let key = hir.occurrence_source_key(&expression.occurrence)
+            .unwrap_or_else(|error| stop("received-apply-key", error))
+            .unwrap_or_else(|| stop("received-apply-key", "Apply occurrence has no HIR source key"));
+        let callee_key = hir.occurrence_source_key(&callee.occurrence)
+            .unwrap_or_else(|error| stop("received-callee-key", error))
+            .unwrap_or_else(|| stop("received-callee-key", "callee occurrence has no HIR source key"));
+        let argument_key = hir.occurrence_source_key(&argument.occurrence)
+            .unwrap_or_else(|error| stop("received-argument-key", error))
+            .unwrap_or_else(|| stop("received-argument-key", "argument occurrence has no HIR source key"));
+        if expression.source != *key || !parsed.owns_source_key(key)
+            || callee.source != *callee_key || !parsed.owns_source_key(callee_key)
+            || argument.source != *argument_key || !parsed.owns_source_key(argument_key)
+            || !hir.owns_occurrence(&expression.occurrence)
+            || !hir.owns_occurrence(&callee.occurrence)
+            || !hir.owns_occurrence(&argument.occurrence)
+        {
+            stop("received-apply-ownership", "Apply or operand occurrence/source key is not owned by this HIR/parse pair");
+        }
+        Some((expression, callee, argument, key, callee_key, argument_key))
+    }).collect();
+    if applies.len() != 1 {
+        stop("received-apply-inventory", format!("expected one authentic Apply in received, found {}", applies.len()));
+    }
+    let (apply, apply_callee, apply_argument, apply_key, apply_callee_key, apply_argument_key) = applies[0];
+    println!("hir.received.owner={received_owner:?} root={received_root:?} source_key={:?} parse_owns_key={} apply={:?}/{apply_key:?} callee={:?}/{apply_callee_key:?} argument={:?}/{apply_argument_key:?} scopes=({:?},{:?},{:?})",
+        hir.definition_source_key(received_root), parsed.owns_source_key(apply_key),
+        apply.occurrence, apply_callee.occurrence,
+        apply_argument.occurrence,
+        apply.scope, apply_callee.scope, apply_argument.scope);
+
     println!("candidate.solve=begin entry=CandidateInference::solve");
     let candidate = match CandidateInference::solve(hir.clone()) {
         Ok(candidate) => candidate,
         Err(error) => stop("candidate-solve", error),
     };
-    println!("candidate.observes_hir={} candidate.conflicts={:?}",
-        candidate.observes_hir(&hir), candidate.candidate_conflicts());
-    if !candidate.observes_hir(&hir) {
+    let observes_hir = candidate.observes_hir(&hir);
+    println!("candidate.observes_hir={observes_hir} candidate.conflicts={:?}", candidate.candidate_conflicts());
+    if !observes_hir {
         stop("candidate-hir-owner", "candidate result does not observe the exact HIR artifact");
     }
     if !candidate.candidate_conflicts().is_empty() {
         stop("candidate-conflicts", "candidate solve returned conflicts; export is withheld");
     }
 
-    // Only f0's source-owned definition root is exported. The selected graph
-    // root is an implementation result, not the mathematical phase root R_e.
-    let export = match candidate.export(f0_root) {
-        Ok(export) => export,
-        Err(error) => stop("candidate-export-f0", error),
-    };
-    let graph_root = export.root();
-    println!("candidate.exported_definition_root={f0_root:?} graph_root_leaf={:?} graph_root_polarity={:?} graph_root_has_function_children={} node_count={}",
-        graph_root.leaf(), graph_root.polarity(), graph_root.children().is_some(), export.node_count());
+    let mut received_matches = 0usize;
+    for index in 0..candidate.source_call_count() {
+        let call = candidate.source_call(index)
+            .unwrap_or_else(|error| stop("source-call-observation", error));
+        if call.owner() != &received_owner { continue; }
+        received_matches += 1;
+        let source = call.source();
+        let callee = call.callee_source();
+        let argument = call.argument_source();
+        let source_key = hir.occurrence_source_key(&source.occurrence)
+            .unwrap_or_else(|error| stop("source-call-key", error))
+            .unwrap_or_else(|| stop("source-call-key", "source_call Apply has no HIR source key"));
+        let callee_key = hir.occurrence_source_key(&callee.occurrence)
+            .unwrap_or_else(|error| stop("source-call-callee-key", error))
+            .unwrap_or_else(|| stop("source-call-callee-key", "source_call callee has no HIR source key"));
+        let argument_key = hir.occurrence_source_key(&argument.occurrence)
+            .unwrap_or_else(|error| stop("source-call-argument-key", error))
+            .unwrap_or_else(|| stop("source-call-argument-key", "source_call argument has no HIR source key"));
+        let source_exact = std::ptr::eq(source, apply)
+            && source.occurrence == apply.occurrence
+            && source.source == apply.source
+            && source.source == *source_key
+            && source.source == *apply_key
+            && parsed.owns_source_key(source_key);
+        let callee_exact = std::ptr::eq(callee, apply_callee)
+            && callee.occurrence == apply_callee.occurrence
+            && callee.source == apply_callee.source
+            && callee.source == *callee_key
+            && callee.source == *apply_callee_key
+            && parsed.owns_source_key(callee_key)
+            && same_scope(&callee.scope, &apply_callee.scope);
+        let argument_exact = std::ptr::eq(argument, apply_argument)
+            && argument.occurrence == apply_argument.occurrence
+            && argument.source == apply_argument.source
+            && argument.source == *argument_key
+            && argument.source == *apply_argument_key
+            && parsed.owns_source_key(argument_key)
+            && same_scope(&argument.scope, &apply_argument.scope);
+        let source_scope_exact = same_scope(&source.scope, &apply.scope);
+        let call_source_root_exact = hir.owns_source_root(call.owner())
+            && received_source.source_root() == call.owner();
+        let checking_matches_apply = call.checking_occurrence().occurrence() == &apply.occurrence;
+        let cause_matches_checking = call.checking_cause().occurrence() == call.checking_occurrence();
+        let demand = call.native_demand();
+        let demand_argument = call.native_argument();
+        let demand_argument_effect = call.native_argument_evaluation_effect();
+        let demand_invocation_effect = call.native_invocation_effect();
+        let demand_result = call.native_result();
+        println!("candidate.source_call[{index}].owner={:?} apply={:?}/{source_key:?} callee={:?}/{callee_key:?} argument={:?}/{argument_key:?} exact=(owner:{call_source_root_exact},apply:{source_exact},callee:{callee_exact},argument:{argument_exact},scope:{source_scope_exact},checking:{checking_matches_apply},cause:{cause_matches_checking})",
+            call.owner(), source.occurrence, callee.occurrence, argument.occurrence);
+        println!("candidate.source_call[{index}].validated_native_demand={demand:?} native_demand_children=(native_argument:{demand_argument:?}, native_argument_evaluation_effect:{demand_argument_effect:?}, native_invocation_effect:{demand_invocation_effect:?}, native_result:{demand_result:?})");
+        if !call_source_root_exact || !source_exact || !callee_exact || !argument_exact
+            || !source_scope_exact || !checking_matches_apply || !cause_matches_checking
+        {
+            stop("source-call-correspondence", "validated source_call differs from the exact received Apply owner/occurrence/operands/source keys/scopes");
+        }
+    }
+    if received_matches != 1 {
+        stop("source-call-correspondence", format!("expected one source_call for received's exact Apply, found {received_matches}"));
+    }
+    let dependencies: Vec<_> = candidate.scoped_dependencies().map(|dependency| format!("{dependency:?}")).collect();
+    let flows: Vec<_> = candidate.scoped_relation_flows().map(|(index, pair, flow, active)|
+        format!("relation={index} pair={pair:?} flow={flow:?} active={active}")).collect();
+    println!("candidate.aggregate_scoped_dependencies={dependencies:?}");
+    println!("candidate.aggregate_relation_flows={flows:?}");
+    println!("candidate.received_call_replay_flow_linkage=UNOBSERVED (aggregate APIs expose no direct link to this source_call)");
+}
+
+fn same_scope(left: &LocalSourceScope, right: &LocalSourceScope) -> bool {
+    match (left, right) {
+        (LocalSourceScope::Definition(left), LocalSourceScope::Definition(right)) => left == right,
+        (LocalSourceScope::ModuleExpression(left), LocalSourceScope::ModuleExpression(right)) => left == right,
+        (LocalSourceScope::Expression(left), LocalSourceScope::Expression(right)) => left == right,
+        (LocalSourceScope::Parameter(left), LocalSourceScope::Parameter(right)) => left == right,
+        (LocalSourceScope::LocalInitializer(left), LocalSourceScope::LocalInitializer(right)) => left == right,
+        (LocalSourceScope::CatchArm { catch: left_catch, arm: left_arm },
+            LocalSourceScope::CatchArm { catch: right_catch, arm: right_arm }) =>
+            left_catch == right_catch && left_arm == right_arm,
+        _ => false,
+    }
 }
 
 fn binding<'a>(hir: &'a yu_hir::HirModule, spelling: &str) -> &'a yu_hir::HirBinding {
