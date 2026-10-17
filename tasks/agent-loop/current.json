@@ -41,16 +41,16 @@
         "sha256": "0d5231fffdaf001787b626eb279b1ce1182951472b88218938e2442228ec4e02"
       }
     },
-    "next_action": "Proposal is now Authoritative. Next evidence is source-owner STOP/descendant/output/overlap-lease handoff; then a fresh bounded source-read lease and source-to-action proof/audit. No source code until exact lease and reviewed implementation contract.",
+    "next_action": "Explicit user adoption is recorded; no repeated admission approval needed. Wait only for exact STOP/writes-stopped plus descendant/generated-output/overlap-lease handoff of inherited UNKNOWN source/call owners. Then start a newly pinned source-to-action audit sprint. No source/call access or code before handoff.",
     "closeout": {
       "path": "notes/progress/2026-10-18-npair-source-admission-proposal-closeout.md",
       "sha256": "947f4b7263c97d3d1e015ad53840230692ec00076417b4d0a99dfedf9ebcbc73",
       "review": "fresh independent spec audit clean within proposal scope; no semantic adoption or source access"
     },
     "dispatch": {
-      "path": "notes/progress/2026-10-18-npair-source-admission-dispatch.md",
-      "sha256": "72eb466556e1b5759cd194c6730061909906147173fd3f3c40125d5ded380dfd",
-      "recommendation": "No further proposal sprint; wait for explicit admission approval and exact owner handoff. No new workers/leases/resources."
+      "path": "notes/progress/2026-10-18-npair-source-admission-adopted-dispatch.md",
+      "sha256": "6f26ffdd59f862637c7996202922691042d5584beb6f0c303c28d60230b00a03",
+      "recommendation": "Admission approval satisfied; scheduling waits on exact owner handoff. Future ≤600s source-audit envelope is conditional, not allocated; Astra0."
     },
     "adoption": {
       "path": "notes/design/2026-10-18-npair-source-admission-adoption.md",
@@ -208,12 +208,17 @@
       "path": "notes/design/2026-10-18-npair-source-admission-adoption.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/progress/2026-10-18-npair-source-admission-adopted-dispatch.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
-      "id": "NPAIR-SOURCE-ADMISSION-SOURCE-AUDIT",
-      "state": "ADOPTED source case; WAITING exact STOP/writes-stopped evidence and descendant/generated-output/overlapping-lease accounting for inherited UNKNOWN owners. Do not read/write quarantined source/call."
+      "id": "NPAIR-SOURCE-OWNER-HANDOFF",
+      "state": "WAITING exact STOP/writes-stopped evidence plus all descendants, generated outputs and overlapping lease accounting for inherited UNKNOWN source/call owners. Admission proposal already adopted; no further approval prompt."
     }
   ]
 }
