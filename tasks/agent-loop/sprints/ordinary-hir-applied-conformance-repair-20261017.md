@@ -161,12 +161,14 @@ crates/yu-hir/src/shadow.rs                                       2dffd7fd6542ee
 crates/yu-solver/tests/research_accepted_call_vertical.rs         78fd0d4c38df86def4cd4aefb37e164f71269eb58cd9a53b370bc42e42f9a963
 ```
 
-Fresh cap 2760s: coordination120; proof/source240; Luna plan90; pre-code
-architect120; implementation1110; initial compiler review180; ordering repair30
-and compiler delta review30 transferred from reserve; spec120; architect180;
-pre/post regression240; Cargo240; remaining reserve60. Total 2760. No retired budget carries. Preserve all three
-inherited UNKNOWN writer leases and their reservations. At most one author at a
-time; proof, plan, architect, implementation and reviews are sequential.
+Fresh cap: 2760s. Through spec adjudication and rev5 amendment coordination,
+2049s are charged. Remaining 711s are explicitly allocated as final architect
+180; pre/post regression reviews 240; all three Cargo commands 285 (focused unit
+45 + first integration120 + second integration120); reserve6. This covers the
+sum of each explicit command cap (285s); no retry or implicit command is funded.
+Total2760. No retired budget carries. Preserve all three inherited UNKNOWN
+writer leases and their reservations. At most one author at a time; proof,
+plan, architect, implementation and reviews are sequential.
 
 Stop at another counterexample, hash/pin mismatch, grammar breach, unreviewed
 identity representation, source owner outside exact leases, unaccounted

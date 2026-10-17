@@ -1,7 +1,7 @@
 # Ordinary HIR applied-conformance repair: implementation handoff
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev5, SHA-256
-  `2e279e876af6db5aea40436ef9da87a7cea1941f6090cebaa013d6aaa73cff45`.
+  `5c63c3829cd6275523b1799e0286837518e9fd7dd0213c13f3171d9d7b7a6125`.
   Handoff revision 9 (Luna's post-coverage-amendment reconciliation); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
@@ -128,7 +128,10 @@ exactly one focused command,
 `cargo test -p yu-hir --features shadow --lib module::tests::`, with a 45s cap;
 the two original integration commands remain unchanged and exact-once. A fresh
 architect and pre-run regression review must clear the three-command map.
-Cargo.lock and root/member manifests are frozen by the rev5 hash pins. Timeout,
+The rev5 resource table charges each command cap explicitly: 285s total for
+unit45+integration120+integration120, leaving final architect180, regression240
+and reserve6 within 711s. Cargo.lock and root/member manifests are frozen by
+the rev5 hash pins. Timeout,
 compile failure, zero named falsifiers, or any assertion failure stops with no
 retry/filter substitution. Assertions are authored but no tests have run. Parent
 theorem gates remain OPEN.
