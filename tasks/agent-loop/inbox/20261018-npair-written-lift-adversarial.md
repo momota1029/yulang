@@ -12,8 +12,9 @@ No source-qualified counterexample; no original condition closed (0 -> 0).
 
 Artifact: `notes/theory/2026-10-18-npair-written-lift-adversarial.md`.
 Artifact SHA-256: `c447f90dba0018b139485c9b5cbdc4eeef08e345214d8bf3de245fa9d8b143ed`.
-Direct dependencies: exact frozen manifest in artifact. All 23 sprint inputs
-matched before use. Used stable proof/source inputs matched again at freeze.
+Direct dependencies: exact frozen manifest in artifact. All 23 revision-1
+inputs plus the added revision-2 source-owner pin (24 total) matched. Used
+stable proof/source inputs matched again at freeze.
 Original source-body SHA4fe70b18... matches pinned choose note and rev2 direct pin.
 Live fixture temporarily changed to SHA5a662789... by its implementation owner;
 analysis uses only original SHA969e20e... bytes, authenticated via baseline git show.
@@ -58,11 +59,13 @@ or a field judgment inferred only from family, slot, positivity or output counts
 
 Revision1 was explicitly superseded by primary acknowledgement before review.
 Worker state: STOPPED at revision2 handoff; writes stopped; no descendants/unresolved leases.
-Commit-ready: research-only preservation, pending fresh independent review.
+Commit-ready: research-only preservation. Fresh bounded independent review
+found no substantive issue; its one minor dependency-count receipt discrepancy
+is corrected above.
 
 Commit packet: exact paths are artifact and this handoff; baseline above;
 no changed proof/source dependency hashes; temporary fixture delta excluded;
-review NOT_RUN; checks above; proposed one-line commit:
+review CLEAN within the bounded adversarial scope; checks above; proposed one-line commit:
 `research: record fixed-c Written lift admission discriminator`.
 Shared-record deltas left for primary/curator: parent OPEN/closure0,
 UNADMITTED/OPEN discriminator, exact missing constructor/admission input,
