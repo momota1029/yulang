@@ -8,13 +8,13 @@
   "contract": "tasks/agent-loop/sprints/receive-role-indexed-inlet-introduction-20261017.md",
   "revision": 1,
   "sha256": "c2422818a92a6666ab9672b45d4d8bf1abf069116c82d4a91228374fc07e10cc",
-  "state": "ARCHITECT-REVIEW-RUNNING",
+  "state": "REVIEWED-PARTIAL",
   "baseline": "b89ed524fd7b2bbd3d69bb9c997b5bd8132fdf49",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original FORWARD-FIRST-CALL A/B and production gates OPEN.",
   "fixed_outcome": "Draft and attempt preservation of the first source-local inlet/role-entry introduction at original c2 F2/xi; separately trace selected local returned-function formal identity through capture/fresh-use to runtime Lambda entry classification. Keep rule unselected and parent gates unchanged.",
   "review": {
-   "state": "IN_PROGRESS",
-   "current_reviewer": "architect",
+   "state": "COMPLETE-CLEAN",
+   "current_reviewer": null,
    "sequence": [
     "compiler_referee",
     "spec_auditor",
@@ -28,9 +28,9 @@
    "review_cap_seconds": 360,
    "coordination_seconds": 120,
    "reserve_seconds": 120,
-   "charged_seconds": 990,
+   "charged_seconds": 1080,
    "active_authors": 1,
-   "status": "Astra 660/840; source trace 150/360; compiler review/delta 120s; spec review 60s; architect RUNNING."
+   "status": "Astra 660/840; source trace 150/360; compiler+delta 120s, spec 60s, architect 90s; all three reviews complete, no open findings; parent gates OPEN."
   },
   "lanes": {
    "proof": {
@@ -236,13 +236,13 @@
   {
    "id": "/root/role_inlet_arch_review",
    "role": "fresh architect for frozen inlet/source-trace bundle",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "requested_model": "gpt-6.1-sol",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Actual collaboration launch 2026-10-17 02:28:34 UTC; read-only source-correspondence/implementation-seam review at frozen artifact hashes; 120s maximum; no writes/tests/builds/probes/execution."
+   "receipt": "Architect review CLEAN within inspected scope; STOP 2026-10-17 02:29:44 UTC; 70s elapsed, conservative 90s charge; exact artifact/pin hashes matched; read-only, no descendants."
   }
  ],
  "leases": [
@@ -325,15 +325,15 @@
   },
   {
    "id": "INDEPENDENT-REVIEW-ROLE-INDEXED-INLET-20261017",
-   "state": "PENDING; compiler_referee then spec_auditor then architect, each fresh and read-only",
+   "state": "COMPLETE-CLEAN; compiler minor repaired and delta closed; spec and architect clean; Luna adjudication recorded",
    "owner": "Luna assigns and adjudicates"
   }
  ],
  "next_action": {
-  "state": "ARCHITECT-REVIEW-RUNNING",
+  "state": "SPRINT-END-SELECTOR-PENDING",
   "dispatcher": "Selector recommendation accepted for a bounded exact first-clause sprint; implementation has no safe code slice pending rule/source evidence.",
-  "proof": "Astra candidate SAT/RG formulas and finite transport countermodel frozen; SAT2/F2 admission equality both directions, full contextual inventory and RG2 embedding OPEN.",
-  "implementation": "Source trace identifies missing candidate-to-runtime formal/entry transport; NO_SAFE_CODE_SLICE remains. Review frozen rule and trace before next-action selection."
+  "proof": "Unselected SAT/RG candidate and preservation attempt are reviewed-partial; SAT2 both inclusions, RG2 complete embedding, original guard ownership and arbitrary transport remain OPEN.",
+  "implementation": "Selected playground trace has no safe code slice: candidate-to-runtime formal/entry transport absent; seek source-authorized end-to-end producer/consumer path or keep WAITING."
  },
  "resource_accounting": {
   "sprint_id": "receive-role-indexed-inlet-introduction-20261017",
@@ -343,10 +343,10 @@
   "review_cap_seconds": 360,
   "coordination_seconds": 120,
   "reserve_seconds": 120,
-  "charged_seconds": 990,
+  "charged_seconds": 1080,
   "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Authors STOPPED; compiler review/delta CLEAN, 120s; spec CLEAN, 60s; architect RUNNING, 120s cap; three UNKNOWN reservations retained."
+  "status": "Author lanes STOPPED; compiler (including delta) CLEAN 120s, spec CLEAN 60s, architect CLEAN 90s; all fresh reviews complete; parent theorem and implementation gates remain OPEN; three UNKNOWN reservations retained."
  },
- "history": "Prior sprint b89ed524f closed REVIEWED-PARTIAL; proof-pinned proposal revision 1 preserved. Selector approved first local source-clause draft plus separate read-only runtime provenance trace. Astra froze SAT/RG candidate at 02:21:21 UTC (660/840 charged); SAT2/RG2 OPEN. Luna froze source trace 02:24:03 UTC (150/360 charged): HIR/Call formal identity retained, local fresh-use maps omit HIR provenance, playground discards CandidateInference before annotation-based runtime entry. No safe code slice. Compiler review rev1: one MINOR named-formal source locator; rev2 repaired and old bytes remain at 3b16bb603. Compiler delta CLEAN at 02:27:53 UTC (120s cumulative charge); spec review CLEAN same time window. Architect review launched 02:28:34 UTC, read-only, 120s cap."
+ "history": "Prior sprint b89ed524f closed REVIEWED-PARTIAL; proof-pinned proposal revision 1 preserved. Selector approved first local source-clause draft plus separate read-only runtime provenance trace. Astra froze SAT/RG candidate at 02:21:21 UTC (660/840 charged); SAT2/RG2 OPEN. Luna froze source trace 02:24:03 UTC (150/360 charged): HIR/Call formal identity retained, local fresh-use maps omit HIR provenance, playground discards CandidateInference before annotation-based runtime entry. No safe code slice. Compiler review rev1: one MINOR named-formal source locator; rev2 repaired and old bytes remain at 3b16bb603. Compiler delta CLEAN at 02:27:53 UTC (120s cumulative charge); spec review CLEAN same time window. Architect review launched 02:28:34 UTC, read-only, 120s cap. Architect review CLEAN 2026-10-17 02:29:44 UTC; all three independent reviews complete. Candidate SAT2/RG2, all original A/B and production gates stay OPEN. Sprint boundary ready for next-action selector."
 }
