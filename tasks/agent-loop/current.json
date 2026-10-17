@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/module-source-family-embedding-20261017.md",
     "revision": 1,
     "sha256": "c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e",
-    "state": "SOURCE-PROOF-DELTA-REVIEW-RUNNING",
+    "state": "NATIVE-FIELD-CONTRACT-ARCHITECT-REVIEW-READY",
     "baseline": "0114f997b",
     "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
     "fixed_outcome": "Derive and substitute the original module publication/use family instance at original-generation §7.2 step 2 for `my id x = x; my answer = id 0`; independently specify the whole native field-map construction contract without a compiler lease.",
@@ -27,8 +27,8 @@
     },
     "resources": {
       "cap_seconds": 2160,
-      "charged_seconds": 1860,
-      "available_seconds": 300,
+      "charged_seconds": 1920,
+      "available_seconds": 240,
       "retired_seconds": 0,
       "allocation": "Astra900 + Luna contract480 + compiler review180 + spec review120 + primary proof correction60 + compiler delta review60 + architect contract review180 + final reserve60; no execution allocation."
     },
@@ -90,8 +90,8 @@
       {
         "id": "/root/module_source_embedding_delta_review",
         "role": "compiler_referee",
-        "state": "RUNNING",
-        "receipt": "Fresh independent read-only delta review of revision-2 correction, 60s cap. Requested gpt-6.1-sol/medium; observed session metadata pending."
+        "state": "STOPPED",
+        "receipt": "60/60s charged. Revision-2 correction PASS for conditional research retention; original owner gap remains BLOCKING, closures0. All source quantifiers preserved; no semantic choice or new findings. Proof/handoff/sprint hashes matched; read-only."
       }
     ],
     "leases": [
@@ -155,7 +155,7 @@
         "state": "OPEN independent parent gates."
       }
     ],
-    "next_action": "Fresh compiler referee checks only the revision-2 qualification (≤60s). After STOP, architect reviews the frozen native-field-map contract (≤180s); retain final60s reserve.",
+    "next_action": "Conditional proof correction passed its bounded compiler delta review; source owner gap and original closure count 0 remain. Start architect review≤180s of the frozen native-field-map contract; retain 60s reserve.",
     "user_clarification": "User explicitly authorized modifying computational complexity. Account time/space, retained storage, allocation/failure; preserve source admission, observable semantics, original quantifiers and fixed caps.",
     "history": "Previous module-use/observer sprint closed at 0114f997b, technical reviews CLEAN and the exact candidate target PASS 2/2. Original conditions0. One nonessential read-only reviewer command `git show --stat --oneline 185b0db29` recorded; no files changed, no essential unpinned evidence. 1442/1800 charged; unused358 retired.",
     "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused."
