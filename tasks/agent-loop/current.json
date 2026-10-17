@@ -19,14 +19,14 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 900,
+      "charged_seconds": 1620,
       "available_seconds": 0,
-      "allocation": "proof600 STOPPED/charged; implementation720 active, first of at most two total command invocations consumed under rev1; proof review180 CLEAN/charged; implementation review120 reserved; Luna integration120 charged; reserve60. Full envelope reserved; Astra0."
+      "allocation": "proof600 STOPPED/charged; implementation720 conservatively charged (remainder UNKNOWN), one command consumed; proof review180 CLEAN/charged; implementation review120 reserved for post-run frozen query audit; Luna integration120 charged at start; reserve60. Envelope remains capped1800, Astra0."
     },
     "next_action": "Continue both lanes under rev2; independently review the frozen source_call/native/Replay harness query before using the single permitted run.",
     "available_seconds": 0
   },
-  "history": "Closed npair-actual-argument-ingress-20261018 rev1: original conditions0->0. Proof artifact review CLEAN within bounded constructor-obstruction claim. Implementation submission had a major overclaim about unobserved received LocalSource/collector absence; correction supersedes it and independent delta review CLEAN. One authorized harness run exit0 on partial HIR; fixture restored. See notes/progress/2026-10-18-npair-actual-argument-ingress-closeout.md. Successor contract rev2 adds same-snapshot source_call/native-demand/Function-child/ordered-Replay observation, with independent query review before the sole run; no source writes began under rev1. Fresh independent proof/spec review CLEAN on constructor-law artifact; original closure stays0. It verified source pins and the successful-path port map, keeping eta/T_rho/runtime Replay open. First actual-argument run directly found `received` LocalSource and Apply/source_call despite the UnsupportedExpression diagnostic; prior absence inference is affirmatively contradicted. Source-call supplied native demand fields, but endpoint/scope and runtime Replay correlation remain subject to frozen query evidence.",
+  "history": "Closed npair-actual-argument-ingress-20261018 rev1: original conditions0->0. Proof artifact review CLEAN within bounded constructor-obstruction claim. Implementation submission had a major overclaim about unobserved received LocalSource/collector absence; correction supersedes it and independent delta review CLEAN. One authorized harness run exit0 on partial HIR; fixture restored. See notes/progress/2026-10-18-npair-actual-argument-ingress-closeout.md. Successor contract rev2 adds same-snapshot source_call/native-demand/Function-child/ordered-Replay observation, with independent query review before the sole run; no source writes began under rev1. Fresh independent proof/spec review CLEAN on constructor-law artifact; original closure stays0. It verified source pins and the successful-path port map, keeping eta/T_rho/runtime Replay open. First actual-argument run directly found `received` LocalSource and Apply/source_call despite the UnsupportedExpression diagnostic; prior absence inference is affirmatively contradicted. Source-call supplied native demand fields, but endpoint/scope and runtime Replay correlation remain subject to frozen query evidence. Source lane STOPPED with fixture restored and one run receipt frozen; query/run order did not follow rev2 pre-run review gate, so post-run review is required and no second run is authorized because packet remainder is UNKNOWN.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -54,13 +54,13 @@
     {
       "id": "/root/npair_actual_argument_source_path",
       "role": "Luna implementation/source path",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=720s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "First contracted run consumed once under rev1; reported exit0, existing warnings only, partial-HIR diagnostics. Direct output: received LocalSource Some (3 expressions), Apply occurrence18, matching candidate source_call index3 owner received root, callee ModuleDef receive, argument ModuleDef f0; native callee/argument/result/demand and effect endpoints present; conflicts empty. This disproves prior inferred absence. Cargo dev build 1.60s; whole packet remaining runtime still UNKNOWN. Fixture SHA while temporary line present: 7d7ad10d00773ecef583c53a1d546737dbf92daf75a9637f45c03798eb893fad; writer restoring. Strict operand/type/scope and ordered-Replay query still being completed; no rerun authority."
+      "receipt": "Frozen note 9ac03afa281bea0236f87f01dae086fc618e4a2ee6932ea631d55d9c7125b851; inbox d46937517a4b671bb02e0bab9e1aa957a3509b0a1523067f7f0ec121d99c01c7. One command exit0/build1.60s, no other process; task elapsed/remainder UNKNOWN, so full720 charged. Run observed received LocalSource/Apply18/source_call and native endpoints despite HIR diagnostic. Strict scope checks and aggregate dependency/flow queries are current unexecuted code; runtime Replay remains open. Fixture restored SHA969e20e0f38a2c341a96ff4fe07028bf567ca134e0fb24602fadf6e4c723d9c0."
     },
     {
       "id": "/root/npair_actual_argument_proof_review",
@@ -98,22 +98,22 @@
     {
       "path": "notes/progress/2026-10-18-npair-observed-apply-source-evidence.md",
       "owner": "/root/npair_actual_argument_source_path",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-observed-apply-source-evidence.md",
       "owner": "/root/npair_actual_argument_source_path",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
       "owner": "/root/npair_actual_argument_source_path",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
       "owner": "/root/npair_actual_argument_source_path",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_source.rs",
@@ -176,7 +176,16 @@
       "state": "HELD"
     }
   ],
-  "pending": [],
+  "pending": [
+    {
+      "id": "observed-apply-implementation-review",
+      "state": "IN_REVIEW",
+      "owner": "/root/npair_actual_argument_impl_review",
+      "artifact_sha256": "9ac03afa281bea0236f87f01dae086fc618e4a2ee6932ea631d55d9c7125b851",
+      "handoff_sha256": "d46937517a4b671bb02e0bab9e1aa957a3509b0a1523067f7f0ec121d99c01c7",
+      "harness_sha256": "5525939261a25548f5694c06cef330dcf4e53079b6d5377b0a3cd87d4e2b8d12"
+    }
+  ],
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
