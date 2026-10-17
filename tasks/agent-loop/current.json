@@ -38,7 +38,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Closed rev2, issued exact bounded successor contract and preparing proof/implementation lanes."
+      "receipt": "Rev2 closed; rev1 successor contract frozen and pushed; source/proof agents launched under exact leases."
+    },
+    {
+      "id": "/root/npair_s1_contribution",
+      "role": "constructive proof",
+      "state": "RUNNING",
+      "requested_model": "Sol/prover",
+      "requested_effort": "high <=600s",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Spawned for authentic same-w Written-s1 eta from source constructors; exact proof artifact and handoff lease."
+    },
+    {
+      "id": "/root/npair_s1_source_path",
+      "role": "Luna implementation/source path",
+      "state": "RUNNING",
+      "requested_model": "Luna/implementer",
+      "requested_effort": "high <=240s",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Spawned to freeze strict source_call/Function/Replay query, request independent pre-run review, and use at most one authorized command only if cap verified."
     }
   ],
   "leases": [
@@ -84,32 +106,32 @@
     },
     {
       "path": "notes/theory/2026-10-18-npair-s1-contribution-incidence.md",
-      "owner": "/root",
+      "owner": "/root/npair_s1_contribution",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-s1-contribution-incidence.md",
-      "owner": "/root",
+      "owner": "/root/npair_s1_contribution",
       "state": "HELD"
     },
     {
       "path": "notes/progress/2026-10-18-npair-s1-contribution-source-evidence.md",
-      "owner": "/root",
+      "owner": "/root/npair_s1_source_path",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-s1-contribution-source-evidence.md",
-      "owner": "/root",
+      "owner": "/root/npair_s1_source_path",
       "state": "HELD"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
-      "owner": "/root",
+      "owner": "/root/npair_s1_source_path",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
-      "owner": "/root",
+      "owner": "/root/npair_s1_source_path",
       "state": "HELD"
     }
   ],
@@ -117,6 +139,6 @@
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "All prior proof/source/review writers STOPPED; old query lease released after exact rollback; fixture hash matches baseline; new exact leases granted only to the bounded successor lanes."
+    "receipt": "All prior proof/source/review writers STOPPED; old unexecuted query diff restored exactly and fixture matches baseline. Two fresh current-session lanes launched with exact, disjoint leases."
   }
 }
