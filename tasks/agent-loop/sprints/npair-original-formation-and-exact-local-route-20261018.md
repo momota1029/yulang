@@ -72,3 +72,42 @@ The prior proposal/application/falsifier and review conclusions are evidence, no
 ## End condition
 
 At sprint close: verify original conditions closed count; report concrete implementation/tests; name one exact remaining source or proof obligation. Preserve review boundaries and original semantics unless a specific, independently reviewed, user-authorized decision resolves them. Static workflow checks are not compiler evidence.
+
+
+## Revision 2 — bounded annotation-refusal repair (2026-10-17T22:06Z)
+
+This revision adopts the dispatcher delta after the fresh compiler review found
+that scoped callee peeling accepted Ascription and annotated local bindings
+without annotation-origin validation. Rev1 remains in force except for this
+limited repair and the resource transfer below. The fixed parent theorem,
+quantifiers, domain, admission, route fixture and no-output-change rule are
+unchanged.
+
+- Reopen only the existing lane-3 leases for `candidate_source.rs`,
+  `candidate_call.rs`, and `src/tests/candidate_graph_call.rs`. At source peeling
+  and final call authentication, reject a peeled callee Ascription and an
+  annotated local binding unless a complete same-owner annotation validation is
+  supplied. The bounded slice chooses refusal; do not expand refusal to ordinary
+  non-Local ascriptions. Add one negative regression for an annotated local
+  callee/ascribed callee. Keep the other four frozen source/test files unchanged.
+- Reuse the same independent compiler reviewer for a maximum 60-second review
+  of the exact revised three-file delta, with unchanged frozen-file hashes
+  rechecked. This remains independent because the reviewer did not author code.
+  No commands before CLEAN review.
+- Keep the overall cap at 2460 seconds and Astra at zero. Transfer the unused
+  120-second global reserve: implementation cap 960 -> 1020 seconds; compiler
+  review cap 180 -> 240 seconds. Global reserve becomes zero; no rollover or
+  additional worker. Implementation must remeasure remaining capacity on resume
+  and debit elapsed time since its last receipt. Its 360-second verification
+  reserve remains untouched. If less than 360 seconds remain after the repair,
+  do not run either command.
+- After CLEAN review, the existing two-command maximum remains: focused route and
+  unscoped-cap/annotation regressions, then the exact receive/choose fixture
+  with `YU_CALL_REPLAY_OBSERVER=1`; each command <=120 seconds, each start requires
+  at least120 seconds remaining. No additional tests/builds/probes are authorized
+  in this sprint.
+
+Dispatch finding: `tasks/agent-loop/current.json` records the review result and
+reallocation. The reviewer finding requires final source authentication as well as
+source-side rejection so a mismatched or reconstructed annotation route cannot
+pass from a bare Local certificate. This preserves rev1's annotation boundary.
