@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev7, SHA-256
   `5572d93a543c49780c1275fea3a4450695f2c997e3944e18f5ba8f67194f5960`.
-  Handoff revision 22 (Luna's HIR recovery rerun); failed candidate
+  Handoff revision 24 (Luna's reporting review closeout); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -331,3 +331,14 @@ envelope120s with Luna coordination30s and reserve30s). No source, test,
 build, Cargo, probe or retry is authorized. The reviewer must treat execution
 as primary-reported evidence. Parent theorem conditions remain OPEN; closure
 count remains0.
+
+## Rev8 reporting delta review — handoff revision 24
+
+Fresh independent review is CLEAN after synchronizing this handoff's header
+from revision22 to revision23. Receipt:
+`notes/progress/2026-10-17-ordinary-hir-solver-receipt-delta-review.md`.
+The solver invocation, exit0, 7.185s, named 1/1 test and known warnings agree
+with the HIR9/9 and focused-unit8/8 receipts. Execution is recorded as
+Luna-reported evidence; no independent execution is claimed. Candidate scope
+is preserved and original theorem conditions closed remain0. All parent gates
+remain OPEN.
