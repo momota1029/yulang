@@ -26,7 +26,7 @@
     "next_action": "Under original constructor inputs, construct the concrete Operation field projection and same Call returned-provider action; independently, fix the query to expose actual native-demand children and pre-review it before any run.",
     "available_seconds": 0
   },
-  "history": "Closed npair-observed-apply-function-ingress-20261018 rev2: original conditions0->0. Constructor proof CLEAN within scope (actual Apply demand, all Function children, same-R1 fresh-use and native port equation); eta/T_rho/runtime Replay remain open. Single source run preceded rev2 frozen-query review gate; implementation review MAJOR process deviation, delta correction CLEAN. Run retained only as provisional author-reported observation; later strict query reverted unexecuted; fixture baseline restored; no second run because elapsed/remainder UNKNOWN. See notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md and provenance correction. New bounded sprint targets authentic same-w eta at returned Written s1 plus one pre-reviewed source/native observation; no theorem scope or prior budget rollover. Pre-run implementation review of successor query stopped at a concurrent frozen-hash mismatch (expected 7ba198d..., observed c68ae06d...); no run authorized, runtime cap still UNKNOWN. Query lease quarantined pending writer cessation and exact stable hash; proof lane continues independently. Proof lane frozen an owner-specific obstruction: actual constructor laws route Written s1 to the nested comparison, but original Operation Prim/T projection and Call returned-provider/result action are absent; eta not proved. Fresh independent review pending. Example query remains quarantined at observed hash while writer-cessation/provenance receipt is pending. Independent proof/spec review CLEAN for frozen constructor-obstruction scope. Confirmed correct surviving source constructor calculation and exact missing original Operation projection + Call returned-provider action. Parent closure remains0. Source worker cessation confirmed, descendants0, no command run, fixture restored. Query mismatch provenance: after reporting 7ba198d... author changed one matches! borrow line, producing c68ae06...; exact query was not executed. Independent reviewer on c68 bytes identified the received-export root child block as not the authenticated native-demand children. Runtime remainder unknown; this lane is closed without run. Root now owns the stopped query lease for rollback. Closed npair-s1-contribution-incidence-20261018: original conditions0->0. Proof artifact CLEAN within obstruction scope; authentic eta still needs Operation Prim/T concrete projection and Call returned-provider/result action. Source query review stopped on hash mismatch and wrong received-result child projection; source writer STOPPED, no Cargo, runtime UNKNOWN. Unreviewed source example explicitly restored. New sprint pursues the specific source constructors and repairs the exact query against existing native-demand child accessors; no old runtime cap rollover.",
+  "history": "Closed npair-observed-apply-function-ingress-20261018 rev2: original conditions0->0. Constructor proof CLEAN within scope (actual Apply demand, all Function children, same-R1 fresh-use and native port equation); eta/T_rho/runtime Replay remain open. Single source run preceded rev2 frozen-query review gate; implementation review MAJOR process deviation, delta correction CLEAN. Run retained only as provisional author-reported observation; later strict query reverted unexecuted; fixture baseline restored; no second run because elapsed/remainder UNKNOWN. See notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md and provenance correction. New bounded sprint targets authentic same-w eta at returned Written s1 plus one pre-reviewed source/native observation; no theorem scope or prior budget rollover. Pre-run implementation review of successor query stopped at a concurrent frozen-hash mismatch (expected 7ba198d..., observed c68ae06d...); no run authorized, runtime cap still UNKNOWN. Query lease quarantined pending writer cessation and exact stable hash; proof lane continues independently. Proof lane frozen an owner-specific obstruction: actual constructor laws route Written s1 to the nested comparison, but original Operation Prim/T projection and Call returned-provider/result action are absent; eta not proved. Fresh independent review pending. Example query remains quarantined at observed hash while writer-cessation/provenance receipt is pending. Independent proof/spec review CLEAN for frozen constructor-obstruction scope. Confirmed correct surviving source constructor calculation and exact missing original Operation projection + Call returned-provider action. Parent closure remains0. Source worker cessation confirmed, descendants0, no command run, fixture restored. Query mismatch provenance: after reporting 7ba198d... author changed one matches! borrow line, producing c68ae06...; exact query was not executed. Independent reviewer on c68 bytes identified the received-export root child block as not the authenticated native-demand children. Runtime remainder unknown; this lane is closed without run. Root now owns the stopped query lease for rollback. Closed npair-s1-contribution-incidence-20261018: original conditions0->0. Proof artifact CLEAN within obstruction scope; authentic eta still needs Operation Prim/T concrete projection and Call returned-provider/result action. Source query review stopped on hash mismatch and wrong received-result child projection; source writer STOPPED, no Cargo, runtime UNKNOWN. Unreviewed source example explicitly restored. New sprint pursues the specific source constructors and repairs the exact query against existing native-demand child accessors; no old runtime cap rollover. New implementation query frozen at 6b584573... before any Cargo; temporary fixture input hash 5a662789... Review in progress, source lane waiting. Clock start recorded 20:29:42 UTC; at 20:31:28 elapsed106s and provisional wall remaining254s. Command remains unauthorized pending CLEAN review plus measured >=120s remaining.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -54,13 +54,24 @@
     {
       "id": "/root/npair_native_demand_children",
       "role": "Luna implementation/source path",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=360s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Launched with measured 360s clock to repair research query to use source_call-validated native demand child accessors; no Cargo until exact query hash reviewed CLEAN and remaining cap measured."
+      "receipt": "Measured lane start 2026-10-17 20:29:42 UTC. Query frozen before Cargo at SHA 6b584573dd18d029c82db6f1cf1926cf87a7a42eed72afd5b2d26b9a8157f87d; temporary fixture SHA 5a6627896bb5817b5e665fa531223755a3951bdb8fe3018ac09eb8d7691e1f52. At 20:31:28 UTC measured elapsed106s, provisional wall remaining254s; waiting for pre-run review. No command run."
+    },
+    {
+      "id": "/root/npair_actual_argument_impl_review",
+      "role": "independent implementation/compiler reviewer",
+      "state": "RUNNING",
+      "requested_model": "Sol/spec_auditor",
+      "requested_effort": "high <=150s",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Read-only review of exact frozen native-demand query SHA 6b584573... before sole allowed command."
     }
   ],
   "leases": [
@@ -92,12 +103,12 @@
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
       "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
       "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-npair-native-demand-children-evidence.md",
@@ -120,7 +131,15 @@
       "state": "FROZEN"
     }
   ],
-  "pending": [],
+  "pending": [
+    {
+      "id": "native-demand-query-pre-run-review",
+      "state": "IN_REVIEW",
+      "owner": "/root/npair_actual_argument_impl_review",
+      "artifact_sha256": "6b584573dd18d029c82db6f1cf1926cf87a7a42eed72afd5b2d26b9a8157f87d",
+      "fixture_sha256": "5a6627896bb5817b5e665fa531223755a3951bdb8fe3018ac09eb8d7691e1f52"
+    }
+  ],
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
