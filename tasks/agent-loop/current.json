@@ -104,25 +104,20 @@
       {
         "id": "/root/ordinary_hir_application_implementation",
         "role": "implementer",
-        "state": "STOPPED",
+        "state": "RUNNING",
         "requested_model": "gpt-6-luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "cap_seconds": 1110,
+        "cap_seconds": 1140,
         "charged_seconds": 1110,
-        "remaining_seconds": 0,
+        "remaining_seconds": 30,
         "session": "current-session",
         "lease_paths": [
-          "crates/yu-hir/src/lib.rs",
           "crates/yu-hir/src/module.rs",
-          "crates/yu-hir/src/source_identity.rs",
-          "crates/yu-hir/src/shadow.rs",
-          "crates/yu-hir/tests/ordinary_application_admission.rs",
-          "crates/yu-solver/tests/research_accepted_call_vertical.rs",
           "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md"
         ],
-        "active_receipt": "Worker STOPPED and all leased outputs frozen. Handoff revision 4 SHA 2aa369b9efc59e42ee8951a1bcf2f3f28b332791a800215f052ee594362bfa37. Conservatively charged full 1110s cap (exact elapsed unknown). Post-STOP git diff --check passed. No tests/builds/compiler probes; no descendants."
+        "active_receipt": "First assignment STOPPED/frozen, full1110s conservatively charged. Fresh narrow correction acknowledgment received in same session: exact lease module.rs + shared handoff only, current pins and review receipt match, no descendants. New correction cap30s from reserve; validate slot/kind/empty-error root/counter before append_stage. No test/build/probe/Git authority."
       },
       {
         "id": "/root/ordinary_hir_repair_applied_compiler_review",
