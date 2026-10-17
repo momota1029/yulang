@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev5, SHA-256
   `5c63c3829cd6275523b1799e0286837518e9fd7dd0213c13f3171d9d7b7a6125`.
-  Handoff revision 11 (Luna's post-prerun-review reconciliation); failed candidate
+  Handoff revision 12 (Luna's post-unit-compile-failure reconciliation); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -144,9 +144,9 @@ compile failure, zero named falsifiers, or any assertion failure stops with no
 retry/filter substitution. Assertions are authored but no tests have run. Parent
 theorem gates remain OPEN.
 
-Next owner: Luna executes focused unit45s, HIR integration120s, then solver
-integration120s exactly once each, sequentially; no retry. Independent post-run
-regression review remains required.
+The focused unit command was then run exactly once and failed before test
+discovery with E0308 in a `lib.rs` unit-test match (`AssociatedExpr` matched
+as `HirExpr::Error`). Receipt `notes/progress/2026-10-17-ordinary-hir-repair-unit-run-failure.md`. Per rev5, execution stopped immediately: neither integration command ran; no retry or edit occurred. No named falsifier executed. Luna consults selector for a bounded repair/review replan; all theorem gates remain OPEN.
 Post-run regression review remains required. Proof/source TODO
 `HIR-APP-PARENT-1` remains with the standard solver/source/native owners; first
 missing consumer is
