@@ -67,11 +67,13 @@ Validation and lifecycle outline: exact source-root/occurrence/declaration
 checks at each boundary; stage before publication; preserve one event per
 dynamic request; keep old event identity historical on resume; fail closed on
 stale/foreign/missing witness. Candidate storage would use existing checked
-`Plan::bytes`, scratch accounting and `sample_f4_resources` seams, but its
-rollback boundary must be proved. Runtime template storage currently exposes no
-byte/event limit in the pinned path; a future code lease must add checked
-accounting and atomic rollback before mutation. No current code change is
-selected.
+`Plan::bytes`, scratch accounting and `sample_f4_resources` seams; owner
+verification must tie any rollback requirement to an invariant or continued
+reuse that needs it. Runtime template storage currently exposes no byte/event
+limit in the pinned path; a future code lease must add checked accounting and
+atomic externally visible publication. Failed private attempts may be safely
+terminated or discarded instead of rolled back when they cannot continue
+soundly. No current code change is selected.
 
 ## Open premises and falsifiers
 
@@ -83,8 +85,10 @@ selected.
   complete registered carrier.
 - `OPRESP-NATIVE-1`: establish source-to-runtime use identity and producer to
   consumer transport without importing a different solver instance.
-- Later reviewed design must settle retained storage bounds, transaction and
-  rollback owners, runtime failure behavior and integration contract.
+- Later reviewed design must settle retained storage bounds, state owners,
+  runtime failure behavior and integration contract. Rollback is required only
+  for an identified invariant or intended reuse; external publication remains
+  atomic.
 
 Falsifiers include merging distinct static uses by declaration/endpoint,
 reusing one event across repeated requests, selecting an instance from a Catch
@@ -105,8 +109,15 @@ fixtures, builds, compiler or runtime execution, probes, network or Git were
 run. No scratch or generated files were created. Implementation-lane elapsed
 time was not measured; charge the full 240-second cap conservatively.
 
+Revision 3 acknowledges and repairs one major finding from the independent
+compiler review: preserve atomic externally visible publication; permit safe
+termination/discard of an affected private inference or machine attempt; require
+rollback only where an identified owner invariant or intended continued reuse
+needs it. No new dependency, semantic claim, default decision or code authority
+was added. The proof artifact is unchanged.
+
 STOPPED: both leased outputs are frozen; no descendants or background work.
-No code is authorized. Fresh independent compiler, spec and architect review
-must run sequentially against these exact output hashes. The proof author is
+No code is authorized. Fresh independent compiler delta review, spec review and
+architect review must run sequentially against the revision-3 output hashes. The proof author is
 not an independent reviewer of either combined artifact. Luna alone adjudicates
 review findings, updates compact state and stages/commits/pushes explicit paths.

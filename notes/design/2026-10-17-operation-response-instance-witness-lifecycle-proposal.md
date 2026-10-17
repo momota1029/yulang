@@ -1,10 +1,12 @@
 # Operation response instance witness lifecycle proposal
 
-Status: UNADOPTED source/native lifecycle proposal; no compiler-code authority,
-accepted-source claim, theorem closure or production status.
+Status: UNADOPTED source/native lifecycle proposal, revision 3; no compiler-code
+authority, accepted-source claim, theorem closure or production status.
 Sprint: `operation-default-and-instance-lifecycle-20261017`, contract rev2,
 SHA-256 `ed45bd2b259173a09897b7121e00fd7000a29286024571606edbfa631ce40f50`.
-Author: Luna primary `/root`; bounded source/native design lane.
+Author: Luna primary `/root`; bounded source/native design lane. Revision 3
+repairs the compiler review's rollback-policy finding without changing other
+claims, dependencies, or authority.
 
 ## 1. Goal and hard limits
 
@@ -192,20 +194,26 @@ machine drops it; it is not a global declaration registry. `SourceOperationDecla
 may remain shared through its existing `Arc`, but that lifetime does not own a
 per-use substitution.
 
-Failure policy for a future implementation must be atomic at each owning
-boundary:
+Failure policy for a future implementation must preserve sound externally
+visible results while allowing safe termination or discard of a private attempt:
 
-- Candidate generation should keep new trace entries in scratch while the
-  signature constructor runs. Any constructor, identity, or resource error
-  discards staged trace bytes and releases scratch accounting. If constraints
-  have already been admitted, the existing transaction boundary must prove
-  whether they are rolled back; this document does not assert that they are.
+- Candidate generation may stage new trace entries while the signature
+  constructor runs. Constructor, identity, or resource failure must not publish
+  a partial candidate result. If constraints have already changed state owned
+  by a private inference attempt and the attempt can no longer continue
+  soundly, terminate or discard that whole attempt. Rollback is required only
+  when the owner establishes an invariant or intended reuse that needs it.
+  Publish a completed candidate result and its trace as one externally visible
+  result.
 - Runtime should stage an extended `ResumeTemplate` fully, including witness
   key, before its existing append/publication point. If template validation or
   allocation fails, no template or witness record becomes visible and the
-  Catch frame is not popped. If later arm setup can fail after publication,
-  implementation must add a rollback guard or prove setup is infallible before
-  committing.
+  Catch frame is not popped. If later arm setup fails after template
+  publication, safely terminate or discard the affected private machine attempt
+  without exposing an inconsistent result. Add a rollback guard only if the
+  machine is meant to continue/reuse that state or its owner identifies a
+  semantic invariant that requires rollback; setup need not be made infallible
+  as a general rule.
 - A stale key, foreign solve epoch, mismatched declaration, or missing
   dependent witness fails closed with the existing unavailable/invalid-source
   path until a reviewed error contract is selected. It must not fall back to
@@ -217,12 +225,16 @@ boundary:
 
 No existing runtime byte/event budget for retained resume templates was found
 in the pinned owner path. A code proposal must add checked byte/count accounting
-and deterministic limits with the runtime owner, and stage fallible capacity
-before mutation. In candidate inference, `Plan::bytes`, `scratch_bytes` and
-`sample_f4_resources` provide existing accounting seams; adding retained maps
-must charge key/value capacities and source-owner payloads at `SourceDrafts`
-and `IncomingRoute`, with checked arithmetic. Exact counter names, numeric
-limits and atomic solver rollback need an owner-verified follow-up before code.
+and deterministic limits, and must not externally publish a result that exceeds
+those limits. It may stage fallible capacity before mutation when the owning
+machine or inference attempt will continue; if a private attempt cannot remain
+sound after failure, it may instead terminate or be discarded. In candidate
+inference, `Plan::bytes`, `scratch_bytes` and `sample_f4_resources` provide
+existing accounting seams; adding retained maps must charge key/value
+capacities and source-owner payloads at `SourceDrafts` and `IncomingRoute`,
+with checked arithmetic. Exact counters, numeric limits and any rollback need
+owner verification before code; no atomic solver rollback is presumed without
+an identified invariant requiring reuse.
 
 ## 5. Open gates, falsifiers and next owners
 
@@ -253,8 +265,9 @@ Remaining gates:
 - `OPRESP-NATIVE-1`: source/native owner must establish that this partial use
   key and trace survive the actual generator-to-runtime boundary without
   CandidateInference being silently imported.
-- A later approved design and code lease must settle resource limits, solver
-  rollback and runtime atomic publication before changing owners.
+- A later approved design and code lease must settle resource limits, owners,
+  failure handling and atomic externally visible publication. Any rollback
+  requirement must be tied to an identified owner invariant or intended reuse.
 
 No compiler code was changed and no safe code slice is selected. This is the
 smallest lifecycle design that preserves actual identities while exposing the
