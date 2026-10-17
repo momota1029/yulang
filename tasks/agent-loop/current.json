@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
     "revision": 6,
     "sha256": "3d3f8fd3643bf3b1d27793f470f19b430779bc24f1698788d89295e770c258a4",
-    "state": "POST-REPAIR-UNIT-RUN",
+    "state": "HIR-INTEGRATION-RUN",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -21,18 +21,18 @@
     "adopted_resource_amendment_sha256": "e8b53a773675ba54f0cb5dcc4d62a993e8dd16954e0c92c58fdfc80c620d411e",
     "result": {
       "original_conditions_closed": 0,
-      "behavior_executed": false,
+      "behavior_executed": true,
       "proof_class": "Seven repair invariants and falsifiers frozen; candidate-only conditional construction, not an original theorem lemma.",
-      "implementation_class": "Candidate remains unverified; first focused unit command stopped at compile failure E0308 in lib.rs test match (AssociatedExpr vs HirExpr). Neither integration command ran. No assertions executed. Original theorem conditions closed: 0.",
+      "implementation_class": "Focused rev6 HIR unit command ran once after CLEAN delta: 8 passed, including root collision, final classification and 64 indexed finalizations. Integration targets remain unrun; no standard Call/Apply solver evidence or parent theorem closure.",
       "HIR_APP_REPAIR_1": "OPEN; seven findings and exact repair obligations frozen.",
       "parent_application": "OPEN; no semantic Call/source T/native adequacy."
     },
     "resources": {
       "cap_seconds": 2760,
-      "charged_seconds": 2427,
-      "available_seconds": 333,
+      "charged_seconds": 2432,
+      "available_seconds": 328,
       "retired_seconds": 0,
-      "allocation": "Charged through compiler delta review2427/2760s. Remaining: single post-repair unit invocation45; HIR integration90; solver integration90; post-run regression review90; reserve18=333."
+      "allocation": "Charged through unit run2432/2760s (4.30s elapsed rounded to5). Remaining: HIR integration90; solver integration90; post-run review90; unused focused-command capacity40 transferred to reserve; original reserve18, total reserve58. Total328."
     },
     "workers": [
       {
@@ -315,6 +315,11 @@
         "path": "notes/progress/2026-10-17-ordinary-hir-unit-compile-repair-delta-review.md",
         "owner": "/root (transcribed read-only review)",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/progress/2026-10-17-ordinary-hir-repair-unit-run.md",
+        "owner": "/root",
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -369,7 +374,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Fresh compiler delta CLEAN and adjudicated. Run exactly once post-repair `cargo test -p yu-hir --features shadow --lib module::tests::` <=45s. Confirm named tests in output; only success/discovery permits HIR and solver integration commands each <=90s. Any failure stops. Post-run review <=90s remains.",
+    "next_action": "The authorized focused unit command succeeded 8/8 (including all three required falsifiers). Run `cargo test -p yu-hir --features shadow --test ordinary_application_admission` once <=90s. On success run solver vertical once <=90s. Then fresh post-run regression review <=90s. Any failure/timeout stops later commands. No extra unit invocation.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },

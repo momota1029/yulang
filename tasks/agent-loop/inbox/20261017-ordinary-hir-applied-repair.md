@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev6, SHA-256
   `3d3f8fd3643bf3b1d27793f470f19b430779bc24f1698788d89295e770c258a4`.
-  Handoff revision 15 (Luna's compiler-delta adjudication); failed candidate
+  Handoff revision 16 (Luna's focused-unit run receipt); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -183,3 +183,21 @@ Luna adjudicates CLEAN. The single post-repair focused unit command is now
 authorized once (45s cap); HIR and solver integration commands remain gated on
 its success and discovery of all three named falsifiers. No further unit run or
 implicit retry is authorized.
+
+
+## Rev6 focused-unit execution — handoff revision 16
+
+After the fresh CLEAN compiler delta review, Luna ran the single authorized
+post-repair command once: `cargo test -p yu-hir --features shadow --lib
+module::tests::`. Exit0 in 4.30s: 8 passed, 0 failed, 0 ignored, 122 filtered.
+The required root-collision, final-classification and 64-item indexed-finalization
+falsifiers all ran and passed. Five additional module tests passed. Warnings were
+limited to unread Token/Synthetic provenance payloads and unused
+`replace_admission_root`; no warning was promoted to error. Full receipt:
+`notes/progress/2026-10-17-ordinary-hir-repair-unit-run.md`.
+
+The one amended unit invocation is consumed; no further HIR unit run is allowed.
+Rev6 now authorizes the first integration target once (<=90s); on success, the
+solver vertical once (<=90s), then independent post-run regression review
+(<=90s). Any failure/timeout stops later commands. Parent theorem gates remain
+OPEN; original conditions closed: 0.
