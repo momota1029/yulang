@@ -1,7 +1,7 @@
 # Luna handoff: candidate source Function inference introduction
 
 Sprint: `receive-function-introduction-proposal-20261017`, revision 1, contract SHA-256 `eeca47fc455c5aac9b5f9bb4e5ce6b10b7921599a07a693e2c4ac668442a7503`.
-Assignment / revision: `receive-function-inference-introduction-proposal` / 2.
+Assignment / revision: `receive-function-inference-introduction-proposal` / 3.
 Author: Luna, sole author. Outcome: unselected source-rule proposal. Review: not yet run; preservation lane starts only after this proposal is frozen and pinned.
 
 ## Parent and fixed scope
@@ -13,7 +13,7 @@ Original FORWARD-FIRST-CALL A/B claims, universal alpha, source domain, actual p
 - File: `notes/design/2026-10-17-receive-function-inference-introduction-proposal.md`
 - SHA-256: `a021cd088a9b0bab768a3fd509602012dae061c54b13a1353045aa80c15b71d4`
 - Status: candidate, unselected; not implementation authority.
-- It gives a concrete `Gen-CallView?` source-generation schema and compares the exact selected `Strict(I,formal:A,R,IF)` constructor with a role-indexed CallView bridge. It derives fields from source occurrences/local laws, forbids opaque whole-F2 inputs, retains the existing descriptor universe and Option 2, and names the joint embedding equation as the key open premise.
+- It outlines a candidate `Gen-CallView?` judgment and compares the selected `Strict(I,formal:A,R,IF)` constructor with a role-indexed CallView bridge. It lists source objects and outputs that a real rule would need. It does not derive the complete fields: the actual inlet/role introduction is the first missing premise, before joint embedding. It forbids opaque whole-F2 inputs, retains the existing descriptor universe and Option 2, and leaves both construction and embedding open.
 
 ## Proposal author pins
 
@@ -53,3 +53,8 @@ Luna's proposal work is complete and frozen; no further writes under this lease.
 ## Revision 2 clarification
 
 This revision corrects the revision-1 summary after the independent compiler review. The proposal is an obligation/schema outline, not an implemented or mathematically complete constructor. Its source premises still require a real inlet/role introduction with an owning telescope. The proposal artifact bytes remain unchanged. Revision 1 is preserved in Git at commit `79b2d9a4f`; the preservation proof records its exact hash as an input.
+
+
+## Revision 3 clarification
+
+This revision aligns the opening summary with the revision-2 clarification and the two independent reviews: the proposal is an obligation schema, not a concrete producer. The first missing local clause introduces the inlet and role/entry relation; joint descriptor embedding and transport are later separate obligations. Proposal bytes remain unchanged. Revision 1 remains the exact handoff input pinned by the preservation audit; revisions 1 and 2 are preserved in prior Git commits.

@@ -8,16 +8,30 @@
   "contract": "tasks/agent-loop/sprints/receive-function-introduction-proposal-20261017.md",
   "revision": 1,
   "sha256": "eeca47fc455c5aac9b5f9bb4e5ce6b10b7921599a07a693e2c4ac668442a7503",
-  "state": "REVIEW-PENDING",
+  "state": "REVIEWED-PARTIAL",
   "baseline": "3f159b109",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original A/B theorem and production gates OPEN.",
   "fixed_outcome": "Draft a concrete source inference-introduction constructor for original c2 F2 that derives L2, complete dependent fields and joint interpretation by a pinned existing constructor, then attempt local preservation. Keep the proposal unselected and all original parent domains/gates intact.",
   "review": {
-   "state": "RUNNING",
-   "current_reviewer": "/root/receive_function_introduction_spec_review",
+   "state": "COMPLETE",
+   "current_reviewer": null,
    "sequence": [
     "compiler_referee",
     "spec_auditor"
+   ],
+   "receipts": [
+    {
+     "role": "compiler_referee",
+     "worker": "/root/receive_function_introduction_compiler_review",
+     "state": "STOPPED",
+     "outcome": "No BLOCKING/major finding; MINOR handoff overclaim, corrected in revision 3. All five target hashes and 15 contract pins matched; observed model/effort UNKNOWN."
+    },
+    {
+     "role": "spec_auditor",
+     "worker": "/root/receive_function_introduction_spec_review",
+     "state": "STOPPED",
+     "outcome": "CLEAN within scope except same MINOR residual handoff summary; revision 2 clarification adequate; primary aligned opening in revision 3. All five target hashes and 15 contract pins matched; observed model/effort UNKNOWN."
+    }
    ]
   },
   "resources": {
@@ -27,9 +41,9 @@
    "review_cap_seconds": 240,
    "coordination_seconds": 60,
    "reserve_seconds": 120,
-   "charged_seconds": 960,
+   "charged_seconds": 1080,
    "active_authors": 0,
-   "status": "Proposal480 + Astra360 + compiler review120 conservatively charged; handoff wording finding clarified in revision 2; spec_auditor active."
+   "status": "Proposal480 + Astra360 + two reviews120 each = 1080/1500s. Both independent reviews STOPPED; primary applied exact editorial repair in handoff revision 3; 420s unused/retired."
   },
   "lanes": {
    "proposal": {
@@ -72,7 +86,7 @@
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-receive-function-inference-introduction-proposal.md",
-    "sha256": "4df933a747894a996c34ed10f0ba48367378fa4695a015f379e8f697c543bd70"
+    "sha256": "dc3ee83fc6bb6cc07de4eb07024721624b122b45138188991142dec5bbc995f0"
    },
    {
     "path": "tasks/agent-loop/inbox/20261017-receive-function-introduction-proposal-preservation.md",
@@ -88,7 +102,7 @@
    "compiler code/tests/builds/probes/execution",
    "source T, native MODEL, production/cutover or parent closure"
   ],
-  "next_boundary": "Fresh compiler_referee then spec_auditor review the frozen proposal+preservation bundle; Luna adjudicates findings before selector/end-of-sprint reconciliation.",
+  "next_boundary": "Consult next_action_selector for the next bounded sprint; preserve exact F2-INTRO-1/F2-EMBED-1/F2-TRANSPORT-1 owners, keep implementation gate OPEN absent selected local rule.",
   "workers": [
    {
     "id": "/root/resident_dispatcher_loop_a",
@@ -147,25 +161,25 @@
    },
    {
     "id": "/root/receive_function_introduction_compiler_review",
-    "role": "fresh independent compiler_referee for frozen proposal+preservation bundle",
+    "role": "fresh independent compiler_referee",
     "state": "STOPPED",
-    "requested_model": "UNKNOWN",
-    "requested_effort": "UNKNOWN",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "medium",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "STOP after frozen-bundle review; all five target hashes and 15 contract pins matched. No writes/descendants. Found one MINOR: proposal handoff overstated derivation; primary issued revision 2 clarification, proposal bytes unchanged."
+    "receipt": "STOP after read-only frozen review; MINOR handoff wording finding adjudicated and corrected by primary in revision 3; no writes/descendants."
    },
    {
     "id": "/root/receive_function_introduction_spec_review",
-    "role": "fresh independent spec_auditor for frozen proposal+preservation bundle and corrected handoff",
-    "state": "RUNNING",
-    "requested_model": "UNKNOWN",
-    "requested_effort": "UNKNOWN",
+    "role": "fresh independent spec_auditor",
+    "state": "STOPPED",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "low",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "Actual sequential collaboration spawn accepted 2026-10-17 02:06:38 UTC; read-only; fresh from both authors and compiler reviewer; target handoff revision 2."
+    "receipt": "STOP after read-only frozen review; same MINOR wording finding corrected in revision 3; no writes/descendants."
    }
   ]
  },
@@ -231,25 +245,25 @@
   },
   {
    "id": "/root/receive_function_introduction_compiler_review",
-   "role": "fresh independent compiler_referee for frozen proposal+preservation bundle",
+   "role": "fresh independent compiler_referee",
    "state": "STOPPED",
-   "requested_model": "UNKNOWN",
-   "requested_effort": "UNKNOWN",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "STOP after frozen-bundle review; all five target hashes and 15 contract pins matched. No writes/descendants. Found one MINOR, clarified by primary handoff revision 2; proposal bytes unchanged."
+   "receipt": "STOP after read-only frozen review; MINOR handoff wording finding adjudicated and corrected by primary in revision 3; no writes/descendants."
   },
   {
    "id": "/root/receive_function_introduction_spec_review",
-   "role": "fresh independent spec_auditor for frozen proposal+preservation bundle and corrected handoff",
-   "state": "RUNNING",
-   "requested_model": "UNKNOWN",
-   "requested_effort": "UNKNOWN",
+   "role": "fresh independent spec_auditor",
+   "state": "STOPPED",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "low",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Actual sequential collaboration spawn accepted 2026-10-17 02:06:38 UTC; read-only; fresh from both authors and compiler reviewer; target handoff revision 2."
+   "receipt": "STOP after read-only frozen review; same MINOR wording finding corrected in revision 3; no writes/descendants."
   }
  ],
  "leases": [
@@ -279,8 +293,8 @@
    "path": "tasks/agent-loop/inbox/20261017-receive-function-inference-introduction-proposal.md",
    "owner": "/root",
    "state": "FROZEN",
-   "sha256": "4df933a747894a996c34ed10f0ba48367378fa4695a015f379e8f697c543bd70",
-   "revision": 2
+   "sha256": "dc3ee83fc6bb6cc07de4eb07024721624b122b45138188991142dec5bbc995f0",
+   "revision": 3
   },
   {
    "path": "notes/theory/2026-10-17-receive-function-introduction-proposal-preservation.md",
@@ -328,9 +342,9 @@
   }
  ],
  "next_action": {
-  "state": "REVIEW-RUNNING",
-  "dispatcher": "Selector-end consultation remains after spec review and Luna adjudication.",
-  "proof": "Preservation audit frozen and reviewed; first missing inlet/role clause, Strict specialization, joint embedding and transport remain OPEN.",
+  "state": "SPRINT-END-SELECTOR-PENDING",
+  "dispatcher": "Two fresh reviews complete. Primary corrected only the handoff wording in rev3; selector consultation is next sprint boundary action.",
+  "proof": "Reviewed-partial exact obstruction: missing inlet/role introduction first; then Strict operand/scope, joint descriptor embedding, and typed transport; parent gates remain OPEN.",
   "implementation": "No code lease; frozen proposal/proof identify no authorized implementation slice until the missing source rule and its semantics are explicitly selected."
  },
  "resource_accounting": {
@@ -341,10 +355,10 @@
   "review_cap_seconds": 240,
   "coordination_seconds": 60,
   "reserve_seconds": 120,
-  "charged_seconds": 960,
+  "charged_seconds": 1080,
   "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Proposal480 + Astra360 + compiler review120 = 960/1500s; spec_auditor running; no author active."
+  "status": "Proposal480 + Astra360 + two reviews120 each = 1080/1500s; all writers/reviewers STOPPED; 420s unused/retired."
  },
- "history": "Compiler referee found one minor overstatement in proposal handoff revision 1; Luna issued revision 2 clarifying that the proposal names required outputs but omits the inlet/role introduction. Proposal bytes and preservation proof inputs unchanged. Spec audit now running."
+ "history": "Four-stage preservation and both fresh reviews complete. Reviewers found only the proposal handoff overstatement; primary issued revisions 2 and 3 clarifying that the candidate lacks an actual inlet/role producer. Proposal artifact and proof input hash are unchanged. Sprint outcome remains partial and unselected; original parent OPEN."
 }
