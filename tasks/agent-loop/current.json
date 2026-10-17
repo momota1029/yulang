@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
     "revision": 3,
     "sha256": "47d160176e72306e150675b2daf6e548d74e1e8d3dfc794c8dbf40ac0ba674e2",
-    "state": "APPLIED-REVIEW-COMPILER-RUNNING",
+    "state": "IMPLEMENTATION-REPAIR-REPLAN-REQUIRED",
     "baseline": "606416278",
     "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Implement adopted rev4 ordinary HIR admission and establish the bounded projection invariant in ordinary HIR. Resource contract now counts physical R references with O(V+E+R), worst O(V^2); exact adoption receipt and implementation obligations are frozen. Apply only to the structural premise of the original Call/source bridge; no semantic Call or parent theorem closure.",
@@ -29,8 +29,8 @@
     },
     "resources": {
       "cap_seconds": 4020,
-      "charged_seconds": 2420,
-      "available_seconds": 990,
+      "charged_seconds": 2600,
+      "available_seconds": 810,
       "allocation": "Actual charged2420 + retired610 (Astra unused270, proof-review unused90, implementation unused250) + remaining990 (applied reviews480, regression240, Cargo240, reserve30) = cap4020.",
       "retired_seconds": 610
     },
@@ -111,14 +111,14 @@
         "id": "/root/accepted_call_hir_projection_compiler_review",
         "role": "compiler_referee",
         "assignment_id": "HIR-APP-IMPLEMENTATION-REVIEW-1",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 180,
-        "charged_seconds": 0,
-        "remaining_seconds": 180,
+        "charged_seconds": 180,
+        "remaining_seconds": 0,
         "session": "current-session",
         "lease_paths": [
           "crates/yu-hir/src/module.rs",
@@ -128,7 +128,8 @@
           "crates/yu-solver/tests/research_accepted_call_vertical.rs",
           "tasks/agent-loop/inbox/20261017-ordinary-hir-application-implementation.md"
         ],
-        "active_receipt": "Followup invoked after STOPPED implementation commit 4f4dcb7b9; exact frozen handoff and six target hashes supplied. Read-only applied compiler review; commands held."
+        "active_receipt": "Followup invoked after STOPPED implementation commit 4f4dcb7b9; exact frozen handoff and six target hashes supplied. Read-only applied compiler review; commands held.",
+        "receipt": "BLOCKING static ownership error plus six major findings; exact findings frozen in notes/progress/2026-10-17-ordinary-hir-applied-compiler-review.md (SHA-256 9f576d7f6362f87ae21d01d997dc7418c529aade689d7eafbd22d78b5cf239a6). No commands ran. Requested Sol/medium, observed UNKNOWN; 180s charged."
       }
     ],
     "leases": [
@@ -250,7 +251,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Fresh applied compiler review RUNNING <=180s on exact frozen six-file set at 4f4dcb7b9. Then sequential spec<=120, architect<=180, regression pre-run<=120; tests/Cargo stay held until all CLEAN.",
+    "next_action": "Applied compiler review STOPPED with 1 BLOCKING and 6 major findings; implementation author is stopped. Preserve exact candidate, seek selector resource/lease replan before repairs: 810s remain but existing clean-review, regression and Cargo allocations consume all 810s.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
     "predecessor_commit": "5fbceb68d",
     "proof_artifact_sha256": "226d389d8fb68b6ddec328dd0f6ece4a4f3f2e344eff3f434d10b0a3d02b37ad",
@@ -263,7 +264,9 @@
     "adoption_resource_receipt_sha256": "bcbc089b62315bf38288e179ef992c7658a5a68a8054ce669258ec474a42b388",
     "history": " Pre-code resource review receipts: notes/progress/2026-10-17-ordinary-hir-resource-review-receipts.md; exact output-sensitive correction adopted in the following receipt.",
     "resource_review_receipts": "notes/progress/2026-10-17-ordinary-hir-resource-review-receipts.md",
-    "resource_review_receipts_sha256": "6e2bd8638076728ef2d25a098d027c0aec4bde5df598df1a9cfcdccc2773c38e"
+    "resource_review_receipts_sha256": "6e2bd8638076728ef2d25a098d027c0aec4bde5df598df1a9cfcdccc2773c38e",
+    "applied_compiler_review_receipt": "notes/progress/2026-10-17-ordinary-hir-applied-compiler-review.md",
+    "applied_compiler_review_sha256": "9f576d7f6362f87ae21d01d997dc7418c529aade689d7eafbd22d78b5cf239a6"
   },
   "history": "choice-a-group-root-ownership-repair-20261017 closed REVIEWED-PROPOSAL-AWAITING-USER-APPROVAL with 0 original theorem gates closed; user then explicitly adopted rev4 and §7. Prior accepted-call vertical/HIR proposals remain in frozen closeouts. Astra stopped with a quadratic aggregate-error-reference counterexample to rev1 resource linearity; rev2 suspends implementation pending output-sensitive resource amendment review.",
   "quarantine_note": "Three inherited UNKNOWN assignments and their leases remain quarantined. No overlapping authors; two review/integration slots reserved. No production promotion follows structural HIR admission."
