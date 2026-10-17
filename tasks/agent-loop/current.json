@@ -75,13 +75,13 @@
     {
       "id": "/root/npair_original_formation_review",
       "role": "fresh independent proof/spec review",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol/spec_auditor",
       "requested_effort": "high <=180s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Launched fresh independent spec review after author freeze; exact target hashes pinned in assignment; <=180s. Requested Sol/spec_auditor/high, observed UNKNOWN; no descendant; no write lease."
+      "receipt": "Independent spec review CLEAN for exact frozen research checkpoint. All four targets and noncompiler pins MATCH. Three blockers remain: original fixed-c attribution, universal R/W/Z/domain, active-consumer reflection. Parent closure0; Draft/unadopted. Read-only STOP; no edits/tests/descendants."
     },
     {
       "id": "/root/npair_exact_local_route_review",
@@ -138,5 +138,5 @@
     "required": false,
     "receipt": "All prior sprint authors/reviewers STOPPED. New proof/implementation leases acknowledged with runtime start receipts; reviewers WAITING. No descendants or unknown live writers."
   },
-  "next_action": "Proof/decision packet frozen and assigned fresh independent review; falsifier criterion is included. Continue exact Local route implementation concurrently; do not run commands until clean review and measured verification reserve."
+  "next_action": "Proof review CLEAN only for research checkpoint; retain all three adoption blockers and parent0. Continue local route source edits; wait for exact frozen code and handoff, then launch fresh compiler review before the two authorized verification commands."
 }
