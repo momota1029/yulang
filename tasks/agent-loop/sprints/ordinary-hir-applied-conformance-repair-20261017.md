@@ -1,7 +1,9 @@
 # Sprint ordinary-hir-applied-conformance-repair-20261017
 
-Status: APPLIED REVIEW IN PROGRESS; NARROW ORDERING REPAIR AUTHORIZED. Revision
-4 supersedes revision 3 for the live repair/review budget. Candidate baseline
+Status: APPLIED REVIEW IN PROGRESS; REVIEW-COVERAGE AMENDMENT. Revision
+5 supersedes revision 4 only for execution coverage and remaining resource
+allocation. Revision 4 remains authoritative for semantics and implementation.
+Candidate baseline
 `4f4dcb7b9`; current operational base may include later record-only commits.
 The prior sprint closed `REVIEWED-PARTIAL`; its candidate and
 exact compiler findings remain immutable:
@@ -101,12 +103,31 @@ precede publication; no partial module/list or duplicate/truncated diagnostic.
    after merge must have no remaining fallible validation or arithmetic.
    If either 30s cap is exhausted without frozen acceptable evidence, STOP and
    hold execution; do not consume more reserve.
-6. Only after all CLEAN, one primary owner runs each command exactly once,
-   sequentially, maximum120s each:
-   `cargo test -p yu-hir --features shadow --test ordinary_application_admission`
-   `cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical`
-   A fresh regression reviewer <=120s checks the post-run receipt. No implicit
-   retries or edits to expectations.
+6. Spec review found that the two integration targets do not execute three
+   private `module.rs` unit falsifiers: conflicting root mapping at line 3078,
+   final `evaluation_class` at line 3160, and 64 indexed finalizations at line
+   3182. Their assertions are authored, but the original two commands alone
+   leave these contract-required checks unexecuted. This revision adds exactly
+   one focused command; it does not change source semantics, tests or the two
+   original integration commands.
+
+   After a fresh final architect review and a CLEAN regression pre-run review
+   of the complete command-to-falsifier map, one primary owner runs each
+   command exactly once, sequentially:
+
+   1. `cargo test -p yu-hir --features shadow --lib module::tests::` (<=45s).
+      Confirm the actual test list includes all three named falsifiers above;
+      record all test names/counts actually run.
+   2. `cargo test -p yu-hir --features shadow --test ordinary_application_admission`
+      (<=120s).
+   3. `cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical`
+      (<=120s).
+
+   Timeout, compile failure, zero matching falsifiers, or assertion failure
+   stops the run; no retry, filter substitution or expectation edit. A fresh
+   regression reviewer <=120s checks the post-run receipt. The added command
+   closes only the execution-coverage gap if its transcript confirms the named
+   assertions ran and passed; it closes no original theorem condition.
 
 The vertical may establish ordinary lowering, authentic HIR source ownership,
 CandidateInference, propagation, exported definitions and candidate source
@@ -121,8 +142,15 @@ parent theorem result.
 The current-input pin for newly proposed `lib.rs` is
 `5bdcb7c0df022da919cef5402c62dc1c7baf0700a4d06e526a608cbd7db21464`. Exact
 current candidate pins and frozen proof outputs are listed in the frozen Luna
-plan and shared handoff. The original `5fbceb68d` table below is historical
-baseline evidence only; it is not the implementation input manifest.
+plan and shared handoff. Cargo execution configuration is frozen at:
+
+```text
+Cargo.toml                  d61446115ce45d7010898090bce323fe1134b1cca53471ac9416e441d45865d9
+Cargo.lock                  2055b82e7c2c68df727940d7053da0490368a99217bd3587866a7003177484e6
+crates/yu-hir/Cargo.toml    a97f52fc6b9e577f23be4160ecdda9693bec8fe48c626d0e9b7c0e3b0c6fe8d1
+crates/yu-solver/Cargo.toml 7a599e95800c67ca4688b0f91917609345a252aae6d2ea6cd0f413eb1c07893c
+```
+The original `5fbceb68d` table below is historical baseline evidence only; it is not the implementation input manifest.
 
 Baseline pins from `5fbceb68d`:
 

@@ -1,8 +1,8 @@
 # Ordinary HIR applied-conformance repair: implementation handoff
 
-- Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev4, SHA-256
-  `896981171937cba0e98a3f0499ae79ddf97f180db97427cde908752ac042f3fd`.
-  Handoff revision 7 (Luna's post-delta-review reconciliation); failed candidate
+- Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev5, SHA-256
+  `565d02e09284256b2e485f91203bcd8b3b4a991f4488df7a1fc7724cc0910163`.
+  Handoff revision 9 (Luna's post-coverage-amendment reconciliation); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -117,12 +117,26 @@ no BLOCKING, major or minor issue and confirmed the prior seven fixes remain.
 Repair and delta-review charges are 24s and 30s from reserve120, leaving 66s
 reserve. No other code/test path is reopened.
 
-Sequential final spec and architect reviews and regression pre-run review remain
-required before the two frozen Cargo commands. Original theorem gates remain OPEN.
+Fresh spec review STOPPED with one MAJOR execution-coverage gap, not a code/spec
+conflict: the two integration-target Cargo commands do not execute module.rs
+unit falsifiers for conflicting roots, final private classification, or the
+64-binding indexed-finalization count. Receipt:
+`notes/progress/2026-10-17-ordinary-hir-repair-spec-review.md`, SHA-256
+`155ecb301e885aa3faf7c8a1296f6fe0e354f4aed8667b6d3286d8aa7913ad7f`. Luna
+adjudicated this as an internal execution-scope correction. Sprint rev5 adds
+exactly one focused command,
+`cargo test -p yu-hir --features shadow --lib module::tests::`, with a 45s cap;
+the two original integration commands remain unchanged and exact-once. A fresh
+architect and pre-run regression review must clear the three-command map.
+Cargo.lock and root/member manifests are frozen by the rev5 hash pins. Timeout,
+compile failure, zero named falsifiers, or any assertion failure stops with no
+retry/filter substitution. Assertions are authored but no tests have run. Parent
+theorem gates remain OPEN.
 
-Next in-envelope owner: Luna freezes these exact bytes, obtains those sequential
-reviews, then authorizes the two exact commands once each only after CLEAN
-regression clearance. Proof/source TODO `HIR-APP-PARENT-1` remains with the
-standard solver/source/native owners; first missing consumer is
+Next owner: Luna runs the final architect review, then pre-run regression
+clearance; only then the focused unit command followed by the two original
+integration commands, sequentially. Post-run regression review remains required. Proof/source TODO
+`HIR-APP-PARENT-1` remains with the standard solver/source/native owners; first
+missing consumer is
 `ConstraintBatch::collect`/`collect_mode`. Worker STOPPED, no unresolved child
 leases.
