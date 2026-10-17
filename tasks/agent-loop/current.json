@@ -4,81 +4,142 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-concrete-producer-compile-validation-20261017",
-    "contract": "tasks/agent-loop/sprints/npair-concrete-producer-compile-validation-20261017.md",
-    "revision": 1,
-    "sha256": "6eb81e84fbf8fafe2dec7dd6cbb63cacacc00005f72e9a8602151b5c151221ee",
-    "state": "REVIEWED-PARTIAL",
-    "baseline": "f2f95913cdcff78c4482b3556830483614c06e87",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN.",
-    "fixed_outcome": "One bounded compile-only validation of the reviewed integrated concrete Permission producer; no tests execute. Original constructor proof remains WAIT for exact eta_op/realization_op contribution evidence.",
+    "id": "receive-source-derivation-and-plan-bridge-20261017",
+    "contract": "tasks/agent-loop/sprints/receive-source-derivation-and-plan-bridge-20261017.md",
+    "revision": 6,
+    "sha256": "d274cb3f18190e08f2c1f26d911d236583aee6a5aaeda0d57a781e6c0281617b",
+    "state": "REVIEWED-PARTIAL-CHECKPOINTED",
+    "baseline": "6dbb6ad2511b182c1761ecea73f25640eee68899",
+    "parent": "型推論と実行器が証明込みで実装できるまで続ける; parent theorem and production gates OPEN",
+    "fixed_outcome": "Derive the exact two-Call source component or isolate its first missing premise; draft source-owned Entry/Exec/Return bridge; after proof review draft an unapplied importer contract.",
     "review": {
-      "state": "COMPLETE",
+      "state": "CLEAN; all assigned review deltas closed",
       "current_reviewer": null,
       "sequence": [
-        "Luna one cargo check <=120s",
-        "compiler_referee frozen receipt review <=90s"
+        "proof compiler_referee: no blocking/major; minor Return destination repaired; delta CLEAN",
+        "importer architect: CLEAN; representation remains candidate architecture",
+        "importer spec: missing instance/scope/shared-xi join repaired; final revision-6 locator delta CLEAN",
+        "Luna integration: proof remains conditional; importer remains unapplied; parent OPEN"
       ]
     },
     "resources": {
-      "cap_seconds": 300,
-      "compile_cap_seconds": 120,
-      "review_cap_seconds": 90,
-      "coordination_seconds": 30,
-      "reserve_seconds": 60,
-      "charged_seconds": 126,
+      "cap_seconds": 2100,
+      "proof_cap_seconds": 900,
+      "contract_cap_seconds": 420,
+      "review_cap_seconds": 660,
+      "coordination_seconds": 120,
+      "reserve_seconds": 0,
+      "charged_seconds": 1020,
       "active_authors": 0,
-      "status": "REVIEWED-PARTIAL: 126/300s charged (coord30+compile6+review90); compile and reviewer STOPPED; 60s reserve retired."
+      "status": "All assigned work/reviews STOPPED; final locator review CLEAN; 1020s conservatively charged of 2100; 1080s unspent allocation retired at sprint boundary; 3 inherited UNKNOWN reservations retained."
     },
     "lanes": {
       "proof": {
-        "owner": "Luna / original Operation and Call constructor owners",
-        "role": "proof blocked on exact source contribution input",
-        "state": "WAITING-FOR-EXACT-SUPPLIER",
-        "outputs": [],
-        "cap_seconds": 0,
-        "receipt": "No lease or repeated source census. Required evidence: same complete w at exact source port/predecessor context and native Operation/emission/admission correspondence."
-      },
-      "implementation_validation": {
-        "owner": "/root",
-        "role": "Luna/high primary, one compile-only command",
-        "state": "STOPPED-PASS",
+        "owner": "/root (Luna primary; serial fallback)",
+        "state": "REVIEWED-CONDITIONAL",
         "outputs": [
-          "notes/progress/2026-10-17-npair-concrete-producer-compile-validation.md",
-          "tasks/agent-loop/inbox/20261017-npair-concrete-producer-compile-validation.md"
+          "notes/theory/2026-10-17-receive-source-derivation-and-plan-bridge.md",
+          "tasks/agent-loop/inbox/20261017-receive-source-derivation-and-plan-bridge.md"
         ],
-        "compiler_lease": false,
-        "cap_seconds": 120
+        "cap_seconds": 900,
+        "receipt": "compiler_referee: no blocking/major; one minor corrected (Return destination); CLEAN delta review. Artifact 597830364071d165c46f18175b51753521fb237b0bed67e08bec8781f24e251c; handoff 6d988521fa369bae56e674611cd692ea236a10d77c5c3757378a0b4555cf057a. Source T remains OPEN on punctured caller-context premise and native MODEL."
+      },
+      "implementation_readiness": {
+        "owner": "/root (Luna/high)",
+        "state": "REVIEWED-UNAPPLIED",
+        "outputs": [
+          "notes/design/2026-10-17-receive-source-plan-import-contract.md",
+          "tasks/agent-loop/inbox/20261017-receive-source-plan-import-contract.md"
+        ],
+        "code_lease": false,
+        "cap_seconds": 420,
+        "receipt": "Independent architect and spec reviews CLEAN after instance/scope/shared-xi join and locator repairs. Design hash d9d7e687fb54a9013e8e2cf5524872094d69a299c39e2b1af7f563845a0a9a66; handoff hash 133b1e17a78b394afcf1431e418544959e5518f82ea8958bacfae51da65f06da. Draft remains unapplied; no code lease."
       }
     },
     "artifacts": [
       {
-        "path": "tasks/agent-loop/sprints/npair-concrete-producer-compile-validation-20261017.md",
-        "sha256": "6eb81e84fbf8fafe2dec7dd6cbb63cacacc00005f72e9a8602151b5c151221ee"
+        "path": "tasks/agent-loop/sprints/receive-source-derivation-and-plan-bridge-20261017.md",
+        "sha256": "d274cb3f18190e08f2c1f26d911d236583aee6a5aaeda0d57a781e6c0281617b"
       },
       {
-        "path": "notes/progress/2026-10-17-npair-concrete-producer-compile-validation.md",
-        "sha256": "addd61f1455ddeb36931253d2c36e2c75f7d460e83e6d3773f54093b2f982775"
+        "path": "notes/theory/2026-10-17-receive-source-derivation-and-plan-bridge.md",
+        "sha256": "597830364071d165c46f18175b51753521fb237b0bed67e08bec8781f24e251c"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-compile-validation.md",
-        "sha256": "70a6f0581acf79cde31d3b5e8381e29c6f60d2209565c80437b4465b82ddadd7"
+        "path": "tasks/agent-loop/inbox/20261017-receive-source-derivation-and-plan-bridge.md",
+        "sha256": "6d988521fa369bae56e674611cd692ea236a10d77c5c3757378a0b4555cf057a"
+      },
+      {
+        "path": "notes/design/2026-10-17-receive-source-plan-import-contract.md",
+        "sha256": "d9d7e687fb54a9013e8e2cf5524872094d69a299c39e2b1af7f563845a0a9a66"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261017-receive-source-plan-import-contract.md",
+        "sha256": "133b1e17a78b394afcf1431e418544959e5518f82ea8958bacfae51da65f06da"
       }
     ],
     "non_goals": [
-      "source edits or repair",
-      "test execution",
-      "examples/probes",
+      "compiler/runtime code edits",
+      "tests/builds/probes/execution",
+      "semantic adoption",
       "source admission",
-      "At/transport/receive/subtraction",
-      "parent theorem or production closure"
+      "production cutover",
+      "parent theorem closure"
     ],
-    "next_boundary": "New original source-clause/authority input or separately qualified approved path; current sprint ended and no process is active."
+    "next_boundary": "Next proposed sprint: receive-caller-context-formation-20261017; sequential Luna proof/readiness work under fresh contract. No compiler code lease; parent OPEN.",
+    "workers": [
+      {
+        "id": "/root/resident_dispatcher_loop_a",
+        "role": "legacy dispatcher",
+        "state": "UNKNOWN",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": null,
+        "receipt": "Historical identity/cessation unknown; reservation retained."
+      },
+      {
+        "id": "/root/resident_implementer_idle",
+        "role": "legacy implementation worker",
+        "state": "UNKNOWN",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": null,
+        "receipt": "Historical identity/cessation unknown; reservation retained."
+      },
+      {
+        "id": "/root/runtime_source_supplier_proof",
+        "role": "legacy proof worker",
+        "state": "UNKNOWN",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": null,
+        "receipt": "Historical identity/cessation unknown; reservation retained."
+      },
+      {
+        "id": "/root/receive_source_plan_bridge_review",
+        "role": "independent compiler_referee; proof review and repair delta review",
+        "state": "STOPPED",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "cap_seconds": 120,
+        "elapsed_seconds_charged": 240,
+        "receipt": "Initial review: no blocking/major, one minor repaired. Delta CLEAN; no writes/tests/execution/descendants."
+      }
+    ]
   },
-  "candidate": "tasks/agent-loop/sprints/npair-concrete-producer-compile-validation-20261017.md",
-  "baseline": "f2f95913cdcff78c4482b3556830483614c06e87",
-  "scope": "Compile-only validation of the exact approved integrated concrete Permission producer, plus an explicit proof WAIT for original constructor contribution evidence.",
-  "worker_inventory_scope": "Three historical UNKNOWN reservations and board quarantine retained; prior authors/reviewers stopped. Current session completed read-only source-owner audit for runtime/F5/Catch and selector consultation; no compiler/source process or write lease.",
+  "candidate": "tasks/agent-loop/sprints/receive-source-derivation-and-plan-bridge-20261017.md",
+  "baseline": "6dbb6ad2511b182c1761ecea73f25640eee68899",
+  "scope": "Two-Call Value(Function) source derivation and proposed source-to-runtime plan bridge; parent inference/executor goal unchanged.",
+  "worker_inventory_scope": "Inherited three UNKNOWN reservations and quarantined board path retained. All current-sprint workers/reviewers have STOP receipts; no new child launch during this completed sprint.",
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -115,49 +176,39 @@
     },
     {
       "id": "/root",
-      "role": "Luna/high primary, sole authority and Git integrator",
+      "role": "Luna/high primary; sole integrator; current sprint STOPPED",
       "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Current-session read-only runtime/F5/Catch owner audit and selector consultation complete; no compiler/source process or write lease."
+      "receipt": "Proof and importer draft frozen; revision-6 contract/handoff reviewed; all assigned reviewers STOPPED. Integration recorded; no compiler edits/tests/builds/probes."
     },
     {
-      "id": "/root/npair_concrete_producer_compile_review",
-      "role": "compiler_referee independent receipt review",
+      "id": "/root/receive_plan_contract_arch_review",
+      "role": "independent architect delta review",
       "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "cap_seconds": 90,
-      "elapsed_seconds_charged": 90,
-      "receipt": "Fresh receipt review CLEAN; raw log lacks invocation/exit metadata, preserved primary tool receipt supplies it. Compile only; no broader certification."
+      "cap_seconds": 60,
+      "elapsed_seconds_charged": 60,
+      "receipt": "Architecture delta CLEAN; candidate representation labels verified."
     },
     {
-      "id": "/root/next_action_selector",
-      "role": "sprint-end dispatcher, read-only",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-sol",
-      "requested_effort": "high",
+      "id": "/root/receive_plan_contract_spec_review",
+      "role": "independent spec final locator delta review",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh broad-goal audit: owner-specific NO_SAFE_CODE_SLICE, not global impossibility. Runtime needs independently valid T plus complete Entry/Exec/Return export/import; F5 needs source-qualified export/restore correspondence; Catch needs authentic M_exit. No new leases. Current moved source pins not assumed unchanged."
-    },
-    {
-      "id": "/root/independent_path_decomposition",
-      "role": "read-only task decomposition",
-      "state": "STOPPED",
-      "requested_model": "UNKNOWN",
-      "requested_effort": "UNKNOWN",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Returned no independently ready lane from inherited evidence; no writes, commands or leases."
+      "cap_seconds": 30,
+      "receipt": "Verifying only final contract-revision-6 locators and hashes."
     }
   ],
   "leases": [
@@ -172,22 +223,34 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-concrete-producer-compile-validation-20261017.md",
+      "path": "tasks/agent-loop/sprints/receive-source-derivation-and-plan-bridge-20261017.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "6eb81e84fbf8fafe2dec7dd6cbb63cacacc00005f72e9a8602151b5c151221ee"
+      "sha256": "d274cb3f18190e08f2c1f26d911d236583aee6a5aaeda0d57a781e6c0281617b"
     },
     {
-      "path": "notes/progress/2026-10-17-npair-concrete-producer-compile-validation.md",
+      "path": "notes/theory/2026-10-17-receive-source-derivation-and-plan-bridge.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "addd61f1455ddeb36931253d2c36e2c75f7d460e83e6d3773f54093b2f982775"
+      "sha256": "597830364071d165c46f18175b51753521fb237b0bed67e08bec8781f24e251c"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261017-npair-concrete-producer-compile-validation.md",
+      "path": "tasks/agent-loop/inbox/20261017-receive-source-derivation-and-plan-bridge.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "70a6f0581acf79cde31d3b5e8381e29c6f60d2209565c80437b4465b82ddadd7"
+      "sha256": "6d988521fa369bae56e674611cd692ea236a10d77c5c3757378a0b4555cf057a"
+    },
+    {
+      "path": "notes/design/2026-10-17-receive-source-plan-import-contract.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "d9d7e687fb54a9013e8e2cf5524872094d69a299c39e2b1af7f563845a0a9a66"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261017-receive-source-plan-import-contract.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "133b1e17a78b394afcf1431e418544959e5518f82ea8958bacfae51da65f06da"
     }
   ],
   "pending": [
@@ -223,26 +286,25 @@
     }
   ],
   "next_action": {
-    "state": "WAIT-QUALIFIED-TYPED-PLAN-OWNER-INPUT",
-    "dispatcher": "Fresh bounded selector review finds owner-specific NO_SAFE_CODE_SLICE, not global impossibility. Runtime, F5 and Catch each lack their source-qualified producer/consumer bridge; do not open another equivalent research packet.",
-    "proof": "For the broader inference/executor goal, choose one concrete source fragment with independently justified T and its governing Entry/Exec/Return rule; prove plan construction and correspondence for the original source judgment. Catch M_exit and NPAIR source contributions remain separate OPEN gates.",
-    "implementation": "No approved exporter/importer path yet: execute still discards CandidateInference, and RuntimeProgram::from_hir receives HIR plus default name-consumption evidence. F5 replacement lacks export/restore field correspondence; Catch owners lack M_exit. No source/code lease.",
-    "source_authority": "Smallest unlock: original source derivation T plus an authoritative complete Entry/Exec/Return plan rule and producer/consumer correspondence for one selected fragment; if absent, explicit authority to draft that exact bridge for independent review and later adoption.",
-    "workers_started": false
+    "state": "NEXT-SPRINT-PROPOSED",
+    "dispatcher": "Sprint-end selector recommends receive-caller-context-formation-20261017; no compiler code seam ready.",
+    "proof": "Conditional receive derivation reviewed; exact punctured caller-context judgment at A1,E1,xi and its well-foundedness are the next source premise.",
+    "implementation": "Importer readiness contract reviewed but unapplied. Next implementation-readiness work should trace actual source producers for its certificate fields; no code lease until producer, bridge adoption and architecture selection."
   },
   "resource_accounting": {
-    "current_sprint_id": "npair-concrete-producer-compile-validation-20261017",
-    "cap_seconds": 300,
-    "compile_cap_seconds": 120,
-    "review_cap_seconds": 90,
-    "coordination_seconds": 30,
-    "reserve_seconds": 60,
-    "charged_total_seconds": 126,
+    "sprint_id": "receive-source-derivation-and-plan-bridge-20261017",
+    "cap_seconds": 2100,
+    "proof_cap_seconds": 900,
+    "contract_cap_seconds": 420,
+    "review_cap_seconds": 660,
+    "coordination_seconds": 120,
+    "reserve_seconds": 0,
+    "charged_seconds": 1020,
     "active_authors": 0,
     "unknown_reservations_preserved": 3,
-    "status": "REVIEWED-PARTIAL; 126/300s charged (coord30+compile6+review90); 60s reserve retired; all writers/reviewer STOPPED."
+    "status": "Sprint reviewed-partial and checkpoint-ready; 1020s charged; unspent allocation retired at boundary; three inherited UNKNOWN reservations retained."
   },
-  "history": "Reviewed-partial checkpoints: forward-source witness a868fbe (notes/progress/2026-10-17-npair-forward-source-witness.md); operation supplier/snapshot validator 7a281f6 (notes/progress/2026-10-17-npair-operation-supplier-and-snapshot-validator.md); snapshot-owner b62de85f (tasks/agent-loop/inbox/20261017-npair-snapshot-owner-interface.md); postsolve snapshot d28b83ed (tasks/agent-loop/inbox/20261017-npair-postsolve-snapshot-api-contract.md); prefreeze snapshot f2f95913c (proof a80738c, readiness 0244401, final handoff c2df1ce); producer compile check 5ca96586f (report addd61f, final handoff 70a6f05). Parent and production remain OPEN. Adopted NPAIR receipt d94e246. Focused Operation-supplier analysis: proof 1ee864b, handoff 6d46c27, contract 49d0676; no adopted eta_op/realization_op clause, selected reviewed source object unavailable, and unadopted/current reconstruction excluded. Fresh selector at baseline 85919466f finds no independently ready proof/compiler slice; no repeated supplier census. Preserve three UNKNOWN reservations, board quarantine and foreign dirty JSON. Current reconciliation corrected stale FreshUse status: reviewed local-use-retention implementation keeps eight maps; remaining gap is semantic NPAIR association/At and whole rho_u, not absent maps. Prior selector did not certify global impossibility.",
+  "history": "Earlier NPAIR checkpoints and adoption receipt are preserved in prior current.json/Git history; pending parent-gate entries retain exact OPEN owners. Current proof artifact `notes/theory/2026-10-17-receive-source-derivation-and-plan-bridge.md` hash 597830364071d165c46f18175b51753521fb237b0bed67e08bec8781f24e251c; proof handoff rev2 6d988521fa369bae56e674611cd692ea236a10d77c5c3757378a0b4555cf057a. Proof review found one minor Return-destination issue, repaired and delta CLEAN. Importer review found one major missing instance/scope/xi join plus stale locators; primary repair underway. Previous reviewed partial NPAIR compile checkpoint 5ca96586f remains limited; no source admission/parent closure. Contract revision 2 frozen after review repairs; final proof source premise still OPEN. Final handoff rev3/design hash 05e702...; final spec metadata typo repaired under sprint revision 5. Final handoff revision 4 hash recorded in artifacts; last spec metadata locator corrected to sprint rev6. Sprint-end selector recommends receive-caller-context-formation-20261017: exact punctured caller-context formation and well-foundedness, plus sequential unapplied source-producer contract; no code seam ready. Final importer spec locator delta CLEAN at revision 6; all current sprint writers STOPPED.",
   "checkpoint_commits": [
     "9948ca23f7034dd67d878257db3df2237a7e66bd",
     "d1b706e83",
