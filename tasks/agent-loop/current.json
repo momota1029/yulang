@@ -58,7 +58,7 @@
       "implementation": {
         "owner": "/root",
         "role": "implementer/Luna-high after admission",
-        "state": "ADMITTED-WAITING-ASTRA-AND-REVIEWS",
+        "state": "RUNNING",
         "cap_seconds": 480,
         "outputs": [
           "crates/yu-solver/examples/research_accepted_call_vertical.rs",
@@ -66,7 +66,9 @@
           "tasks/agent-loop/inbox/20261017-accepted-call-vertical.md"
         ],
         "library_edits": false,
-        "authority": "Independent source vertical only; no OPRESP, source T, native theorem or library edit implication."
+        "authority": "Independent source vertical only; no OPRESP, source T, native theorem or library edit implication.",
+        "session": "current-session",
+        "start_receipt": "Luna begins independent source vertical after both proof reviews CLEAN; existing APIs only."
       }
     },
     "implementation": {
@@ -75,7 +77,7 @@
       "boundary": "Only a reversible example/test using existing APIs; no library, existing fixture or expected-output edits."
     },
     "review": {
-      "state": "SPEC-REVIEW-RUNNING",
+      "state": "PROOF-REVIEWS-CLEAN",
       "reserve_seconds": 480,
       "sequence": [
         "compiler_referee <=180s",
@@ -88,17 +90,18 @@
         "0a174a481728eb97e381bfe5fb6e04fa090751606b44fd8fd4ee13b467f888d2",
         "e60f29d59c3a9e4b608d5ac244bee55861526166d1747bef4aa6a8fb3841f826"
       ],
-      "active": "/root/selected_source_vertical_spec_review",
-      "compiler_receipt": "CLEAN; source/native evidence plus exact obstruction; no parent premise discharged."
+      "active": null,
+      "compiler_receipt": "CLEAN; source/native evidence plus exact obstruction; no parent premise discharged.",
+      "spec_receipt": "CLEAN; FIRST-RESULT-ADEQUACY OPEN; exact challenge/observation/nonidentity premise retained."
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 1380,
-      "available_seconds": 1020,
-      "active_authors": 0,
-      "active_reviewers": 1,
+      "charged_seconds": 1500,
+      "available_seconds": 900,
+      "active_authors": 1,
+      "active_reviewers": 0,
       "unknown_reservations_preserved": 3,
-      "status": "Spec review RUNNING after compiler review CLEAN; implementation waits for spec review."
+      "status": "Proof review complete; Luna implementing independent source example/regression. Budget left: implementation480, regression180, Cargo120, reserve120."
     },
     "workers": [
       {
@@ -183,28 +186,28 @@
       {
         "id": "/root/selected_source_vertical_spec_review",
         "role": "spec_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "session": "current-session",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "charged_seconds": 0,
+        "charged_seconds": 120,
         "cap_seconds": 120,
-        "receipt": "Actual sequential read-only spec review launch after compiler reviewer STOPPED."
+        "receipt": "CLEAN exact-conformance review; original quantifiers preserved; no files written or descendants."
       },
       {
         "id": "/root/selected_source_vertical_spec_review",
         "role": "spec_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "session": "current-session",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "charged_seconds": 0,
+        "charged_seconds": 120,
         "cap_seconds": 120,
-        "receipt": "Actual sequential read-only spec review launch; frozen artifact/handoff."
+        "receipt": "CLEAN exact-conformance review; original quantifiers preserved; no files written or descendants."
       }
     ],
     "leases": [
@@ -321,7 +324,7 @@
         "owner": "Luna/Astra"
       }
     ],
-    "next_action": "Independent compiler then spec review of frozen proof artifact. After CLEAN/adjudicated blockers, implement the independent accepted-source vertical; retain FIRST-RESULT-ADEQUACY OPEN.",
+    "next_action": "Write the exact source vertical and regression under the admitted API-only lease; request pre-run regression review before the sole Cargo command.",
     "closeout_fields": [
       "original unresolved premises genuinely discharged",
       "new implementation/test behavior established",
