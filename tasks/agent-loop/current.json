@@ -4,28 +4,28 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-parser-row-key-separation-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-parser-row-key-separation-20261018.md",
-    "revision": 3,
-    "sha256": "88f1136f82ae525bd0797f534062f8aaa04685c6bffbb9c0f835310e59c55c10",
-    "state": "ACTIVE",
-    "baseline": "515b705f6879bd8fd4a57fd1f6732e11ea9c0a29",
+    "id": "npair-operation-contract-and-lexer-identity-20261018",
+    "contract": "tasks/agent-loop/sprints/npair-operation-contract-and-lexer-identity-20261018.md",
+    "revision": 1,
+    "sha256": "67ff7aefe2b696db00433305f42774aca02c53253d877ac1ffc6035c81dbc631",
+    "state": "READY",
+    "baseline": "b3a9b1739b59d8c7991b5f798e98f71f96904b19",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, source domain and quantifiers unchanged; closure0.",
-    "fixed_outcome": "Prove or precisely retain key separation for every earlier explicit row that can seed the Operation root cache, including parser recovery paths.",
+    "fixed_outcome": "Draft a complete Operation latent-self-effect contract candidate without adoption, and independently trace authentic lexer LBracket identity for the conditional cache-address lemma.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "prior_closeout": "notes/progress/2026-10-18-npair-operation-self-effect-decision-closeout.md#sha256:4efd9fccf44fd905a6e0e1446f019c18842d45f0dd27491aa63113fa06b8d3be"
+      "prior_closeout": "notes/progress/2026-10-18-npair-parser-row-key-separation-closeout.md#sha256:d8749734cebb318665cce1a381f5ba720af59444d0b077b76a46d2d12d061c4c"
     },
     "resources": {
-      "cap_seconds": 480,
-      "charged_seconds": 360,
-      "available_seconds": 120,
-      "allocation": "parser proof240 + recovery-emitter extension60, fresh compiler/source review120, Luna integration60; Astra0, reserve0."
+      "cap_seconds": 900,
+      "charged_seconds": 0,
+      "available_seconds": 900,
+      "allocation": "semantic candidate300, lexer identity180, independent spec review120, compiler/source review120, Luna60, reserve120; Astra0."
     },
-    "next_action": "Fresh compiler/source review of frozen parser proof plus recovery-emitter delta, using corrected rev3 contract pins; then close at exact lexical producer boundary."
+    "next_action": "Launch parallel bounded semantic candidate and lexer identity lanes; freeze and independently review both."
   },
-  "history": "Closed `npair-operation-self-effect-decision-20261018` rev3: parent conditions0. Semantic classification finds missing original Operation primitive projection but no demonstrated semantic ambiguity. Address result remains conditional; primary injectivity candidate rejected as unconditional after major review because parser/recovery distinct-start property is unproved. Corrected rev1 dependency pin typo in rev2 and independently verified. Full receipts in closeout. Parser rev1 and rev2 authors STOPPED; rev2 isolated empty Item/token payload possibility and needs lexical producer evidence. Rev1 contract hash typo corrected in rev3 from committed blob; rev2 content pin retained.",
+  "history": "Closed `npair-parser-row-key-separation-20261018` rev3: parent conditions0. Eq/Hash and HIR key transport verified; distinct-start premise remains unproved. Parser recovery can carry empty Item/Token payload; actual lexer LBracket positivity remains an owner boundary. Composite compiler review CLEAN within conditional claim; historical contract blobs unverified to reviewer, primary comparison recorded. Full receipts in closeout.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
   "workers": [
     {
@@ -37,95 +37,75 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Corrected rev1 contract hash in rev3 by comparison to committed blob; both proof artifacts frozen; launching fresh composite compiler review within existing120s allocation."
+      "receipt": "Prior parser sprint closed with composite clean review; new rev1 two-lane contract READY; no workers yet launched."
     },
     {
-      "id": "/root/npair_parser_row_key_separation",
-      "role": "constructive parser/source identity prover",
-      "state": "STOPPED",
+      "id": "/root/npair_operation_contract_candidate",
+      "role": "constructive semantic candidate prover",
+      "state": "NOT_STARTED",
       "requested_model": "Sol/prover",
-      "requested_effort": "high <=240s",
+      "requested_effort": "high <=300s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev1 proof frozen; 60s rev2 recovery-emitter delta frozen; lexical producer still needed; 300s charged, no code/tests/Git."
+      "receipt": "Exact read authority and output leases issued; launch receipt pending."
     },
     {
-      "id": "/root/npair_incidence_compiler_review",
-      "role": "fresh independent compiler/source reviewer",
-      "state": "RUNNING",
-      "requested_model": "Sol/compiler_referee",
-      "requested_effort": "low <=120s",
+      "id": "/root/npair_lexer_bracket_identity",
+      "role": "read-only lexical source researcher",
+      "state": "NOT_STARTED",
+      "requested_model": "Sol/researcher",
+      "requested_effort": "high <=180s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh composite review launched for rev1 parser proof plus rev2 emitter delta under corrected rev3 contract; no writes."
+      "receipt": "Four exact lexical source pins and output leases issued; launch receipt pending."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/npair-parser-row-key-separation-20261018.md",
+      "path": "tasks/agent-loop/sprints/npair-operation-contract-and-lexer-identity-20261018.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-parser-row-key-separation.md",
-      "owner": "/root/npair_parser_row_key_separation",
+      "path": "notes/design/2026-10-18-npair-operation-self-effect-contract-candidate.md",
+      "owner": "/root/npair_operation_contract_candidate",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-operation-self-effect-contract-candidate.md",
+      "owner": "/root/npair_operation_contract_candidate",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-18-npair-lexer-bracket-identity.md",
+      "owner": "/root/npair_lexer_bracket_identity",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-lexer-bracket-identity.md",
+      "owner": "/root/npair_lexer_bracket_identity",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-syntax/src/lexical/current_item.rs",
+      "owner": "/root/npair_lexer_bracket_identity",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-parser-row-key-separation.md",
-      "owner": "/root/npair_parser_row_key_separation",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-syntax/src/cursor.rs",
-      "owner": "/root/npair_parser_row_key_separation",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-syntax/src/type_expr/mod.rs",
-      "owner": "/root/npair_parser_row_key_separation",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-syntax/src/type_expr/delimited.rs",
-      "owner": "/root/npair_parser_row_key_separation",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-syntax/src/full_parse.rs",
-      "owner": "/root/npair_parser_row_key_separation",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-hir/src/module/source_annotation.rs",
-      "owner": "/root/npair_parser_row_key_separation",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-hir/src/source_identity.rs",
-      "owner": "/root/npair_parser_row_key_separation",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-syntax/src/cursor/recovery/emit.rs",
-      "owner": "/root/npair_parser_row_key_separation",
+      "path": "crates/yu-syntax/src/lexical/lexer.rs",
+      "owner": "/root/npair_lexer_bracket_identity",
       "state": "FROZEN"
     },
     {
       "path": "crates/yu-syntax/src/lexical/item.rs",
-      "owner": "/root/npair_parser_row_key_separation",
+      "owner": "/root/npair_lexer_bracket_identity",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-parser-recovery-token-width.md",
-      "owner": "/root/npair_parser_row_key_separation",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-npair-parser-recovery-token-width.md",
-      "owner": "/root/npair_parser_row_key_separation",
+      "path": "crates/yu-syntax/src/cursor/recovery/emit.rs",
+      "owner": "/root/npair_lexer_bracket_identity",
       "state": "FROZEN"
     }
   ],
@@ -133,6 +113,6 @@
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "Prior authors/reviewers STOPPED; next proof writer READY but not launched."
+    "receipt": "All prior parser-sprint authors and reviewers STOPPED; new lanes are READY but not launched."
   }
 }
