@@ -28,9 +28,9 @@
    "review_cap_seconds": 360,
    "coordination_seconds": 120,
    "reserve_seconds": 120,
-   "charged_seconds": 0,
+   "charged_seconds": 300,
    "active_authors": 1,
-   "status": "Astra proof/design lane RUNNING from actual current-session receipt; 840s cap; source trace waits for exact proof freeze."
+   "status": "Astra stages 1–3 complete, stage 4 applying at original c2; 270s elapsed / 300s conservatively charged; 540s remains; exact semantic boundary reported for explicit unselected treatment."
   },
   "lanes": {
    "proof": {
@@ -41,7 +41,7 @@
      "tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md"
     ],
     "cap_seconds": 840,
-    "receipt": "ACTIVE-WORK 2026-10-17 02:10:56 UTC after spawn 02:10:54; all 22 direct/inherited governing pins matched; requested Astra/medium, observed model/effort UNKNOWN; exact leases; no descendants; reading original meanings before writing."
+    "receipt": "Milestone at ~02:15:19 UTC: stages 1–2 constructed/audited; stage 3 has syntactic substitution and event-subtree restriction, but arbitrary-graft lifting failed. Candidate I_sat uses original independent contextual guards, inert carrier formation and universal designated-execution typing at incoming ports; relational role graph retains each actual Act decomposition/metadata. First remaining semantic obligation: equality with original F2 complete inlet/residual correlations, then role-indexed joint descriptor embedding. Local(g) has no formal identity. ~270s elapsed / 300s conservative charge; continuing stage 4, 540s cap remains; proof author RUNNING."
    },
    "source_trace": {
     "owner": "/root (Luna/high)",
@@ -274,7 +274,7 @@
  "next_action": {
   "state": "PROOF-RUNNING",
   "dispatcher": "Selector recommendation accepted for a bounded exact first-clause sprint; implementation has no safe code slice pending rule/source evidence.",
-  "proof": "Astra is drafting and attempting preservation of the first inlet/role-entry clause at original c2 F2/xi.",
+  "proof": "Candidate saturated inlet and role graph drafted; transport attempted; apply exact semantic differences/failure to original c2 without treating as original F2 equality.",
   "implementation": "After proof freeze, inspect the selected local returned-function formal/capture/fresh-use path to runtime Lambda role; read-only correspondence only."
  },
  "resource_accounting": {
@@ -285,10 +285,10 @@
   "review_cap_seconds": 360,
   "coordination_seconds": 120,
   "reserve_seconds": 120,
-  "charged_seconds": 0,
+  "charged_seconds": 300,
   "active_authors": 1,
   "unknown_reservations_preserved": 3,
-  "status": "Astra proof lane RUNNING from actual current-session receipt; 840s cap; source trace waits for proof freeze."
+  "status": "Astra active: 270s elapsed / 300s charged of 840s; stages1–3 complete, stage4 c2 application underway; source lane waits."
  },
- "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants. ACTIVE-WORK 02:10:56 UTC; all 22 direct and inherited governing pins matched before writing."
+ "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants. ACTIVE-WORK 02:10:56 UTC; all 22 direct and inherited governing pins matched before writing. Milestone stages1–3 at ~02:15:19 UTC; 300s conservative charge; arbitrary-graft lift failed; equality with original inlet remains an unselected semantic boundary."
 }
