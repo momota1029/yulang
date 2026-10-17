@@ -4,41 +4,47 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-native-introduction-correspondence-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-native-introduction-correspondence-20261018.md",
-    "revision": 2,
-    "sha256": "91c4559c60a23b1f683dd26a63c777c98da26d45db5b95eb0ae2325d708501a7",
-    "state": "CLOSED-REVIEWED-PARTIAL",
-    "baseline": "a47234eae",
-    "parent": "Original Simple-sub theorem and N-Port-Intro; all original claims, quantifiers, source domain and source-native requirements unchanged.",
-    "fixed_outcome": "Prove the applied internal concrete-only candidate_effect.rs producer corresponds to adopted N-Port-Intro, or isolate the first exact descriptor-to-row/source owner gap. Parent closure requires actual source constructor and consumer; this internal producer audit alone cannot close it.",
+    "id": "npair-source-admission-proposal-20261018",
+    "contract": "tasks/agent-loop/sprints/npair-source-admission-proposal-20261018.md",
+    "revision": 1,
+    "sha256": "eaf10ceaf86df64c0bd2c522520b3e0b060e1cf1430b8ef6abf39440b063558c",
+    "state": "WAITING-SPEC-REVIEW",
+    "baseline": "368ee4bfe",
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original claims, quantifiers and source domain unchanged.",
+    "fixed_outcome": "Freeze an independently reviewable proposal for the adopted nonempty concrete-only negative formal-port source-admission case, including exact source-to-FormalAnnotation evidence, falsifiers, refusals and prerequisites. Proposal only; no source read or implementation.",
     "dependency_snapshot": {
-      "established": "Adopted concrete-only NPAIR definition and explicit bounded code approval; applied producer compiles under historical compile-only receipt; producer owns paired ordinary links and delayed Permission publication.",
-      "conditional": "Exact descriptor-to-shared-row association/recovery and behavior regression not yet established.",
-      "next_downstream": "Actual source admission/At, authentic consumer and all original parent source-native obligations, F1/FK1, N-Transport, soundness, principality and termination remain open.",
-      "implementation_boundary": "Source preflight refusal retained; no source-driver or consumer changes authorized."
+      "established": "Adopted NPAIR source interface and approved internal producer; reviewed producer correspondence establishes the bounded constructor and regression.",
+      "conditional": "Authentic source occurrence/action retention into the reviewed producer is unproved; inherited source/call owners remain UNKNOWN/quarantined.",
+      "next_downstream": "Consumer, At/N-Ingress, N-Transport, N-Subtract-Elim, F1/FK1, complete Call/effects, soundness, principality, termination and production remain OPEN.",
+      "implementation_boundary": "NO_SAFE_CODE_SLICE; proposal docs only. Source/call read/write and implementation require exact STOP/handoff, fresh lease and separately reviewed/approved admission contract."
     },
     "result": {
       "original_conditions_closed": 0,
-      "local_conditions_closed": 1,
+      "local_conditions_closed": 0,
       "fixed_family_conditions_closed": 0,
-      "proof_class": "Reviewed bounded internal concrete-only N-Port-Intro producer correspondence is established for the applied producer; this does not reach authenticated source admission/consumer or close the original theorem.",
-      "implementation_class": "One direct-internal regression passes 1/1 and is explicitly labeled as bypassing source preflight. It covers AAR/RRR distinct rows with equal family IDs, paired links/projections, duplicate refusal and rollback. No source acceptance."
+      "proof_class": "Proposal reuses the reviewed internal producer result and names source-to-action correspondence as the next open premise; no new source proof or original gate closure.",
+      "implementation_class": "NO_SAFE_CODE_SLICE. No compiler changes, tests or expected-output changes authorized."
     },
     "resources": {
-      "cap_seconds": 1800,
-      "charged_seconds": 1440,
-      "available_seconds": 360,
-      "allocation": "Luna owner audit120 + Sol/high constructive proof600 after freeze + optional Luna code/test300 + compiler180 + spec120 + optional architecture120 + focused verification120 + integration120 + reserve120; Astra assignments0."
+      "cap_seconds": 420,
+      "charged_seconds": 300,
+      "available_seconds": 120,
+      "allocation": "Luna documentation-only proposal ≤300s/3 stages + fresh independent spec review ≤120s/3 stages. Astra0; no extra workers; no tests/builds; old sprint budget does not carry."
     },
-    "next_action": "NPAIR-SOURCE-ADMISSION successor proposed by dispatcher. Blocked until exact STOP/lease handoff for inherited UNKNOWN source/call owners; then new admission contract review and approval. Do not repeat producer audit. Astra0; old budget does not carry.",
-    "closeout": {
-      "path": "notes/progress/2026-10-18-npair-native-introduction-correspondence-closeout.md",
-      "sha256": "7bee0f6ff2b0e6f8d3db3df6dde3240ae801551e5b8f88a5d9fcbd1886547cf4",
-      "review": "compiler clean; spec minor repaired and delta-closed; sprint-end dispatcher consulted"
-    }
+    "artifacts": {
+      "proposal": {
+        "path": "notes/design/2026-10-18-npair-source-admission-proposal.md",
+        "sha256": "398b4f8683503d41e79d4d09b7a0a9591161a5673d48338c224037fae26d3158"
+      },
+      "handoff": {
+        "path": "tasks/agent-loop/inbox/20261018-npair-source-admission-proposal.md",
+        "sha256": "0d5231fffdaf001787b626eb279b1ce1182951472b88218938e2442228ec4e02"
+      }
+    },
+    "next_action": "Luna author STOP with exact contract/proposal/handoff hashes; assign a fresh independent spec_auditor for proposal-scope review. Preserve source/call quarantine and all three inherited UNKNOWN reservations.",
+    "closeout": null
   },
-  "history": "All prior sprint closeouts, proof artifacts, implementation receipts, independent reviews, runtime/check evidence and Git outcomes remain in their uniquely named frozen notes/design, notes/theory, notes/progress and tasks/agent-loop inbox artifacts; Git history preserves associated source commits. No historical worker or lease is live. Highlights: earlier HIR/source mapping and module work closed REVIEWED-PARTIAL with original theorem gates still open; Return-prefix transport ended at a typed-prefix-package obstruction; adopted NPAIR is now receiving its first integrated native producer proof/test. Astra default remains 0. Consult each archived artifact for exact evidence and limits.",
+  "history": "All prior sprint closeouts, proof artifacts, implementation receipts, independent reviews, runtime/check evidence and Git outcomes remain in their uniquely named frozen notes/design, notes/theory, notes/progress and tasks/agent-loop inbox artifacts; Git history preserves associated source commits. No historical worker or lease is live. Highlights: earlier HIR/source mapping and module work closed REVIEWED-PARTIAL with original theorem gates still open; Return-prefix transport ended at a typed-prefix-package obstruction; adopted NPAIR is now receiving its first integrated native producer proof/test. Astra default remains 0. Consult each archived artifact for exact evidence and limits. Latest closeout: notes/progress/2026-10-18-npair-native-introduction-correspondence-closeout.md SHA-256 7bee0f6ff2b0e6f8d3db3df6dde3240ae801551e5b8f88a5d9fcbd1886547cf4; original parent closure0, bounded local producer condition1. ",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN.",
   "workers": [
     {
@@ -50,7 +56,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Luna STOP; added only the leased regression in candidate_effect.rs. Focused Cargo test (shadow-apply-candidate feature) passed 1/1 after resolving fixture/path and monotone route-journal generation assumptions; three warning-only messages originate from yu-hir existing dead code. No descendants."
+      "receipt": "Proposal-only NPAIR source-admission contract, design and handoff authored/frozen on exact leased docs paths; STOP before independent review. No source/call reads, code, tests or descendants. Effective model/effort/runtime UNKNOWN; full300s reserved/charged."
     },
     {
       "id": "inherited UNKNOWN writer",
@@ -152,12 +158,27 @@
       "path": "notes/progress/2026-10-18-npair-native-introduction-correspondence-closeout.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/npair-source-admission-proposal-20261018.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/design/2026-10-18-npair-source-admission-proposal.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-source-admission-proposal.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
-      "id": "NPAIR-SOURCE-ADMISSION",
-      "state": "BLOCKED pending verified exact STOP/lease handoff for inherited UNKNOWN source/call owners; new reviewed/approved admission contract required. Parent gates remain OPEN."
+      "id": "NPAIR-SOURCE-ADMISSION-PROPOSAL-REVIEW",
+      "state": "Fresh spec review pending against frozen proposal/contract; no source/call access. Review cannot adopt semantics or release leases."
     }
   ]
 }
