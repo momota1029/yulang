@@ -266,7 +266,11 @@ fn main() {
         format!("relation={index} pair={pair:?} flow={flow:?} active={active}")).collect();
     println!("candidate.aggregate_scoped_dependencies={dependencies:?}");
     println!("candidate.aggregate_relation_flows={flows:?}");
-    println!("candidate.received_call_replay_flow_linkage=UNOBSERVED (aggregate APIs expose no direct link to this source_call)");
+    if std::env::var_os("YU_CALL_REPLAY_OBSERVER").is_some() {
+        println!("candidate.call_replay_observer=enabled (typed rows above identify original_call and ordered Replay endpoints; this is structural observation only)");
+    } else {
+        println!("candidate.received_call_replay_flow_linkage=UNOBSERVED (set YU_CALL_REPLAY_OBSERVER to stream typed internal Replay joins)");
+    }
 }
 
 fn same_scope(left: &LocalSourceScope, right: &LocalSourceScope) -> bool {

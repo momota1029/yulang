@@ -2529,6 +2529,19 @@ impl State {
         let flow = self.relations.get(id.0 as usize).ok_or_else(exhausted)?.key.scoped;
         if flow.0 == 0 { Ok(ScopedFlow::default()) } else { self.scope_flows.get(flow.0 - 1).copied().ok_or_else(exhausted) }
     }
+    /// Allocation-free source of exact Replay/demand rows for the private
+    /// diagnostic observer. Each dependency is preserved independently.
+    pub(super) fn replay_demand_rows(&self) -> impl Iterator<Item = (usize, RelationId, RelationId, RelationId, BoundKey, BoundKey, ScopedDemand, bool, bool)> + '_ {
+        self.dependencies.iter().filter_map(|dependency| {
+            let Dependency::Replay { child, lower, upper, lower_input, upper_input } = *dependency else { return None; };
+            let demand = self.scoped_flow(child).ok()?.demand?;
+            let lower_matches = self.relations.get(lower.0 as usize)
+                .is_some_and(|relation| relation.key.pair == bound_pair(lower_input));
+            let upper_matches = self.relations.get(upper.0 as usize)
+                .is_some_and(|relation| relation.key.pair == bound_pair(upper_input));
+            Some((demand.original_call, child, lower, upper, lower_input, upper_input, demand, lower_matches, upper_matches))
+        })
+    }
     fn relation(
         &mut self,
         pair: TypedPairKey,

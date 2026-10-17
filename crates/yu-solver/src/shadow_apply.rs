@@ -313,9 +313,26 @@ impl CandidateInference {
             return Err(CandidateError::Unsupported);
         }
         let session = InferenceSession::try_new_candidate(batch).map_err(CandidateError::Solve)?;
-        Ok(Self {
-            solved: session.run_candidate().map_err(CandidateError::Solve)?,
-        })
+        let solved = session.run_candidate().map_err(CandidateError::Solve)?;
+        if scoped && std::env::var_os("YU_CALL_REPLAY_OBSERVER").is_some() {
+            if let Some(graph) = &solved.data.candidate_graph {
+                let context = &graph.intrusion.effect_algebra.context;
+                let stderr = std::io::stderr();
+                let mut output = stderr.lock();
+                use std::io::Write as _;
+                for (call_index, child, lower, upper, lower_input, upper_input, demand, lower_matches, upper_matches)
+                    in context.replay_demand_rows()
+                {
+                    let native = solved.data.candidate_calls.calls.get(call_index).and_then(|call| call.native);
+                    let root_matches = native.is_some_and(|native| native.demand == demand.root);
+                    if writeln!(output,
+                        "candidate.call_replay call={call_index} child={} lower={} upper={} lower_input={lower_input:?} upper_input={upper_input:?} use_instance={} demand_root={:?} native_root_matches={root_matches} endpoint_pairs=(lower:{lower_matches},upper:{upper_matches})",
+                        child.0, lower.0, upper.0, demand.use_instance, demand.root).is_err()
+                    { break; }
+                }
+            }
+        }
+        Ok(Self { solved })
     }
     pub fn observes_hir(&self, hir: &HirModule) -> bool {
         std::ptr::eq(self.solved.data.hir.as_ref(), hir)
