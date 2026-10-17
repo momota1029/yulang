@@ -69,10 +69,10 @@
       "cap_seconds": 2400,
       "charged_seconds": 0,
       "available_seconds": 2400,
-      "active_authors": 0,
+      "active_authors": 1,
       "active_reviewers": 0,
       "unknown_reservations_preserved": 3,
-      "status": "Fresh envelope; decomposer admission pending."
+      "status": "Dependency mapper RUNNING under actual current-session launch; remaining lanes not admitted."
     },
     "workers": [
       {
@@ -104,11 +104,17 @@
         "receipt": "New contract pinned; preparing dependency-map assignment."
       },
       {
-        "id": "/root/task_decomposer",
+        "id": "/root/original_goal_minimal_cut_map",
         "role": "task_decomposer",
-        "state": "ASSIGNED",
-        "session": null,
-        "receipt": "No live launch yet; max 180 seconds; read-only."
+        "state": "RUNNING",
+        "session": "current-session",
+        "requested_model": "UNKNOWN",
+        "requested_effort": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "charged_seconds": 0,
+        "cap_seconds": 180,
+        "receipt": "Actual launch acknowledged by collaboration runtime; read-only dependency map; no write lease."
       }
     ],
     "leases": [
@@ -200,7 +206,7 @@
         "owner": "Luna/Astra"
       }
     ],
-    "next_action": "Dispatch the read-only task_decomposer; Luna adjudicates the exact cut and admission before proof or implementation writes.",
+    "next_action": "Receive dependency map, reconcile pins, freeze exact cut and decide if semantic authority suffices.",
     "closeout_fields": [
       "original unresolved premises genuinely discharged",
       "new implementation/test behavior established",
