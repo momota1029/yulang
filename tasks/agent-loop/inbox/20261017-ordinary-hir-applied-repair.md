@@ -1,8 +1,8 @@
 # Ordinary HIR applied-conformance repair: implementation handoff
 
-- Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev3, SHA-256
-  `006ffcf86d526f6eb5f668307ab81a2ae6dda2067a547889095d74fd89b25fd2`.
-  Handoff revision 4 (Luna's post-STOP check correction); failed candidate
+- Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev4, SHA-256
+  `896981171937cba0e98a3f0499ae79ddf97f180db97427cde908752ac042f3fd`.
+  Handoff revision 5 (Luna's review/replan update); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -99,9 +99,21 @@ After author STOP, Luna ran `git diff --check` successfully (exit 0). No Cargo,
 tests, build, compiler/format probe or execution probe was run; those remain
 held for sequential independent applied reviews and regression pre-run
 clearance. Static source inspection only; the producer cannot self-certify.
-Fresh compiler/spec/architect reviews and regression pre-run review remain
-required before the two frozen Cargo commands. Original theorem gates remain
-OPEN.
+The fresh compiler review is recorded in
+`notes/progress/2026-10-17-ordinary-hir-repair-applied-compiler-review.md`, SHA
+`2395d3ca4abd65b5c4a530f691cef5cb0b4688e8ec91913b255c48625b117191`. It is
+CLEAN on the seven fixes with one MINOR: `module.rs` merges `append_stage`
+before validating owning item index/kind/root and checked counter arithmetic.
+Luna grants a fresh <=30s repair author lease for only `module.rs` and this
+handoff, then a fresh <=30s compiler delta review of that ordering. Both caps
+come from reserve120, leaving reserve60. If either cap is exhausted, STOP and
+hold execution. The repair must validate the exact empty-error placeholder and
+counter increment before stage merge, then perform a no-fail validated replace.
+No other code/test path is reopened.
+
+After a CLEAN delta review, sequential spec and architect reviews and regression
+pre-run review remain required before the two frozen Cargo commands. Original
+theorem gates remain OPEN.
 
 Next in-envelope owner: Luna freezes these exact bytes, obtains those sequential
 reviews, then authorizes the two exact commands once each only after CLEAN

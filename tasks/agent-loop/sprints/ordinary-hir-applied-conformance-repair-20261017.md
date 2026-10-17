@@ -1,7 +1,7 @@
 # Sprint ordinary-hir-applied-conformance-repair-20261017
 
-Status: ARCHITECT CLEAN; IMPLEMENTATION ACTIVE. Revision 3 supersedes revision
-2 for live execution and adjudication. Candidate baseline
+Status: APPLIED REVIEW IN PROGRESS; NARROW ORDERING REPAIR AUTHORIZED. Revision
+4 supersedes revision 3 for the live repair/review budget. Candidate baseline
 `4f4dcb7b9`; current operational base may include later record-only commits.
 The prior sprint closed `REVIEWED-PARTIAL`; its candidate and
 exact compiler findings remain immutable:
@@ -87,6 +87,20 @@ precede publication; no partial module/list or duplicate/truncated diagnostic.
    - `tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md`
 5. After STOP/freeze, sequential fresh applied reviews: compiler <=180s,
    spec <=120s, architect <=180s. Then regression pre-run <=120s.
+   **Compiler review completed with one MINOR only:**
+   `notes/progress/2026-10-17-ordinary-hir-repair-applied-compiler-review.md`,
+   SHA-256 `2395d3ca4abd65b5c4a530f691cef5cb0b4688e8ec91913b255c48625b117191`.
+   It found `append_stage` preceding owner-slot/root validation and checked
+   counter increment. Luna grants a single narrow repair of `module.rs` and
+   the existing handoff, cap 30s, then a fresh independent compiler delta
+   review of this ordering only, cap 30s. Both are charged from the 120s
+   reserve, leaving reserve 60s. Preserve the candidate and its review receipt
+   at commit `5d9ecdfff`; do not modify other code/test paths. The repaired
+   ordering must validate item index, binding kind, exact empty-error
+   placeholder/root, and counter increment before `append_stage`; replacement
+   after merge must have no remaining fallible validation or arithmetic.
+   If either 30s cap is exhausted without frozen acceptable evidence, STOP and
+   hold execution; do not consume more reserve.
 6. Only after all CLEAN, one primary owner runs each command exactly once,
    sequentially, maximum120s each:
    `cargo test -p yu-hir --features shadow --test ordinary_application_admission`
@@ -120,8 +134,9 @@ crates/yu-solver/tests/research_accepted_call_vertical.rs         78fd0d4c38df86
 ```
 
 Fresh cap 2760s: coordination120; proof/source240; Luna plan90; pre-code
-architect120; implementation1110; applied reviews480; pre/post regression240;
-Cargo240; reserve120. Total 2760. No retired budget carries. Preserve all three
+architect120; implementation1110; initial compiler review180; ordering repair30
+and compiler delta review30 transferred from reserve; spec120; architect180;
+pre/post regression240; Cargo240; remaining reserve60. Total 2760. No retired budget carries. Preserve all three
 inherited UNKNOWN writer leases and their reservations. At most one author at a
 time; proof, plan, architect, implementation and reviews are sequential.
 
