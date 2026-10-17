@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
     "revision": 5,
     "sha256": "5c63c3829cd6275523b1799e0286837518e9fd7dd0213c13f3171d9d7b7a6125",
-    "state": "REGRESSION-PRE-RUN",
+    "state": "CARGO-VERIFICATION",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -29,10 +29,10 @@
     },
     "resources": {
       "cap_seconds": 2760,
-      "charged_seconds": 2229,
-      "available_seconds": 531,
+      "charged_seconds": 2349,
+      "available_seconds": 411,
       "retired_seconds": 0,
-      "allocation": "Charged through final architect 2229/2760s. Remaining: pre/post regression reviewers240; focused HIR unit command45; first integration120; second integration120; reserve6 =531."
+      "allocation": "Charged through pre-run regression review 2349/2760s. Remaining: focused HIR unit command45; HIR integration120; solver integration120; post-run regression review120; reserve6=411."
     },
     "workers": [
       {
@@ -184,17 +184,17 @@
       {
         "id": "/root/ordinary_hir_repair_regression_prerun_review",
         "role": "regression_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 120,
-        "charged_seconds": 0,
-        "remaining_seconds": 120,
+        "charged_seconds": 120,
+        "remaining_seconds": 0,
         "session": "current-session",
         "lease_paths": [],
-        "active_receipt": "Fresh read-only regression pre-run review spawned; collaboration runtime listed RUNNING. Checks rev5 exact three-command coverage and frozen pins. No test/build/Cargo/probe/Git/write/descendant authority."
+        "active_receipt": "STOPPED CLEAN; receipt notes/progress/2026-10-17-ordinary-hir-repair-regression-prerun-review.md. Exact elapsed UNKNOWN; full120s charged. Static only, no tests/builds/Cargo/probes/Git/writes/descendants."
       }
     ],
     "leases": [
@@ -267,6 +267,11 @@
         "path": "notes/progress/2026-10-17-ordinary-hir-repair-final-architect-review.md",
         "owner": "/root (transcribed read-only review)",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/progress/2026-10-17-ordinary-hir-repair-regression-prerun-review.md",
+        "owner": "/root (transcribed read-only review)",
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -321,7 +326,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Fresh regression pre-run reviewer RUNNING <=120s; exact command coverage/pins only, no test execution. After STOP and CLEAN, Luna may run unit target then the two integration targets sequentially, each once under 45/120/120 caps; otherwise replan. Post-run regression review required.",
+    "next_action": "All pre-run gates CLEAN. Luna runs exactly once and sequentially: `cargo test -p yu-hir --features shadow --lib module::tests::` cap45s; `cargo test -p yu-hir --features shadow --test ordinary_application_admission` cap120s; `cargo test -p yu-solver --features shadow-apply-candidate --test research_accepted_call_vertical` cap120s. Stop on timeout/compile failure/missing tests/assertion failure; no retry. Then fresh post-run reviewer <=120s.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },
