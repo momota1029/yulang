@@ -4,29 +4,29 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-observed-apply-function-ingress-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-observed-apply-function-ingress-20261018-rev2.md",
-    "revision": 2,
-    "sha256": "6792708386e9d977d8905716a2f79cc831fd5e37ad8f5e1d1b683919ddf8d0c8",
+    "id": "npair-s1-contribution-incidence-20261018",
+    "contract": "tasks/agent-loop/sprints/npair-s1-contribution-incidence-20261018.md",
+    "revision": 1,
+    "sha256": "08accf100d781e6a31882abd93fa38da15678a4995c39180c040760e88d2e88d",
     "state": "ACTIVE",
-    "baseline": "5c45c1807fc6f4fa495a2f0b85c4bdba1672820d",
+    "baseline": "fc278dbff8ca5ed7e74215e091fe857e7a5e7e01",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem, source domain, quantifiers, receive route, C1/C2 and F1/FK1 unchanged; closure0.",
-    "fixed_outcome": "Directly observe received HIR/LocalSource/Apply/operands; derive actual Apply native demand and complete Function dispatch; trace same returned R1 written s1 to D and both ordered Replay inputs, or locate first unestablished edge. Do not infer HIR absence from UnsupportedExpression.",
+    "fixed_outcome": "Construct authentic same-w contribution incidence eta at returned Written s1 from actual Operation/provider/reference/theta/world/assignment and source constructor path; otherwise identify first missing premise. In parallel, one pre-reviewed exact source/native observation of received Apply Function children and any tied ordered Replay inputs.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "prior_closeout": "notes/progress/2026-10-18-npair-actual-argument-ingress-closeout.md#sha256:339735f22855a643cefd37e7c174bdf9d983bd61bf3f6d74e2b816f5bda29f27"
+      "prior_closeout": "notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md#sha256:edabca36bc14325e2de7d32610ece08d71b4b69533707c28846f1030752bc04f"
     },
     "resources": {
-      "cap_seconds": 1800,
-      "charged_seconds": 1620,
+      "cap_seconds": 1200,
+      "charged_seconds": 1200,
       "available_seconds": 0,
-      "allocation": "proof600 STOPPED/charged; implementation720 conservatively charged (remainder UNKNOWN), one command consumed; proof review180 CLEAN/charged; implementation review120 reserved for post-run frozen query audit; Luna integration120 charged at start; reserve60. Envelope remains capped1800, Astra0."
+      "allocation": "proof600 Sol/high; implementation240 Luna/high with one run only after pre-run query review; proof review120; implementation review120 before run; Luna integration120; Astra0; descendants0; no prior budget rollover."
     },
-    "next_action": "Continue both lanes under rev2; independently review the frozen source_call/native/Replay harness query before using the single permitted run.",
+    "next_action": "Prove eta at the real returned Written s1 while implementation lane freezes the exact received-Apply/Replay query for independent pre-run review.",
     "available_seconds": 0
   },
-  "history": "Closed npair-actual-argument-ingress-20261018 rev1: original conditions0->0. Proof artifact review CLEAN within bounded constructor-obstruction claim. Implementation submission had a major overclaim about unobserved received LocalSource/collector absence; correction supersedes it and independent delta review CLEAN. One authorized harness run exit0 on partial HIR; fixture restored. See notes/progress/2026-10-18-npair-actual-argument-ingress-closeout.md. Successor contract rev2 adds same-snapshot source_call/native-demand/Function-child/ordered-Replay observation, with independent query review before the sole run; no source writes began under rev1. Fresh independent proof/spec review CLEAN on constructor-law artifact; original closure stays0. It verified source pins and the successful-path port map, keeping eta/T_rho/runtime Replay open. First actual-argument run directly found `received` LocalSource and Apply/source_call despite the UnsupportedExpression diagnostic; prior absence inference is affirmatively contradicted. Source-call supplied native demand fields, but endpoint/scope and runtime Replay correlation remain subject to frozen query evidence. Source lane STOPPED with fixture restored and one run receipt frozen; query/run order did not follow rev2 pre-run review gate, so post-run review is required and no second run is authorized because packet remainder is UNKNOWN.",
+  "history": "Closed npair-observed-apply-function-ingress-20261018 rev2: original conditions0->0. Constructor proof CLEAN within scope (actual Apply demand, all Function children, same-R1 fresh-use and native port equation); eta/T_rho/runtime Replay remain open. Single source run preceded rev2 frozen-query review gate; implementation review MAJOR process deviation, delta correction CLEAN. Run retained only as provisional author-reported observation; later strict query reverted unexecuted; fixture baseline restored; no second run because elapsed/remainder UNKNOWN. See notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md and provenance correction. New bounded sprint targets authentic same-w eta at returned Written s1 plus one pre-reviewed source/native observation; no theorem scope or prior budget rollover.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -38,157 +38,85 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Issued the frozen successor contract, corrected current snapshot and exact leases; integration work active."
-    },
-    {
-      "id": "/root/npair_actual_argument_ingress",
-      "role": "constructive proof",
-      "state": "STOPPED",
-      "requested_model": "Sol/prover",
-      "requested_effort": "high <=600s",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen proof artifact 3722104488fbd16bbc2c689798ee40d5e741f079403184c7bfdf784d58e891cd; inbox 015fbcd0a41cedf1f779485006e01d0f8a451b771032d06c97c1b412647d1b74. Actual Apply demand, all Function children, same-R1 install, and q_D^r=phi_r(rep(q_D)) successful-path native port map. Original eta, Permission/use T_rho, observed Replay remain OPEN; closure0. Full600 charged, writer STOPPED."
-    },
-    {
-      "id": "/root/npair_actual_argument_source_path",
-      "role": "Luna implementation/source path",
-      "state": "STOPPED",
-      "requested_model": "Luna/implementer",
-      "requested_effort": "high <=720s",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen note 9ac03afa281bea0236f87f01dae086fc618e4a2ee6932ea631d55d9c7125b851; inbox d46937517a4b671bb02e0bab9e1aa957a3509b0a1523067f7f0ec121d99c01c7. One command exit0/build1.60s, no other process; task elapsed/remainder UNKNOWN, so full720 charged. Run observed received LocalSource/Apply18/source_call and native endpoints despite HIR diagnostic. Strict scope checks and aggregate dependency/flow queries are current unexecuted code; runtime Replay remains open. Fixture restored SHA969e20e0f38a2c341a96ff4fe07028bf567ca134e0fb24602fadf6e4c723d9c0."
-    },
-    {
-      "id": "/root/npair_actual_argument_proof_review",
-      "role": "independent proof/spec reviewer",
-      "state": "STOPPED",
-      "requested_model": "Sol/spec_auditor",
-      "requested_effort": "high <=180s",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Independent proof/spec review CLEAN for constructor-law scope; all eight pinned source owners inspected after exact read-only grant, hashes matched. Actual runtime Replay, original eta, T_rho and parent remain OPEN; STOPPED."
+      "receipt": "Closed rev2, issued exact bounded successor contract and preparing proof/implementation lanes."
     }
   ],
   "leases": [
-    {
-      "path": "tasks/agent-loop/sprints/npair-observed-apply-function-ingress-20261018.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
     {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-observed-apply-function-ingress.md",
-      "owner": "/root/npair_actual_argument_ingress",
+      "path": "tasks/agent-loop/sprints/npair-s1-contribution-incidence-20261018.md",
+      "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-observed-apply-function-ingress.md",
-      "owner": "/root/npair_actual_argument_ingress",
+      "path": "notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/progress/2026-10-18-npair-observed-apply-run-provenance-correction.md",
+      "owner": "/root",
       "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-npair-observed-apply-source-evidence.md",
-      "owner": "/root/npair_actual_argument_source_path",
+      "owner": "/root",
       "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-observed-apply-source-evidence.md",
-      "owner": "/root/npair_actual_argument_source_path",
+      "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-npair-observed-apply-function-ingress.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-observed-apply-function-ingress.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-npair-s1-contribution-incidence.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-s1-contribution-incidence.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-18-npair-s1-contribution-source-evidence.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-s1-contribution-source-evidence.md",
+      "owner": "/root",
+      "state": "HELD"
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
-      "owner": "/root/npair_actual_argument_source_path",
-      "state": "FROZEN"
+      "owner": "/root",
+      "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
-      "owner": "/root/npair_actual_argument_source_path",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_source.rs",
-      "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_call.rs",
-      "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_scheme.rs",
-      "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_effect.rs",
-      "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_context.rs",
-      "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_extrusion.rs",
-      "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/shadow_apply.rs",
-      "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/lib.rs",
-      "owner": "/root/npair_actual_argument_ingress",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-hir/src/module.rs",
-      "owner": "/root/npair_actual_argument_source_path",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-hir/src/module/local_source.rs",
-      "owner": "/root/npair_actual_argument_source_path",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/npair-observed-apply-function-ingress-20261018-rev1.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/npair-observed-apply-function-ingress-20261018-rev2.md",
       "owner": "/root",
       "state": "HELD"
     }
   ],
-  "pending": [
-    {
-      "id": "observed-apply-implementation-review",
-      "state": "IN_REVIEW",
-      "owner": "/root/npair_actual_argument_impl_review",
-      "artifact_sha256": "9ac03afa281bea0236f87f01dae086fc618e4a2ee6932ea631d55d9c7125b851",
-      "handoff_sha256": "d46937517a4b671bb02e0bab9e1aa957a3509b0a1523067f7f0ec121d99c01c7",
-      "harness_sha256": "5525939261a25548f5694c06cef330dcf4e53079b6d5377b0a3cd87d4e2b8d12"
-    }
-  ],
+  "pending": [],
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "Prior proof, implementation and reviewers STOPPED; current contracts and frozen artifacts committed/pushed. New exact continuation leases granted to the two named lanes."
+    "receipt": "All prior proof/source/review writers STOPPED; old query lease released after exact rollback; fixture hash matches baseline; new exact leases granted only to the bounded successor lanes."
   }
 }
