@@ -13,10 +13,10 @@
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original A/B theorem and production gates OPEN.",
   "fixed_outcome": "Construct complete source formation for original inferred F2/xi in the existing descriptor universe with lawful transport, or freeze a reviewed precise bridge proposal and first indispensable producer/embedding law. Keep actual membership, VIncl(A1,F2), c2 image and ambient joins separate.",
   "review": {
-   "state": "REVIEW-PENDING; frozen candidate not accepted",
-   "current_reviewer": "compiler_referee",
+   "state": "SEQUENTIAL REVIEW; first CLEAN, remaining two pending",
+   "current_reviewer": "architect",
    "sequence": [
-    "compiler_referee",
+    "compiler_referee CLEAN: no findings; all pins verified",
     "architect",
     "spec_auditor"
    ],
@@ -34,9 +34,9 @@
    "review_cap_seconds": 360,
    "coordination_seconds": 120,
    "reserve_seconds": 120,
-   "charged_seconds": 420,
+   "charged_seconds": 540,
    "active_authors": 0,
-   "status": "Proof STOPPED after 394s actual elapsed; 420s charged. Three fresh sequential reviews reserved up to 360s. Conditional implementation lane still WAITING; three inherited UNKNOWN reservations retained."
+   "status": "Proof 420s charged; compiler_referee CLEAN and 120s review capacity conservatively charged. Architect and spec_auditor remain sequential; implementation lane conditional."
   },
   "lanes": {
    "proof": {
@@ -81,7 +81,7 @@
    "actual provider membership or VIncl from descriptor formation alone",
    "source T closure, anchored native MODEL, production conformance/cutover or parent theorem closure"
   ],
-  "next_boundary": "Fresh independent reviews sequentially; adjudicate candidate. Implementation design delta only if review confirms concrete new constructor evidence.",
+  "next_boundary": "Continue architect then spec_auditor review of the same frozen bytes; no semantic adoption. Then decide whether proof supplies concrete implementation producer evidence.",
   "workers": [
    {
     "id": "/root/resident_dispatcher_loop_a",
@@ -137,6 +137,18 @@
     "observed_effort": "UNKNOWN",
     "session": "current-session",
     "receipt": "FROZEN/STOPPED 2026-10-17 01:43:50 UTC; proof artifact frozen 01:43:02 UTC; 394s actual elapsed to stop, conservative charge 420/900s; five stages, no descendants/scratch. Handoff r1 and proof hashes recorded; effective model/effort UNKNOWN."
+   },
+   {
+    "id": "/root/receive_inferred_function_view_formation_compiler_review",
+    "role": "fresh independent compiler_referee review",
+    "state": "STOPPED",
+    "requested_model": "gpt-6.1-sol",
+    "requested_effort": "high",
+    "observed_model": "UNKNOWN",
+    "observed_effort": "UNKNOWN",
+    "session": "current-session",
+    "cap_seconds": 120,
+    "receipt": "Fresh independent compiler_referee completed CLEAN review of frozen artifact 7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590 and handoff a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a; all pins rechecked; read-only; STOPPED; observed model/effort UNKNOWN."
    }
   ]
  },
@@ -199,6 +211,18 @@
    "observed_effort": "UNKNOWN",
    "session": "current-session",
    "receipt": "FROZEN/STOPPED 2026-10-17 01:43:50 UTC; proof artifact frozen 01:43:02 UTC; 394s actual elapsed to stop, conservative charge 420/900s; five stages, no descendants/scratch. Handoff r1 and proof hashes recorded; effective model/effort UNKNOWN."
+  },
+  {
+   "id": "/root/receive_inferred_function_view_formation_compiler_review",
+   "role": "fresh independent compiler_referee review",
+   "state": "STOPPED",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-session",
+   "cap_seconds": 120,
+   "receipt": "Fresh independent compiler_referee completed CLEAN review of frozen artifact 7cb867df64f1d931b1667f33a6c323448d687c5d0d7fdcf9bac7535577f72590 and handoff a60a7ca1e5ea6b9d30adff7f1141b183bc8b9c8f6b8eda1302664721e7081e3a; all pins rechecked; read-only; STOPPED; observed model/effort UNKNOWN."
   }
  ],
  "leases": [
@@ -276,12 +300,12 @@
   "review_cap_seconds": 360,
   "coordination_seconds": 120,
   "reserve_seconds": 120,
-  "charged_seconds": 420,
+  "charged_seconds": 540,
   "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Proof STOPPED; 394s elapsed to STOP, conservatively charged 420s. Three sequential reviews pending; implementation remains conditional."
+  "status": "Proof 420s plus compiler_referee review cap 120s charged. First review CLEAN; architect and spec_auditor pending."
  },
- "history": "Prior checkpoint 520398c4a froze reviewed-partial c2 frontier: complete inferred F2 formation is the first unavailable law; candidate bridge remains unselected. New sprint targets the original source-owned Function formation judgment while retaining all existing descriptor/membership meanings and parent gates. Frozen proof candidate and handoff r1: source-local F2 inference introduction and joint embedding remain unsupported; 420s charged; review sequence compiler_referee, architect, spec_auditor.",
+ "history": "Prior checkpoint 520398c4a froze reviewed-partial c2 frontier: complete inferred F2 formation is the first unavailable law; candidate bridge remains unselected. New sprint targets the original source-owned Function formation judgment while retaining all existing descriptor/membership meanings and parent gates. Frozen proof candidate and handoff r1: source-local F2 inference introduction and joint embedding remain unsupported; 420s charged; review sequence compiler_referee, architect, spec_auditor. Independent compiler_referee review CLEAN at exact frozen hashes; all ten direct pins and original-parent hash match. Two fresh reviews remain.",
  "checkpoint_commits": [
   "9948ca23f7034dd67d878257db3df2237a7e66bd",
   "d1b706e83",
