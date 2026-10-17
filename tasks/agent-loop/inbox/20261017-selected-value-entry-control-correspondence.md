@@ -1,8 +1,8 @@
 # Selected Value-entry control correspondence handoff
 
 Sprint-ID: `receive-checked-inlet-bridge-and-entry-control-20261017`  
-Contract revision / SHA-256: **3** / `91fa2981f48b907d6915c4dd3d1a939bfcb4704b4a3252ef9fac529478a1d7f2`  
-Assignment-ID / handoff revision: `F2-ENTRY-CONTROL-20261017` / **2**  
+Contract revision / SHA-256: **4** / `2359514363d639a005921665ad4e6bd8ced7fe8256bf21b534c5f2c30c39a91d`  
+Assignment-ID / handoff revision: `F2-ENTRY-CONTROL-20261017` / **3**  
 Parent Goal: `型推論と実行器が証明込みで実装できるまで続ける`; original theorem and production gates remain OPEN.  
 Outcome class: **bounded HIR/runtime source control correspondence candidate**.
 
@@ -25,7 +25,7 @@ Outcome class: **bounded HIR/runtime source control correspondence candidate**.
 - Delay view inheritance only: `runtime/receiving.rs:114-129`; this is not a full original inlet interpretation.
 
 Artifact: `notes/theory/2026-10-17-selected-value-entry-control-correspondence.md`  
-Artifact SHA-256: `3a3af2183ce9962ae0e77eb33c91271d69fb8bb88c12229e42424ea7f2d50472`  
+Artifact SHA-256: `78d8b06b8304a6c1556c569b4b4fb7d455aa172c3f7aa1902563068f756b4981`  
 Handoff: this file; SHA-256 is computed after this write and recorded in current state/review target.
 
 Five runtime owners plus both proof outputs were pinned and rehashed at lane entry and matched at freeze. The artifact carries the exact source hashes. Checks were static source reads, control-stack tracing and SHA-256 only. No test/build/probe/runtime execution/Git, no scratch outputs. Luna stopped writing on freeze; no unresolved descendants.

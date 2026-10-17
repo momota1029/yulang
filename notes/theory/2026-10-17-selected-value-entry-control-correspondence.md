@@ -1,9 +1,9 @@
 # Selected Value-entry control correspondence for the returned `step`
 
 Date: 2026-10-17  
-Status: **bounded source correspondence candidate; revision 3 after compiler-referee MAJOR repair**  
-Sprint: `receive-checked-inlet-bridge-and-entry-control-20261017`, contract rev3  
-Contract SHA-256: `91fa2981f48b907d6915c4dd3d1a939bfcb4704b4a3252ef9fac529478a1d7f2`  
+Status: **bounded source correspondence candidate; revision 4 after compiler-referee delta**  
+Sprint: `receive-checked-inlet-bridge-and-entry-control-20261017`, contract rev4  
+Contract SHA-256: `2359514363d639a005921665ad4e6bd8ced7fe8256bf21b534c5f2c30c39a91d`  
 Parent Goal: 型推論と実行器が証明込みで実装できるまで続ける
 
 ## 1. Claim and boundary
@@ -18,11 +18,12 @@ static source inspection supports this bounded control-order claim: on the
 returned `step` closure's **Value-entry** path, the playground allocates the
 whole argument as inert `Delay`, chooses entry from that lambda formal's own
 annotation, places `ValueEntry` before running the delay, and binds the same
-formal only after the delay returns. A pending Request during that force unwinds
-the exact unfinished suffix, including `ValueEntry`; a captured continuation
-can restore that frame before the eventual rebind and body evaluation. A
-non-resuming handler abandons the suffix, and an unhandled request stops with
-the suffix retained in its returned continuation handle.
+formal only after the delay returns. A pending Request during that force
+unwinds to the selected handler delimiter. The unfinished suffix contains
+`ValueEntry` only when propagation crosses that frame: an inner handler leaves
+it live, while an outer handler may capture or abandon it. Captured continuations
+restore exactly the delimiter-relative suffix, and unhandled requests retain
+the accumulated suffix.
 
 This matches the phase order of the selected `Strict(I_x,x:A_x,R_c,IF_step)`
 Value-entry constructor, conditional on its independent whole-carrier
