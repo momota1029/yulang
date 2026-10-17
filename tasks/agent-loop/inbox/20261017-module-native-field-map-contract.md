@@ -1,33 +1,37 @@
-# Frozen handoff: MODULE-NATIVE-FIELD-MAP-20261017
+# Handoff: MODULE-NATIVE-FIELD-MAP-20261017
 
 Sprint-ID: `module-source-family-embedding-20261017`, contract revision 1  
-Contract SHA-256: `c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e`  
+Source contract SHA-256: `1465b65979b2742de020c2bc7b44ff6fb53adefa7158d9fa3947d0b4d5923502`  
 Assignment-ID: `MODULE-NATIVE-FIELD-MAP-20261017`  
-Handoff revision: 1  
+Handoff revision: 2  
 Parent: original Yulang inference/execution theorem; original A/B claims,
 quantifiers, source domain and source/native correspondence unchanged  
 Baseline: `0114f997b`  
-Role / worker: implementer, `/root/native_field_map_contract`  
+Original author: implementer, `/root/native_field_map_contract`; reviewed correction by `/root`  
 Requested model / effort: Luna (`gpt-6-luna`) / high  
 Observed effective model / effort: UNKNOWN / UNKNOWN (session metadata absent)  
-Author: this worker only; descendants: none
+Original author only on revision 1; Luna primary corrected revision 2; descendants: none
 
 ## Outcome and parent application
 
-Outcome class: **conditional source/native construction contract**. Artifact:
-`notes/design/2026-10-17-module-native-field-map-contract.md`, SHA-256
-`132f2abefe1e29f2c3d18359c0f94e61c2b47635182333a6d4b7bce6f70c2b83`.
+Outcome class: **conditional source/native construction/readiness contract**. Artifact:
+`notes/design/2026-10-17-module-native-field-map-contract.md`, revision-2
+SHA-256 `1465b65979b2742de020c2bc7b44ff6fb53adefa7158d9fa3947d0b4d5923502`.
 
 The contract names the actual compiler owners for syntax/provenance, module
 use identity, graph capture, publication, FreshUse row/scope/context/evidence
 transport and bound restoration. It defines the original full source tuple,
 fixed/shared versus instance-owned classes, a conditional whole-tuple
 commuting equation, and a later producer/representation algorithm with
-worst-case `O((n+m)^2)` time, `O(n+m)` per captured declaration and
-`O(k(n+m))` retained storage for k uses. It specifies private checked
-allocation, no partial publication, and the unresolved allocation-error
-integration contract. No compiler execution behavior changed; this is the
-approved two-path construction deliverable, not a code lease.
+proposed, unverified `O((n+m)^2)` bridge time, `O(n+m)` per declaration and
+`O(k(n+m))` sidecar retention across k uses, with source/native payloads and
+derivation ownership explicitly counted. It distinguishes this proposed
+bridge cost from existing parse, capture, solving and execution costs. Module
+FreshUse maps are not durably retained today; any future module sidecar must
+specify owner, lifetime, invalidation and byte budget. It specifies private
+checked allocation, no partial publication, and the unresolved allocation-
+error integration contract. No compiler behavior changed and no code lease is
+granted.
 
 Current honest result: **no total `Phi_u` is constructed, zero original
 conditions close, and no native whole-tuple correspondence is claimed.** The
@@ -39,9 +43,10 @@ Required source evidence IDs are `SRC-BUILD-FIELD-ORIGIN`,
 `SRC-LOGICAL-BINDER-ORIGIN`, `SRC-EVENTPROOF-OWNER`,
 `SRC-ALL-CLAUSE-COVERAGE`, plus publication-event and new/alias bridging.
 
-The source-family proof supplies a pending/reviewable source derivation for
-the fixed published `new` use and complete source map. It does not make the
-native rows semantic binders. The prior route and observer are structural,
+The corrected source-family proof supplies a pending/reviewable construction
+conditional on the authentic source handle owner classifying `u_id` as
+Published/new. That premise remains open; original closures are 0. The native
+rows are not semantic binders. The prior route and observer are structural,
 candidate-only evidence. Native candidate rule scheduling remains in its
 existing path; no new source admission, diagnostics, natural inference,
 expectations, production behavior or theorem claim is introduced.
@@ -51,8 +56,8 @@ expectations, production behavior or theorem claim is introduced.
 ```text
 tasks/agent-loop/sprints/module-source-family-embedding-20261017.md c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e
 notes/theory/2026-10-17-module-declaration-source-use-map.md bab0392a58451c84e77892c6a88d9eb434bcf9a6995afc80c404e7f29aaa448d
-notes/theory/2026-10-17-module-source-family-embedding.md c921db323ef1e1ce0f90465f4c51fbd5c6708ac84213bd670f8fe5d46fc4ba99
-tasks/agent-loop/inbox/20261017-module-source-family-embedding.md 456733314dccc0e9cb08d574911e3c069099f3ceaf03c4d6f8a21021b5639474
+notes/theory/2026-10-17-module-source-family-embedding.md 1eac108b03866ff5b2a0b1ba19f7974f3b9272ce7a5a55b17a3ccb7801fec73e
+tasks/agent-loop/inbox/20261017-module-source-family-embedding.md 0b47d992fee92ea6ee15fe8699123cdb57fa4ce80bea9f4b90b77e2fcd3c0aae
 tasks/agent-loop/sprints/module-use-source-map-and-provisional-observer-20261017.md e575fed444457c34bc229c5f10ca6510d8fb85d9e4ecc3f582f485d72952ec6e
 tasks/agent-loop/inbox/20261017-module-call-provisional-observer.md 4d4f33a692c4322726f0b6e4d347e5b1e31c702da7171fecc6a18f42ccfaaa07
 notes/theory/2026-10-17-local-use-retention-applied-correspondence.md 198046b6eb398734cf657ab03f05e171f8be568c1e8feb31115b9adc46d5f1ff
@@ -70,9 +75,22 @@ FreshUse code; SHA-256 of all direct pins above and output note. No tests,
 builds, Git, shell mutation, executable probes or compiler edits.
 
 The initial no-shell boundary prevented inspection until the primary clarified
-that read-only `rg`/`sed`/`sha256sum` access was in-scope. Exact active
-telemetry is unavailable; conservatively charge the full **480/480 second**
-assignment cap, including that boundary delay. Remaining budget: 0.
+that read-only `rg`/`sed`/`sha256sum` access was in-scope. Original author
+charged **480/480 seconds**. The independent architect review charged
+**180/180 seconds** and found: the stale unconditional `new` claim; module
+`FreshRoute` does not durably retain the other FreshUse remaps (unlike
+`LocalFreshRoute`); and complexity formulas are proposed/unverified unless
+nested payloads, derivation records and retained bytes are included and
+separated from existing solving/capture cost.
+
+The primary used a **45-second correction lease** to synchronize this contract
+and handoff with the corrected conditional source proof and mark module remap
+lifetime/storage as a future addition. The formulas are explicitly
+proposed/unverified, not compiler-performance evidence. Revision 2 has **not**
+received independent review because no review time remains in this sprint.
+The final 15 seconds cover freeze/state accounting; remaining budget: 0.
+The architect's review covered revision 1 only. Revision 2 remains pending a
+fresh independent delta review and is not accepted as a verified contract.
 
 Mutual TODO `MODULE-NATIVE-FIELD-MAP-OWNER`: the original source module rule
 owner supplies authenticated `Sig`, field/arm keys and allocation/witness
@@ -82,9 +100,9 @@ falsifier is any missing, duplicated, stale or misowned coordinate, changed
 new/alias partition, or omitted guard/alternative/clause. This requests
 owner-authenticated evidence; it grants no new path or semantics.
 
-Next related in-envelope action: Luna appoints the frozen independent
-architect review of the two leased artifacts. Further producer/code work
-requires a new explicit lease after the exact owner evidence is supplied.
+Next step: a fresh independent architect delta review must check this revision
+2 synchronization before it is accepted. Further producer/code work requires
+the exact source owner evidence and a new explicit lease.
 **STOP:** both leased files are frozen; no descendants, scratch paths,
 generated files or other writes exist. No self-certification or adoption is
 claimed. Review, source/native and all original theorem gates remain open.

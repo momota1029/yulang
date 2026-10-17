@@ -1,7 +1,7 @@
 # Module native field map construction contract
 
 Date: 2026-10-17  
-Status: conditional source/native construction contract; no code authority  
+Status: corrected conditional readiness contract; architect delta review pending; no code authority
 Sprint: `module-source-family-embedding-20261017`, revision 1  
 Parent: original Yulang inference/execution theorem; unchanged A/B claims,
 quantifiers, source domain and source/native correspondence  
@@ -27,15 +27,16 @@ distinguishes an actual compiler owner of structural evidence from the
 source-rule owner that must supply the semantic coordinate. Where there is no
 authentic native producer, the coordinate remains an explicit blocker.
 
-For this fixed source the frozen source construction selects `Build(L_id)`,
-`FinalRoot`, an actual `ModuleDef` name occurrence, publication before external
-use, and a `new` instance on the direct published edge. The original source
-embedding handoff constructs that source derivation but remains pending
-independent review/adoption. The native route independently confirms the
-syntax occurrence, `d_id` resolution, dependency-first publication and
-external route. It does **not** authenticate the source rule's `new`/alias
-judgment, provider, or complete semantic tuple. `d_x`, the declaration root,
-the source-use root and a proposed registered contract root remain distinct.
+For this fixed source the construction selects `Build(L_id)`, `FinalRoot`,
+an actual `ModuleDef` name occurrence, publication before external use, and
+the external route. The source owner has **not** derived whether this exact
+occurrence is Published/new or external Mono. The current source-family proof
+is conditional on an authentic Published handle derivation; it does not
+establish that premise, and zero original conditions close. The native route
+confirms syntax, `d_id` resolution, dependency-first publication and external
+routing only. It does **not** authenticate the source rule's `new`/alias
+judgment, provider, or complete semantic tuple. `d_x`, declaration root,
+source-use root and proposed registered contract root remain distinct.
 
 ## 2. Actual source and native owners inspected
 
@@ -75,8 +76,13 @@ representative. It also reconstructs native terms, effect operands/views,
 attachment bundles, context IDs, captured relation scope flows/demands and
 evidence snapshot IDs. `begin_candidate_fresh_bound` restores bounds using
 the saved orientation and creates a transport for the actual use. This is
-authentic native behavior. No inspected producer links all these native
-records to every original source-rule binder class.
+authentic native behavior. For module `FreshRoute`,
+`freshen_candidate_graph` returns the reconstructed root and row map; the
+other prepared `FreshUse` remaps are then dropped. The separate
+`LocalFreshRoute` retains `RetainedFreshUseMaps`. The future module bridge
+must explicitly own and retain any remaps it needs beyond this call. No
+inspected producer links all these native records to every original
+source-rule binder class.
 
 The exact native limitations are also recorded in the frozen source-use map
 §7 and local-use retention correspondence: native row eligibility is not the
@@ -99,7 +105,7 @@ contract does not treat a plausible native row as a substitute.
 | `Build` child tree, original local-rule signature, clauses and operand telescope | Source rule owner: selected Source Generalize `Build` and its actual `Sig`; native `emit_candidate_source` emits scheduled constraints from syntax forms | Must retain the complete constructor/operand incidence. There is no inspected native `Build` derivation or `Sig`-to-row owner map; exact blocker `SRC-BUILD-FIELD-ORIGIN`. |
 | Final root, root provenance and declaration/use root distinction | Source rule owner: selected `FinalRoot`; native source schedule emits `Action::Link` for an unannotated definition body, graph capture starts at a live component root | Root fields stay distinct. Native link/captured root is structural evidence only; no producer authenticates it as source `FinalRoot`. Exact blocker `SRC-FINALROOT-ROOT-ORIGIN`. |
 | Publication event, component/member and published-handle identity | Source rule owner: original module publication/lookup/Instance rules; native `candidate_scheme` SCC publication and `DefinitionUse` route | Publication/member identity is fixed for the declaration; use identity is instance-owned. Need a checked bridge between rule event and native publication record; current capture has neither source rule event nor alias witness. |
-| `new` versus alias/Mono/Live partition and instance handle | Source rule owner: original source module reference/handle constructors; native module Name resolution and `Action::Module` | `new` is selected by the frozen source proof for this direct published edge. Native scheduling does not encode that classification or a source instance handle. Preserve it as a blocker; do not infer it from row freshening. |
+| `new` versus alias/Mono/Live partition and instance handle | Source rule owner: original source module reference/handle constructors; native module Name resolution and `Action::Module` | The corrected proof derives `new` only conditionally on an authentic same-occurrence Published-handle derivation; that owner premise remains open. Native scheduling does not encode the classification or a source instance handle. Preserve it as a blocker; do not infer it from row freshening. |
 | Provider, allocation/world/lifetime, `Intrinsic`, `Established`, `OneShot` and fixed anchors | Source rule owner: selected `Build`, publication and Instance derivations; native rows, terms and effects are created by source actions / candidate graph | Fixed/shared exactly as in the complete source tuple. No native field names a complete provider tuple or its certificate. Never allocate a provider while constructing FreshUse. Blocker `SRC-PROVIDER-ANCHOR`. |
 | `Shared` declaration | Source rule's binder owner and dependency telescope; native canonical row map can preserve repeated endpoint identity | One source binder shared across every incidence, including the use. Repeated native row identity is supporting structural evidence only; source classification is absent. Do not split it per use. |
 | Eligible `Desc` and dependency tuple | Source rule owner: SRC two-mode closure/allocation over `Build` and final root; native `Capture::expand_row` and FreshUse canonical row table | Instance-owned only when the source closure proves eligibility; map once per source declaration and remap every dependency under the same instance key. Native predicate `local/level/boundary/non_generic` is not proved equal to SRC eligibility. Blocker `SRC-DESC-PARTITION`. |
@@ -204,25 +210,33 @@ This is a design recipe, not present code authority.
    scope/dependency/event-parent edge. Construct the full `Phi_u(T)` privately
    and publish it only after all checks and the commuting equation succeed.
 
-For `n` total retained source field/clause/edge records and `m` native graph,
-remap and operand records, a robust first implementation may use linear key
-searches and an explicit cycle-safe scan: `O((n+m)^2)` time, `O(n+m)` private
-working/retained space per captured declaration and `O(k(n+m))` retained
-per-use sidecars for `k` retained uses. Graph structures are traversed as
-finite presentations; registered cycles are never unfolded. This deliberately
-accepts higher asymptotic cost for auditable complete matching. If an indexed
-implementation is later used, it must retain the same checks and give a
-separate collision/identity argument.
+The following is a proposed, unverified bound for a future implementation,
+not measured or proved behavior of current capture or solving. Let `n` count
+all source field/clause/edge records, retained source-derivation payloads and
+ordered operand entries; let `m` count all nested native graph payloads,
+remaps and operand records. With key references rather than recursive payload
+copies, linear key search and a cycle-safe finite-presentation scan suggest
+`O((n+m)^2)` bridge time, `O(n+m)` private working space per captured
+declaration, and `O(k(n+m))` retained bytes up to record-size factors for the
+new sidecars across `k` uses. This excludes existing parsing, graph capture,
+constraint solving and execution costs, which require separate bounds. The
+bound must be revised if keys or sidecars duplicate nested derivations or
+operand payloads. Registered cycles are never unfolded. An indexed
+implementation needs a separate collision/identity argument while retaining
+the same checks.
 
 Storage includes every `SourceFieldKey`, class and dependency incidence,
-source-origin-to-native-key link, sidecar image, and per-use mapping; omitting
-logical/event records to save space breaks the bound. Existing native capture
-already retains `Graph` and the graph's maps; its `FreshUse` retains row,
-term, scope, relation, effect operand, bundle, context and evidence remaps.
-This contract adds `O(n+m)` metadata to those existing retained records for
-one captured declaration, plus `O(n+m)` for each retained use. Source syntax
-and source derivation ownership remain alive or are immutably referenced for
-as long as reconstruction is permitted.
+source-origin-to-native-key link, sidecar image, source derivation reference,
+and per-use mapping; omitting logical/event records to save space breaks the
+proposed bound. On the module `FreshRoute`, `freshen_candidate_graph` returns
+the reconstructed root and row map, then drops the other `FreshUse` maps;
+`RetainedFreshUseMaps` exists on `LocalFreshRoute`, not this module route.
+Thus durable module storage of row, term, scope, relation, effect operand,
+bundle, context and evidence remaps is a **future addition**, with an explicit
+owner, lifetime, invalidation point and retained-byte budget still to be
+specified. The proposed sidecar cost is additional to existing retained
+`Graph` state and source syntax/derivation records, which must remain alive or
+be immutably referenced for as long as reconstruction is permitted.
 
 Use checked addition/multiplication and fallible reservation (`try_reserve`)
 for each sidecar, key table and dependency vector. Keep partial allocations
@@ -273,18 +287,21 @@ owner-authenticated producer for `SRC-BUILD-FIELD-ORIGIN`,
 `SRC-FINALROOT-ROOT-ORIGIN`, `SRC-PROVIDER-ANCHOR`, `SRC-DESC-PARTITION`,
 `SRC-LOGICAL-BINDER-ORIGIN`, `SRC-EVENTPROOF-OWNER`, and
 `SRC-ALL-CLAUSE-COVERAGE`, plus the new/alias and publication-event bridge.
-The next related in-envelope step is Luna's independent architecture review
-of this frozen contract and the exact owner TODOs; any code work requires a
-new explicit lease. This does not choose a semantic alternative or close a
-theorem gate.
+The architect's revision-1 review confirmed this exact owner blocker and
+found that the contract needed synchronization with the corrected conditional
+source proof, explicit module-remap lifetime/storage, and qualified complexity
+accounting. This revision records those findings. Its revision-2 delta has not
+received independent review; accept it only after a fresh bounded review.
+Any code work requires a new explicit lease. No semantic alternative or
+theorem gate is adopted here.
 
 ## 7. Reused evidence, direct pins and checks
 
 Reused without promotion: the frozen module source-use map's complete
 conditional tuple, source/native owner census and Shared/ViewLogic falsifier;
-the original module source-family proof's `Build`/`FinalRoot`/publication/
-`new` construction and §7.2 substitution (review/adoption pending); the
-previous candidate observer's direct `Name(ModuleDef)` classification and
+the corrected module source-family proof's `Build`/`FinalRoot`/publication
+construction and conditional §7.2 substitution (handle-owner premise open);
+the previous candidate observer's direct `Name(ModuleDef)` classification and
 candidate-only boundary; and local-use retention's valid projection cut.
 Rejected as whole-map evidence: endpoint equality, candidate row freshening,
 source/native ordinal equality, captured `EvidenceSnapshot` as an
@@ -296,8 +313,8 @@ Direct inspected artifact SHA-256:
 ```text
 tasks/agent-loop/sprints/module-source-family-embedding-20261017.md c78deada22ab326a02045bc0c0dc1c0e723f5aaf52cef81dc699ecda87afd18e
 notes/theory/2026-10-17-module-declaration-source-use-map.md bab0392a58451c84e77892c6a88d9eb434bcf9a6995afc80c404e7f29aaa448d
-notes/theory/2026-10-17-module-source-family-embedding.md c921db323ef1e1ce0f90465f4c51fbd5c6708ac84213bd670f8fe5d46fc4ba99
-tasks/agent-loop/inbox/20261017-module-source-family-embedding.md 456733314dccc0e9cb08d574911e3c069099f3ceaf03c4d6f8a21021b5639474
+notes/theory/2026-10-17-module-source-family-embedding.md 1eac108b03866ff5b2a0b1ba19f7974f3b9272ce7a5a55b17a3ccb7801fec73e
+tasks/agent-loop/inbox/20261017-module-source-family-embedding.md 0b47d992fee92ea6ee15fe8699123cdb57fa4ce80bea9f4b90b77e2fcd3c0aae
 tasks/agent-loop/sprints/module-use-source-map-and-provisional-observer-20261017.md e575fed444457c34bc229c5f10ca6510d8fb85d9e4ecc3f582f485d72952ec6e
 tasks/agent-loop/inbox/20261017-module-call-provisional-observer.md 4d4f33a692c4322726f0b6e4d347e5b1e31c702da7171fecc6a18f42ccfaaa07
 notes/theory/2026-10-17-local-use-retention-applied-correspondence.md 198046b6eb398734cf657ab03f05e171f8be568c1e8feb31115b9adc46d5f1ff
