@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev6, SHA-256
   `3d3f8fd3643bf3b1d27793f470f19b430779bc24f1698788d89295e770c258a4`.
-  Handoff revision 13 (Luna's rev6 repair authorization); failed candidate
+  Handoff revision 14 (Luna's post-repair acknowledgment); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -152,3 +152,22 @@ Post-run regression review remains required. Proof/source TODO
 missing consumer is
 `ConstraintBatch::collect`/`collect_mode`. Worker STOPPED, no unresolved child
 leases.
+
+## Rev6 focused-unit compile repair — handoff revision 14
+
+Assignment `/root/ordinary_hir_unit_test_match_repair`; requested model/effort
+`gpt-6-luna`/high, observed model/effort UNKNOWN. Exact leased paths only:
+`crates/yu-hir/src/lib.rs` and this handoff. The single test-only edit changes
+the `direct_structured_invalid_item_retains_its_nested_recovery` assertion to
+match `expression.hir` (the `AssociatedExpr` payload). Its expected outer
+`HirExpr::Error { kind: SyntaxKind::Invalid, ... }`, nested
+`HirExpr::Error { kind: SyntaxKind::Missing, children: [] }`, cursor assertion,
+and all other behavior remain unchanged.
+
+The first focused unit invocation's E0308 is addressed at its source. No tests,
+builds, Cargo commands, compiler/probes, formatter, Git, network access, or
+descendants were used by this author. No scratch/generated paths were created.
+Source SHA-256 is `cf0a2d537df793986509175fbde2785731ac28f4bc3f2024f4f0fbca2127c5ed`;
+the final handoff SHA-256 is supplied in the frozen worker message. Writes
+STOPPED; fresh independent compiler delta review of this exact edit is required
+before Luna may use the single post-repair unit invocation.

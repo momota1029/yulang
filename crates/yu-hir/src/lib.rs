@@ -2607,7 +2607,7 @@ mod tests {
             .expect("accepted recovery syntax keeps association invariants");
         assert_eq!(parser.cursor, children.len());
         assert!(matches!(
-            expression,
+            expression.hir,
             HirExpr::Error {
                 kind: SyntaxKind::Invalid,
                 children,

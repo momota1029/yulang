@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
     "revision": 6,
     "sha256": "3d3f8fd3643bf3b1d27793f470f19b430779bc24f1698788d89295e770c258a4",
-    "state": "NARROW-TEST-REPAIR",
+    "state": "COMPILER-DELTA-REVIEW",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -29,10 +29,10 @@
     },
     "resources": {
       "cap_seconds": 2760,
-      "charged_seconds": 2367,
-      "available_seconds": 393,
+      "charged_seconds": 2397,
+      "available_seconds": 363,
       "retired_seconds": 0,
-      "allocation": "Through failed first unit invocation, 2352s charged; rev6 coordination15 charged. Remaining: test-only author30 + compiler delta30 + one post-repair unit invocation45 + HIR integration90 + solver integration90 + post-run review90 + reserve18 =393."
+      "allocation": "Charged through first unit compile failure2352 + rev6 coordination15 + bounded repair author30 =2397/2760s. Remaining: fresh compiler delta30; one post-repair unit invocation45; HIR integration90; solver integration90; post-run regression90; reserve18=363."
     },
     "workers": [
       {
@@ -199,20 +199,35 @@
       {
         "id": "/root/ordinary_hir_unit_test_match_repair",
         "role": "implementer",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6-luna",
         "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "cap_seconds": 30,
+        "charged_seconds": 30,
+        "remaining_seconds": 0,
+        "session": "current-session",
+        "lease_paths": [
+          "crates/yu-hir/src/lib.rs",
+          "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md"
+        ],
+        "active_receipt": "STOPPED after one test-only edit. lib.rs SHA cf0a2d537df793986509175fbde2785731ac28f4bc3f2024f4f0fbca2127c5ed; handoff rev14. Exact elapsed UNKNOWN; full30s charged. No tests/builds/Cargo/probes/formatter/Git/network/descendants."
+      },
+      {
+        "id": "/root/ordinary_hir_unit_compile_repair_delta",
+        "role": "compiler_referee",
+        "state": "RUNNING",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 30,
         "charged_seconds": 0,
         "remaining_seconds": 30,
         "session": "current-session",
-        "lease_paths": [
-          "crates/yu-hir/src/lib.rs",
-          "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md"
-        ],
-        "active_receipt": "Fresh Luna/high implementer launched for exact cfg(test) AssociatedExpr→expression.hir match adaptation, preserving expected HirExpr::Error structure. Collaboration runtime listed RUNNING. Rev6 only; no other source/test edits or verification/Git authority."
+        "lease_paths": [],
+        "active_receipt": "Fresh read-only compiler delta review launched for exact one-line test assertion adaptation. Collaboration runtime listed RUNNING. No tests/builds/Cargo/probes/Git/write/descendant authority."
       }
     ],
     "leases": [
@@ -243,13 +258,13 @@
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-applied-repair.md",
-        "owner": "/root/ordinary_hir_unit_test_match_repair",
-        "state": "LIVE"
+        "owner": "/root",
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/src/lib.rs",
-        "owner": "/root/ordinary_hir_unit_test_match_repair",
-        "state": "LIVE"
+        "owner": "/root",
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/src/module.rs",
@@ -349,7 +364,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Test-only repair author RUNNING <=30s with lib.rs+handoff only. After STOP freeze hashes; fresh independent compiler delta review <=30s. No command before CLEAN delta.",
+    "next_action": "Fresh compiler delta review RUNNING <=30s. Candidate source/handoff frozen. On STOP, reconcile charge and adjudicate. Only CLEAN permits one post-repair unit invocation.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },
