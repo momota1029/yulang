@@ -8,13 +8,13 @@
   "contract": "tasks/agent-loop/sprints/receive-inlet-admission-and-hir-entry-correspondence-20261017.md",
   "revision": 3,
   "sha256": "e7300e34dbf87ca0dab862acd340d25a0cae84d7226caf97ea370cc39233a45d",
-  "state": "PROOF-FROZEN-SOURCE-PIN-REVALIDATION",
+  "state": "SOURCE-TRACE-FROZEN-REVIEW-PENDING",
   "baseline": "14a830e6f",
   "parent": "型推論と実行器が証明込みで実装できるまで続ける; original FORWARD-FIRST-CALL A/B and production gates OPEN.",
   "fixed_outcome": "At original c2/xi, compare original inlet with SAT universal designated-execution typing in both directions or isolate the missing original admission law; separately prove/refute selected HIR-owned runtime Value/Computation entry correspondence through closure, aliases/capture and saved frames. No semantic adoption or code.",
   "review": {
-   "state": "NOT_STARTED",
-   "current_reviewer": null,
+   "state": "PENDING",
+   "current_reviewer": "compiler_referee",
    "sequence": [
     "compiler_referee",
     "spec_auditor",
@@ -28,9 +28,9 @@
    "review_cap_seconds": 300,
    "coordination_seconds": 60,
    "reserve_seconds": 120,
-   "charged_seconds": 420,
+   "charged_seconds": 480,
    "active_authors": 0,
-   "status": "Astra STOPPED after 368s elapsed, 420/720 charged; source lane waits while proof artifact pins are incorporated into contract rev3 and all direct dependencies revalidated."
+   "status": "Astra STOPPED, 420/720 charged; Luna HIR/runtime trace STOPPED, 60/300 charged; compiler/spec/architect reviews pending sequentially."
   },
   "lanes": {
    "proof": {
@@ -45,13 +45,13 @@
    },
    "runtime_source": {
     "owner": "/root (Luna/high)",
-    "state": "WAITING_FOR_PINNED_PROOF_AND_REV3_REVALIDATION",
+    "state": "FROZEN",
     "outputs": [
      "notes/theory/2026-10-17-hir-owned-runtime-entry-correspondence.md",
      "tasks/agent-loop/inbox/20261017-hir-owned-runtime-entry-correspondence.md"
     ],
     "cap_seconds": 300,
-    "receipt": "Sequential read-only lane; exact paths reserved; no code lease."
+    "receipt": "Read-only lane began 2026-10-17 02:43:16 UTC after Astra STOP and rev3 pins matched; STOP/freeze 02:44:08 UTC, 52s elapsed, 60/300 charged. Artifact SHA 434916834dc34578806e7c57fb54efdb05381a4fee5e426f409a5cd278f95cac; handoff SHA 4e16b58f04934480c66c1ab983ea52003a4cdf7043fa77b5d29e52eacc2723d5. No tests/builds/probes/execution/code edits or descendants."
    },
    "implementation": {
     "owner": "Luna after source result and separate authority",
@@ -77,6 +77,14 @@
    {
     "path": "tasks/agent-loop/inbox/20261017-receive-sat-admission-comparison.md",
     "sha256": "e8e0052c6337b28f6c252e5761f882f30574c1e2cdefdca79408cef9523d8822"
+   },
+   {
+    "path": "notes/theory/2026-10-17-hir-owned-runtime-entry-correspondence.md",
+    "sha256": "434916834dc34578806e7c57fb54efdb05381a4fee5e426f409a5cd278f95cac"
+   },
+   {
+    "path": "tasks/agent-loop/inbox/20261017-hir-owned-runtime-entry-correspondence.md",
+    "sha256": "4e16b58f04934480c66c1ab983ea52003a4cdf7043fa77b5d29e52eacc2723d5"
    }
   ],
   "non_goals": [
@@ -125,13 +133,13 @@
    {
     "id": "/root",
     "role": "Luna primary; contract/award and sole Git integrator",
-    "state": "RUNNING",
+    "state": "WAITING",
     "requested_model": "gpt-6-luna",
     "requested_effort": "high",
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "Proof lane STOPPED; Luna holds sequential runtime-source output lease and revalidates contract rev3 before starting."
+    "receipt": "Source trace STOP/freeze 2026-10-17 02:44:08 UTC; 52s elapsed, 60/300 charged; exact outputs frozen for independent review."
    },
    {
     "id": "/root/receive_sat_admission_comparison",
@@ -187,13 +195,13 @@
   {
    "id": "/root",
    "role": "Luna primary and sole integrator",
-   "state": "RUNNING",
+   "state": "WAITING",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Proof lane STOPPED; Luna holds sequential runtime-source output lease and revalidates contract rev3 before starting."
+   "receipt": "Source trace STOP/freeze 2026-10-17 02:44:08 UTC; 52s elapsed, 60/300 charged; exact outputs frozen for independent review."
   },
   {
    "id": "/root/receive_sat_admission_comparison",
@@ -245,12 +253,14 @@
   {
    "path": "notes/theory/2026-10-17-hir-owned-runtime-entry-correspondence.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "434916834dc34578806e7c57fb54efdb05381a4fee5e426f409a5cd278f95cac"
   },
   {
    "path": "tasks/agent-loop/inbox/20261017-hir-owned-runtime-entry-correspondence.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN",
+   "sha256": "4e16b58f04934480c66c1ab983ea52003a4cdf7043fa77b5d29e52eacc2723d5"
   }
  ],
  "pending": [
@@ -298,13 +308,18 @@
    "id": "HIR-RUNTIME-ENTRY-CORRESPONDENCE-20261017",
    "state": "WAITING_FOR_PROOF_STOP; exact selected runtime-only path, read-only",
    "owner": "Luna/HIR and playground runtime owner"
+  },
+  {
+   "id": "INDEPENDENT-REVIEW-ADMISSION-AND-HIR-20261017",
+   "state": "PENDING; compiler_referee then spec_auditor then architect",
+   "owner": "Luna assigns and adjudicates"
   }
  ],
  "next_action": {
-  "state": "PROOF-FROZEN-SOURCE-PIN-REVALIDATION",
+  "state": "SOURCE-TRACE-FROZEN-REVIEW-PENDING",
   "dispatcher": "Selector proposed admission comparison plus independent HIR-owned runtime-entry proof; Luna accepted and granted these exact sequential lanes.",
   "proof": "Both SAT2 inclusions OPEN; exact missing law is original F2/I2 to B_in admission and full domain correspondence. VIEW elimination and CHECK introduction have distinct falsifiers in frozen handoff.",
-  "implementation": "Sequential HIR-owned runtime-entry correspondence begins after rev3 dependency revalidation; no compiler code lease."
+  "implementation": "Narrow selected-runtime HIR identity chain is source-traced; candidate evidence is not imported. No code lease; review frozen source correspondence."
  },
  "resource_accounting": {
   "sprint_id": "receive-inlet-admission-and-hir-entry-correspondence-20261017",
@@ -314,10 +329,10 @@
   "review_cap_seconds": 300,
   "coordination_seconds": 60,
   "reserve_seconds": 120,
-  "charged_seconds": 420,
+  "charged_seconds": 480,
   "active_authors": 0,
   "unknown_reservations_preserved": 3,
-  "status": "Astra proof STOPPED, 420/720s charged; source lane waits for rev3 pin revalidation; no code lease; three UNKNOWN reservations retained."
+  "status": "Astra proof STOPPED, 420/720s; Luna source trace STOPPED, 60/300s; sequential compiler/spec/architect reviews pending; three UNKNOWN reservations retained."
  },
- "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f. Astra proof lane actually launched 2026-10-17 02:35:46 UTC after 15 dependency pins matched; requested Astra/medium, effective model UNKNOWN; 720s cap. Contract rev2 adds the selected call-semantic-input-realization dependency requested by Astra; its hash matched current bytes. Worker paused reliance pending sequential pin/contract acknowledgment; no output writes; budget not reset. Astra interim: Strict selected proof unfolds full T at its own designated Force view; this does not establish original F2 incoming-port correspondence or reverse guard completeness. 86s elapsed, 90s charged; waiting for rev2 acknowledgment. Astra acknowledged rev2 contract and call-semantic input pin at 02:37:31 UTC; all revised pins matched, budget not reset. Exact missing source law narrowed to original incoming-port/carrier-view identity plus complete domains. Proof midpoint recorded 02:41:04 UTC (316s elapsed, 330s charged); decisive F2-to-Strict inlet/view/domain identity remains open. Astra STOP/freeze 02:41:56 UTC: 368s elapsed, 420 charged; both SAT2 directions OPEN; exact F2/I2-to-B_in/domain source-law gaps frozen. Contract rev3 pins proof outputs before Luna starts source trace."
+ "history": "Previous sprint REVIEWED-PARTIAL; frozen outcome and independent compiler delta/spec/architect receipts archived at notes/progress/2026-10-17-receive-role-indexed-inlet-introduction-review.md SHA e937b503a978f9ee2e3a4e9a9aaed7dd4c42c76bf230ff8a913b90a1c2335f3f. SAT2 both inclusions, RG2, complete guard inventory and original theorem gates remain OPEN. Selector recommended direct admission comparison plus HIR-owned runtime-entry identity proof; Luna accepted. New contract SHA 6fb5334a319d4b92943ab53f6ada87a7ee54d81f2b47ba47d3deab4a9be86878 at baseline 14a830e6f. Astra proof lane actually launched 2026-10-17 02:35:46 UTC after 15 dependency pins matched; requested Astra/medium, effective model UNKNOWN; 720s cap. Contract rev2 adds the selected call-semantic-input-realization dependency requested by Astra; its hash matched current bytes. Worker paused reliance pending sequential pin/contract acknowledgment; no output writes; budget not reset. Astra interim: Strict selected proof unfolds full T at its own designated Force view; this does not establish original F2 incoming-port correspondence or reverse guard completeness. 86s elapsed, 90s charged; waiting for rev2 acknowledgment. Astra acknowledged rev2 contract and call-semantic input pin at 02:37:31 UTC; all revised pins matched, budget not reset. Exact missing source law narrowed to original incoming-port/carrier-view identity plus complete domains. Proof midpoint recorded 02:41:04 UTC (316s elapsed, 330s charged); decisive F2-to-Strict inlet/view/domain identity remains open. Astra STOP/freeze 02:41:56 UTC: 368s elapsed, 420 charged; both SAT2 directions OPEN; exact F2/I2-to-B_in/domain source-law gaps frozen. Contract rev3 pins proof outputs before Luna starts source trace. Luna HIR/runtime source trace STOP/freeze 02:44:08 UTC: 52s elapsed, 60/300 charged; HIR parameter/local IDs, closure capture, alias, entry binder and saved-frame environment handles retain identity without CandidateInference on selected playground path. Fresh sequential reviews pending."
 }
