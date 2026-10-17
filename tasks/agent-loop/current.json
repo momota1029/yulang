@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-application-admission-implementation-20261017.md",
     "revision": 1,
     "sha256": "a9220bc8dab9019a3b8d362ea6ed447cdbc0e70373f2b10845e6b02b8d8cc496",
-    "state": "PROOF-LANE-READY",
+    "state": "PROOF-COUNTEREXAMPLE-OPEN",
     "baseline": "5fbceb68d",
     "parent": "Original Yulang inference/execution goal; original A/B claims, quantifiers, source/native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Implement adopted rev4 structural HIR admission and prove projection preservation through ordinary HIR. Apply only to the exact structural premise of the original Call/source bridge; no semantic Call or parent theorem closure.",
@@ -21,16 +21,17 @@
       "original_conditions_closed": 0,
       "behavior_executed": false,
       "proof_class": "Not started; bounded structural projection theorem under adopted rev4 contract.",
-      "implementation_class": "Not started; ordinary lowering and fixed-source vertical required.",
+      "implementation_class": "HOLD; no code/tests until the resource-only amendment is reviewed CLEAN and primary adoption is recorded.",
       "HIR_APP_CST_1": "LOCALLY RESOLVED within pinned fixed-source scope; no parser-wide claim.",
       "HIR_APP_ADMISSION_1": "ADOPTED; implementation and proof active under exact rev4 contract.",
-      "parent_application": "Still to be derived by Astra from the actual original Call/source bridge; no Call typing, source T or adequacy inferred."
+      "parent_application": "Still to be derived by Astra from the actual original Call/source bridge; no Call typing, source T or adequacy inferred.",
+      "HIR_APP_ERRREF_1": "COUNTEREXAMPLE: left-associated n-application chain with unresolved operands has n(n+1)/2 descendant error-ID references in Apply.errors (up to n(n+3)/2 counting unresolved callee), despite O(n) nodes. Rev4 §2 linear retained-entry bound conflicts with §4 complete descendant error lists."
     },
     "resources": {
       "cap_seconds": 4020,
-      "charged_seconds": 120,
-      "available_seconds": 3900,
-      "allocation": "Coordination120 charged; Astra720; proof reviews300; Luna/high implementation1800; applied reviews480; regression pre/post reviews240; two sequential Cargo invocations240; reserve120."
+      "charged_seconds": 240,
+      "available_seconds": 3780,
+      "allocation": "Coordination120 + Astra active interval conservatively charged120; after counterexample, planned transfer reserve120 -> amendment author90/reserve30 and implementation1800 -> implementation1710/pre-code architect90; cap remains subject to rev2 freeze."
     },
     "workers": [
       {
@@ -74,9 +75,9 @@
         "session": "current-session",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "active_receipt": "Acknowledged fresh structural-preservation assignment; reading contract/adopted rev4 under exact two-file lease; no code/tests/probes/descendants.",
-        "charged_seconds": 0,
-        "remaining_seconds": 720
+        "active_receipt": "Counterexample found: nested Apply.errors duplicates all descendant IDs, yielding Theta(n^2) references. Freezing exact lower bound and independently valid structural/identity lemmas; full linear-storage contract claim STOP after freeze.",
+        "charged_seconds": 120,
+        "remaining_seconds": 600
       }
     ],
     "leases": [
@@ -183,7 +184,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Launch bounded Astra proof assignment after contract checkpoint; freeze and independently review proof before Luna starts implementation. Next dispatcher boundary: proof counterexample, dependency/lease change, integrated review seam or sprint end.",
+    "next_action": "Wait for Astra STOP/frozen proof counterexample; then author resource-only amendment under exact two-file lease, obtain compiler/spec and pre-code architect review, adjudicate before implementation. No code/tests meanwhile.",
     "predecessor": "tasks/agent-loop/sprints/20261017-choice-a-group-root-ownership-closeout.md",
     "predecessor_commit": "5fbceb68d"
   },
