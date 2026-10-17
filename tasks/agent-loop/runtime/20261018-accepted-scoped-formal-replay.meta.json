@@ -1,0 +1,35 @@
+{
+  "sprint": "npair-operation-rule-completion-and-accepted-replay-20261018",
+  "contract_revision": 1,
+  "contract_sha256": "e9ea1ebb5db72ebcf7348e512206a1b39b8e60232d2bff5459f0bc394f7526f0",
+  "baseline": "059bbab6e",
+  "implementation_snapshot": {
+    "review": "PENDING",
+    "example_sha256": "30c0e01e6d76ba4e807fd4a362dd91003ee164021368ebcab3f0c92f7eaa9179",
+    "test_sha256": "c113ac60c41eff2cee32239c3ba7e035e17270c4769bf9e95164298c3622d785",
+    "progress_sha256": "c4dc7a3724be1b042a823587025fa70d7da01995b35058060fc5c1a287734c3b",
+    "handoff_sha256": "c4980909c22282c72eb304b0787fbbc851b76a39c8e7122bb95c108c2dfa160d"
+  },
+  "prior_test": {
+    "exit_code": 101,
+    "retry": "PROHIBITED",
+    "captured_diagnostics": "assertion only; no error records",
+    "static_owner_explanation": "Old opt-in local_source helper preserved UnsupportedExpression IDs for Apply bodies; this is static explanation from owner history, not output captured from the prior run."
+  },
+  "primary_release": {
+    "status": "NOT_RELEASED",
+    "reason": "Awaiting independent CLEAN compiler review and fresh capacity observation >=120s",
+    "no_retry": true
+  },
+  "test_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver --features shadow-apply-candidate candidate_graph_call --lib",
+  "test_invocation": 0,
+  "test_status": "NOT_RUN",
+  "test_stdout_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.test.stdout.log",
+  "test_stderr_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.test.stderr.log",
+  "example_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo run --offline -p yu-solver --features shadow-apply-candidate --example research_scoped_formal_replay",
+  "example_invocation": 0,
+  "example_status": "NOT_RUN",
+  "example_stdout_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.example.stdout.log",
+  "example_stderr_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.example.stderr.log",
+  "parent_conditions_closed": 0
+}
