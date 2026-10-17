@@ -19,11 +19,11 @@
     },
     "resources": {
       "cap_seconds": 900,
-      "charged_seconds": 60,
-      "available_seconds": 840,
+      "charged_seconds": 240,
+      "available_seconds": 660,
       "allocation": "semantic/proof300, address audit180, primary60, independent compiler/source review120, spec review90, reserve150; Astra0."
     },
-    "next_action": "Receive both bounded read-only results, freeze exact bytes, then run fresh proof/source and spec review inside reserved allocations."
+    "next_action": "Wait for semantic/source-contract classification; then freeze it and run fresh independent spec and compiler/source reviews."
   },
   "history": "Closed `npair-reference-indexed-source-lift-20261018`: reviewed same-reference IF placement; Operation latent self-effect projection remains missing; conditional Function/Replay lift reviewed CLEAN but H0/provider tree unresolved; parent closure0. Closeout records hashes and reviews.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; source/call STOP handoff alone transferred exact paths.",
@@ -37,7 +37,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "New sprint active; two actual live read-only lanes launched; contract/output leases pinned; requested/effective runtime settings kept distinct."
+      "receipt": "Address lane STOPPED/FROZEN with exact hashes; semantic classification lane still RUNNING; no unleased source edits."
     },
     {
       "id": "/root/npair_operation_self_effect_decision",
@@ -53,13 +53,13 @@
     {
       "id": "/root/npair_explicit_row_address_invariant",
       "role": "read-only compiler source auditor",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high <=180s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual live launch through configured researcher role; exact read/output leases and 180s cap; requested Luna/high, effective UNKNOWN."
+      "receipt": "Frozen conditional explicit-row address theorem; malformed-key alias is hypothetical only; 180s charged; no At/test/code/Git."
     }
   ],
   "leases": [
@@ -81,12 +81,12 @@
     {
       "path": "notes/theory/2026-10-18-npair-explicit-row-address-invariant.md",
       "owner": "/root/npair_explicit_row_address_invariant",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-explicit-row-address-invariant.md",
       "owner": "/root/npair_explicit_row_address_invariant",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_source.rs",
