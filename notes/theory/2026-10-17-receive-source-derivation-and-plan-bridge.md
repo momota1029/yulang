@@ -125,9 +125,10 @@ ReturnPlan = (original dependent return binder and world,
    execution or shape-directed fallback is permitted.
 4. **Result and sequential bind:** one ReturnPlan per original return binder.
    Retain `W_z` and `V_c` in separate tagged fields and apply the source rule's
-   original `mu_z` and `rho_c` maps. Install the resulting packet only at its
-   actual `b_g` binding after Return; a pending request has no completed
-   packet.
+   original `mu_z` and `rho_c` maps. For `c_1`, install the resulting packet
+   at its actual `b_g` binding after Return. For `c_2`, preserve the original
+   Lambda body-result destination; do not route it through `b_g`. A pending
+   request has no completed packet.
 5. **Future input:** store an instruction tied to the actual producer's
    original interface. Instantiate it only at that later actual entry and
    preserve its independently genuine annotation/role. Never create a
