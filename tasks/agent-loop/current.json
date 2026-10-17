@@ -63,7 +63,7 @@
       "receipt": "Exact admitted-case falsification packet ready; launch after central contract/state checkpoint."
     },
     {
-      "id": "/root/npair_call_scoped_replay",
+      "id": "/root/npair_native_demand_children",
       "role": "Luna implementation/source path",
       "state": "WAITING",
       "requested_model": "Luna/implementer",
@@ -74,7 +74,7 @@
       "receipt": "Exact-call scoped Replay query packet ready; implementation source is read-only and one reviewed run maximum."
     },
     {
-      "id": "/root/npair_written_lift_review",
+      "id": "/root/npair_actual_argument_proof_review",
       "role": "independent proof/spec reviewer",
       "state": "WAITING",
       "requested_model": "Sol/spec_auditor",
@@ -85,7 +85,7 @@
       "receipt": "Reserved; assign after frozen mathematical artifacts."
     },
     {
-      "id": "/root/npair_call_scoped_replay_review",
+      "id": "/root/npair_actual_argument_impl_review",
       "role": "independent compiler reviewer",
       "state": "WAITING",
       "requested_model": "Sol/compiler_referee",
@@ -134,22 +134,22 @@
     },
     {
       "path": "crates/yu-solver/examples/research_source_registration.rs",
-      "owner": "/root/npair_call_scoped_replay",
+      "owner": "/root/npair_native_demand_children",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
-      "owner": "/root/npair_call_scoped_replay",
+      "owner": "/root/npair_native_demand_children",
       "state": "HELD"
     },
     {
       "path": "notes/progress/2026-10-18-npair-call-scoped-replay-evidence.md",
-      "owner": "/root/npair_call_scoped_replay",
+      "owner": "/root/npair_native_demand_children",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-call-scoped-replay-evidence.md",
-      "owner": "/root/npair_call_scoped_replay",
+      "owner": "/root/npair_native_demand_children",
       "state": "HELD"
     },
     {
