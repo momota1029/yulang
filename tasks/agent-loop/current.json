@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-swr1-output-origin-prototype-20261018.md",
     "revision": 3,
     "sha256": "b8d32df7ed62c5b62c5c8671e2979801024f83a9bc3ed83e92802532f7c45d08",
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "77bc688cb587a73559ba1e8d37234e739a9f8848",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original theorem/domain/quantifiers/receive route/C1/C2/F1/FK1 unchanged; closure0.",
     "fixed_outcome": "Prove whether original fixed c maps to the actual complete-output binder/Written s1 without domain restriction; derive and prototype only a proof-justified typed Apply-to-Local-supplier edge through Install/Capture/FreshUse and exact scope remaps. SWR1 remains a candidate unless original compatibility is established.",
@@ -23,9 +23,9 @@
       "available_seconds": 0,
       "allocation": "New fully reserved envelope: constructive Sol/prover480; Luna/high implementation600; fresh independent proof/spec review120; fresh compiler review120; Luna primary60; reserve120. Astra0, descendants0, no previous-cap rollover."
     },
-    "next_action": "Review exact frozen proof artifact f401f3f1... independently. Implementation may finish a non-admitting typed LocalSupplierEdge prototype; keep guard until proof review CLEAN and final code review CLEAN. No route command before both."
+    "next_action": "Open successor after dispatcher boundary review: prioritize original fixed-c to actual Written s1 compatibility/reflection with an independent admitted-alternative falsification lane. Keep parent OPEN/closure0. Any new Local supplier code must first close the reviewer major: fallible allocation, bounded/charged scans, Plan storage accounting. Current prototype bytes were restored; no Cargo was run."
   },
-  "history": "Prior reviewed implementation evidence and obstructions are preserved in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Current sprint rev2 added operation-image source owner pin (commit 85ea24bbe). Proof artifact CLEAN: R bare response preserves actual responder and existing pi; CallMem preserves supplied evidence; neither constructs fixed c at r.s1. Adversarial artifact review CLEAN after correcting 23+1 dependency receipt. No admitted counterexample; W/Z admission remains open. Exact scoped query received compiler CLEAN, then one run exited2 at ComponentIdentityExhausted before returning candidate/source-call/scoped relations. Example and fixture restored exactly. Current sprint parent conditions closed 0; next target is the original fixed-c introduction/projection at actual returned provider r.s1. Closed npair-written-conservative-lift rev2: closure0. Fresh review proved only conditional retention and actual R response/Call identity; fixed-c at returned r.s1 remains missing. Adversarial audit found no admitted counterexample, W/Z inputs remain open. One reviewed scoped collection run exited2 ComponentIdentityExhausted before candidate/source_call/relation; harness/fixture restored. See closeout note d27386f... Results pushed through d9e6949a4. Successor sprint targets fixed-c source selection and exact scoped collection branch. Successor sprint rev3 direct-pins typed-core one-layer Force, full-f conditional Sigma certificate, and initial-installation owner. Independent falsifier frozen: artifact ebfe5cc5.../handoff87b8b5...; full response membership conditional on Sigma, C-Call c_e distinct, no original fixed-c selector, no admitted falsifier, closure0. Implementation has revalidated rev3 owner pins and is freezing minimal diagnostic before review. Rev3 fixed-c source audit artifact b3e8fb90... and handoff5f38998... frozen and independently CLEAN; no original selector at actual r.s1, SWR1 candidate only, parent0→0. Exact diagnostic command1 now isolates scoped Local/CatchBinder callee alias refusal at candidate_source.rs:1098 (ComponentIdentityExhausted), no inference/relation emitted; fixture restored. Implementer is checking whether existing owner identity supports a semantics-preserving path before any patch. Rev3 closed at primary checkpoint: proof artifact b3e8fb90... independently CLEAN, original fixed-c selector absent, parent closure0. Command1 exact reviewed diagnostic exited2 at candidate_source.rs:1098 Local/CatchBinder provenance guard before candidate/source_call/relation. Existing LocalSourceIndex→slot→Action::Local/Install→Capture/FreshUse chain is reconstructible but lacks explicit typed ApplySourceInput→captured supplier edge; no semantics relaxation adopted. Fixture restored. No theorem closure. Closeout `notes/progress/2026-10-18-npair-fixed-c-source-selection-closeout.md` SHA26880c3b... Previous `npair-fixed-c-source-selection-scoped-collection-20261018` closed/pushed at 77bc688cb; proof review CLEAN but original closure0; exact command1 diagnostic exit2 at Local/CatchBinder callee guard; typed supplier edge absent. See closeout 26880c3b..., source audit b3e8fb90..., run note e0829054.... Successor contract committed at aef95240a, rev1 SHA570fc393.... Current proof lane actual start21:16:06 UTC; implementation lane start21:16:10 UTC, both verifying pins; all prior sprint workers STOPPED. Astra0. Contract rev2 adds exact direct HIR owner pin `crates/yu-hir/src/module/local_source.rs` SHAede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5, identified by the proof lane. New contract SHA6e302af2cb544e9ace8ecf2b05fc45bd561e5c0eb3dda424c19b6c9226868706; source-dependent work paused until exact pin committed. Contract rev3 adds exact `crates/yu-solver/src/candidate_scope.rs` pin SHA9fdb36b4bbd66d702fbd3fcfaf593bfbc5dce0c52ff3252442aeb998bbb52c2a after implementation identified it as scope/remap owner. New contract SHA b8d32df7ed62c5b62c5c8671e2979801024f83a9bc3ed83e92802532f7c45d08; dependent source work paused pending commit. Dispatcher confirmed rev3 scope/resources suffice; both new pins match and add read-only inputs only. Primary adjudicated typed LocalSupplierEdge as allowed private prototype target, not admission evidence. Proof interim remap lemma: fresh IDs injective, external handles fixed; evaluate/remap and Missing-tag preservation on valid handles; origins do not substitute for current scope/input IDs. Implementer’s exact field join includes wrapper path, terminal Local occurrence/source key/id, unique slot/initializer, explicit Local/Install, then LocalUse/FreshUse remaps; Link/LocalAnnotation/CatchBinder refused. No guard relaxation pending review. Proof lane frozen current sprint rev3 artifact f401f3f1... and handoff6db042e2...; original fixed-c/output-origin compatibility remains NOT PROVED, closure0. Five typed Local supplier joins and valid-state injective remap/evaluation/Missing lemma produced; final dynamic runtime join unobserved. Independent proof review active; implementation continues non-admitting prototype under existing guard. Independent proof review CLEAN on artifact f401f3f1... and handoff6db042e2... against contract b8d32df7...; all24 stable inputs match, immutable baseline source snapshots retrieved/read-only and matched. Five Local joins and valid mapped-state remap/Missing lemma pass. Reviewer explicitly limits: no dynamic runtime join certified; original-c/output-origin not proved; SWR1 unadopted; parent0→0. Code prototype is frozen separately at candidate_source a25ab554.../candidate_call22733799..., guard still rejects and runtime Pending; implementer is freezing evidence docs, no commands.",
+  "history": "Prior reviewed implementation evidence and obstructions are preserved in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Current sprint rev2 added operation-image source owner pin (commit 85ea24bbe). Proof artifact CLEAN: R bare response preserves actual responder and existing pi; CallMem preserves supplied evidence; neither constructs fixed c at r.s1. Adversarial artifact review CLEAN after correcting 23+1 dependency receipt. No admitted counterexample; W/Z admission remains open. Exact scoped query received compiler CLEAN, then one run exited2 at ComponentIdentityExhausted before returning candidate/source-call/scoped relations. Example and fixture restored exactly. Current sprint parent conditions closed 0; next target is the original fixed-c introduction/projection at actual returned provider r.s1. Closed npair-written-conservative-lift rev2: closure0. Fresh review proved only conditional retention and actual R response/Call identity; fixed-c at returned r.s1 remains missing. Adversarial audit found no admitted counterexample, W/Z inputs remain open. One reviewed scoped collection run exited2 ComponentIdentityExhausted before candidate/source_call/relation; harness/fixture restored. See closeout note d27386f... Results pushed through d9e6949a4. Successor sprint targets fixed-c source selection and exact scoped collection branch. Successor sprint rev3 direct-pins typed-core one-layer Force, full-f conditional Sigma certificate, and initial-installation owner. Independent falsifier frozen: artifact ebfe5cc5.../handoff87b8b5...; full response membership conditional on Sigma, C-Call c_e distinct, no original fixed-c selector, no admitted falsifier, closure0. Implementation has revalidated rev3 owner pins and is freezing minimal diagnostic before review. Rev3 fixed-c source audit artifact b3e8fb90... and handoff5f38998... frozen and independently CLEAN; no original selector at actual r.s1, SWR1 candidate only, parent0→0. Exact diagnostic command1 now isolates scoped Local/CatchBinder callee alias refusal at candidate_source.rs:1098 (ComponentIdentityExhausted), no inference/relation emitted; fixture restored. Implementer is checking whether existing owner identity supports a semantics-preserving path before any patch. Rev3 closed at primary checkpoint: proof artifact b3e8fb90... independently CLEAN, original fixed-c selector absent, parent closure0. Command1 exact reviewed diagnostic exited2 at candidate_source.rs:1098 Local/CatchBinder provenance guard before candidate/source_call/relation. Existing LocalSourceIndex→slot→Action::Local/Install→Capture/FreshUse chain is reconstructible but lacks explicit typed ApplySourceInput→captured supplier edge; no semantics relaxation adopted. Fixture restored. No theorem closure. Closeout `notes/progress/2026-10-18-npair-fixed-c-source-selection-closeout.md` SHA26880c3b... Previous `npair-fixed-c-source-selection-scoped-collection-20261018` closed/pushed at 77bc688cb; proof review CLEAN but original closure0; exact command1 diagnostic exit2 at Local/CatchBinder callee guard; typed supplier edge absent. See closeout 26880c3b..., source audit b3e8fb90..., run note e0829054.... Successor contract committed at aef95240a, rev1 SHA570fc393.... Current proof lane actual start21:16:06 UTC; implementation lane start21:16:10 UTC, both verifying pins; all prior sprint workers STOPPED. Astra0. Contract rev2 adds exact direct HIR owner pin `crates/yu-hir/src/module/local_source.rs` SHAede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5, identified by the proof lane. New contract SHA6e302af2cb544e9ace8ecf2b05fc45bd561e5c0eb3dda424c19b6c9226868706; source-dependent work paused until exact pin committed. Contract rev3 adds exact `crates/yu-solver/src/candidate_scope.rs` pin SHA9fdb36b4bbd66d702fbd3fcfaf593bfbc5dce0c52ff3252442aeb998bbb52c2a after implementation identified it as scope/remap owner. New contract SHA b8d32df7ed62c5b62c5c8671e2979801024f83a9bc3ed83e92802532f7c45d08; dependent source work paused pending commit. Dispatcher confirmed rev3 scope/resources suffice; both new pins match and add read-only inputs only. Primary adjudicated typed LocalSupplierEdge as allowed private prototype target, not admission evidence. Proof interim remap lemma: fresh IDs injective, external handles fixed; evaluate/remap and Missing-tag preservation on valid handles; origins do not substitute for current scope/input IDs. Implementer’s exact field join includes wrapper path, terminal Local occurrence/source key/id, unique slot/initializer, explicit Local/Install, then LocalUse/FreshUse remaps; Link/LocalAnnotation/CatchBinder refused. No guard relaxation pending review. Proof lane frozen current sprint rev3 artifact f401f3f1... and handoff6db042e2...; original fixed-c/output-origin compatibility remains NOT PROVED, closure0. Five typed Local supplier joins and valid-state injective remap/evaluation/Missing lemma produced; final dynamic runtime join unobserved. Independent proof review active; implementation continues non-admitting prototype under existing guard. Independent proof review CLEAN on artifact f401f3f1... and handoff6db042e2... against contract b8d32df7...; all24 stable inputs match, immutable baseline source snapshots retrieved/read-only and matched. Five Local joins and valid mapped-state remap/Missing lemma pass. Reviewer explicitly limits: no dynamic runtime join certified; original-c/output-origin not proved; SWR1 unadopted; parent0→0. Code prototype is frozen separately at candidate_source a25ab554.../candidate_call22733799..., guard still rejects and runtime Pending; implementer is freezing evidence docs, no commands. Implementation prototype frozen (no runtime or command): exact hashes candidate_source a25ab554... and candidate_call22733799..., static LocalSupplierCandidate only; original guard still returns unavailable, runtime PendingGuard, fixture restored. Evidence note bd187303.../handoff ce3ad1fa.... Fresh code reviewer is checking exact bytes and flagged wrapper Vec::push traversal as uncharged/unbounded; Luna supplied contract §Implementation and awaits final receipt. Parent0→0. Current sprint closed after final compiler review found a major: wrapper Vec::push is infallible; repeated scans uncharged; candidate storage omitted from Plan accounting. Static candidate identity/refusal findings remain only research evidence; implementation code restored to baseline. Proof reviewer CLEAN within scoped lemma, but original c→actual Written s1 remains unproved; parent closure0. No Cargo/tests/probes in current sprint. Durable compiler review receipt is the final message from /root/npair_actual_argument_impl_review; frozen code hashes a25ab554.../22733799...; restored baseline hashes 09a29794.../2bcbab3d....",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -53,13 +53,13 @@
     {
       "id": "/root/npair_native_demand_children",
       "role": "Luna typed supplier implementation",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna/implementer",
       "requested_effort": "high <=600s",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual start21:16:10 UTC; elapsed0/rem600. Verifying baseline pins and modeling typed Local supplier edge only; no admission edit or Cargo until proof comparison/adjudication/review. Interim: notified recursive Action::Link vs installed Action::Local distinction; direct HIR owner pin added in contract rev2, wait for committed hash. Rev2 HIR LocalSource pin verified; implementation identified candidate_scope as remap owner. Contract rev3 adds direct candidate_scope.rs SHA9fdb36b4...; pause scope-owner reliance pending commit. Rev3 HIR/candidate_scope pins matched. Typed edge field plan complete; primary authorizes private typed record prototype only, with current guard retained through frozen proof + independent proof review + final compiler review. Prior receipt21:20:09 had361s remaining. Proof artifact frozen; current reviewed source verdict is original-c compatibility NOT PROVED, parent0→0; five typed Local joins and scope Missing/evaluation lemma derived; runtime FreshUse join remains unobserved. Continue non-admitting prototype only pending independent proof review and final code review. Code delta currently frozen: candidate_source.rs a25ab55401e67b503bda678cf9cc0e5d50b400ac5131d6005b5487002956a483; candidate_call.rs 22733799641b9eb19a976e4fff1419f628a4cb54b9bcab5e43f7b4fc483c823b. Awaiting implementation evidence note/handoff and STOP; no Cargo/tests."
+      "receipt": "Static-only LocalSupplierCandidate prototype frozen; candidate_source.rs SHAa25ab55401e67b503bda678cf9cc0e5d50b400ac5131d6005b5487002956a483; candidate_call.rs SHA22733799641b9eb19a976e4fff1419f628a4cb54b9bcab5e43f7b4fc483c823b. Carries owner/apply/callee/wrapper/terminal source+occurrence/local/slot/initializer/action indices; Link/LocalAnnotation/CatchBinder refused; old unavailable guard and PendingGuard remain. No ApplySourceInput/LocalUse/FreshUse/relation or runtime success. Evidence note bd18730335475014eda2df8fe5958cba5162a6f5f57d288ee758da9de691d62a, inbox ce3ad1fa1cdb7a7d0cb88551543ac095ba3a2c4221417bc1bf00d5d6c2f2dff8. Fixture restored. STOPPED21:24:57 UTC, elapsed527/rem73; no Cargo/tests. Primary restored unreviewed executable prototype to reviewed baseline after final review; frozen code hashes remain documented in prototype note."
     },
     {
       "id": "/root/npair_actual_argument_proof_review",
@@ -75,13 +75,13 @@
     {
       "id": "/root/npair_actual_argument_impl_review",
       "role": "fresh compiler reviewer",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "Sol/compiler_referee",
       "requested_effort": "high <=120s/gate",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Reserved for typed supplier delta; command authorization only after exact-byte CLEAN review."
+      "receipt": "Final exact-byte compiler review: MAJOR resource-accounting finding. Infallible wrapper Vec::push, repeated uncharged scans, candidate storage absent from Plan. Blocks executable integration. Identity joins/refusal explicit; remaps unestablished. STOPPED; no tests, commands, writes."
     }
   ],
   "leases": [
@@ -118,57 +118,12 @@
     {
       "path": "notes/theory/2026-10-18-npair-swr1-output-origin.md",
       "owner": "/root/npair_written_conservative_lift",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-swr1-output-origin.md",
       "owner": "/root/npair_written_conservative_lift",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_source.rs",
-      "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_call.rs",
-      "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_scheme.rs",
-      "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/shadow_apply.rs",
-      "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/examples/research_source_registration.rs",
-      "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/fixtures/20261017-receive-choose.yu",
-      "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/tests/candidate_scoped_collection.rs",
-      "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/progress/2026-10-18-npair-output-origin-prototype.md",
-      "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-npair-output-origin-prototype.md",
-      "owner": "/root/npair_native_demand_children",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [],
