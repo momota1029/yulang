@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-native-introduction-correspondence-20261018.md",
     "revision": 2,
     "sha256": "91c4559c60a23b1f683dd26a63c777c98da26d45db5b95eb0ae2325d708501a7",
-    "state": "RUNNING-COMPILER-REVIEW",
+    "state": "RUNNING-SPEC-REVIEW",
     "baseline": "a47234eae",
     "parent": "Original Simple-sub theorem and N-Port-Intro; all original claims, quantifiers, source domain and source-native requirements unchanged.",
     "fixed_outcome": "Prove the applied internal concrete-only candidate_effect.rs producer corresponds to adopted N-Port-Intro, or isolate the first exact descriptor-to-row/source owner gap. Parent closure requires actual source constructor and consumer; this internal producer audit alone cannot close it.",
@@ -27,11 +27,11 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 1200,
-      "available_seconds": 600,
+      "charged_seconds": 1320,
+      "available_seconds": 480,
       "allocation": "Luna owner audit120 + Sol/high constructive proof600 after freeze + optional Luna code/test300 + compiler180 + spec120 + optional architecture120 + focused verification120 + integration120 + reserve120; Astra assignments0."
     },
-    "next_action": "Compiler/source reviewer verifies frozen proof and exact unit regression; after STOP, assign independent spec review. Astra0."
+    "next_action": "Fresh independent spec review now assigned after compiler reviewer STOP. Astra assignments/work0."
   },
   "history": "All prior sprint closeouts, proof artifacts, implementation receipts, independent reviews, runtime/check evidence and Git outcomes remain in their uniquely named frozen notes/design, notes/theory, notes/progress and tasks/agent-loop inbox artifacts; Git history preserves associated source commits. No historical worker or lease is live. Highlights: earlier HIR/source mapping and module work closed REVIEWED-PARTIAL with original theorem gates still open; Return-prefix transport ended at a typed-prefix-package obstruction; adopted NPAIR is now receiving its first integrated native producer proof/test. Astra default remains 0. Consult each archived artifact for exact evidence and limits.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined: /root/resident_dispatcher_loop_a, /root/resident_implementer_idle, /root/runtime_source_supplier_proof. Their old writer/lease/resource reservations are not released or reused; paths are governed by the preserved legacy history. New proof/implementation artifacts are distinct; no overlap is authorized. All unrelated original theorem/production gates remain OPEN.",
@@ -71,13 +71,24 @@
     {
       "id": "/root/npair_compiler_review",
       "role": "fresh-compiler-source-reviewer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol / compiler_referee",
       "requested_effort": "medium, ≤180s / 3 stages",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh read-only review launched after Sol and Luna STOP at commit c5cb0c7ed; exact proof/proposal/test pins supplied; cap180s, no descendants."
+      "receipt": "Fresh compiler/source review STOP; no blockers/major findings within bounded internal producer/proof. Verified frozen contract/proof/proposal/test hashes and baseline restoration. Covered constructor row association, variance, both projections, links 43/44, publication and rollback. Limitations: empty-state failures only; not exhaustive child contents; no tests/builds; parent source/native closure remains 0; source preflight refused; no source/call files read. Runtime/model UNKNOWN."
+    },
+    {
+      "id": "/root/npair_spec_review",
+      "role": "fresh-independent-spec-auditor",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol / spec_auditor",
+      "requested_effort": "low, ≤120s / 3 stages",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Current-session launch acknowledged by collaboration runtime; exact effective model/effort and elapsed time UNKNOWN. Read-only review only; scope and prohibitions unchanged."
     }
   ],
   "leases": [
@@ -125,7 +136,7 @@
   "pending": [
     {
       "id": "NPAIR-NATIVE-INTRO-CORRESPONDENCE-1",
-      "state": "Fresh compiler/source review RUNNING against frozen proof, proposal and one test diff; independent spec review follows STOP."
+      "state": "Compiler/source reviewer STOP clean within bounded scope; spec auditor assigned against frozen contract/proof/test; parent closure0."
     }
   ]
 }
