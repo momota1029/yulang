@@ -41,7 +41,7 @@
      "tasks/agent-loop/inbox/20261017-receive-role-indexed-inlet-introduction.md"
     ],
     "cap_seconds": 840,
-    "receipt": "Actual collaboration spawn accepted 2026-10-17 02:10:54 UTC; Astra role, requested medium, observed model/effort UNKNOWN; exact two leases; 840s cap; no descendants authorized."
+    "receipt": "ACTIVE-WORK 2026-10-17 02:10:56 UTC after spawn 02:10:54; all 22 direct/inherited governing pins matched; requested Astra/medium, observed model/effort UNKNOWN; exact leases; no descendants; reading original meanings before writing."
    },
    "source_trace": {
     "owner": "/root (Luna/high)",
@@ -131,7 +131,7 @@
     "observed_model": "UNKNOWN",
     "observed_effort": "UNKNOWN",
     "session": "current-session",
-    "receipt": "Actual spawn accepted 2026-10-17 02:10:54 UTC; exact two proof outputs; 840s cap; no descendants."
+    "receipt": "Spawn 2026-10-17 02:10:54 UTC; ACTIVE-WORK 02:10:56 UTC. All 22 direct and inherited governing pins matched; requested Astra/medium, observed UNKNOWN; no writes/descendants yet."
    }
   ]
  },
@@ -193,7 +193,7 @@
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "session": "current-session",
-   "receipt": "Actual spawn accepted 2026-10-17 02:10:54 UTC; exact two proof outputs; 840s cap; no descendants."
+   "receipt": "Spawn 2026-10-17 02:10:54 UTC; ACTIVE-WORK 02:10:56 UTC. All 22 direct and inherited governing pins matched; requested Astra/medium, observed UNKNOWN; no writes/descendants yet."
   }
  ],
  "leases": [
@@ -290,5 +290,5 @@
   "unknown_reservations_preserved": 3,
   "status": "Astra proof lane RUNNING from actual current-session receipt; 840s cap; source trace waits for proof freeze."
  },
- "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants."
+ "history": "Previous sprint b89ed524f closed REVIEWED-PARTIAL after bounded Astra obstruction and compiler/spec reviews. Handoff revisions 2/3 clarify the proposal lacks an inlet/role constructor; proof-pinned revision 1 is preserved. Selector chose a concrete source-local clause proposal, then a disjoint read-only formal identity trace through selected local-use/capture/fresh-use to runtime Lambda classification. No code authority yet. Astra proof lane started 02:10:54 UTC; exact two files leased; no code authority or descendants. ACTIVE-WORK 02:10:56 UTC; all 22 direct and inherited governing pins matched before writing."
 }
