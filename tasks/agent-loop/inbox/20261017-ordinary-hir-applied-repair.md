@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev6, SHA-256
   `3d3f8fd3643bf3b1d27793f470f19b430779bc24f1698788d89295e770c258a4`.
-  Handoff revision 14 (Luna's post-repair acknowledgment); failed candidate
+  Handoff revision 15 (Luna's compiler-delta adjudication); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -171,3 +171,15 @@ Source SHA-256 is `cf0a2d537df793986509175fbde2785731ac28f4bc3f2024f4f0fbca2127c
 the final handoff SHA-256 is supplied in the frozen worker message. Writes
 STOPPED; fresh independent compiler delta review of this exact edit is required
 before Luna may use the single post-repair unit invocation.
+
+
+## Rev6 compiler delta adjudication — handoff revision 15
+
+Fresh compiler delta review STOPPED CLEAN; receipt
+`notes/progress/2026-10-17-ordinary-hir-unit-compile-repair-delta-review.md`.
+The only edit changes the test match to `expression.hir`; expected Invalid/Missing
+error shape and cursor assertion are unchanged. Exact pins match. No tests ran.
+Luna adjudicates CLEAN. The single post-repair focused unit command is now
+authorized once (45s cap); HIR and solver integration commands remain gated on
+its success and discovery of all three named falsifiers. No further unit run or
+implicit retry is authorized.
