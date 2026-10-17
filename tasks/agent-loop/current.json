@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-choice-a-contract-20261017.md",
     "revision": 4,
     "sha256": "88f9674294f001e33bc9c29803d329f2d76c1059c21bbd9362c35ab1d84d7f93",
-    "state": "ACTIVE-SOURCE-AUDIT-REV4",
+    "state": "ACTIVE-SUCCESSOR-DESIGN",
     "baseline": "0c0fda3974d1db2c91256667f93c46effa18c8d0",
     "parent": "Original inference/execution goal; all quantifiers and theorem gates preserved OPEN.",
     "fixed_outcome": "User selected direction A for drafting/review of ordinary structural application admission; audit CST/source keys, then complete and review exact successor contract. Code/tests require final explicit approval.",
@@ -17,13 +17,15 @@
     "result": {
       "original_conditions_closed": 0,
       "behavior_executed": false,
-      "status": "Audit pending; no code/test authority."
+      "proof_class": "candidate raw-source/CST/source-key constructor derivation; independent review pending",
+      "HIR_APP_CST_1": "candidate discharged pending independent review/adjudication",
+      "HIR_APP_ADMISSION_1": "OPEN; direction A successor draft active"
     },
     "resources": {
       "cap_seconds": 1500,
-      "charged_seconds": 450,
-      "available_seconds": 1050,
-      "allocation": "Astra480 (210 conservatively charged, 270 remaining); Luna420; reviews300; coordination240 incl selector240 charged; reserve60."
+      "charged_seconds": 720,
+      "available_seconds": 780,
+      "allocation": "Astra480 fully charged; Luna420; reviews300; coordination240 incl selector240 charged; reserve60."
     },
     "workers": [
       {
@@ -56,25 +58,26 @@
       {
         "id": "/root/astra_accepted_call_hir_projection",
         "role": "astra_prover",
-        "state": "WAITING",
+        "state": "STOPPED",
         "requested_model": "gpt-6-astra",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 480,
-        "charged_seconds": 210,
-        "receipt": "Paused on finite header/declaration dispatch gap; rev4 pins frozen; awaiting exact re-acknowledgment.",
-        "active_receipt": "2026-10-17 08:24:04 UTC; confirmed 16 direct pins; source reads started",
-        "remaining_seconds": 270
+        "charged_seconds": 480,
+        "receipt": "Frozen artifact+handoff; 48 pins matched; actual active time UNKNOWN; full480 conservatively charged.",
+        "active_receipt": "rev4: 48 direct pins verified; lexical/header/declaration selector branches discharged; freezing source-key derivation",
+        "remaining_seconds": 0
       },
       {
         "id": "/root",
         "role": "Luna/high design author and integrator",
-        "state": "WAITING",
+        "state": "RUNNING",
         "requested_model": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "cap_seconds": 420,
-        "charged_seconds": 0
+        "charged_seconds": 0,
+        "active_receipt": "Astra STOP confirmed; successor contract drafting started"
       },
       {
         "id": "/root/ordinary_hir_spec_review",
@@ -102,26 +105,36 @@
         "state": "QUARANTINED"
       },
       {
+        "path": "tasks/agent-loop/sprints/ordinary-hir-choice-a-contract-20261017.md",
+        "owner": "/root",
+        "state": "FROZEN-REV4"
+      },
+      {
         "path": "notes/theory/2026-10-17-choice-a-call-cst-source-key-audit.md",
         "owner": "/root/astra_accepted_call_hir_projection",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261017-choice-a-call-cst-source-key-audit.md",
         "owner": "/root/astra_accepted_call_hir_projection",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/design/2026-10-17-ordinary-hir-application-admission-successor.md",
+        "owner": "/root",
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/sprints/ordinary-hir-choice-a-contract-20261017.md",
+        "path": "tasks/agent-loop/inbox/20261017-ordinary-hir-application-admission-successor.md",
         "owner": "/root",
-        "state": "FROZEN-REV4"
+        "state": "HELD"
       }
     ],
     "pending": [
       {
         "id": "HIR-APP-CST-1",
-        "state": "OPEN; exact constructor/source-key audit active assignment",
-        "owner": "Astra then Luna"
+        "state": "CANDIDATE DISCHARGED pending independent review/adjudication",
+        "owner": "spec/compiler/architect review then Luna"
       },
       {
         "id": "HIR-APP-ADMISSION-1",
@@ -192,7 +205,9 @@
         "sha256": "40ac81e1fae3b6e5157fbebc6d5773e7ba70e0416351ef0ddd4e2fe4e669ca22",
         "superseded_reason": "Added exact header/use/declaration selector route pins; transferred 120s reserve to coordination, total cap unchanged."
       }
-    ]
+    ],
+    "proof_sha256": "e8a320be0e78ecc2c5ee5210338476740c03a1fae61fb2747ec39636286ad501",
+    "proof_handoff_sha256": "68d43689a506a7c22152ecbe90d49c55b83390489541837956b34f397e9ce88a"
   },
   "history": "Prior accepted-call vertical and HIR directional proposal closed without parent theorem closure; see frozen closeouts.",
   "quarantine_note": "Three inherited UNKNOWN assignments and legacy board lease remain quarantined. Direction A permits a reviewed proposal only."
