@@ -6,8 +6,8 @@
  "active_sprint": {
   "id": "module-use-source-map-and-provisional-observer-20261017",
   "contract": "tasks/agent-loop/sprints/module-use-source-map-and-provisional-observer-20261017.md",
-  "revision": 1,
-  "sha256": "79221b9bb7448bc9f17ebdabd313590023e57b22d470ad3f06e2bcf3c1856d94",
+  "revision": 2,
+  "sha256": "e575fed444457c34bc229c5f10ca6510d8fb85d9e4ecc3f582f485d72952ec6e",
   "state": "READY-FOR-PROOF",
   "baseline": "26ccc56f1",
   "parent": "Original Yulang inference/execution theorem; original A/B claims, quantifiers, source domain and source/native correspondence unchanged.",
@@ -95,7 +95,7 @@
     "state": "OPEN"
    }
   ],
-  "next_action": "Freeze is complete; consult next_action_selector at sprint start already returned this 1800s outcome. Spawn proof author; implementation starts only after Astra STOP because active-capacity requires sequential authors.",
+  "next_action": "Revision2 freezes the user-authorized conservative interpretation amendment; launch Astra proof author. Implementation starts after Astra STOP.",
   "user_clarification": "Computational complexity may change; report time/space costs. This alone does not authorize source-admission or observable-language changes.",
   "history": "Closed prior sprint `ordinary-call-original-generation-20261017` REVIEWED-PARTIAL—PROVISIONAL-RECIPE-READY, original conditions0, commit/push 26ccc56f1. Reviewed recipe/handoff and conditional proof remain pinned inputs.",
   "quarantine_note": "Three inherited UNKNOWN assignments remain quarantined and unchanged. No old leases/resources were reclaimed."

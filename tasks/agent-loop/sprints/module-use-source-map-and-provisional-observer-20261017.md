@@ -1,6 +1,9 @@
 # Sprint module-use-source-map-and-provisional-observer-20261017
 
-Status: READY FOR PROOF. Revision1; baseline `26ccc56f1`. The parent remains
+Status: READY FOR PROOF. Revision2 supersedes rev1 only by authorizing a
+minimal conservative interpretation if existing use constructors stop short;
+all paths, source, quantifiers, resources and independent observer scope are
+unchanged. Baseline `26ccc56f1`. The parent remains
 the original Yulang inference/execution theorem with unchanged A/B claims,
 quantifiers, source domain and source/native correspondence.
 
@@ -24,9 +27,21 @@ Apply the result to the precise missing source-use premise in
 Do not substitute the Lambda formal `x`, a native endpoint, a chosen public VP
 root, or candidate `fresh_use` for the original publication/use derivation.
 Keep the full source constructor alternatives, the whole dependency tuple, and
-all original quantifiers. If the selected original constructors do not derive
-the map, freeze the first unsupplied premise and owner; do not assume the
-missing binding certificate.
+all original quantifiers.
+
+The user explicitly authorized adding interpretations/rules to advance the
+proof. Therefore, if existing constructors stop short, Astra must draft the
+smallest conservative module-use interpretation in this same fixed source
+scope, then prove its introduction, inversion and whole-tuple preservation.
+Compare it against the actual FinalRoot/publication/reference route. Preserve
+provider and source anchors, scopes, guards and dependent correlations; state
+every original-family embedding premise explicitly. Do not assume the missing
+binding certificate as a premise of its own introduction. Keep actual
+derivation, conditional interpretation and unadopted extension visibly
+separate. Conditional preservation is not completed embedding or adoption.
+Seek a user choice only if a necessary selection changes source admission or
+observable meaning, not merely because the rule has a new name. New
+indispensable dependencies require Luna's versioned pin amendment.
 
 One genuine module-use premise is closed only if an authentic derivation at the
 original indices substitutes into that §7.2 obligation. A candidate test,
