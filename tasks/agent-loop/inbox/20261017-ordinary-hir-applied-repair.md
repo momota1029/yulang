@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev7, SHA-256
   `5572d93a543c49780c1275fea3a4450695f2c997e3944e18f5ba8f67194f5960`.
-  Handoff revision 18 (Luna's recovery expectation adjudication route); failed candidate
+  Handoff revision 19 (Luna's spec adjudication and test repair lease); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -237,3 +237,25 @@ be CLEAN before one HIR integration rerun (45s); solver integration (45s) only
 on HIR PASS; post-run review cap30s. Budget after the charged coordination is
 220s exactly. No source behavior or expectations changed yet; no solver command
 ran. Original theorem conditions remain OPEN.
+
+
+## Rev7 spec adjudication — handoff revision 19
+
+Fresh spec review confirms the line326 module-wide `UnsupportedExpression`
+expectation is inconsistent with adopted recovery semantics, not evidence for a
+production source change. `has_recovery` preserves each binding's causal
+`ResolvedExpr::Error` before structural projection. Exact adjudication receipt:
+`notes/progress/2026-10-17-ordinary-hir-recovery-expectation-spec-review.md`. For
+`broken`, every Error ID must resolve to an inherited recovery record attached
+to `Value(broken.id())`; its ordered IDs must equal that binding's complete
+inherited causal records with no loss/duplication/substitution. Preserve no-Apply,
+nonempty causal IDs, and no-UnresolvedName; remove only the contradictory
+module-wide synthetic UnsupportedExpression expectation and make the inherited
+kind check execute on `broken`'s own IDs.
+
+Luna grants the conditional rev7 writer lease only for
+`crates/yu-hir/tests/ordinary_application_admission.rs` and this handoff, cap30s.
+No source or other test changes. Fresh regression delta review <=30s is required
+before one HIR integration rerun <=45s. On PASS, run held solver vertical once
+<=45s; then fresh post-run review <=30s. Any failure or cap ends this candidate
+partial; no retry.

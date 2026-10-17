@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/ordinary-hir-applied-conformance-repair-20261017.md",
     "revision": 7,
     "sha256": "5572d93a543c49780c1275fea3a4450695f2c997e3944e18f5ba8f67194f5960",
-    "state": "RECOVERY-SPEC-ADJUDICATION",
+    "state": "TEST-EXPECTATION-REPAIR",
     "baseline": "4f4dcb7b9",
     "parent": "Original Yulang inference/execution theorem; original Simple-sub A/B claims, quantifiers, source domain/source-native correspondence, F1/FK1, N-Transport, Call, soundness, principality and termination unchanged.",
     "fixed_outcome": "Repair the frozen ordinary-HIR admission candidate across the seven reviewed findings; establish authentic source-key ownership and exact error/order/classification behavior with O(V+E+R) projection costs, regression coverage and the existing candidate vertical only. No parent theorem conclusion.",
@@ -29,10 +29,10 @@
     },
     "resources": {
       "cap_seconds": 2760,
-      "charged_seconds": 2540,
-      "available_seconds": 220,
+      "charged_seconds": 2580,
+      "available_seconds": 180,
       "retired_seconds": 0,
-      "allocation": "Charged through post-run review2525 + rev7 coordination15 =2540/2760. Remaining: fresh spec40 + conditional test repair30 + regression delta30 + one HIR rerun45 + held solver integration45 + post-run review30 =220; no reserve."
+      "allocation": "Charged through rev7 spec adjudication2580/2760s. Remaining: test-only author30; regression delta review30; one HIR integration run45; held solver integration45; post-run regression review30 =180. No reserve."
     },
     "workers": [
       {
@@ -56,17 +56,17 @@
       {
         "id": "/root/ordinary_hir_recovery_expectation_spec_adjudication",
         "role": "spec_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "cap_seconds": 40,
-        "charged_seconds": 0,
-        "remaining_seconds": 40,
+        "charged_seconds": 40,
+        "remaining_seconds": 0,
         "session": "current-session",
         "lease_paths": [],
-        "active_receipt": "Fresh read-only narrow spec adjudication launched for adopted §2 vs §§3–4 recovery expectation. Collaboration runtime listed RUNNING. No edits/tests/builds/Cargo/probes/Git/network/descendants."
+        "active_receipt": "STOPPED; expectation defect adjudicated under adopted §§3–4, no source defect. Receipt notes/progress/2026-10-17-ordinary-hir-recovery-expectation-spec-review.md; runtime about35s, full40s charged. Read-only."
       }
     ],
     "leases": [
@@ -124,6 +124,11 @@
         "path": "crates/yu-solver/tests/research_accepted_call_vertical.rs",
         "owner": "implementer after architect CLEAN",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/progress/2026-10-17-ordinary-hir-recovery-expectation-spec-review.md",
+        "owner": "/root (transcribed read-only review)",
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -178,7 +183,7 @@
         "owner": "Rule/source owners"
       }
     ],
-    "next_action": "Narrow spec adjudication RUNNING <=40s. Determine exact recovery records for broken binding; no expectation edits or execution until CLEAN result and Luna adjudication.",
+    "next_action": "Spec auditor confirms expectation defect under adopted §§3–4; Luna authorizes only binding-specific recovery assertions in HIR integration test + handoff, <=30s. Then fresh regression delta review30. HIR rerun45 only on CLEAN, solver45 only on HIR PASS, post-run review30. No production source change.",
     "predecessor": "notes/progress/2026-10-17-ordinary-hir-implementation-reviewed-partial.md",
     "predecessor_commit": "2dccbe2cf"
   },
