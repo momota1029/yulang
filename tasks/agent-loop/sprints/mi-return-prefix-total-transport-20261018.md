@@ -1,7 +1,7 @@
 # Sprint: `mi-return-prefix-total-transport-20261018`
 
 Status: READY — prove evidence-preserving total prefix transport or isolate its first owner
-Revision: 1
+Revision: 2 (Luna dependency pin amendment)
 Baseline: `ab8344e4b`
 Parent: original Yulang inference/execution theorem; all original claims, quantifiers, source domain and source/native obligations unchanged.
 
@@ -18,7 +18,7 @@ If the original sources do not contain an authentic typed package or do not rela
 1. **Luna source/package definition audit and proposal, ≤120s / 3 stages**
    - `notes/design/2026-10-18-mi-return-prefix-transport-proposal.md`
    - `tasks/agent-loop/inbox/20261018-mi-return-prefix-transport-proposal.md`
-   - Inspect only pinned prefix owners and the prior MI candidate; establish whether a whole package type actually exists. Define the transport interface from that package or state the exact absent type/map. Freeze before Sol starts.
+   - Inspect the pinned prefix owners, the prior MI candidate, and the additional draft ordinary-computation semantics input below; establish whether a whole package type actually exists. Define the transport interface from that package or state the exact absent type/map. Freeze before Sol starts.
 
 2. **Sol/high constructive proof/falsifier, ≤600s / 6 stages after freeze**
    - `notes/theory/2026-10-18-mi-return-prefix-total-transport.md`
@@ -37,8 +37,12 @@ Original §7.2(2) indices and quantifiers remain unchanged. Actual `q_data_M`, `
 
 The original Return meaning requires unfinished/zero/admin prefixes to retain the same current world, environment and original code incidences with no result, and separately preserves all completed Return tuples, including non-source ones. Do not convert this to a source-execution-only image.
 
+Additional bounded candidate input, not an adopted definition: `notes/design/2026-10-02-ordinary-computation-semantics-package.md`, SHA-256 `ee3f5cf8185d516775b8915b0fda6dbb07390c3ecad7ac028eb5995581dff917`. It is explicitly Draft; adequacy and principality remain unproved. Its configuration tuple names expression, lexical environment, live store, ordered activations and value-carried runtime lineage. Use it only to test whether actual original prefix evidence projects/retains a whole configuration and whether those fields determine same-`site_f` incidence. Field existence is not a prefix witness or a map. Keep the document Draft and do not use it as authority for original prefix meaning, adoption or adequacy.
+
 ## Success and stop conditions
 
 Report actual original conditions closed, any genuinely established local transport, implementation/test progress, exact remaining premise and next owner. A new MI transport only closes the old condition if its erasure/map reaches the old typed family and actual consumer. Otherwise old/local/fixed-family closures stay 0.
 
 Stop at the first absent original package constructor, code/environment incidence field, source index relation, total map, inverse law, dependent owner map, or hidden-field preservation fact. Give its exact expected type and source owner. Never repair by making a relation vacuous, dropping tags, assuming proof irrelevance for the duplicated code witness, using identity after a type change, or removing old prefix/arm/guard quantifiers.
+
+Specifically test whether the added Draft input contributes only machine fields or an actual evidence-preserving package/map. Do not infer the latter from `C.expression`, an equal syntax label, lexical-environment projection, or runtime lineage without its typed source incidence derivation. Preserve activation order and all lineage fields; if the Draft lacks a rule for the original prefix, record that precise gap.
