@@ -70,7 +70,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev2 repair drafted/frozen on source+test; hashes 2eb54c5a31804969a497eb2448ba9dd732dc3fc6a9d443a7b5a712c7163b7434 and 4214096b11aa087e4d94a2d0b40a15b40f5466d5148ed23265ebc79d8a7cc597. Rejects Ascription and annotated local binding at source; negative regression added. Dispatcher also requires final candidate_call authentication; this third file is reopened. Approx330s author-reported remaining before +60 transfer; 360s verification reserve untouched; no commands."
+      "receipt": "Contract rev2 7dc810d4967745786b1071d58b3e23917dbd4bfdf0a5d0c61833d8bf27c0017a active. Source+test fix frozen at verified hashes 2eb54c5a31804969a497eb2448ba9dd732dc3fc6a9d443a7b5a712c7163b7434 / 4214096b11aa087e4d94a2d0b40a15b40f5466d5148ed23265ebc79d8a7cc597. Only candidate_call.rs reopened for final authentication parity. Author must remeasure; preserve360s verification reserve; commands prohibited until CLEAN delta review."
     },
     {
       "id": "/root/npair_original_formation_review",
@@ -134,7 +134,7 @@
     {
       "path": "crates/yu-solver/src/candidate_source.rs",
       "owner": "/root/npair_exact_local_route",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_call.rs",
@@ -159,7 +159,7 @@
     {
       "path": "crates/yu-solver/src/tests/candidate_graph_call.rs",
       "owner": "/root/npair_exact_local_route",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [],
@@ -168,5 +168,5 @@
     "required": false,
     "receipt": "All prior sprint authors/reviewers STOPPED. New proof/implementation leases acknowledged with runtime start receipts; reviewers WAITING. No descendants or unknown live writers."
   },
-  "next_action": "Contract rev2 adopts the bounded annotation refusal, reopens candidate_call plus source/test, and transfers only the unused120s global reserve to author+60/review+60. Author is completing final-authentication guard; no commands before CLEAN delta review; preserve360s verification reserve."
+  "next_action": "Rev2 source/test fix is frozen; candidate_call final authentication guard is the only active code edit. Reuse the same independent reviewer for <=60s delta review after freeze; then run only the two prescribed <=120s verification commands with the360s implementation reserve."
 }
