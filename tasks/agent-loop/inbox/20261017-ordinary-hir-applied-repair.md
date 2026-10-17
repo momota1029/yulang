@@ -2,7 +2,7 @@
 
 - Sprint `ordinary-hir-applied-conformance-repair-20261017`, rev6, SHA-256
   `3d3f8fd3643bf3b1d27793f470f19b430779bc24f1698788d89295e770c258a4`.
-  Handoff revision 16 (Luna's focused-unit run receipt); failed candidate
+  Handoff revision 17 (Luna's HIR integration failure receipt); failed candidate
   baseline `4f4dcb7b9`; original theorem
   conditions closed: 0. Parent claims, quantifiers, source domain, and
   source/native correspondence remain unchanged and OPEN.
@@ -201,3 +201,20 @@ Rev6 now authorizes the first integration target once (<=90s); on success, the
 solver vertical once (<=90s), then independent post-run regression review
 (<=90s). Any failure/timeout stops later commands. Parent theorem gates remain
 OPEN; original conditions closed: 0.
+
+
+## Rev6 HIR integration result — handoff revision 17
+
+After the focused module unit filter passed8/8, Luna ran the HIR integration
+target once: `cargo test -p yu-hir --features shadow --test
+ordinary_application_admission`. Exit101 after2.315s: 8 passed, 1 failed.
+`unsupported_and_recovery_bodies_keep_the_whole_body_refusal` failed at
+`ordinary_application_admission.rs:326`: `recovered.errors()` did not contain
+`UnsupportedExpression`. Full receipt:
+`notes/progress/2026-10-17-ordinary-hir-repair-hir-integration-failure.md`.
+
+Rev6 stops the sequence on assertion failure. Solver vertical was not run; no
+retry or expectation change occurred. A fresh independent post-run regression
+review is next and will adjudicate this exact failure against the adopted
+refusal/recovery contract. All parent theorem gates remain OPEN; original
+conditions closed: 0.
