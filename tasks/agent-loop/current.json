@@ -70,7 +70,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Started21:28:39 UTC; cap420s. Verifying pins. Contract rev2 corrects one malformed 65-character digest; hold contract-dependent edits/decisions pending rev2, read-only inspection of verified owners allowed. No budget reset."
+      "receipt": "Start21:28:39 UTC; requested Luna/implementer/high, observed UNKNOWN. Resume verified contract rev2 SHAa48ee147... and all three exact code pins plus previously checked direct dependencies. Elapsed65s; remaining355s/420. No edits; continuing read-only inspection."
+    },
+    {
+      "id": "/root/npair_original_alternative_falsification2",
+      "role": "independent original-alternative falsification",
+      "state": "RUNNING",
+      "requested_model": "Sol/researcher",
+      "requested_effort": "high <=420s",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Actual observed active21:29:43 UTC; startup earlier, exact launch UNKNOWN. Verifying rev2 pins before reliance; exact two leases acknowledged; no descendants/code/tests/build/probe/Git."
     }
   ],
   "leases": [
