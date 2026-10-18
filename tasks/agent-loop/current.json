@@ -6,12 +6,12 @@
   "active_sprint": {
     "id": "npair-constructor-owned-replay-certificate-20261018",
     "contract": "tasks/agent-loop/sprints/npair-constructor-owned-replay-certificate-20261018.md",
-    "revision": 1,
-    "sha256": "67c7ed9cb896a46300fbf3852111e569af321b3d64ddf948b41c4ec30cd05bac",
-    "state": "CANDIDATE",
+    "revision": 2,
+    "sha256": "6f2427fb48155f930f3fbf1589f9e71693d205138797e7dbdbeaeedef8d13008",
+    "state": "ACTIVE",
     "baseline": "7087de449",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers, source domain, fixed-c unchanged.",
-    "fixed_outcome": "Authenticate two constructor-owned FreshUse/physical-fiber/Replay/consumer routes with exact relation identities, physical slot contents, fibers and port transformers; first review owner map.",
+    "fixed_outcome": "Rev2: authenticate two constructor-owned FreshUse/physical-fiber/Replay/consumer routes with exact relation identities, read-back physical slot contents plus paired rollback/freeze lifecycle, full fibers and port transformers; parent scope unchanged.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
@@ -21,7 +21,8 @@
       "cap_seconds": 3600,
       "charged_seconds": 840,
       "available_seconds": 2760,
-      "allocation": "Proof720 + implementation1920 (code1560/runtime360) + review600 + Luna120 + reserve240. Astra0; no rollover."
+      "allocation": "Proof720 + implementation1920 (code1560/runtime360) + review600 + Luna120 + reserve240. Astra0; no rollover.",
+      "next_action": "Implementation resumed under rev2 after CLEAN owner map; candidate_extrusion.rs added for actual slot readback. Audit paired rollback; add only a freeze-adjacent lib.rs hook if required. Runtime360 remains protected."
     },
     "next_action": "Implementation resumed after CLEAN map review. Require H=B, p1 in upper fiber, nonempty lower fiber, h=p1, exact Replay recipe; successful completion observability and fixture applicability remain open."
   },
@@ -53,13 +54,13 @@
     {
       "id": "/root/constructor_replay_impl",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh active ACK after early CLEAN map review; exact seven paths. Hard code cutoff 1200s from resume, runtime360 protected; no tests/Cargo/Git. Route viability conditional on H=B, p1∈upper fiber, nonempty lower fiber, h=p1, retained Replay recipe; success/applicability still to verify."
+      "receipt": "Rev1 owner-map review CLEAN. Rev2 continuation envelope issued; waiting for fresh active-work ACK before code writes. Prior source audit consumed within authoring cap; runtime360 protected."
     },
     {
       "id": "/root/constructor_replay_map_review",
@@ -126,8 +127,8 @@
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-constructor-owned-replay-impl.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "owner": "/root/constructor_replay_impl",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -147,5 +148,5 @@
     "required": false,
     "receipt": "Previous sprint writers/reviewers STOPPED; exact frozen hashes preserved in closeout/handoffs."
   },
-  "next_action": "Hash and commit successor rev1 contract; dispatch proof owner-map and read-only implementation audit. No code writes before early map review CLEAN."
+  "next_action": "Rev2: request fresh implementation ACK; audit physical slot rollback/reuse. Use constructor readback if paired rollback holds, otherwise primary must grant the single lib.rs freeze-hook lease before that edit."
 }

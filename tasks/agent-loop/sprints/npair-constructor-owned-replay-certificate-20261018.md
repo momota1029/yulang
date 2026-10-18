@@ -58,3 +58,50 @@ Logs: `tasks/agent-loop/runtime/20261018-replay-fiber-consumer.{helpers,graph,ex
 - PR #11 policy merge: `27a7e00d4b581f18987bb2a3cbf2e492789c2293`; no authority or semantics changed.
 
 Stop if owner mapping cannot distinguish relation identities, physical fiber data is unavailable, shared conclusion proof is unsound, pins drift, a negative authenticates, a command fails, or budget is uncertain. Candidate passes and conditional proofs do not close parent conditions.
+
+## Revision 2 — physical slot provenance lifecycle (2026-10-18)
+
+Rev2 supersedes only the implementation lease and physical-slot evidence method
+above. The original outcome, source domain, fixed-c, proof map, solver semantics,
+review gates and total 3600s cap stay unchanged. Rev1 remains immutable history;
+its CLEAN owner-map review authenticates the constructor topology only, not the
+new slot lifecycle. Parent closure remains 0.
+
+The exact physical-vector owner is `candidate_insert_bound_with_evidence` in
+`candidate_extrusion.rs`. Add this one implementation write lease. Prefer a
+fixed-size per-emission record of the BoundKey actually read back from the
+addressed physical slot and the validation phase. Do not copy either bounds
+vector or add a parallel registry. `candidate_context.rs` owns record type,
+accounting, and later comparison. The constructor must read all eight lane
+variants through their actual vector/index and compare the observed endpoint
+and complete BoundKey against the admission. An input argument copied into a
+record is not physical-slot evidence.
+
+Before selecting constructor-only versus freeze-time validation, inspect and
+record whether every rollback that truncates/reuses physical slots also rolls
+back the corresponding evidence emission. If append-only slot identity and
+paired rollback are established, the constructor readback may be retained. If
+not, add a single freeze-adjacent validation hook in `lib.rs` while vectors are
+still live; lease `lib.rs` only for that hook, then retain the freeze-time read
+result for post-solve verification. Never claim the discarded post-solve
+vectors were directly inspected. Include slot reuse, out-of-range indices,
+missing/replaced records and pre-freeze content changes in mutations.
+
+Implementation assignment may write the existing seven paths plus
+`crates/yu-solver/src/candidate_extrusion.rs`; `crates/yu-solver/src/lib.rs` is
+conditionally leased only if the lifecycle audit requires freeze-time checking.
+No other path is added. From the 1560s authoring ceiling, allocate at most 180s
+to the lifecycle audit, 900s to implementation and mutations, and retain 480s
+for repairs. Runtime360, review480, primary120 and reserve240 remain protected.
+Do not reset any spent time; if remaining authoring capacity is insufficient,
+stop at the exact missing evidence.
+
+Fresh final review must check actual addressed slot reads for each lane,
+out-of-range and different contents, rollback/reuse, evidence loss or
+replacement, freeze-time change where applicable, correct complete BoundKey
+comparison and unchanged insertion/solver behavior. It must also retain the
+existing fresh-use, fiber, Replay and four port-flow checks. Runtime remains
+forbidden until frozen proof/compiler review is CLEAN. The rev1 proof map's
+`candidate_extrusion.rs` hash is historical; final review checks the revised
+owner against current source. No proof statement or parent theorem is inferred
+from the new implementation record.
