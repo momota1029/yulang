@@ -17431,3 +17431,18 @@ not adopt that transition or change production behavior. Fresh semantic and
 specification review must precede any user adoption request; compiler work stays
 blocked until then. See the
 [R28 revision 2 contract](agent-loop/sprints/caller-module-init-guard-preservation-20261018-r28.md).
+
+The frozen rev2 proposal now names a caller-issued source action whose result
+must be the original `(C0,w0,e0;xi)`, separates exact activity/path evidence
+from static registration, and states the full old-dependent predicate
+equivalence required of the extension. That equivalence remains unproved;
+global paths/ordered activity can change under extension. Fresh compiler and
+specification reviews are CLEAN for the unadopted candidate only. The compiler
+review found and the author corrected an overbroad full-`PhiW` conclusion; the
+candidate now concludes only original `j0/a0` and leaves recursive certificates
+open. Same-index source-context construction and old-field preservation remain
+unproved. Parent remains 0 -> 0, and rev2 permits no code/tests/builds/probes.
+The exact pure context-init policy awaits user adoption before a new proof
+contract. See the
+[transition proposal](../notes/design/2026-10-18-caller-module-init-transition-proposal.md)
+and [frozen handoff](agent-loop/inbox/20261018-caller-module-init-transition-proposal.md).

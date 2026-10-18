@@ -10,32 +10,32 @@
     "state": "ACTIVE",
     "baseline": "be58f7353",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original domain and quantifiers unchanged; OPEN/closure0.",
-    "fixed_outcome": "Develop and review a concrete caller-side module-init transition, derive at least one original same-tuple guard from independent inputs, and apply it to the original bootstrap; candidate/prototype alone discharges zero parent conditions.",
+    "fixed_outcome": "Produce and independently review a concrete research-only caller-side source transition proposal with exact event, source/authority/incidence obligations and old-dependent restriction diagram; proposal/review alone discharges zero original parent conditions.",
     "resources": {
       "cap_seconds": 3400,
       "charged_seconds": 2200,
-      "available_seconds": 1200,
-      "allocation": "Rev1 source600+proof1000+reviews600 reserved/spent; rev2 transition proposal600 + independent reviews300 + integration300. Astra0; no code/tests/builds/probes."
+      "available_seconds": 300,
+      "allocation": "Rev1 source600+proof1000+reviews600 reserved/spent; rev2 proposal450 and reviews450 (compiler300/spec150) reserved/spent; integration/closeout300 remaining. Astra0; no code/tests/builds/probes."
     },
-    "next_action": "Rev1 frozen: no actual Init0/P supplier, original j0/a0 not derived, NO_SAFE_CODE_SLICE. Root drafts an exact caller-owned source transition proposal and restriction diagram under rev2; user adoption boundary follows fresh review.",
-    "history": "R27 review CLEAN bounded obstruction, 0->0. R28 rev1 candidate review: spec CLEAN only as proposal; compiler review blocked derivation/implementation; proof and source audit report exact absent Init0/P and old guard extension. Route development is authorized; semantic adoption is not.",
+    "next_action": "R28 rev2 proposal and exact-hash independent compiler/spec delta review are complete. Both CLEAN only as unadopted research candidate. Await user adoption of the exact pure source-context initialization policy before drafting a versioned proof contract; no code/tests/builds/probes. Original parent remains OPEN/closure0.",
+    "history": "R27 review CLEAN bounded obstruction, 0->0. R28 rev1 candidate review: spec CLEAN only as proposal; compiler review blocked derivation/implementation; proof and source audit report exact absent Init0/P and old guard extension. Route development is authorized; semantic adoption is not. Architect and dispatcher completed: global predicate preservation needs extension proof beyond retraction; no safe code; proposal-only scope and exact 450/450/300 remaining allocation confirmed. Rev2 review initially found full-PhiW overclaim missing same-root certificates; corrected to j0/a0 only, pure context formation/no evaluation. Compiler and spec delta review CLEAN as unadopted candidate; event correspondence/old-frame feasibility remain open, 0->0.",
     "git_checkpoint": {
-      "commit": "be58f7353",
+      "commit": "8af5f1c44",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "Frozen R28 rev1 candidate/source proof outputs and NO_SAFE_CODE_SLICE closeout; R28 rev2 proposal contract active."
+      "receipt": "R28 rev1 proof/closeout and rev2 contract pushed; source proposal gate is active."
     },
     "workers": [
       {
         "id": "/root",
         "role": "Luna-primary/source-owner",
-        "state": "RUNNING",
+        "state": "WAITING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Owns R28 rev2 exact semantic proposal, central state, review assignment, adoption boundary and Git; no compiler code lease."
+        "receipt": "R28 rev2 proposal/reviews frozen; waiting for user adoption decision before new proof contract. No implementation or parent progress."
       },
       {
         "id": "/root/r28_guard_proof",
@@ -69,6 +69,39 @@
         "observed_effort": "UNKNOWN",
         "session": "current-session",
         "receipt": "Frozen CLEAN only as unadopted proposal; exact hashes verified; no semantic approval or parent progress."
+      },
+      {
+        "id": "/root/r28_transition_architect",
+        "role": "architect",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Frozen read-only conclusion: no existing definitions derive same-event j0/a0 or all old global dependent predicates; source-owner initialization starts from related decorated state. No writes/tests/Git/descendants."
+      },
+      {
+        "id": "/root/r28_transition_compiler_review",
+        "role": "compiler_referee",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Delta review CLEAN for corrected unadopted proposal SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; initial major finding corrected. Feasibility remains blocked; no edits/tests/Git."
+      },
+      {
+        "id": "/root/r28_transition_spec_review",
+        "role": "spec_auditor",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Delta review CLEAN for corrected unadopted proposal exact SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; L4 and original scope preserved. Adoption not granted; no edits/tests/Git."
       }
     ],
     "leases": [
@@ -132,29 +165,23 @@
         "artifact": "Spec CLEAN only as unadopted proposal; compiler findings block derivation/implementation. Hashes and details recorded in R28 closeout."
       },
       {
-        "id": "R28-REV2-SOURCE-TRANSITION-PROPOSAL",
-        "state": "RUNNING",
-        "owner": "/root",
-        "artifact": "Draft exact source/caller initialization event, issuer, authority/incidence fields and old-dependent restriction diagram; proposal only."
-      },
-      {
-        "id": "R28-REV2-INDEPENDENT-REVIEW",
-        "state": "STAGED",
-        "owner": "fresh compiler_referee + spec_auditor",
-        "artifact": "Review frozen transition proposal; identify exact adoption choice and falsifiers. 300s combined."
-      },
-      {
         "id": "R28-PROTOTYPE",
         "state": "BLOCKED",
         "owner": "Luna/high",
         "artifact": "NO_SAFE_CODE_SLICE until reviewed transition and user adoption; do not repeat opaque payload transport."
+      },
+      {
+        "id": "R28-REV2-PROPOSAL-REVIEW",
+        "state": "RESULT",
+        "owner": "/root/r28_transition_compiler_review + /root/r28_transition_spec_review",
+        "artifact": "Corrected proposal SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; both delta reviews CLEAN only for unadopted candidate. Exact source-context event/old dependent frame unproved; parent 0->0."
       }
     ],
     "ready_next_work": {
-      "id": "R28-REV2-SOURCE-TRANSITION-PROPOSAL",
-      "state": "RUNNING",
-      "owner": "/root",
-      "artifact": "Write concrete caller-owned module-init proposal and restriction proof requirements without claiming existing-rule derivation."
+      "id": "R29-ADOPTED-CALLER-INIT-PROOF",
+      "state": "BLOCKED",
+      "owner": "Luna-primary",
+      "artifact": "Requires user adoption of the exact reviewed pure source-context policy. If adopted, establish actual same-index event/source correspondence, exhaustive old dependent frame and exact j0/a0 introductions; never assume them. Parent OPEN/closure0."
     },
     "legacy_reconciliation": {
       "required": false,
@@ -166,13 +193,13 @@
     {
       "id": "/root",
       "role": "Luna-primary/source-owner",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Owns R28 rev2 exact semantic proposal, central state, review assignment, adoption boundary and Git; no compiler code lease."
+      "receipt": "R28 rev2 proposal/reviews frozen; waiting for user adoption decision before new proof contract. No implementation or parent progress."
     },
     {
       "id": "/root/r28_guard_proof",
@@ -206,6 +233,39 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "Frozen CLEAN only as unadopted proposal; exact hashes verified; no semantic approval or parent progress."
+    },
+    {
+      "id": "/root/r28_transition_architect",
+      "role": "architect",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Frozen read-only conclusion: no existing definitions derive same-event j0/a0 or all old global dependent predicates; source-owner initialization starts from related decorated state. No writes/tests/Git/descendants."
+    },
+    {
+      "id": "/root/r28_transition_compiler_review",
+      "role": "compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Delta review CLEAN for corrected unadopted proposal SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; initial major finding corrected. Feasibility remains blocked; no edits/tests/Git."
+    },
+    {
+      "id": "/root/r28_transition_spec_review",
+      "role": "spec_auditor",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Delta review CLEAN for corrected unadopted proposal exact SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; L4 and original scope preserved. Adoption not granted; no edits/tests/Git."
     }
   ],
   "leases": [
