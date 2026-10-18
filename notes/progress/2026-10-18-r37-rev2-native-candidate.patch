@@ -1,0 +1,567 @@
+diff --git a/crates/yu-solver/src/candidate_scheme.rs b/crates/yu-solver/src/candidate_scheme.rs
+index d9e0d8689..7e00c7906 100644
+--- a/crates/yu-solver/src/candidate_scheme.rs
++++ b/crates/yu-solver/src/candidate_scheme.rs
+@@ -2209,12 +2209,28 @@ mod authentic_demand_capture_tests {
+     enum ApplyCaptureMiss {
+         WrongSourceOccurrence,
+         SourceEventMissing,
++        ForgedParent,
++        WrongTriggerComparison,
+         PairOutsideSourceGroup,
+         PairNotInHelperCapture,
+         WrongSiblingRoute,
+         ReconstructionMapMismatch,
+     }
+ 
++    #[derive(Clone, Copy, Debug)]
++    struct ApplyCaptureEvidence {
++        group: usize,
++        graph_row: usize,
++        signed_copy: RowKey,
++        signed_parent: RowKey,
++        polarity: Polarity,
++        capture: CapturedRowObservation,
++        reconstruction: ReconstructedRowObservation,
++        parent_graph_row: usize,
++        parent_capture: CapturedRowObservation,
++        parent_reconstruction: ReconstructedRowObservation,
++    }
++
+     // Test-only relation over retained records. Every edge is checked in its
+     // owning representation; endpoint locality never implies a fresh image.
+     fn join_apply_pair_capture(
+@@ -2225,26 +2241,55 @@ mod authentic_demand_capture_tests {
+         expected_apply: &HirOccurrenceId,
+         event: usize,
+         group: (usize, usize, usize, usize, bool),
++        expected_comparison: TypedPairKey,
+         parent_index: usize,
+-        parent: Parent,
++        parent: candidate_intrusion::Parent,
+         route: &LocalFreshRoute,
+         expected_local: &yu_hir::HirLocalId,
+         expected_use: &HirOccurrenceId,
++        expected_parent: RowKey,
++        expected_polarity: Polarity,
+         supplied_rows: &[RowKey],
+         supplied_maps: &[ReconstructedRowObservation],
+-    ) -> Result<(usize, usize, RowKey), ApplyCaptureMiss> {
++    ) -> Result<ApplyCaptureEvidence, ApplyCaptureMiss> {
+         if apply.checking.occurrence() != expected_apply {
+             return Err(ApplyCaptureMiss::WrongSourceOccurrence);
+         }
+         if source_graph.observed_checking(event) != Some(&apply.checking) {
+             return Err(ApplyCaptureMiss::SourceEventMissing);
+         }
+-        let (_, group_occurrence, start, end, _) = group;
++        let retained_parent = *state.intrusion.parents.get(parent_index)
++            .ok_or(ApplyCaptureMiss::PairOutsideSourceGroup)?;
++        if parent.copy != retained_parent.copy
++            || parent.parent != retained_parent.parent
++            || parent.polarity != retained_parent.polarity
++            || parent.target != retained_parent.target
++            || parent.sources != retained_parent.sources
++            || parent.comparison != retained_parent.comparison
++            || parent.occurrence != retained_parent.occurrence
++        { return Err(ApplyCaptureMiss::ForgedParent); }
++        // All following checks use the owner-indexed record, never an
++        // independently supplied edge.
++        let parent = retained_parent;
++        let (group_id, group_occurrence, start, end, active) = group;
++        if !active { return Err(ApplyCaptureMiss::PairOutsideSourceGroup); }
++        if state.intrusion.observed_groups().nth(group_id) != Some(group) {
++            return Err(ApplyCaptureMiss::PairOutsideSourceGroup);
++        }
+         if group_occurrence != parent.occurrence || !(start..end).contains(&parent_index)
+-            || parent.comparison.is_none()
+         { return Err(ApplyCaptureMiss::PairOutsideSourceGroup); }
++        // The active typed comparison is the trigger. Its structural endpoints
++        // stay intact here; the extrusion link below is a separate relation.
++        if parent.comparison != Some(expected_comparison) {
++            return Err(ApplyCaptureMiss::WrongTriggerComparison);
++        }
+         let Some(source_set) = parent.sources else { return Err(ApplyCaptureMiss::SourceEventMissing); };
+         if !context.source_events(source_set).contains(&event) {
++            return Err(ApplyCaptureMiss::SourceEventMissing);
++        }
++        if parent.parent != expected_parent || parent.polarity != expected_polarity
++            || parent.copy.kind() != parent.parent.kind()
++        {
+             return Err(ApplyCaptureMiss::PairOutsideSourceGroup);
+         }
+         if route.local != *expected_local || route.occurrence != *expected_use {
+@@ -2258,32 +2303,100 @@ mod authentic_demand_capture_tests {
+             || !std::ptr::eq(supplied_rows, route.rows.as_slice())
+             || !std::ptr::eq(supplied_maps, route.retained.row_observations.as_slice())
+             || route.rows.len() != route.graph.rows.len()
++            || route.graph.capture_rows.len() != route.graph.rows.len()
+             || route.retained.row_observations.len() != route.graph.rows.len()
+         { return Err(ApplyCaptureMiss::ReconstructionMapMismatch); }
+         for (index, (row, observation)) in supplied_rows.iter().zip(supplied_maps).enumerate() {
+             let actual = route.retained.row_observations[index];
++            let capture = route.graph.capture_rows[index];
+             if *row != route.rows[index]
++                || capture.graph_row != index
++                || capture.representative != route.graph.rows[index].key
++                || capture.requested.kind() != capture.representative.kind()
+                 || observation.graph_row != actual.graph_row
+                 || observation.captured != actual.captured
+                 || observation.source_representative != actual.source_representative
+                 || observation.image != actual.image
+                 || observation.allocated_fresh_image != actual.allocated_fresh_image
++                || observation.image != route.rows[index]
++                || observation.captured != capture.representative
+             { return Err(ApplyCaptureMiss::ReconstructionMapMismatch); }
+         }
+-        let pair_row = [parent.copy, parent.parent].into_iter().find(|key| {
+-            route.graph.capture_rows.iter().any(|capture| {
+-                capture.requested == *key || capture.representative == *key
+-            })
+-        }).ok_or(ApplyCaptureMiss::PairNotInHelperCapture)?;
+-        let graph_row = route.graph.capture_rows.iter().position(|capture| {
+-            capture.requested == pair_row || capture.representative == pair_row
+-        }).ok_or(ApplyCaptureMiss::PairNotInHelperCapture)?;
+-        let reconstruction = supplied_maps.get(graph_row).ok_or(ApplyCaptureMiss::ReconstructionMapMismatch)?;
+-        if reconstruction.graph_row != graph_row
+-            || reconstruction.captured != route.graph.rows[graph_row].key
++        // The signed copy is canonicalized by the owning intrusion map before
++        // the helper graph captures it. Keep the original request, canonical
++        // representative, and later route image as distinct evidence.
++        let canonical_copy = state.intrusion.rep(parent.copy);
++        let canonical_parent = state.intrusion.rep(parent.parent);
++        // Capture rows retain the representative chosen by Graph::row at
++        // capture time. A later intrusion merge may change the use-time
++        // representative, so resolve through the retained owner records.
++        let graph_row = route.graph.capture_rows.iter().position(|capture|
++            state.intrusion.rep(capture.representative) == canonical_copy)
++            .ok_or(ApplyCaptureMiss::PairNotInHelperCapture)?;
++        let parent_graph_row = route.graph.capture_rows.iter().position(|capture|
++            state.intrusion.rep(capture.representative) == canonical_parent)
++            .ok_or(ApplyCaptureMiss::PairNotInHelperCapture)?;
++        let capture = *route.graph.capture_rows.get(graph_row)
++            .ok_or(ApplyCaptureMiss::ReconstructionMapMismatch)?;
++        let reconstruction = *supplied_maps.get(graph_row)
++            .ok_or(ApplyCaptureMiss::ReconstructionMapMismatch)?;
++        let parent_capture = *route.graph.capture_rows.get(parent_graph_row)
++            .ok_or(ApplyCaptureMiss::ReconstructionMapMismatch)?;
++        let parent_reconstruction = *supplied_maps.get(parent_graph_row)
++            .ok_or(ApplyCaptureMiss::ReconstructionMapMismatch)?;
++        if capture.graph_row != graph_row
++            || capture.representative != canonical_copy
++            || capture.requested.kind() != capture.representative.kind()
++            || parent_capture.graph_row != parent_graph_row
++            || parent_capture.representative != canonical_parent
++            || parent_capture.requested.kind() != parent_capture.representative.kind()
++            || reconstruction.graph_row != graph_row
++            || reconstruction.captured != capture.representative
++            || reconstruction.source_representative != state.intrusion.rep(reconstruction.captured)
+             || supplied_rows.get(graph_row) != Some(&reconstruction.image)
++            || reconstruction.image != route.rows[graph_row]
++            || parent_reconstruction.graph_row != parent_graph_row
++            || parent_reconstruction.captured != parent_capture.representative
++            || parent_reconstruction.source_representative != state.intrusion.rep(parent_reconstruction.captured)
++            || supplied_rows.get(parent_graph_row) != Some(&parent_reconstruction.image)
++            || parent_reconstruction.image != route.rows[parent_graph_row]
+         { return Err(ApplyCaptureMiss::ReconstructionMapMismatch); }
+-        Ok((group_id, graph_row, pair_row))
++        for (row, observation) in [
++            (graph_row, reconstruction),
++            (parent_graph_row, parent_reconstruction),
++        ] {
++            if observation.canonical_rows_hit {
++                if observation.existing_image != Some(observation.image)
++                    || observation.first_entry_graph_row >= row
++                    || observation.allocated_fresh_image
++                    || supplied_maps.get(observation.first_entry_graph_row)
++                        .map_or(true, |first| first.image != observation.existing_image.unwrap())
++                    || (observation.image != observation.source_representative
++                        && !supplied_maps[observation.first_entry_graph_row].allocated_fresh_image)
++                { return Err(ApplyCaptureMiss::ReconstructionMapMismatch); }
++            } else if observation.existing_image.is_some()
++                || observation.first_entry_graph_row != row
++                || (observation.allocated_fresh_image
++                    && (observation.image == observation.source_representative
++                        || !observation.stored_local
++                        || observation.non_generic
++                        || observation.level <= observation.boundary))
++                || (!observation.allocated_fresh_image
++                    && observation.image != observation.source_representative)
++            { return Err(ApplyCaptureMiss::ReconstructionMapMismatch); }
++        }
++        Ok(ApplyCaptureEvidence {
++            group: group_id,
++            graph_row,
++            signed_copy: parent.copy,
++            signed_parent: parent.parent,
++            polarity: parent.polarity,
++            capture,
++            reconstruction,
++            parent_graph_row,
++            parent_capture,
++            parent_reconstruction,
++        })
+     }
+ 
+     #[test]
+@@ -2436,15 +2549,15 @@ mod authentic_demand_capture_tests {
+     }
+ 
+     #[test]
+-    fn recursive_apply_source_group_joins_installed_helper_and_both_sibling_maps() {
++    fn active_outer_root_two_helper_uses() {
+         let text: Arc<yu_syntax::SourceText> = Arc::from(
+-            "my identity y = y\nmy outer = { my loop x = loop x; my first = loop identity; my second = loop identity; second }\nmy result = outer",
++            "my outer = { my loop x = { my direct = loop x; my helper y = loop y; my first = helper x; my second = helper x; helper x }; loop }",
+         );
+         let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+             Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+         let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+             yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+-                "scoped-apply-native-r35", "source.yu"))),
++                "nested-helper-native-r37", "source.yu"))),
+             &parsed, yu_hir::SemanticImports::empty(),
+         ).unwrap());
+         let mut session = InferenceSession::try_new_candidate(
+@@ -2457,111 +2570,224 @@ mod authentic_demand_capture_tests {
+             _ => None,
+         }).unwrap();
+         let source = session.batch.hir.local_source(&owner).unwrap().unwrap();
+-        let loop_local = source.bindings().iter().find(|binding| binding.spelling.as_ref() == "loop").unwrap().id.clone();
+-        let apply = session.batch.candidate_calls.calls.iter().find(|call| {
++        let local_id = |name: &str| source.bindings().iter()
++            .find(|binding| binding.spelling.as_ref() == name).unwrap().id.clone();
++        let loop_local = local_id("loop");
++        let helper_local = local_id("helper");
++        let helper_names: Vec<_> = source.expressions().iter().filter(|expression| matches!(&expression.form,
++            yu_hir::shadow::LocalSourceForm::Name {
++                resolution: yu_hir::shadow::LocalSourceResolution::Local(id), ..
++            } if id == &helper_local)).collect();
++        assert_eq!(helper_names.len(), 3, "three literal helper Name uses are present in the source");
++        let loop_applies: Vec<_> = session.batch.candidate_calls.calls.iter().filter(|call| {
+             call.owner.definition_root() == Some(&owner)
+-                && source.expressions().get(call.expression).is_some_and(|expression| {
++                && source.expressions().get(call.expression).is_some_and(|expression|
+                     matches!(&expression.form, yu_hir::shadow::LocalSourceForm::Apply { callee, .. }
+                         if source.expressions().get(callee.ordinal() as usize).is_some_and(|callee|
+                             matches!(&callee.form, yu_hir::shadow::LocalSourceForm::Name {
+                                 resolution: yu_hir::shadow::LocalSourceResolution::Local(id), ..
+-                            } if id == &loop_local))
+-                        && matches!(&expression.form, yu_hir::shadow::LocalSourceForm::Apply { argument, .. }
+-                            if source.expressions().get(argument.ordinal() as usize).is_some_and(|argument|
+-                                matches!(&argument.form, yu_hir::shadow::LocalSourceForm::Name { spelling, .. }
+-                                    if spelling.as_ref() == "x")))
+-                })
+-        }).unwrap();
++                            } if id == &loop_local))))
++        }).collect();
++        assert_eq!(loop_applies.len(), 2, "direct loop x and helper loop y remain distinct Apply occurrences");
++        let apply = loop_applies.iter().copied().find(|call|
++            matches!(&source.expressions()[call.expression].form,
++                yu_hir::shadow::LocalSourceForm::Apply { argument, .. }
++                    if source.expressions().get(argument.ordinal() as usize).is_some_and(|argument|
++                        matches!(&argument.form, yu_hir::shadow::LocalSourceForm::Name { spelling, .. }
++                            if spelling.as_ref() == "y"))))
++            .expect("the nested helper owns the exact loop y Apply");
+         let apply_occurrence = source.expressions()[apply.expression].occurrence.clone();
++        let direct_occurrence = source.expressions()[loop_applies.iter().copied().find(|call| call.expression != apply.expression).unwrap().expression].occurrence.clone();
+         let recipe = &session.batch.candidate_recipes[apply.recipe];
+-        assert_eq!(recipe.occurrence, apply_occurrence, "source occurrence selects its retained Apply recipe");
++        assert_eq!(recipe.occurrence, apply_occurrence);
+         assert!(matches!(&recipe.relation, shadow_apply::CandidateRelation::Apply { .. }));
+         let schedule = &session.batch.candidate_source.schedules[&owner];
+         assert!(schedule.iter().any(|action| matches!(action,
+-            candidate_source::Action::Candidate(index) if *index == apply.recipe)),
+-            "the exact Apply recipe is admitted by the owning source schedule");
++            candidate_source::Action::Candidate(index) if *index == apply.recipe)));
+         let event = *session.batch.candidate_source.references.checking.get(&apply.checking).unwrap();
+         assert_eq!(session.batch.candidate_source.references.observed_checking(event), Some(&apply.checking));
+ 
+         let state = session.candidate_graph.as_ref().unwrap();
+         let context = &state.intrusion.effect_algebra.context;
+-        let routes: Vec<_> = state.local_routes.iter().filter(|route| route.local == loop_local).collect();
+-        assert_eq!(routes.len(), 2, "both exact sibling local-use routes are retained");
++        let routes: Vec<_> = helper_names.iter().take(2).map(|name| state.local_routes.iter().find(|route|
++            route.local == helper_local && route.occurrence == name.occurrence)
++            .expect("each selected literal use owns an actual FreshUse route")).collect();
+         assert_ne!(routes[0].occurrence, routes[1].occurrence);
+         let scheme = state.locals[routes[0].slot].as_ref().unwrap();
+-        assert_eq!(scheme.id, loop_local);
++        assert_eq!(scheme.id, helper_local);
+         for route in &routes {
++            assert!(route.authentic_use_instance(), "route identity is retained by the actual FreshUse map");
+             assert_eq!(route.slot, routes[0].slot);
+-            assert_eq!(route.graph.live_root, scheme.root, "route capture root is the installed helper root");
+-            assert_eq!(route.graph.boundary, scheme.boundary, "route capture boundary is the installed helper boundary");
+-        }
+-        let groups: Vec<_> = state.intrusion.observed_groups().filter(|(_, _, _, _, active)| *active)
+-            .filter(|(_, _, start, end, _)| state.intrusion.parents[*start..*end].iter().any(|parent|
+-                parent.sources.is_some_and(|sources| context.source_events(sources).contains(&event))))
+-            .collect();
+-        assert!(!groups.is_empty(), "the Apply source event reaches an activated signed pair group");
++            assert_eq!(route.graph.live_root, scheme.root);
++            assert_eq!(route.graph.boundary, scheme.boundary);
++        }
++
++        let argument_row = match apply.argument_value {
++            LambdaValueEndpoint::Component(position) => RowKey::Value(session.live_components[position].ordinal),
++            LambdaValueEndpoint::Parameter(position) => RowKey::Value(session.parameter_live_base + position as u32),
++        };
++        let result_row = RowKey::Value(session.live_components[apply.result].ordinal);
+         let mut joined = None;
+-        'groups: for group in groups {
++        for group in state.intrusion.observed_groups().filter(|(_, _, _, _, active)| *active) {
+             let (_, _, start, end, _) = group;
++            let Some(trigger_comparison) = state.intrusion.parents.get(start)
++                .and_then(|parent| parent.comparison) else { continue; };
++            if state.intrusion.parents[start..end].iter()
++                .any(|parent| parent.comparison != Some(trigger_comparison))
++            { continue; }
++            let mut value_parent = None;
++            let mut result_parent = None;
+             for parent_index in start..end {
+                 let parent = state.intrusion.parents[parent_index];
+                 if !parent.sources.is_some_and(|sources| context.source_events(sources).contains(&event)) { continue; }
+-                for route in &routes {
+-                    if let Ok(evidence) = join_apply_pair_capture(
+-                        state, context, &session.batch.candidate_source.references,
+-                        apply, &apply_occurrence, event, group, parent_index, parent,
+-                        route, &loop_local, &route.occurrence, &route.rows, &route.retained.row_observations,
+-                    ) { joined = Some((group, parent_index, parent, route.occurrence.clone(), evidence)); break 'groups; }
++                let selected_coordinate = if parent.parent == argument_row && parent.polarity == Polarity::Positive {
++                    Some((argument_row, Polarity::Positive))
++                } else if parent.parent == result_row && parent.polarity == Polarity::Negative {
++                    Some((result_row, Polarity::Negative))
++                } else { None };
++                let Some((expected_parent, expected_polarity)) = selected_coordinate else { continue; };
++                let route = routes[0];
++                let Ok(evidence) = join_apply_pair_capture(
++                    state, context, &session.batch.candidate_source.references,
++                    apply, &apply_occurrence, event, group, trigger_comparison,
++                    parent_index, parent, route, &helper_local, &route.occurrence,
++                    expected_parent, expected_polarity, &route.rows,
++                    &route.retained.row_observations,
++                ) else { continue; };
++                let selection = (parent_index, parent, evidence);
++                if expected_parent == argument_row { value_parent = Some(selection); }
++                else { result_parent = Some(selection); }
++            }
++            if let (Some(value_parent), Some(result_parent)) = (value_parent, result_parent) {
++                joined = Some((group, value_parent, result_parent));
++                break;
++            }
++        }
++        let (group, value_parent, result_parent) = joined
++            .expect("source event, both signed C/D parents, installed helper and two retained FreshUse maps join");
++        let (value_index, value_parent, value_evidence) = value_parent;
++        let (result_index, result_parent, result_evidence) = result_parent;
++        let trigger_comparison = value_parent.comparison.unwrap();
++        assert_eq!(result_parent.comparison, Some(trigger_comparison),
++            "triggering comparison endpoints remain identical across the C and D extrusion records");
++        assert_eq!(value_parent.parent, argument_row);
++        assert_eq!(value_parent.polarity, Polarity::Positive);
++        assert_eq!(result_parent.parent, result_row);
++        assert_eq!(result_parent.polarity, Polarity::Negative);
++        assert_eq!(value_evidence.group, group.0);
++        assert_eq!(result_evidence.group, group.0);
++        assert!((group.2..group.3).contains(&value_index));
++        assert!((group.2..group.3).contains(&result_index));
++        let sibling = routes[1];
++        for (parent_index, parent, primary, expected_parent, polarity) in [
++            (value_index, value_parent, value_evidence, argument_row, Polarity::Positive),
++            (result_index, result_parent, result_evidence, result_row, Polarity::Negative),
++        ] {
++            assert_eq!(primary.signed_copy, parent.copy);
++            assert_eq!(primary.signed_parent, expected_parent);
++            assert_eq!(primary.polarity, polarity);
++            assert_eq!(primary.capture.representative,
++                state.intrusion.rep(primary.signed_copy));
++            for route in &routes {
++                let evidence = join_apply_pair_capture(state, context,
++                    &session.batch.candidate_source.references,
++                    apply, &apply_occurrence, event, group, trigger_comparison,
++                    parent_index, parent, route, &helper_local, &route.occurrence,
++                    expected_parent, polarity, &route.rows,
++                    &route.retained.row_observations).unwrap();
++                assert_eq!(evidence.group, group.0);
++                assert_eq!(evidence.signed_copy, parent.copy);
++                assert_eq!(evidence.signed_parent, parent.parent);
++                assert_eq!(evidence.polarity, polarity);
++                assert_eq!(evidence.graph_row, primary.graph_row);
++                assert_eq!(evidence.capture.representative, primary.capture.representative,
++                    "both actual FreshUse maps reconstruct the same canonical capture");
++                assert_eq!(evidence.reconstruction.graph_row, evidence.graph_row);
++                assert_eq!(evidence.reconstruction.image, route.rows[evidence.graph_row],
++                    "each route retains its own image; shared images are not required to be unequal");
++                assert_eq!(evidence.parent_graph_row, primary.parent_graph_row);
++                assert_eq!(evidence.parent_capture.representative,
++                    state.intrusion.rep(parent.parent));
++                for (graph_row, reconstruction) in [
++                    (evidence.graph_row, evidence.reconstruction),
++                    (evidence.parent_graph_row, evidence.parent_reconstruction),
++                ] {
++                    assert_eq!(reconstruction.image, route.rows[graph_row]);
++                    if reconstruction.allocated_fresh_image {
++                        assert_ne!(reconstruction.image, reconstruction.source_representative);
++                    } else {
++                        assert_eq!(reconstruction.image, reconstruction.source_representative,
++                            "shared or reused images retain their representative");
++                    }
+                 }
+             }
+         }
+-        let (group, parent_index, parent, selected_use, (group_id, graph_row, pair_row)) = joined
+-            .expect("precise Apply→source-event→signed-pair/group→installed-helper→capture/map join");
+-        assert_eq!(parent.occurrence, group.1);
+-        assert!(parent.comparison.is_some(), "selected parent retains its typed signed comparison pair");
+-        assert!((group.2..group.3).contains(&parent_index));
+-        assert_eq!(group_id, group.0);
+-        assert_eq!(routes.iter().find(|route| route.occurrence == selected_use).unwrap().graph.capture_rows[graph_row].requested.kind(), pair_row.kind());
+-        let selected = routes.iter().find(|route| route.occurrence == selected_use).unwrap();
+-        let reconstruction = selected.retained.row_observations[graph_row];
+-        assert_eq!(selected.rows[graph_row], reconstruction.image);
+-        assert_eq!(reconstruction.captured, selected.graph.rows[graph_row].key);
+-        assert_eq!(reconstruction.graph_row, graph_row);
+-        if !reconstruction.allocated_fresh_image {
+-            assert_eq!(reconstruction.image, reconstruction.source_representative,
+-                "unallocated/shared coordinates keep their existing image; locality does not imply inequality");
+-        }
+-        let other = routes.iter().find(|route| route.occurrence != selected_use).unwrap();
+-        let other_join = join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
+-            apply, &apply_occurrence, event,
+-            group, parent_index, parent, other, &loop_local, &other.occurrence,
+-            &other.rows, &other.retained.row_observations).unwrap();
+-        assert_eq!(other_join.0, group_id);
+-        assert_eq!(other_join.1, graph_row, "the same captured coordinate is found through the sibling route");
+-        assert_eq!(other_join.2.kind(), pair_row.kind());
+-
+-        let unrelated = state.intrusion.parents.iter().enumerate().find(|(_, candidate)| {
+-            candidate.sources.is_some_and(|sources| !context.source_events(sources).contains(&event))
+-        }).unwrap();
+-        let unrelated_group = state.intrusion.observed_groups().find(|(_, occurrence, start, end, _)|
+-            *occurrence == unrelated.1.occurrence && (*start..*end).contains(&unrelated.0)).unwrap();
+-        assert_eq!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
+-            apply, &apply_occurrence, event,
+-            unrelated_group, unrelated.0, *unrelated.1, selected, &loop_local, &selected_use,
+-            &selected.rows, &selected.retained.row_observations), Err(ApplyCaptureMiss::PairOutsideSourceGroup),
+-            "an unrelated signed pair is rejected by the same join");
+ 
+-        let sibling = other;
+-        assert_eq!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
+-            apply, &apply_occurrence, event,
+-            group, parent_index, parent, sibling, &loop_local, &selected_use,
+-            &sibling.rows, &sibling.retained.row_observations), Err(ApplyCaptureMiss::WrongSiblingRoute),
+-            "a sibling use map cannot substitute for the selected route");
+-        assert_eq!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
+-            apply, &apply_occurrence, event,
+-            group, parent_index, parent, selected, &loop_local, &selected_use,
+-            &sibling.rows, &sibling.retained.row_observations), Err(ApplyCaptureMiss::ReconstructionMapMismatch),
+-            "a wrong reconstruction map cannot pass with the selected route identity");
++        let (group_id, group_occurrence, group_start, group_end, _) = group;
++        let (missing_index, missing_parent) = (group_start..group_end).find_map(|index| {
++            let parent = state.intrusion.parents[index];
++            (parent.comparison == Some(trigger_comparison)
++                && parent.sources.is_some_and(|sources|
++                    !context.source_events(sources).contains(&event)))
++                .then_some((index, parent))
++        }).expect("same active comparison group retains a source-qualified parent without this Apply event");
++        let missing_event_group = (group_id, group_occurrence, group_start, group_end, true);
++        assert!(matches!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
++            apply, &apply_occurrence, event, missing_event_group, trigger_comparison,
++            missing_index, missing_parent, routes[0], &helper_local, &routes[0].occurrence,
++            missing_parent.parent, missing_parent.polarity, &routes[0].rows,
++            &routes[0].retained.row_observations), Err(ApplyCaptureMiss::SourceEventMissing)),
++            "indexed parent and structural-trigger premises hold; only event membership is absent");
++        assert!(matches!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
++            apply, &direct_occurrence, event, group, trigger_comparison,
++            value_index, value_parent, routes[0], &helper_local, &routes[0].occurrence,
++            argument_row, Polarity::Positive, &routes[0].rows,
++            &routes[0].retained.row_observations), Err(ApplyCaptureMiss::WrongSourceOccurrence)));
++        assert!(matches!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
++            apply, &apply_occurrence, event, group, trigger_comparison,
++            value_index, value_parent, routes[0], &helper_local, &routes[0].occurrence,
++            result_row, Polarity::Negative, &routes[0].rows,
++            &routes[0].retained.row_observations), Err(ApplyCaptureMiss::PairOutsideSourceGroup)),
++            "the signed value pair cannot be substituted for the result pair");
++        assert!(matches!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
++            apply, &apply_occurrence, event, group, trigger_comparison,
++            result_index, result_parent, routes[0], &helper_local, &routes[0].occurrence,
++            argument_row, Polarity::Positive, &routes[0].rows,
++            &routes[0].retained.row_observations), Err(ApplyCaptureMiss::PairOutsideSourceGroup)),
++            "the result C/D parent cannot be substituted for the argument C/D parent");
++        assert!(matches!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
++            apply, &apply_occurrence, event, group, trigger_comparison,
++            value_index, value_parent, sibling, &helper_local, &routes[0].occurrence,
++            argument_row, Polarity::Positive,
++            &sibling.rows, &sibling.retained.row_observations), Err(ApplyCaptureMiss::WrongSiblingRoute)));
++        assert!(matches!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
++            apply, &apply_occurrence, event, group, trigger_comparison,
++            value_index, value_parent, routes[0], &helper_local, &routes[0].occurrence,
++            argument_row, Polarity::Positive, &sibling.rows,
++            &sibling.retained.row_observations), Err(ApplyCaptureMiss::ReconstructionMapMismatch)));
++        let wrong_trigger_comparison = state.intrusion.parents.iter()
++            .filter_map(|parent| parent.comparison)
++            .find(|comparison| *comparison != trigger_comparison)
++            .expect("the source run retains a distinct structural comparison for the wrong-trigger control");
++        assert!(matches!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
++            apply, &apply_occurrence, event, group, wrong_trigger_comparison,
++            value_index, value_parent, routes[0], &helper_local, &routes[0].occurrence,
++            argument_row, Polarity::Positive, &routes[0].rows,
++            &routes[0].retained.row_observations), Err(ApplyCaptureMiss::WrongTriggerComparison)),
++            "absence of the structural triggering comparison cannot stand in for the actual one");
++        let mut forged_copy = value_parent;
++        forged_copy.copy = forged_copy.parent;
++        assert_eq!(forged_copy.copy.kind(), value_parent.copy.kind(),
++            "the forged endpoint preserves component kind");
++        assert!(routes[0].graph.capture_rows.iter().any(|capture|
++            state.intrusion.rep(capture.representative) == state.intrusion.rep(forged_copy.copy)),
++            "the forged endpoint remains canonically represented in the helper capture");
++        assert!(matches!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
++            apply, &apply_occurrence, event, group, trigger_comparison,
++            value_index, forged_copy, routes[0], &helper_local, &routes[0].occurrence,
++            argument_row, Polarity::Positive, &routes[0].rows,
++            &routes[0].retained.row_observations), Err(ApplyCaptureMiss::ForgedParent)),
++            "kind and canonical membership do not authenticate a caller-supplied Parent");
+     }
+ 
+     #[test]
+diff --git a/crates/yu-solver/tests/candidate_local_self_recursion.rs b/crates/yu-solver/tests/candidate_local_self_recursion.rs
+index 4a875d195..8edbfd285 100644
+--- a/crates/yu-solver/tests/candidate_local_self_recursion.rs
++++ b/crates/yu-solver/tests/candidate_local_self_recursion.rs
+@@ -101,6 +101,35 @@ fn nested_helper_uses_active_outer_root_without_freshening_it() {
+     assert_eq!(uses.iter().filter(|expression| candidate.fresh_use(&expression.occurrence).is_none()).count(), 1);
+ }
+ 
++#[test]
++fn active_outer_root_two_helper_uses() {
++    let hir = module("my outer = { my loop x = { my direct = loop x; my helper y = loop y; my first = helper x; my second = helper x; helper x }; loop }");
++    let source = hir.local_source(root(&hir, "outer")).unwrap().unwrap();
++    let local = |name: &str| source.bindings().iter()
++        .find(|binding| binding.spelling.as_ref() == name).unwrap().id.clone();
++    let loop_local = local("loop");
++    let helper_local = local("helper");
++    let recursive_apply_names: Vec<_> = source.expressions().iter().filter(|expression| matches!(&expression.form,
++        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &loop_local))
++        .filter(|name| source.expressions().iter().any(|expression| matches!(&expression.form,
++            LocalSourceForm::Apply { callee, .. } if *callee == name.id))).collect();
++    assert_eq!(recursive_apply_names.len(), 2, "direct loop x and nested loop y remain distinct recursive calls");
++    let helper_names: Vec<_> = source.expressions().iter().filter(|expression| matches!(&expression.form,
++        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &helper_local)).collect();
++    assert_eq!(helper_names.len(), 3, "the fixture has three literal helper uses");
++
++    let candidate = CandidateInference::solve(hir.clone()).unwrap();
++    assert!(candidate.candidate_conflicts().is_empty());
++    assert!(recursive_apply_names.iter().all(|name| candidate.fresh_use(&name.occurrence).is_none()),
++        "both direct and nested active-root loop calls stay on the monomorphic root");
++    let helper_routes: Vec<_> = helper_names.iter().take(2)
++        .filter_map(|expression| candidate.fresh_use(&expression.occurrence)).collect();
++    assert_eq!(helper_routes.len(), 2, "two selected helper source uses execute through FreshUse reconstruction");
++    assert!(helper_routes.iter().all(|route| route.rows().all(|row|
++        row.kind() == row.source_row().kind())));
++    assert!(candidate.export(root(&hir, "outer")).is_ok());
++}
++
+ #[test]
+ fn sequential_visibility_and_plain_value_self_initialization_controls() {
+     for text in [
