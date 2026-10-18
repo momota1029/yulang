@@ -17414,20 +17414,20 @@ reachability nor a lost source effect. Parent H2 remains OPEN until the original
 current/future activation obligation is proved or a source-qualified
 counterexample is established; H1/U stay OPEN, H3/P disabled, and production/F5
 separate.
-# Active research sprint — R28
+# Active research sprint — R28 revision 2
 
-R27 closed after a fresh independent review found the bounded obstruction and
-conditional `L-DeclaredPort` application CLEAN. The selected bootstrap rules
-still stop before same-fiber `j0`, `a0`, and actual `DeclContribution` evidence;
-parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN/closure0,
-with original conditions **0 -> 0**. `CallerModuleInit` is schematic, not an
-adopted rule. See the [R27 closeout](../notes/progress/2026-10-18-r27-canonical-caller-construction-closeout.md).
+R28 revision 1 tested the caller-initializer candidate against the original
+same-tuple guard. It derived neither `j0` nor `a0`. The actual caller/runtime
+path supplies no predecessor `P` or same-event `Init0`, and the dependent
+old-field extension is unconstructed. Independent review found the candidate
+honest as a proposal but blocked derivation and implementation. The bounded
+source audit records **NO_SAFE_CODE_SLICE**; the separate fixed-`c` Operation
+license gap remains open. Parent conditions remain **0 -> 0**. See the
+[R28 rev1 closeout](../notes/progress/2026-10-18-r28-module-init-guard-closeout.md).
 
-R28 follows the user's selection of the recommended caller-side initializer
-route for one reversible research attempt. Its success gate is to define a
-concrete same-tuple module-init transition from independent source/caller inputs,
-prove an original guard, and apply it to the original bootstrap. Rule adoption or
-prototype output alone does not count as theorem progress. Implementation is
-staged until independent review of the research definition. Production semantics
-and all original theorem quantifiers remain unchanged. See the
-[R28 contract](agent-loop/sprints/caller-module-init-guard-preservation-20261018-r28.md).
+R28 revision 2 uses the user's one-attempt route selection to prepare a specific
+reviewable research transition and old-dependency restriction diagram. It does
+not adopt that transition or change production behavior. Fresh semantic and
+specification review must precede any user adoption request; compiler work stays
+blocked until then. See the
+[R28 revision 2 contract](agent-loop/sprints/caller-module-init-guard-preservation-20261018-r28.md).

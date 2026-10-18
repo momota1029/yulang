@@ -1,116 +1,133 @@
 # Sprint R28 — caller module-init guard preservation
 
-Status: ACTIVE; research candidate development only, not semantic adoption.
-Branch / baseline: `research/simple-sub-intrusion` / `37282e47ab2723ff1996fe42b18855bc7bec492a`.
+Status: ACTIVE; revision 2, research transition proposal only, not adopted.
+Branch / baseline: `research/simple-sub-intrusion` / `be58f7353`.
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, OPEN/closure0,
 original domain and quantifiers unchanged.
-Authority: user selected the recommended caller-side canonical initializer
-route for one attempt. This authorizes development of a reversible research
-candidate, not changing authoritative language semantics or production gates.
+Authority: user selected one attempt at the recommended caller-side
+initializer route. This authorizes a reviewable research proposal. It does not
+make a new event/authority interpretation Authoritative or production code.
 
-## Original outcome and success evidence
+## Original outcome and current evidence
 
-The original parent remains the unchanged Simple-sub theorem, including its
-source/provider/context/world/assignment, occurrence, continuation, whole-Call,
-future/history, F1 and FK1 quantifiers. The fixed local application remains
-`ctrl.choose : Unit -> alpha+` at the original `(C0,w0,e0; xi)` and
-`ins_(r0,q0)`.
+The unchanged parent includes its original source/provider/context/world/
+assignment, occurrence, continuation, whole-Call, future/history, F1 and FK1
+quantifiers. Its local application remains `ctrl.choose : Unit -> alpha+` at
+`(C0,w0,e0;xi)` and `ins_(r0,q0)`.
 
-Decisive unresolved premises: same-tuple `j0`, `a0`, actual
-`DeclContribution`/license and licensed incidence. `JointWF`,
-`OriginalInitial`, later compatible-history actions, whole Call, F1/FK1 and
-universal closure are separate downstream obligations.
+R28 revision 1 proof/reviews established no new parent condition. The selected
+caller has no authentic predecessor `P` or actual same-event `Init0`; existing
+`RuntimeProgram::start` supplies a module execution schedule but not original
+guard evidence. The original `PhiW` has no exhaustive introduction from the
+candidate structural facts. Direct visibility does not prove exact typed
+`Path` or activity of each incidence endpoint. Old-dependent extension,
+semantic alias agreement and the independent fixed-`c` Operation license
+remain open. The selected caller path has `NO_SAFE_CODE_SLICE`.
 
-Success requires an explicit module-init transition from independently
-introduced caller/source inputs to at least one original guard, with no target
-guard, valid-world or Initial premise smuggled back under another name, and an
-application reducing a named original premise at the unchanged tuple. A
-conditional constructor requiring the target guard, a new-rule proposal alone,
-or a prototype alone counts as **0** parent conditions. A concrete research
-implementation may independently establish an executable source -> retained
-context -> constraint/consumer path while all production gates remain open.
+## Fixed revision-2 outcome
 
-## Continuing lanes
+Using the user's route selection, develop a *specific research-only source
+transition proposal* for caller-owned module initialization. Define its
+predecessor and issuer, exact event/configuration, source-to-authority and
+source-to-incidence fields, and a restriction diagram for every old dependent
+field. State the observable meaning and at least one falsifier. Then obtain a
+fresh independent semantic/compiler and specification review.
 
-### Source definition and proof — Luna primary, then Sol proof
+Success for this revision is a complete, reviewable proposal with explicit
+unresolved choices and exact theorem impact. A proposed transition, review
+receipt or provisional API discharges **zero** original conditions. No code,
+tests or user-visible language-policy behavior changes in this revision.
+After CLEAN review, present any new policy choice for user adoption before a
+versioned implementation contract. Keep the original guard interpretation
+and theorem quantifiers explicit; if the proposal would change them, label that
+as a semantic change rather than proof of the old premise.
 
-Root owns `notes/design/2026-10-18-caller-module-init-research-definition.md`
-and `tasks/agent-loop/inbox/20261018-caller-module-init-research-definition.md`.
-Specify the actual predecessor evidence, resolved module and binder graph,
-module-init event, authority/activity rule, preservation of old dependent
-fields, alias/shared-witness construction, and independent local license
-introduction. Compare each constructed field to the *existing* `PhiW` and
-license definitions at the same indices. Keep every unspecified or unprovable
-field explicit. No circular use of `j0`, `a0`, `JointWF`, `OriginalInitial`,
-valid-world markers or fabricated licenses.
+## Candidate transition questions
 
-After the source definition is frozen, Sol/prover owns
-`notes/theory/2026-10-18-caller-module-init-guard-preservation.md` and
-`tasks/agent-loop/inbox/20261018-caller-module-init-guard-preservation.md`.
-Derive the guard fields from the explicit transition and apply them to the
-original bootstrap. Preserve all old/private/shared dependencies, exact
-`xi,e0`, and all original quantifiers. If the transition cannot establish a
-field, identify the first missing independent source fact and owner; do not
-rename the assumption as a constructor.
+The source-design owner must settle from evidence, not intuition:
 
-### Implementation lane — Luna/high after design review
+1. Which actual caller action supplies the predecessor context and issuer?
+2. Is the initialization event compile-time source registration, module runtime
+   entry, or another existing semantic event? Give its source/native witness at
+   the exact original `e0,C0`; `ModuleRun` by name is insufficient.
+3. Which exact source occurrence and resolved declaration authorize which
+   declared ports, and what independent fact establishes activity of every
+   `h`, `owner(h)` and `b.receiver` required by original `Inc_C`?
+4. For each predecessor field, give the dependent restriction map from the
+   extended context back to the old context, show projection/retraction on its
+   original binders, and prove the old predicate depends only on preserved
+   projections. If a predicate is global over the whole registry, show its
+   actual extension action instead of assuming congruence.
+5. Construct `a0` for new and old/shared positions without identifying
+   independent contribution/provider/certificate witnesses. Keep original
+   `DeclContribution`/license evidence separate.
 
-Potential research-only owner: `tools/inference-playground/src/caller_initialization.rs`
-and the narrow `tools/inference-playground/src/lib.rs` entry point. Do not
-change production compiler defaults or make opaque evidence semantically
-trusted. The prototype may collect and retain actual resolved source,
-predecessor dependencies, event/scope data and one shared witness allocation;
-it must reject mismatched parse/module/declaration/fiber associations and
-withhold unsupported guards. Keep it private to the research playground and
-label every output as provisional until the semantic rule and source/native
-correspondence are reviewed.
+If existing rules supply none of the missing event, issuer or old restriction,
+the proposal must state the new semantic choice and its effect. It must not
+rename `j0/a0`, `JointWF`, `OriginalInitial`, a valid-world flag or license as
+an independent premise. The three route families to compare are: caller
+continues to supply the complete authentic context (L4); an explicit
+caller-owned module-init transition adds source-root evidence; or the original
+example remains structural and open. Do not adopt one inside the proposal.
 
-No implementation write begins until the research definition is frozen and
-an independent reviewer finds no blocking semantic/circularity issue. Then
-continue only within the exact paths above. Focused tests/builds may be used
-only for the isolated research prototype; they cannot close a proof gate.
-Falsifiers: grants authority to an unreferenced/foreign port; revives expired
-authority; loses old/private/shared dependencies; combines distinct fibers or
-events; treats static paths or opaque payload presence as live semantic
-evidence; accepts a missing license; or succeeds without every required guard.
-Root owns rollback/removal of this prototype; no production cutover is leased.
+## Lanes, leases and resources
 
-## Independent review and resources
+### Source transition proposal — Luna primary
 
-Fresh reviewer: compiler_referee or spec_auditor, not an author. Review the
-frozen source definition before code, then the coherent proof/prototype delta
-at integration. Review may assess this candidate only; it cannot adopt its
-semantics or close the original parent.
+Exact writes:
 
-Envelope: 2800 seconds total; source definition 600, Sol proof 1000 after
-freeze, implementation 900 after source review, review 600, integration 300;
-these are reservations, not renewal rights. Astra0. No unrelated audit or
-replay work. Stop on a semantic choice outside the user-selected route, unsafe
-source correspondence, budget exhaustion, or no progress after two materially
-different proof methods. Existing quarantined replay outputs and
-`tools/__pycache__/` remain excluded and unstaged.
+- `notes/design/2026-10-18-caller-module-init-transition-proposal.md`
+- `tasks/agent-loop/inbox/20261018-caller-module-init-transition-proposal.md`
 
-## Frozen seams and integration
+Inspect approved L4 caller ownership, typed source-owner initialization,
+original `PhiW`/`Inc_C`, and the frozen R28 event-owner/proof findings. Produce
+one coherent rule proposal, an old-field restriction diagram, a counterexample
+discriminator, and explicit decision boundary. Do not write compiler code or
+alter the frozen R28 revision-1 artifacts.
 
-Frozen inputs include R27 design SHA
-`399b054b9b5985e6efd5e2eba77b50735bd71a97c7eba34d4ad140017aec5a61`,
-R27 proof SHA
-`2704dc972da872bcdcec5f6663ee1a0c71a2ac3cc1dafe8a8d067c72f58cda74`,
-and the adopted profile/caller-registration definitions pinned in R27's
-contract. R27 independent review was CLEAN only for the bounded result and
-conditional implication. Also inspect the current frozen constructor-input
-audits `notes/design/2026-10-18-operation-original-constructor-witness.md`
-and `notes/design/2026-10-18-choose-primitive-license-formation.md`: they
-report no authentic original `DeclContribution`/`PrimLicenseContribution` for
-the selected Operation at its fixed c. The module-init route may target `j0`
-and `a0` independently, but it must keep that native license blocker separate.
-A successful `j0/a0` construction alone cannot be described as complete
-bootstrap application while the source rule still requires the absent license.
+### Independent review — fresh compiler_referee plus spec_auditor
 
-Only Luna integrates. A reviewed original-guard derivation is applied to the
-named original bootstrap premise; all remaining premise owners are retained.
-The parent cannot be marked closed from a candidate, conditional result,
-prototype or green test. Commit and push coherent reviewed checkpoints using
-explicit exact paths; never stage quarantined files. Update compact state and
-record parent before/after as `0 -> N` only for actually established original
-conditions. Consult the dispatcher at this sprint's material stop or closeout.
+Review the frozen transition proposal only. The compiler reviewer tests source
+event/activity, exact authority/incidence paths and old-field preservation;
+the specification reviewer checks the original predicate, language scope and
+L4 consistency. Either may block. Neither adopts semantics. The source
+proposal author is ineligible.
+
+### Proof and implementation status
+
+R28 revision-1 conditional proof is complete and frozen. No second conditional
+proof is authorized until the new proposal identifies an actual transition and
+independent premises. Implementation is **WAITING / NO_SAFE_CODE_SLICE**;
+do not repeat generic payload transport, create a Boolean/guard-shaped
+receipt, or write a provisional caller initializer before the proposed rule is
+reviewed and adopted. The separate Operation license owner request remains
+independent.
+
+Resource ceiling: R28 total 3400s, with 2200s already reserved/spent for rev1
+source (600), proof (1000), and reviews (600); remaining 1200s is allocated to
+this transition proposal (450), independent proof/transition review (450:
+compiler 300, specification 150), and integration/decision record (300).
+The compiler reviewer covers the frozen rev1 proof and rev2 proposal; the
+specification reviewer checks the proposal. Astra0. Unknown actual runtime
+does not restore any spent reservation. No builds, tests or probes in this
+revision.
+
+## Review, integration and stop
+
+Frozen rev1 evidence:
+
+- R28 source candidate SHA
+  `06a924b9ea0b7f987b15b4c4f4509203f3e04c8d03536678794d3e43b2b4c49d`.
+- R28 proof SHA
+  `50a24c63948efe0c964f45e72c2819b496e5c79461b4d2494124fc97ada12686`;
+  handoff SHA `1e3a3642d401e7bc2ec8590867a5acc726eaad9f5a541d0c4d8a96ab12b8739b`.
+- Spec review CLEAN only for unadopted proposal; semantic review BLOCKING for
+  derivation/implementation. Source-owner audit found no actual `Init0` in the
+  inspected caller/runtime path. Parent progress remains 0 -> 0.
+
+Only Luna integrates and records a concrete user decision boundary. After
+independent review, either preserve the candidate as rejected/blocked and keep
+the parent OPEN/closure0, or ask the user to adopt the exact reviewed research
+transition before a new proof/code packet. No silent adoption. No `OriginalInitial`,
+later phase actions, complete Call, F1/FK1, soundness, principality or universal
+parent closure follows from this sprint.
