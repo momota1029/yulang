@@ -214,39 +214,5 @@
       "state": "FROZEN"
     }
   ],
-  "pending": [
-    {
-      "id": "R49-SOL-ADMISSION-PROOF",
-      "role": "prover",
-      "state": "RUNNING",
-      "worker_id": "/root/r49_active_root_admission_proof",
-      "budget_seconds": 900,
-      "receipt": "Actual child launch acknowledged by runtime as /root/r49_active_root_admission_proof; prover, requested Sol/high, observed effective model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
-    },
-    {
-      "id": "R49-LUNA-OWNER-MAP",
-      "role": "primary",
-      "state": "RESULT",
-      "budget_seconds": 600,
-      "receipt": "a388e5e67db39ec9fbff9fe03577c72610aaabcfd54ce009a4bed063842a2359"
-    },
-    {
-      "id": "R49-COMPILER-REVIEW",
-      "role": "compiler_referee",
-      "state": "RESERVED",
-      "budget_seconds": 300
-    },
-    {
-      "id": "R49-SPEC-REVIEW",
-      "role": "spec_auditor",
-      "state": "RESERVED",
-      "budget_seconds": 300
-    },
-    {
-      "id": "R49-INTEGRATION",
-      "role": "primary",
-      "state": "RESERVED",
-      "budget_seconds": 300
-    }
-  ]
+  "pending": []
 }
