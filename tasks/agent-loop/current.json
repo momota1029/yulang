@@ -37,8 +37,8 @@
       "allocation": "Luna primary proof/design 1650 + read-only implementation boundary 450 = 2100 charged; two fresh independent reviews reserve 450 each; integration included in Luna grant; Astra 0; no carryover.",
       "overrun_seconds": 0
     },
-    "next_action": "Revise the candidate so source scope sigma_A and the exact free-dependency telescope D_q are separate; construct D_q from an independent output-owner rule before q headers. Then obtain fresh independent compiler_referee/spec_auditor reviews. Primary audit is not independent review.",
-    "history": "R43 bounded selected-source intake stopped at missing q owner. On 2026-10-19 user delegated choosing the recommendation. Luna selected JOF for a design-and-proof candidate, not immediate adoption. R43 note hash metadata was corrected at 19d02ce40. R44 primary audit found full context Gamma_q cannot stand in for Desc dependency telescope Delta_A; see scope audit. A conditional evaluator corollary was derived from the existing typed-computation simulation theorem; it does not discharge q typing.",
+    "next_action": "Independent review is pending for the current frozen candidate. The known Delta_A := Gamma_q gap and missing Code-Call origins must be assessed; no promotion or code lease follows automatically.",
+    "history": "R43 bounded selected-source intake stopped at missing q owner. On 2026-10-19 user delegated choosing the recommendation. Luna selected JOF for a design-and-proof candidate, not immediate adoption. R43 note hash metadata was corrected at 19d02ce40. R44 primary audit found full context Gamma_q cannot stand in for Desc dependency telescope Delta_A; see scope audit. A conditional evaluator corollary was derived from the existing typed-computation simulation theorem; it does not discharge q typing. Evaluator corollary revision 2 pins Code-Call Application, result-port, VIncl, WholeArgCompatible and complete suffix premises.",
     "workers": [
       {
         "id": "/root",
@@ -49,7 +49,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "R44 frozen candidate: design af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb; proof a06c546be1204eb16bf81f3c45a3aca6f05db148cc00ea9e3f2fd971e62b0c12; boundary 5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21; handoff 8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575; writes stopped. Primary scope audit frozen: 172eb876bb50d8439a996cb411af537eb3f526e4dfc951c5fb996b666eb0e9cc; writer stopped. Conditional evaluator corollary frozen: 0b02be9c6a021e292ce57578827f4a5ed05753734c0d1ec2415c77f031c4fed4; writer stopped."
+        "receipt": "R44 frozen candidate: design af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb; proof a06c546be1204eb16bf81f3c45a3aca6f05db148cc00ea9e3f2fd971e62b0c12; boundary 5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21; handoff 8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575; writes stopped. Primary scope audit frozen: 172eb876bb50d8439a996cb411af537eb3f526e4dfc951c5fb996b666eb0e9cc; writer stopped. Conditional evaluator corollary frozen: 0b02be9c6a021e292ce57578827f4a5ed05753734c0d1ec2415c77f031c4fed4; writer stopped. Conditional evaluator corollary rev2 frozen: bb7aff3ed064b7118861f8da67df2d69bd0392c783df7e4864d1a811b112d3ee; writer stopped."
       }
     ],
     "leases": [
@@ -87,6 +87,11 @@
         "path": "notes/theory/2026-10-19-jof-application-evaluator-corollary-r44.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-19-jof-application-evaluator-corollary-r44-rev2.md",
+        "owner": "/root",
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -103,8 +108,8 @@
         "target_sha256": "af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb"
       }
     ],
-    "ready_next_work": "Obtain fresh independent compiler_referee and spec_auditor reviews of the frozen candidate, then adjudicate. No semantic adoption, Rust lease or production cutover is automatic.",
-    "closure": "Primary audit found Delta_A := Gamma_q is not justified; actual D_q, q headers and both-frame/alias Generalize remain OPEN. A conditional evaluator-translation corollary is established for any fixed complete JOF Application derivation. Parent OPEN 0->0; no code.",
+    "ready_next_work": "Fresh compiler_referee and spec_auditor independently review the frozen JOF candidate, scope audit, and evaluator corollary rev2. Luna adjudicates findings; revise candidate under the design gate.",
+    "closure": "Primary audit found Delta_A := Gamma_q unjustified; actual D_q, complete Code-Call origins, q headers and both-frame/alias Generalize remain OPEN. Conditional evaluator corollary now lists the exact Code-Call premises. Parent OPEN 0->0; no code.",
     "frozen_artifacts": {
       "R43_original_output_order": "50c8499da6b441980953868e007fc8f22446a8cea19d1015d7ad8affedeb5c61",
       "R43_integrity_correction": "f2c5237983cf59cb3b5883eccb38e03bf43d42e080f0ab2374d64fccd08c241b",
@@ -114,7 +119,8 @@
       "R44_implementation_boundary": "5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21",
       "R44_handoff": "8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575",
       "R44_primary_scope_audit": "172eb876bb50d8439a996cb411af537eb3f526e4dfc951c5fb996b666eb0e9cc",
-      "R44_evaluator_corollary": "0b02be9c6a021e292ce57578827f4a5ed05753734c0d1ec2415c77f031c4fed4"
+      "R44_evaluator_corollary": "0b02be9c6a021e292ce57578827f4a5ed05753734c0d1ec2415c77f031c4fed4",
+      "R44_evaluator_corollary_rev2": "bb7aff3ed064b7118861f8da67df2d69bd0392c783df7e4864d1a811b112d3ee"
     }
   },
   "workers": [
@@ -127,7 +133,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
-      "receipt": "R44 frozen candidate: design af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb; proof a06c546be1204eb16bf81f3c45a3aca6f05db148cc00ea9e3f2fd971e62b0c12; boundary 5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21; handoff 8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575; writes stopped. Primary scope audit frozen: 172eb876bb50d8439a996cb411af537eb3f526e4dfc951c5fb996b666eb0e9cc; writer stopped. Conditional evaluator corollary frozen: 0b02be9c6a021e292ce57578827f4a5ed05753734c0d1ec2415c77f031c4fed4; writer stopped."
+      "receipt": "R44 frozen candidate: design af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb; proof a06c546be1204eb16bf81f3c45a3aca6f05db148cc00ea9e3f2fd971e62b0c12; boundary 5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21; handoff 8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575; writes stopped. Primary scope audit frozen: 172eb876bb50d8439a996cb411af537eb3f526e4dfc951c5fb996b666eb0e9cc; writer stopped. Conditional evaluator corollary frozen: 0b02be9c6a021e292ce57578827f4a5ed05753734c0d1ec2415c77f031c4fed4; writer stopped. Conditional evaluator corollary rev2 frozen: bb7aff3ed064b7118861f8da67df2d69bd0392c783df7e4864d1a811b112d3ee; writer stopped."
     }
   ],
   "leases": [
@@ -165,16 +171,21 @@
       "path": "notes/theory/2026-10-19-jof-application-evaluator-corollary-r44.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-19-jof-application-evaluator-corollary-r44-rev2.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [],
-  "ready_next_work": "Revise the candidate so source scope sigma_A and the exact free-dependency telescope D_q are separate; construct D_q from an independent output-owner rule before q headers. Then obtain fresh independent compiler_referee/spec_auditor reviews. Primary audit is not independent review.",
-  "closure": "Primary audit found Delta_A := Gamma_q is not justified; actual D_q, q headers and both-frame/alias Generalize remain OPEN. A conditional evaluator-translation corollary is established for any fixed complete JOF Application derivation. Parent OPEN 0->0; no code.",
+  "ready_next_work": "Fresh compiler_referee and spec_auditor independently review the frozen JOF candidate, scope audit, and evaluator corollary rev2. Luna adjudicates findings; revise candidate under the design gate.",
+  "closure": "Primary audit found Delta_A := Gamma_q unjustified; actual D_q, complete Code-Call origins, q headers and both-frame/alias Generalize remain OPEN. Conditional evaluator corollary now lists the exact Code-Call premises. Parent OPEN 0->0; no code.",
   "history": "R43 bounded selected-source intake stopped at missing q owner. On 2026-10-19 user delegated choosing the recommendation. Luna selected JOF for a design-and-proof candidate, not immediate adoption. R43 note hash metadata was corrected at 19d02ce40. R44 conditional evaluator translation corollary recorded; q source derivation remains open.",
   "quarantine_note": "Preserve pre-existing dirty Rust, tasks/current.md and untracked R35-R41 artifacts of unknown authors. R43 has read-only source scope; do not acquire their leases or stage them.",
   "legacy_reconciliation": {
     "required": false,
     "receipt": "R42/R43 primary and review workers terminal. Pre-existing dirty/unknown-owner Rust, tasks/current.md and R35-R41 artifacts remain untouched/read-only."
   },
-  "sha256": "1f1817da3b2c8fff8d2520eace57b6ce2fdd7fa7e5f265efb5a1ad3854b5d24c"
+  "sha256": "0a8122953cb2eb209e3210cca17fb862d3c2f5c3e69a3cd76cf440bcc4eb34e0"
 }
