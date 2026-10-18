@@ -26,7 +26,7 @@
       "overrun_seconds": 0
     },
     "next_action": "Complete exact R57 source trace; after both writers stop, fresh compiler/spec review; adjudicate bounded result and consult dispatcher at close.",
-    "history": "R56 CLOSED and pushed at bb02202c4; status receipt abef89fb8. R56 bounded source exclusion reviewed CLEAN by fresh compiler/spec; 23/23 prior pins MATCH; parent OPEN 0->0. Dispatcher selected the distinct second-forward-use input retaining final z. R57 rev1 primary-approved after clean baseline and 28/28 dependency hashes MATCH, R56 CLOSED, all known writers STOPPED, and before worker writes. Exact source and output leases frozen; no solver execution or code authority.",
+    "history": "R56 CLOSED and pushed at bb02202c4; status receipt abef89fb8. R56 bounded source exclusion reviewed CLEAN by fresh compiler/spec; 23/23 prior pins MATCH; parent OPEN 0->0. Dispatcher selected the distinct second-forward-use input retaining final z. R57 rev1 primary-approved after clean baseline and 28/28 dependency hashes MATCH, R56 CLOSED, all known writers STOPPED, and before worker writes. Exact source and output leases frozen; no solver execution or code authority. Sol current-session R57 active-work receipt received after committed activation: resumed on NEW_TASK; contract and 28 pins independently MATCH; requested Sol/high, observed UNKNOWN/UNKNOWN; no writes at receipt, exact two leases, no descendants, fresh 900s grant/no carryover.",
     "workers": [
       {
         "id": "/root",
@@ -42,13 +42,13 @@
       {
         "id": "/root/r53_ordinary_mixed_capture_proof",
         "role": "Sol/high constructive source/domain, noninterference and second-capture trace",
-        "state": "NOT_STARTED",
+        "state": "RUNNING",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r57",
-        "receipt": "Exact two output leases granted after 28/28 pins MATCH and primary approval; awaiting current-session active-work receipt."
+        "receipt": "R57 NEW_TASK current-session active-work receipt received; contract and 28 pins independently MATCH; exact two leases; requested Sol/high, observed UNKNOWN/UNKNOWN; no writes yet/no descendants; 900s grant, no carryover."
       }
     ],
     "leases": [
@@ -127,13 +127,13 @@
     {
       "id": "/root/r53_ordinary_mixed_capture_proof",
       "role": "Sol/high constructive source/domain, noninterference and second-capture trace",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r57",
-      "receipt": "Exact two output leases granted after 28/28 pins MATCH and primary approval; awaiting current-session active-work receipt."
+      "receipt": "R57 NEW_TASK current-session active-work receipt received; contract and 28 pins independently MATCH; exact two leases; requested Sol/high, observed UNKNOWN/UNKNOWN; no writes yet/no descendants; 900s grant, no carryover."
     }
   ],
   "leases": [
