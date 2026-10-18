@@ -18,14 +18,14 @@
       "available_seconds": 0,
       "allocation": "proof900 + independent research600 + implementation contract480 + review480 + integration240; Astra0; no R20 carryover."
     },
-    "next_action": "Frozen seven-file packet committed/pushed; assign a fresh non-author compiler/spec reviewer for integrated rule soundness, source fidelity, falsifiers and implementation correspondence; no semantic option adopted.",
+    "next_action": "Await independent integrated review of frozen seven-file packet; repair only concrete findings within R21 review allocation, then present reviewed options and semantic tradeoffs. No option adopted.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0.",
-    "last_stage_receipt": "All three R21 author lanes STOPPED with exact seven artifact hashes pinned in worker receipts; no code/tests. Falsifier separates conceptual arm-discard countermodel from unexecuted candidate source; valid tmp forwarding path retained. Independent integrated review pending.",
+    "last_stage_receipt": "R21 packet integrated/root-pushed at 5a26fa2e4. Independent compiler referee actively reviews all seven frozen artifacts and source pins. Parent OPEN/closure0; no semantic adoption.",
     "git_checkpoint": {
-      "commit": "PENDING",
+      "commit": "5a26fa2e4",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "Seven frozen R21 design/theory/handoff files ready for root integration commit and push; review pending; no rule adoption."
+      "receipt": "Frozen seven-file R21 packet root committed and pushed; independent integrated review in progress."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0.",
@@ -74,6 +74,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "R21 implementation contract frozen; SHA256 5b61f05de8c97a567c6e05db66a51998c0d1b9925a1a2a7ef79f7ed7ed5d6296; handoff 0cf1b7cd40859acb299aaf2762d9d015800b35a59ee103f815fb62142b9625dd. Document-only, no tests/code; exact k-result forwarding vs discard candidate captured; pending integrated review."
+    },
+    {
+      "id": "/root/r21_bridge_integrated_review",
+      "role": "compiler_referee",
+      "state": "RUNNING",
+      "requested_model": "configured default",
+      "requested_effort": "configured default",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Independent read-only integrated review active at frozen packet commit 5a26fa2e4, exact seven SHA pins supplied; check source fidelity, both rule derivations, soundness, actual result forwarding/discard, implementation correspondence. No tests/code/Git."
     }
   ],
   "leases": [
