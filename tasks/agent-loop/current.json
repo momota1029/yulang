@@ -72,13 +72,13 @@
     {
       "id": "/root/r19_local_binding_runtime",
       "role": "implementer",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Assigned R20 runtime HIR admission gate only, 300s; awaiting active-work acknowledgement. Exact runtime_resume.rs and new HIR-gate inbox leases; no runtime program/machine edits."
+      "receipt": "R20 active-work acknowledgement received, contract 6445b596... exact two-path lease runtime_resume.rs + gate handoff. 300s/Astra0; inspect solve_mode, preserve exact HIR error id/kind/owner checks. No tests/build/format before independent CLEAN."
     },
     {
       "id": "/root/r18_runtime_implementation",
