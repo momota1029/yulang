@@ -4,94 +4,56 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "active-capture-observer-join-20261018-r33",
-    "contract": "tasks/agent-loop/sprints/active-capture-observer-join-20261018-r33.md",
+    "id": "active-capture-authenticated-join-20261018-r34",
+    "contract": "tasks/agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md",
     "revision": 1,
-    "state": "CLOSED",
-    "baseline": "4122234969ee791af583e6538c303b606f3b3557",
-    "parent": "Full goal: implement Yulang type inference and executor with proofs. Active-capture source bridge for intrusion/principality/N-Transport; R30 CHOOSE-SOURCE-2 remains independently OPEN/closure0.",
-    "fixed_outcome": "Join the exact active recursive initializer Link through signed demand/pair incidence, nested-helper publication and both retained FreshUse maps using existing public/private test records. In parallel attempt an explicit research-only C/D allocating lift using R32 retention lemma; prove complete bidirectional erasure/lift or locate first failed owner.",
+    "state": "ACTIVE",
+    "baseline": "22c29664a1d59db7d149b752ef166ec2ec9ca9dd",
+    "parent": "Full goal: implement Yulang type inference and executor with proofs. Active-capture source bridge for intrusion/principality/N-Transport; R30 j0/a0 remains independently OPEN.",
+    "fixed_outcome": "Authenticate active initializer Link -> checking/source event -> signed pairs/groups -> helper capture/publication -> both retained FreshUse maps from existing records, or record first unjoinable edge. No C/D source law, semantic adoption, production observer or allocation change.",
     "resources": {
-      "cap_seconds": 1500,
-      "charged_seconds": 1380,
-      "available_seconds": 120,
-      "allocation": "Sol proof600 + Luna native/test420 (one Cargo process, failed) + compiler/spec reviews180 each charged; Luna integration120 remains. Astra0."
+      "cap_seconds": 1080,
+      "charged_seconds": 0,
+      "available_seconds": 1080,
+      "allocation": "Native600 + fresh compiler180 + fresh spec180 + Luna integration120; one focused Cargo process; no probes/builds; Astra0."
     },
-    "next_action": "R33 closed with native diff reverted and proof obstruction reviewed. Parent0->0. Fresh dispatch needed for corrected FreshUse-row classification and exact Link-to-pair/map identity seam.",
-    "history": "R33 closeout: notes/progress/2026-10-18-r33-active-capture-observer-closeout.md. Parent0->0. Native test process failed on invalid all-row disjointness; reviewers found further unqualified joins; exact code diff reverted. Proof obstruction CLEAN, C/D intro remains missing.",
+    "next_action": "R33 closed after failed unqualified all-row assertion; R34 uses candidate_scheme test reconstruction metadata to separate shared rows, aliases and fresh images. R33 C/D introduction obstruction remains; proof lane blocked pending authentic owning rule.",
+    "history": "R33 closeout notes/progress/2026-10-18-r33-active-capture-observer-closeout.md; parent0->0. R34 dispatcher recommends exact Link-to-two-FreshUse authenticated native join; parent and R30 unchanged.",
     "git_checkpoint": {
-      "commit": "f926582d337c2297fb4ee6142df6a8707841a4af",
+      "commit": "22c29664a1d59db7d149b752ef166ec2ec9ca9dd",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R33 contract and lane launch state were pushed at 3a313ef18/f926582d3; closeout integration pending."
+      "receipt": "R33 corrected closeout is included at 22c29664a; R34 contract/state checkpoint pending."
     },
     "workers": [
       {
         "id": "/root",
-        "role": "Luna-primary/R33 integration and Git owner",
+        "role": "Luna-primary/R34 contract, state and Git owner",
         "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R33 proof/native writers and fresh compiler/spec reviewers all terminal. Native test diff restored; integrating closeout and selecting corrected next evidence."
+        "receipt": "R34 dispatch adjudicated; drafting and validating fixed contract/state before native writer launch."
       },
       {
-        "id": "/root/r33_native_provenance_join",
-        "role": "implementer",
-        "state": "STOPPED",
-        "requested_model": "Luna",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "R33 one focused Cargo test failed at all-row map disjointness; no retry. Exact test/code diff reviewed then restored by primary to pinned baseline."
-      },
-      {
-        "id": "/root/r33_allocating_lift_proof",
-        "role": "prover",
+        "id": "/root/r34_dispatch",
+        "role": "next_action_selector",
         "state": "STOPPED",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R33 proof frozen at missing Generalize §3.3 source-owned C/D intro; reviewer CLEAN for bounded obstruction; parent0->0."
-      },
-      {
-        "id": "/root/r33_compiler_review",
-        "role": "fresh compiler referee",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "BLOCKED for native test integration with exact assertion, row-kind and source-to-map join defects; CLEAN for proof obstruction."
-      },
-      {
-        "id": "/root/r33_spec_review",
-        "role": "fresh spec auditor",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "BLOCKED for native artifact overclaim and all-row assertion; CLEAN for proof artifact bounded obstruction and unchanged parent scope."
+        "receipt": "Returned R34 delta: use candidate_scheme existing test metadata; proof blocked pending authentic C/D introduction; 1080s total, Astra0."
       }
     ],
     "leases": [
       {
-        "path": "tasks/agent-loop/current.json",
+        "path": "tasks/agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md",
         "owner": "/root",
         "state": "HELD"
-      },
-      {
-        "path": "tasks/agent-loop/sprints/active-capture-observer-join-20261018-r33.md",
-        "owner": "/root",
-        "state": "FROZEN"
       },
       {
         "path": "tasks/current.md",
@@ -99,121 +61,54 @@
         "state": "HELD"
       },
       {
-        "path": "crates/yu-solver/src/candidate_source.rs",
-        "owner": "/root/r33_native_provenance_join",
-        "state": "FROZEN"
-      },
-      {
-        "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
-        "owner": "/root/r33_native_provenance_join",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-18-active-capture-native-join-r33.md",
-        "owner": "/root/r33_native_provenance_join",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-active-capture-native-join-r33.md",
-        "owner": "/root/r33_native_provenance_join",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/theory/2026-10-18-active-capture-allocating-lift-r33.md",
-        "owner": "/root/r33_allocating_lift_proof",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-active-capture-allocating-lift-r33.md",
-        "owner": "/root/r33_allocating_lift_proof",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-18-r33-active-capture-observer-closeout.md",
+        "path": "tasks/agent-loop/current.json",
         "owner": "/root",
         "state": "HELD"
       }
     ],
     "pending": [],
     "ready_next_work": {
-      "id": "R33-CORRECTED-NATIVE-JOIN",
-      "state": "PROPOSED",
+      "id": "R34-NATIVE-AUTHENTICATED-JOIN",
+      "state": "READY",
       "owner": "/root",
-      "artifact": "Consult dispatcher for a fresh bounded task covering authenticated local FreshUse image classification, typed representative controls and exact Link-to-pair-to-two-map join; preserve C/D source introduction as a separate proof dependency."
+      "artifact": "After committing contract/state, launch one implementer on candidate_scheme.rs test module, candidate_local_self_recursion.rs, R34 progress note and handoff. Proof remains BLOCKED until source authority supplies authentic C/D introduction."
     },
     "legacy_reconciliation": {
       "required": false,
-      "receipt": "R32 proof/native writers and fresh compiler/spec reviewers terminal; all R32 artifacts frozen and pushed."
+      "receipt": "R33 dispatcher, proof/native writers and compiler/spec reviewers are completed/terminal; their exact artifacts are frozen or reverted. No live old writer or unconfirmed lease remains."
     },
-    "sha256": "7ee64995a9fec23b580afb45ef395b6148ee08c29cc76c5a412ec51a23f12e15"
+    "contract_sha256": "474601797b5c34b73c4798432aaebc75de71504d6eb9e0404f4e0032d58a84be",
+    "sha256": "ca05c6bebeaa6516fe336bdff7a3c7550fc135ea1a90ae30f1861064909a9bdd"
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna-primary/R33 integration and Git owner",
+      "role": "Luna-primary/R34 contract, state and Git owner",
       "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R33 proof/native writers and fresh compiler/spec reviewers all terminal. Native test diff restored; integrating closeout and selecting corrected next evidence."
+      "receipt": "R34 dispatch adjudicated; drafting and validating fixed contract/state before native writer launch."
     },
     {
-      "id": "/root/r33_native_provenance_join",
-      "role": "implementer",
-      "state": "STOPPED",
-      "requested_model": "Luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "R33 one focused Cargo test failed at all-row map disjointness; no retry. Exact test/code diff reviewed then restored by primary to pinned baseline."
-    },
-    {
-      "id": "/root/r33_allocating_lift_proof",
-      "role": "prover",
+      "id": "/root/r34_dispatch",
+      "role": "next_action_selector",
       "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R33 proof frozen at missing Generalize §3.3 source-owned C/D intro; reviewer CLEAN for bounded obstruction; parent0->0."
-    },
-    {
-      "id": "/root/r33_compiler_review",
-      "role": "fresh compiler referee",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "BLOCKED for native test integration with exact assertion, row-kind and source-to-map join defects; CLEAN for proof obstruction."
-    },
-    {
-      "id": "/root/r33_spec_review",
-      "role": "fresh spec auditor",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "BLOCKED for native artifact overclaim and all-row assertion; CLEAN for proof artifact bounded obstruction and unchanged parent scope."
+      "receipt": "Returned R34 delta: use candidate_scheme existing test metadata; proof blocked pending authentic C/D introduction; 1080s total, Astra0."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/current.json",
+      "path": "tasks/agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md",
       "owner": "/root",
       "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/active-capture-observer-join-20261018-r33.md",
-      "owner": "/root",
-      "state": "FROZEN"
     },
     {
       "path": "tasks/current.md",
@@ -221,43 +116,13 @@
       "state": "HELD"
     },
     {
-      "path": "crates/yu-solver/src/candidate_source.rs",
-      "owner": "/root/r33_native_provenance_join",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
-      "owner": "/root/r33_native_provenance_join",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-18-active-capture-native-join-r33.md",
-      "owner": "/root/r33_native_provenance_join",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-active-capture-native-join-r33.md",
-      "owner": "/root/r33_native_provenance_join",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-18-active-capture-allocating-lift-r33.md",
-      "owner": "/root/r33_allocating_lift_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-active-capture-allocating-lift-r33.md",
-      "owner": "/root/r33_allocating_lift_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-18-r33-active-capture-observer-closeout.md",
+      "path": "tasks/agent-loop/current.json",
       "owner": "/root",
       "state": "HELD"
     }
   ],
   "pending": [],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R33 closeout: notes/progress/2026-10-18-r33-active-capture-observer-closeout.md. Parent0->0. Native test process failed on invalid all-row disjointness; reviewers found further unqualified joins; exact code diff reverted. Proof obstruction CLEAN, C/D intro remains missing.",
-  "sha256": "9e7db2244f645d521c793f2c2737b512ff8eb41be32fc246ab7b613fac6bcb27"
+  "history": "R33 closed; R34 active. Preserve original parent scope and keep R30 independently OPEN.",
+  "sha256": "4a4e91e78f42eae0067d22a0e84e1c80aa00af72966824a538868231f7088b2b"
 }

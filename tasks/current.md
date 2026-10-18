@@ -17523,3 +17523,17 @@ identity/pair joins and an unreached-assertion overclaim. The two experimental
 code/test files were restored to their pinned baseline. Parent conditions
 remain 0 -> 0. See the
 [R33 closeout](../notes/progress/2026-10-18-r33-active-capture-observer-closeout.md).
+
+## Active research sprint — R34
+
+R34 targets one exact native correspondence chain:
+active initializer Link -> checking/source event -> signed pair/group
+incidence -> helper capture/publication -> both retained FreshUse maps. The
+native lane uses existing reconstruction metadata in `candidate_scheme.rs` to
+classify allocated images, aliases and shared rows, then runs one focused
+regression and receives fresh compiler/spec review. `candidate_source.rs` and
+production allocation behavior remain unchanged. The proof lane is BLOCKED on
+the authentic source-owned C/D introduction; R33's reviewed obstruction and
+R32 retention result remain, and no equivalent conditional lift is repeated.
+Parent conditions remain OPEN at 0 -> 0; R30 remains independent. See the
+[R34 contract](agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md).
