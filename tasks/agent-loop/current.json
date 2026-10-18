@@ -26,7 +26,7 @@
       "allocation": "Sol600 charged; Luna source-owner500 charged conservatively at lane cap; fresh compiler200 and spec200 reviews plus integration300 remain. Total1800; Astra0; no carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "Both author lanes STOPPED and all four exact outputs frozen. Record author hashes and consult dispatcher at the integration seam; then fresh independent compiler/spec review within 200s each. No code/tests/execution.",
+    "next_action": "Both fresh reviewers acknowledged the exact frozen packet and are RUNNING read-only within 200s each. Authors remain STOPPED. Await independent findings; repair bytes only through Luna and delta review if needed.",
     "history": "R59 closed and pushed in fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3; integration and compact-state receipts pushed in b62bf4bed359ed5f8bd4728923d1807044f9e8c9. R59 parent OPEN 0->0, A/B OPEN, R50 NOT ADOPTED. R60 revision1 status wording was corrected to revision2 before any author work. Exact revision2 SHA and 25/25 pins checked; baseline b62bf4bed359ed5f8bd4728923d1807044f9e8c9 matches HEAD/origin; dispatcher confirmed start-boundary fit; Luna activated R60. Sol has not acknowledged; no proof reads/writes started. All prior identities STOPPED, leases FROZEN.",
     "workers": [
       {
@@ -54,24 +54,24 @@
       {
         "id": "/root/r52_compiler_review",
         "role": "Fresh independent compiler/source-owner review after both authors stop",
-        "state": "WAITING",
+        "state": "RUNNING",
         "requested_model": "UNKNOWN",
         "requested_effort": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r60",
-        "receipt": "200s reserved; prior R59 review does not count."
+        "receipt": "Fresh current-session R60 compiler/source-owner receipt arrived before reads. Exact five frozen target hashes and 25 dependency pins acknowledged; 200s cap, read-only/static, no descendants. Requested/observed model and effort UNKNOWN/UNKNOWN. Primary acknowledgement now releases review."
       },
       {
         "id": "/root/r52_spec_review",
         "role": "Fresh independent spec/domain review after both authors stop",
-        "state": "WAITING",
+        "state": "RUNNING",
         "requested_model": "UNKNOWN",
         "requested_effort": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r60",
-        "receipt": "200s reserved; prior R59 review does not count."
+        "receipt": "Fresh current-session R60 independent spec/domain receipt arrived before reads. Exact five frozen target hashes and 25 dependency pins acknowledged; parent and non-adoption boundaries in scope; 200s cap, read-only, no descendants. Requested/observed model and effort UNKNOWN/UNKNOWN. Primary acknowledgement now releases review."
       }
     ],
     "leases": [
