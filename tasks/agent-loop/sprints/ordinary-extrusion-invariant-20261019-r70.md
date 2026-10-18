@@ -1,6 +1,6 @@
 # Sprint R70 candidate — ordinary extrusion operation invariant
 
-Status: **CANDIDATE NOT ACTIVATED — no work granted**. Luna owns the fixed parent goal, candidate, exact leases, adjudication and Git. Branch: `research/simple-sub-intrusion`; baseline: `c84f3f98673af3993dea85c5d9ecb938463738a3` (R70 candidate checkpoint; no solver files changed).
+Status at candidate evaluation: **NOT ACTIVATED; no work granted**. Activation and grants are recorded only in `tasks/agent-loop/current.json`. Luna owns the fixed parent goal, candidate, exact leases, adjudication and Git. Branch: `research/simple-sub-intrusion`; baseline: `c84f3f98673af3993dea85c5d9ecb938463738a3` (R70 candidate checkpoint; no solver files changed).
 
 The original type-inference and evaluator goal, source domain, quantifiers and approved source meanings remain unchanged. Simple-sub A/B remain OPEN 0→0; R50 remains NOT ADOPTED. R69 and the annotated-Lambda consumer-placement decision remain pending and are independent of this packet.
 
