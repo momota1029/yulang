@@ -26,7 +26,7 @@
       "allocation": "Sol proof600; Luna source-owner500; fresh compiler200; fresh spec200; integration300. Astra0; no carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "R61 activated. Luna read-only source-owner lane begins on its exact two paths. Dispatch configured prover and require fresh active-work receipt before any proof reads/writes; record actual ID and transfer only its two leases after acknowledgment. No code/tests/execution.",
+    "next_action": "R61 proof worker receipt recorded at exact runtime identity; acknowledged after push. Sol proof lane and Luna read-only source-owner lane active on disjoint exact outputs; no code/tests/execution.",
     "history": "R60 closed and fully reconciled at d6332bfae; closeout notes/progress/2026-10-19-r60-closeout.md. All R60 workers STOPPED, leases FROZEN, 25/25 pins reviewed. R61 dispatcher start check confirmed exact rev1 hash 537f8323a96490bf525ee68fe57c6e958c57aade31b091ca33b220466135f982f; 16/16 pins MATCH at baseline d6332bfae410c96d6c6a36c95d552c93bfbbd72f. Luna activates R61; proof worker not yet acknowledged and has no lease transfer.",
     "workers": [
       {
@@ -61,6 +61,17 @@
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r61",
         "receipt": "200s reserved; no R61 reads or review yet."
+      },
+      {
+        "id": "/root/r61_whole_ascription_corr_proof",
+        "role": "Configured prover; constructive source-to-native whole-ascription Corr",
+        "state": "RUNNING",
+        "requested_model": "gpt-6-sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19-r61",
+        "receipt": "Fresh current-session active-work receipt received before reads/writes. Exact fixed goal and two outputs notes/theory/2026-10-19-r61-whole-ascription-corr.md and tasks/agent-loop/inbox/20261019-r61-proof.md confirmed; 600s cap, no descendants. Worker confirms no R61 reads/writes began. Luna acknowledgment now releases exact lane."
       }
     ],
     "leases": [
@@ -77,6 +88,16 @@
       {
         "path": "tasks/agent-loop/inbox/20261019-r61-implementation.md",
         "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/theory/2026-10-19-r61-whole-ascription-corr.md",
+        "owner": "/root/r61_whole_ascription_corr_proof",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261019-r61-proof.md",
+        "owner": "/root/r61_whole_ascription_corr_proof",
         "state": "HELD"
       }
     ],
@@ -131,6 +152,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r61",
       "receipt": "200s reserved; no R61 reads or review yet."
+    },
+    {
+      "id": "/root/r61_whole_ascription_corr_proof",
+      "role": "Configured prover; constructive source-to-native whole-ascription Corr",
+      "state": "RUNNING",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r61",
+      "receipt": "Fresh current-session active-work receipt received before reads/writes. Exact fixed goal and two outputs notes/theory/2026-10-19-r61-whole-ascription-corr.md and tasks/agent-loop/inbox/20261019-r61-proof.md confirmed; 600s cap, no descendants. Worker confirms no R61 reads/writes began. Luna acknowledgment now releases exact lane."
     }
   ],
   "leases": [
@@ -147,6 +179,16 @@
     {
       "path": "tasks/agent-loop/inbox/20261019-r61-implementation.md",
       "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-19-r61-whole-ascription-corr.md",
+      "owner": "/root/r61_whole_ascription_corr_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r61-proof.md",
+      "owner": "/root/r61_whole_ascription_corr_proof",
       "state": "HELD"
     }
   ],
