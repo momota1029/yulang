@@ -1747,6 +1747,52 @@ impl State {
     pub(super) fn import_evidence(&mut self, snapshot: EvidenceSnapshot) -> Result<EvidenceSnapshotId, SolveAvailabilityError> {
         self.evidence.intern_snapshot(snapshot)
     }
+    /// Check the already captured/imported snapshot pair. This deliberately
+    /// compares the source snapshot retained by the route; it must not sample
+    /// the current evidence head, which may include later admissions.
+    pub(super) fn captured_snapshot_was_imported(
+        &self, captured: EvidenceSnapshot, imported: EvidenceSnapshotId,
+    ) -> bool {
+        self.evidence.snapshots.get(imported.0).copied() == Some(captured)
+    }
+    /// Authenticate the concrete FreshUse admission and the emitted physical
+    /// fiber that consumed its imported antecedent. No tuple-only lookup can
+    /// manufacture this link: the immutable admission names both the captured
+    /// bound and mapped relation, and the emission names that admission.
+    pub(super) fn fresh_use_fiber_emission(
+        &self, antecedent: EvidenceSnapshotId, source_bound: BoundKey,
+        use_origin: usize, mapped_relation: RelationId, target_bound: BoundKey,
+    ) -> Option<(BoundAdmissionId, BoundEmissionId, PhysicalBoundSlot)> {
+        let mut found = None;
+        let snapshot_coverage = self.evidence.snapshots.get(antecedent.0)?.coverage;
+        let mut expected_coverage = snapshot_coverage;
+        expected_coverage.add(CoverageGap::ReplayUseAntecedentsNotRetained);
+        for (index, admission) in self.evidence.admissions.iter().enumerate() {
+            if admission.bound != target_bound || admission.relation != Some(mapped_relation)
+                || admission.cause != (BoundAdmissionCause::FreshUse {
+                    antecedent, use_origin, source_bound, mapped_relation: Some(mapped_relation),
+                }) {
+                continue;
+            }
+            if admission.coverage != expected_coverage { return None; }
+            let id = BoundAdmissionId(index);
+            let mut emissions = self.evidence.emissions.iter().enumerate().filter(|(_, emission)|
+                emission.admission == id && emission.bound == target_bound);
+            let (emission_index, emission) = emissions.next()?;
+            if emissions.next().is_some() { return None; }
+            let evidence = (id, BoundEmissionId(emission_index), emission.physical);
+            if found.replace(evidence).is_some() { return None; }
+        }
+        found
+    }
+    pub(super) fn replay_recipe_is_retained(&self, dependency: Dependency) -> bool {
+        self.evidence.recipe_keys.get(&dependency).is_some_and(|id|
+            self.evidence.recipes.get(id.0).is_some_and(|recipe| {
+                let mut expected = EvidenceCoverage::default();
+                expected.add(CoverageGap::ReplayUseAntecedentsNotRetained);
+                recipe.dependency == dependency && recipe.coverage == expected
+            }))
+    }
     pub(super) fn evidence_admit(&mut self, bound: BoundKey, origin: TypedPairKey, relation: Option<RelationId>,
         cause: BoundAdmissionCause, duplicate: bool) -> Result<BoundAdmissionId, SolveAvailabilityError> {
         self.evidence.admit(bound, origin, relation, cause, duplicate)
@@ -2541,6 +2587,9 @@ impl State {
         let flow = self.relations.get(id.0 as usize).ok_or_else(exhausted)?.key.scoped;
         if flow.0 == 0 { Ok(ScopedFlow::default()) } else { self.scope_flows.get(flow.0 - 1).copied().ok_or_else(exhausted) }
     }
+    pub(super) fn relation_pair(&self, id: RelationId) -> Option<TypedPairKey> {
+        self.relations.get(id.0 as usize).map(|relation| relation.key.pair)
+    }
     /// Allocation-free source of exact Replay/demand rows for the private
     /// diagnostic observer. Each dependency is preserved independently.
     pub(super) fn replay_demand_rows(&self) -> impl Iterator<Item = ReplayDemandRow> + '_ {
@@ -2578,7 +2627,7 @@ impl State {
     pub(super) fn authenticate_replay_ancestry(
         &self, row: ReplayDemandRow, source: RelationId, copied: RelationId,
         from: BoundKey, to: BoundKey,
-    ) -> Option<[RelationId; 4]> {
+    ) -> Option<(RelationId, [RelationId; 4], Term, Term)> {
         if !row.lower_matches || !row.upper_matches || row.child != copied
             || self.relations.get(source.0 as usize)?.key.pair != bound_pair(from)
             || self.relations.get(copied.0 as usize)?.key.pair != bound_pair(to)
@@ -2653,8 +2702,17 @@ impl State {
         }
         if current_root != row.demand.root { return None; }
         let upper_pair = self.relations.get(row.upper.0 as usize)?.key.pair;
-        if relation_negative_function_root(upper_pair) != Some(row.demand.root)
-            || row.upper_input.2 != ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(row.demand.root))
+        let upper_root = relation_negative_function_root(upper_pair)?;
+        let child_root = relation_negative_function_root(self.relations.get(row.child.0 as usize)?.key.pair)?;
+        if row.upper_input.2 != ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(upper_root))
+            || child_root != row.demand.root
+        { return None; }
+        let lower_flow = self.scoped_flow(row.lower).ok()?;
+        let upper_flow = self.scoped_flow(row.upper).ok()?;
+        let child_flow = self.scoped_flow(row.child).ok()?;
+        if lower_flow.demand.is_some() || upper_flow.demand != Some(row.demand)
+            || child_flow.demand != Some(row.demand)
+            || lower_flow.transformer != 0 || upper_flow.transformer != 0 || child_flow.transformer != 0
         { return None; }
 
         let fields = [FunctionField::Argument, FunctionField::ArgumentEffect, FunctionField::ResultEffect, FunctionField::Result];
@@ -2663,7 +2721,7 @@ impl State {
         for index in 0..4 {
             let mut matches = self.dependencies.iter().filter_map(|edge| match *edge {
                 Dependency::FunctionPort { child, parent, field, operation }
-                    if parent == row.upper && field == fields[index] && operation == operations[index] => Some(child),
+                    if parent == row.child && field == fields[index] && operation == operations[index] => Some(child),
                 _ => None,
             });
             let child = matches.next()?;
@@ -2676,7 +2734,16 @@ impl State {
             children[index] = child;
         }
         if (0..4).any(|i| (0..i).any(|j| children[i] == children[j])) { return None; }
-        Some(children)
+        // `q -> C` is the separately checked consumer spine. This fixture's
+        // dispatch consumes q directly; its zero-step case is an identity
+        // check, not an inferred adjacency. Any rewritten consumer must retain
+        // a separate producer edge before it can be accepted here.
+        let consumer = row.child;
+        let consumer_root = relation_negative_function_root(self.relations.get(consumer.0 as usize)?.key.pair)?;
+        if consumer != row.child || consumer_root != child_root {
+            return None;
+        }
+        Some((consumer, children, upper_root, child_root))
     }
     fn relation(
         &mut self,

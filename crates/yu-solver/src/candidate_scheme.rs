@@ -230,8 +230,10 @@ impl FreshUse {
 /// existing relations.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct DemandTransportEvidence {
+    pub route_owner: FreshRouteOwner,
     pub route: usize,
     pub relation: candidate_context::RelationId,
+    pub consumer: candidate_context::RelationId,
     pub replay_child: candidate_context::RelationId,
     pub replay_lower: candidate_context::RelationId,
     pub replay_upper: candidate_context::RelationId,
@@ -239,9 +241,13 @@ pub(super) struct DemandTransportEvidence {
     pub upper_input: candidate_effect::BoundKey,
     pub fresh_from: candidate_effect::BoundKey,
     pub fresh_to: candidate_effect::BoundKey,
+    pub physical_fiber: candidate_context::PhysicalBoundSlot,
     pub port_relations: [candidate_context::RelationId; 4],
     pub original_root: Term,
     pub copied_root: Term,
+    pub replay_upper_root: Term,
+    pub replay_child_root: Term,
+    pub consumer_root: Term,
     pub original_scope: candidate_scope::EffectScopeId,
     pub copied_scope: candidate_scope::EffectScopeId,
     pub original_input: candidate_scope::InputRouteId,
@@ -251,8 +257,67 @@ pub(super) struct DemandTransportEvidence {
     pub ports_match: [bool; 4],
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum FreshRouteOwner { Module, Local }
+
 fn four_ports_match<T: Copy + Eq>(expected: [T; 4], observed: [T; 4]) -> [bool; 4] {
     std::array::from_fn(|index| expected[index] == observed[index])
+}
+
+fn mapped_endpoint_at(
+    graph: &Graph, mapped_rows: &[RowKey], retained: &RetainedFreshUseMaps,
+    node: usize,
+) -> Option<ExtrusionEndpoint> {
+    Some(match *graph.nodes.get(node)? {
+        Node::Row { row, .. } => match *mapped_rows.get(row)? {
+            RowKey::Value(index) => ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(index)),
+            RowKey::Effect(index) => ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(index)),
+        },
+        Node::EffectOperand { .. } => ExtrusionEndpoint::Effect(*retained.effect_operands.get(&node)?),
+        Node::Function { polarity: function_polarity, .. } => {
+            let term = retained.terms.get(node).copied().flatten()?;
+            ExtrusionEndpoint::Value(match function_polarity {
+                Polarity::Positive => ValueEndpointKey::PositiveFunction(term),
+                Polarity::Negative => ValueEndpointKey::NegativeFunction(term),
+            })
+        }
+        Node::Leaf(atom) => ExtrusionEndpoint::Value(match atom {
+            Atom::Bottom => ValueEndpointKey::BottomPositive,
+            Atom::Top => ValueEndpointKey::TopNegative,
+            Atom::NegativeBottom => ValueEndpointKey::BottomNegative,
+            Atom::IntPositive => ValueEndpointKey::IntPositive,
+            Atom::IntNegative => ValueEndpointKey::IntNegative,
+            Atom::UnitPositive => ValueEndpointKey::UnitPositive,
+            Atom::UnitNegative => ValueEndpointKey::UnitNegative,
+            Atom::BoolPositive => ValueEndpointKey::BoolPositive,
+            Atom::BoolNegative => ValueEndpointKey::BoolNegative,
+            Atom::StrPositive => ValueEndpointKey::StrPositive,
+            Atom::StrNegative => ValueEndpointKey::StrNegative,
+            Atom::EffectBottom | Atom::EmptyEffect => return None,
+        }),
+    })
+}
+
+fn typed_port_pair(
+    graph: &Graph, mapped_rows: &[RowKey], retained: &RetainedFreshUseMaps,
+    positive_children: [usize; 4], negative_children: [usize; 4], field_index: usize,
+) -> Option<TypedPairKey> {
+    let (lower_node, upper_node, kind) = match field_index {
+        0 => (negative_children[0], positive_children[0], ComponentKind::Value),
+        1 => (negative_children[1], positive_children[1], ComponentKind::Effect),
+        2 => (positive_children[2], negative_children[2], ComponentKind::Effect),
+        3 => (positive_children[3], negative_children[3], ComponentKind::Value),
+        _ => return None,
+    };
+    let lower = mapped_endpoint_at(graph, mapped_rows, retained, lower_node)?;
+    let upper = mapped_endpoint_at(graph, mapped_rows, retained, upper_node)?;
+    Some(match (kind, lower, upper) {
+        (ComponentKind::Value, ExtrusionEndpoint::Value(lower), ExtrusionEndpoint::Value(upper)) =>
+            TypedPairKey::Value(CanonicalValuePairKey { lower, upper }),
+        (ComponentKind::Effect, ExtrusionEndpoint::Effect(lower), ExtrusionEndpoint::Effect(upper)) =>
+            TypedPairKey::Effect { lower, upper },
+        _ => return None,
+    })
 }
 
 impl GraphState {
@@ -270,43 +335,53 @@ impl GraphState {
         let mut found = None;
         let copied = row.demand;
         let original_call = row.call;
-        for (route_index, route) in self.local_routes.iter().enumerate() {
-            if route.use_instance != copied.use_instance
-                || route.retained.context_use != copied.use_instance
+        let module_routes = self.routes.iter().enumerate().map(|(index, route)|
+            (FreshRouteOwner::Module, index, &route.graph, &route.rows, &route.retained, route.retained.context_use));
+        let local_routes = self.local_routes.iter().enumerate().map(|(index, route)|
+            (FreshRouteOwner::Local, index, &route.graph, &route.rows, &route.retained, route.use_instance));
+        for (route_owner, route_index, graph, mapped_rows, retained, use_instance) in module_routes.chain(local_routes) {
+            if use_instance != copied.use_instance || retained.context_use != copied.use_instance
             {
                 continue;
             }
-            let Some(&node_index) = route.graph.negative_functions.get(&original_root) else { continue; };
-            let Some(copied_root) = route.retained.terms.get(node_index).copied().flatten() else { return None; };
-            if copied_root != copied.root {
-                return None;
-            }
-            let mut source_relations = route.graph.bounds.iter().filter_map(|bound| bound.relation)
+            let Some(&node_index) = graph.negative_functions.get(&original_root) else { continue; };
+            let Some(copied_root) = retained.terms.get(node_index).copied().flatten() else { return None; };
+            let mut source_relations = graph.bounds.iter().filter_map(|bound| bound.relation)
                 .filter(|relation| context.scoped_flow(*relation).is_ok_and(|flow|
                     flow.demand.is_some_and(|source| source.original_call == original_call
                         && source.root == original_root)
-                    && route.retained.scoped_relations.get(relation)
+                    && retained.scoped_relations.get(relation)
                         .is_some_and(|flow| flow.demand == Some(copied))));
             let original_relation = source_relations.next()?;
             if source_relations.next().is_some() { return None; }
-            if !route.graph.bounds.iter().any(|bound| bound.relation == Some(original_relation))
-                || route.retained.scoped_relations.get(&original_relation).and_then(|flow| flow.demand) != Some(copied)
+            let mut captured_bounds = graph.bounds.iter().filter(|bound| bound.relation == Some(original_relation));
+            let Some(captured) = captured_bounds.next() else { return None; };
+            if captured_bounds.next().is_some()
+                || retained.scoped_relations.get(&original_relation).and_then(|flow| flow.demand) != Some(copied)
+            { return None; }
+            let snapshot = *graph.bound_evidence.get(captured.evidence.0)?;
+            let imported = *retained.evidence_remap.get(captured.evidence.0)?;
+            if snapshot.source_bound != captured.source_bound || snapshot.relation != Some(original_relation)
+                || !context.captured_snapshot_was_imported(snapshot, imported)
             { return None; }
             let original_demand = context.scoped_flow(original_relation).ok()?.demand?;
+            if context.scoped_flow(original_relation).ok()?.transformer != 0
+                || retained.scoped_relations.get(&original_relation)?.transformer != 0
+            { return None; }
             let original_scope = original_demand.output_scope;
             let original_input = original_demand.input;
-            let mapped_scope = route.retained.scope_remap.scopes.get(&original_scope)
+            let mapped_scope = retained.scope_remap.scopes.get(&original_scope)
                 .copied().unwrap_or(original_scope);
-            let mapped_input = route.retained.scope_remap.inputs.get(&original_input)
+            let mapped_input = retained.scope_remap.inputs.get(&original_input)
                 .copied().unwrap_or(original_input);
             if mapped_scope != copied.output_scope || mapped_input != copied.input {
                 return None;
             }
             let Node::Function { polarity: Polarity::Negative, children } =
-                *route.graph.nodes.get(node_index)? else { return None; };
+                *graph.nodes.get(node_index)? else { return None; };
             let mut expected = [copied_root; 4];
             for (index, child) in children.into_iter().enumerate() {
-                expected[index] = route.retained.terms.get(child).copied().flatten()?;
+                expected[index] = retained.terms.get(child).copied().flatten()?;
             }
             let actual = term_ports(copied_root)?;
             let observed = observed_ports_override.unwrap_or(actual);
@@ -315,15 +390,67 @@ impl GraphState {
                 return None;
             }
             let fresh_witness = context.fresh_use_witness(original_relation, row.child, copied)?;
-            let port_relations = context.authenticate_replay_ancestry(row, original_relation,
-                row.child, fresh_witness.0, fresh_witness.1)?;
+            let Some((_, _, physical_fiber)) = context.fresh_use_fiber_emission(imported,
+                captured.source_bound, copied.use_instance, row.child, fresh_witness.1) else { return None; };
+            let owner_node = if captured.side == Polarity::Positive { captured.upper } else { captured.lower };
+            let item_node = if captured.side == Polarity::Positive { captured.lower } else { captured.upper };
+            let Node::Row { row: owner_index, .. } = *graph.nodes.get(owner_node)? else { return None; };
+            let expected_owner = *mapped_rows.get(owner_index)?;
+            let item_is_row = matches!(graph.nodes.get(item_node)?, Node::Row { .. });
+            let expected_lane = match (captured.kind, captured.side, item_is_row) {
+                (ComponentKind::Value, Polarity::Positive, true) => candidate_context::BoundLane::ValueLowerRow,
+                (ComponentKind::Value, Polarity::Positive, false) => candidate_context::BoundLane::ValueLowerAtom,
+                (ComponentKind::Value, Polarity::Negative, true) => candidate_context::BoundLane::ValueUpperRow,
+                (ComponentKind::Value, Polarity::Negative, false) => candidate_context::BoundLane::ValueUpperAtom,
+                (ComponentKind::Effect, Polarity::Positive, true) => candidate_context::BoundLane::EffectLowerRow,
+                (ComponentKind::Effect, Polarity::Positive, false) => candidate_context::BoundLane::EffectLowerAtom,
+                (ComponentKind::Effect, Polarity::Negative, true) => candidate_context::BoundLane::EffectUpperRow,
+                (ComponentKind::Effect, Polarity::Negative, false) => candidate_context::BoundLane::EffectUpperAtom,
+            };
+            if physical_fiber.owner != expected_owner || physical_fiber.lane != expected_lane { return None; }
+            let replay_recipe = candidate_context::Dependency::Replay {
+                child: row.child, lower: row.lower, upper: row.upper,
+                lower_input: row.lower_input, upper_input: row.upper_input,
+            };
+            if !context.replay_recipe_is_retained(replay_recipe) { return None; }
+            let (consumer, port_relations, replay_upper_root, replay_child_root) =
+                context.authenticate_replay_ancestry(row, original_relation,
+                    row.child, fresh_witness.0, fresh_witness.1)?;
+            // The retained p1→h constructor is absent. Authenticate its
+            // supported zero-step case explicitly; do not identify p1, h, q,
+            // and C in the evidence record.
+            if copied_root != replay_upper_root { return None; }
+            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(positive_root)) = row.lower_input.2 else { return None; };
+            let ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(negative_root)) = row.upper_input.2 else { return None; };
+            let find_function = |term: Term, polarity: Polarity| {
+                let mut found = None;
+                for (index, node) in graph.nodes.iter().enumerate() {
+                    if !matches!(node, Node::Function { polarity: actual, .. } if *actual == polarity)
+                        || retained.terms.get(index).copied().flatten() != Some(term) { continue; }
+                    if found.replace(index).is_some() { return None; }
+                }
+                found
+            };
+            let positive_node = find_function(positive_root, Polarity::Positive)?;
+            let negative_node = find_function(negative_root, Polarity::Negative)?;
+            let Node::Function { children: positive_children, .. } = *graph.nodes.get(positive_node)? else { return None; };
+            let Node::Function { children: negative_children, .. } = *graph.nodes.get(negative_node)? else { return None; };
+            for index in 0..4 {
+                let expected_pair = typed_port_pair(graph, mapped_rows, retained,
+                    positive_children, negative_children, index)?;
+                if context.relation_pair(port_relations[index]) != Some(expected_pair) { return None; }
+            }
             let evidence = DemandTransportEvidence {
+                route_owner,
                 route: route_index, relation: original_relation,
-                replay_child: row.child, replay_lower: row.lower, replay_upper: row.upper,
+                replay_child: row.child, replay_lower: row.lower, replay_upper: row.upper, consumer,
                 lower_input: row.lower_input, upper_input: row.upper_input, port_relations,
                 fresh_from: fresh_witness.0, fresh_to: fresh_witness.1,
+                physical_fiber,
                 original_root,
-                copied_root, original_scope, copied_scope: copied.output_scope,
+                copied_root, replay_upper_root, replay_child_root,
+                consumer_root: replay_child_root,
+                original_scope, copied_scope: copied.output_scope,
                 original_input, copied_input: copied.input,
                 scope_map_matches: mapped_scope == copied.output_scope,
                 input_map_matches: mapped_input == copied.input,
@@ -2099,7 +2226,7 @@ mod authentic_demand_capture_tests {
             ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap(),
         ).unwrap();
         session.execute().unwrap();
-        let state = session.candidate_graph.as_ref().unwrap();
+        let state = session.candidate_graph.as_mut().unwrap();
         let context = &state.intrusion.effect_algebra.context;
         let mut authenticated = Vec::new();
         for replay_row in context.replay_demand_rows() {
@@ -2116,6 +2243,31 @@ mod authentic_demand_capture_tests {
             assert_eq!(evidence.ports_match, [true; 4]);
             assert!(evidence.scope_map_matches && evidence.input_map_matches);
             assert_ne!(native.demand, copied.root, "raw native root equality remains false");
+
+            // Mutate the actual route-owned capture, not the selected Replay
+            // tuple. Its imported antecedent must stop authenticating.
+            if evidence.route_owner == FreshRouteOwner::Local {
+                let (snapshot_index, original) = {
+                    let route = &state.local_routes[evidence.route];
+                    let bound = route.graph.bounds.iter().find(|bound| bound.relation == Some(evidence.relation)).unwrap();
+                    (bound.evidence.0, route.graph.bound_evidence[bound.evidence.0])
+                };
+                {
+                    let mut changed = original;
+                    changed.source_bound.1 = if changed.source_bound.1 == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+                    state.local_routes[evidence.route].graph.bound_evidence[snapshot_index] = changed;
+                }
+                assert!(state.authenticate_demand_transport(context, replay_row, native.demand, ports, None).is_none(),
+                    "altering the actual captured snapshot rejects the route");
+                state.local_routes[evidence.route].graph.bound_evidence[snapshot_index] = original;
+
+                let original_flow = *state.local_routes[evidence.route].retained.scoped_relations.get(&evidence.relation).unwrap();
+                state.local_routes[evidence.route].retained.scoped_relations.get_mut(&evidence.relation).unwrap().transformer =
+                    original_flow.transformer.checked_add(1).unwrap();
+                assert!(state.authenticate_demand_transport(context, replay_row, native.demand, ports, None).is_none(),
+                    "altering the actual retained scoped flow rejects the route");
+                *state.local_routes[evidence.route].retained.scoped_relations.get_mut(&evidence.relation).unwrap() = original_flow;
+            }
 
             let mut wrong_use = copied;
             wrong_use.use_instance = wrong_use.use_instance.checked_add(1).unwrap();

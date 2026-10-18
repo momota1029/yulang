@@ -15,15 +15,15 @@
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "runtime": "Proof rev1 independently CLEAN for the conditional constructor argument; two numeric fixture rows/execution remain missing. Implementation has not produced a positive certificate yet; no runtime."
+      "runtime": "Proof review CLEAN; implementation candidate frozen, but both fixed positive routes/root equalities and mutations remain unrun. No Cargo/build/test runtime."
     },
     "resources": {
       "cap_seconds": 4200,
-      "charged_seconds": 900,
-      "available_seconds": 3300,
+      "charged_seconds": 1680,
+      "available_seconds": 2520,
       "allocation": "Proof900 + implementation1800 (code1440/runtime360) + proof/compiler review840 + Luna integration180 + reserve480. Astra0; no rollover."
     },
-    "next_action": "Conditional proof rev1 received CLEAN independent proof/spec review; parent closure remains 0. Implementation remains active; next gate is authentic positive fixture certificates and evidence-mutation regressions, then fresh compiler review before runtime."
+    "next_action": "Implementation candidate frozen (1140/1440s estimated); fresh compiler review assigned, proof review CLEAN. Positive/mutation assertions unrun; runtime held. PR #11 merged remotely at 27a7e00d; no hot reload into active contract."
   },
   "history": "Closed `npair-swr1-output-origin-prototype-20261018` at commit29a7ace306cca2b3959ed752c859125b01f89543. Proof review CLEAN for five static Local joins and valid-state Missing/remap lemma; original fixed-c/output-origin remains NOT PROVED, parent0→0. Compiler review MAJOR: infallible wrapper Vec push, uncharged repeated scans, missing Plan storage accounting. Prototype source was restored to pinned baseline; no Cargo/tests in that sprint. Review closeout pushed as 29a7ace30. Successor contract uses current pinned semantic/source inputs and dispatcher delta; no semantic candidate is adopted. Prior complete call/demand lane still has exact runtime boundaries in notes/progress/2026-10-18-npair-operation-field-demand-children-closeout.md and notes/progress/2026-10-18-npair-observed-apply-ingress-closeout.md. Parent and all other proof/production gates remain OPEN. Sprint contract rev1 had one malformed 65-character source-admission-contract digest; the actual file digest is 692aa39ec37f522e921634134551dad1933b736e5afd2eff463213970a0fb609. Rev2 corrects that pin only. Proof and implementation authors paused contract-scoped reliance pending the corrected hash; budgets do not reset. Successor progress: independent alternative falsifier froze 69ffae28.../9a7421c4... after 420s conservative charge: no admitted counterexample; only conditional distinct-identity discriminator, original c introduction/output field remains missing, parent0→0. Proof lane at21:34:11 elapsed337/rem383: actual IF Prim elimination is first unavailable original c judgment; native Support→AnnotationMember/FreshUse only establishes forward native target, not semantic c; artifact/handoff freeze pending. Implementation code froze at candidate_context46f0b74c..., shadow_apply d29d5f64..., harness d76cbae2... after246s/rem174; fresh compiler review CLEAN for demand-bearing Replay rows only, linear scan/constant storage, opt-in stderr/no API/no solver effects. Review limit: missing demand rows outside scope; truncated stderr cannot prove absence or completeness. No command yet; author preparing evidence and must remeasure >=120s. Closed `npair-original-c-compatibility-20261018` after all bounded writers/reviewers stopped. Frozen proof artifact e72f73ed... and handoff54a60964... independently reviewed CLEAN; source/native forward member lemma retained, original fixed-c/complete-output Written-s1 derivation not proved, no counterexample, parent0→0. Frozen falsifier69ffae28.../9a7421c4... found no admitted original counterexample. Frozen Replay observer code46f0b74c.../d29d5f64.../d76cbae2... independently compiler-reviewed CLEAN; no Cargo/test/build/probe was run (remaining lane cap below120s), so runtime remains unverified. Static diff check only. Conservatively charge full2160s, no rollover. All authors and reviewers STOPPED; exact artifact leases FROZEN. Successor proposal: concrete Operation contribution introduction/elimination and complete-output action plus independently attacked compatibility; in parallel make actual Local supplier and reviewed observer reachable and run the exact fixture. Parent OPEN, original conditions closed0. Closed `npair-operation-source-contract-and-replay-reachability-20261018` at frozen rev3 inputs. Source lane derived actual Operation request/consumer/A_decl output phi but failed to identify phi with original fixed c and prove universal reflection; proof review CLEAN only for conditional artifact and named two BLOCKING adoption gaps. Falsifier produced a conditional disjoint-fiber quantifier attack, no admitted counterexample. Implementation review MAJOR: local_routes.last() is wrong after argument LocalUse; scoped record caps leak into ordinary mode. Candidate not integrated; restored four files exactly to pinned hashes. No Cargo/test/fixture command; observer runtime unverified. Parent closure0. Full author budgets charged (600+300+900), both review caps conservatively charged; 240 seconds unused and expired, no rollover. See notes/progress/2026-10-18-operation-source-and-local-route-closeout.md#sha256:55a1b5310901b0cded3efa3e2dc1b24aab17368c0d191c07965d9faeb9a4662a. Dispatcher successor: exact local route keyed to actual callee under later argument LocalUses; scoped caps apply only scoped mode; add regression+unscoped noninterference; source formation compatibility/decision packet; execute fixture after review. Closed `npair-original-formation-and-exact-local-route-20261018` at dispatcher resource limit. Proof/decision/falsifier packets preserved; proof review CLEAN only for conditional checkpoint, original closure0. Local candidate had indexed route association, scoped-only cap and later-argument/unscoped regressions, but compiler review MAJOR: annotation/ascription Local callees lacked same-owner origin validation at final auth. Exact six-file candidate diff a2e3f699... and stop receipt22:11:37Z preserved in notes/progress/2026-10-18-local-route-authentication-unapproved.patch and closeout note; candidate never integrated. No tests/build/fixture ran. Total remaining345s < protected360s verification reserve; dispatcher refused further edit/review/test, no rollover. Proposed fresh successor `npair-local-route-authentication-and-runtime-20261018`,2100s, integrated source/call/shadow auth proof, annotation refusal, fresh review and two commands; Astra0. Closed npair-original-formation-and-exact-local-route-20261018 at dispatcher resource limit; no code promotion. Conditional proof/decision review CLEAN; original closure0. Local route candidate had one compiler MAJOR (annotation/ascription Local callee bypasses refused boundary), no tests/runtime. Unapproved diff and hashes in notes/progress/2026-10-18-local-route-authentication-unapproved.patch; code restored after writer STOP22:11:37Z. Total capacity345s < verification reserve360, no rollover. Closed `npair-local-route-authentication-and-runtime-20261018` at commit aa808f96543474d85fe70fba92161f94cf4cfd9a. Rev3 source/test snapshot received CLEAN review; focused candidate_graph_call tests passed5/5. Unchanged fixture exited2 at missing module binding `received`, no Replay row; parent OPEN, original conditions closed0. Runtime evidence: notes/progress/2026-10-18-local-route-runtime-validation.md. Prior budget 1578/2100 closed with no rollover. Closed `npair-replay-durable-capture-20261018` CLEAN/PARTIAL at f1b989ea0: complete run has80 Replay dependencies,186 scoped relation flows,0 demand-bearing flows; prior capture and attribution independently reviewed CLEAN; parent closure0. See sprint closeout rev2 a55415df.... Closed proof-candidate stage in current sprint: independent review found selector construction underdefined, W/Z/domain actions still signatures, consumer compatibility uninstantiated; candidate remains unadopted and parent closure0. Exact review result is in live agent receipt; artifacts unchanged. Closed `npair-operation-rule-completion-and-accepted-replay-20261018` rev2 PARTIAL: exact reviewed semantic candidate remains incomplete/unadopted (2 BLOCKING, 1 MAJOR), parent closure0. Corrected ordinary-lowering source fixture passed focused test 6/6 and integer propagated to received. Typed Replay observer call0 endpoint pairs true but native_root_matches false; example not run, no retry. Runtime logs/metadata retain exact evidence; all leases frozen. Closed `npair-demand-transport-correspondence-20261018` REVIEWED-PARTIAL: conditional constructor proof CLEAN; original closure0. Implementation snapshot frozen but compiler review BLOCKING (no Replay ancestry/current upper lineage) and MAJOR (false swap assertion omitted by focused command); no Cargo/test/example runtime. 1800/2400s charged, 600s expired, no rollover. See `notes/progress/2026-10-18-demand-root-transport-closeout.md`. Closed `npair-replay-ancestry-authentication-20261018` REVIEWED-PARTIAL: proof CLEAN conditional; implementation compiler review BLOCKING x3/MAJOR x2; no runtime. Parent closure0; conservative 1680/2400s charged and 720s expired without rollover. See `notes/progress/2026-10-18-replay-ancestry-closeout.md`.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -53,13 +53,13 @@
     {
       "id": "/root/replay_fiber_consumer_impl",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "ACKed rev1; ~360s conservatively charged. No positive certificate yet; module FreshRoute owner and evidence-retention gaps identified; implementing explicit fail-closed checks within exact lease. No Cargo/build/test."
+      "receipt": "Frozen seven leased paths; exact hashes in implementation handoff. Estimated 1140/1440s authoring charged, 360s runtime reserve untouched; no Cargo/tests/Git; writes stopped, descendants 0."
     },
     {
       "id": "/root/replay_fiber_proof_review",
@@ -71,6 +71,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "Fresh isolated review CLEAN for proof SHA 691a537b441bff0947b47886f423199e9558740778d81e50858eedd85e3e3614; all dependencies matched. Conditional scope only; fixture rows/runtime missing; parent closure0. Read-only STOP."
+    },
+    {
+      "id": "/root/replay_fiber_impl_review",
+      "role": "compiler_referee",
+      "state": "UNKNOWN",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh review launched on frozen implementation hashes; awaiting active-work ACK. Read-only; no runtime before CLEAN."
     }
   ],
   "leases": [
@@ -131,38 +142,38 @@
     },
     {
       "path": "crates/yu-solver/src/candidate_context.rs",
-      "owner": "/root/replay_fiber_consumer_impl",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
-      "owner": "/root/replay_fiber_consumer_impl",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/shadow_apply.rs",
-      "owner": "/root/replay_fiber_consumer_impl",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/tests/candidate_graph_call.rs",
-      "owner": "/root/replay_fiber_consumer_impl",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/examples/research_scoped_formal_replay.rs",
-      "owner": "/root/replay_fiber_consumer_impl",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-replay-fiber-consumer-certificate.md",
-      "owner": "/root/replay_fiber_consumer_impl",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-replay-fiber-consumer-impl.md",
-      "owner": "/root/replay_fiber_consumer_impl",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -175,6 +186,14 @@
       "receipt": "Fresh isolated proof/spec review launched; read-only. Numeric two-use rows remain explicitly unobserved.",
       "verdict": "CLEAN",
       "review_receipt": "Fresh isolated spec_auditor review; proof SHA 691a537b441bff0947b47886f423199e9558740778d81e50858eedd85e3e3614; review time conservatively charged 240s."
+    },
+    {
+      "id": "review-replay-fiber-impl-r1",
+      "state": "ASSIGNED",
+      "reviewer": "/root/replay_fiber_impl_review",
+      "artifact": "tasks/agent-loop/inbox/20261018-replay-fiber-consumer-impl.md",
+      "sha256": "813ee225d3f7515cd1611424995d3d857a4a2227fcd58a75ccb2763becd75e4f",
+      "receipt": "Fresh read-only compiler review launched; all positive/mutation assertions unrun, root equality unobserved."
     }
   ],
   "ready_next_work": null,

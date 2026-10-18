@@ -4,6 +4,7 @@
 use super::*;
 use crate::shadow_apply::{
     CandidateGraphExport, CandidateGraphLeaf, CandidateGraphNode, CandidateInference,
+    CandidateReplayRouteOwner,
 };
 use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
 
@@ -609,6 +610,15 @@ fn candidate_graph_call_authenticates_fresh_use_demand_transport_and_rejects_swa
     assert_ne!(first.route, second.route);
     for row in [first, second] {
         assert!(!row.native_root_matches, "preserve raw native root mismatch");
+        assert_eq!(row.route_owner, Some(CandidateReplayRouteOwner::Module),
+            "module FreshRoute ownership remains distinct from local-source routes");
+        assert_eq!(row.consumer_relation, Some(row.child_relation),
+            "the fixture's q→C consumer spine is authenticated as its zero-step case");
+        assert_eq!(row.replay_upper_root, Some(row.copied_root),
+            "the available p1→h constructor authenticates its zero-step root case");
+        assert_eq!(row.consumer_root, row.replay_child_root,
+            "the q→C root identity is retained explicitly");
+        assert!(row.physical_fiber.is_some(), "the FreshUse admission retains its emitted fiber slot");
         assert!(row.scope_map_matches && row.input_map_matches);
         assert_eq!(row.ports_match, [true; 4]);
         assert_ne!(row.child_relation, row.upper_relation, "the demand relation and Replay upper are separately authenticated");
