@@ -7,7 +7,7 @@
     "id": "ordinary-extrusion-invariant-20261019-r70",
     "contract": "tasks/agent-loop/sprints/ordinary-extrusion-invariant-20261019-r70.md",
     "revision": 1,
-    "state": "ACTIVE",
+    "state": "CLOSED_REVIEWED_CONDITIONAL",
     "baseline": "c84f3f98673af3993dea85c5d9ecb938463738a3",
     "contract_sha256": "4fa363c4dcbd97450b16dd2afb8b1bf2889f9faf00168d444205fe3633bee5cf",
     "parent": "Original type-inference and evaluator goal; unchanged source domain/quantifiers; Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
@@ -17,7 +17,7 @@
       "baseline_commit": "c84f3f98673af3993dea85c5d9ecb938463738a3",
       "dispatcher_start": "R70 exact candidate accepted for activation; final candidate SHA 4fa363c4dcbd97450b16dd2afb8b1bf2889f9faf00168d444205fe3633bee5cf; 20/20 pins MATCH; activation admissible after live reconciliation",
       "live_reconciliation": "All old R68 workers STOPPED; no descendants; old outputs FROZEN. Only current.json HELD by Luna. Branch clean/pushed at R70 activation.",
-      "authority_boundary": "Top-level principles §§1–3 authorize ordinary level-based extrusion. Simple-sub audit is secondary. Yulang effect/evidence/parent/replay are implementation properties; no promotion."
+      "authority_boundary": "Top-level §§1–3 govern; occurrence-qualified actual parent/copy retention is normative. Concrete Yulang storage/evidence/replay are implementation properties."
     },
     "resources": {
       "cap_seconds": 2400,
@@ -27,7 +27,7 @@
       "actual_runtime": "Proof and counter-reading launched in current session; requested settings recorded, observed model/effort UNKNOWN. CPU/RSS UNKNOWN; full grant reserved at activation."
     },
     "next_action": "Launch constructive prover and complementary researcher on disjoint exact paths; Luna traces actual callsite, mutation, replay handoff and owner map. No compiler code/test lane is authorized. Freeze authors before fresh compiler/spec review.",
-    "history": "R68 CLOSED/pushed. R69 remains NOT ACTIVATED pending user source-law choice."
+    "history": "R68 CLOSED/pushed; R69 NOT ACTIVATED; R70 CLOSED REVIEWED CONDITIONAL with operation target OPEN."
   },
   "workers": [
     {
@@ -39,7 +39,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Owner map FROZEN: map SHA c1b9a890d829edb77b065a09672b320c9fbe326e3d68c04a27d2fcf324dbd3a0; handoff SHA 7987dd2e1018eec7d8bdbcadac8925e56007772f4709fc6dd98d8f5d6d7f1c1a; no tests/builds/probes/code writes."
+      "receipt": "R70 closeout FROZEN: note SHA a93b2e5d38c03511c768dd704e57f3b616a1dafc591fe62a4155d64a06bbf4d8; handoff SHA ff2c149bd71c783f874c150404bf199084858df631c21899d3abf53a258655bb; sole Git owner."
     },
     {
       "id": "/root/r70_ordinary_extrusion_proof",
@@ -66,24 +66,24 @@
     {
       "id": "/root/r70_compiler_review",
       "role": "Fresh independent compiler/source-owner review; read-only",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Actual current-session launch acknowledged; exact frozen R70 packet only; no writes/tests/builds/probes."
+      "receipt": "STOPPED/READ_ONLY/NO_DESCENDANTS; no bounded compiler finding; 27/27 live hashes MATCH; entry-WF, raw/canonical coverage, later drain OPEN."
     },
     {
       "id": "/root/r70_spec_review",
       "role": "Fresh independent source-spec conformance review; read-only",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Actual current-session launch acknowledged; exact frozen R70 packet only; no writes/tests/builds/probes."
+      "receipt": "STOPPED/READ_ONLY/NO_DESCENDANTS; 27/27 live hashes MATCH; two minor wording findings, no substantive parent defect; parent identity required, Work::Visit receives prebuilt key."
     }
   ],
   "leases": [
@@ -124,6 +124,16 @@
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r70-implementation.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r70-closeout.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r70-closeout.md",
       "owner": "/root",
       "state": "FROZEN"
     }
@@ -193,6 +203,6 @@
       "falsifier": "A concrete static trace shows lost obligations, wrong kind/polarity/level, broken sharing, unsupported mutation or false resource bound; or a complete invariant with justified entry premises and exact finite costs is accepted by fresh independent review."
     }
   ],
-  "closure": "R68 CLOSED — REVIEWED CONDITIONAL SAME-CARRIER LEMMA / EXACT UNSUPPLIED CONSUMER–BODY-CHECK–INVOCATION PREMISE / NO_SAFE_CODE_SLICE. Parent, R65/R66/R67, R64/R61 and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED. R68-OWNER-CONSUMER-1 remains OPEN for source-owner routing. No carryover.",
-  "next_action": "Await independent compiler/spec review; Luna retains ENTRY-WF and later-drain follow-up routing."
+  "closure": "R70 CLOSED — REVIEWED CONDITIONAL ENTRY-TO-RETURN RESULT; operation target OPEN on ENTRY-WF, raw/canonical fiber coverage and later drain. Parent and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED. R68 remains CLOSED BOUNDED REVIEWED.",
+  "next_action": "Consult selector for next bounded owner task; R70 ENTRY-WF/raw-canonical coverage and R70-DRAIN-1 remain open. No code lease."
 }
