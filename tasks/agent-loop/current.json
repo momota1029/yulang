@@ -33,13 +33,13 @@
     {
       "id": "/root",
       "role": "Luna/high coordinator, owner map, adjudication, integration and sole Git owner",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "R71 closeout committed/pushed by Luna; both reviewers and all authors STOPPED. Selector boundary result: prepare source-bound third-owner lineage case before any successor sprint; no grant."
+      "receipt": "R71 closeout committed/pushed. Post-boundary read-only source reconnaissance found Apply source events and production Function/row extrusion seams, but no single unchanged-domain source instance through third-owner slot, qualified merge, later consumer, and independent required lineage. No successor sprint, lease, resource grant, tests, probes, or code changes; Luna stops this session."
     },
     {
       "id": "/root/r71_raw_canonical_proof",
@@ -211,5 +211,5 @@
     }
   ],
   "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 CLOSED REVIEWED CONDITIONAL with coverage target OPEN. R70 operation target, original parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-  "next_action": "Selection blocker: no concrete source/ordinary-mode instance yet connects the required lineage, third-owner physical slot, qualified merge, later production call, and independent consumer. Prepare that exact case before authorizing another sprint; no work/resources granted by selector."
+  "next_action": "Selection blocker persists: derive a concrete unchanged-domain source/ordinary-mode instance connecting the independently required lineage, third-owner physical slot, qualified merge, and later production consumer before proposing successor authority. Current Luna reconnaissance STOPPED; no new sprint or grant."
 }
