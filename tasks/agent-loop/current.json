@@ -20,7 +20,7 @@
     },
     "next_action": "Commit/push R21 contract and compact state, then dispatch three exact disjoint document-only leases. Freeze outputs, independent review, present reviewed semantic choice to user.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0.",
-    "last_stage_receipt": "Two-option proof packet frozen at pinned hashes; includes actual arm-result path constraint, no endpoint equalities. Independent falsification and integrated review remain.",
+    "last_stage_receipt": "All three R21 author packets frozen. Independent falsifier distinguishes valid forwarding and discarded resumption result; no new source-variant parse/admission run, so no source-qualified counterexample claim. Combined non-author review pending.",
     "git_checkpoint": {
       "commit": "c890c096b",
       "branch": "research/simple-sub-intrusion",
@@ -56,13 +56,13 @@
     {
       "id": "/root/r21_bridge_falsifiers",
       "role": "researcher",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "RUNNING: independent falsification/soundness lease launched; distinguish source-admitted cases from candidate/hypothetical contexts."
+      "receipt": "R21 independent falsifier/soundness packet frozen: soundness 1e85ae26d7caf678a28ec2cafe59ca4c8f6186a9f07de6b00d5f426cf2efb699; source falsifiers a881422001c4d3544e714a17f78681dc44e2360b204b6c362ea83a542908489e; handoff 5ec207a0c3610f102bb98f509b36a32126c15b11dbd52aae7e7b68355469f53c. Nonfinal k-result discard is a conceptual/candidate falsifier, not a newly parsed/admitted source counterexample. No tests/build/code/Git; pending combined review."
     },
     {
       "id": "/root/r21_bridge_impl_contract",
@@ -100,17 +100,17 @@
     {
       "path": "notes/theory/2026-10-18-field-root-incidence-bridge-soundness.md",
       "owner": "/root/r21_bridge_falsifiers",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-18-field-root-incidence-source-falsifiers.md",
       "owner": "/root/r21_bridge_falsifiers",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-falsifiers.md",
       "owner": "/root/r21_bridge_falsifiers",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/design/2026-10-18-field-root-incidence-implementation-contract.md",
