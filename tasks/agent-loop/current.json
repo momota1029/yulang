@@ -4,278 +4,256 @@
   "phase": "ACTIVE",
   "session": "current-conversation-2026-10-19",
   "active_sprint": {
-    "id": "source-apply-owner-20261019-r46",
-    "contract": "tasks/agent-loop/sprints/source-apply-owner-20261019-r46.md",
-    "revision": 2,
-    "state": "CLOSED",
-    "baseline": "55ed588e7",
-    "contract_sha256": "d7d7e1cf123bce1b51eec1bd599f47faac75aa7b75d41f9a1a7030440855ef62",
-    "parent": "Unchanged full inference/evaluator theorem and Simple-sub A/B, original quantifiers, accepted source domain and semantics; OPEN 0->0.",
-    "fixed_outcome": "Trace actual q=loop y from HIR Apply through ApplySourceInput and native ports to typed Result consumer; derive authentic output/effect/result owners and ordered D_q under existing rules or identify the earliest unsupported judgment and owner.",
+    "id": "temporal-copy-evidence-20261019-r47",
+    "contract": "tasks/agent-loop/sprints/temporal-copy-evidence-20261019-r47.md",
+    "revision": 1,
+    "state": "ACTIVE",
+    "baseline": "3860c5d2bac12efde6fb543ba68a637ef47a9ab2",
+    "contract_sha256": "aba8009c8ec658af48ed2844e6a9c9b4554b4343ada19f8a7aae85b978574131",
+    "parent": "Unchanged full inference/evaluator theorem and original Simple-sub A/B, quantifiers and accepted source domain; OPEN 0->0.",
+    "fixed_outcome": "Repair test-only capture/reconstruction evidence with authentic capture→reconstruct→merge/rollback→inspection temporal edges; exercise a genuine later canonical-map hit reusing a fresh image or return MISSING_RETAINED_EVIDENCE.",
     "dependencies": {
-      "R45_closeout": "6caf736e9d76ebc5c44080d0ad77a92b52b113703aa772c99315cb9a99dc8da5",
-      "R45_core": "d2982e9bd316f764c9e9709e5843062d5b02b7c5f6f5eea9231fe6a14dd10be0",
-      "R45_independent_derivation": "05530063f72b8df7f989d9c9483b05e56dc2591af9232cee1682900e524ce2c4",
-      "checked_result_design": "c9207625887d78aaccef988324e8505f6dd08fdfe076e0f564f8b7dca3c54076",
-      "local_source.rs": "ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5",
+      "R37_rev3_review": "5c1aa3ea9f653a73d5f7466f61f9cbc32bc641fcc56ac5eeed6ff3da201f1d44",
+      "R37_rev3_contract": "b19c4131f79476f787b8ef424e46f38a396598234dab5400215025938bd0d250",
+      "candidate_scheme_overlay": "8c370e47d5e8692a618fedf41be07d7ae3ac961f9070bfed6730e2b8e2f1137e",
+      "candidate_intrusion.rs": "7a57a93481095c6e7d4b8781810b1a5aa0d174e41ede29ac3f2b2b96bce10b0c",
       "candidate_source.rs": "66b8f88bad86755c2716cfa7e9c35eabc7031d408b774358ca72446db2b3180c",
-      "candidate_call.rs": "e038ad0dfc4b12bd0d513d6cd6b34cee6b2b062d8b33368bc1c0dcdef980d479",
-      "shadow_apply.rs_overlay": "d5e6b179fd4f6fbca579b0fa4d479d8bd11b520d774acbf27f414451c4691137",
-      "candidate_context.rs": "42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca",
-      "candidate_scheme.rs_overlay": "8c370e47d5e8692a618fedf41be07d7ae3ac961f9070bfed6730e2b8e2f1137e",
-      "candidate_local_self_recursion.rs_overlay": "47ced76fe8f0f136c42802b2376ca09f7cadec0fc8e5b1b3d4c6acc7bc613e55"
+      "lib.rs": "2300400e87d0a487225f207d414ac71fa4f21c6f80279fea4f793e43c7809aee",
+      "shadow_apply_overlay": "d5e6b179fd4f6fbca579b0fa4d479d8bd11b520d774acbf27f414451c4691137",
+      "candidate_fixture_overlay": "47ced76fe8f0f136c42802b2376ca09f7cadec0fc8e5b1b3d4c6acc7bc613e55",
+      "R46_closeout": "b39e5957cf85d23020163319613a77deb1a5db1a63ece71eeaa481d11d5f0a72"
     },
     "resources": {
-      "cap_seconds": 2400,
-      "charged_seconds": 2400,
-      "available_seconds": 0,
-      "allocation": "Luna map 600 + Sol proof 900 + two independent reviews 300 each + Luna integration 300; 2400 total conservatively charged/reserved. Actual CPU/RSS UNKNOWN.",
+      "cap_seconds": 3000,
+      "charged_seconds": 2580,
+      "available_seconds": 420,
+      "allocation": "Luna test-only mapping/implementation 900 + Sol proof 900 + two independent reviews 300 each + gated focused Cargo test 180 charged/reserved; Luna integration 420 remains. Astra 0; CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "R46 is closed as a reviewed bounded obstruction. No follow-on sprint has been granted. Next candidate is explicit-context ordinary-Application source formation with dependency-graph/topological checks; semantic selection/adoption still requires the existing user-approval gate.",
-    "history": "R45 closed with reviewed bounded obstruction; checkpoint 55ed588e7 is pushed. User explicitly transferred ownership of all current worktree changes/artifacts to /root. Legacy research and code candidates are preserved; no code authority follows. Checked-result Unit-call construction does not apply to q=loop y. Boundary dispatcher confirmed R46 rev2 continuation after direct formation-law pins; no scope, resource or lease change. R46 source/native map, proof, compiler review, and spec review are now frozen. Both fresh reviews report no findings within scope; exact output Desc/D_q remains unsupported and parent remains OPEN 0->0. No test/build/runtime/code authority was used. R46 closed after both independent no-finding reviews and Luna integration. Closeout: notes/progress/2026-10-19-r46-closeout.md. Parent remains OPEN 0->0. Dispatcher recommends a new ordinary-Application formation candidate sprint only under a fresh Luna grant; semantic selection/adoption still requires user approval. No next sprint assigned.",
+    "next_action": "Build time-indexed owner evidence for capture/reconstruction and merge/rollback; prove its edge to the exact reconstructed image; repair test-only nonvacuous later-hit selection; freeze for independent reviews before focused test.",
+    "history": "R46 closed and pushed at 3860c5d2b; parent remains OPEN 0->0. Existing R41 source-rule proposal reused but not adopted. R47 is restricted to cfg(test) observation/validation; no source semantics or production behavior authority.",
     "workers": [
       {
         "id": "/root",
-        "role": "Luna primary; R46 read-only source/native map, adjudication and integration",
-        "state": "WAITING",
+        "role": "Luna primary; R47 test-only implementation, review/integration/Git",
+        "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "R46 closeout integrated at notes/progress/2026-10-19-r46-closeout.md. Dispatcher boundary recommendation recorded. No follow-on sprint or active work assignment yet."
+        "receipt": "R47 rev1 granted against HEAD 3860c5d2b; exact candidate/source pins validated; no child writer active yet."
       },
       {
-        "id": "/root/r46_application_law",
-        "role": "Sol independent Application formation-law instantiation and falsifier",
-        "state": "STOPPED",
+        "id": "/root/r47_temporal_copy_proof",
+        "role": "Sol independent temporal correspondence proof/falsifier",
+        "state": "NOT_STARTED",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "R46-PROOF rev1 frozen; WRITES_STOPPED/NO_DESCENDANTS. Artifact c0951d9bd0cad1dc9e9c9b1fec5825e6c2e50a6fbc74b9a8c6bbbd8031c57f54 and handoff b4ace6f90c881d7b3f3b54decaadfc0e5f35392f1964fe8d646f2c2b9ede8fc3 hash-verified; requested Sol/high, observed UNKNOWN/UNKNOWN; conservative 900-second charge."
-      },
-      {
-        "id": "/root/r46_compiler_review",
-        "role": "Fresh independent compiler_referee review",
-        "state": "STOPPED",
-        "requested_model": "compiler_referee",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19",
-        "receipt": "Fresh compiler_referee review frozen at notes/progress/2026-10-19-r46-compiler-review.md, SHA-256 e8e298956cd6f8c2e2d06727b6b61f04c79fb3007cbe7f4eb935231f8436d9cd; no findings within bounded scope; WRITES_STOPPED/NO_DESCENDANTS."
-      },
-      {
-        "id": "/root/r46_spec_review",
-        "role": "Fresh independent spec_auditor review",
-        "state": "STOPPED",
-        "requested_model": "spec_auditor",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19",
-        "receipt": "Fresh spec_auditor review frozen and archived at notes/progress/2026-10-19-r46-spec-review.md, SHA-256 ceb5cef94474f118aab2075ae143af3226306d9c745aae31c713639c500b0d31; no findings within bounded scope; WRITES_STOPPED/NO_DESCENDANTS."
+        "receipt": "Exact proof artifact and handoff lease reserved; launch pending."
       }
     ],
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/source-apply-owner-20261019-r46.md",
+        "path": "tasks/agent-loop/sprints/temporal-copy-evidence-20261019-r47.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "notes/progress/2026-10-19-r46-source-native-owner-map.md",
+        "path": "crates/yu-solver/src/candidate_scheme.rs",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261019-r46-implementation.md",
+        "path": "crates/yu-solver/src/candidate_intrusion.rs",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
-        "path": "notes/theory/2026-10-19-r46-application-law-instantiation.md",
-        "owner": "/root/r46_application_law",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261019-r46-proof.md",
-        "owner": "/root/r46_application_law",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-19-r46-compiler-review.md",
+        "path": "notes/progress/2026-10-19-r47-temporal-copy.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
-        "path": "notes/progress/2026-10-19-r46-spec-review.md",
+        "path": "tasks/agent-loop/inbox/20261019-r47-implementation.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
-        "path": "notes/progress/2026-10-19-r46-closeout.md",
+        "path": "notes/theory/2026-10-19-r47-temporal-copy-refinement.md",
+        "owner": "/root/r47_temporal_copy_proof",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261019-r47-proof.md",
+        "owner": "/root/r47_temporal_copy_proof",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/progress/2026-10-19-r47-compiler-review.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
+      },
+      {
+        "path": "notes/progress/2026-10-19-r47-spec-review.md",
+        "owner": "/root",
+        "state": "HELD"
       }
     ],
     "pending": [
       {
-        "id": "R46-LUNA-SOURCE-NATIVE-MAP",
+        "id": "R47-LUNA-TEMPORAL-IMPLEMENTATION",
         "role": "primary",
-        "state": "DONE"
+        "state": "RUNNING"
       },
       {
-        "id": "R46-SOL-LAW-INSTANTIATION",
+        "id": "R47-SOL-TEMPORAL-PROOF",
         "role": "prover",
-        "state": "DONE",
-        "worker_id": "/root/r46_application_law",
-        "target_sha256": "d7d7e1cf123bce1b51eec1bd599f47faac75aa7b75d41f9a1a7030440855ef62"
+        "state": "ASSIGNED",
+        "worker_id": "/root/r47_temporal_copy_proof",
+        "target_sha256": "aba8009c8ec658af48ed2844e6a9c9b4554b4343ada19f8a7aae85b978574131"
       },
       {
-        "id": "R46-COMPILER-REVIEW",
+        "id": "R47-COMPILER-REVIEW",
         "role": "compiler_referee",
-        "state": "DONE",
-        "worker_id": "/root/r46_compiler_review",
-        "target_sha256": "d7d7e1cf123bce1b51eec1bd599f47faac75aa7b75d41f9a1a7030440855ef62"
+        "state": "RESERVED",
+        "budget_seconds": 300
       },
       {
-        "id": "R46-SPEC-REVIEW",
+        "id": "R47-SPEC-REVIEW",
         "role": "spec_auditor",
-        "state": "DONE",
-        "worker_id": "/root/r46_spec_review",
-        "target_sha256": "d7d7e1cf123bce1b51eec1bd599f47faac75aa7b75d41f9a1a7030440855ef62"
+        "state": "RESERVED",
+        "budget_seconds": 300
+      },
+      {
+        "id": "R47-FOCUSED-CARGO",
+        "role": "verification",
+        "state": "GATED",
+        "budget_seconds": 180
+      },
+      {
+        "id": "R47-LUNA-INTEGRATION",
+        "role": "primary",
+        "state": "RESERVED",
+        "budget_seconds": 420
       }
     ],
-    "closure": "R46 COMPLETE: reviewed bounded output-formation obstruction. Original theorem and Simple-sub A/B remain OPEN 0->0. No code/test/build/runtime/semantic change.",
+    "closure": "No parent condition discharged yet. R47 tests a native copy-evidence prerequisite only; the original theorem remains OPEN 0->0.",
     "frozen_artifacts": {
-      "R45_checkpoint_commit": "55ed588e7",
-      "R45_closeout": "6caf736e9d76ebc5c44080d0ad77a92b52b113703aa772c99315cb9a99dc8da5",
-      "R46_contract": "d7d7e1cf123bce1b51eec1bd599f47faac75aa7b75d41f9a1a7030440855ef62",
-      "R46_source_native_map": "f94e6e0e576d3ec5e73316f89a4a7b93dceb88b328f21a0516b9d39f8dff4d99",
-      "R46_implementation_handoff": "323cd9aee129f12ac7b1d5c6f65b09694cbd80fa04e6d7e510ee7f7c6a9df9c7",
-      "R46_spec_review": "ceb5cef94474f118aab2075ae143af3226306d9c745aae31c713639c500b0d31",
-      "R46_compiler_review": "e8e298956cd6f8c2e2d06727b6b61f04c79fb3007cbe7f4eb935231f8436d9cd",
-      "R46_closeout": "b39e5957cf85d23020163319613a77deb1a5db1a63ece71eeaa481d11d5f0a72"
+      "R46_closeout": "b39e5957cf85d23020163319613a77deb1a5db1a63ece71eeaa481d11d5f0a72",
+      "R47_contract": "aba8009c8ec658af48ed2844e6a9c9b4554b4343ada19f8a7aae85b978574131"
     }
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna primary; R46 map/integration",
-      "state": "WAITING",
+      "role": "Luna primary R47",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
-      "receipt": "R46 closed and integrated; waiting for next sprint grant."
+      "receipt": "R47 exact-path grant; sole Git integrator."
     },
     {
-      "id": "/root/r46_application_law",
+      "id": "/root/r47_temporal_copy_proof",
       "role": "Sol proof lane",
-      "state": "STOPPED",
+      "state": "NOT_STARTED",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
-      "receipt": "R46-PROOF frozen; WRITES_STOPPED/NO_DESCENDANTS; proof and handoff hash-verified."
-    },
-    {
-      "id": "/root/r46_compiler_review",
-      "role": "compiler_referee review",
-      "state": "STOPPED",
-      "requested_model": "compiler_referee",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19",
-      "receipt": "Review frozen; SHA-256 e8e298956cd6f8c2e2d06727b6b61f04c79fb3007cbe7f4eb935231f8436d9cd; no findings; WRITES_STOPPED/NO_DESCENDANTS."
-    },
-    {
-      "id": "/root/r46_spec_review",
-      "role": "spec_auditor review",
-      "state": "STOPPED",
-      "requested_model": "spec_auditor",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19",
-      "receipt": "Review final message archived by Luna as notes/progress/2026-10-19-r46-spec-review.md; WRITES_STOPPED/NO_DESCENDANTS."
+      "receipt": "Assignment ready; spawn acknowledgement pending."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/source-apply-owner-20261019-r46.md",
+      "path": "tasks/agent-loop/sprints/temporal-copy-evidence-20261019-r47.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/progress/2026-10-19-r46-source-native-owner-map.md",
+      "path": "crates/yu-solver/src/candidate_scheme.rs",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r46-implementation.md",
+      "path": "crates/yu-solver/src/candidate_intrusion.rs",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-19-r46-application-law-instantiation.md",
-      "owner": "/root/r46_application_law",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r46-proof.md",
-      "owner": "/root/r46_application_law",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r46-compiler-review.md",
+      "path": "notes/progress/2026-10-19-r47-temporal-copy.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-19-r46-spec-review.md",
+      "path": "tasks/agent-loop/inbox/20261019-r47-implementation.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-19-r46-closeout.md",
+      "path": "notes/theory/2026-10-19-r47-temporal-copy-refinement.md",
+      "owner": "/root/r47_temporal_copy_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r47-proof.md",
+      "owner": "/root/r47_temporal_copy_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r47-compiler-review.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r47-spec-review.md",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [
     {
-      "id": "R46-LUNA-SOURCE-NATIVE-MAP",
+      "id": "R47-LUNA-TEMPORAL-IMPLEMENTATION",
       "role": "primary",
-      "state": "DONE"
+      "state": "RUNNING"
     },
     {
-      "id": "R46-SOL-LAW-INSTANTIATION",
+      "id": "R47-SOL-TEMPORAL-PROOF",
       "role": "prover",
-      "state": "DONE",
-      "worker_id": "/root/r46_application_law",
-      "target_sha256": "d7d7e1cf123bce1b51eec1bd599f47faac75aa7b75d41f9a1a7030440855ef62"
+      "state": "ASSIGNED",
+      "worker_id": "/root/r47_temporal_copy_proof",
+      "target_sha256": "aba8009c8ec658af48ed2844e6a9c9b4554b4343ada19f8a7aae85b978574131"
     },
     {
-      "id": "R46-COMPILER-REVIEW",
+      "id": "R47-COMPILER-REVIEW",
       "role": "compiler_referee",
-      "state": "DONE",
-      "worker_id": "/root/r46_compiler_review",
-      "target_sha256": "d7d7e1cf123bce1b51eec1bd599f47faac75aa7b75d41f9a1a7030440855ef62"
+      "state": "RESERVED",
+      "budget_seconds": 300
     },
     {
-      "id": "R46-SPEC-REVIEW",
+      "id": "R47-SPEC-REVIEW",
       "role": "spec_auditor",
-      "state": "DONE",
-      "worker_id": "/root/r46_spec_review",
-      "target_sha256": "d7d7e1cf123bce1b51eec1bd599f47faac75aa7b75d41f9a1a7030440855ef62"
+      "state": "RESERVED",
+      "budget_seconds": 300
+    },
+    {
+      "id": "R47-FOCUSED-CARGO",
+      "role": "verification",
+      "state": "GATED",
+      "budget_seconds": 180
+    },
+    {
+      "id": "R47-LUNA-INTEGRATION",
+      "role": "primary",
+      "state": "RESERVED",
+      "budget_seconds": 420
     }
   ]
 }

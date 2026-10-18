@@ -34,6 +34,15 @@ source counterexample, or implementation defect. The parent remains OPEN at
 `0 -> 0`; no code, tests, builds, runtime probes, or semantic changes occurred.
 See the [R46 closeout](../notes/progress/2026-10-19-r46-closeout.md).
 
+R47 is active under [its frozen contract](agent-loop/sprints/temporal-copy-evidence-20261019-r47.md).
+It targets the existing test-only scoped-Apply copy candidate: retain authenticated
+evidence across capture, reconstruction, intrusion merge/rollback and later
+inspection, then demonstrate a genuine later canonical-row hit or report the
+exact missing owner evidence. One Sol proof lane runs alongside Luna's bounded
+test-only implementation lane. The focused Cargo test is gated on fresh clean
+reviews. No production behavior, source semantics or theorem scope changes are
+authorized; the parent remains OPEN at `0 -> 0`.
+
 R22's reviewed proof and falsifier artifacts preserve the original source scope:
 the fixed successful runtime path carries the response handle through
 `Owner(Hole)`, `k response`, Catch and `Local(g)`, but this does not prove the
