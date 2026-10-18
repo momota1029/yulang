@@ -2,212 +2,144 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r55",
+  "session": "current-conversation-2026-10-19-r56",
   "active_sprint": {
-    "id": "original-name-core-20261019-r55",
-    "contract": "tasks/agent-loop/sprints/original-name-core-20261019-r55.md",
+    "id": "original-name-source-trace-20261019-r56",
+    "contract": "tasks/agent-loop/sprints/original-name-source-trace-20261019-r56.md",
     "revision": 1,
-    "state": "CLOSED",
-    "baseline": "a703e158c",
-    "contract_sha256": "4c292a24c7fba19c40587fcc2cb9374fdbff3dd7059533548e4e1be1420546d1",
-    "parent": "Original computation-forwarding preservation/native mapped-admission premise; all parent quantifiers/source domain and Simple-sub A/B unchanged; OPEN 0->0.",
-    "fixed_outcome": "Prove the original-domain same-instance mapped bounds for every authentic FreshUse of direct-current-formal/Name providers, or give an authentic original-domain counterexample and exact absent physical BoundKey; otherwise expose first unsupported owner.",
+    "state": "ACTIVE",
+    "baseline": "90f40f4b1cdb2654536d1f78c32feea3980f2b2c",
+    "contract_sha256": "052492309a379f3eef24078b9090f8e7081dceaf2e4c7af37ff90c75ffa013cd",
+    "parent": "Original computation-forwarding preservation §§1,6-7, unchanged source domain and quantifiers; OPEN 0->0.",
+    "fixed_outcome": "Trace the exact authentic direct-current-formal/Name source with forward x and recursive loop x through source event qualification, signed owners, complete source sets, replay and the next actual capture; otherwise locate exact source/reachability/owner obstruction.",
     "dependencies": {
-      "manifest": "39 exact SHA-256 files pinned in R55 contract rev1",
-      "R54_commit": "a703e158c; proof/source reviewed CLEAN; parent premise remains open"
+      "manifest": "23 exact SHA-256 files pinned in R56 contract rev1",
+      "R55_closeout_commit": "90f40f4b1; reviewed bounded obstruction, no proof/counterexample"
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 2400,
-      "available_seconds": 0,
-      "allocation": "Astra 300; Sol 600; Luna source map 600; compiler/spec reviews 300 each; integration 300. Total 2400 charged, no carryover. No tests/code/runtime/probes/measurements.",
+      "charged_seconds": 1500,
+      "available_seconds": 900,
+      "allocation": "Sol trace 900 and Luna read-only owner trace 600 charged/reserved at activation; compiler/spec reviews 300 each and integration 300 reserved. No Astra, code/tests/parser/solve/runtime/probes/measurements.",
       "overrun_seconds": 0
     },
-    "next_action": "Pause further general mapped-admission attempts pending a concrete original-domain source-set/signed-traversal trace or coverage lemma. No active assignment.",
-    "history": "R54 CLOSED and pushed at a703e158c: bounded higher-order shared-anchor discriminator survives replay/FreshUse; source is NON_APPLICABLE to original direct-Name fragment. Fresh compiler/spec reviews CLEAN, 34/34 pins; parent OPEN 0->0; R50 NOT ADOPTED. R55 contract rev1 primary-approved after 39/39 dependencies MATCH. Astra core and Sol attack active-work receipts received; both independently verified contract SHA and all 39 dependencies before writes, exact two-path leases, no descendants/tests/runtime; observed settings UNKNOWN. Astra core proof frozen: exact direct-domain seed; no universal proof/falsifier. First unsupported owner is endpoint/alias exclusion through replay, signed extrusion and qualified merge before next live capture. Partial-mu domain obligation recorded; all 39 pins rechecked. Sol attack and Luna source map active. Sol attack frozen: NO_SOURCE_FALSIFIER, exact source-set/signed-traversal coverage is first unsupported owner; 39/39 pins MATCH. Luna source map and both handoffs frozen; all six target hashes recorded below; 39/39 pins MATCH. Parent OPEN 0->0; no code/tests/runtime. Fresh compiler and spec reviews both CLEAN; each checked all seven frozen targets and 39/39 dependencies. Neither certifies the universal theorem; both preserve exact unsupported source-set/signed-traversal owner. Parent OPEN 0->0. End-boundary dispatcher: close R55 as reviewed bounded obstruction; no equivalent sprint or code slice. Await concrete owner evidence; recursion scaffold is candidate input only, unassigned. Both reviewers STOPPED and CLEAN. Integration record notes/progress/2026-10-19-r55-closeout.md. R55 closeout SHA-256 b688f6677a4f6572d7e947ccd5b26883620b951f63585706c7ba866aae6d80ad; tasks/current.md synchronized. All target artifacts remain immutable.",
+    "next_action": "Complete source trace under R56 exact leases; apply its bounded outcome to R55 OPEN premise, then fresh reviews and primary integration.",
+    "history": "R55 CLOSED and pushed at 90f40f4b1. Original mapped-admission premise remains OPEN 0->0; no source-qualified falsifier; R50 NOT ADOPTED. Dispatcher selected a distinct source-owner trace around forward x / loop x, not a repeated general induction. R56 contract rev1 primary-approved after 23/23 dependency hashes MATCH and before writes. Exact source includes concrete act io declaration. No parser, test, solve, runtime or code authority.",
     "workers": [
       {
         "id": "/root",
-        "role": "Luna primary; read-only original-name owner map, state and integration",
-        "state": "STOPPED",
+        "role": "Luna primary; read-only source-owner trace",
+        "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r55",
-        "receipt": "R55 source-owner audit WRITES_STOPPED; exact two outputs frozen; 39/39 dependencies MATCH; no code/tests/runtime."
+        "session": "current-conversation-2026-10-19-r56",
+        "receipt": "R56 source-owner lane active; exact two output leases; source inspection only."
       },
       {
-        "id": "/root/r55_original_name_core",
-        "role": "Astra bounded core proof",
-        "state": "STOPPED",
-        "requested_model": "astra_prover",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r55",
-        "receipt": "R55-CORE rev1 frozen; WRITES_STOPPED/NO_DESCENDANTS; contract and 39/39 pins MATCH; 300s charged, observed elapsed UNKNOWN; first unsupported owner is replay/extrusion/qualified-merge alias exclusion; no universal proof/falsifier."
-      },
-      {
-        "id": "/root/r55_original_name_attack",
-        "role": "Sol/high independent source-domain attack",
-        "state": "STOPPED",
+        "id": "/root/r53_ordinary_mixed_capture_proof",
+        "role": "Sol/high constructive source/domain and physical-owner trace",
+        "state": "NOT_STARTED",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r55",
-        "receipt": "R55-ATTACK rev1 frozen; WRITES_STOPPED/NO_DESCENDANTS; 39/39 pins MATCH; no authentic original-domain missing BoundKey; first unsupported judgment is source-set/signed traversal coverage; 600s charged, observed elapsed UNKNOWN."
+        "session": "current-conversation-2026-10-19-r56",
+        "receipt": "Exact two-path assignment recorded; awaiting actual current-session active-work receipt."
       }
     ],
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/original-name-core-20261019-r55.md",
+        "path": "tasks/agent-loop/sprints/original-name-source-trace-20261019-r56.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "notes/theory/2026-10-19-r55-original-name-core.md",
-        "owner": "/root/r55_original_name_core",
-        "state": "FROZEN"
+        "path": "notes/theory/2026-10-19-r56-original-name-source-trace.md",
+        "owner": "/root/r53_ordinary_mixed_capture_proof",
+        "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261019-r55-core.md",
-        "owner": "/root/r55_original_name_core",
-        "state": "FROZEN"
+        "path": "tasks/agent-loop/inbox/20261019-r56-proof.md",
+        "owner": "/root/r53_ordinary_mixed_capture_proof",
+        "state": "HELD"
       },
       {
-        "path": "notes/theory/2026-10-19-r55-original-name-attack.md",
-        "owner": "/root/r55_original_name_attack",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261019-r55-attack.md",
-        "owner": "/root/r55_original_name_attack",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-19-r55-original-name-owners.md",
+        "path": "notes/progress/2026-10-19-r56-original-name-owner-trace.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261019-r55-implementation.md",
+        "path": "tasks/agent-loop/inbox/20261019-r56-implementation.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       }
     ],
     "pending": [
       {
-        "id": "R55-OWNER-TRACE-INPUT",
-        "parent": "forwarding-preservation §§1, 6-7",
-        "owner": "unassigned source owner; Luna intake only",
-        "state": "UNASSIGNED_INPUT_REQUEST",
-        "request": "Supply the first authentic original-domain alias/exposure and complete source-set/signed-traversal trace through replay, extrusion, qualified merge and the next actual capture, or prove its exclusion with owner coverage. Construct each required partial FreshUse endpoint honestly.",
-        "falsifier": "Reject non-parent source shapes, callable arguments in place of the current formal Name, invented total mu, incomplete source sets/parents, or a claimed missing bound before successful drainage/restoration."
+        "id": "R56-ORIGINAL-NAME-SOURCE-TRACE-1",
+        "parent": "forwarding-preservation §§1,6-7",
+        "owner": "Sol proof + Luna read-only source owner",
+        "request": "Determine whether the pinned forward x / loop x source reaches an authentic provider alias/exposure before the next actual capture; trace full source sets and signed physical owners or state the precise obstruction.",
+        "falsifier": "Non-parent source applicability, no reached owner transition, provenance mistaken for physical alias, incomplete parent set, or uncaptured endpoint assigned a total-mu image."
       }
     ],
-    "closure": "CLOSED: reviewed bounded obstruction, no proof or source-qualified falsifier. Parent OPEN 0->0; R50 NOT ADOPTED. No safe code slice. Pause general attempts pending concrete source-set/signed-traversal owner evidence; no next assignment granted.",
+    "closure": "ACTIVE bounded source-owner packet; parent OPEN 0->0; R50 NOT ADOPTED; no code/test/solve/runtime/production authority.",
     "frozen_artifacts": {
-      "R54_commit": "a703e158c",
-      "R54_contract": "b39fbe7287e420c6ff902ea0fa082923f5a820a066f78f547fa49b9fd59bd",
-      "R54_proof": "98210c2e83ca04c195d5476bf8abc127d058c77f30549a0bd79d1e55c8a27469",
-      "R54_source": "9d188aae4c1908f8158063e4ddb69537ada2bb785f586ce2d51ed973444abc49",
-      "R54_reviews": "compiler/spec CLEAN; five targets and 34 dependencies MATCH",
-      "R55_astra_core": "db5e8115e3f853e7831ffaf525e4c794bdca9892a18d7fb153f395451f94a40b",
-      "R55_astra_handoff": "0e9f5274a4d5eb556ef7e37bd98444a8270213c1e8b7570726fa32c59c5acbdd",
-      "R55_sol_attack": "0ebbc5e0e0b1c85b3f89e9017d9759fc3c8cfec80aced22457ed2fdc5867b258",
-      "R55_sol_handoff": "fcf17066b8a4a3198b4e5a7aabc492b6da5bf571a4bb042d5e40d5eb6f0602a2",
-      "R55_luna_source": "d1aa7f1a1af5da50a78e012540e9c0f01878a3ec13bb43d2565f75ae279895a4",
-      "R55_luna_handoff": "2bd40ed7f8ea15fa9d06fae39c2064b06bade04887c007414dd0f0cdc43e3d65",
-      "R55_targets": "contract 4c292a24c7fba19c40587fcc2cb9374fdbff3dd7059533548e4e1be1420546d1; core db5e8115e3f853e7831ffaf525e4c794bdca9892a18d7fb153f395451f94a40b; core_handoff 0e9f5274a4d5eb556ef7e37bd98444a8270213c1e8b7570726fa32c59c5acbdd; attack 0ebbc5e0e0b1c85b3f89e9017d9759fc3c8cfec80aced22457ed2fdc5867b258; attack_handoff fcf17066b8a4a3198b4e5a7aabc492b6da5bf571a4bb042d5e40d5eb6f0602a2; source d1aa7f1a1af5da50a78e012540e9c0f01878a3ec13bb43d2565f75ae279895a4; source_handoff 2bd40ed7f8ea15fa9d06fae39c2064b06bade04887c007414dd0f0cdc43e3d65",
-      "R55_closeout": "b688f6677a4f6572d7e947ccd5b26883620b951f63585706c7ba866aae6d80ad"
+      "R55_closeout_commit": "90f40f4b1",
+      "R55_closeout_sha256": "b688f6677a4f6572d7e947ccd5b26883620b951f63585706c7ba866aae6d80ad",
+      "R56_contract_sha256": "052492309a379f3eef24078b9090f8e7081dceaf2e4c7af37ff90c75ffa013cd"
     },
-    "pending_reviews": [
-      {
-        "id": "R55-COMPILER-REVIEW",
-        "reviewer": "/root/r52_compiler_review",
-        "state": "CLEAN",
-        "scope": "six frozen targets + 39 exact contract dependencies",
-        "receipt": "Fresh independent compiler referee CLEAN; seven frozen target hashes match current.json; 39/39 dependencies MATCH; no blocking/major/minor findings; reviewer STOPPED/NO_DESCENDANTS."
-      },
-      {
-        "id": "R55-SPEC-REVIEW",
-        "reviewer": "/root/r52_spec_review",
-        "state": "CLEAN",
-        "scope": "six frozen targets + 39 exact contract dependencies",
-        "receipt": "Fresh independent spec review CLEAN; six targets stable, 39/39 dependencies MATCH; no blockers/major/minors; parent scope unchanged; reviewer STOPPED/NO_DESCENDANTS."
-      }
-    ]
+    "pending_reviews": []
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna primary; read-only original-name owner map, state and integration",
-      "state": "STOPPED",
+      "role": "Luna primary; read-only source-owner trace",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r55",
-      "receipt": "R55 source-owner audit WRITES_STOPPED; exact two outputs frozen; 39/39 dependencies MATCH; no code/tests/runtime."
+      "session": "current-conversation-2026-10-19-r56",
+      "receipt": "R56 source-owner lane active; exact two output leases; source inspection only."
     },
     {
-      "id": "/root/r55_original_name_core",
-      "role": "Astra bounded core proof",
-      "state": "STOPPED",
-      "requested_model": "astra_prover",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r55",
-      "receipt": "R55-CORE rev1 frozen; WRITES_STOPPED/NO_DESCENDANTS; contract and 39/39 pins MATCH; 300s charged, observed elapsed UNKNOWN; first unsupported owner is replay/extrusion/qualified-merge alias exclusion; no universal proof/falsifier."
-    },
-    {
-      "id": "/root/r55_original_name_attack",
-      "role": "Sol/high independent source-domain attack",
-      "state": "STOPPED",
+      "id": "/root/r53_ordinary_mixed_capture_proof",
+      "role": "Sol/high constructive source/domain and physical-owner trace",
+      "state": "NOT_STARTED",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r55",
-      "receipt": "R55-ATTACK rev1 frozen; WRITES_STOPPED/NO_DESCENDANTS; 39/39 pins MATCH; no authentic original-domain missing BoundKey; first unsupported judgment is source-set/signed traversal coverage."
+      "session": "current-conversation-2026-10-19-r56",
+      "receipt": "Exact two-path assignment recorded; awaiting actual current-session active-work receipt."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/original-name-core-20261019-r55.md",
+      "path": "tasks/agent-loop/sprints/original-name-source-trace-20261019-r56.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-19-r55-original-name-core.md",
-      "owner": "/root/r55_original_name_core",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r55-core.md",
-      "owner": "/root/r55_original_name_core",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r55-original-name-attack.md",
-      "owner": "/root/r55_original_name_attack",
+      "path": "notes/theory/2026-10-19-r56-original-name-source-trace.md",
+      "owner": "/root/r53_ordinary_mixed_capture_proof",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r55-attack.md",
-      "owner": "/root/r55_original_name_attack",
+      "path": "tasks/agent-loop/inbox/20261019-r56-proof.md",
+      "owner": "/root/r53_ordinary_mixed_capture_proof",
       "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-19-r55-original-name-owners.md",
+      "path": "notes/progress/2026-10-19-r56-original-name-owner-trace.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r55-implementation.md",
+      "path": "tasks/agent-loop/inbox/20261019-r56-implementation.md",
       "owner": "/root",
       "state": "HELD"
     }
