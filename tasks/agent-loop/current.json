@@ -5,11 +5,11 @@
   "session": "current-session",
   "active_sprint": {
     "id": "operation-v1-runtime-evidence-and-callback-resume-20261018-r18",
-    "contract": "tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-rev2.md",
-    "revision": 2,
-    "sha256": "225d4c59aad72d5731aed0adc97f0dc31adf5931f8a66484366a5b2058bdf07e",
+    "contract": "tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-rev3.md",
+    "revision": 3,
+    "sha256": "89483fc7e0e9fc69bb9a7863001012c53e78664d92629d34130bd904f91a4e06",
     "state": "ACTIVE",
-    "baseline": "HEAD 2a3f2a47d5013761f0e0717b0c6073c54c62d36c plus exact reviewed/tested r17 uncommitted dependency hashes pinned in r18 contract. Git commit/push still blocked: local .git read-only; GitHub MCP write rejected by approval policy never.",
+    "baseline": "HEAD f35d481fb on origin/research/simple-sub-intrusion; r17 solver milestone and r18 rev2 contract are committed/pushed. Frozen r18 runtime candidate remains uncommitted pending fresh review and gated focused runtime execution.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers preserved; OPEN/closure0.",
     "fixed_outcome": "Carry the same-HIR successful r17 research FieldBoundV1 receipt through the actual response closure/environment and saved continuation; observe u_outer reach the live outer handler arm; execute it and return 42; publish joined static/dynamic completion evidence only after Completed.",
     "before": {
@@ -18,23 +18,23 @@
       "implementation": "Explicit v1 source-linked q/m0/FieldBoundV1 native edge drains; independent review CLEAN; focused solver test 16/16."
     },
     "resources": {
-      "cap_seconds": 3000,
-      "charged_seconds": 3000,
+      "cap_seconds": 3900,
+      "charged_seconds": 3900,
       "available_seconds": 0,
-      "allocation": "Reserved: constructive proof600s + Luna implementation1500s + independent review600s + focused runtime test/integration/state300s. Astra0. Actual worker resource metadata UNKNOWN; no carryover/reset."
+      "allocation": "r1 envelope 3000s retained fully charged; versioned r3 continuation adds implementation360s + independent delta review240s + focused runtime/integration/state300s. Astra0. Actual worker resource metadata UNKNOWN unless reported; no carryover/reset."
     },
-    "next_action": "Implementation must use the clarified sequence: raw continuation returns the exact response closure; the surrounding Apply invokes it while the live outer catch remains active. Do not claim that callback Apply is inside the raw saved suffix. Wait for implementation author to acknowledge r18 rev2, then continue exact source/candidate/runtime bridge; freeze, independently review and run focused runtime_resume.",
-    "history": "r17 ended ENDED-PARTIAL-REVIEWED: original conditions closed0; explicit research-only source-linked static consumer through typed native drain; independent review final deltas CLEAN; candidate_operation_catch test 16/16 PASS. Runtime Phase R and parent theorem remain open. See tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. No Git commit/push; local .git read-only and GitHub MCP write approval rejected. Primary checkpoint: commit cbbb2abf38a51215d4065745e6aef5edd949e7be pushed to origin/research/simple-sub-intrusion; r17 code, closed research artifacts and initial r18 state included; active r18 code and quarantined outputs excluded. See r17-git-checkpoint.md. Dispatcher approved r18 rev2 execution-order clarification within same goal/leases/budget: callback Apply occurs after raw continuation returns the exact response closure, while outer catch remains active; no claim it is inside raw saved suffix. New contract hash 225d4c59aad72d5731aed0adc97f0dc31adf5931f8a66484366a5b2058bdf07e.",
-    "last_stage_receipt": "r17 static Phase-S source consumer commit cbbb2abf38a51215d4065745e6aef5edd949e7be is pushed. r18 proof r1 remains conditional and stopped; runtime implementation remains active; no runtime tests yet. Parent OPEN/closure0.",
+    "next_action": "r18 rev3 repair is running under exact lease after integrated review BLOCKING. Freeze hashes and STOP before checks; fresh independent delta review (240s); only CLEAN permits focused runtime_resume execution/integration (300s).",
+    "history": "r17 ended ENDED-PARTIAL-REVIEWED: original conditions closed0; explicit research-only source-linked static consumer through typed native drain; independent review final deltas CLEAN; candidate_operation_catch test 16/16 PASS. Runtime Phase R and parent theorem remain open. See tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. No Git commit/push; local .git read-only and GitHub MCP write approval rejected. Primary checkpoint: commit cbbb2abf38a51215d4065745e6aef5edd949e7be pushed to origin/research/simple-sub-intrusion; r17 code, closed research artifacts and initial r18 state included; active r18 code and quarantined outputs excluded. See r17-git-checkpoint.md. Dispatcher approved r18 rev2 execution-order clarification within same goal/leases/budget: callback Apply occurs after raw continuation returns the exact response closure, while outer catch remains active; no claim it is inside raw saved suffix. New contract hash 225d4c59aad72d5731aed0adc97f0dc31adf5931f8a66484366a5b2058bdf07e. r18 rev2 integrated compiler review BLOCKING: closure-application source-site check compares outer response invocation against inner k response Apply, withholding callback and completion evidence. Rev3 fixes only these distinct identities, adds 900s (implementation360/review240/focused run+integration300), original 3000s remains charged, Astra0. Reviewer STOPPED; no tests run.",
+    "last_stage_receipt": "Fresh integrated compiler review BLOCKING at machine.rs:857-866, program.rs:739 and runtime_resume fixture: k response and surrounding callback invocation are distinct. All frozen pins match. No tests/builds run; parent OPEN/closure0.",
     "git_checkpoint": {
-      "commit": "cbbb2abf38a51215d4065745e6aef5edd949e7be",
+      "commit": "f35d481fb",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "Primary-authored local commit and push succeeded. Runtime-leased playground files and quarantined replay drafts/cache were excluded."
+      "receipt": "Primary-authored commits cbbb2abf3, 8725f6a09 and f35d481fb are pushed. R18 runtime implementation candidate and revision-3 repair amendment remain uncommitted pending fresh delta review and gated runtime execution."
     }
   },
-  "history": "r17 closeout: original condition closure 0; reviewed static Phase-S producer/consumer milestone; focused test 16/16; parent OPEN. Earlier r1\u2013r16 outcomes remain in their frozen closeout receipts (r13-r16 paths in tasks/agent-loop/sprints; older locators retained in archived sprint records). r16 parent closure0; v1 derivation conditional PASS, no producer/consumer. r17 r1 source/native obstruction PASS, artifact SHA 4147ee01443f8e89187d7fcd99d83865a1ee4458bc8146525989f6c48a01c524. r17 r2 review BLOCKING on typed q/license, exact consumer and occurrence identity. r17 r3 review BLOCKING: c changed from u_ping to u_outer; q/neg0 underindexed. r4 preserves c and separates c_outer; source/API consumer remains unproved. Git remains unavailable. r17 r4 proof/source API audit frozen PASS-within-obstruction: artifact bb7c8df589f8efecb150840253dc418f6ee5e2ebfa73bdffde1e87cf89e82e5b; current code has no q-aware consumer or runtime candidate receipt, parent closure0. r5 explicit FieldBoundV1 backed by actual AnnotationMember and q-Allowance, static Phase-S only. r17 r5 independent spec review BLOCKING: m0 does not connect q response definition to actual continuation argument of matched u_ping handler; unrelated same-family callback can satisfy it. Exact source application/argument derivation required. Reviewer stopped, no code. r17 r6 design strengthens m0 with exact retained LocalSource linkage from u_ping through matching catch declaration and continuation binder k to the actual Apply argument response_definition and u_outer; unrelated same-family callback cannot substitute. Dispatcher allocation: correction120, delta review180, conditional code420, compiler review180, focused run/integration240; Astra0. r17 r6 independent semantic delta review CLEAN at design SHA 276979eccec49396c6799b96ca1e0277c6108dc2fd1fe487a52e4565cff6ed54. Exact h_arg links u_ping through same-root catch/declaration/binder k to actual Apply argument; q and m0 retain it; prior consumer requirements preserved. No implementation or theorem closure yet. Git checkpoint publishing attempt rejected by GitHub MCP approval policy never; local .git read-only. No commit/ref mutation occurred; all artifacts remain in workspace. Dispatcher approved one +1200s Luna code continuation (cap5760; charged4140; remaining1620 incl code1200+review180+test/integration240; Astra0). Partial v1 plumbing is not a milestone. Exact source-derived h_arg through Action/q/m0/FieldBound and actual u_outer native lower to typed drain is required.",
-  "quarantine_note": "Older replay-constructor working candidate/DRAFT files and tools/__pycache__ remain excluded without write-stopped receipts. All r17 reviewed/tested dependencies are uncommitted workspace bytes, explicitly hash-pinned in r18; do not rewrite. Git commit/push blocked by local .git read-only and prior GitHub MCP approval-policy rejection.",
+  "history": "r17 closeout: original condition closure 0; reviewed static Phase-S producer/consumer milestone; focused test 16/16; parent OPEN. Earlier r1–r16 outcomes remain in their frozen closeout receipts (r13-r16 paths in tasks/agent-loop/sprints; older locators retained in archived sprint records). r16 parent closure0; v1 derivation conditional PASS, no producer/consumer. r17 r1 source/native obstruction PASS, artifact SHA 4147ee01443f8e89187d7fcd99d83865a1ee4458bc8146525989f6c48a01c524. r17 r2 review BLOCKING on typed q/license, exact consumer and occurrence identity. r17 r3 review BLOCKING: c changed from u_ping to u_outer; q/neg0 underindexed. r4 preserves c and separates c_outer; source/API consumer remains unproved. Git remains unavailable. r17 r4 proof/source API audit frozen PASS-within-obstruction: artifact bb7c8df589f8efecb150840253dc418f6ee5e2ebfa73bdffde1e87cf89e82e5b; current code has no q-aware consumer or runtime candidate receipt, parent closure0. r5 explicit FieldBoundV1 backed by actual AnnotationMember and q-Allowance, static Phase-S only. r17 r5 independent spec review BLOCKING: m0 does not connect q response definition to actual continuation argument of matched u_ping handler; unrelated same-family callback can satisfy it. Exact source application/argument derivation required. Reviewer stopped, no code. r17 r6 design strengthens m0 with exact retained LocalSource linkage from u_ping through matching catch declaration and continuation binder k to the actual Apply argument response_definition and u_outer; unrelated same-family callback cannot substitute. Dispatcher allocation: correction120, delta review180, conditional code420, compiler review180, focused run/integration240; Astra0. r17 r6 independent semantic delta review CLEAN at design SHA 276979eccec49396c6799b96ca1e0277c6108dc2fd1fe487a52e4565cff6ed54. Exact h_arg links u_ping through same-root catch/declaration/binder k to actual Apply argument; q and m0 retain it; prior consumer requirements preserved. No implementation or theorem closure yet. Git checkpoint publishing attempt rejected by GitHub MCP approval policy never; local .git read-only. No commit/ref mutation occurred; all artifacts remain in workspace. Dispatcher approved one +1200s Luna code continuation (cap5760; charged4140; remaining1620 incl code1200+review180+test/integration240; Astra0). Partial v1 plumbing is not a milestone. Exact source-derived h_arg through Action/q/m0/FieldBound and actual u_outer native lower to typed drain is required.",
+  "quarantine_note": "Replay-constructor working/DRAFT paths and tools/__pycache__ remain excluded; no stop receipt authorizes integration. r1 runtime candidate is a frozen review snapshot; r2 repair work remains separate.",
   "workers": [
     {
       "id": "/root",
@@ -56,7 +56,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Working exact five-file playground lease and implementation handoff. No tests/build before independent review; no Git."
+      "receipt": "r18 rev3 bounded repair launched under current-session followup; exact lease program.rs/machine.rs/runtime_resume.rs plus r2 handoff; 360s reserved; no tests/build before independent delta review."
     },
     {
       "id": "/root/r18_runtime_correspondence_proof",
@@ -68,6 +68,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "Frozen r1 proof audit sha 0f13f02ad058c8b74b7c4f907a1b9b1fc89345b8c5498707f9c253f2455e3ceb; inbox f3e35103057daf64fb4dc8a7fef24b729ac379212c4a448fd4b0516171d04627. Conditional bridge only; exact HIR/candidate/function-response/runtime/Grant/live-arm/Completed42 obligations remain. Requested Sol/high, observed UNKNOWN, measured spend UNKNOWN, full600s conservatively charged. STOPPED."
+    },
+    {
+      "id": "/root/r18_runtime_integrated_review",
+      "role": "compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh integrated review completed BLOCKING: wrong Apply identity prevents success receipt under rev2. All supplied hashes match; no tests/builds/edits/Git."
     }
   ],
   "leases": [
@@ -119,7 +130,7 @@
     {
       "path": "tools/inference-playground/src/lib.rs",
       "owner": "/root/r18_runtime_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tools/inference-playground/src/runtime/program.rs",
@@ -134,7 +145,7 @@
     {
       "path": "tools/inference-playground/src/runtime/continuation.rs",
       "owner": "/root/r18_runtime_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tools/inference-playground/tests/runtime_resume.rs",
@@ -144,7 +155,7 @@
     {
       "path": "tasks/agent-loop/inbox/20261018-operation-v1-runtime-resume-implementation.md",
       "owner": "/root/r18_runtime_implementation",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-18-operation-v1-runtime-resume-correspondence.md",
@@ -165,28 +176,38 @@
       "path": "tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-rev2.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-rev3.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-operation-v1-runtime-resume-implementation-r2.md",
+      "owner": "/root/r18_runtime_implementation",
+      "state": "HELD"
     }
   ],
   "pending": [
     {
       "id": "r18-proof-r1-independent-review",
-      "state": "WAITING-IMPLEMENTATION-FREEZE",
+      "state": "BLOCKED",
       "owner": "/root",
-      "artifact": "notes/theory/2026-10-18-operation-v1-runtime-resume-correspondence.md plus implementation final diff",
+      "artifact": "Frozen r18 proof/source audit and implementation handoff/code hashes; fresh integrated compiler review",
       "sha256": "0f13f02ad058c8b74b7c4f907a1b9b1fc89345b8c5498707f9c253f2455e3ceb",
-      "receipt": "Conditional identity derivation only; concurrent implementation bytes excluded. Fresh integrated review after implementation freeze."
+      "receipt": "Integrated review BLOCKING: runtime compares actual outer closure invocation Apply to continuation_apply (inner k response Apply); applied_selected_closure cannot be set on intended rev2 path. Fresh r2 delta required."
     }
   ],
   "ready_next_work": {
-    "id": "r18-runtime-callback-completion",
+    "id": "r18-runtime-callback-completion-r2",
     "state": "RUNNING",
-    "owner": "Luna primary with active implementation lane",
-    "artifact": "same-HIR candidate-to-runtime evidence, actual response closure/environment, saved continuation, active outer handler arm, completed 42 receipt",
-    "receipt": "Proof r1 stopped with conditional bridge and exact TODOs. Implementation is reconciling two Function-response consumers and live-handler eligibility under the unchanged fixed predicate."
+    "owner": "Luna primary grants bounded repair to implementation owner; same fresh compiler reviewer handles delta",
+    "artifact": "distinct continuation_apply / response_invocation_apply / callback_apply joins, exact returned handle and environment, live outer arm, Completed42 receipt",
+    "receipt": "Implementation owner acknowledged rev3 continuation; distinct Apply identity repair and negative control in progress under 360s reservation. Parent OPEN/closure0."
   },
   "legacy_reconciliation": {
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "Receive and adjudicate fresh compiler review; after CLEAN or repairs/fresh delta review, run only the focused candidate_operation_catch solver integration test."
+  "next_action": "Receive implementation r2 frozen handoff and stop receipt. Send exact delta to the same fresh compiler reviewer; after CLEAN run only the focused runtime_resume target."
 }
