@@ -20,14 +20,14 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 0,
-      "available_seconds": 0,
+      "charged_seconds": 360,
+      "available_seconds": 2040,
       "expired_seconds": 0,
       "allocation": "fresh r9: proof900, complementary source audit360, implementation360, proof/source review180, compiler review180, runtime120, Luna integration/state/Git300. Astra0; no rollover.",
-      "last_stage_receipt": "Fresh contract frozen and grants being issued. All prior r8 workers STOPPED. No new source writes until exact pin ACK. Parent OPEN/closure0."
+      "last_stage_receipt": "r9 implementer stopped at exact frozen source SHA 03b44d0f8280c1ae79f66b5528f1bd0b0ffebac46b312ef7ffce605f702f48dd and handoff SHA a6fade4f29bd8703e14255c5467600d0770ee1d5b5a9776bf1d65eba13319ac7. Exact test delta only; fresh independent review pending; no runtime."
     },
-    "last_stage_receipt": "r9 fixed claim and source/test paths frozen; prior reviewed candidate and failed-runtime evidence pinned. No original condition closure inferred.",
-    "next_action": "Obtain exact pin ACKs; construct an authentic original source tuple and independently inspect its source owners; preserve the two-row runtime finding for a new reviewed diagnostic."
+    "last_stage_receipt": "Implementation packet frozen with both-row lineage instrumentation; writer STOPPED, 360s charged. Independent compiler review now pending. Original proof and source audit continue under separate leases.",
+    "next_action": "Obtain fresh compiler review of the exact r9 test-function delta. If CLEAN, run the single exact test with full capture; independently freeze/review the source proof and owner audit."
   },
   "history": "tasks/agent-loop/sprints/npair-rule-options-and-component-replay-20261018-closeout.md SHA 60aa58b143f763a07da40f063865f08a5fe4fbf3acb6c672fc882edb4feff8f9; prior histories retained in archived sprint receipts. PR #11 merged remotely as 27a7e00d4b581f18987bb2a3cbf2e492789c2293; local checkout remains stale and dirty.; rev3 owner audit amendment SHA 9394b94ab43c1b0ac5a5190460f84961a769c92f16ee31949604c501601def92; rev8 closeout tasks/agent-loop/sprints/npair-replay-auth-and-operation-rules-20261018-closeout.md SHA e557f8f9ddfd760f89ba057de17e6a2b0ff141c9297b02ac354f28b2cfd5b19f; tasks/agent-loop/sprints/npair-provenance-complete-replay-and-operation-rules-20261018-closeout.md SHA bb598941f3444baec8177e50665a22380e1337e858f2a6064359c9c424d83b32; prior CLEAN cross-route ownership audit note 572884a8df2e8adc19eb1a8121277c77784e3c02fa9925729e292dd629f40308 and handoff f2c93d65ba96e4a256010e2942096ca21ef714b5b06d81573701eb0b960948ed; next-action selector decision included in constructor-lineage contract; r2 constructor-lineage sprint BLOCKING close: implementation handoff292b828fe891a69f194e9872826cc0baaa9443db6f65a1aeb8caaecd3cd07274; unused720s expired; no tests/runtime. r3 recovery selector decision active.; r3 STOP at exact-source recovery gate: 6,647 local files plus reachable/unreachable Git blobs searched, no original hashes; rejected snapshots preserved. r4 explicitly adopts rejected bytes as baseline, no r2 provenance claim.; r4 BLOCKING instrumentation review: port child/op/uniqueness, matched drain acknowledgement/return, explicit complete linked observations. r5 contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20 authorizes only new test-function repair.; r5 BLOCKING closeout: contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20; implementation 5e8060b6e717adb5e10c47d8e0cba2ba532b0cef85842b580980cc4a2af266b1; proof ba6f2d7a0dc48c9d03038cccb17d8b5a98800ab8f72222b4e57302246aa4784a; independent review BLOCKING on port uniqueness before endpoint filtering and typed admission/emission/readback identity. Runtime0. Spent720s, unused420s expired. Parent OPEN/closure0.; r6 review BLOCKING: contract 68a518fa706613d523a9fe3a6be2394fb491e132e048b1299144532258d85fff; scheme d8c53522685e9bdfc1ba00380f222f4936d8d8df3302248fcde31e093668c484; context 42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca; proof 8d5cab69798da42c9de464f5dc8d568d647f3fa98e6d028289c8310e6b87d49c. Port/accessor/baselines accepted. One conflicting admission can be filtered before uniqueness. r6 spent540s; remaining runtime120/final180/integration120 retained.; r7 exact test compile failed before execution; original parent remained OPEN/closure0. Research-only checkpoints pushed: 095e81a61 (conditional Replay parent application), e24691257 (original fixed-c supplier audit). r8 begins with fresh 1800s; no rollover.; r8 closeout tasks/agent-loop/sprints/npair-fixed-c-interpretation-and-native-path-20261018-r8-closeout.md SHA f29fdc30be13d401c0a864cc24199a78fa53a9a5732c785cc47b0910c001c2ae",
   "quarantine_note": "All r8 writers and reviewers report STOPPED; no descendants. Existing unrelated frozen/uncommitted paths remain preserved and outside r9 leases.",
@@ -52,7 +52,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Supported prover session launched in current session; initial exact-pin ACK awaited; no writes before ACK."
+      "receipt": "Exact pin ACK received: contract and all 14 original-source table pins MATCH; FCW8/r8 closeout/runtime meta pinned; genuine original tuple constructor inversion underway. Requested Sol/high; observed UNKNOWN/UNKNOWN; no descendants."
     },
     {
       "id": "/root/npair_original_owner_audit_r9",
@@ -63,18 +63,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Supported researcher session launched in current session; initial exact-pin ACK awaited; no writes before ACK."
+      "receipt": "Exact pin ACK received: contract and 11 original-source/history pins MATCH; r8 closeout f29fdc30…c2ae accepted as persisted CLEAN compiler/runtime receipt. Original-owner inversion underway, no moving proof input. Requested Sol/high; observed UNKNOWN/UNKNOWN."
     },
     {
       "id": "/root/npair_replay_two_row_r9_impl",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Supported implementer session launched in current session; initial exact-pin ACK awaited; no writes before ACK."
+      "receipt": "Frozen r9 implementation SHA 03b44d0f8280c1ae79f66b5528f1bd0b0ffebac46b312ef7ffce605f702f48dd; handoff a6fade4f29bd8703e14255c5467600d0770ee1d5b5a9776bf1d65eba13319ac7. Only named test function changed; full 360s charged. Fresh compiler review pending; no Cargo/runtime."
     }
   ],
   "leases": [
@@ -111,12 +111,12 @@
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
       "owner": "/root/npair_replay_two_row_r9_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-replay-two-row-r9-impl.md",
       "owner": "/root/npair_replay_two_row_r9_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r9.stdout.log",
@@ -153,11 +153,11 @@
     },
     {
       "id": "r9-two-row-implementation",
-      "state": "RUNNING",
+      "state": "REVIEW",
       "reviewer": "/root/npair_replay_two_row_r9_impl",
       "artifact": "candidate_scheme named test + paired handoff",
-      "sha256": "scheme baseline 25ce531aa10d5f2ab85f363248f6d7ff0c062b93c70389e3d25f4a1b67e608bb",
-      "receipt": "Await pin ACK; bounded per-row diagnostics only; 360s cap."
+      "sha256": "candidate_scheme.rs 03b44d0f8280c1ae79f66b5528f1bd0b0ffebac46b312ef7ffce605f702f48dd; handoff a6fade4f29bd8703e14255c5467600d0770ee1d5b5a9776bf1d65eba13319ac7",
+      "receipt": "Writer STOPPED. Per-row diagnostics precede every existing assertion; exact artifact frozen for fresh independent compiler review. No tests/runtime."
     }
   ],
   "ready_next_work": null,
