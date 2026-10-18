@@ -6,6 +6,16 @@ Status: full objective remains active. R22 reduced the fixed runtime specimen to
 
 ## Current checkpoint (2026-10-18)
 
+R60 closed as a reviewed conditional scalar result and exact constructor
+obstruction. Existential projection/lifting is valid only when the remaining
+constraint predicate is independent of the eliminated AE auxiliaries. The
+whole-ascription source/native correspondence, source-indexed substitution law,
+and authentic exclusion of R59's scalar assignment remain OPEN; no constructor
+or implementation was adopted. Parent and Simple-sub A/B remain OPEN at
+`0 -> 0`; R50 remains NOT ADOPTED. No code, tests, or execution occurred. See
+the [R60 closeout](../notes/progress/2026-10-19-r60-closeout.md) and frozen
+[contract](agent-loop/sprints/paired-annotation-interface-20261019-r60.md).
+
 R37 revision 3 closed BLOCKED after fresh compiler and spec reviews found two
 test-candidate defects: the prior-fresh canonical-map-hit acceptance is
 vacuous, and reconstruction-time representatives are compared with a later
