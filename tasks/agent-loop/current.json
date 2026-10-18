@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/operation-v1-fieldbound-prefix-authentic-use-consumer-20261018-r20.md",
     "revision": 2,
     "sha256": "8486608b0e7f891223da836ecfdf02cb6148b60e6fcc6c3a23188256c4ce353f",
-    "state": "ACTIVE",
+    "state": "COMPLETE",
     "baseline": "R19 reviewed runtime checkpoint 8e1ad99fd plus exact R20 dependency pins; rev2 adds 480s solely for the reviewed HIR gate expected-ID consistency repair, delta review and one focused target; source/solver semantics remain research-only.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers and source/native domain preserved; OPEN/closure0.",
     "fixed_outcome": "Derive source q/m0/FieldBound prefix formation before authentic per-use capture and transport to that same FreshUse own native edge/drain/ack, or pinpoint exact earliest missing premise; independently resolve the R19 HIR admission gate by exact owner/kind comparison.",
@@ -23,17 +23,17 @@
       "available_seconds": 0,
       "allocation": "R20 rev1 3600s retained as fully charged; versioned rev2 adds 480s: repair90 + independent delta review150 + one focused target/integration240. Astra0."
     },
-    "next_action": "Run the one CLEAN-authorized cargo test -p yu-playground --test runtime_resume; record first failure boundary or exact pass, then integrate reviewed repair and update parent evidence without claiming theorem closure.",
+    "next_action": "R20 outcome met: CLEAN reviewed owner-aware HIR gate and one focused runtime target passed 18/18; source proof pinpointed the missing typed response-root-to-own-FreshUse incidence. Parent remains OPEN/closure0. Consult dispatcher for R21 bridge-rule design/review and source-native proof continuation.",
     "history": "R17/R18/R19 closeouts preserve original parent OPEN/closure0. R19 proof/source artifacts independently CLEAN at 6748039fa/118375dce. R19 local runtime checkpoint 8e1ad99fd; focused target 17/18 and first local-g failure at HIR-error assertion; no candidate/runtime local path executed. R20 rev1 HIR gate review BLOCKING at fallback Apply IDs omitted from expected_ids; exact repair approved by dispatcher in rev2, parent closure0.",
-    "last_stage_receipt": "R20 rev2 delta review CLEAN at runtime_resume.rs SHA256 3902e5071d9d2bc8bede6cc03fe74e224cf12627de7bcfc147ec850b9fd560bd. Fallback Apply IDs are included in expected_ids; existing exact owner checks and final equality remain. One focused target authorized, not yet run.",
+    "last_stage_receipt": "R20 rev2: repair hash 3902e5071d9d2bc8bede6cc03fe74e224cf12627de7bcfc147ec850b9fd560bd CLEAN independently reviewed; the single authorized cargo test -p yu-playground --test runtime_resume run passed 18/18. Owner gate, static receipt, local-g runtime path and sibling controls passed. No diagnostic output is preserved, so no concrete error-ID inventory claimed. Proof lane CLEAN still shows typed annotation response-root to same-use FreshUse incidence missing. Original parent OPEN/closure0.",
     "git_checkpoint": {
-      "commit": "8e1ad99fd",
+      "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R20 rev2 contract/state versioned continuation adds 480s exclusively for HIR gate expected-ID consistency repair, delta review and one focused target; old BLOCKING snapshot retained; root-only Git."
+      "receipt": "R20 rev2 HIR gate repaired under exact lease, CLEAN independently reviewed, focused target passed 18/18. Integration commit/push pending. Parent OPEN/closure0."
     }
   },
-  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0.",
+  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0.",
   "quarantine_note": "Replay-constructor working/DRAFT outputs and tools/__pycache__ remain quarantined and excluded. R20 grants no solver code write until reviewed design gate; runtime HIR test gate is separately leased. No source/solver semantic choice is adopted by this contract.",
   "workers": [
     {
@@ -78,7 +78,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R20 rev2 repair frozen; sole change adds fallback_apply_errors.keys().copied() to expected_ids chain. SHA256 3902e5071d9d2bc8bede6cc03fe74e224cf12627de7bcfc147ec850b9fd560bd. No tests/build/format/diagnostics; stopped pending independent delta review."
+      "receipt": "R20 rev2 repair delivered, reviewed CLEAN, focused target passed 18/18. No worker Git; stopped."
     },
     {
       "id": "/root/r18_runtime_implementation",
@@ -122,7 +122,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "CLEAN R20 rev2 delta review of runtime_resume.rs SHA256 3902e5071d9d2bc8bede6cc03fe74e224cf12627de7bcfc147ec850b9fd560bd. Exact one-line authorized addition closes expected-ID mismatch; all ownership and equality gates, static/runtime assertions and program/machine pins preserved. No verification run; target authorized once."
+      "receipt": "CLEAN independent review of exact rev2 delta; one focused target authorized. No edits/tests/build/Git performed by reviewer."
     }
   ],
   "leases": [

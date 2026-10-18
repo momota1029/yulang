@@ -1,6 +1,9 @@
 use std::sync::Arc;
 use yu_hir::shadow::{SourceOperationId, lower_module_with_local_source};
-use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports};
+use yu_hir::{
+    FileId, FileKey, HirErrorAttachment, HirErrorKind, HirErrorOrigin, HirItem,
+    ModuleIdentity, ResolvedExpr, SemanticImports, SourceRootId,
+};
 use yu_playground::runtime::{
     Machine, RuntimeEvidence, RuntimeOutcome, RuntimeProgram, RuntimeUnavailable, RuntimeValueKind,
 };
@@ -92,7 +95,7 @@ fn assert_unchanged_operation_v1_static_receipt(source: &str, name: &str) {
         )
         .unwrap(),
     );
-    assert!(hir.errors().is_empty(), "{source}");
+    assert_candidate_mode_hir_error_owners(&hir, source);
     let candidate = CandidateInference::solve_operation_v1_research(hir.clone()).unwrap();
     assert!(candidate.observes_hir(&hir));
     assert!(candidate.candidate_conflicts().is_empty(), "{source}");
@@ -100,6 +103,147 @@ fn assert_unchanged_operation_v1_static_receipt(source: &str, name: &str) {
     assert_eq!(receipts.len(), 1, "{source}");
     assert!(receipts[0].consumed, "{source}");
     RuntimeProgram::evidence_for_operation_v1(&hir, &candidate).unwrap();
+}
+
+fn assert_candidate_mode_hir_error_owners(hir: &yu_hir::HirModule, source: &str) {
+    use std::collections::{HashMap, HashSet};
+
+    let mut declaration_placeholders = HashMap::new();
+    for declaration in hir.source_effect_declarations() {
+        for id in &declaration.placeholder_errors {
+            assert!(
+                declaration_placeholders
+                    .insert(*id, (declaration.spelling.clone(), declaration.range.clone()))
+                    .is_none(),
+                "duplicate declaration-owned placeholder {id:?}: {source}"
+            );
+        }
+    }
+
+    // Match solve_mode's local-source carrier and fallback-expression paths.
+    let mut source_placeholders = HashMap::new();
+    let mut fallback_apply_errors = HashMap::new();
+    for item in hir.items() {
+        let HirItem::Binding(binding) = item else {
+            // The only fallback direct expression admitted by solve_mode is an integer.
+            continue;
+        };
+        let owner = SourceRootId::Definition(binding.definition_root().clone());
+        let local_source = hir
+            .local_source_for(&owner)
+            .unwrap_or_else(|error| panic!("candidate-mode source owner lookup failed: {error:?}: {source}"));
+        if local_source.is_some() {
+            // retain_placeholder_errors accepts only the outer Lambda chain's terminal Error.
+            let mut value = binding.value();
+            while let ResolvedExpr::Lambda { body, .. } = value {
+                value = body;
+            }
+            if let ResolvedExpr::Error { errors, .. } = value {
+                for id in errors.iter().copied() {
+                    assert!(
+                        source_placeholders
+                            .insert(id, binding.id().clone())
+                            .is_none(),
+                        "duplicate source-owned placeholder {id:?}: {source}"
+                    );
+                }
+            }
+        } else {
+            // Mirror preflight_expression's only error-bearing node: Apply.
+            let mut pending = vec![binding.value()];
+            while let Some(value) = pending.pop() {
+                match value {
+                    ResolvedExpr::Apply { callee, argument, errors, .. } => {
+                        for id in errors.iter().copied() {
+                            assert!(
+                                fallback_apply_errors
+                                    .insert(id, binding.id().clone())
+                                    .is_none(),
+                                "duplicate fallback Apply error {id:?}: {source}"
+                            );
+                        }
+                        pending.push(argument);
+                        pending.push(callee);
+                    }
+                    ResolvedExpr::Group { inner, .. } => pending.push(inner),
+                    ResolvedExpr::Lambda { body, .. } => pending.push(body),
+                    ResolvedExpr::Integer { .. } | ResolvedExpr::Name { .. } => {}
+                    _ => panic!("fallback expression is outside solve_mode preflight: {source}"),
+                }
+            }
+        }
+    }
+
+    assert!(
+        hir.errors().len() <= 16,
+        "bounded HIR owner diagnostic exceeded 16 errors: count={}, source={source}",
+        hir.errors().len()
+    );
+    let observed = hir
+        .errors()
+        .iter()
+        .map(|error| {
+            let owner = declaration_placeholders
+                .get(&error.id())
+                .map(|(declaration, _)| format!("declaration:{declaration}"))
+                .or_else(|| source_placeholders.get(&error.id()).map(|binding| format!("source-binding:{binding:?}")))
+                .or_else(|| fallback_apply_errors.get(&error.id()).map(|binding| format!("fallback-apply:{binding:?}")))
+                .unwrap_or_else(|| "UNOWNED".to_owned());
+            format!(
+                "id={:?} owner={} origin={:?} kind={:?} attachment={:?} range={:?}",
+                error.id(),
+                owner,
+                error.origin(),
+                error.kind(),
+                error.attachment(),
+                error.range()
+            )
+        })
+        .collect::<Vec<_>>();
+    eprintln!("candidate-mode HIR errors (bounded): {observed:?}");
+
+    let mut expected_ids = declaration_placeholders
+        .keys()
+        .copied()
+        .chain(source_placeholders.keys().copied())
+        .chain(fallback_apply_errors.keys().copied())
+        .collect::<HashSet<_>>();
+    let mut observed_ids = HashSet::new();
+    for error in hir.errors() {
+        assert!(observed_ids.insert(error.id()), "duplicate HIR error id: {observed:?}");
+        assert_eq!(error.origin(), HirErrorOrigin::Lowering, "{observed:?}");
+        if let Some((declaration, range)) = declaration_placeholders.get(&error.id()) {
+            assert_eq!(error.kind(), HirErrorKind::UnsupportedItem, "{observed:?}");
+            assert_eq!(error.range(), range, "declaration {declaration}: {observed:?}");
+            let HirErrorAttachment::DirectRootItem(ordinal) = error.attachment() else {
+                panic!("declaration placeholder lacks direct-root owner: {observed:?}");
+            };
+            assert!(matches!(
+                hir.items().get(*ordinal as usize),
+                Some(HirItem::Error { errors, .. }) if errors.contains(&error.id())
+            ), "declaration {declaration} placeholder is attached to another root: {observed:?}");
+        } else if let Some(binding) = source_placeholders.get(&error.id()) {
+            assert_eq!(error.kind(), HirErrorKind::UnsupportedExpression, "{observed:?}");
+            assert_eq!(
+                error.attachment(),
+                &HirErrorAttachment::Value(binding.clone()),
+                "source placeholder has the wrong binding owner: {observed:?}"
+            );
+        } else if let Some(binding) = fallback_apply_errors.get(&error.id()) {
+            assert_eq!(error.kind(), HirErrorKind::UnsupportedExpression, "{observed:?}");
+            assert_eq!(
+                error.attachment(),
+                &HirErrorAttachment::Value(binding.clone()),
+                "fallback Apply error has the wrong binding owner: {observed:?}"
+            );
+        } else {
+            panic!("unowned or candidate-mode-forbidden HIR error: {observed:?}");
+        }
+    }
+    assert_eq!(
+        observed_ids, expected_ids,
+        "owner placeholders and actual HIR errors differ: {observed:?}"
+    );
 }
 
 #[test]
