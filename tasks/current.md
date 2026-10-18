@@ -45,11 +45,15 @@ R48 closed at a reviewed static reachability obstruction. Active recursive
 `loop x` and q=`loop y` references emit `Action::Link`, while scoped Apply
 admission requires a `LocalFreshRoute` published only by Local reconstruction.
 The fixture cannot reach the requested q/C/D inspection on this frozen path, so
-the gated Cargo command did not run. The test-only ledger and conditional replay
-proof remain unaccepted candidates; the original theorem remains OPEN at
-`0 -> 0`. See the [R48 closeout](../notes/progress/2026-10-19-r48-closeout.md).
-The dispatcher recommends resolving active-root admission in a fresh contract
-before further temporal-ledger work; no next sprint is active.
+the gated Cargo command did not run. Its test-only ledger and conditional replay
+proof remain unaccepted candidates; the parent remains OPEN at `0 -> 0`. See
+the [R48 closeout](../notes/progress/2026-10-19-r48-closeout.md).
+
+R49 is active under the [active-root admission contract](agent-loop/sprints/active-root-admission-20261019-r49.md).
+It asks whether existing authority supplies a valid producer-to-authentication
+path for active-root recursive Apply, or where the exact missing admission
+decision belongs. Both lanes are read-only; no source edits, builds, tests or
+runtime probes are authorized. The parent remains OPEN at `0 -> 0`.
 
 R22's reviewed proof and falsifier artifacts preserve the original source scope:
 the fixed successful runtime path carries the response handle through
