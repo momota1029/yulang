@@ -34,8 +34,8 @@
       "allocation": "Luna read-only design/map 600 + Sol proof 900 charged; two independent reviews 300 each + Luna integration 300 remain, no carryover. Astra 0; CPU/RSS UNKNOWN. No builds/tests/runtime.",
       "overrun_seconds": 0
     },
-    "next_action": "Continue proof and read-only design in parallel. Return at frozen proposal, unsupported premise, authority/dependency/lease change, or resource boundary.",
-    "history": "R49 closed/pushed at reviewed bounded NO_SAFE_CODE_SLICE; corrected pin rev2. Startup reconciled all prior agents terminal and removed stale top-level R49 pending rows. Dispatcher selected R50 approval-ready admission proposal; no adoption/code authorization. Actual Sol proof launch acknowledged by runtime; requested Sol/high, effective model/effort UNKNOWN; exact output lease and no-descendants condition recorded.",
+    "next_action": "Continue Sol proof under exact lease; after frozen result integrate and assign fresh compiler/spec reviews.",
+    "history": "R49 closed/pushed at reviewed bounded NO_SAFE_CODE_SLICE; corrected pin rev2. Startup reconciled all prior agents terminal and removed stale top-level R49 pending rows. Dispatcher selected R50 approval-ready admission proposal; no adoption/code authorization. Actual Sol proof launch acknowledged by runtime; requested Sol/high, effective model/effort UNKNOWN; exact output lease and no-descendants condition recorded. Luna froze the read-only R50 protocol proposal and implementation-owner handoff; no compiler edits.",
     "workers": [
       {
         "id": "/root",
@@ -69,17 +69,17 @@
       {
         "path": "notes/design/2026-10-19-active-link-admission-r50-draft.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-19-r50-implementation-handoff.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r50-design.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/theory/2026-10-19-r50-active-link-refinement.md",
@@ -96,10 +96,9 @@
       {
         "id": "R50-LUNA-DESIGN-MAP",
         "role": "primary",
-        "state": "RUNNING",
-        "worker_id": "/root",
+        "state": "RESULT",
         "budget_seconds": 600,
-        "receipt": "Current primary session active; exact three-path read-only lease; 600s charged."
+        "receipt": "Frozen R50-LUNA-DESIGN-MAP rev1; draft SHA 3393e211349116a86f881b0441fb9ec6599358e79cf9d0031e6dc294726f630e; implementation handoff SHA 515f5b68be4155d6f120f8bea4d1dbb94b188eacedcd0eb19ae9c82ce6a60cc1; inbox SHA d4a99ed606e65373baa56b31d704f31441bf8af94d376f3837d15fa6c332a739; writes stopped on exact paths; no descendants."
       },
       {
         "id": "R50-SOL-ACTIVE-LINK-REFINEMENT",
@@ -131,7 +130,10 @@
     "closure": "R50 active. Proposal/structural proof are not yet established; parent remains OPEN 0->0.",
     "frozen_artifacts": {
       "R49_closeout": "fa1ad4b883b65d69147b0138d7117c6a43fc3422ab0a1b7812b0d45fa409326d",
-      "R49_contract_rev2": "aa0823710a5dae66eac151bf3da92ca21448328f4f115f90031b6abedb4f3679"
+      "R49_contract_rev2": "aa0823710a5dae66eac151bf3da92ca21448328f4f115f90031b6abedb4f3679",
+      "R50_design_draft": "3393e211349116a86f881b0441fb9ec6599358e79cf9d0031e6dc294726f630e",
+      "R50_implementation_handoff": "515f5b68be4155d6f120f8bea4d1dbb94b188eacedcd0eb19ae9c82ce6a60cc1",
+      "R50_design_inbox": "d4a99ed606e65373baa56b31d704f31441bf8af94d376f3837d15fa6c332a739"
     }
   },
   "workers": [
@@ -167,17 +169,17 @@
     {
       "path": "notes/design/2026-10-19-active-link-admission-r50-draft.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r50-implementation-handoff.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r50-design.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-19-r50-active-link-refinement.md",
@@ -194,10 +196,9 @@
     {
       "id": "R50-LUNA-DESIGN-MAP",
       "role": "primary",
-      "state": "RUNNING",
-      "worker_id": "/root",
+      "state": "RESULT",
       "budget_seconds": 600,
-      "receipt": "Current primary session active; exact three-path read-only lease; 600s charged."
+      "receipt": "Frozen R50-LUNA-DESIGN-MAP rev1; draft SHA 3393e211349116a86f881b0441fb9ec6599358e79cf9d0031e6dc294726f630e; implementation handoff SHA 515f5b68be4155d6f120f8bea4d1dbb94b188eacedcd0eb19ae9c82ce6a60cc1; inbox SHA d4a99ed606e65373baa56b31d704f31441bf8af94d376f3837d15fa6c332a739; writes stopped on exact paths; no descendants."
     },
     {
       "id": "R50-SOL-ACTIVE-LINK-REFINEMENT",
