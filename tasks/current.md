@@ -25,7 +25,14 @@ original result-port typing derivation or freezing its exact missing source
 input; no semantic rule is adopted by this reallocation. The implementation
 lane remains WAITING because the inspected Catch slot-50/Group and runtime
 request-consumer owners do not construct the missing original `A_decl` output
-map. See the [R22
+map. The backward trace is now frozen: the original complete `Sigma` is a
+primitive theorem input; `OpInst` transports it; `Execute_decl_result` consumes
+the independently supplied declaration interface; no original
+source-to-interface realization deriving this fixed `K_decl` was found in the
+bounded owners. The open `Sigma0` candidate returns the same `b` locally but is
+not identified with the original `Sigma`, and its full validity remains open.
+The cut-formation packet is committed and awaiting fresh independent review.
+See the [R22
 closeout](notes/progress/2026-10-18-r22-fixed-source-result-map-closeout.md)
 and [R23 contract](agent-loop/sprints/original-a-decl-provider-result-map-20261018-r23.md).
 
