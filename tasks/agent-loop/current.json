@@ -7,7 +7,7 @@
     "id": "computation-formal-copy-bridge-20261019-r51",
     "contract": "tasks/agent-loop/sprints/computation-formal-copy-bridge-20261019-r51.md",
     "revision": 2,
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "a191b5ccdd2a41bf6c74687d8552e9fb0a6eb9fa",
     "contract_sha256": "b58e19d3a921dcf9ba99627c8584f24f8d7ab779a336f21e21f0dcd63d7a0807",
     "parent": "Full inference/evaluator theorem and original Simple-sub A/B; unchanged quantifiers/source domain/accepted semantics; OPEN 0->0.",
@@ -35,13 +35,13 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 2100,
-      "available_seconds": 300,
-      "allocation": "Sol proof 900 charged; Luna owner map 600 charged; compiler referee 300 and spec auditor 300 charged at launch; Luna integration 300 reserved. Astra 0. No tests/build/runtime/measurements.",
+      "charged_seconds": 2400,
+      "available_seconds": 0,
+      "allocation": "Sol proof 900; Luna source map 600; independent compiler/spec reviews 300 each; Luna integration 300. Cap exhausted; no carryover. Astra 0; CPU/RSS UNKNOWN. No builds/tests/runtime/measurements.",
       "overrun_seconds": 0
     },
-    "next_action": "Proof and read-only source map active. Stop at bounded result or exact obstruction; next dispatch at substantive result, material blocker or authority/dependency/lease/resource change.",
-    "history": "R50 CLOSED, proposal NOT ADOPTED; R50 adoption remains a separate unanswered user decision. Independent R51 route selected by existing dispatcher. Exact dependencies pinned; R51 contract revision 1 approved by primary. Sol proof lane launched; Luna owns source map, review, integration and Git. Original parent remains OPEN 0->0. Contract revision 2 adds candidate_call.rs as the exact source-plan/argument-name owner pin, discovered before proof writes. Luna completed the read-only owner map and froze NO_SAFE_CODE_SLICE with exact pins; Sol proof remains active under rev2. Proof artifact/handoff hashes verified; all 19 dependency pins match. Fresh independent compiler/spec reviews launched on immutable bytes.",
+    "next_action": "R51 CLOSED with a reviewed bounded two-use source-native result. Original parent OPEN 0->0. Fresh next-action dispatch is needed for the mixed generic/shared-anchor Capture cut; no code authority follows.",
+    "history": "R50 CLOSED, proposal NOT ADOPTED; R50 adoption remains a separate unanswered user decision. Independent R51 route selected by existing dispatcher. Exact dependencies pinned; R51 contract revision 1 approved by primary. Sol proof lane launched; Luna owns source map, review, integration and Git. Original parent remains OPEN 0->0. Contract revision 2 adds candidate_call.rs as the exact source-plan/argument-name owner pin, discovered before proof writes. Luna completed the read-only owner map and froze NO_SAFE_CODE_SLICE with exact pins; Sol proof remains active under rev2. Proof artifact/handoff hashes verified; all 19 dependency pins match. Fresh independent compiler/spec reviews launched on immutable bytes. Independent spec review returned CLEAN for bounded two-use scope and confirmed general mixed shared-anchor correspondence remains OPEN; message-only receipt integrated by primary. Compiler review continues. Compiler referee independently validated first-use noninterference, distinct second map, two signed chains, joint outer capture and physical quotient-edge scope; no compiler findings within the bounded claim. Spec auditor found no conformance/quantifier defect. Luna adjudicated and integrated both message-only receipts. R51 closed at reviewed bounded scope; parent remains OPEN 0->0. R51 resource cap exhausted.",
     "workers": [
       {
         "id": "/root",
@@ -52,7 +52,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r51",
-        "receipt": "R51 bounded proof frozen and under independent review; Luna adjudication/integration/Git owner."
+        "receipt": "Luna primary completed R51 adjudication, two independent reviews and integration; no code/tests/runtime. Git integration pending."
       },
       {
         "id": "/root/r51_computation_copy_proof",
@@ -63,29 +63,29 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r51",
-        "receipt": "R51 rev2 proof frozen; artifact/inbox hashes match; WRITES_STOPPED/NO_DESCENDANTS; 900s charged; no tests/build/runtime/Git."
+        "receipt": "Sole proof author: frozen candidate proof; terminal WRITES_STOPPED/NO_DESCENDANTS; 900s charged; outputs and 19 pins match."
       },
       {
         "id": "/root/r51_computation_copy_compiler_review",
         "role": "fresh read-only compiler_referee",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "reviewer role default",
         "requested_effort": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r51",
-        "receipt": "Launched on frozen R51 proof; 300s charged at launch; read-only message report, no output files."
+        "receipt": "Independent compiler_referee: bounded two-use derivation VALID on stated scalar route; no blocking/major/minor findings; exact mixed shared-anchor capture gap remains OPEN. All hashes match. WRITES_STOPPED/NO_DESCENDANTS."
       },
       {
         "id": "/root/r51_computation_copy_spec_review",
         "role": "fresh read-only spec_auditor",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "reviewer role default",
         "requested_effort": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r51",
-        "receipt": "Launched on frozen R51 proof; 300s charged at launch; read-only message report, no output files."
+        "receipt": "Independent spec_auditor: CLEAN at bounded two-use scope; no quantifier/authority narrowing. Mixed shared-anchor port correspondence remains OPEN. All hashes match. WRITES_STOPPED/NO_DESCENDANTS."
       }
     ],
     "leases": [
@@ -119,28 +119,18 @@
         "sha256": "8180aa417995c6d069a5a1b24a0ab405ad0b10bb056ac42c74d402a0ca0874ce"
       }
     ],
-    "pending": [
-      {
-        "id": "R51_COMPILER_REVIEW",
-        "state": "RUNNING",
-        "owner": "fresh compiler_referee",
-        "output": "message-only review of frozen R51 proof"
-      },
-      {
-        "id": "R51_SPEC_REVIEW",
-        "state": "RUNNING",
-        "owner": "fresh spec_auditor",
-        "output": "message-only review of frozen R51 proof"
-      }
-    ],
-    "closure": "ACTIVE. No parent closure, semantics adoption, code authority, test/runtime authority or production promotion.",
+    "pending": [],
+    "closure": "CLOSED at bounded two-use result: fresh compiler and spec reviews CLEAN for stated scope. General mixed generic/shared-anchor capture remains OPEN at Capture::expand_row plus prepare_candidate_fresh_use; original full parent and Simple-sub A/B remain OPEN 0->0. No compiler changes or test/runtime authority.",
     "frozen_artifacts": {
       "R51_contract": "b58e19d3a921dcf9ba99627c8584f24f8d7ab779a336f21e21f0dcd63d7a0807",
       "R51_contract_rev2": "b58e19d3a921dcf9ba99627c8584f24f8d7ab779a336f21e21f0dcd63d7a0807",
       "R51_owner_map": "fd604fdab586d82b05033d2e254d50ef3e11f358e8dc4ce8aebe7bf9d9c95a13",
       "R51_implementation_handoff": "4aab2bb54630282b68f485f7400b7eea2bb223cd049676a8652fbb053f9f621f",
       "R51_proof": "f133c402f47b90f37bca92d2470cd7007fd320c580efba9ae0919a7f38a027b8",
-      "R51_proof_handoff": "8180aa417995c6d069a5a1b24a0ab405ad0b10bb056ac42c74d402a0ca0874ce"
+      "R51_proof_handoff": "8180aa417995c6d069a5a1b24a0ab405ad0b10bb056ac42c74d402a0ca0874ce",
+      "R51_compiler_review": "message-only CLEAN; independently validated bounded two-use claim and exact mixed-cut gap",
+      "R51_spec_review": "message-only CLEAN; no scope/authority narrowing; exact mixed-cut gap retained",
+      "R51_closeout": "primary adjudication recorded in current.json"
     }
   },
   "workers": [
@@ -153,40 +143,40 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r51",
-      "receipt": "Active R51 work acknowledged by primary; exact owner-map leases held; no code/tests/runtime."
+      "receipt": "Luna primary completed R51 adjudication, two independent reviews and integration; no code/tests/runtime. Git integration pending."
     },
     {
       "id": "/root/r51_computation_copy_proof",
       "role": "Sol constructive FreshUse copied/merged-provider proof",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r51",
-      "receipt": "Spawned for R51; awaiting active-work receipt; exact proof leases only; 900s charged at launch."
+      "receipt": "Sole proof author: frozen candidate proof; terminal WRITES_STOPPED/NO_DESCENDANTS; 900s charged; outputs and 19 pins match."
     },
     {
       "id": "/root/r51_computation_copy_compiler_review",
       "role": "fresh read-only compiler_referee",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "reviewer role default",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r51",
-      "receipt": "Launched on frozen R51 proof; 300s charged at launch; read-only message report, no output files."
+      "receipt": "Independent compiler_referee: bounded two-use derivation VALID on stated scalar route; no blocking/major/minor findings; exact mixed shared-anchor capture gap remains OPEN. All hashes match. WRITES_STOPPED/NO_DESCENDANTS."
     },
     {
       "id": "/root/r51_computation_copy_spec_review",
       "role": "fresh read-only spec_auditor",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "reviewer role default",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r51",
-      "receipt": "Launched on frozen R51 proof; 300s charged at launch; read-only message report, no output files."
+      "receipt": "Independent spec_auditor: CLEAN at bounded two-use scope; no quantifier/authority narrowing. Mixed shared-anchor port correspondence remains OPEN. All hashes match. WRITES_STOPPED/NO_DESCENDANTS."
     }
   ],
   "leases": [
