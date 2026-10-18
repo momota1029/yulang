@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push r19 contract and initial state. Then launch disjoint proof, source-falsification and runtime-lineage lanes. Keep solver owners read-only; runtime result must not claim FieldBound Capture/FreshUse consumption.",
     "history": "R18 runtime research path completed at d51baa6db; independent review CLEAN, runtime_resume 17/17. R17 details are in the R17 closeout pointer in top-level history. R19 source/proof characterization commits 6748039fa and 118375dce independently CLEAN; original parent conditions remain closure0.",
-    "last_stage_receipt": "R19 proof/source artifacts are CLEAN and pushed. Original runtime review found 3 BLOCKING findings; revision3 adds a bounded 900s repair/review/focused-test envelope only. No solver/source semantics/receipt schema changes; parent OPEN/closure0.",
+    "last_stage_receipt": "R19 proof/source artifacts are CLEAN and pushed. Original runtime review found 3 BLOCKING findings; revision3 adds a bounded 900s repair/review/focused-test envelope only. No solver/source semantics/receipt schema changes; parent OPEN/closure0. Same stopped implementation worker acknowledged R19 rev3 and resumed within the added 360s repair allocation; no test/build before delta review.",
     "git_checkpoint": {
       "commit": "118375dce",
       "branch": "research/simple-sub-intrusion",
@@ -72,13 +72,13 @@
     {
       "id": "/root/r19_local_binding_runtime",
       "role": "implementer",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Prior r19-r1 writer stopped with frozen hashes and BLOCKING review retained. R19 rev3 reissues only runtime/program.rs, runtime/machine.rs, tests/runtime_resume.rs plus new `tasks/agent-loop/inbox/20261018-operation-v1-local-binding-runtime-r2.md`; 360s repair grant. Awaiting fresh active-work acknowledgement."
+      "receipt": "Prior r19-r1 writer stopped with frozen hashes and BLOCKING review retained. R19 rev3 reissues only runtime/program.rs, runtime/machine.rs, tests/runtime_resume.rs plus new `tasks/agent-loop/inbox/20261018-operation-v1-local-binding-runtime-r2.md`; 360s repair grant. Awaiting fresh active-work acknowledgement. Active-work acknowledgement received for rev3 SHA 9002cc81...; writer resumed on exact four-path lease, repair360. Old snapshot/review retained."
     },
     {
       "id": "/root/r18_runtime_implementation",
@@ -304,5 +304,5 @@
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "Commit/push R19 rev3 resource and repair authority before resuming the stopped runtime writer. Then obtain the assigned delta review; only CLEAN authorizes the one focused runtime_resume run."
+  "next_action": "Continue the three bounded runtime repairs and freeze r2 handoff; same compiler referee performs 240s delta review, then CLEAN alone permits the focused target."
 }
