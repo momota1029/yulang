@@ -43,24 +43,24 @@
     {
       "id": "/root/r63_whole_ascription_formation_proof",
       "role": "Configured prover; R64 source derivation and typed substitution",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "Current R64 acknowledgment: NO_READ / NO_WRITE / NO_PROOF_WORK / NO_DESCENDANTS. Exact two-path lease activated; awaiting Luna's start acknowledgment."
+      "session": "current-conversation-2026-10-19-r64",
+      "receipt": "Current launch receipt received; active R64 proof lane, exact two-path lease, no descendants, 600s charged. Requested gpt-6-sol/high; observed UNKNOWN/UNKNOWN."
     },
     {
       "id": "/root/r64_clause_owner",
       "role": "Luna/high R64 source/native clause-owner lane",
-      "state": "WAITING",
+      "state": "UNKNOWN",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "GPT-6",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Current R64 acknowledgment: NO_READ / NO_WRITE / NO_DESCENDANTS. Exact two-path lease activated; awaiting Luna's start acknowledgment."
+      "receipt": "Launch receipt reported observed GPT-6, effort UNKNOWN, mismatching requested Luna/high. Primary issued STOP and interrupted active turn; cessation not yet confirmed. Exact paths quarantined; 500s charged, no time carryover."
     },
     {
       "id": "/root/r63_compiler_review",
@@ -103,12 +103,12 @@
     {
       "path": "notes/progress/2026-10-19-r64-ascription-clause-owners.md",
       "owner": "/root/r64_clause_owner",
-      "state": "HELD"
+      "state": "QUARANTINED"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r64-implementation.md",
       "owner": "/root/r64_clause_owner",
-      "state": "HELD"
+      "state": "QUARANTINED"
     }
   ],
   "pending": [
