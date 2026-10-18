@@ -22,11 +22,46 @@
     "history": "R22: proof/falsifier frozen; conditional fixed runtime handle induction only. Source D1/A_decl output map and typed Orig remain OPEN. Trace had two MAJOR independent-review findings; repair stopped partial, was discarded; no tests or code integrated. Parent closure remains0. See notes/progress/2026-10-18-r22-fixed-source-result-map-closeout.md.",
     "last_stage_receipt": "R23 issued after dispatcher: actual A_decl primary-source owner is the next premise; do not repeat generic missing-input audit. NO_SAFE_CODE_SLICE at candidate Catch slot-50/Group and runtime OperationResultConsumer/capture_template owners.",
     "git_checkpoint": {
-      "commit": "PENDING",
+      "commit": "5f76fcd41",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "Root is preparing R22 closeout + R23 contract/state checkpoint before source-owner lane launch."
-    }
+      "receipt": "R22 closeout, R23 rev1 contract and tasks/current synchronized and pushed by primary."
+    },
+    "workers": [
+      {
+        "id": "/root",
+        "role": "Luna-primary",
+        "state": "RUNNING",
+        "requested_model": "Luna",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Primary owns R23 authority, staged proof activation, review, integration and Git."
+      },
+      {
+        "id": "/root/r23_source_expansion",
+        "role": "researcher",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Fresh launch acknowledged for exact A_decl source expansion lease; cap300s; no code/tests/Git."
+      },
+      {
+        "id": "/root/r23_result_map_falsifiers",
+        "role": "researcher",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Fresh independent falsification launch acknowledged; disjoint theory/handoff lease; cap300s; no code/tests/Git."
+      }
+    ]
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. R20 runtime/HIR specimen gate CLEAN, 18/18; source/native FreshUse incidence still missing. R21 review CLEAN for rev3 document conformance only; A unadopted and partial, B blocked. R22 closeout: conditional runtime response-handle induction; source D1/A_decl output/provider map not proved; trace findings/repair failure recorded; parent remains OPEN/closure0.",
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md (R22 stale trace hashes), and tools/__pycache__/; no staging.",
@@ -52,6 +87,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "R23 exact source-owner expansion assignment prepared; 300s cap, two exact output paths; awaiting actual launch acknowledgement."
+    },
+    {
+      "id": "/root/r23_result_map_falsifiers",
+      "role": "researcher",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh independent falsification launch acknowledged; disjoint theory/handoff lease; cap300s; no code/tests/Git."
     }
   ],
   "leases": [
@@ -74,14 +120,36 @@
       "path": "tasks/agent-loop/inbox/20261018-original-a-decl-source-expansion.md",
       "owner": "/root/r23_source_expansion",
       "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-18-original-a-decl-result-map-falsifiers.md",
+      "owner": "/root/r23_result_map_falsifiers",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-original-a-decl-result-map-falsifiers.md",
+      "owner": "/root/r23_result_map_falsifiers",
+      "state": "HELD"
     }
   ],
   "pending": [
     {
       "id": "R23-ADECL-SOURCE-1",
-      "state": "ASSIGNED",
+      "state": "RUNNING",
       "owner": "/root/r23_source_expansion",
       "artifact": "Enumerate actual original A_decl completion/view/owner frames and exact formation/execution/return/pending rule locators; no generic missing-input recap."
+    },
+    {
+      "id": "R23-ADECL-FALSIFIER-1",
+      "state": "RUNNING",
+      "owner": "/root/r23_result_map_falsifiers",
+      "artifact": "Independent original-source attack on provider/world/future/pending cases; admitted counterexample only with fixed c and complete A_decl."
+    },
+    {
+      "id": "R23-ADECL-FALSIFIER-1",
+      "state": "RUNNING",
+      "owner": "/root/r23_result_map_falsifiers",
+      "artifact": "Independent original-source attack on provider/world/future/pending cases; admitted counterexample only with fixed c and complete A_decl."
     }
   ],
   "ready_next_work": {
