@@ -2,9 +2,14 @@
 
 Date: 2026-10-19
 Branch: `research/simple-sub-intrusion`
-Status: the full user objective—proof-backed type inference and evaluator implementation, followed by complete Simple-sub/F5 replacement—remains active. R65 is closed as a reviewed bounded bridge-applicability result; its first unsupplied input was `R65-CURRENT-OPERAND-1`. R66 is now closed as a reviewed conditional structural result with an exact unsupported Result-A instantiation and `NO_SAFE_CODE_SLICE`. The original whole-annotation and Lambda/body-check derivations can be cut and recomposed in one context only when already supplied; Name synthesis applies, but the pinned rules do not derive Result-A Lambda use at this whole-annotated binding. `R66-LAMBDA-RESULT-STAGE-1` and `R65-CURRENT-OPERAND-1` remain open, downstream R64/R61 remain open, and the original theorem/Simple-sub A/B remain OPEN at 0; R50 remains NOT ADOPTED. See the [R66 closeout](../notes/progress/2026-10-19-r66-closeout.md), [R65 closeout](../notes/progress/2026-10-19-r65-closeout.md), and [current sprint state](agent-loop/current.json). No code slice was established; no compiler or test work ran.
+Status: the full user objective—proof-backed type inference and evaluator implementation, followed by complete Simple-sub/F5 replacement—remains active. R65 is closed as a reviewed bounded bridge-applicability result; its first unsupplied input was `R65-CURRENT-OPERAND-1`. R66 is closed as a reviewed conditional structural result with an exact unsupported Result-A instantiation and `NO_SAFE_CODE_SLICE`. R67 is active at baseline `3b974b9337d8490e1af2ebaa5f1b54ece2e62cd5`; it attempts direct source Lambda/body checking through the authentic formal, Name, consumer and invocation premises without using Result-A synthesis. `R66-LAMBDA-RESULT-STAGE-1`, `R65-CURRENT-OPERAND-1`, downstream R64/R61, and the original theorem/Simple-sub A/B remain OPEN at 0; R50 remains NOT ADOPTED. See the [R67 contract](agent-loop/sprints/direct-lambda-checking-20261019-r67.md), [R66 closeout](../notes/progress/2026-10-19-r66-closeout.md), and [current sprint state](agent-loop/current.json). No code or test work is authorized.
 
 ## Current checkpoint (2026-10-19)
+
+### R67 active — direct source Lambda checking
+
+R67 attempts to construct the original symbolic Lambda operand from the selected source Lambda, Parameter, resolved Name, body-checking, designated consumer and complete invocation rules. It does not use Result-A’s unannotated Lambda synthesis equation; the Function interface must be derived before it is used for whole-type checking. The proof and complementary attack are awaiting exact start receipts; Luna owns the source/native map and Git. No code, test, semantic or production change is authorized. See the [R67 contract](agent-loop/sprints/direct-lambda-checking-20261019-r67.md).
+
 
 ### R66 closed — conditional Lambda cut and unsupported Result-A staging premise
 
