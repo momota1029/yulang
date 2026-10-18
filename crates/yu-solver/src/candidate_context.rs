@@ -25,6 +25,12 @@ pub(super) enum ReplayChildStep { More, Delivered, NoChild }
 // Queue transfer and child completion are distinct replay frontiers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ReplayDriveOutcome { Complete, Queued }
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+pub(super) enum ReplayDrainObservation {
+    ChildReturn { operation: ReplayOperationId, ack: ReplayChildAck, child: Option<RelationId>, drain_index: usize, transitions: usize, stage: TypedDrainStage },
+    DriveReturn { operation: ReplayOperationId, outcome: ReplayDriveOutcome, operation_state: Option<(bool, ReplayChildWait, usize, usize)> },
+}
 // This stack owns the inner synchronous driver's continuation data. Lifecycle
 // suspension and the source/extrusion frames are separate, still-disabled gates.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -903,6 +909,8 @@ pub(super) struct State {
     fail_replay_completion_after: Option<usize>,
     #[cfg(test)]
     failed_replay_completion_bytes: Option<(usize, usize)>,
+    #[cfg(test)]
+    replay_drain_observations: Vec<ReplayDrainObservation>,
     #[cfg(test)]
     operation_frontier_visits: usize,
     restorations: HashMap<ReplayOperationId, BoundRestoration>,
@@ -1806,6 +1814,52 @@ impl State {
         self.evidence.emissions.get(id.0).map(|emission| (emission.physical, emission.readback))
     }
     #[cfg(test)]
+    pub(super) fn test_provenance_for_relation(&self, relation: RelationId) -> Vec<String> {
+        self.evidence.admissions.iter().enumerate().filter_map(|(admission_index, admission)| {
+            if admission.relation != Some(relation) { return None; }
+            let admission_id = BoundAdmissionId(admission_index);
+            let emissions: Vec<_> = self.evidence.emissions.iter().enumerate()
+                .filter(|(_, emission)| emission.admission == admission_id)
+                .map(|(index, emission)| (BoundEmissionId(index), emission))
+                .collect();
+            Some(format!("admission={admission_id:?} record={admission:?} emissions={emissions:?}"))
+        }).collect()
+    }
+    #[cfg(test)]
+    pub(super) fn test_admission_emissions_for_relation(
+        &self, relation: RelationId,
+    ) -> Vec<(BoundAdmissionId, BoundAdmission, Vec<(BoundEmissionId, BoundEmission)>)> {
+        self.evidence.admissions.iter().enumerate().filter_map(|(admission_index, admission)| {
+            if admission.relation != Some(relation) { return None; }
+            let admission_id = BoundAdmissionId(admission_index);
+            let emissions = self.evidence.emissions.iter().enumerate()
+                .filter(|(_, emission)| emission.admission == admission_id)
+                .map(|(emission_index, emission)| (BoundEmissionId(emission_index), *emission))
+                .collect();
+            Some((admission_id, *admission, emissions))
+        }).collect()
+    }
+    #[cfg(test)]
+    pub(super) fn test_relation_lineage(&self, relation: RelationId) -> Vec<String> {
+        let mut trace = Vec::new();
+        if let Some(record) = self.relations.get(relation.0 as usize) {
+            trace.push(format!("relation={relation:?} key={:?} scoped={:?}", record.key, self.scoped_flow(relation).ok()));
+        }
+        trace.extend(self.origins.iter().filter(|origin| origin.relation == relation).map(|origin|
+            format!("source-origin relation={relation:?} occurrence={:?} inferred_entry={:?} formal_present={}",
+                origin.occurrence, origin.inferred_entry, origin.formal.is_some()
+            )));
+        trace.extend(self.dependencies.iter().filter(|dependency|
+            dependency_relations(**dependency).into_iter().flatten().any(|endpoint| endpoint == relation)
+        ).map(|dependency| format!("constructor-edge={dependency:?}")));
+        trace.extend(self.test_provenance_for_relation(relation));
+        trace
+    }
+    #[cfg(test)]
+    pub(super) fn test_replay_drain_observations(&self) -> &[ReplayDrainObservation] {
+        &self.replay_drain_observations
+    }
+    #[cfg(test)]
     pub(super) fn test_emission_contents(&self, id: BoundEmissionId) -> Option<(BoundAdmissionId, BoundKey, PhysicalBoundSlot, PhysicalBoundReadback)> {
         self.evidence.emissions.get(id.0).map(|emission|
             (emission.admission, emission.bound, emission.physical, emission.readback))
@@ -1865,7 +1919,7 @@ impl State {
     #[cfg(test)]
     pub(super) fn test_remove_bound_member(&mut self, key: BoundKey, relation: RelationId)
         -> Option<(usize, Option<usize>, Option<usize>)> {
-        let mut previous = None;
+        let mut previous: Option<usize> = None;
         let mut cursor = *self.bounds.get(&key)?;
         loop {
             let (entry_key, entry_relation, next) = *self.bound_keys.get(cursor)?;
@@ -2139,6 +2193,12 @@ impl State {
             .and_then(|bytes| self.replay_operation_undo.capacity().checked_mul(std::mem::size_of::<ReplayOperationUndo>())
                 .and_then(|undo| bytes.checked_add(undo))).ok_or_else(exhausted)?;
         bytes = bytes.checked_add(self.replay_child_bytes).ok_or_else(exhausted)?;
+        #[cfg(test)]
+        {
+            bytes = bytes.checked_add(self.replay_drain_observations.capacity()
+                .checked_mul(std::mem::size_of::<ReplayDrainObservation>()).ok_or_else(exhausted)?)
+                .ok_or_else(exhausted)?;
+        }
         bytes = bytes.checked_add(self.typed_drains.capacity().checked_mul(std::mem::size_of::<TypedDrainFrame>()).ok_or_else(exhausted)?)
             .ok_or_else(exhausted)?;
         bytes = bytes.checked_add(self.typed_drain_undo.capacity().checked_mul(std::mem::size_of::<TypedDrainUndo>()).ok_or_else(exhausted)?).ok_or_else(exhausted)?;
@@ -3844,11 +3904,21 @@ impl InferenceSession {
                 let _ = self.step_typed_drain(drain_index)?;
                 Ok(ReplayChildStep::More)
             }
-            ReplayChildWait::Ready { ack, drain_index, completion: _ } => {
+            ReplayChildWait::Ready { ack, drain_index, completion } => {
                 let next = ack.index.checked_add(1).ok_or_else(exhausted)?;
                 if ack.operation != id || operation.consumed != next || operation.queued != next
                     || self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains.len() != drain_index {
                     return Err(exhausted());
+                }
+                #[cfg(test)]
+                {
+                    let child = operation.children.get(ack.index).copied();
+                    let frame = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains.get(drain_index);
+                    let observation = ReplayDrainObservation::ChildReturn {
+                        operation: id, ack, child, drain_index, transitions: completion.transitions,
+                        stage: frame.map_or(TypedDrainStage::ReturnReady, |frame| frame.stage),
+                    };
+                    self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.replay_drain_observations.push(observation);
                 }
                 self.candidate_prepare_replay_wait(id)?;
                 let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
@@ -3915,7 +3985,16 @@ impl InferenceSession {
         loop {
             let transferred = self.candidate_context_consume_replay_child(id, provenance)?;
             let operation = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.replay_operations.get(&id);
-            if operation.is_none_or(|operation| operation.retired && operation.waiting_child == ReplayChildWait::Idle) { return Ok(ReplayDriveOutcome::Complete); }
+            if operation.is_none_or(|operation| operation.retired && operation.waiting_child == ReplayChildWait::Idle) {
+                #[cfg(test)]
+                {
+                    let operation_state = operation.map(|operation| (operation.retired, operation.waiting_child, operation.queued, operation.consumed));
+                    self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.replay_drain_observations.push(
+                        ReplayDrainObservation::DriveReturn { operation: id, outcome: ReplayDriveOutcome::Complete, operation_state },
+                    );
+                }
+                return Ok(ReplayDriveOutcome::Complete);
+            }
             if !transferred {
                 // Only the outer worklist consumer can complete queued children.
                 if provenance.is_some() { return Err(exhausted()); }

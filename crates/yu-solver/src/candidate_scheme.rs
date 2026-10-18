@@ -51,6 +51,35 @@ pub(super) struct Graph {
     pub root: usize,
     pub live_root: u32,
     pub boundary: u32,
+    #[cfg(test)]
+    pub capture_rows: Vec<CapturedRowObservation>,
+}
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+pub(super) struct CapturedRowObservation {
+    pub graph_row: usize,
+    pub requested: RowKey,
+    pub representative: RowKey,
+    pub level: u32,
+    pub non_generic: bool,
+    pub boundary: u32,
+    pub local: bool,
+}
+#[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+pub(super) struct ReconstructedRowObservation {
+    pub graph_row: usize,
+    pub captured: RowKey,
+    pub source_representative: RowKey,
+    pub level: u32,
+    pub non_generic: bool,
+    pub boundary: u32,
+    pub stored_local: bool,
+    pub canonical_rows_hit: bool,
+    pub first_entry_graph_row: usize,
+    pub existing_image: Option<RowKey>,
+    pub allocated_fresh_image: bool,
+    pub image: RowKey,
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) enum RowKey {
@@ -157,6 +186,8 @@ struct RetainedFreshUseMaps {
     bundle_remap: HashMap<candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId>,
     context_remap: HashMap<candidate_context::ContextId, candidate_context::ContextId>,
     evidence_remap: Vec<candidate_context::EvidenceSnapshotId>,
+    #[cfg(test)]
+    row_observations: Vec<ReconstructedRowObservation>,
 }
 impl RetainedFreshUseMaps {
     fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
@@ -168,6 +199,8 @@ impl RetainedFreshUseMaps {
             bytes::<(candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId)>(self.bundle_remap.capacity())?,
             bytes::<(candidate_context::ContextId, candidate_context::ContextId)>(self.context_remap.capacity())?,
             bytes::<candidate_context::EvidenceSnapshotId>(self.evidence_remap.capacity())?,
+            #[cfg(test)]
+            bytes::<ReconstructedRowObservation>(self.row_observations.capacity())?,
         ])
     }
 }
@@ -207,6 +240,8 @@ pub(super) struct FreshUse {
     bundle_remap: HashMap<candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId>,
     context_remap: HashMap<candidate_context::ContextId, candidate_context::ContextId>,
     evidence_remap: Vec<candidate_context::EvidenceSnapshotId>,
+    #[cfg(test)]
+    row_observations: Vec<ReconstructedRowObservation>,
 }
 impl FreshUse {
     fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
@@ -214,13 +249,19 @@ impl FreshUse {
             bytes::<(usize, EffectEndpointKey)>(self.effect_operands.capacity())?,
             bytes::<(candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId)>(self.bundle_remap.capacity())?,
             bytes::<(candidate_context::ContextId, candidate_context::ContextId)>(self.context_remap.capacity())?,
-            bytes::<candidate_context::EvidenceSnapshotId>(self.evidence_remap.capacity())?])
+            bytes::<candidate_context::EvidenceSnapshotId>(self.evidence_remap.capacity())?,
+            #[cfg(test)]
+            bytes::<ReconstructedRowObservation>(self.row_observations.capacity())?])
     }
     fn into_retained_parts(self) -> (Vec<RowKey>, RetainedFreshUseMaps) {
         let FreshUse { scope_remap, scoped_relations, context_use, rows, terms,
-            effect_operands, bundle_remap, context_remap, evidence_remap } = self;
+            effect_operands, bundle_remap, context_remap, evidence_remap,
+            #[cfg(test)] row_observations,
+        } = self;
         (rows, RetainedFreshUseMaps { scope_remap, scoped_relations, context_use,
-            terms, effect_operands, bundle_remap, context_remap, evidence_remap })
+            terms, effect_operands, bundle_remap, context_remap, evidence_remap,
+            #[cfg(test)] row_observations,
+        })
     }
 }
 
@@ -263,6 +304,13 @@ pub(super) struct DemandTransportEvidence {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum FreshRouteOwner { Module, Local }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DemandTransportStage {
+    MatchingRoute,
+    Rejected(&'static str),
+    Accepted,
+}
 
 fn four_ports_match<T: Copy + Eq>(expected: [T; 4], observed: [T; 4]) -> [bool; 4] {
     std::array::from_fn(|index| expected[index] == observed[index])
@@ -325,6 +373,22 @@ fn typed_port_pair(
 }
 
 impl GraphState {
+    #[cfg(test)]
+    pub(super) fn test_positive_function_census(&self, lower_root: Term) -> Vec<String> {
+        let mut census = Vec::new();
+        let mut visit = |owner: FreshRouteOwner, route: usize, graph: &Graph, retained: &RetainedFreshUseMaps| {
+            for (node_index, node) in graph.nodes.iter().enumerate() {
+                let Node::Function { polarity: Polarity::Positive, children } = *node else { continue; };
+                let child_terms = children.map(|child| retained.terms.get(child).copied().flatten());
+                let retained_term = retained.terms.get(node_index).copied().flatten();
+                census.push(format!("owner={owner:?} route={route} context_use={} positive_function_node={node_index} children={children:?} child_terms={child_terms:?} retained_term={retained_term:?} lower_root_matches={}", retained.context_use, retained_term == Some(lower_root)));
+            }
+        };
+        for (route, item) in self.routes.iter().enumerate() { visit(FreshRouteOwner::Module, route, &item.graph, &item.retained); }
+        for (route, item) in self.local_routes.iter().enumerate() { visit(FreshRouteOwner::Local, route, &item.graph, &item.retained); }
+        census
+    }
+
     /// Authenticate a copied demand only through the LocalFreshRoute that owns
     /// its actual FreshUse maps. No root equality is inferred from endpoint
     /// identity, and siblings remain distinct by their context-use identity.
@@ -336,6 +400,20 @@ impl GraphState {
         term_ports: impl Fn(Term) -> Option<[Term; 4]>,
         observed_ports_override: Option<[Term; 4]>,
     ) -> Option<DemandTransportEvidence> {
+        self.authenticate_demand_transport_observed(
+            context, row, original_root, term_ports, observed_ports_override, |_, _, _| {},
+        )
+    }
+
+    fn authenticate_demand_transport_observed(
+        &self,
+        context: &candidate_context::State,
+        row: candidate_context::ReplayDemandRow,
+        original_root: Term,
+        term_ports: impl Fn(Term) -> Option<[Term; 4]>,
+        observed_ports_override: Option<[Term; 4]>,
+        mut observe: impl FnMut(FreshRouteOwner, usize, DemandTransportStage),
+    ) -> Option<DemandTransportEvidence> {
         let mut found = None;
         let copied = row.demand;
         let original_call = row.call;
@@ -344,34 +422,45 @@ impl GraphState {
         let local_routes = self.local_routes.iter().enumerate().map(|(index, route)|
             (FreshRouteOwner::Local, index, &route.graph, &route.rows, &route.retained, route.use_instance));
         for (route_owner, route_index, graph, mapped_rows, retained, use_instance) in module_routes.chain(local_routes) {
+            macro_rules! rejected {
+                ($stage:literal) => {{
+                    observe(route_owner, route_index, DemandTransportStage::Rejected($stage));
+                    return None;
+                }};
+            }
             if use_instance != copied.use_instance || retained.context_use != copied.use_instance
             {
                 continue;
             }
-            let Some(&node_index) = graph.negative_functions.get(&original_root) else { continue; };
-            let Some(copied_root) = retained.terms.get(node_index).copied().flatten() else { return None; };
+            observe(route_owner, route_index, DemandTransportStage::MatchingRoute);
+            let Some(&node_index) = graph.negative_functions.get(&original_root) else {
+                observe(route_owner, route_index, DemandTransportStage::Rejected("original-root-absent"));
+                continue;
+            };
+            let Some(copied_root) = retained.terms.get(node_index).copied().flatten() else { rejected!("copied-root-absent"); };
             let mut source_relations = graph.bounds.iter().filter_map(|bound| bound.relation)
                 .filter(|relation| context.scoped_flow(*relation).is_ok_and(|flow|
                     flow.demand.is_some_and(|source| source.original_call == original_call
                         && source.root == original_root)
                     && retained.scoped_relations.get(relation)
                         .is_some_and(|flow| flow.demand == Some(copied))));
-            let original_relation = source_relations.next()?;
-            if source_relations.next().is_some() { return None; }
+            let Some(original_relation) = source_relations.next() else { rejected!("source-relation-absent"); };
+            if source_relations.next().is_some() { rejected!("duplicate-source-relation"); }
             let mut captured_bounds = graph.bounds.iter().filter(|bound| bound.relation == Some(original_relation));
-            let Some(captured) = captured_bounds.next() else { return None; };
+            let Some(captured) = captured_bounds.next() else { rejected!("captured-bound-absent"); };
             if captured_bounds.next().is_some()
                 || retained.scoped_relations.get(&original_relation).and_then(|flow| flow.demand) != Some(copied)
-            { return None; }
-            let snapshot = *graph.bound_evidence.get(captured.evidence.0)?;
-            let imported = *retained.evidence_remap.get(captured.evidence.0)?;
+            { rejected!("captured-bound-or-retained-demand-mismatch"); }
+            let Some(snapshot) = graph.bound_evidence.get(captured.evidence.0).copied() else { rejected!("snapshot-absent"); };
+            let Some(imported) = retained.evidence_remap.get(captured.evidence.0).copied() else { rejected!("imported-evidence-absent"); };
             if snapshot.source_bound != captured.source_bound || snapshot.relation != Some(original_relation)
                 || !context.captured_snapshot_was_imported(snapshot, imported)
-            { return None; }
-            let original_demand = context.scoped_flow(original_relation).ok()?.demand?;
-            if context.scoped_flow(original_relation).ok()?.transformer != 0
-                || retained.scoped_relations.get(&original_relation)?.transformer != 0
-            { return None; }
+            { rejected!("snapshot-import-mismatch"); }
+            let Ok(original_flow) = context.scoped_flow(original_relation) else { rejected!("original-flow-absent"); };
+            let Some(original_demand) = original_flow.demand else { rejected!("original-demand-absent"); };
+            let Some(retained_flow) = retained.scoped_relations.get(&original_relation) else { rejected!("retained-flow-absent"); };
+            if original_flow.transformer != 0 || retained_flow.transformer != 0
+            { rejected!("demand-transformer-mismatch"); }
             let original_scope = original_demand.output_scope;
             let original_input = original_demand.input;
             let mapped_scope = retained.scope_remap.scopes.get(&original_scope)
@@ -379,30 +468,33 @@ impl GraphState {
             let mapped_input = retained.scope_remap.inputs.get(&original_input)
                 .copied().unwrap_or(original_input);
             if mapped_scope != copied.output_scope || mapped_input != copied.input {
-                return None;
+                rejected!("scope-or-input-remap-mismatch");
             }
-            let Node::Function { polarity: Polarity::Negative, children } =
-                *graph.nodes.get(node_index)? else { return None; };
+            let Some(node) = graph.nodes.get(node_index) else { rejected!("negative-function-node-absent"); };
+            let Node::Function { polarity: Polarity::Negative, children } = *node else { rejected!("wrong-function-polarity"); };
             let mut expected = [copied_root; 4];
             for (index, child) in children.into_iter().enumerate() {
-                expected[index] = retained.terms.get(child).copied().flatten()?;
+                let Some(port_term) = retained.terms.get(child).copied().flatten() else { rejected!("port-term-absent"); };
+                expected[index] = port_term;
             }
-            let actual = term_ports(copied_root)?;
+            let Some(actual) = term_ports(copied_root) else { rejected!("actual-ports-absent"); };
             let observed = observed_ports_override.unwrap_or(actual);
             let ports_match = four_ports_match(expected, observed);
             if !ports_match.into_iter().all(|matches| matches) {
-                return None;
+                rejected!("four-ports-mismatch");
             }
-            let fresh_witness = context.fresh_use_witness(original_relation, copied)?;
+            let Some(fresh_witness) = context.fresh_use_witness(original_relation, copied) else { rejected!("fresh-use-witness-absent"); };
             let (fresh_relation, fresh_from, fresh_to) = fresh_witness;
             let Some((_, admitted_relation, physical_emission, physical_fiber, physical_readback)) = context.fresh_use_fiber_emission(imported,
-                captured.source_bound, copied.use_instance, fresh_relation, fresh_to) else { return None; };
-            if admitted_relation != fresh_relation { return None; }
+                captured.source_bound, copied.use_instance, fresh_relation, fresh_to) else { rejected!("fresh-use-physical-emission-absent"); };
+            if admitted_relation != fresh_relation { rejected!("fresh-use-admission-mismatch"); }
             let owner_node = if captured.side == Polarity::Positive { captured.upper } else { captured.lower };
             let item_node = if captured.side == Polarity::Positive { captured.lower } else { captured.upper };
-            let Node::Row { row: owner_index, .. } = *graph.nodes.get(owner_node)? else { return None; };
-            let expected_owner = *mapped_rows.get(owner_index)?;
-            let item_is_row = matches!(graph.nodes.get(item_node)?, Node::Row { .. });
+            let Some(owner_node) = graph.nodes.get(owner_node) else { rejected!("capture-owner-node-absent"); };
+            let Node::Row { row: owner_index, .. } = *owner_node else { rejected!("wrong-capture-owner-node"); };
+            let Some(expected_owner) = mapped_rows.get(owner_index).copied() else { rejected!("mapped-capture-owner-absent"); };
+            let Some(item_node) = graph.nodes.get(item_node) else { rejected!("capture-item-node-absent"); };
+            let item_is_row = matches!(item_node, Node::Row { .. });
             let expected_lane = match (captured.kind, captured.side, item_is_row) {
                 (ComponentKind::Value, Polarity::Positive, true) => candidate_context::BoundLane::ValueLowerRow,
                 (ComponentKind::Value, Polarity::Positive, false) => candidate_context::BoundLane::ValueLowerAtom,
@@ -413,24 +505,24 @@ impl GraphState {
                 (ComponentKind::Effect, Polarity::Negative, true) => candidate_context::BoundLane::EffectUpperRow,
                 (ComponentKind::Effect, Polarity::Negative, false) => candidate_context::BoundLane::EffectUpperAtom,
             };
-            if physical_fiber.owner != expected_owner || physical_fiber.lane != expected_lane { return None; }
+            if physical_fiber.owner != expected_owner || physical_fiber.lane != expected_lane { rejected!("physical-fiber-mismatch"); }
             if physical_readback.bound != fresh_to
                 || physical_readback.phase != candidate_context::PhysicalReadbackPhase::ConstructorAfterAppend
-            { return None; }
+            { rejected!("physical-readback-mismatch"); }
             let replay_recipe = candidate_context::Dependency::Replay {
                 child: row.child, lower: row.lower, upper: row.upper,
                 lower_input: row.lower_input, upper_input: row.upper_input,
             };
-            if !context.replay_recipe_is_retained(replay_recipe) { return None; }
-            let (consumer, port_relations, port_transformers, replay_upper_root, replay_child_root) =
+            if !context.replay_recipe_is_retained(replay_recipe) { rejected!("replay-recipe-absent"); }
+            let Some((consumer, port_relations, port_transformers, replay_upper_root, replay_child_root)) =
                 context.authenticate_replay_ancestry(row, original_relation, fresh_relation,
-                    row.child, fresh_from, fresh_to)?;
+                    row.child, fresh_from, fresh_to) else { rejected!("replay-ancestry-rejected"); };
             // The retained p1→h constructor is absent. Authenticate its
             // supported zero-step case explicitly; do not identify p1, h, q,
             // and C in the evidence record.
-            if copied_root != replay_upper_root { return None; }
-            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(positive_root)) = row.lower_input.2 else { return None; };
-            let ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(negative_root)) = row.upper_input.2 else { return None; };
+            if copied_root != replay_upper_root { rejected!("replay-upper-root-mismatch"); }
+            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(positive_root)) = row.lower_input.2 else { rejected!("replay-lower-endpoint-mismatch"); };
+            let ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(negative_root)) = row.upper_input.2 else { rejected!("replay-upper-endpoint-mismatch"); };
             let find_function = |term: Term, polarity: Polarity| {
                 let mut found = None;
                 for (index, node) in graph.nodes.iter().enumerate() {
@@ -440,14 +532,16 @@ impl GraphState {
                 }
                 found
             };
-            let positive_node = find_function(positive_root, Polarity::Positive)?;
-            let negative_node = find_function(negative_root, Polarity::Negative)?;
-            let Node::Function { children: positive_children, .. } = *graph.nodes.get(positive_node)? else { return None; };
-            let Node::Function { children: negative_children, .. } = *graph.nodes.get(negative_node)? else { return None; };
+            let Some(positive_node) = find_function(positive_root, Polarity::Positive) else { rejected!("positive-function-node-absent"); };
+            let Some(negative_node) = find_function(negative_root, Polarity::Negative) else { rejected!("negative-function-node-absent"); };
+            let Some(positive_node) = graph.nodes.get(positive_node) else { rejected!("positive-function-absent"); };
+            let Node::Function { children: positive_children, .. } = *positive_node else { rejected!("positive-function-wrong-node"); };
+            let Some(negative_node) = graph.nodes.get(negative_node) else { rejected!("negative-function-absent"); };
+            let Node::Function { children: negative_children, .. } = *negative_node else { rejected!("negative-function-wrong-node"); };
             for index in 0..4 {
-                let expected_pair = typed_port_pair(graph, mapped_rows, retained,
-                    positive_children, negative_children, index)?;
-                if context.relation_pair(port_relations[index]) != Some(expected_pair) { return None; }
+                let Some(expected_pair) = typed_port_pair(graph, mapped_rows, retained,
+                    positive_children, negative_children, index) else { rejected!("typed-port-pair-absent"); };
+                if context.relation_pair(port_relations[index]) != Some(expected_pair) { rejected!("typed-port-pair-mismatch"); }
             }
             let evidence = DemandTransportEvidence {
                 route_owner,
@@ -467,8 +561,9 @@ impl GraphState {
                 ports_match,
             };
             if found.replace(evidence).is_some() {
-                return None;
+                rejected!("multiple-matching-routes");
             }
+            observe(route_owner, route_index, DemandTransportStage::Accepted);
         }
         found
     }
@@ -546,6 +641,8 @@ impl Graph {
             bytes::<(Term, usize)>(self.negative_functions.capacity())?,
             bytes::<Node>(self.nodes.capacity())?,
             bytes::<Row>(self.rows.capacity())?,
+            #[cfg(test)]
+            bytes::<CapturedRowObservation>(self.capture_rows.capacity())?,
             bytes::<Bound>(self.bounds.capacity())?,
             bytes::<candidate_context::EvidenceSnapshot>(self.bound_evidence.capacity())?,
             bytes::<(candidate_context::RelationId, candidate_context::AttachmentBundleId)>(self.attachment_bundles.capacity())?,
@@ -650,6 +747,7 @@ impl<'a> Capture<'a> {
         Ok(index)
     }
     fn row(&mut self, key: RowKey) -> Result<usize, SolveAvailabilityError> {
+        let requested = key;
         let key = self.session.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.rep(key);
         if let Some(&index) = self.rows.get(&key) {
             return Ok(index);
@@ -673,6 +771,11 @@ impl<'a> Capture<'a> {
         self.rows.try_reserve(1).map_err(|_| exhausted())?;
         let index = self.graph.rows.len();
         push(&mut self.graph.rows, Row { key, local })?;
+        #[cfg(test)]
+        push(&mut self.graph.capture_rows, CapturedRowObservation {
+            graph_row: index, requested, representative: key, level,
+            non_generic: metadata.non_generic, boundary: self.boundary, local,
+        })?;
         self.rows.insert(key, index);
         Ok(index)
     }
@@ -1121,6 +1224,8 @@ impl InferenceSession {
                 root: 0,
                 live_root: row,
                 boundary,
+                #[cfg(test)]
+                capture_rows: Vec::new(),
             },
             endpoints: HashMap::new(),
             rows: HashMap::new(),
@@ -1447,6 +1552,12 @@ impl InferenceSession {
         let mut rows = Vec::new();
         rows.try_reserve_exact(graph.rows.len())
             .map_err(|_| exhausted())?;
+        #[cfg(test)]
+        let mut row_observations = {
+            let mut observations = Vec::new();
+            observations.try_reserve_exact(graph.rows.len()).map_err(|_| exhausted())?;
+            observations
+        };
         let mut terms = Vec::new();
         terms
             .try_reserve_exact(graph.nodes.len())
@@ -1458,6 +1569,8 @@ impl InferenceSession {
         let scratch = sum(&[
             bytes::<RowKey>(rows.capacity())?,
             bytes::<(RowKey, RowKey)>(canonical_rows.capacity())?,
+            #[cfg(test)]
+            bytes::<ReconstructedRowObservation>(row_observations.capacity())?,
             bytes::<Option<Term>>(terms.capacity())?,
             bytes::<(usize, bool)>(work.capacity())?,
         ])?;
@@ -1466,9 +1579,13 @@ impl InferenceSession {
         state.use_peak_bytes = state.use_peak_bytes.max(state.scratch_bytes);
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         for row in &graph.rows {
+            let graph_row = rows.len();
             let source = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.rep(row.key);
             let (level, metadata) = match source { RowKey::Value(i) => (self.value_levels[i as usize], self.value_metadata[i as usize]), RowKey::Effect(i) => (self.effect_levels[i as usize], self.effect_metadata[i as usize]) };
-            let key = if let Some(&existing) = canonical_rows.get(&source) { existing }
+            let existing_image = canonical_rows.get(&source).copied();
+            #[cfg(test)]
+            let freshening_guard_would_match = row.local && level > graph.boundary && !metadata.non_generic;
+            let key = if let Some(existing) = existing_image { existing }
             else {
                 let key = if row.local && level > graph.boundary && !metadata.non_generic {
                     match source { RowKey::Value(_) => RowKey::Value(self.fresh_value_at_level(use_level)?), RowKey::Effect(_) => RowKey::Effect(self.fresh_effect_at_level(use_level)?) }
@@ -1476,6 +1593,20 @@ impl InferenceSession {
                 canonical_rows.insert(source, key);
                 key
             };
+            #[cfg(test)]
+            {
+                let first_entry_graph_row = row_observations.iter()
+                    .find(|observation: &&ReconstructedRowObservation| observation.source_representative == source)
+                    .map_or(graph_row, |observation| observation.first_entry_graph_row);
+                row_observations.push(ReconstructedRowObservation {
+                    graph_row, captured: row.key, source_representative: source,
+                    level, non_generic: metadata.non_generic, boundary: graph.boundary,
+                    stored_local: row.local, canonical_rows_hit: existing_image.is_some(),
+                    first_entry_graph_row, existing_image,
+                    allocated_fresh_image: existing_image.is_none() && freshening_guard_would_match,
+                    image: key,
+                });
+            }
             rows.push(key);
         }
         let mut bundle_remap = HashMap::new();
@@ -1708,7 +1839,9 @@ impl InferenceSession {
             return Err(error);
         }
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-        Ok(FreshUse { scope_remap, scoped_relations, context_use, rows, terms, effect_operands, bundle_remap, context_remap, evidence_remap })
+        Ok(FreshUse { scope_remap, scoped_relations, context_use, rows, terms, effect_operands, bundle_remap, context_remap, evidence_remap,
+            #[cfg(test)] row_observations,
+        })
     }
     fn begin_candidate_fresh_bound(
         &mut self, graph: &Graph, fresh: &FreshUse, index: usize,
@@ -2224,7 +2357,7 @@ mod authentic_demand_capture_tests {
     #[test]
     fn retained_demand_transport_authenticates_distinct_uses_and_rejects_wrong_use_or_root() {
         let text: Arc<yu_syntax::SourceText> = Arc::from(
-            "my outer z = { my local h x = h z; local }\nmy first = outer 0\nmy second = outer 1",
+            "my invoke f = f 1\nmy id x = x\nmy first = invoke id\nmy second = invoke id\nmy outer z = { my local h = h z; my first_local = local id; my second_local = local id; second_local }\nmy local_first = outer 0\nmy local_second = outer 1",
         );
         let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
             Arc::new(yu_syntax::SyntaxEnvironment::empty()));
@@ -2238,6 +2371,27 @@ mod authentic_demand_capture_tests {
         session.execute().unwrap();
         let state = session.candidate_graph.as_mut().unwrap();
         let context = &state.intrusion.effect_algebra.context;
+        let mut traced_module_uses = Vec::new();
+        for (route_index, route) in state.routes.iter().enumerate()
+            .filter(|(_, route)| matches!(route.retained.context_use, 1 | 2))
+        {
+            assert_eq!(route_index, route.retained.context_use - 1,
+                "Module route 0/use 1 and route 1/use 2 stay distinct");
+            traced_module_uses.push((route_index, route.retained.context_use));
+            assert_eq!(route.graph.capture_rows.len(), route.graph.rows.len());
+            assert_eq!(route.retained.row_observations.len(), route.rows.len());
+            eprintln!("ReplayRouteRows owner=Module route={route_index} use={} occurrence={:?} live_root={} boundary={} rows=", route.retained.context_use, route.use_id.occurrence(), route.graph.live_root, route.graph.boundary);
+            for (index, ((capture, reconstruction), image)) in route.graph.capture_rows.iter()
+                .zip(&route.retained.row_observations).zip(&route.rows).enumerate()
+            {
+                assert_eq!(capture.graph_row, reconstruction.graph_row);
+                assert_eq!(reconstruction.graph_row, index);
+                assert_eq!(*image, reconstruction.image);
+                eprintln!("capture={capture:?} reconstruction={reconstruction:?} route_row_image={image:?}");
+            }
+        }
+        traced_module_uses.sort_unstable();
+        assert_eq!(traced_module_uses, [(0, 1), (1, 2)]);
         let mut authenticated = Vec::new();
         let mut emission_cases = Vec::new();
         for replay_row in context.replay_demand_rows() {
@@ -2249,8 +2403,47 @@ mod authentic_demand_capture_tests {
                     Some([argument, argument_effect, result_effect, result]),
                 _ => None,
             };
-            let evidence = state.authenticate_demand_transport(context, replay_row, native.demand, ports, None)
+            let mut diagnostic = Vec::new();
+            let evidence = state.authenticate_demand_transport_observed(
+                context, replay_row, native.demand, ports, None,
+                |owner, index, stage| diagnostic.push((owner, index, stage)),
+            );
+            eprintln!("ReplayDemandRow={replay_row:?}; matching-routes/first-rejection={diagnostic:?}");
+            let lower_root = match replay_row.lower_input.2 {
+                ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(root)) => Some(root),
+                _ => None,
+            };
+            let lower_relations: Vec<_> = context.bound_relations(replay_row.lower_input).map(|relation| (
+                relation, context.relation_pair(relation), context.scoped_flow(relation).ok(),
+                context.test_relation_lineage(relation),
+            )).collect();
+            let positive_functions = lower_root.map_or_else(Vec::new, |root| state.test_positive_function_census(root));
+            eprintln!("ReplayProvenanceCensus call={call_index} lower_root={lower_root:?} lower_relations={lower_relations:?} positive_functions={positive_functions:?} source_constructor_root={:?} source_ports={:?} fresh_use={} copied_root={:?} copied_ports={:?} authentication_found={}",
+                native.demand, ports(native.demand), copied.use_instance, copied.root, ports(copied.root), evidence.is_some());
+            let evidence = evidence
                 .expect("actual retained FreshUse map authenticates the copied demand");
+            eprintln!("ReplayAuthenticated row={replay_row:?} evidence={evidence:?} lower_lineage={:?} upper_lineage={:?} child_lineage={:?}",
+                context.test_relation_lineage(replay_row.lower), context.test_relation_lineage(replay_row.upper),
+                context.test_relation_lineage(replay_row.child));
+            let port_fields = [FunctionField::Argument, FunctionField::ArgumentEffect,
+                FunctionField::ResultEffect, FunctionField::Result];
+            for (index, relation) in evidence.port_relations.iter().copied().enumerate() {
+                eprintln!("ReplayFunctionPort index={index} field={:?} relation={relation:?} pair={:?} transformer={} flow={:?} lineage={:?}",
+                    port_fields[index], context.relation_pair(relation), evidence.port_transformers[index],
+                    context.scoped_flow(relation), context.test_relation_lineage(relation));
+            }
+            for (label, root) in [("native", native.demand), ("copied", copied.root),
+                ("replay-upper", evidence.replay_upper_root), ("replay-child", evidence.replay_child_root),
+                ("consumer", evidence.consumer_root)]
+            {
+                let observed = session.store.term_view(root).ok().and_then(|view| match view {
+                    TermView::PositiveFunction { argument, argument_effect, result_effect, result }
+                    | TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
+                        Some([argument, argument_effect, result_effect, result]),
+                    _ => None,
+                });
+                eprintln!("ReplayFunctionRoot label={label} root={root:?} ordered_ports={observed:?}");
+            }
             assert_eq!(evidence.fresh_relation, replay_row.upper,
                 "the constructor-owned p1/h join is exact RelationId equality");
             assert_ne!(replay_row.child, replay_row.upper,
@@ -2349,6 +2542,7 @@ mod authentic_demand_capture_tests {
             "the fixture retains a positive module FreshUse route");
         assert!(emission_cases.iter().any(|(_, _, _, evidence)| evidence.route_owner == FreshRouteOwner::Local),
             "the fixture retains a positive local FreshUse route");
+        eprintln!("ReplayDrainReturns={:?}", state.intrusion.effect_algebra.context.test_replay_drain_observations());
         let emission_ids: Vec<_> = emission_cases.iter().map(|(_, _, _, evidence)| evidence.physical_emission).collect();
         for (row, native_root, copied_ports, evidence) in emission_cases {
             let emission = evidence.physical_emission;
@@ -2469,5 +2663,245 @@ mod authentic_demand_capture_tests {
                 native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "an actual port child-demand mutation fails closed");
             state.intrusion.effect_algebra.context.test_replace_scoped_flow(port, saved_child_flow).unwrap();
         }
+    }
+
+    #[test]
+    fn replay_constructor_lineage_observes_rejected_cross_route_authentication() {
+        let fixture = "my invoke f = f 1\nmy id x = x\nmy first = invoke id\nmy second = invoke id\nmy outer z = { my local h = h z; my first_local = local id; my second_local = local id; second_local }\nmy local_first = outer 0\nmy local_second = outer 1";
+        let text: Arc<yu_syntax::SourceText> = Arc::from(fixture);
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("demand-route-auth", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+
+        let state = session.candidate_graph.as_mut().unwrap();
+        let context = &state.intrusion.effect_algebra.context;
+        let module_routes: Vec<_> = state.routes.iter().enumerate()
+            .filter(|(_, route)| matches!(route.retained.context_use, 1 | 2)).collect();
+        eprintln!("ReplayFixture={{exact_source:{}, module_route_count:{}}}", fixture == "my invoke f = f 1\nmy id x = x\nmy first = invoke id\nmy second = invoke id\nmy outer z = { my local h = h z; my first_local = local id; my second_local = local id; second_local }\nmy local_first = outer 0\nmy local_second = outer 1", module_routes.len());
+        for (route_index, route) in &module_routes {
+            eprintln!("ReplayRoute owner=Module route={route_index} use={} occurrence={:?} live_root={} boundary={} capture_rows={} reconstruction_rows={} complete_rows=", route.retained.context_use, route.use_id.occurrence(), route.graph.live_root, route.graph.boundary, route.graph.capture_rows.len(), route.retained.row_observations.len());
+            let row_count = route.graph.capture_rows.len().max(route.retained.row_observations.len()).max(route.rows.len());
+            for index in 0..row_count {
+                let capture = route.graph.capture_rows.get(index);
+                let reconstruction = route.retained.row_observations.get(index);
+                let image = route.rows.get(index);
+                eprintln!("ReplayRow index={index} capture={capture:?} reconstruction={reconstruction:?} complete_image={image:?}");
+            }
+        }
+
+        let replay_rows: Vec<_> = context.replay_demand_rows().collect();
+        eprintln!("ReplayRows={replay_rows:?}");
+        let target_rows: Vec<_> = replay_rows.iter().copied().filter(|row| row.call == 0).collect();
+        for (row_index, row) in replay_rows.iter().copied().enumerate() {
+            let native_call = session.batch.candidate_calls.calls.get(row.call)
+                .map(|call| (row.call, call.native));
+            let source_uses: Vec<_> = module_routes.iter().filter_map(|(route_index, route)| {
+                let matching_nodes: Vec<_> = route.graph.nodes.iter().enumerate().filter_map(|(node_index, node)| {
+                    (route.retained.terms.get(node_index).copied().flatten() == Some(row.demand.root))
+                        .then_some((node_index, *node))
+                }).collect();
+                (!matching_nodes.is_empty()).then_some((
+                    *route_index, route.retained.context_use, route.use_id.occurrence(),
+                    route.graph.live_root, route.graph.boundary, matching_nodes,
+                    &route.graph.capture_rows, &route.retained.row_observations, &route.rows,
+                ))
+            }).collect();
+            let lower_lineage = context.test_relation_lineage(row.lower);
+            let child_lineage = context.test_relation_lineage(row.child);
+            let upper_lineage = context.test_relation_lineage(row.upper);
+            let producer_admissions = context.test_admission_emissions_for_relation(row.lower);
+            let lower_input_relations: Vec<_> = context.bound_relations(row.lower_input).map(|relation| (
+                relation, context.relation_pair(relation), context.scoped_flow(relation).ok(),
+                context.test_relation_lineage(relation),
+            )).collect();
+            let function_port_edges: Vec<_> = context.observed_dependencies().filter_map(|dependency| {
+                let candidate_context::Dependency::FunctionPort { child, parent, field, operation } = *dependency else {
+                    return None;
+                };
+                (parent == row.child).then(|| (
+                    child, parent, field, operation, context.relation_pair(child),
+                    context.test_relation_lineage(child),
+                ))
+            }).collect();
+            eprintln!(
+                "ReplayRowDiagnostic index={row_index} row={row:?} native_call={native_call:?} source_use_identities={source_uses:?} child_lineage={child_lineage:?} lower_lineage={lower_lineage:?} upper_lineage={upper_lineage:?} lower_input_relations={lower_input_relations:?} lower_producer_admissions_emissions_readback={producer_admissions:?} function_port_edges_for_child={function_port_edges:?}"
+            );
+        }
+        let target_row = if target_rows.len() == 1 { Some(target_rows[0]) } else { None };
+        let native = session.batch.candidate_calls.calls.get(0).and_then(|call| call.native);
+        eprintln!("ReplayNativeCall={{call:0, native:{native:?}}}");
+        let lower_root = target_row.and_then(|row| match row.lower_input.2 {
+            ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(root)) => Some(root),
+            _ => None,
+        });
+        let lower_lineage = target_row.map(|row| context.test_relation_lineage(row.lower));
+        let lower_provenance = target_row.map(|row| context.test_admission_emissions_for_relation(row.lower));
+        if let Some(row) = target_row {
+            let lower_relations: Vec<_> = context.bound_relations(row.lower_input).map(|relation| (
+                relation, context.relation_pair(relation), context.scoped_flow(relation).ok(),
+                context.test_relation_lineage(relation),
+            )).collect();
+            eprintln!("ReplayLowerProducer occurrence_ancestry={lower_lineage:?} relation_pair={:?} admission_emission_readback={lower_provenance:?}",
+                context.relation_pair(row.lower));
+            eprintln!("ReplayLowerInputRelations={lower_relations:?}");
+            eprintln!("ReplayUpperLineage={:?}; ReplayChildLineage={:?}",
+                context.test_relation_lineage(row.upper), context.test_relation_lineage(row.child));
+        }
+        let ports = |root| match session.store.term_view(root).ok()? {
+            TermView::PositiveFunction { argument, argument_effect, result_effect, result }
+            | TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
+                Some([argument, argument_effect, result_effect, result]),
+            _ => None,
+        };
+        eprintln!("ReplayFunctionRoots source_native={:?} copied_demand={:?} lower_producer={:?} source_ports={:?} copied_ports={:?} lower_ports={:?}",
+            native.map(|call| call.demand), target_row.map(|row| row.demand.root), lower_root,
+            native.and_then(|call| ports(call.demand)), target_row.and_then(|row| ports(row.demand.root)),
+            lower_root.and_then(ports));
+
+        let mut ordered_function_port_edges = Vec::new();
+        let mut ordered_function_port_pairs = Vec::new();
+        if let (Some(lower_root), Some(route)) = (lower_root, module_routes.iter().find(|(_, route)| route.retained.context_use == 2).map(|(_, route)| *route)) {
+            let positive = route.graph.nodes.iter().enumerate().find_map(|(index, node)| match *node {
+                Node::Function { polarity: Polarity::Positive, children }
+                    if route.retained.terms.get(index).copied().flatten() == Some(lower_root) => Some(children),
+                _ => None,
+            });
+            let negative_root = target_row.map(|row| row.demand.root);
+            let negative = negative_root.and_then(|root| route.graph.nodes.iter().enumerate().find_map(|(index, node)| match *node {
+                Node::Function { polarity: Polarity::Negative, children }
+                    if route.retained.terms.get(index).copied().flatten() == Some(root) => Some(children),
+                _ => None,
+            }));
+            if let (Some(positive), Some(negative)) = (positive, negative) {
+                let fields = [FunctionField::Argument, FunctionField::ArgumentEffect,
+                    FunctionField::ResultEffect, FunctionField::Result];
+                for index in 0..4 {
+                    let expected = typed_port_pair(&route.graph, &route.rows, &route.retained,
+                        positive, negative, index);
+                    let matching: Vec<_> = context.observed_dependencies().filter_map(|dependency| {
+                        let candidate_context::Dependency::FunctionPort { child, parent, field, operation } = *dependency else { return None; };
+                        let target_child = target_row?.child;
+                        (parent == target_child && field == fields[index])
+                            .then(|| (child, parent, field, operation, context.relation_pair(child), context.test_relation_lineage(child)))
+                    }).collect();
+                    eprintln!("ReplayFunctionPort index={index} field={:?} expected_pair={expected:?} relation_ids_endpoints_source_ancestry={matching:?}", fields[index]);
+                    ordered_function_port_edges.push(matching);
+                    ordered_function_port_pairs.push(expected);
+                }
+            } else {
+                eprintln!("ReplayFunctionPortsUnavailable positive_root_match={} negative_root_match={}", positive.is_some(), negative.is_some());
+            }
+        }
+
+        let drain_observations = context.test_replay_drain_observations();
+        #[derive(Debug)]
+        enum DrainStatus {
+            Matched { operation: candidate_context::ReplayOperationId, ack: candidate_context::ReplayChildAck,
+                child_return: candidate_context::ReplayDrainObservation, drive_return: candidate_context::ReplayDrainObservation },
+            NotRetainedReachabilityUnknown,
+        }
+        let matching_child_returns: Vec<_> = target_row.into_iter().flat_map(|row| drain_observations.iter().copied().filter(move |observation| {
+            matches!(observation, candidate_context::ReplayDrainObservation::ChildReturn { child: Some(child), .. } if *child == row.child)
+        })).collect();
+        let drain_status = if matching_child_returns.len() == 1 {
+            let child_return = matching_child_returns[0];
+            if let candidate_context::ReplayDrainObservation::ChildReturn { operation, ack, child: Some(child), stage, .. } = child_return {
+                let drives: Vec<_> = drain_observations.iter().copied().filter(|observation| matches!(observation,
+                    candidate_context::ReplayDrainObservation::DriveReturn { operation: drive_operation, .. }
+                        if *drive_operation == operation)).collect();
+                let drive_completed = drives.len() == 1 && matches!(drives[0],
+                    candidate_context::ReplayDrainObservation::DriveReturn {
+                        outcome: candidate_context::ReplayDriveOutcome::Complete,
+                        operation_state: Some((true, candidate_context::ReplayChildWait::Idle, queued, consumed)), ..
+                    } if queued == consumed);
+                if child == target_row.unwrap().child && ack.operation == operation
+                    && stage == candidate_context::TypedDrainStage::ReturnReady && drive_completed {
+                    DrainStatus::Matched { operation, ack, child_return, drive_return: drives[0] }
+                } else { DrainStatus::NotRetainedReachabilityUnknown }
+            } else { DrainStatus::NotRetainedReachabilityUnknown }
+        } else { DrainStatus::NotRetainedReachabilityUnknown };
+        eprintln!("ReplayDrainObservations={drain_observations:?}; ReplayDrainStatus={drain_status:?}");
+
+        let selected_provenance = lower_provenance.as_ref().and_then(|records| {
+            (records.len() == 1).then(|| &records[0])
+        });
+        eprintln!("ReplayRelationKeyedProducerAdmissions={lower_provenance:?}; unique_chain={selected_provenance:?}");
+
+        let authentication = match (target_row, native) {
+            (Some(row), Some(native)) => state.authenticate_demand_transport_observed(
+                context, row, native.demand, ports, None,
+                |owner, index, stage| eprintln!("ReplayAuthenticationClassification owner={owner:?} route={index} stage={stage:?}"),
+            ),
+            _ => None,
+        };
+        eprintln!("ReplayAuthenticationAttempted={}; result={authentication:?}; expected=None",
+            target_row.is_some() && native.is_some());
+
+        assert_eq!(fixture, "my invoke f = f 1\nmy id x = x\nmy first = invoke id\nmy second = invoke id\nmy outer z = { my local h = h z; my first_local = local id; my second_local = local id; second_local }\nmy local_first = outer 0\nmy local_second = outer 1",
+            "the test remains bound to the pinned rejected source specimen");
+        assert_eq!(module_routes.len(), 2, "both keyed Module routes are present");
+        assert_eq!(module_routes.iter().map(|(route_index, route)| (*route_index, route.retained.context_use)).collect::<Vec<_>>(), [(0, 1), (1, 2)],
+            "Module route 0/use 1 and route 1/use 2 are distinct keyed identities");
+        for (_, route) in &module_routes {
+            assert!(!route.graph.capture_rows.is_empty(), "route has nonempty row observations");
+            assert_eq!(route.graph.capture_rows.len(), route.retained.row_observations.len(), "capture/reconstruction rows are complete");
+            assert_eq!(route.retained.row_observations.len(), route.rows.len(), "reconstruction/full-image rows are complete");
+            for index in 0..route.graph.capture_rows.len() {
+                assert_eq!(route.graph.capture_rows[index].graph_row, index, "capture row is keyed at its exact index");
+                assert_eq!(route.retained.row_observations[index].graph_row, index, "reconstruction row is keyed at its exact index");
+                assert_eq!(route.retained.row_observations[index].image, route.rows[index], "full image matches the keyed reconstruction row");
+            }
+        }
+        assert_eq!(target_rows.len(), 1, "exactly one target Replay row selects call 0");
+        assert!(native.is_some(), "the pinned native call and provenance/readback path are present");
+        assert!(target_row.is_some(), "the pinned source call has an observed Replay row");
+        assert!(lower_root.is_some(), "the Replay lower endpoint is an observed positive Function root");
+        assert!(target_row.is_some_and(|row| row.lower_matches), "selected lower Relation58 producer matches its input key");
+        assert!(lower_lineage.as_ref().is_some_and(|lineage| lineage.iter().any(|entry| entry.contains("source-origin"))),
+            "lower producer has retained occurrence ancestry");
+        assert_eq!(lower_provenance.as_ref().map(Vec::len), Some(1),
+            "selected lower producer relation has exactly one admission before BoundKey validation");
+        assert!(selected_provenance.is_some(),
+            "the unique relation-keyed admission is available for BoundKey validation");
+        let (admission_id, admission, emissions) = selected_provenance.unwrap();
+        assert_eq!(admission.relation, target_row.map(|row| row.lower));
+        assert_eq!(admission.bound, target_row.unwrap().lower_input,
+            "admission retains the complete selected producer BoundKey");
+        assert_eq!(emissions.len(), 1, "selected producer admission has one exact emission");
+        let (_, emission) = emissions[0];
+        assert_eq!(emission.admission, *admission_id);
+        assert_eq!(emission.bound, admission.bound, "emission retains its admission's complete BoundKey");
+        assert_eq!(emission.physical, emission.readback.slot, "physical slot equals exact readback slot");
+        assert_eq!(emission.readback.bound, target_row.unwrap().lower_input,
+            "readback identifies the same complete selected producer BoundKey");
+        assert_eq!(emission.readback.phase, candidate_context::PhysicalReadbackPhase::ConstructorAfterAppend);
+        assert_eq!(ordered_function_port_edges.len(), 4, "all four ordered FunctionPort classifications were emitted");
+        let expected_fields = [FunctionField::Argument, FunctionField::ArgumentEffect,
+            FunctionField::ResultEffect, FunctionField::Result];
+        let expected_operations = [candidate_context::FunctionPortOperation::Swap,
+            candidate_context::FunctionPortOperation::Swap, candidate_context::FunctionPortOperation::Preserve,
+            candidate_context::FunctionPortOperation::Preserve];
+        let mut child_relations = Vec::new();
+        for index in 0..4 {
+            assert_eq!(ordered_function_port_edges[index].len(), 1, "each exact field has one selected-child FunctionPort edge");
+            let (child, parent, field, operation, pair, _) = &ordered_function_port_edges[index][0];
+            assert_eq!(Some(*parent), target_row.map(|row| row.child), "FunctionPort parent is the selected Replay child");
+            assert_eq!(*field, expected_fields[index]);
+            assert_eq!(*operation, expected_operations[index]);
+            assert!(ordered_function_port_pairs[index].is_some(), "selected child field has a derived exact typed endpoint pair");
+            assert_eq!(*pair, ordered_function_port_pairs[index], "selected edge retains its exact endpoint pair");
+            child_relations.push(*child);
+        }
+        child_relations.sort_by_key(|relation| relation.0);
+        child_relations.dedup();
+        assert_eq!(child_relations.len(), 4, "four fields have four distinct child relation IDs");
+        assert!(matches!(authentication, None), "the pinned specimen's authentication result is None");
     }
 }

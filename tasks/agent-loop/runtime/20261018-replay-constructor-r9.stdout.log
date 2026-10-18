@@ -1,0 +1,11 @@
+
+running 1 test
+test candidate_scheme::authentic_demand_capture_tests::replay_constructor_lineage_observes_rejected_cross_route_authentication ... FAILED
+
+failures:
+
+failures:
+    candidate_scheme::authentic_demand_capture_tests::replay_constructor_lineage_observes_rejected_cross_route_authentication
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 727 filtered out; finished in 0.09s
+

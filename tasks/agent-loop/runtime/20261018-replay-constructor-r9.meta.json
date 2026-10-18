@@ -1,0 +1,15 @@
+{
+  "sprint": "npair-original-witness-and-replay-diagnosis-20261018-r9",
+  "command": "timeout 120s cargo test --offline -p yu-solver --features shadow-apply-candidate candidate_scheme::authentic_demand_capture_tests::replay_constructor_lineage_observes_rejected_cross_route_authentication --lib -- --exact --nocapture",
+  "start_utc": "2026-10-18T04:02:53.890696+00:00",
+  "end_utc": "2026-10-18T04:03:01.668110+00:00",
+  "monotonic_start_ns": 7896388760120,
+  "monotonic_end_ns": 7904166118255,
+  "elapsed_seconds": 7.777358135,
+  "exit_code": 101,
+  "stdout": "tasks/agent-loop/runtime/20261018-replay-constructor-r9.stdout.log",
+  "stderr": "tasks/agent-loop/runtime/20261018-replay-constructor-r9.stderr.log",
+  "capture": "direct binary file redirection; complete output preserved",
+  "attempt": 1,
+  "retry": false
+}

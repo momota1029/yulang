@@ -313,16 +313,16 @@ impl CandidateInference {
                 };
                 let evidence = graph.authenticate_demand_transport(context, row, native.demand, ports, None);
                 Some(CandidateReplayDemandTransport {
-                    call_index: row.call, child_relation: row.child.0,
-                    lower_relation: row.lower.0, upper_relation: row.upper.0,
-                    fresh_relation: evidence.map(|value| value.fresh_relation.0),
-                    consumer_relation: evidence.map(|value| value.consumer.0),
+                    call_index: row.call, child_relation: row.child.0 as usize,
+                    lower_relation: row.lower.0 as usize, upper_relation: row.upper.0 as usize,
+                    fresh_relation: evidence.map(|value| value.fresh_relation.0 as usize),
+                    consumer_relation: evidence.map(|value| value.consumer.0 as usize),
                     lower_input: format!("{:?}", row.lower_input), upper_input: format!("{:?}", row.upper_input),
                     fresh_from: evidence.map(|value| format!("{:?}", value.fresh_from)),
                     fresh_to: evidence.map(|value| format!("{:?}", value.fresh_to)),
                     physical_fiber: evidence.map(|value| format!("{:?}", value.physical_fiber)),
                     physical_readback: evidence.map(|value| format!("{:?}", value.physical_readback)),
-                    port_relations: evidence.map(|value| value.port_relations.map(|id| id.0)),
+                    port_relations: evidence.map(|value| value.port_relations.map(|id| id.0 as usize)),
                     port_transformers: evidence.map(|value| value.port_transformers),
                     use_instance: demand.use_instance,
                     native_root: native.demand, copied_root: demand.root,
@@ -409,6 +409,7 @@ impl CandidateInference {
         }
         let session = InferenceSession::try_new_candidate(batch).map_err(CandidateError::Solve)?;
         let solved = session.run_candidate().map_err(CandidateError::Solve)?;
+        #[cfg(test)]
         if scoped && std::env::var_os("YU_CALL_REPLAY_OBSERVER").is_some() {
             if let Some(graph) = &solved.data.candidate_graph {
                 let context = &graph.intrusion.effect_algebra.context;
@@ -419,6 +420,34 @@ impl CandidateInference {
                     let demand = row.demand;
                     let native = solved.data.candidate_calls.calls.get(row.call).and_then(|call| call.native);
                     let root_matches = native.is_some_and(|native| native.demand == demand.root);
+                    let lower_root = match row.lower_input.2 {
+                        ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(root)) => Some(root),
+                        _ => None,
+                    };
+                    let positive_census = lower_root.map_or_else(Vec::new, |root| graph.test_positive_function_census(root));
+                    let lower_relations: Vec<_> = context.bound_relations(row.lower_input).map(|relation| (
+                        relation, context.relation_pair(relation), context.scoped_flow(relation).ok(),
+                        context.test_provenance_for_relation(relation),
+                    )).collect();
+                    if writeln!(output,
+                        "candidate.call_replay_census call={} lower_root={lower_root:?} all_lower_bound_relations={lower_relations:?} positive_function_routes={positive_census:?}",
+                        row.call).is_err() { break; }
+                    let source_ports = native.and_then(|native| match solved.data.store.term_view(native.demand).ok()? {
+                        TermView::PositiveFunction { argument, argument_effect, result_effect, result }
+                        | TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
+                            Some([argument, argument_effect, result_effect, result]),
+                        _ => None,
+                    });
+                    let copied_ports = match solved.data.store.term_view(demand.root).ok() {
+                        Some(TermView::PositiveFunction { argument, argument_effect, result_effect, result })
+                        | Some(TermView::NegativeFunction { argument, argument_effect, result_effect, result }) =>
+                            Some([argument, argument_effect, result_effect, result]),
+                        _ => None,
+                    };
+                    if writeln!(output,
+                        "candidate.call_replay_source call={} constructor_root={:?} source_ports={source_ports:?} fresh_use={} copied_root={:?} copied_ports={copied_ports:?}",
+                        row.call, native.map(|value| value.demand), demand.use_instance, demand.root).is_err()
+                    { break; }
                     let transported = native.and_then(|native| graph.authenticate_demand_transport(
                         context, row, native.demand,
                         |root| match solved.data.store.term_view(root).ok()? {
@@ -2258,6 +2287,7 @@ mod tests {
             root: 0,
             live_root: 0,
             boundary: 0,
+            capture_rows: Vec::new(),
         };
         let first = CandidateGraphRow { state: &state, graph: &graph, index: 0 };
         let repeated = CandidateGraphRow { state: &state, graph: &graph, index: 0 };
@@ -2362,6 +2392,7 @@ mod tests {
             root: 0,
             live_root: 0,
             boundary: 0,
+            capture_rows: Vec::new(),
         };
         let first = CandidateGraphRow { state, graph: &graph, index: 0 };
         let second = CandidateGraphRow { state, graph: &graph, index: 1 };
