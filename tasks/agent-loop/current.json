@@ -19,11 +19,12 @@
     },
     "resources": {
       "cap_seconds": 7200,
-      "charged_seconds": 3600,
-      "available_seconds": 3600,
-      "allocation": "Prior rev1/rev2 3600s retired/charged in full conservatively (not elapsed-time claim). Fresh tranche: Luna authoring1800 (audit180, implementation900, mutation evidence480, freeze240) + Sol lifecycle proof600 + final review480 + protected runtime360 + Luna integration180 + reserve180. No rollover; Astra0."
+      "charged_seconds": 3615.251,
+      "available_seconds": 3584.749,
+      "allocation": "Prior rev1/rev2 3600s retired/charged in full conservatively (not elapsed-time claim). Fresh tranche: Luna authoring1800 (audit180, implementation900, mutation evidence480, freeze240) + Sol lifecycle proof600 + final review480 + protected runtime360 + Luna integration180 + reserve180. No rollover; Astra0.",
+      "last_stage_receipt": "Implementation lifecycle audit: monotonic 307356591476107..307371842244868ns; 15.251s charged; no writes/tests/runtime. Constructor-time readback supported by append-only production and paired transaction rollback; errors drop the candidate session."
     },
-    "next_action": "Both rev3 lanes RUNNING on fresh ACKs. Proof is pinned to c881 baseline blobs; implementation audit begins with paired row/evidence rollback. Runtime360 protected; lib.rs remains unleased pending lifecycle result."
+    "next_action": "Implementation lifecycle audit completed CLEAN internally (15.251s/180s): route rollback rolls candidate evidence back before truncating lanes; successful freeze retains paired append-only slots/emissions. Author is in 900s implementation stage. Sol independently auditing pinned c881 source. Runtime360 protected."
   },
   "history": "Closed `npair-replay-fiber-consumer-certificate-20261018` REVIEWED-PARTIAL at `7087de449`; parent OPEN, closure0. Proof SHA `691a537b…e3e3614` CLEAN conditional. Implementation candidate `1958cf20e` unapproved; compiler review BLOCKING+2 MAJOR, no Cargo/tests/runtime. Closeout: `notes/progress/2026-10-18-replay-fiber-consumer-closeout.md`. PR #11 merged at `27a7e00d4`; operations-only. Earlier sprint history remains in linked notes/progress and Git history.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -59,7 +60,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh rev3 ACK, contract SHA c3e21e367b90a3d13165139cade12c2730f5a38ad3beb2ec1ec5a923c4fe1047, baseline c881f5960. Exact eight implementation paths: candidate_context, candidate_scheme, shadow_apply, candidate_extrusion, candidate_graph_call tests, example, progress, impl inbox. lib.rs unleased. Fresh grant1800s stage caps180/900/480/240; old3600 retired/charged conservatively. Monotonic start 307304748505533ns. No writes yet; requested Luna/high, observed UNKNOWN/UNKNOWN; runtime360 protected."
+      "receipt": "Rev3 lifecycle stage complete: monotonic start 307356591476107ns, end 307371842244868ns, 15.251s charged of180. Append-only slot insert; only rollback owner calls evidence rollback before row-lane truncation; successful candidate freeze keeps both; candidate errors drop session. Proceeding implementation900 stage, lib.rs unleased, no tests/runtime, runtime360 protected."
     },
     {
       "id": "/root/constructor_replay_map_review",
