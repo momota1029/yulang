@@ -101,6 +101,27 @@ ordinary constraints and original scope. Any accepted rule must answer:
 5. Which clauses are consequences of the settled charter and which would be a
    new source-semantic choice requiring user adoption?
 
+## Candidate boundary readings and discriminators
+
+These are alternatives to adjudicate, not proposed definitions:
+
+| Reading | Consumer owner and effect | Discriminating behavior |
+|---|---|---|
+| Body-result demand | A licensed checking rule uses the written computation result interface to place the one-layer consumer at body `Name(t)`. The invocation executes the retained carrier as the body computes its result. | Calling `forward` on a requesting carrier emits during that invocation; an unused computation formal remains inert. A written target may guide checking, but must not be inferred from successful checking. |
+| Invocation-result demand | Body `Name(t)` forwards the same carrier as inert data. The call/result boundary owns the consumer that interprets the declared computation result. | The call returns/forwards the carrier; no request occurs until the result is consumed. Storage or returning without later consumption remains inert. |
+| Explicit body elimination | Name lookup and body result are inert unless syntax or a separately licensed construct explicitly eliminates the carrier. | The present body `= t` introduces no request; a distinct explicit consumer form is required to execute it. |
+
+The existing decisions settle that lookup/return are inert, a computation
+formal retains its carrier, and execution needs a source-designated consumer.
+They do not, in the reviewed clauses, select which of these source occurrences
+owns that consumer for this annotated Lambda. The smallest discriminators are
+the original `forward` call with a requesting carrier, the same input passed
+to an unused computation parameter, and a returned/stored carrier that is not
+subsequently consumed. Their expected timing and multiplicity must be stated
+before any implementation or test expectation changes. If an existing
+user-selected source rule already determines one row, cite and derive it;
+otherwise the choice remains unadopted for user decision.
+
 ## Required completion artifact
 
 A source-law completion should supply one of:
