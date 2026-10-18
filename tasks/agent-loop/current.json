@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/choose-caller-registration-witness-20261018-r24.md",
     "revision": 1,
     "sha256": "d66862facede7fdcf11ac47b6b8fcdd67c915c15f1ee190d3f0b12f199d29312",
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "298fe845e; R23 closed with parent OPEN/closure0. Existing Sigma0 candidate remains unadopted as the original abstract package; this sprint constructs a legitimate theorem-parameter instance with actual caller evidence.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original domain, fixed c and quantifiers unchanged; OPEN/closure0.",
     "fixed_outcome": "Construct actual caller-owned j0/a0/license/incidence at one shared (W0,xi,h0) and the required phase-world guard actions; apply to existing four-sort PhiW/hereditary construction without assuming world validity or narrowing cases.",
@@ -18,13 +18,13 @@
       "available_seconds": 0,
       "allocation": "source caller witness600 + staged Sol proof900 + fresh independent review360 + integration240. Astra0; no R23 carryover. No code/tests."
     },
-    "next_action": "Await fresh independent review. If CLEAN, present the exact caller-binding choice (supplied semantic evidence vs caller construction under a reviewed source rule) at the semantic authority boundary; do not start PhiW proof until actual tuple exists.",
-    "history": "Reuses bounded receiving profile, native Pi0/response Return, canonical Op0 and local inventory. Prior caller-registration attempt failed at authentic caller guard tuple; do not repeat a generic audit. Implementation WAITING.",
+    "next_action": "Present the two reviewed acquisition choices for the caller semantic context. After user selection, continue with the exact source-definition/API decision; do not assume valid W0 or start PhiW proof without an actual tuple.",
+    "history": "Reuses bounded receiving profile, native Pi0/response Return, canonical Op0 and local inventory. Prior caller-registration attempt failed at authentic caller guard tuple; do not repeat a generic audit. Implementation WAITING. R24 reached exact caller-binding stop condition; actual tuple absent. Fresh independent review CLEAN for bounded evidence. No parent condition discharged; closure0. Two acquisition choices are frozen, not selected; next dependent work awaits user semantic choice.",
     "git_checkpoint": {
-      "commit": "e5fdd1c5a",
+      "commit": "78c314834",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R24 caller-binding evidence frozen and root-committed/pushed; independent review running."
+      "receipt": "R24 caller-binding evidence and pending-review state pushed; current closeout update pending."
     },
     "workers": [
       {
@@ -36,7 +36,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Primary owns independent review, exact semantic decision boundary, integration and Git."
+        "receipt": "Primary owns R24 closeout, semantic decision packet, integration and Git."
       },
       {
         "id": "/root/r23_source_expansion",
@@ -47,18 +47,18 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Frozen R24 caller-binding packet; no actual tuple/guard constructed; committed/pushed as e5fdd1c5a."
+        "receipt": "R24 frozen actual caller-binding boundary; no j0/a0/license tuple; root committed/pushed e5fdd1c5a."
       },
       {
         "id": "/root/r24_caller_binding_review",
         "role": "compiler_referee",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Fresh independent review of actual caller binding boundary, acquisition choices, and proof gate."
+        "receipt": "Independent review CLEAN for bounded caller-path evidence; proof and semantic/API choice not authorized."
       }
     ],
     "leases": [
@@ -88,30 +88,30 @@
         "id": "R24-CALLER-WITNESS-1",
         "state": "FROZEN",
         "owner": "/root/r23_source_expansion",
-        "artifact": "No tuple constructed; exact first missing caller semantic context binding at actual prepare/lowering path."
+        "artifact": "No actual tuple; source/name/options enter prepare; SemanticImports unit is ignored; missing same-fiber context binding."
       },
       {
         "id": "R24-CALLER-BINDING-REVIEW",
-        "state": "RUNNING",
+        "state": "DONE",
         "owner": "/root/r24_caller_binding_review",
-        "artifact": "Review bounded source evidence and acquisition decision packet; no adoption."
+        "artifact": "CLEAN bounded evidence; no source/API choice or proof activation."
       },
       {
         "id": "R24-JOINTWF-PROOF-1",
         "state": "STAGED",
-        "owner": "Sol/prover activated by Luna after actual tuple and formation evidence",
-        "artifact": "Derive same-tuple PhiW guards/phase actions and S subset Phi(S); remains blocked."
+        "owner": "Sol/prover",
+        "artifact": "Not activated because authentic caller tuple and formation evidence do not exist."
       }
     ],
     "ready_next_work": {
-      "id": "R24-JOINTWF-PROOF-1",
-      "state": "BLOCKED_ON_CALLER_WITNESS",
-      "owner": "Sol/prover staged; Luna activates after authentic lane-A tuple/evidence is frozen.",
-      "artifact": "Derive same-tuple j0/a0/license/phase guards into existing hereditary constructor without assuming validity."
+      "id": "R25-CALLER-SEMANTIC-BINDING",
+      "state": "BLOCKED_ON_USER_DECISION",
+      "owner": "Luna after user selects caller-supplied evidence or caller construction rule.",
+      "artifact": "Source-level definition and validation of the same caller-owned registration context at one W0,xi,h0; preserve j0/a0/license/phase histories and all original dependencies."
     },
     "legacy_reconciliation": {
       "required": false,
-      "receipt": "R23 workers stopped; three frozen evidence packets independently CLEAN within bounded scopes; parent closure0. R24 is a new bounded assignment; no code/unknown leases."
+      "receipt": "R23 and R24 lane workers stopped; all frozen outputs reviewed; no code or unknown leases."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. R20 runtime/HIR specimen gate CLEAN, 18/18; source/native FreshUse incidence still missing. R21 review CLEAN for rev3 document conformance only; A unadopted and partial, B blocked. R22 closeout: conditional runtime response-handle induction; source D1/A_decl output/provider map not proved; trace findings/repair failure recorded; parent remains OPEN/closure0. R23 closed at bounded source-owner outcome after fresh independent CLEAN review: no authentic fixed K_decl; no admitted refutation; parent closure0. R24 now targets actual caller-owned Sigma0 registration/license/JointWF guards and hereditary phase actions without narrowing the parent.",
@@ -126,7 +126,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Primary owns independent review, exact semantic decision boundary, integration and Git."
+      "receipt": "Primary owns R24 closeout, semantic decision packet, integration and Git."
     },
     {
       "id": "/root/r23_source_expansion",
@@ -137,18 +137,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen R24 caller-binding packet; no actual tuple/guard constructed; committed/pushed as e5fdd1c5a."
+      "receipt": "R24 frozen actual caller-binding boundary; no j0/a0/license tuple; root committed/pushed e5fdd1c5a."
     },
     {
       "id": "/root/r24_caller_binding_review",
       "role": "compiler_referee",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh independent review of actual caller binding boundary, acquisition choices, and proof gate."
+      "receipt": "Independent review CLEAN for bounded caller-path evidence; proof and semantic/API choice not authorized."
     }
   ],
   "leases": [
@@ -178,32 +178,32 @@
       "id": "R24-CALLER-WITNESS-1",
       "state": "FROZEN",
       "owner": "/root/r23_source_expansion",
-      "artifact": "No tuple constructed; exact first missing caller semantic context binding at actual prepare/lowering path."
+      "artifact": "No actual tuple; source/name/options enter prepare; SemanticImports unit is ignored; missing same-fiber context binding."
     },
     {
       "id": "R24-CALLER-BINDING-REVIEW",
-      "state": "RUNNING",
+      "state": "DONE",
       "owner": "/root/r24_caller_binding_review",
-      "artifact": "Review bounded source evidence and acquisition decision packet; no adoption."
+      "artifact": "CLEAN bounded evidence; no source/API choice or proof activation."
     },
     {
       "id": "R24-JOINTWF-PROOF-1",
       "state": "STAGED",
-      "owner": "Sol/prover activated by Luna after actual tuple and formation evidence",
-      "artifact": "Derive same-tuple PhiW guards/phase actions and S subset Phi(S); remains blocked."
+      "owner": "Sol/prover",
+      "artifact": "Not activated because authentic caller tuple and formation evidence do not exist."
     }
   ],
   "ready_next_work": {
-    "id": "R24-JOINTWF-PROOF-1",
-    "state": "BLOCKED_ON_CALLER_WITNESS",
-    "owner": "Sol/prover staged; Luna activates after authentic lane-A tuple/evidence is frozen.",
-    "artifact": "Derive same-tuple j0/a0/license/phase guards into existing hereditary constructor without assuming validity."
+    "id": "R25-CALLER-SEMANTIC-BINDING",
+    "state": "BLOCKED_ON_USER_DECISION",
+    "owner": "Luna after user selects caller-supplied evidence or caller construction rule.",
+    "artifact": "Source-level definition and validation of the same caller-owned registration context at one W0,xi,h0; preserve j0/a0/license/phase histories and all original dependencies."
   },
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "R23 workers stopped; three frozen evidence packets independently CLEAN within bounded scopes; parent closure0. R24 is a new bounded assignment; no code/unknown leases."
+    "receipt": "R23 and R24 lane workers stopped; all frozen outputs reviewed; no code or unknown leases."
   },
-  "next_action": "Await fresh independent review. If CLEAN, present the exact caller-binding choice (supplied semantic evidence vs caller construction under a reviewed source rule) at the semantic authority boundary; do not start PhiW proof until actual tuple exists.",
+  "next_action": "Present the two reviewed acquisition choices for the caller semantic context. After user selection, continue with the exact source-definition/API decision; do not assume valid W0 or start PhiW proof without an actual tuple.",
   "git_checkpoint": {
     "commit": "f4fba1f38",
     "branch": "research/simple-sub-intrusion",

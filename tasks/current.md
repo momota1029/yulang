@@ -24,8 +24,16 @@ not identified with the original `Sigma`; its full validity remains open. All
 three R23 evidence packets received fresh CLEAN reviews within their stated
 scope. Their results do not discharge the parent. See the [R23 closeout](progress/2026-10-18-r23-original-a-decl-cut-closeout.md).
 
-R24 is active and reuses the permitted legitimate-instance route without
-claiming an all-`Sigma` theorem. The actual-caller source lane found no input binding the current prepare/lowering call to semantic `(W0,xi,h0)` evidence: the host passes source/name/options, and `SemanticImports::empty()` is unit and ignored. Existing L4 selects caller ownership but no evidence API or source constructor. The packet separates host-supplied evidence from caller construction under a reviewed registration rule; neither is selected. It has been committed and is under fresh independent review. Sol remains staged until an actual tuple and its source formation exist. The implementation lane remains WAITING until a proved source/native consumer invariant gives a real code slice. See the [R24 contract](agent-loop/sprints/choose-caller-registration-witness-20261018-r24.md) and [R22
+R24 closed at the exact caller-binding stop condition. The actual-caller source
+lane found no input binding the current prepare/lowering call to semantic
+`(W0,xi,h0)` evidence: the host passes source/name/options, and
+`SemanticImports::empty()` is unit and ignored. Existing L4 selects caller
+ownership but no evidence API or source constructor. Fresh independent review
+was CLEAN for this bounded finding. No `j0/a0/license` tuple was constructed,
+the Sol proof remained staged, and parent closure remains 0. A semantic choice
+is now needed between caller-supplied independently constructed evidence and a
+new caller-owned registration constructor. Neither is adopted. The
+implementation lane remains WAITING. See the [R24 closeout](progress/2026-10-18-r24-caller-binding-closeout.md), [R24 contract](agent-loop/sprints/choose-caller-registration-witness-20261018-r24.md) and [R22
 closeout](notes/progress/2026-10-18-r22-fixed-source-result-map-closeout.md)
 and [R23 contract](agent-loop/sprints/original-a-decl-provider-result-map-20261018-r23.md).
 
