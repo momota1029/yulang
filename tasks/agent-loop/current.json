@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push R20 contract and state, then start constructive proof and independent runtime HIR-gate lanes on exact disjoint leases. Implementation code lease opens only after clean design review.",
     "history": "R17/R18/R19 closeouts preserve original parent OPEN/closure0. R19 proof/source artifacts independently CLEAN at 6748039fa/118375dce. R19 local runtime checkpoint 8e1ad99fd; focused target 17/18 and first local-g failure at HIR-error assertion; no candidate/runtime local path executed.",
-    "last_stage_receipt": "R19 closed at full 3900s with no carryover. R20 dispatch selected PREFIX-1/USE-1 as primary outcome and a separate HIR-owner admission lane; exact source baseline and dependency hashes frozen. Parent closure remains 0.",
+    "last_stage_receipt": "R20 active. Interim constructive trace shows early q/negative_row and ordinary callback initializer actions precede Install(g), while complete FieldBound remains final. A distinct m0-to-exposed-response-root incidence through annotation, FreshUse, raw-return/Catch and installed root is required; proof lane is tracing exact owner path. Runtime HIR gate lane active in disjoint files.",
     "git_checkpoint": {
       "commit": "8e1ad99fd",
       "branch": "research/simple-sub-intrusion",
@@ -56,7 +56,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R20 active-work acknowledgement received. Sol/high requested, effective settings UNKNOWN; exact theory+inbox lease; method is backward-slicing early q/m0 prerequisite DAG then forward exact per-use consumer. Proof720, Astra0; no code/tests/Git."
+      "receipt": "R20 in-progress finding (not yet frozen): source readiness is earlier than final FieldBound creation, but callback body m0 and annotation-exposed response root are distinct operands. Catch resumption returns original_positive(scrutinee); k response Apply relates negative_response to its own result, not directly to original_positive. Proof is tracing required response-initializer -> annotation projection -> response FreshUse -> raw-return/Catch root -> installed g incidence; no no-flow claim."
     },
     {
       "id": "/root/r19_freshuse_falsification",
