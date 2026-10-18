@@ -17432,6 +17432,9 @@ supplier and its independent introduction judgment, then apply it to the
 original registration. The Luna read-only audit found the first absent input at the public caller/host:
 no independently constructed source-registration context is passed. HIR retains
 structural binding keys only, so the current route has `NO_SAFE_CODE_SLICE`
-until an actual supplier and source correspondence are identified. See the frozen
-[entry-path audit](agent-loop/inbox/20261018-caller-evidence-entry-path.md). See
+until an actual supplier and source correspondence are identified. The proof lane
+also froze the first failed original judgment: same-fiber `j0` introduction after
+structural root insertion is not supplied. Fresh review is pending; parent
+conditions remain 0 -> 0. See the frozen [entry-path audit](agent-loop/inbox/20261018-caller-evidence-entry-path.md)
+and [proof handoff](agent-loop/inbox/20261018-caller-authentic-evidence-intake.md). See
 [`caller-authentic-evidence-intake-20261018-r26.md`](agent-loop/sprints/caller-authentic-evidence-intake-20261018-r26.md).
