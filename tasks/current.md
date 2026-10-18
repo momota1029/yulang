@@ -17471,7 +17471,7 @@ The dispatcher and bounded dependency audit found no independent parent seam
 under existing assumptions; next requires original guard/world semantics input.
 See the [R30 closeout](../notes/progress/2026-10-18-r30-guard-interpretation-closeout.md).
 
-## Active research sprint — R31
+## Closed research sprint — R31
 
 R31 targets the active-outer-root allocation bridge under the already adopted
 Source Generalize rules. A constructive lane derives the nested-helper source
@@ -17480,4 +17480,11 @@ the complete source clauses and native capture/FreshUse map. The contract fixes
 parent scope, prohibits a new source rule, and stops at the first missing
 adopted judgment. This does not close the R30 caller-guard gate or any original
 parent condition by itself. No compiler edit, test, build, probe or Astra is
-authorized. See the [R31 contract](agent-loop/sprints/active-outer-root-allocation-20261018-r31.md).
+authorized. The derivation and independent falsifier agree that the first
+missing adopted judgment is the complete source-owned active-capture demand
+record/telescope for `C/D` and its equality incidences at `g` publication.
+Neither shared nor frame-local allocation is derived; no source counterexample
+or nondeterminism was established. A fresh compiler referee was CLEAN for this
+bounded report. Original conditions remain 0 -> 0, and the native FreshUse map
+remains conditional evidence only. See the [R31 closeout](../notes/progress/2026-10-18-r31-active-root-allocation-closeout.md)
+and [R31 contract](agent-loop/sprints/active-outer-root-allocation-20261018-r31.md).

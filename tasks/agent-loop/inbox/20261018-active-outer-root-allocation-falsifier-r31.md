@@ -1,0 +1,19 @@
+# R31 active outer-root falsifier handoff
+
+Sprint-ID: active-outer-root-allocation-20261018-r31; contract revision 1; SHA-256 `48ab97d8d3a21d796d51cc391bb49c8079d445090f56a2f964e172b856a2eed2`.
+Assignment-ID: r31_active_root_falsifier; handoff revision 1.
+Parent gate: CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original complete quantified scope unchanged; OPEN/closure0.
+Baseline: `4bf67d9113e877b7cc3c3a35c5982c233f971fdc` supplied by primary.
+Direct dependencies: all eight contract pins matched; additional adopted construction `notes/theory/2026-10-08-source-generalize-definition-and-proof.md` SHA-256 `e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240`. Complete inventory in artifact.
+Role / actual ID: independent researcher falsifier / `/root/r31_active_root_falsifier`; current session, actual parent NEW_TASK receipt. Requested researcher, model/effort UNKNOWN; observed model/effort UNKNOWN.
+Exact leased paths / authors: the artifact below and this handoff; sole author this worker; no descendants.
+Outcome class: source-native-evidence and precise missing-judgment report. Neither placement has a complete source judgment from inspected adopted rules. Not a source-qualified counterexample, proof of ambiguity, nor new semantic proposal.
+Parent application: gain 0. Native sharing is conditional on actual C representative at/below g boundary; F conflicts with that guard in that case. First missing premise: source-owned record/class and original dependency telescope for complete active-outer-root demand auxiliaries/equality operands. Owner: source active recursive-reference/Call-demand introduction, consumed by Source Generalize §3.3 / §5.1. R30 j0/a0 remains independently open.
+Source constructors -> constraints -> native: HIR prebinds same local ID, scheduler emits active Link rather than LocalScheme use, Apply retains full source inputs, installation stores live root/boundary, later use captures current graph and creates per-occurrence FreshUse; canonical low-level representatives are shared. This does not prove full semantic Call or source allocation.
+Frozen artifact: `notes/theory/2026-10-18-active-outer-root-allocation-falsifier-r31.md`, SHA-256 `4c2ddeca7bdd4e5655af069a7cfbfeab93105d76616185758e673cc9caf50041`.
+Checks / coverage: static sed/rg reads of governing constructor catalogue and three native owners; contract/input SHA-256 checks. No tests/builds/executable probes/Git/Astra/delegation. No seeds/ranges/mutations. No whole-source derivation, arbitrary-history/future/lifetime witness, principle coverage or source-qualified countermodel. CPU/RSS and exact elapsed UNKNOWN; cap300s, lightweight read/hash/write only.
+Next boundary / TODO R31-ACTIVE-CAPTURE-RECORD: primary obtains actual adopted source owning-rule record and original telescope with all clauses/events/pairs retained. Falsifier: already adopted actual active-capture rule instance producing those fields and allowing the deterministic §5.1 walk; provider equality, scalar assignments and installed/simultaneous examples do not suffice. Do not propose a third allocation or repeat equivalent scalar probes.
+Worker state: STOPPED; writes ceased after this handoff hash. No unresolved descendants. Frozen review target; independent review NOT_RUN.
+Commit-ready: honest research-only preservation; fresh review and integration owned by primary.
+
+Commit packet: exact two leased paths above; baseline `4bf67d9113e877b7cc3c3a35c5982c233f971fdc`; dependency hashes changed none; review NOT_RUN; checks static reads/hashing only; proposed message `research: locate active-root allocation source judgment and map native freshening`; shared deltas left for primary/curator: missing source owner/telescope, parent OPEN/closure0, conditional native guard result, unchanged R30 obstruction.
