@@ -17444,5 +17444,6 @@ and [proof handoff](agent-loop/inbox/20261018-caller-authentic-evidence-intake.m
 R27 is active on the canonical bootstrap source-construction route. It found the adopted rules stop at structural registration and do not
 introduce the original same-fiber guards. A fieldwise `CallerModuleInit` rule
 is now frozen as an unadopted candidate; a staged proof lane will test its
-non-circular consequences. The candidate alone discharges no parent condition. See
+non-circular consequences. The candidate alone discharges no parent condition. A conditional proof lane is
+now testing same-fiber guard introduction against this unadopted rule. See
 [`canonical-caller-context-source-construction-20261018-r27.md`](agent-loop/sprints/canonical-caller-context-source-construction-20261018-r27.md).

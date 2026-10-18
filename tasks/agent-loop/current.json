@@ -18,13 +18,13 @@
       "available_seconds": 0,
       "allocation": "Luna/source owner600 + Sol proof900 staged pending independent constructor premises + fresh review360 + integration240. Astra0; tests/builds/probes0."
     },
-    "next_action": "Source owner froze a non-adopted fieldwise CallerModuleInit candidate; after checkpoint, Sol conditionally tests whether it derives j0/a0/license without circular premises. No adoption/code; original conditions remain 0->0 unless adopted and applied.",
+    "next_action": "Sol conditional guard proof active against non-adopted CallerModuleInit candidate. Determine exact original-j0/a0/license derivation and first missing independent premise; do not count conditional result as parent discharge.",
     "history": "R26 CLEAN bounded obstruction; actual public callers supply no independently introduced context, first missing input at caller and first failed j0 at ins_(r0,q0). No semantic nonexistence or parent closure. Dispatcher recommends canonical bootstrap source-construction route; R27 tests existing rules and may prepare but not adopt a new source definition.",
     "git_checkpoint": {
-      "commit": "aae7de82c5846b2502993c47ba544958cc544e17",
+      "commit": "8bb973029",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R26 proof/handoff frozen and pushed pending fresh review; R26 audit separately pushed; R27 contract checkpoint pending."
+      "receipt": "R27 contract and frozen source-owner candidate pushed; conditional Sol proof lane launched on exact leased files."
     },
     "workers": [
       {
@@ -36,7 +36,18 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R27 source-owner lane stopped after freezing design/inbox; candidate CallerModuleInit is not adopted. Conditional proof staged, no compiler changes/tests/Git by lane."
+        "receipt": "Owns R27 integration/state/Git; source-owner artifact frozen; Sol conditional guard derivation /root/r27_guard_conditional_proof actually launched on exact proof/handoff leases."
+      },
+      {
+        "id": "/root/r27_guard_conditional_proof",
+        "role": "prover",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Actual spawn after 8bb973029 checkpoint; conditional derivation of same-tuple j0/a0/license from unadopted candidate rule; exact two output leases; no code/tests/Git/children; cap900s."
       }
     ],
     "leases": [
@@ -64,6 +75,16 @@
         "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-18-canonical-caller-context-guard-introduction.md",
+        "owner": "/root/r27_guard_conditional_proof",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-guards.md",
+        "owner": "/root/r27_guard_conditional_proof",
+        "state": "HELD"
       }
     ],
     "pending": [
@@ -75,8 +96,8 @@
       },
       {
         "id": "R27-SAME-FIBER-GUARD-PROOF",
-        "state": "READY",
-        "owner": "Sol/prover after source checkpoint",
+        "state": "RUNNING",
+        "owner": "/root/r27_guard_conditional_proof",
         "artifact": "900s conditional lane; derive j0/a0/license at original tuple only from independently introduced constructor premises."
       },
       {
@@ -109,7 +130,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R27 source-owner inspection active; proof lane staged pending non-circular source constructor."
+      "receipt": "Owns R27 integration/state/Git; source-owner artifact frozen; Sol conditional guard derivation /root/r27_guard_conditional_proof actually launched on exact proof/handoff leases."
+    },
+    {
+      "id": "/root/r27_guard_conditional_proof",
+      "role": "prover",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Actual spawn after 8bb973029 checkpoint; conditional derivation of same-tuple j0/a0/license from unadopted candidate rule; exact two output leases; no code/tests/Git/children; cap900s."
     }
   ],
   "leases": [
@@ -137,6 +169,16 @@
       "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-canonical-caller-context-guard-introduction.md",
+      "owner": "/root/r27_guard_conditional_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-guards.md",
+      "owner": "/root/r27_guard_conditional_proof",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -148,8 +190,8 @@
     },
     {
       "id": "R27-SAME-FIBER-GUARD-PROOF",
-      "state": "READY",
-      "owner": "Sol/prover after source checkpoint",
+      "state": "RUNNING",
+      "owner": "/root/r27_guard_conditional_proof",
       "artifact": "900s conditional lane; derive j0/a0/license at original tuple only from independently introduced constructor premises."
     },
     {
@@ -169,11 +211,11 @@
     "required": false,
     "receipt": "R23 and R24 lane workers stopped; all frozen outputs reviewed; no code or unknown leases."
   },
-  "next_action": "Source owner froze a non-adopted fieldwise CallerModuleInit candidate; after checkpoint, Sol conditionally tests whether it derives j0/a0/license without circular premises. No adoption/code; original conditions remain 0->0 unless adopted and applied.",
+  "next_action": "Sol conditional guard proof active against non-adopted CallerModuleInit candidate. Determine exact original-j0/a0/license derivation and first missing independent premise; do not count conditional result as parent discharge.",
   "git_checkpoint": {
-    "commit": "aae7de82c5846b2502993c47ba544958cc544e17",
+    "commit": "8bb973029",
     "branch": "research/simple-sub-intrusion",
     "pushed_to": "origin/research/simple-sub-intrusion",
-    "receipt": "R26 proof/handoff frozen and pushed pending fresh review; R26 audit separately pushed; R27 contract checkpoint pending."
+    "receipt": "R27 contract and frozen source-owner candidate pushed; conditional Sol proof lane launched on exact leased files."
   }
 }
