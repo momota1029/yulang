@@ -1862,6 +1862,39 @@ impl State {
         *slot = flow;
         Some(original)
     }
+    #[cfg(test)]
+    pub(super) fn test_remove_bound_member(&mut self, key: BoundKey, relation: RelationId)
+        -> Option<(usize, Option<usize>, Option<usize>)> {
+        let mut previous = None;
+        let mut cursor = *self.bounds.get(&key)?;
+        loop {
+            let (entry_key, entry_relation, next) = *self.bound_keys.get(cursor)?;
+            if entry_key == key && entry_relation == relation {
+                if let Some(previous) = previous {
+                    self.bound_keys[previous].2 = next;
+                } else if let Some(next) = next {
+                    self.bounds.insert(key, next);
+                } else {
+                    self.bounds.remove(&key);
+                }
+                return Some((cursor, previous, next));
+            }
+            previous = Some(cursor);
+            cursor = next?;
+        }
+    }
+    #[cfg(test)]
+    pub(super) fn test_restore_bound_member(
+        &mut self, key: BoundKey, token: (usize, Option<usize>, Option<usize>),
+    ) {
+        let (index, previous, next) = token;
+        self.bound_keys[index].2 = next;
+        if let Some(previous) = previous {
+            self.bound_keys[previous].2 = Some(index);
+        } else {
+            self.bounds.insert(key, index);
+        }
+    }
     pub(super) fn replay_recipe_is_retained(&self, dependency: Dependency) -> bool {
         self.evidence.recipe_keys.get(&dependency).is_some_and(|id|
             self.evidence.recipes.get(id.0).is_some_and(|recipe| {
@@ -2706,6 +2739,13 @@ impl State {
         copied: RelationId,
         from: BoundKey, to: BoundKey,
     ) -> Option<(RelationId, [RelationId; 4], [usize; 4], Term, Term)> {
+        let ordered_replay_pair = match (row.lower_input.2, row.upper_input.2) {
+            (ExtrusionEndpoint::Value(lower), ExtrusionEndpoint::Value(upper)) =>
+                TypedPairKey::Value(CanonicalValuePairKey { lower, upper }),
+            (ExtrusionEndpoint::Effect(lower), ExtrusionEndpoint::Effect(upper)) =>
+                TypedPairKey::Effect { lower, upper },
+            _ => return None,
+        };
         if !row.lower_matches || !row.upper_matches
             || row.upper != fresh_relation
             || row.upper_input != to
@@ -2714,7 +2754,7 @@ impl State {
             || !self.bound_relations(row.lower_input).any(|relation| relation == row.lower)
             || self.relations.get(source.0 as usize)?.key.pair != bound_pair(from)
             || self.relations.get(fresh_relation.0 as usize)?.key.pair != bound_pair(to)
-            || self.relations.get(copied.0 as usize)?.key.pair != bound_pair(to)
+            || self.relations.get(copied.0 as usize)?.key.pair != ordered_replay_pair
             || self.relations.get(row.lower.0 as usize)?.key.pair != bound_pair(row.lower_input)
             || self.relations.get(row.upper.0 as usize)?.key.pair != bound_pair(row.upper_input)
             || row.lower_input.0 != row.upper_input.0

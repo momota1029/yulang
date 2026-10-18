@@ -2374,6 +2374,26 @@ mod authentic_demand_capture_tests {
             assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
                 native_root, |_| Some(copied_ports), Some(copied_ports)).is_some(), "restoring the actual constructor record restores authentication");
 
+            let upper_member = state.intrusion.effect_algebra.context.test_remove_bound_member(
+                evidence.fresh_to, evidence.fresh_relation).expect("p1 belongs to the actual upper fiber");
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(),
+                "removing p1 from the actual upper/destination fiber fails closed");
+            state.intrusion.effect_algebra.context.test_restore_bound_member(evidence.fresh_to, upper_member);
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_some(),
+                "restoring p1's actual upper-fiber membership restores authentication");
+
+            let lower_member = state.intrusion.effect_algebra.context.test_remove_bound_member(
+                row.lower_input, row.lower).expect("Replay lower belongs to the actual lower fiber");
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(),
+                "removing the actual Replay lower membership fails closed");
+            state.intrusion.effect_algebra.context.test_restore_bound_member(row.lower_input, lower_member);
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_some(),
+                "restoring Replay lower-fiber membership restores authentication");
+
             let mut wrong_owner = slot;
             wrong_owner.owner = match slot.owner {
                 candidate_scheme::RowKey::Value(row) => candidate_scheme::RowKey::Effect(row),

@@ -60,6 +60,14 @@ Frozen current hashes captured after the mutation-stage code stop and before thi
 - this handoff before final hash-table update: `d07350f8918c6fa06696c4912a4e92b0be9445e6d6d06fce5fc31f4c9742941a`
 
 Final freeze-stage receipt-only document hashes are primary-captured after the two table updates. No code/test/example bytes changed in the documentation stage. Checks remain source inspection/static reconciliation only; no Cargo, tests, runtime, Git, or formatter. Independent fresh proof/compiler review remains required; author does not self-certify. Parent theorem closure remains 0 and production approval remains absent.
+
+## Rev4 targeted repair — sequential handoff revision 3
+
+Contract SHA-256 `518080bac39eba16f31d5eb51207db002141ad28017ec0264986946c4caa54d9`; frozen baseline `candidate681ff50d0`. Luna/high repair grant 180s, monotonic start `309221207538904 ns`; requested model/effort Luna/high, observed model/effort UNKNOWN. Exact leases for this delta only: `candidate_context.rs`, `candidate_scheme.rs`, and this handoff. No other path changed.
+
+Repair: q's relation pair is now authenticated against the ordered Replay task pair `lower_input.item <: upper_input.item`, preserving Value/Effect typing and failing closed on mixed kinds. The separate p1-vs-bound-B check remains: p1's relation pair must equal `bound_pair(to)`, with `to == upper_input`. No endpoint check was deleted. Actual bound-fiber mutation helpers unlink and restore entries in the retained `bounds`/`bound_keys` index. The route-auth test removes p1 from the actual upper/destination fiber and l from the actual lower fiber, requires rejection, restores the saved linked-list/map state, and requires authentication to return. The tests require positive Module and Local route evidence before either mutation family runs.
+
+No tests/Cargo/runtime were run; final delta review must be CLEAN before execution. Exact repair-stage stop and frozen hashes follow in the primary receipt. Parent theorem remains OPEN; no semantics or production scope changed. Worker writes stop at the bounded grant, descendants 0; no self-review claim.
 Checks, coverage, omitted cases and resource budget spent/remaining: source reads/rg only; no tests/build/Cargo/runtime/Git. Audit consumed within implementation 1920s allocation; protected runtime360 untouched; authoring cap/time remaining UNKNOWN pending primary accounting. Exact before/after: no source bytes changed.
 Worker state / writes stopped receipt / unresolved descendant leases: WAITING; no code writes; descendants0; no active descendants to reconcile.
 Commit-ready milestone or explicit pending review/integration: not commit-ready; source-owner map awaits early independent review and Luna continuation.

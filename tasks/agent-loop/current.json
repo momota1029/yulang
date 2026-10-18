@@ -19,14 +19,14 @@
     },
     "resources": {
       "cap_seconds": 7200,
-      "charged_seconds": 6065.929,
-      "available_seconds": 720,
-      "allocation": "7200s total. Prior 3600s retired/charged conservatively. Rev3 fresh tranche charged 2465.929s; expired stage slack414.071s. Remaining only: repair180 + delta review120 + protected runtime360 + primary/integration60. No reserve/rollover/Astra.",
-      "last_stage_receipt": "Full fresh review of candidate commit681ff50d0 BLOCKING+MAJOR, charge480s conservatively. BLOCKING q pair checked against bound B instead of ordered Replay task; MAJOR lacked actual retained fiber membership mutations. Lifecycle proof itself had no defect in bounded scope. Full receipt in reviewer message; no tests/runtime.",
-      "expired_seconds": 414.071,
-      "next_action": "Fresh independent compiler_referee is reviewing frozen commit681ff50d0 under 480s. One BLOCKING and one MAJOR reported; final review receipt pending. All candidate leases remain FROZEN; no writes/tests/runtime. Dispatcher recommends conditional rev4 only after full review receipt."
+      "charged_seconds": 6163.319,
+      "available_seconds": 540,
+      "allocation": "7200s total. Prior 3600s retired/charged conservatively. Rev3 fresh tranche charged 2465.929s; rev4 repair charged97.390s. Remaining allocations: delta review120 + protected runtime360 + primary/integration60 =540. Unused82.610s of authoring grant expired; no reserve/rollover/Astra.",
+      "last_stage_receipt": "Rev4 author STOP/freeze at monotonic309318598187955ns; start309221207538904ns; charged97.390s, expired82.610s. Frozen code/handoff hashes recorded in implementation handoff rev3. No tests/runtime; exact lease writes ceased.",
+      "expired_seconds": 496.681,
+      "next_action": "Frozen rev4 candidate awaits 120s independent delta review by constructor_replay_final_review. Runtime360 locked until CLEAN; author STOPPED."
     },
-    "next_action": "Rev4 author repair180s for exactly the two review findings; requires fresh ACK. Then delta review120; runtime360 remains locked until CLEAN."
+    "next_action": "Frozen rev4 candidate commit awaiting 120s independent delta review by constructor_replay_final_review. Runtime360 locked until CLEAN; no author writes."
   },
   "history": "Closed `npair-replay-fiber-consumer-certificate-20261018` REVIEWED-PARTIAL at `7087de449`; parent OPEN, closure0. Proof SHA `691a537b…e3e3614` CLEAN conditional. Implementation candidate `1958cf20e` unapproved; compiler review BLOCKING+2 MAJOR, no Cargo/tests/runtime. Closeout: `notes/progress/2026-10-18-replay-fiber-consumer-closeout.md`. PR #11 merged at `27a7e00d4`; operations-only. Earlier sprint history remains in linked notes/progress and Git history.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -56,13 +56,13 @@
     {
       "id": "/root/constructor_replay_impl",
       "role": "implementer",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev3 author STOPPED at commit681ff50d0. Rev4 grants only context.rs, candidate_scheme.rs and impl inbox for 180s repair of the two full-review findings. Fresh ACK pending."
+      "receipt": "Rev4 targeted repair frozen at monotonic309318598187955ns; stage charged97.390s of180, unused82.610s expired. Exact hashes: context5d6bef72ece3ce0cc5dc729117f8e668fc746915a443a6a7beac7bd92d7dde3a; schemecbfd62be7243842aa952c4c1ee29d0e29b58506e2c400539c321a6b1070501d0; handoff rev3eccb92eed1298172a1c08fb18f770619d002ef9c3cf4fd7b345ae0e1588315f1. Writes stopped; no tests/runtime/descendants."
     },
     {
       "id": "/root/constructor_replay_map_review",
@@ -122,12 +122,12 @@
     {
       "path": "crates/yu-solver/src/candidate_context.rs",
       "owner": "/root/constructor_replay_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
       "owner": "/root/constructor_replay_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/shadow_apply.rs",
@@ -152,7 +152,7 @@
     {
       "path": "tasks/agent-loop/inbox/20261018-constructor-owned-replay-impl.md",
       "owner": "/root/constructor_replay_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-18-constructor-slot-lifecycle.md",
@@ -184,6 +184,14 @@
       "sha256": "3aa782c35ba049708c0268653c69f918553cecda287fbec97f1d61541fa1a02e",
       "receipt": "Full fresh review completed on 681ff50d0; findings pinned in current sprint rev4.",
       "verdict": "BLOCKING+MAJOR"
+    },
+    {
+      "id": "review-constructor-replay-rev4-delta",
+      "state": "REVIEW",
+      "reviewer": "/root/constructor_replay_final_review",
+      "artifact": "rev4 frozen delta from 681ff50d0",
+      "sha256": "candidate-context=5d6bef72ece3ce0cc5dc729117f8e668fc746915a443a6a7beac7bd92d7dde3a;candidate-scheme=cbfd62be7243842aa952c4c1ee29d0e29b58506e2c400539c321a6b1070501d0;handoff=eccb92eed1298172a1c08fb18f770619d002ef9c3cf4fd7b345ae0e1588315f1",
+      "receipt": "120s delta review requested for both prior findings and rev3 full-review assertions; runtime locked unless CLEAN."
     }
   ],
   "ready_next_work": null,
