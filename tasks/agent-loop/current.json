@@ -7,7 +7,7 @@
     "id": "raw-canonical-fiber-coverage-20261019-r71",
     "contract": "tasks/agent-loop/sprints/raw-canonical-fiber-coverage-20261019-r71.md",
     "revision": 1,
-    "state": "ACTIVE",
+    "state": "CLOSED_REVIEWED_CONDITIONAL",
     "baseline": "f375fd737",
     "contract_sha256": "a6bd6aa1ab369f77b728014cd51693b11c5b3f97f85aab392d6488c8834ac1fb",
     "parent": "Original inference/evaluator goal; R70 conditional result reviewed; R70 operation/WF and raw-canonical coverage remain open. Parent and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
@@ -26,8 +26,8 @@
       "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + compiler/spec reviews 200s each + Luna integration 300s; Astra 0; no carryover.",
       "actual_runtime": "Proof and counter-reading launched in current session; requested settings recorded, observed model/effort UNKNOWN. CPU/RSS UNKNOWN; full 2400s grant reserved."
     },
-    "next_action": "Launch proof and complementary counter-reading on disjoint exact paths; Luna traces the physical slot/evidence/canonical transport seam. Freeze authors before fresh reviews.",
-    "history": "R70 CLOSED REVIEWED CONDITIONAL at f375fd737; operation target and source/canonical/drain premises remain OPEN."
+    "next_action": "No further R71 proof work: its 2400s envelope is exhausted. Selector says first prepare one unchanged-domain source-bound third-owner slot → alias-changing qualified merge → later production extrusion → independently justified consumer case; only then propose successor authority.",
+    "history": "R70 CLOSED REVIEWED CONDITIONAL at f375fd737; operation target and source/canonical/drain premises remain OPEN.; Luna closeout `notes/progress/2026-10-19-r71-closeout.md` SHA 4b5f57b27d5bfbb0b3e4f7cfa86c03488f5d02f995c7f861dbe29e0d448edd3b; Luna closeout `tasks/agent-loop/inbox/20261019-r71-closeout.md` SHA 8b05a80825488e3c7bc55102a8dde68b44eece5784bab156e50439d677375d7d"
   },
   "workers": [
     {
@@ -39,7 +39,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "R71 owner map FROZEN; map SHA c350c153b666d12c78e7ac3a49284fda8c876e425a74707fd6579b7148f3c485; handoff SHA 81ba63c47a63cd01312d02d061ebe71d97cc9353f9ee007cb95f4a4febfb9516; awaiting author lanes."
+      "receipt": "R71 closeout committed/pushed by Luna; both reviewers and all authors STOPPED. Selector boundary result: prepare source-bound third-owner lineage case before any successor sprint; no grant."
     },
     {
       "id": "/root/r71_raw_canonical_proof",
@@ -66,24 +66,24 @@
     {
       "id": "/root/r71_compiler_review",
       "role": "Fresh independent compiler/source-owner review; exact R71 packet only",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Actual NEW_TASK launch acknowledged in current R71 session; read-only, exact six frozen outputs and 20 pins."
+      "receipt": "Final independent compiler review: 27/27 contract/dependency/output hashes MATCH; no blocking/major; minor correction: canonical bucket heads may advance via attach while previous chains remain reachable; no tests/Git/builds/probes/writes/descendants."
     },
     {
       "id": "/root/r71_spec_review",
       "role": "Fresh independent source-spec conformance review; exact R71 packet only",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Actual NEW_TASK launch acknowledged in current R71 session; read-only, exact six frozen outputs and 20 pins."
+      "receipt": "Final independent spec review: 27/27 contract/dependency/output hashes MATCH; no blocking/major; minor correction: merge source lookup uses canonicalized item, distinct from raw Work::Bound item; no tests/Git/builds/probes/writes/descendants."
     }
   ],
   "leases": [
@@ -124,6 +124,16 @@
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r71-implementation.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r71-closeout.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r71-closeout.md",
       "owner": "/root",
       "state": "FROZEN"
     }
@@ -200,6 +210,6 @@
       "falsifier": "A source-reachable physical slot requires a fiber unavailable to the actual copy path; or complete constructors/merge induction proves coverage for every authorized occurrence."
     }
   ],
-  "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 ACTIVE. R70 operation target, parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-  "next_action": "Await bounded independent compiler/spec reviews; then close R71 conditional or retain OPEN required-lineage/reachability TODO."
+  "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 CLOSED REVIEWED CONDITIONAL with coverage target OPEN. R70 operation target, original parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
+  "next_action": "Selection blocker: no concrete source/ordinary-mode instance yet connects the required lineage, third-owner physical slot, qualified merge, later production call, and independent consumer. Prepare that exact case before authorizing another sprint; no work/resources granted by selector."
 }
