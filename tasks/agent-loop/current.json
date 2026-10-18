@@ -25,9 +25,9 @@
       "charged_seconds": 1700,
       "available_seconds": 700,
       "allocation": "Proof Sol/high900 + complementary challenge counter-reading Sol/medium300 + Luna/high owner map500 + fresh compiler/spec reviews200 each + Luna integration/closeout300; Astra0; no carryover",
-      "actual_runtime": "Proof 900s and counter-reading 300s grants issued on successful current-session collaboration launches; Luna owner map 500s active. All observed CPU/RSS/exact elapsed times UNKNOWN. Reviews 400s + integration 300s remain."
+      "actual_runtime": "Proof: 307s wall of 900s grant; counter-reading: exact elapsed UNKNOWN, 300s grant fully reserved; Luna owner map 500s charged; observed CPU/RSS UNKNOWN. Reviews 400s + integration 300s remain."
     },
-    "next_action": "Compare the frozen counter-reading with the active constructive derivation; when proof author freezes, verify all author hashes/pins and assign independent review.",
+    "next_action": "All six author artifacts frozen. Run fresh compiler and spec review against exact 30-pin manifest and frozen output hashes; then Luna adjudication/closeout within remaining envelope.",
     "history": "R66 closeout SHA-256 0af68443b372f1407f68e0b9f21194348b469f8c5d3dce06a8cd98ed976e6f01; status CLOSED with conditional structural result and exact unsupported Result-A instantiation. Fresh reviews had no blocking/major findings; minor owner-map handoff metadata superseded by external frozen hash/receipt. No successor grant or code slice carried over.; R67 closeout SHA-256 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; frozen author/review baseline dc84c02ed; 41/41 review hash receipts; no safe code slice; all R67 reviewers STOPPED.; R67 CLOSED at closeout 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; branch pushed through f49f797a0."
   },
   "workers": [
@@ -45,13 +45,13 @@
     {
       "id": "/root/r68_retained_lambda_proof",
       "role": "R68 constructive retained-entry Lambda introduction proof author",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "Successful actual collaboration launch acknowledged for `/root/r68_retained_lambda_proof` in current-conversation-2026-10-19-r68; exact frozen 30-pin scope and two output leases; requested Sol/high; observed UNKNOWN/UNKNOWN; 900s reserved/charged; no descendants."
+      "receipt": "R68-PROOF/1 FROZEN; WRITES_STOPPED at 2026-10-18T21:21:17Z; NO_DESCENDANTS. Theory SHA-256 5766aff1889a4ebc0a713c0fcc24039e4f4b492ba6d2a3f16fd4fc35c142b279; inbox SHA-256 75730970b3f82c8d1852801e56f2e549275b378281cb73db3cf9585cf44de3a9; contract and 30/30 pins MATCH at freeze. 307s wall/900s grant; CPU/RSS UNKNOWN."
     },
     {
       "id": "/root/r68_retained_lambda_counterreading",
@@ -74,12 +74,12 @@
     {
       "path": "notes/theory/2026-10-19-r68-retained-lambda-introduction.md",
       "owner": "/root/r68_retained_lambda_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r68-proof.md",
       "owner": "/root/r68_retained_lambda_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r68-introduction-counter-reading.md",
