@@ -17645,3 +17645,25 @@ Fresh compiler and spec reviews were CLEAN for the bounded packet only. Further
 general attempts pause pending concrete original-domain owner evidence; no next
 sprint is assigned. See the [R55 closeout](../notes/progress/2026-10-19-r55-closeout.md)
 and [R55 contract](agent-loop/sprints/original-name-core-20261019-r55.md).
+
+## Closed research sprint — R56
+
+R56 traced the concrete original-domain `forward x` / recursive `loop x`
+source through source events, signed extrusion, replay and its next captures.
+Under successful ordinary constructor prefixes, the qualified recursive
+relation has source set `{ez}` and its complete target-2 parent group is
+`nz+`, `Cz−`, `Uz−`; the later captures are of `z` and then `loop`, with no
+forward-row image in the loop capture map. This exact source does not supply
+the proposed original-provider alias/exposure before a later capture of the
+same provider. The condition is a constructor derivation, not observed full
+solve or runtime evidence. Fresh compiler and spec reviews were CLEAN; all
+23 dependency pins and four output hashes matched. No universal noninterference
+proof, counterexample, or safe code slice was established. The parent remains
+OPEN at 0 -> 0, Simple-sub A/B remain open, and R50 remains NOT ADOPTED.
+The dispatcher recommends a distinct next discriminator: add a second direct
+`forward x` use after `loop x` while retaining final `z`, so the recursive
+`loop→z→loop` qualification stays intact and the same original provider is
+captured twice. This is only a candidate next sprint; no R57 lease or worker
+assignment is active. See the [R56 owner trace](../notes/progress/2026-10-19-r56-original-name-owner-trace.md),
+[proof](../notes/theory/2026-10-19-r56-original-name-source-trace.md), and
+[contract](agent-loop/sprints/original-name-source-trace-20261019-r56.md).
