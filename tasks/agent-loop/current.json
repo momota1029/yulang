@@ -9,7 +9,7 @@
     "revision": 1,
     "state": "RUNNING",
     "baseline": "d6332bfae410c96d6c6a36c95d552c93bfbbd72f",
-    "contract_sha256": "537f8323a96490bf525ee68fe57c6e958c57aade31b091ca33b220466135f982f",
+    "contract_sha256": "537f8323a96490bf525ee68fe57c6e958c57aade31b091ca33b220466135f982",
     "parent": "Original computation-forwarding preservation §§1,6-7; original quantifiers/source domain and Simple-sub A/B OPEN 0->0; R50 NOT ADOPTED.",
     "fixed_outcome": "Derive the exact source formation/typing judgment for the fixed whole-Function ascription and a source-indexed Corr plus source-solution lifting/reverse interpretation under actual typed substitutions, or identify the first unavailable source judgment and owner. Preserve p_t, p_A, p_R, same provider/carrier, local permission, joint K,D, and correlated results.",
     "dependencies": {
@@ -26,8 +26,8 @@
       "allocation": "Sol proof600 charged; Luna source-owner500 outputs frozen, runtime UNKNOWN; fresh compiler200; fresh spec200; integration300. Astra0; no carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "Both author lanes STOPPED and all four outputs FROZEN with hashes recorded. Consult sprint dispatcher at this integration seam, then obtain fresh compiler/spec review receipts before reads. R61 result remains OPEN pending review/adjudication.",
-    "history": "R60 closed and fully reconciled at d6332bfae; closeout notes/progress/2026-10-19-r60-closeout.md. All R60 workers STOPPED, leases FROZEN, 25/25 pins reviewed. R61 dispatcher start check confirmed exact rev1 hash 537f8323a96490bf525ee68fe57c6e958c57aade31b091ca33b220466135f982f; 16/16 pins MATCH at baseline d6332bfae410c96d6c6a36c95d552c93bfbbd72f. Luna activates R61; proof worker not yet acknowledged and has no lease transfer. Luna source-owner lane completed and froze exact outputs: NO_SAFE_CODE_SLICE at missing whole-ascription source judgment; runtime/resource UNKNOWN. Sol proof lane remains active; reviewers still WAITING. Sol proof lane stopped with exact two outputs frozen; hashes theory=6f3a3730f50f9ead7f2950ff08ba88a17d5b7669e077436879b2f205b0629a36, inbox=43cab95f99da6a332a230b65839a8491954958c3edcc42ec1c0a15407b8ca04b; 16/16 pins and contract MATCH. 600s reservation charged, actual runtime/resource UNKNOWN. All author leases FROZEN; fresh reviews not yet started.",
+    "next_action": "Dispatcher recommends fresh compiler/spec review, then Luna adjudication as an exact source-formation obstruction if upheld. Both author lanes STOPPED; four author outputs FROZEN. 200s per review, 300s integration; no further scalar work or implementation authority.",
+    "history": "R60 closed and fully reconciled at d6332bfae; closeout notes/progress/2026-10-19-r60-closeout.md. All R60 workers STOPPED, leases FROZEN, 25/25 pins reviewed. R61 dispatcher start check confirmed exact rev1 hash 537f8323a96490bf525ee68fe57c6e958c57aade31b091ca33b220466135f982; 16/16 pins MATCH at baseline d6332bfae410c96d6c6a36c95d552c93bfbbd72f. Luna activates R61; proof worker not yet acknowledged and has no lease transfer. Luna source-owner lane completed and froze exact outputs: NO_SAFE_CODE_SLICE at missing whole-ascription source judgment; runtime/resource UNKNOWN. Sol proof lane remains active; reviewers still WAITING. Sol proof lane stopped with exact two outputs frozen; hashes theory=6f3a3730f50f9ead7f2950ff08ba88a17d5b7669e077436879b2f205b0629a36, inbox=43cab95f99da6a332a230b65839a8491954958c3edcc42ec1c0a15407b8ca04b; 16/16 pins and contract MATCH. 600s reservation charged, actual runtime/resource UNKNOWN. All author leases FROZEN; fresh reviews not yet started. Integration-boundary dispatcher independently verified contract and four output hashes, found and corrected an extra trailing `f` in current.json contract SHA plus nested/top-level lease mismatch, and recommends fresh compiler/spec review then Luna adjudication if upheld.",
     "workers": [
       {
         "id": "/root",
@@ -83,22 +83,22 @@
       {
         "path": "notes/progress/2026-10-19-r61-ascription-source-owner.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r61-implementation.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/theory/2026-10-19-r61-whole-ascription-corr.md",
         "owner": "/root/r61_whole_ascription_corr_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r61-proof.md",
         "owner": "/root/r61_whole_ascription_corr_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -111,7 +111,7 @@
       }
     ],
     "closure": "OPEN. Both authors identify the missing whole-ascription source judgment; independent reviews and Luna adjudication remain pending. No Corr, source-solution correspondence or parent closure.",
-    "primary_approval": "Luna activates R61 revision 1 at SHA-256 537f8323a96490bf525ee68fe57c6e958c57aade31b091ca33b220466135f982f after 16/16 direct pins MATCH, clean baseline d6332bfae410c96d6c6a36c95d552c93bfbbd72f equal to HEAD/origin, and dispatcher start-boundary confirmation. Grants only the fixed source/proof and read-only owner lanes, exact outputs and 1800s envelope; no code/tests/execution/semantic/production authority. Parent OPEN 0->0; R50 NOT ADOPTED.",
+    "primary_approval": "Luna activates R61 revision 1 at SHA-256 537f8323a96490bf525ee68fe57c6e958c57aade31b091ca33b220466135f982 after 16/16 direct pins MATCH, clean baseline d6332bfae410c96d6c6a36c95d552c93bfbbd72f equal to HEAD/origin, and dispatcher start-boundary confirmation. Grants only the fixed source/proof and read-only owner lanes, exact outputs and 1800s envelope; no code/tests/execution/semantic/production authority. Parent OPEN 0->0; R50 NOT ADOPTED.",
     "dispatcher_start": {
       "agent": "/root/r46_next_action",
       "state": "COMPLETED_READ_ONLY",
