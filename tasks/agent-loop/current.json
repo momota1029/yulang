@@ -17,17 +17,17 @@
       "baseline_commit": "64f63ff01577155b892e658c5fbeb090dd4c451b",
       "dispatcher_start": "R66 exact contract SHA verified; 26/26 pins MATCH; source-coordinate/joint-evidence framing and Sol/medium effort consistency confirmed",
       "prior_sprint": "R65 CLOSED reviewed bounded bridge-applicability result; all R65 workers STOPPED; no carryover",
-      "live_reconciliation": "R65 recorded identities STOPPED; current R66 proof and counter-reading identities acknowledged preactivation, no descendants, no work or writes before activation",
+      "live_reconciliation": "Proof /root/r66_lambda_staging_proof and counter-reading /root/r66_staging_counterreading active in current-conversation-2026-10-19-r66; both confirmed required reads began, no leased writes yet, no descendants. R65 recorded identities STOPPED.",
       "semantic_boundary": "26 pinned evidence files only; required governance/startup reads separate; native negative-p_A guards remain"
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 0,
-      "available_seconds": 2400,
+      "charged_seconds": 500,
+      "available_seconds": 1900,
       "allocation": "Proof Sol/high900 + complementary researcher Sol/medium300 + Luna/high owner map500 + fresh compiler/spec reviews200 each + Luna integration/closeout300; Astra0; no carryover",
-      "actual_runtime": "UNKNOWN until lane receipts; no code, tests, builds, execution, probes, instrumentation, measurement, or production change"
+      "actual_runtime": "Luna owner-map lane charged at the full 500s allocation; measured elapsed/CPU/RSS UNKNOWN. Proof and counter-reading lanes have active-work receipts; no code, tests, builds, execution, probes, instrumentation, measurement, or production change."
     },
-    "next_action": "Run the exact proof, complementary source-rule attack and Luna source/native owner map under frozen leases; freeze outputs, obtain fresh independent compiler/spec reviews, adjudicate and close out.",
+    "next_action": "Integrate the frozen Luna owner map with proof and counter-reading outputs; preserve separate source/native evidence, then freeze author outputs, obtain fresh independent compiler/spec reviews and adjudicate.",
     "history": "R65 closeout notes/progress/2026-10-19-r65-closeout.md SHA-256 ea9aac36ea152733b6c4babb7060f18b1e39d7516af5e90bf4d44deadec62d85. R65 first unsupplied input R65-CURRENT-OPERAND-1. R66 candidate promoted after corrected baseline, auxiliary witness transport framing, governance-read separation, Luna ownership, Sol/medium consistency; dispatcher final recommendation returned for exact SHA."
   },
   "workers": [
@@ -40,7 +40,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r66",
-      "receipt": "R66 activated at exact contract SHA; owner map lease active for notes/progress/2026-10-19-r66-lambda-owner-map.md and tasks/agent-loop/inbox/20261019-r66-implementation.md; 500s cap."
+      "receipt": "R66 owner map frozen: notes/progress/2026-10-19-r66-lambda-owner-map.md SHA-256 51c48d1f69520878a586e159315b9f955667dfe002a4cc50992028752bccc5d8; handoff tasks/agent-loop/inbox/20261019-r66-implementation.md. NO_SAFE_CODE_SLICE; 500s allocation charged; primary continues coordination/integration."
     },
     {
       "id": "/root/r66_lambda_staging_proof",
@@ -51,7 +51,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r66",
-      "receipt": "Preactivation identity/lease acknowledgment only; no reads, work, writes or descendants. Awaiting exact start message."
+      "receipt": "RUNNING in current-conversation-2026-10-19-r66 under exact contract SHA; required reads and 26/26 pin checks began; leased writes not yet begun; no descendants; 900s cap."
     },
     {
       "id": "/root/r66_staging_counterreading",
@@ -62,7 +62,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r66",
-      "receipt": "Preactivation identity/lease acknowledgment only; no reads, work, writes or descendants. Awaiting exact start message."
+      "receipt": "RUNNING in current-conversation-2026-10-19-r66 under exact contract SHA; scoped reads began; leased writes not yet begun; no descendants; 300s cap."
     }
   ],
   "leases": [
@@ -94,12 +94,12 @@
     {
       "path": "notes/progress/2026-10-19-r66-lambda-owner-map.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r66-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r66-closeout.md",
