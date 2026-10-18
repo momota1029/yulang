@@ -20,10 +20,10 @@
     "next_action": "R30 closed after independent review. Parent OPEN/closure0. Dispatcher recommendation pending for the next outcome; do not repeat candidate/residual construction without original guard/event-world owner evidence.",
     "history": "R30 closeout notes/progress/2026-10-18-r30-guard-interpretation-closeout.md: parent0->0; candidate/adequacy/native mapping independently reviewed; source NO_SAFE_CODE_SLICE. Both children STOPPED.",
     "git_checkpoint": {
-      "commit": "0516d729e",
+      "commit": "131b9100c8833e9354a9e9dd681a385627db245c",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "Last confirmed push 0516d729e is the R30 candidate baseline. Reviewed proof, handoff, closeout, current state and task summary are prepared for root integration; no new push recorded yet."
+      "receipt": "R30 adequacy proof/handoff, both independent review outcomes, closeout receipt, and compact state/task summary pushed in 131b9100c."
     },
     "workers": [
       {
@@ -261,5 +261,5 @@
   ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
   "history": "R29 closeout: notes/progress/2026-10-18-r29-source-context-action-closeout.md; parent 0->0. R28/R27 closeouts linked from tasks/current.md.",
-  "sha256": "d9a4af9a327ec38e238dddd5c6d20e8806c4d5f335f7964add34e6eb1041e990"
+  "sha256": "59f780e92cced3e1cd019e4f9b89cd71b50c8ee026f5b67e44cac03efbd0a792"
 }
