@@ -614,11 +614,15 @@ fn candidate_graph_call_authenticates_fresh_use_demand_transport_and_rejects_swa
             "module FreshRoute ownership remains distinct from local-source routes");
         assert_eq!(row.consumer_relation, Some(row.child_relation),
             "the fixture's q→C consumer spine is authenticated as its zero-step case");
+        assert_eq!(row.fresh_relation, Some(row.upper_relation),
+            "the exact constructor-owned FreshUse p1 joins the Replay upper h by RelationId");
         assert_eq!(row.replay_upper_root, Some(row.copied_root),
             "the available p1→h constructor authenticates its zero-step root case");
         assert_eq!(row.consumer_root, row.replay_child_root,
             "the q→C root identity is retained explicitly");
         assert!(row.physical_fiber.is_some(), "the FreshUse admission retains its emitted fiber slot");
+        assert!(row.physical_readback.as_ref().is_some_and(|value| !value.is_empty()),
+            "the emission retains the addressed slot and complete readback BoundKey");
         assert!(row.scope_map_matches && row.input_map_matches);
         assert_eq!(row.ports_match, [true; 4]);
         assert_ne!(row.child_relation, row.upper_relation, "the demand relation and Replay upper are separately authenticated");

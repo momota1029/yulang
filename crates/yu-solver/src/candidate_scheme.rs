@@ -233,6 +233,8 @@ pub(super) struct DemandTransportEvidence {
     pub route_owner: FreshRouteOwner,
     pub route: usize,
     pub relation: candidate_context::RelationId,
+    pub fresh_relation: candidate_context::RelationId,
+    pub physical_emission: candidate_context::BoundEmissionId,
     pub consumer: candidate_context::RelationId,
     pub replay_child: candidate_context::RelationId,
     pub replay_lower: candidate_context::RelationId,
@@ -242,7 +244,9 @@ pub(super) struct DemandTransportEvidence {
     pub fresh_from: candidate_effect::BoundKey,
     pub fresh_to: candidate_effect::BoundKey,
     pub physical_fiber: candidate_context::PhysicalBoundSlot,
+    pub physical_readback: candidate_context::PhysicalBoundReadback,
     pub port_relations: [candidate_context::RelationId; 4],
+    pub port_transformers: [usize; 4],
     pub original_root: Term,
     pub copied_root: Term,
     pub replay_upper_root: Term,
@@ -389,9 +393,11 @@ impl GraphState {
             if !ports_match.into_iter().all(|matches| matches) {
                 return None;
             }
-            let fresh_witness = context.fresh_use_witness(original_relation, row.child, copied)?;
-            let Some((_, _, physical_fiber)) = context.fresh_use_fiber_emission(imported,
-                captured.source_bound, copied.use_instance, row.child, fresh_witness.1) else { return None; };
+            let fresh_witness = context.fresh_use_witness(original_relation, copied)?;
+            let (fresh_relation, fresh_from, fresh_to) = fresh_witness;
+            let Some((_, admitted_relation, physical_emission, physical_fiber, physical_readback)) = context.fresh_use_fiber_emission(imported,
+                captured.source_bound, copied.use_instance, fresh_relation, fresh_to) else { return None; };
+            if admitted_relation != fresh_relation { return None; }
             let owner_node = if captured.side == Polarity::Positive { captured.upper } else { captured.lower };
             let item_node = if captured.side == Polarity::Positive { captured.lower } else { captured.upper };
             let Node::Row { row: owner_index, .. } = *graph.nodes.get(owner_node)? else { return None; };
@@ -408,14 +414,17 @@ impl GraphState {
                 (ComponentKind::Effect, Polarity::Negative, false) => candidate_context::BoundLane::EffectUpperAtom,
             };
             if physical_fiber.owner != expected_owner || physical_fiber.lane != expected_lane { return None; }
+            if physical_readback.bound != fresh_to
+                || physical_readback.phase != candidate_context::PhysicalReadbackPhase::ConstructorAfterAppend
+            { return None; }
             let replay_recipe = candidate_context::Dependency::Replay {
                 child: row.child, lower: row.lower, upper: row.upper,
                 lower_input: row.lower_input, upper_input: row.upper_input,
             };
             if !context.replay_recipe_is_retained(replay_recipe) { return None; }
-            let (consumer, port_relations, replay_upper_root, replay_child_root) =
-                context.authenticate_replay_ancestry(row, original_relation,
-                    row.child, fresh_witness.0, fresh_witness.1)?;
+            let (consumer, port_relations, port_transformers, replay_upper_root, replay_child_root) =
+                context.authenticate_replay_ancestry(row, original_relation, fresh_relation,
+                    row.child, fresh_from, fresh_to)?;
             // The retained p1→h constructor is absent. Authenticate its
             // supported zero-step case explicitly; do not identify p1, h, q,
             // and C in the evidence record.
@@ -443,10 +452,11 @@ impl GraphState {
             let evidence = DemandTransportEvidence {
                 route_owner,
                 route: route_index, relation: original_relation,
-                replay_child: row.child, replay_lower: row.lower, replay_upper: row.upper, consumer,
-                lower_input: row.lower_input, upper_input: row.upper_input, port_relations,
-                fresh_from: fresh_witness.0, fresh_to: fresh_witness.1,
-                physical_fiber,
+                fresh_relation, physical_emission, replay_upper: row.upper,
+                replay_child: row.child, replay_lower: row.lower, consumer,
+                lower_input: row.lower_input, upper_input: row.upper_input, port_relations, port_transformers,
+                fresh_from, fresh_to,
+                physical_fiber, physical_readback,
                 original_root,
                 copied_root, replay_upper_root, replay_child_root,
                 consumer_root: replay_child_root,
@@ -2229,6 +2239,7 @@ mod authentic_demand_capture_tests {
         let state = session.candidate_graph.as_mut().unwrap();
         let context = &state.intrusion.effect_algebra.context;
         let mut authenticated = Vec::new();
+        let mut emission_cases = Vec::new();
         for replay_row in context.replay_demand_rows() {
             let call_index = replay_row.call;
             let copied = replay_row.demand;
@@ -2240,9 +2251,20 @@ mod authentic_demand_capture_tests {
             };
             let evidence = state.authenticate_demand_transport(context, replay_row, native.demand, ports, None)
                 .expect("actual retained FreshUse map authenticates the copied demand");
+            assert_eq!(evidence.fresh_relation, replay_row.upper,
+                "the constructor-owned p1/h join is exact RelationId equality");
+            assert_ne!(replay_row.child, replay_row.upper,
+                "the Replay child q remains separately identified from h");
             assert_eq!(evidence.ports_match, [true; 4]);
             assert!(evidence.scope_map_matches && evidence.input_map_matches);
             assert_ne!(native.demand, copied.root, "raw native root equality remains false");
+            let emission = evidence.physical_emission;
+            let saved_record = context.test_emission_record(emission).expect("constructor emission retained");
+            assert_eq!(saved_record, (evidence.physical_fiber, evidence.physical_readback));
+            assert_eq!(evidence.physical_readback.slot, evidence.physical_fiber);
+            assert_eq!(evidence.physical_readback.bound, evidence.fresh_to);
+            let copied_ports = ports(copied.root).expect("copied route has a negative-function port view");
+            emission_cases.push((replay_row, native.demand, copied_ports, evidence));
 
             // Mutate the actual route-owned capture, not the selected Replay
             // tuple. Its imported antecedent must stop authenticating.
@@ -2267,6 +2289,25 @@ mod authentic_demand_capture_tests {
                 assert!(state.authenticate_demand_transport(context, replay_row, native.demand, ports, None).is_none(),
                     "altering the actual retained scoped flow rejects the route");
                 *state.local_routes[evidence.route].retained.scoped_relations.get_mut(&evidence.relation).unwrap() = original_flow;
+            } else {
+                let (snapshot_index, original) = {
+                    let route = &state.routes[evidence.route];
+                    let bound = route.graph.bounds.iter().find(|bound| bound.relation == Some(evidence.relation)).unwrap();
+                    (bound.evidence.0, route.graph.bound_evidence[bound.evidence.0])
+                };
+                let mut changed = original;
+                changed.source_bound.1 = if changed.source_bound.1 == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+                state.routes[evidence.route].graph.bound_evidence[snapshot_index] = changed;
+                assert!(state.authenticate_demand_transport(context, replay_row, native.demand, ports, None).is_none(),
+                    "altering the actual module-route capture rejects the route");
+                state.routes[evidence.route].graph.bound_evidence[snapshot_index] = original;
+
+                let original_flow = *state.routes[evidence.route].retained.scoped_relations.get(&evidence.relation).unwrap();
+                state.routes[evidence.route].retained.scoped_relations.get_mut(&evidence.relation).unwrap().transformer =
+                    original_flow.transformer.checked_add(1).unwrap();
+                assert!(state.authenticate_demand_transport(context, replay_row, native.demand, ports, None).is_none(),
+                    "altering the actual module-route scoped flow rejects the route");
+                *state.routes[evidence.route].retained.scoped_relations.get_mut(&evidence.relation).unwrap() = original_flow;
             }
 
             let mut wrong_use = copied;
@@ -2304,5 +2345,109 @@ mod authentic_demand_capture_tests {
         assert!(authenticated.len() >= 2, "both same-source FreshUse siblings reach retained Replay");
         assert_ne!(authenticated[0].0, authenticated[1].0);
         assert_ne!(authenticated[0].1, authenticated[1].1);
+        assert!(emission_cases.iter().any(|(_, _, _, evidence)| evidence.route_owner == FreshRouteOwner::Module),
+            "the fixture retains a positive module FreshUse route");
+        assert!(emission_cases.iter().any(|(_, _, _, evidence)| evidence.route_owner == FreshRouteOwner::Local),
+            "the fixture retains a positive local FreshUse route");
+        let emission_ids: Vec<_> = emission_cases.iter().map(|(_, _, _, evidence)| evidence.physical_emission).collect();
+        for (row, native_root, copied_ports, evidence) in emission_cases {
+            let emission = evidence.physical_emission;
+            let (slot, readback) = state.intrusion.effect_algebra.context.test_emission_record(emission).unwrap();
+            let mut out_of_range = slot;
+            out_of_range.index = usize::MAX;
+            state.intrusion.effect_algebra.context.test_replace_emission_slot(emission, out_of_range);
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "an out-of-range/replaced slot address fails closed");
+            state.intrusion.effect_algebra.context.test_replace_emission_slot(emission, slot);
+
+            let mut different_contents = readback;
+            different_contents.bound.1 = if different_contents.bound.1 == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+            state.intrusion.effect_algebra.context.test_replace_emission_readback(emission, different_contents);
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "different full physical-slot contents fail closed");
+            state.intrusion.effect_algebra.context.test_replace_emission_readback(emission, readback);
+
+            let old_admission = state.intrusion.effect_algebra.context.test_orphan_emission(emission);
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "a missing/replaced emission-to-admission link fails closed");
+            state.intrusion.effect_algebra.context.test_restore_emission_admission(emission, old_admission);
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_some(), "restoring the actual constructor record restores authentication");
+
+            let mut wrong_owner = slot;
+            wrong_owner.owner = match slot.owner {
+                candidate_scheme::RowKey::Value(row) => candidate_scheme::RowKey::Effect(row),
+                candidate_scheme::RowKey::Effect(row) => candidate_scheme::RowKey::Value(row),
+            };
+            state.intrusion.effect_algebra.context.test_replace_emission_slot(emission, wrong_owner);
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "an actual physical-slot owner mutation fails closed");
+            state.intrusion.effect_algebra.context.test_replace_emission_slot(emission, slot);
+            let mut wrong_lane = slot;
+            wrong_lane.lane = match slot.lane {
+                candidate_context::BoundLane::ValueLowerRow => candidate_context::BoundLane::ValueUpperRow,
+                candidate_context::BoundLane::ValueUpperRow => candidate_context::BoundLane::ValueLowerRow,
+                candidate_context::BoundLane::ValueLowerAtom => candidate_context::BoundLane::ValueUpperAtom,
+                candidate_context::BoundLane::ValueUpperAtom => candidate_context::BoundLane::ValueLowerAtom,
+                candidate_context::BoundLane::EffectLowerRow => candidate_context::BoundLane::EffectUpperRow,
+                candidate_context::BoundLane::EffectUpperRow => candidate_context::BoundLane::EffectLowerRow,
+                candidate_context::BoundLane::EffectLowerAtom => candidate_context::BoundLane::EffectUpperAtom,
+                candidate_context::BoundLane::EffectUpperAtom => candidate_context::BoundLane::EffectLowerAtom,
+            };
+            state.intrusion.effect_algebra.context.test_replace_emission_slot(emission, wrong_lane);
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "an actual physical-slot lane mutation fails closed");
+            state.intrusion.effect_algebra.context.test_replace_emission_slot(emission, slot);
+
+            if let Some(donor) = emission_ids.iter().copied().find(|candidate| *candidate != emission) {
+                let donor_contents = state.intrusion.effect_algebra.context.test_emission_contents(donor).unwrap();
+                let original_contents = state.intrusion.effect_algebra.context.test_emission_contents(emission).unwrap();
+                state.intrusion.effect_algebra.context.test_replace_emission_contents(emission, donor_contents);
+                assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                    native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "a replaced actual emission record fails closed");
+                state.intrusion.effect_algebra.context.test_replace_emission_contents(emission, original_contents);
+            }
+
+            let fresh = candidate_context::Dependency::Transport {
+                child: evidence.fresh_relation, parent: evidence.relation, use_origin: row.demand.use_instance,
+                witness: Some(candidate_context::TransportWitness {
+                    from: evidence.fresh_from, to: evidence.fresh_to,
+                    reason: candidate_context::TransportReason::FreshUse,
+                }),
+            };
+            let mut wrong_endpoint = fresh;
+            if let candidate_context::Dependency::Transport { witness: Some(witness), .. } = &mut wrong_endpoint {
+                witness.to.1 = if witness.to.1 == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+            }
+            state.intrusion.effect_algebra.context.test_replace_dependency(fresh, wrong_endpoint);
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "an actual FreshUse endpoint mutation fails closed");
+            state.intrusion.effect_algebra.context.test_replace_dependency(wrong_endpoint, fresh);
+
+            let replay = candidate_context::Dependency::Replay {
+                child: row.child, lower: row.lower, upper: row.upper,
+                lower_input: row.lower_input, upper_input: row.upper_input,
+            };
+            let substituted = candidate_context::Dependency::Derived { child: row.child, parent: row.upper };
+            state.intrusion.effect_algebra.context.test_replace_dependency(replay, substituted);
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "a changed actual Replay dependency kind fails closed");
+            state.intrusion.effect_algebra.context.test_replace_dependency(substituted, replay);
+
+            let port_index = evidence.port_transformers.iter().position(|transformer| *transformer != 0)
+                .expect("the scoped consumer retains an effect transformer");
+            let port = evidence.port_relations[port_index];
+            let original_flow = state.intrusion.effect_algebra.context.scoped_flow(port).unwrap();
+            let changed_flow = candidate_context::ScopedFlow { transformer: usize::MAX, demand: original_flow.demand };
+            let saved_flow = state.intrusion.effect_algebra.context.test_replace_scoped_flow(port, changed_flow).expect("effect port retains a nonidentity flow record");
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "an actual retained port-transformer mutation fails closed");
+            state.intrusion.effect_algebra.context.test_replace_scoped_flow(port, saved_flow).unwrap();
+            let changed_child_flow = candidate_context::ScopedFlow { transformer: original_flow.transformer, demand: Some(row.demand) };
+            let saved_child_flow = state.intrusion.effect_algebra.context.test_replace_scoped_flow(port, changed_child_flow).unwrap();
+            assert!(state.authenticate_demand_transport(&state.intrusion.effect_algebra.context, row,
+                native_root, |_| Some(copied_ports), Some(copied_ports)).is_none(), "an actual port child-demand mutation fails closed");
+            state.intrusion.effect_algebra.context.test_replace_scoped_flow(port, saved_child_flow).unwrap();
+        }
     }
 }

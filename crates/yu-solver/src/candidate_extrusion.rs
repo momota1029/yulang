@@ -439,6 +439,63 @@ impl InferenceSession {
         self.candidate_insert_bound_with_evidence(owner, p, bound, true,
             candidate_context::BoundAdmissionCause::OwnerEmission { processing }).map(|_| ())
     }
+    /// Read the exact item back from its addressed physical bound vector. This
+    /// runs immediately after the append; the retained evidence stores the
+    /// resulting complete key, not a copy of either row vector.
+    fn candidate_physical_slot_bound(
+        &self, slot: candidate_context::PhysicalBoundSlot,
+    ) -> Option<crate::candidate_effect::BoundKey> {
+        use candidate_context::BoundLane;
+        use candidate_scheme::RowKey;
+        let owner = match slot.owner {
+            RowKey::Value(row) => ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(row)),
+            RowKey::Effect(row) => ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(row)),
+        };
+        let (polarity, item) = match (slot.owner, slot.lane) {
+            (RowKey::Value(row), BoundLane::ValueLowerRow) => (
+                Polarity::Positive,
+                ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(
+                    *self.bounds.get(row as usize)?.direct_lower_rows.get(slot.index)?,
+                )),
+            ),
+            (RowKey::Value(row), BoundLane::ValueUpperRow) => (
+                Polarity::Negative,
+                ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(
+                    *self.bounds.get(row as usize)?.direct_upper_rows.get(slot.index)?,
+                )),
+            ),
+            (RowKey::Value(row), BoundLane::ValueLowerAtom) => (
+                Polarity::Positive,
+                ExtrusionEndpoint::Value(*self.bounds.get(row as usize)?.exact_non_variable_lowers.get(slot.index)?),
+            ),
+            (RowKey::Value(row), BoundLane::ValueUpperAtom) => (
+                Polarity::Negative,
+                ExtrusionEndpoint::Value(*self.bounds.get(row as usize)?.exact_non_variable_uppers.get(slot.index)?),
+            ),
+            (RowKey::Effect(row), BoundLane::EffectLowerRow) => (
+                Polarity::Positive,
+                ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(
+                    *self.effect_bounds.get(row as usize)?.direct_lower_rows.get(slot.index)?,
+                )),
+            ),
+            (RowKey::Effect(row), BoundLane::EffectUpperRow) => (
+                Polarity::Negative,
+                ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(
+                    *self.effect_bounds.get(row as usize)?.direct_upper_rows.get(slot.index)?,
+                )),
+            ),
+            (RowKey::Effect(row), BoundLane::EffectLowerAtom) => (
+                Polarity::Positive,
+                ExtrusionEndpoint::Effect(*self.effect_bounds.get(row as usize)?.exact_non_variable_lowers.get(slot.index)?),
+            ),
+            (RowKey::Effect(row), BoundLane::EffectUpperAtom) => (
+                Polarity::Negative,
+                ExtrusionEndpoint::Effect(*self.effect_bounds.get(row as usize)?.exact_non_variable_uppers.get(slot.index)?),
+            ),
+            _ => return None,
+        };
+        Some(crate::candidate_effect::BoundKey(owner, polarity, item))
+    }
     pub(super) fn candidate_insert_bound_with_evidence(
         &mut self, owner: ExtrusionEndpoint, p: Polarity, bound: ExtrusionEndpoint, capture: bool,
         cause: candidate_context::BoundAdmissionCause,
@@ -593,10 +650,21 @@ impl InferenceSession {
             }
             _ => return Err(SolveAvailabilityError::IdentityExhausted),
         }
+        let expected_bound = crate::candidate_effect::BoundKey(owner, p, bound);
+        let readback_bound = self.candidate_physical_slot_bound(physical)
+            .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        if readback_bound != expected_bound {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
+        }
         if capture { self.candidate_register_capture_bound(crate::candidate_effect::BoundKey(owner, p, bound))?; }
         let graph = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
         graph.intrusion.dirty = true;
-        let emission = graph.intrusion.effect_algebra.context.evidence_emit(admission, physical);
+        let emission = graph.intrusion.effect_algebra.context.evidence_emit(admission, physical,
+            candidate_context::PhysicalBoundReadback {
+                slot: physical,
+                bound: readback_bound,
+                phase: candidate_context::PhysicalReadbackPhase::ConstructorAfterAppend,
+            });
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         #[cfg(test)]
         self.candidate_evidence_failure(candidate_context::EvidenceFailurePoint::Emission)?;

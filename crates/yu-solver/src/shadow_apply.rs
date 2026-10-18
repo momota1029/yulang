@@ -84,13 +84,16 @@ pub struct CandidateReplayDemandTransport {
     pub child_relation: usize,
     pub lower_relation: usize,
     pub upper_relation: usize,
+    pub fresh_relation: Option<usize>,
     pub consumer_relation: Option<usize>,
     pub lower_input: String,
     pub upper_input: String,
     pub fresh_from: Option<String>,
     pub fresh_to: Option<String>,
     pub physical_fiber: Option<String>,
+    pub physical_readback: Option<String>,
     pub port_relations: Option<[usize; 4]>,
+    pub port_transformers: Option<[usize; 4]>,
     pub use_instance: usize,
     pub native_root: Term,
     pub copied_root: Term,
@@ -312,12 +315,15 @@ impl CandidateInference {
                 Some(CandidateReplayDemandTransport {
                     call_index: row.call, child_relation: row.child.0,
                     lower_relation: row.lower.0, upper_relation: row.upper.0,
+                    fresh_relation: evidence.map(|value| value.fresh_relation.0),
                     consumer_relation: evidence.map(|value| value.consumer.0),
                     lower_input: format!("{:?}", row.lower_input), upper_input: format!("{:?}", row.upper_input),
                     fresh_from: evidence.map(|value| format!("{:?}", value.fresh_from)),
                     fresh_to: evidence.map(|value| format!("{:?}", value.fresh_to)),
                     physical_fiber: evidence.map(|value| format!("{:?}", value.physical_fiber)),
+                    physical_readback: evidence.map(|value| format!("{:?}", value.physical_readback)),
                     port_relations: evidence.map(|value| value.port_relations.map(|id| id.0)),
+                    port_transformers: evidence.map(|value| value.port_transformers),
                     use_instance: demand.use_instance,
                     native_root: native.demand, copied_root: demand.root,
                     replay_upper_root: evidence.map(|value| value.replay_upper_root),
@@ -422,19 +428,22 @@ impl CandidateInference {
                         },
                         None,
                     ));
-                    let (transported, route_owner, route, relation, consumer, fresh_from, fresh_to, physical_fiber,
-                        replay_upper_root, replay_child_root, port_relations, scope_map, input_map, ports) =
+                    let (transported, route_owner, route, relation, consumer, fresh_relation, fresh_from, fresh_to, physical_fiber, physical_readback,
+                        replay_upper_root, replay_child_root, port_relations, port_transformers, scope_map, input_map, ports) =
                         if let Some(evidence) = transported {
                             (true, Some(evidence.route_owner), Some(evidence.route), Some(evidence.relation.0), Some(evidence.consumer.0),
+                                Some(evidence.fresh_relation.0),
                                 Some(evidence.fresh_from), Some(evidence.fresh_to),
-                                Some(evidence.physical_fiber), Some(evidence.replay_upper_root), Some(evidence.replay_child_root),
+                                Some(evidence.physical_fiber), Some(evidence.physical_readback),
+                                Some(evidence.replay_upper_root), Some(evidence.replay_child_root),
                                 evidence.port_relations.map(|id| id.0),
+                                Some(evidence.port_transformers),
                                 evidence.scope_map_matches,
                                 evidence.input_map_matches,
                                 evidence.ports_match)
-                        } else { (false, None, None, None, None, None, None, None, None, None, [0; 4], false, false, [false; 4]) };
+                        } else { (false, None, None, None, None, None, None, None, None, None, None, None, [0; 4], None, false, false, [false; 4]) };
                     if writeln!(output,
-                        "candidate.call_replay call={} child={} lower={} upper={} lower_input={:?} upper_input={:?} use_instance={} demand_root={:?} native_root_matches={root_matches} endpoint_pairs=(lower:{},upper:{}) transport_authenticated={transported} route_owner={route_owner:?} route={route:?} source_relation={relation:?} consumer={consumer:?} fresh_from={fresh_from:?} fresh_to={fresh_to:?} physical_fiber={physical_fiber:?} replay_upper_root={replay_upper_root:?} replay_child_root={replay_child_root:?} port_relations={port_relations:?} scope_map={scope_map} input_map={input_map} ports={ports:?}",
+                        "candidate.call_replay call={} child={} lower={} upper={} lower_input={:?} upper_input={:?} use_instance={} demand_root={:?} native_root_matches={root_matches} endpoint_pairs=(lower:{},upper:{}) transport_authenticated={transported} route_owner={route_owner:?} route={route:?} source_relation={relation:?} fresh_relation={fresh_relation:?} consumer={consumer:?} fresh_from={fresh_from:?} fresh_to={fresh_to:?} physical_fiber={physical_fiber:?} physical_readback={physical_readback:?} replay_upper_root={replay_upper_root:?} replay_child_root={replay_child_root:?} port_relations={port_relations:?} port_transformers={port_transformers:?} scope_map={scope_map} input_map={input_map} ports={ports:?}",
                         row.call, row.child.0, row.lower.0, row.upper.0, row.lower_input, row.upper_input,
                         demand.use_instance, demand.root, row.lower_matches, row.upper_matches).is_err()
                     { break; }

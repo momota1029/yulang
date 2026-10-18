@@ -474,6 +474,14 @@ pub(super) enum BoundLane {
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct PhysicalBoundSlot { pub owner: candidate_scheme::RowKey, pub lane: BoundLane, pub index: usize }
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) enum PhysicalReadbackPhase { ConstructorAfterAppend }
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct PhysicalBoundReadback {
+    pub slot: PhysicalBoundSlot,
+    pub bound: BoundKey,
+    pub phase: PhysicalReadbackPhase,
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum BoundConstructionPurpose { Ordinary, ExtrusionLink }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -494,6 +502,7 @@ pub(super) struct BoundAdmission {
 #[cfg_attr(not(test), allow(dead_code, reason = "inert physical emission evidence"))]
 pub(super) struct BoundEmission {
     pub admission: BoundAdmissionId, pub bound: BoundKey, pub physical: PhysicalBoundSlot,
+    pub readback: PhysicalBoundReadback,
     previous_on_group: Option<BoundEmissionId>,
 }
 #[derive(Clone, Copy, Debug)]
@@ -746,12 +755,14 @@ impl BoundEvidence {
         self.group_log.try_reserve(1).map_err(|_| exhausted())?;
         Ok(())
     }
-    fn emit(&mut self, admission: BoundAdmissionId, physical: PhysicalBoundSlot) -> BoundEmissionId {
+    fn emit(&mut self, admission: BoundAdmissionId, physical: PhysicalBoundSlot,
+        readback: PhysicalBoundReadback) -> BoundEmissionId {
         let record = self.admissions[admission.0];
         let old = self.groups[record.group.0];
         self.group_log.push((record.group, old));
         let id = BoundEmissionId(self.emissions.len());
-        self.emissions.push(BoundEmission { admission, bound: record.bound, physical, previous_on_group: old.emission_head });
+        self.emissions.push(BoundEmission { admission, bound: record.bound, physical, readback,
+            previous_on_group: old.emission_head });
         self.groups[record.group.0].emission_head = Some(id);
         id
     }
@@ -1762,7 +1773,7 @@ impl State {
     pub(super) fn fresh_use_fiber_emission(
         &self, antecedent: EvidenceSnapshotId, source_bound: BoundKey,
         use_origin: usize, mapped_relation: RelationId, target_bound: BoundKey,
-    ) -> Option<(BoundAdmissionId, BoundEmissionId, PhysicalBoundSlot)> {
+    ) -> Option<(BoundAdmissionId, RelationId, BoundEmissionId, PhysicalBoundSlot, PhysicalBoundReadback)> {
         let mut found = None;
         let snapshot_coverage = self.evidence.snapshots.get(antecedent.0)?.coverage;
         let mut expected_coverage = snapshot_coverage;
@@ -1776,14 +1787,80 @@ impl State {
             }
             if admission.coverage != expected_coverage { return None; }
             let id = BoundAdmissionId(index);
+            let relation = admission.relation?;
             let mut emissions = self.evidence.emissions.iter().enumerate().filter(|(_, emission)|
                 emission.admission == id && emission.bound == target_bound);
             let (emission_index, emission) = emissions.next()?;
             if emissions.next().is_some() { return None; }
-            let evidence = (id, BoundEmissionId(emission_index), emission.physical);
+            if emission.readback.bound != target_bound
+                || emission.readback.slot != emission.physical
+                || emission.readback.phase != PhysicalReadbackPhase::ConstructorAfterAppend
+            { return None; }
+            let evidence = (id, relation, BoundEmissionId(emission_index), emission.physical, emission.readback);
             if found.replace(evidence).is_some() { return None; }
         }
         found
+    }
+    #[cfg(test)]
+    pub(super) fn test_emission_record(&self, id: BoundEmissionId) -> Option<(PhysicalBoundSlot, PhysicalBoundReadback)> {
+        self.evidence.emissions.get(id.0).map(|emission| (emission.physical, emission.readback))
+    }
+    #[cfg(test)]
+    pub(super) fn test_emission_contents(&self, id: BoundEmissionId) -> Option<(BoundAdmissionId, BoundKey, PhysicalBoundSlot, PhysicalBoundReadback)> {
+        self.evidence.emissions.get(id.0).map(|emission|
+            (emission.admission, emission.bound, emission.physical, emission.readback))
+    }
+    #[cfg(test)]
+    pub(super) fn test_replace_emission_contents(
+        &mut self, id: BoundEmissionId,
+        contents: (BoundAdmissionId, BoundKey, PhysicalBoundSlot, PhysicalBoundReadback),
+    ) {
+        let emission = &mut self.evidence.emissions[id.0];
+        emission.admission = contents.0;
+        emission.bound = contents.1;
+        emission.physical = contents.2;
+        emission.readback = contents.3;
+    }
+    #[cfg(test)]
+    pub(super) fn test_replace_emission_slot(&mut self, id: BoundEmissionId, slot: PhysicalBoundSlot) {
+        self.evidence.emissions[id.0].physical = slot;
+    }
+    #[cfg(test)]
+    pub(super) fn test_replace_emission_readback(&mut self, id: BoundEmissionId, readback: PhysicalBoundReadback) {
+        self.evidence.emissions[id.0].readback = readback;
+    }
+    #[cfg(test)]
+    pub(super) fn test_orphan_emission(&mut self, id: BoundEmissionId) -> BoundAdmissionId {
+        let original = self.evidence.emissions[id.0].admission;
+        self.evidence.emissions[id.0].admission = BoundAdmissionId(usize::MAX);
+        original
+    }
+    #[cfg(test)]
+    pub(super) fn test_restore_emission_admission(&mut self, id: BoundEmissionId, admission: BoundAdmissionId) {
+        self.evidence.emissions[id.0].admission = admission;
+    }
+    #[cfg(test)]
+    pub(super) fn test_replace_dependency(&mut self, original: Dependency, replacement: Dependency) {
+        let index = self.dependencies.iter().position(|dependency| *dependency == original).expect("actual dependency retained");
+        self.dependency_keys.remove(&original);
+        self.dependencies[index] = replacement;
+        self.dependency_keys.insert(replacement);
+    }
+    #[cfg(test)]
+    pub(super) fn test_replace_relation_scoped(&mut self, id: RelationId, scoped: usize) -> usize {
+        let relation = &mut self.relations[id.0 as usize];
+        let original = relation.key.scoped;
+        relation.key.scoped = ScopedFlowId(scoped);
+        original.0
+    }
+    #[cfg(test)]
+    pub(super) fn test_replace_scoped_flow(&mut self, relation: RelationId, flow: ScopedFlow) -> Option<ScopedFlow> {
+        let id = self.relations.get(relation.0 as usize)?.key.scoped;
+        if id.0 == 0 { return None; }
+        let slot = self.scope_flows.get_mut(id.0 - 1)?;
+        let original = *slot;
+        *slot = flow;
+        Some(original)
     }
     pub(super) fn replay_recipe_is_retained(&self, dependency: Dependency) -> bool {
         self.evidence.recipe_keys.get(&dependency).is_some_and(|id|
@@ -1800,9 +1877,10 @@ impl State {
     pub(super) fn evidence_attempt(&mut self) { self.evidence.counters.attempts += 1; }
     pub(super) fn evidence_admission_sample(&mut self) { self.evidence.counters.admission_samples += 1; }
     pub(super) fn reserve_evidence_emission(&mut self) -> Result<(), SolveAvailabilityError> { self.evidence.reserve_emission() }
-    pub(super) fn evidence_emit(&mut self, admission: BoundAdmissionId, slot: PhysicalBoundSlot) -> BoundEmissionId {
+    pub(super) fn evidence_emit(&mut self, admission: BoundAdmissionId, slot: PhysicalBoundSlot,
+        readback: PhysicalBoundReadback) -> BoundEmissionId {
         self.evidence.counters.emission_samples += 1;
-        self.evidence.emit(admission, slot)
+        self.evidence.emit(admission, slot, readback)
     }
     pub fn checkpoint(&self) -> Checkpoint {
         Checkpoint {
@@ -2603,33 +2681,39 @@ impl State {
             Some(ReplayDemandRow { call: demand.original_call, child, lower, upper, lower_input, upper_input, demand, lower_matches, upper_matches })
         })
     }
-    pub(super) fn fresh_use_witness(&self, source: RelationId, copied: RelationId, demand: ScopedDemand)
-        -> Option<(BoundKey, BoundKey)> {
+    pub(super) fn fresh_use_witness(&self, source: RelationId, demand: ScopedDemand)
+        -> Option<(RelationId, BoundKey, BoundKey)> {
         let mut found = None;
         for dependency in &self.dependencies {
             if let Dependency::Transport { child, parent, use_origin,
                 witness: Some(TransportWitness { from, to, reason: TransportReason::FreshUse }) } = *dependency
             {
-                if child == copied && parent == source && use_origin == demand.use_instance
+                if parent == source && use_origin == demand.use_instance
                     && self.scoped_flow(child).ok().and_then(|flow| flow.demand) == Some(demand)
                 {
-                    if found.replace((from, to)).is_some() { return None; }
+                    if found.replace((child, from, to)).is_some() { return None; }
                 }
             }
         }
         found
     }
-    /// Fail-closed authentication of the concrete relations used by a Replay
-    /// row. The route tuple is only an index; this checks the retained typed
-    /// FreshUse witness and every relation edge from the source template to the
-    /// Replay child, then requires the current upper/root and four consumed
-    /// ports to be the exact typed dependencies of that Replay upper.
+    /// Fail-closed authentication of independently retained FreshUse and Replay
+    /// constructors. `fresh_relation` is p1, the FreshUse child and Replay
+    /// upper h; `copied` is q, the Replay child. Do not infer either incidence
+    /// from an incoming-edge count or from equal terms.
     pub(super) fn authenticate_replay_ancestry(
-        &self, row: ReplayDemandRow, source: RelationId, copied: RelationId,
+        &self, row: ReplayDemandRow, source: RelationId, fresh_relation: RelationId,
+        copied: RelationId,
         from: BoundKey, to: BoundKey,
-    ) -> Option<(RelationId, [RelationId; 4], Term, Term)> {
-        if !row.lower_matches || !row.upper_matches || row.child != copied
+    ) -> Option<(RelationId, [RelationId; 4], [usize; 4], Term, Term)> {
+        if !row.lower_matches || !row.upper_matches
+            || row.upper != fresh_relation
+            || row.upper_input != to
+            || !self.bound_relations(to).any(|relation| relation == fresh_relation)
+            || self.bound_relations(row.lower_input).next().is_none()
+            || !self.bound_relations(row.lower_input).any(|relation| relation == row.lower)
             || self.relations.get(source.0 as usize)?.key.pair != bound_pair(from)
+            || self.relations.get(fresh_relation.0 as usize)?.key.pair != bound_pair(to)
             || self.relations.get(copied.0 as usize)?.key.pair != bound_pair(to)
             || self.relations.get(row.lower.0 as usize)?.key.pair != bound_pair(row.lower_input)
             || self.relations.get(row.upper.0 as usize)?.key.pair != bound_pair(row.upper_input)
@@ -2644,63 +2728,16 @@ impl State {
 
         let fresh = self.dependencies.iter().filter(|edge| matches!(**edge,
             Dependency::Transport { child, parent, use_origin, witness: Some(TransportWitness { from: witness_from, to: witness_to, reason: TransportReason::FreshUse }) }
-            if child == copied && parent == source && use_origin == row.demand.use_instance
+            if child == fresh_relation && parent == source && use_origin == row.demand.use_instance
                 && witness_from == from && witness_to == to)).count();
         if fresh != 1 { return None; }
 
-        // Follow only supported root-carrying edges. Every node must have one
-        // incoming edge in this selected ancestry and the walk must be acyclic.
-        let mut current = source;
-        let mut current_root = match from.2 {
-            ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(root)) => Some(root),
-            _ => None,
-        }?;
-        let mut steps = 0usize;
-        while current != row.child {
-            steps = steps.checked_add(1)?;
-            if steps > self.relations.len() { return None; }
-            let mut candidate = None;
-            for edge in &self.dependencies {
-                let (child, witness) = match *edge {
-                    Dependency::Derived { parent, child } if parent == current => (child, None),
-                    Dependency::Transport { parent, child, witness: Some(w), .. } if parent == current => (child, Some(w)),
-                    Dependency::Transport { parent, .. } if parent == current => return None,
-                    Dependency::FunctionPort { parent, .. } | Dependency::Replay { child: parent, .. } if parent == current => return None,
-                    _ => continue,
-                };
-                if child == current { return None; }
-                let parent = self.relations.get(current.0 as usize)?;
-                let child_relation = self.relations.get(child.0 as usize)?;
-                let parent_root = relation_negative_function_root(parent.key.pair);
-                let child_root = relation_negative_function_root(child_relation.key.pair);
-                let supported = if let Some(w) = witness {
-                    bound_pair(w.from) == parent.key.pair && bound_pair(w.to) == child_relation.key.pair
-                        && matches!(w.reason, TransportReason::FreshUse | TransportReason::Extrusion { .. }
-                            | TransportReason::ParentCopy { .. } | TransportReason::EqualityCanonicalization)
-                        && parent_root == Some(current_root) && child_root.is_some()
-                } else { parent_root == Some(current_root) && child_root.is_some() };
-                if supported {
-                    let incoming = self.dependencies.iter().filter(|candidate| match **candidate {
-                        Dependency::Derived { child: target, .. }
-                        | Dependency::FunctionPort { child: target, .. }
-                        | Dependency::Transport { child: target, .. } => target == child,
-                        Dependency::Replay { child: target, .. } => target == child,
-                    }).count();
-                    if incoming != 1 { return None; }
-                    if candidate.replace((child, witness)).is_some() { return None; }
-                }
-            }
-            let (next, witness) = candidate?;
-            let root = relation_negative_function_root(self.relations.get(next.0 as usize)?.key.pair)?;
-            if let Some(w) = witness {
-                if let ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(witness_root)) = w.to.2 {
-                    if witness_root != root { return None; }
-                } else { return None; }
-            }
-            current = next;
-            current_root = root;
-        }
-        if current_root != row.demand.root { return None; }
+        let source_root = relation_negative_function_root(self.relations.get(source.0 as usize)?.key.pair)?;
+        let fresh_root = relation_negative_function_root(self.relations.get(fresh_relation.0 as usize)?.key.pair)?;
+        let ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(source_endpoint_root)) = from.2 else { return None; };
+        if source_root != source_endpoint_root || fresh_root != row.demand.root
+            || self.scoped_flow(fresh_relation).ok()?.demand != Some(row.demand)
+        { return None; }
         let upper_pair = self.relations.get(row.upper.0 as usize)?.key.pair;
         let upper_root = relation_negative_function_root(upper_pair)?;
         let child_root = relation_negative_function_root(self.relations.get(row.child.0 as usize)?.key.pair)?;
@@ -2718,6 +2755,7 @@ impl State {
         let fields = [FunctionField::Argument, FunctionField::ArgumentEffect, FunctionField::ResultEffect, FunctionField::Result];
         let operations = [FunctionPortOperation::Swap, FunctionPortOperation::Swap, FunctionPortOperation::Preserve, FunctionPortOperation::Preserve];
         let mut children = [RelationId(0); 4];
+        let mut transformers = [0usize; 4];
         for index in 0..4 {
             let mut matches = self.dependencies.iter().filter_map(|edge| match *edge {
                 Dependency::FunctionPort { child, parent, field, operation }
@@ -2731,6 +2769,22 @@ impl State {
                 FunctionField::ArgumentEffect | FunctionField::ResultEffect => matches!(child_pair, TypedPairKey::Effect { .. }),
             };
             if matches.next().is_some() || !correct_kind { return None; }
+            let flow = self.scoped_flow(child).ok()?;
+            if flow.demand.is_some() { return None; }
+            let transformer_matches = match fields[index] {
+                FunctionField::Argument | FunctionField::Result => flow.transformer == 0,
+                FunctionField::ArgumentEffect => {
+                    let expected = candidate_scope::ScopeTransformer::stamp_input(row.demand.input).ok()?;
+                    self.scope_transformer(flow.transformer).is_ok_and(|actual| actual == &expected)
+                }
+                FunctionField::ResultEffect => {
+                    let expected = candidate_scope::ScopeTransformer::protect_body(
+                        row.demand.output_scope, row.demand.input).ok()?;
+                    self.scope_transformer(flow.transformer).is_ok_and(|actual| actual == &expected)
+                }
+            };
+            if !transformer_matches { return None; }
+            transformers[index] = flow.transformer;
             children[index] = child;
         }
         if (0..4).any(|i| (0..i).any(|j| children[i] == children[j])) { return None; }
@@ -2743,7 +2797,7 @@ impl State {
         if consumer != row.child || consumer_root != child_root {
             return None;
         }
-        Some((consumer, children, upper_root, child_root))
+        Some((consumer, children, transformers, upper_root, child_root))
     }
     fn relation(
         &mut self,

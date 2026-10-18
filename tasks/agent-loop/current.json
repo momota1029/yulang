@@ -19,12 +19,13 @@
     },
     "resources": {
       "cap_seconds": 7200,
-      "charged_seconds": 4215.251,
-      "available_seconds": 2984.749,
+      "charged_seconds": 5585.929,
+      "available_seconds": 1200,
       "allocation": "Prior rev1/rev2 3600s retired/charged in full conservatively (not elapsed-time claim). Fresh tranche: Luna authoring1800 (audit180, implementation900, mutation evidence480, freeze240) + Sol lifecycle proof600 + final review480 + protected runtime360 + Luna integration180 + reserve180. No rollover; Astra0.",
-      "last_stage_receipt": "Sol source lifecycle proof frozen, charged full600s, monotonic ACK 307304901194208ns through freeze end 307576806849181ns. Artifact SHA 116fb9d70764b948680777651c7c891506a4ab3921ea2d15632be44068665cb5; handoff SHA 8f1ef387e9b6a376a85f87f33e527525c9a280c2102ed455714d7dd68776e3b7. Parent closure0; no tests/runtime."
+      "last_stage_receipt": "Freeze/documentation STOP `[308717833238899,308855623398562]ns`=137.790/240s, 102.210s expired. Exact final note hashes: progress ac176880b062024c762ab4885d7cdda9e4208e88c9f94587dfe5508cf97184d6; impl handoff rev2 be0be23bc7e58c647d0b254665064855cde1865b4b5c1980dd52a0a405398cfa. Code/test/example unchanged from frozen mutation hashes. No tests/runtime.",
+      "expired_seconds": 414.071
     },
-    "next_action": "Sol lifecycle artifact frozen and writer STOPPED. Its result supports constructor readback only for surviving raw slot records; missing emissions must fail closed. Implementation author remains in 900s stage. Fresh independent review after coherent implementation freeze; runtime360 protected."
+    "next_action": "All proof/code/fixture/progress/handoff bytes frozen and SHA-verified. Fresh compiler_referee review is the next gate (480s). Runtime360 remains protected until review CLEAN; parent closure0."
   },
   "history": "Closed `npair-replay-fiber-consumer-certificate-20261018` REVIEWED-PARTIAL at `7087de449`; parent OPEN, closure0. Proof SHA `691a537b…e3e3614` CLEAN conditional. Implementation candidate `1958cf20e` unapproved; compiler review BLOCKING+2 MAJOR, no Cargo/tests/runtime. Closeout: `notes/progress/2026-10-18-replay-fiber-consumer-closeout.md`. PR #11 merged at `27a7e00d4`; operations-only. Earlier sprint history remains in linked notes/progress and Git history.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -54,13 +55,13 @@
     {
       "id": "/root/constructor_replay_impl",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev3 lifecycle stage complete: monotonic start 307356591476107ns, end 307371842244868ns, 15.251s charged of180. Append-only slot insert; only rollback owner calls evidence rollback before row-lane truncation; successful candidate freeze keeps both; candidate errors drop session. Proceeding implementation900 stage, lib.rs unleased, no tests/runtime, runtime360 protected."
+      "receipt": "All code and authored mutation assertions frozen at 308671280849144ns; progress/handoff frozen at 308855623398562ns. Mutation stage399.163/480 and freeze stage137.790/240 charged; unused80.837+102.210 expired. Final hashes in current state and handoff rev2. No tests/Cargo/runtime/formatter/Git; descendants0. Fresh review required."
     },
     {
       "id": "/root/constructor_replay_map_review",
@@ -109,36 +110,36 @@
     {
       "path": "crates/yu-solver/src/candidate_context.rs",
       "owner": "/root/constructor_replay_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
       "owner": "/root/constructor_replay_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/shadow_apply.rs",
       "owner": "/root/constructor_replay_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/tests/candidate_graph_call.rs",
       "owner": "/root/constructor_replay_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/examples/research_scoped_formal_replay.rs",
       "owner": "/root/constructor_replay_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-constructor-owned-replay-certificate.md",
       "owner": "/root/constructor_replay_impl",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-constructor-owned-replay-impl.md",
-      "owner": "/root",
+      "owner": "/root/constructor_replay_impl",
       "state": "FROZEN"
     },
     {
@@ -162,6 +163,14 @@
       "receipt": "Early independent constructor-owner map review; code edits gated on CLEAN.",
       "verdict": "CLEAN",
       "review_receipt": "Fresh compiler_referee review; 120s conservatively charged; author code continuation permitted."
+    },
+    {
+      "id": "review-constructor-slot-lifecycle-and-replay-implementation-r3",
+      "state": "READY",
+      "reviewer": "/root/constructor_replay_final_review",
+      "artifact": "crates/yu-solver/src/candidate_context.rs",
+      "sha256": "3aa782c35ba049708c0268653c69f918553cecda287fbec97f1d61541fa1a02e",
+      "receipt": "Review the frozen r3 code/test plus constructor slot lifecycle proof and handoffs as one bounded evidence component; no code/test/runtime executed."
     }
   ],
   "ready_next_work": null,
