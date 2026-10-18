@@ -1,4 +1,4 @@
-# R22 rev2 — Fixed-source result map from existing semantics
+# R22 rev3 — Fixed-source result map from existing semantics
 
 ## Parent, baseline, and outcome
 
@@ -131,7 +131,7 @@ time. After CLEAN only, run the exact target once:
 cargo test -p yu-playground --test runtime_resume
 ```
 
-Revision 1's 2700-second cap is fully charged. Revision 2 adds one bounded
+Revision 1's 2700-second cap is fully charged. Revision 2 added one bounded
 review-repair continuation of 900 seconds, bringing the sprint cap to 3600,
 fully reserved/charged: prior proof 900 + research 600 + trace authoring 600 +
 initial review 360 + repair 360 + delta review 240 + one focused run and
@@ -155,6 +155,32 @@ trace provisional.
 
 `python3 tools/agent_sprint.py check` is static state evidence, not proof or
 independent review.
+
+## Revision 3 — close with trace blocked (2026-10-18)
+
+The independent review returned two MAJOR findings: equal-depth nested tail
+Catch results were not all observed and abandoned observers could outlive their
+arm; existing `ReceivedValue.view` and `ExecutionView.view/receipt` identities
+were available but rendered as `UNKNOWN`. A 360-second bounded repair attempt
+partially addressed equal-depth draining and handle rendering but stopped
+before request/template lifecycle binding or the required nested, abandoned,
+and resumed-capture assertions. Its partial hashes were machine
+`cc17ec37df10c9027b170e0de96f8df482bd4e589e9234275e55270873cdc9af` and
+continuation `0c4a4d5d6780ee01f2f5c9a94145967506be49887828a253e41851d4ef08619e`;
+test hash remained the first implementation's
+`22a710531f5f898cb4014471ec16be10642f70ba551d148033c379ed02738c6f`. No tests,
+builds, formatting, or diagnostics ran. The partial code was discarded after
+the worker stopped; the runtime files are restored to the R22 pinned baseline.
+The original trace handoff remains quarantined because its code hashes no
+longer identify the working tree. R22 trace status is BLOCKED/NOT INTEGRATED.
+
+The proof and falsifier packets remain frozen as conditional runtime evidence;
+the original source D1, complete `A_decl` output/provider map, typed `Orig`, and
+all original parent obligations remain OPEN. The focused Cargo target was not
+run because the trace never reached CLEAN. R22 ends with original parent
+closure **0** and no R22 code/test changes integrated. The next sprint targets
+the actual original `A_decl` source owner and its complete output action;
+repeating a generic missing-input audit is excluded.
 
 ## Success and stop conditions
 

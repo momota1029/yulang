@@ -1,8 +1,29 @@
 # Current task: complete type inference and replace F5
 
-Date: 2026-10-17
+Date: 2026-10-18
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active; one local module-use owner premise is now discharged under adopted formation authority. Registered module contract root, Call, global inference/execution theorem and compiler source/native implementation remain open. Native extrusion now schedules current copied Allowance replay after initialization, with an independently reviewed sparse queue-admission invariant and focused runtime evidence. Source H1/H2/U and production correspondence remain open, with H3/P disabled.
+Status: full objective remains active. R22 reduced the fixed runtime specimen to a conditional handle-preservation induction, but the original `A_decl` source output/provider map is still missing; parent closure remains 0. R22's trace was rejected at independent review and its incomplete partial repair was discarded. R23 now targets the actual original `A_decl` source owner and complete provider/state/future result map. No dependent production code is authorized until that source/native premise is established.
+
+## Current checkpoint (2026-10-18)
+
+R22's reviewed proof and falsifier artifacts preserve the original source scope:
+the fixed successful runtime path carries the response handle through
+`Owner(Hole)`, `k response`, Catch and `Local(g)`, but this does not prove the
+complete source `A_decl` action or typed field transport. The parent
+`CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN / closure 0.
+The optional trace failed independent review on nested-arm observer lifecycle
+and actual view/receipt identity, and its bounded repair stopped incomplete.
+No R22 tests ran; its partial code was restored to the pinned baseline.
+
+R23 is the active source-proof sprint. It first expands the actual original
+`A_decl` completion/view/owner rules from their primary source owner; only a
+complete rule set activates the staged all-response output-map proof. An
+independent researcher attacks provider/world changes and pending/future cases.
+The implementation lane is WAITING: the inspected Catch slot-50/Group and
+runtime request-consumer owners do not construct the missing original
+`A_decl` output map, so no safe code slice is authorized yet. See the [R22
+closeout](notes/progress/2026-10-18-r22-fixed-source-result-map-closeout.md)
+and [R23 contract](agent-loop/sprints/original-a-decl-provider-result-map-20261018-r23.md).
 
 ## Current checkpoint (2026-10-17)
 
