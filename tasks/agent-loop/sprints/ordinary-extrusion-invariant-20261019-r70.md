@@ -1,6 +1,6 @@
 # Sprint R70 candidate — ordinary extrusion operation invariant
 
-Status: **CANDIDATE NOT ACTIVATED — no work granted**. Luna owns the fixed parent goal, candidate, exact leases, adjudication and Git. Branch: `research/simple-sub-intrusion`; baseline: `880ad63704a9c041eb00c2caf5d1ca0dd97dbd5b` (R68 source-law wait pushed).
+Status: **CANDIDATE NOT ACTIVATED — no work granted**. Luna owns the fixed parent goal, candidate, exact leases, adjudication and Git. Branch: `research/simple-sub-intrusion`; baseline: `c84f3f98673af3993dea85c5d9ecb938463738a3` (R70 candidate checkpoint; no solver files changed).
 
 The original type-inference and evaluator goal, source domain, quantifiers and approved source meanings remain unchanged. Simple-sub A/B remain OPEN 0→0; R50 remains NOT ADOPTED. R69 and the annotated-Lambda consumer-placement decision remain pending and are independent of this packet.
 
@@ -29,7 +29,7 @@ The fixed owner map must distinguish structural Function reconstruction, row/bou
 
 ## Direct dependency manifest
 
-The hashes below are direct SHA-256 pins computed at baseline `880ad63704a9c041eb00c2caf5d1ca0dd97dbd5b`. This candidate is not a lease or worker launch.
+The hashes below are direct SHA-256 pins computed at baseline `c84f3f98673af3993dea85c5d9ecb938463738a3`. This candidate is not a lease or worker launch.
 
 
 `547572df2d835673ab9fbdc294c00ecb8b12025b02d49807216128933d27f8ed`  `notes/design/2026-09-29-scc-intrusion-redesign-charter.md`
