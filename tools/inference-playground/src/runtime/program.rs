@@ -11,6 +11,7 @@ use yu_hir::{
     DefId, ExpressionRootId, HirErrorKind, HirItem, HirLocalId, HirModule, HirOccurrenceId,
     HirParameterId, SourceRootId,
 };
+use yu_solver::shadow_apply::CandidateInference;
 
 /// One immutable source-qualified code arena. Lowering visits each retained
 /// expression and reference once; recursive references remain binder references.
@@ -23,6 +24,7 @@ pub struct RuntimeProgram {
     pub(super) source_schedule: Vec<ExecutionRoot>,
     // Valid only for fresh ModuleRun entry into this complete constructed universe.
     pub(super) closed_primitive: bool,
+    pub(super) operation_v1: Option<OperationV1Plan>,
 }
 
 /// Source-ordered module demand. Expression labels are accepted only when
@@ -54,6 +56,40 @@ pub enum NameConsumption {
 #[derive(Clone, Debug, Default)]
 pub struct RuntimeEvidence {
     pub name_consumption: HashMap<HirOccurrenceId, NameConsumption>,
+    operation_v1: Option<OperationV1Link>,
+}
+#[derive(Clone, Debug)]
+pub(super) struct OperationV1Link {
+    pub(super) hir_identity: usize,
+    pub(super) field_bound_id: u32,
+    pub(super) request: HirOccurrenceId,
+    pub(super) callback_apply: HirOccurrenceId,
+    pub(super) callback_operation: yu_hir::shadow::SourceOperationId,
+    pub(super) callback_operation_use: HirOccurrenceId,
+    pub(super) response_definition: HirLocalId,
+}
+#[derive(Clone)]
+pub(super) struct OperationV1Plan {
+    pub(super) link: OperationV1Link,
+    pub(super) response_lambda: SourceSite,
+    pub(super) callback_apply: SourceSite,
+    pub(super) callback_operation: SourceSite,
+    pub(super) request: SourceSite,
+    pub(super) request_apply: SourceSite,
+    pub(super) request_operation: yu_hir::shadow::SourceOperationId,
+    pub(super) request_handler: SourceSite,
+    pub(super) request_arm: yu_hir::shadow::SourceNodeKey,
+    pub(super) response_argument: SourceSite,
+    pub(super) expected_outer_handler: Option<SourceSite>,
+    pub(super) expected_outer_arm: Option<yu_hir::shadow::SourceNodeKey>,
+    pub(super) continuation_apply: SourceSite,
+    pub(super) response_invocation_apply: SourceSite,
+}
+struct HandlerArgumentJoin {
+    continuation_apply: SourceSite,
+    response_argument: SourceSite,
+    request_handler: SourceSite,
+    request_arm: yu_hir::shadow::SourceNodeKey,
 }
 #[derive(Clone, Debug)]
 pub struct SourceSite {
@@ -94,7 +130,7 @@ pub(super) enum Binder {
     Local(HirLocalId),
     Catch(yu_hir::shadow::LocalSourceCatchBinderId),
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct Label(pub usize);
 pub(super) struct Definition {
     pub id: DefId,
@@ -152,6 +188,35 @@ pub(super) enum Instruction {
 }
 
 impl RuntimeProgram {
+    /// Carries one successful v1 candidate from this exact HIR into the
+    /// research-only runtime. The ordinary inference and execution entries do
+    /// not construct this evidence.
+    pub fn evidence_for_operation_v1(
+        hir: &HirModule,
+        candidate: &CandidateInference,
+    ) -> Result<RuntimeEvidence, RuntimeUnavailable> {
+        if !candidate.observes_hir(hir) || !candidate.candidate_conflicts().is_empty() {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        let mut receipts = candidate.operation_v1_field_bounds();
+        let receipt = receipts.next().ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+        if !receipt.consumed || receipts.next().is_some() {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        Ok(RuntimeEvidence {
+            name_consumption: HashMap::new(),
+            operation_v1: Some(OperationV1Link {
+                hir_identity: hir as *const HirModule as usize,
+                field_bound_id: receipt.id,
+                request: receipt.request.clone(),
+                callback_apply: receipt.callback_apply.clone(),
+                callback_operation: receipt.callback_operation.clone(),
+                callback_operation_use: receipt.callback_operation_use.clone(),
+                response_definition: receipt.response_definition.clone(),
+            }),
+        })
+    }
+
     /// Resolve CLI selection without running source code. Runtime Name execution
     /// continues to use only the already-resolved HIR identities.
     pub fn definition_named(&self, name: &str) -> Result<&DefId, RuntimeUnavailable> {
@@ -177,11 +242,18 @@ impl RuntimeProgram {
         hir: Arc<HirModule>,
         evidence: RuntimeEvidence,
     ) -> Result<Arc<Self>, RuntimeUnavailable> {
+        if evidence.operation_v1.as_ref().is_some_and(|link| {
+            link.hir_identity != Arc::as_ptr(&hir) as usize
+        }) {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
         let mut code = Vec::new();
         let mut definitions = Vec::new();
         let mut definition_indices = HashMap::new();
         let mut expression_roots = HashMap::new();
         let mut source_schedule = Vec::new();
+        let mut source_labels = evidence.operation_v1.as_ref().map(|_| HashMap::new());
+        let mut local_initializers = evidence.operation_v1.as_ref().map(|_| HashMap::new());
         let declaration_errors = hir
             .source_effect_declarations()
             .iter()
@@ -334,9 +406,13 @@ impl RuntimeProgram {
                 .bindings()
                 .iter()
                 .map(|local| {
+                    let initializer = label(&local.initializer)?;
+                    if let Some(local_initializers) = &mut local_initializers {
+                        local_initializers.insert(local.id.clone(), initializer);
+                    }
                     Ok(Arc::new(LocalBinding {
                         id: local.id.clone(),
-                        initializer: label(&local.initializer)?,
+                        initializer,
                         recursive: recursive.contains(&local.id),
                     }))
                 })
@@ -446,12 +522,16 @@ impl RuntimeProgram {
                             .collect::<Result<_, RuntimeUnavailable>>()?,
                     },
                 };
-                code.push(Arc::new(Code {
-                    site: SourceSite {
+                let site = SourceSite {
                         source_root: source_root.clone(),
                         occurrence: expression.occurrence.clone(),
                         range: expression.range.clone(),
-                    },
+                    };
+                if let Some(source_labels) = &mut source_labels {
+                    source_labels.insert(expression.occurrence.clone(), Label(code.len()));
+                }
+                code.push(Arc::new(Code {
+                    site,
                     instruction,
                 }));
             }
@@ -502,6 +582,114 @@ impl RuntimeProgram {
                 HirItem::Error { .. } => unreachable!(),
             }
         }
+        let operation_v1 = evidence.operation_v1.map(|link| {
+            let label_for = |occurrence: &HirOccurrenceId| {
+                source_labels.as_ref().and_then(|labels| labels.get(occurrence)).copied()
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)
+            };
+            let site_for = |occurrence: &HirOccurrenceId| {
+                let label = label_for(occurrence)?;
+                code.get(label.0).map(|code| code.site.clone())
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)
+            };
+            let request = site_for(&link.request)?;
+            let request_label = label_for(&link.request)?;
+            let request_operation = match &code[request_label.0].instruction {
+                Instruction::Operation(SourceOperationResolution::Resolved(declaration)) => declaration.id.clone(),
+                _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+            };
+            let request_apply = source_apply_for_child(&code, request_label)?;
+            let callback_apply = site_for(&link.callback_apply)?;
+            let callback_operation = site_for(&link.callback_operation_use)?;
+            if !matches!(code.get(label_for(&link.request)?.0).map(|code| &code.instruction), Some(Instruction::Operation(_)))
+                || !matches!(code.get(label_for(&link.callback_operation_use)?.0).map(|code| &code.instruction), Some(Instruction::Operation(_)))
+            {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            let apply_label = label_for(&link.callback_apply)?;
+            let Instruction::Apply { callee, argument } = &code[apply_label.0].instruction else {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            };
+            if callee.0 != label_for(&link.callback_operation_use)?.0
+                && argument.0 != label_for(&link.callback_operation_use)?.0
+            {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            let initializer = local_initializers.as_ref()
+                .and_then(|initializers| initializers.get(&link.response_definition))
+                .copied().ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            let mut response_label = initializer;
+            loop {
+                match &code.get(response_label.0)
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?.instruction
+                {
+                    Instruction::Forward(inner) => response_label = *inner,
+                    Instruction::Lambda { .. } => break,
+                    _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+                }
+            }
+            let response_lambda = code[response_label.0].site.clone();
+            let handler_argument = operation_v1_handler_argument_join(
+                &code,
+                &request,
+                &link.callback_operation,
+                &link.response_definition,
+            ).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            let continuation_apply = handler_argument.continuation_apply;
+            let response_argument = handler_argument.response_argument;
+            let response_invocation_apply = source_apply_for_catch_result(
+                &code,
+                &handler_argument.request_handler,
+            ).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            if response_invocation_apply.occurrence == continuation_apply.occurrence
+                || response_invocation_apply.occurrence == callback_apply.occurrence
+            {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            let Instruction::Lambda { body, .. } = &code[response_label.0].instruction else {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            };
+            if callback_apply.source_root != response_lambda.source_root
+                || !code_subtree_contains(&code, *body, apply_label)
+            {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            let mut expected_outer = code.iter().filter_map(|candidate| {
+                let Instruction::Catch { arms, .. } = &candidate.instruction else { return None; };
+                arms.iter().find_map(|arm| {
+                    let LocalSourceCatchPattern::Operation {
+                        resolution: SourceOperationResolution::Resolved(declaration), ..
+                    } = &arm.pattern else { return None; };
+                    let matches_callback = declaration.id == link.callback_operation;
+                    let returns_42 = matches!(code.get(arm.body.0).map(|body| &body.instruction),
+                        Some(Instruction::Integer(text)) if text.as_ref() == "42");
+                    (matches_callback && returns_42).then(|| (candidate.site.clone(), arm.source.clone()))
+                })
+            });
+            let first_expected_outer = expected_outer.next();
+            if expected_outer.next().is_some() {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            let (expected_outer_handler, expected_outer_arm) = first_expected_outer
+                .map(|(handler, arm)| (Some(handler), Some(arm)))
+                .unwrap_or((None, None));
+            Ok(OperationV1Plan {
+                link,
+                response_lambda,
+                callback_apply,
+                callback_operation,
+                request,
+                request_apply,
+                request_operation,
+                request_handler: handler_argument.request_handler,
+                request_arm: handler_argument.request_arm,
+                response_argument,
+                expected_outer_handler,
+                expected_outer_arm,
+                continuation_apply,
+                response_invocation_apply,
+            })
+        }).transpose()?;
         let mut program = Self {
             _hir: hir,
             code,
@@ -510,8 +698,137 @@ impl RuntimeProgram {
             expression_roots,
             source_schedule,
             closed_primitive: false,
+            operation_v1,
         };
         program.closed_primitive = super::primitive::closed_primitive(&program);
         Ok(Arc::new(program))
     }
+}
+
+fn operation_v1_handler_argument_join(
+    code: &[Arc<Code>],
+    request: &SourceSite,
+    callback_operation: &yu_hir::shadow::SourceOperationId,
+    response_definition: &HirLocalId,
+) -> Option<HandlerArgumentJoin> {
+    let Some((request_index, request_code)) = code.iter().enumerate().find(|(_, candidate)| {
+        candidate.site.occurrence == request.occurrence
+            && candidate.site.source_root == request.source_root
+    }) else { return None; };
+    let Instruction::Operation(SourceOperationResolution::Resolved(request_decl)) =
+        &request_code.instruction else { return None; };
+    let mut joins = Vec::new();
+    for candidate in code {
+        if candidate.site.source_root != request.source_root { continue; }
+        let Instruction::Catch { scrutinee, arms } = &candidate.instruction else { continue; };
+        if !code_subtree_contains(code, *scrutinee, Label(request_index)) { continue; }
+        for arm in arms {
+            let LocalSourceCatchPattern::Operation {
+                resolution: SourceOperationResolution::Resolved(declaration),
+                continuation: yu_hir::shadow::LocalSourceCatchValuePattern::Binder(continuation),
+                ..
+            } = &arm.pattern else { continue; };
+            if declaration.id != request_decl.id { continue; }
+            let Some(body) = code.get(arm.body.0) else { return None; };
+            if body.site.source_root != request.source_root { continue; }
+            for (apply_index, expression) in code.iter().enumerate() {
+                if expression.site.source_root != request.source_root
+                    || !code_subtree_contains(code, arm.body, Label(apply_index))
+                { continue; }
+                let Instruction::Apply { callee, argument } = &expression.instruction else { continue; };
+                let Some(callee_code) = code.get(callee.0) else { return None; };
+                let Some(argument_code) = code.get(argument.0) else { return None; };
+                let callee_is_binder = matches!(&callee_code.instruction,
+                    Instruction::Name { resolution: LocalSourceResolution::CatchBinder(found), .. }
+                        if found == &continuation.id);
+                let argument_is_definition = matches!(&argument_code.instruction,
+                    Instruction::Name { resolution: LocalSourceResolution::Local(found), .. }
+                        if found == response_definition);
+                if callee_is_binder && argument_is_definition {
+                    joins.push(HandlerArgumentJoin {
+                        continuation_apply: expression.site.clone(),
+                        response_argument: argument_code.site.clone(),
+                        request_handler: candidate.site.clone(),
+                        request_arm: arm.source.clone(),
+                    });
+                }
+            }
+        }
+    }
+    let callback_is_outer = code.iter().any(|candidate| {
+        candidate.site.occurrence == request.occurrence
+            && matches!(&candidate.instruction,
+                Instruction::Operation(SourceOperationResolution::Resolved(declaration))
+                    if &declaration.id == callback_operation)
+    });
+    if joins.len() == 1 && !callback_is_outer { joins.pop() } else { None }
+}
+
+fn source_apply_for_child(code: &[Arc<Code>], child: Label) -> Result<SourceSite, RuntimeUnavailable> {
+    let mut matches = code.iter().filter_map(|candidate| {
+        let Instruction::Apply { callee, argument } = &candidate.instruction else { return None; };
+        (callee.0 == child.0 || argument.0 == child.0).then(|| candidate.site.clone())
+    });
+    let found = matches.next().ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+    if matches.next().is_some() {
+        return Err(RuntimeUnavailable::InvalidSourceReference);
+    }
+    Ok(found)
+}
+
+fn source_apply_for_catch_result(
+    code: &[Arc<Code>],
+    handler: &SourceSite,
+) -> Option<SourceSite> {
+    let mut handlers = code.iter().enumerate().filter(|(_, candidate)| {
+        candidate.site.source_root == handler.source_root
+            && candidate.site.occurrence == handler.occurrence
+            && matches!(&candidate.instruction, Instruction::Catch { .. })
+    });
+    let (handler_index, _) = handlers.next()?;
+    if handlers.next().is_some() {
+        return None;
+    }
+    let mut applications = code.iter().filter_map(|candidate| {
+        if candidate.site.source_root != handler.source_root {
+            return None;
+        }
+        let Instruction::Apply { callee, .. } = &candidate.instruction else {
+            return None;
+        };
+        code_subtree_contains(code, *callee, Label(handler_index))
+            .then(|| candidate.site.clone())
+    });
+    let found = applications.next()?;
+    applications.next().is_none().then_some(found)
+}
+
+fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool {
+    let mut stack = vec![root];
+    let mut visited = HashSet::new();
+    while let Some(label) = stack.pop() {
+        if label == target { return true; }
+        if !visited.insert(label.0) { continue; }
+        let Some(expression) = code.get(label.0) else { continue; };
+        match &expression.instruction {
+            Instruction::Forward(inner) => stack.push(*inner),
+            Instruction::Lambda { body, .. } => stack.push(*body),
+            Instruction::Apply { callee, argument } => { stack.push(*argument); stack.push(*callee); }
+            Instruction::Block { bindings, final_expression } => {
+                stack.push(*final_expression);
+                stack.extend(bindings.iter().map(|binding| binding.initializer));
+            }
+            Instruction::If { arms, else_branch } => {
+                if let Some(branch) = else_branch { stack.push(*branch); }
+                for (test, body) in arms { stack.push(*body); stack.push(*test); }
+            }
+            Instruction::Catch { scrutinee, arms } => {
+                stack.push(*scrutinee);
+                stack.extend(arms.iter().map(|arm| arm.body));
+            }
+            Instruction::Unit | Instruction::Integer(_) | Instruction::Boolean(_)
+            | Instruction::String(_) | Instruction::Name { .. } | Instruction::Operation(_) => {}
+        }
+    }
+    false
 }

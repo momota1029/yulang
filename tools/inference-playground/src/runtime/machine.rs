@@ -43,6 +43,19 @@ pub struct Machine {
     continuations: Vec<SavedContinuation>,
     receiving: Receiving,
     executing_views: Vec<ExecutionView>,
+    operation_v1_trace: Option<OperationV1Trace>,
+}
+#[derive(Default)]
+struct OperationV1Trace {
+    response_definition_read: Option<(ValueHandle, usize, SourceSite)>,
+    selected_closure: Option<(ValueHandle, usize)>,
+    applied_response_invocation: Option<(SourceSite, ExecutionOwner)>,
+    request_operation_seen: bool,
+    callback_operation_seen: bool,
+    callback_operation_owner: Option<ExecutionOwner>,
+    callback_request_event: Option<usize>,
+    callback_request: Option<(usize, SourceSite)>,
+    live_handler: Option<(SourceSite, yu_hir::shadow::SourceNodeKey, usize, SourceSite)>,
 }
 /// Resolved machine plan: only definitions index cache cells.
 #[derive(Clone)]
@@ -345,6 +358,7 @@ impl RuntimeProgram {
             continuations: Vec::new(),
             receiving: Receiving::default(),
             executing_views: Vec::new(),
+            operation_v1_trace: self.operation_v1.as_ref().map(|_| OperationV1Trace::default()),
         };
         machine.begin_root(0);
         Ok(machine)
@@ -352,6 +366,77 @@ impl RuntimeProgram {
 }
 
 impl Machine {
+    /// Mint the dynamic receipt after an actual completed run, never from a
+    /// partial, exhausted, unhandled, unavailable, or mismatched execution.
+    pub fn operation_v1_runtime_receipt(
+        &self,
+        completed: ValueHandle,
+    ) -> Option<crate::OperationV1RuntimeReceipt> {
+        let RuntimeOutcome::Completed(handle) = self.state_outcome()? else { return None; };
+        if *handle != completed { return None; }
+        let value = self.value(completed)?;
+        if !matches!(&value.kind, RuntimeValueKind::Integer(text) if text.as_ref() == "42") {
+            return None;
+        }
+        let plan = self.program.operation_v1.as_ref()?;
+        let trace = self.operation_v1_trace.as_ref()?;
+        let (response_argument_value, response_argument_environment, response_argument_read_source) =
+            trace.response_definition_read.clone()?;
+        let (response_handle, captured_environment) = trace.selected_closure?;
+        if response_argument_value != response_handle
+            || response_argument_read_source.occurrence != plan.response_argument.occurrence
+            || trace.applied_response_invocation.as_ref().is_none_or(|(site, owner)| {
+                site.occurrence != plan.response_invocation_apply.occurrence
+                    || site.source_root != plan.response_invocation_apply.source_root
+                    || Some(*owner) != trace.callback_operation_owner
+            })
+            || !trace.callback_operation_seen
+        {
+            return None;
+        }
+        let (live_handler_source, selected_arm, callback_request_event, callback_request_source) =
+            trace.live_handler.clone()?;
+        if trace.callback_request_event != Some(callback_request_event)
+            || callback_request_source.occurrence != plan.link.callback_apply
+        {
+            return None;
+        }
+        let expected_handler = plan.expected_outer_handler.as_ref()?;
+        let expected_arm = plan.expected_outer_arm.as_ref()?;
+        if live_handler_source.occurrence != expected_handler.occurrence
+            || &selected_arm != expected_arm
+            || self.value(response_handle)?.source.occurrence != plan.response_lambda.occurrence
+        {
+            return None;
+        }
+        Some(crate::OperationV1RuntimeReceipt {
+            field_bound_id: plan.link.field_bound_id,
+            request: plan.link.request.clone(),
+            callback_apply: plan.link.callback_apply.clone(),
+            callback_operation: plan.link.callback_operation.clone(),
+            callback_operation_use: plan.link.callback_operation_use.clone(),
+            response_definition: plan.link.response_definition.clone(),
+            continuation_apply_source: plan.continuation_apply.clone(),
+            response_argument_source: plan.response_argument.clone(),
+            response_argument_read_source,
+            response_argument_environment,
+            response_closure_source: self.value(response_handle)?.source.clone(),
+            response_closure_handle: response_handle.0,
+            captured_environment,
+            callback_request_event,
+            callback_request_source,
+            live_handler_source,
+            selected_arm,
+            result: "42".into(),
+        })
+    }
+
+    fn state_outcome(&self) -> Option<&RuntimeOutcome> {
+        match &self.state {
+            State::Stopped(outcome) => Some(outcome),
+            _ => None,
+        }
+    }
     pub fn value(&self, handle: ValueHandle) -> Option<&RuntimeValue> {
         self.values.get(handle.0)
     }
@@ -468,6 +553,18 @@ impl Machine {
                 }
                 .ok_or_else(|| RuntimeUnavailable::MissingBinding(site.clone()))?;
                 if let Some(received) = self.cells[cell] {
+                    if let (Some(plan), Some(trace)) =
+                        (&self.program.operation_v1, &mut self.operation_v1_trace)
+                    {
+                        if site.occurrence == plan.response_argument.occurrence
+                            && matches!(resolution,
+                                LocalSourceResolution::Local(id)
+                                    if id == &plan.link.response_definition)
+                        {
+                            trace.response_definition_read =
+                                Some((received.value, environment, site.clone()));
+                        }
+                    }
                     self.consume(received, *consumption, site)?;
                 } else if matches!(resolution, LocalSourceResolution::ModuleDef(_)) {
                     if !self.initializing_globals.insert(cell) {
@@ -540,6 +637,29 @@ impl Machine {
                 }
             }
             Instruction::Operation(resolution) => {
+                let execution_owner = self.current_execution_owner();
+                if let (Some(plan), Some(trace)) =
+                    (&self.program.operation_v1, &mut self.operation_v1_trace)
+                {
+                    if site.occurrence == plan.request.occurrence
+                        && matches!(resolution, SourceOperationResolution::Resolved(declaration)
+                            if declaration.id == plan.request_operation)
+                    {
+                        trace.request_operation_seen = true;
+                    }
+                    if site.occurrence == plan.callback_operation.occurrence
+                        && trace.applied_response_invocation.as_ref().is_some_and(|(apply, owner)| {
+                            apply.occurrence == plan.response_invocation_apply.occurrence
+                                && apply.source_root == plan.response_invocation_apply.source_root
+                                && *owner == execution_owner
+                        })
+                        && matches!(resolution, SourceOperationResolution::Resolved(declaration)
+                            if declaration.id == plan.link.callback_operation)
+                    {
+                        trace.callback_operation_seen = true;
+                        trace.callback_operation_owner = Some(execution_owner);
+                    }
+                }
                 self.data(site, RuntimeValueKind::Operation(resolution.clone()), None)
             }
             Instruction::Catch { scrutinee, .. } => {
@@ -573,6 +693,27 @@ impl Machine {
         };
         match frame {
             Frame::ResumeArgument { template, source } => {
+                if let (Some(plan), Some(trace)) =
+                    (&self.program.operation_v1, &mut self.operation_v1_trace)
+                {
+                    let exact_definition_read = trace.response_definition_read.as_ref()
+                        .is_some_and(|(value, _, read_site)| {
+                            *value == received.value
+                                && read_site.occurrence == plan.response_argument.occurrence
+                        });
+                    if received.value.0 < self.values.len()
+                        && self.values[received.value.0].source.occurrence
+                            == plan.response_lambda.occurrence
+                        && source.occurrence == plan.continuation_apply.occurrence
+                        && exact_definition_read
+                    {
+                        if let Some(ExecutableValue::Closure { environment, .. }) =
+                            self.executables.get(&received.value.0)
+                        {
+                            trace.selected_closure = Some((received.value, *environment));
+                        }
+                    }
+                }
                 let SourceAnnotationValue::Function { result, .. } = &self
                     .resume_templates
                     .get(template.0)
@@ -583,7 +724,31 @@ impl Machine {
                 else {
                     return Err(RuntimeUnavailable::ContinuationResponse(source));
                 };
-                if !self.primitive_matches(&result.value, received) {
+                let exact_v1_function_response = matches!(
+                    &result.value,
+                    SourceAnnotationValue::Function { .. }
+                ) && self.program.operation_v1.as_ref().is_some_and(|plan| {
+                    received.interface == ParameterRole::Value
+                        && self.receiving.matches_value(received.view, received.value)
+                        && source.occurrence == plan.continuation_apply.occurrence
+                        && self.operation_v1_trace.as_ref().is_some_and(|trace| {
+                            trace.response_definition_read.as_ref().is_some_and(
+                                |(value, _, read_site)| {
+                                    *value == received.value
+                                        && read_site.occurrence == plan.response_argument.occurrence
+                                },
+                            )
+                        })
+                        && self.values.get(received.value.0).is_some_and(|value| {
+                            value.source.occurrence == plan.response_lambda.occurrence
+                                && value.source.source_root == plan.response_lambda.source_root
+                        })
+                        && matches!(self.executables.get(&received.value.0),
+                            Some(ExecutableValue::Closure { .. }))
+                });
+                if !self.primitive_matches(&result.value, received)
+                    && !exact_v1_function_response
+                {
                     return Err(RuntimeUnavailable::ContinuationResponse(source));
                 }
                 self.frames.push(Frame::ResumeReturn);
@@ -697,8 +862,29 @@ impl Machine {
                         body,
                         environment,
                     }) => {
+                        let exact_response_invocation = self
+                            .program
+                            .operation_v1
+                            .as_ref()
+                            .is_some_and(|plan| {
+                                site.occurrence == plan.response_invocation_apply.occurrence
+                                    && site.source_root == plan.response_invocation_apply.source_root
+                            })
+                            && self.operation_v1_trace.as_ref().is_some_and(|trace| {
+                                trace.selected_closure.is_some_and(|(value, saved_environment)| {
+                                    value == received.value && saved_environment == environment
+                                })
+                            });
                         let provider = self.values[received.value.0].source.clone();
                         let (activation, previous) = self.new_invocation(site.clone(), provider)?;
+                        if exact_response_invocation {
+                            if let Some(trace) = &mut self.operation_v1_trace {
+                                trace.applied_response_invocation = Some((
+                                    site.clone(),
+                                    ExecutionOwner::Invocation(activation),
+                                ));
+                            }
+                        }
                         self.frames.push(Frame::ReceiverReturn {
                             activation,
                             previous,
@@ -1233,6 +1419,22 @@ impl Machine {
         Ok(())
     }
     fn propagate_request(&mut self, mut request: PendingRequest) -> Result<(), RuntimeUnavailable> {
+        let request_owner = self.current_execution_owner();
+        if let (Some(plan), Some(trace)) =
+            (&self.program.operation_v1, &mut self.operation_v1_trace)
+        {
+            if trace.callback_operation_seen
+                && trace.callback_operation_owner == Some(request_owner)
+                && trace.applied_response_invocation.as_ref().is_some_and(|(_, owner)| {
+                    *owner == request_owner
+                })
+                && request.declaration.id == plan.link.callback_operation
+                && request.source.occurrence == plan.link.callback_apply
+            {
+                trace.callback_request_event = Some(request.event);
+                trace.callback_request = Some((request.event, request.source.clone()));
+            }
+        }
         // Inspect the actual installed candidate while its delimiter is still
         // active. Only a committed forwarding transition removes that occurrence.
         if let Some(Frame::CatchReturn {
@@ -1293,13 +1495,26 @@ impl Machine {
                     return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
                 }
                 let captured = if matches!(continuation, LocalSourceCatchValuePattern::Binder(_)) {
-                    if !matches!(
+                    let primitive_response = matches!(
                         result.value,
                         SourceAnnotationValue::Unit
                             | SourceAnnotationValue::Int
                             | SourceAnnotationValue::Bool
                             | SourceAnnotationValue::Str
-                    ) {
+                    );
+                    let exact_v1_function_response = matches!(
+                        &result.value,
+                        SourceAnnotationValue::Function { .. }
+                    ) && self.program.operation_v1.as_ref().is_some_and(|plan| {
+                        request.source.occurrence == plan.request_apply.occurrence
+                            && request.declaration.id == plan.request_operation
+                            && handler.site.occurrence == plan.request_handler.occurrence
+                            && arm.source == plan.request_arm
+                            && self.operation_v1_trace.as_ref().is_some_and(|trace| {
+                                trace.request_operation_seen
+                            })
+                    });
+                    if !primitive_response && !exact_v1_function_response {
                         return Err(RuntimeUnavailable::HandlerEvidence(handler.site.clone()));
                     }
                     Some(self.capture_template(&request, self.current_owner)?)
@@ -1354,6 +1569,29 @@ impl Machine {
                     code: arm.body,
                     environment,
                 };
+                if let Some(trace) = &mut self.operation_v1_trace {
+                    if let Some(plan) = &self.program.operation_v1 {
+                        if trace.callback_request_event == Some(request.event)
+                            && request.declaration.id == plan.link.callback_operation
+                            && request.source.occurrence == plan.link.callback_apply
+                            && plan.expected_outer_handler.as_ref().is_some_and(|expected|
+                                handler.site.occurrence == expected.occurrence)
+                            && plan.expected_outer_arm.as_ref().is_some_and(|expected|
+                                &arm.source == expected)
+                            && trace.callback_request.as_ref().is_some_and(|(event, source)| {
+                                *event == request.event
+                                    && source.occurrence == request.source.occurrence
+                            })
+                        {
+                            trace.live_handler = Some((
+                                handler.site.clone(),
+                                arm.source.clone(),
+                                request.event,
+                                request.source.clone(),
+                            ));
+                        }
+                    }
+                }
                 return Ok(());
             }
         }

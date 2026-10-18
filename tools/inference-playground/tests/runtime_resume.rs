@@ -64,6 +64,105 @@ fn assert_integer(source: &str, expected: &str) {
     assert_eq!(actual.as_ref(), expected);
 }
 
+fn operation_v1_runtime_source(outer_arm: &str, callback_operation: &str) -> String {
+    format!(
+        "act outer:\n    our next: () -> int\n    our other: () -> int\nact signal:\n    our ping: () -> (int -> [outer] int)\nmy relay (thunk:[signal, outer] int) = catch thunk {{ outer::next(), _ -> {outer_arm}, value -> value }}\nmy main = relay ((catch signal::ping() {{ signal::ping(), k -> {{ my response: int -> [outer] int = \\x -> outer::{callback_operation}(); my other_response: int -> [outer] int = \\x -> outer::next(); k response }}, v -> v }}) 0)"
+    )
+}
+
+#[test]
+fn operation_v1_same_hir_candidate_resumes_the_source_closure_into_live_outer_arm_42() {
+    let source = operation_v1_runtime_source("42", "next");
+    let receipt = yu_playground::execute_operation_v1_runtime_research(
+        &source,
+        "operation-v1-runtime-resume.yu",
+        30_000,
+    )
+    .unwrap_or_else(|error| panic!("expected completed Phase-R receipt: {error}"));
+    assert_eq!(receipt.result.as_ref(), "42");
+    assert_eq!(
+        receipt.response_definition.definition_root(),
+        receipt.response_closure_source.source_root.definition_root(),
+        "the selected runtime closure retains the static response definition's source root"
+    );
+    assert_ne!(receipt.callback_operation_use, receipt.response_closure_source.occurrence);
+    assert_eq!(
+        receipt.response_argument_source.occurrence,
+        receipt.response_argument_read_source.occurrence
+    );
+}
+
+#[test]
+fn operation_v1_runtime_receipt_is_withheld_for_non_42_unhandled_or_exhausted_runs() {
+    let wrong_result = operation_v1_runtime_source("43", "next");
+    assert!(yu_playground::execute_operation_v1_runtime_research(
+        &wrong_result, "operation-v1-runtime-wrong-result.yu", 30_000
+    ).is_err());
+
+    let wrong_request = operation_v1_runtime_source("42", "other");
+    assert!(yu_playground::execute_operation_v1_runtime_research(
+        &wrong_request, "operation-v1-runtime-wrong-request.yu", 30_000
+    ).is_err());
+
+    let exhausted = operation_v1_runtime_source("42", "next");
+    assert!(yu_playground::execute_operation_v1_runtime_research(
+        &exhausted, "operation-v1-runtime-exhausted.yu", 0
+    ).is_err());
+
+    let without_handler = operation_v1_runtime_source("42", "next")
+        .replace(" = catch thunk { outer::next(), _ -> 42, value -> value }", " = thunk");
+    assert!(yu_playground::execute_operation_v1_runtime_research(
+        &without_handler, "operation-v1-runtime-no-handler.yu", 30_000
+    ).is_err());
+}
+
+#[test]
+fn operation_v1_same_response_closure_at_a_different_apply_cannot_mint_receipt() {
+    let source = operation_v1_runtime_source("42", "next");
+    let different_apply = source.replace(
+        "k response }",
+        "if true: { my ignored = response 0; response } else: k response }",
+    );
+    assert_ne!(source, different_apply);
+    assert!(
+        yu_playground::execute_operation_v1_runtime_research(
+            &different_apply,
+            "operation-v1-runtime-different-apply.yu",
+            30_000,
+        )
+        .is_err(),
+        "calling the same source closure from the handler arm's Apply cannot stand in for the exact catch-result Apply"
+    );
+}
+
+#[test]
+fn operation_v1_static_receipt_cannot_select_a_same_family_different_definition() {
+    let source = operation_v1_runtime_source("42", "next");
+    let alternative = source.replace("k response", "k other_response");
+    let lower = |text: &str, name: &str| {
+        let text: Arc<SourceText> = Arc::from(text);
+        let parsed = parse_file(
+            text.clone(),
+            Arc::new(scan_header(text)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new(name, "test.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        ).unwrap())
+    };
+    let original_hir = lower(&source, "operation-v1-original");
+    let candidate = CandidateInference::solve_operation_v1_research(original_hir.clone()).unwrap();
+    let evidence = RuntimeProgram::evidence_for_operation_v1(&original_hir, &candidate).unwrap();
+    let alternate_hir = lower(&alternative, "operation-v1-original");
+    assert!(
+        RuntimeProgram::from_hir(alternate_hir, evidence).is_err(),
+        "the original response-definition receipt must not attach to a same-family other_response application"
+    );
+}
+
 #[test]
 fn raw_response_enters_the_hole_under_the_still_active_containing_owner() {
     assert_integer(

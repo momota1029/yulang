@@ -13,6 +13,30 @@ use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
 pub const INPUT_CAP: usize = 64 * 1024;
 
+/// Completed Phase-R evidence for one source-linked FieldBoundV1 candidate.
+/// Static HIR identities and dynamic runtime observations remain separate.
+#[derive(Clone, Debug)]
+pub struct OperationV1RuntimeReceipt {
+    pub field_bound_id: u32,
+    pub request: HirOccurrenceId,
+    pub callback_apply: HirOccurrenceId,
+    pub callback_operation: yu_hir::shadow::SourceOperationId,
+    pub callback_operation_use: HirOccurrenceId,
+    pub response_definition: yu_hir::HirLocalId,
+    pub continuation_apply_source: runtime::SourceSite,
+    pub response_argument_source: runtime::SourceSite,
+    pub response_argument_read_source: runtime::SourceSite,
+    pub response_argument_environment: usize,
+    pub response_closure_source: runtime::SourceSite,
+    pub response_closure_handle: usize,
+    pub captured_environment: usize,
+    pub callback_request_event: usize,
+    pub callback_request_source: runtime::SourceSite,
+    pub live_handler_source: runtime::SourceSite,
+    pub selected_arm: yu_hir::shadow::SourceNodeKey,
+    pub result: Box<str>,
+}
+
 pub fn read_source(reader: impl Read) -> Result<String, String> {
     let mut bytes = Vec::new();
     reader
@@ -175,6 +199,68 @@ pub fn execute(
     }.map_err(cap)?;
     output.write_char('\n').map_err(cap)?;
     output.finish()
+}
+
+/// Explicit research-only Phase-R path. It solves the v1 candidate from one
+/// HIR, carries that receipt into a runtime program built from the same HIR,
+/// and returns only after the matching saved callback reaches the live outer
+/// handler and completes with integer 42. Ordinary execute remains unchanged.
+pub fn execute_operation_v1_runtime_research(
+    source: &str,
+    name: &str,
+    step_budget: usize,
+) -> Result<OperationV1RuntimeReceipt, String> {
+    use runtime::{RuntimeOutcome, RuntimeProgram, RuntimeValueKind};
+    let hir = prepare_operation_v1_hir(source, name)?;
+    let candidate = CandidateInference::solve_operation_v1_research(hir.clone())
+        .map_err(|error| bounded_message(format_args!("v1 candidate unavailable: {error:?}")))?;
+    if !candidate.observes_hir(&hir) || !candidate.candidate_conflicts().is_empty() {
+        return Err("v1 candidate conflicts; no runtime receipt".to_owned());
+    }
+    let evidence = RuntimeProgram::evidence_for_operation_v1(&hir, &candidate)
+        .map_err(|error| bounded_message(format_args!("v1 static receipt unavailable: {error:?}")))?;
+    let program = RuntimeProgram::from_hir(hir, evidence)
+        .map_err(|error| bounded_message(format_args!("runtime unavailable: {error:?}")))?;
+    let selected = program.definition_named("main")
+        .map_err(|error| bounded_message(format_args!("runtime unavailable: {error:?}")))?;
+    let mut machine = program.start_source_schedule(selected)
+        .map_err(|error| bounded_message(format_args!("runtime unavailable: {error:?}")))?;
+    let completed = match machine.run(step_budget) {
+        RuntimeOutcome::Completed(value) => value,
+        RuntimeOutcome::Unavailable(error) => return Err(bounded_message(format_args!("runtime unavailable: {error:?}"))),
+        RuntimeOutcome::ResourceExhausted { steps } => return Err(format!("runtime exhausted after {steps} steps; no completed receipt")),
+        RuntimeOutcome::UnhandledRequest { source, .. } => return Err(bounded_message(format_args!("unhandled runtime request at {:?}; no completed receipt", source.range))),
+        RuntimeOutcome::Running => return Err("runtime did not complete; no completed receipt".to_owned()),
+    };
+    if !matches!(machine.value(completed).map(|value| &value.kind), Some(RuntimeValueKind::Integer(value)) if value.as_ref() == "42") {
+        return Err("runtime result is not integer 42; no completed receipt".to_owned());
+    }
+    machine.operation_v1_runtime_receipt(completed)
+        .ok_or_else(|| "runtime completed without the exact v1 callback/handler join; no completed receipt".to_owned())
+}
+
+fn prepare_operation_v1_hir(source: &str, name: &str) -> Result<Arc<HirModule>, String> {
+    if source.len() > INPUT_CAP {
+        return Err(format!("tool input cap exceeded: more than {INPUT_CAP} bytes"));
+    }
+    let text: Arc<SourceText> = Arc::from(source);
+    let parsed = parse_file(
+        text.clone(),
+        Arc::new(scan_header(text)),
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    let diagnostics = parsed.syntax_diagnostics().map_err(|error| {
+        bounded_message(format_args!("syntax diagnostics unavailable: {error:?}"))
+    })?;
+    if !diagnostics.is_empty() {
+        return Err("syntax diagnostics; no v1 runtime receipt".to_owned());
+    }
+    lower_module_with_local_source(
+        ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", name))),
+        &parsed,
+        SemanticImports::empty(),
+    ).map(Arc::new)
+        .map_err(|error| bounded_message(format_args!("candidate lowering unavailable: {error:?}")))
 }
 
 fn prepare(
