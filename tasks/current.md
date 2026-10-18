@@ -17663,11 +17663,36 @@ OPEN at 0 -> 0, Simple-sub A/B remain open, and R50 remains NOT ADOPTED.
 The dispatcher recommends a distinct next discriminator: add a second direct
 `forward x` use after `loop x` while retaining final `z`, so the recursive
 `loop→z→loop` qualification stays intact and the same original provider is
-captured twice. This was only a candidate at R56 closeout. R57 revision 1 is now
-active after
-clean-baseline, source and 28/28 dependency-pin checks and primary approval;
-its exact proof and read-only owner-trace leases are recorded in
-[current state](agent-loop/current.json). R57 must rederive all changed events,
-source sets and physical writes. See the [R56 owner trace](../notes/progress/2026-10-19-r56-original-name-owner-trace.md),
+captured twice. This was only a candidate at R56 closeout. R57 revision 1 was
+activated after clean-baseline, source and 28/28 dependency-pin checks and
+primary approval, then closed at the reviewed milestone below. Its exact proof
+and read-only owner-trace receipts are recorded in [current state](agent-loop/current.json).
+See the [R56 owner trace](../notes/progress/2026-10-19-r56-original-name-owner-trace.md),
 [proof](../notes/theory/2026-10-19-r56-original-name-source-trace.md), and
 [contract](agent-loop/sprints/original-name-source-trace-20261019-r56.md).
+
+## Closed research sprint — R57
+
+R57 added a second direct `forward x` after qualified `z = loop x`, retaining
+final `z`. Under successful ordinary constructor prefixes, the changed
+`L <= Dz` relation has complete processing source set `{ez}` and the complete
+target-2 signed parent group is `h_z+`, `C_z-`, `U_z-`. The first Local use and
+that recursive group leave the original forward closure intact through the
+second Local capture. The second capture is of the same installed provider,
+with a distinct partial `mu_b`; it directly restores the physical BoundKeys
+`(t_b,−,n_b)`, `(n_b,−,t_b)`, and `(n_b,−,r_b)`.
+This is bounded source/native evidence, not observed full-solve, typing,
+termination or runtime behavior. Fresh compiler/spec reviews are CLEAN after
+closing one corrected status-record finding; all 28 dependency pins and four
+frozen output hashes match. No safe code slice was authorized or identified.
+The parent remains OPEN 0 -> 0, Simple-sub A/B remain open, and R50 remains
+NOT ADOPTED. See the [R57 proof](../notes/theory/2026-10-19-r57-original-name-two-capture.md),
+[owner trace](../notes/progress/2026-10-19-r57-original-name-owner-trace.md),
+[contract](agent-loop/sprints/original-name-two-capture-20261019-r57.md), and
+[review/state receipts](agent-loop/current.json).
+
+At close, the dispatcher recommended examining whether an original-domain
+annotation or publication constructor can constrain, share or mark nongeneric
+the original direct-Name provider closure before its first capture. R58 is
+only a candidate: Luna must first freeze an exact constructor case and establish
+parent-domain membership before authorizing any packet.
