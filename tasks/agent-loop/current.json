@@ -56,7 +56,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R20 in-progress finding (not yet frozen): source readiness is earlier than final FieldBound creation, but callback body m0 and annotation-exposed response root are distinct operands. Catch resumption returns original_positive(scrutinee); k response Apply relates negative_response to its own result, not directly to original_positive. Proof is tracing required response-initializer -> annotation projection -> response FreshUse -> raw-return/Catch root -> installed g incidence; no no-flow claim."
+      "receipt": "R20 active; backward-slicing q/m0 prerequisite DAG; interim distinct m0/exposed-root incidence gap. See R20 proof handoff when frozen."
     },
     {
       "id": "/root/r19_freshuse_falsification",
@@ -67,7 +67,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen source falsifier. Theory SHA d2952e5bba7fbae3da0c89ef37de89a8773111610bdc2c5b6aa42cdb743144c2; handoff SHA 2b0c19159e7ac6b80a173389ab27b54e94cb9da7d4031e537cabf017d770807c. No source-qualified sibling counterexample; capture precedes typed FieldBound creation; q_view/shared-anchor flow may still exist. Supplemental candidate_extrusion.rs hash pinned in R19 rev2; writer stopped. Fresh spec_auditor CLEAN: capture/action order supported; typed FieldBound-to-FreshUse join absent in inspected representation; generic use-specific admission and early/shared-anchor flow preserved; no sibling counterexample or parent closure."
+      "receipt": "STOPPED; no source-qualified sibling counterexample; deferred FieldBound after per-use capture. See R19 artifact."
     },
     {
       "id": "/root/r19_local_binding_runtime",
@@ -78,7 +78,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R20 active-work acknowledgement received, contract 6445b596... exact two-path lease runtime_resume.rs + gate handoff. 300s/Astra0; inspect solve_mode, preserve exact HIR error id/kind/owner checks. No tests/build/format before independent CLEAN."
+      "receipt": "R20 active; exact HIR IDs/kind/owner gate only, 300s/Astra0, tests wait for CLEAN review."
     },
     {
       "id": "/root/r18_runtime_implementation",
@@ -89,7 +89,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R18 implementation r1/r2/r4 frozen; independent review and focused target 17/17 completed. No remaining writer lease."
+      "receipt": "STOPPED; frozen R18 runtime implementation, reviewed and focused target 17/17. See R18 closeout."
     },
     {
       "id": "/root/r18_runtime_correspondence_proof",
@@ -100,7 +100,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R18 conditional correspondence audit frozen; original parent closure0. No remaining writer lease."
+      "receipt": "STOPPED; conditional R18 correspondence audit; parent closure0. See R18 proof handoff."
     },
     {
       "id": "/root/r19_freshuse_spec_review",
@@ -111,7 +111,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "CLEAN for both frozen proof/source artifacts; all 17 proof pins matched. Verified authentic same-use physical admission/readback, restoration, exact ReplayChildAck identity and terminal drain return. Absence claim limited to missing typed FieldBound-to-FreshUse/J2 join; early q/shared anchors and generic FreshUse preserved. No findings/edits/tests/build/Git. 240s proof/source review cap conservatively charged."
+      "receipt": "STOPPED; CLEAN R19 source/proof review; typed FieldBound-to-FreshUse join absent. See R19 artifacts."
     },
     {
       "id": "/root/r19_runtime_lineage_review",
@@ -122,7 +122,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R19 rev4 independent review completed CLEAN. Available for fresh R20 design/runtime gate review after exact frozen targets are submitted; no current lease."
+      "receipt": "STOPPED; CLEAN R19 rev4 test-only delta review; R19 closeout."
     }
   ],
   "leases": [
