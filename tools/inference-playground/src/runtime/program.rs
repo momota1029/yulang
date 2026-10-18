@@ -84,6 +84,14 @@ pub(super) struct OperationV1Plan {
     pub(super) expected_outer_arm: Option<yu_hir::shadow::SourceNodeKey>,
     pub(super) continuation_apply: SourceSite,
     pub(super) response_invocation_apply: SourceSite,
+    pub(super) local_lineage: Option<OperationV1LocalLineage>,
+}
+#[derive(Clone)]
+pub(super) struct OperationV1LocalLineage {
+    pub(super) binding: HirLocalId,
+    pub(super) initializer_catch: SourceSite,
+    pub(super) name_use: SourceSite,
+    pub(super) apply: SourceSite,
 }
 struct HandlerArgumentJoin {
     continuation_apply: SourceSite,
@@ -254,6 +262,7 @@ impl RuntimeProgram {
         let mut source_schedule = Vec::new();
         let mut source_labels = evidence.operation_v1.as_ref().map(|_| HashMap::new());
         let mut local_initializers = evidence.operation_v1.as_ref().map(|_| HashMap::new());
+        let mut local_names_and_applies = evidence.operation_v1.as_ref().map(|_| Vec::new());
         let declaration_errors = hir
             .source_effect_declarations()
             .iter()
@@ -290,6 +299,27 @@ impl RuntimeProgram {
                 .local_source_for(&source_root)
                 .map_err(|_| RuntimeUnavailable::MissingSource)?
                 .ok_or(RuntimeUnavailable::MissingSource)?;
+            if let Some(local_names_and_applies) = &mut local_names_and_applies {
+                for expression in source.expressions() {
+                    if let LocalSourceForm::Apply { callee, .. } = &expression.form {
+                        let Some(callee_expression) = source.expression(callee) else {
+                            return Err(RuntimeUnavailable::InvalidSourceReference);
+                        };
+                        if let LocalSourceForm::Name {
+                            resolution: LocalSourceResolution::Local(binding),
+                            ..
+                        } = &callee_expression.form
+                        {
+                            local_names_and_applies.push((
+                                binding.clone(),
+                                source_root.clone(),
+                                callee_expression.occurrence.clone(),
+                                expression.occurrence.clone(),
+                            ));
+                        }
+                    }
+                }
+            }
             let offset = code.len();
             let label = |index: &LocalSourceIndex| -> Result<Label, RuntimeUnavailable> {
                 source
@@ -637,10 +667,24 @@ impl RuntimeProgram {
             ).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
             let continuation_apply = handler_argument.continuation_apply;
             let response_argument = handler_argument.response_argument;
-            let response_invocation_apply = source_apply_for_catch_result(
+            let local_lineage = operation_v1_local_lineage(
                 &code,
-                &handler_argument.request_handler,
-            ).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                &hir,
+                local_initializers.as_ref(),
+                local_names_and_applies.as_ref(),
+                &link.request,
+                &continuation_apply,
+                &callback_apply,
+                &response_argument,
+            )?;
+            let response_invocation_apply = if let Some(lineage) = &local_lineage {
+                lineage.apply.clone()
+            } else {
+                source_apply_for_catch_result(
+                    &code,
+                    &handler_argument.request_handler,
+                ).ok_or(RuntimeUnavailable::InvalidSourceReference)?
+            };
             if response_invocation_apply.occurrence == continuation_apply.occurrence
                 || response_invocation_apply.occurrence == callback_apply.occurrence
             {
@@ -688,6 +732,7 @@ impl RuntimeProgram {
                 expected_outer_arm,
                 continuation_apply,
                 response_invocation_apply,
+                local_lineage,
             })
         }).transpose()?;
         let mut program = Self {
@@ -703,6 +748,103 @@ impl RuntimeProgram {
         program.closed_primitive = super::primitive::closed_primitive(&program);
         Ok(Arc::new(program))
     }
+}
+
+fn operation_v1_local_lineage(
+    code: &[Arc<Code>],
+    hir: &HirModule,
+    local_initializers: Option<&HashMap<HirLocalId, Label>>,
+    local_names_and_applies: Option<&Vec<(
+        HirLocalId,
+        SourceRootId,
+        HirOccurrenceId,
+        HirOccurrenceId,
+    )>>,
+    request: &HirOccurrenceId,
+    continuation_apply: &SourceSite,
+    callback_apply: &SourceSite,
+    response_argument: &SourceSite,
+) -> Result<Option<OperationV1LocalLineage>, RuntimeUnavailable> {
+    let source_root = code.iter().find_map(|candidate| {
+        (candidate.site.occurrence == *request).then(|| candidate.site.source_root.clone())
+    }).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+    let label_for = |occurrence: &HirOccurrenceId| {
+        let mut matches = code.iter().enumerate().filter(|(_, candidate)| {
+            candidate.site.source_root == source_root
+                && candidate.site.occurrence == *occurrence
+        });
+        let (index, _) = matches.next().ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+        if matches.next().is_some() {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        Ok(Label(index))
+    };
+
+    let mut found = Vec::new();
+    let mut has_local_catch_g = false;
+    for item in hir.items() {
+        let HirItem::Binding(binding) = item else { continue; };
+        let binding_root = SourceRootId::Definition(binding.definition_root().clone());
+        let Some(source) = hir.local_source_for(&binding_root)
+            .map_err(|_| RuntimeUnavailable::MissingSource)? else { continue; };
+        for local in source.bindings().iter().filter(|local| local.spelling.as_ref() == "g") {
+            let initializer = local_initializers
+                .and_then(|initializers| initializers.get(&local.id))
+                .copied()
+                .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            let initializer_code = code.get(initializer.0)
+                .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            if binding_root != source_root
+                || !matches!(&initializer_code.instruction, Instruction::Catch { .. })
+                || initializer_code.site.source_root != binding_root
+                || !code_subtree_contains(code, initializer, label_for(request)?)
+            {
+                continue;
+            }
+            has_local_catch_g = true;
+            for (used_binding, use_root, name_occurrence, apply_occurrence) in
+                local_names_and_applies.into_iter().flatten()
+            {
+                if used_binding != &local.id || use_root != &binding_root {
+                    continue;
+                }
+                let name_label = label_for(name_occurrence)?;
+                let apply_label = label_for(apply_occurrence)?;
+                let Instruction::Name {
+                    resolution: LocalSourceResolution::Local(resolved_binding),
+                    ..
+                } = &code[name_label.0].instruction else {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                };
+                let Instruction::Apply { callee, .. } = &code[apply_label.0].instruction else {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                };
+                if resolved_binding != &local.id || *callee != name_label {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
+                found.push(OperationV1LocalLineage {
+                    binding: local.id.clone(),
+                    initializer_catch: initializer_code.site.clone(),
+                    name_use: code[name_label.0].site.clone(),
+                    apply: code[apply_label.0].site.clone(),
+                });
+            }
+        }
+    }
+    if !has_local_catch_g {
+        return Ok(None);
+    }
+    if found.len() != 1 {
+        return Err(RuntimeUnavailable::InvalidSourceReference);
+    }
+    let lineage = found.pop().ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+    if lineage.apply.occurrence == continuation_apply.occurrence
+        || lineage.apply.occurrence == callback_apply.occurrence
+        || lineage.name_use.occurrence == response_argument.occurrence
+    {
+        return Err(RuntimeUnavailable::InvalidSourceReference);
+    }
+    Ok(Some(lineage))
 }
 
 fn operation_v1_handler_argument_join(

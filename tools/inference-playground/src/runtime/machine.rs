@@ -47,6 +47,10 @@ pub struct Machine {
 }
 #[derive(Default)]
 struct OperationV1Trace {
+    initializer_catch_owner: Option<ExecutionOwner>,
+    installed_local_cell: Option<(usize, ValueHandle, usize, ExecutionOwner)>,
+    read_local_cell: Option<(usize, ValueHandle, ExecutionOwner)>,
+    local_invocation_owner: Option<ExecutionOwner>,
     response_definition_read: Option<(ValueHandle, usize, SourceSite)>,
     selected_closure: Option<(ValueHandle, usize)>,
     applied_response_invocation: Option<(SourceSite, ExecutionOwner)>,
@@ -380,6 +384,30 @@ impl Machine {
         }
         let plan = self.program.operation_v1.as_ref()?;
         let trace = self.operation_v1_trace.as_ref()?;
+        if let Some(lineage) = &plan.local_lineage {
+            let (local_cell, local_value, local_environment, install_owner) =
+                trace.installed_local_cell?;
+            let (read_cell, read_value, read_owner) = trace.read_local_cell?;
+            let local_invocation_owner = trace.local_invocation_owner?;
+            if trace.initializer_catch_owner != Some(install_owner)
+                || local_cell != read_cell
+                || local_value != read_value
+                || install_owner != read_owner
+                || !matches!(local_invocation_owner,
+                    ExecutionOwner::Invocation(id)
+                        if self.invocations.get(id).is_some_and(|invocation|
+                            invocation.call.occurrence == lineage.apply.occurrence
+                                && !invocation.active))
+                || trace.callback_operation_owner != Some(local_invocation_owner)
+                || self.executables.get(&local_value.0).is_none_or(|executable| {
+                    !matches!(executable,
+                        ExecutableValue::Closure { environment, .. }
+                            if *environment == local_environment)
+                })
+            {
+                return None;
+            }
+        }
         let (response_argument_value, response_argument_environment, response_argument_read_source) =
             trace.response_definition_read.clone()?;
         let (response_handle, captured_environment) = trace.selected_closure?;
@@ -553,9 +581,23 @@ impl Machine {
                 }
                 .ok_or_else(|| RuntimeUnavailable::MissingBinding(site.clone()))?;
                 if let Some(received) = self.cells[cell] {
+                    let execution_owner = self.current_execution_owner();
                     if let (Some(plan), Some(trace)) =
                         (&self.program.operation_v1, &mut self.operation_v1_trace)
                     {
+                        if plan.local_lineage.as_ref().is_some_and(|lineage|
+                            site.occurrence == lineage.name_use.occurrence)
+                            && matches!(resolution,
+                                LocalSourceResolution::Local(id)
+                                    if plan.local_lineage.as_ref().is_some_and(|lineage|
+                                        id == &lineage.binding))
+                        {
+                            trace.read_local_cell = Some((
+                                cell,
+                                received.value,
+                                execution_owner,
+                            ));
+                        }
                         if site.occurrence == plan.response_argument.occurrence
                             && matches!(resolution,
                                 LocalSourceResolution::Local(id)
@@ -664,6 +706,17 @@ impl Machine {
             }
             Instruction::Catch { scrutinee, .. } => {
                 let scrutinee = *scrutinee;
+                let execution_owner = self.current_execution_owner();
+                if let (Some(plan), Some(trace)) =
+                    (&self.program.operation_v1, &mut self.operation_v1_trace)
+                {
+                    if plan.local_lineage.as_ref().is_some_and(|lineage|
+                        site.occurrence == lineage.initializer_catch.occurrence
+                            && site.source_root == lineage.initializer_catch.source_root)
+                    {
+                        trace.initializer_catch_owner = Some(execution_owner);
+                    }
+                }
                 let occurrence = self.next_handler;
                 self.next_handler = occurrence
                     .checked_add(1)
@@ -877,6 +930,29 @@ impl Machine {
                             });
                         let provider = self.values[received.value.0].source.clone();
                         let (activation, previous) = self.new_invocation(site.clone(), provider)?;
+                        if let (Some(plan), Some(trace)) =
+                            (&self.program.operation_v1, &mut self.operation_v1_trace)
+                        {
+                            if plan.local_lineage.as_ref().is_some_and(|lineage|
+                                site.occurrence == lineage.apply.occurrence)
+                                && trace.installed_local_cell.is_some_and(
+                                    |(cell, value, saved_environment, install_owner)| {
+                                        value == received.value
+                                            && saved_environment == environment
+                                            && trace.read_local_cell.is_some_and(
+                                                |(read_cell, read_value, read_owner)| {
+                                                    read_cell == cell
+                                                        && read_value == value
+                                                        && read_owner == install_owner
+                                                },
+                                            )
+                                    },
+                                )
+                            {
+                                trace.local_invocation_owner =
+                                    Some(ExecutionOwner::Invocation(activation));
+                            }
+                        }
                         if exact_response_invocation {
                             if let Some(trace) = &mut self.operation_v1_trace {
                                 trace.applied_response_invocation = Some((
@@ -1028,6 +1104,40 @@ impl Machine {
                 cell,
                 recursive,
             } => {
+                let execution_owner = self.current_execution_owner();
+                let binding = match &block.instruction {
+                    Instruction::Block { bindings, .. } => bindings
+                        .get(next - 1)
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?,
+                    _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+                };
+                if let (Some(plan), Some(trace)) =
+                    (&self.program.operation_v1, &mut self.operation_v1_trace)
+                {
+                    if plan.local_lineage.as_ref().is_some_and(|lineage|
+                        binding.id == lineage.binding)
+                    {
+                        let lineage = plan.local_lineage.as_ref()
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                        let initializer_site = self.program.code.get(binding.initializer.0)
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?
+                            .site.clone();
+                        let closure_environment = match self.executables.get(&received.value.0) {
+                            Some(ExecutableValue::Closure { environment, .. }) => *environment,
+                            _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+                        };
+                        if initializer_site.occurrence == lineage.initializer_catch.occurrence
+                            && trace.initializer_catch_owner == Some(execution_owner)
+                        {
+                            trace.installed_local_cell = Some((
+                                cell,
+                                received.value,
+                                closure_environment,
+                                execution_owner,
+                            ));
+                        }
+                    }
+                }
                 self.cells[cell] = Some(ReceivedValue {
                     value: received.value,
                     interface: ParameterRole::Value,

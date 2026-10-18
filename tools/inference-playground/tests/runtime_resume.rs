@@ -70,6 +70,38 @@ fn operation_v1_runtime_source(outer_arm: &str, callback_operation: &str) -> Str
     )
 }
 
+fn operation_v1_local_binding_source() -> String {
+    operation_v1_runtime_source("42", "next")
+        .replace("my main = relay ((catch signal::ping()", "my main = relay { my g = catch signal::ping()")
+        .replace("}) 0)", "}; g 0 }")
+}
+
+fn assert_unchanged_operation_v1_static_receipt(source: &str, name: &str) {
+    let text: Arc<SourceText> = Arc::from(source);
+    let parsed = parse_file(
+        text.clone(),
+        Arc::new(scan_header(text)),
+        Arc::new(SyntaxEnvironment::empty()),
+    );
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+    let hir = Arc::new(
+        lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new(name, "test.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        )
+        .unwrap(),
+    );
+    assert!(hir.errors().is_empty(), "{source}");
+    let candidate = CandidateInference::solve_operation_v1_research(hir.clone()).unwrap();
+    assert!(candidate.observes_hir(&hir));
+    assert!(candidate.candidate_conflicts().is_empty(), "{source}");
+    let receipts: Vec<_> = candidate.operation_v1_field_bounds().collect();
+    assert_eq!(receipts.len(), 1, "{source}");
+    assert!(receipts[0].consumed, "{source}");
+    RuntimeProgram::evidence_for_operation_v1(&hir, &candidate).unwrap();
+}
+
 #[test]
 fn operation_v1_same_hir_candidate_resumes_the_source_closure_into_live_outer_arm_42() {
     let source = operation_v1_runtime_source("42", "next");
@@ -89,6 +121,40 @@ fn operation_v1_same_hir_candidate_resumes_the_source_closure_into_live_outer_ar
     assert_eq!(
         receipt.response_argument_source.occurrence,
         receipt.response_argument_read_source.occurrence
+    );
+}
+
+#[test]
+fn operation_v1_local_g_binding_and_exact_cell_use_are_required_for_runtime_receipt() {
+    let source = operation_v1_local_binding_source();
+    assert_unchanged_operation_v1_static_receipt(&source, "operation-v1-local-binding-static");
+    let receipt = yu_playground::execute_operation_v1_runtime_research(
+        &source,
+        "operation-v1-local-binding.yu",
+        30_000,
+    )
+    .unwrap_or_else(|error| panic!("expected local-g lineage receipt: {error}"));
+    assert_eq!(receipt.result.as_ref(), "42");
+    assert_eq!(
+        receipt.response_argument_source.occurrence,
+        receipt.response_argument_read_source.occurrence
+    );
+
+    // A balanced shadowed g reads the outer closure into a distinct sibling
+    // cell. Its use must not stand in for the initializer Catch's exact binder.
+    let sibling = source.replace("}; g 0 }", "}; { my g = g; g 0 } }");
+    assert_unchanged_operation_v1_static_receipt(
+        &sibling,
+        "operation-v1-local-binding-sibling-static",
+    );
+    let sibling_result = yu_playground::execute_operation_v1_runtime_research(
+        &sibling,
+        "operation-v1-local-binding-sibling.yu",
+        30_000,
+    );
+    assert!(
+        matches!(&sibling_result, Err(error) if error.contains("runtime unavailable: InvalidSourceReference")),
+        "the unchanged static receipt must pass before the exact sibling lineage gate rejects it; got {sibling_result:?}"
     );
 }
 
