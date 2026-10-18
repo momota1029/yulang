@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push R20 contract and state, then start constructive proof and independent runtime HIR-gate lanes on exact disjoint leases. Implementation code lease opens only after clean design review.",
     "history": "R17/R18/R19 closeouts preserve original parent OPEN/closure0. R19 proof/source artifacts independently CLEAN at 6748039fa/118375dce. R19 local runtime checkpoint 8e1ad99fd; focused target 17/18 and first local-g failure at HIR-error assertion; no candidate/runtime local path executed.",
-    "last_stage_receipt": "R20 proof lane frozen with exact early prefix and missing annotation-exported-root -> authentic response FreshUse -> resumption/Catch root incidence. Same-use edge/drain/ack remains to prove. Proof is being independently reviewed; runtime HIR gate continues separately. Parent OPEN/closure0.",
+    "last_stage_receipt": "R20 constructive proof CLEAN after independent review. Exact early prefix exists, but typed A+/exposed response-root -> actual FreshUse -> Catch-installed-g incidence and same-use native drain/ack are not proved. Parent closure0. Runtime HIR gate still active; Luna prepares design before any native code lease.",
     "git_checkpoint": {
       "commit": "8e1ad99fd",
       "branch": "research/simple-sub-intrusion",
@@ -105,13 +105,13 @@
     {
       "id": "/root/r19_freshuse_spec_review",
       "role": "spec_auditor",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R20 proof-only independent review active on frozen theory/handoff hashes; review exact pins and source/native chain, original-parent applicability, and bounded missing incidence. Budget240 of the 720 review envelope; read-only."
+      "receipt": "CLEAN R20 proof review; 14 direct pins match; owner/prefix/remap/resumption trace supported. Typed annotation-root-to-own-use incidence remains missing. See frozen R20 proof handoff."
     },
     {
       "id": "/root/r19_runtime_lineage_review",
@@ -334,5 +334,5 @@
     "required": false,
     "receipt": "All R17-R19 workers stopped and exact frozen results recorded; current R20 assignments are new-session and await acknowledgement."
   },
-  "next_action": "Consult dispatcher at sprint end after the failed focused target. Preserve exact failure boundary; no retry or repair within R19 cap."
+  "next_action": "Luna writes and reviews the exact owner/coordinate transport design against CLEAN R20 proof; do not activate solver implementation until design review is CLEAN. Continue independent HIR admission gate."
 }
