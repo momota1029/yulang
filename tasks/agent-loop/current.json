@@ -4,27 +4,27 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "caller-authentic-evidence-intake-20261018-r26",
-    "contract": "tasks/agent-loop/sprints/caller-authentic-evidence-intake-20261018-r26.md",
+    "id": "canonical-caller-context-source-construction-20261018-r27",
+    "contract": "tasks/agent-loop/sprints/canonical-caller-context-source-construction-20261018-r27.md",
     "revision": 1,
-    "sha256": "763f10b84abb5a597526e76708a7113c40c5450034db03f2c814a8f8be2947fd",
+    "sha256": "b7fee693378db000bea7e52e1ea200c92c6a11a1b5ec886d46400f9c76c9a2f2",
     "state": "ACTIVE",
-    "baseline": "8de842c4d34ae0fdc191b72acfe64ef75b77fc67; R25 design/proof/HIR transport CLEAN, original parent OPEN/closure0.",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original source domain and quantifiers unchanged; OPEN/closure0.",
-    "fixed_outcome": "Locate actual supplier and independent introduction for caller-authentic context; apply to original registration or identify exact first missing input/owner. No semantic truth from R25 structural payload.",
+    "baseline": "aae7de82c5846b2502993c47ba544958cc544e17; R26 reviewed bounded caller-evidence route closed.",
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original domain and quantifiers unchanged; OPEN/closure0.",
+    "fixed_outcome": "Derive actual same-fiber caller guards from existing canonical source rules, or freeze a reviewed source-definition candidate and adoption boundary; a candidate alone discharges zero parent conditions.",
     "resources": {
-      "cap_seconds": 1200,
-      "charged_seconds": 1200,
+      "cap_seconds": 2100,
+      "charged_seconds": 2100,
       "available_seconds": 0,
-      "allocation": "Sol proof/source600 + Luna read-only caller/HIR audit240 + fresh review240 + integration120. Astra0; tests/builds/probes0."
+      "allocation": "Luna/source owner600 + Sol proof900 staged pending independent constructor premises + fresh review360 + integration240. Astra0; tests/builds/probes0."
     },
-    "next_action": "Independent review active on frozen actual caller/source evidence. Preserve OPEN/closure0 and NO_SAFE_CODE_SLICE; after review close this caller-supplied acquisition route pending a real host/context, then dispatch a grounded next route.",
-    "history": "R25 integrated as reviewed structural transport only; original parent conditions 0->0. Current playground still passes SemanticImports::empty(). R26 directly targets actual caller evidence supplier/introduction and original registration correspondence; implementation code lease intentionally absent pending authentic context.",
+    "next_action": "Luna traces actual canonical source constructor and guard derivation. Start proof only if a concrete non-circular constructor is frozen; otherwise prepare reviewed semantic-choice candidate, no adoption/code.",
+    "history": "R26 CLEAN bounded obstruction; actual public callers supply no independently introduced context, first missing input at caller and first failed j0 at ins_(r0,q0). No semantic nonexistence or parent closure. Dispatcher recommends canonical bootstrap source-construction route; R27 tests existing rules and may prepare but not adopt a new source definition.",
     "git_checkpoint": {
-      "commit": "5356dcba3",
+      "commit": "aae7de82c5846b2502993c47ba544958cc544e17",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R26 start and frozen Luna actual caller/prepare/HIR entry audit pushed; proof handoff is now frozen and under fresh independent review."
+      "receipt": "R26 proof/handoff frozen and pushed pending fresh review; R26 audit separately pushed; R27 contract checkpoint pending."
     },
     "workers": [
       {
@@ -36,29 +36,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R26 primary; caller-path audit frozen NO_SAFE_CODE_SLICE; proof /root/r26_authentic_evidence stopped with exact j0-introduction obstruction; fresh /root/r26_evidence_review active."
-      },
-      {
-        "id": "/root/r26_authentic_evidence",
-        "role": "prover",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Frozen artifact bedf403a40b78264fd81ea147b49f84145311b5da70272211578e7718ee5fe58 and handoff b42928b71d01150975a17a602477b49da2308884937edd8cb284729f91b5f55d; exact caller context/j0 absent; parent 0->0; writes ceased; no descendants."
-      },
-      {
-        "id": "/root/r26_evidence_review",
-        "role": "compiler_referee",
-        "state": "RUNNING",
-        "requested_model": "Sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Fresh independent review of frozen R26 proof/handoff and caller entry audit; no writes/tests/builds/Git; 240s allocation."
+        "receipt": "R27 source-owner lane active: inspect adopted canonical construction and determine whether existing rules introduce caller context/guards non-circularly; no code/tests/Git by source-owner lane."
       }
     ],
     "leases": [
@@ -68,7 +46,7 @@
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/sprints/caller-authentic-evidence-intake-20261018-r26.md",
+        "path": "tasks/agent-loop/sprints/canonical-caller-context-source-construction-20261018-r27.md",
         "owner": "/root",
         "state": "FROZEN"
       },
@@ -78,54 +56,49 @@
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md",
+        "path": "notes/design/2026-10-18-canonical-caller-context-source-construction.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
-        "path": "notes/theory/2026-10-18-caller-authentic-evidence-intake.md",
-        "owner": "/root/r26_authentic_evidence",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-caller-authentic-evidence-intake.md",
-        "owner": "/root/r26_authentic_evidence",
-        "state": "FROZEN"
+        "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md",
+        "owner": "/root",
+        "state": "HELD"
       }
     ],
     "pending": [
       {
-        "id": "R26-AUTHENTIC-CALLER-EVIDENCE",
-        "state": "REVIEW",
-        "owner": "/root/r26_authentic_evidence",
-        "artifact": "Frozen proof bedf403a40b78264fd81ea147b49f84145311b5da70272211578e7718ee5fe58; handoff b42928b71d01150975a17a602477b49da2308884937edd8cb284729f91b5f55d; first unavailable context and j0 introduction absent; parent 0->0."
-      },
-      {
-        "id": "R26-ACTUAL-ENTRY-PATH",
-        "state": "RESULT",
-        "owner": "/root",
-        "artifact": "Frozen Luna audit tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md SHA 5a0e7fde1aa57477b2267eb2dabc30e376f84552bbd5616eed3e4933c6cab2f4; CLI/public caller and HIR source owner traced; earliest missing input at caller/host, NO_SAFE_CODE_SLICE."
-      },
-      {
-        "id": "R26-INDEPENDENT-REVIEW",
+        "id": "R27-CANONICAL-SOURCE-CONSTRUCTOR",
         "state": "RUNNING",
-        "owner": "/root/r26_evidence_review",
-        "artifact": "Review frozen proof/source owner outcome and Luna entry-path inventory."
+        "owner": "/root",
+        "artifact": "Derive actual canonical caller context/guards from adopted rules, or freeze smallest unadopted candidate and exact semantic consequences."
+      },
+      {
+        "id": "R27-SAME-FIBER-GUARD-PROOF",
+        "state": "STAGED",
+        "owner": "Sol/prover after source checkpoint",
+        "artifact": "900s conditional lane; derive j0/a0/license at original tuple only from independently introduced constructor premises."
+      },
+      {
+        "id": "R27-INDEPENDENT-REVIEW",
+        "state": "STAGED",
+        "owner": "fresh compiler_referee",
+        "artifact": "Review source construction and any conditional proof; challenge circularity and semantic adoption."
       }
     ],
     "ready_next_work": {
-      "id": "R26-AUTHENTIC-CALLER-EVIDENCE",
-      "state": "READY",
-      "owner": "Sol/prover after initial checkpoint",
-      "artifact": "Actual independent supplier/introduction and original source-registration application; no filler transport lemma."
+      "id": "R27-CANONICAL-SOURCE-CONSTRUCTOR",
+      "state": "RUNNING",
+      "owner": "/root",
+      "artifact": "Test whether the adopted canonical source rules already determine the original caller context; no constructor/API adoption."
     },
     "legacy_reconciliation": {
       "required": false,
-      "receipt": "R25 proof, design and implementation review workers stopped; R25 coherent commit pushed. Unrelated quarantined files preserved."
+      "receipt": "R26 proof writer STOPPED, fresh review CLEAN/STOPPED; Luna source audit stopped; all R26 leased outputs frozen; quarantined files excluded."
     }
   },
-  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. R20 runtime/HIR specimen gate CLEAN, 18/18; source/native FreshUse incidence still missing. R21 review CLEAN for rev3 document conformance only; A unadopted and partial, B blocked. R22 closeout: conditional runtime response-handle induction; source D1/A_decl output/provider map not proved; trace findings/repair failure recorded; parent remains OPEN/closure0. R23 closed at bounded source-owner outcome after fresh independent CLEAN review: no authentic fixed K_decl; no admitted refutation; parent closure0. R24 now targets actual caller-owned Sigma0 registration/license/JointWF guards and hereditary phase actions without narrowing the parent. R25 active: caller-selected unvalidated evidence transport; design and proof in parallel, HIR implementation staged for independent design review; parent remains OPEN/closure0. R25 completed as reviewed transport-only slice; no parent-theorem condition discharged. R26 next investigates actual evidence supplier and introduction; implementation waits until an authentic source/context and operation correspondence are located. R26 active: actual caller authentic-evidence intake and original registration application; Luna entry-path inventory is read-only and must record NO_SAFE_CODE_SLICE absent an actual supplier/context mapping.",
-  "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md (R22 stale trace hashes), and tools/__pycache__/; no staging.",
+  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. R20 runtime/HIR specimen gate CLEAN, 18/18; source/native FreshUse incidence still missing. R21 review CLEAN for rev3 document conformance only; A unadopted and partial, B blocked. R22 closeout: conditional runtime response-handle induction; source D1/A_decl output/provider map not proved; trace findings/repair failure recorded; parent remains OPEN/closure0. R23 closed at bounded source-owner outcome after fresh independent CLEAN review: no authentic fixed K_decl; no admitted refutation; parent closure0. R24 now targets actual caller-owned Sigma0 registration/license/JointWF guards and hereditary phase actions without narrowing the parent. R25 active: caller-selected unvalidated evidence transport; design and proof in parallel, HIR implementation staged for independent design review; parent remains OPEN/closure0. R25 completed as reviewed transport-only slice; no parent-theorem condition discharged. R26 next investigates actual evidence supplier and introduction; implementation waits until an authentic source/context and operation correspondence are located. R26 active: actual caller authentic-evidence intake and original registration application; Luna entry-path inventory is read-only and must record NO_SAFE_CODE_SLICE absent an actual supplier/context mapping. R26 closeout after fresh CLEAN review: exact caller-owned context and same-fiber j0 introduction not supplied on inspected path; bounded absence only, conditions 0->0, parent OPEN/closure0. R27 active on canonical bootstrap constructor; proof staged until actual source owner is determined.",
+  "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
   "workers": [
     {
       "id": "/root",
@@ -136,29 +109,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R26 primary; caller-path audit frozen NO_SAFE_CODE_SLICE; proof /root/r26_authentic_evidence stopped with exact j0-introduction obstruction; fresh /root/r26_evidence_review active."
-    },
-    {
-      "id": "/root/r26_authentic_evidence",
-      "role": "prover",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen artifact bedf403a40b78264fd81ea147b49f84145311b5da70272211578e7718ee5fe58 and handoff b42928b71d01150975a17a602477b49da2308884937edd8cb284729f91b5f55d; exact caller context/j0 absent; parent 0->0; writes ceased; no descendants."
-    },
-    {
-      "id": "/root/r26_evidence_review",
-      "role": "compiler_referee",
-      "state": "RUNNING",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Fresh independent review of frozen R26 proof/handoff and caller entry audit; no writes/tests/builds/Git; 240s allocation."
+      "receipt": "R27 source-owner inspection active; proof lane staged pending non-circular source constructor."
     }
   ],
   "leases": [
@@ -168,7 +119,7 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/caller-authentic-evidence-intake-20261018-r26.md",
+      "path": "tasks/agent-loop/sprints/canonical-caller-context-source-construction-20261018-r27.md",
       "owner": "/root",
       "state": "FROZEN"
     },
@@ -178,56 +129,51 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md",
+      "path": "notes/design/2026-10-18-canonical-caller-context-source-construction.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-caller-authentic-evidence-intake.md",
-      "owner": "/root/r26_authentic_evidence",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-caller-authentic-evidence-intake.md",
-      "owner": "/root/r26_authentic_evidence",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [
     {
-      "id": "R26-AUTHENTIC-CALLER-EVIDENCE",
-      "state": "REVIEW",
-      "owner": "/root/r26_authentic_evidence",
-      "artifact": "Frozen proof bedf403a40b78264fd81ea147b49f84145311b5da70272211578e7718ee5fe58; handoff b42928b71d01150975a17a602477b49da2308884937edd8cb284729f91b5f55d; first unavailable context and j0 introduction absent; parent 0->0."
-    },
-    {
-      "id": "R26-ACTUAL-ENTRY-PATH",
-      "state": "RESULT",
-      "owner": "/root",
-      "artifact": "Frozen Luna audit tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md SHA 5a0e7fde1aa57477b2267eb2dabc30e376f84552bbd5616eed3e4933c6cab2f4; CLI/public caller and HIR source owner traced; earliest missing input at caller/host, NO_SAFE_CODE_SLICE."
-    },
-    {
-      "id": "R26-INDEPENDENT-REVIEW",
+      "id": "R27-CANONICAL-SOURCE-CONSTRUCTOR",
       "state": "RUNNING",
-      "owner": "/root/r26_evidence_review",
-      "artifact": "Review frozen proof/source owner outcome and Luna entry-path inventory."
+      "owner": "/root",
+      "artifact": "Derive actual canonical caller context/guards from adopted rules, or freeze smallest unadopted candidate and exact semantic consequences."
+    },
+    {
+      "id": "R27-SAME-FIBER-GUARD-PROOF",
+      "state": "STAGED",
+      "owner": "Sol/prover after source checkpoint",
+      "artifact": "900s conditional lane; derive j0/a0/license at original tuple only from independently introduced constructor premises."
+    },
+    {
+      "id": "R27-INDEPENDENT-REVIEW",
+      "state": "STAGED",
+      "owner": "fresh compiler_referee",
+      "artifact": "Review source construction and any conditional proof; challenge circularity and semantic adoption."
     }
   ],
   "ready_next_work": {
-    "id": "R26-AUTHENTIC-CALLER-EVIDENCE",
-    "state": "READY",
-    "owner": "Sol/prover after initial checkpoint",
-    "artifact": "Actual independent supplier/introduction and original source-registration application; no filler transport lemma."
+    "id": "R27-CANONICAL-SOURCE-CONSTRUCTOR",
+    "state": "RUNNING",
+    "owner": "/root",
+    "artifact": "Test whether the adopted canonical source rules already determine the original caller context; no constructor/API adoption."
   },
   "legacy_reconciliation": {
     "required": false,
     "receipt": "R23 and R24 lane workers stopped; all frozen outputs reviewed; no code or unknown leases."
   },
-  "next_action": "Independent review active on frozen actual caller/source evidence. Preserve OPEN/closure0 and NO_SAFE_CODE_SLICE; after review close this caller-supplied acquisition route pending a real host/context, then dispatch a grounded next route.",
+  "next_action": "Luna traces actual canonical source constructor and guard derivation. Start proof only if a concrete non-circular constructor is frozen; otherwise prepare reviewed semantic-choice candidate, no adoption/code.",
   "git_checkpoint": {
-    "commit": "f4fba1f38",
+    "commit": "aae7de82c5846b2502993c47ba544958cc544e17",
     "branch": "research/simple-sub-intrusion",
     "pushed_to": "origin/research/simple-sub-intrusion",
-    "receipt": "R23 closeout and R24 contract pushed; R24 caller-source lane acknowledged; launch snapshot commit pending."
+    "receipt": "R26 proof/handoff frozen and pushed pending fresh review; R26 audit separately pushed; R27 contract checkpoint pending."
   }
 }

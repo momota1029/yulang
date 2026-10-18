@@ -17434,7 +17434,16 @@ no independently constructed source-registration context is passed. HIR retains
 structural binding keys only, so the current route has `NO_SAFE_CODE_SLICE`
 until an actual supplier and source correspondence are identified. The proof lane
 also froze the first failed original judgment: same-fiber `j0` introduction after
-structural root insertion is not supplied. Fresh review is pending; parent
-conditions remain 0 -> 0. See the frozen [entry-path audit](agent-loop/inbox/20261018-caller-evidence-entry-path.md)
+structural root insertion is not supplied. Fresh independent review was CLEAN for this bounded obstruction; parent
+conditions remain 0 -> 0 and the caller-supplied acquisition route is closed
+pending a real external supplier. See the frozen [entry-path audit](agent-loop/inbox/20261018-caller-evidence-entry-path.md)
 and [proof handoff](agent-loop/inbox/20261018-caller-authentic-evidence-intake.md). See
 [`caller-authentic-evidence-intake-20261018-r26.md`](agent-loop/sprints/caller-authentic-evidence-intake-20261018-r26.md).
+
+
+R27 is active on the canonical bootstrap source-construction route. It tests
+whether adopted rules derive the original same-fiber caller context and guards
+without circular premises. If they do not, it will freeze a reviewed source-rule
+candidate for an adoption decision; a candidate rule alone does not discharge
+parent conditions. See
+[`canonical-caller-context-source-construction-20261018-r27.md`](agent-loop/sprints/canonical-caller-context-source-construction-20261018-r27.md).
