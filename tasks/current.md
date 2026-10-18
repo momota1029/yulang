@@ -25,15 +25,14 @@ closure; the full parent remains OPEN at `0 -> 0`. The checked-result
 constructor for immutable-Name/Unit Call does not apply to this q. R45's
 reviewed checkpoint was pushed as `55ed588e7`; see the [closeout](../notes/progress/2026-10-19-r45-closeout.md).
 
-R46 is active under [its frozen contract](agent-loop/sprints/source-apply-owner-20261019-r46.md).
-It traces the actual HIR Apply occurrence forward through `ApplySourceInput`
-and native ports, then backward from the typed Result consumer, joining only
-authenticated occurrence/provenance identities. Luna owns a read-only
-source/native map and Sol independently instantiates existing formation laws
-or identifies the first unsupported judgment. The cap is 2400 seconds with no
-R45 carryover; no code, tests, builds, runtime probes or semantic changes are
-authorized. Original theorem, Simple-sub A/B, quantifiers, source domain and
-semantics remain unchanged; parent OPEN at `0 -> 0`.
+R46 closed with a reviewed bounded ordinary-Application owner obstruction. The
+static source/native map joins q's source Apply to its native Result endpoint
+and typed Result/Preserve consumer, but the pinned rules do not derive an
+authentic output `Desc`, ordered `D_q`, or independent effect/result origins.
+Both fresh reviews found no issues within scope. This is not global absence, a
+source counterexample, or implementation defect. The parent remains OPEN at
+`0 -> 0`; no code, tests, builds, runtime probes, or semantic changes occurred.
+See the [R46 closeout](../notes/progress/2026-10-19-r46-closeout.md).
 
 R22's reviewed proof and falsifier artifacts preserve the original source scope:
 the fixed successful runtime path carries the response handle through
