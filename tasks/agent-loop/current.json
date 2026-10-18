@@ -39,7 +39,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "R71 closeout committed/pushed. Post-boundary read-only source reconnaissance found Apply source events and production Function/row extrusion seams, but no single unchanged-domain source instance through third-owner slot, qualified merge, later consumer, and independent required lineage. No successor sprint, lease, resource grant, tests, probes, or code changes; Luna stops this session."
+      "receipt": "Read-only evidence: Graph::qualifies is SCC(origin,receiver); existing mutual-recursion candidate fixture supplies an unchanged-domain source lead with two Apply sites. No source-qualified third-owner/merge/later-consumer bridge established; root stops before any new grant."
     },
     {
       "id": "/root/r71_raw_canonical_proof",
@@ -211,5 +211,5 @@
     }
   ],
   "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 CLOSED REVIEWED CONDITIONAL with coverage target OPEN. R70 operation target, original parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-  "next_action": "Selection blocker persists: derive a concrete unchanged-domain source/ordinary-mode instance connecting the independently required lineage, third-owner physical slot, qualified merge, and later production consumer before proposing successor authority. Current Luna reconnaissance STOPPED; no new sprint or grant."
+  "next_action": "Source-qualified lead for the next read-only audit: the existing natural-recursion fixture `my left x = right x\nmy right y = left y` (candidate_intrusion_tests.rs::natural_recursive_definitions_use_open_roots_and_keep_real_function_bounds). Its Apply source events can qualify because candidate_value_graph::Graph::qualifies is SCC(origin,receiver); the fixture asserts candidate-mode execution retains both-polarity function bounds. This does NOT establish the needed third-owner slot → qualified merge → later production consumer or required-lineage obligation. Inspect that exact fixture/source route next; no sprint or grant yet."
 }
