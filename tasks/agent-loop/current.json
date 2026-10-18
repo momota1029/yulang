@@ -20,7 +20,7 @@
     },
     "next_action": "Commit/push R21 contract and compact state, then dispatch three exact disjoint document-only leases. Freeze outputs, independent review, present reviewed semantic choice to user.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0.",
-    "last_stage_receipt": "Implementation-contract lane frozen at pinned hashes; document-only and no semantic implementation. Proof and falsification lanes still active; final independent review waits for all lanes.",
+    "last_stage_receipt": "Two-option proof packet frozen at pinned hashes; includes actual arm-result path constraint, no endpoint equalities. Independent falsification and integrated review remain.",
     "git_checkpoint": {
       "commit": "c890c096b",
       "branch": "research/simple-sub-intrusion",
@@ -45,13 +45,13 @@
     {
       "id": "/root/r21_bridge_proof",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "RUNNING: exact option construction lease launched; sources are pinned R20 proof and R6 design; document-only, no semantic adoption."
+      "receipt": "R21 two-option rule packet frozen; options SHA256 41f9aa695139a41ba11b140ebe2a96f6f95c17012b267b71f7e3c8b661d30f3a; handoff c34078bb94b05b1fdd930b544e2253967557d85f117124dfde67066d1145c7ae. Both need derived ResumeMap, own mapped field drains and actual k-result-to-arm-final path. No code/tests/Git; pending integrated review."
     },
     {
       "id": "/root/r21_bridge_falsifiers",
@@ -90,12 +90,12 @@
     {
       "path": "notes/design/2026-10-18-field-root-incidence-bridge-options.md",
       "owner": "/root/r21_bridge_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-proof.md",
       "owner": "/root/r21_bridge_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-18-field-root-incidence-bridge-soundness.md",
