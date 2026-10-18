@@ -17414,36 +17414,20 @@ reachability nor a lost source effect. Parent H2 remains OPEN until the original
 current/future activation obligation is proved or a source-qualified
 counterexample is established; H1/U stay OPEN, H3/P disabled, and production/F5
 separate.
-# Active research sprint — R25
+# Active research sprint — R28
 
-R25 closed with a reviewed transport-only HIR path for a caller-supplied opaque
-payload, bound to one exact parse root, module and HIR-admitted top-level
-binding declaration. The payload is owned, `Send + Sync + 'static`; binding
-metadata is immutable while payload internals are not assumed immutable.
-This adds no mathematical theorem conditions discharged: authentic
-`j0/a0/license`, operation/member/signature correspondence, phase actions,
-`JointWF`, and the unchanged parent theorem remain open. The current playground
-still supplies `SemanticImports::empty()`. See
-[`caller-evidence-source-binding-20261018-r25.md`](agent-loop/sprints/caller-evidence-source-binding-20261018-r25.md)
-and [R25 closeout](../notes/progress/2026-10-18-r25-caller-evidence-binding-closeout.md).
+R27 closed after a fresh independent review found the bounded obstruction and
+conditional `L-DeclaredPort` application CLEAN. The selected bootstrap rules
+still stop before same-fiber `j0`, `a0`, and actual `DeclContribution` evidence;
+parent `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN/closure0,
+with original conditions **0 -> 0**. `CallerModuleInit` is schematic, not an
+adopted rule. See the [R27 closeout](../notes/progress/2026-10-18-r27-canonical-caller-construction-closeout.md).
 
-R26 is active on the next semantic dependency: locate an actual caller evidence
-supplier and its independent introduction judgment, then apply it to the
-original registration. The Luna read-only audit found the first absent input at the public caller/host:
-no independently constructed source-registration context is passed. HIR retains
-structural binding keys only, so the current route has `NO_SAFE_CODE_SLICE`
-until an actual supplier and source correspondence are identified. The proof lane
-also froze the first failed original judgment: same-fiber `j0` introduction after
-structural root insertion is not supplied. Fresh independent review was CLEAN for this bounded obstruction; parent
-conditions remain 0 -> 0 and the caller-supplied acquisition route is closed
-pending a real external supplier. See the frozen [entry-path audit](agent-loop/inbox/20261018-caller-evidence-entry-path.md)
-and [proof handoff](agent-loop/inbox/20261018-caller-authentic-evidence-intake.md). See
-[`caller-authentic-evidence-intake-20261018-r26.md`](agent-loop/sprints/caller-authentic-evidence-intake-20261018-r26.md).
-
-
-R27 is active on the canonical bootstrap source-construction route. It found the adopted rules stop at structural registration and do not
-introduce the original same-fiber guards. A fieldwise `CallerModuleInit` rule
-is now frozen as an unadopted candidate; a staged proof lane will test its
-non-circular consequences. The candidate alone discharges no parent condition. A conditional proof lane is
-now testing same-fiber guard introduction against this unadopted rule. See
-[`canonical-caller-context-source-construction-20261018-r27.md`](agent-loop/sprints/canonical-caller-context-source-construction-20261018-r27.md).
+R28 follows the user's selection of the recommended caller-side initializer
+route for one reversible research attempt. Its success gate is to define a
+concrete same-tuple module-init transition from independent source/caller inputs,
+prove an original guard, and apply it to the original bootstrap. Rule adoption or
+prototype output alone does not count as theorem progress. Implementation is
+staged until independent review of the research definition. Production semantics
+and all original theorem quantifiers remain unchanged. See the
+[R28 contract](agent-loop/sprints/caller-module-init-guard-preservation-20261018-r28.md).

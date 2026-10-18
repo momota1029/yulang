@@ -4,50 +4,38 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "canonical-caller-context-source-construction-20261018-r27",
-    "contract": "tasks/agent-loop/sprints/canonical-caller-context-source-construction-20261018-r27.md",
+    "id": "caller-module-init-guard-preservation-20261018-r28",
+    "contract": "tasks/agent-loop/sprints/caller-module-init-guard-preservation-20261018-r28.md",
     "revision": 1,
-    "sha256": "b7fee693378db000bea7e52e1ea200c92c6a11a1b5ec886d46400f9c76c9a2f2",
     "state": "ACTIVE",
-    "baseline": "aae7de82c5846b2502993c47ba544958cc544e17; R26 reviewed bounded caller-evidence route closed.",
+    "baseline": "37282e47ab2723ff1996fe42b18855bc7bec492a",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original domain and quantifiers unchanged; OPEN/closure0.",
-    "fixed_outcome": "Derive actual same-fiber caller guards from existing canonical source rules, or freeze a reviewed source-definition candidate and adoption boundary; a candidate alone discharges zero parent conditions.",
+    "fixed_outcome": "Develop and review a concrete caller-side module-init transition, derive at least one original same-tuple guard from independent inputs, and apply it to the original bootstrap; candidate/prototype alone discharges zero parent conditions.",
     "resources": {
-      "cap_seconds": 2100,
-      "charged_seconds": 2100,
-      "available_seconds": 0,
-      "allocation": "Luna/source owner600 + Sol proof900 staged pending independent constructor premises + fresh review360 + integration240. Astra0; tests/builds/probes0."
+      "cap_seconds": 2800,
+      "charged_seconds": 0,
+      "available_seconds": 2800,
+      "allocation": "Luna source definition600; Sol proof1000 staged; implementation900 after design review; independent review600; integration300. Astra0."
     },
-    "next_action": "Sol conditional guard proof active against non-adopted CallerModuleInit candidate. Determine exact original-j0/a0/license derivation and first missing independent premise; do not count conditional result as parent discharge.",
-    "history": "R26 CLEAN bounded obstruction; actual public callers supply no independently introduced context, first missing input at caller and first failed j0 at ins_(r0,q0). No semantic nonexistence or parent closure. Dispatcher recommends canonical bootstrap source-construction route; R27 tests existing rules and may prepare but not adopt a new source definition.",
+    "next_action": "Root source-definition lane RUNNING; specify predecessor/source/event/authority/activity/old-field/alias/license construction. Do not begin code until independent design review.",
+    "history": "R27 CLEAN bounded obstruction/conditional review; original conditions 0->0. CallerModuleInit is schematic, not adoption-ready. User selected recommended caller-side initializer route for one reversible research attempt.",
     "git_checkpoint": {
-      "commit": "8bb973029",
+      "commit": "37282e47ab2723ff1996fe42b18855bc7bec492a",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R27 contract and frozen source-owner candidate pushed; conditional Sol proof lane launched on exact leased files."
+      "receipt": "R27 conditional proof freeze and reviewed closeout recorded; R28 contract revision 1 pinned."
     },
     "workers": [
       {
         "id": "/root",
-        "role": "Luna-primary",
+        "role": "Luna-primary/source-owner",
         "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Owns R27 integration/state/Git; source-owner artifact frozen; Sol conditional guard derivation /root/r27_guard_conditional_proof actually launched on exact proof/handoff leases."
-      },
-      {
-        "id": "/root/r27_guard_conditional_proof",
-        "role": "prover",
-        "state": "RUNNING",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Actual spawn after 8bb973029 checkpoint; conditional derivation of same-tuple j0/a0/license from unadopted candidate rule; exact two output leases; no code/tests/Git/children; cap900s."
+        "receipt": "Owns R28 design and state/Git; no code lease until independent source-definition review."
       }
     ],
     "leases": [
@@ -57,9 +45,9 @@
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/sprints/canonical-caller-context-source-construction-20261018-r27.md",
+        "path": "tasks/agent-loop/sprints/caller-module-init-guard-preservation-20261018-r28.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
         "path": "tasks/current.md",
@@ -67,81 +55,65 @@
         "state": "HELD"
       },
       {
-        "path": "notes/design/2026-10-18-canonical-caller-context-source-construction.md",
+        "path": "notes/design/2026-10-18-caller-module-init-research-definition.md",
         "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/theory/2026-10-18-canonical-caller-context-guard-introduction.md",
-        "owner": "/root/r27_guard_conditional_proof",
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-guards.md",
-        "owner": "/root/r27_guard_conditional_proof",
+        "path": "tasks/agent-loop/inbox/20261018-caller-module-init-research-definition.md",
+        "owner": "/root",
         "state": "HELD"
       }
     ],
     "pending": [
       {
-        "id": "R27-CANONICAL-SOURCE-CONSTRUCTOR",
-        "state": "RESULT",
-        "owner": "/root",
-        "artifact": "Frozen non-adopted CallerModuleInit source-rule candidate in notes/design/2026-10-18-canonical-caller-context-source-construction.md SHA 399b054b9b5985e6efd5e2eba77b50735bd71a97c7eba34d4ad140017aec5a61; handoff tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md SHA 61dc285c959ddac277611aa088ada282c380f921fb537d4d8f64332ddcceb8a5."
-      },
-      {
-        "id": "R27-SAME-FIBER-GUARD-PROOF",
+        "id": "R28-RESEARCH-SOURCE-DEFINITION",
         "state": "RUNNING",
-        "owner": "/root/r27_guard_conditional_proof",
-        "artifact": "900s conditional lane; derive j0/a0/license at original tuple only from independently introduced constructor premises."
+        "owner": "/root",
+        "artifact": "Define concrete module-init transition and same-index original guard interpretations; no semantic adoption."
       },
       {
-        "id": "R27-INDEPENDENT-REVIEW",
+        "id": "R28-CONDITIONAL-GUARD-PROOF",
         "state": "STAGED",
-        "owner": "fresh compiler_referee",
-        "artifact": "Review source construction and any conditional proof; challenge circularity and semantic adoption."
+        "owner": "Sol/prover",
+        "artifact": "Start only after frozen source definition; derive/apply original guard without target-guard premises."
+      },
+      {
+        "id": "R28-PROTOTYPE",
+        "state": "BLOCKED",
+        "owner": "Luna/high",
+        "artifact": "Exact research-playground implementation paths staged in contract; start only after source definition has independent CLEAN review."
+      },
+      {
+        "id": "R28-INDEPENDENT-REVIEW",
+        "state": "STAGED",
+        "owner": "fresh compiler_referee/spec_auditor",
+        "artifact": "Review source definition before prototype; later review coherent proof/prototype delta."
       }
     ],
     "ready_next_work": {
-      "id": "R27-CANONICAL-SOURCE-CONSTRUCTOR",
+      "id": "R28-RESEARCH-SOURCE-DEFINITION",
       "state": "RUNNING",
       "owner": "/root",
-      "artifact": "Test whether the adopted canonical source rules already determine the original caller context; no constructor/API adoption."
+      "artifact": "Use same-tuple module-init action and actual resolved source identities; identify independently constructed j0/a0/license fields and remaining gaps."
     },
     "legacy_reconciliation": {
       "required": false,
-      "receipt": "R26 proof writer STOPPED, fresh review CLEAN/STOPPED; Luna source audit stopped; all R26 leased outputs frozen; quarantined files excluded."
-    }
+      "receipt": "No active legacy workers; R27 proof and reviewer STOPPED with exact artifact hashes, no descendants."
+    },
+    "sha256": "80d41e2fccff9ae04ed1e75da0652933d3dcd6db2731e010534b66d36afef3f5"
   },
-  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. R20 runtime/HIR specimen gate CLEAN, 18/18; source/native FreshUse incidence still missing. R21 review CLEAN for rev3 document conformance only; A unadopted and partial, B blocked. R22 closeout: conditional runtime response-handle induction; source D1/A_decl output/provider map not proved; trace findings/repair failure recorded; parent remains OPEN/closure0. R23 closed at bounded source-owner outcome after fresh independent CLEAN review: no authentic fixed K_decl; no admitted refutation; parent closure0. R24 now targets actual caller-owned Sigma0 registration/license/JointWF guards and hereditary phase actions without narrowing the parent. R25 active: caller-selected unvalidated evidence transport; design and proof in parallel, HIR implementation staged for independent design review; parent remains OPEN/closure0. R25 completed as reviewed transport-only slice; no parent-theorem condition discharged. R26 next investigates actual evidence supplier and introduction; implementation waits until an authentic source/context and operation correspondence are located. R26 active: actual caller authentic-evidence intake and original registration application; Luna entry-path inventory is read-only and must record NO_SAFE_CODE_SLICE absent an actual supplier/context mapping. R26 closeout after fresh CLEAN review: exact caller-owned context and same-fiber j0 introduction not supplied on inspected path; bounded absence only, conditions 0->0, parent OPEN/closure0. R27 active on canonical bootstrap constructor; proof staged until actual source owner is determined.",
-  "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
   "workers": [
     {
       "id": "/root",
-      "role": "Luna-primary",
+      "role": "Luna-primary/source-owner",
       "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Owns R27 integration/state/Git; source-owner artifact frozen; Sol conditional guard derivation /root/r27_guard_conditional_proof actually launched on exact proof/handoff leases."
-    },
-    {
-      "id": "/root/r27_guard_conditional_proof",
-      "role": "prover",
-      "state": "RUNNING",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Actual spawn after 8bb973029 checkpoint; conditional derivation of same-tuple j0/a0/license from unadopted candidate rule; exact two output leases; no code/tests/Git/children; cap900s."
+      "receipt": "Owns R28 design and state/Git; no code lease until independent source-definition review."
     }
   ],
   "leases": [
@@ -151,9 +123,9 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/canonical-caller-context-source-construction-20261018-r27.md",
+      "path": "tasks/agent-loop/sprints/caller-module-init-guard-preservation-20261018-r28.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "tasks/current.md",
@@ -161,61 +133,42 @@
       "state": "HELD"
     },
     {
-      "path": "notes/design/2026-10-18-canonical-caller-context-source-construction.md",
+      "path": "notes/design/2026-10-18-caller-module-init-research-definition.md",
       "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-18-canonical-caller-context-guard-introduction.md",
-      "owner": "/root/r27_guard_conditional_proof",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-guards.md",
-      "owner": "/root/r27_guard_conditional_proof",
+      "path": "tasks/agent-loop/inbox/20261018-caller-module-init-research-definition.md",
+      "owner": "/root",
       "state": "HELD"
     }
   ],
   "pending": [
     {
-      "id": "R27-CANONICAL-SOURCE-CONSTRUCTOR",
-      "state": "RESULT",
-      "owner": "/root",
-      "artifact": "Frozen non-adopted CallerModuleInit source-rule candidate in notes/design/2026-10-18-canonical-caller-context-source-construction.md SHA 399b054b9b5985e6efd5e2eba77b50735bd71a97c7eba34d4ad140017aec5a61; handoff tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md SHA 61dc285c959ddac277611aa088ada282c380f921fb537d4d8f64332ddcceb8a5."
-    },
-    {
-      "id": "R27-SAME-FIBER-GUARD-PROOF",
+      "id": "R28-RESEARCH-SOURCE-DEFINITION",
       "state": "RUNNING",
-      "owner": "/root/r27_guard_conditional_proof",
-      "artifact": "900s conditional lane; derive j0/a0/license at original tuple only from independently introduced constructor premises."
+      "owner": "/root",
+      "artifact": "Define concrete module-init transition and same-index original guard interpretations; no semantic adoption."
     },
     {
-      "id": "R27-INDEPENDENT-REVIEW",
+      "id": "R28-CONDITIONAL-GUARD-PROOF",
       "state": "STAGED",
-      "owner": "fresh compiler_referee",
-      "artifact": "Review source construction and any conditional proof; challenge circularity and semantic adoption."
+      "owner": "Sol/prover",
+      "artifact": "Start only after frozen source definition; derive/apply original guard without target-guard premises."
+    },
+    {
+      "id": "R28-PROTOTYPE",
+      "state": "BLOCKED",
+      "owner": "Luna/high",
+      "artifact": "Exact research-playground implementation paths staged in contract; start only after source definition has independent CLEAN review."
+    },
+    {
+      "id": "R28-INDEPENDENT-REVIEW",
+      "state": "STAGED",
+      "owner": "fresh compiler_referee/spec_auditor",
+      "artifact": "Review source definition before prototype; later review coherent proof/prototype delta."
     }
   ],
-  "ready_next_work": {
-    "id": "R27-CANONICAL-SOURCE-CONSTRUCTOR",
-    "state": "RUNNING",
-    "owner": "/root",
-    "artifact": "Test whether the adopted canonical source rules already determine the original caller context; no constructor/API adoption."
-  },
-  "legacy_reconciliation": {
-    "required": false,
-    "receipt": "R23 and R24 lane workers stopped; all frozen outputs reviewed; no code or unknown leases."
-  },
-  "next_action": "Sol conditional guard proof active against non-adopted CallerModuleInit candidate. Determine exact original-j0/a0/license derivation and first missing independent premise; do not count conditional result as parent discharge.",
-  "git_checkpoint": {
-    "commit": "8bb973029",
-    "branch": "research/simple-sub-intrusion",
-    "pushed_to": "origin/research/simple-sub-intrusion",
-    "receipt": "R27 contract and frozen source-owner candidate pushed; conditional Sol proof lane launched on exact leased files."
-  }
+  "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
+  "history": "R27 closeout: notes/progress/2026-10-18-r27-canonical-caller-construction-closeout.md. R26 and earlier history remain in tasks/current.md and archived sprint receipts."
 }
