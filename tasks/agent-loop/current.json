@@ -42,50 +42,6 @@
       "receipt": "Owner map FROZEN: map SHA c1b9a890d829edb77b065a09672b320c9fbe326e3d68c04a27d2fcf324dbd3a0; handoff SHA 7987dd2e1018eec7d8bdbcadac8925e56007772f4709fc6dd98d8f5d6d7f1c1a; no tests/builds/probes/code writes."
     },
     {
-      "id": "/root/r68_retained_lambda_proof",
-      "role": "R68 constructive retained-entry Lambda introduction proof author",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r68",
-      "receipt": "STOPPED; R68-PROOF/1 FROZEN; theory/inbox hashes and 30/30 pins matched; 307s wall/900s grant; CPU/RSS UNKNOWN; no descendants."
-    },
-    {
-      "id": "/root/r68_retained_lambda_counterreading",
-      "role": "R68 complementary challenge/body-safety counter-reading author",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r68",
-      "receipt": "STOPPED; frozen note/inbox hashes and 30/30 pins matched; 300s grant; CPU/RSS/elapsed UNKNOWN; no descendants."
-    },
-    {
-      "id": "/root/r68_compiler_review",
-      "role": "Fresh independent compiler/source-owner review",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r68",
-      "receipt": "STOPPED/READ_ONLY; no findings; contract, 30 pins and six output hashes matched; no descendants."
-    },
-    {
-      "id": "/root/r68_spec_review",
-      "role": "Fresh independent source-spec conformance review",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r68",
-      "receipt": "STOPPED/READ_ONLY; no findings; contract, 30 pins and six output hashes matched; no descendants."
-    },
-    {
       "id": "/root/r70_ordinary_extrusion_proof",
       "role": "R70 constructive proof; exact proof artifact and handoff only",
       "state": "STOPPED",
@@ -106,49 +62,31 @@
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
       "receipt": "STOPPED/WRITES_STOPPED/NO_DESCENDANTS; frozen note SHA-256 6bb29d09fbf1440c964899815b95e06244cdd9ccc67ddf0dbe76d2016ec15b8e and inbox SHA-256 4fbb70a13a205f4b0cef9990d7ad630c0bc956a611ebcdf4461a2886e1bd90e8; CPU/RSS/elapsed UNKNOWN."
+    },
+    {
+      "id": "/root/r70_compiler_review",
+      "role": "Fresh independent compiler/source-owner review; read-only",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r70-extrusion",
+      "receipt": "Actual current-session launch acknowledged; exact frozen R70 packet only; no writes/tests/builds/probes."
+    },
+    {
+      "id": "/root/r70_spec_review",
+      "role": "Fresh independent source-spec conformance review; read-only",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r70-extrusion",
+      "receipt": "Actual current-session launch acknowledged; exact frozen R70 packet only; no writes/tests/builds/probes."
     }
   ],
   "leases": [
-    {
-      "path": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r68-retained-lambda-introduction.md",
-      "owner": "/root/r68_retained_lambda_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r68-proof.md",
-      "owner": "/root/r68_retained_lambda_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r68-introduction-counter-reading.md",
-      "owner": "/root/r68_retained_lambda_counterreading",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r68-research.md",
-      "owner": "/root/r68_retained_lambda_counterreading",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r68-retained-entry-owners.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r68-implementation.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r68-closeout.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
     {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
@@ -256,5 +194,5 @@
     }
   ],
   "closure": "R68 CLOSED — REVIEWED CONDITIONAL SAME-CARRIER LEMMA / EXACT UNSUPPLIED CONSUMER–BODY-CHECK–INVOCATION PREMISE / NO_SAFE_CODE_SLICE. Parent, R65/R66/R67, R64/R61 and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED. R68-OWNER-CONSUMER-1 remains OPEN for source-owner routing. No carryover.",
-  "next_action": "Send frozen proof, countertrace and owner map packets to fresh compiler/spec reviewers; Luna retains ENTRY-WF and later-drain follow-up routing."
+  "next_action": "Await independent compiler/spec review; Luna retains ENTRY-WF and later-drain follow-up routing."
 }
