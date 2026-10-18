@@ -17524,21 +17524,20 @@ code/test files were restored to their pinned baseline. Parent conditions
 remain 0 -> 0. See the
 [R33 closeout](../notes/progress/2026-10-18-r33-active-capture-observer-closeout.md).
 
-## Active research sprint — R34
+## Closed research sprint — R34
 
-R34 targets one exact native correspondence chain:
-active initializer Link -> checking/source event -> signed pair/group
-incidence -> helper capture/publication -> both retained FreshUse maps. The
-native lane uses existing reconstruction metadata in `candidate_scheme.rs` to
-classify allocated images, aliases and shared rows, then runs one focused
-regression and receives fresh compiler/spec review. `candidate_source.rs` and
-production allocation behavior remain unchanged. The proof lane is BLOCKED on
-the authentic source-owned C/D introduction; R33's reviewed obstruction and
-R32 retention result remain, and no equivalent conditional lift is repeated.
-Parent conditions remain OPEN at 0 -> 0; R30 remains independent. See the
+R34 attempted to authenticate active initializer Link -> checking/source event
+-> signed pair/group incidence -> helper capture/publication -> both retained
+FreshUse maps. Both authorized focused Cargo invocations failed during
+test-code compilation before any assertion ran. A fresh compiler review found
+that the pair predicate checked endpoint membership in two allocated-image
+sets but did not join through capture coordinates or published graphs; the
+integration test also retained an unsupported inference from capture-local
+rows to distinct final representatives. The sibling/pair negative controls
+were insufficient. Candidate artifact hashes and review findings are recorded
+in the closeout, and both code/test files were restored to their pinned baseline.
+No production
+code changed. Original conditions remain OPEN at 0 -> 0; R30 remains
+independent. The source proof is still blocked on an authentic source-owned C/D
+introduction. See the [R34 closeout](../notes/progress/2026-10-18-r34-closeout.md),
 [R34 contract](agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md).
-The first focused Cargo invocation failed during test-code compilation before
-any assertion ran. Revision 2 charges the initial native grant fully because
-assignment duration is unknown, then authorizes one separate 600-second repair
-assignment and one final focused invocation. It requires the unsupported
-all-row nonsharing inference to be removed or authenticated before that run.

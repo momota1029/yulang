@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ACTIVE",
+  "phase": "ENDED",
   "session": "current-session",
   "active_sprint": {
     "id": "active-capture-authenticated-join-20261018-r34",
     "contract": "tasks/agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md",
     "revision": 2,
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "d281632f4ba604340d88ed0bdcb01b0921960910",
     "parent": "Full goal: implement Yulang type inference and executor with proofs. Active-capture source bridge for intrusion/principality/N-Transport; R30 j0/a0 remains independently OPEN.",
     "fixed_outcome": "Authenticate active initializer Link -> checking/source event -> signed pairs/groups -> helper capture/publication -> both retained FreshUse maps from existing records, or record first unjoinable edge. No C/D source law, semantic adoption, production observer or allocation change.",
@@ -15,27 +15,27 @@
       "cap_seconds": 1680,
       "charged_seconds": 1200,
       "available_seconds": 480,
-      "allocation": "R1 native600 fully charged (duration UNKNOWN) + R2 repair-native600 fully charged (duration UNKNOWN). No native Cargo grants remain; compiler180 + spec180 + integration120 remain; Astra0."
+      "allocation": "R1 native600 fully charged (duration UNKNOWN) + R2 native600 fully charged (duration UNKNOWN). Review/integration480 unused. Astra0."
     },
-    "next_action": "Fresh compiler review running on frozen R34 candidate. Dispatcher recommends failed closeout with preserved patch/report and restoration of the two code files; no further native/test grant.",
-    "history": "R34 rev1 and rev2 each consumed one Cargo invocation, both compile-failed before tests. Rev2 post-failure hir.clone fix is unexecuted. Candidate hashes: scheme619d5686..., integration6f8bf3f9..., progressf6e91ea0..., handoff829024ac.... Parent0->0; R30 independent.",
+    "next_action": "R34 closed FAILED and unintegrated. No native code remains; the trial patch and reviewed first-unjoinable-edge closeout are preserved. Next useful premise is an authentic source-owned C/D introduction; apply R32 retention once supplied.",
+    "history": "R34 closeout notes/progress/2026-10-18-r34-closeout.md SHA 80ac0e7e...532f; candidate patch notes/progress/2026-10-18-r34-candidate.patch SHA d144d1da...2360. Parent0->0. Both test processes compile-failed before assertions; fresh compiler review BLOCKED pair-to-capture/map and locality-to-final-identity claims.",
     "git_checkpoint": {
-      "commit": "25652f276",
+      "commit": "c54e2888864742dd304dd6557d370afafef44797",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R34 final compile failure state pushed as 25652f276; candidate review and closeout remain."
+      "receipt": "Last pushed checkpoint c54e28888; R34 reviewed failure closeout and preserved candidate diff are in the final integration commit."
     },
     "workers": [
       {
         "id": "/root",
-        "role": "Luna-primary/R34 contract, state and Git owner",
-        "state": "RUNNING",
+        "role": "Luna-primary/R34 closeout and Git owner",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R34 rev2 writer stopped at compile failure with no assertions; end-boundary dispatch recommends failed closeout, restore candidate code after preserving and reviewing its frozen patch."
+        "receipt": "R34 closeout and candidate patch frozen; baseline code restored and final record checkpoint prepared. This active session work is ending."
       },
       {
         "id": "/root/r34_dispatch",
@@ -46,7 +46,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Returned R34 delta: use candidate_scheme existing test metadata; proof blocked pending authentic C/D introduction; 1080s total, Astra0."
+        "receipt": "R34 start dispatcher returned native authenticated join; proof remained blocked at C/D source introduction."
       },
       {
         "id": "/root/r34_native_join",
@@ -57,7 +57,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Writes stopped after sole Cargo invocation exited 101 at compile stage (4.36s), before tests/assertions; three local test-code errors reported, no progress/handoff artifacts; candidate code snapshots frozen awaiting Luna disposition."
+        "receipt": "R34 rev1 writer stopped after compile failure before assertions; candidate later superseded by rev2."
       },
       {
         "id": "/root/r34_failure_dispatch",
@@ -68,18 +68,18 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Returned R34 rev2 recommendation: local fixes plus one additional Cargo run under a new explicit contract revision; charge first native600 fully due unknown active duration; inspect shared-row assertion before retry."
+        "receipt": "Recommended rev2 bounded compile repair; first native600 conservatively charged due unknown active duration."
       },
       {
         "id": "/root/r34_native_repair",
-        "role": "implementer (revision 2 repair)",
+        "role": "implementer",
         "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Confirmed writes stopped after sole rev2 Cargo invocation failed at integration hir borrow/move compile error before assertions; writer fixed afterward without rerun. Artifacts frozen at reported SHAs; no further command."
+        "receipt": "R34 rev2 writer stopped after sole added Cargo invocation failed on known hir borrow/move compile issue before assertions; patched after run, no rerun. Full native600 charged due unknown active duration."
       },
       {
         "id": "/root/r34_final_dispatch",
@@ -90,89 +90,46 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Returned final disposition: R34 rev2 FAILED; no third Cargo. Review frozen candidate statically, preserve exact patch/closeout, then restore two code files; parent0->0."
+        "receipt": "Recommended failed closeout, preserve candidate patch/review, restore code, no third Cargo."
       },
       {
         "id": "/root/r34_candidate_review",
         "role": "fresh compiler_referee",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Actual fresh read-only reviewer launch for frozen R34 candidate; inspect shared-row inference and pair-to-capture/map join; no test/build."
+        "receipt": "BLOCKING: pair endpoints not joined through capture/publication to both maps; locality-based final nonsharing unsupported; negative controls insufficient. Candidate has no test execution evidence."
       }
     ],
-    "leases": [
-      {
-        "path": "tasks/agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md",
-        "owner": "/root",
-        "state": "HELD"
-      },
-      {
-        "path": "tasks/current.md",
-        "owner": "/root",
-        "state": "HELD"
-      },
-      {
-        "path": "tasks/agent-loop/current.json",
-        "owner": "/root",
-        "state": "HELD"
-      },
-      {
-        "path": "crates/yu-solver/src/candidate_scheme.rs",
-        "owner": "/root/r34_native_repair",
-        "state": "FROZEN"
-      },
-      {
-        "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
-        "owner": "/root/r34_native_repair",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-18-active-capture-authenticated-join-r34.md",
-        "owner": "/root/r34_native_repair",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-active-capture-authenticated-join-r34.md",
-        "owner": "/root/r34_native_repair",
-        "state": "FROZEN"
-      }
-    ],
-    "pending": [
-      {
-        "id": "R34-FROZEN-CANDIDATE-REVIEW",
-        "state": "REVIEW",
-        "owner": "/root",
-        "artifact": "Frozen candidate hashes 619d5686..., 6f8bf3f9..., progress f6e91ea0..., handoff 829024ac...; compiler referee running."
-      }
-    ],
+    "leases": [],
+    "pending": [],
     "ready_next_work": {
-      "id": "R34-CANDIDATE-DISPOSITION",
-      "state": "REVIEW",
+      "id": "R35-SOURCE-INTRODUCTION",
+      "state": "PROPOSED",
       "owner": "/root",
-      "artifact": "After independent review, preserve exact candidate diff and report, restore code files to baseline, close R34 FAILED with original conditions0->0 and R30 separate."
+      "artifact": "Find or obtain the authentic Generalize §3.3 C/D introduction (sort, original scope/telescope, typed dependencies and capture action); then apply R32 retention to the unchanged complete Call claim. Any new native join needs a new bounded contract."
     },
     "legacy_reconciliation": {
       "required": false,
-      "receipt": "R33 dispatcher, proof/native writers and compiler/spec reviewers are completed/terminal; their exact artifacts are frozen or reverted. No live old writer or unconfirmed lease remains."
+      "receipt": "All R34 writers, dispatchers and compiler reviewer are terminal; candidate code paths restored to pinned baseline; no active leases."
     },
     "contract_sha256": "03f7cb94f79a2cfc0d17e67d1fa866f4b6147fdb5221cc4f5f0e12fd91098283",
-    "sha256": "538e4fe2387270679ee20f4735c49d39862b69dc1e0db88a94cae50aa2c0759c"
+    "sha256": "98bb4b222d448b24e751333abb654b9f7bfaa3c3532f0e076109ecbba8b7e40d"
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna-primary/R34 contract, state and Git owner",
-      "state": "RUNNING",
+      "role": "Luna-primary/R34 closeout and Git owner",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R34 rev2 writer stopped at compile failure with no assertions; end-boundary dispatch recommends failed closeout, restore candidate code after preserving and reviewing its frozen patch."
+      "receipt": "R34 closeout and candidate patch frozen; baseline code restored and final record checkpoint prepared. This active session work is ending."
     },
     {
       "id": "/root/r34_dispatch",
@@ -183,7 +140,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Returned R34 delta: use candidate_scheme existing test metadata; proof blocked pending authentic C/D introduction; 1080s total, Astra0."
+      "receipt": "R34 start dispatcher returned native authenticated join; proof remained blocked at C/D source introduction."
     },
     {
       "id": "/root/r34_native_join",
@@ -194,7 +151,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Writes stopped after sole Cargo invocation exited 101 at compile stage (4.36s), before tests/assertions; three local test-code errors reported, no progress/handoff artifacts; candidate code snapshots frozen awaiting Luna disposition."
+      "receipt": "R34 rev1 writer stopped after compile failure before assertions; candidate later superseded by rev2."
     },
     {
       "id": "/root/r34_failure_dispatch",
@@ -205,18 +162,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Returned R34 rev2 recommendation: local fixes plus one additional Cargo run under a new explicit contract revision; charge first native600 fully due unknown active duration; inspect shared-row assertion before retry."
+      "receipt": "Recommended rev2 bounded compile repair; first native600 conservatively charged due unknown active duration."
     },
     {
       "id": "/root/r34_native_repair",
-      "role": "implementer (revision 2 repair)",
+      "role": "implementer",
       "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Confirmed writes stopped after sole rev2 Cargo invocation failed at integration hir borrow/move compile error before assertions; writer fixed afterward without rerun. Artifacts frozen at reported SHAs; no further command."
+      "receipt": "R34 rev2 writer stopped after sole added Cargo invocation failed on known hir borrow/move compile issue before assertions; patched after run, no rerun. Full native600 charged due unknown active duration."
     },
     {
       "id": "/root/r34_final_dispatch",
@@ -227,66 +184,23 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Returned final disposition: R34 rev2 FAILED; no third Cargo. Review frozen candidate statically, preserve exact patch/closeout, then restore two code files; parent0->0."
+      "receipt": "Recommended failed closeout, preserve candidate patch/review, restore code, no third Cargo."
     },
     {
       "id": "/root/r34_candidate_review",
       "role": "fresh compiler_referee",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual fresh read-only reviewer launch for frozen R34 candidate; inspect shared-row inference and pair-to-capture/map join; no test/build."
+      "receipt": "BLOCKING: pair endpoints not joined through capture/publication to both maps; locality-based final nonsharing unsupported; negative controls insufficient. Candidate has no test execution evidence."
     }
   ],
-  "leases": [
-    {
-      "path": "tasks/agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/current.md",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/current.json",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_scheme.rs",
-      "owner": "/root/r34_native_repair",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
-      "owner": "/root/r34_native_repair",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-18-active-capture-authenticated-join-r34.md",
-      "owner": "/root/r34_native_repair",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-active-capture-authenticated-join-r34.md",
-      "owner": "/root/r34_native_repair",
-      "state": "FROZEN"
-    }
-  ],
-  "pending": [
-    {
-      "id": "R34-FROZEN-CANDIDATE-REVIEW",
-      "state": "REVIEW",
-      "owner": "/root",
-      "artifact": "Frozen candidate hashes 619d5686..., 6f8bf3f9..., progress f6e91ea0..., handoff 829024ac...; compiler referee running."
-    }
-  ],
+  "leases": [],
+  "pending": [],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R33 closed; R34 active. Preserve original parent scope and keep R30 independently OPEN.",
-  "sha256": "9dffcade0694480b7a858e9f8617448b2bdd18c8ba94bff32f92bb264d7dadf0"
+  "history": "R34 closed FAILED; original parent0->0, R30 independently OPEN. Candidate diff preserved; code restored. See notes/progress/2026-10-18-r34-closeout.md.",
+  "sha256": "2cb122bdb59fb2fa082700eeda3efacdec1b5811ccb2bdf09b7dc2805173fda7"
 }
