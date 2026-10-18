@@ -17,13 +17,13 @@
       "available_seconds": 2800,
       "allocation": "Luna source definition600; Sol proof1000 staged; implementation900 after design review; independent review600; integration300. Astra0."
     },
-    "next_action": "Root source-definition lane RUNNING; specify predecessor/source/event/authority/activity/old-field/alias/license construction. Do not begin code until independent design review.",
+    "next_action": "R28 source candidate frozen at SHA 06a924b9…b2b4c49d; conditional Sol proof and fresh semantic/source reviews active. No code until design review.",
     "history": "R27 CLEAN bounded obstruction/conditional review; original conditions 0->0. CallerModuleInit is schematic, not adoption-ready. User selected recommended caller-side initializer route for one reversible research attempt.",
     "git_checkpoint": {
-      "commit": "37282e47ab2723ff1996fe42b18855bc7bec492a",
+      "commit": "efde24d9c",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R27 conditional proof freeze and reviewed closeout recorded; R28 contract revision 1 pinned."
+      "receipt": "R27 reviewed closeout and R28 contract pushed; frozen R28 source candidate is next checkpoint."
     },
     "workers": [
       {
@@ -35,7 +35,40 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Owns R28 design and state/Git; no code lease until independent source-definition review."
+        "receipt": "Owns R28 integration/state/Git; source candidate frozen and review/proof lanes launching; no code lease until review."
+      },
+      {
+        "id": "/root/r28_guard_proof",
+        "role": "prover",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Actual launch after source candidate freeze; exact proof/handoff leases; conditional same-tuple j0/a0 derivation only; no code/tests/Git/descendants; cap1000s."
+      },
+      {
+        "id": "/root/r28_semantic_review",
+        "role": "compiler_referee",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Fresh isolated review of frozen source candidate and precise source/native/event/field semantics; no edits/tests/Git/descendants; cap300s."
+      },
+      {
+        "id": "/root/r28_spec_review",
+        "role": "spec_auditor",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Independent review of frozen candidate against original PhiW/license meanings and no scope/quantifier narrowing; no edits/tests/Git/descendants; cap300s."
       }
     ],
     "leases": [
@@ -57,45 +90,61 @@
       {
         "path": "notes/design/2026-10-18-caller-module-init-research-definition.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-caller-module-init-research-definition.md",
         "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-18-caller-module-init-guard-preservation.md",
+        "owner": "/root/r28_guard_proof",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-caller-module-init-guard-preservation.md",
+        "owner": "/root/r28_guard_proof",
         "state": "HELD"
       }
     ],
     "pending": [
       {
         "id": "R28-RESEARCH-SOURCE-DEFINITION",
-        "state": "RUNNING",
+        "state": "RESULT",
         "owner": "/root",
-        "artifact": "Define concrete module-init transition and same-index original guard interpretations; no semantic adoption."
+        "artifact": "Frozen candidate SHA 06a924b9ea0b7f987b15b4c4f4509203f3e04c8d03536678794d3e43b2b4c49d; handoff SHA 6ef8f5f3fd2c1ceab9d84fe590d324d76e26caf4979855b10c9608d4cca4fe8a."
       },
       {
         "id": "R28-CONDITIONAL-GUARD-PROOF",
-        "state": "STAGED",
-        "owner": "Sol/prover",
-        "artifact": "Start only after frozen source definition; derive/apply original guard without target-guard premises."
+        "state": "RUNNING",
+        "owner": "/root/r28_guard_proof",
+        "artifact": "Derive same-tuple existing j0/a0 from source event, predecessor, visibility, activity, old-field extension and shared theta; report first exact unavailable premise; parent progress only if original judgment applied."
+      },
+      {
+        "id": "R28-SEMANTIC-REVIEW",
+        "state": "RUNNING",
+        "owner": "/root/r28_semantic_review",
+        "artifact": "Review frozen candidate for fieldwise meaning, source/current-event correspondence, preservation and semantics."
+      },
+      {
+        "id": "R28-SPEC-REVIEW",
+        "state": "RUNNING",
+        "owner": "/root/r28_spec_review",
+        "artifact": "Check exact existing predicate and license meanings, original tuple/quantifiers and unweakened scope."
       },
       {
         "id": "R28-PROTOTYPE",
         "state": "BLOCKED",
         "owner": "Luna/high",
-        "artifact": "Exact research-playground implementation paths staged in contract; start only after source definition has independent CLEAN review."
-      },
-      {
-        "id": "R28-INDEPENDENT-REVIEW",
-        "state": "STAGED",
-        "owner": "fresh compiler_referee/spec_auditor",
-        "artifact": "Review source definition before prototype; later review coherent proof/prototype delta."
+        "artifact": "Do not write code until both source-design reviews adjudicate CLEAN; inspect actual caller/predecessor/event supplier before granting code lease."
       }
     ],
     "ready_next_work": {
-      "id": "R28-RESEARCH-SOURCE-DEFINITION",
+      "id": "R28-CONDITIONAL-GUARD-PROOF",
       "state": "RUNNING",
-      "owner": "/root",
-      "artifact": "Use same-tuple module-init action and actual resolved source identities; identify independently constructed j0/a0/license fields and remaining gaps."
+      "owner": "/root/r28_guard_proof",
+      "artifact": "Conditional independent derivation of existing original guard components from candidate module-init inputs."
     },
     "legacy_reconciliation": {
       "required": false,
@@ -113,7 +162,40 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Owns R28 design and state/Git; no code lease until independent source-definition review."
+      "receipt": "Owns R28 integration/state/Git; source candidate frozen and review/proof lanes launching; no code lease until review."
+    },
+    {
+      "id": "/root/r28_guard_proof",
+      "role": "prover",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Actual launch after source candidate freeze; exact proof/handoff leases; conditional same-tuple j0/a0 derivation only; no code/tests/Git/descendants; cap1000s."
+    },
+    {
+      "id": "/root/r28_semantic_review",
+      "role": "compiler_referee",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh isolated review of frozen source candidate and precise source/native/event/field semantics; no edits/tests/Git/descendants; cap300s."
+    },
+    {
+      "id": "/root/r28_spec_review",
+      "role": "spec_auditor",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Independent review of frozen candidate against original PhiW/license meanings and no scope/quantifier narrowing; no edits/tests/Git/descendants; cap300s."
     }
   ],
   "leases": [
@@ -135,38 +217,54 @@
     {
       "path": "notes/design/2026-10-18-caller-module-init-research-definition.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-caller-module-init-research-definition.md",
       "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-caller-module-init-guard-preservation.md",
+      "owner": "/root/r28_guard_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-caller-module-init-guard-preservation.md",
+      "owner": "/root/r28_guard_proof",
       "state": "HELD"
     }
   ],
   "pending": [
     {
       "id": "R28-RESEARCH-SOURCE-DEFINITION",
-      "state": "RUNNING",
+      "state": "RESULT",
       "owner": "/root",
-      "artifact": "Define concrete module-init transition and same-index original guard interpretations; no semantic adoption."
+      "artifact": "Frozen candidate SHA 06a924b9ea0b7f987b15b4c4f4509203f3e04c8d03536678794d3e43b2b4c49d; handoff SHA 6ef8f5f3fd2c1ceab9d84fe590d324d76e26caf4979855b10c9608d4cca4fe8a."
     },
     {
       "id": "R28-CONDITIONAL-GUARD-PROOF",
-      "state": "STAGED",
-      "owner": "Sol/prover",
-      "artifact": "Start only after frozen source definition; derive/apply original guard without target-guard premises."
+      "state": "RUNNING",
+      "owner": "/root/r28_guard_proof",
+      "artifact": "Derive same-tuple existing j0/a0 from source event, predecessor, visibility, activity, old-field extension and shared theta; report first exact unavailable premise; parent progress only if original judgment applied."
+    },
+    {
+      "id": "R28-SEMANTIC-REVIEW",
+      "state": "RUNNING",
+      "owner": "/root/r28_semantic_review",
+      "artifact": "Review frozen candidate for fieldwise meaning, source/current-event correspondence, preservation and semantics."
+    },
+    {
+      "id": "R28-SPEC-REVIEW",
+      "state": "RUNNING",
+      "owner": "/root/r28_spec_review",
+      "artifact": "Check exact existing predicate and license meanings, original tuple/quantifiers and unweakened scope."
     },
     {
       "id": "R28-PROTOTYPE",
       "state": "BLOCKED",
       "owner": "Luna/high",
-      "artifact": "Exact research-playground implementation paths staged in contract; start only after source definition has independent CLEAN review."
-    },
-    {
-      "id": "R28-INDEPENDENT-REVIEW",
-      "state": "STAGED",
-      "owner": "fresh compiler_referee/spec_auditor",
-      "artifact": "Review source definition before prototype; later review coherent proof/prototype delta."
+      "artifact": "Do not write code until both source-design reviews adjudicate CLEAN; inspect actual caller/predecessor/event supplier before granting code lease."
     }
   ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
