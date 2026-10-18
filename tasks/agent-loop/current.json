@@ -6,25 +6,24 @@
   "active_sprint": {
     "id": "npair-constructor-owned-replay-certificate-20261018",
     "contract": "tasks/agent-loop/sprints/npair-constructor-owned-replay-certificate-20261018.md",
-    "revision": 2,
-    "sha256": "6f2427fb48155f930f3fbf1589f9e71693d205138797e7dbdbeaeedef8d13008",
+    "revision": 3,
+    "sha256": "c3e21e367b90a3d13165139cade12c2730f5a38ad3beb2ec1ec5a923c4fe1047",
     "state": "ACTIVE",
-    "baseline": "7087de449",
+    "baseline": "c881f5960",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers, source domain, fixed-c unchanged.",
-    "fixed_outcome": "Rev2: authenticate two constructor-owned FreshUse/physical-fiber/Replay/consumer routes with exact relation identities, read-back physical slot contents plus paired rollback/freeze lifecycle, full fibers and port transformers; parent scope unchanged.",
+    "fixed_outcome": "Rev3 preserves rev2: authenticate the two constructor-owned FreshUse/physical-fiber/Replay/consumer routes with exact relation identities, actual slot contents and lifecycle, full fibers and port transformers; parent scope unchanged.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
       "runtime": "Prior proof CLEAN conditional only; prior implementation BLOCKING/MAJOR, unapproved; no runtime."
     },
     "resources": {
-      "cap_seconds": 3600,
-      "charged_seconds": 840,
-      "available_seconds": 2760,
-      "allocation": "Proof720 + implementation1920 (code1560/runtime360) + review600 + Luna120 + reserve240. Astra0; no rollover.",
-      "next_action": "Implementation resumed under rev2 after CLEAN owner map; candidate_extrusion.rs added for actual slot readback. Audit paired rollback; add only a freeze-adjacent lib.rs hook if required. Runtime360 remains protected."
+      "cap_seconds": 7200,
+      "charged_seconds": 3600,
+      "available_seconds": 3600,
+      "allocation": "Prior rev1/rev2 3600s retired/charged in full conservatively (not elapsed-time claim). Fresh tranche: Luna authoring1800 (audit180, implementation900, mutation evidence480, freeze240) + Sol lifecycle proof600 + final review480 + protected runtime360 + Luna integration180 + reserve180. No rollover; Astra0."
     },
-    "next_action": "Implementation author RUNNING after fresh rev2 ACK; audit whether route rollback pairs physical row truncation with candidate evidence rollback. No code edits before lifecycle result; lib.rs remains unleased."
+    "next_action": "Rev3 active. Both proof and implementation require fresh ACK against rev3. Sol lifecycle proof pins the c881 baseline; implementation resumes only after hash and monotonic grant receipt. Runtime360 remains protected."
   },
   "history": "Closed `npair-replay-fiber-consumer-certificate-20261018` REVIEWED-PARTIAL at `7087de449`; parent OPEN, closure0. Proof SHA `691a537b…e3e3614` CLEAN conditional. Implementation candidate `1958cf20e` unapproved; compiler review BLOCKING+2 MAJOR, no Cargo/tests/runtime. Closeout: `notes/progress/2026-10-18-replay-fiber-consumer-closeout.md`. PR #11 merged at `27a7e00d4`; operations-only. Earlier sprint history remains in linked notes/progress and Git history.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -54,13 +53,13 @@
     {
       "id": "/root/constructor_replay_impl",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh rev2 active-work ACK received this session; read-only rollback/slot lifecycle audit began. Exact paths: prior seven plus candidate_extrusion.rs; no lib.rs lease, no edits yet, descendants0. Requested Luna/high; observed UNKNOWN/UNKNOWN. Runtime360 protected."
+      "receipt": "Rev2 ACK withdrawn for rev3 transition before writes; read-only audit only, no code/runtime, waiting for rev3 hash and grant receipt. Requested Luna/high; observed UNKNOWN."
     },
     {
       "id": "/root/constructor_replay_map_review",
@@ -72,6 +71,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "Early owner-map review CLEAN; hashes matched, numeric fixture rows unobserved, closure0. Read-only STOP; code stage authorized."
+    },
+    {
+      "id": "/root/constructor_slot_lifecycle_proof",
+      "role": "prover",
+      "state": "NOT_STARTED",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Exact rev3 proof paths and 600s cap granted; launch/resume ACK pending."
     }
   ],
   "leases": [
@@ -127,7 +137,17 @@
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-constructor-owned-replay-impl.md",
-      "owner": "/root/constructor_replay_impl",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-constructor-slot-lifecycle.md",
+      "owner": "/root/constructor_slot_lifecycle_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-constructor-slot-lifecycle-proof.md",
+      "owner": "/root/constructor_slot_lifecycle_proof",
       "state": "HELD"
     }
   ],
@@ -148,5 +168,5 @@
     "required": false,
     "receipt": "Previous sprint writers/reviewers STOPPED; exact frozen hashes preserved in closeout/handoffs."
   },
-  "next_action": "Rev2: request fresh implementation ACK; audit physical slot rollback/reuse. Use constructor readback if paired rollback holds, otherwise primary must grant the single lib.rs freeze-hook lease before that edit."
+  "next_action": "Rev3 contract frozen; request fresh active ACKs for both exact lanes before writes. Proof pins c881 baseline. Implementation may not edit lib.rs without explicit conditional-lease adjudication."
 }

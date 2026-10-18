@@ -105,3 +105,48 @@ forbidden until frozen proof/compiler review is CLEAN. The rev1 proof map's
 `candidate_extrusion.rs` hash is historical; final review checks the revised
 owner against current source. No proof statement or parent theorem is inferred
 from the new implementation record.
+
+## Revision 3 — conservative resource restart, same compiler outcome (2026-10-18)
+
+Rev3 preserves the rev2 scope and exact implementation lease set. The previous
+3600s envelope is now **retired and charged in full for accounting** because
+part of the implementation audit was not metered. This is a conservative
+reservation, not a claim that 3600s elapsed. No old time rolls over. A fresh
+3600s tranche is granted, for a total accounting ceiling of 7200s:
+
+| Fresh allocation | Seconds |
+|---|---:|
+| Luna implementation authoring | 1800 |
+| Sol source/lifecycle proof | 600 |
+| Fresh final independent review | 480 |
+| Protected runtime commands | 360 |
+| Luna integration/state/Git | 180 |
+| Reserve | 180 |
+
+The 1800s authoring tranche has hard stage grants: lifecycle audit 180s,
+implementation 900s, actual-record mutation evidence 480s, coherent freeze
+240s. Record monotonic start/end at each boundary. An unmetered or interrupted
+stage consumes its entire grant; never infer remaining time from “time since
+resume.” No automatic extension. The implementation author must ACK rev3 and
+its remaining grant before any write. Runtime stays unavailable until fresh
+final proof/compiler reviews are CLEAN.
+
+The added Sol proof assignment writes only:
+- `notes/theory/2026-10-18-constructor-slot-lifecycle.md`
+- `tasks/agent-loop/inbox/20261018-constructor-slot-lifecycle-proof.md`
+
+It audits the pinned pre-edit source at rev3 opening and proves or refutes the
+lifecycle needed to trust slot readback: every physical row append's owning
+route/checkpoint, every path that can truncate/reuse its lane, paired candidate
+evidence rollback (including non-transactional paths), and whether a
+constructor-time observation remains valid through freeze. Follow concrete
+owners and exact branches; state the first counterexample if any. This is
+source/lifecycle evidence for the certificate only, not a new language rule,
+parent theorem proof, numeric fixture result or production approval. Cap 600s;
+no Astra, code writes, tests, Cargo or runtime. The final reviewer must be fresh
+and must not be this proof author or implementation author.
+
+Existing conditions, constructors, solver semantics, source domain, fixed-c,
+quantifiers, production boundaries, runtime commands and no-rollover rule are
+unchanged. Parent theorem closure stays 0 unless independently established in
+its original scope; neither new lease nor resource tranche counts as progress.
