@@ -2,16 +2,16 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r51",
+  "session": "current-conversation-2026-10-19-r52",
   "active_sprint": {
-    "id": "computation-formal-copy-bridge-20261019-r51",
-    "contract": "tasks/agent-loop/sprints/computation-formal-copy-bridge-20261019-r51.md",
-    "revision": 2,
+    "id": "computation-mixed-capture-20261019-r52",
+    "contract": "tasks/agent-loop/sprints/computation-mixed-capture-20261019-r52.md",
+    "revision": 4,
     "state": "CLOSED",
-    "baseline": "a191b5ccdd2a41bf6c74687d8552e9fb0a6eb9fa",
-    "contract_sha256": "b58e19d3a921dcf9ba99627c8584f24f8d7ab779a336f21e21f0dcd63d7a0807",
+    "baseline": "42b5dccaa4ec1768b474848acb4c7f53e3d77e7b",
+    "contract_sha256": "feb92f2ff3f2dc65059e07723adc5bef8ebf2ca9f83c979120ac484214c8e69d",
     "parent": "Full inference/evaluator theorem and original Simple-sub A/B; unchanged quantifiers/source domain/accepted semantics; OPEN 0->0.",
-    "fixed_outcome": "Extend the original Computation-formal FreshUse admission bridge through an additional shared/merged-provider or later-recapture source case, or identify the first source-qualified unsupported owner judgment.",
+    "fixed_outcome": "Resolve same-lineage coverage across mixed generic/shared-anchor capture via a source-qualified invariant, actual restored route, or first exact source/native obstruction.",
     "dependencies": {
       "freshuse_bridge": "09511a51539ca2a14cd7a40d2b9a5da00f72417d1ec5f97a4ba6bfd6ec20c2e1",
       "signed_copy_bridge": "477ada20e61ce5355601af138b37016ba1a8036e65f4f39627beda2abe062adf",
@@ -31,178 +31,179 @@
       "candidate_effect": "6112343b4014c67dcb7d814a46412b3af3e1d12183924e891df4817a59f58da0",
       "shadow_apply": "5bbcf27d51906814ba38b2cca2066807d285d0b1817f0ea6e04d70c4a5c8a5cb",
       "lib_rs": "2300400e87d0a487225f207d414ac71fa4f21c6f80279fea4f793e43c7809aee",
-      "candidate_call": "e038ad0dfc4b12bd0d513d6cd6b34cee6b2b062d8b33368bc1c0dcdef980d479"
+      "candidate_call": "e038ad0dfc4b12bd0d513d6cd6b34cee6b2b062d8b33368bc1c0dcdef980d479",
+      "R51_proof": "f133c402f47b90f37bca92d2470cd7007fd320c580efba9ae0919a7f38a027b8",
+      "R51_proof_handoff": "8180aa417995c6d069a5a1b24a0ab405ad0b10bb056ac42c74d402a0ca0874ce",
+      "R51_contract": "b58e19d3a921dcf9ba99627c8584f24f8d7ab779a336f21e21f0dcd63d7a0807",
+      "adjacent_nontransferable_generalization": "a37cd471c26c9936118282afe2eec295380a02b5197159d787f7d3ef75a50b47",
+      "local_self_recursion_authority": "38d42183fdc4f2c0136112d8b305816241d8f449367b473e4de3a5135dc49895"
     },
     "resources": {
-      "cap_seconds": 2400,
+      "cap_seconds": 2820,
       "charged_seconds": 2400,
-      "available_seconds": 0,
-      "allocation": "Sol proof 900; Luna source map 600; independent compiler/spec reviews 300 each; Luna integration 300. Cap exhausted; no carryover. Astra 0; CPU/RSS UNKNOWN. No builds/tests/runtime/measurements.",
+      "available_seconds": 420,
+      "allocation": "Sol proof 900 and Luna source audit 900 charged at launch; two independent reviews 300 each charged at review launch; Luna integration 420 reserved. Astra 0. No tests/build/runtime/measurements.",
       "overrun_seconds": 0
     },
-    "next_action": "R51 CLOSED with a reviewed bounded two-use source-native result. Original parent OPEN 0->0. Fresh next-action dispatch is needed for the mixed generic/shared-anchor Capture cut; no code authority follows.",
-    "history": "R50 CLOSED, proposal NOT ADOPTED; R50 adoption remains a separate unanswered user decision. Independent R51 route selected by existing dispatcher. Exact dependencies pinned; R51 contract revision 1 approved by primary. Sol proof lane launched; Luna owns source map, review, integration and Git. Original parent remains OPEN 0->0. Contract revision 2 adds candidate_call.rs as the exact source-plan/argument-name owner pin, discovered before proof writes. Luna completed the read-only owner map and froze NO_SAFE_CODE_SLICE with exact pins; Sol proof remains active under rev2. Proof artifact/handoff hashes verified; all 19 dependency pins match. Fresh independent compiler/spec reviews launched on immutable bytes. Independent spec review returned CLEAN for bounded two-use scope and confirmed general mixed shared-anchor correspondence remains OPEN; message-only receipt integrated by primary. Compiler review continues. Compiler referee independently validated first-use noninterference, distinct second map, two signed chains, joint outer capture and physical quotient-edge scope; no compiler findings within the bounded claim. Spec auditor found no conformance/quantifier defect. Luna adjudicated and integrated both message-only receipts. R51 closed at reviewed bounded scope; parent remains OPEN 0->0. R51 resource cap exhausted.",
+    "next_action": "R52 CLOSED after clean compiler/spec reviews and primary adjudication. Dispatcher recommends R53 ordinary source-to-native mixed-capture construction/coverage; new baseline and leases required.",
+    "history": "R51 CLOSED at independently reviewed bounded two-use result; original parent OPEN 0->0. R51 source map NO_SAFE_CODE_SLICE. Dispatcher selected R52 mixed generic/shared-anchor capture cut. R50 adoption remains independent and unanswered. R52 contract revision 2 primary-approved; proof launch and source audit active. Contract revision 3 removes un-revalidatable historical current.json pin and records adjacent public-generalization note as inspected but non-transferable. Proof paused before output writes pending revalidation. Contract revision 4 adds the exact authoritative single-local self-recursion source rule for the source-qualified recursion/parent-copy lane; no semantics or source domain changed. R52 proof frozen as candidate: ordinary scalar owner chooses max endpoint level; recursive event is source-SCC-qualified but native signed-group result conditional; scoped recursive Apply stops at exact active-Link LocalFreshRoute/installed-scheme consumer. Luna static source audit independently finds no completed native mixed-cut witness and retains the general partial-owner entry OPEN. All five R52 output paths frozen; fresh reviews pending. R52 independent spec review completed CLEAN: five target pins and 24 dependencies MATCH; no scope/authority/expected-output findings; parent OPEN 0->0. R52 independent compiler review completed CLEAN: 5 target hashes and 24 dependency pins MATCH; bounded owner/source/capture claims validated, general mixed cut remains OPEN. Primary adjudication: accept only the bounded maximum-level owner fact and exact scoped active-Link obstruction; preserve conditional recursive signed-group analysis as non-witness. No general cut theorem/counterexample or parent closure. End-boundary dispatcher accepted R52 closure as a reviewed bounded result and selected R53: prove the same recursive candidate through the existing ordinary CandidateInference::solve route, then cover its actual same-lineage merge/capture or identify an earlier ordinary-route obstruction. Critical scope note: `authenticate_scoped_apply` is used only when scoped_experiment is enabled; R52 does not establish that ordinary solve is blocked. R50 adoption remains separate. R53 proposed leases: notes/theory/2026-10-19-r53-ordinary-mixed-capture.md; tasks/agent-loop/inbox/20261019-r53-proof.md; notes/progress/2026-10-19-r53-ordinary-source-native.md; tasks/agent-loop/inbox/20261019-r53-implementation.md. Proposed fresh cap 2400s (Sol 900, Luna 600, reviews 600, integration 300); Astra 0; no tests/build/runtime.",
     "workers": [
       {
         "id": "/root",
-        "role": "Luna primary; read-only source-owner map, authority, review/integration/Git",
-        "state": "RUNNING",
+        "role": "Luna primary; read-only source-construction audit, authority, review/integration/Git",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r51",
-        "receipt": "Luna primary completed R51 adjudication, two independent reviews and integration; no code/tests/runtime. Git integration pending."
+        "session": "current-conversation-2026-10-19-r52",
+        "receipt": "R52 source audit, independent review integration and primary adjudication complete; exact R52 artifacts frozen; no code/tests/runtime."
       },
       {
-        "id": "/root/r51_computation_copy_proof",
-        "role": "Sol constructive FreshUse copied/merged-provider proof",
+        "id": "/root/r52_mixed_capture_proof",
+        "role": "Sol constructive mixed-capture coverage proof",
         "state": "STOPPED",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r51",
-        "receipt": "Sole proof author: frozen candidate proof; terminal WRITES_STOPPED/NO_DESCENDANTS; 900s charged; outputs and 19 pins match."
+        "session": "current-conversation-2026-10-19-r52",
+        "receipt": "Frozen candidate proof and handoff; rev4/all 24 pins MATCH; 900s charged; WRITES_STOPPED/NO_DESCENDANTS."
       },
       {
-        "id": "/root/r51_computation_copy_compiler_review",
-        "role": "fresh read-only compiler_referee",
+        "id": "/root/r52_compiler_review",
+        "role": "Fresh independent compiler referee",
         "state": "STOPPED",
-        "requested_model": "reviewer role default",
-        "requested_effort": "UNKNOWN",
+        "requested_model": "compiler_referee",
+        "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r51",
-        "receipt": "Independent compiler_referee: bounded two-use derivation VALID on stated scalar route; no blocking/major/minor findings; exact mixed shared-anchor capture gap remains OPEN. All hashes match. WRITES_STOPPED/NO_DESCENDANTS."
+        "session": "current-conversation-2026-10-19-r52",
+        "receipt": "CLEAN bounded compiler review; all 5 targets and 24 dependencies MATCH; no blocking/major/minor findings; parent OPEN 0->0; message-only."
       },
       {
-        "id": "/root/r51_computation_copy_spec_review",
-        "role": "fresh read-only spec_auditor",
+        "id": "/root/r52_spec_review",
+        "role": "Fresh independent spec auditor",
         "state": "STOPPED",
-        "requested_model": "reviewer role default",
-        "requested_effort": "UNKNOWN",
+        "requested_model": "spec_auditor",
+        "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r51",
-        "receipt": "Independent spec_auditor: CLEAN at bounded two-use scope; no quantifier/authority narrowing. Mixed shared-anchor port correspondence remains OPEN. All hashes match. WRITES_STOPPED/NO_DESCENDANTS."
+        "session": "current-conversation-2026-10-19-r52",
+        "receipt": "CLEAN bounded spec review; all 5 targets and 24 dependencies MATCH; no conformance findings; parent OPEN 0->0; message-only."
       }
     ],
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/computation-formal-copy-bridge-20261019-r51.md",
+        "path": "tasks/agent-loop/sprints/computation-mixed-capture-20261019-r52.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "notes/progress/2026-10-19-computation-formal-copy-owner-map.md",
+        "path": "notes/progress/2026-10-19-r52-mixed-capture-source.md",
         "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "fd604fdab586d82b05033d2e254d50ef3e11f358e8dc4ce8aebe7bf9d9c95a13"
+        "state": "FROZEN"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261019-computation-formal-copy-implementation.md",
+        "path": "tasks/agent-loop/inbox/20261019-r52-implementation.md",
         "owner": "/root",
-        "state": "FROZEN",
-        "sha256": "4aab2bb54630282b68f485f7400b7eea2bb223cd049676a8652fbb053f9f621f"
+        "state": "FROZEN"
       },
       {
-        "path": "notes/theory/2026-10-19-computation-formal-copy-bridge.md",
-        "owner": "/root/r51_computation_copy_proof",
-        "state": "FROZEN",
-        "sha256": "f133c402f47b90f37bca92d2470cd7007fd320c580efba9ae0919a7f38a027b8"
+        "path": "notes/theory/2026-10-19-r52-mixed-capture-coverage.md",
+        "owner": "/root/r52_mixed_capture_proof",
+        "state": "FROZEN"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261019-computation-formal-copy-proof.md",
-        "owner": "/root/r51_computation_copy_proof",
-        "state": "FROZEN",
-        "sha256": "8180aa417995c6d069a5a1b24a0ab405ad0b10bb056ac42c74d402a0ca0874ce"
+        "path": "tasks/agent-loop/inbox/20261019-r52-proof.md",
+        "owner": "/root/r52_mixed_capture_proof",
+        "state": "FROZEN"
       }
     ],
     "pending": [],
-    "closure": "CLOSED at bounded two-use result: fresh compiler and spec reviews CLEAN for stated scope. General mixed generic/shared-anchor capture remains OPEN at Capture::expand_row plus prepare_candidate_fresh_use; original full parent and Simple-sub A/B remain OPEN 0->0. No compiler changes or test/runtime authority.",
+    "closure": "CLOSED at reviewed bounded R52 outcome: admission-time maximum-level owner fact; conditional all-port signed extrusion; scoped active-Link consumer obstruction; no bad-cut counterexample or general post-merge invariant. Original parent OPEN 0->0. R50 remains NOT ADOPTED. Ordinary CandidateInference::solve route is not shown blocked by scoped authentication; that route\u2019s complete source/native construction is the next separate outcome.",
     "frozen_artifacts": {
-      "R51_contract": "b58e19d3a921dcf9ba99627c8584f24f8d7ab779a336f21e21f0dcd63d7a0807",
-      "R51_contract_rev2": "b58e19d3a921dcf9ba99627c8584f24f8d7ab779a336f21e21f0dcd63d7a0807",
-      "R51_owner_map": "fd604fdab586d82b05033d2e254d50ef3e11f358e8dc4ce8aebe7bf9d9c95a13",
-      "R51_implementation_handoff": "4aab2bb54630282b68f485f7400b7eea2bb223cd049676a8652fbb053f9f621f",
+      "R52_contract": "f20ce1af6e71590c279e354466ae1a190e16447694d9ecf45ebd823b45cba3ad",
       "R51_proof": "f133c402f47b90f37bca92d2470cd7007fd320c580efba9ae0919a7f38a027b8",
       "R51_proof_handoff": "8180aa417995c6d069a5a1b24a0ab405ad0b10bb056ac42c74d402a0ca0874ce",
-      "R51_compiler_review": "message-only CLEAN; independently validated bounded two-use claim and exact mixed-cut gap",
-      "R51_spec_review": "message-only CLEAN; no scope/authority narrowing; exact mixed-cut gap retained",
-      "R51_closeout": "primary adjudication recorded in current.json"
+      "R52_contract_rev3": "4a7d40a68e37084ad82920153fba7f2fe4305e1e67fefe59a26cb05a48946034",
+      "R52_contract_rev4": "feb92f2ff3f2dc65059e07723adc5bef8ebf2ca9f83c979120ac484214c8e69d",
+      "R52_source_audit": "276b692d820aa6cec3e29a2428b4e75ff34e20e546b76fc07209eed8e1ab6299",
+      "R52_source_handoff": "f667508891d9990036c5bd33150d96f428bae0030af007cd174d28915e00773a",
+      "R52_proof": "16850d4f83a65d1c4a124c520da0b1546a97c62869b0a23a3722f3f93afe6220",
+      "R52_proof_handoff": "3ad115cf65969c1b39b074fcc2e22631c0ab04f91eb810a4d666087a78cce2c1"
     }
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna primary; read-only source-owner map, authority, review/integration/Git",
-      "state": "RUNNING",
+      "role": "Luna primary; read-only source-construction audit, authority, review/integration/Git",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r51",
-      "receipt": "Luna primary completed R51 adjudication, two independent reviews and integration; no code/tests/runtime. Git integration pending."
+      "session": "current-conversation-2026-10-19-r52",
+      "receipt": "R52 source audit, independent review integration and primary adjudication complete; exact R52 artifacts frozen; no code/tests/runtime."
     },
     {
-      "id": "/root/r51_computation_copy_proof",
-      "role": "Sol constructive FreshUse copied/merged-provider proof",
+      "id": "/root/r52_mixed_capture_proof",
+      "role": "Sol constructive mixed-capture coverage proof",
       "state": "STOPPED",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r51",
-      "receipt": "Sole proof author: frozen candidate proof; terminal WRITES_STOPPED/NO_DESCENDANTS; 900s charged; outputs and 19 pins match."
+      "session": "current-conversation-2026-10-19-r52",
+      "receipt": "Frozen candidate proof and handoff; rev4/all 24 pins MATCH; 900s charged; WRITES_STOPPED/NO_DESCENDANTS."
     },
     {
-      "id": "/root/r51_computation_copy_compiler_review",
-      "role": "fresh read-only compiler_referee",
+      "id": "/root/r52_compiler_review",
+      "role": "Fresh independent compiler referee",
       "state": "STOPPED",
-      "requested_model": "reviewer role default",
-      "requested_effort": "UNKNOWN",
+      "requested_model": "compiler_referee",
+      "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r51",
-      "receipt": "Independent compiler_referee: bounded two-use derivation VALID on stated scalar route; no blocking/major/minor findings; exact mixed shared-anchor capture gap remains OPEN. All hashes match. WRITES_STOPPED/NO_DESCENDANTS."
+      "session": "current-conversation-2026-10-19-r52",
+      "receipt": "CLEAN bounded independent review; 5 target pins and 24 dependencies MATCH; no findings; parent OPEN 0->0; message-only."
     },
     {
-      "id": "/root/r51_computation_copy_spec_review",
-      "role": "fresh read-only spec_auditor",
+      "id": "/root/r52_spec_review",
+      "role": "Fresh independent spec auditor",
       "state": "STOPPED",
-      "requested_model": "reviewer role default",
-      "requested_effort": "UNKNOWN",
+      "requested_model": "spec_auditor",
+      "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r51",
-      "receipt": "Independent spec_auditor: CLEAN at bounded two-use scope; no quantifier/authority narrowing. Mixed shared-anchor port correspondence remains OPEN. All hashes match. WRITES_STOPPED/NO_DESCENDANTS."
+      "session": "current-conversation-2026-10-19-r52",
+      "receipt": "CLEAN bounded independent review; 5 target pins and 24 dependencies MATCH; no findings; parent OPEN 0->0; message-only."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/computation-formal-copy-bridge-20261019-r51.md",
+      "path": "tasks/agent-loop/sprints/computation-mixed-capture-20261019-r52.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/progress/2026-10-19-computation-formal-copy-owner-map.md",
+      "path": "notes/progress/2026-10-19-r52-mixed-capture-source.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-computation-formal-copy-implementation.md",
+      "path": "tasks/agent-loop/inbox/20261019-r52-implementation.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-19-computation-formal-copy-bridge.md",
-      "owner": "/root/r51_computation_copy_proof",
+      "path": "notes/theory/2026-10-19-r52-mixed-capture-coverage.md",
+      "owner": "/root/r52_mixed_capture_proof",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-computation-formal-copy-proof.md",
-      "owner": "/root/r51_computation_copy_proof",
+      "path": "tasks/agent-loop/inbox/20261019-r52-proof.md",
+      "owner": "/root/r52_mixed_capture_proof",
       "state": "HELD"
     }
   ],
