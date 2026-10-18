@@ -25,15 +25,15 @@
     },
     "next_action": "Commit/push r19 contract and initial state. Then launch disjoint proof, source-falsification and runtime-lineage lanes. Keep solver owners read-only; runtime result must not claim FieldBound Capture/FreshUse consumption.",
     "history": "R18 ENDED-PARTIAL-REVIEWED at d51baa6db: exact same-HIR research-only FieldBoundV1 through response closure/environment, raw continuation return, distinct outer Apply, live outer handler and Completed42; r2 integrated review CLEAN, r4 compile delta CLEAN, cargo test -p yu-playground --test runtime_resume 17/17. Original parent conditions closed 0. Full closeout tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md.",
-    "last_stage_receipt": "R18 committed and pushed as d51baa6db; runtime_resume 17/17. R19 target is the local Install(g) -> authentic Capture/FreshUse -> actual g() boundary, with independent proof/source audit and runtime lineage. Live R19 proof, falsification, and runtime workers acknowledged; mutable current.json hash drift was reviewed and classified as scheduling-state only, with all immutable dependencies matching. R19 revision 2 adds two pinned read-only owners (lib.rs and candidate_extrusion.rs) for exact typed-drain completion and FreshUse physical-edge ownership; no write authority or budget expansion.",
+    "last_stage_receipt": "R18 committed and pushed as d51baa6db; runtime_resume 17/17. R19 target is the local Install(g) -> authentic Capture/FreshUse -> actual g() boundary, with independent proof/source audit and runtime lineage. Live R19 proof, falsification, and runtime workers acknowledged; mutable current.json hash drift was reviewed and classified as scheduling-state only, with all immutable dependencies matching. R19 revision 2 adds two pinned read-only owners (lib.rs and candidate_extrusion.rs) for exact typed-drain completion and FreshUse physical-edge ownership; no write authority or budget expansion. Source falsification was checkpointed unreviewed and independently reviewed CLEAN at 6748039fa; it reduces the open premise to typed FieldBound-to-FreshUse association/consumer. No original parent condition closed.",
     "git_checkpoint": {
-      "commit": "d51baa6db",
+      "commit": "6748039fa",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R18 runtime implementation, exact handoffs, state and closeout pushed. Quarantined replay drafts/cache remain excluded."
+      "receipt": "R19 bounded source characterization and handoff pushed; independent spec review CLEAN. Research-only, no accepted-source counterexample, no code change, parent closure0."
     }
   },
-  "history": "r17 closeout: original condition closure 0; reviewed static Phase-S producer/consumer milestone; focused test 16/16; parent OPEN. Earlier r1–r16 outcomes remain in their frozen closeout receipts (r13-r16 paths in tasks/agent-loop/sprints; older locators retained in archived sprint records). r16 parent closure0; v1 derivation conditional PASS, no producer/consumer. r17 r1 source/native obstruction PASS, artifact SHA 4147ee01443f8e89187d7fcd99d83865a1ee4458bc8146525989f6c48a01c524. r17 r2 review BLOCKING on typed q/license, exact consumer and occurrence identity. r17 r3 review BLOCKING: c changed from u_ping to u_outer; q/neg0 underindexed. r4 preserves c and separates c_outer; source/API consumer remains unproved. Git remains unavailable. r17 r4 proof/source API audit frozen PASS-within-obstruction: artifact bb7c8df589f8efecb150840253dc418f6ee5e2ebfa73bdffde1e87cf89e82e5b; current code has no q-aware consumer or runtime candidate receipt, parent closure0. r5 explicit FieldBoundV1 backed by actual AnnotationMember and q-Allowance, static Phase-S only. r17 r5 independent spec review BLOCKING: m0 does not connect q response definition to actual continuation argument of matched u_ping handler; unrelated same-family callback can satisfy it. Exact source application/argument derivation required. Reviewer stopped, no code. r17 r6 design strengthens m0 with exact retained LocalSource linkage from u_ping through matching catch declaration and continuation binder k to the actual Apply argument response_definition and u_outer; unrelated same-family callback cannot substitute. Dispatcher allocation: correction120, delta review180, conditional code420, compiler review180, focused run/integration240; Astra0. r17 r6 independent semantic delta review CLEAN at design SHA 276979eccec49396c6799b96ca1e0277c6108dc2fd1fe487a52e4565cff6ed54. Exact h_arg links u_ping through same-root catch/declaration/binder k to actual Apply argument; q and m0 retain it; prior consumer requirements preserved. No implementation or theorem closure yet. Git checkpoint publishing attempt rejected by GitHub MCP approval policy never; local .git read-only. No commit/ref mutation occurred; all artifacts remain in workspace. Dispatcher approved one +1200s Luna code continuation (cap5760; charged4140; remaining1620 incl code1200+review180+test/integration240; Astra0). Partial v1 plumbing is not a milestone. Exact source-derived h_arg through Action/q/m0/FieldBound and actual u_outer native lower to typed drain is required.",
+  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md; commit d51baa6db, reviewed runtime_resume 17/17. R17/R18 each left original parent OPEN/closure0. R19 source characterization is commit 6748039fa, independently CLEAN, no counterexample; current proof/runtime lanes remain open.",
   "quarantine_note": "Replay-constructor working/DRAFT outputs and tools/__pycache__ remain quarantined and excluded. R19 leases are scoped to proof/falsification artifacts and the three R18 runtime files only; all solver files remain read-only.",
   "workers": [
     {
@@ -67,7 +67,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen source falsifier. Theory SHA d2952e5bba7fbae3da0c89ef37de89a8773111610bdc2c5b6aa42cdb743144c2; handoff SHA 2b0c19159e7ac6b80a173389ab27b54e94cb9da7d4031e537cabf017d770807c. No source-qualified sibling counterexample; capture precedes typed FieldBound creation; q_view/shared-anchor flow may still exist. Supplemental candidate_extrusion.rs hash pinned in R19 rev2; writer stopped."
+      "receipt": "Frozen source falsifier. Theory SHA d2952e5bba7fbae3da0c89ef37de89a8773111610bdc2c5b6aa42cdb743144c2; handoff SHA 2b0c19159e7ac6b80a173389ab27b54e94cb9da7d4031e537cabf017d770807c. No source-qualified sibling counterexample; capture precedes typed FieldBound creation; q_view/shared-anchor flow may still exist. Supplemental candidate_extrusion.rs hash pinned in R19 rev2; writer stopped. Fresh spec_auditor CLEAN: capture/action order supported; typed FieldBound-to-FreshUse join absent in inspected representation; generic use-specific admission and early/shared-anchor flow preserved; no sibling counterexample or parent closure."
     },
     {
       "id": "/root/r19_local_binding_runtime",
@@ -101,6 +101,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "R18 conditional correspondence audit frozen; original parent closure0. No remaining writer lease."
+    },
+    {
+      "id": "/root/r19_freshuse_spec_review",
+      "role": "spec_auditor",
+      "state": "STOPPED",
+      "requested_model": "configured default",
+      "requested_effort": "configured default",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "CLEAN independent review of both frozen source-falsification artifacts at theory SHA d2952e5bba7fbae3da0c89ef37de89a8773111610bdc2c5b6aa42cdb743144c2 and handoff SHA 2b0c19159e7ac6b80a173389ab27b54e94cb9da7d4031e537cabf017d770807c. No findings requiring closure; no writes/tests/builds/Git. Source review allocation conservatively charged 120s; remaining 120s held for constructive proof review."
     }
   ],
   "leases": [
@@ -237,12 +248,12 @@
     {
       "path": "notes/theory/2026-10-18-fieldbound-freshuse-source-falsifier.md",
       "owner": "/root/r19_freshuse_falsification",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-fieldbound-freshuse-source-falsifier.md",
       "owner": "/root/r19_freshuse_falsification",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-operation-v1-local-binding-runtime.md",
@@ -272,5 +283,5 @@
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "Acknowledge R19 revision 2 read-only dependency addendum, continue proof lane within existing allocation, then fresh-review frozen proof and source artifacts; runtime implementation continues unchanged."
+  "next_action": "Continue the constructive proof within R19 rev2 and existing 720s grant; after its frozen handoff, use remaining proof/source review allocation. Runtime lineage implementation remains independent and must receive its own fresh compiler review before the authorized target."
 }
