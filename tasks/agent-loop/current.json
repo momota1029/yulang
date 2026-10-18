@@ -72,13 +72,13 @@
     {
       "id": "/root/r19_local_binding_runtime",
       "role": "implementer",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Assigned rev4 test-only repair within added120s: runtime_resume.rs and new handoff-r3 only. Awaiting active-work acknowledgement; not RUNNING yet."
+      "receipt": "Active-work acknowledgement received for rev4 SHA d65e86aadd85f814b69b6ba4648330ddb50ef9571ed89b854eedbe8d9da8276d. Exact two-path lease runtime_resume.rs + new handoff-r3; repair120. Fix valid sibling Catch close and borrow sibling_result; no tests/build/format. program.rs/machine.rs frozen."
     },
     {
       "id": "/root/r18_runtime_implementation",
