@@ -7,7 +7,7 @@
     "id": "negative-function-argument-row-20261019-r59",
     "contract": "tasks/agent-loop/sprints/negative-function-argument-row-20261019-r59.md",
     "revision": 1,
-    "state": "REVIEW",
+    "state": "CLOSED",
     "baseline": "2b92f53082e609989b69f22bcbc498a4a2bb089d",
     "contract_sha256": "155d8817f050566f4a51ccbb82dabb4c809bcabb82654fdce07a6fbaf867fdcc",
     "parent": "Original computation-forwarding preservation §§1,6-7; original quantifiers/domain unchanged; forwarding theorem and Simple-sub A/B OPEN 0->0; R50 NOT ADOPTED.",
@@ -26,19 +26,19 @@
       "allocation": "Sol600 charged; Luna source-owner500, compiler200, spec200 and integration300 charged/reserved per packet; total1800 charged/reserved, no carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "Both reviews CLEAN; outputs and closeout frozen. Primary integration and non-forced push remain.",
+    "next_action": "R59 commit fbd4ed98c pushed to origin/research/simple-sub-intrusion. Tree cleanup and state receipt commit remain; R60 is a proposed next packet without grant, leases or budget.",
     "history": "R58 CLOSED, reviewed and pushed at 2b92f53082e609989b69f22bcbc498a4a2bb089d; closeout commit/push complete. Parent OPEN 0->0, A/B OPEN, R50 NOT ADOPTED. R59 candidate SHA/pins verified; dispatcher start check passed; primary approved R59 in current-conversation-2026-10-19-r59 before author writes. Prior R58 writers/reviewers STOPPED, all R58 leases FROZEN.",
     "workers": [
       {
         "id": "/root",
         "role": "Luna primary; read-only source-owner audit and integration",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r59",
-        "receipt": "R59 authors/reviewers STOPPED; all output hashes and review receipts adjudicated. Luna primary currently integrates explicit reviewed paths and owns commit/push."
+        "receipt": "R59 reviews adjudicated CLEAN; closeout commit fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3 pushed non-forced to origin/research/simple-sub-intrusion. Current-state Git receipt follows; no authors/reviewers/dispatcher running, no descendants."
       },
       {
         "id": "/root/r53_ordinary_mixed_capture_proof",
@@ -103,14 +103,14 @@
     ],
     "pending": [
       {
-        "id": "R59-PRIMARY-INTEGRATION",
-        "state": "RUNNING",
-        "owner": "/root",
-        "request": "Stage explicit reviewed paths, inspect full diff/range and commit/push R59 closeout; then update current state with final Git receipt.",
-        "falsifier": "Any unstaged/unreviewed path, hash mismatch, changed authority or non-fast-forward push condition."
+        "id": "R60-PAIRED-ANNOTATION-INTERFACE",
+        "state": "PROPOSED",
+        "owner": "Luna primary",
+        "request": "Derive an authentic same-position, same-provider exposed-AE to checked-provider entrance with source-local permission correspondence and correlated result compatibility, or identify the exact premise preventing it.",
+        "requires": "No R60 grant, leases or budget yet. Fresh contract, baseline/dependency pins, dispatcher boundary check, STOPPED identity/lease reconciliation and primary approval required. No code/tests/execution."
       }
     ],
-    "closure": "R59 adjudicated as a reviewed partial constructor derivation ending at the first same-position/provider paired-AE source/native premise. Parent OPEN 0->0; A/B OPEN; R50 NOT ADOPTED. Final independent reviews CLEAN. Primary Git integration remains.",
+    "closure": "R59 CLOSED as a reviewed partial constructor derivation. Exact missing same-position/provider paired-AE entrance remains OPEN, as do permission correspondence, result interface, formal-root consumer, capture/FreshUse, executable consumer and parent. Reviews CLEAN, 25/25 pins MATCH. No implementation or production authority.",
     "primary_approval": "R59 rev1 approved in current-conversation-2026-10-19-r59 after exact baseline and origin match, contract SHA, 25/25 direct pins, dispatcher start check and all previous writers/reviewers STOPPED with leases FROZEN; approval precedes Sol author writes.",
     "dispatcher_start": {
       "agent": "/root/r46_next_action",
@@ -162,19 +162,20 @@
         },
         "receipt": "Initial spec review found the same error-family issue and stale handoff status; exact-byte delta CLEAN after corrections. Three annotation positions, open E, permission/inflow/residual and scalar-falsifier limits preserved; 25/25 pins MATCH. STOPPED/READ_ONLY/NO_DESCENDANTS; settings/duration UNKNOWN."
       }
-    ]
+    ],
+    "integration": "Commit fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3 contains the eight explicit reviewed R59 paths and was pushed non-forced to origin/research/simple-sub-intrusion. Final clean-tree receipt to be recorded by the following state commit."
   },
   "workers": [
     {
       "id": "/root",
       "role": "Luna primary; read-only source-owner audit and integration",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r59",
-      "receipt": "R59 authors/reviewers STOPPED; all output hashes and review receipts adjudicated. Luna primary currently integrates explicit reviewed paths and owns commit/push."
+      "receipt": "R59 reviews adjudicated CLEAN; closeout commit fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3 pushed non-forced to origin/research/simple-sub-intrusion. Current-state Git receipt follows; no authors/reviewers/dispatcher running, no descendants."
     },
     {
       "id": "/root/r53_ordinary_mixed_capture_proof",
@@ -239,11 +240,11 @@
   ],
   "pending": [
     {
-      "id": "R59-PRIMARY-INTEGRATION",
-      "state": "RUNNING",
-      "owner": "/root",
-      "request": "Stage explicit reviewed paths, inspect full diff/range and commit/push R59 closeout; then update current state with final Git receipt.",
-      "falsifier": "Any unstaged/unreviewed path, hash mismatch, changed authority or non-fast-forward push condition."
+      "id": "R60-PAIRED-ANNOTATION-INTERFACE",
+      "state": "PROPOSED",
+      "owner": "Luna primary",
+      "request": "Derive an authentic same-position, same-provider exposed-AE to checked-provider entrance with source-local permission correspondence and correlated result compatibility, or identify the exact premise preventing it.",
+      "requires": "No R60 grant, leases or budget yet. Fresh contract, baseline/dependency pins, dispatcher boundary check, STOPPED identity/lease reconciliation and primary approval required. No code/tests/execution."
     }
   ]
 }

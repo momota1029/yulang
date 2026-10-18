@@ -17721,7 +17721,7 @@ NO_SAFE_CODE_SLICE until that correspondence is derived. See the [R58 closeout](
 [contract](agent-loop/sprints/original-name-prepublication-exposure-20261019-r58.md),
 and [review/state receipts](agent-loop/current.json).
 
-## Reviewed research result — R59
+## Closed research sprint — R59
 
 R59 derived the polarity and slot obligations for the original top-level
 negative Function-argument annotation. The constructor is still incomplete:
@@ -17736,10 +17736,10 @@ five output hashes match. No code, tests or execution. Parent and Simple-sub
 A/B remain OPEN 0→0; R50 remains NOT ADOPTED. See the [R59 closeout](../notes/progress/2026-10-19-r59-closeout.md),
 [proof](../notes/theory/2026-10-19-r59-negative-function-argument-row.md),
 [owner trace](../notes/progress/2026-10-19-r59-annotation-constructor-owners.md),
-and [current review/state receipts](agent-loop/current.json). Primary Git integration is pending.
+and [current review/state receipts](agent-loop/current.json). Commit `fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3` was pushed to `origin/research/simple-sub-intrusion`.
 
 The dispatcher recommends a proposed R60 derivation of an authentic
 same-position/same-provider exposed-AE to checked-provider entrance, including
 source-local permission and correlated result compatibility. A shared row is
-only a candidate factorization. R60 remains ungranted pending a fresh primary
-activation and exact leases/budget.
+only a candidate factorization. R60 remains a proposal pending a fresh contract, dispatcher boundary check,
+primary activation, exact leases and budget.
