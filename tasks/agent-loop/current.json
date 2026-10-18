@@ -4,304 +4,97 @@
   "phase": "ACTIVE",
   "session": "current-conversation-2026-10-19",
   "active_sprint": {
-    "id": "application-output-derivation-20261019-r45",
-    "contract": "tasks/agent-loop/sprints/application-output-derivation-20261019-r45.md",
-    "revision": 1,
+    "id": "source-apply-owner-20261019-r46",
+    "contract": "tasks/agent-loop/sprints/source-apply-owner-20261019-r46.md",
+    "revision": 2,
     "state": "ACTIVE",
-    "baseline": "6bf4236c8",
-    "contract_sha256": "e8e6460eb19500383d71cc6b6b217f294ae8acbf3bfedb48b6beab5ff8457c77",
+    "baseline": "55ed588e7",
+    "contract_sha256": "d7d7e1cf123bce1b51eec1bd599f47faac75aa7b75d41f9a1a7030440855ef62",
     "parent": "Unchanged full inference/evaluator theorem and Simple-sub A/B, original quantifiers, accepted source domain and semantics; OPEN 0->0.",
-    "fixed_outcome": "Construct a source-owned ordinary Application output description for q from independent premises through complete Call and two-frame/alias Generalize, or identify the earliest unsupported judgment and owner; apply results to original parent.",
+    "fixed_outcome": "Trace actual q=loop y from HIR Apply through ApplySourceInput and native ports to typed Result consumer; derive authentic output/effect/result owners and ordered D_q under existing rules or identify the earliest unsupported judgment and owner.",
     "dependencies": {
-      "R44_contract": "8a9cdf31c8ce33feb30673a7cb91c099173ecd1da44e37e76b27d951960a91d8",
-      "R44_review_adjudication": "4e29ef28ad7cdec80a2c195e8bbac09b07fb4ff15c3ff4ca11834ffba010c0aa",
-      "R44_scope_audit": "172eb876bb50d8439a996cb411af537eb3f526e4dfc951c5fb996b666eb0e9cc",
-      "R44_evaluator_corollary_rev2": "bb7aff3ed064b7118861f8da67df2d69bd0392c783df7e4864d1a811b112d3ee",
-      "generalize_definition": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240",
-      "typed_computation_core": "0dbd943a1254dd58c435ff295a8ac0a9d025af70ba37a17154d624da8a86ab2e",
-      "code_call_input": "f7c1b1eb23acb33ab98487097ab67617e1af84964b012874b1c951a8805dd9f6",
-      "call_source_interface": "278034197a90eab6e62a073545c09dd14415a0353f58aa3b3cc122a6af945d98",
-      "implementation_boundary_R44": "5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21",
-      "implementation_gate_R42": "855c07f2a6de1e156209f91c7c9f9ea2169369feb0381edb63ddeceb013c1758",
-      "source_roles": "9a230eb023698666f4c3e518a527009d6915e65f658b230e6da6a29914ca3abb"
+      "R45_closeout": "6caf736e9d76ebc5c44080d0ad77a92b52b113703aa772c99315cb9a99dc8da5",
+      "R45_core": "d2982e9bd316f764c9e9709e5843062d5b02b7c5f6f5eea9231fe6a14dd10be0",
+      "R45_independent_derivation": "05530063f72b8df7f989d9c9483b05e56dc2591af9232cee1682900e524ce2c4",
+      "checked_result_design": "c9207625887d78aaccef988324e8505f6dd08fdfe076e0f564f8b7dca3c54076",
+      "local_source.rs": "ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5",
+      "candidate_source.rs": "66b8f88bad86755c2716cfa7e9c35eabc7031d408b774358ca72446db2b3180c",
+      "candidate_call.rs": "e038ad0dfc4b12bd0d513d6cd6b34cee6b2b062d8b33368bc1c0dcdef980d479",
+      "shadow_apply.rs_overlay": "d5e6b179fd4f6fbca579b0fa4d479d8bd11b520d774acbf27f414451c4691137",
+      "candidate_context.rs": "42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca",
+      "candidate_scheme.rs_overlay": "8c370e47d5e8692a618fedf41be07d7ae3ac961f9070bfed6730e2b8e2f1137e",
+      "candidate_local_self_recursion.rs_overlay": "47ced76fe8f0f136c42802b2376ca09f7cadec0fc8e5b1b3d4c6acc7bc613e55"
     },
     "resources": {
-      "cap_seconds": 3000,
-      "charged_seconds": 1800,
-      "available_seconds": 1200,
-      "allocation": "Astra 300 + Sol 900 + primary read-only implementation 600 charged/reserved; fresh review 900 and primary integration 300 held in envelope; no carryover. Actual elapsed CPU/RSS UNKNOWN.",
+      "cap_seconds": 2400,
+      "charged_seconds": 1500,
+      "available_seconds": 900,
+      "allocation": "Luna read-only map 600 + Sol proof lane 900 charged/reserved; two fresh independent reviews 300 each reserved; Luna integration 300 remains. No R45 carryover; actual CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "Read-only implementation path is frozen as NO_SAFE_CODE_SLICE. Astra and Sol continue proof construction/attack under their exact leases.",
-    "history": "R44 closed unsuccessful after compiler_referee/spec_auditor review; exact D_q, complete headers and two-frame/alias mappings absent. User's original parent remains open. R45 uses the dispatcher-selected integrated output-owner derivation with corrected source baseline. Resume audit 2026-10-19: live runtime inventory showed only /root; Astra/Sol handles absent, cessation unconfirmed. Dispatcher retained R45 and recommended UNKNOWN workers, QUARANTINED leases, no budget reset or code.",
+    "next_action": "Complete the bidirectional source-occurrence/provenance trace and independent law instantiation, freeze exact artifacts, then obtain fresh compiler_referee and spec_auditor review.",
+    "history": "R45 closed with reviewed bounded obstruction; checkpoint 55ed588e7 is pushed. User explicitly transferred ownership of all current worktree changes/artifacts to /root. Legacy research and code candidates are preserved; no code authority follows. Checked-result Unit-call construction does not apply to q=loop y. Boundary dispatcher confirmed R46 rev2 continuation after direct formation-law pins; no scope, resource or lease change.",
     "workers": [
       {
         "id": "/root",
-        "role": "Luna primary; R45 coordination, source/native path and integration",
+        "role": "Luna primary; R46 read-only source/native map, adjudication and integration",
         "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "R45 primary source/native map frozen; note d3538e38606e8e800866fb6c8eb397995dadebf44b8a7d24c891a765c0953e5b; handoff 22ef9c481aed808a982b7f6362ac0d98b6367c177ee01e94435db1a2f4310ffb; read-only; still coordinating two proof lanes."
+        "receipt": "R46 rev2 source/native map frozen and pushed at 5fb978b13; coordinating Sol proof and fresh reviews under the fixed 2400-second envelope. No code/test/build/runtime authority."
       },
       {
-        "id": "/root/r45_contextual_core",
-        "role": "Astra bounded constructive core proof",
-        "state": "UNKNOWN",
-        "requested_model": "astra_prover",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19",
-        "receipt": "Spawned in current live session for R45 exact D_q/Application/Call/frame derivation; exact two-path lease; 300 second cap. Current runtime inventory on 2026-10-19 contains no live worker handle or fresh active-work receipt; cessation is unconfirmed."
-      },
-      {
-        "id": "/root/r45_independent_derivation",
-        "role": "Sol independent source derivation and counterexample lane",
-        "state": "UNKNOWN",
+        "id": "/root/r46_application_law",
+        "role": "Sol independent Application formation-law instantiation and falsifier",
+        "state": "RUNNING",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "Spawned in current live session for independent q owner/dependency/provider/frame audit; exact two-path lease; 900 second cap. Current runtime inventory on 2026-10-19 contains no live worker handle or fresh active-work receipt; cessation is unconfirmed."
+        "receipt": "Actual launch returned; acknowledged R46 rev2 direct-law pins and exact proof leases; 900-second cap; read-only source/authority inputs; no Git or code work."
       }
     ],
     "leases": [
-      {
-        "path": "tasks/agent-loop/sprints/application-output-derivation-20261019-r45.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/theory/2026-10-19-r45-contextual-output-core.md",
-        "owner": "/root/r45_contextual_core",
-        "state": "QUARANTINED"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261019-r45-core.md",
-        "owner": "/root/r45_contextual_core",
-        "state": "QUARANTINED"
-      },
-      {
-        "path": "notes/theory/2026-10-19-r45-application-derivation.md",
-        "owner": "/root/r45_independent_derivation",
-        "state": "QUARANTINED"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261019-r45-proof.md",
-        "owner": "/root/r45_independent_derivation",
-        "state": "QUARANTINED"
-      },
-      {
-        "path": "notes/progress/2026-10-19-r45-source-native-evaluator-path.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261019-r45-implementation.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      }
+      {"path": "tasks/agent-loop/sprints/source-apply-owner-20261019-r46.md", "owner": "/root", "state": "FROZEN"},
+      {"path": "notes/progress/2026-10-19-r46-source-native-owner-map.md", "owner": "/root", "state": "FROZEN"},
+      {"path": "tasks/agent-loop/inbox/20261019-r46-implementation.md", "owner": "/root", "state": "FROZEN"},
+      {"path": "notes/theory/2026-10-19-r46-application-law-instantiation.md", "owner": "/root/r46_application_law", "state": "HELD"},
+      {"path": "tasks/agent-loop/inbox/20261019-r46-proof.md", "owner": "/root/r46_application_law", "state": "HELD"}
     ],
     "pending": [
-      {
-        "id": "R45-ASTRA-CORE",
-        "role": "astra_prover",
-        "state": "UNKNOWN",
-        "worker_id": "/root/r45_contextual_core",
-        "target_sha256": "e8e6460eb19500383d71cc6b6b217f294ae8acbf3bfedb48b6beab5ff8457c77"
-      },
-      {
-        "id": "R45-SOL-DERIVATION",
-        "role": "prover",
-        "state": "UNKNOWN",
-        "worker_id": "/root/r45_independent_derivation",
-        "target_sha256": "e8e6460eb19500383d71cc6b6b217f294ae8acbf3bfedb48b6beab5ff8457c77"
-      }
+      {"id": "R46-LUNA-SOURCE-NATIVE-MAP", "role": "primary", "state": "RUNNING"},
+      {"id": "R46-SOL-LAW-INSTANTIATION", "role": "prover", "state": "RUNNING", "worker_id": "/root/r46_application_law"},
+      {"id": "R46-COMPILER-REVIEW", "role": "compiler_referee", "state": "RESERVED", "budget_seconds": 300},
+      {"id": "R46-SPEC-REVIEW", "role": "spec_auditor", "state": "RESERVED", "budget_seconds": 300}
     ],
-    "ready_next_work": "Maintain R45 rev1 and quarantined proof leases. Luna may continue only approved-source read-only analysis within the existing 600-second primary grant; otherwise await fresh worker/cessation receipts. No code or tests authorized.",
-    "closure": "Parent remains OPEN 0->0; R44 candidate non-Authoritative; no code authorized.",
+    "closure": "Original theorem and Simple-sub A/B remain OPEN 0->0. No source semantics, expected outputs, or production behavior changed.",
     "frozen_artifacts": {
-      "R45_source_native_evaluator_path": "d3538e38606e8e800866fb6c8eb397995dadebf44b8a7d24c891a765c0953e5b",
-      "R45_implementation_handoff": "22ef9c481aed808a982b7f6362ac0d98b6367c177ee01e94435db1a2f4310ffb"
+      "R45_checkpoint_commit": "55ed588e7",
+      "R45_closeout": "6caf736e9d76ebc5c44080d0ad77a92b52b113703aa772c99315cb9a99dc8da5",
+      "R46_contract": "d7d7e1cf123bce1b51eec1bd599f47faac75aa7b75d41f9a1a7030440855ef62",
+      "R46_source_native_map": "f94e6e0e576d3ec5e73316f89a4a7b93dceb88b328f21a0516b9d39f8dff4d99",
+      "R46_implementation_handoff": "323cd9aee129f12ac7b1d5c6f65b09694cbd80fa04e6d7e510ee7f7c6a9df9c7"
     }
   },
   "workers": [
-    {
-      "id": "/root",
-      "role": "Luna primary; R44 candidate construction, authority and integration",
-      "state": "RUNNING",
-      "requested_model": "Luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19",
-      "receipt": "R45 primary source/native map frozen; note d3538e38606e8e800866fb6c8eb397995dadebf44b8a7d24c891a765c0953e5b; handoff 22ef9c481aed808a982b7f6362ac0d98b6367c177ee01e94435db1a2f4310ffb; read-only; still coordinating two proof lanes."
-    },
-    {
-      "id": "/root/r44_compiler_referee",
-      "role": "Independent read-only compiler_referee review of R44 frozen candidate",
-      "state": "STOPPED",
-      "requested_model": "compiler_referee",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19",
-      "receipt": "Independent review complete; findings and adjudication frozen at 4e29ef28ad7cdec80a2c195e8bbac09b07fb4ff15c3ff4ca11834ffba010c0aa; candidate rejected; no edits or tests."
-    },
-    {
-      "id": "/root/r44_spec_auditor",
-      "role": "Independent read-only spec_auditor review of R44 frozen candidate",
-      "state": "STOPPED",
-      "requested_model": "spec_auditor",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19",
-      "receipt": "Independent review complete; findings and adjudication frozen at 4e29ef28ad7cdec80a2c195e8bbac09b07fb4ff15c3ff4ca11834ffba010c0aa; candidate rejected; no edits or tests."
-    },
-    {
-      "id": "/root/r45_next_action",
-      "role": "Read-only sprint-boundary consultation",
-      "state": "STOPPED",
-      "requested_model": "next_action_selector",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19",
-      "receipt": "Boundary recommendation received; frozen in R45 contract. Read-only consultation completed."
-    },
-    {
-      "id": "/root/r45_contextual_core",
-      "role": "Astra bounded constructive core proof",
-      "state": "UNKNOWN",
-      "requested_model": "astra_prover",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19",
-      "receipt": "Spawned in current live session for R45 exact D_q/Application/Call/frame derivation; exact two-path lease; 300 second cap. Current runtime inventory on 2026-10-19 contains no live worker handle or fresh active-work receipt; cessation is unconfirmed."
-    },
-    {
-      "id": "/root/r45_independent_derivation",
-      "role": "Sol independent source derivation and counterexample lane",
-      "state": "UNKNOWN",
-      "requested_model": "prover",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19",
-      "receipt": "Spawned in current live session for independent q owner/dependency/provider/frame audit; exact two-path lease; 900 second cap. Current runtime inventory on 2026-10-19 contains no live worker handle or fresh active-work receipt; cessation is unconfirmed."
-    }
+    {"id": "/root", "role": "Luna primary; R46 map/integration", "state": "RUNNING", "requested_model": "Luna", "requested_effort": "high", "observed_model": "UNKNOWN", "observed_effort": "UNKNOWN", "session": "current-conversation-2026-10-19", "receipt": "R46 rev2 source/native map frozen and pushed at 5fb978b13; coordinating Sol proof and fresh reviews under the fixed 2400-second envelope."},
+    {"id": "/root/r46_application_law", "role": "Sol proof lane", "state": "RUNNING", "requested_model": "prover", "requested_effort": "high", "observed_model": "UNKNOWN", "observed_effort": "UNKNOWN", "session": "current-conversation-2026-10-19", "receipt": "Launch returned by collaboration.spawn_agent; exact R46 proof lease; no code or Git."}
   ],
   "leases": [
-    {
-      "path": "tasks/agent-loop/sprints/call-output-owner-jof-20261019-r44.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/design/2026-10-19-call-output-owner-jof-r44-draft.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-jof-application-formation-r44.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-jof-implementation-boundary-r44.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-call-output-owner-jof-r44.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r44-jof-scope-dependency-audit.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-jof-application-evaluator-corollary-r44.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-jof-application-evaluator-corollary-r44-rev2.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r44-independent-review-adjudication.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/application-output-derivation-20261019-r45.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r45-contextual-output-core.md",
-      "owner": "/root/r45_contextual_core",
-      "state": "QUARANTINED"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r45-core.md",
-      "owner": "/root/r45_contextual_core",
-      "state": "QUARANTINED"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r45-application-derivation.md",
-      "owner": "/root/r45_independent_derivation",
-      "state": "QUARANTINED"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r45-proof.md",
-      "owner": "/root/r45_independent_derivation",
-      "state": "QUARANTINED"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r45-source-native-evaluator-path.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r45-implementation.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    }
+    {"path": "tasks/agent-loop/sprints/source-apply-owner-20261019-r46.md", "owner": "/root", "state": "FROZEN"},
+    {"path": "notes/progress/2026-10-19-r46-source-native-owner-map.md", "owner": "/root", "state": "HELD"},
+    {"path": "tasks/agent-loop/inbox/20261019-r46-implementation.md", "owner": "/root", "state": "HELD"},
+    {"path": "notes/theory/2026-10-19-r46-application-law-instantiation.md", "owner": "/root/r46_application_law", "state": "HELD"},
+    {"path": "tasks/agent-loop/inbox/20261019-r46-proof.md", "owner": "/root/r46_application_law", "state": "HELD"}
   ],
   "pending": [
-    {
-      "id": "R45-ASTRA-CORE",
-      "role": "astra_prover",
-      "state": "UNKNOWN",
-      "worker_id": "/root/r45_contextual_core",
-      "target_sha256": "e8e6460eb19500383d71cc6b6b217f294ae8acbf3bfedb48b6beab5ff8457c77"
-    },
-    {
-      "id": "R45-SOL-DERIVATION",
-      "role": "prover",
-      "state": "UNKNOWN",
-      "worker_id": "/root/r45_independent_derivation",
-      "target_sha256": "e8e6460eb19500383d71cc6b6b217f294ae8acbf3bfedb48b6beab5ff8457c77"
-    }
-  ],
-  "ready_next_work": "Wait for both proof handoffs; Luna applies the earliest-owner result, then freezes candidate and assigns independent review if supported.",
-  "closure": "Parent remains OPEN 0->0; R44 candidate non-Authoritative; no code authorized.",
-  "history": "R43 bounded selected-source intake stopped at missing q owner. On 2026-10-19 user delegated choosing the recommendation. Luna selected JOF for a design-and-proof candidate, not immediate adoption. R43 note hash metadata was corrected at 19d02ce40. R44 conditional evaluator translation corollary recorded; q source derivation remains open.",
-  "quarantine_note": "Preserve pre-existing dirty Rust, tasks/current.md and untracked R35-R41 artifacts of unknown authors. R43 has read-only source scope; do not acquire their leases or stage them.",
-  "legacy_reconciliation": {
-    "required": false,
-    "receipt": "R42/R43 primary and review workers terminal. Pre-existing dirty/unknown-owner Rust, tasks/current.md and R35-R41 artifacts remain untouched/read-only."
-  },
-  "sha256": "dcdff604f1c679237346be518f84d10dc89c9551365411ea833b3d2776720fa7"
+    {"id": "R46-LUNA-SOURCE-NATIVE-MAP", "role": "primary", "state": "RUNNING"},
+    {"id": "R46-SOL-LAW-INSTANTIATION", "role": "prover", "state": "RUNNING", "worker_id": "/root/r46_application_law"},
+    {"id": "R46-COMPILER-REVIEW", "role": "compiler_referee", "state": "RESERVED", "budget_seconds": 300},
+    {"id": "R46-SPEC-REVIEW", "role": "spec_auditor", "state": "RESERVED", "budget_seconds": 300}
+  ]
 }

@@ -1,10 +1,39 @@
 # Current task: complete type inference and replace F5
 
-Date: 2026-10-18
+Date: 2026-10-19
 Branch: `research/simple-sub-intrusion`
 Status: full objective remains active. R22 reduced the fixed runtime specimen to a conditional handle-preservation induction, but the original `A_decl` source output/provider map is still missing; parent closure remains 0. R22's trace was rejected at independent review and its incomplete partial repair was discarded. R23's original frame inventory, falsifier and cut-formation packets are frozen and CLEAN within their bounded scopes; the parent theorem still has closure 0. R24 located the missing caller-context binding. R25 added and reviewed transport-only HIR retention for an opaque caller payload. No original mathematical condition has been discharged: authentic caller introduction, operation/member/signature correspondence, phase actions and the unchanged parent theorem remain OPEN.
 
 ## Current checkpoint (2026-10-18)
+
+R37 revision 3 closed BLOCKED after fresh compiler and spec reviews found two
+test-candidate defects: the prior-fresh canonical-map-hit acceptance is
+vacuous, and reconstruction-time representatives are compared with a later
+final representative without retained temporal evidence. No Cargo ran; the
+parent remains `0 -> 0`. See [R37 review closeout](../notes/progress/2026-10-18-r37-rev3-review-closeout.md).
+
+R38's test candidate closed BLOCKED after fresh compiler review: its selected
+`calls[0]` lacks exact source-owner authentication and retained tuples do not
+prove admitted result propagation or a typed Result consumer edge. No Cargo
+ran and no original theorem condition closed.
+
+R45 closed with a reviewed bounded obstruction: the pinned rules do not
+construct the authentic output/effect/result owners or ordered `D_q` for the
+actual `q = loop y` occurrence after granting independent operand records.
+The result is not a global absence theorem, source counterexample or parent
+closure; the full parent remains OPEN at `0 -> 0`. The checked-result
+constructor for immutable-Name/Unit Call does not apply to this q. R45's
+reviewed checkpoint was pushed as `55ed588e7`; see the [closeout](../notes/progress/2026-10-19-r45-closeout.md).
+
+R46 is active under [its frozen contract](agent-loop/sprints/source-apply-owner-20261019-r46.md).
+It traces the actual HIR Apply occurrence forward through `ApplySourceInput`
+and native ports, then backward from the typed Result consumer, joining only
+authenticated occurrence/provenance identities. Luna owns a read-only
+source/native map and Sol independently instantiates existing formation laws
+or identifies the first unsupported judgment. The cap is 2400 seconds with no
+R45 carryover; no code, tests, builds, runtime probes or semantic changes are
+authorized. Original theorem, Simple-sub A/B, quantifiers, source domain and
+semantics remain unchanged; parent OPEN at `0 -> 0`.
 
 R22's reviewed proof and falsifier artifacts preserve the original source scope:
 the fixed successful runtime path carries the response handle through
@@ -17541,3 +17570,30 @@ code changed. Original conditions remain OPEN at 0 -> 0; R30 remains
 independent. The source proof is still blocked on an authentic source-owned C/D
 introduction. See the [R34 closeout](../notes/progress/2026-10-18-r34-closeout.md),
 [R34 contract](agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md).
+
+## Closed research sprint — R35
+
+R35 constructed and independently reviewed a provisional Apply/extrusion
+declaration at the actual HIR `Parameter(y)` scope. The original logical type
+scope, complete dependency telescope, active-root/helper-publication action,
+and common extension through two independent frames remain missing; R32
+retention does not supply them. The native test candidate was blocked before
+execution by compile issues, a flat rather than nested-helper fixture, and an
+existential signed-pair join. No Cargo ran, no source counterexample was found,
+and original parent conditions remain OPEN at 0 -> 0; R30 remains independent.
+See the [R35 closeout](../notes/progress/2026-10-18-r35-closeout.md),
+[R35 contract](agent-loop/sprints/scoped-apply-extrusion-20261018-r35.md),
+and [frozen proof candidate](../notes/theory/2026-10-18-scoped-apply-extrusion-r35.md).
+
+
+## Closed research sprint — R36
+
+R36 derived and independently reviewed a conditional alias-extension lemma,
+but did not authenticate the Apply-owned `R` telescope, copied declarations or
+publication action. The nested-helper native candidate was blocked by independent
+compiler/spec review before execution: it conflated the triggering comparison
+with generated extrusion, and raw copies with route-specific canonical images.
+No Cargo ran, no semantic or expected-output change was accepted, and the
+original parent remains 0 -> 0. See the [R36 closeout](../notes/progress/2026-10-18-r36-closeout.md),
+[contract](agent-loop/sprints/apply-scope-publication-20261018-r36.md), and frozen
+proof/native handoffs.
