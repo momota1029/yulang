@@ -13,29 +13,51 @@
     "fixed_outcome": "Construct and assess one research-only active-capture demand record as a conservative definitional extension of complete existing Call in two independent helper-use frames; in parallel, exercise accepted-source active-root/nested-helper/two-FreshUse native path with a focused test-only regression. No semantic adoption or production allocation change.",
     "resources": {
       "cap_seconds": 1380,
-      "charged_seconds": 0,
-      "available_seconds": 1380,
-      "allocation": "Sol proof600 + Luna native/test300 + compiler review180 + spec review180 + Luna integration120; Astra0. One focused Cargo process owned by native lane."
+      "charged_seconds": 900,
+      "available_seconds": 480,
+      "allocation": "Sol proof600 + Luna implementation/test300 charged/reserved at launch; fresh compiler/spec reviews180 each and Luna integration120 remain. Astra0; one focused Cargo process owned by native lane."
     },
-    "next_action": "R32 contract committed; exact leases and launch receipts are next. Candidate law remains research-only. Preserve original theorem and report 0 parent conditions until reviewed application proves otherwise.",
+    "next_action": "Proof and native/test lanes running under exact R32 leases. Preserve the original Call relation and report any candidate choice separately from adoption. Fresh compiler/spec review follows frozen outputs.",
     "history": "R31 closeout notes/progress/2026-10-18-r31-active-root-allocation-closeout.md; original conditions0->0; missing active-capture C/D telescope identified. Dispatcher recommends candidate conservative extension plus native two-FreshUse path.",
     "git_checkpoint": {
-      "commit": "eb01835c1c78ad3566dac054c285d2a5df4d3e7f",
+      "commit": "f69e3d4d194be0306ceed738d45c0c1d0bf2e49f",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R31 proof, falsifier, fresh review receipt and closeout are committed and pushed; R32 contract and state checkpoint committed at sprint start."
+      "receipt": "R31 closeout commit eb01835c1 was pushed; R32 contract/state commit f69e3d4d1 was pushed before worker launch."
     },
     "workers": [
       {
         "id": "/root",
-        "role": "Luna-primary/R32 authority, implementation, review and Git owner",
+        "role": "Luna-primary/R32 authority, implementation oversight, reviews and Git owner",
         "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R32 candidate contract frozen; dispatch complete. Starting proof and native/test lanes on exact paths; no Astra or production-semantic lease."
+        "receipt": "R32 contract f69e3d4d1 pushed; launched proof and test-only native lanes on disjoint exact leases. No production-semantic lease."
+      },
+      {
+        "id": "/root/r32_conservativity_proof",
+        "role": "prover",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Current-session NEW_TASK on R32 bidirectional candidate conservativity proof/handoff paths; hard cap600s; no code/tests/builds/probes/Astra/Git."
+      },
+      {
+        "id": "/root/r32_native_path",
+        "role": "implementer",
+        "state": "RUNNING",
+        "requested_model": "Luna",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Current-session NEW_TASK on R32 test-only native path and handoff paths; hard cap300s; one contract-authorized focused Cargo test only; no production edits/Astra/Git."
       }
     ],
     "leases": [
@@ -53,51 +75,98 @@
         "path": "tasks/current.md",
         "owner": "/root",
         "state": "HELD"
+      },
+      {
+        "path": "notes/theory/2026-10-18-active-capture-conservative-extension-r32.md",
+        "owner": "/root/r32_conservativity_proof",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-active-capture-conservative-extension-r32.md",
+        "owner": "/root/r32_conservativity_proof",
+        "state": "HELD"
+      },
+      {
+        "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
+        "owner": "/root/r32_native_path",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/progress/2026-10-18-active-capture-native-path-r32.md",
+        "owner": "/root/r32_native_path",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-active-capture-native-path-r32.md",
+        "owner": "/root/r32_native_path",
+        "state": "HELD"
       }
     ],
     "pending": [
       {
         "id": "R32-CONSERVATIVE-EXTENSION-PROOF",
-        "state": "READY",
-        "owner": "Sol prover to be dispatched after contract checkpoint",
+        "state": "RUNNING",
+        "owner": "/root/r32_conservativity_proof",
         "artifact": "Bidirectional conservative extension of candidate active-capture record against unchanged full Call relation; preserve all scopes/effects/events and two helper uses."
       },
       {
         "id": "R32-NATIVE-TWO-FRESHUSE-PATH",
-        "state": "READY",
-        "owner": "Luna implementer to be dispatched after contract checkpoint",
-        "artifact": "Test-only accepted-source active-root/nested-helper path with two distinct FreshUses using existing observations; one focused Cargo test."
+        "state": "RUNNING",
+        "owner": "/root/r32_native_path",
+        "artifact": "Test-only accepted-source active-root/nested-helper path with two distinct FreshUses using existing observations; run one focused Cargo test."
       },
       {
-        "id": "R32-INDEPENDENT-REVIEW",
+        "id": "R32-INDEPENDENT-REVIEWS",
         "state": "STAGED",
         "owner": "Fresh compiler and spec reviewers assigned after artifacts freeze",
-        "artifact": "Independent review of proof directions, exact original scopes, native observer path and no production semantic changes."
+        "artifact": "Review proof directions, exact original scopes, native observer path and absence of production semantic changes."
       }
     ],
     "ready_next_work": {
-      "id": "R32-CONSERVATIVE-EXTENSION-PROOF",
-      "state": "READY",
+      "id": "R32-INDEPENDENT-REVIEWS",
+      "state": "STAGED",
       "owner": "/root",
-      "artifact": "Authorize exact Sol proof and Luna implementation leases after pushed contract/state checkpoint."
+      "artifact": "After both R32 writers freeze, assign fresh compiler and spec reviewers within reserved 360s."
     },
     "legacy_reconciliation": {
       "required": false,
       "receipt": "R31 proof, falsifier and review terminal; exact artifacts frozen. R32 begins after R31 closeout."
     },
-    "sha256": "6833b02e77c4806b596b83e929e33e8c61f467d659f52927557aedaf7acd8319"
+    "sha256": "2be39ba113a04383d10dfcdb75142111e7c81b389b9fce65c0ae3802c3c94194"
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna-primary/R32 authority, implementation, review and Git owner",
+      "role": "Luna-primary/R32 authority, implementation oversight, reviews and Git owner",
       "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R32 candidate contract frozen; dispatch complete. Starting proof and native/test lanes on exact paths; no Astra or production-semantic lease."
+      "receipt": "R32 contract f69e3d4d1 pushed; launched proof and test-only native lanes on disjoint exact leases. No production-semantic lease."
+    },
+    {
+      "id": "/root/r32_conservativity_proof",
+      "role": "prover",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Current-session NEW_TASK on R32 bidirectional candidate conservativity proof/handoff paths; hard cap600s; no code/tests/builds/probes/Astra/Git."
+    },
+    {
+      "id": "/root/r32_native_path",
+      "role": "implementer",
+      "state": "RUNNING",
+      "requested_model": "Luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Current-session NEW_TASK on R32 test-only native path and handoff paths; hard cap300s; one contract-authorized focused Cargo test only; no production edits/Astra/Git."
     }
   ],
   "leases": [
@@ -115,29 +184,54 @@
       "path": "tasks/current.md",
       "owner": "/root",
       "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-18-active-capture-conservative-extension-r32.md",
+      "owner": "/root/r32_conservativity_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-active-capture-conservative-extension-r32.md",
+      "owner": "/root/r32_conservativity_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
+      "owner": "/root/r32_native_path",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-18-active-capture-native-path-r32.md",
+      "owner": "/root/r32_native_path",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-active-capture-native-path-r32.md",
+      "owner": "/root/r32_native_path",
+      "state": "HELD"
     }
   ],
   "pending": [
     {
       "id": "R32-CONSERVATIVE-EXTENSION-PROOF",
-      "state": "READY",
-      "owner": "Sol prover to be dispatched after contract checkpoint",
+      "state": "RUNNING",
+      "owner": "/root/r32_conservativity_proof",
       "artifact": "Bidirectional conservative extension of candidate active-capture record against unchanged full Call relation; preserve all scopes/effects/events and two helper uses."
     },
     {
       "id": "R32-NATIVE-TWO-FRESHUSE-PATH",
-      "state": "READY",
-      "owner": "Luna implementer to be dispatched after contract checkpoint",
-      "artifact": "Test-only accepted-source active-root/nested-helper path with two distinct FreshUses using existing observations; one focused Cargo test."
+      "state": "RUNNING",
+      "owner": "/root/r32_native_path",
+      "artifact": "Test-only accepted-source active-root/nested-helper path with two distinct FreshUses using existing observations; run one focused Cargo test."
     },
     {
-      "id": "R32-INDEPENDENT-REVIEW",
+      "id": "R32-INDEPENDENT-REVIEWS",
       "state": "STAGED",
       "owner": "Fresh compiler and spec reviewers assigned after artifacts freeze",
-      "artifact": "Independent review of proof directions, exact original scopes, native observer path and no production semantic changes."
+      "artifact": "Review proof directions, exact original scopes, native observer path and absence of production semantic changes."
     }
   ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R31 closeout: notes/progress/2026-10-18-r31-active-root-allocation-closeout.md; parent0->0. R32: candidate active-capture conservative extension plus test-only native path; no semantic adoption.",
-  "sha256": "fde7c8301afe66d6efeb256bc7580dd9086bcd39115b26dcf646296e035ac27a"
+  "history": "R31 closeout pushed at eb01835c1. R32 contract/state pushed at f69e3d4d1; proof and test-only native path active under disjoint exact leases; original parent remains OPEN.",
+  "sha256": "0fecac43ecf1480b6fbe54372840e9b80ffb5b1869d4963888fbd6f016502eca"
 }
