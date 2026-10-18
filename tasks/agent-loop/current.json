@@ -171,6 +171,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
       "receipt": "Independent review complete; findings and adjudication frozen at 4e29ef28ad7cdec80a2c195e8bbac09b07fb4ff15c3ff4ca11834ffba010c0aa; candidate rejected; no edits or tests."
+    },
+    {
+      "id": "/root/r45_next_action",
+      "role": "Read-only sprint-boundary consultation",
+      "state": "RUNNING",
+      "requested_model": "next_action_selector",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19",
+      "receipt": "Spawned in current live session for R44 closeout recommendation; read-only, no write lease."
     }
   ],
   "leases": [
@@ -220,8 +231,16 @@
       "state": "FROZEN"
     }
   ],
-  "pending": [],
-  "ready_next_work": "Consult next_action_selector at R44 closeout for next sprint selection. No code authority is active.",
+  "pending": [
+    {
+      "id": "R45-DISPATCH",
+      "role": "next_action_selector",
+      "state": "RUNNING",
+      "worker_id": "/root/r45_next_action",
+      "target_sha256": "4e29ef28ad7cdec80a2c195e8bbac09b07fb4ff15c3ff4ca11834ffba010c0aa"
+    }
+  ],
+  "ready_next_work": "R45-DISPATCH is running read-only at R44 boundary; Luna to adjudicate and grant any new sprint authority.",
   "closure": "Independent compiler_referee/spec_auditor agree R44 candidate misses fixed evidence: Delta_A := Gamma_q is unjustified; q owner, complete Call arms and both-frame/alias Generalize mappings are absent. Evaluator corollary rev2 is conditional only. Candidate not Authoritative. Parent OPEN 0->0; no code.",
   "history": "R43 bounded selected-source intake stopped at missing q owner. On 2026-10-19 user delegated choosing the recommendation. Luna selected JOF for a design-and-proof candidate, not immediate adoption. R43 note hash metadata was corrected at 19d02ce40. R44 conditional evaluator translation corollary recorded; q source derivation remains open.",
   "quarantine_note": "Preserve pre-existing dirty Rust, tasks/current.md and untracked R35-R41 artifacts of unknown authors. R43 has read-only source scope; do not acquire their leases or stage them.",
@@ -229,5 +248,5 @@
     "required": false,
     "receipt": "R42/R43 primary and review workers terminal. Pre-existing dirty/unknown-owner Rust, tasks/current.md and R35-R41 artifacts remain untouched/read-only."
   },
-  "sha256": "ff9521eebaf7e4cbe98ac213fd6cb69e6359561e72755bb613934c91843cee27"
+  "sha256": "75f34aa0c70164f5270f0f91964b73168aaa1f4f4911548c1987d87b8df167d7"
 }
