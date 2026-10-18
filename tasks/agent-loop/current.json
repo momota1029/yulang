@@ -4,33 +4,33 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-original-witness-and-replay-diagnosis-20261018-r9",
-    "contract": "tasks/agent-loop/sprints/npair-original-witness-and-replay-diagnosis-20261018-r9.md",
-    "revision": 9,
-    "sha256": "749ffee49ba3c196244653c239d035c8d2245913f287db25de1df306655500ed",
-    "state": "ENDED-PARTIAL-REVIEWED",
-    "baseline": "HEAD 84edaedaefaac371e624ff0710d6aecf59ac436e; frozen dirty source overlays scheme 25ce531aa10d5f2ab85f363248f6d7ff0c062b93c70389e3d25f4a1b67e608bb; context 42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca; shadow_apply eb0b9dcd8529e067ec8778c7888f3595ad8df466e1be4243b1d2104c853952d7",
+    "id": "npair-original-input-and-operation-frontier-20261018-r10",
+    "contract": "tasks/agent-loop/sprints/npair-original-input-and-operation-frontier-20261018-r10.md",
+    "revision": 2,
+    "sha256": "6e828681713295da2a6f46ca005ac10c4a4af928cbfb129dae5ad67fce892f53",
+    "state": "ACTIVE",
+    "baseline": "HEAD 1a541b80990d6eb3012900d5b4edb4ee1a2d19f0; exact source/dependency manifest pinned in contract rev2.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original fixed c, quantifiers, source domain, R/W/Z, rho_u and consumer unchanged; OPEN/closure0",
-    "fixed_outcome": "Constructively instantiate and test the original fixed-c source supplier and coverage; diagnose both call-0 Replay rows by complete identity without changing assertions.",
+    "fixed_outcome": "Authentic historical source/CST/HIR and complete semantic Operation package INPUT_UNAVAILABLE. Probe only the new explicitly labeled source rendering through current parser/HIR/native frontier; no semantic repair.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "proof": "FCW8 reviewed as coherent candidate new semantics; original formation designation, all-target view/license, consumer applicability/back, rho_u, F1/FK1 open.",
-      "implementation": "r8 exact test compiled and ran once, exit101: two rows have call==0, expected one; no retry."
+      "proof": "No proof worker: exact original semantic package remains unavailable; generic proof over the same uninstantiated interface is not authorized.",
+      "implementation": "Writer ACKed exact pins and both write leases; bounded implementation underway. No tests/build/runtime."
     },
     "resources": {
-      "cap_seconds": 2400,
-      "charged_seconds": 2287.777358,
-      "available_seconds": 0,
-      "expired_seconds": 112.222642,
-      "allocation": "fresh r9: proof900, complementary source audit360, implementation360, proof/source review180, compiler review180, runtime120, Luna integration/state/Git300. Astra0; no rollover.",
-      "last_stage_receipt": "R9 proof and owner audit frozen/reviewed CLEAN; implementation delta CLEAN; runtime capture reviewed CLEAN only for bounded diagnosis and BLOCKING for full invocation-time hashes/source-use completion. Parent OPEN/closure0. Conservative total 2287.777358s charged; 112.222642s one-shot runtime unused and expired; Astra0."
+      "cap_seconds": 1260,
+      "charged_seconds": 300,
+      "available_seconds": 960,
+      "expired_seconds": 0,
+      "allocation": "Luna input 300 consumed; implementation360, independent code/runtime reviews180+180, build+one exact direct test120, Luna integration120. Astra0; no rollover.",
+      "last_stage_receipt": "Input receipt frozen: authentic source/CST/HIR/package unavailable. Mathematical choose formula and its SHA pinned; new rendering explicitly non-historical."
     },
-    "last_stage_receipt": "ENDED-PARTIAL-REVIEWED. Original proof/audit review CLEAN with no parent condition closed. Two-row runtime diagnosis preserved, but no auth attempt/source-use match for row1 and invocation-time source/executable hashes absent. Full runtime contract incomplete; no retry.",
-    "next_action": "Prepare the literal original Operation source/HIR input package or record INPUT_UNAVAILABLE; then trace that exact input to the native construction refusal/publication frontier. Do not start another generic proof over the same uninstantiated interface."
+    "last_stage_receipt": "r10 implementer exact pin ACK received for contract rev2, input receipt and all14 pins; exact two-path lease active.",
+    "next_action": "Receive implementer exact-pin ACK, then inspect the one isolated test delta. No Cargo/test until independent CLEAN review."
   },
-  "history": "tasks/agent-loop/sprints/npair-rule-options-and-component-replay-20261018-closeout.md SHA 60aa58b143f763a07da40f063865f08a5fe4fbf3acb6c672fc882edb4feff8f9; prior histories retained in archived sprint receipts. PR #11 merged remotely as 27a7e00d4b581f18987bb2a3cbf2e492789c2293; local checkout remains stale and dirty.; rev3 owner audit amendment SHA 9394b94ab43c1b0ac5a5190460f84961a769c92f16ee31949604c501601def92; rev8 closeout tasks/agent-loop/sprints/npair-replay-auth-and-operation-rules-20261018-closeout.md SHA e557f8f9ddfd760f89ba057de17e6a2b0ff141c9297b02ac354f28b2cfd5b19f; tasks/agent-loop/sprints/npair-provenance-complete-replay-and-operation-rules-20261018-closeout.md SHA bb598941f3444baec8177e50665a22380e1337e858f2a6064359c9c424d83b32; prior CLEAN cross-route ownership audit note 572884a8df2e8adc19eb1a8121277c77784e3c02fa9925729e292dd629f40308 and handoff f2c93d65ba96e4a256010e2942096ca21ef714b5b06d81573701eb0b960948ed; next-action selector decision included in constructor-lineage contract; r2 constructor-lineage sprint BLOCKING close: implementation handoff292b828fe891a69f194e9872826cc0baaa9443db6f65a1aeb8caaecd3cd07274; unused720s expired; no tests/runtime. r3 recovery selector decision active.; r3 STOP at exact-source recovery gate: 6,647 local files plus reachable/unreachable Git blobs searched, no original hashes; rejected snapshots preserved. r4 explicitly adopts rejected bytes as baseline, no r2 provenance claim.; r4 BLOCKING instrumentation review: port child/op/uniqueness, matched drain acknowledgement/return, explicit complete linked observations. r5 contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20 authorizes only new test-function repair.; r5 BLOCKING closeout: contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20; implementation 5e8060b6e717adb5e10c47d8e0cba2ba532b0cef85842b580980cc4a2af266b1; proof ba6f2d7a0dc48c9d03038cccb17d8b5a98800ab8f72222b4e57302246aa4784a; independent review BLOCKING on port uniqueness before endpoint filtering and typed admission/emission/readback identity. Runtime0. Spent720s, unused420s expired. Parent OPEN/closure0.; r6 review BLOCKING: contract 68a518fa706613d523a9fe3a6be2394fb491e132e048b1299144532258d85fff; scheme d8c53522685e9bdfc1ba00380f222f4936d8d8df3302248fcde31e093668c484; context 42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca; proof 8d5cab69798da42c9de464f5dc8d568d647f3fa98e6d028289c8310e6b87d49c. Port/accessor/baselines accepted. One conflicting admission can be filtered before uniqueness. r6 spent540s; remaining runtime120/final180/integration120 retained.; r7 exact test compile failed before execution; original parent remained OPEN/closure0. Research-only checkpoints pushed: 095e81a61 (conditional Replay parent application), e24691257 (original fixed-c supplier audit). r8 begins with fresh 1800s; no rollover.; r8 closeout tasks/agent-loop/sprints/npair-fixed-c-interpretation-and-native-path-20261018-r8-closeout.md SHA f29fdc30be13d401c0a864cc24199a78fa53a9a5732c785cc47b0910c001c2ae; r9 partial closeout tasks/agent-loop/sprints/npair-original-witness-and-replay-diagnosis-20261018-r9-closeout.md SHA 286ce0f1a666f27c4bc5564f57f1dd929a5bb8ac50db1a8b25bb3727cf8329a2",
-  "quarantine_note": "All r9 writers and reviewers STOPPED; exact implementation and runtime artifacts are frozen. Test-only instrumentation remains research-only; production behavior is not promoted. Original parent OPEN/closure0.",
+  "history": "tasks/agent-loop/sprints/npair-rule-options-and-component-replay-20261018-closeout.md SHA 60aa58b143f763a07da40f063865f08a5fe4fbf3acb6c672fc882edb4feff8f9; prior histories retained in archived sprint receipts. PR #11 merged remotely as 27a7e00d4b581f18987bb2a3cbf2e492789c2293; local checkout remains stale and dirty.; rev3 owner audit amendment SHA 9394b94ab43c1b0ac5a5190460f84961a769c92f16ee31949604c501601def92; rev8 closeout tasks/agent-loop/sprints/npair-replay-auth-and-operation-rules-20261018-closeout.md SHA e557f8f9ddfd760f89ba057de17e6a2b0ff141c9297b02ac354f28b2cfd5b19f; tasks/agent-loop/sprints/npair-provenance-complete-replay-and-operation-rules-20261018-closeout.md SHA bb598941f3444baec8177e50665a22380e1337e858f2a6064359c9c424d83b32; prior CLEAN cross-route ownership audit note 572884a8df2e8adc19eb1a8121277c77784e3c02fa9925729e292dd629f40308 and handoff f2c93d65ba96e4a256010e2942096ca21ef714b5b06d81573701eb0b960948ed; next-action selector decision included in constructor-lineage contract; r2 constructor-lineage sprint BLOCKING close: implementation handoff292b828fe891a69f194e9872826cc0baaa9443db6f65a1aeb8caaecd3cd07274; unused720s expired; no tests/runtime. r3 recovery selector decision active.; r3 STOP at exact-source recovery gate: 6,647 local files plus reachable/unreachable Git blobs searched, no original hashes; rejected snapshots preserved. r4 explicitly adopts rejected bytes as baseline, no r2 provenance claim.; r4 BLOCKING instrumentation review: port child/op/uniqueness, matched drain acknowledgement/return, explicit complete linked observations. r5 contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20 authorizes only new test-function repair.; r5 BLOCKING closeout: contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20; implementation 5e8060b6e717adb5e10c47d8e0cba2ba532b0cef85842b580980cc4a2af266b1; proof ba6f2d7a0dc48c9d03038cccb17d8b5a98800ab8f72222b4e57302246aa4784a; independent review BLOCKING on port uniqueness before endpoint filtering and typed admission/emission/readback identity. Runtime0. Spent720s, unused420s expired. Parent OPEN/closure0.; r6 review BLOCKING: contract 68a518fa706613d523a9fe3a6be2394fb491e132e048b1299144532258d85fff; scheme d8c53522685e9bdfc1ba00380f222f4936d8d8df3302248fcde31e093668c484; context 42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca; proof 8d5cab69798da42c9de464f5dc8d568d647f3fa98e6d028289c8310e6b87d49c. Port/accessor/baselines accepted. One conflicting admission can be filtered before uniqueness. r6 spent540s; remaining runtime120/final180/integration120 retained.; r7 exact test compile failed before execution; original parent remained OPEN/closure0. Research-only checkpoints pushed: 095e81a61 (conditional Replay parent application), e24691257 (original fixed-c supplier audit). r8 begins with fresh 1800s; no rollover.; r8 closeout tasks/agent-loop/sprints/npair-fixed-c-interpretation-and-native-path-20261018-r8-closeout.md SHA f29fdc30be13d401c0a864cc24199a78fa53a9a5732c785cc47b0910c001c2ae; r9 partial closeout tasks/agent-loop/sprints/npair-original-witness-and-replay-diagnosis-20261018-r9-closeout.md SHA 286ce0f1a666f27c4bc5564f57f1dd929a5bb8ac50db1a8b25bb3727cf8329a2; r9 partial closeout pushed at 09bb46870 (parent closure0); frozen prior replay records archived at e686c188f; r10 contract/input frozen at 1a541b809, input partial/unavailable for authentic HIR.",
+  "quarantine_note": "Unfrozen historical drafts remain excluded from integration. r10 has one WAITING implementer assignment; no write before exact pin ACK. Parent OPEN/closure0.",
   "workers": [
     {
       "id": "/root",
@@ -41,101 +41,58 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "r9 ended partial/reviewed; Luna closes and commits reviewed artifacts and prepares next-action input. No worker writers/reviewers active."
+      "receipt": "r10 input/contract frozen; Luna owns assignments, review, runtime and Git."
     },
     {
-      "id": "/root/npair_original_witness_r9_proof",
-      "role": "prover",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen final outputs, independently reviewed; no active descendants or pending writes."
-    },
-    {
-      "id": "/root/npair_original_owner_audit_r9",
-      "role": "researcher",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen final outputs, independently reviewed; no active descendants or pending writes."
-    },
-    {
-      "id": "/root/npair_replay_two_row_r9_impl",
+      "id": "/root/npair_operation_frontier_r10_impl",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen final outputs, independently reviewed; no active descendants or pending writes."
+      "receipt": "Exact pin ACK received: contract rev2/input/14 dependencies MATCH; writes limited to one candidate_effect.rs test and paired handoff; no tests/build/runtime; within360s."
     }
   ],
   "leases": [
     {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-original-witness-and-replay-diagnosis-20261018-r9.md",
+      "path": "tasks/agent-loop/sprints/npair-original-input-and-operation-frontier-20261018-r10.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-18-npair-original-witness-r9.md",
-      "owner": "/root/npair_original_witness_r9_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-npair-original-witness-r9-proof.md",
-      "owner": "/root/npair_original_witness_r9_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-18-npair-original-owner-audit-r9.md",
-      "owner": "/root/npair_original_owner_audit_r9",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-npair-original-owner-audit-r9.md",
-      "owner": "/root/npair_original_owner_audit_r9",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_scheme.rs",
-      "owner": "/root/npair_replay_two_row_r9_impl",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-npair-replay-two-row-r9-impl.md",
-      "owner": "/root/npair_replay_two_row_r9_impl",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r9.stdout.log",
+      "path": "tasks/agent-loop/inbox/20261018-npair-original-term-input-r10.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r9.stderr.log",
-      "owner": "/root",
-      "state": "FROZEN"
+      "path": "crates/yu-solver/src/candidate_effect.rs",
+      "owner": "/root/npair_operation_frontier_r10_impl",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r9.meta.json",
-      "owner": "/root",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-npair-operation-frontier-r10-impl.md",
+      "owner": "/root/npair_operation_frontier_r10_impl",
+      "state": "HELD"
     }
   ],
-  "pending": [],
-  "ready_next_work": "R9-ORIGINAL-TERM-INPUT: Luna prepares the literal original Operation source/HIR constructor package or records INPUT_UNAVAILABLE; next bounded source/native frontier trace after a fresh contract.",
+  "pending": [
+    {
+      "id": "r10-operation-frontier-implementation",
+      "state": "RUNNING",
+      "reviewer": "/root/npair_operation_frontier_r10_impl",
+      "artifact": "candidate_effect.rs named test + paired handoff",
+      "sha256": "all 14 manifest pins MATCH; candidate_effect baseline 9ea9498692bdff12c2a7ebd8546ca2b443a095c0700f3e87ad6c956cc690e212",
+      "receipt": "ACK and active-work receipt received; no test/build/runtime; 360s cap."
+    }
+  ],
+  "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
     "receipt": "r8 closeout committed at 84edaedae; r9 starts with fresh assignments and no inherited budget."
