@@ -5,28 +5,30 @@
   "session": "current-conversation-2026-10-19-r64",
   "active_sprint": {
     "id": "whole-ascription-derivation-20261019-r64",
-    "contract": "tasks/agent-loop/sprints/whole-ascription-derivation-20261019-r64.md",
-    "revision": 1,
+    "contract": "tasks/agent-loop/sprints/whole-ascription-derivation-20261019-r64-rev2.md",
+    "revision": 2,
     "state": "ACTIVE",
     "baseline": "e5e0ac4e5b72c51406fac82ed82986d734bf3552",
-    "contract_sha256": "2f008cc535a4db8da53fc40acac6ae5750d25083be6d6abe4a5ee35f318576bf",
+    "contract_sha256": "f29635c1dbccb0e6478ace00a47209684740a32c15a1426610221dca2e21bc8d",
     "parent": "Original computation-forwarding preservation §§1,6–7; unchanged source domain and quantifiers; Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
     "fixed_outcome": "Derive source constraints/solutions first from authentic rules for the fixed whole-ascription, then attempt same-provider/carrier Corr, both source/native solution directions and typed substitution. Return a derivation or an exact unsupported clause with attempted premises; prospective native schema is not actual Q.",
     "dependencies": {
       "manifest": "22 direct SHA-256 dependencies MATCH; contract and all pins verified at activation",
       "baseline_commit": "e5e0ac4e5b72c51406fac82ed82986d734bf3552",
       "dispatcher_start": "R64 exact candidate SHA and 22/22 pins verified; distinct derivation method approved as start recommendation; no blocker; dispatcher grants no authority",
-      "prior_sprint": "R63 CLOSED and reviewed; exact result in notes/progress/2026-10-19-r63-closeout.md. All R63 workers STOPPED, leases FROZEN, 1800s charged, no carryover."
+      "prior_sprint": "R63 CLOSED and reviewed; exact result in notes/progress/2026-10-19-r63-closeout.md. All R63 workers STOPPED, leases FROZEN, 1800s charged, no carryover.",
+      "contract_revision_1": "Immutable proof contract and 22-pin manifest: tasks/agent-loop/sprints/whole-ascription-derivation-20261019-r64.md, SHA 2f008cc535a4db8da53fc40acac6ae5750d25083be6d6abe4a5ee35f318576bf; 22/22 reverified at freeze.",
+      "dispatcher_integration": "Reviews limited to frozen proof + rev1 + rev2 + 22 pins; no author-output completion claim. Luna read-only source-owner integration allowed within existing 300s. No replacement lane or added budget."
     },
     "resources": {
       "cap_seconds": 1800,
       "charged_seconds": 1800,
       "available_seconds": 0,
-      "allocation": "Proof600 started; Luna owner500 stopped after observed-model mismatch and fully charged; no replacement; review400 + integration300 retained; Astra0; no carryover",
-      "actual_runtime": "UNKNOWN for all R64 lanes; owner cessation confirmed; proof active; no replacement owner lane"
+      "allocation": "Proof600 STOPPED/frozen (runtime UNKNOWN); owner500 STOPPED/routing mismatch/no artifact (runtime UNKNOWN); fresh compiler/spec reviews200 each; Luna integration300; total1800 charged, no carryover, Astra0",
+      "actual_runtime": "UNKNOWN for all lanes unless reported; proof and owner stopped; reviews not started; integration pending"
     },
     "next_action": "Derive source judgment before Corr/Q/native inequalities. Stop each branch at its first unsupported authentic rule; do not relabel it semantic underdetermination. After authors stop/freeze, obtain independent compiler/spec review, adjudicate and close R64; stable R61-SOURCE-ASCRIPTION-FORMATION-1 remains OPEN until actual source/native result.",
-    "history": "Prior R63 closeout: notes/progress/2026-10-19-r63-closeout.md (reviewed, exact premise open, NO_SAFE_CODE_SLICE). R64 dispatcher recommendation repeated after root integration output was added. A preliminary query to compiler_referee was stopped before reads/writes and has no R64 lease. Owner routing mismatch resolved: /root/r64_clause_owner STOPPED/WRITES_STOPPED/NO_DESCENDANTS; read listed pinned sources; both leased outputs 0 bytes and absent; no descendants. The 500s grant remains charged. No replacement writer; integration will record this gap."
+    "history": "Prior R63 closeout: notes/progress/2026-10-19-r63-closeout.md (reviewed, exact premise open, NO_SAFE_CODE_SLICE). R64 dispatcher recommendation repeated after root integration output was added. A preliminary query to compiler_referee was stopped before reads/writes and has no R64 lease. Owner routing mismatch resolved: /root/r64_clause_owner STOPPED/WRITES_STOPPED/NO_DESCENDANTS; read listed pinned sources; both leased outputs 0 bytes and absent; no descendants. The 500s grant remains charged. No replacement writer; integration will record this gap. Proof frozen: artifact notes/theory/2026-10-19-r64-whole-ascription-derivation.md SHA b8041fae28a4a88d7143ab6e16be6658ce156f3de90888667dded93e8b643772; inbox tasks/agent-loop/inbox/20261019-r64-proof.md SHA ca77147a62dc1a43f5cbecacf09a0203add761f235b46998d1ef41255bc7ecc7. Isolated R64-SRC-ANN-ARG-1; Sol_src/Corr/Q/substitution unconstructed. Review scope amended by revision2 after dispatcher seam advice; owner output absent and not replaced."
   },
   "workers": [
     {
@@ -43,13 +45,13 @@
     {
       "id": "/root/r63_whole_ascription_formation_proof",
       "role": "Configured prover; R64 source derivation and typed substitution",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r64",
-      "receipt": "Current launch receipt received; active R64 proof lane, exact two-path lease, no descendants, 600s charged. Requested gpt-6-sol/high; observed UNKNOWN/UNKNOWN."
+      "receipt": "STOPPED / WRITES_STOPPED / NO_DESCENDANTS. Frozen revision 1 exact outputs; isolated R64-SRC-ANN-ARG-1. Requested gpt-6-sol/high; observed UNKNOWN/UNKNOWN; 600s charged, runtime UNKNOWN."
     },
     {
       "id": "/root/r64_clause_owner",
@@ -60,23 +62,39 @@
       "observed_model": "GPT-6",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "WRITES_STOPPED / NO_DESCENDANTS confirmed after routing mismatch. Read pinned source_annotation.rs, local_source.rs, candidate_source.rs, candidate_effect.rs, R63 owner/theory evidence and R64 contract. Both exact output paths remain absent (0 bytes written); no descendants; actual session ID UNKNOWN. Full 500s charged, no carryover; Luna did not reassign."
+      "receipt": "STOPPED / ROUTING MISMATCH / NO ARTIFACT DELIVERED. Read pinned source_annotation.rs, local_source.rs, candidate_source.rs, candidate_effect.rs, R63 evidence and R64 contract; two output paths 0 bytes; no descendants; session/runtime UNKNOWN; 500s charged."
     },
     {
       "id": "/root/r63_compiler_review",
-      "role": "compiler_referee; preliminary R64 routing query only, no assignment",
-      "state": "STOPPED",
+      "role": "Fresh independent R64 compiler/source-owner reviewer; read-only, no artifact lease",
+      "state": "WAITING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Misrouted preliminary query only. Explicit NO_READ / NO_WRITE / NO_DESCENDANTS; no R64 lease; stopped before work. Fresh review remains unassigned and pending author freeze."
+      "receipt": "R64 review scope and frozen hashes assigned; no read/no write acknowledgment pending."
+    },
+    {
+      "id": "/root/r63_spec_review",
+      "role": "Fresh independent R64 spec/domain reviewer; read-only, no artifact lease",
+      "state": "WAITING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "UNKNOWN",
+      "receipt": "R64 review scope and frozen hashes assigned; no read/no write acknowledgment pending."
     }
   ],
   "leases": [
     {
       "path": "tasks/agent-loop/sprints/whole-ascription-derivation-20261019-r64.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/whole-ascription-derivation-20261019-r64-rev2.md",
       "owner": "/root",
       "state": "FROZEN"
     },
@@ -93,12 +111,12 @@
     {
       "path": "notes/theory/2026-10-19-r64-whole-ascription-derivation.md",
       "owner": "/root/r63_whole_ascription_formation_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r64-proof.md",
       "owner": "/root/r63_whole_ascription_formation_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -108,6 +126,13 @@
       "owner": "Luna; R64 active bounded grant",
       "request": "Derive source-licensed whole-definition-ascription relation for original provider/carrier, distinct p_t/p_A/p_R, local permissions, joint K,D, ordinary constraints, correlated results, actual Q, both solution directions and typed substitution/transport.",
       "falsifier": "A permitted source solution lacks lift/reverse, provider/position/permission/result evidence changes, ordinary constraints disappear, Q is guessed, or ambiguity lacks two compatible completions differing on an original observable."
+    },
+    {
+      "id": "R64-SRC-ANN-ARG-1",
+      "state": "OPEN",
+      "owner": "Luna; no author grant after R64 proof stop",
+      "request": "Derive the authentic source rule for the whole-ascription p_A argument typed interpretation on L/t's original incoming computation carrier, with its own permission/scope and original joint component context, preserving p_t/Name and ordinary constraints before native representation.",
+      "falsifier": "Rule borrows p_t permission, changes provider/position, invents joint xi, imports native comparison, adds cap/inflow, drops ordinary constraints, or uses a later transport/result as initial formation."
     }
   ],
   "closure": "R63 CLOSED reviewed source/native evidence and exact unresolved premise. R64 active: no theorem/code/production claim; parent/A/B OPEN 0→0; R50 NOT ADOPTED."
