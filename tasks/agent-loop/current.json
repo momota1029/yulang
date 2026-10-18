@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push r19 contract and initial state. Then launch disjoint proof, source-falsification and runtime-lineage lanes. Keep solver owners read-only; runtime result must not claim FieldBound Capture/FreshUse consumption.",
     "history": "R18 ENDED-PARTIAL-REVIEWED at d51baa6db: exact same-HIR research-only FieldBoundV1 through response closure/environment, raw continuation return, distinct outer Apply, live outer handler and Completed42; r2 integrated review CLEAN, r4 compile delta CLEAN, cargo test -p yu-playground --test runtime_resume 17/17. Original parent conditions closed 0. Full closeout tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md.",
-    "last_stage_receipt": "R18 committed and pushed as d51baa6db; runtime_resume 17/17. R19 target is the local Install(g) -> authentic Capture/FreshUse -> actual g() boundary, with independent proof/source audit and runtime lineage. Live R19 proof, falsification, and runtime workers acknowledged; mutable current.json hash drift was reviewed and classified as scheduling-state only, with all immutable dependencies matching. R19 revision 2 adds two pinned read-only owners (lib.rs and candidate_extrusion.rs) for exact typed-drain completion and FreshUse physical-edge ownership; no write authority or budget expansion. Source falsification was checkpointed unreviewed and independently reviewed CLEAN at 6748039fa; it reduces the open premise to typed FieldBound-to-FreshUse association/consumer. No original parent condition closed. Constructive R19 proof is frozen and awaiting the remaining independent review allocation; it traces exact replay/drain acknowledgements but still finds no typed FieldBound-to-FreshUse join. Parent closure0. Constructive source/native obstruction passed fresh independent review CLEAN; proof/source artifacts checkpointed and pushed at 118375dce. This narrows the active missing premise to a typed FieldBound-to-authentic-FreshUse/J2 consumer join, but original parent conditions remain closed 0. Fresh independent spec review of the constructive proof is CLEAN; source + proof review seam complete. No parent condition closed; typed per-use FieldBound/J2 join remains the exact next theorem/source premise.",
+    "last_stage_receipt": "R18 committed and pushed as d51baa6db; runtime_resume 17/17. R19 target is the local Install(g) -> authentic Capture/FreshUse -> actual g() boundary, with independent proof/source audit and runtime lineage. Live R19 proof, falsification, and runtime workers acknowledged; mutable current.json hash drift was reviewed and classified as scheduling-state only, with all immutable dependencies matching. R19 revision 2 adds two pinned read-only owners (lib.rs and candidate_extrusion.rs) for exact typed-drain completion and FreshUse physical-edge ownership; no write authority or budget expansion. Source falsification was checkpointed unreviewed and independently reviewed CLEAN at 6748039fa; it reduces the open premise to typed FieldBound-to-FreshUse association/consumer. No original parent condition closed. Constructive R19 proof is frozen and awaiting the remaining independent review allocation; it traces exact replay/drain acknowledgements but still finds no typed FieldBound-to-FreshUse join. Parent closure0. Constructive source/native obstruction passed fresh independent review CLEAN; proof/source artifacts checkpointed and pushed at 118375dce. This narrows the active missing premise to a typed FieldBound-to-authentic-FreshUse/J2 consumer join, but original parent conditions remain closed 0. Fresh independent spec review of the constructive proof is CLEAN; source + proof review seam complete. No parent condition closed; typed per-use FieldBound/J2 join remains the exact next theorem/source premise. Runtime implementation froze with exact initializer-Catch/local-cell/name/Apply provenance gates and a source-acceptance limitation; review is now active. No tests run before review and no runtime success is claimed.",
     "git_checkpoint": {
       "commit": "118375dce",
       "branch": "research/simple-sub-intrusion",
@@ -72,13 +72,13 @@
     {
       "id": "/root/r19_local_binding_runtime",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "RUNNING acknowledgement received before edits. Contract 75eba... and exact three runtime plus handoff leases confirmed. Checks/build/formatter deferred until frozen diff receives independent review; no solver writes."
+      "receipt": "Frozen R19 runtime lineage diff; hashes: program eb7f8034..., machine fa8dab7f..., tests 7f59ba69..., handoff a7c14f5a.... Adds fail-closed initializer Catch -> exact local g binder/cell -> Name -> g Apply handle/environment/owner join; R18 gates/receipt schema unchanged. First boundary: unchanged source_apply_for_catch_result encloses Catch in callee subtree, but local g Apply is separate; acceptance/receipt unverified. No tests/build/format; 600s conservatively charged; writes stopped."
     },
     {
       "id": "/root/r18_runtime_implementation",
@@ -112,6 +112,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "CLEAN for both frozen proof/source artifacts; all 17 proof pins matched. Verified authentic same-use physical admission/readback, restoration, exact ReplayChildAck identity and terminal drain return. Absence claim limited to missing typed FieldBound-to-FreshUse/J2 join; early q/shared anchors and generic FreshUse preserved. No findings/edits/tests/build/Git. 240s proof/source review cap conservatively charged."
+    },
+    {
+      "id": "/root/r19_runtime_lineage_review",
+      "role": "compiler_referee",
+      "state": "RUNNING",
+      "requested_model": "configured default",
+      "requested_effort": "configured default",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh review of frozen R19 runtime diff and handoff in progress; no tests/builds/Git; runtime review cap 240s, parent OPEN/closure0."
     }
   ],
   "leases": [
@@ -168,12 +179,12 @@
     {
       "path": "tools/inference-playground/src/runtime/program.rs",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tools/inference-playground/src/runtime/machine.rs",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tools/inference-playground/src/runtime/continuation.rs",
@@ -183,7 +194,7 @@
     {
       "path": "tools/inference-playground/tests/runtime_resume.rs",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-operation-v1-runtime-resume-implementation.md",
@@ -258,7 +269,7 @@
     {
       "path": "tasks/agent-loop/inbox/20261018-operation-v1-local-binding-runtime.md",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_extrusion.rs",
@@ -283,5 +294,5 @@
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "R19 proof/source lanes are reviewed and stopped. Continue the independent local-binding runtime lane; when it freezes, assign fresh compiler_referee review and then run the authorized focused runtime_resume target."
+  "next_action": "Complete fresh compiler review of the frozen runtime lineage diff. If CLEAN, run only cargo test -p yu-playground --test runtime_resume; if unchanged candidate acceptance rejects the local-g source, record that first boundary and leave runtime result NOT_RUN/failed."
 }
