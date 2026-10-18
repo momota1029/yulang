@@ -34,7 +34,7 @@
       "overrun_seconds": 0
     },
     "next_action": "Resolve authority applicability and owner protocol for active monomorphic Link versus scoped LocalFreshRoute; stop at proof/map result, then independent review.",
-    "history": "R48 closed/pushed at 49f768023 after two fresh reviews found active-root Link cannot satisfy exact LocalFreshRoute authentication. Cargo remained gated/not run. R47 no-hit remains valid; parent OPEN 0->0.",
+    "history": "R48 closed/pushed at 49f768023 after two fresh reviews found active-root Link cannot satisfy exact LocalFreshRoute authentication. Cargo remained gated/not run. R47 no-hit remains valid; parent OPEN 0->0. Sol proof worker launched in current R49 session; actual identity acknowledged, exact write lease and no-descendants condition recorded.",
     "workers": [
       {
         "id": "/root",
@@ -50,13 +50,13 @@
       {
         "id": "/root/r49_active_root_admission_proof",
         "role": "Sol proof of admission feasibility",
-        "state": "NOT_STARTED",
+        "state": "RUNNING",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r49",
-        "receipt": "Exact R49 proof lease reserved; spawn not yet acknowledged."
+        "receipt": "Actual child launch acknowledged by runtime as /root/r49_active_root_admission_proof; prover, requested Sol/high, observed effective model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
       }
     ],
     "leases": [
@@ -100,9 +100,10 @@
       {
         "id": "R49-SOL-ADMISSION-PROOF",
         "role": "prover",
-        "state": "ASSIGNED",
+        "state": "RUNNING",
         "worker_id": "/root/r49_active_root_admission_proof",
-        "budget_seconds": 900
+        "budget_seconds": 900,
+        "receipt": "Actual child launch acknowledged by runtime as /root/r49_active_root_admission_proof; prover, requested Sol/high, observed effective model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
       },
       {
         "id": "R49-LUNA-OWNER-MAP",
@@ -150,13 +151,13 @@
     {
       "id": "/root/r49_active_root_admission_proof",
       "role": "Sol proof of admission feasibility",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r49",
-      "receipt": "Exact R49 proof lease reserved; spawn not yet acknowledged."
+      "receipt": "Actual child launch acknowledged by runtime as /root/r49_active_root_admission_proof; prover, requested Sol/high, observed effective model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
     }
   ],
   "leases": [
@@ -200,9 +201,10 @@
     {
       "id": "R49-SOL-ADMISSION-PROOF",
       "role": "prover",
-      "state": "ASSIGNED",
+      "state": "RUNNING",
       "worker_id": "/root/r49_active_root_admission_proof",
-      "budget_seconds": 900
+      "budget_seconds": 900,
+      "receipt": "Actual child launch acknowledged by runtime as /root/r49_active_root_admission_proof; prover, requested Sol/high, observed effective model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
     },
     {
       "id": "R49-LUNA-OWNER-MAP",
