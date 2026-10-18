@@ -20,7 +20,7 @@
     },
     "next_action": "Commit/push R22 contract with Luna-frozen 128-event observation plan; dispatch proof and falsifier lanes plus exact nonsemantic trace lease. No test before CLEAN review.",
     "history": "R20 runtime gate CLEAN, 18/18; R20 source proof CLEAN with missing typed incidence. R21 rev3 review CLEAN for document conformance; fixed ResultMap OPEN, A unadopted and partial, B BLOCKED. Parent closure0.",
-    "last_stage_receipt": "Independent falsifier lane frozen at pinned hashes. Fixed request has empty suffix and Owner(Hole) template; modified discard/replacement admission and runtime outcomes remain unverified; no source counterexample claimed.",
+    "last_stage_receipt": "R22 proof lane frozen: operational runtime value-handle induction supports fixed-shape successful executions, but original source D1/all-response A_decl return/provider preservation and candidate typed Orig remain OPEN. Falsifier lane also frozen; trace code lane continues.",
     "git_checkpoint": {
       "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
@@ -45,13 +45,13 @@
     {
       "id": "/root/r22_result_map_proof",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "RUNNING: exact pinned fixed-source D0/D1/D2 derivation lane launched; no new rules or code."
+      "receipt": "R22 theory cf4d2df39250d410bf7f40d053429da99d02edc9c82c671707c804ad05e24b11 / handoff aec144a8ea7f6deea3268baecfda3f62a886deacd562710d38bca82e3a1b1343. Runtime induction gives exact response handle through Owner/Hole, k Apply, arm/Catch/Local(g) for successful fixed-shape states. Source all-response A_decl return/provider map and candidate typed Orig remain OPEN. No code/tests/Git."
     },
     {
       "id": "/root/r22_result_map_falsifiers",
@@ -90,12 +90,12 @@
     {
       "path": "notes/theory/2026-10-18-fixed-source-result-map-existing-semantics.md",
       "owner": "/root/r22_result_map_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-fixed-source-result-map-proof.md",
       "owner": "/root/r22_result_map_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-18-fixed-source-result-map-source-falsifiers.md",
