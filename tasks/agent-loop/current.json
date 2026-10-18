@@ -20,13 +20,13 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 1100,
-      "available_seconds": 700,
-      "allocation": "Proof600 and Luna owner500 issued. Fresh compiler/spec reviews 200 each and integration300 remain unissued until author outputs freeze. No carryover. Astra0.",
+      "charged_seconds": 1500,
+      "available_seconds": 300,
+      "allocation": "Proof600 + Luna owner500 charged at author grants; fresh compiler review200 + spec review200 now issued for frozen exact bytes. Integration300 remains unissued. No carryover. Astra0.",
       "actual_runtime": "UNKNOWN until receipts"
     },
-    "next_action": "Trace exact crosswalk/typed evidence ownership against the fixed source. Derive under settled semantics, provide a valid ambiguity witness, or record the exact unresolved premise. No code, semantics, tests, execution or production authority.",
-    "history": "R61 closed reviewed bounded source-formation obstruction at 353f7b6b0; parent OPEN 0->0. R62 closed interrupted for incomplete dependency set with no result at 46ab3caf6; 1100 seconds charged, 700 unused not carried. All R62 writers/reviewers STOPPED; no output result. R63 activated only after 35/35 hashes and clean HEAD/origin baseline verified plus dispatcher start confirmation. R63 Luna owner lane frozen: notes/progress/2026-10-19-r63-whole-ascription-owner.md SHA 9660b1248f4fc7f6a79fdce9d0129e2af148b4122b3194d99cdbd7b4f6050893; tasks/agent-loop/inbox/20261019-r63-implementation.md SHA 4d6dc814fdb356bbce6c52a35dfe32f6f03c2f221a85a17800bb6cd3650b822f. Result: crosswalk/caller evidence does not supply whole-ascription formation; NO_SAFE_CODE_SLICE; parent remains open. R63 proof lane frozen: notes/theory/2026-10-19-r63-whole-ascription-formation.md SHA ff5791362fc0b63f67450f079c2c99246e90190484636a229d2afd5c5c615423; tasks/agent-loop/inbox/20261019-r63-proof.md SHA 660482c80a18cdc3cf01901084f284f22d9aab1964e2febd234967be275e6228. Static two-node wiring witness only; no source semantic underdetermination. Exact Q/Corr/solution transport remain open.",
+    "next_action": "Obtain both independent reviews of the four frozen author outputs and pinned dependencies; then integrate accepted bounded result without claiming the source-formation premise is proved or impossible.",
+    "history": "R61 closed reviewed bounded source-formation obstruction at 353f7b6b0; parent OPEN 0->0. R62 closed interrupted for incomplete dependency set with no result at 46ab3caf6; 1100 seconds charged, 700 unused not carried. All R62 writers/reviewers STOPPED; no output result. R63 activated only after 35/35 hashes and clean HEAD/origin baseline verified plus dispatcher start confirmation. R63 Luna owner lane frozen: notes/progress/2026-10-19-r63-whole-ascription-owner.md SHA 9660b1248f4fc7f6a79fdce9d0129e2af148b4122b3194d99cdbd7b4f6050893; tasks/agent-loop/inbox/20261019-r63-implementation.md SHA 4d6dc814fdb356bbce6c52a35dfe32f6f03c2f221a85a17800bb6cd3650b822f. Result: crosswalk/caller evidence does not supply whole-ascription formation; NO_SAFE_CODE_SLICE; parent remains open. R63 proof lane frozen: notes/theory/2026-10-19-r63-whole-ascription-formation.md SHA ff5791362fc0b63f67450f079c2c99246e90190484636a229d2afd5c5c615423; tasks/agent-loop/inbox/20261019-r63-proof.md SHA 660482c80a18cdc3cf01901084f284f22d9aab1964e2febd234967be275e6228. Static two-node wiring witness only; no source semantic underdetermination. Exact Q/Corr/solution transport remain open. Dispatcher integration-seam delta: proceed to fresh compiler and spec reviews (200s each), then integration300. Exact unresolved premise is an allowed R63 outcome, not proof of impossibility; keep all four outputs frozen and do not automatically repeat equivalent audits.",
     "workers": [
       {
         "id": "/root",
@@ -49,6 +49,28 @@
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r63",
         "receipt": "STOPPED/WRITES_STOPPED/NO_DESCENDANTS. Artifact SHA  ff5791362fc0b63f67450f079c2c99246e90190484636a229d2afd5c5c615423; inbox SHA 660482c80a18cdc3cf01901084f284f22d9aab1964e2febd234967be275e6228. 35/35 pins match. 600s charged; elapsed/CPU/RSS UNKNOWN."
+      },
+      {
+        "id": "/root/r63_compiler_review",
+        "role": "Fresh independent compiler/source-owner review of frozen R63 evidence",
+        "state": "ASSIGNED",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19-r63",
+        "receipt": "Exact 200s read-only review grant issued; current-session no-read/no-write acknowledgment pending. Challenge whether any pinned source producer licenses the missing relation, candidate constructor order, and validity/scope of the two-node API witness."
+      },
+      {
+        "id": "/root/r63_spec_review",
+        "role": "Fresh independent spec/domain review of frozen R63 evidence",
+        "state": "ASSIGNED",
+        "requested_model": "gpt-6.1-sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19-r63",
+        "receipt": "Exact 200s read-only review grant issued; current-session no-read/no-write acknowledgment pending. Challenge boundedness of absence claims, settled semantics, and whether caller-supplied flows are improperly promoted to source completions."
       }
     ],
     "leases": [
@@ -88,7 +110,7 @@
       }
     ],
     "closure": "ACTIVE. Parent and A/B OPEN 0->0; R50 NOT ADOPTED. No theorem, semantic or production result implied.",
-    "primary_approval": "Luna activates revision 1 at exact candidate SHA after clean baseline 46ab3caf61b67c8b2e8df6398f4c54970952e38d matched HEAD/origin, all 35 direct pins matched, and dispatcher fit confirmed. Proof600 and owner500 issued; review400 and integration300 remain unissued pending freeze. No implementation/code/test/execution/semantic/production authority.",
+    "primary_approval": "Luna issues fresh compiler/spec reviews, 200s each, only after both authors STOPPED and all four exact outputs FROZEN. Integration300 remains unissued pending reviews. No implementation/code/test/execution/semantic/production authority.",
     "dispatcher_start": {
       "agent": "/root/r46_next_action",
       "state": "COMPLETED_READ_ONLY",
@@ -118,6 +140,28 @@
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r63",
       "receipt": "STOPPED/WRITES_STOPPED/NO_DESCENDANTS. Artifact SHA  ff5791362fc0b63f67450f079c2c99246e90190484636a229d2afd5c5c615423; inbox SHA 660482c80a18cdc3cf01901084f284f22d9aab1964e2febd234967be275e6228. 35/35 pins match. 600s charged; elapsed/CPU/RSS UNKNOWN."
+    },
+    {
+      "id": "/root/r63_compiler_review",
+      "role": "Fresh independent compiler/source-owner review of frozen R63 evidence",
+      "state": "ASSIGNED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r63",
+      "receipt": "Exact 200s read-only review grant issued; current-session no-read/no-write acknowledgment pending. Challenge whether any pinned source producer licenses the missing relation, candidate constructor order, and validity/scope of the two-node API witness."
+    },
+    {
+      "id": "/root/r63_spec_review",
+      "role": "Fresh independent spec/domain review of frozen R63 evidence",
+      "state": "ASSIGNED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r63",
+      "receipt": "Exact 200s read-only review grant issued; current-session no-read/no-write acknowledgment pending. Challenge boundedness of absence claims, settled semantics, and whether caller-supplied flows are improperly promoted to source completions."
     }
   ],
   "leases": [
