@@ -27,6 +27,27 @@ pub(super) struct State {
     pub dirty: bool,
     pub active_roots: HashMap<DefinitionOrderId, u32>,
     pub active_uses: HashSet<DefinitionUseId>,
+    #[cfg(test)]
+    forest_events: Vec<ForestEvent>,
+    #[cfg(test)]
+    forest_event_log_complete: Option<bool>,
+}
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ForestEvent {
+    Birth(RowKey),
+    ParentWrite { key: RowKey, before: u32, after: u32, kind: ForestWriteKind },
+    Truncate { values_len: usize, effects_len: usize },
+}
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ForestWriteKind { Merge, Compress, Rollback }
+#[cfg(test)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct ForestSnapshot {
+    pub values: Vec<u32>,
+    pub effects: Vec<u32>,
+    pub event_cursor: usize,
 }
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Parent {
@@ -82,6 +103,19 @@ fn sum(parts: &[usize]) -> Result<usize, SolveAvailabilityError> {
         .iter()
         .try_fold(0usize, |n, part| n.checked_add(*part).ok_or_else(exhausted))
 }
+#[cfg(test)]
+fn record_forest_event_parts(
+    events: &mut Vec<ForestEvent>, complete: &mut Option<bool>, event: ForestEvent,
+) -> Result<(), SolveAvailabilityError> {
+    if *complete == Some(false) { return Err(exhausted()); }
+    if events.try_reserve(1).is_err() {
+        *complete = Some(false);
+        return Err(exhausted());
+    }
+    events.push(event);
+    *complete = Some(true);
+    Ok(())
+}
 fn representative(forest: &[u32], mut row: u32) -> u32 {
     while let Some(&parent) = forest.get(row as usize) {
         if parent == row {
@@ -92,6 +126,28 @@ fn representative(forest: &[u32], mut row: u32) -> u32 {
     row
 }
 impl State {
+    #[cfg(test)]
+    fn record_forest_event(&mut self, event: ForestEvent) -> Result<(), SolveAvailabilityError> {
+        record_forest_event_parts(&mut self.forest_events, &mut self.forest_event_log_complete, event)
+    }
+    #[cfg(test)]
+    pub(super) fn forest_event_cursor(&self) -> usize { self.forest_events.len() }
+    #[cfg(test)]
+    pub(super) fn forest_events(&self) -> &[ForestEvent] { &self.forest_events }
+    #[cfg(test)]
+    pub(super) fn forest_event_log_complete(&self) -> bool {
+        self.forest_event_log_complete != Some(false)
+    }
+    #[cfg(test)]
+    pub(super) fn forest_snapshot(&self) -> Result<ForestSnapshot, SolveAvailabilityError> {
+        let mut values = Vec::new();
+        values.try_reserve_exact(self.values.len()).map_err(|_| exhausted())?;
+        values.extend_from_slice(&self.values);
+        let mut effects = Vec::new();
+        effects.try_reserve_exact(self.effects.len()).map_err(|_| exhausted())?;
+        effects.extend_from_slice(&self.effects);
+        Ok(ForestSnapshot { values, effects, event_cursor: self.forest_events.len() })
+    }
     #[cfg(test)]
     pub(super) fn observed_output_groups(&self, pair: TypedPairKey, output: ExtrusionEndpoint) -> Vec<(usize, usize, usize, usize, bool)> {
         self.by_output.get(&(pair, output)).into_iter().flatten().map(|&id| {
@@ -145,11 +201,24 @@ impl State {
     pub fn rollback(&mut self, undo: Undo, memos: &mut HashMap<TypedPairKey, TypedPairMemo>) {
         self.effect_algebra.rollback(undo.effect_algebra);
         for (key, parent) in undo.forests.into_iter().rev() {
+            #[cfg(test)]
+            let before = match key {
+                RowKey::Value(row) => self.values[row as usize],
+                RowKey::Effect(row) => self.effects[row as usize],
+            };
+            #[cfg(test)]
+            let _ = self.record_forest_event(ForestEvent::ParentWrite {
+                key, before, after: parent, kind: ForestWriteKind::Rollback,
+            });
             match key {
                 RowKey::Value(row) => self.values[row as usize] = parent,
                 RowKey::Effect(row) => self.effects[row as usize] = parent,
             }
         }
+        #[cfg(test)]
+        let _ = self.record_forest_event(ForestEvent::Truncate {
+            values_len: undo.values_len, effects_len: undo.effects_len,
+        });
         self.values.truncate(undo.values_len);
         self.effects.truncate(undo.effects_len);
         self.parents.truncate(undo.parents_len);
@@ -271,14 +340,16 @@ impl InferenceSession {
             .map_err(|_| exhausted())?;
         state.parents.try_reserve(1).map_err(|_| exhausted())?;
         for row in state.values.len()..self.bounds.len() {
-            state
-                .values
-                .push(u32::try_from(row).map_err(|_| exhausted())?);
+            let row = u32::try_from(row).map_err(|_| exhausted())?;
+            #[cfg(test)]
+            state.record_forest_event(ForestEvent::Birth(RowKey::Value(row)))?;
+            state.values.push(row);
         }
         for row in state.effects.len()..self.effect_bounds.len() {
-            state
-                .effects
-                .push(u32::try_from(row).map_err(|_| exhausted())?);
+            let row = u32::try_from(row).map_err(|_| exhausted())?;
+            #[cfg(test)]
+            state.record_forest_event(ForestEvent::Birth(RowKey::Effect(row)))?;
+            state.effects.push(row);
         }
         // This provenance is deliberately absent from the dependency adjacency.
         if qualified { state.pending.push(state.parents.len()); }
@@ -455,16 +526,24 @@ impl InferenceSession {
                 .map_err(|_| exhausted())?;
         }
         for effect in [false, true] {
-            let forest = if effect {
-                &mut state.effects
+            #[cfg(test)]
+            let (forest, events, event_log_complete) = if effect {
+                (&mut state.effects, &mut state.forest_events, &mut state.forest_event_log_complete)
             } else {
-                &mut state.values
+                (&mut state.values, &mut state.forest_events, &mut state.forest_event_log_complete)
             };
+            #[cfg(not(test))]
+            let forest = if effect { &mut state.effects } else { &mut state.values };
             for index in 0..forest.len() {
                 let root = representative(forest, index as u32);
                 let mut row = index as u32;
                 while forest[row as usize] != root {
                     let old = forest[row as usize];
+                    #[cfg(test)]
+                    record_forest_event_parts(events, event_log_complete, ForestEvent::ParentWrite {
+                        key: if effect { RowKey::Effect(row) } else { RowKey::Value(row) },
+                        before: old, after: root, kind: ForestWriteKind::Compress,
+                    })?;
                     if let Some(undo) = self
                         .route_journal
                         .as_mut()
@@ -590,6 +669,11 @@ impl InferenceSession {
                 self.effect_metadata[to].non_generic | self.effect_metadata[from].non_generic;
             self.effect_levels[to] = level;
             self.effect_metadata[to].non_generic = non_generic;
+            #[cfg(test)]
+            self.candidate_graph.as_mut().unwrap().intrusion.record_forest_event(ForestEvent::ParentWrite {
+                key: RowKey::Effect(from as u32), before: from as u32,
+                after: to as u32, kind: ForestWriteKind::Merge,
+            })?;
             self.candidate_graph.as_mut().unwrap().intrusion.effects[from] = to as u32;
         } else {
             let level = self.value_levels[to].min(self.value_levels[from]);
@@ -597,6 +681,11 @@ impl InferenceSession {
                 self.value_metadata[to].non_generic | self.value_metadata[from].non_generic;
             self.value_levels[to] = level;
             self.value_metadata[to].non_generic = non_generic;
+            #[cfg(test)]
+            self.candidate_graph.as_mut().unwrap().intrusion.record_forest_event(ForestEvent::ParentWrite {
+                key: RowKey::Value(from as u32), before: from as u32,
+                after: to as u32, kind: ForestWriteKind::Merge,
+            })?;
             self.candidate_graph.as_mut().unwrap().intrusion.values[from] = to as u32;
         }
         self.candidate_context_canonicalize_bounds()?;

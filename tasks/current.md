@@ -41,10 +41,15 @@ reconstruction observation has no authenticated history across later merge,
 compression or rollback to final inspection. The original theorem remains OPEN
 at `0 -> 0`; no test or source change ran. See the [R47 closeout](../notes/progress/2026-10-19-r47-closeout.md).
 
-R48 is proposed under [its draft contract](agent-loop/sprints/actual-route-temporal-transport-20261019-r48.md).
-It targets owner-authenticated temporal transport along the actual helper route,
-preserving R47's no-hit result. Activation depends on Luna's revalidated pins and
-fresh current-state grant. The original theorem remains OPEN at `0 -> 0`.
+R48 closed at a reviewed static reachability obstruction. Active recursive
+`loop x` and q=`loop y` references emit `Action::Link`, while scoped Apply
+admission requires a `LocalFreshRoute` published only by Local reconstruction.
+The fixture cannot reach the requested q/C/D inspection on this frozen path, so
+the gated Cargo command did not run. The test-only ledger and conditional replay
+proof remain unaccepted candidates; the original theorem remains OPEN at
+`0 -> 0`. See the [R48 closeout](../notes/progress/2026-10-19-r48-closeout.md).
+The dispatcher recommends resolving active-root admission in a fresh contract
+before further temporal-ledger work; no next sprint is active.
 
 R22's reviewed proof and falsifier artifacts preserve the original source scope:
 the fixed successful runtime path carries the response handle through
