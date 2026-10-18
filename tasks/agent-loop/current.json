@@ -30,7 +30,7 @@
       "candidate_local_self_recursion.rs": "a6406f3eef2b25844272da9cbe121277001760d004f733029dcc3f600aa79c7a"
     },
     "next_action": "R35 active: dispatch proof and native continuation under exact leases; preserve parent0->0 until genuine original theorem evidence.",
-    "history": "R35 workers launched under fixed leases; no results or budget charged yet. Original parent0->0.",
+    "history": "Proof, native author and independent falsifier are live under fixed R35 envelope. No results or budget charged yet. Original parent0->0.",
     "git_checkpoint": {
       "commit": "3f3bfca3a1e37cd8fa574e40ea6382bac6b1c1d9",
       "branch": "research/simple-sub-intrusion",
@@ -70,6 +70,17 @@
         "observed_effort": "UNKNOWN",
         "session": "current-session-r35",
         "receipt": "Spawned for test-only exact provenance join; no Cargo until independent pre-write review and Luna grant."
+      },
+      {
+        "id": "/root/r35_apply_falsifier",
+        "role": "researcher/independent counterexample search",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session-r35",
+        "receipt": "Spawned independently from pinned authoritative sources to falsify the Apply-local source-declaration candidate; no writes or shared moving draft."
       }
     ],
     "leases": [
@@ -141,6 +152,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session-r35",
       "receipt": "Spawned for test-only exact provenance join; no Cargo until independent pre-write review and Luna grant."
+    },
+    {
+      "id": "/root/r35_apply_falsifier",
+      "role": "researcher/independent counterexample search",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session-r35",
+      "receipt": "Spawned independently from pinned authoritative sources to falsify the Apply-local source-declaration candidate; no writes or shared moving draft."
     }
   ],
   "leases": [],
