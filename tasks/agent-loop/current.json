@@ -4,27 +4,27 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "caller-evidence-source-binding-20261018-r25",
-    "contract": "tasks/agent-loop/sprints/caller-evidence-source-binding-20261018-r25.md",
-    "revision": 2,
-    "sha256": "586f89e2a6cb4f0d6913e6e57c0d36cb625cd70e9d58ef214846c1db9796bf97",
-    "state": "CLOSED",
-    "baseline": "f7edada810d94a320fc7d5a3e785e407a0bfb01c; original CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN/closure0.",
+    "id": "caller-authentic-evidence-intake-20261018-r26",
+    "contract": "tasks/agent-loop/sprints/caller-authentic-evidence-intake-20261018-r26.md",
+    "revision": 1,
+    "sha256": "763f10b84abb5a597526e76708a7113c40c5450034db03f2c814a8f8be2947fd",
+    "state": "ACTIVE",
+    "baseline": "8de842c4d34ae0fdc191b72acfe64ef75b77fc67; R25 design/proof/HIR transport CLEAN, original parent OPEN/closure0.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original source domain and quantifiers unchanged; OPEN/closure0.",
-    "fixed_outcome": "Reviewed transport lemma and reversible HIR retention of caller-supplied opaque evidence bound to exact parse/module/declaration; transport only, not semantic validity or JointWF.",
+    "fixed_outcome": "Locate actual supplier and independent introduction for caller-authentic context; apply to original registration or identify exact first missing input/owner. No semantic truth from R25 structural payload.",
     "resources": {
-      "cap_seconds": 2400,
-      "charged_seconds": 2400,
+      "cap_seconds": 1200,
+      "charged_seconds": 1200,
       "available_seconds": 0,
-      "allocation": "Proof420/720; design360; implementation600; fresh review480; checks/integration240. Astra0."
+      "allocation": "Sol proof/source600 + Luna read-only caller/HIR audit240 + fresh review240 + integration120. Astra0; tests/builds/probes0."
     },
-    "next_action": "R25 integrated CLEAN after review. Start R26 on actual caller evidence intake and original source registration; no new code lease until a real supplier/context is identified.",
-    "history": "User selected caller-supplied evidence route. R24 found no actual j0/a0/license tuple. HIR already retains parse-branded SourceNodeKeys; candidate and runtime retain same HIR. R25 transports unvalidated context only; actual semantic evidence, phase actions, JointWF and parent remain OPEN/closure0. Design review rev1 found two major issues: declaration-anchor validation and Send+Sync/payload immutability distinction. Contract/design rev2 repairs these without changing the fixed outcome; independent delta review pending. Design v2 CLEAN from fresh independent review: exact HIR-admitted top-level binding key; Send+Sync + static retained payload; immutable metadata only. Implementation activated on exact HIR/test leases; solver/runtime remain untouched. Proof rev1 frozen, conditional allocation/key transport only; independent authenticity/stable-interpretation premises remain open. HIR implementation frozen; 5 focused tests pass. Full yu-hir has two baseline failures, reproduced on clean f7edada81. Package fmt check shows broad baseline drift; new test rustfmt passes. R25 closeout: proof and HIR transport implementation independently CLEAN; focused 5 tests pass, HIR unit 130 pass. Two simple_module_resolution failures match clean baseline f7edada81; package format check has broad preexisting drift, focused new test rustfmt passes. Original parent conditions 0 -> 0, closure0. Dispatcher recommends R26 actual evidence intake/source correspondence; no safe code slice until supplier and operation mapping are found.",
+    "next_action": "After initial checkpoint, start proof/source lane and recheck public prepare plus HIR source declaration owners. If no authentic supplier/source map exists, freeze exact blocker and do not create code semantics.",
+    "history": "R25 integrated as reviewed structural transport only; original parent conditions 0->0. Current playground still passes SemanticImports::empty(). R26 directly targets actual caller evidence supplier/introduction and original registration correspondence; implementation code lease intentionally absent pending authentic context.",
     "git_checkpoint": {
-      "commit": "00620fafc",
+      "commit": "8de842c4d34ae0fdc191b72acfe64ef75b77fc67",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R25 conditional proof/handoff checkpoint pushed; reviewed HIR implementation and R25 closeout integration now ready for coherent commit."
+      "receipt": "R25 reviewed HIR transport implementation and closeout pushed; R26 start contract/state pending initial checkpoint."
     },
     "workers": [
       {
@@ -36,40 +36,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R25 adjudicated CLEAN and integrating exact reviewed code; primary Git owner."
-      },
-      {
-        "id": "/root/r25_transport_proof",
-        "role": "prover",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Frozen conditional proof; charged420/720; parent application remains conditional, descendants0."
-      },
-      {
-        "id": "/root/r25_design_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Design v2 CLEAN; two initial major findings repaired before implementation activation."
-      },
-      {
-        "id": "/root/r25_implementation_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Fresh proof+HIR implementation review CLEAN; no blocking/major/minor findings."
+        "receipt": "Owns R26 contract, read-only entry-path audit, review routing, integration and Git; proof not launched until contract checkpoint."
       }
     ],
     "leases": [
@@ -79,7 +46,7 @@
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/sprints/caller-evidence-source-binding-20261018-r25.md",
+        "path": "tasks/agent-loop/sprints/caller-authentic-evidence-intake-20261018-r26.md",
         "owner": "/root",
         "state": "FROZEN"
       },
@@ -89,54 +56,43 @@
         "state": "HELD"
       },
       {
-        "path": "notes/design/2026-10-18-semantic-imports-evidence-binding.md",
+        "path": "tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md",
         "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/theory/2026-10-18-caller-evidence-source-binding.md",
-        "owner": "/root/r25_transport_proof",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-caller-evidence-source-binding.md",
-        "owner": "/root/r25_transport_proof",
-        "state": "FROZEN"
-      },
-      {
-        "path": "crates/yu-hir/src/module.rs",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "crates/yu-hir/src/lib.rs",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "crates/yu-hir/tests/semantic_import_binding.rs",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-semantic-imports-evidence-binding.md",
-        "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       }
     ],
-    "pending": [],
+    "pending": [
+      {
+        "id": "R26-AUTHENTIC-CALLER-EVIDENCE",
+        "state": "ASSIGNED",
+        "owner": "prover after initial checkpoint",
+        "artifact": "Find actual supplier/introduction, apply authentic tuple to unchanged source registration, or identify exact first missing premise/owner."
+      },
+      {
+        "id": "R26-ACTUAL-ENTRY-PATH",
+        "state": "READY",
+        "owner": "/root",
+        "artifact": "Read-only trace public prepare and HIR lowering/source declarations; determine whether any real caller supplies evidence and whether any safe code slice exists."
+      },
+      {
+        "id": "R26-INDEPENDENT-REVIEW",
+        "state": "STAGED",
+        "owner": "fresh compiler_referee",
+        "artifact": "Review frozen proof/source owner outcome and Luna entry-path inventory."
+      }
+    ],
     "ready_next_work": {
-      "id": "R26-CALLER-AUTHENTIC-EVIDENCE-INTAKE",
+      "id": "R26-AUTHENTIC-CALLER-EVIDENCE",
       "state": "READY",
-      "owner": "Luna after R25 checkpoint",
-      "artifact": "Find actual supplier and introduction evidence for the original (W0,xi,h0) source registration; apply to original guards or freeze the exact first missing input/owner. Implementation code remains NO_SAFE_CODE_SLICE pending supplier and operation/member/signature correspondence."
+      "owner": "Sol/prover after initial checkpoint",
+      "artifact": "Actual independent supplier/introduction and original source-registration application; no filler transport lemma."
     },
     "legacy_reconciliation": {
       "required": false,
-      "receipt": "R24 proof/source/review lanes stopped; only explicitly quarantined untracked paths remain excluded."
+      "receipt": "R25 proof, design and implementation review workers stopped; R25 coherent commit pushed. Unrelated quarantined files preserved."
     }
   },
-  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. R20 runtime/HIR specimen gate CLEAN, 18/18; source/native FreshUse incidence still missing. R21 review CLEAN for rev3 document conformance only; A unadopted and partial, B blocked. R22 closeout: conditional runtime response-handle induction; source D1/A_decl output/provider map not proved; trace findings/repair failure recorded; parent remains OPEN/closure0. R23 closed at bounded source-owner outcome after fresh independent CLEAN review: no authentic fixed K_decl; no admitted refutation; parent closure0. R24 now targets actual caller-owned Sigma0 registration/license/JointWF guards and hereditary phase actions without narrowing the parent. R25 active: caller-selected unvalidated evidence transport; design and proof in parallel, HIR implementation staged for independent design review; parent remains OPEN/closure0. R25 completed as reviewed transport-only slice; no parent-theorem condition discharged. R26 next investigates actual evidence supplier and introduction; implementation waits until an authentic source/context and operation correspondence are located.",
+  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. R20 runtime/HIR specimen gate CLEAN, 18/18; source/native FreshUse incidence still missing. R21 review CLEAN for rev3 document conformance only; A unadopted and partial, B blocked. R22 closeout: conditional runtime response-handle induction; source D1/A_decl output/provider map not proved; trace findings/repair failure recorded; parent remains OPEN/closure0. R23 closed at bounded source-owner outcome after fresh independent CLEAN review: no authentic fixed K_decl; no admitted refutation; parent closure0. R24 now targets actual caller-owned Sigma0 registration/license/JointWF guards and hereditary phase actions without narrowing the parent. R25 active: caller-selected unvalidated evidence transport; design and proof in parallel, HIR implementation staged for independent design review; parent remains OPEN/closure0. R25 completed as reviewed transport-only slice; no parent-theorem condition discharged. R26 next investigates actual evidence supplier and introduction; implementation waits until an authentic source/context and operation correspondence are located. R26 active: actual caller authentic-evidence intake and original registration application; Luna entry-path inventory is read-only and must record NO_SAFE_CODE_SLICE absent an actual supplier/context mapping.",
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md (R22 stale trace hashes), and tools/__pycache__/; no staging.",
   "workers": [
     {
@@ -148,40 +104,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R25 adjudicated CLEAN and integrating exact reviewed code; primary Git owner."
-    },
-    {
-      "id": "/root/r25_transport_proof",
-      "role": "prover",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen conditional proof; charged420/720; parent application remains conditional, descendants0."
-    },
-    {
-      "id": "/root/r25_design_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Design v2 CLEAN; two initial major findings repaired before implementation activation."
-    },
-    {
-      "id": "/root/r25_implementation_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Fresh proof+HIR implementation review CLEAN; no blocking/major/minor findings."
+      "receipt": "Owns R26 contract, read-only entry-path audit, review routing, integration and Git; proof not launched until contract checkpoint."
     }
   ],
   "leases": [
@@ -191,7 +114,7 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/caller-evidence-source-binding-20261018-r25.md",
+      "path": "tasks/agent-loop/sprints/caller-authentic-evidence-intake-20261018-r26.md",
       "owner": "/root",
       "state": "FROZEN"
     },
@@ -201,53 +124,42 @@
       "state": "HELD"
     },
     {
-      "path": "notes/design/2026-10-18-semantic-imports-evidence-binding.md",
+      "path": "tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md",
       "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-18-caller-evidence-source-binding.md",
-      "owner": "/root/r25_transport_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-caller-evidence-source-binding.md",
-      "owner": "/root/r25_transport_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-hir/src/module.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-hir/src/lib.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-hir/tests/semantic_import_binding.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-semantic-imports-evidence-binding.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     }
   ],
-  "pending": [],
+  "pending": [
+    {
+      "id": "R26-AUTHENTIC-CALLER-EVIDENCE",
+      "state": "ASSIGNED",
+      "owner": "prover after initial checkpoint",
+      "artifact": "Find actual supplier/introduction, apply authentic tuple to unchanged source registration, or identify exact first missing premise/owner."
+    },
+    {
+      "id": "R26-ACTUAL-ENTRY-PATH",
+      "state": "READY",
+      "owner": "/root",
+      "artifact": "Read-only trace public prepare and HIR lowering/source declarations; determine whether any real caller supplies evidence and whether any safe code slice exists."
+    },
+    {
+      "id": "R26-INDEPENDENT-REVIEW",
+      "state": "STAGED",
+      "owner": "fresh compiler_referee",
+      "artifact": "Review frozen proof/source owner outcome and Luna entry-path inventory."
+    }
+  ],
   "ready_next_work": {
-    "id": "R26-CALLER-AUTHENTIC-EVIDENCE-INTAKE",
+    "id": "R26-AUTHENTIC-CALLER-EVIDENCE",
     "state": "READY",
-    "owner": "Luna after R25 checkpoint",
-    "artifact": "Find actual supplier and introduction evidence for the original (W0,xi,h0) source registration; apply to original guards or freeze the exact first missing input/owner. Implementation code remains NO_SAFE_CODE_SLICE pending supplier and operation/member/signature correspondence."
+    "owner": "Sol/prover after initial checkpoint",
+    "artifact": "Actual independent supplier/introduction and original source-registration application; no filler transport lemma."
   },
   "legacy_reconciliation": {
     "required": false,
     "receipt": "R23 and R24 lane workers stopped; all frozen outputs reviewed; no code or unknown leases."
   },
-  "next_action": "R25 integrated CLEAN after review. Start R26 on actual caller evidence intake and original source registration; no new code lease until a real supplier/context is identified.",
+  "next_action": "After initial checkpoint, start proof/source lane and recheck public prepare plus HIR source declaration owners. If no authentic supplier/source map exists, freeze exact blocker and do not create code semantics.",
   "git_checkpoint": {
     "commit": "f4fba1f38",
     "branch": "research/simple-sub-intrusion",

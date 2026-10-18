@@ -17426,3 +17426,10 @@ This adds no mathematical theorem conditions discharged: authentic
 still supplies `SemanticImports::empty()`. See
 [`caller-evidence-source-binding-20261018-r25.md`](agent-loop/sprints/caller-evidence-source-binding-20261018-r25.md)
 and [R25 closeout](../notes/progress/2026-10-18-r25-caller-evidence-binding-closeout.md).
+
+R26 is active on the next semantic dependency: locate an actual caller evidence
+supplier and its independent introduction judgment, then apply it to the
+original registration. The parallel Luna lane is read-only and will record
+`NO_SAFE_CODE_SLICE` unless the authentic supplier and source correspondence
+exist. See
+[`caller-authentic-evidence-intake-20261018-r26.md`](agent-loop/sprints/caller-authentic-evidence-intake-20261018-r26.md).
