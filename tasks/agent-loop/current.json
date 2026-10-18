@@ -13,8 +13,8 @@
     "fixed_outcome": "Construct/review authentic Apply-local C/D declarations and scope/dependency/capture incidence through complete Call and two helper FreshUse frames, or record the first exact missing edge. In parallel execute a bounded native provenance join. No production promotion.",
     "resources": {
       "cap_seconds": 2940,
-      "charged_seconds": 0,
-      "available_seconds": 2940,
+      "charged_seconds": 300,
+      "available_seconds": 2640,
       "allocation": "proof900 + native900 + independent falsification300 + proof review240 + compiler review240 + spec review180 + integration180; Astra0."
     },
     "dependencies": {
@@ -29,8 +29,8 @@
       "candidate_scheme.rs": "03b44d0f8280c1ae79f66b5528f1bd0b0ffebac46b312ef7ffce605f702f48dd",
       "candidate_local_self_recursion.rs": "a6406f3eef2b25844272da9cbe121277001760d004f733029dcc3f600aa79c7a"
     },
-    "next_action": "R35 active: dispatch proof and native continuation under exact leases; preserve parent0->0 until genuine original theorem evidence.",
-    "history": "Proof, native author and independent falsifier are live under fixed R35 envelope. No results or budget charged yet. Original parent0->0.",
+    "next_action": "Construct provisional Apply-extrusion source declarations for the exact active-root Name/Name occurrence; test lawful telescope and common lift. Native join remains in progress. Parent0->0.",
+    "history": "Independent falsifier found an exact active-root Name/Name coverage gap in the existing Apply Desc rule; no counterexample and no parent closure. Proof/native lanes continue. Falsifier full300s charged because total duration UNKNOWN.",
     "git_checkpoint": {
       "commit": "3f3bfca3a1e37cd8fa574e40ea6382bac6b1c1d9",
       "branch": "research/simple-sub-intrusion",
@@ -74,13 +74,13 @@
       {
         "id": "/root/r35_apply_falsifier",
         "role": "researcher/independent counterexample search",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session-r35",
-        "receipt": "Spawned independently from pinned authoritative sources to falsify the Apply-local source-declaration candidate; no writes or shared moving draft."
+        "receipt": "Frozen independent static result: the adopted compositional Apply Desc constructor does not cover active-root Name/Name f y; no source-qualified counterexample. Exact missing judgment is complete typed Apply/extrusion declaration plus capture incidence. Total active duration UNKNOWN; full 300s grant charged."
       }
     ],
     "leases": [
@@ -156,13 +156,13 @@
     {
       "id": "/root/r35_apply_falsifier",
       "role": "researcher/independent counterexample search",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session-r35",
-      "receipt": "Spawned independently from pinned authoritative sources to falsify the Apply-local source-declaration candidate; no writes or shared moving draft."
+      "receipt": "Frozen independent static result: the adopted compositional Apply Desc constructor does not cover active-root Name/Name f y; no source-qualified counterexample. Exact missing judgment is complete typed Apply/extrusion declaration plus capture incidence. Total active duration UNKNOWN; full 300s grant charged."
     }
   ],
   "leases": [],
