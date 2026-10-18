@@ -20,7 +20,7 @@
     },
     "next_action": "Commit/push rev2 contract/state, dispatch two exact document-only repairs; freeze hashes; same independent reviewer delta review; integrate only if CLEAN; then present selected/unavailable reviewed choices without adopting semantics.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption.",
-    "last_stage_receipt": "R21 rev1 integrated compiler review BLOCKING: (1) no concrete source/native ResultMap derivation for fixed specimen, (2) FieldBound consumer requires drain before current post-traversal producer, (3) B Pending capture coordinates and join ownership conflict. Rev2 adds 600s for two doc repairs, same reviewer delta review and integration only. Parent OPEN/closure0.",
+    "last_stage_receipt": "Rev2 repair lanes launched from pushed contract 028f5e144; exact disjoint doc-only leases, 120s each. Reviewer BLOCKING snapshot retained; no semantic/code/test authority.",
     "git_checkpoint": {
       "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
@@ -45,13 +45,13 @@
     {
       "id": "/root/r21_bridge_proof",
       "role": "prover",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev1 options frozen at 41f9aa695139a41ba11b140ebe2a96f6f95c17012b267b71f7e3c8b661d30f3a; rev2 document repair held until updated contract push."
+      "receipt": "R21 rev2 proof/options repair active after 028f5e144, 120s. Exact leased option/handoff paths only; derive bounded ResultMap and propose complete pre-capture action protocol; may mark blocked. No code/tests/Git."
     },
     {
       "id": "/root/r21_bridge_falsifiers",
@@ -67,13 +67,13 @@
     {
       "id": "/root/r21_bridge_impl_contract",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev1 implementation contract frozen at 5b61f05de8c97a567c6e05db66a51998c0d1b9925a1a2a7ef79f7ed7ed5d6296; rev2 document repair held until updated contract push."
+      "receipt": "R21 rev2 implementation-contract repair active after 028f5e144, 120s. Exact leased implementation contract/handoff only; align B Pending traversal ownership and pre-capture producer schedule; may mark B blocked. No code/tests/Git."
     },
     {
       "id": "/root/r21_bridge_integrated_review",
