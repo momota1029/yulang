@@ -20,7 +20,7 @@
     },
     "next_action": "Commit/push rev3 contract/state; repair only AnnCarry-A provisional publication cycle and D1 empty-suffix rule provenance; freeze four hashes; same reviewer delta review; integrate reviewed docs, no semantic selection.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption. Rev2 delta review BLOCKING on A provisional/publication cycle and D1 unstated empty-suffix rule; rev3 narrow document-only repair authorized.",
-    "last_stage_receipt": "R21 rev2 delta BLOCKING only on (1) AnnCarry-A publication cycle, (2) D1 empty-suffix return absent from Orig rules. B capture rule is aligned and remains BLOCKED. Rev3 adds 300s for narrow doc repair, same reviewer delta review and integration; parent OPEN/closure0.",
+    "last_stage_receipt": "R21 rev3 two narrow repair lanes launched from pushed contract e8cdac90b; same exact document leases, 60s + 30s. Parent OPEN/closure0.",
     "git_checkpoint": {
       "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
@@ -45,13 +45,13 @@
     {
       "id": "/root/r21_bridge_proof",
       "role": "prover",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev2 options/proof frozen at 18dfcc745...f1035 / d3757862...67dc5; rev3 repair authorized only for A provisional publication and D1 exact source-backed empty suffix or leave OPEN."
+      "receipt": "R21 rev3 exact formal repair active, 60s, after e8cdac90b; A provisional publication and source-backed exact D1 or leave OPEN. Exact option/handoff paths only; no code/tests/Git."
     },
     {
       "id": "/root/r21_bridge_falsifiers",
@@ -67,13 +67,13 @@
     {
       "id": "/root/r21_bridge_impl_contract",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev2 implementation contract frozen at af512f3b...b2a2e / 0f2fa60e...e83c2; rev3 alignment authorized only for provisional A staging/publication order; B remains BLOCKED."
+      "receipt": "R21 rev3 contract alignment active, 30s, after e8cdac90b; A provisional witness consumed by PublishLocal after prefix checks, final gate later; B remains blocked. No code/tests/Git."
     },
     {
       "id": "/root/r21_bridge_integrated_review",
