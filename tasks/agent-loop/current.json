@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push r19 contract and initial state. Then launch disjoint proof, source-falsification and runtime-lineage lanes. Keep solver owners read-only; runtime result must not claim FieldBound Capture/FreshUse consumption.",
     "history": "R18 ENDED-PARTIAL-REVIEWED at d51baa6db: exact same-HIR research-only FieldBoundV1 through response closure/environment, raw continuation return, distinct outer Apply, live outer handler and Completed42; r2 integrated review CLEAN, r4 compile delta CLEAN, cargo test -p yu-playground --test runtime_resume 17/17. Original parent conditions closed 0. Full closeout tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md.",
-    "last_stage_receipt": "R18 committed and pushed as d51baa6db; runtime_resume 17/17. R19 target is the local Install(g) -> authentic Capture/FreshUse -> actual g() boundary, with independent proof/source audit and runtime lineage.",
+    "last_stage_receipt": "R18 committed and pushed as d51baa6db; runtime_resume 17/17. R19 target is the local Install(g) -> authentic Capture/FreshUse -> actual g() boundary, with independent proof/source audit and runtime lineage. Live R19 proof, falsification, and runtime workers acknowledged; mutable current.json hash drift was reviewed and classified as scheduling-state only, with all immutable dependencies matching.",
     "git_checkpoint": {
       "commit": "d51baa6db",
       "branch": "research/simple-sub-intrusion",
@@ -50,35 +50,35 @@
     {
       "id": "/root/r19_freshuse_proof",
       "role": "prover",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact R19 proof packet and disjoint artifact leases ready; launch after contract/state checkpoint."
+      "receipt": "RUNNING acknowledgement received. Contract 75eba... and all immutable source/design/runtime pins match. current.json observed hash 63c06a05bb0d7a5e81d52a9293c163289f87f751f3cd6642e9c8f4cba047986d is mutable Luna-owned scheduling state, not a proof/source dependency; Luna confirmed it is expected launch-state drift. No artifact writes yet; exact proof leases remain held."
     },
     {
       "id": "/root/r19_freshuse_falsification",
       "role": "researcher",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact independent source-falsification packet and disjoint artifact leases ready; no descendants/probes; launch after contract/state checkpoint."
+      "receipt": "RUNNING acknowledgement received. Contract and all eight solver/design dependency pins match. Install retains root/boundary/capture-region; actual capture occurs per local use before FreshUse preparation, so falsification traces capture-at-use and delayed FieldBound action ordering. No artifact writes yet."
     },
     {
       "id": "/root/r19_local_binding_runtime",
       "role": "implementer",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact independent R18 runtime lineage code/test lease ready; no checks before review; launch after contract/state checkpoint."
+      "receipt": "RUNNING acknowledgement received before edits. Contract 75eba... and exact three runtime plus handoff leases confirmed. Checks/build/formatter deferred until frozen diff receives independent review; no solver writes."
     },
     {
       "id": "/root/r18_runtime_implementation",
@@ -262,5 +262,5 @@
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "Contract and current state are frozen; commit/push this R19 authority checkpoint, then launch the three disjoint proof, source-falsification and runtime-lineage assignments. Reconcile acknowledgements before RUNNING."
+  "next_action": "Continue the three acknowledged R19 lanes within exact leases; freeze coherent artifacts, obtain fresh independent reviews, then run the one authorized focused runtime target and integrate."
 }
