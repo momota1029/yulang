@@ -42,13 +42,13 @@
       {
         "id": "/root/r63_whole_ascription_formation_proof",
         "role": "Configured prover; constructive source judgment or valid semantic ambiguity witness",
-        "state": "ASSIGNED",
+        "state": "RUNNING",
         "requested_model": "gpt-6-sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r63",
-        "receipt": "Exact 600s lane granted; actual launch and no-read/no-write receipt pending. No writes authorized before receipt acknowledgment."
+        "receipt": "Current-session no-read/no-write receipt received and Luna acknowledged before source inspection. Exact two-output lease active, 600s cap. Requested Sol/high; observed model/effort UNKNOWN. No descendants."
       }
     ],
     "leases": [
@@ -111,13 +111,13 @@
     {
       "id": "/root/r63_whole_ascription_formation_proof",
       "role": "Configured prover; constructive source judgment or valid semantic ambiguity witness",
-      "state": "ASSIGNED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r63",
-      "receipt": "Exact 600s lane granted; actual launch and no-read/no-write receipt pending. No writes authorized before receipt acknowledgment."
+      "receipt": "Current-session no-read/no-write receipt received and Luna acknowledged before source inspection. Exact two-output lease active, 600s cap. Requested Sol/high; observed model/effort UNKNOWN. No descendants."
     }
   ],
   "leases": [
