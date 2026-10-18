@@ -17,13 +17,13 @@
       "available_seconds": 480,
       "allocation": "R1 native600 fully charged (duration UNKNOWN) + R2 repair-native600 fully charged (duration UNKNOWN). No native Cargo grants remain; compiler180 + spec180 + integration120 remain; Astra0."
     },
-    "next_action": "R2 writer stopped after the single additional Cargo invocation failed at the known hir borrow/move compile error before assertions; writer fixed it after the run but no grant remains. Frozen result pending final dispatch; no retry.",
+    "next_action": "Fresh compiler review running on frozen R34 candidate. Dispatcher recommends failed closeout with preserved patch/report and restoration of the two code files; no further native/test grant.",
     "history": "R34 rev1 and rev2 each consumed one Cargo invocation, both compile-failed before tests. Rev2 post-failure hir.clone fix is unexecuted. Candidate hashes: scheme619d5686..., integration6f8bf3f9..., progressf6e91ea0..., handoff829024ac.... Parent0->0; R30 independent.",
     "git_checkpoint": {
-      "commit": "68850bcf1",
+      "commit": "25652f276",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R34 rev2 repair launch state pushed as 68850bcf1; compile failure closeout state pending."
+      "receipt": "R34 final compile failure state pushed as 25652f276; candidate review and closeout remain."
     },
     "workers": [
       {
@@ -35,7 +35,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R34 rev2 writer stopped after compile failure at known borrow error; recording exact outcome and requesting end-boundary disposition."
+        "receipt": "R34 rev2 writer stopped at compile failure with no assertions; end-boundary dispatch recommends failed closeout, restore candidate code after preserving and reviewing its frozen patch."
       },
       {
         "id": "/root/r34_dispatch",
@@ -84,13 +84,24 @@
       {
         "id": "/root/r34_final_dispatch",
         "role": "next_action_selector",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Returned final disposition: R34 rev2 FAILED; no third Cargo. Review frozen candidate statically, preserve exact patch/closeout, then restore two code files; parent0->0."
+      },
+      {
+        "id": "/root/r34_candidate_review",
+        "role": "fresh compiler_referee",
         "state": "RUNNING",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Actual end-boundary dispatcher spawn: assess frozen rev2 compile failure and next outcome; no further native grant."
+        "receipt": "Actual fresh read-only reviewer launch for frozen R34 candidate; inspect shared-row inference and pair-to-capture/map join; no test/build."
       }
     ],
     "leases": [
@@ -132,24 +143,24 @@
     ],
     "pending": [
       {
-        "id": "R34-REV2-COMPILE-FAILURE",
+        "id": "R34-FROZEN-CANDIDATE-REVIEW",
         "state": "REVIEW",
         "owner": "/root",
-        "artifact": "Frozen test-only result. Both Cargo invocations compile-failed before assertions; rev2 includes an untested post-failure hir.clone fix. Awaiting final dispatcher disposition."
+        "artifact": "Frozen candidate hashes 619d5686..., 6f8bf3f9..., progress f6e91ea0..., handoff 829024ac...; compiler referee running."
       }
     ],
     "ready_next_work": {
-      "id": "R34-CLOSEOUT",
-      "state": "PROPOSED",
+      "id": "R34-CANDIDATE-DISPOSITION",
+      "state": "REVIEW",
       "owner": "/root",
-      "artifact": "Await final dispatcher recommendation; native test budget exhausted with two compile failures. Preserve or restore candidate, record proof/native closure 0->0 and exact source-owned C/D premise."
+      "artifact": "After independent review, preserve exact candidate diff and report, restore code files to baseline, close R34 FAILED with original conditions0->0 and R30 separate."
     },
     "legacy_reconciliation": {
       "required": false,
       "receipt": "R33 dispatcher, proof/native writers and compiler/spec reviewers are completed/terminal; their exact artifacts are frozen or reverted. No live old writer or unconfirmed lease remains."
     },
     "contract_sha256": "03f7cb94f79a2cfc0d17e67d1fa866f4b6147fdb5221cc4f5f0e12fd91098283",
-    "sha256": "ab637fb9c6115e811d3b0fabaf1f6c50daf113453f3a31ba915bf13c0c2c9bf9"
+    "sha256": "538e4fe2387270679ee20f4735c49d39862b69dc1e0db88a94cae50aa2c0759c"
   },
   "workers": [
     {
@@ -161,7 +172,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R34 rev2 writer stopped after compile failure at known borrow error; recording exact outcome and requesting end-boundary disposition."
+      "receipt": "R34 rev2 writer stopped at compile failure with no assertions; end-boundary dispatch recommends failed closeout, restore candidate code after preserving and reviewing its frozen patch."
     },
     {
       "id": "/root/r34_dispatch",
@@ -210,13 +221,24 @@
     {
       "id": "/root/r34_final_dispatch",
       "role": "next_action_selector",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Returned final disposition: R34 rev2 FAILED; no third Cargo. Review frozen candidate statically, preserve exact patch/closeout, then restore two code files; parent0->0."
+    },
+    {
+      "id": "/root/r34_candidate_review",
+      "role": "fresh compiler_referee",
       "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual end-boundary dispatcher spawn: assess frozen rev2 compile failure and next outcome; no further native grant."
+      "receipt": "Actual fresh read-only reviewer launch for frozen R34 candidate; inspect shared-row inference and pair-to-capture/map join; no test/build."
     }
   ],
   "leases": [
@@ -258,13 +280,13 @@
   ],
   "pending": [
     {
-      "id": "R34-REV2-COMPILE-FAILURE",
+      "id": "R34-FROZEN-CANDIDATE-REVIEW",
       "state": "REVIEW",
       "owner": "/root",
-      "artifact": "Frozen test-only result. Both Cargo invocations compile-failed before assertions; rev2 includes an untested post-failure hir.clone fix. Awaiting final dispatcher disposition."
+      "artifact": "Frozen candidate hashes 619d5686..., 6f8bf3f9..., progress f6e91ea0..., handoff 829024ac...; compiler referee running."
     }
   ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
   "history": "R33 closed; R34 active. Preserve original parent scope and keep R30 independently OPEN.",
-  "sha256": "11bdffeea83fb3243174039ee2d3d94d5d599788a709e5b718ce2dd8192a2892"
+  "sha256": "9dffcade0694480b7a858e9f8617448b2bdd18c8ba94bff32f92bb264d7dadf0"
 }
