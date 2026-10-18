@@ -4,82 +4,38 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "active-capture-conservative-extension-20261018-r32",
-    "contract": "tasks/agent-loop/sprints/active-capture-conservative-extension-20261018-r32.md",
+    "id": "active-capture-observer-join-20261018-r33",
+    "contract": "tasks/agent-loop/sprints/active-capture-observer-join-20261018-r33.md",
     "revision": 1,
-    "state": "CLOSED",
-    "baseline": "eb01835c1c78ad3566dac054c285d2a5df4d3e7f",
+    "state": "ACTIVE",
+    "baseline": "4122234969ee791af583e6538c303b606f3b3557",
     "parent": "Full goal: implement Yulang type inference and executor with proofs. Active-capture source bridge for intrusion/principality/N-Transport; R30 CHOOSE-SOURCE-2 remains independently OPEN/closure0.",
-    "fixed_outcome": "Construct and assess one research-only active-capture demand record as a conservative definitional extension of complete existing Call in two independent helper-use frames; in parallel, exercise accepted-source active-root/nested-helper/two-FreshUse native path with a focused test-only regression. No semantic adoption or production allocation change.",
+    "fixed_outcome": "Join the exact active recursive initializer Link through signed demand/pair incidence, nested-helper publication and both retained FreshUse maps using existing public/private test records. In parallel attempt an explicit research-only C/D allocating lift using R32 retention lemma; prove complete bidirectional erasure/lift or locate first failed owner.",
     "resources": {
-      "cap_seconds": 1380,
-      "charged_seconds": 1260,
-      "available_seconds": 120,
-      "allocation": "Proof600 + native lane300 + fresh compiler/spec reviews180 each charged/reserved; Luna integration120 remains. Astra0; no Cargo process ran."
+      "cap_seconds": 1500,
+      "charged_seconds": 0,
+      "available_seconds": 1500,
+      "allocation": "Sol proof600 + Luna native/test420 + fresh compiler review180 + spec review180 + Luna integration120; Astra0; one sequential focused Cargo process."
     },
-    "next_action": "R32 closed after CLEAN preservation reviews. Parent conditions0->0. Corrected native observer boundary is the next material input; consult dispatcher for an exact next outcome and any new observer lease.",
-    "history": "R31 closeout notes/progress/2026-10-18-r31-active-root-allocation-closeout.md; original conditions0->0; missing active-capture C/D telescope identified. Dispatcher recommends candidate conservative extension plus native two-FreshUse path.",
+    "next_action": "R33 contract frozen after dispatch. Commit contract/state before launching exact disjoint proof and test-only leases. Native path may use private records in existing cfg(test) module only.",
+    "history": "R31 closeout: notes/progress/2026-10-18-r31-active-root-allocation-closeout.md; parent0->0. R32 closeout: notes/progress/2026-10-18-r32-active-capture-closeout.md; retention lemma reviewed, C/D allocation open. Fresh compiler review found existing intrusion_observation source-event to signed parent/copy join; exact Link-to-two-use image join is next.",
     "git_checkpoint": {
-      "commit": "fcfecf9799aa9a4cb64ef0eb70733dc343e77f6f",
+      "commit": "4122234969ee791af583e6538c303b606f3b3557",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R32 contract and lane launch state pushed at f69e3d4d1/fcfecf979; closeout integration and frozen outputs are now recorded locally."
+      "receipt": "R32 closeout and both frozen lane artifacts are committed and pushed; R33 contract/state will be committed before launch."
     },
     "workers": [
       {
         "id": "/root",
-        "role": "Luna-primary/R32 integration and Git owner",
+        "role": "Luna-primary/R33 authority, implementation oversight, review and Git owner",
         "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R32 proof and native lanes stopped; fresh compiler/spec reviews returned bounded CLEAN results. Integrating corrected closeout and dispatching next evidence."
-      },
-      {
-        "id": "/root/r32_conservativity_proof",
-        "role": "prover",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "R32 proof rev1 frozen; exact artifact/handoff hashes recorded in closeout; writes stopped at authentic C/D declaration/telescope boundary."
-      },
-      {
-        "id": "/root/r32_native_path",
-        "role": "implementer",
-        "state": "STOPPED",
-        "requested_model": "Luna",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "R32 native lane frozen; test unchanged and no Cargo run. Compiler review noted existing intrusion_observation API omitted; corrected closeout narrows observer gap."
-      },
-      {
-        "id": "/root/r32_compiler_review",
-        "role": "fresh compiler referee",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "CLEAN for preservation with minor observer-inventory correction; R32 success predicates and parent remain blocked."
-      },
-      {
-        "id": "/root/r32_spec_review",
-        "role": "fresh spec auditor",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "CLEAN for reference-only retention lemma and honest obstruction; BLOCKED for allocating conservativity/native regression; parent0->0."
+        "receipt": "R33 contract frozen after boundary dispatch; starting exact proof and private test-only native lanes. No production observer/API or semantic adoption."
       }
     ],
     "leases": [
@@ -89,7 +45,7 @@
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/sprints/active-capture-conservative-extension-20261018-r32.md",
+        "path": "tasks/agent-loop/sprints/active-capture-observer-join-20261018-r33.md",
         "owner": "/root",
         "state": "FROZEN"
       },
@@ -97,106 +53,51 @@
         "path": "tasks/current.md",
         "owner": "/root",
         "state": "HELD"
-      },
-      {
-        "path": "notes/theory/2026-10-18-active-capture-conservative-extension-r32.md",
-        "owner": "/root/r32_conservativity_proof",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-active-capture-conservative-extension-r32.md",
-        "owner": "/root/r32_conservativity_proof",
-        "state": "FROZEN"
-      },
-      {
-        "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
-        "owner": "/root/r32_native_path",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-18-active-capture-native-path-r32.md",
-        "owner": "/root/r32_native_path",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-active-capture-native-path-r32.md",
-        "owner": "/root/r32_native_path",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-18-r32-active-capture-closeout.md",
-        "owner": "/root",
-        "state": "HELD"
       }
     ],
-    "pending": [],
+    "pending": [
+      {
+        "id": "R33-NATIVE-PROVENANCE-JOIN",
+        "state": "READY",
+        "owner": "Luna implementer after contract checkpoint",
+        "artifact": "Use existing intrusion_observation plus private source test state to join active Link -> pair incidence -> publication -> both FreshUses; focused test or exact failed join."
+      },
+      {
+        "id": "R33-ALLOCATING-SOURCE-LIFT",
+        "state": "READY",
+        "owner": "Sol prover after contract checkpoint",
+        "artifact": "Build one candidate C/D declaration/telescope from exact incidence and prove full joined-tree erasure/lift or exact constructor failure."
+      },
+      {
+        "id": "R33-INDEPENDENT-REVIEWS",
+        "state": "STAGED",
+        "owner": "Fresh compiler and spec reviewers after both outputs freeze",
+        "artifact": "Review exact identity joins, test scope, candidate/adopted boundary and full source quantifiers."
+      }
+    ],
     "ready_next_work": {
-      "id": "R33-NATIVE-OBSERVER-JOIN",
-      "state": "RUNNING",
-      "owner": "/root/r33_close_dispatch",
-      "artifact": "Dispatcher boundary after R32 review; evaluate the existing intrusion_observation API for the exact active-Link to pair to two-FreshUse join, and identify the next source-owned C/D declaration evidence."
+      "id": "R33-NATIVE-PROVENANCE-JOIN",
+      "state": "READY",
+      "owner": "/root",
+      "artifact": "Commit frozen contract/state, then grant exact proof and test-only leases."
     },
     "legacy_reconciliation": {
       "required": false,
-      "receipt": "R31 proof, falsifier and review terminal; exact artifacts frozen. R32 begins after R31 closeout."
+      "receipt": "R32 proof/native writers and fresh compiler/spec reviewers terminal; all R32 artifacts frozen and pushed."
     },
-    "sha256": "1102cb3517fbd1e4e1a73405effe5c510bf06a9a4bf2e911458ceed93e547334"
+    "sha256": "d6b6a55ac736da6009da620d8a752f326f67a12cc324f3d720793f4c26df724b"
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna-primary/R32 integration and Git owner",
+      "role": "Luna-primary/R33 authority, implementation oversight, review and Git owner",
       "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R32 proof and native lanes stopped; fresh compiler/spec reviews returned bounded CLEAN results. Integrating corrected closeout and dispatching next evidence."
-    },
-    {
-      "id": "/root/r32_conservativity_proof",
-      "role": "prover",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "R32 proof rev1 frozen; exact artifact/handoff hashes recorded in closeout; writes stopped at authentic C/D declaration/telescope boundary."
-    },
-    {
-      "id": "/root/r32_native_path",
-      "role": "implementer",
-      "state": "STOPPED",
-      "requested_model": "Luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "R32 native lane frozen; test unchanged and no Cargo run. Compiler review noted existing intrusion_observation API omitted; corrected closeout narrows observer gap."
-    },
-    {
-      "id": "/root/r32_compiler_review",
-      "role": "fresh compiler referee",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "CLEAN for preservation with minor observer-inventory correction; R32 success predicates and parent remain blocked."
-    },
-    {
-      "id": "/root/r32_spec_review",
-      "role": "fresh spec auditor",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "CLEAN for reference-only retention lemma and honest obstruction; BLOCKED for allocating conservativity/native regression; parent0->0."
+      "receipt": "R33 contract frozen after boundary dispatch; starting exact proof and private test-only native lanes. No production observer/API or semantic adoption."
     }
   ],
   "leases": [
@@ -206,7 +107,7 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/active-capture-conservative-extension-20261018-r32.md",
+      "path": "tasks/agent-loop/sprints/active-capture-observer-join-20261018-r33.md",
       "owner": "/root",
       "state": "FROZEN"
     },
@@ -214,40 +115,29 @@
       "path": "tasks/current.md",
       "owner": "/root",
       "state": "HELD"
-    },
-    {
-      "path": "notes/theory/2026-10-18-active-capture-conservative-extension-r32.md",
-      "owner": "/root/r32_conservativity_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-active-capture-conservative-extension-r32.md",
-      "owner": "/root/r32_conservativity_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
-      "owner": "/root/r32_native_path",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-18-active-capture-native-path-r32.md",
-      "owner": "/root/r32_native_path",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-active-capture-native-path-r32.md",
-      "owner": "/root/r32_native_path",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-18-r32-active-capture-closeout.md",
-      "owner": "/root",
-      "state": "HELD"
     }
   ],
-  "pending": [],
+  "pending": [
+    {
+      "id": "R33-NATIVE-PROVENANCE-JOIN",
+      "state": "READY",
+      "owner": "Luna implementer after contract checkpoint",
+      "artifact": "Use existing intrusion_observation plus private source test state to join active Link -> pair incidence -> publication -> both FreshUses; focused test or exact failed join."
+    },
+    {
+      "id": "R33-ALLOCATING-SOURCE-LIFT",
+      "state": "READY",
+      "owner": "Sol prover after contract checkpoint",
+      "artifact": "Build one candidate C/D declaration/telescope from exact incidence and prove full joined-tree erasure/lift or exact constructor failure."
+    },
+    {
+      "id": "R33-INDEPENDENT-REVIEWS",
+      "state": "STAGED",
+      "owner": "Fresh compiler and spec reviewers after both outputs freeze",
+      "artifact": "Review exact identity joins, test scope, candidate/adopted boundary and full source quantifiers."
+    }
+  ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R32 closeout: notes/progress/2026-10-18-r32-active-capture-closeout.md. Parent0->0. Reference retention proved; C/D allocation and native two-use predicate blocked. Existing intrusion_observation API corrects the observer boundary; next dispatch pending.",
-  "sha256": "af79ff5dcc9e9865fa2b6340fcb6b098ad55204e38e2319998a14a03b434177b"
+  "history": "R32 closeout pushed at 412223496. R33 starts with exact active-Link/parent-copy/FreshUse provenance join plus candidate allocating-lift attempt; parent0->0.",
+  "sha256": "3b7df5656368f13822eeabd7e61aea6d2f8b879bcf516e3a908d41e11ee46314"
 }

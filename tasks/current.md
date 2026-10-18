@@ -17506,3 +17506,13 @@ compiler review found that the existing `intrusion_observation()` API and
 focused regression expose source-event to signed parent/copy incidence,
 narrowing the remaining observer gap to active-Link and pair-to-two-FreshUse
 correspondence. See the [R32 closeout](../notes/progress/2026-10-18-r32-active-capture-closeout.md).
+
+## Active research sprint — R33
+
+R33 uses the existing `intrusion_observation()` API plus private source-test
+records to join active-root Link, signed demand/pair incidence and both helper
+FreshUse maps. In parallel it attempts an allocating C/D lift from the joined
+incidence, reusing R32's reference-retention lemma. No public observer,
+production allocation change, or semantic adoption is authorized. Parent
+conditions remain 0 -> 0. See the
+[R33 contract](agent-loop/sprints/active-capture-observer-join-20261018-r33.md).
