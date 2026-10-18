@@ -43,3 +43,16 @@ original condition.
 Next in-envelope step: freeze these exact bytes for fresh proof/compiler
 review; only after both are CLEAN and Luna records capacity may the primary run
 the three commands in the sprint contract once each.
+
+
+## Compiler-review closeout
+
+The proof/spec review was CLEAN for the conditional diagnostic theorem. The
+independent compiler review blocked runtime: it found conflated source/copied/
+Replay identities, the wrong FunctionPort parent, missing endpoint/transformer
+and captured snapshot/fiber authentication, incomplete scoped-flow equations,
+and negative tests that did not mutate the claimed evidence. The swap helper
+is corrected and selected by the helper-filter command; both integer results
+and raw mismatch remain asserted. No runtime command ran. This candidate is
+unapproved, parent closure remains 0, and the exact blockers are recorded in the
+primary closeout.

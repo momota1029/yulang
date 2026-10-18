@@ -1,6 +1,6 @@
 # Sprint `npair-replay-ancestry-authentication-20261018`
 
-Status: CANDIDATE until Luna records fresh author receipts. Branch
+Status: CLOSED-REVIEWED-PARTIAL. Branch
 `research/simple-sub-intrusion`; baseline `f423047fa`. Parent
 `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN; preserve every
 original quantifier, source domain, fixed-c requirement and independent F1/FK1.
@@ -120,3 +120,29 @@ failure, runtime falsifier, budget boundary or writer cessation uncertainty.
 Do not call diagnostic transport NPAIR evidence. A passing fixture proves only
 the exact authenticated route. Close with original parent closure count, actual
 runtime behavior, review findings, and the single next missing original premise.
+
+
+## Primary closeout rev2
+
+The conditional ancestry proof received CLEAN independent proof/spec review.
+The implementation candidate received independent compiler BLOCKING findings:
+Replay child, FreshUse copied child and source relation were conflated, making
+the path impossible; FunctionPort parent was chosen as Replay upper instead of
+the actual comparison Replay child/consumer; actual port endpoints and
+identity/stamp/protect transformers were not authenticated; captured evidence
+snapshot, imported antecedent, restored fiber and replay recipe were not
+checked. MAJOR findings: supported spines did not preserve full scoped-flow
+call/use/scope/input/transformer equations, and negative tests changed metadata
+IDs rather than the snapshot/edge/port/flow evidence they claimed to falsify.
+
+The swap helper correction, inclusion in the helper-filter command, both
+integer-result assertions and raw native mismatch preservation were verified.
+No Cargo/test/build/example command ran. Runtime remains NOT_RELEASED. Original
+parent conditions closed 0. All authors/reviewers STOPPED. Conservative charge
+1680/2400s; remaining 720s expired at closeout, no rollover. Astra0.
+
+The next work must retain distinct source, copied bound, Replay upper, Replay
+child and consumer identities, authenticate both proof spines and captured
+fiber/snapshot ancestry, then connect each mapped term to the actual Function
+port endpoints and scope transformers. The previous implementation remains an
+unapproved candidate; no runtime attempt may be inferred from it.

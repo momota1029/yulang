@@ -5,10 +5,22 @@
   "baseline": "f423047fa",
   "prior_raw_native_root_matches": false,
   "parent_conditions_closed": 0,
-  "proof_review": "NOT_STARTED",
-  "implementation_review": "NOT_STARTED",
+  "proof_review": "CLEAN_CONDITIONAL_DIAGNOSTIC_THEOREM; original conditions remain OPEN.",
+  "implementation_review": {
+    "status": "BLOCKED",
+    "reviewer": "/root/replay_ancestry_impl_review",
+    "reviewer_state": "STOPPED",
+    "findings": [
+      "BLOCKING: source relation, copied FreshUse child and Replay child conflated; incoming-edge counting rejects intended ancestry.",
+      "BLOCKING: FunctionPort lookup uses Replay upper instead of Replay child/consumer and omits endpoint and scope transformer checks.",
+      "BLOCKING: captured evidence snapshot, imported antecedent, restored bound fiber and Replay recipe are not authenticated.",
+      "MAJOR: intermediate scoped-flow call/use/scope/input/transformer equations absent.",
+      "MAJOR: negative tests mutate metadata IDs rather than actual snapshot, dependency kind, port endpoints or flow."
+    ],
+    "runtime_release": "NOT_RELEASED"
+  },
   "primary_release": {
-    "status": "NOT_RELEASED",
+    "status": "NOT_RELEASED_REVIEW_BLOCKED",
     "no_retry": true
   },
   "helper_invocation": 0,
