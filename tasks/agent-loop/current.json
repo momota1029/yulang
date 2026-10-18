@@ -72,13 +72,13 @@
     {
       "id": "/root/r19_local_binding_runtime",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R20 rev1 HIR gate frozen; follow-up repair authorized only for expected_ids chain to include fallback_apply_errors.keys().copied(), preserving all owner checks and exact equality. Pending rev2 dispatch."
+      "receipt": "R20 rev2 follow-up dispatched after contract 43c2edf53; exact write lease is expected_ids chain only in runtime_resume.rs; preserve all per-error ownership/kind/attachment/range assertions, unknown rejection and final equality; no verification allowed before frozen delta review."
     },
     {
       "id": "/root/r18_runtime_implementation",
