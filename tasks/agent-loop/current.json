@@ -4,33 +4,33 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-fixed-c-interpretation-and-native-path-20261018-r8",
-    "contract": "tasks/agent-loop/sprints/npair-fixed-c-interpretation-and-native-path-20261018-r8.md",
-    "revision": 8,
-    "sha256": "529fe913b9cf2645399a7e8ce135b5535bc26fc7d0336e5dbf27ef582e64f8e9",
-    "state": "CLOSED",
-    "baseline": "e2469125777d8a88356ab15522e8506b35107f97; scheme 17ec98c43ca211a60f4f99c873186788e3d0ee0788fab4cfad95078769281eac; context 42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca; shadow_apply 6508a3f39a6d3742110ca1f33e927fa26bd3b112c3f378fc345294675b7f69e3.",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original fixed c, quantifiers, source domain, and all R/W/Z cases unchanged.",
-    "fixed_outcome": "Advance the fixed-c supplier through source interpretation and actual complete output toward the true consumer; repair the exact r7 compile blockers and execute one reviewed source/native lineage test.",
+    "id": "npair-original-witness-and-replay-diagnosis-20261018-r9",
+    "contract": "tasks/agent-loop/sprints/npair-original-witness-and-replay-diagnosis-20261018-r9.md",
+    "revision": 9,
+    "sha256": "749ffee49ba3c196244653c239d035c8d2245913f287db25de1df306655500ed",
+    "state": "ACTIVE",
+    "baseline": "HEAD 84edaedaefaac371e624ff0710d6aecf59ac436e; frozen dirty source overlays scheme 25ce531aa10d5f2ab85f363248f6d7ff0c062b93c70389e3d25f4a1b67e608bb; context 42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca; shadow_apply eb0b9dcd8529e067ec8778c7888f3595ad8df466e1be4243b1d2104c853952d7",
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original fixed c, quantifiers, source domain, R/W/Z, rho_u and consumer unchanged; OPEN/closure0",
+    "fixed_outcome": "Constructively instantiate and test the original fixed-c source supplier and coverage; diagnose both call-0 Replay rows by complete identity without changing assertions.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "implementation": "r7 exact command failed at compilation before test execution: one E0308 and two missing cfg(test) Graph.capture_rows fields.",
-      "proof": "Original Operation Prim_alpha/T_alpha plus Sigma.Lambda/A_decl still lacks the eta_c supplier; complete rho_u and actual residual consumer remain open."
+      "proof": "FCW8 reviewed as coherent candidate new semantics; original formation designation, all-target view/license, consumer applicability/back, rho_u, F1/FK1 open.",
+      "implementation": "r8 exact test compiled and ran once, exit101: two rows have call==0, expected one; no retry."
     },
     "resources": {
-      "cap_seconds": 1800,
-      "charged_seconds": 1800,
+      "cap_seconds": 2400,
+      "charged_seconds": 0,
       "available_seconds": 0,
       "expired_seconds": 0,
-      "allocation": "r8 fresh: proof900, implementation240, independent spec/compiler reviews180+180, exact runtime120, Luna integration/state/Git180. Astra0; no prior rollover.",
-      "last_stage_receipt": "r8 closed after fresh proof review. FCW8 is a coherent conditional candidate but its old-source coverage, target-view/license coverage and consumer back laws are BLOCKING for theorem success. No original parent condition resolved. Native exact test compiled and reached its assertion, then failed 2 vs 1; no retry. Luna used the final 180s integration/state/Git reservation to freeze the r8 closeout and synchronize current state."
+      "allocation": "fresh r9: proof900, complementary source audit360, implementation360, proof/source review180, compiler review180, runtime120, Luna integration/state/Git300. Astra0; no rollover.",
+      "last_stage_receipt": "Fresh contract frozen and grants being issued. All prior r8 workers STOPPED. No new source writes until exact pin ACK. Parent OPEN/closure0."
     },
-    "last_stage_receipt": "Closeout: original parent conditions resolved 0; parent remains OPEN/closure0. FCW8 candidate is coherent under new semantics only, reviewed with BLOCKING original-proof coverage findings. Native implementation source compiles; exact test result 0/1 due call-0 Replay row count 2 vs 1, runtime lane stopped. No code changes integrated.",
-    "next_action": "r8 is closed with no original condition resolved. Await selector follow-up and issue a fresh versioned sprint covering original formation/coverage and the two-row provenance diagnosis. Keep FCW8 explicitly a candidate new-semantics package; no old theorem promotion."
+    "last_stage_receipt": "r9 fixed claim and source/test paths frozen; prior reviewed candidate and failed-runtime evidence pinned. No original condition closure inferred.",
+    "next_action": "Obtain exact pin ACKs; construct an authentic original source tuple and independently inspect its source owners; preserve the two-row runtime finding for a new reviewed diagnostic."
   },
   "history": "tasks/agent-loop/sprints/npair-rule-options-and-component-replay-20261018-closeout.md SHA 60aa58b143f763a07da40f063865f08a5fe4fbf3acb6c672fc882edb4feff8f9; prior histories retained in archived sprint receipts. PR #11 merged remotely as 27a7e00d4b581f18987bb2a3cbf2e492789c2293; local checkout remains stale and dirty.; rev3 owner audit amendment SHA 9394b94ab43c1b0ac5a5190460f84961a769c92f16ee31949604c501601def92; rev8 closeout tasks/agent-loop/sprints/npair-replay-auth-and-operation-rules-20261018-closeout.md SHA e557f8f9ddfd760f89ba057de17e6a2b0ff141c9297b02ac354f28b2cfd5b19f; tasks/agent-loop/sprints/npair-provenance-complete-replay-and-operation-rules-20261018-closeout.md SHA bb598941f3444baec8177e50665a22380e1337e858f2a6064359c9c424d83b32; prior CLEAN cross-route ownership audit note 572884a8df2e8adc19eb1a8121277c77784e3c02fa9925729e292dd629f40308 and handoff f2c93d65ba96e4a256010e2942096ca21ef714b5b06d81573701eb0b960948ed; next-action selector decision included in constructor-lineage contract; r2 constructor-lineage sprint BLOCKING close: implementation handoff292b828fe891a69f194e9872826cc0baaa9443db6f65a1aeb8caaecd3cd07274; unused720s expired; no tests/runtime. r3 recovery selector decision active.; r3 STOP at exact-source recovery gate: 6,647 local files plus reachable/unreachable Git blobs searched, no original hashes; rejected snapshots preserved. r4 explicitly adopts rejected bytes as baseline, no r2 provenance claim.; r4 BLOCKING instrumentation review: port child/op/uniqueness, matched drain acknowledgement/return, explicit complete linked observations. r5 contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20 authorizes only new test-function repair.; r5 BLOCKING closeout: contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20; implementation 5e8060b6e717adb5e10c47d8e0cba2ba532b0cef85842b580980cc4a2af266b1; proof ba6f2d7a0dc48c9d03038cccb17d8b5a98800ab8f72222b4e57302246aa4784a; independent review BLOCKING on port uniqueness before endpoint filtering and typed admission/emission/readback identity. Runtime0. Spent720s, unused420s expired. Parent OPEN/closure0.; r6 review BLOCKING: contract 68a518fa706613d523a9fe3a6be2394fb491e132e048b1299144532258d85fff; scheme d8c53522685e9bdfc1ba00380f222f4936d8d8df3302248fcde31e093668c484; context 42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca; proof 8d5cab69798da42c9de464f5dc8d568d647f3fa98e6d028289c8310e6b87d49c. Port/accessor/baselines accepted. One conflicting admission can be filtered before uniqueness. r6 spent540s; remaining runtime120/final180/integration120 retained.; r7 exact test compile failed before execution; original parent remained OPEN/closure0. Research-only checkpoints pushed: 095e81a61 (conditional Replay parent application), e24691257 (original fixed-c supplier audit). r8 begins with fresh 1800s; no rollover.; r8 closeout tasks/agent-loop/sprints/npair-fixed-c-interpretation-and-native-path-20261018-r8-closeout.md SHA f29fdc30be13d401c0a864cc24199a78fa53a9a5732c785cc47b0910c001c2ae",
-  "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
+  "quarantine_note": "All r8 writers and reviewers report STOPPED; no descendants. Existing unrelated frozen/uncommitted paths remain preserved and outside r9 leases.",
   "workers": [
     {
       "id": "/root",
@@ -41,51 +41,40 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Integrated eligible research-only artifact checkpoint 0bfcf7d0d and pushed. Review CLEAN; invoked the exact r8 runtime once, assertion failed; test envelope stopped. Runtime evidence and truthful capture limitation recorded."
+      "receipt": "r9 contract frozen; Luna owns leases, current state, review/adjudication, runtime and Git."
     },
     {
-      "id": "/root/npair_fixed_c_r8_proof",
+      "id": "/root/npair_original_witness_r9_proof",
       "role": "prover",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "FCW8 frozen revision 1; theory SHA d81fbe9969a10328dd8a9f65bfff6c0598767b770deb57f0b8244c3e2b2735e5; handoff a672deb54c27ff9e57cc14ebfc414ca9c842df9b23c0ce2327e28a186ac6d2bb. All 23 pins and contract MATCH; full 900s charged. Candidate new semantics; original closure0; no descendants."
+      "receipt": "Supported prover session launched in current session; initial exact-pin ACK awaited; no writes before ACK."
     },
     {
-      "id": "/root/npair_fixed_c_r8_impl",
+      "id": "/root/npair_original_owner_audit_r9",
+      "role": "researcher",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Supported researcher session launched in current session; initial exact-pin ACK awaited; no writes before ACK."
+    },
+    {
+      "id": "/root/npair_replay_two_row_r9_impl",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen r8 exact delta; candidate_scheme 25ce531aa10d5f2ab85f363248f6d7ff0c062b93c70389e3d25f4a1b67e608bb; shadow_apply eb0b9dcd8529e067ec8778c7888f3595ad8df466e1be4243b1d2104c853952d7; handoff d927e9ade81585c6ec832e69a19075eec52ef843cc24fe3c7c41039125b2aa40. No tests/runtime; charge240 conservatively."
-    },
-    {
-      "id": "/root/npair_fixed_c_r8_impl_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Fresh independent compiler review CLEAN; all five hashes matched, full dirty shadow_apply diff inspected; writer/reviewer STOPPED. Reviewer also clarified the manually built Graphs have 3 and 2 rows respectively; their capture_rows observations are empty."
-    },
-    {
-      "id": "/root/npair_fixed_c_r8_proof_review",
-      "role": "spec_auditor",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Fresh read-only exact-conformance review completed. Candidate calculations coherent; BLOCKING for theorem success on original formation coverage, all-target view/license and consumer back/applicability. No condition closure; parent OPEN/0."
+      "receipt": "Supported implementer session launched in current session; initial exact-pin ACK awaited; no writes before ACK."
     }
   ],
   "leases": [
@@ -95,89 +84,86 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-fixed-c-interpretation-and-native-path-20261018-r8.md",
+      "path": "tasks/agent-loop/sprints/npair-original-witness-and-replay-diagnosis-20261018-r9.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-npair-original-witness-r9.md",
+      "owner": "/root/npair_original_witness_r9_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-original-witness-r9-proof.md",
+      "owner": "/root/npair_original_witness_r9_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-18-npair-original-owner-audit-r9.md",
+      "owner": "/root/npair_original_owner_audit_r9",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-npair-original-owner-audit-r9.md",
+      "owner": "/root/npair_original_owner_audit_r9",
+      "state": "HELD"
     },
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
-      "owner": "/root/npair_fixed_c_r8_impl",
-      "state": "FROZEN"
+      "owner": "/root/npair_replay_two_row_r9_impl",
+      "state": "HELD"
     },
     {
-      "path": "crates/yu-solver/src/shadow_apply.rs",
-      "owner": "/root/npair_fixed_c_r8_impl",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-npair-replay-two-row-r9-impl.md",
+      "owner": "/root/npair_replay_two_row_r9_impl",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-npair-fixed-c-r8-impl.md",
-      "owner": "/root/npair_fixed_c_r8_impl",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-18-npair-fixed-c-interpretation-r8.md",
-      "owner": "/root/npair_fixed_c_r8_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-npair-fixed-c-r8-proof.md",
-      "owner": "/root/npair_fixed_c_r8_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r8.stdout.log",
+      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r9.stdout.log",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r8.stderr.log",
+      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r9.stderr.log",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r8.meta.json",
+      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r9.meta.json",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     }
   ],
   "pending": [
     {
-      "id": "review-r8-native-implementation",
-      "state": "RESULT",
-      "reviewer": "/root/npair_fixed_c_r8_impl_review",
-      "artifact": "frozen r8 source delta plus implementation handoff",
-      "sha256": "scheme=25ce531aa10d5f2ab85f363248f6d7ff0c062b93c70389e3d25f4a1b67e608bb;context=42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca;shadow_apply=eb0b9dcd8529e067ec8778c7888f3595ad8df466e1be4243b1d2104c853952d7;handoff=d927e9ade81585c6ec832e69a19075eec52ef843cc24fe3c7c41039125b2aa40",
-      "receipt": "CLEAN. Fresh compiler_referee review completed; see Luna runtime result separately."
+      "id": "r9-original-source-proof",
+      "state": "RUNNING",
+      "reviewer": "/root/npair_original_witness_r9_proof",
+      "artifact": "notes/theory/2026-10-18-npair-original-witness-r9.md + paired handoff",
+      "sha256": "contract pins only; final hash at freeze",
+      "receipt": "Await exact pin ACK; 900s cap."
     },
     {
-      "id": "r8-exact-runtime-failure",
-      "state": "BLOCKED",
-      "reviewer": "/root",
-      "artifact": "tasks/agent-loop/runtime/20261018-replay-constructor-r8.meta.json",
-      "sha256": "51cc528eebef6243f9968288c2688c18b4305a945566c431d9f0bcf61aed11e9",
-      "receipt": "One invocation, exit 101; assertion observed 2 target Replay rows versus expected 1. No retry/edit under r8; proof lane continues."
+      "id": "r9-original-owner-audit",
+      "state": "RUNNING",
+      "reviewer": "/root/npair_original_owner_audit_r9",
+      "artifact": "notes/theory/2026-10-18-npair-original-owner-audit-r9.md + paired handoff",
+      "sha256": "contract pins only; final hash at freeze",
+      "receipt": "Complementary read-only source owner inversion; 360s cap."
     },
     {
-      "id": "review-r8-fixed-c-proof",
-      "state": "RESULT",
-      "reviewer": "/root/npair_fixed_c_r8_proof_review",
-      "artifact": "notes/theory/2026-10-18-npair-fixed-c-interpretation-r8.md + paired handoff",
-      "sha256": "theory=d81fbe9969a10328dd8a9f65bfff6c0598767b770deb57f0b8244c3e2b2735e5;handoff=a672deb54c27ff9e57cc14ebfc414ca9c842df9b23c0ce2327e28a186ac6d2bb",
-      "receipt": "Review complete: candidate package coherent under FCW8; BLOCKING for original theorem promotion. Original formation designation, complete target view/license coverage, and actual consumer back/applicability remain open."
+      "id": "r9-two-row-implementation",
+      "state": "RUNNING",
+      "reviewer": "/root/npair_replay_two_row_r9_impl",
+      "artifact": "candidate_scheme named test + paired handoff",
+      "sha256": "scheme baseline 25ce531aa10d5f2ab85f363248f6d7ff0c062b93c70389e3d25f4a1b67e608bb",
+      "receipt": "Await pin ACK; bounded per-row diagnostics only; 360s cap."
     }
   ],
-  "ready_next_work": {
-    "id": "r9-two-row-provenance-diagnosis-plus-original-formation-coverage",
-    "state": "PROPOSED_NOT_AUTHORIZED",
-    "selector_receipt": "r8_failure_next_action_20261018, follow-up at r8 integration seam pending",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; fixed c and all original quantifiers/cases; OPEN/closure0",
-    "proof_outcome": "Use FCW8 only as a reviewed candidate. The original F_c to q designation, all-old target field/license coverage, rho_u, and actual consumer applicability/back laws are open.",
-    "implementation_outcome": "Enumerate both call-0 Replay rows by full dependency identity and trace each through occurrence/fresh-use/admission/emission/readback/FunctionPort. No expectation change.",
-    "requires": "Fresh versioned contract, explicit new resource envelope and exact leases; no r8 test retry or code write."
-  },
+  "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "All preceding r6/r7 writers and reviewers report completion/STOPPED with no descendants; exact frozen source handoffs retained."
+    "receipt": "r8 closeout committed at 84edaedae; r9 starts with fresh assignments and no inherited budget."
   },
   "next_action": "r8 lanes are assigned on frozen exact leases. Apply proof to the unchanged parent and complete the reviewed source/native test path; stop on the first exact-test failure or decisive counterexample."
 }
