@@ -39,7 +39,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "R70 owner map and callsite handoff active; no tests/builds/probes or code writes."
+      "receipt": "Owner map FROZEN: map SHA d7b840d5f52e44216e5317d085f348e927448b463c26afcc46ea9ec43e4623b8; handoff SHA 0b790dbff4ad4bdf900438da0964bc4e7a8214e8148b7ae511be17345734e212; no tests/builds/probes/code writes."
     },
     {
       "id": "/root/r68_retained_lambda_proof",
@@ -50,7 +50,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "R68-PROOF/1 FROZEN; WRITES_STOPPED at 2026-10-18T21:21:17Z; NO_DESCENDANTS. Theory SHA-256 5766aff1889a4ebc0a713c0fcc24039e4f4b492ba6d2a3f16fd4fc35c142b279; inbox SHA-256 75730970b3f82c8d1852801e56f2e549275b378281cb73db3cf9585cf44de3a9; contract and 30/30 pins MATCH at freeze. 307s wall/900s grant; CPU/RSS UNKNOWN."
+      "receipt": "STOPPED; R68-PROOF/1 FROZEN; theory/inbox hashes and 30/30 pins matched; 307s wall/900s grant; CPU/RSS UNKNOWN; no descendants."
     },
     {
       "id": "/root/r68_retained_lambda_counterreading",
@@ -61,7 +61,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "RESULT; WRITES_STOPPED; NO_DESCENDANTS. Frozen note SHA-256 638d07c5b99a0ea8505fa9e6365745b43e7c54e9528628849be9bbedab8af1b0 and inbox SHA-256 299d79c91977f283dd59f20bcb04605bda64cba40fd7166367ecb34a63559243; contract and 30/30 pins MATCH. 300s grant fully reserved; actual CPU/RSS/elapsed UNKNOWN."
+      "receipt": "STOPPED; frozen note/inbox hashes and 30/30 pins matched; 300s grant; CPU/RSS/elapsed UNKNOWN; no descendants."
     },
     {
       "id": "/root/r68_compiler_review",
@@ -72,7 +72,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "Fresh compiler/source-owner review complete; no BLOCKING/major/minor findings. Contract + 30/30 pins + six output hashes MATCH. STOPPED/READ_ONLY/NO_DESCENDANTS; no edits/Git/tests/builds/probes."
+      "receipt": "STOPPED/READ_ONLY; no findings; contract, 30 pins and six output hashes matched; no descendants."
     },
     {
       "id": "/root/r68_spec_review",
@@ -83,7 +83,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "Fresh spec/conformance review complete; no BLOCKING/major/minor findings. Contract + 30/30 pins + six output hashes MATCH. STOPPED/READ_ONLY/NO_DESCENDANTS; no edits/Git/tests/builds/probes."
+      "receipt": "STOPPED/READ_ONLY; no findings; contract, 30 pins and six output hashes matched; no descendants."
     },
     {
       "id": "/root/r70_ordinary_extrusion_proof",
@@ -99,13 +99,13 @@
     {
       "id": "/root/r70_extrusion_countertrace",
       "role": "R70 complementary transition counter-reading; exact countertrace and handoff only",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Actual launch acknowledged by collaboration runtime in current R70 session; independent attack active."
+      "receipt": "STOPPED/WRITES_STOPPED/NO_DESCENDANTS; frozen note SHA-256 6bb29d09fbf1440c964899815b95e06244cdd9ccc67ddf0dbe76d2016ec15b8e and inbox SHA-256 4fbb70a13a205f4b0cef9990d7ad630c0bc956a611ebcdf4461a2886e1bd90e8; CPU/RSS/elapsed UNKNOWN."
     }
   ],
   "leases": [
@@ -172,22 +172,22 @@
     {
       "path": "notes/progress/2026-10-19-r70-extrusion-countertrace.md",
       "owner": "/root/r70_extrusion_countertrace",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r70-research.md",
       "owner": "/root/r70_extrusion_countertrace",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r70-extrusion-owner-map.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r70-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -255,5 +255,6 @@
       "falsifier": "A concrete static trace shows lost obligations, wrong kind/polarity/level, broken sharing, unsupported mutation or false resource bound; or a complete invariant with justified entry premises and exact finite costs is accepted by fresh independent review."
     }
   ],
-  "closure": "R68 CLOSED — REVIEWED CONDITIONAL SAME-CARRIER LEMMA / EXACT UNSUPPLIED CONSUMER–BODY-CHECK–INVOCATION PREMISE / NO_SAFE_CODE_SLICE. Parent, R65/R66/R67, R64/R61 and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED. R68-OWNER-CONSUMER-1 remains OPEN for source-owner routing. No carryover."
+  "closure": "R68 CLOSED — REVIEWED CONDITIONAL SAME-CARRIER LEMMA / EXACT UNSUPPLIED CONSUMER–BODY-CHECK–INVOCATION PREMISE / NO_SAFE_CODE_SLICE. Parent, R65/R66/R67, R64/R61 and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED. R68-OWNER-CONSUMER-1 remains OPEN for source-owner routing. No carryover.",
+  "next_action": "Wait for the constructive proof author to freeze both leased outputs; then reconcile hashes and send exact frozen packets for fresh independent compiler/spec review."
 }
