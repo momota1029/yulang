@@ -2,43 +2,37 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r72-preparation",
+  "session": "current-conversation-2026-10-19-r73",
   "active_sprint": {
-    "id": "third-owner-prefix-20261019-r72",
-    "contract": "tasks/agent-loop/sprints/third-owner-prefix-20261019-r72.md",
+    "id": "helper-suffix-history-20261019-r73",
+    "contract": "tasks/agent-loop/sprints/helper-suffix-history-20261019-r73.md",
     "revision": 2,
-    "state": "CLOSED_REVIEWED_CONDITIONAL_UNFINISHED",
-    "baseline": "4916ef65306af1acec50df4cdab1d28f9ab0fa9f",
-    "contract_sha256": "7a5d49d2c5eb05f839020f89debedd440e9909658cdff676ef8be0b6e9f29883",
-    "parent": "Unchanged computation-forwarding preservation §§1,6–7; full inference/evaluator and Simple-sub A/B remain OPEN 0->0; R50 NOT_ADOPTED.",
-    "fixed_outcome": "For the exact annotated helper source, derive one third-owner physical slot/evidence -> qualified alias-changing merge -> later production Work::Bound copy -> independently justified consumer lineage, or the earliest authentic constructor obstruction. Single-case evidence only.",
+    "state": "ACTIVE",
+    "baseline": "69ecc0dc3c796f9ddbc4c7d815b1816dd97c5ccd",
+    "contract_sha256": "25b360d23fee6ee41482486facaaa602db8008fafdb0b4e5d94f594e43bf772f",
+    "parent": "Unchanged computation-forwarding preservation §§1,6–7; full inference/evaluator and Simple-sub A/B OPEN 0->0; R50 NOT_ADOPTED.",
+    "fixed_outcome": "Continue the exact R72 source/history from a complete helper-Local cut-state through replay/memo, later production Work::Bound and independently licensed consumer lineage, or earliest authentic obstruction; unfinished stays OPEN.",
     "dependencies": {
-      "manifest": "27 direct SHA-256 pins MATCH baseline and live bytes; includes HIR local-source/annotation, ordinary Apply admission, call registration, Function terms, and candidate scope owners.",
-      "dispatcher_start": "Selector accepted revision 2 exact hash 7a5d49d2c5eb05f839020f89debedd440e9909658cdff676ef8be0b6e9f29883; 27/27 pins MATCH. No semantic vote or source-range change.",
-      "reconciliation": "R71 proof, countertrace, owner map, both reviewers, closeout all STOPPED; frozen receipts verified in R71 closeout SHA 4b5f57b27d5bfbb0b3e4f7cfa86c03488f5d02f995c7f861dbe29e0d448edd3b. No unknown R71 writers/descendants; only Luna owns current and candidate contract.",
-      "authority": "Top-level inference principles §§1–3; R53 premises reused only when instantiated; R55 remains complementary direct-Name evidence."
+      "manifest": "32 direct SHA-256 pins MATCH baseline Git blobs and live bytes; R72 contract + four outputs are included, separate reviewer receipts are activation-context, not manifest inputs.",
+      "dispatcher_start": "Accepted exact revision 2 SHA 25b360d23fee6ee41482486facaaa602db8008fafdb0b4e5d94f594e43bf772f; 32/32 pins MATCH; no grant from selector.",
+      "authority": "Top-level inference principles §§1–3 and unchanged parent §§1,6–7; candidate does not close parent/A/B or authorize code/semantics.",
+      "reconciliation": "R72 proof and both reviewers STOPPED/NO_DESCENDANTS; all four R72 artifacts frozen and reviewed conditional. No unknown writers/leases; prior R72 checkpoint 69ecc0dc3 is pushed."
     },
     "resources": {
-      "cap_seconds": 1800,
-      "charged_seconds": 1800,
+      "cap_seconds": 2400,
+      "charged_seconds": 2400,
       "available_seconds": 0,
-      "allocation": "Grant issued once: proof lane 600s; Luna source/implementation-owner map 500s; fresh compiler review 200s; fresh spec review 200s; Luna integration 300s. Astra 0; no carryover."
+      "allocation": "Grant once: Astra core proof 300s max; Sol complementary counter-reading 900s; Luna owner map 500s; fresh compiler/spec reviews 200s each; Luna integration 300s. No carryover; Astra aggregate within 300s sprint cap."
     },
-    "next_action": "Run the fixed case across actual source/call/term/extrusion/merge/consumer owners. Proof must return A/B/C or unfinished/open; Luna maps constructor-to-consumer and checks for a safe proof-independent code slice. No tests/code/semantic writes.",
-    "history": "R70 CLOSED REVIEWED CONDITIONAL; R71 CLOSED REVIEWED CONDITIONAL with raw/canonical target OPEN. Parent/A/B OPEN 0->0; R50 NOT_ADOPTED.",
-    "freeze_receipt": {
-      "outcome": "UNFINISHED_OPEN; neither A/B/C established; exact first qualified helper group and initial third-owner slot derived; later occurrence/consumer join open",
-      "proof_note_sha256": "504abc36cd877407b57b744484640c3fb2f8e12d09f08bfe90188dc700ee18a5",
-      "proof_inbox_sha256": "8e30e80a5e382fe6e3a88a65933ac5eb787e5b7773bae72657f3eb2348668401",
-      "owner_map_sha256": "e6ab1ac3c2b02e668980bf5ccef94877505501a5b3465248e68866de58d4fb67",
-      "implementation_inbox_sha256": "adff1dc79b175d6ccacf36b75abaf275eeb3a6fab7d4e9d51e747a267303813d",
-      "proof_grant_charged_seconds": 600,
-      "proof_runtime_cpu_rss": "UNKNOWN",
-      "check": "27/27 baseline/live pins MATCH; python3 tools/agent_sprint.py check PASS; git diff --check PASS",
-      "proof_worker": "STOPPED / WRITES_STOPPED / NO_DESCENDANTS",
-      "review": "Independent compiler/source and spec reviews: no BLOCKING/major/minor findings; four frozen outputs and 27 pins MATCH. Both STOPPED/READ_ONLY/NO_DESCENDANTS."
-    },
-    "dispatcher_end": "Selector recommends closing R72 UNFINISHED; continue same source through complete cut-state, replay/memo and consumer join as successor; no auto-grant."
+    "next_action": "Reconstruct complete helper Local cut-state, then trace restoration/replay, both loop-Lambda demands, memo recapture, loop Local boundary1, later production Work::Bound and consumer; return A/B/C or UNFINISHED/OPEN.",
+    "history": "R72 CLOSED REVIEWED CONDITIONAL/UNFINISHED, commit 69ecc0dc3 pushed; initial K_t item does not alias at first group. R71 coverage and original parent/A/B remain OPEN.",
+    "activation_receipt": {
+      "selector": "R73 revision 2 exact SHA 25b360d23fee6ee41482486facaaa602db8008fafdb0b4e5d94f594e43bf772f accepted; 32/32 pins MATCH; selector did not grant resources or spawn workers.",
+      "R72_compiler_review": "/root/r72_compiler_review STOPPED; no blocking/major/minor; 27/27 pins and all four frozen output hashes match; bounded static review only.",
+      "R72_spec_review": "/root/r72_spec_review STOPPED; no blocking/major/minor; contract, 27/27 pins and four frozen output hashes match; bounded static conformance review only.",
+      "review_scope": "R72 review receipts are recorded here as Luna adjudication context and are not R73 manifest dependencies.",
+      "observations": "All prior writers/reviewers/selector STOPPED; no descendants or unknown leases. Requested model/effort observations remain UNKNOWN unless supported by worker receipts."
+    }
   },
   "workers": [
     {
@@ -49,19 +43,30 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r72-preparation",
-      "receipt": "R72 frozen and reviewed conditional; UNFINISHED/OPEN neither A/B/C. 27 pins + all hashes verified; no minor findings. Dispatcher end: successor should derive complete cut-state and later occurrence, no auto-grant."
+      "session": "current-conversation-2026-10-19-r73",
+      "receipt": "R73 activated after selector rev2 exact-hash acceptance, 32/32 pins and runtime/lease reconciliation; full 2400s grant charged; producer launches pending."
     },
     {
-      "id": "/root/r72_proof",
-      "role": "R72 constructive source-history/obstruction proof; exact note and handoff only",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-sol",
-      "requested_effort": "high",
+      "id": "/root/r73_astra",
+      "role": "R73 bounded multi-stage core proof; exact theory note and proof inbox only",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6-astra",
+      "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r72-preparation",
-      "receipt": "Frozen R72-THIRD-OWNER-PROOF rev1 UNFINISHED/OPEN, neither A/B/C; theory+inbox hashes in freeze_receipt; 27/27 pins and whitespace checks MATCH; 600s charged; runtime/CPU/RSS UNKNOWN; STOPPED/NO_DESCENDANTS."
+      "session": "current-conversation-2026-10-19-r73",
+      "receipt": "Exact 300s aggregate Astra allocation reserved; NOT_STARTED until supported launch receipt."
+    },
+    {
+      "id": "/root/r73_researcher",
+      "role": "R73 independent Sol scheduler/counter-reading; exact counter-reading note and research inbox only",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r73",
+      "receipt": "Exact 900s complementary lease reserved; NOT_STARTED until supported launch receipt."
     }
   ],
   "leases": [
@@ -71,29 +76,39 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/third-owner-prefix-20261019-r72.md",
+      "path": "tasks/agent-loop/sprints/helper-suffix-history-20261019-r73.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/progress/2026-10-19-r72-third-owner-prefix-owners.md",
+      "path": "notes/theory/2026-10-19-r73-helper-suffix-history.md",
+      "owner": "/root/r73_astra",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r73-proof.md",
+      "owner": "/root/r73_astra",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r73-suffix-counter-reading.md",
+      "owner": "/root/r73_researcher",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r73-research.md",
+      "owner": "/root/r73_researcher",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r73-suffix-consumer-owners.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r72-implementation.md",
+      "path": "tasks/agent-loop/inbox/20261019-r73-implementation.md",
       "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
-      "owner": "/root/r72_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r72-proof.md",
-      "owner": "/root/r72_proof",
-      "state": "FROZEN"
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -176,5 +191,5 @@
     }
   ],
   "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 CLOSED REVIEWED CONDITIONAL with coverage target OPEN. R70 operation target, original parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-  "next_action": "R72 closed REVIEWED CONDITIONAL/UNFINISHED. Prepare exact R73 successor candidate for same source/suffix and complete cut-state; dispatcher proposed A/B/C-or-open, no grant. Parent/A/B OPEN 0->0; R50 NOT_ADOPTED."
+  "next_action": "R73 active with full 2400s grant charged. Launch Astra core proof and Sol complementary counter-reading in parallel with Luna owner map under exact leases."
 }
