@@ -1,0 +1,37 @@
+{
+  "sprint": "npair-replay-constructor-lineage-20261018-r7",
+  "contract_sha256": "85d2eaefa427b238d554a69ec8049e238fd9ac446d6caded53e1eed1fb7e4d16",
+  "command": "timeout 120s cargo test --offline -p yu-solver --features shadow-apply-candidate candidate_scheme::authentic_demand_capture_tests::replay_constructor_lineage_observes_rejected_cross_route_authentication --lib -- --exact --nocapture",
+  "started_utc": "2026-10-18 (exact start timestamp not retained)",
+  "duration_seconds_observed_by_exec": 11.669,
+  "exit_status": 101,
+  "result": "Compilation failed before test execution; no test executable was produced/launched. No retry authorized.",
+  "source_sha256": {
+    "candidate_scheme.rs": "17ec98c43ca211a60f4f99c873186788e3d0ee0788fab4cfad95078769281eac",
+    "candidate_context.rs": "42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca"
+  },
+  "executable_sha256": null,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "d8aa4f6fca2e6b672105e6aef8c9fa2c912ee76fd56aefa828ec6ea347ded297",
+  "diagnostics": [
+    {
+      "path": "crates/yu-solver/src/candidate_scheme.rs",
+      "line": 2844,
+      "code": "E0308",
+      "message": "expected BoundAdmissionId, found &BoundAdmissionId; compiler suggests dereferencing admission_id."
+    },
+    {
+      "path": "crates/yu-solver/src/shadow_apply.rs",
+      "line": 2272,
+      "code": "E0063",
+      "message": "missing Graph.capture_rows field in initializer."
+    },
+    {
+      "path": "crates/yu-solver/src/shadow_apply.rs",
+      "line": 2377,
+      "code": "E0063",
+      "message": "missing Graph.capture_rows field in initializer."
+    }
+  ],
+  "classification": "One compiler error is inside the r7 test delta; two are in a pre-existing dirty, unleased shadow_apply.rs. Exact invocation consumed; do not rerun under r7."
+}

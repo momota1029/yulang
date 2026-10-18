@@ -71,3 +71,39 @@ No tests/Cargo/runtime were run; final delta review must be CLEAN before executi
 Checks, coverage, omitted cases and resource budget spent/remaining: source reads/rg only; no tests/build/Cargo/runtime/Git. Audit consumed within implementation 1920s allocation; protected runtime360 untouched; authoring cap/time remaining UNKNOWN pending primary accounting. Exact before/after: no source bytes changed.
 Worker state / writes stopped receipt / unresolved descendant leases: WAITING; no code writes; descendants0; no active descendants to reconcile.
 Commit-ready milestone or explicit pending review/integration: not commit-ready; source-owner map awaits early independent review and Luna continuation.
+
+## Rev5 compile repair — sequential handoff revision 4
+
+Sprint-ID / contract revision and SHA-256: `npair-constructor-owned-replay-certificate-20261018`, rev5, `efa21604c21da239d6a00ba59fce8b9f27594c96c3749c625c38fe52aea85bdc`.
+Assignment-ID / handoff revision: constructor-owned-replay implementation / 4. Frozen baseline: `770427758`.
+Parent gate: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, original quantifiers/source domain unchanged, OPEN.
+Role / worker / descendants: Luna/high implementation author `/root/constructor_replay_compile_repair_r5`; descendants 0. Requested model/effort Luna/high; observed model/effort UNKNOWN.
+Exact rev5 author leases: `crates/yu-solver/src/candidate_context.rs`, `crates/yu-solver/src/shadow_apply.rs`, and this handoff. Fresh author ACK preceded writes; monotonic start `193027436474 ns`.
+
+The frozen first runtime receipt reports E0282 at the `test_remove_bound_member` linked-list cursor assignment and six E0308 mismatches where `RelationId.0: u32` populated existing `usize` observer fields. Only those causes were corrected: `previous` is explicitly `Option<usize>`; the six relation values are converted with `as usize` at the observer boundary. Observer field types and numeric values, solver behavior, and all expectations are unchanged. No other code or test changes were made.
+
+Frozen artifact SHA-256:
+- `crates/yu-solver/src/candidate_context.rs`: `67f831ac89800e065684cb3358e5b456d7e1b6e0b20f7cb9f3d4e1fc2f0e2b1a`
+- `crates/yu-solver/src/shadow_apply.rs`: `396b288b53be76631cd0a5d748b7f19c6d3a73fc42e35001c503bed468ecc996`
+
+Checks: source inspection and exact hash capture only. No Cargo, tests, runtime, formatter, or Git command was run. This repairs the seven diagnosed compile errors only; no source/native runtime behavior was observed. The exact three-command rev5 sequence remains locked pending fresh independent CLEAN review, then belongs to Luna under the frozen contract.
+
+Resource receipt: hard author cap 180s; monotonic stop `205620066626 ns`, elapsed `12.593s`, within cap. Code bytes were frozen before this handoff update. Writes STOPPED, descendants 0, no pending writer or runtime launch. Parent theorem remains OPEN, theorem closure 0, production unauthorized.
+
+Frozen handoff SHA-256 is recorded after this sequential revision is written; review target is the exact bytes then frozen. Next in-envelope step: fresh independent review of only the two diagnosed repairs plus preserved rev4 CLEAN assertions and observer contract; no runtime before CLEAN.
+
+## Rev6 replay-fixture repair — sequential handoff revision 6
+
+Sprint-ID / current contract revision and SHA-256: `npair-fixed-c-and-replay-siblings-20261018`, rev6, `53015eaab029f085345de5c0513de5f9f63b952c9816faca278634b6ef99b584`. Parent gate remains `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, original quantifiers and source domain unchanged, OPEN; closure 0 and production unauthorized.
+Assignment-ID / handoff revision: constructor-owned-replay implementation / 6 (primary correction to review finding). Baseline: `770427758` plus the pinned clean rev5 deltas. Fresh ACK from Luna received before writes; exact artifact leases are `crates/yu-solver/src/candidate_scheme.rs` and this handoff. Worker path `/root/replay_fixture_impl_r6`; descendants 0. Requested model/effort Luna/high; observed model/effort UNKNOWN.
+Source/dependency pins verified before edits: contract `53015eaab029f085345de5c0513de5f9f63b952c9816faca278634b6ef99b584`; baseline `candidate_scheme.rs` `cbfd62be7243842aa952c4c1ee29d0e29b58506e2c400539c321a6b1070501d0`; `candidate_context.rs` `67f831ac89800e065684cb3358e5b456d7e1b6e0b20f7cb9f3d4e1fc2f0e2b1a`; `shadow_apply.rs` `396b288b53be76631cd0a5d748b7f19c6d3a73fc42e35001c503bed468ecc996`; `src/tests/candidate_graph_call.rs` `7ff60ecb30e3815ba703463c87f053d66bf2d0c1833784dc64f993203fcdf5ef`. Contract's rev5 helper stdout/stderr/meta pins remain unchanged.
+
+Author receipt: local monotonic start `591482300345 ns`, after the exact Luna ACK. The rev5 fixture supplied only `outer`, whose body returned the local `local` higher-order function; it had no module `invoke id` uses and never passed a concrete Function to `local`. Rev6 adds the module `invoke id` pair and applies `local` twice with concrete module Function `id` arguments. The retained consumer requires an actual native source call before its FreshUse/Replay rows can populate. The owner path remains source HIR Apply → candidate scoped collection → Function lower/typed rows → successful `InferenceSession::execute` → retained Replay demand rows and `authenticate_demand_transport` → four FunctionPort consumers. This points to fixture reachability; no checker defect was observed in the inspected constructor chain, and no checker code changed.
+
+Small fixture-only correction in the existing replay authentication test: added the module `invoke id` pair and its controls, then applied local higher-order `local` twice as `local id 0` and `local id 1`, with concrete module Function `id` arguments. Existing Module/Local owner-positive assertions, both sibling-positive assertions, all negative mutations and restoration assertions remain byte-for-byte unchanged. No source-domain, semantic, expected-output, diagnostic, checker or solver changes.
+
+Outcome class: source-native fixture contribution, provisional pending the exact contract's CLEAN independent review and Luna's prescribed sequential runtime commands. It is not runtime evidence or a theorem/source correspondence proof. No Cargo, tests, runtime, formatter or Git commands were run. Static diff inspection only. No scratch/generated paths created. New/changed paths are exactly the two leased paths in this revision.
+
+Frozen artifact SHA-256: `crates/yu-solver/src/candidate_scheme.rs` `b0c0c27dd6eb5b67a204478b1cd2d5011b40bf0c5270562716578ffdaa746df8`; unchanged dependencies remain `candidate_context.rs` `67f831ac89800e065684cb3358e5b456d7e1b6e0b20f7cb9f3d4e1fc2f0e2b1a`, `shadow_apply.rs` `396b288b53be76631cd0a5d748b7f19c6d3a73fc42e35001c503bed468ecc996`, and `src/tests/candidate_graph_call.rs` `7ff60ecb30e3815ba703463c87f053d66bf2d0c1833784dc64f993203fcdf5ef`. Author writes stopped after fixture freeze at local monotonic `649313433438 ns`. Luna corrected the two history statements after the independent MINOR finding; no source bytes changed. The corrected handoff is revision 6 and has a new hash. No review claim is made by the producer.
+
+Next in-envelope step: the code delta received independent CLEAN review; its MINOR handoff wording finding is corrected here and awaits a short reviewer delta receipt. After that receipt, Luna may run the exact rev6 runtime sequence under its existing command/stop rules. Any failed positive route invalidates only its dependent source/runtime claim. The fixed-c proof lane and parent theorem remain open and independent.

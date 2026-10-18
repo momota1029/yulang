@@ -191,3 +191,40 @@ No Cargo/tests/runtime before CLEAN delta verdict. If CLEAN, Luna may release th
 existing protected runtime360 once under the rev3 commands; one failure ends
 that runtime grant without retry. Parent closure remains 0 absent a separate
 proof of the original obligation.
+
+## Revision 5 — compile the reviewed replay certificate (2026-10-18)
+
+Rev5 continues the same parent and fixed outcome after the first approved runtime command exposed compile blockers. The rev4 candidate at `770427758` and its CLEAN static delta review remain immutable. Rev4 runtime command 1 failed once after 15.079s (exit 101); commands 2–3 were not run and may not be retried under rev4. Rev5 starts a fresh verification grant; no prior runtime attempt is repeated as part of rev4.
+
+No language rule, solver behavior, theorem quantifier, source domain, or production boundary changes. The exact compiler-only repair is:
+
+- annotate the test helper's linked-list cursor as `Option<usize>` in `candidate_context.rs`;
+- explicitly convert the six `RelationId.0: u32` values to the existing observer record's `usize` fields at the presentation boundary in `shadow_apply.rs`; keep the public observer field types and numeric values unchanged.
+
+The first failing output is frozen at `tasks/agent-loop/runtime/20261018-replay-fiber-consumer.helpers.{stdout,stderr}.log` with exit/timing metadata in the paired `.meta.json`. The specific diagnostics were E0282 at `candidate_context.rs:1874` and six E0308 mismatches at `shadow_apply.rs:316–325`. No other correction is authorized under this revision. A newly revealed compile error or semantic discrepancy stops the verification sequence and returns to Luna for a new delta.
+
+### Rev5 resources and exact leases
+
+The old 7200s envelope is closed with 6298.398s charged, 841.602s expired, and its final 60s retained only for primary closeout. The rev5 fresh tranche adds 720s (cumulative accounting ceiling 7920s), allocated as:
+
+| Stage | Seconds |
+|---|---:|
+| Luna/high author repair | 180 |
+| Fresh independent review (static 90 + runtime receipt delta 30) | 120 |
+| Fresh exact runtime sequence | 360 |
+| Primary integration | 60 |
+
+The final old 60s are reserved for primary closeout of rev4's failure receipt; the new tranche includes 60s for rev5 integration, for 780s total available at rev5 opening. Charge actual command time; unused authoring slack expires at the author stop. Review/runtime stages remain locked until their gates open. Astra0; no reserve or rollover. One heavy process at a time.
+
+The sole implementation repair lease is:
+- `crates/yu-solver/src/candidate_context.rs`
+- `crates/yu-solver/src/shadow_apply.rs`
+- `tasks/agent-loop/inbox/20261018-constructor-owned-replay-impl.md`
+
+Require a fresh author ACK with the rev5 contract hash, exact paths, and monotonic start before writes. Freeze exact hashes and STOP before independent review. No Cargo or tests during authoring. The reviewer checks only the two diagnosed changes and confirms the rev4 CLEAN assertions and observer contract are unchanged; verdict must be CLEAN before runtime. The same fresh reviewer inspects the complete runtime receipt delta within the remaining 30s grant; this does not replace Luna's runtime adjudication.
+
+### Rev5 runtime and stop rules
+
+After CLEAN review, Luna runs the same three authorized command strings once, sequentially, each under `timeout 120s`; the sequence stops on its first failure. Each command's stdout, stderr, UTC start/end, monotonic elapsed time, and exit code is captured in uniquely named rev5 logs under prefix `20261018-replay-fiber-consumer-r5.{helpers,graph,example}`. No command is retried. This is a fresh grant because rev4's runtime authorization terminated at its first failure, not permission to rerun a rev4 command.
+
+For a nonzero command, record the failure and stop; do not infer a passing source/native path. If all three pass, they establish only the exercised implementation behavior and fixture observations. The original parent remains OPEN, theorem closure remains 0, and production remains unauthorized until the original proof gates are independently closed.

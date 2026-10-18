@@ -1,0 +1,12 @@
+{
+  "command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver --features shadow-apply-candidate authentic_demand_capture_tests --lib",
+  "start_utc": "2026-10-18T02:11:16.192829+00:00",
+  "end_utc": "2026-10-18T02:11:19.887575+00:00",
+  "monotonic_start_ns": 1198690849563,
+  "monotonic_end_ns": 1202385583597,
+  "elapsed_seconds": 3.694734034,
+  "exit_code": 101,
+  "stdout_bytes": 1321,
+  "stderr_bytes": 2186,
+  "result": "FAIL"
+}

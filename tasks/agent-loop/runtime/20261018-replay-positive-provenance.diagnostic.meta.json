@@ -1,0 +1,36 @@
+{
+  "argv": [
+    "timeout",
+    "120s",
+    "env",
+    "YU_CALL_REPLAY_OBSERVER=1",
+    "cargo",
+    "test",
+    "--offline",
+    "-p",
+    "yu-solver",
+    "--features",
+    "shadow-apply-candidate",
+    "candidate_scheme::authentic_demand_capture_tests::retained_demand_transport_authenticates_distinct_uses_and_rejects_wrong_use_or_root",
+    "--lib",
+    "--",
+    "--exact",
+    "--nocapture"
+  ],
+  "shell_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver --features shadow-apply-candidate candidate_scheme::authentic_demand_capture_tests::retained_demand_transport_authenticates_distinct_uses_and_rejects_wrong_use_or_root --lib -- --exact --nocapture",
+  "start_utc": "2026-10-18T02:36:13.285647+00:00",
+  "end_utc": "2026-10-18T02:36:21.516675+00:00",
+  "elapsed_ns": 8230989127,
+  "exit_code": 101,
+  "stdout_bytes": 428,
+  "stderr_bytes": 9237,
+  "stdout_sha256": "05c536a2d2a5265687b16362fec6d0909a8dfbed178d69c8feb90a83972cf813",
+  "stderr_sha256": "6966e24792eb97eaf26498f7e975cdc919fd0d19cb283666b613d78adcac49a3",
+  "contract": "tasks/agent-loop/sprints/npair-provenance-complete-replay-and-operation-rules-20261018-r2.md",
+  "contract_sha256": "042bb54772338781618e5243e576e8e8cd39050eee4df8af66b37346c44765a6",
+  "source": {
+    "candidate_scheme.rs": "0c55d3d47bc88166a68eb5f5797043b136a2d2bc0ace55de832e8e27ca20a07f",
+    "candidate_context.rs": "f2ecbadcc33e4439c57429cb6a6ce5bcdfd5c3131f5b5ebb9d1e03a0e224f569",
+    "shadow_apply.rs": "6508a3f39a6d3742110ca1f33e927fa26bd3b112c3f378fc345294675b7f69e3"
+  }
+}
