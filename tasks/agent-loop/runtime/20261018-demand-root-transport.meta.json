@@ -1,0 +1,30 @@
+{
+  "sprint": "npair-demand-transport-correspondence-20261018",
+  "contract_revision": 1,
+  "contract_sha256": "cff32b05adde3721c89eb86a97277cb56e9cfd7ee24c956bfd39a11f6e9d3422",
+  "baseline": "f2d66da08",
+  "prior_closeout_commit": "f2d66da08",
+  "prior_observer_mismatch": {
+    "row": "call=0 child=61 lower=58 upper=35 use_instance=1 demand_root=Term{brand:3,index:297}",
+    "native_root_matches": false,
+    "lower_endpoint_matches": true,
+    "upper_endpoint_matches": true
+  },
+  "proof_review": "NOT_STARTED",
+  "implementation_review": "NOT_STARTED",
+  "primary_release": {
+    "status": "NOT_RELEASED",
+    "no_retry": true
+  },
+  "test_invocation": 0,
+  "test_status": "NOT_RUN",
+  "test_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver --features shadow-apply-candidate candidate_graph_call --lib",
+  "test_stdout_path": "tasks/agent-loop/runtime/20261018-demand-root-transport.test.stdout.log",
+  "test_stderr_path": "tasks/agent-loop/runtime/20261018-demand-root-transport.test.stderr.log",
+  "example_invocation": 0,
+  "example_status": "NOT_RUN",
+  "example_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo run --offline -p yu-solver --features shadow-apply-candidate --example research_scoped_formal_replay",
+  "example_stdout_path": "tasks/agent-loop/runtime/20261018-demand-root-transport.example.stdout.log",
+  "example_stderr_path": "tasks/agent-loop/runtime/20261018-demand-root-transport.example.stderr.log",
+  "parent_conditions_closed": 0
+}
