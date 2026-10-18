@@ -1,0 +1,131 @@
+diff --git a/crates/yu-solver/src/shadow_apply.rs b/crates/yu-solver/src/shadow_apply.rs
+index 549a15487..b7325bf8d 100644
+--- a/crates/yu-solver/src/shadow_apply.rs
++++ b/crates/yu-solver/src/shadow_apply.rs
+@@ -2219,6 +2219,86 @@ mod tests {
+         assert!(calls.iter().all(|call| call.unresolved() == UNRESOLVED));
+     }
+     #[test]
++    fn ordinary_call_result_projects_from_its_source_apply_to_native_result() {
++        let hir = crate::candidate_lifecycle_retirement::hir(
++            "my loop y = loop y; my id x = x; my result = id 1",
++        );
++        let mut session = InferenceSession::try_new_candidate(
++            ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap(),
++        )
++        .unwrap();
++        session.execute().unwrap();
++
++        let state = &session.batch.candidate_calls;
++        assert_eq!(state.calls.len(), 2);
++        let call = &state.calls[0];
++        let native = call.native.expect("Apply admission retains NativeInterface");
++        let source = hir.local_source_for(&call.owner).unwrap().unwrap();
++        let expression = source.expressions().get(call.expression).unwrap();
++        assert!(matches!(&expression.form, LocalSourceForm::Apply { callee, argument, .. }
++            if callee == &call.callee && argument == &call.argument));
++        assert_eq!(call.checking.occurrence(), &expression.occurrence);
++        assert_eq!(
++            hir.occurrence_source_key(&call.checking.occurrence()).unwrap(),
++            Some(&expression.source),
++        );
++        let observed = crate::candidate_call::observe(&hir, &session.store, state, 0).unwrap();
++        assert!(observed.pending_construction().suppliers().any(|supplier|
++            supplier == crate::candidate_call::PendingCallSupplier::OriginalGenCall0));
++        assert_eq!(observed.unresolved(), UNRESOLVED);
++
++        let result_component = session.live_components[call.result].ordinal;
++        assert_eq!(
++            session.value_endpoint(native.result, Polarity::Negative),
++            session.canonical_value(ValueEndpointKey::ValueRow(result_component)),
++            "NativeInterface.result is the original ApplySourceInput.result endpoint",
++        );
++        let demand = InferenceSession::negative_function_children(
++            &session.store,
++            session.value_endpoint(native.demand, Polarity::Negative),
++        )
++        .expect("Apply demand has four native function ports");
++        assert_eq!(
++            demand,
++            (
++                native.argument,
++                native.argument_effect,
++                native.invocation_effect,
++                native.result,
++            ),
++        );
++
++        let mut wrong_occurrence = state.clone();
++        assert_ne!(wrong_occurrence.calls[0].checking, wrong_occurrence.calls[1].checking);
++        wrong_occurrence.calls[0].checking = wrong_occurrence.calls[1].checking.clone();
++        assert!(crate::candidate_call::observe(
++            &hir, &session.store, &wrong_occurrence, 0,
++        ).is_err());
++
++        let mut invocation_substitution = state.clone();
++        assert_ne!(native.invocation_effect, native.application_effect);
++        invocation_substitution.calls[0].native.as_mut().unwrap().invocation_effect =
++            native.application_effect;
++        assert!(crate::candidate_call::observe(
++            &hir, &session.store, &invocation_substitution, 0,
++        ).is_err());
++
++        let mut result_substitution = state.clone();
++        let other_result = result_substitution.calls[1].native.unwrap().result;
++        assert_ne!(native.result, other_result, "fixture keeps the two Apply result ports distinct");
++        result_substitution.calls[0].native.as_mut().unwrap().result = other_result;
++        assert!(crate::candidate_call::observe(
++            &hir, &session.store, &result_substitution, 0,
++        ).is_err());
++
++        let mut provider_substitution = state.clone();
++        assert_ne!(native.result, native.callee);
++        provider_substitution.calls[0].native.as_mut().unwrap().result = native.callee;
++        assert!(crate::candidate_call::observe(
++            &hir, &session.store, &provider_substitution, 0,
++        ).is_err());
++    }
++    #[test]
+     fn direct_source_int_application_records_int_function_conflict() {
+         let candidate = CandidateInference::solve(crate::candidate_lifecycle_retirement::hir(
+             "my bridge x = 1 1",
+diff --git a/crates/yu-solver/tests/candidate_local_self_recursion.rs b/crates/yu-solver/tests/candidate_local_self_recursion.rs
+index 4a875d195..8edbfd285 100644
+--- a/crates/yu-solver/tests/candidate_local_self_recursion.rs
++++ b/crates/yu-solver/tests/candidate_local_self_recursion.rs
+@@ -101,6 +101,35 @@ fn nested_helper_uses_active_outer_root_without_freshening_it() {
+     assert_eq!(uses.iter().filter(|expression| candidate.fresh_use(&expression.occurrence).is_none()).count(), 1);
+ }
+ 
++#[test]
++fn active_outer_root_two_helper_uses() {
++    let hir = module("my outer = { my loop x = { my direct = loop x; my helper y = loop y; my first = helper x; my second = helper x; helper x }; loop }");
++    let source = hir.local_source(root(&hir, "outer")).unwrap().unwrap();
++    let local = |name: &str| source.bindings().iter()
++        .find(|binding| binding.spelling.as_ref() == name).unwrap().id.clone();
++    let loop_local = local("loop");
++    let helper_local = local("helper");
++    let recursive_apply_names: Vec<_> = source.expressions().iter().filter(|expression| matches!(&expression.form,
++        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &loop_local))
++        .filter(|name| source.expressions().iter().any(|expression| matches!(&expression.form,
++            LocalSourceForm::Apply { callee, .. } if *callee == name.id))).collect();
++    assert_eq!(recursive_apply_names.len(), 2, "direct loop x and nested loop y remain distinct recursive calls");
++    let helper_names: Vec<_> = source.expressions().iter().filter(|expression| matches!(&expression.form,
++        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &helper_local)).collect();
++    assert_eq!(helper_names.len(), 3, "the fixture has three literal helper uses");
++
++    let candidate = CandidateInference::solve(hir.clone()).unwrap();
++    assert!(candidate.candidate_conflicts().is_empty());
++    assert!(recursive_apply_names.iter().all(|name| candidate.fresh_use(&name.occurrence).is_none()),
++        "both direct and nested active-root loop calls stay on the monomorphic root");
++    let helper_routes: Vec<_> = helper_names.iter().take(2)
++        .filter_map(|expression| candidate.fresh_use(&expression.occurrence)).collect();
++    assert_eq!(helper_routes.len(), 2, "two selected helper source uses execute through FreshUse reconstruction");
++    assert!(helper_routes.iter().all(|route| route.rows().all(|row|
++        row.kind() == row.source_row().kind())));
++    assert!(candidate.export(root(&hir, "outer")).is_ok());
++}
++
+ #[test]
+ fn sequential_visibility_and_plain_value_self_initialization_controls() {
+     for text in [
