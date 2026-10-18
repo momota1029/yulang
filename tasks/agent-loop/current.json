@@ -25,18 +25,18 @@
       "next_action": "R56 evidence, hashes, reviews, dispatcher recommendation and task sync are complete; finish exact-path commit/push, then prepare the R57 candidate contract under primary authority."
     },
     "next_action": "R56 CLOSED as reviewed bounded exclusion; finish exact-path commit/push. R57 second-forward-use source trace remains a candidate, not yet authorized.",
-    "history": "R55 CLOSED and pushed at 90f40f4b1. Original mapped-admission premise remains OPEN 0->0; no source-qualified falsifier; R50 NOT ADOPTED. Dispatcher selected a distinct source-owner trace around forward x / loop x, not a repeated general induction. R56 contract rev1 primary-approved after 23/23 dependency hashes MATCH and before writes. Exact source includes concrete act io declaration. No parser, test, solve, runtime or code authority. Sol R56 proof lane STOPPED/WRITES_STOPPED/NO_DESCENDANTS after 900 seconds; proof and handoff frozen. Luna read-only source-owner trace frozen after source inspection; both Luna exact outputs frozen. All four output hashes recorded; 23/23 contract pins rechecked MATCH. Candidate bounded exclusion applies only to this exact source under successful ordinary constructor prefixes; parent OPEN 0->0. No code/test/solver/runtime authority. Fresh compiler referee and spec auditor both CLEAN; each independently matched four frozen outputs and 23/23 dependency pins. Bounded result: this exact original-domain source does not supply original-forward alias/exposure under successful ordinary constructor prefixes; no solve/runtime claim. Both reviewers STOPPED; no code slice. Next candidate input selection remains Luna-owned. End-boundary dispatcher recommends a distinct candidate input with second direct `forward x` after recursive `loop x`, retaining final z; this preserves the recursive loop↔z qualification and tests a real second same-provider capture. No R57 contract, lease, or worker is active yet.",
+    "history": "R55 CLOSED and pushed at 90f40f4b1. Original mapped-admission premise remains OPEN 0->0; no source-qualified falsifier; R50 NOT ADOPTED. Dispatcher selected a distinct source-owner trace around forward x / loop x, not a repeated general induction. R56 contract rev1 primary-approved after 23/23 dependency hashes MATCH and before writes. Exact source includes concrete act io declaration. No parser, test, solve, runtime or code authority. Sol R56 proof lane STOPPED/WRITES_STOPPED/NO_DESCENDANTS after 900 seconds; proof and handoff frozen. Luna read-only source-owner trace frozen after source inspection; both Luna exact outputs frozen. All four output hashes recorded; 23/23 contract pins rechecked MATCH. Candidate bounded exclusion applies only to this exact source under successful ordinary constructor prefixes; parent OPEN 0->0. No code/test/solver/runtime authority. Fresh compiler referee and spec auditor both CLEAN; each independently matched four frozen outputs and 23/23 dependency pins. Bounded result: this exact original-domain source does not supply original-forward alias/exposure under successful ordinary constructor prefixes; no solve/runtime claim. Both reviewers STOPPED; no code slice. Next candidate input selection remains Luna-owned. End-boundary dispatcher recommends a distinct candidate input with second direct `forward x` after recursive `loop x`, retaining final z; this preserves the recursive loop↔z qualification and tests a real second same-provider capture. No R57 contract, lease, or worker is active yet. R56 closeout commit bb02202c4 pushed to origin after outbound-range inspection; working tree was clean at push. No worker is active now. R57 remains only a dispatcher-recommended candidate; no authority, contract, lease or worker activated.",
     "workers": [
       {
         "id": "/root",
         "role": "Luna primary; R56 closeout Git integration active",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r56",
-        "receipt": "R56 artifacts/reviews/task sync frozen; exact-path commit and push in progress; no compiler/source writes pending."
+        "receipt": "R56 closeout commit bb02202c4 pushed; no active R56 work or R57 lease."
       },
       {
         "id": "/root/r53_ordinary_mixed_capture_proof",
@@ -151,13 +151,13 @@
     {
       "id": "/root",
       "role": "Luna primary; R56 closeout Git integration active",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r56",
-      "receipt": "R56 artifacts/reviews/task sync frozen; exact-path commit and push in progress; no compiler/source writes pending."
+      "receipt": "R56 closeout commit bb02202c4 pushed; no active R56 work or R57 lease."
     },
     {
       "id": "/root/r53_ordinary_mixed_capture_proof",
