@@ -17449,14 +17449,22 @@ and [frozen handoff](agent-loop/inbox/20261018-caller-module-init-transition-pro
 
 R28 revision 2 closed at parent 0 -> 0. Following the user's standing
 authorization to try adopted interpretations and revert failed candidates,
-R29 now uses the reviewed pure source-context policy for one bounded
-proof/correspondence experiment. The proof target is every original `j0/a0`
-field plus a full dependent old-context frame at the unchanged tuple; the
-separate recursive `PhiW` certificates and fixed-`c` license remain open. The
-source/native audit finds **NO_SAFE_CODE_SLICE**: the current caller passes
-empty semantic imports, and runtime initialization follows inference without
-the original predecessor/event or a guard consumer. The proof lane is still
-reconstructing the governing `j0/a0` definition owners. No compiler code,
-tests, builds or probes are authorized, and the parent stays OPEN. See the
-[R28 closeout](../notes/progress/2026-10-18-r28-source-context-proposal-closeout.md)
+R29 used the reviewed pure source-context policy for one bounded
+proof/correspondence experiment. No exhaustive dependent telescope for the
+original `j0/a0` or global old-predicate action was found at their inspected
+owners, and no guards were derived. The source/native audit found
+**NO_SAFE_CODE_SLICE**: the current caller passes empty semantic imports, and
+runtime initialization follows inference without the original predecessor,
+event or guard consumer. Fresh compiler/spec review was CLEAN for this bounded
+obstruction only. Parent remains OPEN, conditions 0 -> 0. See the
+[R29 closeout](../notes/progress/2026-10-18-r29-source-context-action-closeout.md)
 and [R29 contract](agent-loop/sprints/caller-source-context-action-20261018-r29.md).
+
+R30 is now focused on an explicit candidate interpretation of the original
+`j0/a0` schemas, with every unprovided original field retained as a residual.
+The primary definition lane will map each field to adopted semantics and
+projection/introduction rules; the proof lane will test coverage and the
+unchanged parent application. A definition or interpretation alone discharges
+zero parent conditions. Source/native work remains NO_SAFE_CODE_SLICE, with no
+compiler edits, tests, builds or probes. See the
+[R30 contract](agent-loop/sprints/source-context-guard-interpretation-20261018-r30.md).

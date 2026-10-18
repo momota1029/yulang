@@ -4,41 +4,41 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "caller-source-context-action-20261018-r29",
-    "contract": "tasks/agent-loop/sprints/caller-source-context-action-20261018-r29.md",
+    "id": "source-context-guard-interpretation-20261018-r30",
+    "contract": "tasks/agent-loop/sprints/source-context-guard-interpretation-20261018-r30.md",
     "revision": 1,
     "state": "ACTIVE",
-    "baseline": "6b427ebb7",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original domain and quantifiers unchanged; OPEN/closure0.",
-    "fixed_outcome": "Construct and apply original j0/a0 at unchanged (C0,w0,e0;xi) with full dependent old-field frame across original predecessor domain, or isolate a precise candidate obstruction; adoption/proposal alone discharges zero parent conditions.",
+    "baseline": "115e909da",
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original source/provider/context/world/assignment/occurrence/continuation/whole-Call/future/history/F1/FK1 scope unchanged; OPEN/closure0.",
+    "fixed_outcome": "Define and audit one candidate source-semantic interpretation of the original j0/a0 schemas with all unresolved original requirements explicit; prove projection coverage and attempt unchanged ctrl.choose over the full predecessor domain, or isolate exact residual/counterexample. A definition alone discharges zero parent conditions.",
     "resources": {
-      "cap_seconds": 2400,
-      "charged_seconds": 0,
-      "available_seconds": 2400,
-      "allocation": "Proof1200 + source/native correspondence450 + fresh independent review500 (compiler350/spec150) + integration250. Astra0; no code/tests/builds/probes."
+      "cap_seconds": 3000,
+      "charged_seconds": 2200,
+      "available_seconds": 800,
+      "allocation": "Primary definition800 + native mapping400 + proof1000 reserved/spent (full runtime unknown); fresh review550 (compiler400/spec150) + integration250 remain. Astra0; no code/tests/builds/probes."
     },
-    "next_action": "Root source/native audit frozen: NO_SAFE_CODE_SLICE. Proof lane identified no exhaustive governing j0/a0 telescope at inspected owner and is freezing exact owner dossier/direct parent application. Consume frozen proof handoff, then independent review; parent 0->0.",
-    "history": "R28 rev2 completed proposal/review: corrected pure source-context policy approved for one bounded research experiment by user standing authorization. Corrected proposal SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; compiler/spec CLEAN only as candidate. R28 closeout notes/progress/2026-10-18-r28-source-context-proposal-closeout.md; parent 0->0. Recursive same-root PhiW certificates and fixed-c license remain separate. R29 Luna correspondence result: exact caller/HIR/solve/runtime path has no P/init/j0/a0 consumer; runtime entry follows inference; NO_SAFE_CODE_SLICE (artifact SHA 9f79fbb04d2565a93956a6e5f18c4328b8c1e954de1aecc663b090ebbbc8b55f).",
+    "next_action": "Primary candidate definition and source/native map frozen. Proof lane tests field coverage, noncircularity, exact predecessor/event/index projection and global old-field frame at original ctrl.choose; reviewers queued after freeze. Preserve abstract residuals; no j0/a0 conclusion unless every original obligation is met.",
+    "history": "R29 closeout notes/progress/2026-10-18-r29-source-context-action-closeout.md: proof found no exhaustive j0/a0 telescope/global old action; source mapping NO_SAFE_CODE_SLICE; compiler/spec CLEAN only for bounded obstruction; parent0->0. R30 follows dispatcher recommendation under user standing bounded-research authorization; no production authority.",
     "git_checkpoint": {
-      "commit": "6b427ebb7",
+      "commit": "115e909da",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R28 transition proposal, independent reviews and state pushed; R29 begins at this baseline."
+      "receipt": "R28/R29 closeouts, R30 contract and source-context experiment baseline; R30 candidate outputs now frozen for proof."
     },
     "workers": [
       {
         "id": "/root",
-        "role": "Luna-primary/source-native correspondence and Git owner",
-        "state": "WAITING",
+        "role": "Luna-primary/guard definition, native mapping and Git owner",
+        "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R29 source/native correspondence frozen at exact leased path; NO_SAFE_CODE_SLICE. Awaiting proof owner handoff for integration/review; no code/tests/builds/probes."
+        "receipt": "R30 candidate guard interpretation and constructor-to-consumer mapping frozen; integrates proof/review and owns central state/Git. No compiler code lease."
       },
       {
-        "id": "/root/r29_context_proof",
+        "id": "/root/r30_guard_adequacy",
         "role": "prover",
         "state": "RUNNING",
         "requested_model": "Sol",
@@ -46,7 +46,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Current-session prover launched for exact R29 proof paths; requested Sol/high, observed UNKNOWN/UNKNOWN; budget cap1200s, no code/tests/builds/probes/Git."
+        "receipt": "Current-session Sol/high prover launched on exact frozen R30 definition; observed model/effort UNKNOWN/UNKNOWN; cap1000s, no code/tests/builds/probes/Git/Astra."
       }
     ],
     "leases": [
@@ -56,7 +56,7 @@
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/sprints/caller-source-context-action-20261018-r29.md",
+        "path": "tasks/agent-loop/sprints/source-context-guard-interpretation-20261018-r30.md",
         "owner": "/root",
         "state": "HELD"
       },
@@ -71,72 +71,82 @@
         "state": "FROZEN"
       },
       {
-        "path": "notes/design/2026-10-18-caller-module-init-transition-proposal.md",
+        "path": "notes/progress/2026-10-18-r29-source-context-action-closeout.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "notes/theory/2026-10-18-caller-source-context-action-construction.md",
-        "owner": "/root/r29_context_proof",
-        "state": "HELD"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-caller-source-context-action-construction.md",
-        "owner": "/root/r29_context_proof",
-        "state": "HELD"
-      },
-      {
-        "path": "notes/design/2026-10-18-caller-source-context-native-correspondence.md",
+        "path": "notes/design/2026-10-18-source-context-guard-interpretation.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/design/2026-10-18-source-context-guard-native-mapping.md",
+        "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-source-context-guard-interpretation.md",
+        "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-18-source-context-guard-action-adequacy.md",
+        "owner": "/root/r30_guard_adequacy",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-source-context-guard-action-adequacy.md",
+        "owner": "/root/r30_guard_adequacy",
+        "state": "HELD"
       }
     ],
     "pending": [
       {
-        "id": "R29-ORIGINAL-GUARD-CONTEXT-PROOF",
-        "state": "RUNNING",
-        "owner": "/root/r29_context_proof",
-        "artifact": "Exhaustive j0/a0 field telescope; pure CallerInit and same-index correspondence; full old dependent frame; original ctrl.choose application or precise candidate obstruction. Cap1200s."
-      },
-      {
-        "id": "R29-SOURCE-NATIVE-CORRESPONDENCE",
+        "id": "R30-PRIMARY-GUARD-INTERPRETATION",
         "state": "RESULT",
         "owner": "/root",
-        "artifact": "Frozen notes/design/2026-10-18-caller-source-context-native-correspondence.md SHA 9f79fbb04d2565a93956a6e5f18c4328b8c1e954de1aecc663b090ebbbc8b55f; NO_SAFE_CODE_SLICE. Empty imports/current caller lacks P/init; ModuleRun occurs after inference and lacks original tuple/activity."
+        "artifact": "Frozen candidate SHA ec09c5281f172aac38fb17adf835f248564b64acf6b0e58ab62949c042127a76 and native mapping SHA 5d4f254af9abefb8bc7858f431c35b1205ba3d5d2ffcfa9c3725e832149d6af8. Known fields plus explicit authority/incidence/global/alias/capture/shared residuals; no guard conclusion."
       },
       {
-        "id": "R29-INDEPENDENT-REVIEW",
+        "id": "R30-GUARD-ACTION-ADEQUACY",
+        "state": "RUNNING",
+        "owner": "/root/r30_guard_adequacy",
+        "artifact": "Against frozen definition, test exhaustive governing-field coverage, pure action, exact same tuple, full predecessor domain and old/global frame; original application or precise residual. Cap1000s."
+      },
+      {
+        "id": "R30-INDEPENDENT-REVIEW",
         "state": "STAGED",
         "owner": "Fresh compiler_referee + spec_auditor",
-        "artifact": "Review frozen construction and native correspondence against original guards, old/global fields, L4 and inference principles. Cap500s."
+        "artifact": "Review frozen definition, proof attempt and native mapping; 550s total (compiler400/spec150)."
       }
     ],
     "ready_next_work": {
-      "id": "R29-ORIGINAL-GUARD-CONTEXT-PROOF",
+      "id": "R30-GUARD-ACTION-ADEQUACY",
       "state": "RUNNING",
-      "owner": "/root/r29_context_proof",
-      "artifact": "Write the exact original fieldwise construction/frame attempt and apply it to original tuple without target judgments as premises."
+      "owner": "/root/r30_guard_adequacy",
+      "artifact": "Adversarially test projection coverage against original parametric guards and apply to unchanged ctrl.choose/ins_(r0,q0)."
     },
     "legacy_reconciliation": {
       "required": false,
-      "receipt": "R28 workers and reviewers STOPPED; all R29 outputs have new disjoint leases; no unknown writers."
+      "receipt": "R29 proof/compiler/spec workers STOPPED. R30 definition and mapping frozen at distinct paths; proof lease assigned, no overlap."
     },
-    "sha256": "9224d02c9ff93f18965c7bf3c4ab8f3e282428f5eb1434fc524b280a3eee8106"
+    "sha256": "33a22c367d24a53329a7fb8adcd9e2408d86cdcfedee64b8773fa8072c4e4913"
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna-primary/source-native correspondence and Git owner",
-      "state": "WAITING",
+      "role": "Luna-primary/guard definition, native mapping and Git owner",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R29 source/native correspondence frozen at exact leased path; NO_SAFE_CODE_SLICE. Awaiting proof owner handoff for integration/review; no code/tests/builds/probes."
+      "receipt": "R30 candidate guard interpretation and constructor-to-consumer mapping frozen; integrates proof/review and owns central state/Git. No compiler code lease."
     },
     {
-      "id": "/root/r29_context_proof",
+      "id": "/root/r30_guard_adequacy",
       "role": "prover",
       "state": "RUNNING",
       "requested_model": "Sol",
@@ -144,7 +154,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Current-session prover launched for exact R29 proof paths; requested Sol/high, observed UNKNOWN/UNKNOWN; budget cap1200s, no code/tests/builds/probes/Git."
+      "receipt": "Current-session Sol/high prover launched on exact frozen R30 definition; observed model/effort UNKNOWN/UNKNOWN; cap1000s, no code/tests/builds/probes/Git/Astra."
     }
   ],
   "leases": [
@@ -154,7 +164,7 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/caller-source-context-action-20261018-r29.md",
+      "path": "tasks/agent-loop/sprints/source-context-guard-interpretation-20261018-r30.md",
       "owner": "/root",
       "state": "HELD"
     },
@@ -169,46 +179,56 @@
       "state": "FROZEN"
     },
     {
-      "path": "notes/design/2026-10-18-caller-module-init-transition-proposal.md",
+      "path": "notes/progress/2026-10-18-r29-source-context-action-closeout.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-18-caller-source-context-action-construction.md",
-      "owner": "/root/r29_context_proof",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-caller-source-context-action-construction.md",
-      "owner": "/root/r29_context_proof",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/design/2026-10-18-caller-source-context-native-correspondence.md",
+      "path": "notes/design/2026-10-18-source-context-guard-interpretation.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/design/2026-10-18-source-context-guard-native-mapping.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-source-context-guard-interpretation.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-source-context-guard-action-adequacy.md",
+      "owner": "/root/r30_guard_adequacy",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-source-context-guard-action-adequacy.md",
+      "owner": "/root/r30_guard_adequacy",
+      "state": "HELD"
     }
   ],
   "pending": [
     {
-      "id": "R29-ORIGINAL-GUARD-CONTEXT-PROOF",
-      "state": "RUNNING",
-      "owner": "/root/r29_context_proof",
-      "artifact": "Exhaustive j0/a0 field telescope; pure CallerInit and same-index correspondence; full old dependent frame; original ctrl.choose application or precise candidate obstruction. Cap1200s."
-    },
-    {
-      "id": "R29-SOURCE-NATIVE-CORRESPONDENCE",
+      "id": "R30-PRIMARY-GUARD-INTERPRETATION",
       "state": "RESULT",
       "owner": "/root",
-      "artifact": "Frozen notes/design/2026-10-18-caller-source-context-native-correspondence.md SHA 9f79fbb04d2565a93956a6e5f18c4328b8c1e954de1aecc663b090ebbbc8b55f; NO_SAFE_CODE_SLICE. Empty imports/current caller lacks P/init; ModuleRun occurs after inference and lacks original tuple/activity."
+      "artifact": "Frozen candidate SHA ec09c5281f172aac38fb17adf835f248564b64acf6b0e58ab62949c042127a76 and native mapping SHA 5d4f254af9abefb8bc7858f431c35b1205ba3d5d2ffcfa9c3725e832149d6af8. Known fields plus explicit authority/incidence/global/alias/capture/shared residuals; no guard conclusion."
     },
     {
-      "id": "R29-INDEPENDENT-REVIEW",
+      "id": "R30-GUARD-ACTION-ADEQUACY",
+      "state": "RUNNING",
+      "owner": "/root/r30_guard_adequacy",
+      "artifact": "Against frozen definition, test exhaustive governing-field coverage, pure action, exact same tuple, full predecessor domain and old/global frame; original application or precise residual. Cap1000s."
+    },
+    {
+      "id": "R30-INDEPENDENT-REVIEW",
       "state": "STAGED",
       "owner": "Fresh compiler_referee + spec_auditor",
-      "artifact": "Review frozen construction and native correspondence against original guards, old/global fields, L4 and inference principles. Cap500s."
+      "artifact": "Review frozen definition, proof attempt and native mapping; 550s total (compiler400/spec150)."
     }
   ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R28 rev2 closeout: notes/progress/2026-10-18-r28-source-context-proposal-closeout.md; proposal/review clean only as candidate; parent 0->0. Earlier R27/R28 rev1 closeouts remain linked from tasks/current.md."
+  "history": "R29 closeout: notes/progress/2026-10-18-r29-source-context-action-closeout.md; parent 0->0. R28/R27 closeouts linked from tasks/current.md."
 }
