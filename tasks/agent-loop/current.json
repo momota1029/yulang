@@ -27,7 +27,7 @@
       "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + compiler review 200s + spec review 200s + Luna integration/closeout 300s; Astra0; no carryover.",
       "actual_runtime": "Proof: 307s wall of 900s grant; counter-reading: exact elapsed UNKNOWN, 300s grant fully reserved; Luna owner map 500s charged; fresh compiler/spec reviews launched with 200s grants each; observed CPU/RSS UNKNOWN. 300s integration/closeout remains."
     },
-    "next_action": "Fresh compiler and spec reviews RUNNING against frozen six-output snapshot and 30-pin manifest; collect exact review receipts, adjudicate and close R68 within 300s integration grant.",
+    "next_action": "Both fresh reviews complete with no findings; Luna adjudicates the bounded partial lemma, records exact open premise and TODO, closes R68, then consults end-boundary dispatcher.",
     "history": "R66 closeout SHA-256 0af68443b372f1407f68e0b9f21194348b469f8c5d3dce06a8cd98ed976e6f01; status CLOSED with conditional structural result and exact unsupported Result-A instantiation. Fresh reviews had no blocking/major findings; minor owner-map handoff metadata superseded by external frozen hash/receipt. No successor grant or code slice carried over.; R67 closeout SHA-256 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; frozen author/review baseline dc84c02ed; 41/41 review hash receipts; no safe code slice; all R67 reviewers STOPPED.; R67 CLOSED at closeout 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; branch pushed through f49f797a0."
   },
   "workers": [
@@ -67,24 +67,24 @@
     {
       "id": "/root/r68_compiler_review",
       "role": "Fresh independent compiler/source-owner review",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "Actual collaboration launch acknowledged in current R68 session; exact frozen contract, six outputs and 30-pin scope supplied; read-only; 200s grant charged; observed model/effort UNKNOWN/UNKNOWN; no descendants reported."
+      "receipt": "Fresh compiler/source-owner review complete; no BLOCKING/major/minor findings. Contract + 30/30 pins + six output hashes MATCH. STOPPED/READ_ONLY/NO_DESCENDANTS; no edits/Git/tests/builds/probes."
     },
     {
       "id": "/root/r68_spec_review",
       "role": "Fresh independent source-spec conformance review",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "Actual collaboration launch acknowledged in current R68 session; exact frozen contract, six outputs and 30-pin scope supplied; read-only; 200s grant charged; observed model/effort UNKNOWN/UNKNOWN; no descendants reported."
+      "receipt": "Fresh spec/conformance review complete; no BLOCKING/major/minor findings. Contract + 30/30 pins + six output hashes MATCH. STOPPED/READ_ONLY/NO_DESCENDANTS; no edits/Git/tests/builds/probes."
     }
   ],
   "leases": [
