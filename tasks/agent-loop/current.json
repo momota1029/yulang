@@ -23,7 +23,7 @@
       "available_seconds": 3600,
       "allocation": "Prior rev1/rev2 3600s retired/charged in full conservatively (not elapsed-time claim). Fresh tranche: Luna authoring1800 (audit180, implementation900, mutation evidence480, freeze240) + Sol lifecycle proof600 + final review480 + protected runtime360 + Luna integration180 + reserve180. No rollover; Astra0."
     },
-    "next_action": "Rev3 active. Both proof and implementation require fresh ACK against rev3. Sol lifecycle proof pins the c881 baseline; implementation resumes only after hash and monotonic grant receipt. Runtime360 remains protected."
+    "next_action": "Both rev3 lanes RUNNING on fresh ACKs. Proof is pinned to c881 baseline blobs; implementation audit begins with paired row/evidence rollback. Runtime360 protected; lib.rs remains unleased pending lifecycle result."
   },
   "history": "Closed `npair-replay-fiber-consumer-certificate-20261018` REVIEWED-PARTIAL at `7087de449`; parent OPEN, closure0. Proof SHA `691a537b…e3e3614` CLEAN conditional. Implementation candidate `1958cf20e` unapproved; compiler review BLOCKING+2 MAJOR, no Cargo/tests/runtime. Closeout: `notes/progress/2026-10-18-replay-fiber-consumer-closeout.md`. PR #11 merged at `27a7e00d4`; operations-only. Earlier sprint history remains in linked notes/progress and Git history.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -53,13 +53,13 @@
     {
       "id": "/root/constructor_replay_impl",
       "role": "implementer",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev2 ACK withdrawn for rev3 transition before writes; read-only audit only, no code/runtime, waiting for rev3 hash and grant receipt. Requested Luna/high; observed UNKNOWN."
+      "receipt": "Fresh rev3 ACK, contract SHA c3e21e367b90a3d13165139cade12c2730f5a38ad3beb2ec1ec5a923c4fe1047, baseline c881f5960. Exact eight implementation paths: candidate_context, candidate_scheme, shadow_apply, candidate_extrusion, candidate_graph_call tests, example, progress, impl inbox. lib.rs unleased. Fresh grant1800s stage caps180/900/480/240; old3600 retired/charged conservatively. Monotonic start 307304748505533ns. No writes yet; requested Luna/high, observed UNKNOWN/UNKNOWN; runtime360 protected."
     },
     {
       "id": "/root/constructor_replay_map_review",
@@ -75,13 +75,13 @@
     {
       "id": "/root/constructor_slot_lifecycle_proof",
       "role": "prover",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact rev3 proof paths and 600s cap granted; launch/resume ACK pending."
+      "receipt": "Fresh rev3 ACK, contract SHA c3e21e367b90a3d13165139cade12c2730f5a38ad3beb2ec1ec5a923c4fe1047; exact two proof leases; baseline c881 blobs pinned and hashes supplied. Read-only audit start monotonic 307304901194208ns; cap600s, Astra0; requested Sol/high, observed UNKNOWN/UNKNOWN; no code/tests/runtime/Git/descendants."
     }
   ],
   "leases": [
