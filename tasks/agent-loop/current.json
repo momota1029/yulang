@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push R20 contract and state, then start constructive proof and independent runtime HIR-gate lanes on exact disjoint leases. Implementation code lease opens only after clean design review.",
     "history": "R17/R18/R19 closeouts preserve original parent OPEN/closure0. R19 proof/source artifacts independently CLEAN at 6748039fa/118375dce. R19 local runtime checkpoint 8e1ad99fd; focused target 17/18 and first local-g failure at HIR-error assertion; no candidate/runtime local path executed.",
-    "last_stage_receipt": "R20 constructive proof CLEAN after independent review. Exact early prefix exists, but typed A+/exposed response-root -> actual FreshUse -> Catch-installed-g incidence and same-use native drain/ack are not proved. Parent closure0. Runtime HIR gate still active; Luna prepares design before any native code lease.",
+    "last_stage_receipt": "R20 HIR gate implementation froze with strict owner/kind/attachment checks and bounded diagnostics; no actual diagnostic/test run yet. Same compiler referee performs independent delta review. Proof artifact is independently CLEAN; parent closure0.",
     "git_checkpoint": {
       "commit": "8e1ad99fd",
       "branch": "research/simple-sub-intrusion",
@@ -72,13 +72,13 @@
     {
       "id": "/root/r19_local_binding_runtime",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R20 active; exact HIR IDs/kind/owner gate only, 300s/Astra0, tests wait for CLEAN review."
+      "receipt": "R20 HIR admission gate frozen; exact leased test/handoff hashes verified. Strict owner/kind/attachment checks for declaration placeholders, local-source terminal errors, fallback Apply errors; unknowns reject. No tests/diagnostic/build. Actual HIR IDs/static acceptance remain unobserved; pending compiler review."
     },
     {
       "id": "/root/r18_runtime_implementation",
@@ -116,13 +116,13 @@
     {
       "id": "/root/r19_runtime_lineage_review",
       "role": "compiler_referee",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "STOPPED; CLEAN R19 rev4 test-only delta review; R19 closeout."
+      "receipt": "R20 HIR-gate delta review active on frozen runtime_resume.rs + admission-gate handoff; inspect exact owner/kind/attachment allowlist, unknown-error failure, unchanged static/runtime lineage gates and pins. No tests/build/Git."
     }
   ],
   "leases": [
@@ -194,7 +194,7 @@
     {
       "path": "tools/inference-playground/tests/runtime_resume.rs",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-operation-v1-runtime-resume-implementation.md",
@@ -309,7 +309,7 @@
     {
       "path": "tasks/agent-loop/inbox/20261018-local-g-hir-admission-gate.md",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/design/2026-10-18-fieldbound-prefix-and-use-implementation.md",
@@ -334,5 +334,5 @@
     "required": false,
     "receipt": "All R17-R19 workers stopped and exact frozen results recorded; current R20 assignments are new-session and await acknowledgement."
   },
-  "next_action": "Luna writes and reviews the exact owner/coordinate transport design against CLEAN R20 proof; do not activate solver implementation until design review is CLEAN. Continue independent HIR admission gate."
+  "next_action": "Await CLEAN gate review; only then Luna may run the exact focused runtime_resume target under the 660s verification allocation. If any unknown HIR error appears, preserve and report its exact owner."
 }
