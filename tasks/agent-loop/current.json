@@ -17,17 +17,17 @@
       "baseline_commit": "3b974b9337d8490e1af2ebaa5f1b54ece2e62cd5",
       "dispatcher_start": "R67 exact candidate SHA verified; 34/34 pins MATCH; direct-checking route, source scope and 2400s candidate envelope confirmed",
       "prior_sprint": "R66 CLOSED after fresh compiler/spec reviews; conditional structural cut only for supplied derivations; R66-LAMBDA-RESULT-STAGE-1 remains OPEN; all R66 workers STOPPED; no carryover",
-      "live_reconciliation": "R66 all STOPPED; R67 proof /root/r67_direct_lambda_proof and counter-reading /root/r67_lambda_check_counterreading confirmed active in current session under exact leases, no descendants.",
+      "live_reconciliation": "R67 proof, counter-reading and Luna owner-map authors STOPPED with frozen outputs; no descendants or unresolved writer leases. Fresh independent compiler/spec reviews are next.",
       "semantic_boundary": "34 pinned evidence files only; required governance/startup reads separate. Source Generalize local laws require genuine premises; additional authority must return to Luna. Native guards remain unchanged."
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 0,
-      "available_seconds": 2400,
+      "charged_seconds": 1700,
+      "available_seconds": 700,
       "allocation": "Proof Sol/high900 + complementary researcher Sol/medium300 + Luna/high owner map500 + fresh compiler/spec reviews200 each + Luna integration/closeout300; Astra0; no carryover",
-      "actual_runtime": "UNKNOWN until lane receipts; no code, tests, builds, execution, probes, instrumentation, measurement, or production change"
+      "actual_runtime": "Author grants charged/reserved: proof 900s, source-rule attack 300s, Luna owner map 500s. All three authors report STOPPED; observed runtime/CPU/RSS UNKNOWN. Fresh reviews 400s plus integration 300s remain."
     },
-    "next_action": "Run the direct checking proof, independent source-rule attack and Luna source/native owner map under exact frozen leases; freeze outputs, obtain fresh compiler/spec reviews and adjudicate.",
+    "next_action": "All six author outputs frozen with 34/34 pins MATCH. Obtain fresh independent compiler/spec reviews, adjudicate the exact R67-DIRECT-BODY-CHECK-1 premise, then integrate the bounded result and close R67.",
     "history": "R66 closeout SHA-256 0af68443b372f1407f68e0b9f21194348b469f8c5d3dce06a8cd98ed976e6f01; status CLOSED with conditional structural result and exact unsupported Result-A instantiation. Fresh reviews had no blocking/major findings; minor owner-map handoff metadata superseded by external frozen hash/receipt. No successor grant or code slice carried over."
   },
   "workers": [
@@ -40,29 +40,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r67",
-      "receipt": "R67 activated after corrected baseline/hash verification and live reconciliation. Root owner-map lease active for notes/progress/2026-10-19-r67-lambda-operand-owners.md and tasks/agent-loop/inbox/20261019-r67-implementation.md; 500s cap."
+      "receipt": "Author map/handoff frozen at 41d9278a4a3b7a8adb4ff19a0a05df2c2f0c7812d9c018cbab3ff5d81ecf5a1b / 21045f1a23dcc570fca59bcc8f5909a87467e0ef947e77c9dbe5b235df4d6c37; 34/34 pins MATCH; all author lanes STOPPED; Luna owns adjudication, reviews, integration and Git; review/integration allocation remaining 700s."
     },
     {
       "id": "/root/r67_direct_lambda_proof",
       "role": "R67 constructive direct Lambda-checking proof author",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r67",
-      "receipt": "ACTIVE in current-conversation-2026-10-19-r67; began required governance and 34 pinned-dependency reads under exact rev1 SHA/leases; no descendants; 900s cap."
+      "receipt": "FROZEN proof/handoff hashes 0d9a9a8b98611a6f7e9897d3b242614ee36c4a724cfe5968eee536cb959e7bea / 3d27138f0448a25911d61af672b70da2b4be0b66ccfcbac5dce6f2f6fefe4c6a; STOPPED / WRITES_STOPPED / NO_DESCENDANTS; 34/34 pins MATCH; 900s reserved/charged; actual runtime UNKNOWN."
     },
     {
       "id": "/root/r67_lambda_check_counterreading",
       "role": "R67 complementary direct Lambda-checking researcher",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r67",
-      "receipt": "ACTIVE in current-conversation-2026-10-19-r67; accepted exact rev1/leases and began source-grounded counter-reading; no descendants; 300s cap."
+      "receipt": "FROZEN counter-reading/handoff hashes 6769913e4cf53a6e6ac84f4d0f4eea9b85ab44c45b34e39a171073ba777872d0 / f13f9cf426d6f3213098e36d557f7903cf2a47e32ca81afc4bd049b4f53c1a19; STOPPED / WRITES_STOPPED / NO_DESCENDANTS; 34/34 pins MATCH; 300s reserved/charged; actual runtime UNKNOWN."
     }
   ],
   "leases": [
@@ -74,32 +74,32 @@
     {
       "path": "notes/theory/2026-10-19-r67-direct-lambda-checking.md",
       "owner": "/root/r67_direct_lambda_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r67-proof.md",
       "owner": "/root/r67_direct_lambda_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r67-checking-counter-reading.md",
       "owner": "/root/r67_lambda_check_counterreading",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r67-research.md",
       "owner": "/root/r67_lambda_check_counterreading",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r67-lambda-operand-owners.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r67-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r67-closeout.md",
@@ -136,11 +136,18 @@
     },
     {
       "id": "R66-LAMBDA-RESULT-STAGE-1",
-      "state": "RUNNING",
-      "owner": "Luna; R67 direct Lambda checking proof and owner map",
-      "request": "Attempt to derive the ordinary typed Lambda operand directly from the selected source Lambda, Parameter, resolved Name, Result/checking, body-consumer and invocation rules, without the unannotated Result-A synthesis equation; establish the authentic symbolic Function interface first or identify its first unsupported local premise.",
-      "falsifier": "The direct rule route relies on an unlicensed entry/consumer/invocation, assumes body safety or interface formation, depends circularly on the whole annotation, loses original joint evidence/provider/permissions/constraints, or a pinned direct rule supplies the full operand."
+      "state": "OPEN",
+      "owner": "Luna; direct Lambda-checking follow-up under R67",
+      "request": "Attempt to derive the ordinary typed Lambda operand from source Lambda, Parameter, resolved Name, body-checking, body consumer and invocation rules without Result-A synthesis; derive the symbolic Function interface/challenge before using it or name the first unsupported local premise.",
+      "falsifier": "An applicable direct source rule supplies the complete original operand and prior evidence, or the attempted derivation guesses/circularly forms the interface, body target, consumer or invocation, or loses the original joint context/provider/permissions/constraints/result evidence."
+    },
+    {
+      "id": "R67-DIRECT-BODY-CHECK-1",
+      "state": "PENDING_REVIEW",
+      "owner": "Luna; source Lambda checking/body-consumer premise",
+      "request": "Freshly review whether the frozen direct route can derive an independently admitted Function challenge/interface, body target/check, designated consumer and complete invocation at the original Lambda under one joint context, without Result-A.",
+      "falsifier": "A pinned direct rule supplies the tuple before whole-annotation checking, or the proof assumes interface/body safety/invocation or loses original provider, p_t/p_A permissions, open E_t, captures, ordinary constraints or result evidence."
     }
   ],
-  "closure": "R66 CLOSED — REVIEWED CONDITIONAL STRUCTURAL RESULT / EXACT UNSUPPORTED RESULT-A INSTANTIATION / NO_SAFE_CODE_SLICE. R67 ACTIVE — direct source Lambda-checking attempt; no source or implementation result yet. R65-CURRENT-OPERAND-1, R66-LAMBDA-RESULT-STAGE-1, R64-SRC-ANN-ARG-1, R61-SOURCE-ASCRIPTION-FORMATION-1 remain OPEN. Parent and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED."
+  "closure": "R66 CLOSED — REVIEWED CONDITIONAL STRUCTURAL RESULT / EXACT UNSUPPORTED RESULT-A INSTANTIATION / NO_SAFE_CODE_SLICE. R67 authors FROZEN — direct derivation reaches formal/Name and reports R67-DIRECT-BODY-CHECK-1 for independent review; no source or implementation result accepted yet. R65-CURRENT-OPERAND-1, R66-LAMBDA-RESULT-STAGE-1, R64-SRC-ANN-ARG-1, R61-SOURCE-ASCRIPTION-FORMATION-1 remain OPEN. Parent and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED."
 }
