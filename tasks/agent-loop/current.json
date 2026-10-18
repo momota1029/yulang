@@ -18,7 +18,7 @@
       "available_seconds": 0,
       "allocation": "Luna/source owner600 + Sol proof900 staged pending independent constructor premises + fresh review360 + integration240. Astra0; tests/builds/probes0."
     },
-    "next_action": "Luna traces actual canonical source constructor and guard derivation. Start proof only if a concrete non-circular constructor is frozen; otherwise prepare reviewed semantic-choice candidate, no adoption/code.",
+    "next_action": "Source owner froze a non-adopted fieldwise CallerModuleInit candidate; after checkpoint, Sol conditionally tests whether it derives j0/a0/license without circular premises. No adoption/code; original conditions remain 0->0 unless adopted and applied.",
     "history": "R26 CLEAN bounded obstruction; actual public callers supply no independently introduced context, first missing input at caller and first failed j0 at ins_(r0,q0). No semantic nonexistence or parent closure. Dispatcher recommends canonical bootstrap source-construction route; R27 tests existing rules and may prepare but not adopt a new source definition.",
     "git_checkpoint": {
       "commit": "aae7de82c5846b2502993c47ba544958cc544e17",
@@ -36,7 +36,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R27 source-owner lane active: inspect adopted canonical construction and determine whether existing rules introduce caller context/guards non-circularly; no code/tests/Git by source-owner lane."
+        "receipt": "R27 source-owner lane stopped after freezing design/inbox; candidate CallerModuleInit is not adopted. Conditional proof staged, no compiler changes/tests/Git by lane."
       }
     ],
     "leases": [
@@ -58,24 +58,24 @@
       {
         "path": "notes/design/2026-10-18-canonical-caller-context-source-construction.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [
       {
         "id": "R27-CANONICAL-SOURCE-CONSTRUCTOR",
-        "state": "RUNNING",
+        "state": "RESULT",
         "owner": "/root",
-        "artifact": "Derive actual canonical caller context/guards from adopted rules, or freeze smallest unadopted candidate and exact semantic consequences."
+        "artifact": "Frozen non-adopted CallerModuleInit source-rule candidate in notes/design/2026-10-18-canonical-caller-context-source-construction.md SHA 399b054b9b5985e6efd5e2eba77b50735bd71a97c7eba34d4ad140017aec5a61; handoff tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md SHA 61dc285c959ddac277611aa088ada282c380f921fb537d4d8f64332ddcceb8a5."
       },
       {
         "id": "R27-SAME-FIBER-GUARD-PROOF",
-        "state": "STAGED",
+        "state": "READY",
         "owner": "Sol/prover after source checkpoint",
         "artifact": "900s conditional lane; derive j0/a0/license at original tuple only from independently introduced constructor premises."
       },
@@ -131,24 +131,24 @@
     {
       "path": "notes/design/2026-10-18-canonical-caller-context-source-construction.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
       "id": "R27-CANONICAL-SOURCE-CONSTRUCTOR",
-      "state": "RUNNING",
+      "state": "RESULT",
       "owner": "/root",
-      "artifact": "Derive actual canonical caller context/guards from adopted rules, or freeze smallest unadopted candidate and exact semantic consequences."
+      "artifact": "Frozen non-adopted CallerModuleInit source-rule candidate in notes/design/2026-10-18-canonical-caller-context-source-construction.md SHA 399b054b9b5985e6efd5e2eba77b50735bd71a97c7eba34d4ad140017aec5a61; handoff tasks/agent-loop/inbox/20261018-canonical-caller-context-construction.md SHA 61dc285c959ddac277611aa088ada282c380f921fb537d4d8f64332ddcceb8a5."
     },
     {
       "id": "R27-SAME-FIBER-GUARD-PROOF",
-      "state": "STAGED",
+      "state": "READY",
       "owner": "Sol/prover after source checkpoint",
       "artifact": "900s conditional lane; derive j0/a0/license at original tuple only from independently introduced constructor premises."
     },
@@ -169,7 +169,7 @@
     "required": false,
     "receipt": "R23 and R24 lane workers stopped; all frozen outputs reviewed; no code or unknown leases."
   },
-  "next_action": "Luna traces actual canonical source constructor and guard derivation. Start proof only if a concrete non-circular constructor is frozen; otherwise prepare reviewed semantic-choice candidate, no adoption/code.",
+  "next_action": "Source owner froze a non-adopted fieldwise CallerModuleInit candidate; after checkpoint, Sol conditionally tests whether it derives j0/a0/license without circular premises. No adoption/code; original conditions remain 0->0 unless adopted and applied.",
   "git_checkpoint": {
     "commit": "aae7de82c5846b2502993c47ba544958cc544e17",
     "branch": "research/simple-sub-intrusion",
