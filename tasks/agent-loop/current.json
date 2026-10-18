@@ -6,26 +6,26 @@
   "active_sprint": {
     "id": "fixed-source-result-map-existing-semantics-20261018-r22",
     "contract": "tasks/agent-loop/sprints/fixed-source-result-map-existing-semantics-20261018-r22.md",
-    "revision": 1,
-    "sha256": "85236a281bd8abaa90bf2b3d1a88163bfe1ad2d64a3a4113b64cd0c269eae56f",
+    "revision": 2,
+    "sha256": "8de27f2d267b6f0b33436cea8181f4534c9fad40b30029ac68950ec57c4d4c30",
     "state": "ACTIVE",
     "baseline": "3436209db; R21 rev3 CLEAN for document conformance only; R20 fixed runtime_resume 18/18 and proof CLEAN.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers/domain unchanged; OPEN/closure0.",
     "fixed_outcome": "Prove fixed-source D0/D1/D2 ResultMap from existing raw-suffix/resumption/return/source semantics or refute with a concrete baseline-admitted source; add strictly nonsemantic bounded (128-event) runtime suffix/value-lineage trace.",
     "resources": {
-      "cap_seconds": 2700,
-      "charged_seconds": 2700,
+      "cap_seconds": 3600,
+      "charged_seconds": 3600,
       "available_seconds": 0,
-      "allocation": "proof900 + independent falsification600 + nonsemantic trace600 + independent review360 + one focused target/integration240. Astra0; no R21 carryover."
+      "allocation": "revision1 proof900 + research600 + trace authoring600 + initial review360; rev2 repair360 + delta review240 + one focused run/integration300. Astra0; R21 carryover0."
     },
-    "next_action": "Commit/push R22 contract with Luna-frozen 128-event observation plan; dispatch proof and falsifier lanes plus exact nonsemantic trace lease. No test before CLEAN review.",
+    "next_action": "Repair the two major review findings within rev2 exact trace lease; then fresh delta review; only CLEAN permits one runtime_resume target.",
     "history": "R20 runtime gate CLEAN, 18/18; R20 source proof CLEAN with missing typed incidence. R21 rev3 review CLEAN for document conformance; fixed ResultMap OPEN, A unadopted and partial, B BLOCKED. Parent closure0.",
-    "last_stage_receipt": "R22 proof lane frozen: operational runtime value-handle induction supports fixed-shape successful executions, but original source D1/all-response A_decl return/provider preservation and candidate typed Orig remain OPEN. Falsifier lane also frozen; trace code lane continues.",
+    "last_stage_receipt": "Independent review FINDINGS: proof/falsifier boundaries CLEAN and conditional; original D1/A_decl and parent closure remain OPEN. Trace has two MAJOR findings: arm observer lifecycle loses nested tail results/stale observers; available view/receipt handles hardcoded UNKNOWN. No tests run.",
     "git_checkpoint": {
       "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "Falsifier note and handoff frozen for root checkpoint; other R22 proof and trace lanes continue."
+      "receipt": "Root-issued R22 rev2 bounded review-repair extension; trace remains unreviewed/provisional."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0. R21 complete: seven-document packet reviewed CLEAN for rev3 conformance; A only proposed, ResultMap OPEN, B blocked; parent closure0.",
@@ -40,7 +40,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Primary owns R22 exact authority, observation plan/code lease, review, focused run, integration and Git."
+      "receipt": "Primary owns R22 rev2 exact repair authority, reassignment, review, one focused run, integration and Git."
     },
     {
       "id": "/root/r22_result_map_proof",
@@ -67,13 +67,35 @@
     {
       "id": "/root/r22_suffix_trace_impl",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "RUNNING: root-frozen 128-event observational trace plan at contract SHA 85236a281bd8abaa90bf2b3d1a88163bfe1ad2d64a3a4113b64cd0c269eae56f; exact runtime/test lease; no verification before CLEAN review."
+      "receipt": "Revision1 trace implementation frozen at hashes recorded in handoff; review found two MAJOR issues. Original writes stopped; revision2 repair will be a separate follow-up assignment."
+    },
+    {
+      "id": "/root/r22_integrated_review",
+      "role": "compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "compiler_referee",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Independent review complete, FINDINGS: two MAJOR trace findings (arm observer lifecycle/nested tails; view/receipt identities hardcoded UNKNOWN). Proof and falsifier artifacts correctly retain conditional scope, D1 and parent OPEN. No tests/build/formatter/Git; equivalent review receipt was sent in message, not written due read-only role."
+    },
+    {
+      "id": "/root/r22_suffix_trace_repair",
+      "role": "implementer",
+      "state": "WAITING",
+      "requested_model": "Luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "R22 rev2 exact trace repair packet queued; 360s cap; no tests/build/formatter/diagnostics/Git."
     }
   ],
   "leases": [
@@ -109,26 +131,45 @@
     },
     {
       "path": "tools/inference-playground/src/runtime/machine.rs",
-      "owner": "/root/r22_suffix_trace_impl",
+      "owner": "/root/r22_suffix_trace_repair",
       "state": "HELD"
     },
     {
       "path": "tools/inference-playground/src/runtime/continuation.rs",
-      "owner": "/root/r22_suffix_trace_impl",
+      "owner": "/root/r22_suffix_trace_repair",
       "state": "HELD"
     },
     {
       "path": "tools/inference-playground/tests/runtime_resume.rs",
-      "owner": "/root/r22_suffix_trace_impl",
+      "owner": "/root/r22_suffix_trace_repair",
       "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md",
-      "owner": "/root/r22_suffix_trace_impl",
+      "owner": "/root/r22_suffix_trace_repair",
       "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-r22-integrated-review.md",
+      "owner": "/root/r22_integrated_review",
+      "state": "FROZEN"
     }
   ],
-  "pending": [],
+  "pending": [
+    {
+      "id": "R22-INTEGRATED-REVIEW-1",
+      "state": "FINDINGS",
+      "owner": "/root/r22_integrated_review",
+      "artifact": "Frozen proof + falsifier + observational runtime trace/code; CLEAN required before one focused test.",
+      "receipt": "Two MAJOR; see root adjudication in contract rev2 and current last_stage_receipt."
+    },
+    {
+      "id": "R22-TRACE-REPAIR-1",
+      "state": "ASSIGNED",
+      "owner": "/root/r22_suffix_trace_repair",
+      "artifact": "Close nested-tail/observer-lifecycle and actual view/receipt identity findings under R22 rev2."
+    }
+  ],
   "ready_next_work": {
     "id": "operation-v1-fieldbound-prefix-authentic-use-consumer-20261018-r20",
     "state": "ACTIVE",
@@ -140,5 +181,5 @@
     "required": false,
     "receipt": "All R17-R19 workers stopped and exact frozen results recorded; current R20 assignments are new-session and await acknowledgement."
   },
-  "next_action": "Await CLEAN gate review; only then Luna may run the exact focused runtime_resume target under the 660s verification allocation. If any unknown HIR error appears, preserve and report its exact owner."
+  "next_action": "R22 rev2: finish exact observational trace repair, obtain independent delta CLEAN review, run the single authorized runtime_resume target, integrate. Parent D1 and closure0 remain OPEN."
 }

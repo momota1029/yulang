@@ -1,4 +1,4 @@
-# R22 — Fixed-source result map from existing semantics
+# R22 rev2 — Fixed-source result map from existing semantics
 
 ## Parent, baseline, and outcome
 
@@ -131,10 +131,30 @@ time. After CLEAN only, run the exact target once:
 cargo test -p yu-playground --test runtime_resume
 ```
 
-Total cap 2700 seconds, fully charged: proof 900 + research 600 + trace 600 +
-independent review 360 + one focused run/integration 240. Astra 0; no R21
-carryover. `python3 tools/agent_sprint.py check` is static state evidence, not
-proof or independent review.
+Revision 1's 2700-second cap is fully charged. Revision 2 adds one bounded
+review-repair continuation of 900 seconds, bringing the sprint cap to 3600,
+fully reserved/charged: prior proof 900 + research 600 + trace authoring 600 +
+initial review 360 + repair 360 + delta review 240 + one focused run and
+integration 300. Astra 0; no R21 carryover. The added envelope only repairs
+the two reviewed observational-trace findings below; it does not reopen the
+source proof, widen source admission, or authorize a semantic rule.
+
+The exact repair lease remains the same three runtime/test paths and the same
+trace handoff. Repair must bind arm-result observations to actual arm lifecycle:
+record all nested tail Catch arms that complete at one return boundary, and
+retire or preserve observers correctly when a request unwinds, is abandoned,
+or is captured for later resumption. It must not insert semantic frames or
+change evaluation transitions. Render existing view/receipt handles at every
+observation point where those handles are present; retain `UNKNOWN` only when
+the runtime truly lacks the identity. Add focused assertions for nested tail
+Catch and an escaping/captured request lifecycle while preserving all R20
+assertions. Freeze code and handoff for independent delta review. Only after
+CLEAN, run `cargo test -p yu-playground --test runtime_resume` once. If CLEAN
+cannot be reached within the added envelope, retain the findings and leave the
+trace provisional.
+
+`python3 tools/agent_sprint.py check` is static state evidence, not proof or
+independent review.
 
 ## Success and stop conditions
 
