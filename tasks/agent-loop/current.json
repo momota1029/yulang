@@ -34,13 +34,13 @@
     {
       "id": "/root",
       "role": "Luna/high coordinator, source/native owner map, adjudication, integration and sole Git owner",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "R68 author lanes and fresh reviewers STOPPED with no descendants. Luna closed R68 after freezing all six author outputs and adjudicating both 37/37 review receipts; only end-boundary owner routing and successor candidate preparation remain in current Luna session."
+      "receipt": "Luna owner/integrator session STOPPED after R68 closeout/push and routing the unadopted source-law proposal. All R68 author/reviewer workers STOPPED; R69 not activated, no grant/leases/workers; no descendants."
     },
     {
       "id": "/root/r68_retained_lambda_proof",
