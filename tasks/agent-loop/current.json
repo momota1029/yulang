@@ -4,31 +4,31 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "npair-constructor-owned-replay-certificate-20261018",
-    "contract": "tasks/agent-loop/sprints/npair-constructor-owned-replay-certificate-20261018.md",
-    "revision": 4,
-    "sha256": "518080bac39eba16f31d5eb51207db002141ad28017ec0264986946c4caa54d9",
+    "id": "npair-fixed-c-interpretation-and-native-path-20261018-r8",
+    "contract": "tasks/agent-loop/sprints/npair-fixed-c-interpretation-and-native-path-20261018-r8.md",
+    "revision": 8,
+    "sha256": "529fe913b9cf2645399a7e8ce135b5535bc26fc7d0336e5dbf27ef582e64f8e9",
     "state": "ACTIVE",
-    "baseline": "681ff50d0",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers, source domain, fixed-c unchanged.",
-    "fixed_outcome": "Rev3 preserves rev2: authenticate the two constructor-owned FreshUse/physical-fiber/Replay/consumer routes with exact relation identities, actual slot contents and lifecycle, full fibers and port transformers; parent scope unchanged.",
+    "baseline": "e2469125777d8a88356ab15522e8506b35107f97; scheme 17ec98c43ca211a60f4f99c873186788e3d0ee0788fab4cfad95078769281eac; context 42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca; shadow_apply 6508a3f39a6d3742110ca1f33e927fa26bd3b112c3f378fc345294675b7f69e3.",
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original fixed c, quantifiers, source domain, and all R/W/Z cases unchanged.",
+    "fixed_outcome": "Advance the fixed-c supplier through source interpretation and actual complete output toward the true consumer; repair the exact r7 compile blockers and execute one reviewed source/native lineage test.",
     "before": {
       "original_conditions_closed": 0,
       "parent": "OPEN",
-      "runtime": "Prior proof CLEAN conditional only; prior implementation BLOCKING/MAJOR, unapproved; no runtime."
+      "implementation": "r7 exact command failed at compilation before test execution: one E0308 and two missing cfg(test) Graph.capture_rows fields.",
+      "proof": "Original Operation Prim_alpha/T_alpha plus Sigma.Lambda/A_decl still lacks the eta_c supplier; complete rho_u and actual residual consumer remain open."
     },
     "resources": {
-      "cap_seconds": 7200,
-      "charged_seconds": 6163.319,
-      "available_seconds": 540,
-      "allocation": "7200s total. Prior 3600s retired/charged conservatively. Rev3 fresh tranche charged 2465.929s; rev4 repair charged97.390s. Remaining allocations: delta review120 + protected runtime360 + primary/integration60 =540. Unused82.610s of authoring grant expired; no reserve/rollover/Astra.",
-      "last_stage_receipt": "Rev4 author STOP/freeze at monotonic309318598187955ns; start309221207538904ns; charged97.390s, expired82.610s. Frozen code/handoff hashes recorded in implementation handoff rev3. No tests/runtime; exact lease writes ceased.",
-      "expired_seconds": 496.681,
-      "next_action": "Frozen rev4 candidate awaits 120s independent delta review by constructor_replay_final_review. Runtime360 locked until CLEAN; author STOPPED."
+      "cap_seconds": 1800,
+      "charged_seconds": 0,
+      "available_seconds": 0,
+      "expired_seconds": 0,
+      "allocation": "r8 fresh: proof900, implementation240, independent spec/compiler reviews180+180, exact runtime120, Luna integration/state/Git180. Astra0; no prior rollover.",
+      "last_stage_receipt": "r8 proof and implementation assignments actively running under exact leases; all 1800 seconds reserved across fixed stages, Astra0. Actual durations not yet reported. Parent OPEN/closure0."
     },
-    "next_action": "Frozen rev4 candidate commit awaiting 120s independent delta review by constructor_replay_final_review. Runtime360 locked until CLEAN; no author writes."
+    "last_stage_receipt": "Both lanes started after ACK and exact lease transfer; parent remains OPEN/closure0."
   },
-  "history": "Closed `npair-replay-fiber-consumer-certificate-20261018` REVIEWED-PARTIAL at `7087de449`; parent OPEN, closure0. Proof SHA `691a537b…e3e3614` CLEAN conditional. Implementation candidate `1958cf20e` unapproved; compiler review BLOCKING+2 MAJOR, no Cargo/tests/runtime. Closeout: `notes/progress/2026-10-18-replay-fiber-consumer-closeout.md`. PR #11 merged at `27a7e00d4`; operations-only. Earlier sprint history remains in linked notes/progress and Git history.",
+  "history": "tasks/agent-loop/sprints/npair-rule-options-and-component-replay-20261018-closeout.md SHA 60aa58b143f763a07da40f063865f08a5fe4fbf3acb6c672fc882edb4feff8f9; prior histories retained in archived sprint receipts. PR #11 merged remotely as 27a7e00d4b581f18987bb2a3cbf2e492789c2293; local checkout remains stale and dirty.; rev3 owner audit amendment SHA 9394b94ab43c1b0ac5a5190460f84961a769c92f16ee31949604c501601def92; rev8 closeout tasks/agent-loop/sprints/npair-replay-auth-and-operation-rules-20261018-closeout.md SHA e557f8f9ddfd760f89ba057de17e6a2b0ff141c9297b02ac354f28b2cfd5b19f; tasks/agent-loop/sprints/npair-provenance-complete-replay-and-operation-rules-20261018-closeout.md SHA bb598941f3444baec8177e50665a22380e1337e858f2a6064359c9c424d83b32; prior CLEAN cross-route ownership audit note 572884a8df2e8adc19eb1a8121277c77784e3c02fa9925729e292dd629f40308 and handoff f2c93d65ba96e4a256010e2942096ca21ef714b5b06d81573701eb0b960948ed; next-action selector decision included in constructor-lineage contract; r2 constructor-lineage sprint BLOCKING close: implementation handoff292b828fe891a69f194e9872826cc0baaa9443db6f65a1aeb8caaecd3cd07274; unused720s expired; no tests/runtime. r3 recovery selector decision active.; r3 STOP at exact-source recovery gate: 6,647 local files plus reachable/unreachable Git blobs searched, no original hashes; rejected snapshots preserved. r4 explicitly adopts rejected bytes as baseline, no r2 provenance claim.; r4 BLOCKING instrumentation review: port child/op/uniqueness, matched drain acknowledgement/return, explicit complete linked observations. r5 contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20 authorizes only new test-function repair.; r5 BLOCKING closeout: contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20; implementation 5e8060b6e717adb5e10c47d8e0cba2ba532b0cef85842b580980cc4a2af266b1; proof ba6f2d7a0dc48c9d03038cccb17d8b5a98800ab8f72222b4e57302246aa4784a; independent review BLOCKING on port uniqueness before endpoint filtering and typed admission/emission/readback identity. Runtime0. Spent720s, unused420s expired. Parent OPEN/closure0.; r6 review BLOCKING: contract 68a518fa706613d523a9fe3a6be2394fb491e132e048b1299144532258d85fff; scheme d8c53522685e9bdfc1ba00380f222f4936d8d8df3302248fcde31e093668c484; context 42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca; proof 8d5cab69798da42c9de464f5dc8d568d647f3fa98e6d028289c8310e6b87d49c. Port/accessor/baselines accepted. One conflicting admission can be filtered before uniqueness. r6 spent540s; remaining runtime120/final180/integration120 retained.; r7 exact test compile failed before execution; original parent remained OPEN/closure0. Research-only checkpoints pushed: 095e81a61 (conditional Replay parent application), e24691257 (original fixed-c supplier audit). r8 begins with fresh 1800s; no rollover.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
   "workers": [
     {
@@ -40,62 +40,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Closed prior sprint partial; opened successor candidate after dispatcher recommendation."
+      "receipt": "r8 contract frozen; Luna owns current-state update, integration and Git."
     },
     {
-      "id": "/root/constructor_replay_proof",
+      "id": "/root/npair_fixed_c_r8_proof",
       "role": "prover",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen proof map SHA 9d465453a4433905813a8db84ba062abf324c75cced1879faffef2b291c03f2f; handoff dbbfbda12ff35b01ed1d6d9ef40308162d68464be69fb8b5c02cfd2c347046d5. Charged 720/720s; fixture IDs unobserved; writes stopped."
+      "receipt": "Lease accepted; active work began 2026-10-18 03:40:09 UTC, 900s cap until 03:55:09 UTC. Requested Sol/high; observed UNKNOWN. No descendants."
     },
     {
-      "id": "/root/constructor_replay_impl",
+      "id": "/root/npair_fixed_c_r8_impl",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev4 targeted repair frozen at monotonic309318598187955ns; stage charged97.390s of180, unused82.610s expired. Exact hashes: context5d6bef72ece3ce0cc5dc729117f8e668fc746915a443a6a7beac7bd92d7dde3a; schemecbfd62be7243842aa952c4c1ee29d0e29b58506e2c400539c321a6b1070501d0; handoff rev3eccb92eed1298172a1c08fb18f770619d002ef9c3cf4fd7b345ae0e1588315f1. Writes stopped; no tests/runtime/descendants."
-    },
-    {
-      "id": "/root/constructor_replay_map_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Early owner-map review CLEAN; hashes matched, numeric fixture rows unobserved, closure0. Read-only STOP; code stage authorized."
-    },
-    {
-      "id": "/root/constructor_slot_lifecycle_proof",
-      "role": "prover",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen candidate source/lifecycle result; artifact SHA 116fb9d70764b948680777651c7c891506a4ab3921ea2d15632be44068665cb5; handoff SHA 8f1ef387e9b6a376a85f87f33e527525c9a280c2102ed455714d7dd68776e3b7. Charge600s conservatively; monotonic start307304901194208ns, freeze end307576806849181ns. Parent closure0, no tests/runtime/code/Git/descendants; fresh combined review required."
-    },
-    {
-      "id": "/root/constructor_replay_final_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Fresh full static compiler/lifecycle review of commit681ff50d0 completed, charged full480s conservatively. Verdict BLOCKING+MAJOR: q typed pair must match ordered Replay task, not B; actual retained fiber membership mutations missing. No tests/runtime/writes. No other lifecycle defect found; hashes matched."
+      "receipt": "Current-session active via supported collaboration follow-up after exact hash ACK and Luna grant; runtime/model metadata not exposed, so observed model/effort UNKNOWN."
     }
   ],
   "leases": [
@@ -105,99 +72,56 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/npair-constructor-owned-replay-certificate-20261018.md",
+      "path": "tasks/agent-loop/sprints/npair-fixed-c-interpretation-and-native-path-20261018-r8.md",
       "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/theory/2026-10-18-constructor-owned-replay-certificate.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-constructor-owned-replay-proof.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "crates/yu-solver/src/candidate_context.rs",
-      "owner": "/root/constructor_replay_impl",
       "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
-      "owner": "/root/constructor_replay_impl",
-      "state": "FROZEN"
+      "owner": "/root/npair_fixed_c_r8_impl",
+      "state": "HELD"
     },
     {
       "path": "crates/yu-solver/src/shadow_apply.rs",
-      "owner": "/root/constructor_replay_impl",
-      "state": "FROZEN"
+      "owner": "/root/npair_fixed_c_r8_impl",
+      "state": "HELD"
     },
     {
-      "path": "crates/yu-solver/src/tests/candidate_graph_call.rs",
-      "owner": "/root/constructor_replay_impl",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-npair-fixed-c-r8-impl.md",
+      "owner": "/root/npair_fixed_c_r8_impl",
+      "state": "HELD"
     },
     {
-      "path": "crates/yu-solver/examples/research_scoped_formal_replay.rs",
-      "owner": "/root/constructor_replay_impl",
-      "state": "FROZEN"
+      "path": "notes/theory/2026-10-18-npair-fixed-c-interpretation-r8.md",
+      "owner": "/root/npair_fixed_c_r8_proof",
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-18-constructor-owned-replay-certificate.md",
-      "owner": "/root/constructor_replay_impl",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-npair-fixed-c-r8-proof.md",
+      "owner": "/root/npair_fixed_c_r8_proof",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-constructor-owned-replay-impl.md",
-      "owner": "/root/constructor_replay_impl",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r8.stdout.log",
+      "owner": "/root",
+      "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-constructor-slot-lifecycle.md",
-      "owner": "/root/constructor_slot_lifecycle_proof",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r8.stderr.log",
+      "owner": "/root",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-constructor-slot-lifecycle-proof.md",
-      "owner": "/root/constructor_slot_lifecycle_proof",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/runtime/20261018-replay-constructor-r8.meta.json",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
-  "pending": [
-    {
-      "id": "review-constructor-replay-map-r1",
-      "state": "DONE",
-      "reviewer": "/root/constructor_replay_map_review",
-      "artifact": "notes/theory/2026-10-18-constructor-owned-replay-certificate.md",
-      "sha256": "9d465453a4433905813a8db84ba062abf324c75cced1879faffef2b291c03f2f",
-      "receipt": "Early independent constructor-owner map review; code edits gated on CLEAN.",
-      "verdict": "CLEAN",
-      "review_receipt": "Fresh compiler_referee review; 120s conservatively charged; author code continuation permitted."
-    },
-    {
-      "id": "review-constructor-slot-lifecycle-and-replay-implementation-r3",
-      "state": "BLOCKED",
-      "reviewer": "/root/constructor_replay_final_review",
-      "artifact": "crates/yu-solver/src/candidate_context.rs",
-      "sha256": "3aa782c35ba049708c0268653c69f918553cecda287fbec97f1d61541fa1a02e",
-      "receipt": "Full fresh review completed on 681ff50d0; findings pinned in current sprint rev4.",
-      "verdict": "BLOCKING+MAJOR"
-    },
-    {
-      "id": "review-constructor-replay-rev4-delta",
-      "state": "REVIEW",
-      "reviewer": "/root/constructor_replay_final_review",
-      "artifact": "rev4 frozen delta from 681ff50d0",
-      "sha256": "candidate-context=5d6bef72ece3ce0cc5dc729117f8e668fc746915a443a6a7beac7bd92d7dde3a;candidate-scheme=cbfd62be7243842aa952c4c1ee29d0e29b58506e2c400539c321a6b1070501d0;handoff=eccb92eed1298172a1c08fb18f770619d002ef9c3cf4fd7b345ae0e1588315f1",
-      "receipt": "120s delta review requested for both prior findings and rev3 full-review assertions; runtime locked unless CLEAN."
-    }
-  ],
+  "pending": [],
   "ready_next_work": null,
   "legacy_reconciliation": {
     "required": false,
-    "receipt": "Previous sprint writers/reviewers STOPPED; exact frozen hashes preserved in closeout/handoffs."
+    "receipt": "All preceding r6/r7 writers and reviewers report completion/STOPPED with no descendants; exact frozen source handoffs retained."
   },
-  "next_action": "Rev4 contract hash frozen; request fresh author ACK for exact 3 paths, 180s hard cap. No other lease/review/runtime until first repair freeze."
+  "next_action": "r8 lanes are assigned on frozen exact leases. Apply proof to the unchanged parent and complete the reviewed source/native test path; stop on the first exact-test failure or decisive counterexample."
 }
