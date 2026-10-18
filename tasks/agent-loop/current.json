@@ -38,8 +38,8 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Read-only evidence: Graph::qualifies is SCC(origin,receiver); existing mutual-recursion candidate fixture supplies an unchanged-domain source lead with two Apply sites. No source-qualified third-owner/merge/later-consumer bridge established; root stops before any new grant."
+      "session": "current-conversation-2026-10-19-source-case-audit",
+      "receipt": "Luna read-only case audit: selector fixes annotated helper source as next construction candidate. R53 reusable only under instantiated premises; R55 scaffold remains a distinct direct-name case. No exact activation contract, grant, tests, code or semantic change; parent/A/B OPEN 0->0, R50 NOT_ADOPTED."
     },
     {
       "id": "/root/r71_raw_canonical_proof",
@@ -211,5 +211,5 @@
     }
   ],
   "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 CLOSED REVIEWED CONDITIONAL with coverage target OPEN. R70 operation target, original parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-  "next_action": "Source-qualified lead for the next read-only audit: the existing natural-recursion fixture `my left x = right x\nmy right y = left y` (candidate_intrusion_tests.rs::natural_recursive_definitions_use_open_roots_and_keep_real_function_bounds). Its Apply source events can qualify because candidate_value_graph::Graph::qualifies is SCC(origin,receiver); the fixture asserts candidate-mode execution retains both-polarity function bounds. This does NOT establish the needed third-owner slot → qualified merge → later production consumer or required-lineage obligation. Inspect that exact fixture/source route next; no sprint or grant yet."
+  "next_action": "Next candidate only (no activation/grant): ordinary-mode source `act io: our tick: int -> int; my outer (q:[io] int) = { my loop (x:[io] int) = { my direct = loop x; my helper (y:[io] int) = loop y; helper x }; loop q }`. First freeze an exact bounded construction contract and inspect annotated constructors/qualification route. Construction must find one history: third-owner physical slot + evidence, qualified alias-changing merge, later production Work::Bound lookup, independently justified consumer lineage; otherwise earliest authentic obstruction. R53 lemmas reusable only under instantiated premises/indices/maps/scope; no analogy transfer or full-solve claim. Parent/A/B OPEN 0->0; R50 NOT_ADOPTED."
 }
