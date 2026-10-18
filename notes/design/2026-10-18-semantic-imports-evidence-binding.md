@@ -15,24 +15,25 @@ need no new semantic input for this structural experiment.
 
 ## Proposed boundary
 
-Replace the unit-only input with an optional immutable `CallerEvidenceBinding`.
-The binding owns an opaque caller payload through a reference-counted owner,
-plus the exact parse-root key, a caller-selected declaration/source-node key,
-and the `ModuleIdentity` it is intended for. `SemanticImports::empty()` remains
-the existing no-context input.
+Replace the unit-only input with an optional `CallerEvidenceBinding`. Its
+binding metadata is immutable and the binding retains an opaque, owned,
+`'static + Send + Sync` caller payload through a reference-counted owner, plus
+the exact parse-root key, an admitted top-level binding declaration's source
+key, and the `ModuleIdentity` it is intended for. `SemanticImports::empty()`
+remains the existing no-context input. This preserves the existing
+`HirModule: Send + Sync` invariant.
 
 Binding construction must receive a `ParsedFile`, the intended
 `ModuleIdentity`, an exact source key obtained from that parse, and the
 caller-owned payload. It rejects a foreign parse key immediately. Lowering
-checks the binding against its own parsed root and exact module identity before
-accepting the payload. The completed `HirModule` retains the owner and all
-binding keys; it must not retain detached integer addresses or a weak handle.
-If an exact source-node-to-HIR-declaration check is available without changing
-source meaning, lowering also rejects an anchor not present in that HIR's
-declaration source identity. If the existing HIR cannot identify such an
-anchor, the API must describe it only as a source-node anchor and leave the
-declaration relation explicitly unvalidated; it must not claim a declaration
-binding it cannot check.
+checks the binding against its own parsed root and exact module identity, then
+requires the source key to occur among that HIR's admitted top-level binding
+declaration keys. A parse root, expression, unsupported item, or arbitrary
+same-parse node is rejected. This first API does not claim operation-annotation
+identity: effect/operation declarations have a separate feature-dependent HIR
+identity path and need their own exact binding design before they can be used
+as anchors. The completed `HirModule` retains the owner and all binding keys;
+it must not retain detached integer addresses or a weak handle.
 
 The structural observation is limited to correspondence:
 
@@ -59,12 +60,17 @@ existing ownership of that same HIR. HIR structural equality remains about the
 existing source/lowering projection; evidence correspondence is queried
 explicitly and is not treated as a type or semantic equality judgment.
 
-The payload container must own all data needed for its retained lifetime. The
-concrete representation (including whether a type-erased `Arc` is compatible
-with current `Send`/`Sync` and public API constraints) is not fixed until the
-independent review checks the actual call sites and HIR invariants. A review
-finding requiring a different context lifetime or semantic constructor pauses
-implementation before any such choice is adopted.
+The payload container must own all data needed for its retained lifetime and
+preserve `HirModule: Send + Sync`; borrowed or non-thread-safe payloads are not
+accepted by this API. `Arc<dyn Any + Send + Sync>` with `'static` contents is a
+possible transport representation, subject to review of the exact call sites.
+The immutable claim applies to binding metadata and allocation ownership, not
+deep immutability of arbitrary caller contents: a payload can use interior
+mutability through another clone. The transport lemma therefore preserves the
+same payload allocation and binding keys, not an invariant that its contents
+never change. Any semantic immutability/activity premise remains independently
+caller-established. A review finding requiring a different semantic constructor
+pauses implementation before that choice is adopted.
 
 ## Falsifiers and focused evidence
 

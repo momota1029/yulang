@@ -17418,8 +17418,10 @@ separate.
 
 The caller selected the caller-supplied evidence route. R25 now targets
 transport of an unvalidated caller context bound to one exact parsed source,
-module and declaration occurrence, retained in the same HIR used by inference
-and runtime. This reduces only the source-binding obstruction: authentic
+module and HIR-admitted top-level binding declaration, retained in the same HIR
+used by inference and runtime. Its payload is owned, `Send + Sync + 'static`;
+binding metadata is immutable while payload internals are not assumed immutable.
+This reduces only the source-binding obstruction: authentic
 `j0/a0/license`, phase actions, `JointWF`, and the unchanged parent theorem
 remain open. See
 [`caller-evidence-source-binding-20261018-r25.md`](agent-loop/sprints/caller-evidence-source-binding-20261018-r25.md)

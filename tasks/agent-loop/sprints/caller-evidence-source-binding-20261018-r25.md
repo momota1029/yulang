@@ -1,6 +1,8 @@
 # R25 — source-bound caller evidence retained across compiler phases
 
-Status: Luna-approved sprint contract, revision 1.
+Status: Luna-approved sprint contract, revision 2. Revision 2 makes the exact
+HIR-recognized declaration anchor and payload auto-trait/lifetime contract
+explicit; it does not change the fixed outcome or parent scope.
 Branch: `research/simple-sub-intrusion`.
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, original source
 domain and quantifiers unchanged, OPEN / closure 0.
@@ -9,10 +11,13 @@ domain and quantifiers unchanged, OPEN / closure 0.
 
 Implement and prove the transport-only claim that a caller-supplied opaque
 context can remain bound to one exact parsed source, module identity and
-declaration occurrence through HIR, candidate inference and the runtime's
-existing retained HIR. A binding observation means only artifact
-correspondence. It does not establish `j0`, `a0`, license/incidence, phase
-actions, `JointWF`, world validity, or parent-theorem closure.
+HIR-admitted top-level binding declaration occurrence through HIR, candidate
+inference and the runtime's existing retained HIR. Binding metadata is
+immutable; payload ownership requires `'static + Send + Sync`, but arbitrary
+payload contents are not guaranteed deeply immutable. A binding observation
+means only artifact correspondence. It does not establish `j0`, `a0`,
+license/incidence, phase actions, `JointWF`, world validity, or parent-theorem
+closure. Operation-annotation anchors are outside this first API.
 
 The original obstruction is authentic caller-owned same-fiber evidence. The
 selected acquisition path permits transporting such evidence but supplies
@@ -60,9 +65,11 @@ source/declaration acceptance. No code, semantics, Git or parent closure.
 ### B. Binding design — Luna, 360 seconds
 
 Exact write: `notes/design/2026-10-18-semantic-imports-evidence-binding.md`.
-Specify an opaque, immutable, owning payload and parse/module/declaration
-binding; exact mismatch failure; compatibility of `SemanticImports::empty()`;
-and the structural-only meaning of observations. No public truth trait,
+Specify immutable binding metadata retaining an opaque owning `'static + Send +
+Sync` payload and parse/module/admitted-declaration binding; exact mismatch
+failure; compatibility of `SemanticImports::empty()`; and the structural-only
+meaning of observations. Payload contents need not be deeply immutable. No
+public truth trait,
 Boolean proof flag, `VerifiedJointWF`, or solver/runtime semantic consumption.
 Freeze for independent review before implementation activation.
 
