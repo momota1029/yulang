@@ -18,13 +18,13 @@
       "available_seconds": 0,
       "allocation": "proof720 + Luna design360 + staged HIR implementation600 + fresh review480 + Luna integration240. Astra0. One heavy test process."
     },
-    "next_action": "Freeze and independently review evidence-binding design; proof lane may establish conditional source-binding transport; activate HIR implementation only after CLEAN design review.",
+    "next_action": "Await independent design review while proof continues. Activate exact HIR implementation leases only after CLEAN design review; return any semantic/lifetime API choice to Luna.",
     "history": "User selected caller-supplied evidence route. R24 found no actual j0/a0/license tuple. HIR already retains parse-branded SourceNodeKeys; candidate and runtime retain same HIR. R25 transports unvalidated context only; actual semantic evidence, phase actions, JointWF and parent remain OPEN/closure0.",
     "git_checkpoint": {
       "commit": "f7edada810d94a320fc7d5a3e785e407a0bfb01c",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R24 closeout pushed; R25 contract/current/task update pending initial checkpoint."
+      "receipt": "R25 initial contract/state pushed as f9da9333a; frozen design/current update pending next checkpoint."
     },
     "workers": [
       {
@@ -36,7 +36,29 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Owns R25 contract, design, review routing, integration and Git; no code writer activated yet."
+        "receipt": "R25 primary owns exact design and integration; design candidate frozen for review; no code edits."
+      },
+      {
+        "id": "/root/r25_transport_proof",
+        "role": "prover",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Launched after R25 initial checkpoint; exact two proof/handoff leases; 720s cap."
+      },
+      {
+        "id": "/root/r25_design_review",
+        "role": "compiler_referee",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Fresh independent read-only review of frozen R25 design; 480s total review cap."
       }
     ],
     "leases": [
@@ -58,33 +80,43 @@
       {
         "path": "notes/design/2026-10-18-semantic-imports-evidence-binding.md",
         "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-18-caller-evidence-source-binding.md",
+        "owner": "/root/r25_transport_proof",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-caller-evidence-source-binding.md",
+        "owner": "/root/r25_transport_proof",
         "state": "HELD"
       }
     ],
     "pending": [
       {
         "id": "R25-CALLER-EVIDENCE-TRANSPORT",
-        "state": "ASSIGNED",
-        "owner": "prover",
-        "artifact": "Conditional transport lemma; exact context introduction/authenticity remains a premise."
+        "state": "RUNNING",
+        "owner": "/root/r25_transport_proof",
+        "artifact": "Exact conditional transport lemma; authentic context construction remains a premise."
       },
       {
         "id": "R25-EVIDENCE-BINDING-DESIGN",
-        "state": "RUNNING",
+        "state": "REVIEW",
         "owner": "/root",
-        "artifact": "Opaque caller payload bound to exact parse/module/declaration; structural correspondence only."
+        "artifact": "Frozen candidate notes/design/2026-10-18-semantic-imports-evidence-binding.md; structural correspondence only."
       },
       {
         "id": "R25-HIR-RETENTION-IMPLEMENTATION",
         "state": "STAGED",
-        "owner": "/root after independent CLEAN design review",
-        "artifact": "HIR retains caller context; focused identity/ownership tests; no solver/runtime semantic consumption."
+        "owner": "/root after CLEAN design review",
+        "artifact": "No code writer active. Exact HIR/test leases in sprint contract."
       },
       {
-        "id": "R25-INDEPENDENT-REVIEW",
-        "state": "STAGED",
-        "owner": "fresh compiler_referee",
-        "artifact": "Review proof/design and later frozen coherent implementation."
+        "id": "R25-DESIGN-REVIEW",
+        "state": "RUNNING",
+        "owner": "/root/r25_design_review",
+        "artifact": "Independent review of frozen design candidate; implementation not in scope."
       }
     ],
     "ready_next_work": {
@@ -110,7 +142,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Owns R25 contract, design, review routing, integration and Git; no code writer activated yet."
+      "receipt": "R25 primary owns exact design and integration; design candidate frozen for review; no code edits."
+    },
+    {
+      "id": "/root/r25_transport_proof",
+      "role": "prover",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Launched after R25 initial checkpoint; exact two proof/handoff leases; 720s cap."
+    },
+    {
+      "id": "/root/r25_design_review",
+      "role": "compiler_referee",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh independent read-only review of frozen R25 design; 480s total review cap."
     }
   ],
   "leases": [
@@ -132,46 +186,56 @@
     {
       "path": "notes/design/2026-10-18-semantic-imports-evidence-binding.md",
       "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-caller-evidence-source-binding.md",
+      "owner": "/root/r25_transport_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-caller-evidence-source-binding.md",
+      "owner": "/root/r25_transport_proof",
       "state": "HELD"
     }
   ],
   "pending": [
     {
       "id": "R25-CALLER-EVIDENCE-TRANSPORT",
-      "state": "ASSIGNED",
-      "owner": "prover",
-      "artifact": "Conditional transport lemma; exact context introduction/authenticity remains a premise."
+      "state": "RUNNING",
+      "owner": "/root/r25_transport_proof",
+      "artifact": "Exact conditional transport lemma; authentic context construction remains a premise."
     },
     {
       "id": "R25-EVIDENCE-BINDING-DESIGN",
-      "state": "RUNNING",
+      "state": "REVIEW",
       "owner": "/root",
-      "artifact": "Opaque caller payload bound to exact parse/module/declaration; structural correspondence only."
+      "artifact": "Frozen candidate notes/design/2026-10-18-semantic-imports-evidence-binding.md; structural correspondence only."
     },
     {
       "id": "R25-HIR-RETENTION-IMPLEMENTATION",
       "state": "STAGED",
-      "owner": "/root after independent CLEAN design review",
-      "artifact": "HIR retains caller context; focused identity/ownership tests; no solver/runtime semantic consumption."
+      "owner": "/root after CLEAN design review",
+      "artifact": "No code writer active. Exact HIR/test leases in sprint contract."
     },
     {
-      "id": "R25-INDEPENDENT-REVIEW",
-      "state": "STAGED",
-      "owner": "fresh compiler_referee",
-      "artifact": "Review proof/design and later frozen coherent implementation."
+      "id": "R25-DESIGN-REVIEW",
+      "state": "RUNNING",
+      "owner": "/root/r25_design_review",
+      "artifact": "Independent review of frozen design candidate; implementation not in scope."
     }
   ],
   "ready_next_work": {
-    "id": "R25-CALLER-EVIDENCE-TRANSPORT",
-    "state": "READY",
-    "owner": "Sol/prover after initial checkpoint",
-    "artifact": "Prove exact identity/context transport implication and apply to source-binding boundary without closing semantic guards or parent."
+    "id": "R25-HIR-RETENTION-IMPLEMENTATION",
+    "state": "STAGED_FOR_REVIEW",
+    "owner": "Luna",
+    "artifact": "After independent CLEAN review, implement opaque context retention in yu-hir only and run focused tests."
   },
   "legacy_reconciliation": {
     "required": false,
     "receipt": "R23 and R24 lane workers stopped; all frozen outputs reviewed; no code or unknown leases."
   },
-  "next_action": "Freeze and independently review evidence-binding design; proof lane may establish conditional source-binding transport; activate HIR implementation only after CLEAN design review.",
+  "next_action": "Await independent design review while proof continues. Activate exact HIR implementation leases only after CLEAN design review; return any semantic/lifetime API choice to Luna.",
   "git_checkpoint": {
     "commit": "f4fba1f38",
     "branch": "research/simple-sub-intrusion",
