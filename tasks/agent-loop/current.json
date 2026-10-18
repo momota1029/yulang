@@ -1,195 +1,240 @@
 {
-  "schema_version": 1,
-  "mode": "LIVE",
-  "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r73",
-  "active_sprint": {
-    "id": "helper-suffix-history-20261019-r73",
-    "contract": "tasks/agent-loop/sprints/helper-suffix-history-20261019-r73.md",
-    "revision": 2,
-    "state": "ACTIVE",
-    "baseline": "69ecc0dc3c796f9ddbc4c7d815b1816dd97c5ccd",
-    "contract_sha256": "25b360d23fee6ee41482486facaaa602db8008fafdb0b4e5d94f594e43bf772f",
-    "parent": "Unchanged computation-forwarding preservation §§1,6–7; full inference/evaluator and Simple-sub A/B OPEN 0->0; R50 NOT_ADOPTED.",
-    "fixed_outcome": "Continue the exact R72 source/history from a complete helper-Local cut-state through replay/memo, later production Work::Bound and independently licensed consumer lineage, or earliest authentic obstruction; unfinished stays OPEN.",
-    "dependencies": {
-      "manifest": "32 direct SHA-256 pins MATCH baseline Git blobs and live bytes; R72 contract + four outputs are included, separate reviewer receipts are activation-context, not manifest inputs.",
-      "dispatcher_start": "Accepted exact revision 2 SHA 25b360d23fee6ee41482486facaaa602db8008fafdb0b4e5d94f594e43bf772f; 32/32 pins MATCH; no grant from selector.",
-      "authority": "Top-level inference principles §§1–3 and unchanged parent §§1,6–7; candidate does not close parent/A/B or authorize code/semantics.",
-      "reconciliation": "R72 proof and both reviewers STOPPED/NO_DESCENDANTS; all four R72 artifacts frozen and reviewed conditional. No unknown writers/leases; prior R72 checkpoint 69ecc0dc3 is pushed."
-    },
-    "resources": {
-      "cap_seconds": 2400,
-      "charged_seconds": 2400,
-      "available_seconds": 0,
-      "allocation": "Grant once: Astra core proof 300s max; Sol complementary counter-reading 900s; Luna owner map 500s; fresh compiler/spec reviews 200s each; Luna integration 300s. No carryover; Astra aggregate within 300s sprint cap."
-    },
-    "next_action": "Reconstruct complete helper Local cut-state, then trace restoration/replay, both loop-Lambda demands, memo recapture, loop Local boundary1, later production Work::Bound and consumer; return A/B/C or UNFINISHED/OPEN.",
-    "history": "R72 CLOSED REVIEWED CONDITIONAL/UNFINISHED, commit 69ecc0dc3 pushed; initial K_t item does not alias at first group. R71 coverage and original parent/A/B remain OPEN.",
-    "activation_receipt": {
-      "selector": "R73 revision 2 exact SHA 25b360d23fee6ee41482486facaaa602db8008fafdb0b4e5d94f594e43bf772f accepted; 32/32 pins MATCH; selector did not grant resources or spawn workers.",
-      "R72_compiler_review": "/root/r72_compiler_review STOPPED; no blocking/major/minor; 27/27 pins and all four frozen output hashes match; bounded static review only.",
-      "R72_spec_review": "/root/r72_spec_review STOPPED; no blocking/major/minor; contract, 27/27 pins and four frozen output hashes match; bounded static conformance review only.",
-      "review_scope": "R72 review receipts are recorded here as Luna adjudication context and are not R73 manifest dependencies.",
-      "observations": "All prior writers/reviewers/selector STOPPED; no descendants or unknown leases. Requested model/effort observations remain UNKNOWN unless supported by worker receipts."
-    }
+ "schema_version": 1,
+ "mode": "LIVE",
+ "phase": "ENDED",
+ "session": "current-conversation-2026-10-19-r73",
+ "active_sprint": {
+  "id": "helper-suffix-history-20261019-r73",
+  "contract": "tasks/agent-loop/sprints/helper-suffix-history-20261019-r73.md",
+  "revision": 2,
+  "state": "CLOSED_UNFINISHED",
+  "baseline": "69ecc0dc3c796f9ddbc4c7d815b1816dd97c5ccd",
+  "contract_sha256": "25b360d23fee6ee41482486facaaa602db8008fafdb0b4e5d94f594e43bf772f",
+  "parent": "Unchanged computation-forwarding preservation §§1,6–7; full inference/evaluator and Simple-sub A/B OPEN 0->0; R50 NOT_ADOPTED.",
+  "fixed_outcome": "Continue the exact R72 source/history from a complete helper-Local cut-state through replay/memo, later production Work::Bound and independently licensed consumer lineage, or earliest authentic obstruction; unfinished stays OPEN.",
+  "dependencies": {
+   "manifest": "32 direct SHA-256 pins MATCH baseline Git blobs and live bytes; R72 contract + four outputs are included, separate reviewer receipts are activation-context, not manifest inputs.",
+   "dispatcher_start": "Accepted exact revision 2 SHA 25b360d23fee6ee41482486facaaa602db8008fafdb0b4e5d94f594e43bf772f; 32/32 pins MATCH; no grant from selector.",
+   "authority": "Top-level inference principles §§1–3 and unchanged parent §§1,6–7; candidate does not close parent/A/B or authorize code/semantics.",
+   "reconciliation": "R72 proof and both reviewers STOPPED/NO_DESCENDANTS; all four R72 artifacts frozen and reviewed conditional. No unknown writers/leases; prior R72 checkpoint 69ecc0dc3 is pushed."
   },
-  "workers": [
-    {
-      "id": "/root",
-      "role": "Luna/high coordinator, owner map, adjudication, integration and sole Git owner",
-      "state": "RUNNING",
-      "requested_model": "gpt-6-luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r73",
-      "receipt": "R73 activated after selector rev2 exact-hash acceptance, 32/32 pins and runtime/lease reconciliation; full 2400s grant charged; producer launches pending."
-    },
-    {
-      "id": "/root/r73_astra",
-      "role": "R73 bounded multi-stage core proof; exact theory note and proof inbox only",
-      "state": "NOT_STARTED",
-      "requested_model": "gpt-6-astra",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r73",
-      "receipt": "Exact 300s aggregate Astra allocation reserved; NOT_STARTED until supported launch receipt."
-    },
-    {
-      "id": "/root/r73_researcher",
-      "role": "R73 independent Sol scheduler/counter-reading; exact counter-reading note and research inbox only",
-      "state": "NOT_STARTED",
-      "requested_model": "gpt-6-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r73",
-      "receipt": "Exact 900s complementary lease reserved; NOT_STARTED until supported launch receipt."
-    }
-  ],
-  "leases": [
-    {
-      "path": "tasks/agent-loop/current.json",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/helper-suffix-history-20261019-r73.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r73-helper-suffix-history.md",
-      "owner": "/root/r73_astra",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r73-proof.md",
-      "owner": "/root/r73_astra",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r73-suffix-counter-reading.md",
-      "owner": "/root/r73_researcher",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r73-research.md",
-      "owner": "/root/r73_researcher",
-      "state": "HELD"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r73-suffix-consumer-owners.md",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r73-implementation.md",
-      "owner": "/root",
-      "state": "HELD"
-    }
-  ],
-  "pending": [
-    {
-      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
-      "state": "OPEN",
-      "owner": "Luna; original whole-ascription formation obligation",
-      "request": "Derive source-licensed whole-definition-ascription relation for original provider/carrier, distinct p_t/p_A/p_R, local permissions, joint K,D, ordinary constraints, correlated results, actual Q, both solution directions and typed substitution/transport.",
-      "falsifier": "A permitted source solution lacks lift/reverse, provider/position/permission/result evidence changes, ordinary constraints disappear, Q is guessed, or ambiguity lacks two compatible completions differing on an original observable."
-    },
-    {
-      "id": "R64-SRC-ANN-ARG-1",
-      "state": "OPEN",
-      "owner": "Luna; downstream of the current operand supplier",
-      "request": "Derive the authentic source rule for whole-ascription p_A argument typed interpretation on L/t original incoming carrier, with own permission/scope and original joint component context, preserving p_t/Name and ordinary constraints before native representation.",
-      "falsifier": "Rule borrows p_t permission, changes provider/position, invents joint xi, imports native comparison, adds cap/inflow, drops ordinary constraints, or uses later transport/result as initial formation."
-    },
-    {
-      "id": "R65-CURRENT-OPERAND-1",
-      "state": "OPEN",
-      "owner": "Luna; original ordinary typed Lambda operand supplier",
-      "request": "Derive the completed symbolic typed Lambda operand and prior evidence under the original joint context, from original formal p_t and resolved Name(t), using an applicable Lambda/body-result rule; resolve Result-A Lambda applicability at the whole-annotated binding or report its first exact missing premise.",
-      "falsifier": "An applicable pinned source clause supplies this exact operand at its authentic provider/owner/position and original context; or the attempted derivation assumes complete xi, circularly forms context, replaces original body checking without a rule, or loses provider/permission/result/typed-substitution evidence."
-    },
-    {
-      "id": "R66-LAMBDA-RESULT-STAGE-1",
-      "state": "OPEN",
-      "owner": "Luna; direct Lambda-checking follow-up under R67",
-      "request": "Attempt to derive the ordinary typed Lambda operand from source Lambda, Parameter, resolved Name, body-checking, body consumer and invocation rules without Result-A synthesis; derive the symbolic Function interface/challenge before using it or name the first unsupported local premise.",
-      "falsifier": "An applicable direct source rule supplies the complete original operand and prior evidence, or the attempted derivation guesses/circularly forms the interface, body target, consumer or invocation, or loses the original joint context/provider/permissions/constraints/result evidence."
-    },
-    {
-      "id": "R67-DIRECT-BODY-CHECK-1",
-      "state": "OPEN",
-      "owner": "Luna; source Lambda checking/body-consumer premise",
-      "request": "Prove or refute the source-owned Function interface/challenge and body-check consumer/invocation premises at the original Lambda. R67 supports this as the first unsupplied local premise under its selected pinned rules; source scope outside that packet remains unreviewed.",
-      "falsifier": "An applicable source-owned constructor derives the full tuple at the original provider and joint context with p_t/p_A permissions, open E_t, captures, ordinary constraints, body/result and invocation evidence; or an actual source counterexample refutes applicability."
-    },
-    {
-      "id": "R68-RETAINED-ENTRY-INTRO-1",
-      "state": "CLOSED_BOUNDED_REVIEWED",
-      "owner": "Luna; R68 closeout",
-      "request": "Closed as reviewed conditional same-carrier RetainBind/resolved-Name partial lemma plus exact unsupplied retained ConsumerOrigin/body-check/invocation premise. No completed operand, parent closure, global absence or counterexample.",
-      "falsifier": "R68 reviewers found no blocking/major/minor defect; all 30 dependency pins and six output hashes matched. This closes only the bounded R68 attempt; original R65 and parent remain OPEN."
-    },
-    {
-      "id": "R68-OWNER-CONSUMER-1",
-      "state": "OPEN",
-      "owner": "Luna; authentic retained body/result-consumer source owner",
-      "request": "Routed to notes/design/2026-10-19-retained-consumer-origin-source-law-proposal.md. Determine the source-owned introduction rule for ConsumerOrigin at original (d,L,n), including whether a permitted written p_A/p_R target is a checking premise, and separate inert formation, demand introduction and execution. If new semantics are needed, keep them unadopted for user decision. R69 was not activated.",
-      "falsifier": "A complete source derivation from pinned/in-scope clauses supplies the authentic origin/body/invocation tuple before whole-annotation checking; or the proposed origin depends on target p_A/p_R, native shape or membership/acceptance circularly."
-    },
-    {
-      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
-      "state": "OPEN_UNADOPTED_PROPOSAL",
-      "owner": "Luna; source-law completion",
-      "request": "Resolve notes/design/2026-10-19-retained-consumer-origin-source-law-proposal.md (SHA-256 71b049a45a39f3b8ecff6a8a16455d6842704e767aa970182b57038a387d7d65): identify exact source occurrence/rule licensing ConsumerOrigin(n,p,Comp(E_t,Int),profile,K,D,scope), its applicability and evidence construction, and distinguish settled consequences from any new semantic choice. Written p_A/p_R may be legitimate checking information if independently licensed; successful target checking cannot create its own prerequisite origin.",
-      "falsifier": "An applicable pinned source rule constructs the complete occurrence/path/provider/profile/scope/joint-evidence tuple before target-check success; or a concrete rule proposal is explicitly adopted by user after its consequences are presented."
-    },
-    {
-      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
-      "state": "OPEN",
-      "owner": "Luna; exact source/native owners assigned within R70",
-      "request": "Prove or falsify the conditional successful entry-to-return operational invariant for candidate_extrude at the two production callsites; establish entry premises or leave target OPEN; account for mutation, map/work queues, bound/evidence transfer, retained parents/output, replay children/queue transfer and returned endpoint.",
-      "falsifier": "A concrete static trace shows lost obligations, wrong kind/polarity/level, broken sharing, unsupported mutation or false resource bound; or a complete invariant with justified entry premises and exact finite costs is accepted by fresh independent review."
-    },
-    {
-      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
-      "state": "OPEN",
-      "owner": "Luna; exact source/native owners assigned within R71",
-      "request": "For each production-reachable Work::Bound physical source slot, prove required fibers are present at the exact raw lookup key or supplied by an existing transport, or construct a reachable missing-coverage trace. Preserve legitimate empty fibers and recorded association gaps.",
-      "falsifier": "A source-reachable physical slot requires a fiber unavailable to the actual copy path; or complete constructors/merge induction proves coverage for every authorized occurrence."
-    },
-    {
-      "id": "R72-LATER-OCCURRENCE-1",
-      "state": "OPEN",
-      "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
-      "request": "For the fixed R72 source, finish helper Local restoration/replay, loop Lambda replay against both prior demands, memo recapture and loop Local boundary 1. Derive A with exact third-owner raw/physical slot, qualified alias-changing merge, later production Work::Bound and required consumer/provider lineage; or establish case-specific C through the relevant admitted suffix; or report earliest authentic B.",
-      "falsifier": "A claimed third owner is in the merged class, its raw item never aliases, copy is FreshUse rather than production Work::Bound, omitted replay/memo creates the target, or required fiber lacks an independently licensed consumer."
-    }
-  ],
-  "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 CLOSED REVIEWED CONDITIONAL with coverage target OPEN. R70 operation target, original parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-  "next_action": "R73 active with full 2400s grant charged. Launch Astra core proof and Sol complementary counter-reading in parallel with Luna owner map under exact leases."
+  "resources": {
+   "cap_seconds": 2400,
+   "charged_seconds": 2400,
+   "available_seconds": 0,
+   "allocation": "Grant once: Astra core proof 300s max; Sol complementary counter-reading 900s; Luna owner map 500s; fresh compiler/spec reviews 200s each; Luna integration 300s. No carryover; Astra aggregate within 300s sprint cap."
+  },
+  "next_action": "R73 closed UNFINISHED/OPEN with partial review coverage. Successor: complete one C1 cut ledger or prepare separately authorized inert observer plus static interpretation proof. No new grant. No execution/code/tests.",
+  "history": "R73 closed incomplete; compiler map major fixed/delta checked; corrected-map spec review open; Astra cap violation recorded; parent/A/B OPEN; R50 NOT_ADOPTED.",
+  "activation_receipt": {
+   "selector": "R73 rev2 SHA accepted; 32/32 pins MATCH; no grant from selector.",
+   "R72_compiler_review": "STOPPED; no findings; 27/27 pins; bounded static review.",
+   "R72_spec_review": "STOPPED; no findings; 27/27 pins; bounded static review.",
+   "review_scope": "R72 reviews are activation context, not R73 manifest inputs.",
+   "observations": "All prior writers stopped; requested/observed runtime distinctions retained."
+  },
+  "freeze_receipt": {
+   "manifest": "32/32 direct pins MATCH baseline Git blobs and live bytes; R73 contract SHA matches rev2.",
+   "Astra": {
+    "note": "38b46fa0ea2183ab5ebedb727979a8c343e1bdd0820c4941f22df4e503fda03d",
+    "inbox": "23903fa51053f8493017b1298037badd01793d57e235cfacde8334e795206bc6",
+    "state": "STOPPED; OPEN. Reports 302s against 300s, +2s before cessation overhead; no extension."
+   },
+   "Sol": {
+    "note": "e66a229d4fef816b4e1e2ec4d091d4ed522af16ea276ea345aa1f96c302d07c9",
+    "inbox": "2df8ac0decc0a30f62b672f0aa93bb53aa290fefd8291affc4dca708f0119f6f",
+    "state": "STOPPED; OPEN. Conditional IDENTITY discriminator; suffix/provider join incomplete."
+   },
+   "Luna": {
+    "note": "a129236f5e1450ab5ec821f4e5e045594f466427f13998bc2101eac5be9b138a",
+    "inbox": "a82e91d399694680a74d49861fa9b9602ce72e6d51f6b741e14bdc6a2570672c",
+    "status": "FROZEN PARTIAL; prior 79d062 hash superseded by correction."
+   },
+   "static": "32/32 baseline Git blobs + live bytes MATCH. git diff --check PASS; agent_sprint static PASS. No tests/execution/code.",
+   "compiler_review": "Original map major fixed at a129236; targeted compiler delta confirms resolved/no additional findings.",
+   "spec_review": "No normative issue on superseded map; Astra 302/300 is scheduling violation. Corrected-map delta not performed; do not certify full packet.",
+   "Luna_integration": "Exact start unlogged. Observed 23:02:31 to 23:08:31 UTC = 360s; integration cap 300s compliance cannot be certified, possible overrun. No extension claimed.",
+   "dispatcher": "R73 close UNFINISHED with partial review; successor limited to complete C1 ledger or separately authorized observer proposal."
+  }
+ },
+ "workers": [
+  {
+   "id": "/root",
+   "role": "Luna/high coordinator, owner map, adjudication, integration and sole Git owner",
+   "state": "STOPPED",
+   "requested_model": "gpt-6-luna",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-conversation-2026-10-19-r73",
+   "receipt": "STOPPED. R73 closed UNFINISHED/OPEN; exact integration launch unlogged; 23:02:31–23:08:31 observed 360s, cap compliance UNKNOWN/possible overrun; no extension."
+  },
+  {
+   "id": "/root/r73_astra",
+   "role": "R73 bounded multi-stage core proof; exact theory note and proof inbox only",
+   "state": "STOPPED",
+   "requested_model": "gpt-6-astra",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-conversation-2026-10-19-r73",
+   "receipt": "STOPPED, UNFINISHED/OPEN; outputs/hashes and 302s/300s (+2s) in freeze_receipt; no extension."
+  },
+  {
+   "id": "/root/r73_researcher",
+   "role": "R73 independent Sol scheduler/counter-reading; exact counter-reading note and research inbox only",
+   "state": "STOPPED",
+   "requested_model": "Sol/researcher lane; no explicit model override",
+   "requested_effort": "UNSPECIFIED",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-conversation-2026-10-19-r73",
+   "receipt": "STOPPED, UNFINISHED/OPEN; conditional IDENTITY; outputs/hashes in freeze_receipt; no descendants."
+  },
+  {
+   "id": "/root/r73_fresh_compiler_review",
+   "role": "Independent compiler/source review; 200s read-only",
+   "state": "STOPPED",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-conversation-2026-10-19-r73",
+   "receipt": "STOPPED; verdict and hash scope in freeze_receipt; no descendants."
+  },
+  {
+   "id": "/root/r73_fresh_spec_review",
+   "role": "Independent spec review; 200s read-only",
+   "state": "STOPPED",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "low",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "session": "current-conversation-2026-10-19-r73",
+   "receipt": "STOPPED; verdict and hash scope in freeze_receipt; no descendants."
+  }
+ ],
+ "leases": [
+  {
+   "path": "tasks/agent-loop/current.json",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/helper-suffix-history-20261019-r73.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/theory/2026-10-19-r73-helper-suffix-history.md",
+   "owner": "/root/r73_astra",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r73-proof.md",
+   "owner": "/root/r73_astra",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/progress/2026-10-19-r73-suffix-counter-reading.md",
+   "owner": "/root/r73_researcher",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r73-research.md",
+   "owner": "/root/r73_researcher",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/progress/2026-10-19-r73-suffix-consumer-owners.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r73-implementation.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  }
+ ],
+ "pending": [
+  {
+   "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+   "state": "OPEN",
+   "owner": "Luna; original whole-ascription formation obligation",
+   "request": "Derive source-licensed whole-definition-ascription relation for original provider/carrier, distinct p_t/p_A/p_R, local permissions, joint K,D, ordinary constraints, correlated results, actual Q, both solution directions and typed substitution/transport.",
+   "falsifier": "A permitted source solution lacks lift/reverse, provider/position/permission/result evidence changes, ordinary constraints disappear, Q is guessed, or ambiguity lacks two compatible completions differing on an original observable."
+  },
+  {
+   "id": "R64-SRC-ANN-ARG-1",
+   "state": "OPEN",
+   "owner": "Luna; downstream of the current operand supplier",
+   "request": "Derive the authentic source rule for whole-ascription p_A argument typed interpretation on L/t original incoming carrier, with own permission/scope and original joint component context, preserving p_t/Name and ordinary constraints before native representation.",
+   "falsifier": "Rule borrows p_t permission, changes provider/position, invents joint xi, imports native comparison, adds cap/inflow, drops ordinary constraints, or uses later transport/result as initial formation."
+  },
+  {
+   "id": "R65-CURRENT-OPERAND-1",
+   "state": "OPEN",
+   "owner": "Luna; original ordinary typed Lambda operand supplier",
+   "request": "Derive the completed symbolic typed Lambda operand and prior evidence under the original joint context, from original formal p_t and resolved Name(t), using an applicable Lambda/body-result rule; resolve Result-A Lambda applicability at the whole-annotated binding or report its first exact missing premise.",
+   "falsifier": "An applicable pinned source clause supplies this exact operand at its authentic provider/owner/position and original context; or the attempted derivation assumes complete xi, circularly forms context, replaces original body checking without a rule, or loses provider/permission/result/typed-substitution evidence."
+  },
+  {
+   "id": "R66-LAMBDA-RESULT-STAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; direct Lambda-checking follow-up under R67",
+   "request": "Attempt to derive the ordinary typed Lambda operand from source Lambda, Parameter, resolved Name, body-checking, body consumer and invocation rules without Result-A synthesis; derive the symbolic Function interface/challenge before using it or name the first unsupported local premise.",
+   "falsifier": "An applicable direct source rule supplies the complete original operand and prior evidence, or the attempted derivation guesses/circularly forms the interface, body target, consumer or invocation, or loses the original joint context/provider/permissions/constraints/result evidence."
+  },
+  {
+   "id": "R67-DIRECT-BODY-CHECK-1",
+   "state": "OPEN",
+   "owner": "Luna; source Lambda checking/body-consumer premise",
+   "request": "Prove or refute the source-owned Function interface/challenge and body-check consumer/invocation premises at the original Lambda. R67 supports this as the first unsupplied local premise under its selected pinned rules; source scope outside that packet remains unreviewed.",
+   "falsifier": "An applicable source-owned constructor derives the full tuple at the original provider and joint context with p_t/p_A permissions, open E_t, captures, ordinary constraints, body/result and invocation evidence; or an actual source counterexample refutes applicability."
+  },
+  {
+   "id": "R68-RETAINED-ENTRY-INTRO-1",
+   "state": "CLOSED_BOUNDED_REVIEWED",
+   "owner": "Luna; R68 closeout",
+   "request": "Closed as reviewed conditional same-carrier RetainBind/resolved-Name partial lemma plus exact unsupplied retained ConsumerOrigin/body-check/invocation premise. No completed operand, parent closure, global absence or counterexample.",
+   "falsifier": "R68 reviewers found no blocking/major/minor defect; all 30 dependency pins and six output hashes matched. This closes only the bounded R68 attempt; original R65 and parent remain OPEN."
+  },
+  {
+   "id": "R68-OWNER-CONSUMER-1",
+   "state": "OPEN",
+   "owner": "Luna; authentic retained body/result-consumer source owner",
+   "request": "Routed to notes/design/2026-10-19-retained-consumer-origin-source-law-proposal.md. Determine the source-owned introduction rule for ConsumerOrigin at original (d,L,n), including whether a permitted written p_A/p_R target is a checking premise, and separate inert formation, demand introduction and execution. If new semantics are needed, keep them unadopted for user decision. R69 was not activated.",
+   "falsifier": "A complete source derivation from pinned/in-scope clauses supplies the authentic origin/body/invocation tuple before whole-annotation checking; or the proposed origin depends on target p_A/p_R, native shape or membership/acceptance circularly."
+  },
+  {
+   "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+   "state": "OPEN_UNADOPTED_PROPOSAL",
+   "owner": "Luna; source-law completion",
+   "request": "Resolve notes/design/2026-10-19-retained-consumer-origin-source-law-proposal.md (SHA-256 71b049a45a39f3b8ecff6a8a16455d6842704e767aa970182b57038a387d7d65): identify exact source occurrence/rule licensing ConsumerOrigin(n,p,Comp(E_t,Int),profile,K,D,scope), its applicability and evidence construction, and distinguish settled consequences from any new semantic choice. Written p_A/p_R may be legitimate checking information if independently licensed; successful target checking cannot create its own prerequisite origin.",
+   "falsifier": "An applicable pinned source rule constructs the complete occurrence/path/provider/profile/scope/joint-evidence tuple before target-check success; or a concrete rule proposal is explicitly adopted by user after its consequences are presented."
+  },
+  {
+   "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+   "state": "OPEN",
+   "owner": "Luna; exact source/native owners assigned within R70",
+   "request": "Prove or falsify the conditional successful entry-to-return operational invariant for candidate_extrude at the two production callsites; establish entry premises or leave target OPEN; account for mutation, map/work queues, bound/evidence transfer, retained parents/output, replay children/queue transfer and returned endpoint.",
+   "falsifier": "A concrete static trace shows lost obligations, wrong kind/polarity/level, broken sharing, unsupported mutation or false resource bound; or a complete invariant with justified entry premises and exact finite costs is accepted by fresh independent review."
+  },
+  {
+   "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; exact source/native owners assigned within R71",
+   "request": "For each production-reachable Work::Bound physical source slot, prove required fibers are present at the exact raw lookup key or supplied by an existing transport, or construct a reachable missing-coverage trace. Preserve legitimate empty fibers and recorded association gaps.",
+   "falsifier": "A source-reachable physical slot requires a fiber unavailable to the actual copy path; or complete constructors/merge induction proves coverage for every authorized occurrence."
+  },
+  {
+   "id": "R72-LATER-OCCURRENCE-1",
+   "state": "OPEN",
+   "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
+   "request": "For the fixed R72 source, finish helper Local restoration/replay, loop Lambda replay against both prior demands, memo recapture and loop Local boundary 1. Derive A with exact third-owner raw/physical slot, qualified alias-changing merge, later production Work::Bound and required consumer/provider lineage; or establish case-specific C through the relevant admitted suffix; or report earliest authentic B.",
+   "falsifier": "A claimed third owner is in the merged class, its raw item never aliases, copy is FreshUse rather than production Work::Bound, omitted replay/memo creates the target, or required fiber lacks an independently licensed consumer."
+  }
+ ],
+ "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 CLOSED REVIEWED CONDITIONAL with coverage target OPEN. R70 operation target, original parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
+ "next_action": "Session stopped with all writers/reviewers STOPPED. R73 UNFINISHED/OPEN; no successor grant. Next: complete C1 ledger or separately authorize inert observer and static interpretation review."
 }
