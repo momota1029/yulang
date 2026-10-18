@@ -29,13 +29,13 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 1500,
-      "available_seconds": 900,
-      "allocation": "Luna read-only design/map 600 + Sol proof 900 charged; two independent reviews 300 each + Luna integration 300 remain, no carryover. Astra 0; CPU/RSS UNKNOWN. No builds/tests/runtime.",
+      "charged_seconds": 2400,
+      "available_seconds": 0,
+      "allocation": "Luna read-only design/map 600 + Sol proof 900 + Luna integration 300 + independent compiler/spec reviews 300 each charged at launch. Cap exhausted; no carryover. Astra 0; CPU/RSS UNKNOWN. No builds/tests/runtime.",
       "overrun_seconds": 0
     },
-    "next_action": "Continue Sol proof under exact lease; after frozen result integrate and assign fresh compiler/spec reviews.",
-    "history": "R49 closed/pushed at reviewed bounded NO_SAFE_CODE_SLICE; corrected pin rev2. Startup reconciled all prior agents terminal and removed stale top-level R49 pending rows. Dispatcher selected R50 approval-ready admission proposal; no adoption/code authorization. Actual Sol proof launch acknowledged by runtime; requested Sol/high, effective model/effort UNKNOWN; exact output lease and no-descendants condition recorded. Luna froze the read-only R50 protocol proposal and implementation-owner handoff; no compiler edits.",
+    "next_action": "Receive both frozen independent review results; adjudicate within R50 and close or record exact obstruction.",
+    "history": "R49 closed/pushed at reviewed bounded NO_SAFE_CODE_SLICE; corrected pin rev2. Startup reconciled all prior agents terminal and removed stale top-level R49 pending rows. Dispatcher selected R50 approval-ready admission proposal; no adoption/code authorization. Actual Sol proof launch acknowledged by runtime; requested Sol/high, effective model/effort UNKNOWN; exact output lease and no-descendants condition recorded. Luna froze the read-only R50 protocol proposal and implementation-owner handoff; no compiler edits. Sol completed with terminal WRITES_STOPPED/NO_DESCENDANTS receipt; proof artifact/inbox hashes verified. Luna integrated the guarded immutable-schedule/current-frame refinement as proposal rev2; no source edits. R50 source pins revalidated. Dispatcher recommends continue R50 to two reviews; no new sprint or authority. Fresh R50 compiler/spec reviews assigned to previously independent reviewer identities; both actual followups acknowledged. Roles are read-only, so Luna will persist message-only receipts with explicit integration provenance. Compiler reviewer noted exact contract-path correction; spec reviewer raised a hash transcription concern; Luna independently rehashed all R50 targets and supplied the exact verified manifest for recheck.",
     "workers": [
       {
         "id": "/root",
@@ -51,13 +51,35 @@
       {
         "id": "/root/r50_active_link_refinement",
         "role": "Sol constructive preservation/refinement proof",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r50",
-        "receipt": "Actual prover launch acknowledged by collaboration runtime as /root/r50_active_link_refinement; requested Sol/high; effective observed model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
+        "receipt": "Terminal assignment receipt: frozen proof/handoff hashes match; WRITES_STOPPED; NO_DESCENDANTS; 900s charged; no tests/build/runtime/Git."
+      },
+      {
+        "id": "/root/r45_compiler_review",
+        "role": "fresh R50 compiler_referee",
+        "state": "RUNNING",
+        "requested_model": "reviewer role default",
+        "requested_effort": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19-r50",
+        "receipt": "Current-session followup acknowledged for R50 frozen review; read-only role, exact review snapshot supplied; 300s charged."
+      },
+      {
+        "id": "/root/r45_spec_review",
+        "role": "fresh R50 spec_auditor",
+        "state": "RUNNING",
+        "requested_model": "reviewer role default",
+        "requested_effort": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19-r50",
+        "receipt": "Current-session followup acknowledged for R50 frozen review; read-only role, exact review snapshot supplied; 300s charged."
       }
     ],
     "leases": [
@@ -84,12 +106,12 @@
       {
         "path": "notes/theory/2026-10-19-r50-active-link-refinement.md",
         "owner": "/root/r50_active_link_refinement",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r50-proof.md",
         "owner": "/root/r50_active_link_refinement",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -103,37 +125,47 @@
       {
         "id": "R50-SOL-ACTIVE-LINK-REFINEMENT",
         "role": "prover",
-        "state": "RUNNING",
+        "state": "RESULT",
         "worker_id": "/root/r50_active_link_refinement",
         "budget_seconds": 900,
-        "receipt": "Actual prover launch acknowledged by collaboration runtime as /root/r50_active_link_refinement; requested Sol/high; effective observed model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
+        "receipt": "Terminal frozen result; proof SHA 9f42dbbbf7c3e7e4d91484dc10f63026023684c6b3557d961b53399ff1b74413; handoff SHA 0c3a9f14864620b9028481c851a7df680437d57cfad752bc15d15affda7cc0a8; WRITES_STOPPED/NO_DESCENDANTS; 900s charged."
       },
       {
         "id": "R50-COMPILER-REVIEW",
         "role": "compiler_referee",
-        "state": "RESERVED",
-        "budget_seconds": 300
+        "state": "RUNNING",
+        "budget_seconds": 300,
+        "worker_id": "/root/r45_compiler_review",
+        "receipt": "Current-session followup acknowledged; exact frozen rev2 snapshot supplied; reviewer is read-only and will return message for primary integration; 300s charged."
       },
       {
         "id": "R50-SPEC-REVIEW",
         "role": "spec_auditor",
-        "state": "RESERVED",
-        "budget_seconds": 300
+        "state": "RUNNING",
+        "budget_seconds": 300,
+        "worker_id": "/root/r45_spec_review",
+        "receipt": "Current-session followup acknowledged; exact frozen rev2 snapshot supplied; reviewer is read-only and will return message for primary integration; 300s charged. One hash transcription concern is under exact-path rehash reconciliation."
       },
       {
         "id": "R50-INTEGRATION",
         "role": "primary",
-        "state": "RESERVED",
-        "budget_seconds": 300
+        "state": "RESULT",
+        "budget_seconds": 300,
+        "receipt": "Luna integrated Sol refinement as rev2; draft SHA 1e623a11b569ecffd403d997f934ffc92637da5c7f6b35e945edf4c486621673; implementation handoff SHA f322bb7d5021bea95738dce9033a0cbb134b9e8528f26495ef21c3868c4c3ead; Luna inbox SHA d85f04bff2b5a7ddcc8fea44b1b8680e1ceff8257430bc75727b8681b5ac4504. Sol artifacts unchanged."
       }
     ],
-    "closure": "R50 active. Proposal/structural proof are not yet established; parent remains OPEN 0->0.",
+    "closure": "R50 proposal rev2 frozen; independent review pending; NOT ADOPTED. Parent remains OPEN 0->0.",
     "frozen_artifacts": {
       "R49_closeout": "fa1ad4b883b65d69147b0138d7117c6a43fc3422ab0a1b7812b0d45fa409326d",
       "R49_contract_rev2": "aa0823710a5dae66eac151bf3da92ca21448328f4f115f90031b6abedb4f3679",
       "R50_design_draft": "3393e211349116a86f881b0441fb9ec6599358e79cf9d0031e6dc294726f630e",
       "R50_implementation_handoff": "515f5b68be4155d6f120f8bea4d1dbb94b188eacedcd0eb19ae9c82ce6a60cc1",
-      "R50_design_inbox": "d4a99ed606e65373baa56b31d704f31441bf8af94d376f3837d15fa6c332a739"
+      "R50_design_inbox": "d4a99ed606e65373baa56b31d704f31441bf8af94d376f3837d15fa6c332a739",
+      "R50_design_draft_rev2": "1e623a11b569ecffd403d997f934ffc92637da5c7f6b35e945edf4c486621673",
+      "R50_implementation_handoff_rev2": "f322bb7d5021bea95738dce9033a0cbb134b9e8528f26495ef21c3868c4c3ead",
+      "R50_design_inbox_rev2": "d85f04bff2b5a7ddcc8fea44b1b8680e1ceff8257430bc75727b8681b5ac4504",
+      "R50_proof": "9f42dbbbf7c3e7e4d91484dc10f63026023684c6b3557d961b53399ff1b74413",
+      "R50_proof_inbox": "0c3a9f14864620b9028481c851a7df680437d57cfad752bc15d15affda7cc0a8"
     }
   },
   "workers": [
@@ -151,13 +183,35 @@
     {
       "id": "/root/r50_active_link_refinement",
       "role": "Sol constructive preservation/refinement proof",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r50",
-      "receipt": "Actual prover launch acknowledged by collaboration runtime as /root/r50_active_link_refinement; requested Sol/high; effective observed model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
+      "receipt": "Terminal assignment receipt; frozen output hashes verified; WRITES_STOPPED; NO_DESCENDANTS; 900s charged."
+    },
+    {
+      "id": "/root/r45_compiler_review",
+      "role": "fresh R50 compiler_referee",
+      "state": "RUNNING",
+      "requested_model": "reviewer role default",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r50",
+      "receipt": "Current-session followup acknowledged for R50 frozen review; read-only role, exact review snapshot supplied; 300s charged."
+    },
+    {
+      "id": "/root/r45_spec_review",
+      "role": "fresh R50 spec_auditor",
+      "state": "RUNNING",
+      "requested_model": "reviewer role default",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r50",
+      "receipt": "Current-session followup acknowledged for R50 frozen review; read-only role, exact review snapshot supplied; 300s charged."
     }
   ],
   "leases": [
