@@ -20,12 +20,12 @@
     },
     "next_action": "Commit/push R22 contract with Luna-frozen 128-event observation plan; dispatch proof and falsifier lanes plus exact nonsemantic trace lease. No test before CLEAN review.",
     "history": "R20 runtime gate CLEAN, 18/18; R20 source proof CLEAN with missing typed incidence. R21 rev3 review CLEAN for document conformance; fixed ResultMap OPEN, A unadopted and partial, B BLOCKED. Parent closure0.",
-    "last_stage_receipt": "R22 starts from exact R21 ResultMap gap. New Orig rules and A/B adoption are forbidden; observation trace cannot alter admission, runtime, or receipt semantics.",
+    "last_stage_receipt": "R22 contract/observation plan pushed at 428542745; exact proof, independent falsifier and nonsemantic trace lanes all active on disjoint leases. Parent OPEN/closure0.",
     "git_checkpoint": {
-      "commit": "PENDING",
+      "commit": "428542745",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R22 contract/state frozen; root to commit/push before exact disjoint lane dispatch."
+      "receipt": "R22 exact observation plan committed/pushed before dispatch; 128-event cap, no receipt or semantic changes. Three lanes active."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0. R21 complete: seven-document packet reviewed CLEAN for rev3 conformance; A only proposed, ResultMap OPEN, B blocked; parent closure0.",
@@ -45,35 +45,35 @@
     {
       "id": "/root/r22_result_map_proof",
       "role": "prover",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R22 fixed-source existing-semantics proof lease; not yet dispatched."
+      "receipt": "RUNNING: exact pinned fixed-source D0/D1/D2 derivation lane launched; no new rules or code."
     },
     {
       "id": "/root/r22_result_map_falsifiers",
       "role": "researcher",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R22 independent source falsification lease; not yet dispatched."
+      "receipt": "RUNNING: independent fixed-source falsification lane launched; must require baseline admission and actual result evidence."
     },
     {
       "id": "/root/r22_suffix_trace_impl",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact bounded observation plan is now frozen in R22 contract SHA pending commit: <=128 events with truncation, actual template/frame/source-site, response handle, owner/view, resumed return, selected Catch arm, final arm and completion. Code lease excludes runtime/mod.rs and lib.rs; no receipt/admission changes."
+      "receipt": "RUNNING: root-frozen 128-event observational trace plan at contract SHA 85236a281bd8abaa90bf2b3d1a88163bfe1ad2d64a3a4113b64cd0c269eae56f; exact runtime/test lease; no verification before CLEAN review."
     }
   ],
   "leases": [
