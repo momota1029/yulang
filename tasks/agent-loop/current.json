@@ -2,88 +2,66 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r70-extrusion",
+  "session": "current-conversation-2026-10-19-r72-preparation",
   "active_sprint": {
-    "id": "raw-canonical-fiber-coverage-20261019-r71",
-    "contract": "tasks/agent-loop/sprints/raw-canonical-fiber-coverage-20261019-r71.md",
-    "revision": 1,
-    "state": "CLOSED_REVIEWED_CONDITIONAL",
-    "baseline": "f375fd737",
-    "contract_sha256": "a6bd6aa1ab369f77b728014cd51693b11c5b3f97f85aab392d6488c8834ac1fb",
-    "parent": "Original inference/evaluator goal; R70 conditional result reviewed; R70 operation/WF and raw-canonical coverage remain open. Parent and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-    "fixed_outcome": "For production-reachable Work::Bound physical slots, prove raw source-key fiber coverage or existing transport to the exact copy lookup, or give a constructor-derived reachable countertrace. Keep R70 ENTRY-WF and later drain outside scope; no source counterexample follows automatically.",
+    "id": "third-owner-prefix-20261019-r72",
+    "contract": "tasks/agent-loop/sprints/third-owner-prefix-20261019-r72.md",
+    "revision": 2,
+    "state": "CLOSED_REVIEWED_CONDITIONAL_UNFINISHED",
+    "baseline": "4916ef65306af1acec50df4cdab1d28f9ab0fa9f",
+    "contract_sha256": "7a5d49d2c5eb05f839020f89debedd440e9909658cdff676ef8be0b6e9f29883",
+    "parent": "Unchanged computation-forwarding preservation §§1,6–7; full inference/evaluator and Simple-sub A/B remain OPEN 0->0; R50 NOT_ADOPTED.",
+    "fixed_outcome": "For the exact annotated helper source, derive one third-owner physical slot/evidence -> qualified alias-changing merge -> later production Work::Bound copy -> independently justified consumer lineage, or the earliest authentic constructor obstruction. Single-case evidence only.",
     "dependencies": {
-      "manifest": "20 direct SHA-256 pins MATCH baseline/live; exact paths/hashes in frozen R71 contract",
-      "baseline_commit": "f375fd737",
-      "dispatcher_start": "Exact R71 candidate accepted as activation-admissible; candidate SHA a6bd6aa1ab369f77b728014cd51693b11c5b3f97f85aab392d6488c8834ac1fb; 20/20 pins MATCH.",
-      "live_reconciliation": "R70 proof/counter/maps/reviews STOPPED; outputs frozen and pushed. No old active writers or descendants. Only current R71 candidate in workspace; current.json HELD by Luna.",
-      "authority_boundary": "Top-level §§1–3 govern; occurrence-qualified parent/copy retention normative; concrete evidence/fiber/replay are implementation facts. R70 premises reused conditionally only."
+      "manifest": "27 direct SHA-256 pins MATCH baseline and live bytes; includes HIR local-source/annotation, ordinary Apply admission, call registration, Function terms, and candidate scope owners.",
+      "dispatcher_start": "Selector accepted revision 2 exact hash 7a5d49d2c5eb05f839020f89debedd440e9909658cdff676ef8be0b6e9f29883; 27/27 pins MATCH. No semantic vote or source-range change.",
+      "reconciliation": "R71 proof, countertrace, owner map, both reviewers, closeout all STOPPED; frozen receipts verified in R71 closeout SHA 4b5f57b27d5bfbb0b3e4f7cfa86c03488f5d02f995c7f861dbe29e0d448edd3b. No unknown R71 writers/descendants; only Luna owns current and candidate contract.",
+      "authority": "Top-level inference principles §§1–3; R53 premises reused only when instantiated; R55 remains complementary direct-Name evidence."
     },
     "resources": {
-      "cap_seconds": 2400,
-      "charged_seconds": 2400,
+      "cap_seconds": 1800,
+      "charged_seconds": 1800,
       "available_seconds": 0,
-      "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + compiler/spec reviews 200s each + Luna integration 300s; Astra 0; no carryover.",
-      "actual_runtime": "Proof and counter-reading launched in current session; requested settings recorded, observed model/effort UNKNOWN. CPU/RSS UNKNOWN; full 2400s grant reserved."
+      "allocation": "Grant issued once: proof lane 600s; Luna source/implementation-owner map 500s; fresh compiler review 200s; fresh spec review 200s; Luna integration 300s. Astra 0; no carryover."
     },
-    "next_action": "No further R71 proof work: its 2400s envelope is exhausted. Selector says first prepare one unchanged-domain source-bound third-owner slot → alias-changing qualified merge → later production extrusion → independently justified consumer case; only then propose successor authority.",
-    "history": "R70 CLOSED REVIEWED CONDITIONAL at f375fd737; operation target and source/canonical/drain premises remain OPEN.; Luna closeout `notes/progress/2026-10-19-r71-closeout.md` SHA 4b5f57b27d5bfbb0b3e4f7cfa86c03488f5d02f995c7f861dbe29e0d448edd3b; Luna closeout `tasks/agent-loop/inbox/20261019-r71-closeout.md` SHA 8b05a80825488e3c7bc55102a8dde68b44eece5784bab156e50439d677375d7d"
+    "next_action": "Run the fixed case across actual source/call/term/extrusion/merge/consumer owners. Proof must return A/B/C or unfinished/open; Luna maps constructor-to-consumer and checks for a safe proof-independent code slice. No tests/code/semantic writes.",
+    "history": "R70 CLOSED REVIEWED CONDITIONAL; R71 CLOSED REVIEWED CONDITIONAL with raw/canonical target OPEN. Parent/A/B OPEN 0->0; R50 NOT_ADOPTED.",
+    "freeze_receipt": {
+      "outcome": "UNFINISHED_OPEN; neither A/B/C established; exact first qualified helper group and initial third-owner slot derived; later occurrence/consumer join open",
+      "proof_note_sha256": "504abc36cd877407b57b744484640c3fb2f8e12d09f08bfe90188dc700ee18a5",
+      "proof_inbox_sha256": "8e30e80a5e382fe6e3a88a65933ac5eb787e5b7773bae72657f3eb2348668401",
+      "owner_map_sha256": "e6ab1ac3c2b02e668980bf5ccef94877505501a5b3465248e68866de58d4fb67",
+      "implementation_inbox_sha256": "adff1dc79b175d6ccacf36b75abaf275eeb3a6fab7d4e9d51e747a267303813d",
+      "proof_grant_charged_seconds": 600,
+      "proof_runtime_cpu_rss": "UNKNOWN",
+      "check": "27/27 baseline/live pins MATCH; python3 tools/agent_sprint.py check PASS; git diff --check PASS",
+      "proof_worker": "STOPPED / WRITES_STOPPED / NO_DESCENDANTS",
+      "review": "Independent compiler/source and spec reviews: no BLOCKING/major/minor findings; four frozen outputs and 27 pins MATCH. Both STOPPED/READ_ONLY/NO_DESCENDANTS."
+    },
+    "dispatcher_end": "Selector recommends closing R72 UNFINISHED; continue same source through complete cut-state, replay/memo and consumer join as successor; no auto-grant."
   },
   "workers": [
     {
       "id": "/root",
       "role": "Luna/high coordinator, owner map, adjudication, integration and sole Git owner",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-source-case-audit",
-      "receipt": "Luna read-only case audit: selector fixes annotated helper source as next construction candidate. R53 reusable only under instantiated premises; R55 scaffold remains a distinct direct-name case. No exact activation contract, grant, tests, code or semantic change; parent/A/B OPEN 0->0, R50 NOT_ADOPTED."
+      "session": "current-conversation-2026-10-19-r72-preparation",
+      "receipt": "R72 frozen and reviewed conditional; UNFINISHED/OPEN neither A/B/C. 27 pins + all hashes verified; no minor findings. Dispatcher end: successor should derive complete cut-state and later occurrence, no auto-grant."
     },
     {
-      "id": "/root/r71_raw_canonical_proof",
-      "role": "R71 constructive raw/canonical fiber coverage proof; exact proof artifact and handoff only",
+      "id": "/root/r72_proof",
+      "role": "R72 constructive source-history/obstruction proof; exact note and handoff only",
       "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "R71-PROOF/1 FROZEN; theory SHA 620947cece53ca60a7f8a2388a398f53850b835c79afd546bfdcfd10349a876e; inbox SHA b7bc24379472bf840d111c379cbbf000516265c350d4ba55d47ecd06bb3fe2c6; contract +20/20 pins MATCH; 900s charged; STOPPED/WRITES_STOPPED/NO_DESCENDANTS."
-    },
-    {
-      "id": "/root/r71_fiber_countertrace",
-      "role": "R71 complementary alias/merge countertrace; exact note and handoff only",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "STOPPED/WRITES_STOPPED/NO_DESCENDANTS; note SHA 28b237f0d9530bb539b08f6a75792e56bf4416ae51caaa22a986f03238ed3180; inbox SHA 359bb42066abf2a24f4523928c7e321eb19f63da7c42a125ae6de47c94a8b16e; 20/20 pins MATCH; 228s observed/300s charged; CPU/RSS UNKNOWN."
-    },
-    {
-      "id": "/root/r71_compiler_review",
-      "role": "Fresh independent compiler/source-owner review; exact R71 packet only",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Final independent compiler review: 27/27 contract/dependency/output hashes MATCH; no blocking/major; minor correction: canonical bucket heads may advance via attach while previous chains remain reachable; no tests/Git/builds/probes/writes/descendants."
-    },
-    {
-      "id": "/root/r71_spec_review",
-      "role": "Fresh independent source-spec conformance review; exact R71 packet only",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Final independent spec review: 27/27 contract/dependency/output hashes MATCH; no blocking/major; minor correction: merge source lookup uses canonicalized item, distinct from raw Work::Bound item; no tests/Git/builds/probes/writes/descendants."
+      "session": "current-conversation-2026-10-19-r72-preparation",
+      "receipt": "Frozen R72-THIRD-OWNER-PROOF rev1 UNFINISHED/OPEN, neither A/B/C; theory+inbox hashes in freeze_receipt; 27/27 pins and whitespace checks MATCH; 600s charged; runtime/CPU/RSS UNKNOWN; STOPPED/NO_DESCENDANTS."
     }
   ],
   "leases": [
@@ -93,48 +71,28 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/raw-canonical-fiber-coverage-20261019-r71.md",
+      "path": "tasks/agent-loop/sprints/third-owner-prefix-20261019-r72.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-19-r71-raw-canonical-fiber-coverage.md",
-      "owner": "/root/r71_raw_canonical_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r71-proof.md",
-      "owner": "/root/r71_raw_canonical_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r71-fiber-countertrace.md",
-      "owner": "/root/r71_fiber_countertrace",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r71-research.md",
-      "owner": "/root/r71_fiber_countertrace",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r71-fiber-owner-map.md",
+      "path": "notes/progress/2026-10-19-r72-third-owner-prefix-owners.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r71-implementation.md",
+      "path": "tasks/agent-loop/inbox/20261019-r72-implementation.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/progress/2026-10-19-r71-closeout.md",
-      "owner": "/root",
+      "path": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
+      "owner": "/root/r72_proof",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r71-closeout.md",
-      "owner": "/root",
+      "path": "tasks/agent-loop/inbox/20261019-r72-proof.md",
+      "owner": "/root/r72_proof",
       "state": "FROZEN"
     }
   ],
@@ -208,8 +166,15 @@
       "owner": "Luna; exact source/native owners assigned within R71",
       "request": "For each production-reachable Work::Bound physical source slot, prove required fibers are present at the exact raw lookup key or supplied by an existing transport, or construct a reachable missing-coverage trace. Preserve legitimate empty fibers and recorded association gaps.",
       "falsifier": "A source-reachable physical slot requires a fiber unavailable to the actual copy path; or complete constructors/merge induction proves coverage for every authorized occurrence."
+    },
+    {
+      "id": "R72-LATER-OCCURRENCE-1",
+      "state": "OPEN",
+      "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
+      "request": "For the fixed R72 source, finish helper Local restoration/replay, loop Lambda replay against both prior demands, memo recapture and loop Local boundary 1. Derive A with exact third-owner raw/physical slot, qualified alias-changing merge, later production Work::Bound and required consumer/provider lineage; or establish case-specific C through the relevant admitted suffix; or report earliest authentic B.",
+      "falsifier": "A claimed third owner is in the merged class, its raw item never aliases, copy is FreshUse rather than production Work::Bound, omitted replay/memo creates the target, or required fiber lacks an independently licensed consumer."
     }
   ],
   "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 CLOSED REVIEWED CONDITIONAL with coverage target OPEN. R70 operation target, original parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-  "next_action": "Next candidate only (no activation/grant): ordinary-mode source `act io: our tick: int -> int; my outer (q:[io] int) = { my loop (x:[io] int) = { my direct = loop x; my helper (y:[io] int) = loop y; helper x }; loop q }`. First freeze an exact bounded construction contract and inspect annotated constructors/qualification route. Construction must find one history: third-owner physical slot + evidence, qualified alias-changing merge, later production Work::Bound lookup, independently justified consumer lineage; otherwise earliest authentic obstruction. R53 lemmas reusable only under instantiated premises/indices/maps/scope; no analogy transfer or full-solve claim. Parent/A/B OPEN 0->0; R50 NOT_ADOPTED."
+  "next_action": "R72 closed REVIEWED CONDITIONAL/UNFINISHED. Prepare exact R73 successor candidate for same source/suffix and complete cut-state; dispatcher proposed A/B/C-or-open, no grant. Parent/A/B OPEN 0->0; R50 NOT_ADOPTED."
 }
