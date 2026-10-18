@@ -94,7 +94,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Actual launch acknowledged by collaboration runtime in current R70 session; proof lane active."
+      "receipt": "Original attempt hit model-capacity error after partial theory write, without handoff; same author resumed on identical leases to complete/verify or stop. No freeze yet."
     },
     {
       "id": "/root/r70_extrusion_countertrace",
