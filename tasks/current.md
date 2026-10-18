@@ -17460,11 +17460,11 @@ obstruction only. Parent remains OPEN, conditions 0 -> 0. See the
 [R29 closeout](../notes/progress/2026-10-18-r29-source-context-action-closeout.md)
 and [R29 contract](agent-loop/sprints/caller-source-context-action-20261018-r29.md).
 
-R30 is now focused on an explicit candidate interpretation of the original
-`j0/a0` schemas, with every unprovided original field retained as a residual.
-The primary definition lane will map each field to adopted semantics and
-projection/introduction rules; the proof lane will test coverage and the
-unchanged parent application. A definition or interpretation alone discharges
-zero parent conditions. Source/native work remains NO_SAFE_CODE_SLICE, with no
-compiler edits, tests, builds or probes. See the
-[R30 contract](agent-loop/sprints/source-context-guard-interpretation-20261018-r30.md).
+R30's candidate interpretation and native map are frozen, and the adequacy
+analysis has fresh compiler/spec review. Both reviews are CLEAN only for the
+bounded obstruction report and BLOCKING for guard construction or parent
+closure. Original conditions remain 0 -> 0: there are no dependent adequacy
+maps into `j0/a0`, no same-event world readout or old-field semantic action, and
+the incidence index family/full authority readout is incomplete. The source
+mapping remains NO_SAFE_CODE_SLICE; no compiler edits, tests, builds or probes.
+See the [R30 closeout](../notes/progress/2026-10-18-r30-guard-interpretation-closeout.md).

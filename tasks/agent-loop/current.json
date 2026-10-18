@@ -7,23 +7,23 @@
     "id": "source-context-guard-interpretation-20261018-r30",
     "contract": "tasks/agent-loop/sprints/source-context-guard-interpretation-20261018-r30.md",
     "revision": 1,
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "115e909da",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original source/provider/context/world/assignment/occurrence/continuation/whole-Call/future/history/F1/FK1 scope unchanged; OPEN/closure0.",
     "fixed_outcome": "Define and audit one candidate source-semantic interpretation of the original j0/a0 schemas with all unresolved original requirements explicit; prove projection coverage and attempt unchanged ctrl.choose over the full predecessor domain, or isolate exact residual/counterexample. A definition alone discharges zero parent conditions.",
     "resources": {
       "cap_seconds": 3000,
-      "charged_seconds": 2200,
-      "available_seconds": 800,
-      "allocation": "Primary definition800 + native mapping400 + proof1000 reserved/spent (full runtime unknown); fresh review550 (compiler400/spec150) + integration250 remain. Astra0; no code/tests/builds/probes."
+      "charged_seconds": 3000,
+      "available_seconds": 0,
+      "allocation": "Definition800 + native mapping400 + proof1000 + reviews550 + integration250 charged; effective worker runtimes UNKNOWN; Astra0; no code/tests/builds/probes."
     },
-    "next_action": "Primary candidate definition and source/native map frozen. Proof lane tests field coverage, noncircularity, exact predecessor/event/index projection and global old-field frame at original ctrl.choose; reviewers queued after freeze. Preserve abstract residuals; no j0/a0 conclusion unless every original obligation is met.",
-    "history": "R29 closeout notes/progress/2026-10-18-r29-source-context-action-closeout.md: proof found no exhaustive j0/a0 telescope/global old action; source mapping NO_SAFE_CODE_SLICE; compiler/spec CLEAN only for bounded obstruction; parent0->0. R30 follows dispatcher recommendation under user standing bounded-research authorization; no production authority.",
+    "next_action": "R30 closed after independent review. Parent OPEN/closure0. Dispatcher recommendation pending for the next outcome; do not repeat candidate/residual construction without original guard/event-world owner evidence.",
+    "history": "R30 closeout notes/progress/2026-10-18-r30-guard-interpretation-closeout.md: parent0->0; candidate/adequacy/native mapping independently reviewed; source NO_SAFE_CODE_SLICE. Both children STOPPED.",
     "git_checkpoint": {
-      "commit": "115e909da",
+      "commit": "0516d729e",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R28/R29 closeouts, R30 contract and source-context experiment baseline; R30 candidate outputs now frozen for proof."
+      "receipt": "Last confirmed push 0516d729e is the R30 candidate baseline. Reviewed proof, handoff, closeout, current state and task summary are prepared for root integration; no new push recorded yet."
     },
     "workers": [
       {
@@ -35,18 +35,40 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R30 candidate guard interpretation and constructor-to-consumer mapping frozen; integrates proof/review and owns central state/Git. No compiler code lease."
+        "receipt": "R30 proof and both independent reviews complete; closeout frozen; Luna owns next dispatch, central state and Git."
       },
       {
         "id": "/root/r30_guard_adequacy",
         "role": "prover",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Current-session Sol/high prover launched on exact frozen R30 definition; observed model/effort UNKNOWN/UNKNOWN; cap1000s, no code/tests/builds/probes/Git/Astra."
+        "receipt": "Frozen R30 adequacy artifact SHA cdae43235456216fb251ce6a65cecebc9ba45a210b237efe7d6277c65c663502 and handoff SHA 95b84cb167ee6a4a9d2c6d89a94972c12cb1476bff40038ff69420852ec0de8d. Writer ceased; runtime UNKNOWN; full 1000s charged; no code/tests/builds/probes/Astra/Git."
+      },
+      {
+        "id": "/root/r30_compiler_review",
+        "role": "compiler_referee",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Fresh compiler referee completed; CLEAN for bounded obstruction/adequacy report, BLOCKED for guard construction/parent closure. Verified four R30 hashes and seven R29 native source hashes. Read-only; no tests/builds/probes/Git."
+      },
+      {
+        "id": "/root/r30_spec_review",
+        "role": "spec_auditor",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Fresh spec auditor completed; CLEAN for honest bounded obstruction, BLOCKING for guard adequacy/parent closure. Verified four R30 hashes. Read-only; no tests/builds/probes/Git."
       }
     ],
     "leases": [
@@ -93,39 +115,25 @@
       {
         "path": "notes/theory/2026-10-18-source-context-guard-action-adequacy.md",
         "owner": "/root/r30_guard_adequacy",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-source-context-guard-action-adequacy.md",
         "owner": "/root/r30_guard_adequacy",
-        "state": "HELD"
-      }
-    ],
-    "pending": [
+        "state": "FROZEN"
+      },
       {
-        "id": "R30-PRIMARY-GUARD-INTERPRETATION",
-        "state": "RESULT",
+        "path": "notes/progress/2026-10-18-r30-guard-interpretation-closeout.md",
         "owner": "/root",
-        "artifact": "Frozen candidate SHA ec09c5281f172aac38fb17adf835f248564b64acf6b0e58ab62949c042127a76 and native mapping SHA 5d4f254af9abefb8bc7858f431c35b1205ba3d5d2ffcfa9c3725e832149d6af8. Known fields plus explicit authority/incidence/global/alias/capture/shared residuals; no guard conclusion."
-      },
-      {
-        "id": "R30-GUARD-ACTION-ADEQUACY",
-        "state": "RUNNING",
-        "owner": "/root/r30_guard_adequacy",
-        "artifact": "Against frozen definition, test exhaustive governing-field coverage, pure action, exact same tuple, full predecessor domain and old/global frame; original application or precise residual. Cap1000s."
-      },
-      {
-        "id": "R30-INDEPENDENT-REVIEW",
-        "state": "STAGED",
-        "owner": "Fresh compiler_referee + spec_auditor",
-        "artifact": "Review frozen definition, proof attempt and native mapping; 550s total (compiler400/spec150)."
+        "state": "FROZEN"
       }
     ],
+    "pending": [],
     "ready_next_work": {
-      "id": "R30-GUARD-ACTION-ADEQUACY",
-      "state": "RUNNING",
-      "owner": "/root/r30_guard_adequacy",
-      "artifact": "Adversarially test projection coverage against original parametric guards and apply to unchanged ctrl.choose/ins_(r0,q0)."
+      "id": "NEXT-DISPATCH",
+      "state": "STAGED",
+      "owner": "/root/resume_dispatch",
+      "artifact": "R30 reviewed closeout; recommend next highest-leverage outcome and exact original semantic owner evidence. Parent remains OPEN."
     },
     "legacy_reconciliation": {
       "required": false,
@@ -143,18 +151,40 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R30 candidate guard interpretation and constructor-to-consumer mapping frozen; integrates proof/review and owns central state/Git. No compiler code lease."
+      "receipt": "R30 proof and both independent reviews complete; closeout frozen; Luna owns next dispatch, central state and Git."
     },
     {
       "id": "/root/r30_guard_adequacy",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Current-session Sol/high prover launched on exact frozen R30 definition; observed model/effort UNKNOWN/UNKNOWN; cap1000s, no code/tests/builds/probes/Git/Astra."
+      "receipt": "Frozen R30 adequacy artifact SHA cdae43235456216fb251ce6a65cecebc9ba45a210b237efe7d6277c65c663502 and handoff SHA 95b84cb167ee6a4a9d2c6d89a94972c12cb1476bff40038ff69420852ec0de8d. Writer ceased; runtime UNKNOWN; full 1000s charged; no code/tests/builds/probes/Astra/Git."
+    },
+    {
+      "id": "/root/r30_compiler_review",
+      "role": "compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh compiler referee completed; CLEAN for bounded obstruction/adequacy report, BLOCKED for guard construction/parent closure. Verified four R30 hashes and seven R29 native source hashes. Read-only; no tests/builds/probes/Git."
+    },
+    {
+      "id": "/root/r30_spec_review",
+      "role": "spec_auditor",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh spec auditor completed; CLEAN for honest bounded obstruction, BLOCKING for guard adequacy/parent closure. Verified four R30 hashes. Read-only; no tests/builds/probes/Git."
     }
   ],
   "leases": [
@@ -230,5 +260,6 @@
     }
   ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R29 closeout: notes/progress/2026-10-18-r29-source-context-action-closeout.md; parent 0->0. R28/R27 closeouts linked from tasks/current.md."
+  "history": "R29 closeout: notes/progress/2026-10-18-r29-source-context-action-closeout.md; parent 0->0. R28/R27 closeouts linked from tasks/current.md.",
+  "sha256": "d9a4af9a327ec38e238dddd5c6d20e8806c4d5f335f7964add34e6eb1041e990"
 }
