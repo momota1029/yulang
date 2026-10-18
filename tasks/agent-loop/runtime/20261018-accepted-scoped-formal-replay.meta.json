@@ -4,11 +4,14 @@
   "contract_sha256": "e9ea1ebb5db72ebcf7348e512206a1b39b8e60232d2bff5459f0bc394f7526f0",
   "baseline": "059bbab6e",
   "implementation_snapshot": {
-    "review": "PENDING",
+    "review": "CLEAN_WITH_MINOR",
     "example_sha256": "30c0e01e6d76ba4e807fd4a362dd91003ee164021368ebcab3f0c92f7eaa9179",
     "test_sha256": "c113ac60c41eff2cee32239c3ba7e035e17270c4769bf9e95164298c3622d785",
     "progress_sha256": "c4dc7a3724be1b042a823587025fa70d7da01995b35058060fc5c1a287734c3b",
-    "handoff_sha256": "c4980909c22282c72eb304b0787fbbc851b76a39c8e7122bb95c108c2dfa160d"
+    "handoff_sha256": "c4980909c22282c72eb304b0787fbbc851b76a39c8e7122bb95c108c2dfa160d",
+    "review_findings": [
+      "Example requires shadow-apply-candidate; exact authorized test/run commands supply this feature. Building example without feature is outside this sprint command contract."
+    ]
   },
   "prior_test": {
     "exit_code": 101,
@@ -17,13 +20,18 @@
     "static_owner_explanation": "Old opt-in local_source helper preserved UnsupportedExpression IDs for Apply bodies; this is static explanation from owner history, not output captured from the prior run."
   },
   "primary_release": {
-    "status": "NOT_RELEASED",
-    "reason": "Awaiting independent CLEAN compiler review and fresh capacity observation >=120s",
-    "no_retry": true
+    "status": "EXPLICIT_TEST_ONLY",
+    "released_utc": "2026-10-17 23:59:41 UTC",
+    "capacity_available_seconds": 240,
+    "required_seconds": 120,
+    "reviewer": "/root/accepted_replay_review",
+    "review": "CLEAN_WITH_MINOR",
+    "no_retry": true,
+    "command": "test only; example remains unreleased until a fresh >=120s capacity check after test success"
   },
   "test_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver --features shadow-apply-candidate candidate_graph_call --lib",
-  "test_invocation": 0,
-  "test_status": "NOT_RUN",
+  "test_invocation": 1,
+  "test_status": "RELEASED_PENDING_EXECUTION",
   "test_stdout_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.test.stdout.log",
   "test_stderr_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.test.stderr.log",
   "example_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo run --offline -p yu-solver --features shadow-apply-candidate --example research_scoped_formal_replay",
@@ -31,5 +39,10 @@
   "example_status": "NOT_RUN",
   "example_stdout_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.example.stdout.log",
   "example_stderr_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.example.stderr.log",
-  "parent_conditions_closed": 0
+  "parent_conditions_closed": 0,
+  "reviewer": {
+    "id": "/root/accepted_replay_review",
+    "status": "STOPPED",
+    "result": "No BLOCKING/major; one minor feature boundary; all exact pins match."
+  }
 }
