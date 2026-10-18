@@ -7,57 +7,79 @@
     "id": "active-capture-conservative-extension-20261018-r32",
     "contract": "tasks/agent-loop/sprints/active-capture-conservative-extension-20261018-r32.md",
     "revision": 1,
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "eb01835c1c78ad3566dac054c285d2a5df4d3e7f",
     "parent": "Full goal: implement Yulang type inference and executor with proofs. Active-capture source bridge for intrusion/principality/N-Transport; R30 CHOOSE-SOURCE-2 remains independently OPEN/closure0.",
     "fixed_outcome": "Construct and assess one research-only active-capture demand record as a conservative definitional extension of complete existing Call in two independent helper-use frames; in parallel, exercise accepted-source active-root/nested-helper/two-FreshUse native path with a focused test-only regression. No semantic adoption or production allocation change.",
     "resources": {
       "cap_seconds": 1380,
-      "charged_seconds": 900,
-      "available_seconds": 480,
-      "allocation": "Sol proof600 + Luna implementation/test300 charged/reserved at launch; fresh compiler/spec reviews180 each and Luna integration120 remain. Astra0; one focused Cargo process owned by native lane."
+      "charged_seconds": 1260,
+      "available_seconds": 120,
+      "allocation": "Proof600 + native lane300 + fresh compiler/spec reviews180 each charged/reserved; Luna integration120 remains. Astra0; no Cargo process ran."
     },
-    "next_action": "Proof and native/test lanes running under exact R32 leases. Preserve the original Call relation and report any candidate choice separately from adoption. Fresh compiler/spec review follows frozen outputs.",
+    "next_action": "R32 closed after CLEAN preservation reviews. Parent conditions0->0. Corrected native observer boundary is the next material input; consult dispatcher for an exact next outcome and any new observer lease.",
     "history": "R31 closeout notes/progress/2026-10-18-r31-active-root-allocation-closeout.md; original conditions0->0; missing active-capture C/D telescope identified. Dispatcher recommends candidate conservative extension plus native two-FreshUse path.",
     "git_checkpoint": {
-      "commit": "f69e3d4d194be0306ceed738d45c0c1d0bf2e49f",
+      "commit": "fcfecf9799aa9a4cb64ef0eb70733dc343e77f6f",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R31 closeout commit eb01835c1 was pushed; R32 contract/state commit f69e3d4d1 was pushed before worker launch."
+      "receipt": "R32 contract and lane launch state pushed at f69e3d4d1/fcfecf979; closeout integration and frozen outputs are now recorded locally."
     },
     "workers": [
       {
         "id": "/root",
-        "role": "Luna-primary/R32 authority, implementation oversight, reviews and Git owner",
+        "role": "Luna-primary/R32 integration and Git owner",
         "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R32 contract f69e3d4d1 pushed; launched proof and test-only native lanes on disjoint exact leases. No production-semantic lease."
+        "receipt": "R32 proof and native lanes stopped; fresh compiler/spec reviews returned bounded CLEAN results. Integrating corrected closeout and dispatching next evidence."
       },
       {
         "id": "/root/r32_conservativity_proof",
         "role": "prover",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Current-session NEW_TASK on R32 bidirectional candidate conservativity proof/handoff paths; hard cap600s; no code/tests/builds/probes/Astra/Git."
+        "receipt": "R32 proof rev1 frozen; exact artifact/handoff hashes recorded in closeout; writes stopped at authentic C/D declaration/telescope boundary."
       },
       {
         "id": "/root/r32_native_path",
         "role": "implementer",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Current-session NEW_TASK on R32 test-only native path and handoff paths; hard cap300s; one contract-authorized focused Cargo test only; no production edits/Astra/Git."
+        "receipt": "R32 native lane frozen; test unchanged and no Cargo run. Compiler review noted existing intrusion_observation API omitted; corrected closeout narrows observer gap."
+      },
+      {
+        "id": "/root/r32_compiler_review",
+        "role": "fresh compiler referee",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "CLEAN for preservation with minor observer-inventory correction; R32 success predicates and parent remain blocked."
+      },
+      {
+        "id": "/root/r32_spec_review",
+        "role": "fresh spec auditor",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "CLEAN for reference-only retention lemma and honest obstruction; BLOCKED for allocating conservativity/native regression; parent0->0."
       }
     ],
     "leases": [
@@ -79,94 +101,102 @@
       {
         "path": "notes/theory/2026-10-18-active-capture-conservative-extension-r32.md",
         "owner": "/root/r32_conservativity_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-active-capture-conservative-extension-r32.md",
         "owner": "/root/r32_conservativity_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
         "owner": "/root/r32_native_path",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-18-active-capture-native-path-r32.md",
         "owner": "/root/r32_native_path",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-active-capture-native-path-r32.md",
         "owner": "/root/r32_native_path",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/progress/2026-10-18-r32-active-capture-closeout.md",
+        "owner": "/root",
         "state": "HELD"
       }
     ],
-    "pending": [
-      {
-        "id": "R32-CONSERVATIVE-EXTENSION-PROOF",
-        "state": "RUNNING",
-        "owner": "/root/r32_conservativity_proof",
-        "artifact": "Bidirectional conservative extension of candidate active-capture record against unchanged full Call relation; preserve all scopes/effects/events and two helper uses."
-      },
-      {
-        "id": "R32-NATIVE-TWO-FRESHUSE-PATH",
-        "state": "RUNNING",
-        "owner": "/root/r32_native_path",
-        "artifact": "Test-only accepted-source active-root/nested-helper path with two distinct FreshUses using existing observations; run one focused Cargo test."
-      },
-      {
-        "id": "R32-INDEPENDENT-REVIEWS",
-        "state": "STAGED",
-        "owner": "Fresh compiler and spec reviewers assigned after artifacts freeze",
-        "artifact": "Review proof directions, exact original scopes, native observer path and absence of production semantic changes."
-      }
-    ],
+    "pending": [],
     "ready_next_work": {
-      "id": "R32-INDEPENDENT-REVIEWS",
-      "state": "STAGED",
-      "owner": "/root",
-      "artifact": "After both R32 writers freeze, assign fresh compiler and spec reviewers within reserved 360s."
+      "id": "R33-NATIVE-OBSERVER-JOIN",
+      "state": "RUNNING",
+      "owner": "/root/r33_close_dispatch",
+      "artifact": "Dispatcher boundary after R32 review; evaluate the existing intrusion_observation API for the exact active-Link to pair to two-FreshUse join, and identify the next source-owned C/D declaration evidence."
     },
     "legacy_reconciliation": {
       "required": false,
       "receipt": "R31 proof, falsifier and review terminal; exact artifacts frozen. R32 begins after R31 closeout."
     },
-    "sha256": "2be39ba113a04383d10dfcdb75142111e7c81b389b9fce65c0ae3802c3c94194"
+    "sha256": "1102cb3517fbd1e4e1a73405effe5c510bf06a9a4bf2e911458ceed93e547334"
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna-primary/R32 authority, implementation oversight, reviews and Git owner",
+      "role": "Luna-primary/R32 integration and Git owner",
       "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R32 contract f69e3d4d1 pushed; launched proof and test-only native lanes on disjoint exact leases. No production-semantic lease."
+      "receipt": "R32 proof and native lanes stopped; fresh compiler/spec reviews returned bounded CLEAN results. Integrating corrected closeout and dispatching next evidence."
     },
     {
       "id": "/root/r32_conservativity_proof",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Current-session NEW_TASK on R32 bidirectional candidate conservativity proof/handoff paths; hard cap600s; no code/tests/builds/probes/Astra/Git."
+      "receipt": "R32 proof rev1 frozen; exact artifact/handoff hashes recorded in closeout; writes stopped at authentic C/D declaration/telescope boundary."
     },
     {
       "id": "/root/r32_native_path",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Current-session NEW_TASK on R32 test-only native path and handoff paths; hard cap300s; one contract-authorized focused Cargo test only; no production edits/Astra/Git."
+      "receipt": "R32 native lane frozen; test unchanged and no Cargo run. Compiler review noted existing intrusion_observation API omitted; corrected closeout narrows observer gap."
+    },
+    {
+      "id": "/root/r32_compiler_review",
+      "role": "fresh compiler referee",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "CLEAN for preservation with minor observer-inventory correction; R32 success predicates and parent remain blocked."
+    },
+    {
+      "id": "/root/r32_spec_review",
+      "role": "fresh spec auditor",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "CLEAN for reference-only retention lemma and honest obstruction; BLOCKED for allocating conservativity/native regression; parent0->0."
     }
   ],
   "leases": [
@@ -188,50 +218,36 @@
     {
       "path": "notes/theory/2026-10-18-active-capture-conservative-extension-r32.md",
       "owner": "/root/r32_conservativity_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-active-capture-conservative-extension-r32.md",
       "owner": "/root/r32_conservativity_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
       "owner": "/root/r32_native_path",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-active-capture-native-path-r32.md",
       "owner": "/root/r32_native_path",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-active-capture-native-path-r32.md",
       "owner": "/root/r32_native_path",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/progress/2026-10-18-r32-active-capture-closeout.md",
+      "owner": "/root",
       "state": "HELD"
     }
   ],
-  "pending": [
-    {
-      "id": "R32-CONSERVATIVE-EXTENSION-PROOF",
-      "state": "RUNNING",
-      "owner": "/root/r32_conservativity_proof",
-      "artifact": "Bidirectional conservative extension of candidate active-capture record against unchanged full Call relation; preserve all scopes/effects/events and two helper uses."
-    },
-    {
-      "id": "R32-NATIVE-TWO-FRESHUSE-PATH",
-      "state": "RUNNING",
-      "owner": "/root/r32_native_path",
-      "artifact": "Test-only accepted-source active-root/nested-helper path with two distinct FreshUses using existing observations; run one focused Cargo test."
-    },
-    {
-      "id": "R32-INDEPENDENT-REVIEWS",
-      "state": "STAGED",
-      "owner": "Fresh compiler and spec reviewers assigned after artifacts freeze",
-      "artifact": "Review proof directions, exact original scopes, native observer path and absence of production semantic changes."
-    }
-  ],
+  "pending": [],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R31 closeout pushed at eb01835c1. R32 contract/state pushed at f69e3d4d1; proof and test-only native path active under disjoint exact leases; original parent remains OPEN.",
-  "sha256": "0fecac43ecf1480b6fbe54372840e9b80ffb5b1869d4963888fbd6f016502eca"
+  "history": "R32 closeout: notes/progress/2026-10-18-r32-active-capture-closeout.md. Parent0->0. Reference retention proved; C/D allocation and native two-use predicate blocked. Existing intrusion_observation API corrects the observer boundary; next dispatch pending.",
+  "sha256": "af79ff5dcc9e9865fa2b6340fcb6b098ad55204e38e2319998a14a03b434177b"
 }

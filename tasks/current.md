@@ -17489,7 +17489,7 @@ bounded report. Original conditions remain 0 -> 0, and the native FreshUse map
 remains conditional evidence only. See the [R31 closeout](../notes/progress/2026-10-18-r31-active-root-allocation-closeout.md)
 and [R31 contract](agent-loop/sprints/active-outer-root-allocation-20261018-r31.md).
 
-## Active research sprint — R32
+## Closed research sprint — R32
 
 R32 follows the R31 reviewer and dispatcher result with two linked outcomes: a
 research-only candidate active-capture record whose extension conservatively
@@ -17499,3 +17499,10 @@ FreshUses. No candidate semantics are adopted and no production allocation
 policy changes. The parent remains OPEN at 0 -> 0; R30's caller-guard/world
 action remains independent. See the
 [R32 contract](agent-loop/sprints/active-capture-conservative-extension-20261018-r32.md).
+R32 closed with both success predicates still open. The reviewed reference-only
+record has exact erasure/lifting but does not allocate C/D; no original
+condition changed. The native test stayed unchanged and Cargo was not run. The
+compiler review found that the existing `intrusion_observation()` API and
+focused regression expose source-event to signed parent/copy incidence,
+narrowing the remaining observer gap to active-Link and pair-to-two-FreshUse
+correspondence. See the [R32 closeout](../notes/progress/2026-10-18-r32-active-capture-closeout.md).
