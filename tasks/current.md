@@ -17507,7 +17507,7 @@ focused regression expose source-event to signed parent/copy incidence,
 narrowing the remaining observer gap to active-Link and pair-to-two-FreshUse
 correspondence. See the [R32 closeout](../notes/progress/2026-10-18-r32-active-capture-closeout.md).
 
-## Active research sprint — R33
+## Closed research sprint — R33
 
 R33 uses the existing `intrusion_observation()` API plus private source-test
 records to join active-root Link, signed demand/pair incidence and both helper
@@ -17516,3 +17516,10 @@ incidence, reusing R32's reference-retention lemma. No public observer,
 production allocation change, or semantic adoption is authorized. Parent
 conditions remain 0 -> 0. See the
 [R33 contract](agent-loop/sprints/active-capture-observer-join-20261018-r33.md).
+R33's proof stops at the missing source-owned C/D introduction in Generalize
+§3.3. Its single focused Cargo process failed on an overstrong all-row
+FreshUse-disjointness assertion; independent reviewers also found unqualified
+identity/pair joins and an unreached-assertion overclaim. The two experimental
+code/test files were restored to their pinned baseline. Parent conditions
+remain 0 -> 0. See the
+[R33 closeout](../notes/progress/2026-10-18-r33-active-capture-observer-closeout.md).
