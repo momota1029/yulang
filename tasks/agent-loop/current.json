@@ -24,9 +24,9 @@
       "charged_seconds": 0,
       "available_seconds": 1800,
       "allocation": "Proof600 + complementary source/spec researcher500 + compiler review200 + spec review200 + Luna integration300 = 1800s; Astra0; no carryover",
-      "actual_runtime": "UNKNOWN for all R65 lanes; authors WAITING for exact lease/launch receipt; reviewers not launched; no runtime charged yet"
+      "actual_runtime": "UNKNOWN for both active author lanes; launch receipts received; reviewers not launched; no measured runtime charged yet"
     },
-    "next_action": "Send exact author leases and activation acknowledgment. Record each actual launch/resume receipt before setting RUNNING. Authors work only within their exact paths and pins; both must stop and freeze outputs before fresh independent reviews.",
+    "next_action": "Authors derive and independently map the exact source-rule applicability within their separate leases. Await both frozen outputs and STOP receipts before launching fresh read-only reviews.",
     "history": "R64 closed reviewed bounded partial derivation / exact unsupplied clause / no safe code slice. Proof hash b8041fae28a4a88d7143ab6e16be6658ce156f3de90888667dded93e8b643772; closeout hash c53e7d4a1c791cd93f428af9c11572327e4b72a462fa3c311d5c1141d3d5b670. Dispatcher R64 end route was source-language specification ownership. R65 tests pinned approved source-language decisions against the exact smaller clause; it does not repeat native/crosswalk audit."
   },
   "workers": [
@@ -44,24 +44,24 @@
     {
       "id": "/root/r63_whole_ascription_formation_proof",
       "role": "Configured prover; apply approved typed-root bridge and declared-envelope rules to R64-SRC-ANN-ARG-1",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r65",
-      "receipt": "Pre-activation NO_READ / NO_WRITE / NO_PROOF_WORK / NO_DESCENDANTS; awaiting exact lease and activation acknowledgment."
+      "receipt": "R65 launch acknowledged after activation at e4a88f8c7; exact two leases and 600s grant accepted; active work began; observed model/effort UNKNOWN/UNKNOWN; no descendants or out-of-pin reads."
     },
     {
       "id": "/root/r65_source_spec_research",
       "role": "Complementary source/spec owner map and independent counter-reading",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r65",
-      "receipt": "Pre-activation NO_READ / NO_WRITE / NO_RESEARCH / NO_DESCENDANTS; awaiting exact lease and activation acknowledgment."
+      "session": "current-conversation-2026-10-19-r65; worker session ID unavailable",
+      "receipt": "R65 launch/active-work acknowledged after activation at e4a88f8c7; exact two leases and 500s grant accepted; session ID and observed model/effort UNKNOWN; reminded exact contract path and no out-of-pin startup reads; no descendants."
     },
     {
       "id": "/root/r65_compiler_review",
