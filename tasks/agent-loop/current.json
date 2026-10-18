@@ -44,13 +44,13 @@
     {
       "id": "/root/r71_raw_canonical_proof",
       "role": "R71 constructive raw/canonical fiber coverage proof; exact proof artifact and handoff only",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Actual NEW_TASK launch acknowledged by collaboration runtime; exact proof paths active."
+      "receipt": "R71-PROOF/1 FROZEN; theory SHA 620947cece53ca60a7f8a2388a398f53850b835c79afd546bfdcfd10349a876e; inbox SHA b7bc24379472bf840d111c379cbbf000516265c350d4ba55d47ecd06bb3fe2c6; contract +20/20 pins MATCH; 900s charged; STOPPED/WRITES_STOPPED/NO_DESCENDANTS."
     },
     {
       "id": "/root/r71_fiber_countertrace",
@@ -61,7 +61,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "STOPPED/WRITES_STOPPED/NO_DESCENDANTS; note SHA 28b237f0d9530bb539b08f6a75792e56bf4416ae51caaa22a986f03238ed3180; inbox SHA 359bb42066abf2a24f4523928c7e321eb19f63da7c42a125ae6de47c94a8b16e; 20/20 pins MATCH; 228s observed, 300s charged; CPU/RSS UNKNOWN."
+      "receipt": "STOPPED/WRITES_STOPPED/NO_DESCENDANTS; note SHA 28b237f0d9530bb539b08f6a75792e56bf4416ae51caaa22a986f03238ed3180; inbox SHA 359bb42066abf2a24f4523928c7e321eb19f63da7c42a125ae6de47c94a8b16e; 20/20 pins MATCH; 228s observed/300s charged; CPU/RSS UNKNOWN."
     }
   ],
   "leases": [
@@ -78,12 +78,12 @@
     {
       "path": "notes/theory/2026-10-19-r71-raw-canonical-fiber-coverage.md",
       "owner": "/root/r71_raw_canonical_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r71-proof.md",
       "owner": "/root/r71_raw_canonical_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r71-fiber-countertrace.md",
@@ -179,5 +179,5 @@
     }
   ],
   "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 ACTIVE. R70 operation target, parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-  "next_action": "Wait for proof freeze; then review exact hashes across countertrace, proof and owner map before fresh independent reviews."
+  "next_action": "Launch fresh independent compiler/spec review on the exact six frozen R71 author outputs; then integrate while keeping required-canonical-lineage obligation OPEN."
 }
