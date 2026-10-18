@@ -50,13 +50,13 @@
     {
       "id": "/root/r19_freshuse_proof",
       "role": "prover",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Assigned R20 constructive PREFIX-1/USE-1 source/native proof, 720s; awaiting active-work acknowledgement. Exact R20 theory and inbox leases."
+      "receipt": "R20 active-work acknowledgement received. Sol/high requested, effective settings UNKNOWN; exact theory+inbox lease; method is backward-slicing early q/m0 prerequisite DAG then forward exact per-use consumer. Proof720, Astra0; no code/tests/Git."
     },
     {
       "id": "/root/r19_freshuse_falsification",
