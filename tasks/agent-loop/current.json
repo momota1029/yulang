@@ -7,7 +7,7 @@
     "id": "call-output-owner-jof-20261019-r44",
     "contract": "tasks/agent-loop/sprints/call-output-owner-jof-20261019-r44.md",
     "revision": 1,
-    "state": "REVIEW",
+    "state": "CLOSED-UNSUCCESSFUL-CANDIDATE",
     "baseline": "19d02ce40a107c7ac182748879be1c665391c7c2",
     "contract_sha256": "8a9cdf31c8ce33feb30673a7cb91c099173ecd1da44e37e76b27d951960a91d8",
     "parent": "Unchanged full Yulang inference/evaluator theorem and Simple-sub A/B, original source domain/quantifiers, complete Call/effects, F1/FK1, N-Transport, soundness, principality, termination and production.",
@@ -26,18 +26,18 @@
       "original_call_formation": "4940e031b83d3d0315f17beb51ba2e952ec64ae7d57d9ae0d086024c7305ca9f",
       "original_call_owner": "0b86e367cf8170f4f9d095f0afe8e9f6003209189dc358e294941727962ff110",
       "typed_computation_core": "0dbd943a1254dd58c435ff295a8ac0a9d025af70ba37a17154d624da8a86ab2e",
-      "code_call_input": "f7c1b1eb23acb33ab98487097ab67617e1af84964b012b1c951a8805dd9f6",
+      "code_call_input": "f7c1b1eb23acb33ab98487097ab67617e1af84964b012874b1c951a8805dd9f6",
       "call_source_interface": "20edc62e798cef22111d0303b71a18b7769060515855fac1b315a5eba37b255c",
       "generalize_definition": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240"
     },
     "resources": {
       "cap_seconds": 3000,
-      "charged_seconds": 2100,
-      "available_seconds": 900,
-      "allocation": "Luna primary proof/design 1650 + read-only implementation boundary 450 = 2100 charged; two fresh independent reviews reserve 450 each; integration included in Luna grant; Astra 0; no carryover.",
+      "charged_seconds": 3000,
+      "available_seconds": 0,
+      "allocation": "Primary and boundary work charged 2100 seconds; two fresh reviews reserved/charged 900 seconds. Actual elapsed CPU/RSS unmeasured; no carryover.",
       "overrun_seconds": 0
     },
-    "next_action": "Fresh compiler_referee and spec_auditor are reviewing frozen R44 artifacts. Luna adjudicates their independent reports; candidate remains non-authoritative and no code is authorized.",
+    "next_action": "R44 closed after independent review rejected adoption: exact output dependency telescope D_q and complete q headers, two-frame and alias mappings remain unconstructed. Consult next_action_selector for the next bounded sprint; no code authority.",
     "history": "R43 bounded selected-source intake stopped at missing q owner. On 2026-10-19 user delegated choosing the recommendation. Luna selected JOF for a design-and-proof candidate, not immediate adoption. R43 note hash metadata was corrected at 19d02ce40. R44 primary audit found full context Gamma_q cannot stand in for Desc dependency telescope Delta_A; see scope audit. A conditional evaluator corollary was derived from the existing typed-computation simulation theorem; it does not discharge q typing. Evaluator corollary revision 2 pins Code-Call Application, result-port, VIncl, WholeArgCompatible and complete suffix premises.",
     "workers": [
       {
@@ -54,24 +54,24 @@
       {
         "id": "/root/r44_compiler_referee",
         "role": "Independent read-only compiler_referee review of R44 frozen candidate",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "compiler_referee",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "Spawned in current session to review frozen R44 candidate, scope audit, and evaluator corollary rev2; no write lease; awaiting independent report."
+        "receipt": "Independent review complete; findings and adjudication frozen at 4e29ef28ad7cdec80a2c195e8bbac09b07fb4ff15c3ff4ca11834ffba010c0aa; candidate rejected; no edits or tests."
       },
       {
         "id": "/root/r44_spec_auditor",
         "role": "Independent read-only spec_auditor review of R44 frozen candidate",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "spec_auditor",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "Spawned in current session to review frozen R44 candidate, scope audit, and evaluator corollary rev2; no write lease; awaiting independent report."
+        "receipt": "Independent review complete; findings and adjudication frozen at 4e29ef28ad7cdec80a2c195e8bbac09b07fb4ff15c3ff4ca11834ffba010c0aa; candidate rejected; no edits or tests."
       }
     ],
     "leases": [
@@ -114,26 +114,16 @@
         "path": "notes/theory/2026-10-19-jof-application-evaluator-corollary-r44-rev2.md",
         "owner": "/root",
         "state": "FROZEN"
-      }
-    ],
-    "pending": [
-      {
-        "id": "R44-COMPILER-REVIEW",
-        "role": "compiler_referee",
-        "state": "RUNNING",
-        "target_sha256": "af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb",
-        "worker_id": "/root/r44_compiler_referee"
       },
       {
-        "id": "R44-SPEC-REVIEW",
-        "role": "spec_auditor",
-        "state": "RUNNING",
-        "target_sha256": "af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb",
-        "worker_id": "/root/r44_spec_auditor"
+        "path": "notes/progress/2026-10-19-r44-independent-review-adjudication.md",
+        "owner": "/root",
+        "state": "FROZEN"
       }
     ],
-    "ready_next_work": "Fresh compiler_referee and spec_auditor independently review the frozen JOF candidate, scope audit, and evaluator corollary rev2. Luna adjudicates findings; revise candidate under the design gate.",
-    "closure": "Primary audit found Delta_A := Gamma_q unjustified; actual D_q, complete Code-Call origins, q headers and both-frame/alias Generalize remain OPEN. Conditional evaluator corollary now lists the exact Code-Call premises. Parent OPEN 0->0; no code.",
+    "pending": [],
+    "ready_next_work": "Use dispatcher at this sprint boundary to choose a bounded proof and implementation path to an authentic ordinary Application output owner; preserve the parent OPEN and require fresh review.",
+    "closure": "Independent compiler_referee/spec_auditor agree R44 candidate misses fixed evidence: Delta_A := Gamma_q is unjustified; q owner, complete Call arms and both-frame/alias Generalize mappings are absent. Evaluator corollary rev2 is conditional only. Candidate not Authoritative. Parent OPEN 0->0; no code.",
     "frozen_artifacts": {
       "R43_original_output_order": "50c8499da6b441980953868e007fc8f22446a8cea19d1015d7ad8affedeb5c61",
       "R43_integrity_correction": "f2c5237983cf59cb3b5883eccb38e03bf43d42e080f0ab2374d64fccd08c241b",
@@ -144,7 +134,8 @@
       "R44_handoff": "8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575",
       "R44_primary_scope_audit": "172eb876bb50d8439a996cb411af537eb3f526e4dfc951c5fb996b666eb0e9cc",
       "R44_evaluator_corollary": "0b02be9c6a021e292ce57578827f4a5ed05753734c0d1ec2415c77f031c4fed4",
-      "R44_evaluator_corollary_rev2": "bb7aff3ed064b7118861f8da67df2d69bd0392c783df7e4864d1a811b112d3ee"
+      "R44_evaluator_corollary_rev2": "bb7aff3ed064b7118861f8da67df2d69bd0392c783df7e4864d1a811b112d3ee",
+      "R44_independent_review_adjudication": "4e29ef28ad7cdec80a2c195e8bbac09b07fb4ff15c3ff4ca11834ffba010c0aa"
     }
   },
   "workers": [
@@ -162,24 +153,24 @@
     {
       "id": "/root/r44_compiler_referee",
       "role": "Independent read-only compiler_referee review of R44 frozen candidate",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "compiler_referee",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
-      "receipt": "Spawned in current session to review frozen R44 candidate, scope audit, and evaluator corollary rev2; no write lease; awaiting independent report."
+      "receipt": "Independent review complete; findings and adjudication frozen at 4e29ef28ad7cdec80a2c195e8bbac09b07fb4ff15c3ff4ca11834ffba010c0aa; candidate rejected; no edits or tests."
     },
     {
       "id": "/root/r44_spec_auditor",
       "role": "Independent read-only spec_auditor review of R44 frozen candidate",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "spec_auditor",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
-      "receipt": "Spawned in current session to review frozen R44 candidate, scope audit, and evaluator corollary rev2; no write lease; awaiting independent report."
+      "receipt": "Independent review complete; findings and adjudication frozen at 4e29ef28ad7cdec80a2c195e8bbac09b07fb4ff15c3ff4ca11834ffba010c0aa; candidate rejected; no edits or tests."
     }
   ],
   "leases": [
@@ -222,31 +213,21 @@
       "path": "notes/theory/2026-10-19-jof-application-evaluator-corollary-r44-rev2.md",
       "owner": "/root",
       "state": "FROZEN"
-    }
-  ],
-  "pending": [
-    {
-      "id": "R44-COMPILER-REVIEW",
-      "role": "compiler_referee",
-      "state": "RUNNING",
-      "worker_id": "/root/r44_compiler_referee",
-      "target_sha256": "af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb"
     },
     {
-      "id": "R44-SPEC-REVIEW",
-      "role": "spec_auditor",
-      "state": "RUNNING",
-      "worker_id": "/root/r44_spec_auditor",
-      "target_sha256": "af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb"
+      "path": "notes/progress/2026-10-19-r44-independent-review-adjudication.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
-  "ready_next_work": "Fresh compiler_referee and spec_auditor independently review the frozen JOF candidate, scope audit, and evaluator corollary rev2. Luna adjudicates findings; revise candidate under the design gate.",
-  "closure": "Primary audit found Delta_A := Gamma_q unjustified; actual D_q, complete Code-Call origins, q headers and both-frame/alias Generalize remain OPEN. Conditional evaluator corollary now lists the exact Code-Call premises. Parent OPEN 0->0; no code.",
+  "pending": [],
+  "ready_next_work": "Consult next_action_selector at R44 closeout for next sprint selection. No code authority is active.",
+  "closure": "Independent compiler_referee/spec_auditor agree R44 candidate misses fixed evidence: Delta_A := Gamma_q is unjustified; q owner, complete Call arms and both-frame/alias Generalize mappings are absent. Evaluator corollary rev2 is conditional only. Candidate not Authoritative. Parent OPEN 0->0; no code.",
   "history": "R43 bounded selected-source intake stopped at missing q owner. On 2026-10-19 user delegated choosing the recommendation. Luna selected JOF for a design-and-proof candidate, not immediate adoption. R43 note hash metadata was corrected at 19d02ce40. R44 conditional evaluator translation corollary recorded; q source derivation remains open.",
   "quarantine_note": "Preserve pre-existing dirty Rust, tasks/current.md and untracked R35-R41 artifacts of unknown authors. R43 has read-only source scope; do not acquire their leases or stage them.",
   "legacy_reconciliation": {
     "required": false,
     "receipt": "R42/R43 primary and review workers terminal. Pre-existing dirty/unknown-owner Rust, tasks/current.md and R35-R41 artifacts remain untouched/read-only."
   },
-  "sha256": "99ffa8f8c4a42b47fc4efca14e5f5aca648568183f0467f646c7a4d363253751"
+  "sha256": "ff9521eebaf7e4cbe98ac213fd6cb69e6359561e72755bb613934c91843cee27"
 }
