@@ -4,32 +4,32 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "field-root-incidence-bridge-options-20261018-r21",
-    "contract": "tasks/agent-loop/sprints/field-root-incidence-bridge-options-20261018-r21.md",
-    "revision": 3,
-    "sha256": "5aeee672437a27f307af00c14635d366f694b7527c39a04690e751a07033a1b1",
-    "state": "COMPLETE",
-    "baseline": "R21 rev1 integrated checkpoint 5a26fa2e4; BLOCKING review retained. Rev2 repairs only rule options and implementation correspondence; no code authority.",
+    "id": "fixed-source-result-map-existing-semantics-20261018-r22",
+    "contract": "tasks/agent-loop/sprints/fixed-source-result-map-existing-semantics-20261018-r22.md",
+    "revision": 1,
+    "sha256": "85236a281bd8abaa90bf2b3d1a88163bfe1ad2d64a3a4113b64cd0c269eae56f",
+    "state": "ACTIVE",
+    "baseline": "3436209db; R21 rev3 CLEAN for document conformance only; R20 fixed runtime_resume 18/18 and proof CLEAN.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers/domain unchanged; OPEN/closure0.",
-    "fixed_outcome": "Two reviewed bridge-rule options for annotation/exposed-root and actual FreshUse/resumption/Catch/installed-g typed incidence, independent falsifiers/soundness audit, and implementation contract. No rule adopted or code semantics changed.",
+    "fixed_outcome": "Prove fixed-source D0/D1/D2 ResultMap from existing raw-suffix/resumption/return/source semantics or refute with a concrete baseline-admitted source; add strictly nonsemantic bounded (128-event) runtime suffix/value-lineage trace.",
     "resources": {
-      "cap_seconds": 3600,
-      "charged_seconds": 3600,
+      "cap_seconds": 2700,
+      "charged_seconds": 2700,
       "available_seconds": 0,
-      "allocation": "R21 rev1 2700 + rev2 600 retained fully charged; rev3 adds 300: author90 (options/proof60 + implementation30) + same delta review150 + integration60. Astra0; no R20 carryover."
+      "allocation": "proof900 + independent falsification600 + nonsemantic trace600 + independent review360 + one focused target/integration240. Astra0; no R21 carryover."
     },
-    "next_action": "R21 completed its reviewed decision packet, not the bridge theorem: A is only a proposed annotation-root rule, fixed D0/D1 ResultMap remains OPEN, and B is unavailable pending rooted capture traversal proof. Consult dispatcher for next source-proof sprint. Parent OPEN/closure0.",
-    "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption. Rev2 delta review BLOCKING on A provisional/publication cycle and D1 unstated empty-suffix rule; rev3 narrow document-only repair authorized.",
-    "last_stage_receipt": "CLEAN rev3 document-conformance review at c0b4afbaa plus review receipt. A staging lifecycle is consistent but its soundness and source-root incidence remain unproved. D0/D1 withdrawn/open for fixed ResultMap; B blocked. Original theorem conditions closed 0.",
+    "next_action": "Commit/push R22 contract with Luna-frozen 128-event observation plan; dispatch proof and falsifier lanes plus exact nonsemantic trace lease. No test before CLEAN review.",
+    "history": "R20 runtime gate CLEAN, 18/18; R20 source proof CLEAN with missing typed incidence. R21 rev3 review CLEAN for document conformance; fixed ResultMap OPEN, A unadopted and partial, B BLOCKED. Parent closure0.",
+    "last_stage_receipt": "R22 starts from exact R21 ResultMap gap. New Orig rules and A/B adoption are forbidden; observation trace cannot alter admission, runtime, or receipt semantics.",
     "git_checkpoint": {
-      "commit": "df701019d",
+      "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "All R21 packets frozen, root-committed/pushed, rev3 delta CLEAN for document conformance. No semantic rule adopted; parent OPEN/closure0."
+      "receipt": "R22 contract/state frozen; root to commit/push before exact disjoint lane dispatch."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0. R21 complete: seven-document packet reviewed CLEAN for rev3 conformance; A only proposed, ResultMap OPEN, B blocked; parent closure0.",
-  "quarantine_note": "Replay-constructor DRAFT outputs and tools/__pycache__ remain quarantined and excluded. R21 grants document-only research; no source/solver/runtime code or semantic adoption.",
+  "quarantine_note": "Replay-constructor DRAFT outputs and tools/__pycache__ remain quarantined/excluded. R22 grants no solver/HIR semantics or A/B adoption; trace code is not authorized until Luna freezes exact observation plan.",
   "workers": [
     {
       "id": "/root",
@@ -40,10 +40,10 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Primary owns exact R21 grants, review, compact state, integration and Git."
+      "receipt": "Primary owns R22 exact authority, observation plan/code lease, review, focused run, integration and Git."
     },
     {
-      "id": "/root/r21_bridge_proof",
+      "id": "/root/r22_result_map_proof",
       "role": "prover",
       "state": "STOPPED",
       "requested_model": "Sol",
@@ -51,10 +51,10 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev3 options/proof frozen at f97d6ca85b60a5eec8bc20d98fcdf75904551eaacbdc5084026289362681676a / 19bd080980f355bbf8cbd5e5657fefefc5292c75bd47bf2e78c17df558618841. A uses provisional StagedOwn before PublishLocal; D1 retracted for lack of authenticated suffix source rule, so fixed ResultMap OPEN; B BLOCKED. No code/tests/Git; delta review pending."
+      "receipt": "R22 fixed-source existing-semantics proof lease; not yet dispatched."
     },
     {
-      "id": "/root/r21_bridge_falsifiers",
+      "id": "/root/r22_result_map_falsifiers",
       "role": "researcher",
       "state": "STOPPED",
       "requested_model": "Sol",
@@ -62,10 +62,10 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 independent falsifier/soundness packet frozen: soundness 1e85ae26d7caf678a28ec2cafe59ca4c8f6186a9f07de6b00d5f426cf2efb699; source falsifiers a881422001c4d3544e714a17f78681dc44e2360b204b6c362ea83a542908489e; handoff 5ec207a0c3610f102bb98f509b36a32126c15b11dbd52aae7e7b68355469f53c. Nonfinal k-result discard is a conceptual/candidate falsifier, not a newly parsed/admitted source counterexample. No tests/build/code/Git; pending combined review."
+      "receipt": "R22 independent source falsification lease; not yet dispatched."
     },
     {
-      "id": "/root/r21_bridge_impl_contract",
+      "id": "/root/r22_suffix_trace_impl",
       "role": "implementer",
       "state": "STOPPED",
       "requested_model": "Luna",
@@ -73,18 +73,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev3 implementation contract/handoff frozen at e3455e297bf34791a8e8908dee5fe355165da3eda005394ee2e56cd68db70c81 / 37038f8e04794b8023f80d437e6e2291d1342812192fa2ab957e0e0354d35bff. A provisional lifecycle aligns with PublishLocal/final candidate gate; B remains BLOCKED. No code/tests/Git."
-    },
-    {
-      "id": "/root/r21_bridge_integrated_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "configured default",
-      "requested_effort": "configured default",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "CLEAN R21 rev3 document-conformance delta review. A staging/publication cycle fixed; D1 withdrawn, fixed ResultMap OPEN; B remains blocked; no soundness or parent closure claimed. Exact four hashes/pins match. No edits/tests/build/Git."
+      "receipt": "Exact bounded observation plan is now frozen in R22 contract SHA pending commit: <=128 events with truncation, actual template/frame/source-site, response handle, owner/view, resumed return, selected Catch arm, final arm and completion. Code lease excludes runtime/mod.rs and lib.rs; no receipt/admission changes."
     }
   ],
   "leases": [
@@ -94,44 +83,49 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/field-root-incidence-bridge-options-20261018-r21.md",
+      "path": "tasks/agent-loop/sprints/fixed-source-result-map-existing-semantics-20261018-r22.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/design/2026-10-18-field-root-incidence-bridge-options.md",
-      "owner": "/root/r21_bridge_proof",
-      "state": "FROZEN"
+      "path": "notes/theory/2026-10-18-fixed-source-result-map-existing-semantics.md",
+      "owner": "/root/r22_result_map_proof",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-proof.md",
-      "owner": "/root/r21_bridge_proof",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-fixed-source-result-map-proof.md",
+      "owner": "/root/r22_result_map_proof",
+      "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-field-root-incidence-bridge-soundness.md",
-      "owner": "/root/r21_bridge_falsifiers",
-      "state": "FROZEN"
+      "path": "notes/theory/2026-10-18-fixed-source-result-map-source-falsifiers.md",
+      "owner": "/root/r22_result_map_falsifiers",
+      "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-18-field-root-incidence-source-falsifiers.md",
-      "owner": "/root/r21_bridge_falsifiers",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-fixed-source-result-map-falsifiers.md",
+      "owner": "/root/r22_result_map_falsifiers",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-falsifiers.md",
-      "owner": "/root/r21_bridge_falsifiers",
-      "state": "FROZEN"
+      "path": "tools/inference-playground/src/runtime/machine.rs",
+      "owner": "/root/r22_suffix_trace_impl",
+      "state": "HELD"
     },
     {
-      "path": "notes/design/2026-10-18-field-root-incidence-implementation-contract.md",
-      "owner": "/root/r21_bridge_impl_contract",
-      "state": "FROZEN"
+      "path": "tools/inference-playground/src/runtime/continuation.rs",
+      "owner": "/root/r22_suffix_trace_impl",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-implementation.md",
-      "owner": "/root/r21_bridge_impl_contract",
-      "state": "FROZEN"
+      "path": "tools/inference-playground/tests/runtime_resume.rs",
+      "owner": "/root/r22_suffix_trace_impl",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md",
+      "owner": "/root/r22_suffix_trace_impl",
+      "state": "HELD"
     }
   ],
   "pending": [],
