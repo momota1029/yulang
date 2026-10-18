@@ -2,7 +2,7 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-18",
+  "session": "current-conversation-2026-10-19",
   "active_sprint": {
     "id": "call-output-owner-jof-20261019-r44",
     "contract": "tasks/agent-loop/sprints/call-output-owner-jof-20261019-r44.md",
@@ -37,8 +37,8 @@
       "allocation": "Luna primary proof/design 1650 + read-only implementation boundary 450 = 2100 charged; two fresh independent reviews reserve 450 each; integration included in Luna grant; Astra 0; no carryover.",
       "overrun_seconds": 0
     },
-    "next_action": "Fresh independent reviews remain unassigned; primary reread is not a review. Keep the candidate Draft and parent OPEN until eligible reviewers return findings and Luna adjudicates.",
-    "history": "R43 bounded selected-source intake stopped at missing q owner. On 2026-10-19 user delegated choosing the recommendation. Luna selected JOF for a design-and-proof candidate, not immediate adoption. R43 note hash metadata was corrected at 19d02ce40.",
+    "next_action": "Revise the candidate so source scope sigma_A and the exact free-dependency telescope D_q are separate; construct D_q from an independent output-owner rule before q headers. Then obtain fresh independent compiler_referee/spec_auditor reviews. Primary audit is not independent review.",
+    "history": "R43 bounded selected-source intake stopped at missing q owner. On 2026-10-19 user delegated choosing the recommendation. Luna selected JOF for a design-and-proof candidate, not immediate adoption. R43 note hash metadata was corrected at 19d02ce40. R44 primary audit found full context Gamma_q cannot stand in for Desc dependency telescope Delta_A; see scope audit.",
     "workers": [
       {
         "id": "/root",
@@ -49,7 +49,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "R44 frozen candidate: design af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb; proof a06c546be1204eb16bf81f3c45a3aca6f05db148cc00ea9e3f2fd971e62b0c12; boundary 5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21; handoff 8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575; writes stopped."
+        "receipt": "R44 frozen candidate: design af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb; proof a06c546be1204eb16bf81f3c45a3aca6f05db148cc00ea9e3f2fd971e62b0c12; boundary 5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21; handoff 8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575; writes stopped. Primary scope audit frozen: 172eb876bb50d8439a996cb411af537eb3f526e4dfc951c5fb996b666eb0e9cc; writer stopped."
       }
     ],
     "leases": [
@@ -77,6 +77,11 @@
         "path": "tasks/agent-loop/inbox/20261019-call-output-owner-jof-r44.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/progress/2026-10-19-r44-jof-scope-dependency-audit.md",
+        "owner": "/root",
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -94,7 +99,7 @@
       }
     ],
     "ready_next_work": "Obtain fresh independent compiler_referee and spec_auditor reviews of the frozen candidate, then adjudicate. No semantic adoption, Rust lease or production cutover is automatic.",
-    "closure": "Candidate and bounded derivation frozen for review. Parent OPEN 0->0. No source-owner conservation proof, complete q headers, Generalize/copy theorem or implementation closure.",
+    "closure": "Primary audit found Delta_A := Gamma_q is not justified by the authoritative Desc free-dependency constructor. Corrected candidate obligation recorded; actual D_q, q headers and both-frame/alias Generalize remain OPEN. Parent OPEN 0->0; no code.",
     "frozen_artifacts": {
       "R43_original_output_order": "50c8499da6b441980953868e007fc8f22446a8cea19d1015d7ad8affedeb5c61",
       "R43_integrity_correction": "f2c5237983cf59cb3b5883eccb38e03bf43d42e080f0ab2374d64fccd08c241b",
@@ -102,7 +107,8 @@
       "R44_design": "af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb",
       "R44_proof_attempt": "a06c546be1204eb16bf81f3c45a3aca6f05db148cc00ea9e3f2fd971e62b0c12",
       "R44_implementation_boundary": "5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21",
-      "R44_handoff": "8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575"
+      "R44_handoff": "8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575",
+      "R44_primary_scope_audit": "172eb876bb50d8439a996cb411af537eb3f526e4dfc951c5fb996b666eb0e9cc"
     }
   },
   "workers": [
@@ -115,7 +121,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
-      "receipt": "R44 frozen candidate: design af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb; proof a06c546be1204eb16bf81f3c45a3aca6f05db148cc00ea9e3f2fd971e62b0c12; boundary 5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21; handoff 8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575; writes stopped."
+      "receipt": "R44 frozen candidate: design af9765c72edb19ef7c888e0c6751518ba3a1ccf79c5c99d7297796c1346d84fb; proof a06c546be1204eb16bf81f3c45a3aca6f05db148cc00ea9e3f2fd971e62b0c12; boundary 5478d92e69688b26b0b2e6e0564df1efa5d06ef98aeaed5dd222110be4603a21; handoff 8f152527fd7a6432c7dde63bf91d5dfe8093d042488d185b3f0c4c751cb8d575; writes stopped. Primary scope audit frozen: 172eb876bb50d8439a996cb411af537eb3f526e4dfc951c5fb996b666eb0e9cc; writer stopped."
     }
   ],
   "leases": [
@@ -143,10 +149,15 @@
       "path": "tasks/agent-loop/inbox/20261019-call-output-owner-jof-r44.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r44-jof-scope-dependency-audit.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [],
-  "ready_next_work": "Run the assigned fresh reviews, adjudicate findings and then update the parent applicability precisely. No semantic adoption, Rust lease or production cutover is automatic.",
+  "ready_next_work": "Revise the candidate so source scope sigma_A and the exact free-dependency telescope D_q are separate; construct D_q from an independent output-owner rule before q headers. Then obtain fresh independent compiler_referee/spec_auditor reviews. Primary audit is not independent review.",
   "closure": "Candidate and bounded derivation frozen for review. Parent OPEN 0->0. No source-owner conservation proof, complete q headers, Generalize/copy theorem or implementation closure.",
   "history": "R43 bounded selected-source intake stopped at missing q owner. On 2026-10-19 user delegated choosing the recommendation. Luna selected JOF for a design-and-proof candidate, not immediate adoption. R43 note hash metadata was corrected at 19d02ce40.",
   "quarantine_note": "Preserve pre-existing dirty Rust, tasks/current.md and untracked R35-R41 artifacts of unknown authors. R43 has read-only source scope; do not acquire their leases or stage them.",
@@ -154,5 +165,5 @@
     "required": false,
     "receipt": "R42/R43 primary and review workers terminal. Pre-existing dirty/unknown-owner Rust, tasks/current.md and R35-R41 artifacts remain untouched/read-only."
   },
-  "sha256": "70263454d8a3c2ab4ca21e7548709555e41fdc83c4100285d9d4cfdd61ed05c2"
+  "sha256": "4ab200537da130833a5f55baa8e57c5072df7771ba86b0e8697f6d09c785e4d0"
 }
