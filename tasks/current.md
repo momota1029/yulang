@@ -17446,3 +17446,17 @@ The exact pure context-init policy awaits user adoption before a new proof
 contract. See the
 [transition proposal](../notes/design/2026-10-18-caller-module-init-transition-proposal.md)
 and [frozen handoff](agent-loop/inbox/20261018-caller-module-init-transition-proposal.md).
+
+R28 revision 2 closed at parent 0 -> 0. Following the user's standing
+authorization to try adopted interpretations and revert failed candidates,
+R29 now uses the reviewed pure source-context policy for one bounded
+proof/correspondence experiment. The proof target is every original `j0/a0`
+field plus a full dependent old-context frame at the unchanged tuple; the
+separate recursive `PhiW` certificates and fixed-`c` license remain open. The
+source/native audit finds **NO_SAFE_CODE_SLICE**: the current caller passes
+empty semantic imports, and runtime initialization follows inference without
+the original predecessor/event or a guard consumer. The proof lane is still
+reconstructing the governing `j0/a0` definition owners. No compiler code,
+tests, builds or probes are authorized, and the parent stays OPEN. See the
+[R28 closeout](../notes/progress/2026-10-18-r28-source-context-proposal-closeout.md)
+and [R29 contract](agent-loop/sprints/caller-source-context-action-20261018-r29.md).

@@ -4,104 +4,49 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "caller-module-init-guard-preservation-20261018-r28",
-    "contract": "tasks/agent-loop/sprints/caller-module-init-guard-preservation-20261018-r28.md",
-    "revision": 2,
+    "id": "caller-source-context-action-20261018-r29",
+    "contract": "tasks/agent-loop/sprints/caller-source-context-action-20261018-r29.md",
+    "revision": 1,
     "state": "ACTIVE",
-    "baseline": "be58f7353",
+    "baseline": "6b427ebb7",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original domain and quantifiers unchanged; OPEN/closure0.",
-    "fixed_outcome": "Produce and independently review a concrete research-only caller-side source transition proposal with exact event, source/authority/incidence obligations and old-dependent restriction diagram; proposal/review alone discharges zero original parent conditions.",
+    "fixed_outcome": "Construct and apply original j0/a0 at unchanged (C0,w0,e0;xi) with full dependent old-field frame across original predecessor domain, or isolate a precise candidate obstruction; adoption/proposal alone discharges zero parent conditions.",
     "resources": {
-      "cap_seconds": 3400,
-      "charged_seconds": 2200,
-      "available_seconds": 300,
-      "allocation": "Rev1 source600+proof1000+reviews600 reserved/spent; rev2 proposal450 and reviews450 (compiler300/spec150) reserved/spent; integration/closeout300 remaining. Astra0; no code/tests/builds/probes."
+      "cap_seconds": 2400,
+      "charged_seconds": 0,
+      "available_seconds": 2400,
+      "allocation": "Proof1200 + source/native correspondence450 + fresh independent review500 (compiler350/spec150) + integration250. Astra0; no code/tests/builds/probes."
     },
-    "next_action": "R28 rev2 proposal and exact-hash independent compiler/spec delta review are complete. Both CLEAN only as unadopted research candidate. Await user adoption of the exact pure source-context initialization policy before drafting a versioned proof contract; no code/tests/builds/probes. Original parent remains OPEN/closure0.",
-    "history": "R27 review CLEAN bounded obstruction, 0->0. R28 rev1 candidate review: spec CLEAN only as proposal; compiler review blocked derivation/implementation; proof and source audit report exact absent Init0/P and old guard extension. Route development is authorized; semantic adoption is not. Architect and dispatcher completed: global predicate preservation needs extension proof beyond retraction; no safe code; proposal-only scope and exact 450/450/300 remaining allocation confirmed. Rev2 review initially found full-PhiW overclaim missing same-root certificates; corrected to j0/a0 only, pure context formation/no evaluation. Compiler and spec delta review CLEAN as unadopted candidate; event correspondence/old-frame feasibility remain open, 0->0.",
+    "next_action": "Root source/native audit frozen: NO_SAFE_CODE_SLICE. Proof lane identified no exhaustive governing j0/a0 telescope at inspected owner and is freezing exact owner dossier/direct parent application. Consume frozen proof handoff, then independent review; parent 0->0.",
+    "history": "R28 rev2 completed proposal/review: corrected pure source-context policy approved for one bounded research experiment by user standing authorization. Corrected proposal SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; compiler/spec CLEAN only as candidate. R28 closeout notes/progress/2026-10-18-r28-source-context-proposal-closeout.md; parent 0->0. Recursive same-root PhiW certificates and fixed-c license remain separate. R29 Luna correspondence result: exact caller/HIR/solve/runtime path has no P/init/j0/a0 consumer; runtime entry follows inference; NO_SAFE_CODE_SLICE (artifact SHA 9f79fbb04d2565a93956a6e5f18c4328b8c1e954de1aecc663b090ebbbc8b55f).",
     "git_checkpoint": {
-      "commit": "8af5f1c44",
+      "commit": "6b427ebb7",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R28 rev1 proof/closeout and rev2 contract pushed; source proposal gate is active."
+      "receipt": "R28 transition proposal, independent reviews and state pushed; R29 begins at this baseline."
     },
     "workers": [
       {
         "id": "/root",
-        "role": "Luna-primary/source-owner",
+        "role": "Luna-primary/source-native correspondence and Git owner",
         "state": "WAITING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R28 rev2 proposal/reviews frozen; waiting for user adoption decision before new proof contract. No implementation or parent progress."
+        "receipt": "R29 source/native correspondence frozen at exact leased path; NO_SAFE_CODE_SLICE. Awaiting proof owner handoff for integration/review; no code/tests/builds/probes."
       },
       {
-        "id": "/root/r28_guard_proof",
+        "id": "/root/r29_context_proof",
         "role": "prover",
-        "state": "STOPPED",
+        "state": "RUNNING",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Frozen R28 rev1 proof; artifact SHA 50a24c63948efe0c964f45e72c2819b496e5c79461b4d2494124fc97ada12686, handoff SHA 1e3a3642d401e7bc2ec8590867a5acc726eaad9f5a541d0c4d8a96ab12b8739b; no guards derived, no descendants."
-      },
-      {
-        "id": "/root/r28_semantic_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Frozen review findings block derivation/implementation on R28 rev1 candidate; no edits/tests/Git/descendants."
-      },
-      {
-        "id": "/root/r28_spec_review",
-        "role": "spec_auditor",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Frozen CLEAN only as unadopted proposal; exact hashes verified; no semantic approval or parent progress."
-      },
-      {
-        "id": "/root/r28_transition_architect",
-        "role": "architect",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Frozen read-only conclusion: no existing definitions derive same-event j0/a0 or all old global dependent predicates; source-owner initialization starts from related decorated state. No writes/tests/Git/descendants."
-      },
-      {
-        "id": "/root/r28_transition_compiler_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Delta review CLEAN for corrected unadopted proposal SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; initial major finding corrected. Feasibility remains blocked; no edits/tests/Git."
-      },
-      {
-        "id": "/root/r28_transition_spec_review",
-        "role": "spec_auditor",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Delta review CLEAN for corrected unadopted proposal exact SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; L4 and original scope preserved. Adoption not granted; no edits/tests/Git."
+        "receipt": "Current-session prover launched for exact R29 proof paths; requested Sol/high, observed UNKNOWN/UNKNOWN; budget cap1200s, no code/tests/builds/probes/Git."
       }
     ],
     "leases": [
@@ -111,7 +56,7 @@
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/sprints/caller-module-init-guard-preservation-20261018-r28.md",
+        "path": "tasks/agent-loop/sprints/caller-source-context-action-20261018-r29.md",
         "owner": "/root",
         "state": "HELD"
       },
@@ -121,151 +66,85 @@
         "state": "HELD"
       },
       {
-        "path": "notes/progress/2026-10-18-r28-module-init-guard-closeout.md",
+        "path": "notes/progress/2026-10-18-r28-source-context-proposal-closeout.md",
         "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/design/2026-10-18-caller-module-init-research-definition.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/theory/2026-10-18-caller-module-init-guard-preservation.md",
-        "owner": "/root/r28_guard_proof",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-caller-module-init-guard-preservation.md",
-        "owner": "/root/r28_guard_proof",
         "state": "FROZEN"
       },
       {
         "path": "notes/design/2026-10-18-caller-module-init-transition-proposal.md",
         "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-18-caller-source-context-action-construction.md",
+        "owner": "/root/r29_context_proof",
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261018-caller-module-init-transition-proposal.md",
-        "owner": "/root",
+        "path": "tasks/agent-loop/inbox/20261018-caller-source-context-action-construction.md",
+        "owner": "/root/r29_context_proof",
         "state": "HELD"
+      },
+      {
+        "path": "notes/design/2026-10-18-caller-source-context-native-correspondence.md",
+        "owner": "/root",
+        "state": "FROZEN"
       }
     ],
     "pending": [
       {
-        "id": "R28-REV1-CONDITIONAL-GUARD-PROOF",
-        "state": "RESULT",
-        "owner": "/root/r28_guard_proof",
-        "artifact": "Frozen proof SHA 50a24c63948efe0c964f45e72c2819b496e5c79461b4d2494124fc97ada12686; handoff 1e3a3642d401e7bc2ec8590867a5acc726eaad9f5a541d0c4d8a96ab12b8739b; original conditions 0->0."
+        "id": "R29-ORIGINAL-GUARD-CONTEXT-PROOF",
+        "state": "RUNNING",
+        "owner": "/root/r29_context_proof",
+        "artifact": "Exhaustive j0/a0 field telescope; pure CallerInit and same-index correspondence; full old dependent frame; original ctrl.choose application or precise candidate obstruction. Cap1200s."
       },
       {
-        "id": "R28-REV1-SEMANTIC-SPEC-REVIEW",
+        "id": "R29-SOURCE-NATIVE-CORRESPONDENCE",
         "state": "RESULT",
-        "owner": "/root/r28_semantic_review + /root/r28_spec_review",
-        "artifact": "Spec CLEAN only as unadopted proposal; compiler findings block derivation/implementation. Hashes and details recorded in R28 closeout."
+        "owner": "/root",
+        "artifact": "Frozen notes/design/2026-10-18-caller-source-context-native-correspondence.md SHA 9f79fbb04d2565a93956a6e5f18c4328b8c1e954de1aecc663b090ebbbc8b55f; NO_SAFE_CODE_SLICE. Empty imports/current caller lacks P/init; ModuleRun occurs after inference and lacks original tuple/activity."
       },
       {
-        "id": "R28-PROTOTYPE",
-        "state": "BLOCKED",
-        "owner": "Luna/high",
-        "artifact": "NO_SAFE_CODE_SLICE until reviewed transition and user adoption; do not repeat opaque payload transport."
-      },
-      {
-        "id": "R28-REV2-PROPOSAL-REVIEW",
-        "state": "RESULT",
-        "owner": "/root/r28_transition_compiler_review + /root/r28_transition_spec_review",
-        "artifact": "Corrected proposal SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; both delta reviews CLEAN only for unadopted candidate. Exact source-context event/old dependent frame unproved; parent 0->0."
+        "id": "R29-INDEPENDENT-REVIEW",
+        "state": "STAGED",
+        "owner": "Fresh compiler_referee + spec_auditor",
+        "artifact": "Review frozen construction and native correspondence against original guards, old/global fields, L4 and inference principles. Cap500s."
       }
     ],
     "ready_next_work": {
-      "id": "R29-ADOPTED-CALLER-INIT-PROOF",
-      "state": "BLOCKED",
-      "owner": "Luna-primary",
-      "artifact": "Requires user adoption of the exact reviewed pure source-context policy. If adopted, establish actual same-index event/source correspondence, exhaustive old dependent frame and exact j0/a0 introductions; never assume them. Parent OPEN/closure0."
+      "id": "R29-ORIGINAL-GUARD-CONTEXT-PROOF",
+      "state": "RUNNING",
+      "owner": "/root/r29_context_proof",
+      "artifact": "Write the exact original fieldwise construction/frame attempt and apply it to original tuple without target judgments as premises."
     },
     "legacy_reconciliation": {
       "required": false,
-      "receipt": "R28 rev1 prover, compiler referee, spec auditor and explorer all STOPPED; no descendants. Exact frozen outputs recorded in R28 closeout."
+      "receipt": "R28 workers and reviewers STOPPED; all R29 outputs have new disjoint leases; no unknown writers."
     },
-    "sha256": "706879b09e0e71710a461f9ebd433aea7b27e2f305031e043cbc2f78077f2348"
+    "sha256": "9224d02c9ff93f18965c7bf3c4ab8f3e282428f5eb1434fc524b280a3eee8106"
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna-primary/source-owner",
+      "role": "Luna-primary/source-native correspondence and Git owner",
       "state": "WAITING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R28 rev2 proposal/reviews frozen; waiting for user adoption decision before new proof contract. No implementation or parent progress."
+      "receipt": "R29 source/native correspondence frozen at exact leased path; NO_SAFE_CODE_SLICE. Awaiting proof owner handoff for integration/review; no code/tests/builds/probes."
     },
     {
-      "id": "/root/r28_guard_proof",
+      "id": "/root/r29_context_proof",
       "role": "prover",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen R28 rev1 proof; artifact SHA 50a24c63948efe0c964f45e72c2819b496e5c79461b4d2494124fc97ada12686, handoff SHA 1e3a3642d401e7bc2ec8590867a5acc726eaad9f5a541d0c4d8a96ab12b8739b; no guards derived, no descendants."
-    },
-    {
-      "id": "/root/r28_semantic_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen review findings block derivation/implementation on R28 rev1 candidate; no edits/tests/Git/descendants."
-    },
-    {
-      "id": "/root/r28_spec_review",
-      "role": "spec_auditor",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen CLEAN only as unadopted proposal; exact hashes verified; no semantic approval or parent progress."
-    },
-    {
-      "id": "/root/r28_transition_architect",
-      "role": "architect",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Frozen read-only conclusion: no existing definitions derive same-event j0/a0 or all old global dependent predicates; source-owner initialization starts from related decorated state. No writes/tests/Git/descendants."
-    },
-    {
-      "id": "/root/r28_transition_compiler_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Delta review CLEAN for corrected unadopted proposal SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; initial major finding corrected. Feasibility remains blocked; no edits/tests/Git."
-    },
-    {
-      "id": "/root/r28_transition_spec_review",
-      "role": "spec_auditor",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Delta review CLEAN for corrected unadopted proposal exact SHA 8f8573d4dc8cf43b8f3b3df583066179fc91ea399e22a32b4395024e1b9b7ec9; L4 and original scope preserved. Adoption not granted; no edits/tests/Git."
+      "receipt": "Current-session prover launched for exact R29 proof paths; requested Sol/high, observed UNKNOWN/UNKNOWN; budget cap1200s, no code/tests/builds/probes/Git."
     }
   ],
   "leases": [
@@ -275,7 +154,7 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/caller-module-init-guard-preservation-20261018-r28.md",
+      "path": "tasks/agent-loop/sprints/caller-source-context-action-20261018-r29.md",
       "owner": "/root",
       "state": "HELD"
     },
@@ -285,68 +164,51 @@
       "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-18-r28-module-init-guard-closeout.md",
+      "path": "notes/progress/2026-10-18-r28-source-context-proposal-closeout.md",
       "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/design/2026-10-18-caller-module-init-research-definition.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-18-caller-module-init-guard-preservation.md",
-      "owner": "/root/r28_guard_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-caller-module-init-guard-preservation.md",
-      "owner": "/root/r28_guard_proof",
       "state": "FROZEN"
     },
     {
       "path": "notes/design/2026-10-18-caller-module-init-transition-proposal.md",
       "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-caller-source-context-action-construction.md",
+      "owner": "/root/r29_context_proof",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261018-caller-module-init-transition-proposal.md",
-      "owner": "/root",
+      "path": "tasks/agent-loop/inbox/20261018-caller-source-context-action-construction.md",
+      "owner": "/root/r29_context_proof",
       "state": "HELD"
+    },
+    {
+      "path": "notes/design/2026-10-18-caller-source-context-native-correspondence.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
-      "id": "R28-REV1-CONDITIONAL-GUARD-PROOF",
-      "state": "RESULT",
-      "owner": "/root/r28_guard_proof",
-      "artifact": "Frozen proof SHA 50a24c63948efe0c964f45e72c2819b496e5c79461b4d2494124fc97ada12686; handoff 1e3a3642d401e7bc2ec8590867a5acc726eaad9f5a541d0c4d8a96ab12b8739b; original conditions 0->0."
-    },
-    {
-      "id": "R28-REV1-SEMANTIC-SPEC-REVIEW",
-      "state": "RESULT",
-      "owner": "/root/r28_semantic_review + /root/r28_spec_review",
-      "artifact": "Spec CLEAN only as unadopted proposal; compiler findings block derivation/implementation. Hashes and details recorded in R28 closeout."
-    },
-    {
-      "id": "R28-REV2-SOURCE-TRANSITION-PROPOSAL",
+      "id": "R29-ORIGINAL-GUARD-CONTEXT-PROOF",
       "state": "RUNNING",
+      "owner": "/root/r29_context_proof",
+      "artifact": "Exhaustive j0/a0 field telescope; pure CallerInit and same-index correspondence; full old dependent frame; original ctrl.choose application or precise candidate obstruction. Cap1200s."
+    },
+    {
+      "id": "R29-SOURCE-NATIVE-CORRESPONDENCE",
+      "state": "RESULT",
       "owner": "/root",
-      "artifact": "Draft exact source/caller initialization event, issuer, authority/incidence fields and old-dependent restriction diagram; proposal only."
+      "artifact": "Frozen notes/design/2026-10-18-caller-source-context-native-correspondence.md SHA 9f79fbb04d2565a93956a6e5f18c4328b8c1e954de1aecc663b090ebbbc8b55f; NO_SAFE_CODE_SLICE. Empty imports/current caller lacks P/init; ModuleRun occurs after inference and lacks original tuple/activity."
     },
     {
-      "id": "R28-REV2-INDEPENDENT-REVIEW",
+      "id": "R29-INDEPENDENT-REVIEW",
       "state": "STAGED",
-      "owner": "fresh compiler_referee + spec_auditor",
-      "artifact": "Review frozen transition proposal; identify exact adoption choice and falsifiers. 300s combined."
-    },
-    {
-      "id": "R28-PROTOTYPE",
-      "state": "BLOCKED",
-      "owner": "Luna/high",
-      "artifact": "NO_SAFE_CODE_SLICE until reviewed transition and user adoption; do not repeat opaque payload transport."
+      "owner": "Fresh compiler_referee + spec_auditor",
+      "artifact": "Review frozen construction and native correspondence against original guards, old/global fields, L4 and inference principles. Cap500s."
     }
   ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R28 rev1 closeout: notes/progress/2026-10-18-r28-module-init-guard-closeout.md; parent 0->0. R27 closeout: notes/progress/2026-10-18-r27-canonical-caller-construction-closeout.md. Earlier history remains in tasks/current.md/archived receipts."
+  "history": "R28 rev2 closeout: notes/progress/2026-10-18-r28-source-context-proposal-closeout.md; proposal/review clean only as candidate; parent 0->0. Earlier R27/R28 rev1 closeouts remain linked from tasks/current.md."
 }
