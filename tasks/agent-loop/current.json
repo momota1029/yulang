@@ -20,12 +20,12 @@
     },
     "next_action": "Commit/push rev3 four-document packet, then same independent reviewer delta review. Do not claim full result bridge or choose B; report exact OPEN obligations and user choice only after review.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption. Rev2 delta review BLOCKING on A provisional/publication cycle and D1 unstated empty-suffix rule; rev3 narrow document-only repair authorized.",
-    "last_stage_receipt": "R21 rev3: A publication cycle repaired with provisional StagedOwn consumed by PublishLocal; no fixed-specimen ResultMap proof found, so D1 withdrawn and ResultMap stays OPEN; B stays BLOCKED. Four-document delta review pending. Parent OPEN/closure0.",
+    "last_stage_receipt": "R21 rev3 four-document packet integrated/root-pushed at c0b4afbaa; same independent reviewer performs final delta review. Fixed specimen ResultMap remains OPEN; B is BLOCKED; parent OPEN/closure0.",
     "git_checkpoint": {
-      "commit": "PENDING",
+      "commit": "c0b4afbaa",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R21 rev3 options/proof and implementation contract/handoffs frozen; root to commit/push exact four changed documents, then same reviewer delta review."
+      "receipt": "R21 rev3 documents root-committed/pushed; final independent delta review active; unsupported ResultMap explicitly left OPEN."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0.",
@@ -78,13 +78,13 @@
     {
       "id": "/root/r21_bridge_integrated_review",
       "role": "compiler_referee",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "BLOCKING R21 rev2 delta review: A publication premise cycle; D1 uses unstated empty-suffix return; B ordering aligned and remains BLOCKED. No edits/tests/build/Git; rev3 exact delta review pending."
+      "receipt": "R21 rev3 final delta review active at c0b4afbaa, exact four changed hashes supplied. Check A provisional publication lifecycle, D1 honestly withdrawn or sourced, B remains blocked, no prior cross-doc defects. No edits/tests/build/Git."
     }
   ],
   "leases": [
