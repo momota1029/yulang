@@ -21,24 +21,24 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 1100,
-      "available_seconds": 700,
-      "allocation": "Sol600 charged; Luna source-owner500 charged conservatively at lane cap; fresh compiler200 and spec200 reviews plus integration300 remain. Total1800; Astra0; no carryover. Actual wall time/CPU/RSS UNKNOWN.",
+      "charged_seconds": 1500,
+      "available_seconds": 300,
+      "allocation": "Sol600 and Luna source-owner500 conservatively charged at lane caps; fresh compiler200 and spec200 reviews conservatively charged at caps; integration300 remains. Total1800; Astra0; no carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "Both fresh reviewers acknowledged the exact frozen packet and are RUNNING read-only within 200s each. Authors remain STOPPED. Await independent findings; repair bytes only through Luna and delta review if needed.",
+    "next_action": "Both independent reviews CLEAN and stopped. Luna integration active within final 300s: produce reviewed closeout, synchronize compact state/tasks/current, consult dispatcher at sprint end, then explicitly stage/commit/push. No implementation or production promotion.",
     "history": "R59 closed and pushed in fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3; integration and compact-state receipts pushed in b62bf4bed359ed5f8bd4728923d1807044f9e8c9. R59 parent OPEN 0->0, A/B OPEN, R50 NOT ADOPTED. R60 revision1 status wording was corrected to revision2 before any author work. Exact revision2 SHA and 25/25 pins checked; baseline b62bf4bed359ed5f8bd4728923d1807044f9e8c9 matches HEAD/origin; dispatcher confirmed start-boundary fit; Luna activated R60. Sol has not acknowledged; no proof reads/writes started. All prior identities STOPPED, leases FROZEN.",
     "workers": [
       {
         "id": "/root",
         "role": "Luna primary; read-only source-owner lane and integration",
-        "state": "STOPPED",
+        "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r60",
-        "receipt": "Luna read-only owner lane complete; STOPPED / READ_ONLY / NO_DESCENDANTS. Exact outputs frozen: notes/progress/2026-10-19-r60-paired-constructor-owners.md SHA-256 644e8c2f9e571753c386040a76341e6aafde6ce1ff88dec3e75d8f5a1216712e; tasks/agent-loop/inbox/20261019-r60-implementation.md SHA-256 e3a03aa1e0a7dccab08f5951248891fbbc5e78271591cab31af53523c0757598. Static source/authority inspection only; no tests/code/execution. Requested Luna/high; observed settings and elapsed/CPU/RSS UNKNOWN; 500s cap."
+        "receipt": "Both fresh R60 reviews are STOPPED/CLEAN with exact targets and 25/25 pins matched. Luna is now integrating the reviewed conditional result and closeout within the reserved 300s; no code/tests/execution."
       },
       {
         "id": "/root/r53_ordinary_mixed_capture_proof",
@@ -54,24 +54,24 @@
       {
         "id": "/root/r52_compiler_review",
         "role": "Fresh independent compiler/source-owner review after both authors stop",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "requested_effort": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r60",
-        "receipt": "Fresh current-session R60 compiler/source-owner receipt arrived before reads. Exact five frozen target hashes and 25 dependency pins acknowledged; 200s cap, read-only/static, no descendants. Requested/observed model and effort UNKNOWN/UNKNOWN. Primary acknowledgement now releases review."
+        "receipt": "R60 rev2 fresh compiler/source-owner review CLEAN; no BLOCKING/major/minor. All five exact target hashes and 25/25 pins MATCH. Scalar projection/lifts valid under stated Q-independence; actual source owners support bounded polarity/slot/view/capture claims; actual Q independence/substitution law and whole-ascription Corr remain open. STOPPED / READ_ONLY / NO_DESCENDANTS. Requested/observed settings and measured duration/CPU/RSS UNKNOWN; 200s reserved charged conservatively."
       },
       {
         "id": "/root/r52_spec_review",
         "role": "Fresh independent spec/domain review after both authors stop",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "requested_effort": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r60",
-        "receipt": "Fresh current-session R60 independent spec/domain receipt arrived before reads. Exact five frozen target hashes and 25 dependency pins acknowledged; parent and non-adoption boundaries in scope; 200s cap, read-only, no descendants. Requested/observed model and effort UNKNOWN/UNKNOWN. Primary acknowledgement now releases review."
+        "receipt": "R60 fresh independent spec/domain review CLEAN; no BLOCKING/major/minor. All five exact target hashes and 25/25 pins MATCH. Source solution preservation, permission transport, result correlation remain missing; original positions/provider, open E, ordinary constraints, permission/inflow/residual, parent OPEN 0->0, A/B OPEN and R50 NOT ADOPTED intact. STOPPED / READ_ONLY / NO_DESCENDANTS. Requested/observed settings and measured duration UNKNOWN; 200s reserved charged conservatively."
       }
     ],
     "leases": [
@@ -104,7 +104,7 @@
     "pending": [
       {
         "id": "R60-PAIRED-ANNOTATION-INTERFACE",
-        "state": "REVIEW",
+        "state": "INTEGRATION",
         "owner": "Sol proof + Luna read-only source-owner lane",
         "request": "Derive authentic same-pA/provider AE entrance and local permission correspondence under selected source contract; account for correlated result interface or isolate first exact missing premise.",
         "falsifier": "R59 assignment still satisfies proposed constructor while entrance fails; permission becomes cap/contribution; unrelated provider/position supplies evidence; pairing removes legal behavior; or generated constraints are dropped."
