@@ -130,3 +130,35 @@ commands, resource cap, semantics or parent.
 | `tasks/agent-loop/sprints/npair-original-witness-and-replay-diagnosis-20261018-r9-closeout.md` | `286ce0f1a666f27c4bc5564f57f1dd929a5bb8ac50db1a8b25bb3727cf8329a2` |
 
 All pins were recomputed against integration HEAD `9b565de317d66e14b968f9c63d6f5a013f2bba46`. Any mismatch at worker intake cancels the exact assignment before writes.
+
+
+## Revision 3 — observe the failing source action and repair the frozen probe
+
+Revision 2 SHA-256: `6e828681713295da2a6f46ca005ac10c4a4af928cbfb129dae5ad67fce892f53`.
+Frozen revision-2 implementation SHA-256: `78fddbbf4008c15c0e5a0cb25ef251b16e60faa6df2988b8e22c3c805a5fb51b`; handoff SHA-256: `30cc3ad9b5bfa3b0919e33ad3dad774585cd1901314d08f74b1711af3805284e`. Independent compiler review returned BLOCKING: two Rust ownership/type errors, plus insufficient dynamic evidence that the returned `IdentityExhausted` came from the scheduled Operation action. Prior review receipt is preserved; the frozen bytes are not overwritten as review evidence.
+
+This amendment authorizes Luna to repair the same one test function and its same paired handoff only. It makes no language-semantic or production-code change. The source/native outcome is narrowed precisely: runtime must identify the exact scheduled `Action::Operation` and observe that stepping it returns `IdentityExhausted`; static inspection may attribute its first signature refusal to the existing negative-variance concrete-row guard. The runtime does not claim to observe that internal branch independently.
+
+### Exact repair and observations
+
+- Keep the source text and all existing fixtures/assertions unchanged. Pass an `Arc` clone into collection before using borrowed declaration/expression observations; compare declaration pointees with matching reference types.
+- On one fresh session, call `begin_candidate_source` for the exact `f0` root schedule. Step every preceding action and require successful completion. At the exact action index, assert declaration pointer, occurrence, schedule position and `Action::Operation`, then step it once and capture its error and state deltas. This distinguishes an earlier setup/fact failure from the Operation action. Record term-arena capacity, views, contributions, conflicts, effect bounds, scratch bytes and publication state. Attribute the inner negative-row guard to static owner-path inspection; do not claim a runtime branch hook.
+- On a second fresh session from the same collected batch, call the actual `execute_candidate_source_root` once and capture the error/cleanup deltas. Assert source-frame rollback and absence of slot-42 publication/partial retained operation state. Do not call the root entrypoint twice in one session.
+- Update the same handoff at sequential revision 2 with the exact new hashes, both separate observed paths, checks, limitations, and writes-stopped receipt.
+
+No new helper, production hook, source file, test function, fixture, expectation, diagnostic, rule, or dependency may be added or changed. The independent reviewer must review the amended source and handoff before the single authorized compile/runtime sequence. A failed compilation/test ends this grant.
+
+### Bounded amendment resource envelope
+
+The original 1260-second envelope remains closed with Luna input 300s, implementation reservation 360s and first independent review reservation 180s charged conservatively; no unused time rolls over. Revision 3 grants a separate **900 seconds**: Luna repair and handoff 300s, fresh independent compiler review 180s, one compile plus direct test invocation 120s, fresh source/native receipt review 180s, and Luna integration/state/Git 120s. Astra remains 0; one heavy process. Stop at any lease, pin, failure or budget boundary.
+
+
+## Revision 4 — compare root result with the successful prefix
+
+Revision 3 SHA-256: `9847b49f9cba87230e3f6686c9bc5fcdb9794faa6fa67d656a44921b05121368`. The fresh rev3 review returned BLOCKING because the separate root invocation compared its post-error fact count with the fresh session's initial count. The schedule legitimately admits two effect facts before the `Action::Operation`; the root owner clears the failed source frame but does not roll back successful prefix facts. This is existing behavior, not a solver defect.
+
+Revision 4 keeps the same single test and handoff paths. In the trace session, freeze the complete observation tuple immediately before stepping the exact Operation action, after all successful prefix actions. In the separate root session, compare post-error facts, terms/capacity, views, contributions, conflicts, effect bounds and scratch state with that observed successful-prefix tuple, while separately reporting the fresh session's initial state. Require the root source frame cleared and slot 42 absent. Do not require successful prefix facts to roll back. This distinguishes prefix state from partial Operation residue while preserving current owner semantics. No production code, semantics, fixture, rule, dependency, test count or expected solver result changes.
+
+The rev3 code-review receipt and hashes remain preserved as a BLOCKING historical review. Revision 4 reopens only the same test and handoff write paths to Luna, then requires another fresh independent compiler review before runtime.
+
+Additional resource grant: **300 seconds** (Luna targeted repair/handoff 120s, fresh independent compiler review 180s). This does not consume or roll over the rev3 verification allocation. Astra remains 0; no test/build/runtime is authorized until CLEAN. Stop on budget or scope boundary.

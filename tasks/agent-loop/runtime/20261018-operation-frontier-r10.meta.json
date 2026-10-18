@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "sprint_id": "npair-original-input-and-operation-frontier-20261018-r10",
+  "contract_revision": 4,
+  "contract_sha256": "e9b7bf0bf33f604b8110d891c336ea9a29efce9259a67cee01c80ba0821c67f9",
+  "review": {
+    "classification": "CLEAN",
+    "reviewer": "/root/r10_operation_frontier_code_review_rev4",
+    "candidate_effect_sha256": "22a9e7a25f59638a24df746be9954ec711ca99f7c89802fa75808d7e07fdcca3",
+    "handoff_sha256": "8b35944b308fdaeaee90c4aaf1d387b18fddadf028a26a514cd94b49ae6ea9e8"
+  },
+  "pre_build_pin_check": {
+    "result": "PASS",
+    "pinned_dependency_count": 14,
+    "candidate_effect_sha256": "22a9e7a25f59638a24df746be9954ec711ca99f7c89802fa75808d7e07fdcca3",
+    "contract_sha256": "e9b7bf0bf33f604b8110d891c336ea9a29efce9259a67cee01c80ba0821c67f9",
+    "handoff_sha256": "8b35944b308fdaeaee90c4aaf1d387b18fddadf028a26a514cd94b49ae6ea9e8"
+  },
+  "compile_attempt": {
+    "attempt": 1,
+    "command": "cargo test --offline -p yu-solver --features shadow-apply-candidate --lib --no-run candidate_effect::tests::original_choose_operation_rendering_reaches_native_frontier",
+    "exit_code": 101,
+    "result": "FAILED",
+    "diagnostic": "E0308 at candidate_effect.rs:2351: SemanticFact::id() returns FactId; code compared it with &ConstraintOccurrenceId.",
+    "executable_path": null,
+    "utc_start": null,
+    "utc_end": null,
+    "monotonic_duration_seconds": null,
+    "timing_note": "Timestamps/duration were not captured for the compile-only command and are not reconstructed."
+  },
+  "direct_test": {
+    "invocations": 0,
+    "status": "NOT_RUN_BUILD_FAILED",
+    "argv": null,
+    "executable_sha256": null,
+    "invocation_time_source_hashes": null
+  },
+  "capture": {
+    "stdout_path": "tasks/agent-loop/runtime/20261018-operation-frontier-r10.stdout.log",
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_path": "tasks/agent-loop/runtime/20261018-operation-frontier-r10.stderr.log",
+    "stderr_sha256": "2fc1c799b171db1ce8c58d62c06ddba5a31418e7fa570f9007cbf83f9d4e8fae"
+  },
+  "interpretation": {
+    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017",
+    "parent_status": "OPEN",
+    "original_conditions_closed": 0,
+    "source_native_result": "Parser/HIR and runtime owner behavior unobserved because the test binary was not produced.",
+    "semantic_change": "NONE",
+    "retry": "NOT_AUTHORIZED by r10 rev4; first build failure ends this grant."
+  }
+}

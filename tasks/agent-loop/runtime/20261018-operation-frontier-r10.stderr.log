@@ -1,0 +1,49 @@
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:191:11
+    |
+191 |     Token(SyntaxToken),
+    |     ----- ^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+191 -     Token(SyntaxToken),
+191 +     Token(()),
+    |
+
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:192:15
+    |
+192 |     Synthetic(Vec<AssociationProvenance>),
+    |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+192 -     Synthetic(Vec<AssociationProvenance>),
+192 +     Synthetic(()),
+    |
+
+warning: function `replace_admission_root` is never used
+    --> crates/yu-hir/src/module.rs:1620:4
+     |
+1620 | fn replace_admission_root(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `yu-hir` (lib) generated 3 warnings
+   Compiling yu-solver v0.1.0 (/home/momota1029/rust/yulang/crates/yu-solver)
+error[E0308]: mismatched types
+    --> crates/yu-solver/src/candidate_effect.rs:2351:94
+     |
+2351 |         let slot42_published = rollback_session.store.facts().iter().any(|fact| fact.id() == &expected_slot);
+     |                                                                                 ---------    ^^^^^^^^^^^^^^ expected `FactId`, found `&ConstraintOccurrenceId`
+     |                                                                                 |
+     |                                                                                 expected because this is `FactId`
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `yu-solver` (lib test) due to 1 previous error
