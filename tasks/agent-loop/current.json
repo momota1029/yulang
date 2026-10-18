@@ -2,147 +2,112 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r56",
+  "session": "current-conversation-2026-10-19-r57",
   "active_sprint": {
-    "id": "original-name-source-trace-20261019-r56",
-    "contract": "tasks/agent-loop/sprints/original-name-source-trace-20261019-r56.md",
+    "id": "original-name-two-capture-20261019-r57",
+    "contract": "tasks/agent-loop/sprints/original-name-two-capture-20261019-r57.md",
     "revision": 1,
-    "state": "CLOSED",
-    "baseline": "90f40f4b1cdb2654536d1f78c32feea3980f2b2c",
-    "contract_sha256": "052492309a379f3eef24078b9090f8e7081dceaf2e4c7af37ff90c75ffa013cd",
-    "parent": "Original computation-forwarding preservation §§1,6-7, unchanged source domain and quantifiers; OPEN 0->0.",
-    "fixed_outcome": "Trace the exact authentic direct-current-formal/Name source with forward x and recursive loop x through source event qualification, signed owners, complete source sets, replay and the next actual capture; otherwise locate exact source/reachability/owner obstruction.",
+    "state": "ACTIVE",
+    "baseline": "abef89fb8491c5709173ba55c76af7886897a5bd",
+    "contract_sha256": "b8fb35aa130304ab459b1c8ead188c5ebd6c86bb177420842f279a1d17f4c5a9",
+    "parent": "Original computation-forwarding preservation §§1,6-7; original source domain and quantifiers unchanged; OPEN 0->0.",
+    "fixed_outcome": "Determine whether first forward x plus qualified recursive loop x preserve the original published forward closure until b=forward x makes a second authentic capture; derive distinct maps/restored mapped bounds, or identify exact interference/obstruction.",
     "dependencies": {
-      "manifest": "23 exact SHA-256 files pinned in R56 contract rev1",
-      "R55_closeout_commit": "90f40f4b1; reviewed bounded obstruction, no proof/counterexample"
+      "manifest": "28 exact SHA-256 files pinned in R57 contract rev1; all MATCH before approval",
+      "R56_closeout_commit": "bb02202c4",
+      "R56_state_commit": "abef89fb8",
+      "R56_review": "fresh compiler/spec CLEAN for frozen R56 outputs; parent remains OPEN"
     },
     "resources": {
       "cap_seconds": 2400,
       "charged_seconds": 1500,
       "available_seconds": 900,
-      "allocation": "Sol trace 900 and Luna read-only owner trace 600 charged/reserved at activation; compiler/spec reviews 300 each and integration 300 reserved. No Astra, code/tests/parser/solve/runtime/probes/measurements.",
-      "overrun_seconds": 0,
-      "next_action": "R56 evidence, hashes, reviews, dispatcher recommendation and task sync are complete; finish exact-path commit/push, then prepare the R57 candidate contract under primary authority."
+      "allocation": "Sol constructive trace 900 and Luna read-only owner trace 600 charged/reserved at activation; compiler/spec reviews 300 each and integration 300 reserved. Actual durations/CPU/RSS UNKNOWN. No Astra, code/tests/parser/solve/runtime/probes/measurements.",
+      "overrun_seconds": 0
     },
-    "next_action": "R56 CLOSED as reviewed bounded exclusion; finish exact-path commit/push. R57 second-forward-use source trace remains a candidate, not yet authorized.",
-    "history": "R55 CLOSED and pushed at 90f40f4b1. Original mapped-admission premise remains OPEN 0->0; no source-qualified falsifier; R50 NOT ADOPTED. Dispatcher selected a distinct source-owner trace around forward x / loop x, not a repeated general induction. R56 contract rev1 primary-approved after 23/23 dependency hashes MATCH and before writes. Exact source includes concrete act io declaration. No parser, test, solve, runtime or code authority. Sol R56 proof lane STOPPED/WRITES_STOPPED/NO_DESCENDANTS after 900 seconds; proof and handoff frozen. Luna read-only source-owner trace frozen after source inspection; both Luna exact outputs frozen. All four output hashes recorded; 23/23 contract pins rechecked MATCH. Candidate bounded exclusion applies only to this exact source under successful ordinary constructor prefixes; parent OPEN 0->0. No code/test/solver/runtime authority. Fresh compiler referee and spec auditor both CLEAN; each independently matched four frozen outputs and 23/23 dependency pins. Bounded result: this exact original-domain source does not supply original-forward alias/exposure under successful ordinary constructor prefixes; no solve/runtime claim. Both reviewers STOPPED; no code slice. Next candidate input selection remains Luna-owned. End-boundary dispatcher recommends a distinct candidate input with second direct `forward x` after recursive `loop x`, retaining final z; this preserves the recursive loop↔z qualification and tests a real second same-provider capture. No R57 contract, lease, or worker is active yet. R56 closeout commit bb02202c4 pushed to origin after outbound-range inspection; working tree was clean at push. No worker is active now. R57 remains only a dispatcher-recommended candidate; no authority, contract, lease or worker activated.",
+    "next_action": "Complete exact R57 source trace; after both writers stop, fresh compiler/spec review; adjudicate bounded result and consult dispatcher at close.",
+    "history": "R56 CLOSED and pushed at bb02202c4; status receipt abef89fb8. R56 bounded source exclusion reviewed CLEAN by fresh compiler/spec; 23/23 prior pins MATCH; parent OPEN 0->0. Dispatcher selected the distinct second-forward-use input retaining final z. R57 rev1 primary-approved after clean baseline and 28/28 dependency hashes MATCH, R56 CLOSED, all known writers STOPPED, and before worker writes. Exact source and output leases frozen; no solver execution or code authority.",
     "workers": [
       {
         "id": "/root",
-        "role": "Luna primary; R56 closeout Git integration active",
-        "state": "STOPPED",
+        "role": "Luna primary; independent read-only source-owner trace",
+        "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r56",
-        "receipt": "R56 closeout commit bb02202c4 pushed; no active R56 work or R57 lease."
+        "session": "current-conversation-2026-10-19-r57",
+        "receipt": "R57 exact contract approved and baseline/pins verified; root read-only source-owner lane active; exact two leases."
       },
       {
         "id": "/root/r53_ordinary_mixed_capture_proof",
-        "role": "Sol/high constructive source/domain and physical-owner trace",
-        "state": "STOPPED",
+        "role": "Sol/high constructive source/domain, noninterference and second-capture trace",
+        "state": "NOT_STARTED",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r56",
-        "receipt": "R56 frozen proof and handoff hashes submitted; all 23 pins MATCH; 900 seconds charged; WRITES_STOPPED / NO_DESCENDANTS."
-      },
-      {
-        "id": "/root/r52_compiler_review",
-        "role": "fresh compiler referee; message-only R56 review",
-        "state": "STOPPED",
-        "requested_model": "compiler_referee",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r56",
-        "receipt": "R56 CLEAN compiler review; contract/four output hashes and 23/23 pins MATCH; exact source/event/replay/parent/capture trace accepted as bounded exclusion; READ_ONLY / NO_DESCENDANTS."
-      },
-      {
-        "id": "/root/r52_spec_review",
-        "role": "fresh spec auditor; message-only R56 review",
-        "state": "STOPPED",
-        "requested_model": "spec_auditor",
-        "requested_effort": "low",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r56",
-        "receipt": "R56 CLEAN conformance review received; 23/23 pins and four output hashes MATCH; message-only, READ_ONLY, NO_DESCENDANTS."
+        "session": "current-conversation-2026-10-19-r57",
+        "receipt": "Exact two output leases granted after 28/28 pins MATCH and primary approval; awaiting current-session active-work receipt."
       }
     ],
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/original-name-source-trace-20261019-r56.md",
+        "path": "tasks/agent-loop/sprints/original-name-two-capture-20261019-r57.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "notes/theory/2026-10-19-r56-original-name-source-trace.md",
+        "path": "notes/theory/2026-10-19-r57-original-name-two-capture.md",
         "owner": "/root/r53_ordinary_mixed_capture_proof",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261019-r56-proof.md",
+        "path": "tasks/agent-loop/inbox/20261019-r57-proof.md",
         "owner": "/root/r53_ordinary_mixed_capture_proof",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
-        "path": "notes/progress/2026-10-19-r56-original-name-owner-trace.md",
+        "path": "notes/progress/2026-10-19-r57-original-name-owner-trace.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261019-r56-implementation.md",
+        "path": "tasks/agent-loop/inbox/20261019-r57-implementation.md",
         "owner": "/root",
-        "state": "FROZEN"
+        "state": "HELD"
       }
     ],
     "pending": [
       {
-        "id": "R57-CANDIDATE-SECOND-FORWARD-USE",
+        "id": "R57-TWO-CAPTURE-1",
         "parent": "forwarding-preservation §§1,6-7",
-        "owner": "Luna primary; candidate only, no lease",
-        "request": "Prepare a separate exact source-owner sprint around a second direct `forward x` after recursive `loop x`, retaining final z; determine whether the original forward closure is preserved through the recursive event and receives an authentic second capture/map. Recompute all source sets and physical owners for the changed source.",
-        "falsifier": "Changed qualification, physical write into original forward rows, second capture of a different provider, or absent mapped endpoint."
+        "owner": "Sol proof + Luna read-only source owner",
+        "request": "Trace first forward use, qualified recursive construction, second same-provider Local capture and exact distinct FreshUse maps/restored bounds; recompute changed event qualification, full source sets and signed physical owners.",
+        "falsifier": "Changed qualification, actual physical interference, second capture not same provider, missing endpoint image, incomplete source/parent set, out-of-domain source, or successful-prefix overclaim."
       }
     ],
-    "closure": "R56 CLOSED: proof and fresh compiler/spec review complete; bounded exclusion for this exact source under successful ordinary constructor prefixes. Parent mapped admission and Simple-sub A/B remain OPEN 0->0; R50 NOT ADOPTED; no code/test/solver/runtime/production authority.",
+    "closure": "ACTIVE bounded R57 source-owner sprint; no source/runtime/code/test/production claim. Parent OPEN 0->0; R50 NOT ADOPTED.",
     "frozen_artifacts": {
-      "R55_closeout_commit": "90f40f4b1",
-      "R55_closeout_sha256": "b688f6677a4f6572d7e947ccd5b26883620b951f63585706c7ba866aae6d80ad",
-      "R56_contract_sha256": "052492309a379f3eef24078b9090f8e7081dceaf2e4c7af37ff90c75ffa013cd",
+      "R56_closeout_commit": "bb02202c4",
+      "R56_status_commit": "abef89fb8",
       "R56_proof_sha256": "ee5edcaaa64b32323cd60b1a960aecd7f8cf239e17103a7f0e2bcc14cf8691fd",
       "R56_proof_handoff_sha256": "0fcdb5b9046e4beb9538bce4f423678170a02af56bf98d302f9d0708aead63f3",
       "R56_owner_trace_sha256": "e9442fa05666018bb7bb2eefede2f6ef7867c6355a1e793bbb08ea825587a6d2",
-      "R56_owner_handoff_sha256": "dac34a1377881f2519ff3486d1d3ce88114cac73d5477837da70ef77a4d747b1"
+      "R56_owner_handoff_sha256": "dac34a1377881f2519ff3486d1d3ce88114cac73d5477837da70ef77a4d747b1",
+      "R57_contract_sha256": "b8fb35aa130304ab459b1c8ead188c5ebd6c86bb177420842f279a1d17f4c5a9"
     },
     "pending_reviews": [
       {
         "reviewer": "/root/r52_compiler_review",
         "type": "fresh compiler referee",
-        "targets": [
-          "contract",
-          "proof",
-          "proof_handoff",
-          "owner_trace",
-          "owner_handoff"
-        ],
-        "state": "CLEAN",
+        "state": "NOT_STARTED",
         "cap_seconds": 300
       },
       {
         "reviewer": "/root/r52_spec_review",
         "type": "fresh spec auditor",
-        "targets": [
-          "contract",
-          "proof",
-          "proof_handoff",
-          "owner_trace",
-          "owner_handoff"
-        ],
-        "state": "CLEAN",
+        "state": "NOT_STARTED",
         "cap_seconds": 300
       }
     ]
@@ -150,83 +115,61 @@
   "workers": [
     {
       "id": "/root",
-      "role": "Luna primary; R56 closeout Git integration active",
-      "state": "STOPPED",
+      "role": "Luna primary; independent read-only source-owner trace",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r56",
-      "receipt": "R56 closeout commit bb02202c4 pushed; no active R56 work or R57 lease."
+      "session": "current-conversation-2026-10-19-r57",
+      "receipt": "R57 exact contract approved and baseline/pins verified; root read-only source-owner lane active; exact two leases."
     },
     {
       "id": "/root/r53_ordinary_mixed_capture_proof",
-      "role": "Sol/high constructive source/domain and physical-owner trace",
-      "state": "STOPPED",
+      "role": "Sol/high constructive source/domain, noninterference and second-capture trace",
+      "state": "NOT_STARTED",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r56",
-      "receipt": "R56 frozen proof and handoff hashes submitted; all 23 pins MATCH; 900 seconds charged; WRITES_STOPPED / NO_DESCENDANTS."
-    },
-    {
-      "id": "/root/r52_compiler_review",
-      "role": "fresh compiler referee; message-only R56 review",
-      "state": "STOPPED",
-      "requested_model": "compiler_referee",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r56",
-      "receipt": "R56 CLEAN compiler review; contract/four output hashes and 23/23 pins MATCH; exact source/event/replay/parent/capture trace accepted as bounded exclusion; READ_ONLY / NO_DESCENDANTS."
-    },
-    {
-      "id": "/root/r52_spec_review",
-      "role": "fresh spec auditor; message-only R56 review",
-      "state": "STOPPED",
-      "requested_model": "spec_auditor",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r56",
-      "receipt": "R56 CLEAN conformance review received; 23/23 pins and four output hashes MATCH; message-only, READ_ONLY, NO_DESCENDANTS."
+      "session": "current-conversation-2026-10-19-r57",
+      "receipt": "Exact two output leases granted after 28/28 pins MATCH and primary approval; awaiting current-session active-work receipt."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/original-name-source-trace-20261019-r56.md",
+      "path": "tasks/agent-loop/sprints/original-name-two-capture-20261019-r57.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-19-r56-original-name-source-trace.md",
+      "path": "notes/theory/2026-10-19-r57-original-name-two-capture.md",
       "owner": "/root/r53_ordinary_mixed_capture_proof",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r56-proof.md",
+      "path": "tasks/agent-loop/inbox/20261019-r57-proof.md",
       "owner": "/root/r53_ordinary_mixed_capture_proof",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-19-r56-original-name-owner-trace.md",
+      "path": "notes/progress/2026-10-19-r57-original-name-owner-trace.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r56-implementation.md",
+      "path": "tasks/agent-loop/inbox/20261019-r57-implementation.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     }
   ],
   "pending": [
     {
-      "id": "R57-CANDIDATE-SECOND-FORWARD-USE",
+      "id": "R57-TWO-CAPTURE-1",
       "parent": "forwarding-preservation §§1,6-7",
-      "owner": "Luna primary; candidate only, no lease",
-      "request": "Prepare a separate exact source-owner sprint around a second direct `forward x` after recursive `loop x`, retaining final z; determine whether the original forward closure is preserved through the recursive event and receives an authentic second capture/map. Recompute all source sets and physical owners for the changed source.",
-      "falsifier": "Changed qualification, physical write into original forward rows, second capture of a different provider, or absent mapped endpoint."
+      "owner": "Sol proof + Luna read-only source owner",
+      "request": "Trace first forward use, qualified recursive construction, second same-provider Local capture and exact distinct FreshUse maps/restored bounds; recompute changed event qualification, full source sets and signed physical owners.",
+      "falsifier": "Changed qualification, actual physical interference, second capture not same provider, missing endpoint image, incomplete source/parent set, out-of-domain source, or successful-prefix overclaim."
     }
   ]
 }

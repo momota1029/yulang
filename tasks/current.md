@@ -17663,7 +17663,11 @@ OPEN at 0 -> 0, Simple-sub A/B remain open, and R50 remains NOT ADOPTED.
 The dispatcher recommends a distinct next discriminator: add a second direct
 `forward x` use after `loop x` while retaining final `z`, so the recursive
 `loop→z→loop` qualification stays intact and the same original provider is
-captured twice. This is only a candidate next sprint; no R57 lease or worker
-assignment is active. See the [R56 owner trace](../notes/progress/2026-10-19-r56-original-name-owner-trace.md),
+captured twice. This was only a candidate at R56 closeout. R57 revision 1 is now
+active after
+clean-baseline, source and 28/28 dependency-pin checks and primary approval;
+its exact proof and read-only owner-trace leases are recorded in
+[current state](agent-loop/current.json). R57 must rederive all changed events,
+source sets and physical writes. See the [R56 owner trace](../notes/progress/2026-10-19-r56-original-name-owner-trace.md),
 [proof](../notes/theory/2026-10-19-r56-original-name-source-trace.md), and
 [contract](agent-loop/sprints/original-name-source-trace-20261019-r56.md).
