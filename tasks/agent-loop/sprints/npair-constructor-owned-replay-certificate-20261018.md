@@ -150,3 +150,44 @@ Existing conditions, constructors, solver semantics, source domain, fixed-c,
 quantifiers, production boundaries, runtime commands and no-rollover rule are
 unchanged. Parent theorem closure stays 0 unless independently established in
 its original scope; neither new lease nor resource tranche counts as progress.
+
+## Revision 4 — close the two frozen-review findings
+
+Rev4 is a bounded repair to the frozen candidate `681ff50d0`; that exact
+snapshot and its BLOCKING/MAJOR receipt remain immutable review evidence. Scope,
+source domain, theorem quantifiers, semantics, and total 7200s ceiling do not
+change. The full review found exactly two findings and no additional structural
+defect in the lifecycle proof.
+
+Reallocate only existing slack: reserve180s becomes a single Luna/high authoring
+grant of 180s; primary180s becomes delta review120s plus primary/integration60s.
+The original full review480s is charged in full. Protected runtime360s remains
+unchanged. No new reserve, rollover or automatic extension. If either finding
+cannot be closed within 180s, stop with the exact residual. Any unmetered repair
+stage consumes all 180s.
+
+The repair lease is only:
+- `crates/yu-solver/src/candidate_context.rs`
+- `crates/yu-solver/src/candidate_scheme.rs`
+- `tasks/agent-loop/inbox/20261018-constructor-owned-replay-impl.md`
+
+Keep `pair(p1)==bound_pair(B)` for the row-owned physical FreshUse output.
+Replace the invalid `pair(q)==bound_pair(B)` comparison with the exact ordered
+Replay task pair constructed from `lower_input.item <: upper_input.item`; check
+both q endpoints and polarity against that task. Do not merely delete the check.
+Add an actual-record mutation from the successful Module and Local controls that
+removes/replaces the retained destination or Replay fiber membership while
+preserving the selected dependency, pair, maps and remaining evidence. Lower and
+p1/upper membership must be tested independently; restoration must recover
+positive authentication. Do not mutate caller-supplied Replay row arguments and
+call that fiber coverage.
+
+No other code or test change is authorized. Preserve the frozen rev3 review
+snapshot; revise the implementation handoff sequentially and pin the new bytes.
+A fresh ACK with rev4 hash, exact paths and monotonic stage start is required
+before writes. Hard stop at 180s. Then the same independent reviewer may perform
+a 120s delta review of both prior findings and all rev3 full-review assertions.
+No Cargo/tests/runtime before CLEAN delta verdict. If CLEAN, Luna may release the
+existing protected runtime360 once under the rev3 commands; one failure ends
+that runtime grant without retry. Parent closure remains 0 absent a separate
+proof of the original obligation.
