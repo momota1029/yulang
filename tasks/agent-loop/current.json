@@ -20,7 +20,7 @@
     },
     "next_action": "Commit/push R21 contract and compact state, then dispatch three exact disjoint document-only leases. Freeze outputs, independent review, present reviewed semantic choice to user.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0.",
-    "last_stage_receipt": "R21 rev1 contract and state pushed at c890c096b; all three disjoint document-only lanes launched with runtime evidence. No source/solver code or tests authorized; parent OPEN/closure0.",
+    "last_stage_receipt": "Implementation-contract lane frozen at pinned hashes; document-only and no semantic implementation. Proof and falsification lanes still active; final independent review waits for all lanes.",
     "git_checkpoint": {
       "commit": "c890c096b",
       "branch": "research/simple-sub-intrusion",
@@ -67,13 +67,13 @@
     {
       "id": "/root/r21_bridge_impl_contract",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "RUNNING: document-only implementation mapping lease launched; no code or tests authorized."
+      "receipt": "R21 implementation contract frozen; SHA256 5b61f05de8c97a567c6e05db66a51998c0d1b9925a1a2a7ef79f7ed7ed5d6296; handoff 0cf1b7cd40859acb299aaf2762d9d015800b35a59ee103f815fb62142b9625dd. Document-only, no tests/code; exact k-result forwarding vs discard candidate captured; pending integrated review."
     }
   ],
   "leases": [
@@ -115,12 +115,12 @@
     {
       "path": "notes/design/2026-10-18-field-root-incidence-implementation-contract.md",
       "owner": "/root/r21_bridge_impl_contract",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-implementation.md",
       "owner": "/root/r21_bridge_impl_contract",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [],
