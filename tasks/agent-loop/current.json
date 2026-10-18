@@ -23,7 +23,7 @@
       "available_seconds": 3300,
       "allocation": "Proof720 + implementation1920 (code1560/runtime360) + review600 + Luna120 + reserve240. Astra0; no rollover."
     },
-    "next_action": "Proof and implementation ACKed; proof traces constructor topology, implementation audits physical storage read-only. Code writes wait for proof-map freeze and early CLEAN review."
+    "next_action": "Implementation owner map frozen, writer WAITING; proof derives exact incoming-use Replay constructor. Early independent map review after proof freeze; no code edits yet."
   },
   "history": "Closed `npair-replay-fiber-consumer-certificate-20261018` REVIEWED-PARTIAL at `7087de449`; parent OPEN, closure0. Proof SHA `691a537b…e3e3614` CLEAN conditional. Implementation candidate `1958cf20e` unapproved; compiler review BLOCKING+2 MAJOR, no Cargo/tests/runtime. Closeout: `notes/progress/2026-10-18-replay-fiber-consumer-closeout.md`. PR #11 merged at `27a7e00d4`; operations-only. Earlier sprint history remains in linked notes/progress and Git history.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -53,13 +53,13 @@
     {
       "id": "/root/constructor_replay_impl",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "WAITING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "ACKed rev1; read-only audit only. Physical index must resolve to stored lane item; bound_relations is membership API. Code edits wait for early CLEAN map review."
+      "receipt": "Owner/API map frozen at handoff SHA fd8d0cedf660d023573084b5b2f12903ea998822e83962805352cc020555d473; no code edits/Cargo/tests/Git. Awaiting CLEAN proof-map review and Luna continuation."
     }
   ],
   "leases": [
@@ -115,8 +115,8 @@
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-constructor-owned-replay-impl.md",
-      "owner": "/root/constructor_replay_impl",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [],
