@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push r19 contract and initial state. Then launch disjoint proof, source-falsification and runtime-lineage lanes. Keep solver owners read-only; runtime result must not claim FieldBound Capture/FreshUse consumption.",
     "history": "R18 runtime research path completed at d51baa6db; independent review CLEAN, runtime_resume 17/17. R17 details are in the R17 closeout pointer in top-level history. R19 source/proof characterization commits 6748039fa and 118375dce independently CLEAN; original parent conditions remain closure0.",
-    "last_stage_receipt": "R19 rev2: source falsifier and constructive native trace are independently CLEAN (commits 6748039fa, 118375dce); they localize the absent typed FieldBound-to-FreshUse/J2 join, not a parent counterexample. Runtime lineage diff is frozen and under fresh compiler review; local-g candidate acceptance remains unverified, so no tests/runtime success claimed. R19 state/contract/proof checkpoints are pushed through 192047f7a; parent OPEN/closure0, Astra0.",
+    "last_stage_receipt": "R19 proof/source artifacts are CLEAN and pushed. Runtime code review is BLOCKING on (1) Catch-to-g Apply source join, (2) contradictory invocation identity gates, and (3) malformed sibling negative control. No runtime tests run; full R19 cap is charged, so a versioned repair envelope is pending dispatcher input. Parent OPEN/closure0; no solver edits.",
     "git_checkpoint": {
       "commit": "118375dce",
       "branch": "research/simple-sub-intrusion",
@@ -116,13 +116,13 @@
     {
       "id": "/root/r19_runtime_lineage_review",
       "role": "compiler_referee",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh review of frozen R19 runtime diff and handoff in progress; no tests/builds/Git; runtime review cap 240s, parent OPEN/closure0."
+      "receipt": "BLOCKING independent review of frozen runtime target. Finding 1: source_apply_for_catch_result cannot reach initializer Catch through later g Name/Apply. Finding 2: plan requires local Apply distinct from response Apply, while receipt requires their invocation owners equal callback owner. Finding 3: sibling negative control creates malformed source and may pass by parse error. Exact repair owners/locations are in reviewer handoff. No edits/tests/builds/Git; reviewer stopped."
     }
   ],
   "leases": [
@@ -294,5 +294,5 @@
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "Complete fresh compiler review of the frozen runtime lineage diff. If CLEAN, run only cargo test -p yu-playground --test runtime_resume; if unchanged candidate acceptance rejects the local-g source, record that first boundary and leave runtime result NOT_RUN/failed."
+  "next_action": "Await dispatcher delta for minimal versioned runtime repair/review/focused-test resource addendum; keep runtime files frozen and do not run tests until delta review is CLEAN."
 }
