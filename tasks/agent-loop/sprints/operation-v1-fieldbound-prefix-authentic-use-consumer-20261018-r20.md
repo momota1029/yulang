@@ -147,3 +147,32 @@ focused targets' completion.
 Original parent conditions close only when the original source/native
 quantifiers and all gates are actually proved. Green candidate tests or a new
 bridge proposal alone close zero conditions.
+
+
+## R20 rev2 bounded HIR-gate repair continuation
+
+A frozen independent review found one internal allowlist mismatch in the R20
+HIR admission gate. The per-error branch admits canonical owner-checked fallback
+`Apply` errors, but `expected_ids` omitted those same IDs; exact final set
+equality therefore rejects an already authorized fallback placeholder. The
+review is preserved as BLOCKING; the old snapshot and assertions remain intact.
+
+This versioned continuation adds 480 seconds (total cap 4080, fully charged;
+Astra 0): repair 90 seconds, independent delta review 150 seconds, and one
+focused target plus integration 240 seconds. No R20 work or R19 time is carried
+into this allocation.
+
+Exclusive repair lease: `tools/inference-playground/tests/runtime_resume.rs`
+(expected-ID construction only), assigned to `/root/r19_local_binding_runtime`
+for this follow-up. Add `fallback_apply_errors.keys().copied()` to the existing
+`expected_ids` chain. Preserve per-error owner, kind, attachment and range
+checks, rejection of unknown IDs, and exact `observed_ids == expected_ids`; do
+not broaden the allowlist or remove any assertion. Freeze the resulting hash
+and request the same independent compiler referee for a delta review. After
+CLEAN only, Luna runs exactly one `cargo test -p yu-playground --test
+runtime_resume`. A new failure is recorded at its first boundary; no second
+repair or owner expansion is authorized by this continuation.
+
+This is a test-gate consistency repair only. It changes no HIR/source/solver
+semantics, original parent premise, theorem quantifiers, or source/native
+domain. Parent remains OPEN / closure 0.

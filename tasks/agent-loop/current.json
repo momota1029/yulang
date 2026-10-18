@@ -6,10 +6,10 @@
   "active_sprint": {
     "id": "operation-v1-fieldbound-prefix-authentic-use-consumer-20261018-r20",
     "contract": "tasks/agent-loop/sprints/operation-v1-fieldbound-prefix-authentic-use-consumer-20261018-r20.md",
-    "revision": 1,
-    "sha256": "6445b5965db5eaa0019937e80e0793dafd0f74fd4e05684eeaa64f1572c09a2e",
+    "revision": 2,
+    "sha256": "8486608b0e7f891223da836ecfdf02cb6148b60e6fcc6c3a23188256c4ce353f",
     "state": "ACTIVE",
-    "baseline": "R19 reviewed runtime checkpoint 8e1ad99fd plus exact R20 dependency pins; source/solver semantics remain research-only until reviewed design authority.",
+    "baseline": "R19 reviewed runtime checkpoint 8e1ad99fd plus exact R20 dependency pins; rev2 adds 480s solely for the reviewed HIR gate expected-ID consistency repair, delta review and one focused target; source/solver semantics remain research-only.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers and source/native domain preserved; OPEN/closure0.",
     "fixed_outcome": "Derive source q/m0/FieldBound prefix formation before authentic per-use capture and transport to that same FreshUse own native edge/drain/ack, or pinpoint exact earliest missing premise; independently resolve the R19 HIR admission gate by exact owner/kind comparison.",
     "before": {
@@ -18,19 +18,19 @@
       "implementation": "R19 local runtime path independently CLEAN structurally and compiles. Focused target 17/18; local-g gate failed at hir.errors().is_empty() before candidate solver/static receipt/runtime. No FieldBound-to-FreshUse native join."
     },
     "resources": {
-      "cap_seconds": 3600,
-      "charged_seconds": 3600,
+      "cap_seconds": 4080,
+      "charged_seconds": 4080,
       "available_seconds": 0,
-      "allocation": "R20 grant: proof720 + runtime HIR gate300 + conditional implementation1200 + independent design/code reviews720 + focused verification/integration660. Astra0. Fully reserved/charged at issue; no R19 carryover."
+      "allocation": "R20 rev1 3600s retained as fully charged; versioned rev2 adds 480s: repair90 + independent delta review150 + one focused target/integration240. Astra0."
     },
-    "next_action": "Commit/push R20 contract and state, then start constructive proof and independent runtime HIR-gate lanes on exact disjoint leases. Implementation code lease opens only after clean design review.",
-    "history": "R17/R18/R19 closeouts preserve original parent OPEN/closure0. R19 proof/source artifacts independently CLEAN at 6748039fa/118375dce. R19 local runtime checkpoint 8e1ad99fd; focused target 17/18 and first local-g failure at HIR-error assertion; no candidate/runtime local path executed.",
-    "last_stage_receipt": "R20 HIR gate implementation froze with strict owner/kind/attachment checks and bounded diagnostics; no actual diagnostic/test run yet. Same compiler referee performs independent delta review. Proof artifact is independently CLEAN; parent closure0.",
+    "next_action": "Commit/push rev2 contract and state; dispatch exact expected_ids-only repair; freeze hash; delta review CLEAN; run one focused runtime_resume target; integrate only reviewed result.",
+    "history": "R17/R18/R19 closeouts preserve original parent OPEN/closure0. R19 proof/source artifacts independently CLEAN at 6748039fa/118375dce. R19 local runtime checkpoint 8e1ad99fd; focused target 17/18 and first local-g failure at HIR-error assertion; no candidate/runtime local path executed. R20 rev1 HIR gate review BLOCKING at fallback Apply IDs omitted from expected_ids; exact repair approved by dispatcher in rev2, parent closure0.",
+    "last_stage_receipt": "R20 HIR gate review BLOCKING: fallback_apply_errors are individually admitted with owner/kind/attachment checks but omitted from expected_ids, so exact set equality rejects them. Rev2 grants 480s for expected_ids-only repair, same independent delta review and one focused target. Parent OPEN/closure0.",
     "git_checkpoint": {
       "commit": "8e1ad99fd",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "Reviewed R19 local runtime lineage checkpoint and closeout pushed. Rev4 focused test result is explicitly partial/failing at HIR admission."
+      "receipt": "R20 rev2 contract/state versioned continuation adds 480s exclusively for HIR gate expected-ID consistency repair, delta review and one focused target; old BLOCKING snapshot retained; root-only Git."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0.",
@@ -78,7 +78,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R20 HIR admission gate frozen; exact leased test/handoff hashes verified. Strict owner/kind/attachment checks for declaration placeholders, local-source terminal errors, fallback Apply errors; unknowns reject. No tests/diagnostic/build. Actual HIR IDs/static acceptance remain unobserved; pending compiler review."
+      "receipt": "R20 rev1 HIR gate frozen; follow-up repair authorized only for expected_ids chain to include fallback_apply_errors.keys().copied(), preserving all owner checks and exact equality. Pending rev2 dispatch."
     },
     {
       "id": "/root/r18_runtime_implementation",
@@ -116,13 +116,13 @@
     {
       "id": "/root/r19_runtime_lineage_review",
       "role": "compiler_referee",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R20 HIR-gate delta review active on frozen runtime_resume.rs + admission-gate handoff; inspect exact owner/kind/attachment allowlist, unknown-error failure, unchanged static/runtime lineage gates and pins. No tests/build/Git."
+      "receipt": "BLOCKING R20 HIR-gate review: fallback Apply IDs admitted per-error but absent from expected_ids, causing exact set equality failure. No edits/tests/build/Git; old snapshot retained."
     }
   ],
   "leases": [
@@ -194,7 +194,8 @@
     {
       "path": "tools/inference-playground/tests/runtime_resume.rs",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "FROZEN"
+      "state": "HELD",
+      "scope": "R20 rev2 expected_ids construction only; include canonical fallback_apply_errors IDs; no assertion/allowlist broadening."
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-operation-v1-runtime-resume-implementation.md",
