@@ -31,7 +31,7 @@
       "overrun_seconds": 0
     },
     "next_action": "Build time-indexed owner evidence for capture/reconstruction and merge/rollback; prove its edge to the exact reconstructed image; repair test-only nonvacuous later-hit selection; freeze for independent reviews before focused test.",
-    "history": "R46 closed and pushed at 3860c5d2b; parent remains OPEN 0->0. Existing R41 source-rule proposal reused but not adopted. R47 is restricted to cfg(test) observation/validation; no source semantics or production behavior authority.",
+    "history": "R46 closed and pushed at 3860c5d2b; parent remains OPEN 0->0. Existing R41 source-rule proposal reused but not adopted. R47 is restricted to cfg(test) observation/validation; no source semantics or production behavior authority. Sol actual launch confirmed; proof lane reports actual route makes canonical_rows_hit false at map construction because capture dedup precedes fresh allocation and no pre-map union exists; exact obstruction under review. Sol handoff frozen; constructor-specific proof shows map hit unreachable before restoration, and separately identifies missing retained temporal evidence after reconstruction. Fresh reviews are now the active gate; positive-witness Cargo gate remains unmet. Fresh compiler_referee and spec_auditor followups launched on frozen obstruction package; each 300s grant charged/reserved. No Cargo test authorized because required positive witness is unreachable. Both fresh reviews returned no blocking/major/minor findings on same frozen bytes. They independently support the constructor-specific no-hit proof and separate temporal evidence gap. Positive-witness Cargo gate remains unmet, so no test ran; obstruction stop is reviewed.",
     "workers": [
       {
         "id": "/root",
@@ -47,13 +47,35 @@
       {
         "id": "/root/r47_temporal_copy_proof",
         "role": "Sol independent temporal correspondence proof/falsifier",
-        "state": "NOT_STARTED",
+        "state": "STOPPED",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "Exact proof artifact and handoff lease reserved; launch pending."
+        "receipt": "Frozen by /root/r47_temporal_copy_proof; WRITES_STOPPED, NO_DESCENDANTS, requested Sol/high observed UNKNOWN/UNKNOWN, 900s charged. Artifact notes/theory/2026-10-19-r47-temporal-copy-refinement.md sha256 2a8a076a2d245baf367a377a167de7ec6c1c499693934fb17610f69554c37d26; inbox/tasks/agent-loop/inbox/20261019-r47-proof.md sha256 f4bf98e96f799a4044d6d012e4854dc937b099005f25c3a20932757bcb6fbe2e. Result FIXTURE_UNREACHABLE plus separate MISSING_RETAINED_EVIDENCE; no tests/source edits/runtime."
+      },
+      {
+        "id": "/root/r46_compiler_review",
+        "role": "Fresh R47 compiler_referee",
+        "state": "STOPPED",
+        "requested_model": "compiler_referee",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19",
+        "receipt": "Fresh R47 exact-byte review delivered; no BLOCKING/major/minor findings; WRITES_STOPPED; NO_DESCENDANTS; observed model/effort UNKNOWN/UNKNOWN; 300s grant charged."
+      },
+      {
+        "id": "/root/r46_spec_review",
+        "role": "Fresh R47 spec_auditor",
+        "state": "STOPPED",
+        "requested_model": "spec_auditor",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19",
+        "receipt": "Fresh R47 exact-byte review delivered; no BLOCKING/major/minor findings; WRITES_STOPPED; NO_DESCENDANTS; observed model/effort UNKNOWN/UNKNOWN; 300s grant charged."
       }
     ],
     "leases": [
@@ -65,68 +87,70 @@
       {
         "path": "crates/yu-solver/src/candidate_scheme.rs",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-solver/src/candidate_intrusion.rs",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-19-r47-temporal-copy.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r47-implementation.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/theory/2026-10-19-r47-temporal-copy-refinement.md",
         "owner": "/root/r47_temporal_copy_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r47-proof.md",
         "owner": "/root/r47_temporal_copy_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-19-r47-compiler-review.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-19-r47-spec-review.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [
       {
         "id": "R47-LUNA-TEMPORAL-IMPLEMENTATION",
         "role": "primary",
-        "state": "RUNNING"
+        "state": "RESULT"
       },
       {
         "id": "R47-SOL-TEMPORAL-PROOF",
         "role": "prover",
-        "state": "ASSIGNED",
+        "state": "RESULT",
         "worker_id": "/root/r47_temporal_copy_proof",
         "target_sha256": "aba8009c8ec658af48ed2844e6a9c9b4554b4343ada19f8a7aae85b978574131"
       },
       {
         "id": "R47-COMPILER-REVIEW",
         "role": "compiler_referee",
-        "state": "RESERVED",
-        "budget_seconds": 300
+        "state": "RESULT",
+        "budget_seconds": 300,
+        "worker_id": "/root/r46_compiler_review"
       },
       {
         "id": "R47-SPEC-REVIEW",
         "role": "spec_auditor",
-        "state": "RESERVED",
-        "budget_seconds": 300
+        "state": "RESULT",
+        "budget_seconds": 300,
+        "worker_id": "/root/r46_spec_review"
       },
       {
         "id": "R47-FOCUSED-CARGO",
@@ -162,13 +186,35 @@
     {
       "id": "/root/r47_temporal_copy_proof",
       "role": "Sol proof lane",
-      "state": "NOT_STARTED",
+      "state": "STOPPED",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
-      "receipt": "Assignment ready; spawn acknowledgement pending."
+      "receipt": "Frozen by /root/r47_temporal_copy_proof; WRITES_STOPPED, NO_DESCENDANTS, requested Sol/high observed UNKNOWN/UNKNOWN, 900s charged. Artifact notes/theory/2026-10-19-r47-temporal-copy-refinement.md sha256 2a8a076a2d245baf367a377a167de7ec6c1c499693934fb17610f69554c37d26; inbox/tasks/agent-loop/inbox/20261019-r47-proof.md sha256 f4bf98e96f799a4044d6d012e4854dc937b099005f25c3a20932757bcb6fbe2e. Result FIXTURE_UNREACHABLE plus separate MISSING_RETAINED_EVIDENCE; no tests/source edits/runtime."
+    },
+    {
+      "id": "/root/r46_compiler_review",
+      "role": "Fresh R47 compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "compiler_referee",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19",
+      "receipt": "Fresh R47 exact-byte review delivered; no BLOCKING/major/minor findings; WRITES_STOPPED; NO_DESCENDANTS; observed model/effort UNKNOWN/UNKNOWN; 300s grant charged."
+    },
+    {
+      "id": "/root/r46_spec_review",
+      "role": "Fresh R47 spec_auditor",
+      "state": "STOPPED",
+      "requested_model": "spec_auditor",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19",
+      "receipt": "Fresh R47 exact-byte review delivered; no BLOCKING/major/minor findings; WRITES_STOPPED; NO_DESCENDANTS; observed model/effort UNKNOWN/UNKNOWN; 300s grant charged."
     }
   ],
   "leases": [
@@ -180,68 +226,70 @@
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_intrusion.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r47-temporal-copy.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r47-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-19-r47-temporal-copy-refinement.md",
       "owner": "/root/r47_temporal_copy_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r47-proof.md",
       "owner": "/root/r47_temporal_copy_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r47-compiler-review.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r47-spec-review.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
       "id": "R47-LUNA-TEMPORAL-IMPLEMENTATION",
       "role": "primary",
-      "state": "RUNNING"
+      "state": "RESULT"
     },
     {
       "id": "R47-SOL-TEMPORAL-PROOF",
       "role": "prover",
-      "state": "ASSIGNED",
+      "state": "RESULT",
       "worker_id": "/root/r47_temporal_copy_proof",
       "target_sha256": "aba8009c8ec658af48ed2844e6a9c9b4554b4343ada19f8a7aae85b978574131"
     },
     {
       "id": "R47-COMPILER-REVIEW",
       "role": "compiler_referee",
-      "state": "RESERVED",
-      "budget_seconds": 300
+      "state": "RESULT",
+      "budget_seconds": 300,
+      "worker_id": "/root/r46_compiler_review"
     },
     {
       "id": "R47-SPEC-REVIEW",
       "role": "spec_auditor",
-      "state": "RESERVED",
-      "budget_seconds": 300
+      "state": "RESULT",
+      "budget_seconds": 300,
+      "worker_id": "/root/r46_spec_review"
     },
     {
       "id": "R47-FOCUSED-CARGO",
