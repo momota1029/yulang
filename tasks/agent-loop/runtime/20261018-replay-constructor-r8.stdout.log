@@ -1,0 +1,3 @@
+CAPTURE LIMITATION: exec_command returned merged stdout/stderr and truncated the long test output; full streams were not available for recovery.
+Observed stdout/build excerpt: `Finished `test` profile [unoptimized + debuginfo] target(s) in 25.63s`; `Running unittests src/lib.rs (target/debug/deps/yu_solver-12ea9c1c0f03380a)`; `running 1 test`.
+Observed completion: `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 727 filtered out; finished in 0.08s`.
