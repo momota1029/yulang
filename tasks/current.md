@@ -2,9 +2,14 @@
 
 Date: 2026-10-19
 Branch: `research/simple-sub-intrusion`
-Status: the full user objective—proof-backed type inference and evaluator implementation, followed by complete Simple-sub/F5 replacement—remains active. R65 is closed as a reviewed bounded bridge-applicability result; its first unsupplied input is `R65-CURRENT-OPERAND-1`, ordinary typed Lambda operand formation from the original formal and resolved body Name under one joint context. No code slice was established. The original theorem and Simple-sub A/B remain OPEN at 0; R50 remains NOT ADOPTED. See the [R65 closeout](../notes/progress/2026-10-19-r65-closeout.md) and [current sprint state](agent-loop/current.json). The next candidate is source-boundary staging, not yet activated.
+Status: the full user objective—proof-backed type inference and evaluator implementation, followed by complete Simple-sub/F5 replacement—remains active. R65 is closed as a reviewed bounded bridge-applicability result; its first unsupplied input is `R65-CURRENT-OPERAND-1`, ordinary typed Lambda operand formation from the original formal and resolved body Name under one joint context. No code slice was established. The original theorem and Simple-sub A/B remain OPEN at 0; R50 remains NOT ADOPTED. See the [R65 closeout](../notes/progress/2026-10-19-r65-closeout.md) and [current sprint state](agent-loop/current.json). R66 source-boundary staging is active at baseline `64f63ff01577155b892e658c5fbeb090dd4c451b`; the frozen contract and 26 direct pins are recorded in [the sprint state](agent-loop/current.json). Proof and counter-reading lanes are awaiting exact start receipts; Luna owns the source/native owner map and Git. No compiler or test work is authorized.
 
 ## Current checkpoint (2026-10-19)
+
+### R66 active — ordinary Lambda staging before whole-ascription checking
+
+R66 tests whether an ordinary symbolic Lambda operand can be formed from the original formal annotation and resolved `Name(t)` under the original joint source context, then composed with whole-ascription obligations without changing permitted source solutions. The proof must retain the original source coordinates and evidence; auxiliary witnesses may be hygienically renamed or explicitly transported. The complementary lane attacks rule applicability and scope order, while Luna maps source/native owners. The exact result may be a source-rule equivalence or the first missing premise. No compiler, test, semantic or production change is authorized; parent/A/B remain OPEN 0→0 and R50 remains NOT ADOPTED. See the [R66 contract](agent-loop/sprints/lambda-boundary-staging-20261019-r66.md).
+
 
 ### 2026-10-19 — R65 bounded source bridge result
 
