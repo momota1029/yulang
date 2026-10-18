@@ -20,12 +20,12 @@
     },
     "next_action": "Commit/push R21 contract and compact state, then dispatch three exact disjoint document-only leases. Freeze outputs, independent review, present reviewed semantic choice to user.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0.",
-    "last_stage_receipt": "R21 begins from pinned R20 proof/source facts. Proposals must derive incidence and cannot assume endpoint equality or desired result relation. No code/tests authorized.",
+    "last_stage_receipt": "R21 rev1 contract and state pushed at c890c096b; all three disjoint document-only lanes launched with runtime evidence. No source/solver code or tests authorized; parent OPEN/closure0.",
     "git_checkpoint": {
-      "commit": "PENDING",
+      "commit": "c890c096b",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R21 contract draft frozen; root to commit/push contract and state before dispatch."
+      "receipt": "R21 contract/current pushed before dispatch; three exact leases active, Astra0."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0.",
@@ -45,35 +45,35 @@
     {
       "id": "/root/r21_bridge_proof",
       "role": "prover",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 exact option-construction lease; not yet launched."
+      "receipt": "RUNNING: exact option construction lease launched; sources are pinned R20 proof and R6 design; document-only, no semantic adoption."
     },
     {
       "id": "/root/r21_bridge_falsifiers",
       "role": "researcher",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 independent falsification/soundness lease; not yet launched."
+      "receipt": "RUNNING: independent falsification/soundness lease launched; distinguish source-admitted cases from candidate/hypothetical contexts."
     },
     {
       "id": "/root/r21_bridge_impl_contract",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 document-only implementation contract lease; not yet launched."
+      "receipt": "RUNNING: document-only implementation mapping lease launched; no code or tests authorized."
     }
   ],
   "leases": [
