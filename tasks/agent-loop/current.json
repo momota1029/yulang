@@ -20,7 +20,8 @@
       "live_reconciliation": "Proof /root/r66_lambda_staging_proof and counter-reading /root/r66_staging_counterreading active in current-conversation-2026-10-19-r66; both confirmed required reads began, no leased writes yet, no descendants. R65 recorded identities STOPPED.",
       "semantic_boundary": "26 pinned evidence files only; required governance/startup reads separate; native negative-p_A guards remain",
       "researcher_lane": "STOPPED / WRITES_STOPPED / NO_DESCENDANTS. Frozen counter-reading note SHA-256 ca53ec252b4af8612fb88e0ee1d04f566eeb6f252796284574e77c933535275f; handoff SHA-256 9e5dede065a51d5fcd8ae99ce173ffcc95e393ef18be15322d954a189925bd5e; 26/26 dependency hashes matched at freeze. Candidate first missing premise: no pinned same-xi projection/reassembly for applying unannotated Lambda/Result synthesis at whole-annotated binding; review pending.",
-      "author_outputs_frozen": "All six exact author paths frozen; hashes: proof dffc0e0ad0cd9e453e2f28340856a4eba31f147028af867249e18873ad302705 / beb821e8de9b4264a66d3176f7b236cc8abc442ac515b2f0e01433ebc1f1dbe2; owner map 51c48d1f69520878a586e159315b9f955667dfe002a4cc50992028752bccc5d8 / 4d6130f063c940816db297d417a800804b7cfe2da5bf380bd7645f4470956c29; counter-reading ca53ec252b4af8612fb88e0ee1d04f566eeb6f252796284574e77c933535275f / 9e5dede065a51d5fcd8ae99ce173ffcc95e393ef18be15322d954a189925bd5e."
+      "author_outputs_frozen": "All six exact author paths frozen; hashes: proof dffc0e0ad0cd9e453e2f28340856a4eba31f147028af867249e18873ad302705 / beb821e8de9b4264a66d3176f7b236cc8abc442ac515b2f0e01433ebc1f1dbe2; owner map 51c48d1f69520878a586e159315b9f955667dfe002a4cc50992028752bccc5d8 / 4d6130f063c940816db297d417a800804b7cfe2da5bf380bd7645f4470956c29; counter-reading ca53ec252b4af8612fb88e0ee1d04f566eeb6f252796284574e77c933535275f / 9e5dede065a51d5fcd8ae99ce173ffcc95e393ef18be15322d954a189925bd5e.",
+      "review_lane": "Fresh independent compiler_referee and spec_auditor started after all author outputs froze; each reads exact contract + six outputs + 26 direct dependencies only. Review cap 200s each; findings and hashes pending."
     },
     "resources": {
       "cap_seconds": 2400,
@@ -66,6 +67,28 @@
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r66",
       "receipt": "STOPPED / WRITES_STOPPED / NO_DESCENDANTS. Frozen notes/progress/2026-10-19-r66-staging-counter-reading.md SHA-256 ca53ec252b4af8612fb88e0ee1d04f566eeb6f252796284574e77c933535275f; handoff tasks/agent-loop/inbox/20261019-r66-research.md SHA-256 9e5dede065a51d5fcd8ae99ce173ffcc95e393ef18be15322d954a189925bd5e. Full 300s allocation charged; runtime UNKNOWN; fresh review pending."
+    },
+    {
+      "id": "/root/r66_compiler_review",
+      "role": "R66 fresh independent compiler/source-owner reviewer",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r66",
+      "receipt": "ACTIVE_REVIEW in current-conversation-2026-10-19-r66; supplied baseline df2c5f6e4 (no Git), frozen contract and all six output hashes match bytes; exact 26 dependency reads; read-only, no descendants/edits/tests/builds/probes; 200s cap."
+    },
+    {
+      "id": "/root/r66_spec_review",
+      "role": "R66 fresh independent spec/domain reviewer",
+      "state": "RUNNING",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r66",
+      "receipt": "Active spec review begun in current-conversation-2026-10-19-r66; supplied baseline df2c5f6e4; exact contract and six hashes supplied; 26-file exact manifest hashing underway; read-only, no descendants; 200s cap."
     }
   ],
   "leases": [
@@ -77,12 +100,12 @@
     {
       "path": "notes/theory/2026-10-19-r66-lambda-boundary-staging.md",
       "owner": "/root/r66_lambda_staging_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r66-proof.md",
       "owner": "/root/r66_lambda_staging_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r66-staging-counter-reading.md",
