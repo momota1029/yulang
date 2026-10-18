@@ -24,7 +24,7 @@
       "charged_seconds": 2400,
       "available_seconds": 0,
       "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + compiler/spec reviews 200s each + Luna integration 300s; Astra 0; no carryover.",
-      "actual_runtime": "R71 activated; authors not yet launched. Requested/observed model settings UNKNOWN until tool receipts; CPU/RSS UNKNOWN; full grant reserved."
+      "actual_runtime": "Proof and counter-reading launched in current session; requested settings recorded, observed model/effort UNKNOWN. CPU/RSS UNKNOWN; full 2400s grant reserved."
     },
     "next_action": "Launch proof and complementary counter-reading on disjoint exact paths; Luna traces the physical slot/evidence/canonical transport seam. Freeze authors before fresh reviews.",
     "history": "R70 CLOSED REVIEWED CONDITIONAL at f375fd737; operation target and source/canonical/drain premises remain OPEN."
@@ -44,24 +44,24 @@
     {
       "id": "/root/r71_raw_canonical_proof",
       "role": "R71 constructive raw/canonical fiber coverage proof; exact proof artifact and handoff only",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Activated exact lease; awaiting actual NEW_TASK launch receipt."
+      "receipt": "Actual NEW_TASK launch acknowledged by collaboration runtime; exact proof paths active."
     },
     {
       "id": "/root/r71_fiber_countertrace",
       "role": "R71 complementary alias/merge countertrace; exact note and handoff only",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Activated exact lease; awaiting actual NEW_TASK launch receipt."
+      "receipt": "Actual NEW_TASK launch acknowledged by collaboration runtime; exact countertrace paths active."
     }
   ],
   "leases": [
@@ -179,5 +179,5 @@
     }
   ],
   "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 ACTIVE. R70 operation target, parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-  "next_action": "Launch R71 constructive proof and complementary researcher; no code lane."
+  "next_action": "Luna maps physical-slot → raw/canonical evidence lookup → copied emission on exact pins; author lanes work disjointly."
 }
