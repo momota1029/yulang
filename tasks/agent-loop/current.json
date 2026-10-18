@@ -18,14 +18,14 @@
       "available_seconds": 0,
       "allocation": "proof900 + independent research600 + implementation contract480 + review480 + integration240; Astra0; no R20 carryover."
     },
-    "next_action": "Commit/push R21 contract and compact state, then dispatch three exact disjoint document-only leases. Freeze outputs, independent review, present reviewed semantic choice to user.",
+    "next_action": "Frozen seven-file packet committed/pushed; assign a fresh non-author compiler/spec reviewer for integrated rule soundness, source fidelity, falsifiers and implementation correspondence; no semantic option adopted.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0.",
-    "last_stage_receipt": "All three R21 author packets frozen. Independent falsifier distinguishes valid forwarding and discarded resumption result; no new source-variant parse/admission run, so no source-qualified counterexample claim. Combined non-author review pending.",
+    "last_stage_receipt": "All three R21 author lanes STOPPED with exact seven artifact hashes pinned in worker receipts; no code/tests. Falsifier separates conceptual arm-discard countermodel from unexecuted candidate source; valid tmp forwarding path retained. Independent integrated review pending.",
     "git_checkpoint": {
-      "commit": "c890c096b",
+      "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R21 contract/current pushed before dispatch; three exact leases active, Astra0."
+      "receipt": "Seven frozen R21 design/theory/handoff files ready for root integration commit and push; review pending; no rule adoption."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0.",
