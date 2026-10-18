@@ -18,13 +18,13 @@
       "available_seconds": 0,
       "allocation": "Sol proof/source600 + Luna read-only caller/HIR audit240 + fresh review240 + integration120. Astra0; tests/builds/probes0."
     },
-    "next_action": "After initial checkpoint, start proof/source lane and recheck public prepare plus HIR source declaration owners. If no authentic supplier/source map exists, freeze exact blocker and do not create code semantics.",
+    "next_action": "Proof/source lane active; Luna audit frozen with earliest absent caller-supplied registration context and NO_SAFE_CODE_SLICE. Review frozen proof/handoff with actual owner evidence before closing route.",
     "history": "R25 integrated as reviewed structural transport only; original parent conditions 0->0. Current playground still passes SemanticImports::empty(). R26 directly targets actual caller evidence supplier/introduction and original registration correspondence; implementation code lease intentionally absent pending authentic context.",
     "git_checkpoint": {
-      "commit": "8de842c4d34ae0fdc191b72acfe64ef75b77fc67",
+      "commit": "bea9b2ada",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R25 reviewed HIR transport implementation and closeout pushed; R26 start contract/state pending initial checkpoint."
+      "receipt": "R26 contract/current-state checkpoint pushed to origin; proof worker launched with exact lease."
     },
     "workers": [
       {
@@ -36,7 +36,18 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Owns R26 contract, read-only entry-path audit, review routing, integration and Git; proof not launched until contract checkpoint."
+        "receipt": "R26 primary; proof worker /root/r26_authentic_evidence active on exact proof/handoff leases; Luna read-only entry-path inventory frozen, NO_SAFE_CODE_SLICE absent actual caller context."
+      },
+      {
+        "id": "/root/r26_authentic_evidence",
+        "role": "prover",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Actual spawn accepted after R26 checkpoint; active on authentic caller supplier/application; exact proof and inbox output leases, cap600s; no child agents."
       }
     ],
     "leases": [
@@ -58,21 +69,31 @@
       {
         "path": "tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md",
         "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-18-caller-authentic-evidence-intake.md",
+        "owner": "/root/r26_authentic_evidence",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-caller-authentic-evidence-intake.md",
+        "owner": "/root/r26_authentic_evidence",
         "state": "HELD"
       }
     ],
     "pending": [
       {
         "id": "R26-AUTHENTIC-CALLER-EVIDENCE",
-        "state": "ASSIGNED",
-        "owner": "prover after initial checkpoint",
+        "state": "RUNNING",
+        "owner": "/root/r26_authentic_evidence",
         "artifact": "Find actual supplier/introduction, apply authentic tuple to unchanged source registration, or identify exact first missing premise/owner."
       },
       {
         "id": "R26-ACTUAL-ENTRY-PATH",
-        "state": "READY",
+        "state": "RESULT",
         "owner": "/root",
-        "artifact": "Read-only trace public prepare and HIR lowering/source declarations; determine whether any real caller supplies evidence and whether any safe code slice exists."
+        "artifact": "Frozen Luna audit tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md SHA c102cdd716cdff8178510f5626c8ecf14a2170e0ca33e6013a043041dbedaedd; earliest missing input at caller/host, NO_SAFE_CODE_SLICE."
       },
       {
         "id": "R26-INDEPENDENT-REVIEW",
@@ -104,7 +125,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Owns R26 contract, read-only entry-path audit, review routing, integration and Git; proof not launched until contract checkpoint."
+      "receipt": "R26 primary; proof worker /root/r26_authentic_evidence active on exact proof/handoff leases; Luna read-only entry-path inventory frozen, NO_SAFE_CODE_SLICE absent actual caller context."
+    },
+    {
+      "id": "/root/r26_authentic_evidence",
+      "role": "prover",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Actual spawn accepted after R26 checkpoint; active on authentic caller supplier/application; exact proof and inbox output leases, cap600s; no child agents."
     }
   ],
   "leases": [
@@ -126,21 +158,31 @@
     {
       "path": "tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md",
       "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-18-caller-authentic-evidence-intake.md",
+      "owner": "/root/r26_authentic_evidence",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-caller-authentic-evidence-intake.md",
+      "owner": "/root/r26_authentic_evidence",
       "state": "HELD"
     }
   ],
   "pending": [
     {
       "id": "R26-AUTHENTIC-CALLER-EVIDENCE",
-      "state": "ASSIGNED",
-      "owner": "prover after initial checkpoint",
+      "state": "RUNNING",
+      "owner": "/root/r26_authentic_evidence",
       "artifact": "Find actual supplier/introduction, apply authentic tuple to unchanged source registration, or identify exact first missing premise/owner."
     },
     {
       "id": "R26-ACTUAL-ENTRY-PATH",
-      "state": "READY",
+      "state": "RESULT",
       "owner": "/root",
-      "artifact": "Read-only trace public prepare and HIR lowering/source declarations; determine whether any real caller supplies evidence and whether any safe code slice exists."
+      "artifact": "Frozen Luna audit tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md SHA c102cdd716cdff8178510f5626c8ecf14a2170e0ca33e6013a043041dbedaedd; earliest missing input at caller/host, NO_SAFE_CODE_SLICE."
     },
     {
       "id": "R26-INDEPENDENT-REVIEW",
@@ -159,7 +201,7 @@
     "required": false,
     "receipt": "R23 and R24 lane workers stopped; all frozen outputs reviewed; no code or unknown leases."
   },
-  "next_action": "After initial checkpoint, start proof/source lane and recheck public prepare plus HIR source declaration owners. If no authentic supplier/source map exists, freeze exact blocker and do not create code semantics.",
+  "next_action": "Proof/source lane active; Luna audit frozen with earliest absent caller-supplied registration context and NO_SAFE_CODE_SLICE. Review frozen proof/handoff with actual owner evidence before closing route.",
   "git_checkpoint": {
     "commit": "f4fba1f38",
     "branch": "research/simple-sub-intrusion",
