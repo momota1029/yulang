@@ -18,14 +18,14 @@
       "available_seconds": 0,
       "allocation": "R21 rev1 2700 + rev2 600 retained fully charged; rev3 adds 300: author90 (options/proof60 + implementation30) + same delta review150 + integration60. Astra0; no R20 carryover."
     },
-    "next_action": "Commit/push rev3 contract/state; repair only AnnCarry-A provisional publication cycle and D1 empty-suffix rule provenance; freeze four hashes; same reviewer delta review; integrate reviewed docs, no semantic selection.",
+    "next_action": "Commit/push rev3 four-document packet, then same independent reviewer delta review. Do not claim full result bridge or choose B; report exact OPEN obligations and user choice only after review.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption. Rev2 delta review BLOCKING on A provisional/publication cycle and D1 unstated empty-suffix rule; rev3 narrow document-only repair authorized.",
-    "last_stage_receipt": "R21 rev3 implementation contract/handoff frozen; A provisional lifecycle is now aligned. Proof/options lane still active on exact D1 source basis or OPEN.",
+    "last_stage_receipt": "R21 rev3: A publication cycle repaired with provisional StagedOwn consumed by PublishLocal; no fixed-specimen ResultMap proof found, so D1 withdrawn and ResultMap stays OPEN; B stays BLOCKED. Four-document delta review pending. Parent OPEN/closure0.",
     "git_checkpoint": {
       "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R21 rev3 contract/state frozen for two exact formal repairs; rev2 artifacts/review preserved; no code/test/semantic adoption."
+      "receipt": "R21 rev3 options/proof and implementation contract/handoffs frozen; root to commit/push exact four changed documents, then same reviewer delta review."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0.",
@@ -45,13 +45,13 @@
     {
       "id": "/root/r21_bridge_proof",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev3 exact formal repair active, 60s, after e8cdac90b; A provisional publication and source-backed exact D1 or leave OPEN. Exact option/handoff paths only; no code/tests/Git."
+      "receipt": "R21 rev3 options/proof frozen at f97d6ca85b60a5eec8bc20d98fcdf75904551eaacbdc5084026289362681676a / 19bd080980f355bbf8cbd5e5657fefefc5292c75bd47bf2e78c17df558618841. A uses provisional StagedOwn before PublishLocal; D1 retracted for lack of authenticated suffix source rule, so fixed ResultMap OPEN; B BLOCKED. No code/tests/Git; delta review pending."
     },
     {
       "id": "/root/r21_bridge_falsifiers",
@@ -101,12 +101,12 @@
     {
       "path": "notes/design/2026-10-18-field-root-incidence-bridge-options.md",
       "owner": "/root/r21_bridge_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-proof.md",
       "owner": "/root/r21_bridge_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-18-field-root-incidence-bridge-soundness.md",

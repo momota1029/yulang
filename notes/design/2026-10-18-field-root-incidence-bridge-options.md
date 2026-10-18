@@ -122,13 +122,13 @@ interfaces; `candidate_source` owns arm result and Catch slot-50 links. A native
 trace through all three plus Install(g) must witness the same path. F1/FK1,
 nonlocal providers and complete Call remain independent proof obligations.
 
-### Bounded direct-source derivation required by rev2
+### Bounded direct-source audit; D1 remains open
 
 For the R20 admitted direct shape, the scrutinee is exactly the resolved
 `signal::ping()` Apply, the selected operation arm's final expression is the
 resolved Apply `k response`, and `my g` installs the Catch result. The following
-is a **candidate derivation under the proposed least `Orig` rules**, not a
-derivation of field transport from the current solver:
+is a **candidate source/native slice**, not a completed `ResultMap` or
+field-transport derivation:
 
 1. `operation_v1_catch_source` (`candidate_source.rs:705–755`) authenticates
    the scrutinee's operation Apply and retained `h_arg`: same request `c`,
@@ -144,18 +144,21 @@ derivation of field transport from the current solver:
    onward) checks `S_u <: negative_response` and its positive result-child
    `R_ping+ <: R_k-`. These typed comparisons locate the candidate map's
    endpoints, but do not supply its value origin or equate them.
-3. The raw continuation *inside this direct scrutinee* has no expression
-   after the request result before the scrutinee's return. Proposed
-   `Orig` resumption-binding introduction substitutes the exact argument
-   value origin `S_u` for the request-result binder at `R_ping`; the empty
-   suffix's identity/return clause yields `D0,D1` from that binder to the
-   actual `k` result `R_k`. This is the one new semantic bridge, tied to
-   the exact saved direct suffix; it cannot be inferred from the Function
-   subtype edge alone or applied to a foreign suffix without its derivation.
+3. The direct scrutinee syntax suggests an empty raw suffix, but the pinned
+   source constructor retains `original = endpoints[scrutinee]` and `h_arg`,
+   not an authenticated suffix boundary or a source return constructor.
+   `candidate_catch_operation_inner` puts `original_positive` at the
+   continuation's positive result port; this is a type interface, not a
+   value-origin introduction from `S_u` to `R_ping` and then `R_k`.
+   Consequently the proposed least `Orig` clauses **cannot derive D1**, even
+   for this fixed direct source. No empty-suffix identity/return rule is added
+   without its source owner and native correspondence. D0's source
+   substitution origin and the actual D1 return map remain OPEN.
 4. The direct arm final expression is this same `k` Apply. If the arm is a
    Block, its `final_expression` is that Apply and `candidate_source.rs:1428–1441`
    emits a `CandidateRelation::Group`; `shadow_apply.rs:1791–1795` links the
-   actual Apply child to the arm's result endpoint. This gives `D2`, with
+   actual Apply child to the arm's result endpoint. This supports the local
+   D2 arm-value leg, with
    no source-spelling shortcut. `candidate_source.rs:1148–1168` adds the
    selected arm's actual value endpoint to `R_catch` at slot 50; the
    `Work::Install(g)` path installs that exact Catch endpoint/root. A later
@@ -171,7 +174,7 @@ the inductive `Orig(R_k,arm.final,_)` has no derivation. The source matcher
 may still retain h_arg because it finds a nested Apply, but no
 `ResumeMap-elim` may transfer response's field to g. The alternative program
 is a candidate construction whose HIR admission/native run is unverified.
-The fixed direct derivation says nothing about arbitrary returned Functions,
+The fixed direct slice leaves `ResultMap` OPEN and says nothing about arbitrary returned Functions,
 nonidentity raw suffixes, branch joins, general Call, or FK1 continuations;
 those remain OPEN.
 
@@ -207,9 +210,12 @@ not establish slot uniqueness. The final post-traversal
 an unmatched key keeps its ordinary disposition rather than borrowing this
 early record.
 
-The early record, its q/member task, and A's rooted witness or B's rooted
+The early record, its q/member task, and A's staged rooted witness or B's rooted
 Pending payload remain private candidate evidence. The typed field task must
-drain without conflict before local publication or capture. A later conflict,
+drain without conflict before local publication or capture. `PublishLocal`
+consumes A's staged witness only after those prefix checks succeed and installs
+the root with its payload; it does not manufacture a successful final candidate
+receipt. A later conflict,
 resource failure, duplicate key, annotation failure or solve failure rolls
 back the record/edge/root payload and suppresses all dependent final
 consumer/runtime/publication receipts, including earlier use-local claims.
@@ -246,17 +252,27 @@ independently produced facts:
    members and never identifies the callback `m0` with the annotation's
    positive `Support`/`AnnotationMember`. The q-indexed negative response allowance remains separate; its R6
    `FieldBoundV1` task has drained without conflict.
-4. The initializer comparison, computation-effect check, full annotation
-   construction, and local publication all finish without conflict/resource
-   failure. The source slot and field identity are unique for this occurrence.
+4. The callback, initializer, computation-effect and complete annotation
+   comparison actions have drained without conflict/resource failure;
+   exposed `R_d` is constructed with its positive field coordinate. The
+   typed early q/member task has drained and a rooted payload is staged
+   provisionally. `PublishLocal(d)` is still withheld. The source slot and
+   field identity are unique across the complete schedule.
 
 ```text
-AnnCarry-A: premises 1–4
+AnnCarry-A-stage: premises 1–4
   --------------------------------------------------------------
-  Own(R_d,p,(c,q,c_outer,d,a_d,h_arg,m0,D_ann))
+  StagedOwn(R_d,p,(c,q,c_outer,d,a_d,h_arg,m0,D_ann))
+
+PublishLocal-A: StagedOwn(...); all prefix checks/drains successful
+  --------------------------------------------------------------
+  private installed Own(R_d,p,(c,q,c_outer,d,a_d,h_arg,m0,D_ann))
 ```
 
-`D_ann` is the retained exact derivation, including negative check and positive
+`StagedOwn` is a private rooted payload, not a published scheme, completed
+local publication, or externally successful candidate receipt. `PublishLocal`
+must consume it before the first response capture; final candidate validation
+remains a later gate and can still roll back all dependent records. `D_ann` is the retained exact derivation, including negative check and positive
 exposure. This is the **new semantic step**: it declares that one checked
 initializer field may be carried as owned evidence through the paired
 annotation interface. Existing `L <: A-` and `A+ <: R_d` do not compose to
@@ -376,6 +392,13 @@ selected handler and provider, field ordinal, annotation occurrence, and
 FreshUse context must remain distinct. Finite termination/resource accounting
 must charge the delayed recipe and each use; no unbounded retry or recursive
 re-formation of the same obligation is licensed.
+
+**B remains BLOCKED for selection:** the pinned Graph capture traversal does
+not yet provide a source-rooted payload carrying q/h_arg/m0 and the
+independent annotation presentation into the response capture. The proposed
+Pending constructor must not be implemented by a global field lookup or an
+attachment after capture. This document states the required shape, not its
+source/native construction proof.
 
 ## Decision and parent application
 
