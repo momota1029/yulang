@@ -2,9 +2,20 @@
 
 Date: 2026-10-19
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active. R22 reduced the fixed runtime specimen to a conditional handle-preservation induction, but the original `A_decl` source output/provider map is still missing; parent closure remains 0. R22's trace was rejected at independent review and its incomplete partial repair was discarded. R23's original frame inventory, falsifier and cut-formation packets are frozen and CLEAN within their bounded scopes; the parent theorem still has closure 0. R24 located the missing caller-context binding. R25 added and reviewed transport-only HIR retention for an opaque caller payload. No original mathematical condition has been discharged: authentic caller introduction, operation/member/signature correspondence, phase actions and the unchanged parent theorem remain OPEN.
+Status: the full user objective—proof-backed type inference and evaluator implementation, followed by complete Simple-sub/F5 replacement—remains active. R65 is closed as a reviewed bounded bridge-applicability result; its first unsupplied input is `R65-CURRENT-OPERAND-1`, ordinary typed Lambda operand formation from the original formal and resolved body Name under one joint context. No code slice was established. The original theorem and Simple-sub A/B remain OPEN at 0; R50 remains NOT ADOPTED. See the [R65 closeout](../notes/progress/2026-10-19-r65-closeout.md) and [current sprint state](agent-loop/current.json). The next candidate is source-boundary staging, not yet activated.
 
-## Current checkpoint (2026-10-18)
+## Current checkpoint (2026-10-19)
+
+### 2026-10-19 — R65 bounded source bridge result
+
+R65 tested the approved typed-root bridge against whole-ascription checking.
+The reviewed proof reaches `R65-CURRENT-OPERAND-1`: no pinned rule in the
+attempted route constructs the completed symbolic Lambda operand and prior
+evidence under the original joint context. Fresh compiler and spec reviews
+were CLEAN. This is not a global absence/ambiguity result, and the stopped
+complementary researcher supplied no result. No implementation slice or code
+change was justified. Parent/A/B remain OPEN 0 -> 0; R50 remains NOT ADOPTED.
+See the [R65 closeout](../notes/progress/2026-10-19-r65-closeout.md).
 
 R60 closed as a reviewed conditional scalar result and exact constructor
 obstruction. Existential projection/lifting is valid only when the remaining
