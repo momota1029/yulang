@@ -2,7 +2,7 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r68",
+  "session": "current-conversation-2026-10-19-r68-source-law",
   "active_sprint": {
     "id": "retained-lambda-introduction-20261019-r68",
     "contract": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
@@ -27,20 +27,20 @@
       "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + compiler review 200s + spec review 200s + Luna integration/closeout 300s; Astra0; no carryover.",
       "actual_runtime": "Proof wall 307s; exact elapsed for counter-reading, owner map, reviews and Luna integration UNKNOWN. CPU/RSS UNKNOWN. All assigned grants charged; no carryover."
     },
-    "next_action": "R68 CLOSED and pushed. R69 exact candidate was checked at 41/41 pins but NOT ACTIVATED because no pinned rule introduces the retained ConsumerOrigin; the proposed 2400s envelope remains ungranted. Continue with R68-OWNER-CONSUMER-1 / source-law completion proposal.",
+    "next_action": "Source-rule audit completed: target-directed p_R/body-Name consumer is a concrete unadopted candidate consistent with selected result-forwarding A, while annotated checking authority remains open. Await user semantic choice before changing the source law or activating a sprint.",
     "history": "R66 closeout SHA-256 0af68443b372f1407f68e0b9f21194348b469f8c5d3dce06a8cd98ed976e6f01; status CLOSED with conditional structural result and exact unsupported Result-A instantiation. Fresh reviews had no blocking/major findings; minor owner-map handoff metadata superseded by external frozen hash/receipt. No successor grant or code slice carried over.; R67 closeout SHA-256 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; frozen author/review baseline dc84c02ed; 41/41 review hash receipts; no safe code slice; all R67 reviewers STOPPED.; R67 CLOSED at closeout 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; branch pushed through f49f797a0.; R69 candidate `tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md` SHA-256 0a64e5b6841fa9d7219bfa25c58b4ed8b99212078a51bc670fc6ff0104fc2995; 41/41 pins MATCH; dispatcher rejected activation because Generalize and Draft execution clauses assume an existing consumer. Proposal `notes/design/2026-10-19-retained-consumer-origin-source-law-proposal.md` SHA-256 71b049a45a39f3b8ecff6a8a16455d6842704e767aa970182b57038a387d7d65; no grant, workers or leases."
   },
   "workers": [
     {
       "id": "/root",
       "role": "Luna/high coordinator, source/native owner map, adjudication, integration and sole Git owner",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r68",
-      "receipt": "Luna owner/integrator session STOPPED after R68 closeout/push and routing the unadopted source-law proposal. All R68 author/reviewer workers STOPPED; R69 not activated, no grant/leases/workers; no descendants."
+      "session": "current-conversation-2026-10-19-r68-source-law",
+      "receipt": "Luna resumed the source-law owner task after R68. R69 remains NOT ACTIVATED with no grant or worker leases. Read the exact pinned charter, result-synthesis, Generalize, call-input and computation-role clauses; drafted a concrete but unadopted target-directed p_R/body-Name ConsumerOrigin rule. Awaiting user decision on consumer placement; no code/tests/builds/probes."
     },
     {
       "id": "/root/r68_retained_lambda_proof",
