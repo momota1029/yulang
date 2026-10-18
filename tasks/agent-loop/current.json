@@ -17,17 +17,17 @@
       "baseline_commit": "f49f797a0c04fe02a68b63bff9ff3e254ba6002b",
       "dispatcher_start": "R68 corrected exact-candidate check passed; contract SHA 04070e85b4ee10fa308954916653955aee761f8fa59b937ea6cf78349901cd14; 30/30 valid pins MATCH; no correction identified",
       "prior_sprint": "R67 CLOSED after fresh compiler/spec reviews; bounded exact local premise R67-DIRECT-BODY-CHECK-1; R67 closeout 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; all R67 authors/reviewers STOPPED; no carryover",
-      "live_reconciliation": "All previous workers STOPPED; dispatcher completed; no descendants or unknown leases. R68 primary /root running in current session; proof and complementary attack assignments are staged but not yet launched.",
+      "live_reconciliation": "R68 proof /root/r68_retained_lambda_proof and counter-reading /root/r68_retained_lambda_counterreading actually launched in current session under exact leases; no descendants. Luna owner map active. All R67 workers stopped.",
       "semantic_boundary": "Use only 30 pinned files. Structural source-interface construction does not establish semantic Function membership; semantic input elimination does not introduce the new closure. Exact two-root theorem is excluded from forward. lib.rs unpinned and excluded."
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 500,
-      "available_seconds": 1900,
+      "charged_seconds": 1700,
+      "available_seconds": 700,
       "allocation": "Proof Sol/high900 + complementary challenge counter-reading Sol/medium300 + Luna/high owner map500 + fresh compiler/spec reviews200 each + Luna integration/closeout300; Astra0; no carryover",
-      "actual_runtime": "Luna R68 coordination/owner-map lane active under 500s grant; actual elapsed/CPU/RSS UNKNOWN. Proof and counter-reading not yet launched."
+      "actual_runtime": "Proof 900s and counter-reading 300s grants issued on successful current-session collaboration launches; Luna owner map 500s active. All observed CPU/RSS/exact elapsed times UNKNOWN. Reviews 400s + integration 300s remain."
     },
-    "next_action": "Start exact leased proof and counter-reading lanes; Luna maps formal/Name/Lambda/body/result/consumer and outer-call ownership within the pinned source/native files. Freeze all author outputs before independent review.",
+    "next_action": "Continue proof and counter-reading within their frozen leases; freeze their author snapshots, then assign fresh compiler/spec review and adjudicate.",
     "history": "R66 closeout SHA-256 0af68443b372f1407f68e0b9f21194348b469f8c5d3dce06a8cd98ed976e6f01; status CLOSED with conditional structural result and exact unsupported Result-A instantiation. Fresh reviews had no blocking/major findings; minor owner-map handoff metadata superseded by external frozen hash/receipt. No successor grant or code slice carried over.; R67 closeout SHA-256 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; frozen author/review baseline dc84c02ed; 41/41 review hash receipts; no safe code slice; all R67 reviewers STOPPED.; R67 CLOSED at closeout 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; branch pushed through f49f797a0."
   },
   "workers": [
@@ -40,29 +40,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "R68 activated after corrected exact-candidate dispatcher check and 30/30 pin verification; owner map lane active under exact 500s grant. Proof/counter-reading assigned, not yet started."
+      "receipt": "Luna owner-map subtask STOPPED after freezing notes/progress/2026-10-19-r68-retained-entry-owners.md SHA-256 8ebbdfbd32fc7cde32db457956a20882b8e231abadbb9d74ee90de66515e6d8b and tasks/agent-loop/inbox/20261019-r68-implementation.md SHA-256 386a0dab4d60b5af62e5a329ddc315b6ad7c7cf56c998427eebf0d707a28c2a7; no descendants. Luna remains RUNNING as coordinator/integrator; proof and counter-reading remain active under exact leases."
     },
     {
       "id": "/root/r68_retained_lambda_proof",
       "role": "R68 constructive retained-entry Lambda introduction proof author",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "Exact path leases staged under the frozen contract; no successful collaboration launch yet; no resource grant charged until actual launch."
+      "receipt": "Successful actual collaboration launch acknowledged for `/root/r68_retained_lambda_proof` in current-conversation-2026-10-19-r68; exact frozen 30-pin scope and two output leases; requested Sol/high; observed UNKNOWN/UNKNOWN; 900s reserved/charged; no descendants."
     },
     {
       "id": "/root/r68_retained_lambda_counterreading",
       "role": "R68 complementary challenge/body-safety counter-reading author",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "Exact path leases staged under the frozen contract; no successful collaboration launch yet; no resource grant charged until actual launch."
+      "receipt": "Successful actual collaboration launch acknowledged for `/root/r68_retained_lambda_counterreading` in current-conversation-2026-10-19-r68; exact frozen 30-pin scope and two output leases; requested Sol/medium; observed UNKNOWN/UNKNOWN; 300s reserved/charged; no descendants."
     }
   ],
   "leases": [
@@ -94,12 +94,12 @@
     {
       "path": "notes/progress/2026-10-19-r68-retained-entry-owners.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r68-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r68-closeout.md",
