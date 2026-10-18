@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push rev2 contract and state; dispatch exact expected_ids-only repair; freeze hash; delta review CLEAN; run one focused runtime_resume target; integrate only reviewed result.",
     "history": "R17/R18/R19 closeouts preserve original parent OPEN/closure0. R19 proof/source artifacts independently CLEAN at 6748039fa/118375dce. R19 local runtime checkpoint 8e1ad99fd; focused target 17/18 and first local-g failure at HIR-error assertion; no candidate/runtime local path executed. R20 rev1 HIR gate review BLOCKING at fallback Apply IDs omitted from expected_ids; exact repair approved by dispatcher in rev2, parent closure0.",
-    "last_stage_receipt": "R20 HIR gate review BLOCKING: fallback_apply_errors are individually admitted with owner/kind/attachment checks but omitted from expected_ids, so exact set equality rejects them. Rev2 grants 480s for expected_ids-only repair, same independent delta review and one focused target. Parent OPEN/closure0.",
+    "last_stage_receipt": "R20 rev2 repair frozen at runtime_resume.rs SHA256 3902e5071d9d2bc8bede6cc03fe74e224cf12627de7bcfc147ec850b9fd560bd; sole expected_ids chain addition; all existing gates preserved. Independent delta review active; no verification run.",
     "git_checkpoint": {
       "commit": "8e1ad99fd",
       "branch": "research/simple-sub-intrusion",
@@ -72,13 +72,13 @@
     {
       "id": "/root/r19_local_binding_runtime",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R20 rev2 follow-up dispatched after contract 43c2edf53; exact write lease is expected_ids chain only in runtime_resume.rs; preserve all per-error ownership/kind/attachment/range assertions, unknown rejection and final equality; no verification allowed before frozen delta review."
+      "receipt": "R20 rev2 repair frozen; sole change adds fallback_apply_errors.keys().copied() to expected_ids chain. SHA256 3902e5071d9d2bc8bede6cc03fe74e224cf12627de7bcfc147ec850b9fd560bd. No tests/build/format/diagnostics; stopped pending independent delta review."
     },
     {
       "id": "/root/r18_runtime_implementation",
@@ -116,13 +116,13 @@
     {
       "id": "/root/r19_runtime_lineage_review",
       "role": "compiler_referee",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "BLOCKING R20 HIR-gate review: fallback Apply IDs admitted per-error but absent from expected_ids, causing exact set equality failure. No edits/tests/build/Git; old snapshot retained."
+      "receipt": "R20 rev2 independent delta review active on frozen runtime_resume.rs SHA256 3902e5071d9d2bc8bede6cc03fe74e224cf12627de7bcfc147ec850b9fd560bd. Check one expected_ids addition only and preserved exact gates; no tests/build/Git."
     }
   ],
   "leases": [
@@ -194,7 +194,7 @@
     {
       "path": "tools/inference-playground/tests/runtime_resume.rs",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "HELD",
+      "state": "FROZEN",
       "scope": "R20 rev2 expected_ids construction only; include canonical fallback_apply_errors IDs; no assertion/allowlist broadening."
     },
     {
