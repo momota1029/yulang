@@ -7,7 +7,7 @@
     "id": "direct-lambda-checking-20261019-r67",
     "contract": "tasks/agent-loop/sprints/direct-lambda-checking-20261019-r67.md",
     "revision": 1,
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "3b974b9337d8490e1af2ebaa5f1b54ece2e62cd5",
     "contract_sha256": "6e5a248634eab018f4020a416ca5fac1124452ecc7cb3ad789ffa6c440be349c",
     "parent": "Original computation-forwarding preservation §§1,6–7; unchanged source domain and quantifiers; Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
@@ -17,18 +17,18 @@
       "baseline_commit": "3b974b9337d8490e1af2ebaa5f1b54ece2e62cd5",
       "dispatcher_start": "R67 exact candidate SHA verified; 34/34 pins MATCH; direct-checking route, source scope and 2400s candidate envelope confirmed",
       "prior_sprint": "R66 CLOSED after fresh compiler/spec reviews; conditional structural cut only for supplied derivations; R66-LAMBDA-RESULT-STAGE-1 remains OPEN; all R66 workers STOPPED; no carryover",
-      "live_reconciliation": "R67 proof, counter-reading and Luna owner-map authors STOPPED with frozen outputs; no descendants or unresolved writer leases. Fresh independent compiler/spec reviews are next.",
+      "live_reconciliation": "All R67 author and reviewer agents STOPPED; no descendants or unresolved writer leases. Frozen closeout integrated by Luna.",
       "semantic_boundary": "34 pinned evidence files only; required governance/startup reads separate. Source Generalize local laws require genuine premises; additional authority must return to Luna. Native guards remain unchanged."
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 1700,
-      "available_seconds": 700,
+      "charged_seconds": 2400,
+      "available_seconds": 0,
       "allocation": "Proof Sol/high900 + complementary researcher Sol/medium300 + Luna/high owner map500 + fresh compiler/spec reviews200 each + Luna integration/closeout300; Astra0; no carryover",
-      "actual_runtime": "Author grants charged/reserved: proof 900s, source-rule attack 300s, Luna owner map 500s. All three authors report STOPPED; observed runtime/CPU/RSS UNKNOWN. Fresh reviews 400s plus integration 300s remain."
+      "actual_runtime": "All six assignment grants (900+300+500+200+200+300 seconds) reserved/charged; actual elapsed runtime, CPU and RSS UNKNOWN. No carryover."
     },
-    "next_action": "All six author outputs frozen with 34/34 pins MATCH. Obtain fresh independent compiler/spec reviews, adjudicate the exact R67-DIRECT-BODY-CHECK-1 premise, then integrate the bounded result and close R67.",
-    "history": "R66 closeout SHA-256 0af68443b372f1407f68e0b9f21194348b469f8c5d3dce06a8cd98ed976e6f01; status CLOSED with conditional structural result and exact unsupported Result-A instantiation. Fresh reviews had no blocking/major findings; minor owner-map handoff metadata superseded by external frozen hash/receipt. No successor grant or code slice carried over."
+    "next_action": "R67 closed as reviewed bounded direct-checking attempt. End-boundary selection: pin and evaluate the exact source constructor authority identified by spec review, then choose a proof-producing continuation without expanding R67.",
+    "history": "R66 closeout SHA-256 0af68443b372f1407f68e0b9f21194348b469f8c5d3dce06a8cd98ed976e6f01; status CLOSED with conditional structural result and exact unsupported Result-A instantiation. Fresh reviews had no blocking/major findings; minor owner-map handoff metadata superseded by external frozen hash/receipt. No successor grant or code slice carried over.; R67 closeout SHA-256 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; frozen author/review baseline dc84c02ed; 41/41 review hash receipts; no safe code slice; all R67 reviewers STOPPED."
   },
   "workers": [
     {
@@ -40,7 +40,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r67",
-      "receipt": "Author map/handoff frozen at 41d9278a4a3b7a8adb4ff19a0a05df2c2f0c7812d9c018cbab3ff5d81ecf5a1b / 21045f1a23dcc570fca59bcc8f5909a87467e0ef947e77c9dbe5b235df4d6c37; 34/34 pins MATCH; all author lanes STOPPED; Luna owns adjudication, reviews, integration and Git; review/integration allocation remaining 700s."
+      "receipt": "R67 closeout frozen at 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; all authors/reviewers STOPPED with no descendants; Luna performing required end-boundary selection and successor reconciliation; all R67 allocation charged, no carryover."
     },
     {
       "id": "/root/r67_direct_lambda_proof",
@@ -63,6 +63,28 @@
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r67",
       "receipt": "FROZEN counter-reading/handoff hashes 6769913e4cf53a6e6ac84f4d0f4eea9b85ab44c45b34e39a171073ba777872d0 / f13f9cf426d6f3213098e36d557f7903cf2a47e32ca81afc4bd049b4f53c1a19; STOPPED / WRITES_STOPPED / NO_DESCENDANTS; 34/34 pins MATCH; 300s reserved/charged; actual runtime UNKNOWN."
+    },
+    {
+      "id": "/root/r67_compiler_review",
+      "role": "Fresh independent read-only compiler/source-owner reviewer of frozen R67 snapshot",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r67",
+      "receipt": "Fresh independent review complete on exact frozen snapshot; 41/41 hash receipts; READ_ONLY / NO_DESCENDANTS; no writes, tests, builds, compiler execution, probes or Git."
+    },
+    {
+      "id": "/root/r67_spec_review",
+      "role": "Fresh independent read-only spec-conformance reviewer of frozen R67 snapshot",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r67",
+      "receipt": "Fresh independent review complete on exact frozen snapshot; 41/41 hash receipts; READ_ONLY / NO_DESCENDANTS; no writes, tests, builds, compiler execution, probes or Git."
     }
   ],
   "leases": [
@@ -104,7 +126,7 @@
     {
       "path": "notes/progress/2026-10-19-r67-closeout.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/current.json",
@@ -143,11 +165,11 @@
     },
     {
       "id": "R67-DIRECT-BODY-CHECK-1",
-      "state": "PENDING_REVIEW",
+      "state": "OPEN",
       "owner": "Luna; source Lambda checking/body-consumer premise",
-      "request": "Freshly review whether the frozen direct route can derive an independently admitted Function challenge/interface, body target/check, designated consumer and complete invocation at the original Lambda under one joint context, without Result-A.",
-      "falsifier": "A pinned direct rule supplies the tuple before whole-annotation checking, or the proof assumes interface/body safety/invocation or loses original provider, p_t/p_A permissions, open E_t, captures, ordinary constraints or result evidence."
+      "request": "Prove or refute the source-owned Function interface/challenge and body-check consumer/invocation premises at the original Lambda. R67 supports this as the first unsupplied local premise under its selected pinned rules; source scope outside that packet remains unreviewed.",
+      "falsifier": "An applicable source-owned constructor derives the full tuple at the original provider and joint context with p_t/p_A permissions, open E_t, captures, ordinary constraints, body/result and invocation evidence; or an actual source counterexample refutes applicability."
     }
   ],
-  "closure": "R66 CLOSED — REVIEWED CONDITIONAL STRUCTURAL RESULT / EXACT UNSUPPORTED RESULT-A INSTANTIATION / NO_SAFE_CODE_SLICE. R67 authors FROZEN — direct derivation reaches formal/Name and reports R67-DIRECT-BODY-CHECK-1 for independent review; no source or implementation result accepted yet. R65-CURRENT-OPERAND-1, R66-LAMBDA-RESULT-STAGE-1, R64-SRC-ANN-ARG-1, R61-SOURCE-ASCRIPTION-FORMATION-1 remain OPEN. Parent and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED."
+  "closure": "R67 CLOSED — REVIEWED BOUNDED DIRECT-CHECKING ATTEMPT / EXACT UNSUPPLIED LOCAL PREMISE / NO_SAFE_CODE_SLICE. Closeout 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; 41/41 independent-review hashes match. `R67-DIRECT-BODY-CHECK-1` and R65-CURRENT-OPERAND-1, R66-LAMBDA-RESULT-STAGE-1, downstream R64/R61 remain OPEN. Parent and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED."
 }
