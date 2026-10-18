@@ -6,26 +6,26 @@
   "active_sprint": {
     "id": "original-a-decl-provider-result-map-20261018-r23",
     "contract": "tasks/agent-loop/sprints/original-a-decl-provider-result-map-20261018-r23.md",
-    "revision": 1,
-    "sha256": "81cd486aa1fc182f75bed5fc977b13bb12ae5c5e5fff8dbffd4427b125caab5e",
+    "revision": 2,
+    "sha256": "6027950520130a285be0388d0fb180c606e16682c2d43f400ceb44b7af7f60db",
     "state": "ACTIVE",
     "baseline": "f2c9fef79; R22 rev3 closed with conditional runtime handle lemma and OPEN source D1; R20 fixed runtime_resume 18/18 remains pinned evidence.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers/domain unchanged; OPEN/closure0.",
-    "fixed_outcome": "Expand the actual original A_decl completion/view/owner rules and derive or refute the complete output provider/state/future map for every fixed-source admitted response/live state.",
+    "fixed_outcome": "Recover the authentic fixed-source K_decl from the original Sigma_theta.Lambda/result-port typing derivation; if present, activate the all-response provider/state/future map within the reallocated reservation. If absent, freeze the exact source judgment needed. Parent quantifiers unchanged.",
     "resources": {
       "cap_seconds": 2100,
       "charged_seconds": 2100,
       "available_seconds": 0,
-      "allocation": "source-owner expansion300 + staged constructive proof900 + independent falsification300 + fresh review420 + integration180. Astra0; no R22 carryover. No Cargo/code slice."
+      "allocation": "frozen frame inventory 300 + source-formation recovery 900 (reallocated from staged proof) + independent falsification 300 + fresh review 420 + integration 180. Total cap 2100, fully charged; Astra0; no R22 carryover. No code/tests."
     },
-    "next_action": "Start primary-source expansion of A_decl; activate the Sol proof only if exact complete rule locators are supplied. Implementation waits for reviewed source/native map.",
-    "history": "R22: proof/falsifier frozen; conditional fixed runtime handle induction only. Source D1/A_decl output map and typed Orig remain OPEN. Trace had two MAJOR independent-review findings; repair stopped partial, was discarded; no tests or code integrated. Parent closure remains0. See notes/progress/2026-10-18-r22-fixed-source-result-map-closeout.md.",
+    "next_action": "Trace backward from the original Execute_decl_result/designated result-port typing judgment to its actual K_decl/context, completion/adaptation rule, and dependent output telescope. No inference from absent source data.",
+    "history": "R22: proof/falsifier frozen; conditional fixed runtime handle induction only. Source D1/A_decl output map and typed Orig remain OPEN. Trace had two MAJOR independent-review findings; repair stopped partial, was discarded; no tests or code integrated. Parent closure remains0. See notes/progress/2026-10-18-r22-fixed-source-result-map-closeout.md. R23 rev1 source-frame and falsifier artifacts frozen; independent compiler_referee CLEAN for bounded evidence only. Stage B not authorized; no admitted counterexample; closure0. Rev2 reallocates existing 900 proof reservation to source-formation recovery.",
     "last_stage_receipt": "R23 issued after dispatcher: actual A_decl primary-source owner is the next premise; do not repeat generic missing-input audit. NO_SAFE_CODE_SLICE at candidate Catch slot-50/Group and runtime OperationResultConsumer/capture_template owners.",
     "git_checkpoint": {
-      "commit": "5f76fcd41",
+      "commit": "bd8dff0e3",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R22 closeout, R23 rev1 contract and tasks/current synchronized and pushed by primary."
+      "receipt": "R23 source-expansion and falsifier packets root-committed/pushed; next amendment commit pending."
     },
     "workers": [
       {
@@ -37,7 +37,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Primary owns R23 authority, staged proof activation, review, integration and Git."
+        "receipt": "Primary owns R23 rev2 source-formation recovery, review, integration and Git."
       },
       {
         "id": "/root/r23_source_expansion",
@@ -48,20 +48,103 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Fresh launch acknowledged for exact A_decl source expansion lease; cap300s; no code/tests/Git."
+        "receipt": "Follow-up acknowledged for exact original result-port typing derivation/K_decl recovery; 900 seconds reallocated from staged proof; two new exact outputs; no code/tests/Git."
       },
       {
         "id": "/root/r23_result_map_falsifiers",
         "role": "researcher",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Fresh independent falsification launch acknowledged; disjoint theory/handoff lease; cap300s; no code/tests/Git."
+        "receipt": "Frozen R23 falsifier packet; no admitted refutation; root committed/pushed as e05480d99."
+      },
+      {
+        "id": "/root/r23_owner_review",
+        "role": "compiler_referee",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Fresh independent review CLEAN for bounded R23 source/falsifier evidence; Stage B explicitly not authorized."
       }
-    ]
+    ],
+    "leases": [
+      {
+        "path": "tasks/agent-loop/current.json",
+        "owner": "/root",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/sprints/original-a-decl-provider-result-map-20261018-r23.md",
+        "owner": "/root",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-18-original-a-decl-source-expansion.md",
+        "owner": "/root/r23_source_expansion",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-original-a-decl-source-expansion.md",
+        "owner": "/root/r23_source_expansion",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-18-original-a-decl-result-map-falsifiers.md",
+        "owner": "/root/r23_result_map_falsifiers",
+        "state": "FROZEN"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-original-a-decl-result-map-falsifiers.md",
+        "owner": "/root/r23_result_map_falsifiers",
+        "state": "FROZEN"
+      },
+      {
+        "path": "notes/theory/2026-10-18-original-a-decl-cut-formation.md",
+        "owner": "/root/r23_source_expansion",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-original-a-decl-cut-formation.md",
+        "owner": "/root/r23_source_expansion",
+        "state": "HELD"
+      }
+    ],
+    "pending": [
+      {
+        "id": "R23-ADECL-SOURCE-1",
+        "state": "FROZEN",
+        "owner": "/root/r23_source_expansion",
+        "artifact": "Existing complete decorated frame grammar; does not select fixed K_decl."
+      },
+      {
+        "id": "R23-ADECL-FALSIFIER-1",
+        "state": "FROZEN",
+        "owner": "/root/r23_result_map_falsifiers",
+        "artifact": "No admitted refutation; exact source-qualified witness schema."
+      },
+      {
+        "id": "R23-ADECL-CUT-FORMATION-1",
+        "state": "RUNNING",
+        "owner": "/root/r23_source_expansion",
+        "artifact": "Recover authentic original result-port typing derivation and fixed K_decl, or exact absent source judgment."
+      }
+    ],
+    "ready_next_work": {
+      "id": "R23-ADECL-MAP-1",
+      "state": "BLOCKED_ON_SOURCE_OWNER",
+      "owner": "Luna activates staged Sol proof only after authentic K_decl/frame/action locators and dependent output telescope are supplied.",
+      "artifact": "All-admitted-response/current-state output provider/state/future map through actual A_decl, or admitted source-qualified refutation."
+    },
+    "legacy_reconciliation": {
+      "required": false,
+      "receipt": "R22 artifacts closed; R23 rev1 source/falsifier lanes frozen; independent bounded review CLEAN; R23 rev2 source-formation recovery acknowledged. No unknown live writers or code leases."
+    }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. R20 runtime/HIR specimen gate CLEAN, 18/18; source/native FreshUse incidence still missing. R21 review CLEAN for rev3 document conformance only; A unadopted and partial, B blocked. R22 closeout: conditional runtime response-handle induction; source D1/A_decl output/provider map not proved; trace findings/repair failure recorded; parent remains OPEN/closure0.",
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md (R22 stale trace hashes), and tools/__pycache__/; no staging.",
@@ -75,21 +158,10 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Primary owns R23 source owner activation, staged proof decision, independent review, integration and Git."
+      "receipt": "Primary owns R23 rev2 source-formation recovery, review, integration and Git."
     },
     {
       "id": "/root/r23_source_expansion",
-      "role": "researcher",
-      "state": "WAITING",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "R23 exact source-owner expansion assignment prepared; 300s cap, two exact output paths; awaiting actual launch acknowledgement."
-    },
-    {
-      "id": "/root/r23_result_map_falsifiers",
       "role": "researcher",
       "state": "RUNNING",
       "requested_model": "Sol",
@@ -97,7 +169,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh independent falsification launch acknowledged; disjoint theory/handoff lease; cap300s; no code/tests/Git."
+      "receipt": "Follow-up acknowledged for exact original result-port typing derivation/K_decl recovery; 900 seconds reallocated from staged proof; two new exact outputs; no code/tests/Git."
+    },
+    {
+      "id": "/root/r23_result_map_falsifiers",
+      "role": "researcher",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Frozen R23 falsifier packet; no admitted refutation; root committed/pushed as e05480d99."
+    },
+    {
+      "id": "/root/r23_owner_review",
+      "role": "compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh independent review CLEAN for bounded R23 source/falsifier evidence; Stage B explicitly not authorized."
     }
   ],
   "leases": [
@@ -162,5 +256,5 @@
     "required": false,
     "receipt": "All R22 workers stopped, review completed with two MAJOR trace findings, partial trace edits restored to exact pinned baseline; R23 is a fresh assignment after contract/state checkpoint."
   },
-  "next_action": "Run R23 primary-source expansion for actual original A_decl; proof lane activates only after complete locators. Independent falsification follows within fixed lease. Implementation remains WAITING until source/native result map is reviewed."
+  "next_action": "Trace backward from the original Execute_decl_result/designated result-port typing judgment to its actual K_decl/context, completion/adaptation rule, and dependent output telescope. No inference from absent source data."
 }

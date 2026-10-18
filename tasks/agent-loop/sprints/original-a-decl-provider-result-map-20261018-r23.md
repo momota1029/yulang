@@ -1,6 +1,6 @@
 # R23 — Original `A_decl` completion and provider result map
 
-Status: Luna-approved, ACTIVE after R22 rev3 closeout.
+Status: Luna-approved, ACTIVE; revision 2 (source-formation recovery) after R22 rev3 closeout.
 Branch: `research/simple-sub-intrusion`.
 Baseline: root-pushed `f2c9fef79`; R20 native `runtime_resume` remains 18/18.
 Parent: `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017`, original source
@@ -137,3 +137,44 @@ Before closeout record original parent closure (expected to remain 0 absent
 full proof), actual implementation/test result (currently none), exact first
 remaining premise and owner, and the next in-scope action. Do not rewrite the
 parent quantifiers or call a source rule proposal a proof.
+
+## Revision 2 — recover the fixed cut from original source formation
+
+Revision 1's source-frame inventory and falsifier packet are frozen and have
+fresh independent review CLEAN within their bounded evidence scope. The review
+confirms that their generic frame rules do not select this original
+`K_decl`; Stage B remains unauthorized. No source rule is missing: the next
+owner is the original `Sigma_theta.Lambda` typing/elaboration derivation that
+selects the designated `A_decl` result port and its complete context.
+
+To avoid spending the reserved proof allocation on an impossible proof, move
+the existing 900-second Stage B reservation to a source-formation recovery
+lane. This does not increase R23's 2100-second total cap or change any parent
+quantifier. The lane must work backward from the actual original
+`Execute_decl_result`/designated result-port typing judgment through its
+premises and source AST/CST owner. It must either produce the authentic fixed
+`d_cut : K_decl`, its ordered frames and dependent output/future telescope, or
+identify the exact original source object/judgment absent from this repository
+and the smallest semantic/source-definition decision required to supply it.
+An arbitrary `Hole`, an unlisted no-conversion step, a newly authored source
+example, or an inference from absent annotation fields is not evidence.
+
+Exact output lease:
+
+- `notes/theory/2026-10-18-original-a-decl-cut-formation.md`
+- `tasks/agent-loop/inbox/20261018-original-a-decl-cut-formation.md`
+
+No compiler/runtime code or tests are authorized by this amendment. The
+implementation lane remains WAITING. If authentic formation is recovered,
+Luna may activate the already staged constructive map within the same
+reallocated 900-second reservation after checking every original alternative
+and dependency; if the original input itself is absent, stop at a precise
+decision packet rather than fabricate it. The 420-second fresh review and
+180-second integration reservations remain unchanged; Astra remains 0. Total
+cap stays 2100 seconds, all reservations remain fully charged, and no R22
+carryover is allowed.
+
+The frozen Stage A and C packets are not modified. Stage B's lease remains
+unopened until the source-formation owner supplies a complete authentic
+derivation. The parent remains OPEN / closure 0 unless the original full
+theorem is actually proved.

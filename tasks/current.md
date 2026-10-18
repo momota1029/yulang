@@ -2,7 +2,7 @@
 
 Date: 2026-10-18
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active. R22 reduced the fixed runtime specimen to a conditional handle-preservation induction, but the original `A_decl` source output/provider map is still missing; parent closure remains 0. R22's trace was rejected at independent review and its incomplete partial repair was discarded. R23 now targets the actual original `A_decl` source owner and complete provider/state/future result map. No dependent production code is authorized until that source/native premise is established.
+Status: full objective remains active. R22 reduced the fixed runtime specimen to a conditional handle-preservation induction, but the original `A_decl` source output/provider map is still missing; parent closure remains 0. R22's trace was rejected at independent review and its incomplete partial repair was discarded. R23's original frame inventory and independent falsifier packet are frozen and CLEAN within their bounded review scope; neither supplies the fixed `K_decl`, and no admitted refutation was found. R23 rev2 now traces backward from the original result-port typing judgment to recover that exact context. No dependent production code is authorized until the source/native premise is established.
 
 ## Current checkpoint (2026-10-18)
 
@@ -15,13 +15,17 @@ The optional trace failed independent review on nested-arm observer lifecycle
 and actual view/receipt identity, and its bounded repair stopped incomplete.
 No R22 tests ran; its partial code was restored to the pinned baseline.
 
-R23 is the active source-proof sprint. It first expands the actual original
-`A_decl` completion/view/owner rules from their primary source owner; only a
-complete rule set activates the staged all-response output-map proof. An
-independent researcher attacks provider/world changes and pending/future cases.
-The implementation lane is WAITING: the inspected Catch slot-50/Group and
-runtime request-consumer owners do not construct the missing original
-`A_decl` output map, so no safe code slice is authorized yet. See the [R22
+R23 rev2 is the active source-proof sprint. The owner expansion found the
+existing completion/View/Owner/Bind/ForwardHandler rules but not the fixed
+source `K_decl` selected by `Sigma_theta.Lambda`. The independent falsifier
+found no admitted counterexample. A fresh compiler referee accepted both
+bounded packets CLEAN, while explicitly keeping Stage B blocked. The existing
+900-second proof reservation is now assigned to reconstructing the actual
+original result-port typing derivation or freezing its exact missing source
+input; no semantic rule is adopted by this reallocation. The implementation
+lane remains WAITING because the inspected Catch slot-50/Group and runtime
+request-consumer owners do not construct the missing original `A_decl` output
+map. See the [R22
 closeout](notes/progress/2026-10-18-r22-fixed-source-result-map-closeout.md)
 and [R23 contract](agent-loop/sprints/original-a-decl-provider-result-map-20261018-r23.md).
 
