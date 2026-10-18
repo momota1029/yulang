@@ -122,12 +122,113 @@ interfaces; `candidate_source` owns arm result and Catch slot-50 links. A native
 trace through all three plus Install(g) must witness the same path. F1/FK1,
 nonlocal providers and complete Call remain independent proof obligations.
 
+### Bounded direct-source derivation required by rev2
+
+For the R20 admitted direct shape, the scrutinee is exactly the resolved
+`signal::ping()` Apply, the selected operation arm's final expression is the
+resolved Apply `k response`, and `my g` installs the Catch result. The following
+is a **candidate derivation under the proposed least `Orig` rules**, not a
+derivation of field transport from the current solver:
+
+1. `operation_v1_catch_source` (`candidate_source.rs:705–755`) authenticates
+   the scrutinee's operation Apply and retained `h_arg`: same request `c`,
+   selected declaration/arm, binder `k`, exact argument Name resolution to
+   `d`, and callback body `m0`. The `response` Install action constructs its
+   annotated `R_d`; the argument Name action takes the exact local scheme's
+   capture/FreshUse, yielding `S_u`. Neither step equates S_u with a
+   continuation result.
+2. `candidate_catch_operation_inner` (`candidate_effect.rs:932–1033`)
+   constructs `k+ = Fun+(negative_response, entry-, returned+, R_ping+)`
+   and the paired negative Function at the same actual scrutinee endpoint.
+   `admit_candidate_fact` for this precise `k response` (`shadow_apply.rs:1763`
+   onward) checks `S_u <: negative_response` and its positive result-child
+   `R_ping+ <: R_k-`. These typed comparisons locate the candidate map's
+   endpoints, but do not supply its value origin or equate them.
+3. The raw continuation *inside this direct scrutinee* has no expression
+   after the request result before the scrutinee's return. Proposed
+   `Orig` resumption-binding introduction substitutes the exact argument
+   value origin `S_u` for the request-result binder at `R_ping`; the empty
+   suffix's identity/return clause yields `D0,D1` from that binder to the
+   actual `k` result `R_k`. This is the one new semantic bridge, tied to
+   the exact saved direct suffix; it cannot be inferred from the Function
+   subtype edge alone or applied to a foreign suffix without its derivation.
+4. The direct arm final expression is this same `k` Apply. If the arm is a
+   Block, its `final_expression` is that Apply and `candidate_source.rs:1428–1441`
+   emits a `CandidateRelation::Group`; `shadow_apply.rs:1791–1795` links the
+   actual Apply child to the arm's result endpoint. This gives `D2`, with
+   no source-spelling shortcut. `candidate_source.rs:1148–1168` adds the
+   selected arm's actual value endpoint to `R_catch` at slot 50; the
+   `Work::Install(g)` path installs that exact Catch endpoint/root. A later
+   g Name takes a *new* capture/FreshUse. The candidate field witness can
+   follow this chain only via the new per-hop mapped typed field drains above.
+
+For `{ my tmp = k response; tmp }`, `D2` instead passes the tmp initializer
+Install, exact resolved tmp Name's capture/FreshUse, and Block Finish Group
+before Catch slot 50. Each hop needs its own source ownership and mapped
+field task; this is not covered by the direct D2 proof. For `{ my tmp = k
+response; other_response }`, the Block Group child is `other_response`, so
+the inductive `Orig(R_k,arm.final,_)` has no derivation. The source matcher
+may still retain h_arg because it finds a nested Apply, but no
+`ResumeMap-elim` may transfer response's field to g. The alternative program
+is a candidate construction whose HIR admission/native run is unverified.
+The fixed direct derivation says nothing about arbitrary returned Functions,
+nonidentity raw suffixes, branch joins, general Call, or FK1 continuations;
+those remain OPEN.
+
+### Proposed prefix scheduling rule shared by A and B
+
+The pinned scheduler currently appends `Action::FieldBoundV1` *after* all
+ordinary traversal actions (`candidate_source.rs:1448`); the current
+`Action::LocalAnnotation` also constructs and installs in one action
+(`candidate_effect.rs:1542–1606`, `candidate_source.rs:1687`). Thus neither
+option's pre-capture field use can run by merely moving a proof line.
+Propose a **new candidate action order**, at the exact response
+`Work::Install(d)` position, with the retained original `h_arg` carried
+from source collection:
+
+```text
+all callback Operation/Apply/Lambda actions, CatchOperation/q preparation
+  -> response initializer effects and complete annotation comparison/drains
+  -> construct exposed R_d, retain its checked annotation derivation
+  -> EarlyFieldBoundV1(c,q,h_arg,m0,R_d) and A Own / B Pending payload
+  -> PublishLocal(response)=R_d
+  -> first response Name capture/FreshUse
+```
+
+This splits the present LocalAnnotation action into construct/check and
+publication actions; no current source action already has this order.
+`EarlyFieldBoundV1` carries the **same retained** h_arg/Arc evidence and
+the actual callback member, not a second matcher run. Source collection
+reserves `(callback-body Apply occurrence, slot 250)` once and checks it
+against the *complete* ordinary action/recipe schedule and every competing
+field producer before execution. A successful prefix comparison alone does
+not establish slot uniqueness. The final post-traversal
+`Action::FieldBoundV1` for that exact key is suppressed, not executed twice;
+an unmatched key keeps its ordinary disposition rather than borrowing this
+early record.
+
+The early record, its q/member task, and A's rooted witness or B's rooted
+Pending payload remain private candidate evidence. The typed field task must
+drain without conflict before local publication or capture. A later conflict,
+resource failure, duplicate key, annotation failure or solve failure rolls
+back the record/edge/root payload and suppresses all dependent final
+consumer/runtime/publication receipts, including earlier use-local claims.
+Full-candidate conflict-free publication remains a separate final gate; an
+early private success is not a proof or externally successful receipt. The
+root payload must already be reachable by actual Graph capture before the
+first response Name; no post-capture global attachment repairs a missed
+prefix. This proposed scheduling rule needs source/native review and an
+implementation lease before any code change.
+
 ## Option A — carry the successful local annotation derivation
 
 ### Introduction
 
-Add `AnnCarry-A` at `construct_candidate_local_annotation`, called by the
-actual `Work::Install(d)`. Its premises are all independently produced facts:
+Add `AnnCarry-A` in the proposed `EarlyFieldBoundV1` action after
+`construct_candidate_local_annotation` has completed its full check and
+formed `R_d`, and before the split `PublishLocal(d)`. The current
+`Work::Install(d)` is its intended source position. Its premises are all
+independently produced facts:
 
 1. `h_arg` and R6's complete `q,m0,c_outer` source derivations identify the
    same resolved definition `d`, exact callback body occurrence/member, and
@@ -204,7 +305,8 @@ origin, not a new row permission or a subtraction of residual effects.
 
 ### Introduction
 
-Add `Present-B` at successful response annotation publication. The positive
+Add `Present-B` at the same proposed pre-publication action, and publish its
+payload atomically with successful response annotation publication. The positive
 annotation independently declares a *field presentation* for `R_d`; the
 initializer is not yet declared to realize that field. Its premises are the
 exact annotation-positive `p`, actual slot-41 exposure/Install(d), complete

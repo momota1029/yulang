@@ -18,14 +18,14 @@
       "available_seconds": 0,
       "allocation": "R21 rev1 2700 retained fully charged; rev2 adds 600: author repair240 (proof/options120 + implementation contract120) + same independent delta review240 + integration120. Astra0; no R20 carryover."
     },
-    "next_action": "Commit/push rev2 contract/state, dispatch two exact document-only repairs; freeze hashes; same independent reviewer delta review; integrate only if CLEAN; then present selected/unavailable reviewed choices without adopting semantics.",
+    "next_action": "Freeze four rev2 document/handoff hashes and request same independent reviewer delta review against all three rev1 blockers. No semantic adoption or implementation code.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption.",
-    "last_stage_receipt": "R21 rev2 proof/options packet frozen with bounded direct D0/D1/D2 and proposed pre-capture EarlyFieldBound schedule; general Call remains open. Implementation-contract rev2 still active; delta review awaits both.",
+    "last_stage_receipt": "R21 rev2 proof/options and implementation contract frozen. D0/D1/D2 bounded to fixed direct specimen; new candidate-only pre-PublishLocal schedule; B unavailable unless source-scoped Pending traversal is derived. Delta review pending.",
     "git_checkpoint": {
       "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R21 rev2 contract/state frozen for 600s document-only repair; rev1 artifacts and BLOCKING review retained."
+      "receipt": "R21 rev2 options and implementation contract/handoffs frozen for same-reviewer delta review. No code/test authority."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0.",
@@ -51,7 +51,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev2 options/proof handoff frozen at 18dfcc745276fba6ddbdfaa4b58db73155f9c67117eb7cb1490f01dbbe0f1035 / d375786224b4856ba212483650c4c8911801300c1efcad97c4e4411ad7267dc5. Adds bounded direct D0/D1/D2, tmp-forward vs discard, and proposed EarlyFieldBound schedule/slot uniqueness/provisional gates. No code/tests/Git; awaits delta review."
+      "receipt": "R21 rev2 options/proof frozen at 18dfcc745276fba6ddbdfaa4b58db73155f9c67117eb7cb1490f01dbbe0f1035 / d375786224b4856ba212483650c4c8911801300c1efcad97c4e4411ad7267dc5. Adds bounded D0/D1/D2 and proposed pre-PublishLocal EarlyFieldBound action with same h_arg, full-schedule slot250 check, duplicate suppression and rollback. No tests/code/Git."
     },
     {
       "id": "/root/r21_bridge_falsifiers",
@@ -67,13 +67,13 @@
     {
       "id": "/root/r21_bridge_impl_contract",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev2 implementation-contract repair active after 028f5e144, 120s. Exact leased implementation contract/handoff only; align B Pending traversal ownership and pre-capture producer schedule; may mark B blocked. No code/tests/Git."
+      "receipt": "R21 rev2 implementation contract frozen at af512f3bba69c334dd7a2bb43a19ee79520480a6361a7a98e7a6c27d6abb2a2e / 0f2fa60e1ee1ae1535bcae5aea2daaff9862cd7604ddc2b73b462188577e83c2. Pre-capture schedule/rollback specified; B explicitly BLOCKED absent source-scoped rooted traversal proof. No tests/code/Git."
     },
     {
       "id": "/root/r21_bridge_integrated_review",
@@ -126,12 +126,12 @@
     {
       "path": "notes/design/2026-10-18-field-root-incidence-implementation-contract.md",
       "owner": "/root/r21_bridge_impl_contract",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-implementation.md",
       "owner": "/root/r21_bridge_impl_contract",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [],
