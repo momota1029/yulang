@@ -20,12 +20,12 @@
     },
     "next_action": "Freeze four rev2 document/handoff hashes and request same independent reviewer delta review against all three rev1 blockers. No semantic adoption or implementation code.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption.",
-    "last_stage_receipt": "R21 rev2 proof/options and implementation contract frozen. D0/D1/D2 bounded to fixed direct specimen; new candidate-only pre-PublishLocal schedule; B unavailable unless source-scoped Pending traversal is derived. Delta review pending.",
+    "last_stage_receipt": "R21 rev2 source protocol repair root-pushed at 0bc19eb0d; same independent compiler referee is reviewing exact delta across the options, implementation contract and handoffs. Parent OPEN/closure0.",
     "git_checkpoint": {
-      "commit": "PENDING",
+      "commit": "0bc19eb0d",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R21 rev2 options and implementation contract/handoffs frozen for same-reviewer delta review. No code/test authority."
+      "receipt": "R21 rev2 four-file repair integrated/pushed under authorized 600s continuation; same reviewer delta review active, no code semantics adopted."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0.",
@@ -78,13 +78,13 @@
     {
       "id": "/root/r21_bridge_integrated_review",
       "role": "compiler_referee",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "BLOCKING integrated R21 rev1 review; all seven hashes/pins match. Found missing fixed-specimen ResultMap derivation, impossible early FieldBound drain under pinned post-traversal schedule, and B Pending capture/join mismatch. No edits/tests/build/Git; rev2 delta review may be assigned after repaired hashes freeze."
+      "receipt": "R21 rev2 delta review active at 0bc19eb0d; exact four changed hashes supplied. Verify prior ResultMap, scheduling, Pending/Realize blockers; no edits/tests/build/Git."
     }
   ],
   "leases": [
