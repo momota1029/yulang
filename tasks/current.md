@@ -17630,3 +17630,18 @@ No Cargo ran, no semantic or expected-output change was accepted, and the
 original parent remains 0 -> 0. See the [R36 closeout](../notes/progress/2026-10-18-r36-closeout.md),
 [contract](agent-loop/sprints/apply-scope-publication-20261018-r36.md), and frozen
 proof/native handoffs.
+
+## Closed research sprint — R55
+
+R55 attempted the original direct-current-formal/Name mapped-admission premise
+from forwarding-preservation §6 under its unchanged §1 domain. The reviewed
+bounded result is an exact unsupported owner judgment: prove or refute actual
+source-set/signed-traversal coverage through replay, extrusion and qualified
+merge before a later real capture, with a partial FreshUse correspondence
+constructed from actual captured, shared or merged rows. No universal proof or
+authentic source-qualified counterexample was established; the parent remains
+OPEN at 0 -> 0, R50 remains NOT ADOPTED, and no safe code slice was identified.
+Fresh compiler and spec reviews were CLEAN for the bounded packet only. Further
+general attempts pause pending concrete original-domain owner evidence; no next
+sprint is assigned. See the [R55 closeout](../notes/progress/2026-10-19-r55-closeout.md)
+and [R55 contract](agent-loop/sprints/original-name-core-20261019-r55.md).
