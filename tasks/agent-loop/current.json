@@ -7,7 +7,7 @@
     "id": "paired-annotation-interface-20261019-r60",
     "contract": "tasks/agent-loop/sprints/paired-annotation-interface-20261019-r60.md",
     "revision": 2,
-    "state": "RUNNING",
+    "state": "CLOSED",
     "baseline": "b62bf4bed359ed5f8bd4728923d1807044f9e8c9",
     "contract_sha256": "6b40870963d796a9bc1d125334a39e049d893450da8d1b38bdc0b310b5f982f1",
     "parent": "Original computation-forwarding preservation §§1,6-7; original quantifiers/domain and Simple-sub A/B OPEN 0->0; R50 NOT ADOPTED.",
@@ -21,24 +21,24 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 1500,
-      "available_seconds": 300,
-      "allocation": "Sol600 and Luna source-owner500 conservatively charged at lane caps; fresh compiler200 and spec200 reviews conservatively charged at caps; integration300 remains. Total1800; Astra0; no carryover. Actual wall time/CPU/RSS UNKNOWN.",
+      "charged_seconds": 1800,
+      "available_seconds": 0,
+      "allocation": "Full 1800s conservatively charged at lane caps: Sol600, Luna owner500, compiler200, spec200, integration300. No carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "Both independent reviews CLEAN and stopped. Luna integration active within final 300s: produce reviewed closeout, synchronize compact state/tasks/current, consult dispatcher at sprint end, then explicitly stage/commit/push. No implementation or production promotion.",
-    "history": "R59 closed and pushed in fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3; integration and compact-state receipts pushed in b62bf4bed359ed5f8bd4728923d1807044f9e8c9. R59 parent OPEN 0->0, A/B OPEN, R50 NOT ADOPTED. R60 revision1 status wording was corrected to revision2 before any author work. Exact revision2 SHA and 25/25 pins checked; baseline b62bf4bed359ed5f8bd4728923d1807044f9e8c9 matches HEAD/origin; dispatcher confirmed start-boundary fit; Luna activated R60. Sol has not acknowledged; no proof reads/writes started. All prior identities STOPPED, leases FROZEN.",
+    "next_action": "R60 closed and pushed: closeout/docs commit 3ad1d68c3. Final compact-state receipt commit follows. No active writers, reviews, or leases. Next dependency requires a fresh Luna-approved exact packet for the whole-ascription Corr/substitution supplier or an owning authority decision.",
+    "history": "R60 rev2 activated on a3ab8baff; proof receipt 18bfb6635; Luna owner outputs e0300e31d; proof/frozen hashes and STOP at 290232294; both fresh reviews CLEAN and receipts at 2bdf2a8cc; closeout and tasks/current pushed at 3ad1d68c3. All five exact target hashes and 25/25 pins match. All authors/reviewers STOPPED, all outputs frozen, no descendants. Parent OPEN 0->0; R50 NOT ADOPTED.",
     "workers": [
       {
         "id": "/root",
         "role": "Luna primary; read-only source-owner lane and integration",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r60",
-        "receipt": "Both fresh R60 reviews are STOPPED/CLEAN with exact targets and 25/25 pins matched. Luna is now integrating the reviewed conditional result and closeout within the reserved 300s; no code/tests/execution."
+        "receipt": "Luna integration complete; STOPPED / NO_DESCENDANTS. Closeout notes/progress/2026-10-19-r60-closeout.md SHA-256 d4f3bce801167a8b8a2b6ff1edc8b688b163bb03bab9cc0186d864533b24c3e5 and tasks/current.md committed/pushed at 3ad1d68c3; current-state close receipt follows. Static/doc integration only; no code/tests/execution. Requested Luna/high; observed model/effort UNKNOWN; 300s integration cap charged conservatively; actual duration/CPU/RSS UNKNOWN."
       },
       {
         "id": "/root/r53_ordinary_mixed_capture_proof",
@@ -103,14 +103,14 @@
     ],
     "pending": [
       {
-        "id": "R60-PAIRED-ANNOTATION-INTERFACE",
-        "state": "INTEGRATION",
-        "owner": "Sol proof + Luna read-only source-owner lane",
-        "request": "Derive authentic same-pA/provider AE entrance and local permission correspondence under selected source contract; account for correlated result interface or isolate first exact missing premise.",
-        "falsifier": "R59 assignment still satisfies proposed constructor while entrance fails; permission becomes cap/contribution; unrelated provider/position supplies evidence; pairing removes legal behavior; or generated constraints are dropped."
+        "id": "R60-JOINT-ASCRIPTION-LIFT-1",
+        "state": "OPEN",
+        "owner": "Luna; requires a fresh packet, no active grant",
+        "request": "Obtain an owner-derived whole-ascription source/native Corr and source-indexed substitution/lifting law for the fixed original source; preserve the same pA/provider entrance, local permission and joint K,D, correlated pR result constraints; establish actual Q dependency structure or valid transport.",
+        "falsifier": "A permitted original source solution has no native lift; wrong source position/provider/receiver; permission becomes cap/contribution/subtraction; correlated result evidence or ordinary constraints are lost; or authentic paired constructor still admits R59 entrance failure."
       }
     ],
-    "closure": "OPEN. No paired constructor result, source/native admission, code change or parent closure yet.",
+    "closure": "CLOSED — REVIEWED CONDITIONAL RESULT / EXACT CONSTRUCTOR OBSTRUCTION. Proof artifact and owner trace plus both handoffs frozen; compiler/source-owner and spec/domain reviews CLEAN; 25/25 direct dependency pins MATCH; closeout notes/progress/2026-10-19-r60-closeout.md SHA-256 d4f3bce801167a8b8a2b6ff1edc8b688b163bb03bab9cc0186d864533b24c3e5. Scalar projection/lifting is valid only when Q is independent of eliminated AE auxiliaries. Exact missing supplier: owner-derived whole-ascription Corr and source-indexed substitution/lifting preserving same original pA/provider, position-local permission/joint K,D, and correlated pR results. Authentic source-preserving exclusion of R59 assignment remains OPEN. Parent/A/B and downstream gates OPEN 0->0; R50 NOT ADOPTED. No constructor, implementation, or production promotion.",
     "primary_approval": "Luna activates R60 revision 2 at exact SHA-256 6b40870963d796a9bc1d125334a39e049d893450da8d1b38bdc0b310b5f982f1 after final 25/25 dependency pins MATCH, clean baseline b62bf4bed359ed5f8bd4728923d1807044f9e8c9 equal to HEAD/origin, and dispatcher start-boundary confirmation. Grants only the fixed research proof and read-only owner lanes, exact paths and 1800s allocation in the contract; no code/tests/execution/implementation/production authority. Parent OPEN 0->0; R50 NOT ADOPTED.",
     "dispatcher_start": {
       "agent": "/root/r46_next_action",
