@@ -93,7 +93,7 @@
         "id": "R26-ACTUAL-ENTRY-PATH",
         "state": "RESULT",
         "owner": "/root",
-        "artifact": "Frozen Luna audit tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md SHA c102cdd716cdff8178510f5626c8ecf14a2170e0ca33e6013a043041dbedaedd; earliest missing input at caller/host, NO_SAFE_CODE_SLICE."
+        "artifact": "Frozen Luna audit tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md SHA 5a0e7fde1aa57477b2267eb2dabc30e376f84552bbd5616eed3e4933c6cab2f4; CLI/public caller and HIR source owner traced; earliest missing input at caller/host, NO_SAFE_CODE_SLICE."
       },
       {
         "id": "R26-INDEPENDENT-REVIEW",
@@ -182,7 +182,7 @@
       "id": "R26-ACTUAL-ENTRY-PATH",
       "state": "RESULT",
       "owner": "/root",
-      "artifact": "Frozen Luna audit tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md SHA c102cdd716cdff8178510f5626c8ecf14a2170e0ca33e6013a043041dbedaedd; earliest missing input at caller/host, NO_SAFE_CODE_SLICE."
+      "artifact": "Frozen Luna audit tasks/agent-loop/inbox/20261018-caller-evidence-entry-path.md SHA 5a0e7fde1aa57477b2267eb2dabc30e376f84552bbd5616eed3e4933c6cab2f4; CLI/public caller and HIR source owner traced; earliest missing input at caller/host, NO_SAFE_CODE_SLICE."
     },
     {
       "id": "R26-INDEPENDENT-REVIEW",

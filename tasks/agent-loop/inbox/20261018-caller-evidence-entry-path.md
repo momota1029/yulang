@@ -8,8 +8,12 @@ closure 0; this is repository path evidence, not semantic nonexistence.
 
 ## Inspected owners and trace
 
-1. **Public caller / preparation:** `tools/inference-playground/src/lib.rs`.
-   `infer_with_scoped_experiment` and `execute` reach private `prepare`, which
+1. **CLI caller / public API / preparation:** `tools/inference-playground/src/main.rs`
+   reads source text from a path or stdin, derives only a display name from the
+   path, and calls public `infer_with_scoped_experiment` or `execute` with
+   options. Neither accepts a semantic registration/context. In
+   `tools/inference-playground/src/lib.rs`, `infer_with_scoped_experiment`
+   and `execute` reach private `prepare`, which
    parses caller text, then calls `lower_module_with_local_source(...,
    SemanticImports::empty())`. The operation-v1 helper does the same. Inference
    receives `hir.clone()`; ordinary execution passes the resulting HIR to
@@ -48,6 +52,8 @@ semantics or tests changed in this read-only lane.
 
 ## Frozen sources
 
+- `tools/inference-playground/src/main.rs` —
+  `75b38435f4634ee35b3e14a54fb4d021b78bda834b4fd53965302a73309e0100`
 - `tools/inference-playground/src/lib.rs` —
   `bdf996d0264e252e345c05bc77b2adcf625120281244171f0054f1d87a8d1e1b`
 - `crates/yu-hir/src/module.rs` —
