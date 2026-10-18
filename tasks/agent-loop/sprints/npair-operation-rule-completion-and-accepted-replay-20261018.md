@@ -1,6 +1,6 @@
 # Sprint `npair-operation-rule-completion-and-accepted-replay-20261018`
 
-Status: CANDIDATE until Luna records live author receipts. Branch
+Status: CLOSED-REVIEWED-PARTIAL revision2. Branch
 `research/simple-sub-intrusion`; baseline `059bbab6e`. Parent
 `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` stays OPEN with original
 quantifiers, source domain and fixed-c requirement. Astra0; no rollover.
@@ -108,3 +108,34 @@ claim. Apply any derivable original-rule result directly to the unchanged parent
 At the next material boundary consult `next_action_selector`; closeout reports
 only original conditions genuinely closed, newly working implementation/test
 behavior, and the next exact open premise.
+
+## Luna closeout rev2
+
+The fixed-c candidate and handoff were independently reviewed at their exact
+hashes. Review found two BLOCKING gaps and one MAJOR gap: the original-c selector
+and `SameOwner` remain unconstructed semantic inputs; the universal R/W/Z and
+changed-domain actions remain signatures rather than case rules; and the real
+consumer forward/back behavior is not instantiated. The candidate is retained
+as a conditional, unadopted draft. No original condition closed.
+
+The implementation snapshot received independent review with no BLOCKING or
+MAJOR finding and one scoped MINOR: the example requires
+`shadow-apply-candidate` when built directly; both exact authorized commands
+provide that feature. One focused invocation exited 0 with 6/6 selected tests
+passing. However, its complete observer capture produced
+`call=0 ... demand_root=Term { brand: TermArenaBrand(3), index: 297 }
+native_root_matches=false endpoint_pairs=(lower:true,upper:true)`. This violates
+the required typed Replay/native-demand correspondence even though both
+endpoints match. The source-call index is the first `invoke` formal Apply by the
+frozen test's source order; the example was not run because this exact runtime
+falsifier activates the contract stop condition. No retry or further command
+ran. Full output hashes and exit status are in the primary runtime metadata.
+
+Original closure remains 0. Runtime proves the corrected ordinary-lowering
+fixture is accepted and the focused regression reaches the propagated integer
+result; it does not establish the required Replay correspondence or any parent
+theorem. All authors and reviewers are STOPPED. The example is NOT_RUN. The
+remaining primary/reserve capacity expires; no rollover. Next work must
+determine whether the demand-root mismatch reflects a real lineage defect or an
+invalid observer equality, then repair/review that exact relation before
+releasing another runtime command.

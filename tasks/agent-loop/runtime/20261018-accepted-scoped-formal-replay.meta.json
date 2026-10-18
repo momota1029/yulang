@@ -20,23 +20,24 @@
     "static_owner_explanation": "Old opt-in local_source helper preserved UnsupportedExpression IDs for Apply bodies; this is static explanation from owner history, not output captured from the prior run."
   },
   "primary_release": {
-    "status": "EXPLICIT_TEST_ONLY",
+    "status": "EXPLICIT_TEST_ONLY_COMPLETED_FALSIFIER",
     "released_utc": "2026-10-17 23:59:41 UTC",
     "capacity_available_seconds": 240,
     "required_seconds": 120,
     "reviewer": "/root/accepted_replay_review",
     "review": "CLEAN_WITH_MINOR",
     "no_retry": true,
-    "command": "test only; example remains unreleased until a fresh >=120s capacity check after test success"
+    "command": "test only; example remains unreleased until a fresh >=120s capacity check after test success",
+    "example_status": "NOT_RELEASED_STOPPED_AFTER_OBSERVER_MISMATCH"
   },
   "test_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver --features shadow-apply-candidate candidate_graph_call --lib",
   "test_invocation": 1,
-  "test_status": "RELEASED_PENDING_EXECUTION",
+  "test_status": "EXIT_0_WITH_OBSERVER_MISMATCH",
   "test_stdout_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.test.stdout.log",
   "test_stderr_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.test.stderr.log",
   "example_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo run --offline -p yu-solver --features shadow-apply-candidate --example research_scoped_formal_replay",
   "example_invocation": 0,
-  "example_status": "NOT_RUN",
+  "example_status": "NOT_RUN_STOPPED_AFTER_RUNTIME_FALSIFIER",
   "example_stdout_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.example.stdout.log",
   "example_stderr_path": "tasks/agent-loop/runtime/20261018-accepted-scoped-formal-replay.example.stderr.log",
   "parent_conditions_closed": 0,
@@ -44,5 +45,20 @@
     "id": "/root/accepted_replay_review",
     "status": "STOPPED",
     "result": "No BLOCKING/major; one minor feature boundary; all exact pins match."
-  }
+  },
+  "closeout": {
+    "status": "CLOSED-REVIEWED-PARTIAL",
+    "test_exit_code": 0,
+    "test_stdout_sha256": "03aa813ca0866b88c7024fdfb5e7dafcbcd9e2fe0c1bfd096e6201d98c86c48a",
+    "test_stderr_sha256": "1ecaf9fbc0573bb464535cc865bcca4aa45e9fcc67f53bb73e28c669d13bd75c",
+    "selected_tests": "6 passed, 0 failed",
+    "observer_row": "call=0 child=61 lower=58 upper=35 use_instance=1 demand_root=Term { brand: TermArenaBrand(3), index: 297 } native_root_matches=false endpoint_pairs=(lower:true,upper:true)",
+    "runtime_status": "FALSIFIER: typed Replay row endpoints match but native root does not match native demand",
+    "example_status": "NOT_RUN_STOPPED_AFTER_RUNTIME_FALSIFIER",
+    "retry": "NONE",
+    "parent_conditions_closed": 0
+  },
+  "test_exit_code": 0,
+  "test_stdout_sha256": "03aa813ca0866b88c7024fdfb5e7dafcbcd9e2fe0c1bfd096e6201d98c86c48a",
+  "test_stderr_sha256": "1ecaf9fbc0573bb464535cc865bcca4aa45e9fcc67f53bb73e28c669d13bd75c"
 }

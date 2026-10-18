@@ -1,0 +1,11 @@
+
+running 6 tests
+test tests::candidate_graph_call::scoped_local_callee_route_survives_a_later_local_argument_use ... ok
+test tests::candidate_graph_call::candidate_graph_call_retains_deferred_formal_demand_and_fresh_uses ... ok
+test tests::candidate_graph_call::scoped_annotated_and_ascribed_local_callees_remain_refused ... ok
+test tests::candidate_graph_call::accepted_scoped_formal_demand_replay_propagates_to_received_result ... ok
+test tests::candidate_graph_call::candidate_graph_call_retains_capture_after_identity_providers_arrive ... ok
+test tests::candidate_graph_call::unscoped_candidate_collection_does_not_inherit_the_scoped_record_cap ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 718 filtered out; finished in 1.04s
+

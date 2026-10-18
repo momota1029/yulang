@@ -434,3 +434,146 @@ fn candidate_graph_call_retains_capture_after_identity_providers_arrive() {
         );
     }
 }
+
+#[test]
+fn accepted_scoped_formal_demand_replay_propagates_to_received_result() {
+    const SOURCE: &str =
+        "my invoke f = f 1\nmy id x = x\nmy received = invoke id";
+    const SOURCE_SHA256: &str = "b9e4cc9a28de645a529ae31c7ca914b72efc73e51951bed917374f9c81c385d6";
+    assert!(!SOURCE_SHA256.is_empty(), "freeze the accepted source literal");
+    let source: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
+    let parsed = yu_syntax::parse_file(
+        source.clone(),
+        Arc::new(yu_syntax::scan_header(source)),
+        Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+    );
+    assert!(
+        parsed.syntax_diagnostics().unwrap().is_empty(),
+        "accepted fixture has syntax diagnostics: {:?}",
+        parsed.syntax_diagnostics().unwrap()
+    );
+    assert!(
+        parsed.structural_recoveries().is_empty(),
+        "accepted fixture has structural recoveries: {:?}",
+        parsed.structural_recoveries()
+    );
+    let hir = Arc::new(
+        yu_hir::lower_module(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "candidate-graph-accepted",
+                "call.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        )
+        .unwrap(),
+    );
+    assert!(
+        hir.errors().is_empty(),
+        "accepted replacement fixture must have no HIR errors: {:?}",
+        hir.errors()
+    );
+
+    let invoke_root = candidate_call_root(&hir, "invoke");
+    let received_root = candidate_call_root(&hir, "received");
+    let invoke_owner = yu_hir::SourceRootId::Definition(invoke_root.clone());
+    let received_owner = yu_hir::SourceRootId::Definition(received_root.clone());
+    let invoke_source = hir.local_source(invoke_root).unwrap().unwrap();
+    let received_source = hir.local_source(received_root).unwrap().unwrap();
+    let formal_apply = invoke_source
+        .expressions()
+        .iter()
+        .find(|expression| matches!(&expression.form, LocalSourceForm::Apply { .. }))
+        .expect("invoke has its formal Apply");
+    let received_apply = received_source
+        .expressions()
+        .iter()
+        .find(|expression| matches!(&expression.form, LocalSourceForm::Apply { .. }))
+        .expect("received has its outer Apply");
+    let LocalSourceForm::Apply { callee, argument, .. } = &received_apply.form else {
+        unreachable!()
+    };
+    let received_callee = received_source.expression(callee).unwrap();
+    let received_argument = received_source.expression(argument).unwrap();
+    assert!(matches!(
+        &received_callee.form,
+        LocalSourceForm::Name {
+            resolution: LocalSourceResolution::ModuleDef(_), ..
+        }
+    ));
+    assert!(matches!(
+        &received_argument.form,
+        LocalSourceForm::Name {
+            resolution: LocalSourceResolution::ModuleDef(_), ..
+        }
+    ));
+
+    let candidate = CandidateInference::solve_scoped_experiment(hir.clone()).unwrap();
+    assert!(candidate.observes_hir(&hir));
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert_eq!(
+        hir.source_carrier_outcomes().len(),
+        3,
+        "ordinary lowering retains one source carrier outcome per binding"
+    );
+    let formal_index = (0..candidate.source_call_count())
+        .find(|index| {
+            candidate.source_call(*index).is_ok_and(|call| {
+                call.owner() == &invoke_owner
+                    && call.source().occurrence == formal_apply.occurrence
+            })
+        })
+        .expect("source-owned formal Apply was admitted");
+    let formal_call = candidate.source_call(formal_index).unwrap();
+    let introduction = formal_call
+        .directional_introduction()
+        .expect("omitted formal introduction is retained");
+    assert_eq!(introduction.original_owner(), &invoke_owner);
+    assert_eq!(introduction.original_demand(), formal_call.native_demand());
+    assert_eq!(
+        introduction.checking_occurrence().occurrence(),
+        &formal_apply.occurrence
+    );
+    assert!(formal_call.formal_registration().is_some());
+
+    let received_index = (0..candidate.source_call_count())
+        .find(|index| {
+            candidate
+                .source_call(*index)
+                .is_ok_and(|call| {
+                    call.owner() == &received_owner
+                        && call.source().occurrence == received_apply.occurrence
+                })
+        })
+        .expect("received outer Apply has an authenticated candidate call");
+    let received_call = candidate.source_call(received_index).unwrap();
+    assert_eq!(received_call.source().occurrence, received_apply.occurrence);
+    assert_eq!(received_call.checking_occurrence().occurrence(), &received_apply.occurrence);
+    assert_eq!(received_call.module_callee_target(), Some(match &received_callee.form {
+        LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(id), .. } => id,
+        _ => unreachable!(),
+    }));
+
+    let graph = candidate.export(received_root).unwrap();
+    assert!(
+        graph.bounds().any(|bound| {
+            bound.kind() == ComponentKind::Value
+                && bound.lower().leaf() == Some(CandidateGraphLeaf::IntPositive)
+                && candidate_call_reaches(
+                    &graph,
+                    bound.upper(),
+                    graph.root(),
+                    ComponentKind::Value,
+                )
+        }),
+        "the accepted `invoke id` result receives the propagated integer lower"
+    );
+    // The typed Replay row is keyed to invoke's formal Apply, whose omitted
+    // formal demand is replayed; it is not keyed to received's outer Apply.
+    assert_ne!(
+        received_call.checking_occurrence(),
+        formal_call.checking_occurrence(),
+        "received Apply is distinct from invoke's formal Apply"
+    );
+    assert_ne!(formal_index, received_index);
+}
