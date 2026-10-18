@@ -29,13 +29,13 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 600,
-      "available_seconds": 1800,
-      "allocation": "Luna read-only design/map 600 charged; Sol proof 900 assigned, fresh compiler/spec reviews 300 each and integration 300 reserved. Astra 0; no carryover; CPU/RSS UNKNOWN. No builds/tests/runtime.",
+      "charged_seconds": 1500,
+      "available_seconds": 900,
+      "allocation": "Luna read-only design/map 600 + Sol proof 900 charged; two independent reviews 300 each + Luna integration 300 remain, no carryover. Astra 0; CPU/RSS UNKNOWN. No builds/tests/runtime.",
       "overrun_seconds": 0
     },
     "next_action": "Continue proof and read-only design in parallel. Return at frozen proposal, unsupported premise, authority/dependency/lease change, or resource boundary.",
-    "history": "R49 closed/pushed at reviewed bounded NO_SAFE_CODE_SLICE; corrected pin rev2. Startup reconciled all prior agents terminal and removed stale top-level R49 pending rows. Dispatcher selected R50 approval-ready admission proposal; no adoption/code authorization.",
+    "history": "R49 closed/pushed at reviewed bounded NO_SAFE_CODE_SLICE; corrected pin rev2. Startup reconciled all prior agents terminal and removed stale top-level R49 pending rows. Dispatcher selected R50 approval-ready admission proposal; no adoption/code authorization. Actual Sol proof launch acknowledged by runtime; requested Sol/high, effective model/effort UNKNOWN; exact output lease and no-descendants condition recorded.",
     "workers": [
       {
         "id": "/root",
@@ -51,13 +51,13 @@
       {
         "id": "/root/r50_active_link_refinement",
         "role": "Sol constructive preservation/refinement proof",
-        "state": "NOT_STARTED",
+        "state": "RUNNING",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r50",
-        "receipt": "Exact proof artifact + handoff lease; 900s grant issued; awaiting actual runtime launch acknowledgement."
+        "receipt": "Actual prover launch acknowledged by collaboration runtime as /root/r50_active_link_refinement; requested Sol/high; effective observed model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
       }
     ],
     "leases": [
@@ -104,10 +104,10 @@
       {
         "id": "R50-SOL-ACTIVE-LINK-REFINEMENT",
         "role": "prover",
-        "state": "ASSIGNED",
+        "state": "RUNNING",
         "worker_id": "/root/r50_active_link_refinement",
         "budget_seconds": 900,
-        "receipt": "Launch not yet acknowledged; exact two-path lease; 900s charged; no descendants."
+        "receipt": "Actual prover launch acknowledged by collaboration runtime as /root/r50_active_link_refinement; requested Sol/high; effective observed model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
       },
       {
         "id": "R50-COMPILER-REVIEW",
@@ -149,13 +149,13 @@
     {
       "id": "/root/r50_active_link_refinement",
       "role": "Sol constructive preservation/refinement proof",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r50",
-      "receipt": "Exact proof artifact + handoff lease; 900s grant issued; awaiting actual runtime launch acknowledgement."
+      "receipt": "Actual prover launch acknowledged by collaboration runtime as /root/r50_active_link_refinement; requested Sol/high; effective observed model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
     }
   ],
   "leases": [
@@ -202,10 +202,10 @@
     {
       "id": "R50-SOL-ACTIVE-LINK-REFINEMENT",
       "role": "prover",
-      "state": "ASSIGNED",
+      "state": "RUNNING",
       "worker_id": "/root/r50_active_link_refinement",
       "budget_seconds": 900,
-      "receipt": "Launch not yet acknowledged; exact two-path lease; 900s charged; no descendants."
+      "receipt": "Actual prover launch acknowledged by collaboration runtime as /root/r50_active_link_refinement; requested Sol/high; effective observed model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
     },
     {
       "id": "R50-COMPILER-REVIEW",
