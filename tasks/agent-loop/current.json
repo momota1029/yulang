@@ -18,7 +18,7 @@
       "available_seconds": 0,
       "allocation": "source caller witness600 + staged Sol proof900 + fresh independent review360 + integration240. Astra0; no R23 carryover. No code/tests."
     },
-    "next_action": "Start source-owner lane to derive the actual caller tuple and its source dependencies; stage proof until exact witness is frozen.",
+    "next_action": "Wait for the actual caller tuple and exact guard formation from lane A; keep Sol proof staged until Luna verifies this source evidence.",
     "history": "Reuses bounded receiving profile, native Pi0/response Return, canonical Op0 and local inventory. Prior caller-registration attempt failed at authentic caller guard tuple; do not repeat a generic audit. Implementation WAITING.",
     "git_checkpoint": {
       "commit": "298fe845e",
@@ -36,7 +36,18 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Primary owns R24 authority, exact lease dispatch, staged proof activation, independent review, integration and Git."
+        "receipt": "Primary owns R24 authority, exact lease dispatch, staged proof activation, review, integration and Git."
+      },
+      {
+        "id": "/root/r23_source_expansion",
+        "role": "researcher",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "R24 caller-source lane acknowledged; exact two-file lease, 600s cap; deriving actual j0/a0/license at shared W0,xi,h0."
       }
     ],
     "leases": [
@@ -49,20 +60,30 @@
         "path": "tasks/agent-loop/sprints/choose-caller-registration-witness-20261018-r24.md",
         "owner": "/root",
         "state": "FROZEN"
+      },
+      {
+        "path": "notes/design/2026-10-18-choose-caller-registration-witness.md",
+        "owner": "/root/r23_source_expansion",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-choose-caller-registration-witness.md",
+        "owner": "/root/r23_source_expansion",
+        "state": "HELD"
       }
     ],
     "pending": [
       {
         "id": "R24-CALLER-WITNESS-1",
-        "state": "READY",
-        "owner": "/root/r23_source_expansion (reuse with new exact lease)",
-        "artifact": "Actual caller-owned j0/a0/license/incidence at the same W0,xi,h0, or exact missing source judgment."
+        "state": "RUNNING",
+        "owner": "/root/r23_source_expansion",
+        "artifact": "Actual caller-owned j0/a0/license/incidence at one shared W0,xi,h0 and phase guard actions, or exact missing source judgment."
       },
       {
         "id": "R24-JOINTWF-PROOF-1",
         "state": "STAGED",
-        "owner": "Sol/prover activated by Luna only after actual tuple is frozen",
-        "artifact": "PhiW immediate guards and eventwise phase actions, then S subset Phi(S) under existing four-sort construction."
+        "owner": "Sol/prover activated by Luna only after source tuple freezes",
+        "artifact": "Apply actual same-tuple caller evidence to all PhiW immediate guards and phase actions; no assumed validity."
       }
     ],
     "ready_next_work": {
@@ -88,7 +109,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Primary owns R24 authority, exact lease dispatch, staged proof activation, independent review, integration and Git."
+      "receipt": "Primary owns R24 authority, exact lease dispatch, staged proof activation, review, integration and Git."
+    },
+    {
+      "id": "/root/r23_source_expansion",
+      "role": "researcher",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "R24 caller-source lane acknowledged; exact two-file lease, 600s cap; deriving actual j0/a0/license at shared W0,xi,h0."
     }
   ],
   "leases": [
@@ -101,20 +133,30 @@
       "path": "tasks/agent-loop/sprints/choose-caller-registration-witness-20261018-r24.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "notes/design/2026-10-18-choose-caller-registration-witness.md",
+      "owner": "/root/r23_source_expansion",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-choose-caller-registration-witness.md",
+      "owner": "/root/r23_source_expansion",
+      "state": "HELD"
     }
   ],
   "pending": [
     {
       "id": "R24-CALLER-WITNESS-1",
-      "state": "READY",
-      "owner": "/root/r23_source_expansion (reuse with new exact lease)",
-      "artifact": "Actual caller-owned j0/a0/license/incidence at the same W0,xi,h0, or exact missing source judgment."
+      "state": "RUNNING",
+      "owner": "/root/r23_source_expansion",
+      "artifact": "Actual caller-owned j0/a0/license/incidence at one shared W0,xi,h0 and phase guard actions, or exact missing source judgment."
     },
     {
       "id": "R24-JOINTWF-PROOF-1",
       "state": "STAGED",
-      "owner": "Sol/prover activated by Luna only after actual tuple is frozen",
-      "artifact": "PhiW immediate guards and eventwise phase actions, then S subset Phi(S) under existing four-sort construction."
+      "owner": "Sol/prover activated by Luna only after source tuple freezes",
+      "artifact": "Apply actual same-tuple caller evidence to all PhiW immediate guards and phase actions; no assumed validity."
     }
   ],
   "ready_next_work": {
@@ -127,5 +169,11 @@
     "required": false,
     "receipt": "R23 workers stopped; three frozen evidence packets independently CLEAN within bounded scopes; parent closure0. R24 is a new bounded assignment; no code/unknown leases."
   },
-  "next_action": "Start source-owner lane to derive the actual caller tuple and its source dependencies; stage proof until exact witness is frozen."
+  "next_action": "Wait for the actual caller tuple and exact guard formation from lane A; keep Sol proof staged until Luna verifies this source evidence.",
+  "git_checkpoint": {
+    "commit": "f4fba1f38",
+    "branch": "research/simple-sub-intrusion",
+    "pushed_to": "origin/research/simple-sub-intrusion",
+    "receipt": "R23 closeout and R24 contract pushed; R24 caller-source lane acknowledged; launch snapshot commit pending."
+  }
 }
