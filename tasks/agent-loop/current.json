@@ -4,71 +4,60 @@
   "phase": "ACTIVE",
   "session": "current-session",
   "active_sprint": {
-    "id": "source-context-guard-interpretation-20261018-r30",
-    "contract": "tasks/agent-loop/sprints/source-context-guard-interpretation-20261018-r30.md",
+    "id": "active-outer-root-allocation-20261018-r31",
+    "contract": "tasks/agent-loop/sprints/active-outer-root-allocation-20261018-r31.md",
     "revision": 1,
-    "state": "CLOSED",
-    "baseline": "115e909da",
-    "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original source/provider/context/world/assignment/occurrence/continuation/whole-Call/future/history/F1/FK1 scope unchanged; OPEN/closure0.",
-    "fixed_outcome": "Define and audit one candidate source-semantic interpretation of the original j0/a0 schemas with all unresolved original requirements explicit; prove projection coverage and attempt unchanged ctrl.choose over the full predecessor domain, or isolate exact residual/counterexample. A definition alone discharges zero parent conditions.",
+    "state": "ACTIVE",
+    "baseline": "4bf67d9113e877b7cc3c3a35c5982c233f971fdc",
+    "parent": "Full goal: implement Yulang type inference and executor with proofs. Necessary source-allocation bridge for intrusion/principality/N-Transport; R30 CHOOSE-SOURCE-2 remains independently OPEN/closure0.",
+    "fixed_outcome": "Determine from adopted rules whether complete demand coordinate C and its equality clause from an active outer recursive root are shared or frame-local across independent nested-helper descriptions; derive the placement, prove two lawful placements, or locate the first missing adopted judgment. No new law.",
     "resources": {
-      "cap_seconds": 3000,
-      "charged_seconds": 3000,
-      "available_seconds": 0,
-      "allocation": "Definition800 + native mapping400 + proof1000 + reviews550 + integration250 charged; effective worker runtimes UNKNOWN; Astra0; no code/tests/builds/probes."
+      "cap_seconds": 960,
+      "charged_seconds": 660,
+      "available_seconds": 300,
+      "allocation": "Sol proof360 + independent source falsifier300 charged/reserved at launch; fresh review180 + Luna integration120 remain. Astra0; no code/tests/builds/probes."
     },
-    "next_action": "R30 is closed. Dependency decomposition and dispatcher found NO_SAFE_INDEPENDENT_SEAM under existing adopted assumptions. Keep the parent OPEN/closure0 and wait for actual original j0/a0 dependent definitions plus same-event world/old-field actions, or a separately reviewed semantic decision; no new guard proof or code packet without that changed input.",
-    "history": "R30 closeout notes/progress/2026-10-18-r30-guard-interpretation-closeout.md: parent0->0; candidate/adequacy/native mapping independently reviewed; source NO_SAFE_CODE_SLICE. Both children STOPPED.",
+    "next_action": "Proof and independent falsifier active. Both must apply the full adopted source record and original scopes; scalar-only or missing-rule repetition is insufficient. Stop at any missing source-law judgment.",
+    "history": "R30 closeout notes/progress/2026-10-18-r30-guard-interpretation-closeout.md; original conditions0->0, source mapping NO_SAFE_CODE_SLICE. Full-goal dependency audit selected this independent active-outer-root allocation frontier.",
     "git_checkpoint": {
-      "commit": "131b9100c8833e9354a9e9dd681a385627db245c",
+      "commit": "4bf67d9113e877b7cc3c3a35c5982c233f971fdc",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R30 adequacy proof/handoff, both independent review outcomes, closeout receipt, and compact state/task summary pushed in 131b9100c."
+      "receipt": "Last verified push includes R30 dependency boundary; R31 contract/work state not yet pushed."
     },
     "workers": [
       {
         "id": "/root",
-        "role": "Luna-primary/guard definition, native mapping and Git owner",
-        "state": "STOPPED",
+        "role": "Luna-primary/R31 contract, falsifier integration and Git owner",
+        "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R30 closeout, reviews, dispatch and bounded dependency decomposition recorded and pushed. Parent remains OPEN/closure0; no safe next packet without original semantic-owner input."
+        "receipt": "R31 contract frozen; proof and independent falsifier launched on exact leases; owns review, state and Git. No compiler-code lease."
       },
       {
-        "id": "/root/r30_guard_adequacy",
+        "id": "/root/r31_active_root_proof",
         "role": "prover",
-        "state": "STOPPED",
+        "state": "RUNNING",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Frozen R30 adequacy artifact SHA cdae43235456216fb251ce6a65cecebc9ba45a210b237efe7d6277c65c663502 and handoff SHA 95b84cb167ee6a4a9d2c6d89a94972c12cb1476bff40038ff69420852ec0de8d. Writer ceased; runtime UNKNOWN; full 1000s charged; no code/tests/builds/probes/Astra/Git."
+        "receipt": "Current-session NEW_TASK on exact R31 constructive derivation/handoff paths; hard cap360s; effective settings UNKNOWN; no code/tests/builds/probes/Astra/Git."
       },
       {
-        "id": "/root/r30_compiler_review",
-        "role": "compiler_referee",
-        "state": "STOPPED",
+        "id": "/root/r31_active_root_falsifier",
+        "role": "researcher",
+        "state": "RUNNING",
         "requested_model": "Sol",
-        "requested_effort": "medium",
+        "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Fresh compiler referee completed; CLEAN for bounded obstruction/adequacy report, BLOCKED for guard construction/parent closure. Verified four R30 hashes and seven R29 native source hashes. Read-only; no tests/builds/probes/Git."
-      },
-      {
-        "id": "/root/r30_spec_review",
-        "role": "spec_auditor",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "medium",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Fresh spec auditor completed; CLEAN for honest bounded obstruction, BLOCKING for guard adequacy/parent closure. Verified four R30 hashes. Read-only; no tests/builds/probes/Git."
+        "receipt": "Current-session NEW_TASK on exact R31 falsifier/source-native map paths; hard cap300s; effective settings UNKNOWN; no code/tests/builds/probes/Astra/Git."
       }
     ],
     "leases": [
@@ -78,9 +67,9 @@
         "state": "HELD"
       },
       {
-        "path": "tasks/agent-loop/sprints/source-context-guard-interpretation-20261018-r30.md",
+        "path": "tasks/agent-loop/sprints/active-outer-root-allocation-20261018-r31.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/current.md",
@@ -88,103 +77,91 @@
         "state": "HELD"
       },
       {
-        "path": "notes/progress/2026-10-18-r28-source-context-proposal-closeout.md",
-        "owner": "/root",
-        "state": "FROZEN"
+        "path": "notes/theory/2026-10-18-active-outer-root-allocation-derivation-r31.md",
+        "owner": "/root/r31_active_root_proof",
+        "state": "HELD"
       },
       {
-        "path": "notes/progress/2026-10-18-r29-source-context-action-closeout.md",
-        "owner": "/root",
-        "state": "FROZEN"
+        "path": "tasks/agent-loop/inbox/20261018-active-outer-root-allocation-derivation-r31.md",
+        "owner": "/root/r31_active_root_proof",
+        "state": "HELD"
       },
       {
-        "path": "notes/design/2026-10-18-source-context-guard-interpretation.md",
-        "owner": "/root",
-        "state": "FROZEN"
+        "path": "notes/theory/2026-10-18-active-outer-root-allocation-falsifier-r31.md",
+        "owner": "/root/r31_active_root_falsifier",
+        "state": "HELD"
       },
       {
-        "path": "notes/design/2026-10-18-source-context-guard-native-mapping.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-source-context-guard-interpretation.md",
-        "owner": "/root",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/theory/2026-10-18-source-context-guard-action-adequacy.md",
-        "owner": "/root/r30_guard_adequacy",
-        "state": "FROZEN"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-source-context-guard-action-adequacy.md",
-        "owner": "/root/r30_guard_adequacy",
-        "state": "FROZEN"
-      },
-      {
-        "path": "notes/progress/2026-10-18-r30-guard-interpretation-closeout.md",
-        "owner": "/root",
-        "state": "FROZEN"
+        "path": "tasks/agent-loop/inbox/20261018-active-outer-root-allocation-falsifier-r31.md",
+        "owner": "/root/r31_active_root_falsifier",
+        "state": "HELD"
       }
     ],
-    "pending": [],
+    "pending": [
+      {
+        "id": "R31-ACTIVE-ROOT-ALLOCATION-DERIVATION",
+        "state": "RUNNING",
+        "owner": "/root/r31_active_root_proof",
+        "artifact": "Constructive application from adopted registration/Call/intrusion/Generalize rules to C and its equality clauses across two independent g frames; cap360s."
+      },
+      {
+        "id": "R31-ACTIVE-ROOT-ALLOCATION-FALSIFIER",
+        "state": "RUNNING",
+        "owner": "/root/r31_active_root_falsifier",
+        "artifact": "Independent full-rule check of shared C vs frame-local C_i and map to native active Link/capture/FreshUse; cap300s."
+      },
+      {
+        "id": "R31-INDEPENDENT-REVIEW",
+        "state": "STAGED",
+        "owner": "Fresh compiler_referee assigned by Luna",
+        "artifact": "Review both frozen R31 reports, exact source-rule coverage/scopes and native correspondence; cap180s."
+      }
+    ],
     "ready_next_work": {
-      "id": "ORIGINAL-GUARD-SEMANTICS-INPUT",
-      "state": "WAITING",
-      "owner": "Original caller-context / PhiW / event-world semantic owners; Luna adjudicates",
-      "artifact": "Need full dependent j0/a0 types and introduction/projection equations, exact incidence family, same-event world readout, overlap handling and old/private/global predicate actions. Until then no original conjunct or safe code slice is available."
+      "id": "R31-ACTIVE-ROOT-ALLOCATION-DERIVATION",
+      "state": "RUNNING",
+      "owner": "/root/r31_active_root_proof",
+      "artifact": "Apply complete adopted registration/Call/intrusion/Generalize telescope to nested g and two independent uses; determine source allocation of C."
     },
     "legacy_reconciliation": {
       "required": false,
-      "receipt": "R29 and R30 proof/compiler/spec writers STOPPED; R30 dependencies frozen. R30 dispatch and bounded dependency decomposition complete; no active child leases."
+      "receipt": "All R30 children and dispatcher/decomposer workers terminal. R31 has two distinct output leases; no overlap."
     },
-    "sha256": "33a22c367d24a53329a7fb8adcd9e2408d86cdcfedee64b8773fa8072c4e4913"
+    "sha256": "48ab97d8d3a21d796d51cc391bb49c8079d445090f56a2f964e172b856a2eed2"
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna-primary/guard definition, native mapping and Git owner",
-      "state": "STOPPED",
+      "role": "Luna-primary/R31 contract, falsifier integration and Git owner",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R30 closeout, reviews, dispatch and bounded dependency decomposition recorded and pushed. Parent remains OPEN/closure0; no safe next packet without original semantic-owner input."
+      "receipt": "R31 contract frozen; proof and independent falsifier launched on exact leases; owns review, state and Git. No compiler-code lease."
     },
     {
-      "id": "/root/r30_guard_adequacy",
+      "id": "/root/r31_active_root_proof",
       "role": "prover",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen R30 adequacy artifact SHA cdae43235456216fb251ce6a65cecebc9ba45a210b237efe7d6277c65c663502 and handoff SHA 95b84cb167ee6a4a9d2c6d89a94972c12cb1476bff40038ff69420852ec0de8d. Writer ceased; runtime UNKNOWN; full 1000s charged; no code/tests/builds/probes/Astra/Git."
+      "receipt": "Current-session NEW_TASK on exact R31 constructive derivation/handoff paths; hard cap360s; effective settings UNKNOWN; no code/tests/builds/probes/Astra/Git."
     },
     {
-      "id": "/root/r30_compiler_review",
-      "role": "compiler_referee",
-      "state": "STOPPED",
+      "id": "/root/r31_active_root_falsifier",
+      "role": "researcher",
+      "state": "RUNNING",
       "requested_model": "Sol",
-      "requested_effort": "medium",
+      "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh compiler referee completed; CLEAN for bounded obstruction/adequacy report, BLOCKED for guard construction/parent closure. Verified four R30 hashes and seven R29 native source hashes. Read-only; no tests/builds/probes/Git."
-    },
-    {
-      "id": "/root/r30_spec_review",
-      "role": "spec_auditor",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Fresh spec auditor completed; CLEAN for honest bounded obstruction, BLOCKING for guard adequacy/parent closure. Verified four R30 hashes. Read-only; no tests/builds/probes/Git."
+      "receipt": "Current-session NEW_TASK on exact R31 falsifier/source-native map paths; hard cap300s; effective settings UNKNOWN; no code/tests/builds/probes/Astra/Git."
     }
   ],
   "leases": [
@@ -194,9 +171,9 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/source-context-guard-interpretation-20261018-r30.md",
+      "path": "tasks/agent-loop/sprints/active-outer-root-allocation-20261018-r31.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/current.md",
@@ -204,48 +181,47 @@
       "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-18-r28-source-context-proposal-closeout.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "path": "notes/theory/2026-10-18-active-outer-root-allocation-derivation-r31.md",
+      "owner": "/root/r31_active_root_proof",
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-18-r29-source-context-action-closeout.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-active-outer-root-allocation-derivation-r31.md",
+      "owner": "/root/r31_active_root_proof",
+      "state": "HELD"
     },
     {
-      "path": "notes/design/2026-10-18-source-context-guard-interpretation.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "path": "notes/theory/2026-10-18-active-outer-root-allocation-falsifier-r31.md",
+      "owner": "/root/r31_active_root_falsifier",
+      "state": "HELD"
     },
     {
-      "path": "notes/design/2026-10-18-source-context-guard-native-mapping.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-source-context-guard-interpretation.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-18-source-context-guard-action-adequacy.md",
-      "owner": "/root/r30_guard_adequacy",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261018-source-context-guard-action-adequacy.md",
-      "owner": "/root/r30_guard_adequacy",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-18-r30-guard-interpretation-closeout.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261018-active-outer-root-allocation-falsifier-r31.md",
+      "owner": "/root/r31_active_root_falsifier",
+      "state": "HELD"
     }
   ],
-  "pending": [],
+  "pending": [
+    {
+      "id": "R31-ACTIVE-ROOT-ALLOCATION-DERIVATION",
+      "state": "RUNNING",
+      "owner": "/root/r31_active_root_proof",
+      "artifact": "Constructive application from adopted registration/Call/intrusion/Generalize rules to C and its equality clauses across two independent g frames; cap360s."
+    },
+    {
+      "id": "R31-ACTIVE-ROOT-ALLOCATION-FALSIFIER",
+      "state": "RUNNING",
+      "owner": "/root/r31_active_root_falsifier",
+      "artifact": "Independent full-rule check of shared C vs frame-local C_i and map to native active Link/capture/FreshUse; cap300s."
+    },
+    {
+      "id": "R31-INDEPENDENT-REVIEW",
+      "state": "STAGED",
+      "owner": "Fresh compiler_referee assigned by Luna",
+      "artifact": "Review both frozen R31 reports, exact source-rule coverage/scopes and native correspondence; cap180s."
+    }
+  ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R29 closeout: notes/progress/2026-10-18-r29-source-context-action-closeout.md; parent 0->0. R28/R27 closeouts linked from tasks/current.md.",
-  "sha256": "8e56481b0258522803ff9ec9c43435378a5cc035820e2c57916da465fe4b7031"
+  "history": "R30 closeout: notes/progress/2026-10-18-r30-guard-interpretation-closeout.md; parent0->0. R31 active-root allocation derivation begins under adopted Generalize rules; full goal active.",
+  "sha256": "c23ee2d2192fdc90f58ef415f1a0c023c8356e1cb9f2ca61a9d88c27516bea85"
 }

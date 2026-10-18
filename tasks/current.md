@@ -17470,3 +17470,14 @@ mapping remains NO_SAFE_CODE_SLICE; no compiler edits, tests, builds or probes.
 The dispatcher and bounded dependency audit found no independent parent seam
 under existing assumptions; next requires original guard/world semantics input.
 See the [R30 closeout](../notes/progress/2026-10-18-r30-guard-interpretation-closeout.md).
+
+## Active research sprint — R31
+
+R31 targets the active-outer-root allocation bridge under the already adopted
+Source Generalize rules. A constructive lane derives the nested-helper source
+record; an independent lane checks both demand-coordinate placements against
+the complete source clauses and native capture/FreshUse map. The contract fixes
+parent scope, prohibits a new source rule, and stops at the first missing
+adopted judgment. This does not close the R30 caller-guard gate or any original
+parent condition by itself. No compiler edit, test, build, probe or Astra is
+authorized. See the [R31 contract](agent-loop/sprints/active-outer-root-allocation-20261018-r31.md).
