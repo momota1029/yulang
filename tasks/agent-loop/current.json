@@ -26,8 +26,8 @@
       "allocation": "Full 1800s conservatively charged at lane caps: Sol600, Luna owner500, compiler200, spec200, integration300. No carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "R60 closed and pushed: closeout/docs commit 3ad1d68c3. Final compact-state receipt commit follows. No active writers, reviews, or leases. Next dependency requires a fresh Luna-approved exact packet for the whole-ascription Corr/substitution supplier or an owning authority decision.",
-    "history": "R60 rev2 activated on a3ab8baff; proof receipt 18bfb6635; Luna owner outputs e0300e31d; proof/frozen hashes and STOP at 290232294; both fresh reviews CLEAN and receipts at 2bdf2a8cc; closeout and tasks/current pushed at 3ad1d68c3. All five exact target hashes and 25/25 pins match. All authors/reviewers STOPPED, all outputs frozen, no descendants. Parent OPEN 0->0; R50 NOT ADOPTED.",
+    "next_action": "R60 CLOSED; all top-level mirrors now record actual STOPPED workers and FROZEN leases. Overall goal remains active. Exact next dependency is the R60-JOINT-ASCRIPTION-LIFT-1 source/authority supplier; no active grant. Consult dispatcher and prepare a fresh exact packet before any next-lane reads/writes.",
+    "history": "R60 rev2 activated on a3ab8baff; proof receipt 18bfb6635; Luna owner outputs e0300e31d; proof/frozen hashes and STOP at 290232294; both fresh reviews CLEAN and receipts at 2bdf2a8cc; closeout and tasks/current pushed at 3ad1d68c3. All five exact target hashes and 25/25 pins match. All authors/reviewers STOPPED, all outputs frozen, no descendants. Parent OPEN 0->0; R50 NOT ADOPTED. Top-level compact worker/lease/pending mirrors reconciled from live R60 receipts in final-state commit.",
     "workers": [
       {
         "id": "/root",
@@ -123,82 +123,82 @@
     {
       "id": "/root",
       "role": "Luna primary; read-only source-owner lane and integration",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r60",
-      "receipt": "Awaiting revision2 candidate pin and dispatcher boundary check; no R60 author reads/writes begun."
+      "receipt": "Luna integration complete; STOPPED / NO_DESCENDANTS. Closeout notes/progress/2026-10-19-r60-closeout.md SHA-256 d4f3bce801167a8b8a2b6ff1edc8b688b163bb03bab9cc0186d864533b24c3e5 and tasks/current.md committed/pushed at 3ad1d68c3; current-state close receipt follows. Static/doc integration only; no code/tests/execution. Requested Luna/high; observed model/effort UNKNOWN; 300s integration cap charged conservatively; actual duration/CPU/RSS UNKNOWN."
     },
     {
       "id": "/root/r53_ordinary_mixed_capture_proof",
       "role": "Sol/high constructive paired-interface proof",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r60",
-      "receipt": "Awaiting fresh current-session receipt after rev2 primary approval; no reads/writes."
+      "receipt": "R60 proof frozen: notes/theory/2026-10-19-r60-paired-annotation-interface.md SHA-256 03a40bdba3bad125f93d5290b7f3519aceba17b93c20c5026ac9194b128c7f67; tasks/agent-loop/inbox/20261019-r60-proof.md SHA-256 1e8afe344086e728ad52fe742beb4f22f24eb54eb971f55d9d7b9ad5bc607c45. Contract rev2 and 25/25 pins MATCH. Scalar projection/lifting proved under explicit independence premises; authentic source-preserving constructor exclusion of R59 assignment OPEN. STOPPED / WRITES_STOPPED / NO_DESCENDANTS. Requested Sol/high, observed UNKNOWN; 600s charged; measured duration/CPU/RSS UNKNOWN; static only, no code/tests/execution."
     },
     {
       "id": "/root/r52_compiler_review",
       "role": "Fresh independent compiler/source-owner review after both authors stop",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "UNKNOWN",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r60",
-      "receipt": "200s reserved; prior R59 review does not count."
+      "receipt": "R60 rev2 fresh compiler/source-owner review CLEAN; no BLOCKING/major/minor. All five exact target hashes and 25/25 pins MATCH. Scalar projection/lifts valid under stated Q-independence; actual source owners support bounded polarity/slot/view/capture claims; actual Q independence/substitution law and whole-ascription Corr remain open. STOPPED / READ_ONLY / NO_DESCENDANTS. Requested/observed settings and measured duration/CPU/RSS UNKNOWN; 200s reserved charged conservatively."
     },
     {
       "id": "/root/r52_spec_review",
       "role": "Fresh independent spec/domain review after both authors stop",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "UNKNOWN",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r60",
-      "receipt": "200s reserved; prior R59 review does not count."
+      "receipt": "R60 fresh independent spec/domain review CLEAN; no BLOCKING/major/minor. All five exact target hashes and 25/25 pins MATCH. Source solution preservation, permission transport, result correlation remain missing; original positions/provider, open E, ordinary constraints, permission/inflow/residual, parent OPEN 0->0, A/B OPEN and R50 NOT ADOPTED intact. STOPPED / READ_ONLY / NO_DESCENDANTS. Requested/observed settings and measured duration UNKNOWN; 200s reserved charged conservatively."
     }
   ],
   "leases": [
     {
       "path": "tasks/agent-loop/sprints/paired-annotation-interface-20261019-r60.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-19-r60-paired-annotation-interface.md",
       "owner": "/root/r53_ordinary_mixed_capture_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r60-proof.md",
       "owner": "/root/r53_ordinary_mixed_capture_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r60-paired-constructor-owners.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r60-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
-      "id": "R60-PAIRED-ANNOTATION-INTERFACE",
-      "state": "READY",
-      "owner": "Sol proof + Luna read-only source-owner lane",
-      "request": "Derive authentic same-pA/provider AE entrance and local permission correspondence under selected source contract; account for correlated result interface or isolate first exact missing premise.",
-      "falsifier": "R59 assignment still satisfies proposed constructor while entrance fails; permission becomes cap/contribution; unrelated provider/position supplies evidence; pairing removes legal behavior; or generated constraints are dropped."
+      "id": "R60-JOINT-ASCRIPTION-LIFT-1",
+      "state": "OPEN",
+      "owner": "Luna; requires a fresh packet, no active grant",
+      "request": "Obtain an owner-derived whole-ascription source/native Corr and source-indexed substitution/lifting law for the fixed original source; preserve the same pA/provider entrance, local permission and joint K,D, correlated pR result constraints; establish actual Q dependency structure or valid transport.",
+      "falsifier": "A permitted original source solution has no native lift; wrong source position/provider/receiver; permission becomes cap/contribution/subtraction; correlated result evidence or ordinary constraints are lost; or authentic paired constructor still admits R59 entrance failure."
     }
   ]
 }
