@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push rev4 contract and state, then resume exact implementer lease for the two test-only fixes. Freeze hashes; same reviewer CLEAN required before one focused runtime_resume test.",
     "history": "R18 runtime research path completed at d51baa6db; independent review CLEAN, runtime_resume 17/17. R17 details are in the R17 closeout pointer in top-level history. R19 source/proof characterization commits 6748039fa and 118375dce independently CLEAN; original parent conditions remain closure0.",
-    "last_stage_receipt": "Rev4 writer stopped on exact two paths. Balanced sibling Catch and borrowed result changes frozen; hashes recorded in worker receipt. Same independent referee performs 180s delta review. No tests/build/formatter until CLEAN.",
+    "last_stage_receipt": "Same independent compiler referee returned CLEAN for rev4 test-only delta. The focused runtime_resume target is now permitted exactly once; no runtime result yet. Parent OPEN/closure0.",
     "git_checkpoint": {
       "commit": "118375dce",
       "branch": "research/simple-sub-intrusion",
@@ -116,13 +116,13 @@
     {
       "id": "/root/r19_runtime_lineage_review",
       "role": "compiler_referee",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev4 test-only delta review active; verify balanced accepted sibling source, static receipt gate, borrowed result/no partial move, and all frozen R18/R19 code pins. No tests/build/Git."
+      "receipt": "Rev4 test-only delta review CLEAN. Balanced sibling source preserves Catch close; parse/HIR, unchanged candidate acceptance and one consumed static receipt assertions precede lineage rejection; result is borrowed for diagnostics. Frozen program/machine pins match authoritative rev4 contract. No tests/build/Git by reviewer; runtime remains unobserved."
     }
   ],
   "leases": [
@@ -309,5 +309,5 @@
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "Await same-reviewer rev4 delta result. If CLEAN, Luna runs exactly cargo test -p yu-playground --test runtime_resume once; then integrate. If BLOCKING, do not test or accept."
+  "next_action": "Luna runs exactly cargo test -p yu-playground --test runtime_resume once. On completion integrate exact reviewed paths/handoff, update state and commit/push. No retry on changed bytes."
 }
