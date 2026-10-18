@@ -10,10 +10,19 @@
     "lower_endpoint_matches": true,
     "upper_endpoint_matches": true
   },
-  "proof_review": "NOT_STARTED",
-  "implementation_review": "NOT_STARTED",
+  "proof_review": "CLEAN_CONDITIONAL_CONSTRUCTOR_ONLY; independent reviewer STOPPED; original P3/P4 conditions remain OPEN.",
+  "implementation_review": {
+    "status": "BLOCKED",
+    "reviewer": "/root/demand_transport_impl_review",
+    "reviewer_state": "STOPPED",
+    "findings": [
+      "BLOCKING: no exact Replay Dependency::Transport/Derived/FunctionPort ancestry, Replay coordinates/BoundKeys, or current upper/root check; matching source/FreshUse tuple is insufficient.",
+      "MAJOR: pairwise-swap unit test expects [false;4], but only swapped positions differ; focused candidate_graph_call filter omits it."
+    ],
+    "runtime_release": "NOT_RELEASED"
+  },
   "primary_release": {
-    "status": "NOT_RELEASED",
+    "status": "NOT_RELEASED_REVIEW_BLOCKED",
     "no_retry": true
   },
   "test_invocation": 0,

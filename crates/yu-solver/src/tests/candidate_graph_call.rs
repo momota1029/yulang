@@ -577,3 +577,50 @@ fn accepted_scoped_formal_demand_replay_propagates_to_received_result() {
     );
     assert_ne!(formal_index, received_index);
 }
+
+#[test]
+fn candidate_graph_call_authenticates_fresh_use_demand_transport_and_rejects_swaps() {
+    let source: Arc<yu_syntax::SourceText> = Arc::from(
+        "my invoke f = f 1\nmy id x = x\nmy first = invoke id\nmy second = invoke id",
+    );
+    let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+        Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+    let hir = Arc::new(yu_hir::lower_module(
+        yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("candidate-replay-fresh-use", "call.yu"))),
+        &parsed, yu_hir::SemanticImports::empty(),
+    ).unwrap());
+    let candidate = CandidateInference::solve_scoped_experiment(hir.clone()).unwrap();
+    assert!(candidate.observes_hir(&hir));
+    assert!(candidate.candidate_conflicts().is_empty());
+    for name in ["first", "second"] {
+        let graph = candidate.export(candidate_call_root(&hir, name)).unwrap();
+        assert!(graph.bounds().any(|bound| {
+            bound.kind() == ComponentKind::Value
+                && bound.lower().leaf() == Some(CandidateGraphLeaf::IntPositive)
+                && candidate_call_reaches(&graph, bound.upper(), graph.root(), ComponentKind::Value)
+        }), "the integer lower propagates through each distinct use to {name}");
+    }
+    let observations: Vec<_> = candidate.scoped_replay_demand_transports()
+        .filter(|row| row.route.is_some()).collect();
+    assert!(observations.len() >= 2, "same source demand has two retained FreshUse Replay rows");
+    let first = observations[0];
+    let second = observations.iter().copied().find(|row| row.call_index == first.call_index && row.use_instance != first.use_instance)
+        .expect("a second use of the same source has a distinct use identity");
+    assert_ne!(first.route, second.route);
+    for row in [first, second] {
+        assert!(!row.native_root_matches, "preserve raw native root mismatch");
+        assert!(row.scope_map_matches && row.input_map_matches);
+        assert_eq!(row.ports_match, [true; 4]);
+        assert!(candidate.authenticate_scoped_replay_demand(row.call_index, row.use_instance, row.copied_root, Some(row.ports)));
+        assert!(!candidate.authenticate_scoped_replay_demand(row.call_index, row.use_instance + 1, row.copied_root, Some(row.ports)));
+        assert!(!candidate.authenticate_scoped_replay_demand(row.call_index, row.use_instance, row.native_root, Some(row.ports)));
+        for left in 0..4 {
+            for right in left + 1..4 {
+                let mut swapped = row.ports;
+                swapped.swap(left, right);
+                assert!(!candidate.authenticate_scoped_replay_demand(row.call_index, row.use_instance, row.copied_root, Some(swapped)),
+                    "port swap {left}<->{right} is rejected");
+            }
+        }
+    }
+}

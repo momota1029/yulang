@@ -76,6 +76,22 @@ pub struct CandidateValueObservation {
 pub struct CandidateInference {
     solved: CandidateSolvedResult,
 }
+/// Read-only map-backed correspondence for one retained typed Replay row.
+/// Raw native root equality is reported separately from transport evidence.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CandidateReplayDemandTransport {
+    pub call_index: usize,
+    pub child_relation: usize,
+    pub use_instance: usize,
+    pub native_root: Term,
+    pub copied_root: Term,
+    pub native_root_matches: bool,
+    pub route: Option<usize>,
+    pub scope_map_matches: bool,
+    pub input_map_matches: bool,
+    pub ports: [Term; 4],
+    pub ports_match: [bool; 4],
+}
 /// Borrowed final retained state, not an execution trace or soundness certificate.
 pub struct CandidateIntrusionObservation<'a> {
     references: &'a crate::candidate_value_graph::Graph,
@@ -265,6 +281,48 @@ impl CandidateInference {
         self.solved.data.candidate_graph.iter().flat_map(|graph| graph.intrusion.effect_algebra.context.scope_inventory.copies.iter())
             .map(|copy| (copy.regions, copy.scopes, copy.inputs, copy.graph_nodes, copy.graph_bounds))
     }
+    /// Actual map-backed correspondence for retained scoped Replay demands.
+    /// This provisional source-evidence observation does not alter solver state.
+    pub fn scoped_replay_demand_transports(&self) -> impl Iterator<Item = CandidateReplayDemandTransport> + '_ {
+        self.solved.data.candidate_graph.iter().flat_map(move |graph| {
+            let context = &graph.intrusion.effect_algebra.context;
+            context.replay_demand_rows().filter_map(move |(call_index, child, _, _, _, _, demand, _, _)| {
+                let native = self.solved.data.candidate_calls.calls.get(call_index)?.native?;
+                let ports = |root| match self.solved.data.store.term_view(root).ok()? {
+                    TermView::NegativeFunction { argument, argument_effect, result_effect, result } => Some([argument, argument_effect, result_effect, result]),
+                    _ => None,
+                };
+                let evidence = graph.authenticate_demand_transport(context, call_index, native.demand, demand, ports, None);
+                Some(CandidateReplayDemandTransport {
+                    call_index, child_relation: child.0, use_instance: demand.use_instance,
+                    native_root: native.demand, copied_root: demand.root,
+                    native_root_matches: native.demand == demand.root,
+                    route: evidence.map(|value| value.route),
+                    scope_map_matches: evidence.is_some_and(|value| value.scope_map_matches),
+                    input_map_matches: evidence.is_some_and(|value| value.input_map_matches),
+                    ports: ports(demand.root).unwrap_or([demand.root; 4]),
+                    ports_match: evidence.map_or([false; 4], |value| value.ports_match),
+                })
+            })
+        })
+    }
+    /// Re-check an observation after replacing a route coordinate or one of its
+    /// four port values. This supports direct falsifiers in the focused harness.
+    pub fn authenticate_scoped_replay_demand(
+        &self, call_index: usize, use_instance: usize, copied_root: Term,
+        observed_ports: Option<[Term; 4]>,
+    ) -> bool {
+        let Some(graph) = self.solved.data.candidate_graph.as_ref() else { return false; };
+        let context = &graph.intrusion.effect_algebra.context;
+        let Some(demand) = context.replay_demand_rows().find_map(|(call, _, _, _, _, _, demand, _, _)|
+            (call == call_index && demand.use_instance == use_instance && demand.root == copied_root).then_some(demand)) else { return false; };
+        let Some(native) = self.solved.data.candidate_calls.calls.get(call_index).and_then(|call| call.native) else { return false; };
+        let ports = |root| match self.solved.data.store.term_view(root).ok()? {
+            TermView::NegativeFunction { argument, argument_effect, result_effect, result } => Some([argument, argument_effect, result_effect, result]),
+            _ => None,
+        };
+        graph.authenticate_demand_transport(context, call_index, native.demand, demand, ports, observed_ports).is_some()
+    }
     /// Counts and maximum recorded scoped scratch envelope. The envelope is
     /// not a total peak: simultaneous and failure-path peaks are not covered.
     pub fn scoped_resource_statistics(&self) -> Option<(usize, usize, usize, usize, usize)> {
@@ -325,8 +383,24 @@ impl CandidateInference {
                 {
                     let native = solved.data.candidate_calls.calls.get(call_index).and_then(|call| call.native);
                     let root_matches = native.is_some_and(|native| native.demand == demand.root);
+                    let transported = native.and_then(|native| graph.authenticate_demand_transport(
+                        context, call_index, native.demand, demand,
+                        |root| match solved.data.store.term_view(root).ok()? {
+                            TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
+                                Some([argument, argument_effect, result_effect, result]),
+                            _ => None,
+                        },
+                        None,
+                    ));
+                    let (transported, route, relation, scope_map, input_map, ports) =
+                        if let Some(evidence) = transported {
+                            (true, Some(evidence.route), Some(evidence.relation.0),
+                                evidence.scope_map_matches,
+                                evidence.input_map_matches,
+                                evidence.ports_match)
+                        } else { (false, None, None, false, false, [false; 4]) };
                     if writeln!(output,
-                        "candidate.call_replay call={call_index} child={} lower={} upper={} lower_input={lower_input:?} upper_input={upper_input:?} use_instance={} demand_root={:?} native_root_matches={root_matches} endpoint_pairs=(lower:{lower_matches},upper:{upper_matches})",
+                        "candidate.call_replay call={call_index} child={} lower={} upper={} lower_input={lower_input:?} upper_input={upper_input:?} use_instance={} demand_root={:?} native_root_matches={root_matches} endpoint_pairs=(lower:{lower_matches},upper:{upper_matches}) transport_authenticated={transported} route={route:?} relation={relation:?} scope_map={scope_map} input_map={input_map} ports={ports:?}",
                         child.0, lower.0, upper.0, demand.use_instance, demand.root).is_err()
                     { break; }
                 }

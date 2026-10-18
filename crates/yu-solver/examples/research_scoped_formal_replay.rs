@@ -159,6 +159,17 @@ fn main() {
         "replay.expect call_index={formal_index} native_demand={:?} (typed observer rows are emitted on stderr when YU_CALL_REPLAY_OBSERVER=1)",
         formal_call.native_demand()
     );
+    for transport in candidate.scoped_replay_demand_transports()
+        .filter(|transport| transport.call_index == formal_index)
+    {
+        println!(
+            "replay.transport call_index={} use_instance={} native_root={:?} copied_root={:?} native_root_matches={} route={:?} scope_map={} input_map={} ports={:?} ports_match={:?}",
+            transport.call_index, transport.use_instance, transport.native_root,
+            transport.copied_root, transport.native_root_matches, transport.route,
+            transport.scope_map_matches, transport.input_map_matches,
+            transport.ports, transport.ports_match,
+        );
+    }
 }
 
 fn binding<'a>(hir: &'a HirModule, name: &str) -> &'a HirBinding {

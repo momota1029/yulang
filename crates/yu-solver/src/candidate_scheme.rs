@@ -223,6 +223,99 @@ impl FreshUse {
             terms, effect_operands, bundle_remap, context_remap, evidence_remap })
     }
 }
+
+/// Ephemeral, read-only witness reconstructed from a retained FreshUse. It is
+/// intentionally not solver state: callers may report what the actual map
+/// proves, while all authorization and propagation continue to use the
+/// existing relations.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct DemandTransportEvidence {
+    pub route: usize,
+    pub relation: candidate_context::RelationId,
+    pub original_root: Term,
+    pub copied_root: Term,
+    pub original_scope: candidate_scope::EffectScopeId,
+    pub copied_scope: candidate_scope::EffectScopeId,
+    pub original_input: candidate_scope::InputRouteId,
+    pub copied_input: candidate_scope::InputRouteId,
+    pub scope_map_matches: bool,
+    pub input_map_matches: bool,
+    pub ports_match: [bool; 4],
+}
+
+fn four_ports_match<T: Copy + Eq>(expected: [T; 4], observed: [T; 4]) -> [bool; 4] {
+    std::array::from_fn(|index| expected[index] == observed[index])
+}
+
+impl GraphState {
+    /// Authenticate a copied demand only through the LocalFreshRoute that owns
+    /// its actual FreshUse maps. No root equality is inferred from endpoint
+    /// identity, and siblings remain distinct by their context-use identity.
+    pub(super) fn authenticate_demand_transport(
+        &self,
+        context: &candidate_context::State,
+        original_call: usize,
+        original_root: Term,
+        copied: candidate_context::ScopedDemand,
+        term_ports: impl Fn(Term) -> Option<[Term; 4]>,
+        observed_ports_override: Option<[Term; 4]>,
+    ) -> Option<DemandTransportEvidence> {
+        let mut found = None;
+        for (route_index, route) in self.local_routes.iter().enumerate() {
+            if route.use_instance != copied.use_instance
+                || route.retained.context_use != copied.use_instance
+            {
+                continue;
+            }
+            let Some(&node_index) = route.graph.negative_functions.get(&original_root) else { continue; };
+            let Some(copied_root) = route.retained.terms.get(node_index).copied().flatten() else { return None; };
+            if copied_root != copied.root {
+                return None;
+            }
+            let original_relation = route.graph.bounds.iter().filter_map(|bound| bound.relation)
+                .find(|relation| context.scoped_flow(*relation).is_ok_and(|flow|
+                    flow.demand.is_some_and(|source| source.original_call == original_call
+                        && source.root == original_root)
+                    && route.retained.scoped_relations.get(relation)
+                        .is_some_and(|flow| flow.demand == Some(copied))));
+            let Some(original_relation) = original_relation else { return None; };
+            let original_demand = context.scoped_flow(original_relation).ok()?.demand?;
+            let original_scope = original_demand.output_scope;
+            let original_input = original_demand.input;
+            let mapped_scope = route.retained.scope_remap.scopes.get(&original_scope)
+                .copied().unwrap_or(original_scope);
+            let mapped_input = route.retained.scope_remap.inputs.get(&original_input)
+                .copied().unwrap_or(original_input);
+            if mapped_scope != copied.output_scope || mapped_input != copied.input {
+                return None;
+            }
+            let Node::Function { polarity: Polarity::Negative, children } =
+                *route.graph.nodes.get(node_index)? else { return None; };
+            let mut expected = [copied_root; 4];
+            for (index, child) in children.into_iter().enumerate() {
+                expected[index] = route.retained.terms.get(child).copied().flatten()?;
+            }
+            let actual = term_ports(copied_root)?;
+            let observed = observed_ports_override.unwrap_or(actual);
+            let ports_match = four_ports_match(expected, observed);
+            if !ports_match.into_iter().all(|matches| matches) {
+                return None;
+            }
+            let evidence = DemandTransportEvidence {
+                route: route_index, relation: original_relation, original_root,
+                copied_root, original_scope, copied_scope: copied.output_scope,
+                original_input, copied_input: copied.input,
+                scope_map_matches: mapped_scope == copied.output_scope,
+                input_map_matches: mapped_input == copied.input,
+                ports_match,
+            };
+            if found.replace(evidence).is_some() {
+                return None;
+            }
+        }
+        found
+    }
+}
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(super) struct LocalUseCursor {
     pub next_bound: usize,
@@ -1823,6 +1916,20 @@ mod authentic_demand_capture_tests {
     use super::*;
 
     #[test]
+    fn four_typed_function_ports_reject_every_pairwise_swap() {
+        let expected = [11u8, 22, 33, 44];
+        assert_eq!(four_ports_match(expected, expected), [true; 4]);
+        for left in 0..4 {
+            for right in left + 1..4 {
+                let mut substituted = expected;
+                substituted.swap(left, right);
+                assert_eq!(four_ports_match(expected, substituted), [false; 4],
+                    "port substitution {left}<->{right} must fail all-port authentication");
+            }
+        }
+    }
+
+    #[test]
     fn module_fresh_route_retains_full_remap_crosswalk_and_capacity_accounting() {
         let text: Arc<yu_syntax::SourceText> = Arc::from(
             "my identity x = x\nmy first = identity 0\nmy second = identity true",
@@ -1949,5 +2056,51 @@ mod authentic_demand_capture_tests {
                 assert_ne!(first_copy.input, second_copy.input);
             }
         }
+    }
+
+    #[test]
+    fn retained_demand_transport_authenticates_distinct_uses_and_rejects_wrong_use_or_root() {
+        let text: Arc<yu_syntax::SourceText> = Arc::from(
+            "my outer z = { my local h x = h z; local }\nmy first = outer 0\nmy second = outer 1",
+        );
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("demand-route-auth", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+        let state = session.candidate_graph.as_ref().unwrap();
+        let context = &state.intrusion.effect_algebra.context;
+        let mut authenticated = Vec::new();
+        for (call_index, _, _, _, _, _, copied, _, _) in context.replay_demand_rows() {
+            let Some(native) = session.batch.candidate_calls.calls.get(call_index).and_then(|call| call.native) else { continue; };
+            let ports = |root| match session.store.term_view(root).ok()? {
+                TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
+                    Some([argument, argument_effect, result_effect, result]),
+                _ => None,
+            };
+            let evidence = state.authenticate_demand_transport(context, call_index, native.demand, copied, ports, None)
+                .expect("actual retained FreshUse map authenticates the copied demand");
+            assert_eq!(evidence.ports_match, [true; 4]);
+            assert!(evidence.scope_map_matches && evidence.input_map_matches);
+            assert_ne!(native.demand, copied.root, "raw native root equality remains false");
+
+            let mut wrong_use = copied;
+            wrong_use.use_instance = wrong_use.use_instance.checked_add(1).unwrap();
+            assert!(state.authenticate_demand_transport(context, call_index, native.demand, wrong_use, ports, None).is_none(),
+                "a sibling use cannot authenticate this route");
+            let mut wrong_root = copied;
+            wrong_root.root = native.demand;
+            assert!(state.authenticate_demand_transport(context, call_index, native.demand, wrong_root, ports, None).is_none(),
+                "the original root is not the copied FreshUse root");
+            authenticated.push((copied.use_instance, evidence.route));
+        }
+        assert!(authenticated.len() >= 2, "both same-source FreshUse siblings reach retained Replay");
+        assert_ne!(authenticated[0].0, authenticated[1].0);
+        assert_ne!(authenticated[0].1, authenticated[1].1);
     }
 }

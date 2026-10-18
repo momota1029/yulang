@@ -1,6 +1,6 @@
 # Sprint `npair-demand-transport-correspondence-20261018`
 
-Status: CANDIDATE until Luna records the live author receipts. Branch
+Status: CLOSED-REVIEWED-PARTIAL. Original parent remains OPEN; original conditions closed 0. Branch
 `research/simple-sub-intrusion`; baseline `f2d66da08`. Original parent
 `CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017` remains OPEN; preserve all
 quantifiers, source domain and fixed-c requirement. Astra0; no rollover.
@@ -121,3 +121,35 @@ complete Call, soundness, principality, termination and production gates. A
 transport theorem for this fixture is provisional and does not prove universal
 P3/P4 coverage. Closeout states only genuinely discharged original premises,
 new working implementation/test behavior, and the single next exact obstacle.
+
+
+## Primary closeout rev2
+
+The conditional constructor proof was independently reviewed CLEAN: it verifies
+four ordered ports, owned FreshUse siblings, and upper-fiber Replay inheritance
+under explicit canonicalization/root hypotheses. It closes no original condition.
+
+The implementation candidate was frozen and independently reviewed, but is not
+accepted or runtime-released. The compiler review found:
+
+- BLOCKING: the observer authenticates a source-to-FreshUse tuple and mapped
+  Function shape, but discards the actual Replay lower/upper/BoundKeys and does
+  not traverse `Transport`, `Derived`, or `FunctionPort` ancestry. It therefore
+  cannot establish that the selected Replay row is descended from the mapped
+  source relation or that its current upper is the checked root.
+- MAJOR: `four_typed_function_ports_reject_every_pairwise_swap` expects all four
+  entries to differ after a two-entry swap; exactly the swapped entries differ.
+  The authorized focused `candidate_graph_call` filter omits this unit test.
+
+No Cargo, test or example command ran; `git diff --check` passed. The implementation
+remains an unapproved research candidate. Parent conditions closed: 0. All
+writers/reviewers STOPPED. Conservatively charged 1800/2400 seconds; 600 seconds
+expired at closeout, no rollover. Astra0.
+
+The next exact obstacle is Replay ancestry authentication: carry the selected
+Replay coordinates and verify source snapshot -> FreshUse Transport -> any
+root-changing Derived/Transport steps -> current upper/root -> ordered
+FunctionPort dependencies. Reject unrelated relations with matching metadata.
+A successor also needs to correct the swap expectation and run the test that
+contains `authentic_demand_capture_tests`, followed by the focused fixture and
+example after fresh independent review.
