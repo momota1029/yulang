@@ -34,13 +34,13 @@
     {
       "id": "/root",
       "role": "Luna/high coordinator, source/native owner map, adjudication, integration and sole Git owner",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68-source-law",
-      "receipt": "Luna resumed the source-law owner task after R68. R69 remains NOT ACTIVATED with no grant or worker leases. Read the exact pinned charter, result-synthesis, Generalize, call-input and computation-role clauses; drafted a concrete but unadopted target-directed p_R/body-Name ConsumerOrigin rule. Awaiting user decision on consumer placement; no code/tests/builds/probes."
+      "receipt": "Luna source-law audit stopped pending the user decision requested through the conversation UI. R69 remains NOT ACTIVATED; no grant, author/reviewer lease, code change, test, build or probe. All R68 workers STOPPED; no descendants."
     },
     {
       "id": "/root/r68_retained_lambda_proof",
