@@ -32,6 +32,44 @@ change may require a versioned contract revision approved by Luna; keep the old
 claim and exact reason rather than silently narrowing it. Workers cannot revise
 contracts, extend write paths, spend extra budget or invent production authority.
 
+### Ambition check for choosing the next meaningful outcome
+
+Only at an actual dispatcher boundary under section 4, use the same Sol
+consultation to look for a **higher-leverage route to the unchanged original
+obligation**. Do not launch another planning round or interrupt safe in-envelope
+work after a routine result. The requested next step is a candidate, not a
+mandatory decomposition of the final outcome.
+
+- **Altitude:** identify the original theorem, exact quantifiers or approved
+  end-to-end compiler outcome that should become true, false, or demonstrably
+  closer. Consider bypassing auxiliary lemmas or microtasks when a more direct
+  critical-path result is possible.
+- **Depth:** locate the decisive unresolved premise and inspect the relevant
+  *primary evidence*: original statement, proof dependencies, actual source
+  constructors and consumers, native correspondence or runtime failures. Ask
+  what a field expert would actually test, prove or inspect; do not imitate
+  an expert's vocabulary.
+- **Range:** propose a *concrete applicable method* from a neighboring
+  mathematical or compiler discipline, with its applicability assumptions,
+  required inputs and a falsifier. An evocative analogy is not a method.
+- **Independent verification:** specify how a fresh eligible reviewer,
+  independent proof/counterexample, source/native trace or executable check
+  would distinguish success from a plausible unsupported claim. Tests never
+  establish a proof gate by themselves.
+
+Compare the direct path with a stronger alternative **only when evidence
+supports one**. Prefer the feasible outcome that most reduces a genuine parent
+obstruction or evidenced critical path, while keeping both independent lanes
+productive and respecting prerequisites, available resources and exact leases.
+Give the primary (a) the strongest **within-contract** next outcome with owner,
+observable before/after evidence, falsifier and review seam, and (b) any
+**beyond-contract** improvement strictly as a separately labeled proposal
+requiring Luna/user approval. Do not quietly change the original quantifiers,
+source domain, accepted semantics, goal, production authority, budget or
+workers' write leases. An active sprint's contract remains fixed through
+internal steps; a material replanning event still needs Luna's versioned
+revision. This check adds no mandatory read, reviewer or per-step consultation.
+
 ## 2. Productive lanes and autonomous continuation
 
 Maintain proof and implementation lanes when independently useful, with stable

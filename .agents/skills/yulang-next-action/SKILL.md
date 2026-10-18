@@ -21,10 +21,17 @@ Search prior work by exact parent/source owner; do not dump historical boards.
 Reuse a healthy dispatcher through supported messaging; a waiting identity is
 not RUNNING. Record requested and observed model separately.
 
-Request a compact delta: preserve/revise the sprint with reasons; both lanes'
-next multi-step outcome or concrete blockers; dependencies, exact proposed
-leases, Astra/resource reservations, review/integration seam and next material
-consultation trigger. Prefer continued parent-theorem work and an end-to-end
+Request a compact delta using the *same* dispatcher's ambition check in
+`rules/goal-driven-sprints.md`: Altitude (original parent outcome), Depth
+(primary evidence and decisive obstruction), Range (concrete applicable
+cross-field method), and independent verification (falsifier and review seam).
+Compare the direct route with a higher-leverage alternative only when grounded
+in evidence. Report the strongest within-contract next outcome separately from
+any beyond-contract suggestion requiring Luna/user authorization. Preserve or
+revise the sprint with reasons; specify both lanes' multi-step outcomes or
+concrete blockers, dependencies, exact proposed leases, Astra/resources,
+review/integration seam and next material consultation trigger. This is not a
+new review, planner, or routine-step consultation. Prefer continued parent-theorem work and an end-to-end
 implementation path, not more microtasks or a panel of selectors.
 
 Luna validates authority and grants actual leases. The dispatcher is read-only

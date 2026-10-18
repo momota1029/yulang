@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import unittest
+from pathlib import Path
 
 from agent_sprint import (ASTRA, LUNA, SOL, ProtocolError, SprintModel,
                           digest, exact_path, simulation, validate_current)
@@ -518,6 +519,45 @@ class SnapshotValidation(unittest.TestCase):
         for path in ("", "/abs", "a//b", "./x", "a/../x", "a\\b", "x*", "x?"):
             self.assertFalse(exact_path(path), path)
         self.assertTrue(exact_path("notes/proof.md"))
+
+
+class AmbitiousDispatcherPolicy(unittest.TestCase):
+    """Static contract assertions; no Sol invocation or empirical quality claim."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        root = Path(__file__).resolve().parents[1]
+        cls.selector = (root / ".codex/agents/next-action-selector.toml").read_text()
+        cls.sprints = (root / "rules/goal-driven-sprints.md").read_text()
+        cls.routing = (root / ".agents/skills/yulang-next-action/SKILL.md").read_text()
+
+    def test_one_dispatch_contains_four_expert_questions(self) -> None:
+        for key in ("Altitude:", "Depth:", "Range:", "Independent verification:"):
+            self.assertIn(key, self.selector)
+        for key in ("Altitude", "Depth", "Range", "independent verification"):
+            self.assertIn(key, self.routing.lower() if key == "independent verification" else self.routing)
+        self.assertIn("same dispatch", self.selector)
+        self.assertIn("Only at an actual dispatcher boundary", self.sprints)
+
+    def test_original_parent_and_permission_are_preserved(self) -> None:
+        for key in ("unchanged original", "within-contract", "beyond-contract",
+                    "Luna", "original quantifiers", "write leases"):
+            self.assertIn(key, self.sprints)
+        self.assertIn("No speculative goal", self.selector)
+        self.assertIn("only luna can approve", self.selector.lower())
+
+    def test_decision_is_about_progress_and_falsifiability(self) -> None:
+        for key in ("genuine parent", "critical path", "falsifier", "review seam",
+                    "both independent lanes"):
+            self.assertIn(key, self.sprints)
+        self.assertIn("do not invent alternatives", self.selector.lower())
+        self.assertIn("Tests never", self.sprints)
+
+    def test_no_second_planner_or_changed_cadence(self) -> None:
+        self.assertIn("This check adds no", self.sprints)
+        self.assertIn("no mandatory read, reviewer or per-step consultation", self.sprints)
+        self.assertIn("No agent launch/contact", self.selector)
+        self.assertIn("An internal lemma, test, ordinary result", self.routing)
 
 
 if __name__ == "__main__":
