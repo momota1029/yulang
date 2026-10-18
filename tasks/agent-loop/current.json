@@ -18,13 +18,13 @@
       "available_seconds": 0,
       "allocation": "source caller witness600 + staged Sol proof900 + fresh independent review360 + integration240. Astra0; no R23 carryover. No code/tests."
     },
-    "next_action": "Wait for the actual caller tuple and exact guard formation from lane A; keep Sol proof staged until Luna verifies this source evidence.",
+    "next_action": "Await fresh independent review. If CLEAN, present the exact caller-binding choice (supplied semantic evidence vs caller construction under a reviewed source rule) at the semantic authority boundary; do not start PhiW proof until actual tuple exists.",
     "history": "Reuses bounded receiving profile, native Pi0/response Return, canonical Op0 and local inventory. Prior caller-registration attempt failed at authentic caller guard tuple; do not repeat a generic audit. Implementation WAITING.",
     "git_checkpoint": {
-      "commit": "298fe845e",
+      "commit": "e5fdd1c5a",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R23 closeout evidence/state pushed; R24 contract/state checkpoint pending."
+      "receipt": "R24 caller-binding evidence frozen and root-committed/pushed; independent review running."
     },
     "workers": [
       {
@@ -36,18 +36,29 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Primary owns R24 authority, exact lease dispatch, staged proof activation, review, integration and Git."
+        "receipt": "Primary owns independent review, exact semantic decision boundary, integration and Git."
       },
       {
         "id": "/root/r23_source_expansion",
         "role": "researcher",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Frozen R24 caller-binding packet; no actual tuple/guard constructed; committed/pushed as e5fdd1c5a."
+      },
+      {
+        "id": "/root/r24_caller_binding_review",
+        "role": "compiler_referee",
         "state": "RUNNING",
         "requested_model": "Sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R24 caller-source lane acknowledged; exact two-file lease, 600s cap; deriving actual j0/a0/license at shared W0,xi,h0."
+        "receipt": "Fresh independent review of actual caller binding boundary, acquisition choices, and proof gate."
       }
     ],
     "leases": [
@@ -64,26 +75,32 @@
       {
         "path": "notes/design/2026-10-18-choose-caller-registration-witness.md",
         "owner": "/root/r23_source_expansion",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-choose-caller-registration-witness.md",
         "owner": "/root/r23_source_expansion",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [
       {
         "id": "R24-CALLER-WITNESS-1",
-        "state": "RUNNING",
+        "state": "FROZEN",
         "owner": "/root/r23_source_expansion",
-        "artifact": "Actual caller-owned j0/a0/license/incidence at one shared W0,xi,h0 and phase guard actions, or exact missing source judgment."
+        "artifact": "No tuple constructed; exact first missing caller semantic context binding at actual prepare/lowering path."
+      },
+      {
+        "id": "R24-CALLER-BINDING-REVIEW",
+        "state": "RUNNING",
+        "owner": "/root/r24_caller_binding_review",
+        "artifact": "Review bounded source evidence and acquisition decision packet; no adoption."
       },
       {
         "id": "R24-JOINTWF-PROOF-1",
         "state": "STAGED",
-        "owner": "Sol/prover activated by Luna only after source tuple freezes",
-        "artifact": "Apply actual same-tuple caller evidence to all PhiW immediate guards and phase actions; no assumed validity."
+        "owner": "Sol/prover activated by Luna after actual tuple and formation evidence",
+        "artifact": "Derive same-tuple PhiW guards/phase actions and S subset Phi(S); remains blocked."
       }
     ],
     "ready_next_work": {
@@ -109,18 +126,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Primary owns R24 authority, exact lease dispatch, staged proof activation, review, integration and Git."
+      "receipt": "Primary owns independent review, exact semantic decision boundary, integration and Git."
     },
     {
       "id": "/root/r23_source_expansion",
       "role": "researcher",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Frozen R24 caller-binding packet; no actual tuple/guard constructed; committed/pushed as e5fdd1c5a."
+    },
+    {
+      "id": "/root/r24_caller_binding_review",
+      "role": "compiler_referee",
       "state": "RUNNING",
       "requested_model": "Sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R24 caller-source lane acknowledged; exact two-file lease, 600s cap; deriving actual j0/a0/license at shared W0,xi,h0."
+      "receipt": "Fresh independent review of actual caller binding boundary, acquisition choices, and proof gate."
     }
   ],
   "leases": [
@@ -137,26 +165,32 @@
     {
       "path": "notes/design/2026-10-18-choose-caller-registration-witness.md",
       "owner": "/root/r23_source_expansion",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-choose-caller-registration-witness.md",
       "owner": "/root/r23_source_expansion",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
       "id": "R24-CALLER-WITNESS-1",
-      "state": "RUNNING",
+      "state": "FROZEN",
       "owner": "/root/r23_source_expansion",
-      "artifact": "Actual caller-owned j0/a0/license/incidence at one shared W0,xi,h0 and phase guard actions, or exact missing source judgment."
+      "artifact": "No tuple constructed; exact first missing caller semantic context binding at actual prepare/lowering path."
+    },
+    {
+      "id": "R24-CALLER-BINDING-REVIEW",
+      "state": "RUNNING",
+      "owner": "/root/r24_caller_binding_review",
+      "artifact": "Review bounded source evidence and acquisition decision packet; no adoption."
     },
     {
       "id": "R24-JOINTWF-PROOF-1",
       "state": "STAGED",
-      "owner": "Sol/prover activated by Luna only after source tuple freezes",
-      "artifact": "Apply actual same-tuple caller evidence to all PhiW immediate guards and phase actions; no assumed validity."
+      "owner": "Sol/prover activated by Luna after actual tuple and formation evidence",
+      "artifact": "Derive same-tuple PhiW guards/phase actions and S subset Phi(S); remains blocked."
     }
   ],
   "ready_next_work": {
@@ -169,7 +203,7 @@
     "required": false,
     "receipt": "R23 workers stopped; three frozen evidence packets independently CLEAN within bounded scopes; parent closure0. R24 is a new bounded assignment; no code/unknown leases."
   },
-  "next_action": "Wait for the actual caller tuple and exact guard formation from lane A; keep Sol proof staged until Luna verifies this source evidence.",
+  "next_action": "Await fresh independent review. If CLEAN, present the exact caller-binding choice (supplied semantic evidence vs caller construction under a reviewed source rule) at the semantic authority boundary; do not start PhiW proof until actual tuple exists.",
   "git_checkpoint": {
     "commit": "f4fba1f38",
     "branch": "research/simple-sub-intrusion",
