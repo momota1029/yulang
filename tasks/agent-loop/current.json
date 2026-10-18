@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push rev4 contract and state, then resume exact implementer lease for the two test-only fixes. Freeze hashes; same reviewer CLEAN required before one focused runtime_resume test.",
     "history": "R18 runtime research path completed at d51baa6db; independent review CLEAN, runtime_resume 17/17. R17 details are in the R17 closeout pointer in top-level history. R19 source/proof characterization commits 6748039fa and 118375dce independently CLEAN; original parent conditions remain closure0.",
-    "last_stage_receipt": "Same independent compiler referee returned CLEAN for rev4 test-only delta. The focused runtime_resume target is now permitted exactly once; no runtime result yet. Parent OPEN/closure0.",
+    "last_stage_receipt": "Rev4 CLEAN; exact focused target executed once. Compilation passed; 17/18 tests passed, local-g test failed at hir.errors().is_empty() after parse diagnostics were empty and HIR lowering returned. CandidateInference/unchanged static receipt gate was not reached; runtime local-g and sibling lineage are NOT_RUN. Contract stop reached, parent OPEN/closure0.",
     "git_checkpoint": {
       "commit": "118375dce",
       "branch": "research/simple-sub-intrusion",
@@ -309,5 +309,5 @@
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "Luna runs exactly cargo test -p yu-playground --test runtime_resume once. On completion integrate exact reviewed paths/handoff, update state and commit/push. No retry on changed bytes."
+  "next_action": "Consult dispatcher at sprint end after the failed focused target. Preserve exact failure boundary; no retry or repair within R19 cap."
 }
