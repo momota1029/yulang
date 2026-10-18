@@ -124,3 +124,52 @@ reviewed, with the choice and its original-theorem consequences stated plainly.
 A proposal, proof under an unadopted rule, or passing test closes **zero**
 original parent conditions. The parent theorem remains OPEN until its unchanged
 source/native quantifiers and all proof gates are discharged.
+
+## R21 rev2 bounded review repair
+
+The rev1 packet and its independent review remain frozen. Review disposition is
+BLOCKING for three reasons: (1) the common `ResumeMap` was stated without a
+source/native derivation even for the fixed specimen; (2) both options require a
+FieldBound drain before its current post-traversal producer; (3) Option B's
+Pending capture coordinates and Apply/Catch join location disagree across the
+option and implementation documents.
+
+This versioned continuation adds 600 seconds (total cap 3300, fully charged;
+Astra 0): 240 seconds for author repair (120 each for the options/proof packet
+and implementation contract/handoff), 240 for the same non-author reviewer's
+delta review, and 120 for integration. Existing R21 resource use and review
+reservation remain charged; no R20 carryover. Exact write leases are limited
+to the two design documents and their two corresponding handoffs. No code,
+tests, HIR/runtime semantics, or new implementation authority is granted.
+
+Rev2 must close all three findings or label the affected option unimplementable
+and keep that semantic alternative unavailable for selection:
+
+1. Give a bounded D0/D1/D2 source/native derivation for the fixed direct
+   specimen, including actual source constructors and typed endpoints from the
+   `k response` argument through the selected arm value, Catch, and Install(g).
+   A local `tmp` alias may forward only through its actual Install/Name/FreshUse/
+   Group edges. A discarded value has no result edge. Keep foreign/general Call
+   continuations OPEN; do not claim a general ResultMap theorem.
+2. Specify the exact proposed earlier action after callback and annotation
+   checks, complete comparison drains, and exposed-root formation, but before
+   `PublishLocal(response)` and its first capture. State explicitly that this
+   is a new candidate scheduling/semantic rule, not behavior of the pinned
+   current scheduler. Carry the exact retained `h_arg`; reserve and collision-
+   check `(callback Apply occurrence, slot250)` across the complete schedule,
+   not only at prefix time. Prevent duplicate production by the existing final
+   action. Treat early records as private provisional evidence, and specify
+   rollback and suppression of final receipts/publication on later conflicts or
+   failures. No post-capture attachment.
+3. Align B's `Pending` across both documents. Before response capture, it must
+   explicitly retain a rooted traversal payload that makes the exact source
+   coordinates for q/h_arg/m0 and the independent annotation presentation
+   reachable to Graph capture without claiming `Own` or successful realization.
+   Define the FreshUse map of those typed coordinates, response-Name
+   `Realize-B`, and its use-local drain separately from the later ResultMap and
+   g-use replay. If this traversal cannot be derived without inventing an
+   unscoped global lookup, mark B BLOCKED rather than implying implementation.
+
+Keep the rev1 source falsifier/soundness packet unchanged and incorporated by
+reference. Freeze new hashes before requesting same-reviewer delta review. The
+parent remains OPEN / closure 0; no option is adopted absent user selection.
