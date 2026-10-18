@@ -5,11 +5,11 @@
   "session": "current-session",
   "active_sprint": {
     "id": "operation-v1-local-install-use-lineage-and-capture-20261018-r19",
-    "contract": "tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19.md",
-    "revision": 1,
-    "sha256": "75eba332166f8ffece47fe2ccbe6513058b151cc76fa74545ba56c3ca70977fd",
+    "contract": "tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-read-dependency-rev2.md",
+    "revision": 2,
+    "sha256": "ac088984d5303421091a203f63699ba212ed2bf01b90daa80fbc1f797f83317d",
     "state": "ACTIVE",
-    "baseline": "HEAD d51baa6db on origin/research/simple-sub-intrusion; exact R18 code and closeout hashes pinned in r19 contract.",
+    "baseline": "Semantic/code baseline d51baa6db plus immutable R19 pins; docs-only R19 authority/state commits eeafa05c5 and 73c044bd0 do not alter compiler owners.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers preserved; OPEN/closure0.",
     "fixed_outcome": "Constructively derive or pinpoint the earliest missing q/m0/FieldBound capture-to-FreshUse/native-consumer premise; independently falsify sibling-use/timing confusion; implement the independent same-HIR initializer Catch -> local g binder/cell -> resolved Name -> actual g Apply runtime lineage to the live outer arm and Completed42, conditional on unchanged static candidate acceptance.",
     "before": {
@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push r19 contract and initial state. Then launch disjoint proof, source-falsification and runtime-lineage lanes. Keep solver owners read-only; runtime result must not claim FieldBound Capture/FreshUse consumption.",
     "history": "R18 ENDED-PARTIAL-REVIEWED at d51baa6db: exact same-HIR research-only FieldBoundV1 through response closure/environment, raw continuation return, distinct outer Apply, live outer handler and Completed42; r2 integrated review CLEAN, r4 compile delta CLEAN, cargo test -p yu-playground --test runtime_resume 17/17. Original parent conditions closed 0. Full closeout tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md.",
-    "last_stage_receipt": "R18 committed and pushed as d51baa6db; runtime_resume 17/17. R19 target is the local Install(g) -> authentic Capture/FreshUse -> actual g() boundary, with independent proof/source audit and runtime lineage. Live R19 proof, falsification, and runtime workers acknowledged; mutable current.json hash drift was reviewed and classified as scheduling-state only, with all immutable dependencies matching.",
+    "last_stage_receipt": "R18 committed and pushed as d51baa6db; runtime_resume 17/17. R19 target is the local Install(g) -> authentic Capture/FreshUse -> actual g() boundary, with independent proof/source audit and runtime lineage. Live R19 proof, falsification, and runtime workers acknowledged; mutable current.json hash drift was reviewed and classified as scheduling-state only, with all immutable dependencies matching. R19 revision 2 adds two pinned read-only owners (lib.rs and candidate_extrusion.rs) for exact typed-drain completion and FreshUse physical-edge ownership; no write authority or budget expansion.",
     "git_checkpoint": {
       "commit": "d51baa6db",
       "branch": "research/simple-sub-intrusion",
@@ -56,18 +56,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "RUNNING acknowledgement received. Contract 75eba... and all immutable source/design/runtime pins match. current.json observed hash 63c06a05bb0d7a5e81d52a9293c163289f87f751f3cd6642e9c8f4cba047986d is mutable Luna-owned scheduling state, not a proof/source dependency; Luna confirmed it is expected launch-state drift. No artifact writes yet; exact proof leases remain held."
+      "receipt": "RUNNING acknowledgement received. Contract 75eba... and all immutable source/design/runtime pins match. current.json observed hash 63c06a05bb0d7a5e81d52a9293c163289f87f751f3cd6642e9c8f4cba047986d is mutable Luna-owned scheduling state, not a proof/source dependency; Luna confirmed it is expected launch-state drift. No artifact writes yet; exact proof leases remain held. Awaiting Luna-issued R19 revision 2 addendum with two pinned read-only native-drain owners; no writes. Acknowledged R19 revision 2 SHA ac088984d5303421091a203f63699ba212ed2bf01b90daa80fbc1f797f83317d; now tracing exact drain/return ownership with the added read-only pins. Shared anchor flow remains in scope; claim limited to complete FieldBound-to-use join."
     },
     {
       "id": "/root/r19_freshuse_falsification",
       "role": "researcher",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "RUNNING acknowledgement received. Contract and all eight solver/design dependency pins match. Install retains root/boundary/capture-region; actual capture occurs per local use before FreshUse preparation, so falsification traces capture-at-use and delayed FieldBound action ordering. No artifact writes yet."
+      "receipt": "Frozen source falsifier. Theory SHA d2952e5bba7fbae3da0c89ef37de89a8773111610bdc2c5b6aa42cdb743144c2; handoff SHA 2b0c19159e7ac6b80a173389ab27b54e94cb9da7d4031e537cabf017d770807c. No source-qualified sibling counterexample; capture precedes typed FieldBound creation; q_view/shared-anchor flow may still exist. Supplemental candidate_extrusion.rs hash pinned in R19 rev2; writer stopped."
     },
     {
       "id": "/root/r19_local_binding_runtime",
@@ -248,6 +248,16 @@
       "path": "tasks/agent-loop/inbox/20261018-operation-v1-local-binding-runtime.md",
       "owner": "/root/r19_local_binding_runtime",
       "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_extrusion.rs",
+      "owner": "/root/r19_freshuse_falsification",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-read-dependency-rev2.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [],
@@ -262,5 +272,5 @@
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "Continue the three acknowledged R19 lanes within exact leases; freeze coherent artifacts, obtain fresh independent reviews, then run the one authorized focused runtime target and integrate."
+  "next_action": "Acknowledge R19 revision 2 read-only dependency addendum, continue proof lane within existing allocation, then fresh-review frozen proof and source artifacts; runtime implementation continues unchanged."
 }
