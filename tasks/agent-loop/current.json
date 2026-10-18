@@ -13,17 +13,17 @@
     "fixed_outcome": "Authenticate active initializer Link -> checking/source event -> signed pairs/groups -> helper capture/publication -> both retained FreshUse maps from existing records, or record first unjoinable edge. No C/D source law, semantic adoption, production observer or allocation change.",
     "resources": {
       "cap_seconds": 1680,
-      "charged_seconds": 600,
-      "available_seconds": 1080,
-      "allocation": "R1 native600 fully charged (assignment duration UNKNOWN). R2 repair-native600 + fresh compiler180 + fresh spec180 + Luna integration120 remain; at most one further Cargo process; Astra0."
+      "charged_seconds": 1200,
+      "available_seconds": 480,
+      "allocation": "R1 native600 fully charged (duration UNKNOWN) + R2 repair-native600 fully charged (duration UNKNOWN). No native Cargo grants remain; compiler180 + spec180 + integration120 remain; Astra0."
     },
-    "next_action": "R34 rev2 repair writer running under the reissued exact four paths; repair only compile errors and authenticate local/shared row classification before the single remaining focused Cargo invocation.",
-    "history": "R34 rev1 sole Cargo compile failed before tests. Frozen candidate hashes ca1ef67a...984e and 81b83dd...0da5. Dispatcher recommends rev2 bounded repair. Parent0->0; R30 independent.",
+    "next_action": "R2 writer stopped after the single additional Cargo invocation failed at the known hir borrow/move compile error before assertions; writer fixed it after the run but no grant remains. Frozen result pending final dispatch; no retry.",
+    "history": "R34 rev1 and rev2 each consumed one Cargo invocation, both compile-failed before tests. Rev2 post-failure hir.clone fix is unexecuted. Candidate hashes: scheme619d5686..., integration6f8bf3f9..., progressf6e91ea0..., handoff829024ac.... Parent0->0; R30 independent.",
     "git_checkpoint": {
-      "commit": "a9531b5c3a",
+      "commit": "68850bcf1",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R34 rev2 bounded repair contract and state pushed as a9531b5c3 before fresh writer launch."
+      "receipt": "R34 rev2 repair launch state pushed as 68850bcf1; compile failure closeout state pending."
     },
     "workers": [
       {
@@ -35,7 +35,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R34 revision 2: first native assignment stopped; full 600s charged because active duration UNKNOWN; preparing fixed repair contract and one remaining Cargo grant."
+        "receipt": "R34 rev2 writer stopped after compile failure at known borrow error; recording exact outcome and requesting end-boundary disposition."
       },
       {
         "id": "/root/r34_dispatch",
@@ -73,13 +73,24 @@
       {
         "id": "/root/r34_native_repair",
         "role": "implementer (revision 2 repair)",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Actual fresh implementer launch after R34 rev2 was pushed; one remaining focused Cargo invocation; exact previous candidate snapshots inherited after stopped-writer reconciliation."
+        "receipt": "Confirmed writes stopped after sole rev2 Cargo invocation failed at integration hir borrow/move compile error before assertions; writer fixed afterward without rerun. Artifacts frozen at reported SHAs; no further command."
+      },
+      {
+        "id": "/root/r34_final_dispatch",
+        "role": "next_action_selector",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Actual end-boundary dispatcher spawn: assess frozen rev2 compile failure and next outcome; no further native grant."
       }
     ],
     "leases": [
@@ -101,37 +112,44 @@
       {
         "path": "crates/yu-solver/src/candidate_scheme.rs",
         "owner": "/root/r34_native_repair",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
         "owner": "/root/r34_native_repair",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-18-active-capture-authenticated-join-r34.md",
         "owner": "/root/r34_native_repair",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-active-capture-authenticated-join-r34.md",
         "owner": "/root/r34_native_repair",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
-    "pending": [],
+    "pending": [
+      {
+        "id": "R34-REV2-COMPILE-FAILURE",
+        "state": "REVIEW",
+        "owner": "/root",
+        "artifact": "Frozen test-only result. Both Cargo invocations compile-failed before assertions; rev2 includes an untested post-failure hir.clone fix. Awaiting final dispatcher disposition."
+      }
+    ],
     "ready_next_work": {
-      "id": "R34-REV2-NATIVE-REPAIR",
-      "state": "READY",
+      "id": "R34-CLOSEOUT",
+      "state": "PROPOSED",
       "owner": "/root",
-      "artifact": "After pushing rev2, launch a fresh implementer on the same exact four leases with 600s cap, three reported compile repairs only, one remaining Cargo invocation, and pre-run authentication of shared/fresh row classification."
+      "artifact": "Await final dispatcher recommendation; native test budget exhausted with two compile failures. Preserve or restore candidate, record proof/native closure 0->0 and exact source-owned C/D premise."
     },
     "legacy_reconciliation": {
       "required": false,
       "receipt": "R33 dispatcher, proof/native writers and compiler/spec reviewers are completed/terminal; their exact artifacts are frozen or reverted. No live old writer or unconfirmed lease remains."
     },
     "contract_sha256": "03f7cb94f79a2cfc0d17e67d1fa866f4b6147fdb5221cc4f5f0e12fd91098283",
-    "sha256": "79f20ccf94f755f34868814110efdabfa4806961967da0516e75e74dc31453f4"
+    "sha256": "ab637fb9c6115e811d3b0fabaf1f6c50daf113453f3a31ba915bf13c0c2c9bf9"
   },
   "workers": [
     {
@@ -143,7 +161,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R34 revision 2: first native assignment stopped; full 600s charged because active duration UNKNOWN; preparing fixed repair contract and one remaining Cargo grant."
+      "receipt": "R34 rev2 writer stopped after compile failure at known borrow error; recording exact outcome and requesting end-boundary disposition."
     },
     {
       "id": "/root/r34_dispatch",
@@ -181,13 +199,24 @@
     {
       "id": "/root/r34_native_repair",
       "role": "implementer (revision 2 repair)",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual fresh implementer launch after R34 rev2 was pushed; one remaining focused Cargo invocation; exact previous candidate snapshots inherited after stopped-writer reconciliation."
+      "receipt": "Confirmed writes stopped after sole rev2 Cargo invocation failed at integration hir borrow/move compile error before assertions; writer fixed afterward without rerun. Artifacts frozen at reported SHAs; no further command."
+    },
+    {
+      "id": "/root/r34_final_dispatch",
+      "role": "next_action_selector",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Actual end-boundary dispatcher spawn: assess frozen rev2 compile failure and next outcome; no further native grant."
     }
   ],
   "leases": [
@@ -209,33 +238,33 @@
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
       "owner": "/root/r34_native_repair",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
       "owner": "/root/r34_native_repair",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-active-capture-authenticated-join-r34.md",
       "owner": "/root/r34_native_repair",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-active-capture-authenticated-join-r34.md",
       "owner": "/root/r34_native_repair",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
-      "id": "R34-TEST-COMPILE-FAILURE",
+      "id": "R34-REV2-COMPILE-FAILURE",
       "state": "REVIEW",
       "owner": "/root",
-      "artifact": "Frozen test-only snapshots; sole Cargo process failed before assertions; awaiting dispatcher boundary disposition."
+      "artifact": "Frozen test-only result. Both Cargo invocations compile-failed before assertions; rev2 includes an untested post-failure hir.clone fix. Awaiting final dispatcher disposition."
     }
   ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
   "history": "R33 closed; R34 active. Preserve original parent scope and keep R30 independently OPEN.",
-  "sha256": "2f190fa3c0ffbd6602fa5003e5232082e2b67e85c72c0a0fd2b27c9f8ac55326"
+  "sha256": "11bdffeea83fb3243174039ee2d3d94d5d599788a709e5b718ce2dd8192a2892"
 }
