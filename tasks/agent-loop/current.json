@@ -17,7 +17,7 @@
       "baseline_commit": "3b974b9337d8490e1af2ebaa5f1b54ece2e62cd5",
       "dispatcher_start": "R67 exact candidate SHA verified; 34/34 pins MATCH; direct-checking route, source scope and 2400s candidate envelope confirmed",
       "prior_sprint": "R66 CLOSED after fresh compiler/spec reviews; conditional structural cut only for supplied derivations; R66-LAMBDA-RESULT-STAGE-1 remains OPEN; all R66 workers STOPPED; no carryover",
-      "live_reconciliation": "R66 identities STOPPED and leases frozen; R67 proof /root/r67_direct_lambda_proof and counter-reading /root/r67_lambda_check_counterreading acknowledged exact future leases preactivation, no reads/writes or descendants",
+      "live_reconciliation": "R66 all STOPPED; R67 proof /root/r67_direct_lambda_proof and counter-reading /root/r67_lambda_check_counterreading confirmed active in current session under exact leases, no descendants.",
       "semantic_boundary": "34 pinned evidence files only; required governance/startup reads separate. Source Generalize local laws require genuine premises; additional authority must return to Luna. Native guards remain unchanged."
     },
     "resources": {
@@ -45,24 +45,24 @@
     {
       "id": "/root/r67_direct_lambda_proof",
       "role": "R67 constructive direct Lambda-checking proof author",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r67",
-      "receipt": "Preactivation identity and exact-lease acknowledgment only; no reads/work/writes/descendants. Awaiting exact start message."
+      "receipt": "ACTIVE in current-conversation-2026-10-19-r67; began required governance and 34 pinned-dependency reads under exact rev1 SHA/leases; no descendants; 900s cap."
     },
     {
       "id": "/root/r67_lambda_check_counterreading",
       "role": "R67 complementary direct Lambda-checking researcher",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r67",
-      "receipt": "Preactivation identity and exact-lease acknowledgment only; no reads/work/writes/descendants. Awaiting exact start message."
+      "receipt": "ACTIVE in current-conversation-2026-10-19-r67; accepted exact rev1/leases and began source-grounded counter-reading; no descendants; 300s cap."
     }
   ],
   "leases": [

@@ -8,7 +8,7 @@ Status: the full user objective—proof-backed type inference and evaluator impl
 
 ### R67 active — direct source Lambda checking
 
-R67 attempts to construct the original symbolic Lambda operand from the selected source Lambda, Parameter, resolved Name, body-checking, designated consumer and complete invocation rules. It does not use Result-A’s unannotated Lambda synthesis equation; the Function interface must be derived before it is used for whole-type checking. The proof and complementary attack are awaiting exact start receipts; Luna owns the source/native map and Git. No code, test, semantic or production change is authorized. See the [R67 contract](agent-loop/sprints/direct-lambda-checking-20261019-r67.md).
+R67 attempts to construct the original symbolic Lambda operand from the selected source Lambda, Parameter, resolved Name, body-checking, designated consumer and complete invocation rules. It does not use Result-A’s unannotated Lambda synthesis equation; the Function interface must be derived before it is used for whole-type checking. The proof and complementary source-rule attack are active; Luna owns the source/native map and Git. No code, test, semantic or production change is authorized. See the [R67 contract](agent-loop/sprints/direct-lambda-checking-20261019-r67.md).
 
 
 ### R66 closed — conditional Lambda cut and unsupported Result-A staging premise
