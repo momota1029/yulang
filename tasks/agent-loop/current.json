@@ -44,7 +44,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-18",
-        "receipt": "R43 intake and integration frozen: note d6fb7eab0f388044aefcfdcc6276da11875d56153c438792d87e652eca5675c9 and handoff 09d721a138c8a9aa6e4aa9017e489fd75bdfe051f7a10876fb8e08f15ebafa51; exact selected authorities do not supply q; writes stopped."
+        "receipt": "R43 intake and integration frozen: note 50c8499da6b441980953868e007fc8f22446a8cea19d1015d7ad8affedeb5c61 and handoff 09d721a138c8a9aa6e4aa9017e489fd75bdfe051f7a10876fb8e08f15ebafa51; exact selected authorities do not supply q; writes stopped."
       }
     ],
     "leases": [
@@ -78,8 +78,9 @@
       "R42_review": "CLEAN; notes/progress/2026-10-18-r42-closeout.md; sha256 7216d186b4780593533e6916a5f3911507bd53cd8d8536a83b8fd07d991a94bf",
       "R42_closeout": "7216d186b4780593533e6916a5f3911507bd53cd8d8536a83b8fd07d991a94bf",
       "R43_contract": "065f0983dea404bb278810ca4b82d430049bfbcb0ce6413236fc05e407a16387",
-      "R43_original_output_order": "d6fb7eab0f388044aefcfdcc6276da11875d56153c438792d87e652eca5675c9",
-      "R43_handoff": "09d721a138c8a9aa6e4aa9017e489fd75bdfe051f7a10876fb8e08f15ebafa51"
+      "R43_original_output_order": "50c8499da6b441980953868e007fc8f22446a8cea19d1015d7ad8affedeb5c61",
+      "R43_handoff": "09d721a138c8a9aa6e4aa9017e489fd75bdfe051f7a10876fb8e08f15ebafa51",
+      "R43_integrity_correction": "f2c5237983cf59cb3b5883eccb38e03bf43d42e080f0ab2374d64fccd08c241b"
     }
   },
   "workers": [
@@ -92,7 +93,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-18",
-      "receipt": "R43 intake and integration frozen: note d6fb7eab0f388044aefcfdcc6276da11875d56153c438792d87e652eca5675c9 and handoff 09d721a138c8a9aa6e4aa9017e489fd75bdfe051f7a10876fb8e08f15ebafa51; exact selected authorities do not supply q; writes stopped."
+      "receipt": "R43 intake and integration frozen: note 50c8499da6b441980953868e007fc8f22446a8cea19d1015d7ad8affedeb5c61 and handoff 09d721a138c8a9aa6e4aa9017e489fd75bdfe051f7a10876fb8e08f15ebafa51; exact selected authorities do not supply q; writes stopped."
     }
   ],
   "leases": [
@@ -121,5 +122,5 @@
     "required": false,
     "receipt": "R42/R43 primary and review workers terminal. Pre-existing dirty/unknown-owner Rust, tasks/current.md and R35-R41 artifacts remain untouched/read-only."
   },
-  "sha256": "baeaf25e7b1dccfad070afc3655df3575fae834628bd4a916f92b997c5503add"
+  "sha256": "703a5adbbf372fa364308e6dd066a0b641161a29bf328ffaff6b78a60c0763de"
 }
