@@ -13,8 +13,8 @@
     "fixed_outcome": "Construct/review authentic Apply-local C/D declarations and scope/dependency/capture incidence through complete Call and two helper FreshUse frames, or record the first exact missing edge. In parallel execute a bounded native provenance join. No production promotion.",
     "resources": {
       "cap_seconds": 2940,
-      "charged_seconds": 300,
-      "available_seconds": 2640,
+      "charged_seconds": 2520,
+      "available_seconds": 420,
       "allocation": "proof900 + native900 + independent falsification300 + proof review240 + compiler review240 + spec review180 + integration180; Astra0."
     },
     "dependencies": {
@@ -29,8 +29,8 @@
       "candidate_scheme.rs": "03b44d0f8280c1ae79f66b5528f1bd0b0ffebac46b312ef7ffce605f702f48dd",
       "candidate_local_self_recursion.rs": "a6406f3eef2b25844272da9cbe121277001760d004f733029dcc3f600aa79c7a"
     },
-    "next_action": "Construct provisional Apply-extrusion source declarations for the exact active-root Name/Name occurrence; test lawful telescope and common lift. Native join remains in progress. Parent0->0.",
-    "history": "Independent falsifier found an exact active-root Name/Name coverage gap in the existing Apply Desc rule; no counterexample and no parent closure. Proof/native lanes continue. Falsifier full300s charged because total duration UNKNOWN.",
+    "next_action": "Complete independent proof/spec review and dispatcher; decide whether R35 can be repaired within 420s remainder or needs a versioned resource revision. No Cargo until native pre-write reviews pass.",
+    "history": "Proof and native authors STOPPED with frozen candidates; independent native reviews BLOCKED the native candidate. No Cargo. Falsifier300 + proof900 + native900 + native compiler240 + native spec180 conservatively charged=2520s. Proof reviews and midpoint dispatch RUNNING; parent0->0.",
     "git_checkpoint": {
       "commit": "3f3bfca3a1e37cd8fa574e40ea6382bac6b1c1d9",
       "branch": "research/simple-sub-intrusion",
@@ -52,24 +52,24 @@
       {
         "id": "/root/r35_apply_source_proof",
         "role": "prover/source bridge",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session-r35",
-        "receipt": "Spawned for scoped Apply declaration construction and unchanged complete Call lift; proof/handoff leases fixed."
+        "receipt": "Proof candidate frozen with HIR Parameter(y) scope; logical telescope and publication action remain missing. Full900s charged due UNKNOWN total."
       },
       {
         "id": "/root/r35_native_provenance",
         "role": "implementer/native evidence",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session-r35",
-        "receipt": "Spawned for test-only exact provenance join; no Cargo until independent pre-write review and Luna grant."
+        "receipt": "Native author STOPPED. Four-path candidate preserved for review; full900s charged due UNKNOWN total."
       },
       {
         "id": "/root/r35_apply_falsifier",
@@ -81,43 +81,86 @@
         "observed_effort": "UNKNOWN",
         "session": "current-session-r35",
         "receipt": "Frozen independent static result: the adopted compositional Apply Desc constructor does not cover active-root Name/Name f y; no source-qualified counterexample. Exact missing judgment is complete typed Apply/extrusion declaration plus capture incidence. Total active duration UNKNOWN; full 300s grant charged."
+      },
+      {
+        "id": "/root/r35_native_compiler_review",
+        "role": "fresh compiler_referee/pre-write review",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session-r35",
+        "receipt": "FROZEN native review BLOCKED: Parent unqualified and group_id undefined; remaining relation/capture limitations recorded. Full240s charged."
+      },
+      {
+        "id": "/root/r35_native_spec_review",
+        "role": "fresh spec_auditor/pre-write review",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session-r35",
+        "receipt": "FROZEN native spec review BLOCKED: flat loop fixture mismatches nested-helper target; signed C/D coordinate authentication incomplete. Full180s charged."
+      },
+      {
+        "id": "/root/r35_proof_review",
+        "role": "fresh compiler_referee/proof review",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session-r35",
+        "receipt": "Spawned for isolated review of the frozen scoped Apply proof; no native code or execution."
+      },
+      {
+        "id": "/root/r35_proof_spec_review",
+        "role": "fresh spec_auditor/proof scope review",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "low",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session-r35",
+        "receipt": "Spawned for isolated authority/quantifier review of the frozen proof candidate."
+      },
+      {
+        "id": "/root/r35_midpoint_dispatch",
+        "role": "next_action_selector/material-blocker dispatch",
+        "state": "RUNNING",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session-r35",
+        "receipt": "Spawned to recommend continuation using exact remaining budget and native/proof blocker evidence."
       }
     ],
     "leases": [
       {
         "path": "notes/theory/2026-10-18-scoped-apply-extrusion-r35.md",
         "owner": "/root/r35_apply_source_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-scoped-apply-extrusion-r35.md",
         "owner": "/root/r35_apply_source_proof",
-        "state": "HELD"
-      },
-      {
-        "path": "crates/yu-solver/src/candidate_scheme.rs",
-        "owner": "/root/r35_native_provenance",
-        "state": "HELD"
-      },
-      {
-        "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
-        "owner": "/root/r35_native_provenance",
-        "state": "HELD"
-      },
-      {
-        "path": "notes/progress/2026-10-18-scoped-apply-native-r35.md",
-        "owner": "/root/r35_native_provenance",
-        "state": "HELD"
-      },
-      {
-        "path": "tasks/agent-loop/inbox/20261018-scoped-apply-native-r35.md",
-        "owner": "/root/r35_native_provenance",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [],
     "ready_next_work": null,
-    "contract_sha256": "638b4b884a4927eac82f1c24ccbd9bc312a8b5f87ff6627845197b4a3c73e3b8"
+    "contract_sha256": "638b4b884a4927eac82f1c24ccbd9bc312a8b5f87ff6627845197b4a3c73e3b8",
+    "frozen_artifacts": {
+      "crates/yu-solver/src/candidate_scheme.rs": "9789cb4d8f4fb273a36513491e73b91309985bd0f624cca9295f2650c7fb7827",
+      "crates/yu-solver/tests/candidate_local_self_recursion.rs": "33912833281b73fc53fd0de3a34741fc778ac46f4eeb5d9064c6ca3a9193f020",
+      "notes/progress/2026-10-18-scoped-apply-native-r35.md": "3a304d1d3596f01d87c47003a86825830df15c057a432e2e160d58241e33024d",
+      "tasks/agent-loop/inbox/20261018-scoped-apply-native-r35.md": "25b3a4bd2a75f1674bf11e9b53a07e549e020330da2448f7e46aece437876660",
+      "notes/theory/2026-10-18-scoped-apply-extrusion-r35.md": "971fd22432c1f61373b2f2334d469ff8fa2dbca2f0ea04b2701ddc2189ba0f2d",
+      "tasks/agent-loop/inbox/20261018-scoped-apply-extrusion-r35.md": "577dc66d9647120b7c814dcd8c7fc92352ce93ac21910f413646a29f1f736560"
+    }
   },
   "workers": [
     {
@@ -134,24 +177,24 @@
     {
       "id": "/root/r35_apply_source_proof",
       "role": "prover/source bridge",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session-r35",
-      "receipt": "Spawned for scoped Apply declaration construction and unchanged complete Call lift; proof/handoff leases fixed."
+      "receipt": "Proof candidate frozen with HIR Parameter(y) scope; logical telescope and publication action remain missing. Full900s charged due UNKNOWN total."
     },
     {
       "id": "/root/r35_native_provenance",
       "role": "implementer/native evidence",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session-r35",
-      "receipt": "Spawned for test-only exact provenance join; no Cargo until independent pre-write review and Luna grant."
+      "receipt": "Native author STOPPED. Four-path candidate preserved for review; full900s charged due UNKNOWN total."
     },
     {
       "id": "/root/r35_apply_falsifier",
@@ -163,6 +206,61 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session-r35",
       "receipt": "Frozen independent static result: the adopted compositional Apply Desc constructor does not cover active-root Name/Name f y; no source-qualified counterexample. Exact missing judgment is complete typed Apply/extrusion declaration plus capture incidence. Total active duration UNKNOWN; full 300s grant charged."
+    },
+    {
+      "id": "/root/r35_native_compiler_review",
+      "role": "fresh compiler_referee/pre-write review",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session-r35",
+      "receipt": "FROZEN native review BLOCKED: Parent unqualified and group_id undefined; remaining relation/capture limitations recorded. Full240s charged."
+    },
+    {
+      "id": "/root/r35_native_spec_review",
+      "role": "fresh spec_auditor/pre-write review",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session-r35",
+      "receipt": "FROZEN native spec review BLOCKED: flat loop fixture mismatches nested-helper target; signed C/D coordinate authentication incomplete. Full180s charged."
+    },
+    {
+      "id": "/root/r35_proof_review",
+      "role": "fresh compiler_referee/proof review",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session-r35",
+      "receipt": "Spawned for isolated review of the frozen scoped Apply proof; no native code or execution."
+    },
+    {
+      "id": "/root/r35_proof_spec_review",
+      "role": "fresh spec_auditor/proof scope review",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session-r35",
+      "receipt": "Spawned for isolated authority/quantifier review of the frozen proof candidate."
+    },
+    {
+      "id": "/root/r35_midpoint_dispatch",
+      "role": "next_action_selector/material-blocker dispatch",
+      "state": "RUNNING",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session-r35",
+      "receipt": "Spawned to recommend continuation using exact remaining budget and native/proof blocker evidence."
     }
   ],
   "leases": [],

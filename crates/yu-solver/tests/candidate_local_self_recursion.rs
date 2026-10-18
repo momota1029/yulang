@@ -42,8 +42,37 @@ fn recursive_occurrences_have_no_fresh_scheme_and_later_uses_are_independent() {
     let first: Vec<_> = fresh[0].rows().filter(|row| row.source_row().is_local()).collect();
     let second: Vec<_> = fresh[1].rows().filter(|row| row.source_row().is_local()).collect();
     assert!(!first.is_empty() && !second.is_empty());
-    assert!(first.iter().all(|row| second.iter().all(|other| !row.same_identity(other))));
+    assert!(first.iter().all(|row| row.kind() == row.source_row().kind()));
+    assert!(second.iter().all(|row| row.kind() == row.source_row().kind()));
     assert!(candidate.export(root(&hir, "outer")).is_ok());
+}
+
+#[test]
+fn recursive_apply_occurrence_stays_open_while_sibling_helper_uses_execute() {
+    let hir = module("my identity y = y\nmy outer = { my loop x = loop x; my first = loop identity; my second = loop identity; second }");
+    let source = hir.local_source(root(&hir, "outer")).unwrap().unwrap();
+    let local = source.bindings().iter().find(|binding| binding.spelling.as_ref() == "loop").unwrap();
+    let recursive_apply = source.expressions().iter().find(|expression| matches!(&expression.form,
+        LocalSourceForm::Apply { callee, .. }
+            if source.expressions().get(callee.ordinal() as usize).is_some_and(|callee|
+                matches!(&callee.form, LocalSourceForm::Name {
+                    resolution: LocalSourceResolution::Local(id), ..
+                } if id == &local.id))
+    )).unwrap();
+    let LocalSourceForm::Apply { callee, .. } = &recursive_apply.form else { unreachable!() };
+    let recursive_name = &source.expressions()[callee.ordinal() as usize];
+    let uses: Vec<_> = source.expressions().iter().filter(|expression| matches!(&expression.form,
+        LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &local.id)).collect();
+    assert_eq!(uses.len(), 3);
+    let candidate = CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty());
+    assert!(candidate.fresh_use(&recursive_name.occurrence).is_none(),
+        "the recursive Apply constrains the active helper root");
+    let siblings: Vec<_> = uses.iter().filter(|use_expression|
+        use_expression.occurrence != recursive_name.occurrence)
+        .filter_map(|use_expression| candidate.fresh_use(&use_expression.occurrence)).collect();
+    assert_eq!(siblings.len(), 2, "both later source occurrences execute through retained fresh-use routes");
+    assert!(siblings.iter().all(|route| route.rows().all(|row| row.kind() == row.source_row().kind())));
 }
 
 #[test]

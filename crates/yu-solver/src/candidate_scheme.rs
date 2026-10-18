@@ -2205,6 +2205,87 @@ impl InferenceSession {
 mod authentic_demand_capture_tests {
     use super::*;
 
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum ApplyCaptureMiss {
+        WrongSourceOccurrence,
+        SourceEventMissing,
+        PairOutsideSourceGroup,
+        PairNotInHelperCapture,
+        WrongSiblingRoute,
+        ReconstructionMapMismatch,
+    }
+
+    // Test-only relation over retained records. Every edge is checked in its
+    // owning representation; endpoint locality never implies a fresh image.
+    fn join_apply_pair_capture(
+        state: &GraphState,
+        context: &candidate_context::State,
+        source_graph: &candidate_value_graph::Graph,
+        apply: &candidate_call::ApplySourceInput,
+        expected_apply: &HirOccurrenceId,
+        event: usize,
+        group: (usize, usize, usize, usize, bool),
+        parent_index: usize,
+        parent: Parent,
+        route: &LocalFreshRoute,
+        expected_local: &yu_hir::HirLocalId,
+        expected_use: &HirOccurrenceId,
+        supplied_rows: &[RowKey],
+        supplied_maps: &[ReconstructedRowObservation],
+    ) -> Result<(usize, usize, RowKey), ApplyCaptureMiss> {
+        if apply.checking.occurrence() != expected_apply {
+            return Err(ApplyCaptureMiss::WrongSourceOccurrence);
+        }
+        if source_graph.observed_checking(event) != Some(&apply.checking) {
+            return Err(ApplyCaptureMiss::SourceEventMissing);
+        }
+        let (_, group_occurrence, start, end, _) = group;
+        if group_occurrence != parent.occurrence || !(start..end).contains(&parent_index)
+            || parent.comparison.is_none()
+        { return Err(ApplyCaptureMiss::PairOutsideSourceGroup); }
+        let Some(source_set) = parent.sources else { return Err(ApplyCaptureMiss::SourceEventMissing); };
+        if !context.source_events(source_set).contains(&event) {
+            return Err(ApplyCaptureMiss::PairOutsideSourceGroup);
+        }
+        if route.local != *expected_local || route.occurrence != *expected_use {
+            return Err(ApplyCaptureMiss::WrongSiblingRoute);
+        }
+        if !state.local_routes.iter().any(|retained| std::ptr::eq(retained, route)) {
+            return Err(ApplyCaptureMiss::WrongSiblingRoute);
+        }
+        if supplied_rows.len() != route.rows.len()
+            || supplied_maps.len() != route.retained.row_observations.len()
+            || !std::ptr::eq(supplied_rows, route.rows.as_slice())
+            || !std::ptr::eq(supplied_maps, route.retained.row_observations.as_slice())
+            || route.rows.len() != route.graph.rows.len()
+            || route.retained.row_observations.len() != route.graph.rows.len()
+        { return Err(ApplyCaptureMiss::ReconstructionMapMismatch); }
+        for (index, (row, observation)) in supplied_rows.iter().zip(supplied_maps).enumerate() {
+            let actual = route.retained.row_observations[index];
+            if *row != route.rows[index]
+                || observation.graph_row != actual.graph_row
+                || observation.captured != actual.captured
+                || observation.source_representative != actual.source_representative
+                || observation.image != actual.image
+                || observation.allocated_fresh_image != actual.allocated_fresh_image
+            { return Err(ApplyCaptureMiss::ReconstructionMapMismatch); }
+        }
+        let pair_row = [parent.copy, parent.parent].into_iter().find(|key| {
+            route.graph.capture_rows.iter().any(|capture| {
+                capture.requested == *key || capture.representative == *key
+            })
+        }).ok_or(ApplyCaptureMiss::PairNotInHelperCapture)?;
+        let graph_row = route.graph.capture_rows.iter().position(|capture| {
+            capture.requested == pair_row || capture.representative == pair_row
+        }).ok_or(ApplyCaptureMiss::PairNotInHelperCapture)?;
+        let reconstruction = supplied_maps.get(graph_row).ok_or(ApplyCaptureMiss::ReconstructionMapMismatch)?;
+        if reconstruction.graph_row != graph_row
+            || reconstruction.captured != route.graph.rows[graph_row].key
+            || supplied_rows.get(graph_row) != Some(&reconstruction.image)
+        { return Err(ApplyCaptureMiss::ReconstructionMapMismatch); }
+        Ok((group_id, graph_row, pair_row))
+    }
+
     #[test]
     fn four_typed_function_ports_reject_every_pairwise_swap() {
         let expected = [11u8, 22, 33, 44];
@@ -2352,6 +2433,135 @@ mod authentic_demand_capture_tests {
                 assert_ne!(first_copy.input, second_copy.input);
             }
         }
+    }
+
+    #[test]
+    fn recursive_apply_source_group_joins_installed_helper_and_both_sibling_maps() {
+        let text: Arc<yu_syntax::SourceText> = Arc::from(
+            "my identity y = y\nmy outer = { my loop x = loop x; my first = loop identity; my second = loop identity; second }\nmy result = outer",
+        );
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "scoped-apply-native-r35", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode_scoped(hir.clone(), true, true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+
+        let owner = session.batch.hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "outer" => Some(binding.definition_root().clone()),
+            _ => None,
+        }).unwrap();
+        let source = session.batch.hir.local_source(&owner).unwrap().unwrap();
+        let loop_local = source.bindings().iter().find(|binding| binding.spelling.as_ref() == "loop").unwrap().id.clone();
+        let apply = session.batch.candidate_calls.calls.iter().find(|call| {
+            call.owner.definition_root() == Some(&owner)
+                && source.expressions().get(call.expression).is_some_and(|expression| {
+                    matches!(&expression.form, yu_hir::shadow::LocalSourceForm::Apply { callee, .. }
+                        if source.expressions().get(callee.ordinal() as usize).is_some_and(|callee|
+                            matches!(&callee.form, yu_hir::shadow::LocalSourceForm::Name {
+                                resolution: yu_hir::shadow::LocalSourceResolution::Local(id), ..
+                            } if id == &loop_local))
+                        && matches!(&expression.form, yu_hir::shadow::LocalSourceForm::Apply { argument, .. }
+                            if source.expressions().get(argument.ordinal() as usize).is_some_and(|argument|
+                                matches!(&argument.form, yu_hir::shadow::LocalSourceForm::Name { spelling, .. }
+                                    if spelling.as_ref() == "x")))
+                })
+        }).unwrap();
+        let apply_occurrence = source.expressions()[apply.expression].occurrence.clone();
+        let recipe = &session.batch.candidate_recipes[apply.recipe];
+        assert_eq!(recipe.occurrence, apply_occurrence, "source occurrence selects its retained Apply recipe");
+        assert!(matches!(&recipe.relation, shadow_apply::CandidateRelation::Apply { .. }));
+        let schedule = &session.batch.candidate_source.schedules[&owner];
+        assert!(schedule.iter().any(|action| matches!(action,
+            candidate_source::Action::Candidate(index) if *index == apply.recipe)),
+            "the exact Apply recipe is admitted by the owning source schedule");
+        let event = *session.batch.candidate_source.references.checking.get(&apply.checking).unwrap();
+        assert_eq!(session.batch.candidate_source.references.observed_checking(event), Some(&apply.checking));
+
+        let state = session.candidate_graph.as_ref().unwrap();
+        let context = &state.intrusion.effect_algebra.context;
+        let routes: Vec<_> = state.local_routes.iter().filter(|route| route.local == loop_local).collect();
+        assert_eq!(routes.len(), 2, "both exact sibling local-use routes are retained");
+        assert_ne!(routes[0].occurrence, routes[1].occurrence);
+        let scheme = state.locals[routes[0].slot].as_ref().unwrap();
+        assert_eq!(scheme.id, loop_local);
+        for route in &routes {
+            assert_eq!(route.slot, routes[0].slot);
+            assert_eq!(route.graph.live_root, scheme.root, "route capture root is the installed helper root");
+            assert_eq!(route.graph.boundary, scheme.boundary, "route capture boundary is the installed helper boundary");
+        }
+        let groups: Vec<_> = state.intrusion.observed_groups().filter(|(_, _, _, _, active)| *active)
+            .filter(|(_, _, start, end, _)| state.intrusion.parents[*start..*end].iter().any(|parent|
+                parent.sources.is_some_and(|sources| context.source_events(sources).contains(&event))))
+            .collect();
+        assert!(!groups.is_empty(), "the Apply source event reaches an activated signed pair group");
+        let mut joined = None;
+        'groups: for group in groups {
+            let (_, _, start, end, _) = group;
+            for parent_index in start..end {
+                let parent = state.intrusion.parents[parent_index];
+                if !parent.sources.is_some_and(|sources| context.source_events(sources).contains(&event)) { continue; }
+                for route in &routes {
+                    if let Ok(evidence) = join_apply_pair_capture(
+                        state, context, &session.batch.candidate_source.references,
+                        apply, &apply_occurrence, event, group, parent_index, parent,
+                        route, &loop_local, &route.occurrence, &route.rows, &route.retained.row_observations,
+                    ) { joined = Some((group, parent_index, parent, route.occurrence.clone(), evidence)); break 'groups; }
+                }
+            }
+        }
+        let (group, parent_index, parent, selected_use, (group_id, graph_row, pair_row)) = joined
+            .expect("precise Apply→source-event→signed-pair/group→installed-helper→capture/map join");
+        assert_eq!(parent.occurrence, group.1);
+        assert!(parent.comparison.is_some(), "selected parent retains its typed signed comparison pair");
+        assert!((group.2..group.3).contains(&parent_index));
+        assert_eq!(group_id, group.0);
+        assert_eq!(routes.iter().find(|route| route.occurrence == selected_use).unwrap().graph.capture_rows[graph_row].requested.kind(), pair_row.kind());
+        let selected = routes.iter().find(|route| route.occurrence == selected_use).unwrap();
+        let reconstruction = selected.retained.row_observations[graph_row];
+        assert_eq!(selected.rows[graph_row], reconstruction.image);
+        assert_eq!(reconstruction.captured, selected.graph.rows[graph_row].key);
+        assert_eq!(reconstruction.graph_row, graph_row);
+        if !reconstruction.allocated_fresh_image {
+            assert_eq!(reconstruction.image, reconstruction.source_representative,
+                "unallocated/shared coordinates keep their existing image; locality does not imply inequality");
+        }
+        let other = routes.iter().find(|route| route.occurrence != selected_use).unwrap();
+        let other_join = join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
+            apply, &apply_occurrence, event,
+            group, parent_index, parent, other, &loop_local, &other.occurrence,
+            &other.rows, &other.retained.row_observations).unwrap();
+        assert_eq!(other_join.0, group_id);
+        assert_eq!(other_join.1, graph_row, "the same captured coordinate is found through the sibling route");
+        assert_eq!(other_join.2.kind(), pair_row.kind());
+
+        let unrelated = state.intrusion.parents.iter().enumerate().find(|(_, candidate)| {
+            candidate.sources.is_some_and(|sources| !context.source_events(sources).contains(&event))
+        }).unwrap();
+        let unrelated_group = state.intrusion.observed_groups().find(|(_, occurrence, start, end, _)|
+            *occurrence == unrelated.1.occurrence && (*start..*end).contains(&unrelated.0)).unwrap();
+        assert_eq!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
+            apply, &apply_occurrence, event,
+            unrelated_group, unrelated.0, *unrelated.1, selected, &loop_local, &selected_use,
+            &selected.rows, &selected.retained.row_observations), Err(ApplyCaptureMiss::PairOutsideSourceGroup),
+            "an unrelated signed pair is rejected by the same join");
+
+        let sibling = other;
+        assert_eq!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
+            apply, &apply_occurrence, event,
+            group, parent_index, parent, sibling, &loop_local, &selected_use,
+            &sibling.rows, &sibling.retained.row_observations), Err(ApplyCaptureMiss::WrongSiblingRoute),
+            "a sibling use map cannot substitute for the selected route");
+        assert_eq!(join_apply_pair_capture(state, context, &session.batch.candidate_source.references,
+            apply, &apply_occurrence, event,
+            group, parent_index, parent, selected, &loop_local, &selected_use,
+            &sibling.rows, &sibling.retained.row_observations), Err(ApplyCaptureMiss::ReconstructionMapMismatch),
+            "a wrong reconstruction map cannot pass with the selected route identity");
     }
 
     #[test]
