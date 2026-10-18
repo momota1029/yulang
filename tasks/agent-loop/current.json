@@ -26,9 +26,9 @@
       "charged_seconds": 1500,
       "available_seconds": 300,
       "allocation": "Proof600 + complementary researcher500 (charged, no output) + compiler review200 + spec review200 + Luna integration300 = 1800s; Astra0; no carryover",
-      "actual_runtime": "Proof600, researcher500 and compiler review200 charged; actual runtimes UNKNOWN. Spec reviewer active under 200s cap. 300s remains for spec review and Luna integration; no carryover."
+      "actual_runtime": "Proof600, researcher500, compiler review200 and spec review200 charged; actual runtime UNKNOWN for all. Reviews stopped; Luna integration remains within 300s."
     },
-    "next_action": "Await fresh spec review stop receipt and findings; then adjudicate both reviews against the frozen proof, write Luna closeout, update current state and commit/push.",
+    "next_action": "Integrate the two CLEAN bounded reviews, exact first-missing-premise result, absent researcher output and parent status into the R65 closeout; consult dispatcher for end classification and next route.",
     "history": "R64 closed reviewed bounded partial derivation / exact unsupplied clause / no safe code slice. Proof hash b8041fae28a4a88d7143ab6e16be6658ce156f3de90888667dded93e8b643772; closeout hash c53e7d4a1c791cd93f428af9c11572327e4b72a462fa3c311d5c1141d3d5b670. Dispatcher R64 end route was source-language specification ownership. R65 tests pinned approved source-language decisions against the exact smaller clause; it does not repeat native/crosswalk audit. R65 proof frozen: artifact 6222ed3f75e8299d2afbc3d7d869e055bf0bd81e78841074d5e7a6f89ad795aa; inbox 587b3575103cf9ab1efa001388aa28139f1c7e3fceffe2324e0fe5b830a37745. Researcher STOPPED with no output and 500s charged; dispatcher approved governance-read distinction and rev2 review-scope amendment."
   },
   "workers": [
@@ -79,13 +79,13 @@
     {
       "id": "/root/r65_spec_review",
       "role": "Fresh independent spec/domain reviewer; read-only, no artifact lease",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r65",
-      "receipt": "Review launch acknowledged from frozen commit 9ff0415f3; exact rev2 scope and read-only 200s cap accepted; observed model/effort and separate session ID UNKNOWN; active review now."
+      "receipt": "STOPPED / READ_ONLY / NO_DESCENDANTS. CLEAN; no BLOCKING/major/minor. Rev2, rev1, proof pair and all 16 pins match. Confirms R65-CURRENT-OPERAND-1 is bounded to attempted route; no global absence, ambiguity, or parent closure; no second-author result. Session/model facts UNKNOWN; 200s charged."
     }
   ],
   "leases": [
