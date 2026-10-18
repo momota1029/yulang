@@ -17720,3 +17720,26 @@ NO_SAFE_CODE_SLICE until that correspondence is derived. See the [R58 closeout](
 [owner trace](../notes/progress/2026-10-19-r58-provider-publication-owners.md),
 [contract](agent-loop/sprints/original-name-prepublication-exposure-20261019-r58.md),
 and [review/state receipts](agent-loop/current.json).
+
+## Reviewed research result — R59
+
+R59 derived the polarity and slot obligations for the original top-level
+negative Function-argument annotation. The constructor is still incomplete:
+the exposed argument AE has no established admitted path to the checked AE of
+the same original provider (or other same-instance path to its entry effect).
+A finite scalar assignment refutes only independent open AE rows; it is not a
+source/native or parent counterexample. Formal, whole-function argument and
+result rows remain distinct; open incoming `E`, permission/inflow/residual, and
+all downstream owners remain separate. Fresh compiler/spec reviews are CLEAN
+on final bytes after corrected error-owner and status records; 25/25 pins and
+five output hashes match. No code, tests or execution. Parent and Simple-sub
+A/B remain OPEN 0→0; R50 remains NOT ADOPTED. See the [R59 closeout](../notes/progress/2026-10-19-r59-closeout.md),
+[proof](../notes/theory/2026-10-19-r59-negative-function-argument-row.md),
+[owner trace](../notes/progress/2026-10-19-r59-annotation-constructor-owners.md),
+and [current review/state receipts](agent-loop/current.json). Primary Git integration is pending.
+
+The dispatcher recommends a proposed R60 derivation of an authentic
+same-position/same-provider exposed-AE to checked-provider entrance, including
+source-local permission and correlated result compatibility. A shared row is
+only a candidate factorization. R60 remains ungranted pending a fresh primary
+activation and exact leases/budget.
