@@ -122,6 +122,38 @@ before any implementation or test expectation changes. If an existing
 user-selected source rule already determines one row, cite and derive it;
 otherwise the choice remains unadopted for user decision.
 
+## Concrete candidate for review
+
+The closest settled precedent is result-synthesis A: for the unannotated
+forwarding body `h(x: Computation(E,A)) = x`, the known computation interface
+is preserved and the designated result consumer executes it when the result
+computation is demanded. The result-synthesis decision explicitly leaves
+annotated checking and nested result-path coherence open, so it does not
+silently close this annotated binding.
+
+Candidate extension, **not adopted**: when checking an explicitly annotated
+Lambda whose written result occurrence `p_R` is a computation interface, use
+that written interface as an independent target-directed premise to elaborate
+the actual body `Name(t)` at its own original path as the one designated
+computation consumer. The checking constructor would produce the static
+`ConsumerOrigin` before checking success, retain the original `C`, provider,
+profile, `K,D` and body scope, then prove the same-interface/body-result
+obligations. `p_A` remains only the function-domain checking occurrence; it
+does not authorize this consumer. The consumer executes only when the
+resulting computation is actually demanded, preserving inert construction,
+lookup, transport and return. This locates demand at the body Name port while
+keeping execution at the selected explicit result demand.
+
+Applicability test for this candidate: the source syntax has a retained
+computation formal resolved by the body Name; the written `p_R` independently
+declares a compatible `Computation(E,A)` result view in the same context; the
+source checking rule itself maps that target to the original body path and
+constructs its `ConsumerOrigin` without using successful check, actual
+execution, `p_A`, native shape, or completed Lambda membership. A mere
+matching type/effect endpoint is insufficient. If this rule cannot be derived
+from the selected forwarding decision and ordinary bidirectional checking
+authority, user adoption is required before implementation.
+
 ## Required completion artifact
 
 A source-law completion should supply one of:
