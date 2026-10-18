@@ -19,12 +19,12 @@
     },
     "resources": {
       "cap_seconds": 7200,
-      "charged_seconds": 3615.251,
-      "available_seconds": 3584.749,
+      "charged_seconds": 4215.251,
+      "available_seconds": 2984.749,
       "allocation": "Prior rev1/rev2 3600s retired/charged in full conservatively (not elapsed-time claim). Fresh tranche: Luna authoring1800 (audit180, implementation900, mutation evidence480, freeze240) + Sol lifecycle proof600 + final review480 + protected runtime360 + Luna integration180 + reserve180. No rollover; Astra0.",
-      "last_stage_receipt": "Implementation lifecycle audit: monotonic 307356591476107..307371842244868ns; 15.251s charged; no writes/tests/runtime. Constructor-time readback supported by append-only production and paired transaction rollback; errors drop the candidate session."
+      "last_stage_receipt": "Sol source lifecycle proof frozen, charged full600s, monotonic ACK 307304901194208ns through freeze end 307576806849181ns. Artifact SHA 116fb9d70764b948680777651c7c891506a4ab3921ea2d15632be44068665cb5; handoff SHA 8f1ef387e9b6a376a85f87f33e527525c9a280c2102ed455714d7dd68776e3b7. Parent closure0; no tests/runtime."
     },
-    "next_action": "Implementation lifecycle audit completed CLEAN internally (15.251s/180s): route rollback rolls candidate evidence back before truncating lanes; successful freeze retains paired append-only slots/emissions. Author is in 900s implementation stage. Sol independently auditing pinned c881 source. Runtime360 protected."
+    "next_action": "Sol lifecycle artifact frozen and writer STOPPED. Its result supports constructor readback only for surviving raw slot records; missing emissions must fail closed. Implementation author remains in 900s stage. Fresh independent review after coherent implementation freeze; runtime360 protected."
   },
   "history": "Closed `npair-replay-fiber-consumer-certificate-20261018` REVIEWED-PARTIAL at `7087de449`; parent OPEN, closure0. Proof SHA `691a537b…e3e3614` CLEAN conditional. Implementation candidate `1958cf20e` unapproved; compiler review BLOCKING+2 MAJOR, no Cargo/tests/runtime. Closeout: `notes/progress/2026-10-18-replay-fiber-consumer-closeout.md`. PR #11 merged at `27a7e00d4`; operations-only. Earlier sprint history remains in linked notes/progress and Git history.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -76,13 +76,13 @@
     {
       "id": "/root/constructor_slot_lifecycle_proof",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh rev3 ACK, contract SHA c3e21e367b90a3d13165139cade12c2730f5a38ad3beb2ec1ec5a923c4fe1047; exact two proof leases; baseline c881 blobs pinned and hashes supplied. Read-only audit start monotonic 307304901194208ns; cap600s, Astra0; requested Sol/high, observed UNKNOWN/UNKNOWN; no code/tests/runtime/Git/descendants."
+      "receipt": "Frozen candidate source/lifecycle result; artifact SHA 116fb9d70764b948680777651c7c891506a4ab3921ea2d15632be44068665cb5; handoff SHA 8f1ef387e9b6a376a85f87f33e527525c9a280c2102ed455714d7dd68776e3b7. Charge600s conservatively; monotonic start307304901194208ns, freeze end307576806849181ns. Parent closure0, no tests/runtime/code/Git/descendants; fresh combined review required."
     }
   ],
   "leases": [
@@ -144,12 +144,12 @@
     {
       "path": "notes/theory/2026-10-18-constructor-slot-lifecycle.md",
       "owner": "/root/constructor_slot_lifecycle_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-constructor-slot-lifecycle-proof.md",
       "owner": "/root/constructor_slot_lifecycle_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
