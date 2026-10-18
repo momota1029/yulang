@@ -2,185 +2,204 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r57",
+  "session": "current-conversation-2026-10-19-r58",
   "active_sprint": {
-    "id": "original-name-two-capture-20261019-r57",
-    "contract": "tasks/agent-loop/sprints/original-name-two-capture-20261019-r57.md",
+    "id": "original-name-prepublication-exposure-20261019-r58",
+    "contract": "tasks/agent-loop/sprints/original-name-prepublication-exposure-20261019-r58.md",
     "revision": 1,
     "state": "CLOSED",
-    "baseline": "abef89fb8491c5709173ba55c76af7886897a5bd",
-    "contract_sha256": "b8fb35aa130304ab459b1c8ead188c5ebd6c86bb177420842f279a1d17f4c5a9",
-    "parent": "Original computation-forwarding preservation §§1,6-7; original source domain and quantifiers unchanged; OPEN 0->0.",
-    "fixed_outcome": "Determine whether first forward x plus qualified recursive loop x preserve the original published forward closure until b=forward x makes a second authentic capture; derive distinct maps/restored mapped bounds, or identify exact interference/obstruction.",
+    "baseline": "13e1e65da38e64992bc53f9e7f2cd2e12696ee3d",
+    "contract_sha256": "87491930517debeea7c96baf14a74fe6cdd6a94dd8619554512ec672a6f71223",
+    "parent": "Original computation-forwarding preservation §§1,6-7; original quantifiers/domain unchanged; forwarding theorem and Simple-sub A/B OPEN 0->0.",
+    "fixed_outcome": "Determine whether exact top-level definition annotation processing for annotated direct-Name provider forward exposes or changes the original closure before its first authentic capture/FreshUse, including exact owner transition; otherwise establish a source-constructor exclusion or freeze the exact obstruction.",
     "dependencies": {
-      "manifest": "28 exact SHA-256 files pinned in R57 contract rev1; all MATCH before approval",
-      "R56_closeout_commit": "bb02202c4",
-      "R56_state_commit": "abef89fb8",
-      "R56_review": "fresh compiler/spec CLEAN for frozen R56 outputs; parent remains OPEN"
+      "manifest": "22 SHA-256 dependencies in R58 contract rev1; all MATCH before primary approval",
+      "R57_closeout_commit": "13e1e65da38e64992bc53f9e7f2cd2e12696ee3d",
+      "source_domain": "Dispatcher confirmed exact candidate passes original §1 constructor-level gate; eligibility only, not typing/compatibility/native success.",
+      "R57_review": "Fresh compiler/spec round 2 CLEAN; accepted within stated successful-prefix scope only.",
+      "R58_live_receipt": "Sol active-work receipt received after primary approval; all 22/22 pins MATCH; no pre-receipt writes; exact leases and no descendants confirmed."
     },
     "resources": {
-      "cap_seconds": 2400,
-      "charged_seconds": 1500,
-      "available_seconds": 900,
-      "allocation": "Sol constructive trace 900 and Luna read-only owner trace 600 charged/reserved at activation; compiler/spec reviews 300 each and integration 300 reserved. Actual durations/CPU/RSS UNKNOWN. No Astra, code/tests/parser/solve/runtime/probes/measurements.",
+      "cap_seconds": 1800,
+      "charged_seconds": 1800,
+      "available_seconds": 0,
+      "allocation": "Sol 600 charged; Luna source-owner allocation 500 charged/reserved; compiler/spec review grants 200 each charged/reserved; integration allowance 300 used for closeout; total charged/reserved 1800, no carryover. Actual wall durations/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "Prepare the exact R58 pre-publication exposure candidate and establish original-parent-domain membership; no packet is authorized until this activation gate passes.",
-    "history": "R56 CLOSED and pushed at bb02202c4; status receipt abef89fb8. R56 bounded source exclusion reviewed CLEAN by fresh compiler/spec; 23/23 prior pins MATCH; parent OPEN 0->0. Dispatcher selected the distinct second-forward-use input retaining final z. R57 rev1 primary-approved after clean baseline and 28/28 dependency hashes MATCH, R56 CLOSED, all known writers STOPPED, and before worker writes. Exact source and output leases frozen; no solver execution or code authority. Sol current-session R57 active-work receipt received after committed activation: resumed on NEW_TASK; contract and 28 pins independently MATCH; requested Sol/high, observed UNKNOWN/UNKNOWN; no writes at receipt, exact two leases, no descendants, fresh 900s grant/no carryover. R57 CLOSED after round-2 compiler/spec CLEAN; round-1 spec minor stale-status record finding corrected and re-reviewed CLEAN. Four frozen output hashes and 28 dependency pins MATCH. Dispatcher advises a distinct pre-publication exposure gate (annotation/publication before first capture), not another added use; R58 remains candidate pending Luna exact source/domain gate.",
+    "next_action": "R59 PROPOSED only: derive exact source/native negative concrete Function-argument annotation constructor contract, preserve open incoming E and separate formal/argument/result positions. No safe code slice; fresh Luna approval/leases required before activation.",
+    "history": "R57 CLOSED and pushed at 13e1e65da38e64992bc53f9e7f2cd2e12696ee3d after round-2 compiler/spec CLEAN; four frozen output hashes and 28/28 pins matched. Bounded successful ordinary constructor-prefix preservation through a second same-provider Local capture; parent OPEN 0->0, R50 NOT ADOPTED, no safe code slice. All R57 workers STOPPED and leases frozen. Dispatcher selected the distinct pre-publication annotation exposure gate and confirmed the exact candidate passes constructor-level original-domain membership only. R58 rev1 closed after both independent reviews CLEAN; exact candidate was rejected by preflight before any native rows/actions/FreshUse; this is implementation coverage obstruction only. Dispatcher selected a proposed bounded R59 constructor-contract derivation; no R59 grant or code authority yet.",
     "workers": [
       {
         "id": "/root",
-        "role": "Luna primary; independent read-only source-owner trace",
+        "role": "Luna primary; read-only HIR/action/schedule/native-owner trace and integration",
         "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r57",
-        "receipt": "R57 source-owner trace and handoff frozen; exact output hashes recorded; read-only lane stopped before fresh review."
+        "session": "current-conversation-2026-10-19-r58",
+        "receipt": "R58 closeout integrated by primary; all author/reviewer/dispatcher identities STOPPED; exact leases frozen. Commit and non-forced push are the sole remaining integration steps."
       },
       {
         "id": "/root/r53_ordinary_mixed_capture_proof",
-        "role": "Sol/high constructive source/domain, noninterference and second-capture trace",
+        "role": "Sol/high constructive source-domain and pre-publication annotation/FreshUse trace",
         "state": "STOPPED",
-        "requested_model": "prover",
+        "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-conversation-2026-10-19-r57",
-        "receipt": "R57 proof and handoff hashes received; 28/28 pins MATCH at freeze; WRITES_STOPPED / NO_DESCENDANTS; requested Sol/high, observed UNKNOWN/UNKNOWN; 900s charged."
+        "session": "current-conversation-2026-10-19-r58",
+        "receipt": "R58 frozen proof/handoff; artifact 6f10c1469bf99636d1399ce1de3e8a3be11036c5f53bfd84385320461c2efbe3; handoff a9602e9993fdaf5bdba5fd6ffcfbe5073094978d9296fc92c6994b4aa0c59d59; contract and 22/22 pins MATCH; exact preflight obstruction; STOPPED / WRITES_STOPPED / NO_DESCENDANTS; Sol600 charged; requested Sol/high, observed UNKNOWN/UNKNOWN; actual duration/CPU/RSS UNKNOWN."
       }
     ],
     "leases": [
       {
-        "path": "tasks/agent-loop/sprints/original-name-two-capture-20261019-r57.md",
+        "path": "tasks/agent-loop/sprints/original-name-prepublication-exposure-20261019-r58.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "notes/theory/2026-10-19-r57-original-name-two-capture.md",
+        "path": "notes/theory/2026-10-19-r58-provider-publication-exposure.md",
         "owner": "/root/r53_ordinary_mixed_capture_proof",
         "state": "FROZEN"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261019-r57-proof.md",
+        "path": "tasks/agent-loop/inbox/20261019-r58-proof.md",
         "owner": "/root/r53_ordinary_mixed_capture_proof",
         "state": "FROZEN"
       },
       {
-        "path": "notes/progress/2026-10-19-r57-original-name-owner-trace.md",
+        "path": "notes/progress/2026-10-19-r58-provider-publication-owners.md",
         "owner": "/root",
         "state": "FROZEN"
       },
       {
-        "path": "tasks/agent-loop/inbox/20261019-r57-implementation.md",
+        "path": "tasks/agent-loop/inbox/20261019-r58-implementation.md",
         "owner": "/root",
         "state": "FROZEN"
       }
     ],
     "pending": [
       {
-        "id": "R57-TWO-CAPTURE-1",
-        "parent": "forwarding-preservation §§1,6-7",
-        "owner": "Sol proof + Luna read-only source owner",
-        "request": "Trace first forward use, qualified recursive construction, second same-provider Local capture and exact distinct FreshUse maps/restored bounds; recompute changed event qualification, full source sets and signed physical owners.",
-        "falsifier": "Changed qualification, actual physical interference, second capture not same provider, missing endpoint image, incomplete source/parent set, out-of-domain source, or successful-prefix overclaim."
+        "id": "R58-PREPUBLICATION-EXPOSURE-GATE",
+        "parent": "forwarding-preservation §§1,6-7; R55 original-exposure owner judgment",
+        "owner": "Sol proof + Luna read-only source-owner trace",
+        "request": "Trace whether exact definition-level annotation processing exposes or changes original forward before first authentic capture; establish owner transition or source-specific exclusion, exact row/level/metadata writes and first FreshUse.",
+        "falsifier": "No successful compatible constructor prefix; emitted action is not drained before capture; no physical exposure/eligibility change; missing authentic provenance; candidate outside original domain; or parent claim inferred from untyped/failed prefix."
       }
     ],
-    "closure": "R57 CLOSED: bounded successful-constructor-prefix preservation through a genuine second same-provider Local capture, with distinct mu_b and direct mapped bound restoration. Compiler/spec round 2 CLEAN, all four outputs match and 28/28 pins MATCH. No observed full solve/runtime; parent OPEN 0->0; R50 NOT ADOPTED; no safe code slice.",
+    "closure": "R58 CLOSED as a reviewed exact preflight obstruction. Candidate remains in original source domain but ordinary candidate solver refuses negative concrete Function-argument row before collection/session/annotation/capture. No exposure witness, source exclusion, semantic incompatibility proof, parent counterexample or safe code slice. Fresh compiler/spec reviews and formatting-only delta reviews CLEAN; final four output hashes and all 22/22 dependencies match. Parent OPEN 0->0, A/B OPEN, R50 NOT ADOPTED.",
     "frozen_artifacts": {
-      "R56_closeout_commit": "bb02202c4",
-      "R56_status_commit": "abef89fb8",
-      "R56_proof_sha256": "ee5edcaaa64b32323cd60b1a960aecd7f8cf239e17103a7f0e2bcc14cf8691fd",
-      "R56_proof_handoff_sha256": "0fcdb5b9046e4beb9538bce4f423678170a02af56bf98d302f9d0708aead63f3",
-      "R56_owner_trace_sha256": "e9442fa05666018bb7bb2eefede2f6ef7867c6355a1e793bbb08ea825587a6d2",
-      "R56_owner_handoff_sha256": "dac34a1377881f2519ff3486d1d3ce88114cac73d5477837da70ef77a4d747b1",
-      "R57_contract_sha256": "b8fb35aa130304ab459b1c8ead188c5ebd6c86bb177420842f279a1d17f4c5a9",
-      "R57_proof_sha256": "9603acbd00419111821aa0e808258d5b744f5afc0b2d8601be2cc7ffd8f883ff",
-      "R57_proof_handoff_sha256": "3510d54cb5f5ade190833cc5657eebcf05952e1c80df8b52e6c63b9a83dc28b7",
-      "R57_owner_trace_sha256": "b61c52cc4afa02b98828df76cc8182d15a60cb5d240dde4a73085f50ae08e0ce",
-      "R57_owner_handoff_sha256": "668c7141e059e9299920e591894af8b0a1727f4ee2eec38cc687c64f1d6da6af"
+      "R57_closeout_commit": "13e1e65da38e64992bc53f9e7f2cd2e12696ee3d",
+      "R58_contract_sha256": "87491930517debeea7c96baf14a74fe6cdd6a94dd8619554512ec672a6f71223",
+      "R58_proof_sha256": "6f10c1469bf99636d1399ce1de3e8a3be11036c5f53bfd84385320461c2efbe3",
+      "R58_proof_handoff_sha256": "a9602e9993fdaf5bdba5fd6ffcfbe5073094978d9296fc92c6994b4aa0c59d59",
+      "R58_owner_trace_sha256": "50752e1d119df65c42e79e54c8bd2d84a0796c70f1e257a087f9910eb95714a3",
+      "R58_owner_handoff_sha256": "3fd4eaea54e84efd9501e65e4b853d3888496c851ea77794c7cdae53c946bf75",
+      "R58_closeout_sha256": "a4f1b9ff32a550ad11bcc4b8cfe8d3b0a293c99a4c7e2ad26e6195cc008d4164"
     },
     "pending_reviews": [
       {
         "reviewer": "/root/r52_compiler_review",
-        "type": "fresh compiler referee",
+        "type": "delta compiler/source-owner review",
         "state": "CLEAN",
-        "cap_seconds": 300,
-        "receipt": "R57 compiler review round 2 CLEAN; corrected trace/handoff and all four hashes matched; 28/28 pins MATCH; STOPPED/READ_ONLY/NO_DESCENDANTS; actual charged time and observed settings UNKNOWN."
+        "cap_seconds": 200,
+        "target_hashes": {
+          "owner_trace": "50752e1d119df65c42e79e54c8bd2d84a0796c70f1e257a087f9910eb95714a3",
+          "owner_handoff": "3fd4eaea54e84efd9501e65e4b853d3888496c851ea77794c7cdae53c946bf75",
+          "closeout": "a4f1b9ff32a550ad11bcc4b8cfe8d3b0a293c99a4c7e2ad26e6195cc008d4164"
+        },
+        "receipt": "Fresh R58 delta compiler/source-owner review CLEAN; whitespace-only final-byte cleanup verified; exact Luna trace/handoff/closeout hashes and 22/22 pins match; STOPPED/READ_ONLY/NO_DESCENDANTS; actual duration/model/effort UNKNOWN."
       },
       {
         "reviewer": "/root/r52_spec_review",
-        "type": "fresh spec auditor",
+        "type": "delta spec/domain review",
         "state": "CLEAN",
-        "cap_seconds": 300,
-        "receipt": "R57 spec review round 2 CLEAN; prior minor stale-status finding closed; corrected trace/handoff and all four hashes matched; 28/28 pins MATCH; STOPPED/READ_ONLY/NO_DESCENDANTS; actual charged time and observed settings UNKNOWN."
+        "cap_seconds": 200,
+        "target_hashes": {
+          "owner_trace": "50752e1d119df65c42e79e54c8bd2d84a0796c70f1e257a087f9910eb95714a3",
+          "owner_handoff": "3fd4eaea54e84efd9501e65e4b853d3888496c851ea77794c7cdae53c946bf75",
+          "closeout": "a4f1b9ff32a550ad11bcc4b8cfe8d3b0a293c99a4c7e2ad26e6195cc008d4164"
+        },
+        "receipt": "Fresh R58 delta spec/domain review CLEAN; whitespace-only final-byte cleanup verified; exact Luna trace/handoff/closeout hashes and 22/22 pins match; STOPPED/READ_ONLY/NO_DESCENDANTS; actual duration/model/effort UNKNOWN."
       }
     ],
-    "review_round_1": {
-      "compiler": "CLEAN; exact contract/four output hashes and 28/28 pins matched; STOPPED/READ_ONLY/NO_DESCENDANTS; actual duration UNKNOWN.",
-      "spec": "MINOR record-consistency finding: Luna trace stale active/unfrozen status; substantive conformance and 28/28 pins clean; STOPPED/READ_ONLY/NO_DESCENDANTS; actual duration UNKNOWN.",
-      "corrective_action": "Updated trace status and freeze statement; refreshed Luna trace/handoff hashes; proof output unchanged."
-    }
+    "primary_approval": "R58 rev1 approved in current-conversation-2026-10-19-r58 after exact baseline and 22/22 pins matched, source-domain gate confirmed and all known old writers/leases reconciled STOPPED/FROZEN; approval preceded all R58 worker writes.",
+    "primary_adjudication": "Accepted as bounded candidate-compiler preflight obstruction only. Not a source-domain exclusion, source counterexample, semantic incompatibility result or theorem closure. R59 is proposed, not activated.",
+    "dispatcher_close": {
+      "agent": "/root/r46_next_action",
+      "state": "COMPLETED_READ_ONLY",
+      "session": "current-conversation-2026-10-19-r58",
+      "recommendation": "Close R58. Strongest next within-goal outcome is a bounded derivation of the source/native constructor contract for this exact negative concrete Function-argument annotation; NO_SAFE_CODE_SLICE until correspondence is established. Preserve open incoming E and distinct formal/argument/result positions. New implementation/execution requires fresh primary grant.",
+      "proposed_outputs": [
+        "notes/theory/2026-10-19-r59-negative-function-argument-row.md",
+        "tasks/agent-loop/inbox/20261019-r59-proof.md",
+        "notes/progress/2026-10-19-r59-annotation-constructor-owners.md",
+        "tasks/agent-loop/inbox/20261019-r59-implementation.md"
+      ],
+      "budget": "Fresh proposed 1800s: Sol600, Luna500, compiler/spec review400, integration300; Astra0; no carryover.",
+      "grant": "No R59 contract/leases/authority issued by dispatcher."
+    },
+    "integration": "R58 closeout note and tasks/current summary synchronized; exact eight paths staged by primary; final-byte delta compiler/spec reviews CLEAN; no further review pending."
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna primary; independent read-only source-owner trace",
+      "role": "Luna primary; read-only HIR/action/schedule/native-owner trace and integration",
       "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r57",
-      "receipt": "R57 source-owner trace and handoff frozen; exact output hashes recorded; read-only lane stopped before fresh review."
+      "session": "current-conversation-2026-10-19-r58",
+      "receipt": "R58 closeout integrated by primary; all author/reviewer/dispatcher identities STOPPED; exact leases frozen. Commit and non-forced push are the sole remaining integration steps."
     },
     {
       "id": "/root/r53_ordinary_mixed_capture_proof",
-      "role": "Sol/high constructive source/domain, noninterference and second-capture trace",
+      "role": "Sol/high constructive source-domain and pre-publication annotation/FreshUse trace",
       "state": "STOPPED",
-      "requested_model": "prover",
+      "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r57",
-      "receipt": "R57 proof and handoff hashes received; 28/28 pins MATCH at freeze; WRITES_STOPPED / NO_DESCENDANTS; requested Sol/high, observed UNKNOWN/UNKNOWN; 900s charged."
+      "session": "current-conversation-2026-10-19-r58",
+      "receipt": "R58 frozen proof/handoff; artifact 6f10c1469bf99636d1399ce1de3e8a3be11036c5f53bfd84385320461c2efbe3; handoff a9602e9993fdaf5bdba5fd6ffcfbe5073094978d9296fc92c6994b4aa0c59d59; contract and 22/22 pins MATCH; exact preflight obstruction; STOPPED / WRITES_STOPPED / NO_DESCENDANTS; Sol600 charged; requested Sol/high, observed UNKNOWN/UNKNOWN; actual duration/CPU/RSS UNKNOWN."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/original-name-two-capture-20261019-r57.md",
+      "path": "tasks/agent-loop/sprints/original-name-prepublication-exposure-20261019-r58.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-19-r57-original-name-two-capture.md",
+      "path": "notes/theory/2026-10-19-r58-provider-publication-exposure.md",
       "owner": "/root/r53_ordinary_mixed_capture_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r57-proof.md",
+      "path": "tasks/agent-loop/inbox/20261019-r58-proof.md",
       "owner": "/root/r53_ordinary_mixed_capture_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
-      "path": "notes/progress/2026-10-19-r57-original-name-owner-trace.md",
+      "path": "notes/progress/2026-10-19-r58-provider-publication-owners.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r57-implementation.md",
+      "path": "tasks/agent-loop/inbox/20261019-r58-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
-      "id": "R58-PREPUBLICATION-EXPOSURE-GATE",
-      "parent": "forwarding-preservation §§1,6-7; R55 original-exposure owner judgment",
-      "owner": "/root",
-      "request": "Freeze an exact original-domain annotation/publication constructor case that may constrain, share, or mark nongeneric the original direct-Name provider closure before first capture; establish source-domain membership and trace actual AE/Name/RE identities and physical write owners before authorizing a packet.",
-      "falsifier": "Candidate requires a higher-order/new interface outside parent domain, lacks authentic publication/annotation owner, or source path cannot reach original provider rows before first capture."
+      "id": "R59-NEGATIVE-FUNCTION-ARGUMENT-CONSTRUCTOR",
+      "state": "PROPOSED",
+      "owner": "Luna primary",
+      "request": "Derive the exact source/native constructor contract for the negative concrete Function-argument annotation; preserve open incoming E and separate formal/argument/result positions. No safe code slice before this correspondence.",
+      "requires": "R58 final-byte reviews CLEAN; primary commit/push; fresh Luna activation, exact contract/dependencies/live receipts and leases; not authorized by R58 closeout."
     }
   ]
 }

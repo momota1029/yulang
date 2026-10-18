@@ -17696,3 +17696,27 @@ annotation or publication constructor can constrain, share or mark nongeneric
 the original direct-Name provider closure before its first capture. R58 is
 only a candidate: Luna must first freeze an exact constructor case and establish
 parent-domain membership before authorizing any packet.
+
+## Closed research sprint — R58
+
+R58 selected an original-domain top-level provider with an annotated
+Computation formal and direct formal-Name body, then added a whole-function
+annotation before its first use. The source constructor remains inside the
+original forwarding theorem's domain, but the ordinary candidate solver rejects
+the whole-function annotation's concrete contravariant Function-argument row
+in preflight before constraint collection, native row construction,
+`Action::Annotation`, or the first authentic capture. The matching native
+signature-construction guard corroborates the seam but was not reached. No
+successful exposure witness, annotation-compatibility counterexample, source
+exclusion or parent counterexample follows. The parent and Simple-sub A/B
+remain OPEN at 0 -> 0; R50 remains NOT ADOPTED. Fresh compiler and spec reviews
+were CLEAN; all 22 dependency pins and four output hashes matched. Static source
+inspection only; no parser, solver, tests, builds, runtime or code changes.
+The dispatcher recommends R59 investigate the exact source/native constructor
+contract for this negative concrete Function-argument annotation, preserving
+open incoming `E` and separate formal/argument/result positions. It recommends
+NO_SAFE_CODE_SLICE until that correspondence is derived. See the [R58 closeout](../notes/progress/2026-10-19-r58-closeout.md),
+[proof](../notes/theory/2026-10-19-r58-provider-publication-exposure.md),
+[owner trace](../notes/progress/2026-10-19-r58-provider-publication-owners.md),
+[contract](agent-loop/sprints/original-name-prepublication-exposure-20261019-r58.md),
+and [review/state receipts](agent-loop/current.json).
