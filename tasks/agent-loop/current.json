@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ACTIVE",
+  "phase": "ENDED",
   "session": "current-conversation-2026-10-19",
   "active_sprint": {
     "id": "actual-route-temporal-transport-20261019-r48",
@@ -37,13 +37,13 @@
       {
         "id": "/root",
         "role": "Luna primary; R48 test-only implementation, review/integration/Git",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "Luna primary continuing R48 closeout integration/Git; all child writers/reviewers stopped; exact R48 paths only."
+        "receipt": "Primary session ended after R48 closeout commit 6f848b778f01cc41276639203089d11207086bfb was pushed. No descendants or active writers."
       },
       {
         "id": "/root/r48_temporal_transport_proof",
@@ -188,20 +188,21 @@
       "R48_implementation_receipt": "dd9aa87b15835105ed6445c3106045d1b9a84447dfa2a8ab1bd7fc7f3a0eb884",
       "R48_compiler_review": "b91fa227bd1a686ab08b9a5fa492fc69a2530ba4671f158fd5f1c0563b513fea",
       "R48_spec_review": "4ec09e82ae00e13f47332178b64dde325c4c1baf8bdbc84db92e06dc0943d53c",
-      "R48_closeout": "35de4c623562f01c636b3c5e463f0dd105fe996136fefdf39a5149d5825c7e98"
+      "R48_closeout": "35de4c623562f01c636b3c5e463f0dd105fe996136fefdf39a5149d5825c7e98",
+      "R48_closeout_commit": "6f848b778f01cc41276639203089d11207086bfb"
     }
   },
   "workers": [
     {
       "id": "/root",
       "role": "Luna primary; R48 test-only implementation, review/integration/Git",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
-      "receipt": "Luna primary continuing R48 closeout integration/Git; all child writers/reviewers stopped; exact R48 paths only."
+      "receipt": "Primary session ended after R48 closeout commit 6f848b778f01cc41276639203089d11207086bfb was pushed. No descendants or active writers."
     },
     {
       "id": "/root/r48_temporal_transport_proof",
