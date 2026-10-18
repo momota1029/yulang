@@ -133,36 +133,6 @@
       "owner_handoff_sha256": "a6d0fecd56770e7aa5fd36ea2a6bb1e68f4b72da971ed4ad71e05c2dbd662cd2",
       "closeout_sha256": "a67623a17f6c007ae0660135e3befd0c8d323886ea0fc7f5bc800eadc82bdf9"
     },
-    "pending_reviews": [
-      {
-        "reviewer": "/root/r52_compiler_review",
-        "type": "fresh compiler/source-owner plus exact-byte delta",
-        "state": "CLEAN",
-        "cap_seconds": 200,
-        "target_hashes": {
-          "contract": "155d8817f050566f4a51ccbb82dabb4c809bcabb82654fdce07a6fbaf867fdcc",
-          "proof": "31798df3416e4b9de029124df5eba66abdb430164c826becd337fad43289229b",
-          "proof_handoff": "b5bd0fe27373fc1d89668bb6357103ea1c5ebed903353d3d31d069e73f879ec7",
-          "owner_trace": "486eff8031c3d0137d39dbb2163b5cc95f72cb73df219c2bbabd74e932424a12",
-          "owner_handoff": "a6d0fecd56770e7aa5fd36ea2a6bb1e68f4b72da971ed4ad71e05c2dbd662cd2"
-        },
-        "receipt": "Initial compiler review found one minor error-family attribution; exact-byte delta CLEAN after correcting native IdentityExhausted vs preflight Unsupported. Endpoint/polarity equations and scalar falsifier limits checked. All five hashes and 25/25 pins MATCH. STOPPED/READ_ONLY/NO_DESCENDANTS; settings/duration UNKNOWN."
-      },
-      {
-        "reviewer": "/root/r52_spec_review",
-        "type": "fresh spec/domain plus exact-byte delta",
-        "state": "CLEAN",
-        "cap_seconds": 200,
-        "target_hashes": {
-          "contract": "155d8817f050566f4a51ccbb82dabb4c809bcabb82654fdce07a6fbaf867fdcc",
-          "proof": "31798df3416e4b9de029124df5eba66abdb430164c826becd337fad43289229b",
-          "proof_handoff": "b5bd0fe27373fc1d89668bb6357103ea1c5ebed903353d3d31d069e73f879ec7",
-          "owner_trace": "486eff8031c3d0137d39dbb2163b5cc95f72cb73df219c2bbabd74e932424a12",
-          "owner_handoff": "a6d0fecd56770e7aa5fd36ea2a6bb1e68f4b72da971ed4ad71e05c2dbd662cd2"
-        },
-        "receipt": "Initial spec review found the same error-family issue and stale handoff status; exact-byte delta CLEAN after corrections. Three annotation positions, open E, permission/inflow/residual and scalar-falsifier limits preserved; 25/25 pins MATCH. STOPPED/READ_ONLY/NO_DESCENDANTS; settings/duration UNKNOWN."
-      }
-    ],
     "integration": "Commit fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3 contains the eight explicit reviewed R59 paths and was pushed non-forced to origin/research/simple-sub-intrusion. Final clean-tree receipt to be recorded by the following state commit."
   },
   "workers": [
