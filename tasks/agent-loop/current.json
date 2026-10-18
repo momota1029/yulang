@@ -6,24 +6,24 @@
   "active_sprint": {
     "id": "active-capture-authenticated-join-20261018-r34",
     "contract": "tasks/agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md",
-    "revision": 1,
+    "revision": 2,
     "state": "ACTIVE",
     "baseline": "d281632f4ba604340d88ed0bdcb01b0921960910",
     "parent": "Full goal: implement Yulang type inference and executor with proofs. Active-capture source bridge for intrusion/principality/N-Transport; R30 j0/a0 remains independently OPEN.",
     "fixed_outcome": "Authenticate active initializer Link -> checking/source event -> signed pairs/groups -> helper capture/publication -> both retained FreshUse maps from existing records, or record first unjoinable edge. No C/D source law, semantic adoption, production observer or allocation change.",
     "resources": {
-      "cap_seconds": 1080,
-      "charged_seconds": 0,
+      "cap_seconds": 1680,
+      "charged_seconds": 600,
       "available_seconds": 1080,
-      "allocation": "Reserved native600 + fresh compiler180 + fresh spec180 + Luna integration120; one focused Cargo process; no probes/builds; Astra0."
+      "allocation": "R1 native600 fully charged (assignment duration UNKNOWN). R2 repair-native600 + fresh compiler180 + fresh spec180 + Luna integration120 remain; at most one further Cargo process; Astra0."
     },
-    "next_action": "R34 native writer running under exact leases; independently authenticate row classification and full Link-to-two-FreshUse join, then run at most one focused Cargo process.",
-    "history": "R33 closeout notes/progress/2026-10-18-r33-active-capture-observer-closeout.md; parent0->0. R34 dispatcher recommends exact Link-to-two-FreshUse authenticated native join; parent and R30 unchanged.",
+    "next_action": "R1 compile failure before assertions is recorded. R1 native assignment stopped; its 600s grant is charged because total active duration is UNKNOWN. R2 allows only reported compile fixes, source-authenticated row classification before one final focused Cargo process.",
+    "history": "R34 rev1 sole Cargo compile failed before tests. Frozen candidate hashes ca1ef67a...984e and 81b83dd...0da5. Dispatcher recommends rev2 bounded repair. Parent0->0; R30 independent.",
     "git_checkpoint": {
-      "commit": "d281632f4ba604340d88ed0bdcb01b0921960910",
+      "commit": "7ddc81461a02b6b8cc0c3bc3c5b3a0aae389f366",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R34 contract/state pushed as d281632f4; native implementer launched from this pinned baseline."
+      "receipt": "R34 launch state pushed as 7ddc81461; rev2 contract/current/task update pending."
     },
     "workers": [
       {
@@ -35,7 +35,7 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "R34 dispatch adjudicated; drafting and validating fixed contract/state before native writer launch."
+        "receipt": "R34 revision 2: first native assignment stopped; full 600s charged because active duration UNKNOWN; preparing fixed repair contract and one remaining Cargo grant."
       },
       {
         "id": "/root/r34_dispatch",
@@ -51,13 +51,24 @@
       {
         "id": "/root/r34_native_join",
         "role": "implementer",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Actual implementer spawn returned /root/r34_native_join for R34 native join; exact four write paths leased, one Cargo grant."
+        "receipt": "Writes stopped after sole Cargo invocation exited 101 at compile stage (4.36s), before tests/assertions; three local test-code errors reported, no progress/handoff artifacts; candidate code snapshots frozen awaiting Luna disposition."
+      },
+      {
+        "id": "/root/r34_failure_dispatch",
+        "role": "next_action_selector",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Returned R34 rev2 recommendation: local fixes plus one additional Cargo run under a new explicit contract revision; charge first native600 fully due unknown active duration; inspect shared-row assertion before retry."
       }
     ],
     "leases": [
@@ -79,37 +90,37 @@
       {
         "path": "crates/yu-solver/src/candidate_scheme.rs",
         "owner": "/root/r34_native_join",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
         "owner": "/root/r34_native_join",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-18-active-capture-authenticated-join-r34.md",
         "owner": "/root/r34_native_join",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-active-capture-authenticated-join-r34.md",
         "owner": "/root/r34_native_join",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [],
     "ready_next_work": {
-      "id": "R34-NATIVE-AUTHENTICATED-JOIN",
+      "id": "R34-REV2-NATIVE-REPAIR",
       "state": "READY",
       "owner": "/root",
-      "artifact": "After committing contract/state, launch one implementer on candidate_scheme.rs test module, candidate_local_self_recursion.rs, R34 progress note and handoff. Proof remains BLOCKED until source authority supplies authentic C/D introduction."
+      "artifact": "After pushing rev2, launch a fresh implementer on the same exact four leases with 600s cap, three reported compile repairs only, one remaining Cargo invocation, and pre-run authentication of shared/fresh row classification."
     },
     "legacy_reconciliation": {
       "required": false,
       "receipt": "R33 dispatcher, proof/native writers and compiler/spec reviewers are completed/terminal; their exact artifacts are frozen or reverted. No live old writer or unconfirmed lease remains."
     },
-    "contract_sha256": "474601797b5c34b73c4798432aaebc75de71504d6eb9e0404f4e0032d58a84be",
-    "sha256": "06ff36c7a88f967e5a847968adcb5e3dfcef08ba9313e8d6ecf8bde9602c881e"
+    "contract_sha256": "03f7cb94f79a2cfc0d17e67d1fa866f4b6147fdb5221cc4f5f0e12fd91098283",
+    "sha256": "d988afbe1771f36a76c21aac34b795782adcc8d677de8e20581fea4a2483135b"
   },
   "workers": [
     {
@@ -121,7 +132,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R34 dispatch adjudicated; drafting and validating fixed contract/state before native writer launch."
+      "receipt": "R34 revision 2: first native assignment stopped; full 600s charged because active duration UNKNOWN; preparing fixed repair contract and one remaining Cargo grant."
     },
     {
       "id": "/root/r34_dispatch",
@@ -137,13 +148,24 @@
     {
       "id": "/root/r34_native_join",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Actual implementer spawn returned /root/r34_native_join for R34 native join; exact four write paths leased, one Cargo grant."
+      "receipt": "Writes stopped after sole Cargo invocation exited 101 at compile stage (4.36s), before tests/assertions; three local test-code errors reported, no progress/handoff artifacts; candidate code snapshots frozen awaiting Luna disposition."
+    },
+    {
+      "id": "/root/r34_failure_dispatch",
+      "role": "next_action_selector",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Returned R34 rev2 recommendation: local fixes plus one additional Cargo run under a new explicit contract revision; charge first native600 fully due unknown active duration; inspect shared-row assertion before retry."
     }
   ],
   "leases": [
@@ -165,26 +187,33 @@
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
       "owner": "/root/r34_native_join",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
       "owner": "/root/r34_native_join",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-18-active-capture-authenticated-join-r34.md",
       "owner": "/root/r34_native_join",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-active-capture-authenticated-join-r34.md",
       "owner": "/root/r34_native_join",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
-  "pending": [],
+  "pending": [
+    {
+      "id": "R34-TEST-COMPILE-FAILURE",
+      "state": "REVIEW",
+      "owner": "/root",
+      "artifact": "Frozen test-only snapshots; sole Cargo process failed before assertions; awaiting dispatcher boundary disposition."
+    }
+  ],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
   "history": "R33 closed; R34 active. Preserve original parent scope and keep R30 independently OPEN.",
-  "sha256": "f53b2cf6956a651fec723583174b395cd38ba11d15fbd333bf16d636c3796fdb"
+  "sha256": "d9160babce549d818cdada1f54c5bf2baedc4d1da5bc2021c936ae70da012fcc"
 }

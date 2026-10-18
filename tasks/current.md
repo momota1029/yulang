@@ -17537,3 +17537,8 @@ the authentic source-owned C/D introduction; R33's reviewed obstruction and
 R32 retention result remain, and no equivalent conditional lift is repeated.
 Parent conditions remain OPEN at 0 -> 0; R30 remains independent. See the
 [R34 contract](agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md).
+The first focused Cargo invocation failed during test-code compilation before
+any assertion ran. Revision 2 charges the initial native grant fully because
+assignment duration is unknown, then authorizes one separate 600-second repair
+assignment and one final focused invocation. It requires the unsupported
+all-row nonsharing inference to be removed or authenticated before that run.

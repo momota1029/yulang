@@ -1,7 +1,21 @@
 # Sprint R34 — authenticated active-capture join
 
-Status: ACTIVE. Branch `research/simple-sub-intrusion`; baseline
-`22c29664a1d59db7d149b752ef166ec2ec9ca9dd`.
+Status: ACTIVE, revision 2. Branch `research/simple-sub-intrusion`; original
+baseline `22c29664a1d59db7d149b752ef166ec2ec9ca9dd`; initial lane launch
+baseline `d281632f4ba604340d88ed0bdcb01b0921960910`.
+
+Revision 2 is a narrow repair grant after revision 1's only focused Cargo
+invocation exited during test-code compilation, before either test ran. It
+preserves the fixed outcome and semantic boundary. Frozen pre-repair candidate
+hashes: `candidate_scheme.rs`
+`ca1ef67a0ac4edcac5f0a1df07a5a04e505871e64d1596f33194967dc7ef984e` and
+`candidate_local_self_recursion.rs`
+`81b83dd67326f4c66c96e8a39598ac0700c7c08170d732c37eab1f3d4dbd0da5`.
+The first compiler invocation reported three test-code errors: an
+`HirOccurrenceId` was passed to `LocalSource::expression` instead of a
+`LocalSourceIndex`; a group-range filter dereferenced `&usize` twice; and the
+integration test moved `hir` while `source` borrowed it. The native writer is
+confirmed stopped before this revision.
 
 ## Original outcome and success evidence
 
@@ -75,14 +89,24 @@ helper-join assertions. Preserve the existing two-helper accepted-source
 specimen. If a necessary edge is absent or no genuine negative witness exists,
 stop at that exact edge and report it without adding an observer.
 
-One sequential Cargo invocation maximum, owned by this lane:
+The original one Cargo invocation is spent and remains recorded as a compile
+failure with no test assertion executed. After fixing only the three reported
+compile errors and independently checking the source relationships below, the
+new native writer may run one additional focused Cargo invocation:
 
 ```text
 cargo test -p yu-solver --features shadow-apply-candidate active_outer_root_two_helper_uses
 ```
 
-Do not run another test, build, probe or Cargo process. No production code,
-public observer/API, semantics, allocation policy, expected output, or fixture
+The lifetime total is two invocations: the failed initial invocation and this
+single additional attempt. Do not run another test, build, probe or Cargo
+process. Before the additional invocation, remove or repair any assertion that
+infers all-row nonsharing from source locality alone; retained shared rows must
+remain shared, and each fresh image must be justified by its exact retained
+reconstruction metadata. Do not weaken an assertion merely to pass. If the
+actual maps cannot be classified/authenticated from those records, stop before
+the second invocation and freeze that exact edge. No production code, public
+observer/API, semantics, allocation policy, expected output, or fixture
 meaning changes.
 
 ### Source proof — BLOCKED at owning introduction
@@ -105,10 +129,16 @@ review (180 seconds) checks source-domain preservation, unaltered Call/effects,
 and candidate/evidence versus theorem status. Neither reviewer may author the
 native artifact. Luna integration cap: 120 seconds.
 
-Total sprint cap: 1,080 seconds (native 600 + reviews 180 each + integration
-120). Astra0; one focused Cargo process; no probes or other builds. Do not carry
-R33's spent or unused budget into this sprint. Requested/observed runtime
-settings must be recorded truthfully; absent model metadata remains UNKNOWN.
+Revision 1's native assignment duration is UNKNOWN. Conservatively charge its
+entire 600-second grant as spent; the observed 4.36 seconds is only the Cargo
+process duration, not total assignment time. Revision 2 grants a separate
+native repair assignment capped at 600 seconds, plus fresh reviews at 180
+seconds each and Luna integration at 120 seconds: total sprint cap 1,680
+seconds, of which 600 are already charged and 1,080 remain. Astra0; two focused
+Cargo invocations maximum across both revisions; no probes or other builds. Do
+not carry R33's spent or unused budget into this sprint. Requested/observed
+runtime settings must be recorded truthfully; absent model metadata remains
+UNKNOWN.
 
 R33's frozen `candidate_local_self_recursion.rs` lease is explicitly reclaimed
 by Luna after confirming all R33 writers are terminal, then granted to the R34
@@ -122,8 +152,9 @@ from native identities), original parent conditions remain `0 -> 0`; R30 is
 independent. Do not promote the join to proof, semantic adoption, or production
 authority.
 
-Stop on a missing join edge, unsupported negative-control premise, focused-test
-failure, review blocker, budget cap, or material authority/dependency change.
+Stop on a missing join edge, unsupported negative-control premise, the
+additional focused-test failure, review blocker, budget cap, or material
+authority/dependency change.
 Consult the dispatcher at sprint end, a concrete counterexample, material
 lease/dependency/resource change, or new semantic choice; internal repairs and
 ordinary review receipts stay within this envelope. Luna owns review
