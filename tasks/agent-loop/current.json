@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/npair-operation-frontier-typed-slot-observation-20261018-r11.md",
     "revision": 1,
     "sha256": "68aafa608b965ad696d5e03cf15da64ad6b7a7a1b35e82ea8865937da1a155c1",
-    "state": "ACTIVE",
+    "state": "ENDED-PARTIAL-REVIEWED",
     "baseline": "HEAD fdaeebf89bf74cf6eaedb85ced0cbe497f31c37c; candidate_effect.rs is the uncommitted r10 test-only delta pinned at 22a9e7a25f59638a24df746be9954ec711ca99f7c89802fa75808d7e07fdcca3.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original fixed c, quantifiers, source domain, R/W/Z, rho_u, consumer and accepted semantics unchanged; OPEN/closure0.",
     "fixed_outcome": "Fix only the slot-42 observation to use typed ConstraintStore provenance; freshly review and run one authorized source-rendering probe. Original source/HIR/package remains INPUT_UNAVAILABLE.",
@@ -16,18 +16,18 @@
       "original_conditions_closed": 0,
       "parent": "OPEN",
       "proof": "WAITING for authentic original source/CST/HIR and complete semantic Operation package. No generic proof over same uninstantiated interface.",
-      "implementation": "r10 compile-only failed once with E0308 (FactId vs ConstraintOccurrenceId); direct test not run. r11 targets the typed provenance check only."
+      "implementation": "R11 test-only typed provenance observation compiled and the exact direct test passed. Runtime receipt reviewed CLEAN. No production semantics changed."
     },
     "resources": {
       "cap_seconds": 720,
-      "charged_seconds": 0,
-      "available_seconds": 720,
+      "charged_seconds": 720,
+      "available_seconds": 0,
       "expired_seconds": 0,
       "allocation": "Repair/handoff120, fresh compiler review180, one compile+direct exact test120, independent receipt review180, integration/state/Git120. Astra0; one heavy process; no rollover.",
-      "last_stage_receipt": "Fresh r11 grant; exact manifest revalidated (15 inputs including r10 source baseline); old r10 budget closed."
+      "last_stage_receipt": "Full 720s grant accounted: repair120, code review180, compile/direct test120, independent receipt review180, integration/state/Git120. No rollover."
     },
-    "last_stage_receipt": "r11 contract ACTIVE at SHA 68aafa608b965ad696d5e03cf15da64ad6b7a7a1b35e82ea8865937da1a155c1; all15 dependencies matched. Luna owns exact two-path repair; no Cargo before fresh review.",
-    "next_action": "Replace the FactId/source-occurrence comparison with a typed provenance cause check; update handoff, freeze exact hashes, then fresh independent compiler review."
+    "last_stage_receipt": "ENDED-PARTIAL-REVIEWED; closeout tasks/agent-loop/sprints/npair-operation-frontier-typed-slot-observation-20261018-r11-closeout.md. Parent OPEN/closure0. Runtime metadata and captures independently reviewed CLEAN; reviewer /root/r11_runtime_receipt_review.",
+    "next_action": "Resume parent progress only when authentic original source/CST/HIR and complete semantic Operation package can be recovered; otherwise pursue owner-directed acquisition, not generic reproof. Keep independent implementation work moving only under a fresh exact lease."
   },
   "history": "tasks/agent-loop/sprints/npair-rule-options-and-component-replay-20261018-closeout.md SHA 60aa58b143f763a07da40f063865f08a5fe4fbf3acb6c672fc882edb4feff8f9; prior histories retained in archived sprint receipts. PR #11 merged remotely as 27a7e00d4b581f18987bb2a3cbf2e492789c2293; local checkout remains stale and dirty.; rev3 owner audit amendment SHA 9394b94ab43c1b0ac5a5190460f84961a769c92f16ee31949604c501601def92; rev8 closeout tasks/agent-loop/sprints/npair-replay-auth-and-operation-rules-20261018-closeout.md SHA e557f8f9ddfd760f89ba057de17e6a2b0ff141c9297b02ac354f28b2cfd5b19f; tasks/agent-loop/sprints/npair-provenance-complete-replay-and-operation-rules-20261018-closeout.md SHA bb598941f3444baec8177e50665a22380e1337e858f2a6064359c9c424d83b32; prior CLEAN cross-route ownership audit note 572884a8df2e8adc19eb1a8121277c77784e3c02fa9925729e292dd629f40308 and handoff f2c93d65ba96e4a256010e2942096ca21ef714b5b06d81573701eb0b960948ed; next-action selector decision included in constructor-lineage contract; r2 constructor-lineage sprint BLOCKING close: implementation handoff292b828fe891a69f194e9872826cc0baaa9443db6f65a1aeb8caaecd3cd07274; unused720s expired; no tests/runtime. r3 recovery selector decision active.; r3 STOP at exact-source recovery gate: 6,647 local files plus reachable/unreachable Git blobs searched, no original hashes; rejected snapshots preserved. r4 explicitly adopts rejected bytes as baseline, no r2 provenance claim.; r4 BLOCKING instrumentation review: port child/op/uniqueness, matched drain acknowledgement/return, explicit complete linked observations. r5 contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20 authorizes only new test-function repair.; r5 BLOCKING closeout: contract d58b01bc34761cffe1120fc2d2f2f74371dd4308cd91b6c1507c22aa0d851d20; implementation 5e8060b6e717adb5e10c47d8e0cba2ba532b0cef85842b580980cc4a2af266b1; proof ba6f2d7a0dc48c9d03038cccb17d8b5a98800ab8f72222b4e57302246aa4784a; independent review BLOCKING on port uniqueness before endpoint filtering and typed admission/emission/readback identity. Runtime0. Spent720s, unused420s expired. Parent OPEN/closure0.; r6 review BLOCKING: contract 68a518fa706613d523a9fe3a6be2394fb491e132e048b1299144532258d85fff; scheme d8c53522685e9bdfc1ba00380f222f4936d8d8df3302248fcde31e093668c484; context 42f89dcf5fa6d7095db1e220c89308a2a35f4e74b05c3e8821d4fb2e3e32b0ca; proof 8d5cab69798da42c9de464f5dc8d568d647f3fa98e6d028289c8310e6b87d49c. Port/accessor/baselines accepted. One conflicting admission can be filtered before uniqueness. r6 spent540s; remaining runtime120/final180/integration120 retained.; r7 exact test compile failed before execution; original parent remained OPEN/closure0. Research-only checkpoints pushed: 095e81a61 (conditional Replay parent application), e24691257 (original fixed-c supplier audit). r8 begins with fresh 1800s; no rollover.; r8 closeout tasks/agent-loop/sprints/npair-fixed-c-interpretation-and-native-path-20261018-r8-closeout.md SHA f29fdc30be13d401c0a864cc24199a78fa53a9a5732c785cc47b0910c001c2ae; r9 partial closeout tasks/agent-loop/sprints/npair-original-witness-and-replay-diagnosis-20261018-r9-closeout.md SHA 286ce0f1a666f27c4bc5564f57f1dd929a5bb8ac50db1a8b25bb3727cf8329a2; r9 partial closeout pushed at 09bb46870 (parent closure0); frozen prior replay records archived at e686c188f; r10 contract/input frozen at 1a541b809, input partial/unavailable for authentic HIR.; r10 ENDED-PARTIAL-REVIEWED closeout tasks/agent-loop/sprints/npair-original-input-and-operation-frontier-20261018-r10-closeout.md SHA 7fe46fe2dce6ab07b4d4806dfe2c204242f60944d63598c060a7415d21894899; rev4 compile exit101 E0308; direct test NOT_RUN; source remains known compile-failing, no theorem closure.",
   "quarantine_note": "Older untracked replay-constructor working candidate/DRAFT files and tools/__pycache__ remain excluded with no write-stopped receipts. r10 compile-failing test delta remains uncommitted and is authorized only through r11 exact lease.",
@@ -35,13 +35,13 @@
     {
       "id": "/root",
       "role": "Luna-primary",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "r11 exact contract active; primary owns typed slot-42 test repair, review assignment, one-shot runtime, integration and Git."
+      "receipt": "r11 implementation, code review, one-shot compile/test, receipt review, integration and Git complete; no active writer."
     }
   ],
   "leases": [
@@ -58,28 +58,40 @@
     {
       "path": "crates/yu-solver/src/candidate_effect.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-npair-operation-frontier-r11-impl.md",
       "owner": "/root",
-      "state": "HELD"
-    }
-  ],
-  "pending": [
+      "state": "FROZEN"
+    },
     {
-      "id": "r11-typed-slot-observation-implementation",
-      "state": "RUNNING",
-      "reviewer": "/root",
-      "artifact": "existing named test only + new handoff",
-      "sha256": "contract 68aafa608b965ad696d5e03cf15da64ad6b7a7a1b35e82ea8865937da1a155c1; candidate_effect input 22a9e7a25f59638a24df746be9954ec711ca99f7c89802fa75808d7e07fdcca3",
-      "receipt": "Exact provenance repair only. No tests/build/Cargo/runtime before fresh CLEAN review."
+      "path": "tasks/agent-loop/runtime/20261018-operation-frontier-r11.stdout.log",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/runtime/20261018-operation-frontier-r11.stderr.log",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/runtime/20261018-operation-frontier-r11.meta.json",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
-  "ready_next_work": null,
+  "pending": [],
+  "ready_next_work": {
+    "id": "parent-original-input-acquisition",
+    "state": "WAITING",
+    "owner": "/root",
+    "artifact": "authentic original source/CST/HIR plus complete semantic Operation package: fixed F_c, Sigma.Lambda, actual output/license and consumer",
+    "receipt": "Without this changed input, parent proof remains OPEN/closure0; no generic reproof of the same interface."
+  },
   "legacy_reconciliation": {
     "required": false,
     "receipt": "r8 closeout committed at 84edaedae; r9 starts with fresh assignments and no inherited budget."
   },
-  "next_action": "r11 active per selector: typed provenance cause for slot42, fresh review and one-shot compile/test. Proof lane waits for authentic original semantic input. Parent OPEN/closure0."
+  "next_action": "r11 closed PARTIAL-REVIEWED. Parent remains OPEN/closure0; next decisive proof input is authentic original source/CST/HIR and complete semantic Operation package. No active worker or runtime lease."
 }

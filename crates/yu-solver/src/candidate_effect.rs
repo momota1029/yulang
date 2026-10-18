@@ -2230,6 +2230,146 @@ mod tests {
         assert!(facts.iter().any(|fact| matches!(session.batch.term_view(fact.upper()), Ok(TermView::Leaf(Leaf::EmptyEffectNegative)))));
         assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.contributions.is_empty());
     }
+
+    #[test]
+    fn original_choose_operation_rendering_reaches_native_frontier() {
+        // New research rendering only: these bytes are not recovered historical
+        // source/CST/HIR. Keep the negative [ctrl] row on the inner argument.
+        let rendering = "act ctrl:\n    our choose: () -> (([ctrl] ()) -> [ctrl] int)\n\nmy f0 = ctrl::choose ()";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(rendering);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.structural_recoveries().is_empty(), "research rendering parser recoveries: {:?}", parsed.structural_recoveries());
+        let hir = Arc::new(
+            yu_hir::shadow::lower_module_with_local_source(
+                yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                    "effect-kernel",
+                    "original-choose-research-rendering.yu",
+                ))),
+                &parsed,
+                yu_hir::SemanticImports::empty(),
+            )
+            .expect("research rendering should lower before the candidate owner path is observed"),
+        );
+        let declaration = hir.source_effect_declarations().iter()
+            .find(|family| family.spelling.as_ref() == "ctrl")
+            .and_then(|family| family.operations.iter().find(|operation| operation.spelling.as_ref() == "choose"))
+            .expect("parsed source should contain the actual ctrl::choose declaration");
+        let f0 = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "f0" => Some(binding.definition_root().clone()),
+            _ => None,
+        }).expect("research source root f0");
+        let local_source = hir.local_source(&f0).unwrap().unwrap();
+        let operation_expression = local_source.expressions().iter().find(|expression| matches!(
+            &expression.form,
+            yu_hir::shadow::LocalSourceForm::Operation {
+                resolution: yu_hir::shadow::SourceOperationResolution::Resolved(resolved)
+            } if std::ptr::eq(resolved.as_ref(), declaration.as_ref())
+        )).expect("actual parsed use should resolve to this SourceOperationDeclaration");
+        let operation_occurrence = operation_expression.occurrence.clone();
+        eprintln!(
+            "research_rendering={rendering:?} declaration={:?} source_occurrence={:?} name_position={:?} signature_position={:?}",
+            declaration.id, operation_occurrence, declaration.name_position, declaration.signature_position,
+        );
+
+        let batch = ConstraintBatch::collect_candidate_mode(Arc::clone(&hir), true, true).unwrap();
+        let mut trace_session = InferenceSession::try_new(batch.clone()).unwrap();
+        trace_session.start_candidate_graph().unwrap();
+        let actions = trace_session.batch.candidate_source.schedules[&f0].clone();
+        let operation_indices = actions.iter().enumerate().filter_map(|(index, action)| match action {
+            candidate_source::Action::Operation { declaration: scheduled, occurrence, .. }
+                if std::ptr::eq(scheduled.as_ref(), declaration.as_ref()) && occurrence == &operation_occurrence => Some(index),
+            _ => None,
+        }).collect::<Vec<_>>();
+        assert_eq!(operation_indices.len(), 1, "schedule must contain exactly this parsed Operation action");
+        let operation_index = operation_indices[0];
+        let root_position = trace_session.batch.root_definition_positions[&f0];
+        trace_session.begin_candidate_source(candidate_source::Schedule::Root(root_position)).unwrap();
+        let mut source_steps = 0usize;
+        loop {
+            let frame = trace_session.candidate_graph.as_ref().unwrap().source.unwrap();
+            if frame.next == operation_index { break; }
+            assert!(frame.next < operation_index, "the source schedule cannot skip the target operation");
+            source_steps += 1;
+            assert!(source_steps <= actions.len() * 2 + 1, "prior source actions must make bounded progress");
+            assert_eq!(
+                trace_session.step_candidate_source(candidate_source::Support::READY).unwrap(),
+                candidate_source::CandidateRun::Complete(false),
+                "every action before the operation must complete before the refusal frontier",
+            );
+        }
+        let frame = trace_session.candidate_graph.as_ref().unwrap().source.unwrap();
+        assert_eq!(frame.next, operation_index);
+        assert_eq!(frame.schedule, candidate_source::Schedule::Root(root_position));
+        let candidate_source::Action::Operation { declaration: scheduled, occurrence, .. } = &actions[operation_index] else {
+            panic!("recorded frontier index must name the parsed Operation action");
+        };
+        assert!(std::ptr::eq(scheduled.as_ref(), declaration.as_ref()));
+        assert_eq!(occurrence, &operation_occurrence);
+        let expected_slot = ConstraintOccurrenceId::new(operation_occurrence.clone(), 42);
+        let trace_graph = trace_session.candidate_graph.as_ref().unwrap();
+        let trace_views = trace_graph.intrusion.effect_algebra.views.len();
+        let trace_contributions = trace_graph.intrusion.effect_algebra.contributions.len();
+        let trace_conflicts = trace_graph.intrusion.effect_algebra.conflicts.len();
+        let trace_effect_bounds = trace_session.effect_bounds.len();
+        let trace_scratch = trace_graph.scratch_bytes;
+        let trace_facts = trace_session.store.facts().len();
+        let trace_terms = trace_session.store.terms.capacity_snapshot();
+        let action_result = trace_session.step_candidate_source(candidate_source::Support::READY);
+        eprintln!("observed_frontier=Action::Operation declaration={:?} occurrence={:?} result={action_result:?} slot42={expected_slot:?}", declaration.id, operation_occurrence);
+        assert_eq!(action_result, Err(SolveAvailabilityError::IdentityExhausted));
+        let trace_graph = trace_session.candidate_graph.as_ref().unwrap();
+        assert_eq!(trace_graph.source.unwrap().next, operation_index, "failed action does not advance the schedule");
+        assert_eq!(trace_graph.intrusion.effect_algebra.views.len(), trace_views);
+        assert_eq!(trace_graph.intrusion.effect_algebra.contributions.len(), trace_contributions);
+        assert_eq!(trace_graph.intrusion.effect_algebra.conflicts.len(), trace_conflicts);
+        assert_eq!(trace_session.effect_bounds.len(), trace_effect_bounds);
+        assert_eq!(trace_graph.scratch_bytes, trace_scratch);
+        assert_eq!(trace_session.store.facts().len(), trace_facts);
+        assert_eq!(trace_session.store.terms.capacity_snapshot(), trace_terms);
+
+        // Separately observe the real synchronous root owner's rollback in a
+        // fresh session, so the action trace above does not fake cleanup.
+        let mut rollback_session = InferenceSession::try_new(batch).unwrap();
+        rollback_session.start_candidate_graph().unwrap();
+        let rollback_graph = rollback_session.candidate_graph.as_ref().unwrap();
+        let before_views = rollback_graph.intrusion.effect_algebra.views.len();
+        let before_contributions = rollback_graph.intrusion.effect_algebra.contributions.len();
+        let before_conflicts = rollback_graph.intrusion.effect_algebra.conflicts.len();
+        let before_bounds = rollback_session.effect_bounds.len();
+        let before_scratch = rollback_graph.scratch_bytes;
+        let before_facts = rollback_session.store.facts().len();
+        let before_terms = rollback_session.store.terms.capacity_snapshot();
+        let root_result = rollback_session.execute_candidate_source_root(&f0);
+        eprintln!("candidate_source_root_result={root_result:?} slot42={expected_slot:?}");
+        assert_eq!(root_result, Err(SolveAvailabilityError::IdentityExhausted));
+        let graph = rollback_session.candidate_graph.as_ref().unwrap();
+        let state = &graph.intrusion.effect_algebra;
+        let slot42_published = rollback_session.store.provenance().iter().any(|edge| edge.cause().occurrence() == &expected_slot);
+        eprintln!(
+            "root_rollback source_frame={:?} views={} (initial {}, expected prefix {}) contributions={} (initial {}, expected prefix {}) conflicts={} (initial {}, expected prefix {}) effect_bounds={} (initial {}, expected prefix {}) scratch={} (initial {}, expected prefix {}) facts={} (initial {}, expected prefix {}) term_capacity_matches_initial={} term_capacity_matches_prefix={} slot42_published={slot42_published}",
+            graph.source, state.views.len(), before_views, trace_views,
+            state.contributions.len(), before_contributions, trace_contributions,
+            state.conflicts.len(), before_conflicts, trace_conflicts,
+            rollback_session.effect_bounds.len(), before_bounds, trace_effect_bounds,
+            graph.scratch_bytes, before_scratch, trace_scratch,
+            rollback_session.store.facts().len(), before_facts, trace_facts,
+            rollback_session.store.terms.capacity_snapshot() == before_terms,
+            rollback_session.store.terms.capacity_snapshot() == trace_terms,
+        );
+        assert!(graph.source.is_none(), "failed candidate source root must clear its partial frame");
+        assert_eq!(state.views.len(), trace_views, "root failure must retain only the successfully executed prefix state");
+        assert_eq!(state.contributions.len(), trace_contributions);
+        assert_eq!(state.conflicts.len(), trace_conflicts);
+        assert_eq!(rollback_session.effect_bounds.len(), trace_effect_bounds);
+        assert_eq!(graph.scratch_bytes, trace_scratch);
+        assert_eq!(rollback_session.store.facts().len(), trace_facts, "successful prefix facts are retained; the failed Operation contributes none");
+        assert_eq!(rollback_session.store.terms.capacity_snapshot(), trace_terms);
+        assert!(!slot42_published, "slot 42 is admitted only after full signature construction");
+    }
     fn assert_formal_capture_incidence(
         session: &InferenceSession, views: std::ops::Range<u32>, tail: u32,
     ) -> HashSet<(u32, u32)> {

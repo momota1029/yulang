@@ -1,0 +1,124 @@
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:191:11
+    |
+191 |     Token(SyntaxToken),
+    |     ----- ^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+191 -     Token(SyntaxToken),
+191 +     Token(()),
+    |
+
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:192:15
+    |
+192 |     Synthetic(Vec<AssociationProvenance>),
+    |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+192 -     Synthetic(Vec<AssociationProvenance>),
+192 +     Synthetic(()),
+    |
+
+warning: function `replace_admission_root` is never used
+    --> crates/yu-hir/src/module.rs:1620:4
+     |
+1620 | fn replace_admission_root(
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `yu-hir` (lib) generated 3 warnings
+   Compiling yu-solver v0.1.0 (/home/momota1029/rust/yulang/crates/yu-solver)
+warning: fields `requested`, `representative`, `level`, `non_generic`, `boundary`, and `local` are never read
+  --> crates/yu-solver/src/candidate_scheme.rs:61:9
+   |
+59 | pub(super) struct CapturedRowObservation {
+   |                   ---------------------- fields in this struct
+60 |     pub graph_row: usize,
+61 |     pub requested: RowKey,
+   |         ^^^^^^^^^
+62 |     pub representative: RowKey,
+   |         ^^^^^^^^^^^^^^
+63 |     pub level: u32,
+   |         ^^^^^
+64 |     pub non_generic: bool,
+   |         ^^^^^^^^^^^
+65 |     pub boundary: u32,
+   |         ^^^^^^^^
+66 |     pub local: bool,
+   |         ^^^^^
+   |
+   = note: `CapturedRowObservation` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: multiple fields are never read
+  --> crates/yu-solver/src/candidate_scheme.rs:72:9
+   |
+70 | pub(super) struct ReconstructedRowObservation {
+   |                   --------------------------- fields in this struct
+71 |     pub graph_row: usize,
+72 |     pub captured: RowKey,
+   |         ^^^^^^^^
+73 |     pub source_representative: RowKey,
+74 |     pub level: u32,
+   |         ^^^^^
+75 |     pub non_generic: bool,
+   |         ^^^^^^^^^^^
+76 |     pub boundary: u32,
+   |         ^^^^^^^^
+77 |     pub stored_local: bool,
+   |         ^^^^^^^^^^^^
+78 |     pub canonical_rows_hit: bool,
+   |         ^^^^^^^^^^^^^^^^^^
+79 |     pub first_entry_graph_row: usize,
+80 |     pub existing_image: Option<RowKey>,
+   |         ^^^^^^^^^^^^^^
+81 |     pub allocated_fresh_image: bool,
+   |         ^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `ReconstructedRowObservation` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `operation`, `ack`, `child_return`, and `drive_return` are never read
+    --> crates/yu-solver/src/candidate_scheme.rs:2806:23
+     |
+2806 |             Matched { operation: candidate_context::ReplayOperationId, ack: candidate_context::ReplayChildAck,
+     |             -------   ^^^^^^^^^                                        ^^^
+     |             |
+     |             fields in this variant
+2807 |                 child_return: candidate_context::ReplayDrainObservation, drive_return: candidate_context::ReplayDrainObservation },
+     |                 ^^^^^^^^^^^^                                             ^^^^^^^^^^^^
+     |
+     = note: `DrainStatus` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: fields `drain_index` and `transitions` are never read
+  --> crates/yu-solver/src/candidate_context.rs:31:97
+   |
+31 |     ChildReturn { operation: ReplayOperationId, ack: ReplayChildAck, child: Option<RelationId>, drain_index: usize, transitions: usi...
+   |     ----------- fields in this variant                                                          ^^^^^^^^^^^         ^^^^^^^^^^^
+   |
+   = note: `ReplayDrainObservation` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `test_replace_relation_scoped` is never used
+    --> crates/yu-solver/src/candidate_context.rs:1904:19
+     |
+1463 | impl State {
+     | ---------- method in this implementation
+...
+1904 |     pub(super) fn test_replace_relation_scoped(&mut self, id: RelationId, scoped: usize) -> usize {
+     |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `yu-solver` (lib test) generated 5 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.14s
+  Executable unittests src/lib.rs (target/debug/deps/yu_solver-12ea9c1c0f03380a)
+research_rendering="act ctrl:\n    our choose: () -> (([ctrl] ()) -> [ctrl] int)\n\nmy f0 = ctrl::choose ()" declaration=SourceOperationId { family: SourceEffectId { module: SourceRoot(FileId(FileKey { realm: "effect-kernel", normalized_workspace_relative_path: "original-choose-research-rendering.yu" })), declaration: SourceNodeKey { .. } }, declaration: SourceNodeKey { .. } } source_occurrence=HirOccurrenceId { ordinal: 3, .. } name_position=SourceNodeKey { .. } signature_position=SourceNodeKey { .. }
+observed_frontier=Action::Operation declaration=SourceOperationId { family: SourceEffectId { module: SourceRoot(FileId(FileKey { realm: "effect-kernel", normalized_workspace_relative_path: "original-choose-research-rendering.yu" })), declaration: SourceNodeKey { .. } }, declaration: SourceNodeKey { .. } } occurrence=HirOccurrenceId { ordinal: 3, .. } result=Err(IdentityExhausted) slot42=ConstraintOccurrenceId { occurrence: HirOccurrenceId { ordinal: 3, .. }, local_slot: 42 }
+candidate_source_root_result=Err(IdentityExhausted) slot42=ConstraintOccurrenceId { occurrence: HirOccurrenceId { ordinal: 3, .. }, local_slot: 42 }
+root_rollback source_frame=None views=0 (initial 0, expected prefix 0) contributions=0 (initial 0, expected prefix 0) conflicts=0 (initial 0, expected prefix 0) effect_bounds=3 (initial 3, expected prefix 3) scratch=0 (initial 0, expected prefix 0) facts=2 (initial 0, expected prefix 2) term_capacity_matches_initial=true term_capacity_matches_prefix=true slot42_published=false
