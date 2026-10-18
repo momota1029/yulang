@@ -26,7 +26,7 @@
       "allocation": "Sol600; Luna500; fresh compiler200; fresh spec200; integration300. Astra0, no carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "Primary owner lane active; Sol remains WAITING pending fresh current-session active-work receipt before any proof reads/writes. Commit this activation baseline, then request receipt.",
+    "next_action": "Sol active on exact two proof outputs after receipt acknowledgement. Luna read-only source-owner audit active on its two outputs. No code/tests/execution; reviews wait for both author lanes to stop and freeze.",
     "history": "R59 closed and pushed in fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3; integration and compact-state receipts pushed in b62bf4bed359ed5f8bd4728923d1807044f9e8c9. R59 parent OPEN 0->0, A/B OPEN, R50 NOT ADOPTED. R60 revision1 status wording was corrected to revision2 before any author work. Exact revision2 SHA and 25/25 pins checked; baseline b62bf4bed359ed5f8bd4728923d1807044f9e8c9 matches HEAD/origin; dispatcher confirmed start-boundary fit; Luna activated R60. Sol has not acknowledged; no proof reads/writes started. All prior identities STOPPED, leases FROZEN.",
     "workers": [
       {
@@ -43,13 +43,13 @@
       {
         "id": "/root/r53_ordinary_mixed_capture_proof",
         "role": "Sol/high constructive paired-interface proof",
-        "state": "WAITING",
+        "state": "RUNNING",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r60",
-        "receipt": "Fresh current-session active-work receipt requested only after activation baseline commit; no proof reads/writes until receipt is recorded and acknowledged."
+        "receipt": "Fresh current-session active-work receipt received before reads/writes. Fixed goal: derive authentic same-pA/provider exposed-AE to checked-provider entrance with source-local permission and correlated result compatibility preserving original source-contract solutions and explicit auxiliary correspondence, or identify exact missing premise. Exact outputs: notes/theory/2026-10-19-r60-paired-annotation-interface.md; tasks/agent-loop/inbox/20261019-r60-proof.md. Requested Sol/high; observed model/effort UNKNOWN/UNKNOWN. Cap 600s, no carryover/expansion, no descendants. Worker confirms no R60 reads/proof work/writes began; primary acknowledgement now releases this exact lane."
       },
       {
         "id": "/root/r52_compiler_review",
