@@ -7,7 +7,7 @@
     "id": "whole-ascription-formation-derivation-20261019-r62",
     "contract": "tasks/agent-loop/sprints/whole-ascription-formation-derivation-20261019-r62.md",
     "revision": 1,
-    "state": "RUNNING",
+    "state": "CLOSED",
     "baseline": "353f7b6b03e1ef3d8fa249505731a561a95bb9f5",
     "contract_sha256": "b9e2846ca4c92cf2913094297ba5817e071c10d991abefd1b7c367402f4cd4fa",
     "parent": "Original computation-forwarding preservation §§1,6-7; unchanged original quantifiers/source domain; Simple-sub A/B OPEN 0->0; R50 NOT ADOPTED.",
@@ -16,88 +16,89 @@
       "manifest": "22 direct SHA-256 dependencies MATCH before activation",
       "baseline_commit": "353f7b6b03e1ef3d8fa249505731a561a95bb9f5",
       "R61_closeout": "CLOSED REVIEWED BOUNDED SOURCE-FORMATION OBSTRUCTION; no global absence or automatic new semantic approval. Corr/Q/source solution transport OPEN.",
-      "dispatcher_start": "R62 revision1 fits exact start boundary. Derive under settled semantics or demonstrate precise ambiguity; two auxiliary encodings alone are insufficient. No implementation lease."
+      "dispatcher_start": "R62 revision1 fits exact start boundary. Derive under settled semantics or demonstrate precise ambiguity; two auxiliary encodings alone are insufficient. No implementation lease.",
+      "newly_found_source_owner": "yu-core annotation crosswalk/boundary and typed-evidence sources were omitted from rev1 manifest; Luna found this at owner audit before any author output. It is default-off shadow observation and names unresolved typed-port/profile, permission, original Xi/types/scopes, semantic witness and legal whole-tuple substitution premises."
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 0,
-      "available_seconds": 1800,
-      "allocation": "Sol proof600; Luna source/native owner500; fresh compiler200; fresh spec200; integration300. Astra0; no carryover. Actual wall time/CPU/RSS UNKNOWN.",
+      "charged_seconds": 1100,
+      "available_seconds": 700,
+      "allocation": "R62 rev1 stopped before outputs: full proof600 + Luna owner500 grants charged at issuance; actual elapsed/CPU/RSS UNKNOWN. Review/integration grants unissued. Remaining 700 seconds not carried forward.",
       "overrun_seconds": 0
     },
-    "next_action": "Prover receipt recorded at exact current-session identity; Luna acknowledges now. Sol proof lane and Luna source/native owner lane active on exact disjoint outputs; no code/tests/execution/semantic adoption.",
-    "history": "R61 CLOSED at 353f7b6b0; closeout notes/progress/2026-10-19-r61-closeout.md. All R61 authors/reviewers STOPPED, outputs/leases FROZEN; parent OPEN 0->0, R50 NOT ADOPTED. R62 start check: candidate hash b9e2846ca4c92cf2913094297ba5817e071c10d991abefd1b7c367402f4cd4fa; 22/22 pins MATCH; clean baseline 353f7b6b03e1ef3d8fa249505731a561a95bb9f5 equals HEAD/origin; dispatcher confirms fit. Luna activates with exact proof/owner/review outputs and 1800s envelope; no code/semantic/production authority. R62 configured prover fresh no-read/no-write receipt received for exact two outputs, 600s cap, no descendants; Luna acknowledges only after this receipt commit.",
+    "next_action": "R62 rev1 CLOSED INTERRUPTED FOR INCOMPLETE DEPENDENCY SET / NO RESEARCH RESULT. Consult dispatcher for the corrected next bounded packet; include the default-off yu-core annotation crosswalk and typed-evidence owners. No outputs, no successor lease.",
+    "history": "R61 CLOSED at 353f7b6b0; closeout notes/progress/2026-10-19-r61-closeout.md. All R61 authors/reviewers STOPPED, outputs/leases FROZEN; parent OPEN 0->0, R50 NOT ADOPTED. R62 start check: candidate hash b9e2846ca4c92cf2913094297ba5817e071c10d991abefd1b7c367402f4cd4fa; 22/22 pins MATCH; clean baseline 353f7b6b03e1ef3d8fa249505731a561a95bb9f5 equals HEAD/origin; dispatcher confirms fit. Luna activates with exact proof/owner/review outputs and 1800s envelope; no code/semantic/production authority. R62 configured prover fresh no-read/no-write receipt received for exact two outputs, 600s cap, no descendants; Luna acknowledges only after this receipt commit. During Luna owner audit, an unpinned but relevant default-off yu-core source annotation crosswalk was found; proof author was put on HOLD before inspecting it and STOPPED with no output/scratch files. Both rev1 output pairs are absent. Full 600 proof and 500 owner grants charged on issuance; measured runtime UNKNOWN; no carryover. Reviewers never started. R62 rev1 closed interrupted with no research result; R61 TODO remains OPEN.",
     "workers": [
       {
         "id": "/root",
-        "role": "Luna/high source/native owner lane and integration",
-        "state": "RUNNING",
+        "role": "Luna/high source/native owner and integration",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r62",
-        "receipt": "R62 activated after exact rev1 hash/pins/baseline and dispatcher start check. May read governing sources and write only notes/progress/2026-10-19-r62-whole-ascription-owner.md plus tasks/agent-loop/inbox/20261019-r62-implementation.md. Source/native owner lane cap 500s; no code/tests/execution/semantic adoption."
+        "receipt": "R62 rev1 Luna owner lane STOPPED/NO_DESCENDANTS due incomplete pin set. Read HIR source_annotation/local_source, solver candidate_source/candidate_effect and yu-core Cargo/lib registration, shadow_source_annotation_crosswalk, shadow_annotation_boundaries, shadow_typed_evidence and shadow_call_formation. No R62 output written. Found relevant unpinned default-off crosswalk whose listed unresolved premises include typed-port/profile correspondence, annotation permission/applicability, original Xi/types/scopes, semantic witness and legal whole-tuple substitution. Owner 500s grant charged at issuance; actual elapsed/CPU/RSS UNKNOWN. No tests/code/execution."
       },
       {
         "id": "/root/r62_whole_ascription_formation_proof",
-        "role": "Configured prover; derive whole-ascription source judgment or precise semantic underdetermination",
-        "state": "RUNNING",
+        "role": "Configured prover; derive source judgment or semantic ambiguity",
+        "state": "STOPPED",
         "requested_model": "gpt-6-sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r62",
-        "receipt": "R62 fresh current-session receipt received before reads/writes. Exact outputs notes/theory/2026-10-19-r62-whole-ascription-formation.md and tasks/agent-loop/inbox/20261019-r62-proof.md; outcome is derive under settled annotation semantics with same-provider Corr/typed transport/Q dependencies, or exhibit two pinned-consistent completions differing on an original observable solution/Corr/transport. Requested prover/gpt-6-sol/high; observed actual runtime model/effort UNKNOWN/UNKNOWN. 600s cap; no descendants. No code/tests/build/parser/solver/compiler/runtime/probes/measurements/Git. Writer STOPPED pending Luna acknowledgment."
+        "receipt": "R62 rev1 proof lane STOPPED/WRITES_STOPPED/NO_DESCENDANTS on Luna HOLD before inspecting newly found crosswalk. No theory/inbox/scratch outputs written. Read rev1 contract/current state, R61/R60 theory, pinned call-view authority/annotation policy, forwarding theorem/top-level principles, and pinned candidate_effect sections only. No derivation or underdetermination result. Requested prover/gpt-6-sol/high; observed runtime model/effort UNKNOWN/UNKNOWN. 600s grant charged at issuance; actual elapsed/CPU/RSS UNKNOWN. No tests/code/execution/Git."
       },
       {
         "id": "/root/r52_compiler_review",
         "role": "Fresh independent compiler/source-owner review after both authors stop",
-        "state": "WAITING",
+        "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "requested_effort": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r62",
-        "receipt": "200s reserved; waits for both authors STOPPED and four exact output hashes before no-read/no-write receipt."
+        "receipt": "R62 rev1 closed before review intake; no receipt, reads, writes or descendants."
       },
       {
         "id": "/root/r52_spec_review",
         "role": "Fresh independent spec/domain review after both authors stop",
-        "state": "WAITING",
+        "state": "STOPPED",
         "requested_model": "UNKNOWN",
         "requested_effort": "UNKNOWN",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r62",
-        "receipt": "200s reserved; waits for both authors STOPPED and four exact output hashes before no-read/no-write receipt."
+        "receipt": "R62 rev1 closed before review intake; no receipt, reads, writes or descendants."
       }
     ],
     "leases": [
       {
         "path": "tasks/agent-loop/sprints/whole-ascription-formation-derivation-20261019-r62.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-19-r62-whole-ascription-owner.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r62-implementation.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/theory/2026-10-19-r62-whole-ascription-formation.md",
         "owner": "/root/r62_whole_ascription_formation_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r62-proof.md",
         "owner": "/root/r62_whole_ascription_formation_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [
@@ -109,95 +110,96 @@
         "falsifier": "A derivation loses a permitted source solution, provider/position, permission, joint K,D, result evidence or ordinary constraints; or alleged ambiguity is already determined by pinned decisions / relies only on auxiliary encoding changes."
       }
     ],
-    "closure": "OPEN. R62 authors are working toward a derivation or exact underdetermination witness. No implementation or semantic adoption.",
+    "closure": "CLOSED — INTERRUPTED FOR INCOMPLETE DEPENDENCY SET / NO RESEARCH RESULT. Both authors stopped; all R62 rev1 leases frozen. No derivation, underdetermination witness, source exclusion, or implementation result. R61 TODO remains OPEN; no carryover or successor lease.",
     "primary_approval": "Luna activates R62 revision1 at SHA-256 b9e2846ca4c92cf2913094297ba5817e071c10d991abefd1b7c367402f4cd4fa after 22/22 pins MATCH, clean baseline 353f7b6b03e1ef3d8fa249505731a561a95bb9f5 equal to HEAD/origin, and dispatcher start confirmation. Grants exact proof/owner/review paths and 1800s envelope only; no code/tests/execution/semantic/production authority. Parent/A/B OPEN 0->0; R50 NOT ADOPTED.",
     "dispatcher_start": {
       "agent": "/root/r46_next_action",
       "state": "COMPLETED_READ_ONLY",
       "session": "current-conversation-2026-10-19-r62",
       "receipt": "R62 rev1 candidate fits. Derive source judgment under settled semantics, or demonstrate precise ambiguity with distinct compatible completions that differ in original observable solutions/Corr/transport; different auxiliary encodings alone are insufficient. Proof600 + owner500 + reviews200 each + integration300 =1800. Budget exhaustion is not underdetermination. No implementation lease; parent/A/B OPEN 0->0; R50 NOT ADOPTED."
-    }
+    },
+    "dependency_stop": "notes/progress/2026-10-19-r62-dependency-stop.md"
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna/high source/native owner lane and integration",
-      "state": "RUNNING",
+      "role": "Luna/high source/native owner and integration",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r62",
-      "receipt": "R62 activated after exact rev1 hash/pins/baseline and dispatcher start check. May read governing sources and write only notes/progress/2026-10-19-r62-whole-ascription-owner.md plus tasks/agent-loop/inbox/20261019-r62-implementation.md. Source/native owner lane cap 500s; no code/tests/execution/semantic adoption."
+      "receipt": "R62 rev1 Luna owner lane STOPPED/NO_DESCENDANTS due incomplete pin set. Read HIR source_annotation/local_source, solver candidate_source/candidate_effect and yu-core Cargo/lib registration, shadow_source_annotation_crosswalk, shadow_annotation_boundaries, shadow_typed_evidence and shadow_call_formation. No R62 output written. Found relevant unpinned default-off crosswalk whose listed unresolved premises include typed-port/profile correspondence, annotation permission/applicability, original Xi/types/scopes, semantic witness and legal whole-tuple substitution. Owner 500s grant charged at issuance; actual elapsed/CPU/RSS UNKNOWN. No tests/code/execution."
     },
     {
       "id": "/root/r62_whole_ascription_formation_proof",
-      "role": "Configured prover; derive whole-ascription source judgment or precise semantic underdetermination",
-      "state": "RUNNING",
+      "role": "Configured prover; derive source judgment or semantic ambiguity",
+      "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r62",
-      "receipt": "R62 fresh current-session receipt received before reads/writes. Exact outputs notes/theory/2026-10-19-r62-whole-ascription-formation.md and tasks/agent-loop/inbox/20261019-r62-proof.md; outcome is derive under settled annotation semantics with same-provider Corr/typed transport/Q dependencies, or exhibit two pinned-consistent completions differing on an original observable solution/Corr/transport. Requested prover/gpt-6-sol/high; observed actual runtime model/effort UNKNOWN/UNKNOWN. 600s cap; no descendants. No code/tests/build/parser/solver/compiler/runtime/probes/measurements/Git. Writer STOPPED pending Luna acknowledgment."
+      "receipt": "R62 rev1 proof lane STOPPED/WRITES_STOPPED/NO_DESCENDANTS on Luna HOLD before inspecting newly found crosswalk. No theory/inbox/scratch outputs written. Read rev1 contract/current state, R61/R60 theory, pinned call-view authority/annotation policy, forwarding theorem/top-level principles, and pinned candidate_effect sections only. No derivation or underdetermination result. Requested prover/gpt-6-sol/high; observed runtime model/effort UNKNOWN/UNKNOWN. 600s grant charged at issuance; actual elapsed/CPU/RSS UNKNOWN. No tests/code/execution/Git."
     },
     {
       "id": "/root/r52_compiler_review",
       "role": "Fresh independent compiler/source-owner review after both authors stop",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "UNKNOWN",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r62",
-      "receipt": "200s reserved; waits for both authors STOPPED and four exact output hashes before no-read/no-write receipt."
+      "receipt": "R62 rev1 closed before review intake; no receipt, reads, writes or descendants."
     },
     {
       "id": "/root/r52_spec_review",
       "role": "Fresh independent spec/domain review after both authors stop",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "UNKNOWN",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r62",
-      "receipt": "200s reserved; waits for both authors STOPPED and four exact output hashes before no-read/no-write receipt."
+      "receipt": "R62 rev1 closed before review intake; no receipt, reads, writes or descendants."
     }
   ],
   "leases": [
     {
       "path": "tasks/agent-loop/sprints/whole-ascription-formation-derivation-20261019-r62.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r62-whole-ascription-owner.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r62-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-19-r62-whole-ascription-formation.md",
       "owner": "/root/r62_whole_ascription_formation_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r62-proof.md",
       "owner": "/root/r62_whole_ascription_formation_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
       "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
-      "state": "RUNNING",
-      "owner": "Sol proof lane + Luna source/native owner lane",
-      "request": "Derive the judgment under settled annotation semantics or demonstrate the exact genuinely underdetermined premise; preserve same-provider Corr and typed transport.",
-      "falsifier": "A derivation loses a permitted source solution, provider/position, permission, joint K,D, result evidence or ordinary constraints; or alleged ambiguity is already determined by pinned decisions / relies only on auxiliary encoding changes."
+      "state": "OPEN",
+      "owner": "Luna; corrected fresh contract required; no active grant",
+      "request": "Derive the whole-ascription judgment under settled annotation semantics or demonstrate a genuinely underdetermined premise; include all relevant source/native owners, including the default-off yu-core annotation crosswalk and typed-evidence sources.",
+      "falsifier": "A permitted solution loses typed lift/reverse interpretation or a claimed ambiguity is already determined by applicable decisions; auxiliary re-encoding alone is insufficient."
     }
   ]
 }
