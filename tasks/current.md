@@ -2,7 +2,7 @@
 
 Date: 2026-10-18
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active. R22 reduced the fixed runtime specimen to a conditional handle-preservation induction, but the original `A_decl` source output/provider map is still missing; parent closure remains 0. R22's trace was rejected at independent review and its incomplete partial repair was discarded. R23's original frame inventory and independent falsifier packet are frozen and CLEAN within their bounded review scope; neither supplies the fixed `K_decl`, and no admitted refutation was found. R23 rev2 now traces backward from the original result-port typing judgment to recover that exact context. No dependent production code is authorized until the source/native premise is established.
+Status: full objective remains active. R22 reduced the fixed runtime specimen to a conditional handle-preservation induction, but the original `A_decl` source output/provider map is still missing; parent closure remains 0. R22's trace was rejected at independent review and its incomplete partial repair was discarded. R23's original frame inventory, falsifier and cut-formation packets are frozen and CLEAN within their bounded scopes; the parent theorem still has closure 0. R24 now targets the actual caller-owned registry/license/joint-world guards for the legitimate `Sigma0` instance and their hereditary phase actions. No dependent production code is authorized until a source/native consumer invariant is proved.
 
 ## Current checkpoint (2026-10-18)
 
@@ -15,24 +15,23 @@ The optional trace failed independent review on nested-arm observer lifecycle
 and actual view/receipt identity, and its bounded repair stopped incomplete.
 No R22 tests ran; its partial code was restored to the pinned baseline.
 
-R23 rev2 is the active source-proof sprint. The owner expansion found the
-existing completion/View/Owner/Bind/ForwardHandler rules but not the fixed
-source `K_decl` selected by `Sigma_theta.Lambda`. The independent falsifier
-found no admitted counterexample. A fresh compiler referee accepted both
-bounded packets CLEAN, while explicitly keeping Stage B blocked. The existing
-900-second proof reservation is now assigned to reconstructing the actual
-original result-port typing derivation or freezing its exact missing source
-input; no semantic rule is adopted by this reallocation. The implementation
-lane remains WAITING because the inspected Catch slot-50/Group and runtime
-request-consumer owners do not construct the missing original `A_decl` output
-map. The backward trace is now frozen: the original complete `Sigma` is a
-primitive theorem input; `OpInst` transports it; `Execute_decl_result` consumes
-the independently supplied declaration interface; no original
+R23 closed at its bounded source-owner outcome: the original complete `Sigma`
+is a primitive theorem input; `OpInst` transports it; `Execute_decl_result`
+consumes the independently supplied declaration interface; no original
 source-to-interface realization deriving this fixed `K_decl` was found in the
 bounded owners. The open `Sigma0` candidate returns the same `b` locally but is
-not identified with the original `Sigma`, and its full validity remains open.
-The cut-formation packet is committed and awaiting fresh independent review.
-See the [R22
+not identified with the original `Sigma`; its full validity remains open. All
+three R23 evidence packets received fresh CLEAN reviews within their stated
+scope. Their results do not discharge the parent. See the [R23 closeout](progress/2026-10-18-r23-original-a-decl-cut-closeout.md).
+
+R24 is active and reuses the permitted legitimate-instance route without
+claiming an all-`Sigma` theorem. The first lane constructs the actual caller's
+`j0`, `a0`, license and incidence at one shared `(W0,xi,h0)`. Only an exact
+frozen tuple activates the staged Sol proof of `PhiW` guards and hereditary
+phase actions. Existing bootstrap profile/inventory results are reused; the
+work does not restart Sigma0 formation or assume a valid world. The
+implementation lane remains WAITING until a proved source/native consumer
+invariant gives a real code slice. See the [R24 contract](agent-loop/sprints/choose-caller-registration-witness-20261018-r24.md) and [R22
 closeout](notes/progress/2026-10-18-r22-fixed-source-result-map-closeout.md)
 and [R23 contract](agent-loop/sprints/original-a-decl-provider-result-map-20261018-r23.md).
 
