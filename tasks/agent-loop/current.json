@@ -17,13 +17,13 @@
       "available_seconds": 480,
       "allocation": "R1 native600 fully charged (duration UNKNOWN) + R2 native600 fully charged (duration UNKNOWN). Review/integration480 unused. Astra0."
     },
-    "next_action": "R34 closed FAILED and unintegrated. No native code remains; the trial patch and reviewed first-unjoinable-edge closeout are preserved. Next useful premise is an authentic source-owned C/D introduction; apply R32 retention once supplied.",
-    "history": "R34 closeout notes/progress/2026-10-18-r34-closeout.md SHA 80ac0e7e...532f; candidate patch notes/progress/2026-10-18-r34-candidate.patch SHA d144d1da...2360. Parent0->0. Both test processes compile-failed before assertions; fresh compiler review BLOCKED pair-to-capture/map and locality-to-final-identity claims.",
+    "next_action": "R34 closed FAILED and unintegrated. No native code remains. Candidate code/test files are restored; only their hashes, author report/handoff, and compiler review findings are retained (not an exact patch). Next premise: an authentic source-owned C/D introduction; apply R32 retention once supplied.",
+    "history": "R34 closeout notes/progress/2026-10-18-r34-closeout.md SHA 46da8e6c...c190. Candidate source/test hashes and review findings are recorded; exact diff was not preserved. Parent0->0. Both test processes compile-failed before assertions; fresh compiler review BLOCKED pair-to-capture/map and locality-to-final-identity claims.",
     "git_checkpoint": {
       "commit": "c54e2888864742dd304dd6557d370afafef44797",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "Last pushed checkpoint c54e28888; R34 reviewed failure closeout and preserved candidate diff are in the final integration commit."
+      "receipt": "Last pushed checkpoint c54e28888; final R34 closeout, report and task state are committed at 8cdc0d62e."
     },
     "workers": [
       {
@@ -117,7 +117,7 @@
       "receipt": "All R34 writers, dispatchers and compiler reviewer are terminal; candidate code paths restored to pinned baseline; no active leases."
     },
     "contract_sha256": "03f7cb94f79a2cfc0d17e67d1fa866f4b6147fdb5221cc4f5f0e12fd91098283",
-    "sha256": "98bb4b222d448b24e751333abb654b9f7bfaa3c3532f0e076109ecbba8b7e40d"
+    "sha256": "50d33c6935cf02943d8f316464e7ea3c3496d05b79b3d55b1760331e16cf65c5"
   },
   "workers": [
     {
@@ -201,6 +201,6 @@
   "leases": [],
   "pending": [],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R34 closed FAILED; original parent0->0, R30 independently OPEN. Candidate diff preserved; code restored. See notes/progress/2026-10-18-r34-closeout.md.",
-  "sha256": "2cb122bdb59fb2fa082700eeda3efacdec1b5811ccb2bdf09b7dc2805173fda7"
+  "history": "R34 closed FAILED; original parent0->0, R30 independently OPEN. Code restored, candidate identities/review findings retained. See notes/progress/2026-10-18-r34-closeout.md.",
+  "sha256": "5e7c99aafe4cb59cabae3ce399f938e50a62ec0bb79a199fc1c53768c81a4703"
 }
