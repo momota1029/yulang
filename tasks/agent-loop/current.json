@@ -53,24 +53,24 @@
       {
         "id": "/root/r63_compiler_review",
         "role": "Fresh independent compiler/source-owner review of frozen R63 evidence",
-        "state": "ASSIGNED",
+        "state": "RUNNING",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r63",
-        "receipt": "Exact 200s read-only review grant issued; current-session no-read/no-write acknowledgment pending. Challenge whether any pinned source producer licenses the missing relation, candidate constructor order, and validity/scope of the two-node API witness."
+        "receipt": "Current-session no-read/no-write acknowledgment received and Luna acknowledged before source inspection; exact frozen targets active, 200s cap, read-only, no descendants. Requested compiler_referee; observed model/effort UNKNOWN."
       },
       {
         "id": "/root/r63_spec_review",
         "role": "Fresh independent spec/domain review of frozen R63 evidence",
-        "state": "ASSIGNED",
+        "state": "RUNNING",
         "requested_model": "gpt-6.1-sol",
         "requested_effort": "low",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r63",
-        "receipt": "Exact 200s read-only review grant issued; current-session no-read/no-write acknowledgment pending. Challenge boundedness of absence claims, settled semantics, and whether caller-supplied flows are improperly promoted to source completions."
+        "receipt": "Current-session no-read/no-write acknowledgment received and Luna acknowledged before source inspection; exact frozen targets active, 200s cap, read-only, no descendants. Requested spec_auditor; observed model/effort UNKNOWN."
       }
     ],
     "leases": [
@@ -144,24 +144,24 @@
     {
       "id": "/root/r63_compiler_review",
       "role": "Fresh independent compiler/source-owner review of frozen R63 evidence",
-      "state": "ASSIGNED",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r63",
-      "receipt": "Exact 200s read-only review grant issued; current-session no-read/no-write acknowledgment pending. Challenge whether any pinned source producer licenses the missing relation, candidate constructor order, and validity/scope of the two-node API witness."
+      "receipt": "Current-session no-read/no-write acknowledgment received and Luna acknowledged before source inspection; exact frozen targets active, 200s cap, read-only, no descendants. Requested compiler_referee; observed model/effort UNKNOWN."
     },
     {
       "id": "/root/r63_spec_review",
       "role": "Fresh independent spec/domain review of frozen R63 evidence",
-      "state": "ASSIGNED",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r63",
-      "receipt": "Exact 200s read-only review grant issued; current-session no-read/no-write acknowledgment pending. Challenge boundedness of absence claims, settled semantics, and whether caller-supplied flows are improperly promoted to source completions."
+      "receipt": "Current-session no-read/no-write acknowledgment received and Luna acknowledged before source inspection; exact frozen targets active, 200s cap, read-only, no descendants. Requested spec_auditor; observed model/effort UNKNOWN."
     }
   ],
   "leases": [
