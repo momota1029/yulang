@@ -40,7 +40,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
-      "receipt": "Luna owner-map subtask STOPPED after freezing notes/progress/2026-10-19-r68-retained-entry-owners.md SHA-256 8ebbdfbd32fc7cde32db457956a20882b8e231abadbb9d74ee90de66515e6d8b and tasks/agent-loop/inbox/20261019-r68-implementation.md SHA-256 386a0dab4d60b5af62e5a329ddc315b6ad7c7cf56c998427eebf0d707a28c2a7; no descendants. Luna remains RUNNING as coordinator/integrator; proof and counter-reading remain active under exact leases."
+      "receipt": "R68 author lanes and fresh reviewers STOPPED with no descendants. Luna closed R68 after freezing all six author outputs and adjudicating both 37/37 review receipts; only end-boundary owner routing and successor candidate preparation remain in current Luna session."
     },
     {
       "id": "/root/r68_retained_lambda_proof",
