@@ -21,12 +21,12 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 0,
-      "available_seconds": 1800,
-      "allocation": "Sol600; Luna500; fresh compiler200; fresh spec200; integration300. Astra0, no carryover. Actual wall time/CPU/RSS UNKNOWN.",
+      "charged_seconds": 1100,
+      "available_seconds": 700,
+      "allocation": "Sol600 charged; Luna source-owner500 charged conservatively at lane cap; fresh compiler200 and spec200 reviews plus integration300 remain. Total1800; Astra0; no carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "Luna owner outputs frozen and pushed; Sol proof lane remains RUNNING on its disjoint two outputs. Fresh compiler/spec reviews wait until Sol is STOPPED and all four exact output bytes are frozen.",
+    "next_action": "Both author lanes STOPPED and all four exact outputs frozen. Record author hashes and consult dispatcher at the integration seam; then fresh independent compiler/spec review within 200s each. No code/tests/execution.",
     "history": "R59 closed and pushed in fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3; integration and compact-state receipts pushed in b62bf4bed359ed5f8bd4728923d1807044f9e8c9. R59 parent OPEN 0->0, A/B OPEN, R50 NOT ADOPTED. R60 revision1 status wording was corrected to revision2 before any author work. Exact revision2 SHA and 25/25 pins checked; baseline b62bf4bed359ed5f8bd4728923d1807044f9e8c9 matches HEAD/origin; dispatcher confirmed start-boundary fit; Luna activated R60. Sol has not acknowledged; no proof reads/writes started. All prior identities STOPPED, leases FROZEN.",
     "workers": [
       {
@@ -43,13 +43,13 @@
       {
         "id": "/root/r53_ordinary_mixed_capture_proof",
         "role": "Sol/high constructive paired-interface proof",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r60",
-        "receipt": "Fresh current-session active-work receipt received before reads/writes. Fixed goal: derive authentic same-pA/provider exposed-AE to checked-provider entrance with source-local permission and correlated result compatibility preserving original source-contract solutions and explicit auxiliary correspondence, or identify exact missing premise. Exact outputs: notes/theory/2026-10-19-r60-paired-annotation-interface.md; tasks/agent-loop/inbox/20261019-r60-proof.md. Requested Sol/high; observed model/effort UNKNOWN/UNKNOWN. Cap 600s, no carryover/expansion, no descendants. Worker confirms no R60 reads/proof work/writes began; primary acknowledgement now releases this exact lane."
+        "receipt": "R60 proof frozen: notes/theory/2026-10-19-r60-paired-annotation-interface.md SHA-256 03a40bdba3bad125f93d5290b7f3519aceba17b93c20c5026ac9194b128c7f67; tasks/agent-loop/inbox/20261019-r60-proof.md SHA-256 1e8afe344086e728ad52fe742beb4f22f24eb54eb971f55d9d7b9ad5bc607c45. Contract rev2 and 25/25 pins MATCH. Scalar projection/lifting proved under explicit independence premises; authentic source-preserving constructor exclusion of R59 assignment OPEN. STOPPED / WRITES_STOPPED / NO_DESCENDANTS. Requested Sol/high, observed UNKNOWN; 600s charged; measured duration/CPU/RSS UNKNOWN; static only, no code/tests/execution."
       },
       {
         "id": "/root/r52_compiler_review",
@@ -83,12 +83,12 @@
       {
         "path": "notes/theory/2026-10-19-r60-paired-annotation-interface.md",
         "owner": "/root/r53_ordinary_mixed_capture_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r60-proof.md",
         "owner": "/root/r53_ordinary_mixed_capture_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-19-r60-paired-constructor-owners.md",
@@ -104,7 +104,7 @@
     "pending": [
       {
         "id": "R60-PAIRED-ANNOTATION-INTERFACE",
-        "state": "RUNNING",
+        "state": "REVIEW",
         "owner": "Sol proof + Luna read-only source-owner lane",
         "request": "Derive authentic same-pA/provider AE entrance and local permission correspondence under selected source contract; account for correlated result interface or isolate first exact missing premise.",
         "falsifier": "R59 assignment still satisfies proposed constructor while entrance fails; permission becomes cap/contribution; unrelated provider/position supplies evidence; pairing removes legal behavior; or generated constraints are dropped."
