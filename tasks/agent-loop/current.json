@@ -73,7 +73,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "R64 review scope and frozen hashes assigned; no read/no write acknowledgment pending."
+      "receipt": "R64 revision2 candidate reviewed before reads; NO_READ / NO_WRITE / NO_DESCENDANTS. Requested role compiler_referee, 200s; requested/observed model-effort UNKNOWN for this assignment; explicit activation pending."
     },
     {
       "id": "/root/r63_spec_review",
@@ -84,7 +84,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "R64 review scope and frozen hashes assigned; no read/no write acknowledgment pending."
+      "receipt": "R64 revision2 candidate reviewed before reads; NO_READ / NO_WRITE / NO_DESCENDANTS. Requested role spec_auditor, 200s; requested/observed model-effort UNKNOWN for this assignment; explicit activation pending."
     }
   ],
   "leases": [
