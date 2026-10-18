@@ -20,12 +20,12 @@
     },
     "next_action": "Commit/push R22 contract with Luna-frozen 128-event observation plan; dispatch proof and falsifier lanes plus exact nonsemantic trace lease. No test before CLEAN review.",
     "history": "R20 runtime gate CLEAN, 18/18; R20 source proof CLEAN with missing typed incidence. R21 rev3 review CLEAN for document conformance; fixed ResultMap OPEN, A unadopted and partial, B BLOCKED. Parent closure0.",
-    "last_stage_receipt": "R22 contract/observation plan pushed at 428542745; exact proof, independent falsifier and nonsemantic trace lanes all active on disjoint leases. Parent OPEN/closure0.",
+    "last_stage_receipt": "Independent falsifier lane frozen at pinned hashes. Fixed request has empty suffix and Owner(Hole) template; modified discard/replacement admission and runtime outcomes remain unverified; no source counterexample claimed.",
     "git_checkpoint": {
-      "commit": "428542745",
+      "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R22 exact observation plan committed/pushed before dispatch; 128-event cap, no receipt or semantic changes. Three lanes active."
+      "receipt": "Falsifier note and handoff frozen for root checkpoint; other R22 proof and trace lanes continue."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0. R21 complete: seven-document packet reviewed CLEAN for rev3 conformance; A only proposed, ResultMap OPEN, B blocked; parent closure0.",
@@ -56,13 +56,13 @@
     {
       "id": "/root/r22_result_map_falsifiers",
       "role": "researcher",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "RUNNING: independent fixed-source falsification lane launched; must require baseline admission and actual result evidence."
+      "receipt": "R22 independent falsifier packet frozen: theory 003ae1a9915708e021f933ca06546c9561ee8efd2927daf7e5529a98c87992c5; handoff d01f49b5d4de93dfaff6b417a9f5e7473abec083faa804573f826c6fd4ee12e4. Fixed source suffix/payload findings; modified discard/replacement variants remain unverified. No tests/build/Git."
     },
     {
       "id": "/root/r22_suffix_trace_impl",
@@ -100,12 +100,12 @@
     {
       "path": "notes/theory/2026-10-18-fixed-source-result-map-source-falsifiers.md",
       "owner": "/root/r22_result_map_falsifiers",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-fixed-source-result-map-falsifiers.md",
       "owner": "/root/r22_result_map_falsifiers",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tools/inference-playground/src/runtime/machine.rs",
