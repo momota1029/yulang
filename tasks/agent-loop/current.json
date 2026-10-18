@@ -33,7 +33,7 @@
       "overrun_seconds": 0
     },
     "next_action": "Read-only implementation path is frozen as NO_SAFE_CODE_SLICE. Astra and Sol continue proof construction/attack under their exact leases.",
-    "history": "R44 closed unsuccessful after compiler_referee/spec_auditor review; exact D_q, complete headers and two-frame/alias mappings absent. User's original parent remains open. R45 uses the dispatcher-selected integrated output-owner derivation with corrected source baseline.",
+    "history": "R44 closed unsuccessful after compiler_referee/spec_auditor review; exact D_q, complete headers and two-frame/alias mappings absent. User's original parent remains open. R45 uses the dispatcher-selected integrated output-owner derivation with corrected source baseline. Resume audit 2026-10-19: live runtime inventory showed only /root; Astra/Sol handles absent, cessation unconfirmed. Dispatcher retained R45 and recommended UNKNOWN workers, QUARANTINED leases, no budget reset or code.",
     "workers": [
       {
         "id": "/root",
@@ -49,24 +49,24 @@
       {
         "id": "/root/r45_contextual_core",
         "role": "Astra bounded constructive core proof",
-        "state": "RUNNING",
+        "state": "UNKNOWN",
         "requested_model": "astra_prover",
         "requested_effort": "medium",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "Spawned in current live session for R45 exact D_q/Application/Call/frame derivation; exact two-path lease; 300 second cap."
+        "receipt": "Spawned in current live session for R45 exact D_q/Application/Call/frame derivation; exact two-path lease; 300 second cap. Current runtime inventory on 2026-10-19 contains no live worker handle or fresh active-work receipt; cessation is unconfirmed."
       },
       {
         "id": "/root/r45_independent_derivation",
         "role": "Sol independent source derivation and counterexample lane",
-        "state": "RUNNING",
+        "state": "UNKNOWN",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19",
-        "receipt": "Spawned in current live session for independent q owner/dependency/provider/frame audit; exact two-path lease; 900 second cap."
+        "receipt": "Spawned in current live session for independent q owner/dependency/provider/frame audit; exact two-path lease; 900 second cap. Current runtime inventory on 2026-10-19 contains no live worker handle or fresh active-work receipt; cessation is unconfirmed."
       }
     ],
     "leases": [
@@ -78,22 +78,22 @@
       {
         "path": "notes/theory/2026-10-19-r45-contextual-output-core.md",
         "owner": "/root/r45_contextual_core",
-        "state": "HELD"
+        "state": "QUARANTINED"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r45-core.md",
         "owner": "/root/r45_contextual_core",
-        "state": "HELD"
+        "state": "QUARANTINED"
       },
       {
         "path": "notes/theory/2026-10-19-r45-application-derivation.md",
         "owner": "/root/r45_independent_derivation",
-        "state": "HELD"
+        "state": "QUARANTINED"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r45-proof.md",
         "owner": "/root/r45_independent_derivation",
-        "state": "HELD"
+        "state": "QUARANTINED"
       },
       {
         "path": "notes/progress/2026-10-19-r45-source-native-evaluator-path.md",
@@ -110,19 +110,19 @@
       {
         "id": "R45-ASTRA-CORE",
         "role": "astra_prover",
-        "state": "RUNNING",
+        "state": "UNKNOWN",
         "worker_id": "/root/r45_contextual_core",
         "target_sha256": "e8e6460eb19500383d71cc6b6b217f294ae8acbf3bfedb48b6beab5ff8457c77"
       },
       {
         "id": "R45-SOL-DERIVATION",
         "role": "prover",
-        "state": "RUNNING",
+        "state": "UNKNOWN",
         "worker_id": "/root/r45_independent_derivation",
         "target_sha256": "e8e6460eb19500383d71cc6b6b217f294ae8acbf3bfedb48b6beab5ff8457c77"
       }
     ],
-    "ready_next_work": "Wait for both proof handoffs; Luna applies the earliest-owner result, then freezes candidate and assigns independent review if supported.",
+    "ready_next_work": "Maintain R45 rev1 and quarantined proof leases. Luna may continue only approved-source read-only analysis within the existing 600-second primary grant; otherwise await fresh worker/cessation receipts. No code or tests authorized.",
     "closure": "Parent remains OPEN 0->0; R44 candidate non-Authoritative; no code authorized.",
     "frozen_artifacts": {
       "R45_source_native_evaluator_path": "d3538e38606e8e800866fb6c8eb397995dadebf44b8a7d24c891a765c0953e5b",
@@ -177,24 +177,24 @@
     {
       "id": "/root/r45_contextual_core",
       "role": "Astra bounded constructive core proof",
-      "state": "RUNNING",
+      "state": "UNKNOWN",
       "requested_model": "astra_prover",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
-      "receipt": "Spawned in current live session for R45 exact D_q/Application/Call/frame derivation; exact two-path lease; 300 second cap."
+      "receipt": "Spawned in current live session for R45 exact D_q/Application/Call/frame derivation; exact two-path lease; 300 second cap. Current runtime inventory on 2026-10-19 contains no live worker handle or fresh active-work receipt; cessation is unconfirmed."
     },
     {
       "id": "/root/r45_independent_derivation",
       "role": "Sol independent source derivation and counterexample lane",
-      "state": "RUNNING",
+      "state": "UNKNOWN",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19",
-      "receipt": "Spawned in current live session for independent q owner/dependency/provider/frame audit; exact two-path lease; 900 second cap."
+      "receipt": "Spawned in current live session for independent q owner/dependency/provider/frame audit; exact two-path lease; 900 second cap. Current runtime inventory on 2026-10-19 contains no live worker handle or fresh active-work receipt; cessation is unconfirmed."
     }
   ],
   "leases": [
@@ -251,22 +251,22 @@
     {
       "path": "notes/theory/2026-10-19-r45-contextual-output-core.md",
       "owner": "/root/r45_contextual_core",
-      "state": "HELD"
+      "state": "QUARANTINED"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r45-core.md",
       "owner": "/root/r45_contextual_core",
-      "state": "HELD"
+      "state": "QUARANTINED"
     },
     {
       "path": "notes/theory/2026-10-19-r45-application-derivation.md",
       "owner": "/root/r45_independent_derivation",
-      "state": "HELD"
+      "state": "QUARANTINED"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r45-proof.md",
       "owner": "/root/r45_independent_derivation",
-      "state": "HELD"
+      "state": "QUARANTINED"
     },
     {
       "path": "notes/progress/2026-10-19-r45-source-native-evaluator-path.md",
@@ -283,14 +283,14 @@
     {
       "id": "R45-ASTRA-CORE",
       "role": "astra_prover",
-      "state": "RUNNING",
+      "state": "UNKNOWN",
       "worker_id": "/root/r45_contextual_core",
       "target_sha256": "e8e6460eb19500383d71cc6b6b217f294ae8acbf3bfedb48b6beab5ff8457c77"
     },
     {
       "id": "R45-SOL-DERIVATION",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "UNKNOWN",
       "worker_id": "/root/r45_independent_derivation",
       "target_sha256": "e8e6460eb19500383d71cc6b6b217f294ae8acbf3bfedb48b6beab5ff8457c77"
     }
@@ -303,5 +303,5 @@
     "required": false,
     "receipt": "R42/R43 primary and review workers terminal. Pre-existing dirty/unknown-owner Rust, tasks/current.md and R35-R41 artifacts remain untouched/read-only."
   },
-  "sha256": "64078e7e5f6559b8749b5b6c2797517fcdd0e50052e515f5017deb1be41f0d15"
+  "sha256": "dcdff604f1c679237346be518f84d10dc89c9551365411ea833b3d2776720fa7"
 }
