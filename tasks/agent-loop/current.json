@@ -20,7 +20,7 @@
     },
     "next_action": "Commit/push rev3 contract/state; repair only AnnCarry-A provisional publication cycle and D1 empty-suffix rule provenance; freeze four hashes; same reviewer delta review; integrate reviewed docs, no semantic selection.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption. Rev2 delta review BLOCKING on A provisional/publication cycle and D1 unstated empty-suffix rule; rev3 narrow document-only repair authorized.",
-    "last_stage_receipt": "R21 rev3 two narrow repair lanes launched from pushed contract e8cdac90b; same exact document leases, 60s + 30s. Parent OPEN/closure0.",
+    "last_stage_receipt": "R21 rev3 implementation contract/handoff frozen; A provisional lifecycle is now aligned. Proof/options lane still active on exact D1 source basis or OPEN.",
     "git_checkpoint": {
       "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
@@ -67,13 +67,13 @@
     {
       "id": "/root/r21_bridge_impl_contract",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev3 contract alignment active, 30s, after e8cdac90b; A provisional witness consumed by PublishLocal after prefix checks, final gate later; B remains blocked. No code/tests/Git."
+      "receipt": "R21 rev3 implementation contract/handoff frozen at e3455e297bf34791a8e8908dee5fe355165da3eda005394ee2e56cd68db70c81 / 37038f8e04794b8023f80d437e6e2291d1342812192fa2ab957e0e0354d35bff. A provisional lifecycle aligns with PublishLocal/final candidate gate; B remains BLOCKED. No code/tests/Git."
     },
     {
       "id": "/root/r21_bridge_integrated_review",
@@ -126,12 +126,12 @@
     {
       "path": "notes/design/2026-10-18-field-root-incidence-implementation-contract.md",
       "owner": "/root/r21_bridge_impl_contract",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-implementation.md",
       "owner": "/root/r21_bridge_impl_contract",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [],
