@@ -5,9 +5,9 @@
   "session": "current-session",
   "active_sprint": {
     "id": "operation-v1-local-install-use-lineage-and-capture-20261018-r19",
-    "contract": "tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-read-dependency-rev2.md",
-    "revision": 2,
-    "sha256": "ac088984d5303421091a203f63699ba212ed2bf01b90daa80fbc1f797f83317d",
+    "contract": "tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-repair-rev3.md",
+    "revision": 3,
+    "sha256": "9002cc81daf3a6bde262fcf8390dfdc6a48f6145106327fb00236ed9f38b6cfe",
     "state": "ACTIVE",
     "baseline": "Semantic/code baseline d51baa6db plus immutable R19 pins; docs-only R19 authority/state commits eeafa05c5 and 73c044bd0 do not alter compiler owners.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers preserved; OPEN/closure0.",
@@ -18,14 +18,14 @@
       "implementation": "One same-HIR direct callback Phase-S to Phase-R research path, R18 runtime_resume 17/17; no Install/Capture/FreshUse FieldBound correspondence."
     },
     "resources": {
-      "cap_seconds": 2400,
-      "charged_seconds": 2400,
+      "cap_seconds": 3300,
+      "charged_seconds": 3300,
       "available_seconds": 0,
-      "allocation": "Constructive proof720 + independent source falsification360 + Luna/high runtime lineage implementation600 + independent review480 (proof/source240, runtime240) + focused runtime/integration/state240. Astra0. Fully charged on issue; no carryover/reset."
+      "allocation": "R19 original 2400/2400 retained; rev3 adds runtime repair360 + same independent compiler_referee delta review240 + focused runtime_resume/integration300. Astra0. Fully conservatively charged when issued; no carryover/reset."
     },
     "next_action": "Commit/push r19 contract and initial state. Then launch disjoint proof, source-falsification and runtime-lineage lanes. Keep solver owners read-only; runtime result must not claim FieldBound Capture/FreshUse consumption.",
     "history": "R18 runtime research path completed at d51baa6db; independent review CLEAN, runtime_resume 17/17. R17 details are in the R17 closeout pointer in top-level history. R19 source/proof characterization commits 6748039fa and 118375dce independently CLEAN; original parent conditions remain closure0.",
-    "last_stage_receipt": "R19 proof/source artifacts are CLEAN and pushed. Runtime code review is BLOCKING on (1) Catch-to-g Apply source join, (2) contradictory invocation identity gates, and (3) malformed sibling negative control. No runtime tests run; full R19 cap is charged, so a versioned repair envelope is pending dispatcher input. Parent OPEN/closure0; no solver edits.",
+    "last_stage_receipt": "R19 proof/source artifacts are CLEAN and pushed. Original runtime review found 3 BLOCKING findings; revision3 adds a bounded 900s repair/review/focused-test envelope only. No solver/source semantics/receipt schema changes; parent OPEN/closure0.",
     "git_checkpoint": {
       "commit": "118375dce",
       "branch": "research/simple-sub-intrusion",
@@ -72,13 +72,13 @@
     {
       "id": "/root/r19_local_binding_runtime",
       "role": "implementer",
-      "state": "STOPPED",
+      "state": "NOT_STARTED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Frozen R19 runtime lineage diff; hashes: program eb7f8034..., machine fa8dab7f..., tests 7f59ba69..., handoff a7c14f5a.... Adds fail-closed initializer Catch -> exact local g binder/cell -> Name -> g Apply handle/environment/owner join; R18 gates/receipt schema unchanged. First boundary: unchanged source_apply_for_catch_result encloses Catch in callee subtree, but local g Apply is separate; acceptance/receipt unverified. No tests/build/format; 600s conservatively charged; writes stopped."
+      "receipt": "Prior r19-r1 writer stopped with frozen hashes and BLOCKING review retained. R19 rev3 reissues only runtime/program.rs, runtime/machine.rs, tests/runtime_resume.rs plus new `tasks/agent-loop/inbox/20261018-operation-v1-local-binding-runtime-r2.md`; 360s repair grant. Awaiting fresh active-work acknowledgement."
     },
     {
       "id": "/root/r18_runtime_implementation",
@@ -122,7 +122,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "BLOCKING independent review of frozen runtime target. Finding 1: source_apply_for_catch_result cannot reach initializer Catch through later g Name/Apply. Finding 2: plan requires local Apply distinct from response Apply, while receipt requires their invocation owners equal callback owner. Finding 3: sibling negative control creates malformed source and may pass by parse error. Exact repair owners/locations are in reviewer handoff. No edits/tests/builds/Git; reviewer stopped."
+      "receipt": "Original R19 frozen target review BLOCKING; report preserved. Three findings: initializer Catch cannot reach later g Apply through Name; local Apply vs response invocation plan is contradictory; sibling negative control malformed. Rev3 authorizes only a later delta review after repair freeze; 240s grant."
     }
   ],
   "leases": [
@@ -179,12 +179,12 @@
     {
       "path": "tools/inference-playground/src/runtime/program.rs",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "tools/inference-playground/src/runtime/machine.rs",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "tools/inference-playground/src/runtime/continuation.rs",
@@ -194,7 +194,7 @@
     {
       "path": "tools/inference-playground/tests/runtime_resume.rs",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-operation-v1-runtime-resume-implementation.md",
@@ -280,6 +280,16 @@
       "path": "tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-read-dependency-rev2.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-operation-v1-local-binding-runtime-r2.md",
+      "owner": "/root/r19_local_binding_runtime",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-repair-rev3.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [],
@@ -294,5 +304,5 @@
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "Await dispatcher delta for minimal versioned runtime repair/review/focused-test resource addendum; keep runtime files frozen and do not run tests until delta review is CLEAN."
+  "next_action": "Commit/push R19 rev3 resource and repair authority before resuming the stopped runtime writer. Then obtain the assigned delta review; only CLEAN authorizes the one focused runtime_resume run."
 }
