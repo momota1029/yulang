@@ -603,14 +603,22 @@ fn candidate_graph_call_authenticates_fresh_use_demand_transport_and_rejects_swa
     let observations: Vec<_> = candidate.scoped_replay_demand_transports()
         .filter(|row| row.route.is_some()).collect();
     assert!(observations.len() >= 2, "same source demand has two retained FreshUse Replay rows");
-    let first = observations[0];
-    let second = observations.iter().copied().find(|row| row.call_index == first.call_index && row.use_instance != first.use_instance)
+    let first = &observations[0];
+    let second = observations.iter().find(|row| row.call_index == first.call_index && row.use_instance != first.use_instance)
         .expect("a second use of the same source has a distinct use identity");
     assert_ne!(first.route, second.route);
     for row in [first, second] {
         assert!(!row.native_root_matches, "preserve raw native root mismatch");
         assert!(row.scope_map_matches && row.input_map_matches);
         assert_eq!(row.ports_match, [true; 4]);
+        assert_ne!(row.child_relation, row.upper_relation, "the demand relation and Replay upper are separately authenticated");
+        let port_relations = row.port_relations.expect("authenticated four port ancestry");
+        assert!(port_relations.iter().enumerate().all(|(index, relation)|
+            port_relations.iter().skip(index + 1).all(|other| relation != other)),
+            "four distinct FunctionPort dependencies are captured in order");
+        assert!(!row.lower_input.is_empty() && !row.upper_input.is_empty());
+        assert!(row.fresh_from.as_ref().is_some_and(|value| !value.is_empty())
+            && row.fresh_to.as_ref().is_some_and(|value| !value.is_empty()));
         assert!(candidate.authenticate_scoped_replay_demand(row.call_index, row.use_instance, row.copied_root, Some(row.ports)));
         assert!(!candidate.authenticate_scoped_replay_demand(row.call_index, row.use_instance + 1, row.copied_root, Some(row.ports)));
         assert!(!candidate.authenticate_scoped_replay_demand(row.call_index, row.use_instance, row.native_root, Some(row.ports)));

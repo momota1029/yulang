@@ -232,6 +232,14 @@ impl FreshUse {
 pub(super) struct DemandTransportEvidence {
     pub route: usize,
     pub relation: candidate_context::RelationId,
+    pub replay_child: candidate_context::RelationId,
+    pub replay_lower: candidate_context::RelationId,
+    pub replay_upper: candidate_context::RelationId,
+    pub lower_input: candidate_effect::BoundKey,
+    pub upper_input: candidate_effect::BoundKey,
+    pub fresh_from: candidate_effect::BoundKey,
+    pub fresh_to: candidate_effect::BoundKey,
+    pub port_relations: [candidate_context::RelationId; 4],
     pub original_root: Term,
     pub copied_root: Term,
     pub original_scope: candidate_scope::EffectScopeId,
@@ -254,13 +262,14 @@ impl GraphState {
     pub(super) fn authenticate_demand_transport(
         &self,
         context: &candidate_context::State,
-        original_call: usize,
+        row: candidate_context::ReplayDemandRow,
         original_root: Term,
-        copied: candidate_context::ScopedDemand,
         term_ports: impl Fn(Term) -> Option<[Term; 4]>,
         observed_ports_override: Option<[Term; 4]>,
     ) -> Option<DemandTransportEvidence> {
         let mut found = None;
+        let copied = row.demand;
+        let original_call = row.call;
         for (route_index, route) in self.local_routes.iter().enumerate() {
             if route.use_instance != copied.use_instance
                 || route.retained.context_use != copied.use_instance
@@ -272,13 +281,17 @@ impl GraphState {
             if copied_root != copied.root {
                 return None;
             }
-            let original_relation = route.graph.bounds.iter().filter_map(|bound| bound.relation)
-                .find(|relation| context.scoped_flow(*relation).is_ok_and(|flow|
+            let mut source_relations = route.graph.bounds.iter().filter_map(|bound| bound.relation)
+                .filter(|relation| context.scoped_flow(*relation).is_ok_and(|flow|
                     flow.demand.is_some_and(|source| source.original_call == original_call
                         && source.root == original_root)
                     && route.retained.scoped_relations.get(relation)
                         .is_some_and(|flow| flow.demand == Some(copied))));
-            let Some(original_relation) = original_relation else { return None; };
+            let original_relation = source_relations.next()?;
+            if source_relations.next().is_some() { return None; }
+            if !route.graph.bounds.iter().any(|bound| bound.relation == Some(original_relation))
+                || route.retained.scoped_relations.get(&original_relation).and_then(|flow| flow.demand) != Some(copied)
+            { return None; }
             let original_demand = context.scoped_flow(original_relation).ok()?.demand?;
             let original_scope = original_demand.output_scope;
             let original_input = original_demand.input;
@@ -301,8 +314,15 @@ impl GraphState {
             if !ports_match.into_iter().all(|matches| matches) {
                 return None;
             }
+            let fresh_witness = context.fresh_use_witness(original_relation, row.child, copied)?;
+            let port_relations = context.authenticate_replay_ancestry(row, original_relation,
+                row.child, fresh_witness.0, fresh_witness.1)?;
             let evidence = DemandTransportEvidence {
-                route: route_index, relation: original_relation, original_root,
+                route: route_index, relation: original_relation,
+                replay_child: row.child, replay_lower: row.lower, replay_upper: row.upper,
+                lower_input: row.lower_input, upper_input: row.upper_input, port_relations,
+                fresh_from: fresh_witness.0, fresh_to: fresh_witness.1,
+                original_root,
                 copied_root, original_scope, copied_scope: copied.output_scope,
                 original_input, copied_input: copied.input,
                 scope_map_matches: mapped_scope == copied.output_scope,
@@ -1923,8 +1943,14 @@ mod authentic_demand_capture_tests {
             for right in left + 1..4 {
                 let mut substituted = expected;
                 substituted.swap(left, right);
-                assert_eq!(four_ports_match(expected, substituted), [false; 4],
-                    "port substitution {left}<->{right} must fail all-port authentication");
+                let matches = four_ports_match(expected, substituted);
+                assert!(!matches.into_iter().all(|value| value),
+                    "port substitution {left}<->{right} fails all-port authentication");
+                assert_eq!(matches.iter().filter(|value| !**value).count(), 2,
+                    "only the two swapped positions differ for {left}<->{right}");
+                assert!(matches.iter().enumerate().all(|(index, value)|
+                    *value == (index != left && index != right)),
+                    "untouched positions match for {left}<->{right}");
             }
         }
     }
@@ -2076,14 +2102,16 @@ mod authentic_demand_capture_tests {
         let state = session.candidate_graph.as_ref().unwrap();
         let context = &state.intrusion.effect_algebra.context;
         let mut authenticated = Vec::new();
-        for (call_index, _, _, _, _, _, copied, _, _) in context.replay_demand_rows() {
+        for replay_row in context.replay_demand_rows() {
+            let call_index = replay_row.call;
+            let copied = replay_row.demand;
             let Some(native) = session.batch.candidate_calls.calls.get(call_index).and_then(|call| call.native) else { continue; };
             let ports = |root| match session.store.term_view(root).ok()? {
                 TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
                     Some([argument, argument_effect, result_effect, result]),
                 _ => None,
             };
-            let evidence = state.authenticate_demand_transport(context, call_index, native.demand, copied, ports, None)
+            let evidence = state.authenticate_demand_transport(context, replay_row, native.demand, ports, None)
                 .expect("actual retained FreshUse map authenticates the copied demand");
             assert_eq!(evidence.ports_match, [true; 4]);
             assert!(evidence.scope_map_matches && evidence.input_map_matches);
@@ -2091,12 +2119,34 @@ mod authentic_demand_capture_tests {
 
             let mut wrong_use = copied;
             wrong_use.use_instance = wrong_use.use_instance.checked_add(1).unwrap();
-            assert!(state.authenticate_demand_transport(context, call_index, native.demand, wrong_use, ports, None).is_none(),
+            assert!(state.authenticate_demand_transport(context, candidate_context::ReplayDemandRow { demand: wrong_use, ..replay_row }, native.demand, ports, None).is_none(),
                 "a sibling use cannot authenticate this route");
             let mut wrong_root = copied;
             wrong_root.root = native.demand;
-            assert!(state.authenticate_demand_transport(context, call_index, native.demand, wrong_root, ports, None).is_none(),
+            assert!(state.authenticate_demand_transport(context, candidate_context::ReplayDemandRow { demand: wrong_root, ..replay_row }, native.demand, ports, None).is_none(),
                 "the original root is not the copied FreshUse root");
+            assert!(state.authenticate_demand_transport(context, candidate_context::ReplayDemandRow { upper: replay_row.lower, ..replay_row }, native.demand, ports, None).is_none(),
+                "substituting the selected Replay upper relation fails closed");
+            assert!(state.authenticate_demand_transport(context, candidate_context::ReplayDemandRow { child: replay_row.lower, ..replay_row }, native.demand, ports, None).is_none(),
+                "substituting the selected Replay child relation fails closed");
+            assert!(state.authenticate_demand_transport(context, candidate_context::ReplayDemandRow { lower_input: replay_row.upper_input, ..replay_row }, native.demand, ports, None).is_none(),
+                "substituting a Replay BoundKey fails closed");
+            assert!(state.authenticate_demand_transport(context, candidate_context::ReplayDemandRow { call: call_index.wrapping_add(1), ..replay_row }, native.demand, ports, None).is_none(),
+                "a different source snapshot/call cannot select this retained route");
+            assert!(state.authenticate_demand_transport(context, candidate_context::ReplayDemandRow { lower: replay_row.child, ..replay_row }, native.demand, ports, None).is_none(),
+                "a relation without the captured lower edge fails closed");
+            assert!(state.authenticate_demand_transport(context, candidate_context::ReplayDemandRow { upper: replay_row.child, ..replay_row }, native.demand, ports, None).is_none(),
+                "an unsupported Replay ancestry edge fails closed");
+            let sibling = context.replay_demand_rows().find(|candidate|
+                candidate.call == call_index && candidate.demand.use_instance != copied.use_instance)
+                .expect("fixture contains the same source demand at a sibling FreshUse");
+            assert_ne!(replay_row.child, sibling.child);
+            assert!(state.authenticate_demand_transport(context, candidate_context::ReplayDemandRow {
+                lower: sibling.lower, upper: sibling.upper,
+                lower_input: sibling.lower_input, upper_input: sibling.upper_input,
+                ..replay_row
+            }, native.demand, ports, None).is_none(),
+                "matching source/use metadata cannot authenticate a sibling Replay relation pair");
             authenticated.push((copied.use_instance, evidence.route));
         }
         assert!(authenticated.len() >= 2, "both same-source FreshUse siblings reach retained Replay");

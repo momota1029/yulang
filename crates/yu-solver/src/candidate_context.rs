@@ -231,6 +231,18 @@ pub(super) struct Relation {
     pub(super) key: RelationKey,
     pub(super) previous_on_pair: Option<RelationId>,
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct ReplayDemandRow {
+    pub call: usize,
+    pub child: RelationId,
+    pub lower: RelationId,
+    pub upper: RelationId,
+    pub lower_input: BoundKey,
+    pub upper_input: BoundKey,
+    pub demand: ScopedDemand,
+    pub lower_matches: bool,
+    pub upper_matches: bool,
+}
 // Operation incidence is inert: child admission still reconstructs its own
 // executable context. In particular this never constructs a structural Swap(I).
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -2531,7 +2543,7 @@ impl State {
     }
     /// Allocation-free source of exact Replay/demand rows for the private
     /// diagnostic observer. Each dependency is preserved independently.
-    pub(super) fn replay_demand_rows(&self) -> impl Iterator<Item = (usize, RelationId, RelationId, RelationId, BoundKey, BoundKey, ScopedDemand, bool, bool)> + '_ {
+    pub(super) fn replay_demand_rows(&self) -> impl Iterator<Item = ReplayDemandRow> + '_ {
         self.dependencies.iter().filter_map(|dependency| {
             let Dependency::Replay { child, lower, upper, lower_input, upper_input } = *dependency else { return None; };
             let demand = self.scoped_flow(child).ok()?.demand?;
@@ -2539,8 +2551,132 @@ impl State {
                 .is_some_and(|relation| relation.key.pair == bound_pair(lower_input));
             let upper_matches = self.relations.get(upper.0 as usize)
                 .is_some_and(|relation| relation.key.pair == bound_pair(upper_input));
-            Some((demand.original_call, child, lower, upper, lower_input, upper_input, demand, lower_matches, upper_matches))
+            Some(ReplayDemandRow { call: demand.original_call, child, lower, upper, lower_input, upper_input, demand, lower_matches, upper_matches })
         })
+    }
+    pub(super) fn fresh_use_witness(&self, source: RelationId, copied: RelationId, demand: ScopedDemand)
+        -> Option<(BoundKey, BoundKey)> {
+        let mut found = None;
+        for dependency in &self.dependencies {
+            if let Dependency::Transport { child, parent, use_origin,
+                witness: Some(TransportWitness { from, to, reason: TransportReason::FreshUse }) } = *dependency
+            {
+                if child == copied && parent == source && use_origin == demand.use_instance
+                    && self.scoped_flow(child).ok().and_then(|flow| flow.demand) == Some(demand)
+                {
+                    if found.replace((from, to)).is_some() { return None; }
+                }
+            }
+        }
+        found
+    }
+    /// Fail-closed authentication of the concrete relations used by a Replay
+    /// row. The route tuple is only an index; this checks the retained typed
+    /// FreshUse witness and every relation edge from the source template to the
+    /// Replay child, then requires the current upper/root and four consumed
+    /// ports to be the exact typed dependencies of that Replay upper.
+    pub(super) fn authenticate_replay_ancestry(
+        &self, row: ReplayDemandRow, source: RelationId, copied: RelationId,
+        from: BoundKey, to: BoundKey,
+    ) -> Option<[RelationId; 4]> {
+        if !row.lower_matches || !row.upper_matches || row.child != copied
+            || self.relations.get(source.0 as usize)?.key.pair != bound_pair(from)
+            || self.relations.get(copied.0 as usize)?.key.pair != bound_pair(to)
+            || self.relations.get(row.lower.0 as usize)?.key.pair != bound_pair(row.lower_input)
+            || self.relations.get(row.upper.0 as usize)?.key.pair != bound_pair(row.upper_input)
+            || row.lower_input.0 != row.upper_input.0
+            || row.lower_input.1 != Polarity::Positive || row.upper_input.1 != Polarity::Negative
+        { return None; }
+        let replay = self.dependencies.iter().filter(|edge| matches!(**edge,
+            Dependency::Replay { child, lower, upper, lower_input, upper_input }
+            if child == row.child && lower == row.lower && upper == row.upper
+                && lower_input == row.lower_input && upper_input == row.upper_input)).count();
+        if replay != 1 { return None; }
+
+        let fresh = self.dependencies.iter().filter(|edge| matches!(**edge,
+            Dependency::Transport { child, parent, use_origin, witness: Some(TransportWitness { from: witness_from, to: witness_to, reason: TransportReason::FreshUse }) }
+            if child == copied && parent == source && use_origin == row.demand.use_instance
+                && witness_from == from && witness_to == to)).count();
+        if fresh != 1 { return None; }
+
+        // Follow only supported root-carrying edges. Every node must have one
+        // incoming edge in this selected ancestry and the walk must be acyclic.
+        let mut current = source;
+        let mut current_root = match from.2 {
+            ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(root)) => Some(root),
+            _ => None,
+        }?;
+        let mut steps = 0usize;
+        while current != row.child {
+            steps = steps.checked_add(1)?;
+            if steps > self.relations.len() { return None; }
+            let mut candidate = None;
+            for edge in &self.dependencies {
+                let (child, witness) = match *edge {
+                    Dependency::Derived { parent, child } if parent == current => (child, None),
+                    Dependency::Transport { parent, child, witness: Some(w), .. } if parent == current => (child, Some(w)),
+                    Dependency::Transport { parent, .. } if parent == current => return None,
+                    Dependency::FunctionPort { parent, .. } | Dependency::Replay { child: parent, .. } if parent == current => return None,
+                    _ => continue,
+                };
+                if child == current { return None; }
+                let parent = self.relations.get(current.0 as usize)?;
+                let child_relation = self.relations.get(child.0 as usize)?;
+                let parent_root = relation_negative_function_root(parent.key.pair);
+                let child_root = relation_negative_function_root(child_relation.key.pair);
+                let supported = if let Some(w) = witness {
+                    bound_pair(w.from) == parent.key.pair && bound_pair(w.to) == child_relation.key.pair
+                        && matches!(w.reason, TransportReason::FreshUse | TransportReason::Extrusion { .. }
+                            | TransportReason::ParentCopy { .. } | TransportReason::EqualityCanonicalization)
+                        && parent_root == Some(current_root) && child_root.is_some()
+                } else { parent_root == Some(current_root) && child_root.is_some() };
+                if supported {
+                    let incoming = self.dependencies.iter().filter(|candidate| match **candidate {
+                        Dependency::Derived { child: target, .. }
+                        | Dependency::FunctionPort { child: target, .. }
+                        | Dependency::Transport { child: target, .. } => target == child,
+                        Dependency::Replay { child: target, .. } => target == child,
+                    }).count();
+                    if incoming != 1 { return None; }
+                    if candidate.replace((child, witness)).is_some() { return None; }
+                }
+            }
+            let (next, witness) = candidate?;
+            let root = relation_negative_function_root(self.relations.get(next.0 as usize)?.key.pair)?;
+            if let Some(w) = witness {
+                if let ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(witness_root)) = w.to.2 {
+                    if witness_root != root { return None; }
+                } else { return None; }
+            }
+            current = next;
+            current_root = root;
+        }
+        if current_root != row.demand.root { return None; }
+        let upper_pair = self.relations.get(row.upper.0 as usize)?.key.pair;
+        if relation_negative_function_root(upper_pair) != Some(row.demand.root)
+            || row.upper_input.2 != ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(row.demand.root))
+        { return None; }
+
+        let fields = [FunctionField::Argument, FunctionField::ArgumentEffect, FunctionField::ResultEffect, FunctionField::Result];
+        let operations = [FunctionPortOperation::Swap, FunctionPortOperation::Swap, FunctionPortOperation::Preserve, FunctionPortOperation::Preserve];
+        let mut children = [RelationId(0); 4];
+        for index in 0..4 {
+            let mut matches = self.dependencies.iter().filter_map(|edge| match *edge {
+                Dependency::FunctionPort { child, parent, field, operation }
+                    if parent == row.upper && field == fields[index] && operation == operations[index] => Some(child),
+                _ => None,
+            });
+            let child = matches.next()?;
+            let child_pair = self.relations.get(child.0 as usize)?.key.pair;
+            let correct_kind = match fields[index] {
+                FunctionField::Argument | FunctionField::Result => matches!(child_pair, TypedPairKey::Value(_)),
+                FunctionField::ArgumentEffect | FunctionField::ResultEffect => matches!(child_pair, TypedPairKey::Effect { .. }),
+            };
+            if matches.next().is_some() || !correct_kind { return None; }
+            children[index] = child;
+        }
+        if (0..4).any(|i| (0..i).any(|j| children[i] == children[j])) { return None; }
+        Some(children)
     }
     fn relation(
         &mut self,
@@ -2838,6 +2974,10 @@ pub(super) fn bound_pair(BoundKey(owner, side, item): BoundKey) -> TypedPairKey 
         }
         _ => unreachable!("bound component kind"),
     }
+}
+fn relation_negative_function_root(pair: TypedPairKey) -> Option<Term> {
+    let TypedPairKey::Value(pair) = pair else { return None; };
+    match pair.upper { ValueEndpointKey::NegativeFunction(root) => Some(root), _ => None }
 }
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

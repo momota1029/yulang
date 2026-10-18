@@ -163,9 +163,12 @@ fn main() {
         .filter(|transport| transport.call_index == formal_index)
     {
         println!(
-            "replay.transport call_index={} use_instance={} native_root={:?} copied_root={:?} native_root_matches={} route={:?} scope_map={} input_map={} ports={:?} ports_match={:?}",
-            transport.call_index, transport.use_instance, transport.native_root,
-            transport.copied_root, transport.native_root_matches, transport.route,
+            "replay.transport call_index={} use_instance={} child={} lower={} upper={} lower_input={} upper_input={} fresh_from={} fresh_to={} port_relations={:?} native_root={:?} copied_root={:?} native_root_matches={} route={:?} scope_map={} input_map={} ports={:?} ports_match={:?}",
+            transport.call_index, transport.use_instance,
+            transport.child_relation, transport.lower_relation, transport.upper_relation,
+            transport.lower_input, transport.upper_input, transport.fresh_from,
+            transport.fresh_to, transport.port_relations,
+            transport.native_root, transport.copied_root, transport.native_root_matches, transport.route,
             transport.scope_map_matches, transport.input_map_matches,
             transport.ports, transport.ports_match,
         );
