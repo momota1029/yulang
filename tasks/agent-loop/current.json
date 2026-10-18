@@ -39,7 +39,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Owner map FROZEN: map SHA d7b840d5f52e44216e5317d085f348e927448b463c26afcc46ea9ec43e4623b8; handoff SHA 0b790dbff4ad4bdf900438da0964bc4e7a8214e8148b7ae511be17345734e212; no tests/builds/probes/code writes."
+      "receipt": "Owner map FROZEN: map SHA c1b9a890d829edb77b065a09672b320c9fbe326e3d68c04a27d2fcf324dbd3a0; handoff SHA 7987dd2e1018eec7d8bdbcadac8925e56007772f4709fc6dd98d8f5d6d7f1c1a; no tests/builds/probes/code writes."
     },
     {
       "id": "/root/r68_retained_lambda_proof",
@@ -88,13 +88,13 @@
     {
       "id": "/root/r70_ordinary_extrusion_proof",
       "role": "R70 constructive proof; exact proof artifact and handoff only",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Original attempt hit model-capacity error after partial theory write, without handoff; same author resumed on identical leases to complete/verify or stop. No freeze yet."
+      "receipt": "R70-PROOF/1 FROZEN; theory SHA 648b594fdf1cd989e7399db00f396c65ec82cc1b4d3585bcb68ce21b316021e7; inbox SHA 25f6a370ae1aa2d7a623a8aa0eaede979248d85b8c03c894fbf8f7850775e8db; contract +20/20 pins MATCH; CPU/RSS/elapsed UNKNOWN; WRITES_STOPPED/NO_DESCENDANTS."
     },
     {
       "id": "/root/r70_extrusion_countertrace",
@@ -162,12 +162,12 @@
     {
       "path": "notes/theory/2026-10-19-r70-ordinary-extrusion-invariant.md",
       "owner": "/root/r70_ordinary_extrusion_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r70-proof.md",
       "owner": "/root/r70_ordinary_extrusion_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r70-extrusion-countertrace.md",
@@ -256,5 +256,5 @@
     }
   ],
   "closure": "R68 CLOSED — REVIEWED CONDITIONAL SAME-CARRIER LEMMA / EXACT UNSUPPLIED CONSUMER–BODY-CHECK–INVOCATION PREMISE / NO_SAFE_CODE_SLICE. Parent, R65/R66/R67, R64/R61 and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED. R68-OWNER-CONSUMER-1 remains OPEN for source-owner routing. No carryover.",
-  "next_action": "Wait for the constructive proof author to freeze both leased outputs; then reconcile hashes and send exact frozen packets for fresh independent compiler/spec review."
+  "next_action": "Send frozen proof, countertrace and owner map packets to fresh compiler/spec reviewers; Luna retains ENTRY-WF and later-drain follow-up routing."
 }
