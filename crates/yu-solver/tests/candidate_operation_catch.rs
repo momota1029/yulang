@@ -82,6 +82,69 @@ fn generic_operation_arm_remains_explicitly_unavailable() {
     assert!(matches!(CandidateInference::solve(Arc::new(hir)), Err(CandidateError::Unsupported)), "rigid existential opening is not implemented");
 }
 
+fn try_solve_operation_v1(text: &str) -> Result<CandidateInference, CandidateError> {
+    let source: Arc<SourceText> = Arc::from(text);
+    let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+    assert!(parsed.structural_recoveries().is_empty(), "healthy v1 operation-catch fixture: {text}");
+    let hir = lower_module_with_local_source(
+        ModuleIdentity::source_root(FileId::new(FileKey::new("operation-v1-catch", "source.yu"))),
+        &parsed, SemanticImports::empty(),
+    ).unwrap();
+    CandidateInference::solve_operation_v1_research(Arc::new(hir))
+}
+
+fn v1_callback_source(argument: &str) -> String {
+    format!("act outer:\n    our next: () -> int\nact signal:\n    our ping: () -> (int -> [outer] int)\n\nmy result = catch signal::ping() {{ signal::ping(), k -> {{ my response: int -> [outer] int = \\x -> outer::next(); my other_response: int -> [outer] int = \\x -> outer::next(); k {argument} }}, v -> v }}")
+}
+
+#[test]
+fn v1_source_argument_selects_and_consumes_the_exact_callback_definition() {
+    let first = try_solve_operation_v1(&v1_callback_source("response"))
+        .unwrap_or_else(|error| panic!("v1 source callback was refused: {error:?}"));
+    assert!(first.candidate_conflicts().is_empty());
+    let first_rows: Vec<_> = first.operation_v1_field_bounds().collect();
+    assert_eq!(first_rows.len(), 1);
+    assert!(first_rows[0].consumed);
+
+    let second = try_solve_operation_v1(&v1_callback_source("other_response"))
+        .unwrap_or_else(|error| panic!("linked same-family callback was refused: {error:?}"));
+    assert!(second.candidate_conflicts().is_empty());
+    let second_rows: Vec<_> = second.operation_v1_field_bounds().collect();
+    assert_eq!(second_rows.len(), 1);
+    assert!(second_rows[0].consumed);
+    assert_ne!(first_rows[0].response_definition, second_rows[0].response_definition);
+}
+
+#[test]
+fn v1_receipt_is_not_published_when_callback_body_typing_conflicts() {
+    let text = v1_callback_source("response").replace("our next: () -> int", "our next: () -> str");
+    let candidate = try_solve_operation_v1(&text)
+        .unwrap_or_else(|error| panic!("source linkage should still be collected before typing conflict: {error:?}"));
+    assert!(!candidate.candidate_conflicts().is_empty());
+    assert!(candidate.operation_v1_field_bounds().next().is_none());
+}
+
+#[test]
+fn v1_receipt_is_not_published_when_a_later_module_typing_conflict_appears() {
+    let text = format!("{}\nmy unrelated: int = \"not an int\"", v1_callback_source("response"));
+    let candidate = try_solve_operation_v1(&text)
+        .unwrap_or_else(|error| panic!("independent conflict should be reported by inference, not reject source parsing: {error:?}"));
+    assert!(!candidate.candidate_conflicts().is_empty());
+    assert!(candidate.operation_v1_field_bounds().next().is_none());
+}
+
+#[test]
+fn ordinary_candidate_entry_keeps_the_v1_negative_field_unsupported() {
+    let text = v1_callback_source("response");
+    let source: Arc<SourceText> = Arc::from(text.as_str());
+    let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+    let hir = lower_module_with_local_source(
+        ModuleIdentity::source_root(FileId::new(FileKey::new("operation-v1-disabled", "source.yu"))),
+        &parsed, SemanticImports::empty(),
+    ).unwrap();
+    assert!(matches!(CandidateInference::solve(Arc::new(hir)), Err(CandidateError::Unsupported)));
+}
+
 #[test]
 fn response_entry_effects_survive_direct_and_aliased_raw_resumption() {
     let prefix = "act signal:\n    our ping: () -> int\nact outer:\n    our next: () -> int\n\n";

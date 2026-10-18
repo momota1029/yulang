@@ -124,6 +124,9 @@ pub(super) struct State {
     annotation_effects: HashMap<(AnnotationScope, Box<str>), u32>,
     pub contributions: Vec<Contribution>,
     pub views: Vec<View>,
+    pub(super) field_bounds_v1: Vec<FieldBoundV1>,
+    field_bounds_v1_payload_bytes: usize,
+    prepared_fields_v1: Vec<PreparedFieldV1>,
     brand: u64,
     pub processing: Option<TypedPairKey>,
     origins: HashMap<BoundKey, Vec<TypedPairKey>>,
@@ -180,6 +183,49 @@ pub(super) struct View {
     pub allowed: Vec<SourceEffectId>,
     pub tail: Option<u32>,
 }
+#[derive(Clone, Debug)]
+pub(super) struct FieldBoundV1 {
+    pub id: u32,
+    pub source_occurrence: HirOccurrenceId,
+    pub source_slot: u8,
+    pub q: candidate_source::LicensedOperationFieldV1,
+    pub m0: candidate_source::CallbackFieldRealizationV1,
+    pub lower: EffectEndpointKey,
+    pub upper: EffectEndpointKey,
+    pub consumed: bool,
+}
+#[derive(Clone, Debug)]
+struct PreparedFieldV1 {
+    request: HirOccurrenceId,
+    catch: HirOccurrenceId,
+    arm_source: SourceNodeKey,
+    declaration: yu_hir::shadow::SourceOperationId,
+    h_arg: candidate_source::HandlerContinuationArgumentV1,
+    q_view: u32,
+    negative_row: u32,
+}
+fn same_handler_argument_v1(
+    left: &candidate_source::HandlerContinuationArgumentV1,
+    right: &candidate_source::HandlerContinuationArgumentV1,
+) -> bool {
+    left.owner == right.owner
+        && left.request == right.request
+        && left.catch_occurrence == right.catch_occurrence
+        && left.arm_source == right.arm_source
+        && left.declaration == right.declaration
+        && left.continuation == right.continuation
+        && left.apply_occurrence == right.apply_occurrence
+        && left.argument_occurrence == right.argument_occurrence
+        && left.response_definition == right.response_definition
+        && Arc::ptr_eq(&left.response_annotation, &right.response_annotation)
+        && left.declaration_field_position == right.declaration_field_position
+        && left.response_field_position == right.response_field_position
+        && left.field_family == right.field_family
+        && left.callback_apply_occurrence == right.callback_apply_occurrence
+        && left.callback_argument_occurrence == right.callback_argument_occurrence
+        && left.callback_operation_occurrence == right.callback_operation_occurrence
+        && Arc::ptr_eq(&left.callback_operation, &right.callback_operation)
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum FormalPortStep { Argument, Result }
 // This retained record describes local source permission only. It is not an
@@ -199,6 +245,9 @@ pub(super) struct Checkpoint {
     context: candidate_context::Checkpoint,
     contributions: usize,
     views: usize,
+    field_bounds_v1: usize,
+    field_bounds_v1_payload_bytes: usize,
+    prepared_fields_v1: usize,
     nested_bytes: usize,
     processing: Option<TypedPairKey>,
     origins: Vec<(BoundKey, TypedPairKey, bool)>,
@@ -262,6 +311,9 @@ impl State {
             context: self.context.checkpoint(),
             contributions: self.contributions.len(),
             views: self.views.len(),
+            field_bounds_v1: self.field_bounds_v1.len(),
+            field_bounds_v1_payload_bytes: self.field_bounds_v1_payload_bytes,
+            prepared_fields_v1: self.prepared_fields_v1.len(),
             nested_bytes: self.nested_bytes,
             processing: self.processing,
             origins: Vec::new(),
@@ -320,6 +372,9 @@ impl State {
         self.capture_records.truncate(checkpoint.capture_records);
         self.contributions.truncate(checkpoint.contributions);
         self.views.truncate(checkpoint.views);
+        self.field_bounds_v1.truncate(checkpoint.field_bounds_v1);
+        self.field_bounds_v1_payload_bytes = checkpoint.field_bounds_v1_payload_bytes;
+        self.prepared_fields_v1.truncate(checkpoint.prepared_fields_v1);
         self.nested_bytes = checkpoint.nested_bytes;
         self.processing = checkpoint.processing;
     }
@@ -328,6 +383,9 @@ impl State {
             self.context.bytes()?,
             bytes::<Contribution>(self.contributions.capacity())?,
             bytes::<View>(self.views.capacity())?,
+            bytes::<FieldBoundV1>(self.field_bounds_v1.capacity())?,
+            self.field_bounds_v1_payload_bytes,
+            bytes::<PreparedFieldV1>(self.prepared_fields_v1.capacity())?,
             bytes::<(BoundKey, Vec<TypedPairKey>)>(self.origins.capacity())?,
             bytes::<(BoundKey, TypedPairKey)>(self.origin_keys.capacity())?,
             bytes::<(u32, CaptureBucket)>(self.capture_incidence.capacity())?,
@@ -850,7 +908,10 @@ impl InferenceSession {
         values.try_reserve(count).map_err(|_| exhausted())?;
         effects.try_reserve(count).map_err(|_| exhausted())?;
         views.try_reserve(count).map_err(|_| exhausted())?;
-        let scratch = bytes::<(&str, u32)>(values.capacity())?.checked_add(bytes::<(&str, u32)>(effects.capacity())?).and_then(|n| n.checked_add(bytes::<(SourceNodeKey, u32)>(views.capacity()).ok()?)).ok_or_else(exhausted)?;
+        let scratch = bytes::<(Box<str>, u32)>(values.capacity())?.checked_add(bytes::<(Box<str>, u32)>(effects.capacity())?)
+            .and_then(|n| n.checked_add(bytes::<(SourceNodeKey, u32)>(views.capacity()).ok()?))
+            .and_then(|n| n.checked_add(retained_bytes))
+            .ok_or_else(exhausted)?;
         self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
         let result = (|| {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
@@ -861,20 +922,32 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
         result
     }
-    pub(super) fn candidate_catch_operation(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &SourceRootId, occurrence: &HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: shadow_apply::CandidateEndpoint, effect: usize, level: u32) -> Result<(), SolveAvailabilityError> {
+    pub(super) fn candidate_catch_operation(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &SourceRootId, occurrence: &HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: shadow_apply::CandidateEndpoint, effect: usize, level: u32, h_arg: Option<&candidate_source::HandlerContinuationArgumentV1>) -> Result<(), SolveAvailabilityError> {
+        if let Some(link) = h_arg {
+            self.with_route_transaction(|session| session.candidate_catch_operation_inner(declaration, owner, occurrence, payload, continuation, original, effect, level, Some(link)))
+        } else {
+            self.candidate_catch_operation_inner(declaration, owner, occurrence, payload, continuation, original, effect, level, None)
+        }
+    }
+    fn candidate_catch_operation_inner(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &SourceRootId, occurrence: &HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: shadow_apply::CandidateEndpoint, effect: usize, level: u32, h_arg: Option<&candidate_source::HandlerContinuationArgumentV1>) -> Result<(), SolveAvailabilityError> {
         let SourceAnnotationValue::Function { argument, result } = &declaration.signature.value else { return Err(exhausted()); };
         let mut values = HashMap::new();
         let mut effects = HashMap::new();
         let mut views = HashMap::new();
         let count = declaration.signature.node_count();
+        let retained_bytes = std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>().checked_add(declaration.retained_arena_bytes()).ok_or_else(exhausted)?;
         values.try_reserve(count).map_err(|_| exhausted())?;
         effects.try_reserve(count).map_err(|_| exhausted())?;
         views.try_reserve(count).map_err(|_| exhausted())?;
-        let scratch = bytes::<(&str, u32)>(values.capacity())?.checked_add(bytes::<(&str, u32)>(effects.capacity())?).and_then(|n| n.checked_add(bytes::<(SourceNodeKey, u32)>(views.capacity()).ok()?)).ok_or_else(exhausted)?;
+        let key_payload_bound = retained_bytes.checked_add(if h_arg.is_some() { "__operation_v1_q".len() } else { 0 }).ok_or_else(exhausted)?;
+        let scratch = bytes::<(Box<str>, u32)>(values.capacity())?.checked_add(bytes::<(Box<str>, u32)>(effects.capacity())?)
+            .and_then(|n| n.checked_add(bytes::<(SourceNodeKey, u32)>(views.capacity()).ok()?))
+            .and_then(|n| n.checked_add(key_payload_bound))
+            .ok_or_else(exhausted)?;
         self.candidate_graph.as_mut().unwrap().scratch_bytes = self.candidate_graph.as_ref().unwrap().scratch_bytes.checked_add(scratch).ok_or_else(exhausted)?;
+        let mut negative_response_type_keepalive = None;
         let admitted = (|| {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-            let retained_bytes = std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>().checked_add(declaration.retained_arena_bytes()).ok_or_else(exhausted)?;
             let context = SignatureContext::Operation { declaration, owner, occurrence, retained_bytes };
             // One environment pairs declaration A/B. No outer operation family
             // is injected into either packet field's own latent interface.
@@ -886,7 +959,40 @@ impl InferenceSession {
                 self.admit_candidate_value_link(occurrence, 61, target, negative)?;
             }
             if let Some(continuation) = continuation {
-                let negative_response = self.candidate_signature_value(&context, result, Polarity::Negative, Polarity::Negative, level, &mut values, &mut effects, &mut views)?;
+                let mut negative_response_type = (**result).clone();
+                let mut q_view = None;
+                if let Some(link) = h_arg {
+                    let SourceAnnotationValue::Function { result: callback_result, .. } = &mut negative_response_type.value else { return Err(exhausted()); };
+                    let row = callback_result.effects.as_ref().ok_or_else(exhausted)?;
+                    if row.position != link.declaration_field_position || row.concrete.len() != 1 || row.concrete[0] != link.field_family || !row.variables.is_empty() { return Err(exhausted()); }
+                    let mut allowed = Vec::new();
+                    allowed.try_reserve_exact(1).map_err(|_| exhausted())?;
+                    allowed.push(link.field_family.clone());
+                    q_view = Some(self.candidate_signature_view(owner.clone(), link.declaration_field_position.clone(), allowed, None, None, None)?);
+                    let mut variables = Vec::new();
+                    variables.try_reserve_exact(1).map_err(|_| exhausted())?;
+                    variables.push(Box::<str>::from("__operation_v1_q"));
+                    callback_result.effects = Some(SourceEffectRow {
+                        position: link.declaration_field_position.clone(), concrete: Vec::new(), variables,
+                    });
+                }
+                negative_response_type_keepalive = Some(negative_response_type);
+                let negative_response = self.candidate_signature_value(&context, negative_response_type_keepalive.as_ref().ok_or_else(exhausted)?, Polarity::Negative, Polarity::Negative, level, &mut values, &mut effects, &mut views)?;
+                if let (Some(link), Some(q_view)) = (h_arg, q_view) {
+                    let negative_row = *effects.get("__operation_v1_q").ok_or_else(exhausted)?;
+                    let source_slot = 249u8;
+                    let id = ConstraintOccurrenceId::new(link.apply_occurrence.clone(), source_slot);
+                    if self.store.provenance().iter().any(|edge| edge.cause().occurrence() == &id) { return Err(exhausted()); }
+                    let cause = CauseId::for_occurrence(id.clone());
+                    self.constrain_live_effect(EffectEndpointKey::EffectRow(negative_row), EffectEndpointKey::Allowance(q_view), &id, &cause)?;
+                    let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra;
+                    if state.prepared_fields_v1.iter().any(|prepared| prepared.request == link.request && prepared.catch == link.catch_occurrence && prepared.arm_source == link.arm_source) { return Err(exhausted()); }
+                    state.prepared_fields_v1.try_reserve(1).map_err(|_| exhausted())?;
+                    state.prepared_fields_v1.push(PreparedFieldV1 {
+                        request: link.request.clone(), catch: link.catch_occurrence.clone(), arm_source: link.arm_source.clone(),
+                        declaration: declaration.id.clone(), h_arg: link.clone(), q_view, negative_row,
+                    });
+                }
                 let positive_response = self.candidate_signature_value(&context, result, Polarity::Positive, Polarity::Positive, level, &mut values, &mut effects, &mut views)?;
                 let original_positive = self.candidate_endpoint(original, Polarity::Positive)?;
                 let original_negative = self.candidate_endpoint(original, Polarity::Negative)?;
@@ -923,8 +1029,72 @@ impl InferenceSession {
             Ok(())
         })();
         drop((values, effects, views));
+        drop(negative_response_type_keepalive);
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
         admitted
+    }
+    pub(super) fn candidate_field_bound_v1(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, link: &candidate_source::HandlerContinuationArgumentV1) -> Result<(), SolveAvailabilityError> {
+        self.with_route_transaction(|session| session.candidate_field_bound_v1_inner(declaration, link))
+    }
+    fn candidate_field_bound_v1_inner(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, link: &candidate_source::HandlerContinuationArgumentV1) -> Result<(), SolveAvailabilityError> {
+        if !self.batch.candidate_source.operation_v1 || declaration.id != link.declaration || link.owner != self.batch.candidate_source.source_owners.get(&link.request).cloned().ok_or_else(exhausted)? { return Err(exhausted()); }
+        let lower_view = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra.views.iter().enumerate().find_map(|(index, view)| {
+            let ViewOrigin::Operation(origin) = &view.provenance else { return None; };
+            (origin.occurrence == link.callback_operation_occurrence
+                && origin.declaration.id == link.callback_operation.id
+                && view.position == link.callback_operation.signature_position
+                && view.allowed.as_slice() == [link.field_family.clone()]
+                && view.tail.is_none()).then_some((index as u32, 0u32))
+        }).ok_or_else(exhausted)?;
+        let lower = EffectEndpointKey::AnnotationMember(lower_view.0, lower_view.1);
+        let upper_view = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra.prepared_fields_v1.iter().find_map(|prepared| {
+            (prepared.request == link.request && prepared.catch == link.catch_occurrence && prepared.arm_source == link.arm_source
+                && prepared.declaration == declaration.id && same_handler_argument_v1(&prepared.h_arg, link))
+                .then_some((prepared.q_view, prepared.negative_row))
+        }).ok_or_else(exhausted)?;
+        let (upper_view, negative_port) = upper_view;
+        let upper = EffectEndpointKey::Allowance(upper_view);
+        // All ordinary source/recipe slots at this application are admitted
+        // before the final v1 action. The dedicated slot is also checked in
+        // the store's complete source provenance before it is allocated.
+        let source_slot = 250u8;
+        let id = ConstraintOccurrenceId::new(link.callback_apply_occurrence.clone(), source_slot);
+        let cause = CauseId::for_occurrence(id.clone());
+        if self.store.provenance().iter().any(|edge| edge.cause().occurrence() == &id) { return Err(exhausted()); }
+        let state = &mut self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra;
+        if state.field_bounds_v1.iter().any(|record| record.m0.apply_occurrence == link.callback_apply_occurrence && record.source_slot == source_slot) { return Err(exhausted()); }
+        let record_id = u32::try_from(state.field_bounds_v1.len()).map_err(|_| exhausted())?;
+        let payload_bytes = std::mem::size_of::<yu_hir::shadow::SourceAnnotation>()
+            .checked_add(link.response_annotation.retained_arena_bytes())
+            .and_then(|n| n.checked_add(std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>()))
+            .and_then(|n| n.checked_add(declaration.retained_arena_bytes()))
+            .and_then(|n| n.checked_add(link.callback_operation.retained_arena_bytes()))
+            .ok_or_else(exhausted)?;
+        let next_payload_bytes = state.field_bounds_v1_payload_bytes.checked_add(payload_bytes).ok_or_else(exhausted)?;
+        state.field_bounds_v1.try_reserve(1).map_err(|_| exhausted())?;
+        state.field_bounds_v1.push(FieldBoundV1 {
+            id: record_id, source_occurrence: link.callback_apply_occurrence.clone(), source_slot,
+            q: candidate_source::LicensedOperationFieldV1 {
+                owner_request: link.request.clone(), declaration: Arc::clone(declaration),
+                field_position: link.declaration_field_position.clone(), family: link.field_family.clone(),
+                negative_port,
+                handler_argument: link.clone(),
+            },
+            m0: candidate_source::CallbackFieldRealizationV1 {
+                response_definition: link.response_definition.clone(), response_annotation: Arc::clone(&link.response_annotation),
+                apply_occurrence: link.callback_apply_occurrence.clone(), operation_occurrence: link.callback_operation_occurrence.clone(),
+                operation: Arc::clone(&link.callback_operation), handler_argument: link.clone(),
+            },
+            lower, upper, consumed: false,
+        });
+        state.field_bounds_v1_payload_bytes = next_payload_bytes;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        self.constrain_live_effect(lower, upper, &id, &cause)?;
+        if self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra.conflicts.contains_key(&TypedPairKey::Effect { lower, upper }) {
+            return Err(exhausted());
+        }
+        self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra.field_bounds_v1[record_id as usize].consumed = true;
+        Ok(())
     }
     pub(super) fn candidate_copy_effect_view(
         &mut self,
@@ -1575,7 +1745,7 @@ impl InferenceSession {
         source: &HirOccurrenceId,
         level: u32,
         slot: u8,
-        effects: &mut HashMap<&'a str, u32>,
+        effects: &mut HashMap<Box<str>, u32>,
         views: &mut HashMap<SourceNodeKey, u32>,
     ) -> Result<(), SolveAvailabilityError> {
         // An explicit root row checks evaluation once; it never supplies a
@@ -1614,8 +1784,8 @@ impl InferenceSession {
         polarity: Polarity,
         variance: Polarity,
         level: u32,
-        values: &mut HashMap<&'a str, u32>,
-        effects: &mut HashMap<&'a str, u32>,
+        values: &mut HashMap<Box<str>, u32>,
+        effects: &mut HashMap<Box<str>, u32>,
         views: &mut HashMap<SourceNodeKey, u32>,
     ) -> Result<Term, SolveAvailabilityError> {
         match &ty.value {
@@ -1647,7 +1817,7 @@ impl InferenceSession {
                 } else {
                     values.try_reserve(1).map_err(|_| exhausted())?;
                     let row = self.fresh_value_at_level(level)?;
-                    values.insert(name.as_ref(), row);
+                    values.insert(Box::<str>::from(name.as_ref()), row);
                     row
                 };
                 self.live_value_term(polarity, row)
@@ -1709,7 +1879,7 @@ impl InferenceSession {
         polarity: Polarity,
         variance: Polarity,
         level: u32,
-        variables: &mut HashMap<&'a str, u32>,
+        variables: &mut HashMap<Box<str>, u32>,
         views: &mut HashMap<SourceNodeKey, u32>,
     ) -> Result<Term, SolveAvailabilityError> {
         let Some(row) = row else {
@@ -1775,7 +1945,7 @@ impl InferenceSession {
             } else {
                 variables.try_reserve(1).map_err(|_| exhausted())?;
                 let row = self.fresh_effect_at_level(level)?;
-                variables.insert(name.as_ref(), row);
+                variables.insert(Box::<str>::from(name.as_ref()), row);
                 row
             })
         } else {

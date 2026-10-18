@@ -76,6 +76,18 @@ pub struct CandidateValueObservation {
 pub struct CandidateInference {
     solved: CandidateSolvedResult,
 }
+/// Research-only receipt for one source-linked native callback-field bound.
+/// A yielded row exists only after its exact typed task drains successfully.
+pub struct CandidateOperationFieldV1Receipt<'a> {
+    pub id: u32,
+    pub request: &'a HirOccurrenceId,
+    pub callback_apply: &'a HirOccurrenceId,
+    pub callback_operation: &'a yu_hir::shadow::SourceOperationId,
+    pub callback_operation_use: &'a HirOccurrenceId,
+    pub response_definition: &'a yu_hir::HirLocalId,
+    pub family: &'a yu_hir::shadow::SourceEffectId,
+    pub consumed: bool,
+}
 /// Read-only map-backed correspondence for one retained typed Replay row.
 /// Raw native root equality is reported separately from transport evidence.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -256,12 +268,16 @@ impl CandidateInference {
         Ok(CandidateIntrusionObservation { references, state })
     }
     pub fn solve(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
-        Self::solve_mode(hir, false)
+        Self::solve_mode(hir, false, false)
+    }
+    /// Explicit, research-only entry for the statically linked operation field candidate.
+    pub fn solve_operation_v1_research(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
+        Self::solve_mode(hir, false, true)
     }
     /// Reversible private-candidate experiment; unsupported source provenance
     /// defers the attempt instead of publishing a partly scoped result.
     pub fn solve_scoped_experiment(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
-        Self::solve_mode(hir, true)
+        Self::solve_mode(hir, true, false)
     }
     pub fn scoped_observations(&self) -> impl Iterator<Item = Result<CandidateScopedObservation<'_>, SolveAvailabilityError>> {
         self.solved.data.candidate_graph.iter().flat_map(|graph| {
@@ -366,7 +382,7 @@ impl CandidateInference {
         let inventory = &self.solved.data.candidate_graph.as_ref()?.intrusion.effect_algebra.context.scope_inventory;
         Some((inventory.regions.len(), inventory.scope_regions.len(), inventory.input_regions.len(), inventory.work_used, inventory.scratch_peak_bytes))
     }
-    fn solve_mode(hir: Arc<HirModule>, scoped: bool) -> Result<Self, CandidateError> {
+    fn solve_mode(hir: Arc<HirModule>, scoped: bool, operation_v1: bool) -> Result<Self, CandidateError> {
         let mut permitted_errors = HashSet::new();
         let mut declaration_errors = HashSet::new();
         for declaration in hir.source_effect_declarations() {
@@ -384,7 +400,7 @@ impl CandidateInference {
             };
             if let (Some(expression), Some(owner)) = (expression, owner) {
                 if let Some(source) = hir.local_source_for(&owner).map_err(|_| CandidateError::Unsupported)? {
-                    crate::candidate_source::preflight(source)?;
+                    crate::candidate_source::preflight(source, operation_v1)?;
                     crate::candidate_source::retain_placeholder_errors(expression, &mut permitted_errors)?;
                     continue;
                 }
@@ -402,7 +418,7 @@ impl CandidateInference {
         }) {
             return Err(CandidateError::Unsupported);
         }
-        let batch = ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, scoped).map_err(CandidateError::Collection)?;
+        let batch = ConstraintBatch::collect_candidate_mode_scoped_v1(hir, true, true, scoped, operation_v1).map_err(CandidateError::Collection)?;
         if scoped && batch.scc_plan().components_in_dependency_first_order().any(|component|
             batch.scc_plan().internal_uses(component).is_ok_and(|uses| !uses.is_empty())) {
             return Err(CandidateError::Unsupported);
@@ -487,6 +503,22 @@ impl CandidateInference {
     /// Candidate conflicts never establish source rejection.
     pub fn candidate_conflicts(&self) -> &[SolverError] {
         &self.solved.data.errors
+    }
+    pub fn operation_v1_field_bounds(&self) -> impl Iterator<Item = CandidateOperationFieldV1Receipt<'_>> {
+        self.solved.data.candidate_graph.iter().flat_map(|graph| {
+            graph.intrusion.effect_algebra.field_bounds_v1.iter()
+                // A drained edge is not a successful source receipt if any
+                // required typing elsewhere in this inference failed. Errors
+                // can be discovered after the v1 action, so gate publication
+                // on the final result rather than the local membership pair.
+                .filter(|record| record.consumed && self.solved.data.errors.is_empty())
+                .map(|record| CandidateOperationFieldV1Receipt {
+                id: record.id, request: &record.q.owner_request, callback_apply: &record.m0.apply_occurrence,
+                callback_operation: &record.m0.operation.id, callback_operation_use: &record.m0.operation_occurrence,
+                response_definition: &record.m0.response_definition,
+                family: &record.q.family, consumed: record.consumed,
+            })
+        })
     }
     pub fn export(
         &self,

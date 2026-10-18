@@ -940,6 +940,12 @@ impl ConstraintBatch {
     fn collect_candidate_mode_scoped(
         hir: Arc<HirModule>, candidate_values: bool, candidate_graph_effects: bool, scoped_experiment: bool,
     ) -> Result<Self, CollectionAvailabilityError> {
+        Self::collect_candidate_mode_scoped_v1(hir, candidate_values, candidate_graph_effects, scoped_experiment, false)
+    }
+
+    fn collect_candidate_mode_scoped_v1(
+        hir: Arc<HirModule>, candidate_values: bool, candidate_graph_effects: bool, scoped_experiment: bool, operation_v1: bool,
+    ) -> Result<Self, CollectionAvailabilityError> {
         #[cfg(not(feature = "shadow-apply-candidate"))]
         let _ = (candidate_graph_effects, scoped_experiment);
         let hir_definition_root_allocation_bytes = hir.definition_root_allocation_bytes();
@@ -975,7 +981,7 @@ impl ConstraintBatch {
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_graph_effects,
             #[cfg(feature = "shadow-apply-candidate")]
-            candidate_source: candidate_source::Plan { scoped_experiment, ..candidate_source::Plan::default() },
+            candidate_source: candidate_source::Plan { scoped_experiment, operation_v1, ..candidate_source::Plan::default() },
             #[cfg(feature = "shadow-apply-candidate")]
             candidate_calls: candidate_call::State::default(),
             root_definition_positions: HashMap::new(),

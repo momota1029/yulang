@@ -1,12 +1,13 @@
 //! Private, sequential source inference. Planning does not admit constraints.
 use crate::*;
 use crate::shadow_apply::{CandidateEndpoint, CandidateRelation};
-use yu_hir::shadow::{LocalSource, LocalSourceForm, LocalSourceResolution};
+use yu_hir::shadow::{LocalSource, LocalSourceForm, LocalSourceResolution, SourceAnnotationValue};
 use yu_hir::HirLocalId;
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct Plan {
     pub scoped_experiment: bool,
+    pub operation_v1: bool,
     pub scoped_work_used: usize,
     pub scoped_scratch_envelope: usize,
     pub regions: Vec<SourceRegion>,
@@ -303,8 +304,47 @@ pub(super) enum Action {
     Local { slot: usize, occurrence: HirOccurrenceId, value: usize, level: u32 },
     Install { slot: usize, initializer: CandidateEndpoint, boundary: u32 },
     Operation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, target: usize, level: u32 },
-    CatchOperation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: CandidateEndpoint, effect: usize, level: u32 },
+    CatchOperation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: CandidateEndpoint, effect: usize, level: u32, h_arg: Option<HandlerContinuationArgumentV1> },
+    FieldBoundV1 { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, h_arg: HandlerContinuationArgumentV1 },
     Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, target: usize, occurrence: HirOccurrenceId, level: u32 },
+}
+#[derive(Clone, Debug)]
+pub(super) struct HandlerContinuationArgumentV1 {
+    pub owner: SourceRootId,
+    pub request: HirOccurrenceId,
+    pub catch_occurrence: HirOccurrenceId,
+    pub arm_source: yu_hir::shadow::SourceNodeKey,
+    pub declaration: yu_hir::shadow::SourceOperationId,
+    pub continuation: yu_hir::shadow::LocalSourceCatchBinderId,
+    pub apply_occurrence: HirOccurrenceId,
+    pub argument_occurrence: HirOccurrenceId,
+    pub response_definition: HirLocalId,
+    pub response_annotation: Arc<yu_hir::shadow::SourceAnnotation>,
+    pub declaration_field_position: yu_hir::shadow::SourceNodeKey,
+    pub response_field_position: yu_hir::shadow::SourceNodeKey,
+    pub field_family: yu_hir::shadow::SourceEffectId,
+    pub callback_apply_occurrence: HirOccurrenceId,
+    pub callback_argument_occurrence: HirOccurrenceId,
+    pub callback_operation_occurrence: HirOccurrenceId,
+    pub callback_operation: Arc<yu_hir::shadow::SourceOperationDeclaration>,
+}
+#[derive(Clone, Debug)]
+pub(super) struct LicensedOperationFieldV1 {
+    pub owner_request: HirOccurrenceId,
+    pub declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>,
+    pub field_position: yu_hir::shadow::SourceNodeKey,
+    pub family: yu_hir::shadow::SourceEffectId,
+    pub negative_port: u32,
+    pub handler_argument: HandlerContinuationArgumentV1,
+}
+#[derive(Clone, Debug)]
+pub(super) struct CallbackFieldRealizationV1 {
+    pub response_definition: HirLocalId,
+    pub response_annotation: Arc<yu_hir::shadow::SourceAnnotation>,
+    pub apply_occurrence: HirOccurrenceId,
+    pub operation_occurrence: HirOccurrenceId,
+    pub operation: Arc<yu_hir::shadow::SourceOperationDeclaration>,
+    pub handler_argument: HandlerContinuationArgumentV1,
 }
 // The plan remains immutable while this frame is live. Root positions select
 // the original schedule, so resume never reconstructs actions from graph edges.
@@ -354,7 +394,7 @@ impl Plan {
             checked_usize_sum(self.expressions.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "expression actions")), "expression action storage"),
             checked_capacity_bytes::<(HirOccurrenceId, SourceRootId)>(self.source_owners.capacity(), "source occurrence owners"),
             checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).chain(self.expressions.iter().flat_map(|schedule| schedule.actions.iter())).map(|action| {
-                if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } | Action::CatchOperation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else { 0 }
+                if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::FieldBoundV1 { declaration, h_arg } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + h_arg.response_annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else if let Action::CatchOperation { declaration, h_arg, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + h_arg.as_ref().map_or(0, |link| std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + link.response_annotation.retained_arena_bytes()) } else { 0 }
             }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
             checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
@@ -408,7 +448,7 @@ fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), CollectionAvailabilityEr
     values.push(value);
     Ok(())
 }
-pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::CandidateError> {
+pub(super) fn preflight(source: &LocalSource, operation_v1: bool) -> Result<(), shadow_apply::CandidateError> {
     let mut referenced_catch_binders = std::collections::HashSet::new();
     for expr in source.expressions() {
         if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(id), .. } = &expr.form {
@@ -449,7 +489,9 @@ pub(super) fn preflight(source: &LocalSource) -> Result<(), shadow_apply::Candid
                             if payloads.len() == 1 && declaration.signature.effects.is_none()
                             && matches!(declaration.signature.value, yu_hir::shadow::SourceAnnotationValue::Function { .. })
                             && monomorphic_signature(&declaration.signature)
-                            && preflight_catch_signature(&declaration.signature, payloads, continuation, &referenced_catch_binders) => {},
+                            && (preflight_catch_signature(&declaration.signature, payloads, continuation, &referenced_catch_binders)
+                                || (operation_v1 && operation_v1_catch_source(source, expr, declaration, continuation)
+                                    .is_some_and(|link| preflight_catch_signature_v1(&declaration.signature, payloads, continuation, &referenced_catch_binders, &link)))) => {},
                         _ => return Err(shadow_apply::CandidateError::Unsupported),
                     }
                 }
@@ -586,6 +628,144 @@ fn preflight_catch_signature(
     let payload_used = payloads.iter().any(|payload| matches!(payload, Payload::Value(pattern) if used(pattern)));
     (!payload_used || (preflight_value(&argument.value, true) && preflight_value(&argument.value, false)))
         && (!used(continuation) || (preflight_value(&result.value, true) && preflight_value(&result.value, false)))
+}
+fn preflight_catch_signature_v1(
+    ty: &yu_hir::shadow::SourceAnnotationType,
+    payloads: &[yu_hir::shadow::LocalSourceCatchPayloadPattern],
+    continuation: &yu_hir::shadow::LocalSourceCatchValuePattern,
+    referenced: &std::collections::HashSet<&yu_hir::shadow::LocalSourceCatchBinderId>,
+    link: &HandlerContinuationArgumentV1,
+) -> bool {
+    let mut masked = ty.clone();
+    let SourceAnnotationValue::Function { result: callback, .. } = &mut masked.value else { return false; };
+    let SourceAnnotationValue::Function { result: callback_result, .. } = &mut callback.value else { return false; };
+    let Some(row) = callback_result.effects.as_ref() else { return false; };
+    if row.position != link.declaration_field_position || row.concrete.len() != 1 || row.concrete[0] != link.field_family || !row.variables.is_empty() { return false; }
+    callback_result.effects = None;
+    preflight_catch_signature(&masked, payloads, continuation, referenced)
+}
+
+// This provisional matcher admits only a unique same-source handler argument
+// and its uniquely linked callback-body operation. Missing or ambiguous edges
+// preserve Unsupported; this is source evidence, not runtime request selection.
+fn operation_v1_catch_source(
+    source: &LocalSource,
+    catch: &yu_hir::shadow::LocalSourceExpr,
+    declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>,
+    continuation: &yu_hir::shadow::LocalSourceCatchValuePattern,
+) -> Option<HandlerContinuationArgumentV1> {
+    use yu_hir::shadow::{LocalSourceCatchPattern as Pattern, LocalSourceCatchValuePattern as Value};
+    let LocalSourceForm::Catch { scrutinee, arms } = &catch.form else { return None; };
+    let Value::Binder(k) = continuation else { return None; };
+    let mut matching_arms = arms.iter().filter(|arm| matches!(&arm.pattern,
+        Pattern::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(found), continuation: Value::Binder(b), .. }
+            if found.id == declaration.id && b.id == k.id));
+    let arm = matching_arms.next()?;
+    if matching_arms.next().is_some() { return None; }
+    fn children(source: &LocalSource, index: usize) -> Option<Vec<usize>> {
+        use yu_hir::shadow::LocalSourceForm as F;
+        let expression = source.expressions().get(index)?;
+        let mut result = Vec::new();
+        let capacity = match &expression.form {
+            F::Catch { arms, .. } => 1usize.checked_add(arms.len())?,
+            F::If { arms, else_branch } => arms.len().checked_mul(2)?.checked_add(usize::from(else_branch.is_some()))?,
+            F::Apply { .. } => 2,
+            F::Block { bindings, .. } => bindings.len().checked_add(1)?,
+            F::Group { .. } | F::Ascription { .. } | F::Lambda { .. } => 1,
+            _ => 0,
+        };
+        result.try_reserve_exact(capacity).ok()?;
+        match &expression.form {
+            F::Catch { scrutinee, arms } => { result.push(scrutinee.ordinal() as usize); result.extend(arms.iter().map(|arm| arm.body.ordinal() as usize)); }
+            F::If { arms, else_branch } => { for (condition, body) in arms { result.push(condition.ordinal() as usize); result.push(body.ordinal() as usize); } if let Some(branch)=else_branch { result.push(branch.ordinal() as usize); } }
+            F::Apply { callee, argument, .. } => { result.push(callee.ordinal() as usize); result.push(argument.ordinal() as usize); }
+            F::Group { inner } | F::Ascription { inner, .. } => result.push(inner.ordinal() as usize),
+            F::Lambda { body, .. } => result.push(body.ordinal() as usize),
+            F::Block { bindings, final_expression } => { for binding in bindings { result.push(source.bindings().get(*binding as usize)?.initializer.ordinal() as usize); } result.push(final_expression.ordinal() as usize); }
+            _ => {}
+        }
+        Some(result)
+    }
+    fn find(source: &LocalSource, root: usize, mut predicate: impl FnMut(usize, &yu_hir::shadow::LocalSourceExpr) -> bool) -> Option<usize> {
+        let mut stack = Vec::new();
+        stack.try_reserve_exact(source.expressions().len().min(32).max(1)).ok()?;
+        stack.push(root);
+        let mut seen = Vec::new();
+        seen.try_reserve_exact(source.expressions().len()).ok()?;
+        seen.resize(source.expressions().len(), false);
+        let mut visited = 0usize;
+        let mut found = None;
+        while let Some(index) = stack.pop() {
+            if index >= seen.len() || seen[index] { continue; }
+            seen[index] = true;
+            visited += 1;
+            if visited > seen.len() { return None; }
+            let expression = source.expressions().get(index)?;
+            if predicate(index, expression) { if found.replace(index).is_some() { return None; } }
+            for child in children(source, index)? {
+                if stack.len() == stack.capacity() { stack.try_reserve(1).ok()?; }
+                stack.push(child);
+            }
+        }
+        found
+    }
+    let ping_apply = source.expression(scrutinee)?;
+    let LocalSourceForm::Apply { callee: ping_callee, .. } = &ping_apply.form else { return None; };
+    let ping = source.expression(ping_callee)?;
+    if !matches!(&ping.form, LocalSourceForm::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(found) } if found.id == declaration.id) { return None; }
+    let apply_index = find(source, arm.body.ordinal() as usize, |_, expr| {
+        let LocalSourceForm::Apply { callee, argument, .. } = &expr.form else { return false; };
+        source.expression(callee).is_some_and(|callee| matches!(&callee.form, LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(found), .. } if found == &k.id))
+            && source.expression(argument).is_some_and(|argument| matches!(&argument.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Local(_), .. }))
+    })?;
+    let apply = source.expressions().get(apply_index)?;
+    let LocalSourceForm::Apply { callee, argument, .. } = &apply.form else { return None; };
+    let callee = source.expression(callee)?;
+    let argument = source.expression(argument)?;
+    if !matches!(&callee.form, LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(found), .. } if found == &k.id) { return None; }
+    let LocalSourceForm::Name { resolution: LocalSourceResolution::Local(response_definition), .. } = &argument.form else { return None; };
+    let mut response_bindings = source.bindings().iter().filter(|binding| &binding.id == response_definition);
+    let binding = response_bindings.next()?;
+    if response_bindings.next().is_some() { return None; }
+    let response_annotation = Arc::new(binding.annotation.clone()?);
+    let SourceAnnotationValue::Function { result: expected_response, .. } = &declaration.signature.value else { return None; };
+    if !same_source_annotation_type(&response_annotation.ty, expected_response) { return None; }
+    let SourceAnnotationValue::Function { result: response_result, .. } = &expected_response.value else { return None; };
+    let field_row = response_result.effects.as_ref()?;
+    if field_row.concrete.len() != 1 || !field_row.variables.is_empty() { return None; }
+    let LocalSourceForm::Lambda { body, .. } = &source.expression(&binding.initializer)?.form else { return None; };
+    let body_apply = source.expression(body)?;
+    let LocalSourceForm::Apply { callee: outer_callee, argument: callback_argument, .. } = &body_apply.form else { return None; };
+    let outer_callee = source.expression(outer_callee)?;
+    let LocalSourceForm::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(callback_operation) } = &outer_callee.form else { return None; };
+    if callback_operation.id.family != field_row.concrete[0] { return None; }
+    let SourceAnnotationValue::Function { result: response_annotation_result, .. } = &response_annotation.ty.value else { return None; };
+    let response_field_position = response_annotation_result.effects.as_ref()?.position.clone();
+    Some(HandlerContinuationArgumentV1 {
+        owner: source.source_root().clone(), request: ping.occurrence.clone(),
+        catch_occurrence: catch.occurrence.clone(), arm_source: arm.source.clone(), declaration: declaration.id.clone(),
+        continuation: k.id.clone(), apply_occurrence: apply.occurrence.clone(),
+        argument_occurrence: argument.occurrence.clone(), response_definition: response_definition.clone(),
+        response_annotation, declaration_field_position: field_row.position.clone(),
+        response_field_position, field_family: field_row.concrete[0].clone(),
+        callback_apply_occurrence: body_apply.occurrence.clone(), callback_argument_occurrence: source.expression(callback_argument)?.occurrence.clone(),
+        callback_operation_occurrence: outer_callee.occurrence.clone(), callback_operation: Arc::clone(callback_operation),
+    })
+}
+fn same_source_annotation_type(a: &yu_hir::shadow::SourceAnnotationType, b: &yu_hir::shadow::SourceAnnotationType) -> bool {
+    let rows_match = match (&a.effects, &b.effects) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.concrete == b.concrete && a.variables == b.variables,
+        _ => false,
+    };
+    rows_match && match (&a.value, &b.value) {
+        (SourceAnnotationValue::Unit, SourceAnnotationValue::Unit) | (SourceAnnotationValue::Int, SourceAnnotationValue::Int)
+        | (SourceAnnotationValue::Bool, SourceAnnotationValue::Bool) | (SourceAnnotationValue::Str, SourceAnnotationValue::Str) => true,
+        (SourceAnnotationValue::Variable(a), SourceAnnotationValue::Variable(b)) => a == b,
+        (SourceAnnotationValue::Function { argument: aa, result: ar }, SourceAnnotationValue::Function { argument: ba, result: br }) =>
+            same_source_annotation_type(aa, ba) && same_source_annotation_type(ar, br),
+        _ => false,
+    }
 }
 // Generic arms require rigid existential opening (charter §§19–20).
 fn monomorphic_signature(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
@@ -760,6 +940,7 @@ impl ConstraintBatch {
         }
         let mut catch_binders = HashMap::new();
         let mut actions = Vec::new();
+        let mut field_bound_v1 = Vec::new();
         let mut work = Vec::new();
         // Only currently forming function initializers use an open monomorphic
         // root. Published locals continue through the ordinary scheme route.
@@ -871,7 +1052,8 @@ impl ConstraintBatch {
                                 catch_binders.insert(binder.id.clone(), endpoints[scrutinee.ordinal() as usize]);
                             }
                             Pattern::Value(Value::Wildcard) => {},
-                            Pattern::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(declaration), payloads, continuation, .. } => {
+                            Pattern::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(declaration), payloads, continuation: continuation_pattern, .. } => {
+                                let h_arg = if self.candidate_source.operation_v1 { operation_v1_catch_source(source, &source.expressions()[index], declaration, continuation_pattern) } else { None };
                                 let mut retain = |pattern: &Value| -> Result<Option<usize>, CollectionAvailabilityError> {
                                     let Value::Binder(binder) = pattern else { return Ok(None); };
                                     let position = catch_positions.get(&binder.id).copied();
@@ -884,7 +1066,7 @@ impl ConstraintBatch {
                                     Ok(position)
                                 };
                                 let payload = match &payloads[0] { Payload::Value(pattern) => retain(pattern)?, Payload::Unit { .. } => None };
-                                let continuation = retain(continuation)?;
+                                let continuation = retain(continuation_pattern)?;
                                 self.term_for_leaf(Leaf::IntPositive)?;
                                 self.term_for_leaf(Leaf::IntNegative)?;
                                 self.prepare_source_annotation_primitives(&declaration.signature)?;
@@ -894,10 +1076,11 @@ impl ConstraintBatch {
                                 }
                                 self.term_for_leaf(Leaf::EffectBottomPositive)?;
                                 self.term_for_leaf(Leaf::EmptyEffectNegative)?;
-                                let count = 2 * usize::from(payload.is_some()) + 4 * usize::from(continuation.is_some());
+                                let count = 2 * usize::from(payload.is_some()) + 4 * usize::from(continuation.is_some()) + 2 * usize::from(h_arg.is_some());
                                 self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                                 self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
-                                push(&mut actions, Action::CatchOperation { declaration: Arc::clone(declaration), owner: owner.clone(), occurrence: source.expressions()[arm.body.ordinal() as usize].occurrence.clone(), payload, continuation, original: endpoints[scrutinee.ordinal() as usize], effect: positions[scrutinee.ordinal() as usize].effect, level })?;
+                                if let Some(link) = &h_arg { field_bound_v1.try_reserve(1).map_err(|_| unavailable())?; field_bound_v1.push((Arc::clone(declaration), link.clone())); }
+                                push(&mut actions, Action::CatchOperation { declaration: Arc::clone(declaration), owner: owner.clone(), occurrence: source.expressions()[arm.body.ordinal() as usize].occurrence.clone(), payload, continuation, original: endpoints[scrutinee.ordinal() as usize], effect: positions[scrutinee.ordinal() as usize].effect, level, h_arg })?;
                             }
                             _ => return Err(invalid()),
                         }
@@ -1262,6 +1445,7 @@ impl ConstraintBatch {
                 }
             }
         }
+        for (declaration, h_arg) in field_bound_v1 { push(&mut actions, Action::FieldBoundV1 { declaration, h_arg })?; }
         let body = source.body().ordinal() as usize;
         if let SourceRootId::Definition(definition) = owner {
             let root = self.root_component_positions[definition].component;
@@ -1503,7 +1687,8 @@ impl InferenceSession {
                 Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } => self.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)?,
                 Action::Local { slot, occurrence, value, level } => self.route_candidate_local(*slot, occurrence, *value, *level)?,
                 Action::Install { slot, initializer, boundary } => self.install_candidate_local(*slot, *initializer, *boundary)?,
-                Action::CatchOperation { declaration, owner, occurrence, payload, continuation, original, effect, level } => self.candidate_catch_operation(declaration, owner, occurrence, *payload, *continuation, *original, *effect, *level)?,
+                Action::CatchOperation { declaration, owner, occurrence, payload, continuation, original, effect, level, h_arg } => self.candidate_catch_operation(declaration, owner, occurrence, *payload, *continuation, *original, *effect, *level, h_arg.as_ref())?,
+                Action::FieldBoundV1 { declaration, h_arg } => self.candidate_field_bound_v1(declaration, h_arg)?,
                 Action::Operation { declaration, owner, occurrence, target, level } => self.candidate_operation(declaration, owner, occurrence, *target, *level)?,
                 Action::Annotation { annotation, endpoint, computation_effect, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level, *computation_effect)?,
             }
