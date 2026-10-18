@@ -1,0 +1,30 @@
+{
+  "sprint": "npair-replay-fiber-consumer-certificate-20261018",
+  "contract_revision": 1,
+  "contract_sha256": "fce2f48df81227bfc427503fb785541835865f4c0970dbc27a514ff9f8cbb565",
+  "baseline": "f56022c19",
+  "parent_conditions_closed": 0,
+  "prior_rev1_unapproved": true,
+  "prior_runtime": "NOT_RUN",
+  "proof_review": "NOT_STARTED",
+  "implementation_review": "NOT_STARTED",
+  "primary_release": {
+    "status": "NOT_RELEASED",
+    "no_retry": true
+  },
+  "helper_invocation": 0,
+  "helper_status": "NOT_RUN",
+  "helper_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver --features shadow-apply-candidate authentic_demand_capture_tests --lib",
+  "helper_stdout_path": "tasks/agent-loop/runtime/20261018-replay-fiber-consumer.helpers.stdout.log",
+  "helper_stderr_path": "tasks/agent-loop/runtime/20261018-replay-fiber-consumer.helpers.stderr.log",
+  "test_invocation": 0,
+  "test_status": "NOT_RUN",
+  "test_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo test --offline -p yu-solver --features shadow-apply-candidate candidate_graph_call --lib",
+  "test_stdout_path": "tasks/agent-loop/runtime/20261018-replay-fiber-consumer.graph.stdout.log",
+  "test_stderr_path": "tasks/agent-loop/runtime/20261018-replay-fiber-consumer.graph.stderr.log",
+  "example_invocation": 0,
+  "example_status": "NOT_RUN",
+  "example_command": "timeout 120s env YU_CALL_REPLAY_OBSERVER=1 cargo run --offline -p yu-solver --features shadow-apply-candidate --example research_scoped_formal_replay",
+  "example_stdout_path": "tasks/agent-loop/runtime/20261018-replay-fiber-consumer.example.stdout.log",
+  "example_stderr_path": "tasks/agent-loop/runtime/20261018-replay-fiber-consumer.example.stderr.log"
+}
