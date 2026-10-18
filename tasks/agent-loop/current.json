@@ -35,13 +35,13 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 1500,
-      "available_seconds": 900,
-      "allocation": "Sol proof 900 charged at launch; Luna source map 600; fresh independent compiler/spec reviews 300 each; Luna integration 300. Astra 0. No tests/build/runtime/measurements.",
+      "charged_seconds": 2100,
+      "available_seconds": 300,
+      "allocation": "Sol proof 900 charged; Luna owner map 600 charged; compiler referee 300 and spec auditor 300 charged at launch; Luna integration 300 reserved. Astra 0. No tests/build/runtime/measurements.",
       "overrun_seconds": 0
     },
     "next_action": "Proof and read-only source map active. Stop at bounded result or exact obstruction; next dispatch at substantive result, material blocker or authority/dependency/lease/resource change.",
-    "history": "R50 CLOSED, proposal NOT ADOPTED; R50 adoption remains a separate unanswered user decision. Independent R51 route selected by existing dispatcher. Exact dependencies pinned; R51 contract revision 1 approved by primary. Sol proof lane launched; Luna owns source map, review, integration and Git. Original parent remains OPEN 0->0. Contract revision 2 adds candidate_call.rs as the exact source-plan/argument-name owner pin, discovered before proof writes. Luna completed the read-only owner map and froze NO_SAFE_CODE_SLICE with exact pins; Sol proof remains active under rev2.",
+    "history": "R50 CLOSED, proposal NOT ADOPTED; R50 adoption remains a separate unanswered user decision. Independent R51 route selected by existing dispatcher. Exact dependencies pinned; R51 contract revision 1 approved by primary. Sol proof lane launched; Luna owns source map, review, integration and Git. Original parent remains OPEN 0->0. Contract revision 2 adds candidate_call.rs as the exact source-plan/argument-name owner pin, discovered before proof writes. Luna completed the read-only owner map and froze NO_SAFE_CODE_SLICE with exact pins; Sol proof remains active under rev2. Proof artifact/handoff hashes verified; all 19 dependency pins match. Fresh independent compiler/spec reviews launched on immutable bytes.",
     "workers": [
       {
         "id": "/root",
@@ -52,18 +52,40 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r51",
-        "receipt": "R51 rev2 current-source owner map frozen; outputs hash-pinned, no code/tests/runtime; independent proof continues."
+        "receipt": "R51 bounded proof frozen and under independent review; Luna adjudication/integration/Git owner."
       },
       {
         "id": "/root/r51_computation_copy_proof",
         "role": "Sol constructive FreshUse copied/merged-provider proof",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r51",
-        "receipt": "R51 rev2 and all 19 dependency hashes revalidated by worker; proof active; 900s charged at launch; exact two output leases."
+        "receipt": "R51 rev2 proof frozen; artifact/inbox hashes match; WRITES_STOPPED/NO_DESCENDANTS; 900s charged; no tests/build/runtime/Git."
+      },
+      {
+        "id": "/root/r51_computation_copy_compiler_review",
+        "role": "fresh read-only compiler_referee",
+        "state": "RUNNING",
+        "requested_model": "reviewer role default",
+        "requested_effort": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19-r51",
+        "receipt": "Launched on frozen R51 proof; 300s charged at launch; read-only message report, no output files."
+      },
+      {
+        "id": "/root/r51_computation_copy_spec_review",
+        "role": "fresh read-only spec_auditor",
+        "state": "RUNNING",
+        "requested_model": "reviewer role default",
+        "requested_effort": "UNKNOWN",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19-r51",
+        "receipt": "Launched on frozen R51 proof; 300s charged at launch; read-only message report, no output files."
       }
     ],
     "leases": [
@@ -87,21 +109,38 @@
       {
         "path": "notes/theory/2026-10-19-computation-formal-copy-bridge.md",
         "owner": "/root/r51_computation_copy_proof",
-        "state": "HELD"
+        "state": "FROZEN",
+        "sha256": "f133c402f47b90f37bca92d2470cd7007fd320c580efba9ae0919a7f38a027b8"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-computation-formal-copy-proof.md",
         "owner": "/root/r51_computation_copy_proof",
-        "state": "HELD"
+        "state": "FROZEN",
+        "sha256": "8180aa417995c6d069a5a1b24a0ab405ad0b10bb056ac42c74d402a0ca0874ce"
       }
     ],
-    "pending": [],
+    "pending": [
+      {
+        "id": "R51_COMPILER_REVIEW",
+        "state": "RUNNING",
+        "owner": "fresh compiler_referee",
+        "output": "message-only review of frozen R51 proof"
+      },
+      {
+        "id": "R51_SPEC_REVIEW",
+        "state": "RUNNING",
+        "owner": "fresh spec_auditor",
+        "output": "message-only review of frozen R51 proof"
+      }
+    ],
     "closure": "ACTIVE. No parent closure, semantics adoption, code authority, test/runtime authority or production promotion.",
     "frozen_artifacts": {
       "R51_contract": "b58e19d3a921dcf9ba99627c8584f24f8d7ab779a336f21e21f0dcd63d7a0807",
       "R51_contract_rev2": "b58e19d3a921dcf9ba99627c8584f24f8d7ab779a336f21e21f0dcd63d7a0807",
       "R51_owner_map": "fd604fdab586d82b05033d2e254d50ef3e11f358e8dc4ce8aebe7bf9d9c95a13",
-      "R51_implementation_handoff": "4aab2bb54630282b68f485f7400b7eea2bb223cd049676a8652fbb053f9f621f"
+      "R51_implementation_handoff": "4aab2bb54630282b68f485f7400b7eea2bb223cd049676a8652fbb053f9f621f",
+      "R51_proof": "f133c402f47b90f37bca92d2470cd7007fd320c580efba9ae0919a7f38a027b8",
+      "R51_proof_handoff": "8180aa417995c6d069a5a1b24a0ab405ad0b10bb056ac42c74d402a0ca0874ce"
     }
   },
   "workers": [
@@ -126,6 +165,28 @@
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r51",
       "receipt": "Spawned for R51; awaiting active-work receipt; exact proof leases only; 900s charged at launch."
+    },
+    {
+      "id": "/root/r51_computation_copy_compiler_review",
+      "role": "fresh read-only compiler_referee",
+      "state": "RUNNING",
+      "requested_model": "reviewer role default",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r51",
+      "receipt": "Launched on frozen R51 proof; 300s charged at launch; read-only message report, no output files."
+    },
+    {
+      "id": "/root/r51_computation_copy_spec_review",
+      "role": "fresh read-only spec_auditor",
+      "state": "RUNNING",
+      "requested_model": "reviewer role default",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r51",
+      "receipt": "Launched on frozen R51 proof; 300s charged at launch; read-only message report, no output files."
     }
   ],
   "leases": [
