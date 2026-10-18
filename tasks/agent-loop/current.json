@@ -19,11 +19,11 @@
     },
     "resources": {
       "cap_seconds": 3600,
-      "charged_seconds": 720,
-      "available_seconds": 2880,
+      "charged_seconds": 840,
+      "available_seconds": 2760,
       "allocation": "Proof720 + implementation1920 (code1560/runtime360) + review600 + Luna120 + reserve240. Astra0; no rollover."
     },
-    "next_action": "Proof owner map frozen at 720/720s; implementation owner audit frozen and lane WAITING. Fresh early compiler review assigned; code edits remain gated on CLEAN."
+    "next_action": "Early constructor-owner review CLEAN; implementation continuation granted. Applicability of H=B, p1 membership, nonempty lower fiber to both fixtures remains to verify; no runtime before final reviews."
   },
   "history": "Closed `npair-replay-fiber-consumer-certificate-20261018` REVIEWED-PARTIAL at `7087de449`; parent OPEN, closure0. Proof SHA `691a537b…e3e3614` CLEAN conditional. Implementation candidate `1958cf20e` unapproved; compiler review BLOCKING+2 MAJOR, no Cargo/tests/runtime. Closeout: `notes/progress/2026-10-18-replay-fiber-consumer-closeout.md`. PR #11 merged at `27a7e00d4`; operations-only. Earlier sprint history remains in linked notes/progress and Git history.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -53,24 +53,24 @@
     {
       "id": "/root/constructor_replay_impl",
       "role": "implementer",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Owner/API audit frozen at fd8d0cedf660d023573084b5b2f12903ea998822e83962805352cc020555d473. No code edits; awaiting CLEAN early map review and Luna continuation."
+      "receipt": "Early owner-map review CLEAN; Luna granted code continuation under rev1, authoring cap 1560s/runtime360 protected. Verify H=B, p1 membership, nonempty lower fiber; then physical index/fiber and consumer flows. No runtime yet."
     },
     {
       "id": "/root/constructor_replay_map_review",
       "role": "compiler_referee",
-      "state": "UNKNOWN",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Fresh early review launched on frozen proof+implementation owner maps; 120s budget; no code edit authority."
+      "receipt": "Early owner-map review CLEAN; hashes matched, numeric fixture rows unobserved, closure0. Read-only STOP; code stage authorized."
     }
   ],
   "leases": [
@@ -133,11 +133,13 @@
   "pending": [
     {
       "id": "review-constructor-replay-map-r1",
-      "state": "ASSIGNED",
+      "state": "DONE",
       "reviewer": "/root/constructor_replay_map_review",
       "artifact": "notes/theory/2026-10-18-constructor-owned-replay-certificate.md",
       "sha256": "9d465453a4433905813a8db84ba062abf324c75cced1879faffef2b291c03f2f",
-      "receipt": "Early independent constructor-owner map review; code edits gated on CLEAN."
+      "receipt": "Early independent constructor-owner map review; code edits gated on CLEAN.",
+      "verdict": "CLEAN",
+      "review_receipt": "Fresh compiler_referee review; 120s conservatively charged; author code continuation permitted."
     }
   ],
   "ready_next_work": null,
