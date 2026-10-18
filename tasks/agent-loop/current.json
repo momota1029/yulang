@@ -22,11 +22,11 @@
       "cap_seconds": 1800,
       "charged_seconds": 1800,
       "available_seconds": 0,
-      "allocation": "Proof600 + Luna owner500 + fresh compiler review200 + fresh spec review200 + Luna integration300; total grant charged at activation; Astra0; no carryover",
-      "actual_runtime": "UNKNOWN for all R64 lanes unless reported"
+      "allocation": "Proof600 started; Luna owner500 stopped after observed-model mismatch and fully charged; no replacement; review400 + integration300 retained; Astra0; no carryover",
+      "actual_runtime": "UNKNOWN for all R64 lanes; owner cessation confirmed; proof active; no replacement owner lane"
     },
     "next_action": "Derive source judgment before Corr/Q/native inequalities. Stop each branch at its first unsupported authentic rule; do not relabel it semantic underdetermination. After authors stop/freeze, obtain independent compiler/spec review, adjudicate and close R64; stable R61-SOURCE-ASCRIPTION-FORMATION-1 remains OPEN until actual source/native result.",
-    "history": "Prior R63 closeout: notes/progress/2026-10-19-r63-closeout.md (reviewed, exact premise open, NO_SAFE_CODE_SLICE). R64 dispatcher recommendation repeated after root integration output was added. A preliminary query to compiler_referee was stopped before reads/writes and has no R64 lease."
+    "history": "Prior R63 closeout: notes/progress/2026-10-19-r63-closeout.md (reviewed, exact premise open, NO_SAFE_CODE_SLICE). R64 dispatcher recommendation repeated after root integration output was added. A preliminary query to compiler_referee was stopped before reads/writes and has no R64 lease. Owner routing mismatch resolved: /root/r64_clause_owner STOPPED/WRITES_STOPPED/NO_DESCENDANTS; read listed pinned sources; both leased outputs 0 bytes and absent; no descendants. The 500s grant remains charged. No replacement writer; integration will record this gap."
   },
   "workers": [
     {
@@ -54,13 +54,13 @@
     {
       "id": "/root/r64_clause_owner",
       "role": "Luna/high R64 source/native clause-owner lane",
-      "state": "UNKNOWN",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "GPT-6",
       "observed_effort": "UNKNOWN",
       "session": "UNKNOWN",
-      "receipt": "Launch receipt reported observed GPT-6, effort UNKNOWN, mismatching requested Luna/high. Primary issued STOP and interrupted active turn; cessation not yet confirmed. Exact paths quarantined; 500s charged, no time carryover."
+      "receipt": "WRITES_STOPPED / NO_DESCENDANTS confirmed after routing mismatch. Read pinned source_annotation.rs, local_source.rs, candidate_source.rs, candidate_effect.rs, R63 owner/theory evidence and R64 contract. Both exact output paths remain absent (0 bytes written); no descendants; actual session ID UNKNOWN. Full 500s charged, no carryover; Luna did not reassign."
     },
     {
       "id": "/root/r63_compiler_review",
@@ -99,16 +99,6 @@
       "path": "tasks/agent-loop/inbox/20261019-r64-proof.md",
       "owner": "/root/r63_whole_ascription_formation_proof",
       "state": "HELD"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r64-ascription-clause-owners.md",
-      "owner": "/root/r64_clause_owner",
-      "state": "QUARANTINED"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r64-implementation.md",
-      "owner": "/root/r64_clause_owner",
-      "state": "QUARANTINED"
     }
   ],
   "pending": [
