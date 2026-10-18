@@ -26,19 +26,19 @@
       "allocation": "Sol600; Luna500; fresh compiler200; fresh spec200; integration300. Astra0, no carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "Sol active on exact two proof outputs after receipt acknowledgement. Luna read-only source-owner audit active on its two outputs. No code/tests/execution; reviews wait for both author lanes to stop and freeze.",
+    "next_action": "Luna owner outputs frozen and pushed; Sol proof lane remains RUNNING on its disjoint two outputs. Fresh compiler/spec reviews wait until Sol is STOPPED and all four exact output bytes are frozen.",
     "history": "R59 closed and pushed in fbd4ed98cdd40c3ec30d0c7567aedd2ab0f0daf3; integration and compact-state receipts pushed in b62bf4bed359ed5f8bd4728923d1807044f9e8c9. R59 parent OPEN 0->0, A/B OPEN, R50 NOT ADOPTED. R60 revision1 status wording was corrected to revision2 before any author work. Exact revision2 SHA and 25/25 pins checked; baseline b62bf4bed359ed5f8bd4728923d1807044f9e8c9 matches HEAD/origin; dispatcher confirmed start-boundary fit; Luna activated R60. Sol has not acknowledged; no proof reads/writes started. All prior identities STOPPED, leases FROZEN.",
     "workers": [
       {
         "id": "/root",
         "role": "Luna primary; read-only source-owner lane and integration",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r60",
-        "receipt": "Luna primary activated exact revision2 after dispatcher confirmation, 25/25 pins MATCH and baseline/remote match. Primary read-only source-owner lane may begin on exact two outputs; proof author not yet acknowledged and remains WAITING."
+        "receipt": "Luna read-only owner lane complete; STOPPED / READ_ONLY / NO_DESCENDANTS. Exact outputs frozen: notes/progress/2026-10-19-r60-paired-constructor-owners.md SHA-256 644e8c2f9e571753c386040a76341e6aafde6ce1ff88dec3e75d8f5a1216712e; tasks/agent-loop/inbox/20261019-r60-implementation.md SHA-256 e3a03aa1e0a7dccab08f5951248891fbbc5e78271591cab31af53523c0757598. Static source/authority inspection only; no tests/code/execution. Requested Luna/high; observed settings and elapsed/CPU/RSS UNKNOWN; 500s cap."
       },
       {
         "id": "/root/r53_ordinary_mixed_capture_proof",
@@ -78,7 +78,7 @@
       {
         "path": "tasks/agent-loop/sprints/paired-annotation-interface-20261019-r60.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/theory/2026-10-19-r60-paired-annotation-interface.md",
@@ -93,12 +93,12 @@
       {
         "path": "notes/progress/2026-10-19-r60-paired-constructor-owners.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r60-implementation.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
     "pending": [
