@@ -4,30 +4,30 @@
   "phase": "ACTIVE",
   "session": "current-conversation-2026-10-19-r70-extrusion",
   "active_sprint": {
-    "id": "ordinary-extrusion-invariant-20261019-r70",
-    "contract": "tasks/agent-loop/sprints/ordinary-extrusion-invariant-20261019-r70.md",
+    "id": "raw-canonical-fiber-coverage-20261019-r71",
+    "contract": "tasks/agent-loop/sprints/raw-canonical-fiber-coverage-20261019-r71.md",
     "revision": 1,
-    "state": "CLOSED_REVIEWED_CONDITIONAL",
-    "baseline": "c84f3f98673af3993dea85c5d9ecb938463738a3",
-    "contract_sha256": "4fa363c4dcbd97450b16dd2afb8b1bf2889f9faf00168d444205fe3633bee5cf",
-    "parent": "Original type-inference and evaluator goal; unchanged source domain/quantifiers; Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-    "fixed_outcome": "Conditional successful entry-to-return operational invariant for candidate_extrude at the two lib.rs shadow-apply-candidate production callsites. Derive entry conditions or mark unproved; preserve row/structure/view work, mutations, evidence, parent/output, retained ReplayOperation children, typed-worklist prefix transfer and returned endpoint. Trace later drain/acknowledgement owner without claiming complete drain termination. No code, tests, builds, probes or semantic choice.",
+    "state": "ACTIVE",
+    "baseline": "f375fd737",
+    "contract_sha256": "a6bd6aa1ab369f77b728014cd51693b11c5b3f97f85aab392d6488c8834ac1fb",
+    "parent": "Original inference/evaluator goal; R70 conditional result reviewed; R70 operation/WF and raw-canonical coverage remain open. Parent and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
+    "fixed_outcome": "For production-reachable Work::Bound physical slots, prove raw source-key fiber coverage or existing transport to the exact copy lookup, or give a constructor-derived reachable countertrace. Keep R70 ENTRY-WF and later drain outside scope; no source counterexample follows automatically.",
     "dependencies": {
-      "manifest": "20 direct SHA-256 dependencies MATCH at activation; exact paths/hashes in frozen R70 contract",
-      "baseline_commit": "c84f3f98673af3993dea85c5d9ecb938463738a3",
-      "dispatcher_start": "R70 exact candidate accepted for activation; final candidate SHA 4fa363c4dcbd97450b16dd2afb8b1bf2889f9faf00168d444205fe3633bee5cf; 20/20 pins MATCH; activation admissible after live reconciliation",
-      "live_reconciliation": "All old R68 workers STOPPED; no descendants; old outputs FROZEN. Only current.json HELD by Luna. Branch clean/pushed at R70 activation.",
-      "authority_boundary": "Top-level §§1–3 govern; occurrence-qualified actual parent/copy retention is normative. Concrete Yulang storage/evidence/replay are implementation properties."
+      "manifest": "20 direct SHA-256 pins MATCH baseline/live; exact paths/hashes in frozen R71 contract",
+      "baseline_commit": "f375fd737",
+      "dispatcher_start": "Exact R71 candidate accepted as activation-admissible; candidate SHA a6bd6aa1ab369f77b728014cd51693b11c5b3f97f85aab392d6488c8834ac1fb; 20/20 pins MATCH.",
+      "live_reconciliation": "R70 proof/counter/maps/reviews STOPPED; outputs frozen and pushed. No old active writers or descendants. Only current R71 candidate in workspace; current.json HELD by Luna.",
+      "authority_boundary": "Top-level §§1–3 govern; occurrence-qualified parent/copy retention normative; concrete evidence/fiber/replay are implementation facts. R70 premises reused conditionally only."
     },
     "resources": {
       "cap_seconds": 2400,
       "charged_seconds": 2400,
       "available_seconds": 0,
-      "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + fresh compiler/spec reviews 200s each + Luna integration 300s; Astra 0; no carryover.",
-      "actual_runtime": "Proof and counter-reading launched in current session; requested settings recorded, observed model/effort UNKNOWN. CPU/RSS UNKNOWN; full grant reserved at activation."
+      "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + compiler/spec reviews 200s each + Luna integration 300s; Astra 0; no carryover.",
+      "actual_runtime": "R71 activated; authors not yet launched. Requested/observed model settings UNKNOWN until tool receipts; CPU/RSS UNKNOWN; full grant reserved."
     },
-    "next_action": "Launch constructive prover and complementary researcher on disjoint exact paths; Luna traces actual callsite, mutation, replay handoff and owner map. No compiler code/test lane is authorized. Freeze authors before fresh compiler/spec review.",
-    "history": "R68 CLOSED/pushed; R69 NOT ACTIVATED; R70 CLOSED REVIEWED CONDITIONAL with operation target OPEN."
+    "next_action": "Launch proof and complementary counter-reading on disjoint exact paths; Luna traces the physical slot/evidence/canonical transport seam. Freeze authors before fresh reviews.",
+    "history": "R70 CLOSED REVIEWED CONDITIONAL at f375fd737; operation target and source/canonical/drain premises remain OPEN."
   },
   "workers": [
     {
@@ -39,51 +39,29 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "R70 closeout FROZEN: note SHA a93b2e5d38c03511c768dd704e57f3b616a1dafc591fe62a4155d64a06bbf4d8; handoff SHA ff2c149bd71c783f874c150404bf199084858df631c21899d3abf53a258655bb; sole Git owner."
+      "receipt": "R71 active; candidate and exact leases reconciled; author lanes launching next. Sole Git owner."
     },
     {
-      "id": "/root/r70_ordinary_extrusion_proof",
-      "role": "R70 constructive proof; exact proof artifact and handoff only",
-      "state": "STOPPED",
+      "id": "/root/r71_raw_canonical_proof",
+      "role": "R71 constructive raw/canonical fiber coverage proof; exact proof artifact and handoff only",
+      "state": "NOT_STARTED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "R70-PROOF/1 FROZEN; theory SHA 648b594fdf1cd989e7399db00f396c65ec82cc1b4d3585bcb68ce21b316021e7; inbox SHA 25f6a370ae1aa2d7a623a8aa0eaede979248d85b8c03c894fbf8f7850775e8db; contract +20/20 pins MATCH; CPU/RSS/elapsed UNKNOWN; WRITES_STOPPED/NO_DESCENDANTS."
+      "receipt": "Activated exact lease; awaiting actual NEW_TASK launch receipt."
     },
     {
-      "id": "/root/r70_extrusion_countertrace",
-      "role": "R70 complementary transition counter-reading; exact countertrace and handoff only",
-      "state": "STOPPED",
+      "id": "/root/r71_fiber_countertrace",
+      "role": "R71 complementary alias/merge countertrace; exact note and handoff only",
+      "state": "NOT_STARTED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "STOPPED/WRITES_STOPPED/NO_DESCENDANTS; frozen note SHA-256 6bb29d09fbf1440c964899815b95e06244cdd9ccc67ddf0dbe76d2016ec15b8e and inbox SHA-256 4fbb70a13a205f4b0cef9990d7ad630c0bc956a611ebcdf4461a2886e1bd90e8; CPU/RSS/elapsed UNKNOWN."
-    },
-    {
-      "id": "/root/r70_compiler_review",
-      "role": "Fresh independent compiler/source-owner review; read-only",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "STOPPED/READ_ONLY/NO_DESCENDANTS; no bounded compiler finding; 27/27 live hashes MATCH; entry-WF, raw/canonical coverage, later drain OPEN."
-    },
-    {
-      "id": "/root/r70_spec_review",
-      "role": "Fresh independent source-spec conformance review; read-only",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "STOPPED/READ_ONLY/NO_DESCENDANTS; 27/27 live hashes MATCH; two minor wording findings, no substantive parent defect; parent identity required, Work::Visit receives prebuilt key."
+      "receipt": "Activated exact lease; awaiting actual NEW_TASK launch receipt."
     }
   ],
   "leases": [
@@ -93,49 +71,39 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/ordinary-extrusion-invariant-20261019-r70.md",
+      "path": "tasks/agent-loop/sprints/raw-canonical-fiber-coverage-20261019-r71.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-19-r70-ordinary-extrusion-invariant.md",
-      "owner": "/root/r70_ordinary_extrusion_proof",
-      "state": "FROZEN"
+      "path": "notes/theory/2026-10-19-r71-raw-canonical-fiber-coverage.md",
+      "owner": "/root/r71_raw_canonical_proof",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r70-proof.md",
-      "owner": "/root/r70_ordinary_extrusion_proof",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261019-r71-proof.md",
+      "owner": "/root/r71_raw_canonical_proof",
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-19-r70-extrusion-countertrace.md",
-      "owner": "/root/r70_extrusion_countertrace",
-      "state": "FROZEN"
+      "path": "notes/progress/2026-10-19-r71-fiber-countertrace.md",
+      "owner": "/root/r71_fiber_countertrace",
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r70-research.md",
-      "owner": "/root/r70_extrusion_countertrace",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261019-r71-research.md",
+      "owner": "/root/r71_fiber_countertrace",
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-19-r70-extrusion-owner-map.md",
+      "path": "notes/progress/2026-10-19-r71-fiber-owner-map.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r70-implementation.md",
+      "path": "tasks/agent-loop/inbox/20261019-r71-implementation.md",
       "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r70-closeout.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r70-closeout.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -201,8 +169,15 @@
       "owner": "Luna; exact source/native owners assigned within R70",
       "request": "Prove or falsify the conditional successful entry-to-return operational invariant for candidate_extrude at the two production callsites; establish entry premises or leave target OPEN; account for mutation, map/work queues, bound/evidence transfer, retained parents/output, replay children/queue transfer and returned endpoint.",
       "falsifier": "A concrete static trace shows lost obligations, wrong kind/polarity/level, broken sharing, unsupported mutation or false resource bound; or a complete invariant with justified entry premises and exact finite costs is accepted by fresh independent review."
+    },
+    {
+      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; exact source/native owners assigned within R71",
+      "request": "For each production-reachable Work::Bound physical source slot, prove required fibers are present at the exact raw lookup key or supplied by an existing transport, or construct a reachable missing-coverage trace. Preserve legitimate empty fibers and recorded association gaps.",
+      "falsifier": "A source-reachable physical slot requires a fiber unavailable to the actual copy path; or complete constructors/merge induction proves coverage for every authorized occurrence."
     }
   ],
-  "closure": "R70 CLOSED — REVIEWED CONDITIONAL ENTRY-TO-RETURN RESULT; operation target OPEN on ENTRY-WF, raw/canonical fiber coverage and later drain. Parent and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED. R68 remains CLOSED BOUNDED REVIEWED.",
-  "next_action": "Consult selector for next bounded owner task; R70 ENTRY-WF/raw-canonical coverage and R70-DRAIN-1 remain open. No code lease."
+  "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 ACTIVE. R70 operation target, parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
+  "next_action": "Launch R71 constructive proof and complementary researcher; no code lane."
 }
