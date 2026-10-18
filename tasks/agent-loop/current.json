@@ -24,7 +24,7 @@
       "allocation": "Proof720 + implementation1920 (code1560/runtime360) + review600 + Luna120 + reserve240. Astra0; no rollover.",
       "next_action": "Implementation resumed under rev2 after CLEAN owner map; candidate_extrusion.rs added for actual slot readback. Audit paired rollback; add only a freeze-adjacent lib.rs hook if required. Runtime360 remains protected."
     },
-    "next_action": "Implementation resumed after CLEAN map review. Require H=B, p1 in upper fiber, nonempty lower fiber, h=p1, exact Replay recipe; successful completion observability and fixture applicability remain open."
+    "next_action": "Implementation author RUNNING after fresh rev2 ACK; audit whether route rollback pairs physical row truncation with candidate evidence rollback. No code edits before lifecycle result; lib.rs remains unleased."
   },
   "history": "Closed `npair-replay-fiber-consumer-certificate-20261018` REVIEWED-PARTIAL at `7087de449`; parent OPEN, closure0. Proof SHA `691a537b…e3e3614` CLEAN conditional. Implementation candidate `1958cf20e` unapproved; compiler review BLOCKING+2 MAJOR, no Cargo/tests/runtime. Closeout: `notes/progress/2026-10-18-replay-fiber-consumer-closeout.md`. PR #11 merged at `27a7e00d4`; operations-only. Earlier sprint history remains in linked notes/progress and Git history.",
   "quarantine_note": "Legacy UNKNOWN reservations remain quarantined; no prior sprint budget rolls over. Current assigned lanes have no descendants.",
@@ -54,13 +54,13 @@
     {
       "id": "/root/constructor_replay_impl",
       "role": "implementer",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev1 owner-map review CLEAN. Rev2 continuation envelope issued; waiting for fresh active-work ACK before code writes. Prior source audit consumed within authoring cap; runtime360 protected."
+      "receipt": "Fresh rev2 active-work ACK received this session; read-only rollback/slot lifecycle audit began. Exact paths: prior seven plus candidate_extrusion.rs; no lib.rs lease, no edits yet, descendants0. Requested Luna/high; observed UNKNOWN/UNKNOWN. Runtime360 protected."
     },
     {
       "id": "/root/constructor_replay_map_review",
