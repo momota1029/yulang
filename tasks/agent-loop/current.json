@@ -19,17 +19,19 @@
       "prior_sprint": "R65 CLOSED reviewed bounded bridge-applicability result; all R65 workers STOPPED; no carryover",
       "live_reconciliation": "Proof /root/r66_lambda_staging_proof and counter-reading /root/r66_staging_counterreading active in current-conversation-2026-10-19-r66; both confirmed required reads began, no leased writes yet, no descendants. R65 recorded identities STOPPED.",
       "semantic_boundary": "26 pinned evidence files only; required governance/startup reads separate; native negative-p_A guards remain",
-      "researcher_lane": "STOPPED / WRITES_STOPPED / NO_DESCENDANTS. Frozen counter-reading note SHA-256 ca53ec252b4af8612fb88e0ee1d04f566eeb6f252796284574e77c933535275f; handoff SHA-256 9e5dede065a51d5fcd8ae99ce173ffcc95e393ef18be15322d954a189925bd5e; 26/26 dependency hashes matched at freeze. Candidate first missing premise: no pinned same-xi projection/reassembly for applying unannotated Lambda/Result synthesis at whole-annotated binding; review pending."
+      "researcher_lane": "STOPPED / WRITES_STOPPED / NO_DESCENDANTS. Frozen counter-reading note SHA-256 ca53ec252b4af8612fb88e0ee1d04f566eeb6f252796284574e77c933535275f; handoff SHA-256 9e5dede065a51d5fcd8ae99ce173ffcc95e393ef18be15322d954a189925bd5e; 26/26 dependency hashes matched at freeze. Candidate first missing premise: no pinned same-xi projection/reassembly for applying unannotated Lambda/Result synthesis at whole-annotated binding; review pending.",
+      "author_outputs_frozen": "All six exact author paths frozen; hashes: proof dffc0e0ad0cd9e453e2f28340856a4eba31f147028af867249e18873ad302705 / beb821e8de9b4264a66d3176f7b236cc8abc442ac515b2f0e01433ebc1f1dbe2; owner map 51c48d1f69520878a586e159315b9f955667dfe002a4cc50992028752bccc5d8 / 4d6130f063c940816db297d417a800804b7cfe2da5bf380bd7645f4470956c29; counter-reading ca53ec252b4af8612fb88e0ee1d04f566eeb6f252796284574e77c933535275f / 9e5dede065a51d5fcd8ae99ce173ffcc95e393ef18be15322d954a189925bd5e."
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 800,
-      "available_seconds": 1600,
+      "charged_seconds": 1700,
+      "available_seconds": 700,
       "allocation": "Proof Sol/high900 + complementary researcher Sol/medium300 + Luna/high owner map500 + fresh compiler/spec reviews200 each + Luna integration/closeout300; Astra0; no carryover",
-      "actual_runtime": "Counter-reading lane charged at full 300s allocation; exact elapsed/CPU/RSS UNKNOWN. Luna owner-map lane charged 500s. Proof lane active; no code/tests/builds/exec/probes/measurement/production change."
+      "actual_runtime": "Proof, counter-reading and owner-map allocations charged at full 900s, 300s and 500s grants; elapsed/CPU/RSS UNKNOWN. Reviews and Luna integration remain available: 200s + 200s + 300s. No code, tests, builds, execution, probes, instrumentation, measurement, or production change."
     },
-    "next_action": "Wait for proof author to freeze the same-context staging derivation or exact first missing premise; then freeze all author outputs and obtain fresh independent compiler/spec reviews.",
-    "history": "R65 closeout notes/progress/2026-10-19-r65-closeout.md SHA-256 ea9aac36ea152733b6c4babb7060f18b1e39d7516af5e90bf4d44deadec62d85. R65 first unsupplied input R65-CURRENT-OPERAND-1. R66 candidate promoted after corrected baseline, auxiliary witness transport framing, governance-read separation, Luna ownership, Sol/medium consistency; dispatcher final recommendation returned for exact SHA. R66 counter-reading frozen (note ca53ec252b4af8612fb88e0ee1d04f566eeb6f252796284574e77c933535275f; handoff 9e5dede065a51d5fcd8ae99ce173ffcc95e393ef18be15322d954a189925bd5e): selected synthesis A covers unannotated result; no pinned same-xi projection/reassembly supplies its use at this whole-annotated binding. This is a bounded first-premise result, not counterexample/ambiguity/closure; review pending."
+    "next_action": "Obtain fresh independent compiler and spec reviews of exact frozen contract, six outputs and 26 dependencies; adjudicate whether bounded rebracketing and exact Result-A scope obstruction are sound, then durable R66 closeout.",
+    "history": "R65 closeout notes/progress/2026-10-19-r65-closeout.md SHA-256 ea9aac36ea152733b6c4babb7060f18b1e39d7516af5e90bf4d44deadec62d85. R65 first unsupplied input R65-CURRENT-OPERAND-1. R66 candidate promoted after corrected baseline, auxiliary witness transport framing, governance-read separation, Luna ownership, Sol/medium consistency; dispatcher final recommendation returned for exact SHA. R66 counter-reading frozen (note ca53ec252b4af8612fb88e0ee1d04f566eeb6f252796284574e77c933535275f; handoff 9e5dede065a51d5fcd8ae99ce173ffcc95e393ef18be15322d954a189925bd5e): selected synthesis A covers unannotated result; no pinned same-xi projection/reassembly supplies its use at this whole-annotated binding. This is a bounded first-premise result, not counterexample/ambiguity/closure; review pending. Proof frozen: dffc0e0ad0cd9e453e2f28340856a4eba31f147028af867249e18873ad302705; handoff beb821e8de9b4264a66d3176f7b236cc8abc442ac515b2f0e01433ebc1f1dbe2. Conditional same-context cut/reassembly of an already supplied annotation derivation; Name synthesis licensed; Result-A Lambda applicability remains exact TODO R66-LAMBDA-RESULT-STAGE-1. Counter-reading and owner map independently frozen. Dispatcher recommends fresh exact-scope reviews then adjudication; no code slice.",
+    "dispatcher_review_boundary": "R66 output review route approved as recommendation: test separately (1) conditional structural rebracketing of an already supplied whole-annotation derivation, (2) applicable Name synthesis, and (3) unproved Result-A Lambda instantiation at the annotated boundary. Fresh compiler/spec reviews 200s each over exact contract, six outputs and 26 pins; integration 300s. No code or semantics."
   },
   "workers": [
     {
@@ -46,13 +48,13 @@
     {
       "id": "/root/r66_lambda_staging_proof",
       "role": "R66 constructive source staging proof author",
-      "state": "WAITING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r66",
-      "receipt": "RUNNING in current-conversation-2026-10-19-r66 under exact contract SHA; required reads and 26/26 pin checks began; leased writes not yet begun; no descendants; 900s cap."
+      "receipt": "STOPPED / WRITES_STOPPED / NO_DESCENDANTS. Frozen note SHA-256 dffc0e0ad0cd9e453e2f28340856a4eba31f147028af867249e18873ad302705; handoff SHA-256 beb821e8de9b4264a66d3176f7b236cc8abc442ac515b2f0e01433ebc1f1dbe2. Bounded outcome: conditional same-context rebracketing for an already supplied derivation; Name synthesis applies; Result-A Lambda staging at whole-annotated binding unsupported at R66-LAMBDA-RESULT-STAGE-1. Full 900s allocation charged, runtime UNKNOWN; fresh reviews pending."
     },
     {
       "id": "/root/r66_staging_counterreading",
@@ -130,10 +132,10 @@
     },
     {
       "id": "R65-CURRENT-OPERAND-1",
-      "state": "RUNNING",
-      "owner": "R66 proof and owner-map lanes; Luna adjudicates",
-      "request": "Derive completed symbolic typed Lambda operand and prior evidence under the original joint component context from original formal p_t and resolved body Name(t), using applicable Lambda/body-result rules; test against bridge input contract.",
-      "falsifier": "An applicable pinned source clause supplies this exact operand at its authentic provider/owner/position and original context; or the proposed derivation assumes complete xi, circularly forms context, or loses provider/permission/result evidence."
+      "state": "REVIEW",
+      "owner": "Luna; fresh compiler/spec reviews and R66 adjudication",
+      "request": "Review the conditional same-context cut of an already supplied whole-annotation derivation, Name synthesis applicability, and exact unproved Result-A Lambda staging premise at the annotated boundary.",
+      "falsifier": "An applicable pinned rule supplies Result-A Lambda staging at this annotated binding with both-direction preservation of original joint evidence/solutions; or the cut hides original body-checking/annotation alternatives or changes source coordinates/provider/typed substitutions."
     }
   ],
   "closure": "CLOSED — REVIEWED BOUNDED BRIDGE-APPLICABILITY RESULT / EXACT UNSUPPLIED INPUT. R65-CURRENT-OPERAND-1, R64-SRC-ANN-ARG-1 and parent R61 remain OPEN; parent/A/B OPEN 0→0; R50 NOT ADOPTED. No safe code slice, theorem, semantics, implementation or production closure."
