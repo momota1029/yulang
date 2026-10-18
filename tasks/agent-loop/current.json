@@ -7,7 +7,7 @@
     "id": "retained-lambda-introduction-20261019-r68",
     "contract": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
     "revision": 1,
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "f49f797a0c04fe02a68b63bff9ff3e254ba6002b",
     "contract_sha256": "04070e85b4ee10fa308954916653955aee761f8fa59b937ea6cf78349901cd14",
     "parent": "Original computation-forwarding preservation §§1,6–7; unchanged source domain/quantifiers; Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
@@ -22,12 +22,12 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 2100,
-      "available_seconds": 300,
+      "charged_seconds": 2400,
+      "available_seconds": 0,
       "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + compiler review 200s + spec review 200s + Luna integration/closeout 300s; Astra0; no carryover.",
-      "actual_runtime": "Proof: 307s wall of 900s grant; counter-reading: exact elapsed UNKNOWN, 300s grant fully reserved; Luna owner map 500s charged; fresh compiler/spec reviews launched with 200s grants each; observed CPU/RSS UNKNOWN. 300s integration/closeout remains."
+      "actual_runtime": "Proof wall 307s; exact elapsed for counter-reading, owner map, reviews and Luna integration UNKNOWN. CPU/RSS UNKNOWN. All assigned grants charged; no carryover."
     },
-    "next_action": "Both fresh reviews complete with no findings; Luna adjudicates the bounded partial lemma, records exact open premise and TODO, closes R68, then consults end-boundary dispatcher.",
+    "next_action": "R68 closed after reviewed conditional same-carrier lemma and exact unsupplied consumer/body-check/invocation premise. End-boundary dispatcher recommends a distinct R69 candidate; require its exact consumer-origin introduction rule and applicability test before activation.",
     "history": "R66 closeout SHA-256 0af68443b372f1407f68e0b9f21194348b469f8c5d3dce06a8cd98ed976e6f01; status CLOSED with conditional structural result and exact unsupported Result-A instantiation. Fresh reviews had no blocking/major findings; minor owner-map handoff metadata superseded by external frozen hash/receipt. No successor grant or code slice carried over.; R67 closeout SHA-256 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; frozen author/review baseline dc84c02ed; 41/41 review hash receipts; no safe code slice; all R67 reviewers STOPPED.; R67 CLOSED at closeout 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; branch pushed through f49f797a0."
   },
   "workers": [
@@ -126,7 +126,7 @@
     {
       "path": "notes/progress/2026-10-19-r68-closeout.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/current.json",
@@ -172,11 +172,18 @@
     },
     {
       "id": "R68-RETAINED-ENTRY-INTRO-1",
-      "state": "RUNNING",
-      "owner": "Luna; original ordinary typed Lambda operand supplier",
-      "request": "Derive the retained-entry forward Lambda’s source Function interface and membership using independent challenges, actual same-carrier Name body consumption, complete invocation and all finite/pending observations under one original joint context; return the completed typed operand and prior evidence to R65, or the first authentic missing premise.",
-      "falsifier": "The derivation presupposes actual-U acceptance, complete Lambda membership or the two-root recursive theorem; drops pending/future observations or original scopes/provider/permissions/constraints; or an exact source constructor supplies the entire result."
+      "state": "CLOSED_BOUNDED_REVIEWED",
+      "owner": "Luna; R68 closeout",
+      "request": "Closed as reviewed conditional same-carrier RetainBind/resolved-Name partial lemma plus exact unsupplied retained ConsumerOrigin/body-check/invocation premise. No completed operand, parent closure, global absence or counterexample.",
+      "falsifier": "R68 reviewers found no blocking/major/minor defect; all 30 dependency pins and six output hashes matched. This closes only the bounded R68 attempt; original R65 and parent remain OPEN."
+    },
+    {
+      "id": "R68-OWNER-CONSUMER-1",
+      "state": "OPEN",
+      "owner": "Luna; authentic retained body/result-consumer source owner",
+      "request": "Identify and derive the exact source-owned rule introducing ConsumerOrigin(n,p,Comp(E_t,Int),profile,K,D,scope), body-check target/judgment and complete invocation law at original (d,L,n), separating inert interface formation, demand introduction and execution; preserve original provider, scopes, permissions, captures, ordinary constraints, pending/future cases and joint context. Before a successor sprint activates, name its exact proposed origin-introduction rule and applicability test.",
+      "falsifier": "A complete source derivation from pinned/in-scope clauses supplies the authentic origin/body/invocation tuple before whole-annotation checking; or the proposed origin depends on target p_A/p_R, native shape or membership/acceptance circularly."
     }
   ],
-  "closure": "R68 ACTIVE — retained-entry Lambda introduction attempt. R67 CLOSED as a reviewed bounded direct-checking result with R67-DIRECT-BODY-CHECK-1; R65-CURRENT-OPERAND-1, R66-LAMBDA-RESULT-STAGE-1, downstream R64/R61 and original parent remain OPEN. Parent and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED."
+  "closure": "R68 CLOSED — REVIEWED CONDITIONAL SAME-CARRIER LEMMA / EXACT UNSUPPLIED CONSUMER–BODY-CHECK–INVOCATION PREMISE / NO_SAFE_CODE_SLICE. Parent, R65/R66/R67, R64/R61 and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED. R68-OWNER-CONSUMER-1 remains OPEN for source-owner routing. No carryover."
 }
