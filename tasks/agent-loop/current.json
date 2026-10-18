@@ -25,8 +25,8 @@
       "allocation": "Sol proof600; Luna source/native owner500; fresh compiler200; fresh spec200; integration300. Astra0; no carryover. Actual wall time/CPU/RSS UNKNOWN.",
       "overrun_seconds": 0
     },
-    "next_action": "R62 activated. Luna owner lane active; configured prover must send current-session no-read/no-write receipt before Luna acknowledges and proof reads begin. No code/tests/execution.",
-    "history": "R61 CLOSED at 353f7b6b0; closeout notes/progress/2026-10-19-r61-closeout.md. All R61 authors/reviewers STOPPED, outputs/leases FROZEN; parent OPEN 0->0, R50 NOT ADOPTED. R62 start check: candidate hash b9e2846ca4c92cf2913094297ba5817e071c10d991abefd1b7c367402f4cd4fa; 22/22 pins MATCH; clean baseline 353f7b6b03e1ef3d8fa249505731a561a95bb9f5 equals HEAD/origin; dispatcher confirms fit. Luna activates with exact proof/owner/review outputs and 1800s envelope; no code/semantic/production authority.",
+    "next_action": "Prover receipt recorded at exact current-session identity; Luna acknowledges now. Sol proof lane and Luna source/native owner lane active on exact disjoint outputs; no code/tests/execution/semantic adoption.",
+    "history": "R61 CLOSED at 353f7b6b0; closeout notes/progress/2026-10-19-r61-closeout.md. All R61 authors/reviewers STOPPED, outputs/leases FROZEN; parent OPEN 0->0, R50 NOT ADOPTED. R62 start check: candidate hash b9e2846ca4c92cf2913094297ba5817e071c10d991abefd1b7c367402f4cd4fa; 22/22 pins MATCH; clean baseline 353f7b6b03e1ef3d8fa249505731a561a95bb9f5 equals HEAD/origin; dispatcher confirms fit. Luna activates with exact proof/owner/review outputs and 1800s envelope; no code/semantic/production authority. R62 configured prover fresh no-read/no-write receipt received for exact two outputs, 600s cap, no descendants; Luna acknowledges only after this receipt commit.",
     "workers": [
       {
         "id": "/root",
@@ -42,13 +42,13 @@
       {
         "id": "/root/r62_whole_ascription_formation_proof",
         "role": "Configured prover; derive whole-ascription source judgment or precise semantic underdetermination",
-        "state": "WAITING",
+        "state": "RUNNING",
         "requested_model": "gpt-6-sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r62",
-        "receipt": "Exact two-output proof lane granted by activated R62 rev1, 600s cap. No work/read begins until fresh current-session no-read/no-write receipt and Luna acknowledgment."
+        "receipt": "R62 fresh current-session receipt received before reads/writes. Exact outputs notes/theory/2026-10-19-r62-whole-ascription-formation.md and tasks/agent-loop/inbox/20261019-r62-proof.md; outcome is derive under settled annotation semantics with same-provider Corr/typed transport/Q dependencies, or exhibit two pinned-consistent completions differing on an original observable solution/Corr/transport. Requested prover/gpt-6-sol/high; observed actual runtime model/effort UNKNOWN/UNKNOWN. 600s cap; no descendants. No code/tests/build/parser/solver/compiler/runtime/probes/measurements/Git. Writer STOPPED pending Luna acknowledgment."
       },
       {
         "id": "/root/r52_compiler_review",
@@ -133,13 +133,13 @@
     {
       "id": "/root/r62_whole_ascription_formation_proof",
       "role": "Configured prover; derive whole-ascription source judgment or precise semantic underdetermination",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r62",
-      "receipt": "Exact two-output proof lane granted by activated R62 rev1, 600s cap. No work/read begins until fresh current-session no-read/no-write receipt and Luna acknowledgment."
+      "receipt": "R62 fresh current-session receipt received before reads/writes. Exact outputs notes/theory/2026-10-19-r62-whole-ascription-formation.md and tasks/agent-loop/inbox/20261019-r62-proof.md; outcome is derive under settled annotation semantics with same-provider Corr/typed transport/Q dependencies, or exhibit two pinned-consistent completions differing on an original observable solution/Corr/transport. Requested prover/gpt-6-sol/high; observed actual runtime model/effort UNKNOWN/UNKNOWN. 600s cap; no descendants. No code/tests/build/parser/solver/compiler/runtime/probes/measurements/Git. Writer STOPPED pending Luna acknowledgment."
     },
     {
       "id": "/root/r52_compiler_review",
