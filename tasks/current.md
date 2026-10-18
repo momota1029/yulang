@@ -17414,3 +17414,13 @@ reachability nor a lost source effect. Parent H2 remains OPEN until the original
 current/future activation obligation is proved or a source-qualified
 counterexample is established; H1/U stay OPEN, H3/P disabled, and production/F5
 separate.
+# Active research sprint — R25
+
+The caller selected the caller-supplied evidence route. R25 now targets
+transport of an unvalidated caller context bound to one exact parsed source,
+module and declaration occurrence, retained in the same HIR used by inference
+and runtime. This reduces only the source-binding obstruction: authentic
+`j0/a0/license`, phase actions, `JointWF`, and the unchanged parent theorem
+remain open. See
+[`caller-evidence-source-binding-20261018-r25.md`](agent-loop/sprints/caller-evidence-source-binding-20261018-r25.md)
+and `tasks/agent-loop/current.json` for the live packet and leases.
