@@ -2,139 +2,142 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r64",
+  "session": "current-conversation-2026-10-19-r65",
   "active_sprint": {
-    "id": "whole-ascription-derivation-20261019-r64",
-    "contract": "tasks/agent-loop/sprints/whole-ascription-derivation-20261019-r64-rev2.md",
-    "revision": 2,
-    "state": "CLOSED",
-    "baseline": "e5e0ac4e5b72c51406fac82ed82986d734bf3552",
-    "contract_sha256": "f29635c1dbccb0e6478ace00a47209684740a32c15a1426610221dca2e21bc8d",
+    "id": "source-annotation-root-bridge-to-pA-20261019-r65",
+    "contract": "tasks/agent-loop/sprints/source-annotation-root-bridge-to-pA-20261019-r65.md",
+    "revision": 1,
+    "state": "ACTIVE",
+    "baseline": "8a3ba2ae6e82a052cdbe2ff12f4c79183314755b",
+    "contract_sha256": "d70513dd369a653648ad75b2b5195f3736bbfd351ca959828d0dd3917f2de652",
     "parent": "Original computation-forwarding preservation §§1,6–7; unchanged source domain and quantifiers; Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-    "fixed_outcome": "Derive source constraints/solutions first from authentic rules for the fixed whole-ascription, then attempt same-provider/carrier Corr, both source/native solution directions and typed substitution. Return a derivation or an exact unsupported clause with attempted premises; prospective native schema is not actual Q.",
+    "fixed_outcome": "Apply approved source-annotation root bridge and declared-envelope rules to exact R64-SRC-ANN-ARG-1. Derive p_A typed interpretation on original Lambda/formal incoming carrier with own permission/scope, original joint component context, distinct p_t/Name evidence and ordinary constraints, or identify first unsupported authentic premise. No assumed joint xi, Sol_src, Corr, actual Q, native-created source evidence, or semantic ambiguity from missing documentation.",
     "dependencies": {
-      "manifest": "22 direct SHA-256 dependencies MATCH; contract and all pins verified at activation",
-      "baseline_commit": "e5e0ac4e5b72c51406fac82ed82986d734bf3552",
-      "dispatcher_start": "R64 exact candidate SHA and 22/22 pins verified; distinct derivation method approved as start recommendation; no blocker; dispatcher grants no authority",
-      "prior_sprint": "R63 CLOSED and reviewed; exact result in notes/progress/2026-10-19-r63-closeout.md. All R63 workers STOPPED, leases FROZEN, 1800s charged, no carryover.",
-      "contract_revision_1": "Immutable proof contract and 22-pin manifest: tasks/agent-loop/sprints/whole-ascription-derivation-20261019-r64.md, SHA 2f008cc535a4db8da53fc40acac6ae5750d25083be6d6abe4a5ee35f318576bf; 22/22 reverified at freeze.",
-      "dispatcher_integration": "Reviews limited to frozen proof + rev1 + rev2 + 22 pins; no author-output completion claim. Luna read-only source-owner integration allowed within existing 300s. No replacement lane or added budget.",
-      "dispatcher_end": "R64 approved closeout as REVIEWED BOUNDED PARTIAL DERIVATION / EXACT UNSUPPLIED CLAUSE / NO_SAFE_CODE_SLICE. Next route is source-language specification ownership; no successor grant."
+      "manifest": "16 direct SHA-256 dependencies MATCH; contract and all pins verified at activation",
+      "baseline_commit": "8a3ba2ae6e82a052cdbe2ff12f4c79183314755b",
+      "dispatcher_start": "R65 exact candidate SHA and 16/16 pins verified; materially distinct source-rule applicability method approved as start recommendation; no blocker; dispatcher grants no authority",
+      "prior_sprint": "R64 CLOSED and reviewed; exact result in notes/progress/2026-10-19-r64-closeout.md. All R64 workers STOPPED; 1800s charged; no carryover.",
+      "preactivation_reconciliation": "Proof /root/r63_whole_ascription_formation_proof acknowledged NO_READ / NO_WRITE / NO_PROOF_WORK / NO_DESCENDANTS. Researcher /root/r65_source_spec_research acknowledged NO_READ / NO_WRITE / NO_RESEARCH / NO_DESCENDANTS. All prior R64 leases frozen or primary-held; no live writers."
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 1800,
-      "available_seconds": 0,
-      "allocation": "Proof600 + owner500 + compiler review200 + spec review200 + integration300 = 1800s charged; owner lane stopped/no artifact; all actual runtimes UNKNOWN; no carryover; Astra0",
-      "actual_runtime": "UNKNOWN for all lanes (elapsed/CPU/RSS unavailable); proof and both reviews STOPPED; owner STOPPED; integration complete; no carryover"
+      "charged_seconds": 0,
+      "available_seconds": 1800,
+      "allocation": "Proof600 + complementary source/spec researcher500 + compiler review200 + spec review200 + Luna integration300 = 1800s; Astra0; no carryover",
+      "actual_runtime": "UNKNOWN for all R65 lanes; authors WAITING for exact lease/launch receipt; reviewers not launched; no runtime charged yet"
     },
-    "next_action": "Route exact R64-SRC-ANN-ARG-1 to source-language specification ownership: derive the p_A argument interpretation on the original Lambda/formal incoming carrier under the original joint context, or identify a concrete unresolved semantic choice. First prepare the proved prefix, applicable decisions, attempted derivation, and required interpretation. Missing documentation alone is not a new decision. No successor grant or implementation packet is active; do not repeat equivalent constructor audits.",
-    "history": "Prior R63 closeout: notes/progress/2026-10-19-r63-closeout.md (reviewed, exact premise open, NO_SAFE_CODE_SLICE). R64 dispatcher recommendation repeated after root integration output was added. A preliminary query to compiler_referee was stopped before reads/writes and has no R64 lease. Owner routing mismatch resolved: /root/r64_clause_owner STOPPED/WRITES_STOPPED/NO_DESCENDANTS; read listed pinned sources; both leased outputs 0 bytes and absent; no descendants. The 500s grant remains charged. No replacement writer; integration will record this gap. Proof frozen: artifact notes/theory/2026-10-19-r64-whole-ascription-derivation.md SHA b8041fae28a4a88d7143ab6e16be6658ce156f3de90888667dded93e8b643772; inbox tasks/agent-loop/inbox/20261019-r64-proof.md SHA ca77147a62dc1a43f5cbecacf09a0203add761f235b46998d1ef41255bc7ecc7. Isolated R64-SRC-ANN-ARG-1; Sol_src/Corr/Q/substitution unconstructed. Review scope amended by revision2 after dispatcher seam advice; owner output absent and not replaced. Closeout notes/progress/2026-10-19-r64-closeout.md SHA c53e7d4a1c791cd93f428af9c11572327e4b72a462fa3c311d5c1141d3d5b670; both reviews CLEAN; parent remains open. Dispatcher end route: exact source-language specification ownership; no successor grant."
+    "next_action": "Send exact author leases and activation acknowledgment. Record each actual launch/resume receipt before setting RUNNING. Authors work only within their exact paths and pins; both must stop and freeze outputs before fresh independent reviews.",
+    "history": "R64 closed reviewed bounded partial derivation / exact unsupplied clause / no safe code slice. Proof hash b8041fae28a4a88d7143ab6e16be6658ce156f3de90888667dded93e8b643772; closeout hash c53e7d4a1c791cd93f428af9c11572327e4b72a462fa3c311d5c1141d3d5b670. Dispatcher R64 end route was source-language specification ownership. R65 tests pinned approved source-language decisions against the exact smaller clause; it does not repeat native/crosswalk audit."
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna/high R64 coordinator and integration",
-      "state": "STOPPED",
+      "role": "Luna/high R65 coordinator, adjudication, integration and sole Git owner",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r64",
-      "receipt": "R64 Luna integration and closeout complete; closeout SHA c53e7d4a1c791cd93f428af9c11572327e4b72a462fa3c311d5c1141d3d5b670; current state archived at R64 CLOSED; next owner is Luna to prepare source-language owner intake. Actual elapsed/CPU/RSS UNKNOWN."
+      "session": "current-conversation-2026-10-19-r65",
+      "receipt": "Primary activated R65 after baseline/pin verification and pre-activation STOP receipts; exact author launch receipts pending."
     },
     {
       "id": "/root/r63_whole_ascription_formation_proof",
-      "role": "Configured prover; R64 source derivation and typed substitution",
-      "state": "STOPPED",
+      "role": "Configured prover; apply approved typed-root bridge and declared-envelope rules to R64-SRC-ANN-ARG-1",
+      "state": "WAITING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r64",
-      "receipt": "STOPPED / WRITES_STOPPED / NO_DESCENDANTS. Frozen revision 1 exact outputs; isolated R64-SRC-ANN-ARG-1. Requested gpt-6-sol/high; observed UNKNOWN/UNKNOWN; 600s charged, runtime UNKNOWN."
+      "session": "current-conversation-2026-10-19-r65",
+      "receipt": "Pre-activation NO_READ / NO_WRITE / NO_PROOF_WORK / NO_DESCENDANTS; awaiting exact lease and activation acknowledgment."
     },
     {
-      "id": "/root/r64_clause_owner",
-      "role": "Luna/high R64 source/native clause-owner lane",
-      "state": "STOPPED",
-      "requested_model": "gpt-6-luna",
-      "requested_effort": "high",
-      "observed_model": "GPT-6",
+      "id": "/root/r65_source_spec_research",
+      "role": "Complementary source/spec owner map and independent counter-reading",
+      "state": "WAITING",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "STOPPED / ROUTING MISMATCH / NO ARTIFACT DELIVERED. Read pinned source_annotation.rs, local_source.rs, candidate_source.rs, candidate_effect.rs, R63 evidence and R64 contract; two output paths 0 bytes; no descendants; session/runtime UNKNOWN; 500s charged."
+      "session": "current-conversation-2026-10-19-r65",
+      "receipt": "Pre-activation NO_READ / NO_WRITE / NO_RESEARCH / NO_DESCENDANTS; awaiting exact lease and activation acknowledgment."
     },
     {
-      "id": "/root/r63_compiler_review",
-      "role": "Fresh independent R64 compiler/source-owner reviewer; read-only, no artifact lease",
-      "state": "STOPPED",
+      "id": "/root/r65_compiler_review",
+      "role": "Fresh independent compiler/source-owner reviewer; read-only after author outputs freeze",
+      "state": "NOT_STARTED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r64",
-      "receipt": "R64 revision2 compiler/source-owner review CLEAN; no BLOCKING/major/minor. Verified both contract hashes, both proof hashes, 22/22 pins; no authentic pinned constructor supplies R64-SRC-ANN-ARG-1; native guards/constructor order correct; no Q or complete source judgment. Static reads/hashing only; observed model/effort UNKNOWN; no writes/descendants."
+      "session": "current-conversation-2026-10-19-r65",
+      "receipt": "Conditional review; do not launch until both author outputs stop and freeze."
     },
     {
-      "id": "/root/r63_spec_review",
-      "role": "Fresh independent R64 spec/domain reviewer; read-only, no artifact lease",
-      "state": "STOPPED",
+      "id": "/root/r65_spec_review",
+      "role": "Fresh independent spec/domain reviewer; read-only after author outputs freeze",
+      "state": "NOT_STARTED",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r64",
-      "receipt": "R64 revision2 spec/domain review CLEAN; no BLOCKING/major/minor. Verified both contract hashes, both proof hashes, 22/22 pins; clause narrower than R63; settled rules preserved; no semantic impossibility/ambiguity or complete xi/Sol_src/Corr/Q/substitution. Static reads/hashing only; observed model/effort UNKNOWN; no writes/descendants."
+      "session": "current-conversation-2026-10-19-r65",
+      "receipt": "Conditional review; do not launch until both author outputs stop and freeze."
     }
   ],
   "leases": [
     {
-      "path": "tasks/agent-loop/sprints/whole-ascription-derivation-20261019-r64.md",
+      "path": "tasks/agent-loop/sprints/source-annotation-root-bridge-to-pA-20261019-r65.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/sprints/whole-ascription-derivation-20261019-r64-rev2.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "path": "notes/theory/2026-10-19-r65-typed-root-pA-derivation.md",
+      "owner": "/root/r63_whole_ascription_formation_proof",
+      "state": "HELD"
     },
     {
-      "path": "notes/progress/2026-10-19-r64-closeout.md",
+      "path": "tasks/agent-loop/inbox/20261019-r65-proof.md",
+      "owner": "/root/r63_whole_ascription_formation_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r65-spec-owner-map.md",
+      "owner": "/root/r65_source_spec_research",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r65-research.md",
+      "owner": "/root/r65_source_spec_research",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r65-closeout.md",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
       "state": "HELD"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r64-whole-ascription-derivation.md",
-      "owner": "/root/r63_whole_ascription_formation_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r64-proof.md",
-      "owner": "/root/r63_whole_ascription_formation_proof",
-      "state": "FROZEN"
     }
   ],
   "pending": [
     {
       "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
       "state": "OPEN",
-      "owner": "Luna; R64 active bounded grant",
+      "owner": "Luna; R65 bounded source-rule applicability derivation",
       "request": "Derive source-licensed whole-definition-ascription relation for original provider/carrier, distinct p_t/p_A/p_R, local permissions, joint K,D, ordinary constraints, correlated results, actual Q, both solution directions and typed substitution/transport.",
       "falsifier": "A permitted source solution lacks lift/reverse, provider/position/permission/result evidence changes, ordinary constraints disappear, Q is guessed, or ambiguity lacks two compatible completions differing on an original observable."
     },
     {
       "id": "R64-SRC-ANN-ARG-1",
       "state": "OPEN",
-      "owner": "Luna; no author grant after R64 proof stop",
-      "request": "Derive the authentic source rule for the whole-ascription p_A argument typed interpretation on L/t's original incoming computation carrier, with its own permission/scope and original joint component context, preserving p_t/Name and ordinary constraints before native representation.",
-      "falsifier": "Rule borrows p_t permission, changes provider/position, invents joint xi, imports native comparison, adds cap/inflow, drops ordinary constraints, or uses a later transport/result as initial formation."
+      "owner": "R65 proof + complementary source/spec lane; adjudication by Luna",
+      "request": "Derive the authentic source rule for whole-ascription p_A argument typed interpretation on L/t original incoming computation carrier, with own permission/scope and original joint component context, preserving p_t/Name and ordinary constraints before native representation.",
+      "falsifier": "Rule borrows p_t permission, changes provider/position, invents joint xi, imports native comparison, adds cap/inflow, drops ordinary constraints, or uses later transport/result as initial formation."
     }
   ],
-  "closure": "CLOSED — REVIEWED BOUNDED PARTIAL DERIVATION / EXACT UNSUPPLIED CLAUSE / NO_SAFE_CODE_SLICE. R64-SRC-ANN-ARG-1 and parent R61-SOURCE-ASCRIPTION-FORMATION-1 remain OPEN; parent/A/B OPEN 0→0; R50 NOT ADOPTED. No theorem, semantics, implementation or production closure."
+  "closure": "ACTIVE — R65 SOURCE-RULE APPLICABILITY SPRINT. Parent R61 and child R64-SRC-ANN-ARG-1 remain OPEN; parent/A/B OPEN 0→0; R50 NOT ADOPTED. No theorem, semantics, implementation or production closure."
 }
