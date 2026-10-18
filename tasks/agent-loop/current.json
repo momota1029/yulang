@@ -8,22 +8,22 @@
     "contract": "tasks/agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md",
     "revision": 1,
     "state": "ACTIVE",
-    "baseline": "22c29664a1d59db7d149b752ef166ec2ec9ca9dd",
+    "baseline": "d281632f4ba604340d88ed0bdcb01b0921960910",
     "parent": "Full goal: implement Yulang type inference and executor with proofs. Active-capture source bridge for intrusion/principality/N-Transport; R30 j0/a0 remains independently OPEN.",
     "fixed_outcome": "Authenticate active initializer Link -> checking/source event -> signed pairs/groups -> helper capture/publication -> both retained FreshUse maps from existing records, or record first unjoinable edge. No C/D source law, semantic adoption, production observer or allocation change.",
     "resources": {
       "cap_seconds": 1080,
       "charged_seconds": 0,
       "available_seconds": 1080,
-      "allocation": "Native600 + fresh compiler180 + fresh spec180 + Luna integration120; one focused Cargo process; no probes/builds; Astra0."
+      "allocation": "Reserved native600 + fresh compiler180 + fresh spec180 + Luna integration120; one focused Cargo process; no probes/builds; Astra0."
     },
-    "next_action": "R33 closed after failed unqualified all-row assertion; R34 uses candidate_scheme test reconstruction metadata to separate shared rows, aliases and fresh images. R33 C/D introduction obstruction remains; proof lane blocked pending authentic owning rule.",
+    "next_action": "R34 native writer running under exact leases; independently authenticate row classification and full Link-to-two-FreshUse join, then run at most one focused Cargo process.",
     "history": "R33 closeout notes/progress/2026-10-18-r33-active-capture-observer-closeout.md; parent0->0. R34 dispatcher recommends exact Link-to-two-FreshUse authenticated native join; parent and R30 unchanged.",
     "git_checkpoint": {
-      "commit": "22c29664a1d59db7d149b752ef166ec2ec9ca9dd",
+      "commit": "d281632f4ba604340d88ed0bdcb01b0921960910",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R33 corrected closeout is included at 22c29664a; R34 contract/state checkpoint pending."
+      "receipt": "R34 contract/state pushed as d281632f4; native implementer launched from this pinned baseline."
     },
     "workers": [
       {
@@ -47,6 +47,17 @@
         "observed_effort": "UNKNOWN",
         "session": "current-session",
         "receipt": "Returned R34 delta: use candidate_scheme existing test metadata; proof blocked pending authentic C/D introduction; 1080s total, Astra0."
+      },
+      {
+        "id": "/root/r34_native_join",
+        "role": "implementer",
+        "state": "RUNNING",
+        "requested_model": "Luna",
+        "requested_effort": "high",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Actual implementer spawn returned /root/r34_native_join for R34 native join; exact four write paths leased, one Cargo grant."
       }
     ],
     "leases": [
@@ -64,6 +75,26 @@
         "path": "tasks/agent-loop/current.json",
         "owner": "/root",
         "state": "HELD"
+      },
+      {
+        "path": "crates/yu-solver/src/candidate_scheme.rs",
+        "owner": "/root/r34_native_join",
+        "state": "HELD"
+      },
+      {
+        "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
+        "owner": "/root/r34_native_join",
+        "state": "HELD"
+      },
+      {
+        "path": "notes/progress/2026-10-18-active-capture-authenticated-join-r34.md",
+        "owner": "/root/r34_native_join",
+        "state": "HELD"
+      },
+      {
+        "path": "tasks/agent-loop/inbox/20261018-active-capture-authenticated-join-r34.md",
+        "owner": "/root/r34_native_join",
+        "state": "HELD"
       }
     ],
     "pending": [],
@@ -78,7 +109,7 @@
       "receipt": "R33 dispatcher, proof/native writers and compiler/spec reviewers are completed/terminal; their exact artifacts are frozen or reverted. No live old writer or unconfirmed lease remains."
     },
     "contract_sha256": "474601797b5c34b73c4798432aaebc75de71504d6eb9e0404f4e0032d58a84be",
-    "sha256": "ca05c6bebeaa6516fe336bdff7a3c7550fc135ea1a90ae30f1861064909a9bdd"
+    "sha256": "06ff36c7a88f967e5a847968adcb5e3dfcef08ba9313e8d6ecf8bde9602c881e"
   },
   "workers": [
     {
@@ -102,6 +133,17 @@
       "observed_effort": "UNKNOWN",
       "session": "current-session",
       "receipt": "Returned R34 delta: use candidate_scheme existing test metadata; proof blocked pending authentic C/D introduction; 1080s total, Astra0."
+    },
+    {
+      "id": "/root/r34_native_join",
+      "role": "implementer",
+      "state": "RUNNING",
+      "requested_model": "Luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Actual implementer spawn returned /root/r34_native_join for R34 native join; exact four write paths leased, one Cargo grant."
     }
   ],
   "leases": [
@@ -119,10 +161,30 @@
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
       "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_scheme.rs",
+      "owner": "/root/r34_native_join",
+      "state": "HELD"
+    },
+    {
+      "path": "crates/yu-solver/tests/candidate_local_self_recursion.rs",
+      "owner": "/root/r34_native_join",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-18-active-capture-authenticated-join-r34.md",
+      "owner": "/root/r34_native_join",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261018-active-capture-authenticated-join-r34.md",
+      "owner": "/root/r34_native_join",
+      "state": "HELD"
     }
   ],
   "pending": [],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
   "history": "R33 closed; R34 active. Preserve original parent scope and keep R30 independently OPEN.",
-  "sha256": "4a4e91e78f42eae0067d22a0e84e1c80aa00af72966824a538868231f7088b2b"
+  "sha256": "f53b2cf6956a651fec723583174b395cd38ba11d15fbd333bf16d636c3796fdb"
 }
