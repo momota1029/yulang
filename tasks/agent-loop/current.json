@@ -2,45 +2,44 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r68-source-law",
+  "session": "current-conversation-2026-10-19-r70-extrusion",
   "active_sprint": {
-    "id": "retained-lambda-introduction-20261019-r68",
-    "contract": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
+    "id": "ordinary-extrusion-invariant-20261019-r70",
+    "contract": "tasks/agent-loop/sprints/ordinary-extrusion-invariant-20261019-r70.md",
     "revision": 1,
-    "state": "CLOSED",
-    "baseline": "f49f797a0c04fe02a68b63bff9ff3e254ba6002b",
-    "contract_sha256": "04070e85b4ee10fa308954916653955aee761f8fa59b937ea6cf78349901cd14",
-    "parent": "Original computation-forwarding preservation §§1,6–7; unchanged source domain/quantifiers; Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-    "fixed_outcome": "Attempt a retained-entry Lambda introduction for the fixed forward binding by combining selected source-interface construction with contextual Function-membership/input laws. Derive independent complete challenges, same-carrier Name(t) body consumption, invocation and all finite/pending observations, then return the ordinary typed operand to R65; otherwise identify the first genuine missing premise. No code or semantic change.",
+    "state": "ACTIVE",
+    "baseline": "c84f3f98673af3993dea85c5d9ecb938463738a3",
+    "contract_sha256": "4fa363c4dcbd97450b16dd2afb8b1bf2889f9faf00168d444205fe3633bee5cf",
+    "parent": "Original type-inference and evaluator goal; unchanged source domain/quantifiers; Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
+    "fixed_outcome": "Conditional successful entry-to-return operational invariant for candidate_extrude at the two lib.rs shadow-apply-candidate production callsites. Derive entry conditions or mark unproved; preserve row/structure/view work, mutations, evidence, parent/output, retained ReplayOperation children, typed-worklist prefix transfer and returned endpoint. Trace later drain/acknowledgement owner without claiming complete drain termination. No code, tests, builds, probes or semantic choice.",
     "dependencies": {
-      "manifest": "30 direct SHA-256 dependencies MATCH at activation; exact paths and hashes in frozen R68 contract",
-      "baseline_commit": "f49f797a0c04fe02a68b63bff9ff3e254ba6002b",
-      "dispatcher_start": "R68 corrected exact-candidate check passed; contract SHA 04070e85b4ee10fa308954916653955aee761f8fa59b937ea6cf78349901cd14; 30/30 valid pins MATCH; no correction identified",
-      "prior_sprint": "R67 CLOSED after fresh compiler/spec reviews; bounded exact local premise R67-DIRECT-BODY-CHECK-1; R67 closeout 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; all R67 authors/reviewers STOPPED; no carryover",
-      "live_reconciliation": "R68 proof /root/r68_retained_lambda_proof and counter-reading /root/r68_retained_lambda_counterreading actually launched in current session under exact leases; no descendants. Luna owner map active. All R67 workers stopped.",
-      "semantic_boundary": "Use only 30 pinned files. Structural source-interface construction does not establish semantic Function membership; semantic input elimination does not introduce the new closure. Exact two-root theorem is excluded from forward. lib.rs unpinned and excluded."
+      "manifest": "20 direct SHA-256 dependencies MATCH at activation; exact paths/hashes in frozen R70 contract",
+      "baseline_commit": "c84f3f98673af3993dea85c5d9ecb938463738a3",
+      "dispatcher_start": "R70 exact candidate accepted for activation; final candidate SHA 4fa363c4dcbd97450b16dd2afb8b1bf2889f9faf00168d444205fe3633bee5cf; 20/20 pins MATCH; activation admissible after live reconciliation",
+      "live_reconciliation": "All old R68 workers STOPPED; no descendants; old outputs FROZEN. Only current.json HELD by Luna. Branch clean/pushed at R70 activation.",
+      "authority_boundary": "Top-level principles §§1–3 authorize ordinary level-based extrusion. Simple-sub audit is secondary. Yulang effect/evidence/parent/replay are implementation properties; no promotion."
     },
     "resources": {
       "cap_seconds": 2400,
       "charged_seconds": 2400,
       "available_seconds": 0,
-      "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + compiler review 200s + spec review 200s + Luna integration/closeout 300s; Astra0; no carryover.",
-      "actual_runtime": "Proof wall 307s; exact elapsed for counter-reading, owner map, reviews and Luna integration UNKNOWN. CPU/RSS UNKNOWN. All assigned grants charged; no carryover."
+      "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + fresh compiler/spec reviews 200s each + Luna integration 300s; Astra 0; no carryover.",
+      "actual_runtime": "Child launch receipts pending; CPU/RSS UNKNOWN. Full grant reserved; actual elapsed from runtime receipts."
     },
-    "next_action": "Source-rule audit completed: target-directed p_R/body-Name consumer is a concrete unadopted candidate consistent with selected result-forwarding A, while annotated checking authority remains open. Await user semantic choice before changing the source law or activating a sprint.",
-    "history": "R66 closeout SHA-256 0af68443b372f1407f68e0b9f21194348b469f8c5d3dce06a8cd98ed976e6f01; status CLOSED with conditional structural result and exact unsupported Result-A instantiation. Fresh reviews had no blocking/major findings; minor owner-map handoff metadata superseded by external frozen hash/receipt. No successor grant or code slice carried over.; R67 closeout SHA-256 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; frozen author/review baseline dc84c02ed; 41/41 review hash receipts; no safe code slice; all R67 reviewers STOPPED.; R67 CLOSED at closeout 00ee065651f9440a94321469b34543011d63efeec0b25a06e5d00b41ff2f1e49; branch pushed through f49f797a0.; R69 candidate `tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md` SHA-256 0a64e5b6841fa9d7219bfa25c58b4ed8b99212078a51bc670fc6ff0104fc2995; 41/41 pins MATCH; dispatcher rejected activation because Generalize and Draft execution clauses assume an existing consumer. Proposal `notes/design/2026-10-19-retained-consumer-origin-source-law-proposal.md` SHA-256 71b049a45a39f3b8ecff6a8a16455d6842704e767aa970182b57038a387d7d65; no grant, workers or leases."
+    "next_action": "Launch constructive prover and complementary researcher on disjoint exact paths; Luna traces actual callsite, mutation, replay handoff and owner map. No compiler code/test lane is authorized. Freeze authors before fresh compiler/spec review.",
+    "history": "R68 CLOSED/pushed. R69 remains NOT ACTIVATED pending user source-law choice."
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna/high coordinator, source/native owner map, adjudication, integration and sole Git owner",
-      "state": "STOPPED",
+      "role": "Luna/high coordinator, owner map, adjudication, integration and sole Git owner",
+      "state": "RUNNING",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-conversation-2026-10-19-r68-source-law",
-      "receipt": "Luna source-law audit stopped pending the user decision requested through the conversation UI. R69 remains NOT ACTIVATED; no grant, author/reviewer lease, code change, test, build or probe. All R68 workers STOPPED; no descendants."
+      "session": "current-conversation-2026-10-19-r70-extrusion",
+      "receipt": "R70 owner map and callsite handoff active; no tests/builds/probes or code writes."
     },
     {
       "id": "/root/r68_retained_lambda_proof",
@@ -85,6 +84,28 @@
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r68",
       "receipt": "Fresh spec/conformance review complete; no BLOCKING/major/minor findings. Contract + 30/30 pins + six output hashes MATCH. STOPPED/READ_ONLY/NO_DESCENDANTS; no edits/Git/tests/builds/probes."
+    },
+    {
+      "id": "/root/r70_ordinary_extrusion_proof",
+      "role": "R70 constructive proof; exact proof artifact and handoff only",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r70-extrusion",
+      "receipt": "Assigned under R70; launch/runtime acknowledgement pending."
+    },
+    {
+      "id": "/root/r70_extrusion_countertrace",
+      "role": "R70 complementary transition counter-reading; exact countertrace and handoff only",
+      "state": "NOT_STARTED",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r70-extrusion",
+      "receipt": "Assigned under R70; launch/runtime acknowledgement pending."
     }
   ],
   "leases": [
@@ -130,6 +151,41 @@
     },
     {
       "path": "tasks/agent-loop/current.json",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/ordinary-extrusion-invariant-20261019-r70.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-19-r70-ordinary-extrusion-invariant.md",
+      "owner": "/root/r70_ordinary_extrusion_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r70-proof.md",
+      "owner": "/root/r70_ordinary_extrusion_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r70-extrusion-countertrace.md",
+      "owner": "/root/r70_extrusion_countertrace",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r70-research.md",
+      "owner": "/root/r70_extrusion_countertrace",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r70-extrusion-owner-map.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r70-implementation.md",
       "owner": "/root",
       "state": "HELD"
     }
@@ -190,6 +246,13 @@
       "owner": "Luna; source-law completion",
       "request": "Resolve notes/design/2026-10-19-retained-consumer-origin-source-law-proposal.md (SHA-256 71b049a45a39f3b8ecff6a8a16455d6842704e767aa970182b57038a387d7d65): identify exact source occurrence/rule licensing ConsumerOrigin(n,p,Comp(E_t,Int),profile,K,D,scope), its applicability and evidence construction, and distinguish settled consequences from any new semantic choice. Written p_A/p_R may be legitimate checking information if independently licensed; successful target checking cannot create its own prerequisite origin.",
       "falsifier": "An applicable pinned source rule constructs the complete occurrence/path/provider/profile/scope/joint-evidence tuple before target-check success; or a concrete rule proposal is explicitly adopted by user after its consequences are presented."
+    },
+    {
+      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+      "state": "OPEN",
+      "owner": "Luna; exact source/native owners assigned within R70",
+      "request": "Prove or falsify the conditional successful entry-to-return operational invariant for candidate_extrude at the two production callsites; establish entry premises or leave target OPEN; account for mutation, map/work queues, bound/evidence transfer, retained parents/output, replay children/queue transfer and returned endpoint.",
+      "falsifier": "A concrete static trace shows lost obligations, wrong kind/polarity/level, broken sharing, unsupported mutation or false resource bound; or a complete invariant with justified entry premises and exact finite costs is accepted by fresh independent review."
     }
   ],
   "closure": "R68 CLOSED — REVIEWED CONDITIONAL SAME-CARRIER LEMMA / EXACT UNSUPPLIED CONSUMER–BODY-CHECK–INVOCATION PREMISE / NO_SAFE_CODE_SLICE. Parent, R65/R66/R67, R64/R61 and Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED. R68-OWNER-CONSUMER-1 remains OPEN for source-owner routing. No carryover."
