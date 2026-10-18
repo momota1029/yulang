@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ACTIVE",
+  "phase": "ENDED",
   "session": "current-conversation-2026-10-19-r49",
   "active_sprint": {
     "id": "active-root-admission-20261019-r49",
     "contract": "tasks/agent-loop/sprints/active-root-admission-20261019-r49.md",
-    "revision": 1,
-    "state": "ACTIVE",
+    "revision": 2,
+    "state": "CLOSED",
     "baseline": "49f7680234ddfd2c9f3ad198c81a502ebdc916a1",
-    "contract_sha256": "6a8fa0a9f1189e247b6462b45083f814e0420ee53000f60b19d6d6ffcb3a57ff",
+    "contract_sha256": "aa0823710a5dae66eac151bf3da92ca21448328f4f115f90031b6abedb4f3679",
     "parent": "Full inference/evaluator theorem and original Simple-sub A/B, quantifiers, source domain and accepted semantics; OPEN 0->0.",
     "fixed_outcome": "Decide whether existing approved semantics/admission provide a complete native path for the unchanged active-root recursive Apply fixture; otherwise identify first missing authority/owner and NO_SAFE_CODE_SLICE.",
     "dependencies": {
@@ -17,7 +17,7 @@
       "R48_compiler_review": "b91fa227bd1a686ab08b9a5fa492fc69a2530ba4671f158fd5f1c0563b513fea",
       "R48_spec_review": "4ec09e82ae00e13f47332178b64dde325c4c1baf8bdbc84db92e06dc0943d53c",
       "local_recursion_authority": "38d42183fdc4f2c0136112d8b305816241d8f449367b473e4de3a5135dc49895",
-      "approved_answer": "1c0ea94c359f08496185594848ab9082b4eac174ab247d67d37f316462db145b",
+      "approved_answer": "1c0ea94c359f08496185595448ab9082b4eac174ab247d67d37f316462db145b",
       "candidate_source.rs": "66b8f88bad86755c2716cfa7e9c35eabc7031d408b774358ca72446db2b3180c",
       "candidate_call.rs": "e038ad0dfc4b12bd0d513d6cd6b34cee6b2b062d8b33368bc1c0dcdef980d479",
       "candidate_scheme.rs": "d4ff8a9e98eb667a5eb85aff9c0feec1f0227e86257bb56892493ac1d04a9278",
@@ -28,35 +28,57 @@
     },
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 1500,
-      "available_seconds": 900,
-      "allocation": "Sol proof 900 + Luna read-only owner map 600 charged; independent reviews 300 each and integration 300 reserved, no carryover. Astra 0; CPU/RSS UNKNOWN. No builds/tests/runtime.",
+      "charged_seconds": 2400,
+      "available_seconds": 0,
+      "allocation": "Sol proof 900 + Luna owner map 600 + independent compiler/spec reviews 300 each + Luna correction, integration and closeout 300 charged; no carryover. Astra 0; CPU/RSS UNKNOWN. No builds/tests/runtime.",
       "overrun_seconds": 0
     },
-    "next_action": "Resolve authority applicability and owner protocol for active monomorphic Link versus scoped LocalFreshRoute; stop at proof/map result, then independent review.",
-    "history": "R48 closed/pushed at 49f768023 after two fresh reviews found active-root Link cannot satisfy exact LocalFreshRoute authentication. Cargo remained gated/not run. R47 no-hit remains valid; parent OPEN 0->0. Sol proof worker launched in current R49 session; actual identity acknowledged, exact write lease and no-descendants condition recorded. Luna read-only owner map frozen as bounded NO_SAFE_CODE_SLICE; Sol proof remains RUNNING.",
+    "next_action": "No work authorized. New boundary requires a new Luna grant; semantic or architecture adoption also requires applicable independent review and user approval.",
+    "history": "R48 closed/pushed at 49f768023 after two fresh reviews found active-root Link cannot satisfy exact LocalFreshRoute authentication. Cargo remained gated/not run. R47 no-hit remains valid; parent OPEN 0->0. Sol proof worker launched in current R49 session; actual identity acknowledged, exact write lease and no-descendants condition recorded. Luna read-only owner map frozen as bounded NO_SAFE_CODE_SLICE; Sol proof remains RUNNING. Sol proof frozen with WRITES_STOPPED; independent compiler/spec reviews launched with exact receipt leases. Review found R49 rev1 approved-answer pin typo; rev2 corrects the pin only, preserving outcome and read-only scope. Prior all-pins-matched claims are superseded for that dependency. Rev2 corrected only the approved-answer pin; compiler review receipt refreshed and spec reviewer message filed by Luna due role read-only restriction. Both review findings confirm unchanged bounded NO_SAFE_CODE_SLICE. R49 closed at dispatcher-confirmed bounded NO_SAFE_CODE_SLICE; 2400s charged, 0 remaining; closeout frozen.",
     "workers": [
       {
         "id": "/root",
         "role": "Luna primary; read-only source owner map, review/integration/Git",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r49",
-        "receipt": "R49 primary active; no source writes authorized."
+        "receipt": "R49 closeout complete; session ended; no active descendants or source write leases."
       },
       {
         "id": "/root/r49_active_root_admission_proof",
         "role": "Sol proof of admission feasibility",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "prover",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-conversation-2026-10-19-r49",
-        "receipt": "Actual child launch acknowledged by runtime as /root/r49_active_root_admission_proof; prover, requested Sol/high, observed effective model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
+        "receipt": "Frozen R49-SOL-ADMISSION-PROOF rev1; proof SHA 9c8352ac1e4e53c2e0559ef2fcd6e3db1ffcc49517b4456bb7cfbe49d7b06058; handoff SHA 4cce925bb5dbb5d72b57ba0fb7ac4ad8a204ce6dff39df2cefaaeaec344ec67d; WRITES_STOPPED; no descendants; observed model/effort UNKNOWN."
+      },
+      {
+        "id": "/root/r46_compiler_review",
+        "role": "compiler_referee",
+        "state": "STOPPED",
+        "requested_model": "compiler_referee",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19-r49",
+        "receipt": "Compiler review rev2 frozen; receipt SHA 6604e40429c028a8925b587b3ddec69845b31461b90c9b8e4930757404d6c75f; corrected contract path and approved-answer pin verified; WRITES_STOPPED; no descendants."
+      },
+      {
+        "id": "/root/r46_spec_review",
+        "role": "spec_auditor",
+        "state": "STOPPED",
+        "requested_model": "spec_auditor",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-conversation-2026-10-19-r49",
+        "receipt": "Spec reviewer final message verified canonical rev2 SHA aa0823710a5dae66eac151bf3da92ca21448328f4f115f90031b6abedb4f3679 and approved-answer SHA 1c0ea94c359f08496185595448ab9082b4eac174ab247d67d37f316462db145b; Luna filed read-only reviewer message as receipt SHA 77fd5cfa5df3f9590ef38f87fd4716c619fb2724e63b3233634e87989a4e955e; WRITES_STOPPED; no descendants."
       }
     ],
     "leases": [
@@ -68,12 +90,12 @@
       {
         "path": "notes/theory/2026-10-19-r49-active-root-admission.md",
         "owner": "/root/r49_active_root_admission_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r49-proof.md",
         "owner": "/root/r49_active_root_admission_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-19-r49-active-root-owner-map.md",
@@ -88,79 +110,71 @@
       {
         "path": "notes/progress/2026-10-19-r49-compiler-review.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-19-r49-spec-review.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
-    "pending": [
-      {
-        "id": "R49-SOL-ADMISSION-PROOF",
-        "role": "prover",
-        "state": "RUNNING",
-        "worker_id": "/root/r49_active_root_admission_proof",
-        "budget_seconds": 900,
-        "receipt": "Actual child launch acknowledged by runtime as /root/r49_active_root_admission_proof; prover, requested Sol/high, observed effective model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
-      },
-      {
-        "id": "R49-LUNA-OWNER-MAP",
-        "role": "primary",
-        "state": "RESULT",
-        "budget_seconds": 600,
-        "receipt": "a388e5e67db39ec9fbff9fe03577c72610aaabcfd54ce009a4bed063842a2359"
-      },
-      {
-        "id": "R49-COMPILER-REVIEW",
-        "role": "compiler_referee",
-        "state": "RESERVED",
-        "budget_seconds": 300
-      },
-      {
-        "id": "R49-SPEC-REVIEW",
-        "role": "spec_auditor",
-        "state": "RESERVED",
-        "budget_seconds": 300
-      },
-      {
-        "id": "R49-INTEGRATION",
-        "role": "primary",
-        "state": "RESERVED",
-        "budget_seconds": 300
-      }
-    ],
-    "closure": "No existing admission path or missing decision adjudicated yet. Parent remains OPEN 0->0.",
+    "pending": [],
+    "closure": "CLOSED reviewed bounded NO_SAFE_CODE_SLICE. Parent remains OPEN 0->0. Closeout SHA-256 fa1ad4b883b65d69147b0138d7117c6a43fc3422ab0a1b7812b0d45fa409326d.",
     "frozen_artifacts": {
       "R48_closeout": "35de4c623562f01c636b3c5e463f0dd105fe996136fefdf39a5149d5825c7e98",
       "R48_closeout_commit": "49f7680234ddfd2c9f3ad198c81a502ebdc916a1",
       "R49_owner_map": "6cb3926f0fad89d6a220c8d7cff75353fd38d7faf5df6bc2c8632651ebd2652b",
-      "R49_implementation_handoff": "a388e5e67db39ec9fbff9fe03577c72610aaabcfd54ce009a4bed063842a2359"
+      "R49_implementation_handoff": "a388e5e67db39ec9fbff9fe03577c72610aaabcfd54ce009a4bed063842a2359",
+      "R49_contract_rev2": "aa0823710a5dae66eac151bf3da92ca21448328f4f115f90031b6abedb4f3679",
+      "R49_compiler_review": "6604e40429c028a8925b587b3ddec69845b31461b90c9b8e4930757404d6c75f",
+      "R49_spec_review": "77fd5cfa5df3f9590ef38f87fd4716c619fb2724e63b3233634e87989a4e955e",
+      "R49_closeout": "fa1ad4b883b65d69147b0138d7117c6a43fc3422ab0a1b7812b0d45fa409326d"
     }
   },
   "workers": [
     {
       "id": "/root",
       "role": "Luna primary; read-only source owner map, review/integration/Git",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r49",
-      "receipt": "R49 primary active; no source writes authorized."
+      "receipt": "R49 closeout complete; session ended; no active descendants or source write leases."
     },
     {
       "id": "/root/r49_active_root_admission_proof",
       "role": "Sol proof of admission feasibility",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "prover",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r49",
-      "receipt": "Actual child launch acknowledged by runtime as /root/r49_active_root_admission_proof; prover, requested Sol/high, observed effective model/effort UNKNOWN; 900s charged; exact two-path lease; no descendants authorized."
+      "receipt": "Frozen R49-SOL-ADMISSION-PROOF rev1; proof SHA 9c8352ac1e4e53c2e0559ef2fcd6e3db1ffcc49517b4456bb7cfbe49d7b06058; handoff SHA 4cce925bb5dbb5d72b57ba0fb7ac4ad8a204ce6dff39df2cefaaeaec344ec67d; WRITES_STOPPED; no descendants; observed model/effort UNKNOWN."
+    },
+    {
+      "id": "/root/r46_compiler_review",
+      "role": "compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "compiler_referee",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r49",
+      "receipt": "Compiler review rev2 frozen; receipt SHA 6604e40429c028a8925b587b3ddec69845b31461b90c9b8e4930757404d6c75f; corrected contract path and approved-answer pin verified; WRITES_STOPPED; no descendants."
+    },
+    {
+      "id": "/root/r46_spec_review",
+      "role": "spec_auditor",
+      "state": "STOPPED",
+      "requested_model": "spec_auditor",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r49",
+      "receipt": "Spec reviewer final message verified canonical rev2 SHA aa0823710a5dae66eac151bf3da92ca21448328f4f115f90031b6abedb4f3679 and approved-answer SHA 1c0ea94c359f08496185595448ab9082b4eac174ab247d67d37f316462db145b; Luna filed read-only reviewer message as receipt SHA 77fd5cfa5df3f9590ef38f87fd4716c619fb2724e63b3233634e87989a4e955e; WRITES_STOPPED; no descendants."
     }
   ],
   "leases": [
@@ -172,32 +186,32 @@
     {
       "path": "notes/theory/2026-10-19-r49-active-root-admission.md",
       "owner": "/root/r49_active_root_admission_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r49-proof.md",
       "owner": "/root/r49_active_root_admission_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r49-active-root-owner-map.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r49-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r49-compiler-review.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-19-r49-spec-review.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [

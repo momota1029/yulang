@@ -49,11 +49,24 @@ the gated Cargo command did not run. Its test-only ledger and conditional replay
 proof remain unaccepted candidates; the parent remains OPEN at `0 -> 0`. See
 the [R48 closeout](../notes/progress/2026-10-19-r48-closeout.md).
 
-R49 is active under the [active-root admission contract](agent-loop/sprints/active-root-admission-20261019-r49.md).
-It asks whether existing authority supplies a valid producer-to-authentication
-path for active-root recursive Apply, or where the exact missing admission
-decision belongs. Both lanes are read-only; no source edits, builds, tests or
-runtime probes are authorized. The parent remains OPEN at `0 -> 0`.
+R49 closed at a reviewed bounded `NO_SAFE_CODE_SLICE`. Approved active
+recursion supplies a monomorphic Link to the open initializer root, while scoped
+Apply admission requires an installed scheme and an exact-occurrence
+`LocalFreshRoute`; no approved bridge was found. The first missing decision is
+an authority-backed active-Link authentication/admission rule, owned by Luna's
+design and semantic approval process. This is not a claim that recursion is
+ill-typed or globally impossible, and it does not close `Desc`/`D_q` or the
+parent theorem. The parent remains OPEN at `0 -> 0`; no source, fixture, expected
+output, API or semantic changes occurred, and no build/test/runtime ran.
+
+R49 revision 1 had a typo in the approved-answer hash. Revision 2 pins the exact
+unchanged file bytes and supersedes the inaccurate all-pins-matched statement;
+fresh compiler and spec reviews confirm the same bounded result. See the
+[R49 closeout](../notes/progress/2026-10-19-r49-closeout.md),
+[contract](agent-loop/sprints/active-root-admission-20261019-r49.md), and
+review receipts. The sprint is closed with 2,400 seconds charged and no remaining
+budget. Further design work needs a new Luna grant; semantic or architecture
+adoption needs the applicable review and user approval.
 
 R22's reviewed proof and falsifier artifacts preserve the original source scope:
 the fixed successful runtime path carries the response handle through

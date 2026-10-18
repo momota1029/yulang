@@ -1,6 +1,6 @@
 # Sprint R49 — active-root Apply admission feasibility
 
-Status: ACTIVE, revision 1
+Status: ACTIVE, revision 2
 Baseline: `49f7680234ddfd2c9f3ad198c81a502ebdc916a1`
 Branch: `research/simple-sub-intrusion`
 Parent: full inference/evaluator theorem and original Simple-sub A/B, original
@@ -60,7 +60,7 @@ before activation and record all listed hashes.
 | Dependency | SHA-256 | Role |
 |---|---|---|
 | `notes/design/2026-10-10-local-self-recursive-binding.md` | `38d42183fdc4f2c0136112d8b305816241d8f449367b473e4de3a5135dc49895` | Authoritative monomorphic active-root source decision |
-| `questions/2026-10-10-local-recursive-binding-scope/approved-answer.md` | `1c0ea94c359f08496185594848ab9082b4eac174ab247d67d37f316462db145b` | User-approved scope decision |
+| `questions/2026-10-10-local-recursive-binding-scope/approved-answer.md` | `1c0ea94c359f08496185595448ab9082b4eac174ab247d67d37f316462db145b` | User-approved scope decision |
 | R48 closeout | `35de4c623562f01c636b3c5e463f0dd105fe996136fefdf39a5149d5825c7e98` | Reviewed obstruction and no-test disposition |
 | R48 compiler review | `b91fa227bd1a686ab08b9a5fa492fc69a2530ba4671f158fd5f1c0563b513fea` | Exact Link/authentication blocker and owner audit |
 | R48 spec review | `4ec09e82ae00e13f47332178b64dde325c4c1baf8bdbc84db92e06dc0943d53c` | Authority/scope confirmation |
@@ -135,3 +135,15 @@ Luna revalidated the listed dependencies and the R48 closeout against the
 current worktree after R48 closeout commit `49f7680234ddfd2c9f3ad198c81a502ebdc916a1`; exact HEAD, branch,
 session, worker identity and current-state resource/lease records are in
 `tasks/agent-loop/current.json`. R49 grants only the output leases above.
+
+## Revision 2 — dependency pin correction
+
+Review found that revision 1 transcribed the approved-answer SHA-256 incorrectly.
+The immutable file at
+`questions/2026-10-10-local-recursive-binding-scope/approved-answer.md` hashes to
+`1c0ea94c359f08496185595448ab9082b4eac174ab247d67d37f316462db145b`. No
+approved-answer bytes or semantics changed. Revision 2 corrects only this pin;
+revision 1's claims that every dependency hash matched are superseded for this
+one dependency. Review must revalidate against revision 2 and the corrected exact
+byte hash. The fixed outcome, source domain, read-only boundary, leases, budget
+and parent status are unchanged.
