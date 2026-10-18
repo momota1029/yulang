@@ -1,206 +1,80 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ENDED",
-  "session": "current-session",
+  "phase": "ACTIVE",
+  "session": "current-session-r35",
   "active_sprint": {
-    "id": "active-capture-authenticated-join-20261018-r34",
-    "contract": "tasks/agent-loop/sprints/active-capture-authenticated-join-20261018-r34.md",
-    "revision": 2,
-    "state": "CLOSED",
-    "baseline": "d281632f4ba604340d88ed0bdcb01b0921960910",
-    "parent": "Full goal: implement Yulang type inference and executor with proofs. Active-capture source bridge for intrusion/principality/N-Transport; R30 j0/a0 remains independently OPEN.",
-    "fixed_outcome": "Authenticate active initializer Link -> checking/source event -> signed pairs/groups -> helper capture/publication -> both retained FreshUse maps from existing records, or record first unjoinable edge. No C/D source law, semantic adoption, production observer or allocation change.",
+    "id": "scoped-apply-extrusion-20261018-r35",
+    "contract": "tasks/agent-loop/sprints/scoped-apply-extrusion-20261018-r35.md",
+    "revision": 1,
+    "state": "ACTIVE",
+    "baseline": "3f3bfca3a1e37cd8fa574e40ea6382bac6b1c1d9",
+    "parent": "Full goal: implement Yulang type inference and executor with proofs; original Simple-sub intrusion/principality and F1/FK1, N-Transport, Call, soundness remain intact.",
+    "fixed_outcome": "Construct/review authentic Apply-local C/D declarations and scope/dependency/capture incidence through complete Call and two helper FreshUse frames, or record the first exact missing edge. In parallel execute a bounded native provenance join. No production promotion.",
     "resources": {
-      "cap_seconds": 1680,
-      "charged_seconds": 1200,
-      "available_seconds": 480,
-      "allocation": "R1 native600 fully charged (duration UNKNOWN) + R2 native600 fully charged (duration UNKNOWN). Review/integration480 unused. Astra0."
+      "cap_seconds": 2940,
+      "charged_seconds": 0,
+      "available_seconds": 2940,
+      "allocation": "proof900 + native900 + independent falsification300 + proof review240 + compiler review240 + spec review180 + integration180. Astra0; one focused Cargo process; no probes/builds."
     },
-    "next_action": "R34 closed FAILED and unintegrated. No native code remains. Candidate code/test files are restored; only their hashes, author report/handoff, and compiler review findings are retained (not an exact patch). Next premise: an authentic source-owned C/D introduction; apply R32 retention once supplied.",
-    "history": "R34 closeout notes/progress/2026-10-18-r34-closeout.md SHA 46da8e6c...c190. Candidate source/test hashes and review findings are recorded; exact diff was not preserved. Parent0->0. Both test processes compile-failed before assertions; fresh compiler review BLOCKED pair-to-capture/map and locality-to-final-identity claims.",
+    "dependencies": {
+      "R34_contract": "03f7cb94f79a2cfc0d17e67d1fa866f4b6147fdb5221cc4f5f0e12fd91098283",
+      "R33_proof": "c9edf92f63511617dda2ce99cef668491adbc1894a4ab2a5f9e27148350d7a9c",
+      "Generalize_proof": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240",
+      "inference_principles": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81",
+      "local_recursion_design": "38d42183fdc4f2c0136112d8b305816241d8f449367b473e4de3a5135dc49895",
+      "intrusion_occurrence_design": "531a9efae0ab7e03bfbd2f41cd7da86078e2fc8e67675d2c5c941972409f4e89",
+      "compositional_call_candidate": "1cc473e9d0cb454f3f6725b7ce103456af6011bffd9729e3bbf3445c688ac9bb",
+      "candidate_source.rs": "66b8f88bad86755c2716cfa7e9c35eabc7031d408b774358ca72446db2b3180c",
+      "candidate_scheme.rs": "03b44d0f8280c1ae79f66b5528f1bd0b0ffebac46b312ef7ffce605f702f48dd",
+      "candidate_local_self_recursion.rs": "a6406f3eef2b25844272da9cbe121277001760d004f733029dcc3f600aa79c7a"
+    },
+    "next_action": "R35 active: dispatch proof and native continuation under exact leases; preserve parent0->0 until genuine original theorem evidence.",
+    "history": "R34 closed FAILED at parent0->0; code restored and pushed through 3f3bfca3a. R35 contract fixed at current baseline; no prior budget carries.",
     "git_checkpoint": {
-      "commit": "c54e2888864742dd304dd6557d370afafef44797",
+      "commit": "3f3bfca3a1e37cd8fa574e40ea6382bac6b1c1d9",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "Last pushed checkpoint c54e28888; final R34 closeout, report and task state are committed at 8cdc0d62e."
+      "receipt": "R34 closeout pushed before R35 start."
     },
     "workers": [
       {
         "id": "/root",
-        "role": "Luna-primary/R34 closeout and Git owner",
-        "state": "STOPPED",
+        "role": "Luna-primary/R35 authority and Git owner",
+        "state": "RUNNING",
         "requested_model": "Luna",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "R34 closeout and candidate patch frozen; baseline code restored and final record checkpoint prepared. This active session work is ending."
-      },
-      {
-        "id": "/root/r34_dispatch",
-        "role": "next_action_selector",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "R34 start dispatcher returned native authenticated join; proof remained blocked at C/D source introduction."
-      },
-      {
-        "id": "/root/r34_native_join",
-        "role": "implementer",
-        "state": "STOPPED",
-        "requested_model": "Luna",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "R34 rev1 writer stopped after compile failure before assertions; candidate later superseded by rev2."
-      },
-      {
-        "id": "/root/r34_failure_dispatch",
-        "role": "next_action_selector",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Recommended rev2 bounded compile repair; first native600 conservatively charged due unknown active duration."
-      },
-      {
-        "id": "/root/r34_native_repair",
-        "role": "implementer",
-        "state": "STOPPED",
-        "requested_model": "Luna",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "R34 rev2 writer stopped after sole added Cargo invocation failed on known hir borrow/move compile issue before assertions; patched after run, no rerun. Full native600 charged due unknown active duration."
-      },
-      {
-        "id": "/root/r34_final_dispatch",
-        "role": "next_action_selector",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "Recommended failed closeout, preserve candidate patch/review, restore code, no third Cargo."
-      },
-      {
-        "id": "/root/r34_candidate_review",
-        "role": "fresh compiler_referee",
-        "state": "STOPPED",
-        "requested_model": "Sol",
-        "requested_effort": "high",
-        "observed_model": "UNKNOWN",
-        "observed_effort": "UNKNOWN",
-        "session": "current-session",
-        "receipt": "BLOCKING: pair endpoints not joined through capture/publication to both maps; locality-based final nonsharing unsupported; negative controls insufficient. Candidate has no test execution evidence."
+        "session": "current-session-r35",
+        "receipt": "Current primary session began R35 from the user’s continuation; contract fixed and start dispatcher recommendation received."
       }
     ],
     "leases": [],
     "pending": [],
-    "ready_next_work": {
-      "id": "R35-SOURCE-INTRODUCTION",
-      "state": "PROPOSED",
-      "owner": "/root",
-      "artifact": "Find or obtain the authentic Generalize §3.3 C/D introduction (sort, original scope/telescope, typed dependencies and capture action); then apply R32 retention to the unchanged complete Call claim. Any new native join needs a new bounded contract."
-    },
-    "legacy_reconciliation": {
-      "required": false,
-      "receipt": "All R34 writers, dispatchers and compiler reviewer are terminal; candidate code paths restored to pinned baseline; no active leases."
-    },
-    "contract_sha256": "03f7cb94f79a2cfc0d17e67d1fa866f4b6147fdb5221cc4f5f0e12fd91098283",
-    "sha256": "50d33c6935cf02943d8f316464e7ea3c3496d05b79b3d55b1760331e16cf65c5"
+    "ready_next_work": null,
+    "contract_sha256": "638b4b884a4927eac82f1c24ccbd9bc312a8b5f87ff6627845197b4a3c73e3b8"
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna-primary/R34 closeout and Git owner",
-      "state": "STOPPED",
+      "role": "Luna-primary/R35 authority and Git owner",
+      "state": "RUNNING",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "R34 closeout and candidate patch frozen; baseline code restored and final record checkpoint prepared. This active session work is ending."
-    },
-    {
-      "id": "/root/r34_dispatch",
-      "role": "next_action_selector",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "R34 start dispatcher returned native authenticated join; proof remained blocked at C/D source introduction."
-    },
-    {
-      "id": "/root/r34_native_join",
-      "role": "implementer",
-      "state": "STOPPED",
-      "requested_model": "Luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "R34 rev1 writer stopped after compile failure before assertions; candidate later superseded by rev2."
-    },
-    {
-      "id": "/root/r34_failure_dispatch",
-      "role": "next_action_selector",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Recommended rev2 bounded compile repair; first native600 conservatively charged due unknown active duration."
-    },
-    {
-      "id": "/root/r34_native_repair",
-      "role": "implementer",
-      "state": "STOPPED",
-      "requested_model": "Luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "R34 rev2 writer stopped after sole added Cargo invocation failed on known hir borrow/move compile issue before assertions; patched after run, no rerun. Full native600 charged due unknown active duration."
-    },
-    {
-      "id": "/root/r34_final_dispatch",
-      "role": "next_action_selector",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "Recommended failed closeout, preserve candidate patch/review, restore code, no third Cargo."
-    },
-    {
-      "id": "/root/r34_candidate_review",
-      "role": "fresh compiler_referee",
-      "state": "STOPPED",
-      "requested_model": "Sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "session": "current-session",
-      "receipt": "BLOCKING: pair endpoints not joined through capture/publication to both maps; locality-based final nonsharing unsupported; negative controls insufficient. Candidate has no test execution evidence."
+      "session": "current-session-r35",
+      "receipt": "Current primary session began R35 from the user’s continuation; contract fixed and start dispatcher recommendation received."
     }
   ],
   "leases": [],
   "pending": [],
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md, and tools/__pycache__/; no staging.",
-  "history": "R34 closed FAILED; original parent0->0, R30 independently OPEN. Code restored, candidate identities/review findings retained. See notes/progress/2026-10-18-r34-closeout.md.",
-  "sha256": "5e7c99aafe4cb59cabae3ce399f938e50a62ec0bb79a199fc1c53768c81a4703"
+  "history": "R34 FAILED and closed at parent0->0; R35 ACTIVE. See R34 closeout and R35 contract.",
+  "sha256": "5e7c99aafe4cb59cabae3ce399f938e50a62ec0bb79a199fc1c53768c81a4703",
+  "legacy_reconciliation": {
+    "required": false,
+    "receipt": "R34 workers terminal, leases cleared, and candidate code restored at the R35 pinned baseline."
+  }
 }
