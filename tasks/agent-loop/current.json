@@ -67,24 +67,24 @@
     {
       "id": "/root/r63_compiler_review",
       "role": "Fresh independent R64 compiler/source-owner reviewer; read-only, no artifact lease",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "R64 revision2 candidate reviewed before reads; NO_READ / NO_WRITE / NO_DESCENDANTS. Requested role compiler_referee, 200s; requested/observed model-effort UNKNOWN for this assignment; explicit activation pending."
+      "session": "current-conversation-2026-10-19-r64",
+      "receipt": "Current R64 compiler-review launch receipt; read-only 200s; exact rev1/rev2/proof/inbox hashes and 22 pins; observed model/effort UNKNOWN/UNKNOWN; no writes/Git/descendants; owner artifacts absent."
     },
     {
       "id": "/root/r63_spec_review",
       "role": "Fresh independent R64 spec/domain reviewer; read-only, no artifact lease",
-      "state": "WAITING",
+      "state": "RUNNING",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "session": "UNKNOWN",
-      "receipt": "R64 revision2 candidate reviewed before reads; NO_READ / NO_WRITE / NO_DESCENDANTS. Requested role spec_auditor, 200s; requested/observed model-effort UNKNOWN for this assignment; explicit activation pending."
+      "session": "current-conversation-2026-10-19-r64",
+      "receipt": "Current R64 spec-review launch receipt; read-only 200s; exact rev1/rev2/proof/inbox hashes and 22 pins; observed model/effort UNKNOWN/UNKNOWN; no writes/Git/descendants; owner artifacts absent."
     }
   ],
   "leases": [
