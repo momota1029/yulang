@@ -25,7 +25,7 @@
     },
     "next_action": "Commit/push rev4 contract and state, then resume exact implementer lease for the two test-only fixes. Freeze hashes; same reviewer CLEAN required before one focused runtime_resume test.",
     "history": "R18 runtime research path completed at d51baa6db; independent review CLEAN, runtime_resume 17/17. R17 details are in the R17 closeout pointer in top-level history. R19 source/proof characterization commits 6748039fa and 118375dce independently CLEAN; original parent conditions remain closure0.",
-    "last_stage_receipt": "Rev3 delta review BLOCKING only on malformed sibling source and test partial-move/use error; local invocation join and preserved R18 route repaired. Dispatcher selected rev4 test-only repair, +600s (cap3900), exact test+handoff lease; no tests run.",
+    "last_stage_receipt": "Rev4 writer stopped on exact two paths. Balanced sibling Catch and borrowed result changes frozen; hashes recorded in worker receipt. Same independent referee performs 180s delta review. No tests/build/formatter until CLEAN.",
     "git_checkpoint": {
       "commit": "118375dce",
       "branch": "research/simple-sub-intrusion",
@@ -72,13 +72,13 @@
     {
       "id": "/root/r19_local_binding_runtime",
       "role": "implementer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Active-work acknowledgement received for rev4 SHA d65e86aadd85f814b69b6ba4648330ddb50ef9571ed89b854eedbe8d9da8276d. Exact two-path lease runtime_resume.rs + new handoff-r3; repair120. Fix valid sibling Catch close and borrow sibling_result; no tests/build/format. program.rs/machine.rs frozen."
+      "receipt": "Rev4 test-only repair frozen; writes stopped. runtime_resume.rs ea4579c34b0c01a8e109a6b26cb426ac1fb337a87d7ff4af66a4969010a784db; handoff-r3 89dd9707b37a10ea1b54d1ca9fd0f16dbab356c6506338d0ba848cd04cf49129. program.rs/machine.rs remain pinned unchanged. No tests/build/format. Repair120 cap charged; actual usage UNKNOWN."
     },
     {
       "id": "/root/r18_runtime_implementation",
@@ -116,13 +116,13 @@
     {
       "id": "/root/r19_runtime_lineage_review",
       "role": "compiler_referee",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Rev3 delta review BLOCKING, completed. Two runtime-path findings closed; remaining malformed sibling source and test partial-move/use error are limited to runtime_resume.rs. Rev4 permits only exact test-only repair followed by same reviewer delta review."
+      "receipt": "Rev4 test-only delta review active; verify balanced accepted sibling source, static receipt gate, borrowed result/no partial move, and all frozen R18/R19 code pins. No tests/build/Git."
     }
   ],
   "leases": [
@@ -194,7 +194,7 @@
     {
       "path": "tools/inference-playground/tests/runtime_resume.rs",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-operation-v1-runtime-resume-implementation.md",
@@ -294,7 +294,7 @@
     {
       "path": "tasks/agent-loop/inbox/20261018-operation-v1-local-binding-runtime-r3.md",
       "owner": "/root/r19_local_binding_runtime",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [],
@@ -309,5 +309,5 @@
     "required": false,
     "receipt": "Legacy writer leases reconciled as stopped in prior r17 state; active r18 lanes are current-session launches."
   },
-  "next_action": "Await dispatcher delta on whether to issue a versioned minimal test-only repair envelope; no tests until a revised frozen target gets CLEAN independent review."
+  "next_action": "Await same-reviewer rev4 delta result. If CLEAN, Luna runs exactly cargo test -p yu-playground --test runtime_resume once; then integrate. If BLOCKING, do not test or accept."
 }
