@@ -34,7 +34,7 @@
       "overrun_seconds": 0
     },
     "next_action": "Resolve authority applicability and owner protocol for active monomorphic Link versus scoped LocalFreshRoute; stop at proof/map result, then independent review.",
-    "history": "R48 closed/pushed at 49f768023 after two fresh reviews found active-root Link cannot satisfy exact LocalFreshRoute authentication. Cargo remained gated/not run. R47 no-hit remains valid; parent OPEN 0->0. Sol proof worker launched in current R49 session; actual identity acknowledged, exact write lease and no-descendants condition recorded.",
+    "history": "R48 closed/pushed at 49f768023 after two fresh reviews found active-root Link cannot satisfy exact LocalFreshRoute authentication. Cargo remained gated/not run. R47 no-hit remains valid; parent OPEN 0->0. Sol proof worker launched in current R49 session; actual identity acknowledged, exact write lease and no-descendants condition recorded. Luna read-only owner map frozen as bounded NO_SAFE_CODE_SLICE; Sol proof remains RUNNING.",
     "workers": [
       {
         "id": "/root",
@@ -78,12 +78,12 @@
       {
         "path": "notes/progress/2026-10-19-r49-active-root-owner-map.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261019-r49-implementation.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "notes/progress/2026-10-19-r49-compiler-review.md",
@@ -108,8 +108,9 @@
       {
         "id": "R49-LUNA-OWNER-MAP",
         "role": "primary",
-        "state": "RUNNING",
-        "budget_seconds": 600
+        "state": "RESULT",
+        "budget_seconds": 600,
+        "receipt": "a388e5e67db39ec9fbff9fe03577c72610aaabcfd54ce009a4bed063842a2359"
       },
       {
         "id": "R49-COMPILER-REVIEW",
@@ -133,7 +134,9 @@
     "closure": "No existing admission path or missing decision adjudicated yet. Parent remains OPEN 0->0.",
     "frozen_artifacts": {
       "R48_closeout": "35de4c623562f01c636b3c5e463f0dd105fe996136fefdf39a5149d5825c7e98",
-      "R48_closeout_commit": "49f7680234ddfd2c9f3ad198c81a502ebdc916a1"
+      "R48_closeout_commit": "49f7680234ddfd2c9f3ad198c81a502ebdc916a1",
+      "R49_owner_map": "6cb3926f0fad89d6a220c8d7cff75353fd38d7faf5df6bc2c8632651ebd2652b",
+      "R49_implementation_handoff": "a388e5e67db39ec9fbff9fe03577c72610aaabcfd54ce009a4bed063842a2359"
     }
   },
   "workers": [
@@ -209,8 +212,9 @@
     {
       "id": "R49-LUNA-OWNER-MAP",
       "role": "primary",
-      "state": "RUNNING",
-      "budget_seconds": 600
+      "state": "RESULT",
+      "budget_seconds": 600,
+      "receipt": "a388e5e67db39ec9fbff9fe03577c72610aaabcfd54ce009a4bed063842a2359"
     },
     {
       "id": "R49-COMPILER-REVIEW",
