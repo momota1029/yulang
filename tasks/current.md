@@ -2,7 +2,7 @@
 
 Date: 2026-10-18
 Branch: `research/simple-sub-intrusion`
-Status: full objective remains active. R22 reduced the fixed runtime specimen to a conditional handle-preservation induction, but the original `A_decl` source output/provider map is still missing; parent closure remains 0. R22's trace was rejected at independent review and its incomplete partial repair was discarded. R23's original frame inventory, falsifier and cut-formation packets are frozen and CLEAN within their bounded scopes; the parent theorem still has closure 0. R24 now targets the actual caller-owned registry/license/joint-world guards for the legitimate `Sigma0` instance and their hereditary phase actions. No dependent production code is authorized until a source/native consumer invariant is proved.
+Status: full objective remains active. R22 reduced the fixed runtime specimen to a conditional handle-preservation induction, but the original `A_decl` source output/provider map is still missing; parent closure remains 0. R22's trace was rejected at independent review and its incomplete partial repair was discarded. R23's original frame inventory, falsifier and cut-formation packets are frozen and CLEAN within their bounded scopes; the parent theorem still has closure 0. R24 located the missing caller-context binding. R25 added and reviewed transport-only HIR retention for an opaque caller payload. No original mathematical condition has been discharged: authentic caller introduction, operation/member/signature correspondence, phase actions and the unchanged parent theorem remain OPEN.
 
 ## Current checkpoint (2026-10-18)
 
@@ -17416,13 +17416,13 @@ counterexample is established; H1/U stay OPEN, H3/P disabled, and production/F5
 separate.
 # Active research sprint — R25
 
-The caller selected the caller-supplied evidence route. R25 now targets
-transport of an unvalidated caller context bound to one exact parsed source,
-module and HIR-admitted top-level binding declaration, retained in the same HIR
-used by inference and runtime. Its payload is owned, `Send + Sync + 'static`;
-binding metadata is immutable while payload internals are not assumed immutable.
-This reduces only the source-binding obstruction: authentic
-`j0/a0/license`, phase actions, `JointWF`, and the unchanged parent theorem
-remain open. See
+R25 closed with a reviewed transport-only HIR path for a caller-supplied opaque
+payload, bound to one exact parse root, module and HIR-admitted top-level
+binding declaration. The payload is owned, `Send + Sync + 'static`; binding
+metadata is immutable while payload internals are not assumed immutable.
+This adds no mathematical theorem conditions discharged: authentic
+`j0/a0/license`, operation/member/signature correspondence, phase actions,
+`JointWF`, and the unchanged parent theorem remain open. The current playground
+still supplies `SemanticImports::empty()`. See
 [`caller-evidence-source-binding-20261018-r25.md`](agent-loop/sprints/caller-evidence-source-binding-20261018-r25.md)
-and `tasks/agent-loop/current.json` for the live packet and leases.
+and [R25 closeout](../notes/progress/2026-10-18-r25-caller-evidence-binding-closeout.md).

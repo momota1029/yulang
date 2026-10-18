@@ -15,7 +15,8 @@ pub use module::{
     DefId, DefinitionRootId, ExpressionRootId, SourceRootId, FileId, FileKey, HirAvailabilityError, HirBinding, HirDiagnostic,
     HirDiagnosticId, HirError, HirErrorAttachment, HirErrorId, HirErrorKind, HirErrorOrigin,
     HirItem, HirModule, HirName, HirOccurrenceId, HirParameter, HirParameterId, HirVisibility,
-    ModuleId, ModuleIdentity, NameResolution, ResolvedExpr, SemanticImports, lower_module,
+    CallerEvidenceBinding, ModuleId, ModuleIdentity, NameResolution, ResolvedExpr, SemanticImports,
+    lower_module,
 };
 
 pub use module::HirLocalId;

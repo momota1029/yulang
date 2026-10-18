@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/caller-evidence-source-binding-20261018-r25.md",
     "revision": 2,
     "sha256": "586f89e2a6cb4f0d6913e6e57c0d36cb625cd70e9d58ef214846c1db9796bf97",
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "f7edada810d94a320fc7d5a3e785e407a0bfb01c; original CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017 remains OPEN/closure0.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original source domain and quantifiers unchanged; OPEN/closure0.",
     "fixed_outcome": "Reviewed transport lemma and reversible HIR retention of caller-supplied opaque evidence bound to exact parse/module/declaration; transport only, not semantic validity or JointWF.",
@@ -16,15 +16,15 @@
       "cap_seconds": 2400,
       "charged_seconds": 2400,
       "available_seconds": 0,
-      "allocation": "proof720 + Luna design360 + staged HIR implementation600 + fresh review480 + Luna integration240. Astra0. One heavy test process."
+      "allocation": "Proof420/720; design360; implementation600; fresh review480; checks/integration240. Astra0."
     },
-    "next_action": "Implement source/module/recognized top-level declaration binding in HIR and focused structural tests; proof proceeds independently. Review the coherent frozen implementation and proof before integration.",
-    "history": "User selected caller-supplied evidence route. R24 found no actual j0/a0/license tuple. HIR already retains parse-branded SourceNodeKeys; candidate and runtime retain same HIR. R25 transports unvalidated context only; actual semantic evidence, phase actions, JointWF and parent remain OPEN/closure0. Design review rev1 found two major issues: declaration-anchor validation and Send+Sync/payload immutability distinction. Contract/design rev2 repairs these without changing the fixed outcome; independent delta review pending. Design v2 CLEAN from fresh independent review: exact HIR-admitted top-level binding key; Send+Sync + static retained payload; immutable metadata only. Implementation activated on exact HIR/test leases; solver/runtime remain untouched.",
+    "next_action": "R25 integrated CLEAN after review. Start R26 on actual caller evidence intake and original source registration; no new code lease until a real supplier/context is identified.",
+    "history": "User selected caller-supplied evidence route. R24 found no actual j0/a0/license tuple. HIR already retains parse-branded SourceNodeKeys; candidate and runtime retain same HIR. R25 transports unvalidated context only; actual semantic evidence, phase actions, JointWF and parent remain OPEN/closure0. Design review rev1 found two major issues: declaration-anchor validation and Send+Sync/payload immutability distinction. Contract/design rev2 repairs these without changing the fixed outcome; independent delta review pending. Design v2 CLEAN from fresh independent review: exact HIR-admitted top-level binding key; Send+Sync + static retained payload; immutable metadata only. Implementation activated on exact HIR/test leases; solver/runtime remain untouched. Proof rev1 frozen, conditional allocation/key transport only; independent authenticity/stable-interpretation premises remain open. HIR implementation frozen; 5 focused tests pass. Full yu-hir has two baseline failures, reproduced on clean f7edada81. Package fmt check shows broad baseline drift; new test rustfmt passes. R25 closeout: proof and HIR transport implementation independently CLEAN; focused 5 tests pass, HIR unit 130 pass. Two simple_module_resolution failures match clean baseline f7edada81; package format check has broad preexisting drift, focused new test rustfmt passes. Original parent conditions 0 -> 0, closure0. Dispatcher recommends R26 actual evidence intake/source correspondence; no safe code slice until supplier and operation mapping are found.",
     "git_checkpoint": {
-      "commit": "f7edada810d94a320fc7d5a3e785e407a0bfb01c",
+      "commit": "00620fafc",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R25 initial contract/state pushed as f9da9333a; frozen design/current update pending next checkpoint."
+      "receipt": "R25 conditional proof/handoff checkpoint pushed; reviewed HIR implementation and R25 closeout integration now ready for coherent commit."
     },
     "workers": [
       {
@@ -36,18 +36,18 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Owns R25 implementation, tests, integration and Git under exact contract leases."
+        "receipt": "R25 adjudicated CLEAN and integrating exact reviewed code; primary Git owner."
       },
       {
         "id": "/root/r25_transport_proof",
         "role": "prover",
-        "state": "RUNNING",
+        "state": "STOPPED",
         "requested_model": "Sol",
         "requested_effort": "high",
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Exact proof/handoff leases; contract rev2 acknowledged by message pending response; 720s cap."
+        "receipt": "Frozen conditional proof; charged420/720; parent application remains conditional, descendants0."
       },
       {
         "id": "/root/r25_design_review",
@@ -58,7 +58,18 @@
         "observed_model": "UNKNOWN",
         "observed_effort": "UNKNOWN",
         "session": "current-session",
-        "receipt": "Design v2 CLEAN; first review found and required repairs for declaration association and payload Send+Sync/deep immutability; no implementation reviewed."
+        "receipt": "Design v2 CLEAN; two initial major findings repaired before implementation activation."
+      },
+      {
+        "id": "/root/r25_implementation_review",
+        "role": "compiler_referee",
+        "state": "STOPPED",
+        "requested_model": "Sol",
+        "requested_effort": "medium",
+        "observed_model": "UNKNOWN",
+        "observed_effort": "UNKNOWN",
+        "session": "current-session",
+        "receipt": "Fresh proof+HIR implementation review CLEAN; no blocking/major/minor findings."
       }
     ],
     "leases": [
@@ -85,72 +96,47 @@
       {
         "path": "notes/theory/2026-10-18-caller-evidence-source-binding.md",
         "owner": "/root/r25_transport_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-caller-evidence-source-binding.md",
         "owner": "/root/r25_transport_proof",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/src/module.rs",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/src/lib.rs",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "crates/yu-hir/tests/semantic_import_binding.rs",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       },
       {
         "path": "tasks/agent-loop/inbox/20261018-semantic-imports-evidence-binding.md",
         "owner": "/root",
-        "state": "HELD"
+        "state": "FROZEN"
       }
     ],
-    "pending": [
-      {
-        "id": "R25-CALLER-EVIDENCE-TRANSPORT",
-        "state": "RUNNING",
-        "owner": "/root/r25_transport_proof",
-        "artifact": "Conditional transport lemma preserves owning allocation identity and source keys; payload-content immutability is not assumed."
-      },
-      {
-        "id": "R25-EVIDENCE-BINDING-DESIGN",
-        "state": "DONE",
-        "owner": "/root",
-        "artifact": "Design v2 CLEAN after two major repairs; payload Send+Sync/static, top-level HIR declaration key, structural only."
-      },
-      {
-        "id": "R25-HIR-RETENTION-IMPLEMENTATION",
-        "state": "RUNNING",
-        "owner": "/root",
-        "artifact": "Luna activates exact HIR API/test leases after CLEAN design review."
-      },
-      {
-        "id": "R25-IMPLEMENTATION-REVIEW",
-        "state": "STAGED",
-        "owner": "fresh compiler_referee",
-        "artifact": "Review coherent frozen proof + HIR implementation; review must not be performed by their authors."
-      }
-    ],
+    "pending": [],
     "ready_next_work": {
-      "id": "R25-CALLER-EVIDENCE-TRANSPORT",
+      "id": "R26-CALLER-AUTHENTIC-EVIDENCE-INTAKE",
       "state": "READY",
-      "owner": "Sol/prover after initial checkpoint",
-      "artifact": "Prove exact identity/context transport implication and apply to source-binding boundary without closing semantic guards or parent."
+      "owner": "Luna after R25 checkpoint",
+      "artifact": "Find actual supplier and introduction evidence for the original (W0,xi,h0) source registration; apply to original guards or freeze the exact first missing input/owner. Implementation code remains NO_SAFE_CODE_SLICE pending supplier and operation/member/signature correspondence."
     },
     "legacy_reconciliation": {
       "required": false,
       "receipt": "R24 proof/source/review lanes stopped; only explicitly quarantined untracked paths remain excluded."
     }
   },
-  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. R20 runtime/HIR specimen gate CLEAN, 18/18; source/native FreshUse incidence still missing. R21 review CLEAN for rev3 document conformance only; A unadopted and partial, B blocked. R22 closeout: conditional runtime response-handle induction; source D1/A_decl output/provider map not proved; trace findings/repair failure recorded; parent remains OPEN/closure0. R23 closed at bounded source-owner outcome after fresh independent CLEAN review: no authentic fixed K_decl; no admitted refutation; parent closure0. R24 now targets actual caller-owned Sigma0 registration/license/JointWF guards and hereditary phase actions without narrowing the parent. R25 active: caller-selected unvalidated evidence transport; design and proof in parallel, HIR implementation staged for independent design review; parent remains OPEN/closure0.",
+  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. R20 runtime/HIR specimen gate CLEAN, 18/18; source/native FreshUse incidence still missing. R21 review CLEAN for rev3 document conformance only; A unadopted and partial, B blocked. R22 closeout: conditional runtime response-handle induction; source D1/A_decl output/provider map not proved; trace findings/repair failure recorded; parent remains OPEN/closure0. R23 closed at bounded source-owner outcome after fresh independent CLEAN review: no authentic fixed K_decl; no admitted refutation; parent closure0. R24 now targets actual caller-owned Sigma0 registration/license/JointWF guards and hereditary phase actions without narrowing the parent. R25 active: caller-selected unvalidated evidence transport; design and proof in parallel, HIR implementation staged for independent design review; parent remains OPEN/closure0. R25 completed as reviewed transport-only slice; no parent-theorem condition discharged. R26 next investigates actual evidence supplier and introduction; implementation waits until an authentic source/context and operation correspondence are located.",
   "quarantine_note": "Preserve and exclude notes/theory/2026-10-18-replay-constructor-lineage.md, notes/theory/2026-10-18-replay-constructor-separate-test.md, tasks/agent-loop/inbox/20261018-replay-constructor-separate-test-proof.md, tasks/agent-loop/inbox/20261018-fixed-source-suffix-provenance.md (R22 stale trace hashes), and tools/__pycache__/; no staging.",
   "workers": [
     {
@@ -162,18 +148,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Owns R25 implementation, tests, integration and Git under exact contract leases."
+      "receipt": "R25 adjudicated CLEAN and integrating exact reviewed code; primary Git owner."
     },
     {
       "id": "/root/r25_transport_proof",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Exact proof/handoff leases; contract rev2 acknowledged by message pending response; 720s cap."
+      "receipt": "Frozen conditional proof; charged420/720; parent application remains conditional, descendants0."
     },
     {
       "id": "/root/r25_design_review",
@@ -184,7 +170,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "Design v2 CLEAN; first review found and required repairs for declaration association and payload Send+Sync/deep immutability; no implementation reviewed."
+      "receipt": "Design v2 CLEAN; two initial major findings repaired before implementation activation."
+    },
+    {
+      "id": "/root/r25_implementation_review",
+      "role": "compiler_referee",
+      "state": "STOPPED",
+      "requested_model": "Sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "session": "current-session",
+      "receipt": "Fresh proof+HIR implementation review CLEAN; no blocking/major/minor findings."
     }
   ],
   "leases": [
@@ -211,71 +208,46 @@
     {
       "path": "notes/theory/2026-10-18-caller-evidence-source-binding.md",
       "owner": "/root/r25_transport_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-caller-evidence-source-binding.md",
       "owner": "/root/r25_transport_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-hir/src/module.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-hir/src/lib.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-hir/tests/semantic_import_binding.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-semantic-imports-evidence-binding.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
-  "pending": [
-    {
-      "id": "R25-CALLER-EVIDENCE-TRANSPORT",
-      "state": "RUNNING",
-      "owner": "/root/r25_transport_proof",
-      "artifact": "Conditional transport lemma preserves owning allocation identity and source keys; payload-content immutability is not assumed."
-    },
-    {
-      "id": "R25-EVIDENCE-BINDING-DESIGN",
-      "state": "DONE",
-      "owner": "/root",
-      "artifact": "Design v2 CLEAN after two major repairs; payload Send+Sync/static, top-level HIR declaration key, structural only."
-    },
-    {
-      "id": "R25-HIR-RETENTION-IMPLEMENTATION",
-      "state": "RUNNING",
-      "owner": "/root",
-      "artifact": "Luna activates exact HIR API/test leases after CLEAN design review."
-    },
-    {
-      "id": "R25-IMPLEMENTATION-REVIEW",
-      "state": "STAGED",
-      "owner": "fresh compiler_referee",
-      "artifact": "Review coherent frozen proof + HIR implementation; review must not be performed by their authors."
-    }
-  ],
+  "pending": [],
   "ready_next_work": {
-    "id": "R25-IMPLEMENTATION-REVIEW",
-    "state": "STAGED",
-    "owner": "fresh compiler_referee",
-    "artifact": "Review frozen implementation and transport proof; report semantic overclaims and exact HIR identity errors."
+    "id": "R26-CALLER-AUTHENTIC-EVIDENCE-INTAKE",
+    "state": "READY",
+    "owner": "Luna after R25 checkpoint",
+    "artifact": "Find actual supplier and introduction evidence for the original (W0,xi,h0) source registration; apply to original guards or freeze the exact first missing input/owner. Implementation code remains NO_SAFE_CODE_SLICE pending supplier and operation/member/signature correspondence."
   },
   "legacy_reconciliation": {
     "required": false,
     "receipt": "R23 and R24 lane workers stopped; all frozen outputs reviewed; no code or unknown leases."
   },
-  "next_action": "Implement source/module/recognized top-level declaration binding in HIR and focused structural tests; proof proceeds independently. Review the coherent frozen implementation and proof before integration.",
+  "next_action": "R25 integrated CLEAN after review. Start R26 on actual caller evidence intake and original source registration; no new code lease until a real supplier/context is identified.",
   "git_checkpoint": {
     "commit": "f4fba1f38",
     "branch": "research/simple-sub-intrusion",

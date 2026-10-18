@@ -1,5 +1,6 @@
 use std::{
     alloc::{Layout, alloc},
+    any::Any,
     collections::HashMap,
     hash::{Hash, Hasher},
     ops::Range,
@@ -105,15 +106,117 @@ impl ModuleIdentity {
     }
 }
 
-/// An opaque standalone import input. Imports are intentionally unavailable.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SemanticImports(());
+/// Optional caller-owned context retained for source-bound semantic work.
+///
+/// This binding records artifact correspondence only. It does not certify any
+/// semantic property of the caller payload.
+#[derive(Clone)]
+pub struct SemanticImports {
+    caller_evidence: Option<CallerEvidenceBinding>,
+}
 
 impl SemanticImports {
     pub fn empty() -> Self {
-        Self(())
+        Self { caller_evidence: None }
+    }
+
+    /// Retain opaque caller evidence for one exact parsed top-level declaration.
+    /// Lowering verifies that the key is an admitted binding declaration in
+    /// the resulting HIR. This does not validate the payload's meaning.
+    pub fn with_caller_evidence<T>(
+        parsed: &ParsedFile,
+        identity: &ModuleIdentity,
+        declaration: &yu_syntax::SourceNodeKey,
+        payload: Arc<T>,
+    ) -> Result<Self, HirAvailabilityError>
+    where
+        T: Any + Send + Sync,
+    {
+        if !parsed.owns_source_key(declaration) {
+            return Err(HirAvailabilityError::ForeignCallerEvidenceSource);
+        }
+        let root = parsed.source_root().key();
+        Ok(Self {
+            caller_evidence: Some(CallerEvidenceBinding {
+                parse_root: root,
+                declaration: declaration.clone(),
+                identity: identity.clone(),
+                payload,
+            }),
+        })
+    }
+
+    pub fn caller_evidence(&self) -> Option<&CallerEvidenceBinding> {
+        self.caller_evidence.as_ref()
     }
 }
+
+impl std::fmt::Debug for SemanticImports {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("SemanticImports")
+            .field("caller_evidence", &self.caller_evidence)
+            .finish()
+    }
+}
+
+impl PartialEq for SemanticImports {
+    fn eq(&self, other: &Self) -> bool {
+        self.caller_evidence == other.caller_evidence
+    }
+}
+
+impl Eq for SemanticImports {}
+
+/// Structural association of an opaque caller payload with one HIR input.
+/// The payload's contents are not deeply immutable or semantically checked.
+#[derive(Clone)]
+pub struct CallerEvidenceBinding {
+    parse_root: yu_syntax::SourceNodeKey,
+    declaration: yu_syntax::SourceNodeKey,
+    identity: ModuleIdentity,
+    payload: Arc<dyn Any + Send + Sync>,
+}
+
+impl CallerEvidenceBinding {
+    pub fn parse_root_key(&self) -> &yu_syntax::SourceNodeKey {
+        &self.parse_root
+    }
+
+    pub fn declaration_key(&self) -> &yu_syntax::SourceNodeKey {
+        &self.declaration
+    }
+
+    pub fn module_identity(&self) -> &ModuleIdentity {
+        &self.identity
+    }
+
+    /// Reports only the retained Rust payload's concrete type.
+    pub fn payload_is<T: Any>(&self) -> bool {
+        self.payload.is::<T>()
+    }
+}
+
+impl std::fmt::Debug for CallerEvidenceBinding {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("CallerEvidenceBinding")
+            .field("parse_root", &self.parse_root)
+            .field("declaration", &self.declaration)
+            .field("identity", &self.identity)
+            .field("payload", &"<opaque>")
+            .finish()
+    }
+}
+
+impl PartialEq for CallerEvidenceBinding {
+    fn eq(&self, other: &Self) -> bool {
+        self.parse_root == other.parse_root
+            && self.declaration == other.declaration
+            && self.identity == other.identity
+            && Arc::ptr_eq(&self.payload, &other.payload)
+    }
+}
+
+impl Eq for CallerEvidenceBinding {}
 
 /// A stable definition identity within one source-root module.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -821,6 +924,7 @@ impl HirDiagnostic {
 #[derive(Clone, Debug)]
 pub struct HirModule {
     artifact: Arc<HirArtifactToken>,
+    caller_evidence: Option<CallerEvidenceBinding>,
     pub(crate) source_identity: Option<crate::source_identity::HirSourceIdentity>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) captured_source: Option<(DefinitionRootId, Arc<crate::shadow::ShadowArtifact>)>,
@@ -944,6 +1048,11 @@ impl HirModule {
     pub fn identity(&self) -> &ModuleIdentity {
         &self.identity
     }
+    /// Returns caller evidence associated structurally with this exact HIR.
+    /// Presence is not semantic validation.
+    pub fn caller_evidence(&self) -> Option<&CallerEvidenceBinding> {
+        self.caller_evidence.as_ref()
+    }
     pub fn source_revision(&self) -> SourceRevision {
         self.source_revision
     }
@@ -985,19 +1094,22 @@ pub enum HirAvailabilityError {
     StructuralProjection,
     ExactOperatorEnvironment,
     IdentityExhausted,
+    ForeignCallerEvidenceSource,
+    ForeignCallerEvidenceModule,
+    CallerEvidenceNotDeclaration,
 }
 
 /// Lowers direct-root bindings and expressions against one complete local namespace.
 pub fn lower_module(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
-    _imports: SemanticImports,
+    imports: SemanticImports,
 ) -> Result<HirModule, HirAvailabilityError> {
     let mut counters = LoweringCounters::default();
     counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(parsed));
     counters.source_nodes = crate::source_identity::try_source_keys(parsed)?;
     counters.ordinary_source_carriers = true;
-    lower_module_with_counters(identity, parsed, _imports, &mut counters)
+    lower_module_with_counters(identity, parsed, imports, &mut counters)
 }
 
 #[cfg(any(feature = "shadow", test))]
@@ -1041,11 +1153,22 @@ pub(crate) fn lower_module_with_local_source(
 fn lower_module_with_counters(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
-    _imports: SemanticImports,
+    imports: SemanticImports,
     counters: &mut LoweringCounters,
 ) -> Result<HirModule, HirAvailabilityError> {
     if identity.file != *identity.module.file() {
         return Err(HirAvailabilityError::InconsistentIdentity);
+    }
+    if let Some(binding) = imports.caller_evidence.as_ref() {
+        if binding.identity != identity {
+            return Err(HirAvailabilityError::ForeignCallerEvidenceModule);
+        }
+        if !parsed.owns_source_key(&binding.parse_root)
+            || binding.parse_root != parsed.source_root().key()
+            || !parsed.owns_source_key(&binding.declaration)
+        {
+            return Err(HirAvailabilityError::ForeignCallerEvidenceSource);
+        }
     }
     let recoveries = validated_recoveries(parsed)?;
     let root = SyntaxNode::new_root(parsed.green().clone());
@@ -1207,11 +1330,20 @@ fn lower_module_with_counters(
     for (index, (owner, _)) in source_carriers.iter().enumerate() {
         source_carrier_indices.insert(owner.clone(), index);
     }
+    if let Some(binding) = imports.caller_evidence.as_ref() {
+        let admitted = counters.source_identity.as_ref().is_some_and(|source| {
+            source.definitions.values().any(|key| key == &binding.declaration)
+        });
+        if !admitted {
+            return Err(HirAvailabilityError::CallerEvidenceNotDeclaration);
+        }
+    }
     Ok(HirModule {
         expression_roots,
         source_carriers,
         source_carrier_indices,
         artifact,
+        caller_evidence: imports.caller_evidence,
         source_identity: counters.source_identity.take(),
         #[cfg(any(feature = "shadow", test))]
         captured_source: None,
