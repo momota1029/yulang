@@ -39,7 +39,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "R71 active; candidate and exact leases reconciled; author lanes launching next. Sole Git owner."
+      "receipt": "R71 owner map FROZEN; map SHA c350c153b666d12c78e7ac3a49284fda8c876e425a74707fd6579b7148f3c485; handoff SHA 81ba63c47a63cd01312d02d061ebe71d97cc9353f9ee007cb95f4a4febfb9516; awaiting author lanes."
     },
     {
       "id": "/root/r71_raw_canonical_proof",
@@ -98,12 +98,12 @@
     {
       "path": "notes/progress/2026-10-19-r71-fiber-owner-map.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261019-r71-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -179,5 +179,5 @@
     }
   ],
   "closure": "R70 CLOSED REVIEWED CONDITIONAL; R71 ACTIVE. R70 operation target, parent, Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
-  "next_action": "Luna maps physical-slot → raw/canonical evidence lookup → copied emission on exact pins; author lanes work disjointly."
+  "next_action": "Await proof and counter-reading freeze; then reconcile exact hashes and start independent compiler/spec reviews."
 }
