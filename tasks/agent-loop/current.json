@@ -20,7 +20,7 @@
     },
     "next_action": "Commit/push rev2 contract/state, dispatch two exact document-only repairs; freeze hashes; same independent reviewer delta review; integrate only if CLEAN; then present selected/unavailable reviewed choices without adopting semantics.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption.",
-    "last_stage_receipt": "Rev2 repair lanes launched from pushed contract 028f5e144; exact disjoint doc-only leases, 120s each. Reviewer BLOCKING snapshot retained; no semantic/code/test authority.",
+    "last_stage_receipt": "R21 rev2 proof/options packet frozen with bounded direct D0/D1/D2 and proposed pre-capture EarlyFieldBound schedule; general Call remains open. Implementation-contract rev2 still active; delta review awaits both.",
     "git_checkpoint": {
       "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
@@ -45,13 +45,13 @@
     {
       "id": "/root/r21_bridge_proof",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "Sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev2 proof/options repair active after 028f5e144, 120s. Exact leased option/handoff paths only; derive bounded ResultMap and propose complete pre-capture action protocol; may mark blocked. No code/tests/Git."
+      "receipt": "R21 rev2 options/proof handoff frozen at 18dfcc745276fba6ddbdfaa4b58db73155f9c67117eb7cb1490f01dbbe0f1035 / d375786224b4856ba212483650c4c8911801300c1efcad97c4e4411ad7267dc5. Adds bounded direct D0/D1/D2, tmp-forward vs discard, and proposed EarlyFieldBound schedule/slot uniqueness/provisional gates. No code/tests/Git; awaits delta review."
     },
     {
       "id": "/root/r21_bridge_falsifiers",
@@ -101,12 +101,12 @@
     {
       "path": "notes/design/2026-10-18-field-root-incidence-bridge-options.md",
       "owner": "/root/r21_bridge_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-proof.md",
       "owner": "/root/r21_bridge_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-18-field-root-incidence-bridge-soundness.md",
