@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ACTIVE",
+  "phase": "ENDED",
   "session": "current-conversation-2026-10-19-r65",
   "active_sprint": {
     "id": "source-annotation-root-bridge-to-pA-20261019-r65",
     "contract": "tasks/agent-loop/sprints/source-annotation-root-bridge-to-pA-20261019-r65-rev2.md",
     "revision": 2,
-    "state": "ACTIVE",
+    "state": "CLOSED",
     "baseline": "8a3ba2ae6e82a052cdbe2ff12f4c79183314755b",
     "contract_sha256": "e64660cf79f52d5000468426dd9c1c794739b95d7a64b3cd183b5e4d1ad71c99",
     "parent": "Original computation-forwarding preservation §§1,6–7; unchanged source domain and quantifiers; Simple-sub A/B OPEN 0→0; R50 NOT ADOPTED.",
@@ -19,29 +19,30 @@
       "prior_sprint": "R64 CLOSED and reviewed; all R64 workers STOPPED; 1800s charged; no carryover.",
       "dispatcher_boundary": "Mandatory governance/startup reads classified as operating instructions separate from 16 semantic dependencies; no source authority expansion.",
       "researcher_lane": "STOPPED / NO_WRITES / NO_DESCENDANTS; no artifact/conclusion; 500s grant charged; runtime/session UNKNOWN; exact absent output paths released after stop receipt.",
-      "dispatcher_review_scope": "Approved narrow rev2: fresh reviews of proof pair + rev1/rev2 + same 16 pins + explicit no-output disposition; no second-author claim."
+      "dispatcher_review_scope": "Approved narrow rev2: fresh reviews of proof pair + rev1/rev2 + same 16 pins + explicit no-output disposition; no second-author claim.",
+      "review_outcome": "Fresh compiler and spec reviews CLEAN, no blocking/major/minor; both verified 20/20 exact file hashes. Findings and scope in R65 closeout."
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 1500,
-      "available_seconds": 300,
+      "charged_seconds": 1800,
+      "available_seconds": 0,
       "allocation": "Proof600 + complementary researcher500 (charged, no output) + compiler review200 + spec review200 + Luna integration300 = 1800s; Astra0; no carryover",
-      "actual_runtime": "Proof600, researcher500, compiler review200 and spec review200 charged; actual runtime UNKNOWN for all. Reviews stopped; Luna integration remains within 300s."
+      "actual_runtime": "All 1800s allocated and charged; actual elapsed/CPU/RSS UNKNOWN; no carryover."
     },
-    "next_action": "Integrate the two CLEAN bounded reviews, exact first-missing-premise result, absent researcher output and parent status into the R65 closeout; consult dispatcher for end classification and next route.",
-    "history": "R64 closed reviewed bounded partial derivation / exact unsupplied clause / no safe code slice. Proof hash b8041fae28a4a88d7143ab6e16be6658ce156f3de90888667dded93e8b643772; closeout hash c53e7d4a1c791cd93f428af9c11572327e4b72a462fa3c311d5c1141d3d5b670. Dispatcher R64 end route was source-language specification ownership. R65 tests pinned approved source-language decisions against the exact smaller clause; it does not repeat native/crosswalk audit. R65 proof frozen: artifact 6222ed3f75e8299d2afbc3d7d869e055bf0bd81e78841074d5e7a6f89ad795aa; inbox 587b3575103cf9ab1efa001388aa28139f1c7e3fceffe2324e0fe5b830a37745. Researcher STOPPED with no output and 500s charged; dispatcher approved governance-read distinction and rev2 review-scope amendment."
+    "next_action": "Prepare the exact ordinary Lambda operand supplier obligation from original p_t and resolved Name(t), under the original context, before selecting another sprint. No successor grant is active.",
+    "history": "R64 closed reviewed bounded partial derivation / exact unsupplied clause / no safe code slice. Proof hash b8041fae28a4a88d7143ab6e16be6658ce156f3de90888667dded93e8b643772; closeout hash c53e7d4a1c791cd93f428af9c11572327e4b72a462fa3c311d5c1141d3d5b670. Dispatcher R64 end route was source-language specification ownership. R65 tests pinned approved source-language decisions against the exact smaller clause; it does not repeat native/crosswalk audit. R65 proof frozen: artifact 6222ed3f75e8299d2afbc3d7d869e055bf0bd81e78841074d5e7a6f89ad795aa; inbox 587b3575103cf9ab1efa001388aa28139f1c7e3fceffe2324e0fe5b830a37745. Researcher STOPPED with no output and 500s charged; dispatcher approved governance-read distinction and rev2 review-scope amendment. Closeout notes/progress/2026-10-19-r65-closeout.md SHA-256 ea9aac36ea152733b6c4babb7060f18b1e39d7516af5e90bf4d44deadec62d85. Dispatcher end: close as REVIEWED BOUNDED BRIDGE-APPLICABILITY RESULT / EXACT UNSUPPLIED INPUT; no safe code slice; next route is ordinary Lambda operand formation before whole-ascription checking; no successor authority."
   },
   "workers": [
     {
       "id": "/root",
       "role": "Luna/high R65 coordinator, adjudication, integration and sole Git owner",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r65",
-      "receipt": "Primary froze proof outputs and rev2 review scope after dispatcher reconciliation; reviews not yet launched."
+      "receipt": "R65 integration and closeout complete; exact closeout hash ea9aac36ea152733b6c4babb7060f18b1e39d7516af5e90bf4d44deadec62d85. Session ended with no successor grant; all worker lanes stopped."
     },
     {
       "id": "/root/r63_whole_ascription_formation_proof",
@@ -112,36 +113,36 @@
     {
       "path": "notes/progress/2026-10-19-r65-closeout.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/current.json",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
     {
       "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
       "state": "OPEN",
-      "owner": "Luna; R65 bounded source-rule applicability derivation",
+      "owner": "Luna; original whole-ascription formation obligation",
       "request": "Derive source-licensed whole-definition-ascription relation for original provider/carrier, distinct p_t/p_A/p_R, local permissions, joint K,D, ordinary constraints, correlated results, actual Q, both solution directions and typed substitution/transport.",
       "falsifier": "A permitted source solution lacks lift/reverse, provider/position/permission/result evidence changes, ordinary constraints disappear, Q is guessed, or ambiguity lacks two compatible completions differing on an original observable."
     },
     {
       "id": "R64-SRC-ANN-ARG-1",
       "state": "OPEN",
-      "owner": "Luna; remains downstream of R65-CURRENT-OPERAND-1",
-      "request": "Derive the authentic source rule for whole-ascription p_A argument typed interpretation on L/t original incoming computation carrier, with own permission/scope and original joint component context, preserving p_t/Name and ordinary constraints before native representation.",
+      "owner": "Luna; downstream of the current operand supplier",
+      "request": "Derive the authentic source rule for whole-ascription p_A argument typed interpretation on L/t original incoming carrier, with own permission/scope and original joint component context, preserving p_t/Name and ordinary constraints before native representation.",
       "falsifier": "Rule borrows p_t permission, changes provider/position, invents joint xi, imports native comparison, adds cap/inflow, drops ordinary constraints, or uses later transport/result as initial formation."
     },
     {
       "id": "R65-CURRENT-OPERAND-1",
       "state": "OPEN",
-      "owner": "Luna; reviewed R65 proof result",
-      "request": "Supply a completed symbolic typed Lambda operand and prior evidence under the original joint component context required by the approved root bridge for whole-binding publication.",
-      "falsifier": "An applicable pinned source clause constructs this exact operand/prior evidence at its authentic provider, owner, position and original joint context."
+      "owner": "Luna; prepare ordinary Lambda source supplier packet",
+      "request": "Derive completed symbolic typed Lambda operand and prior evidence under the original joint component context, from original formal p_t and resolved body Name(t), using applicable Lambda/body-result rules; then test against bridge input contract.",
+      "falsifier": "An applicable pinned source clause supplies this exact operand at its authentic provider/owner/position and original context; or proposed derivation assumes complete xi, circularly forms context, or loses provider/permission/result evidence."
     }
   ],
-  "closure": "ACTIVE — R65 proof frozen; complementary researcher lane closed with no artifact; fresh independent reviews pending. R65-CURRENT-OPERAND-1, R64-SRC-ANN-ARG-1 and parent R61 remain OPEN; parent/A/B OPEN 0→0; R50 NOT ADOPTED. No theorem, semantics, implementation or production closure."
+  "closure": "CLOSED — REVIEWED BOUNDED BRIDGE-APPLICABILITY RESULT / EXACT UNSUPPLIED INPUT. R65-CURRENT-OPERAND-1, R64-SRC-ANN-ARG-1 and parent R61 remain OPEN; parent/A/B OPEN 0→0; R50 NOT ADOPTED. No safe code slice, theorem, semantics, implementation or production closure."
 }
