@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/field-root-incidence-bridge-options-20261018-r21.md",
     "revision": 3,
     "sha256": "5aeee672437a27f307af00c14635d366f694b7527c39a04690e751a07033a1b1",
-    "state": "ACTIVE",
+    "state": "COMPLETE",
     "baseline": "R21 rev1 integrated checkpoint 5a26fa2e4; BLOCKING review retained. Rev2 repairs only rule options and implementation correspondence; no code authority.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers/domain unchanged; OPEN/closure0.",
     "fixed_outcome": "Two reviewed bridge-rule options for annotation/exposed-root and actual FreshUse/resumption/Catch/installed-g typed incidence, independent falsifiers/soundness audit, and implementation contract. No rule adopted or code semantics changed.",
@@ -18,17 +18,17 @@
       "available_seconds": 0,
       "allocation": "R21 rev1 2700 + rev2 600 retained fully charged; rev3 adds 300: author90 (options/proof60 + implementation30) + same delta review150 + integration60. Astra0; no R20 carryover."
     },
-    "next_action": "Commit/push rev3 four-document packet, then same independent reviewer delta review. Do not claim full result bridge or choose B; report exact OPEN obligations and user choice only after review.",
+    "next_action": "R21 completed its reviewed decision packet, not the bridge theorem: A is only a proposed annotation-root rule, fixed D0/D1 ResultMap remains OPEN, and B is unavailable pending rooted capture traversal proof. Consult dispatcher for next source-proof sprint. Parent OPEN/closure0.",
     "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption. Rev2 delta review BLOCKING on A provisional/publication cycle and D1 unstated empty-suffix rule; rev3 narrow document-only repair authorized.",
-    "last_stage_receipt": "R21 rev3 four-document packet integrated/root-pushed at c0b4afbaa; same independent reviewer performs final delta review. Fixed specimen ResultMap remains OPEN; B is BLOCKED; parent OPEN/closure0.",
+    "last_stage_receipt": "CLEAN rev3 document-conformance review at c0b4afbaa plus review receipt. A staging lifecycle is consistent but its soundness and source-root incidence remain unproved. D0/D1 withdrawn/open for fixed ResultMap; B blocked. Original theorem conditions closed 0.",
     "git_checkpoint": {
-      "commit": "c0b4afbaa",
+      "commit": "df701019d",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R21 rev3 documents root-committed/pushed; final independent delta review active; unsupported ResultMap explicitly left OPEN."
+      "receipt": "All R21 packets frozen, root-committed/pushed, rev3 delta CLEAN for document conformance. No semantic rule adopted; parent OPEN/closure0."
     }
   },
-  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0.",
+  "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0. R21 complete: seven-document packet reviewed CLEAN for rev3 conformance; A only proposed, ResultMap OPEN, B blocked; parent closure0.",
   "quarantine_note": "Replay-constructor DRAFT outputs and tools/__pycache__ remain quarantined and excluded. R21 grants document-only research; no source/solver/runtime code or semantic adoption.",
   "workers": [
     {
@@ -78,13 +78,13 @@
     {
       "id": "/root/r21_bridge_integrated_review",
       "role": "compiler_referee",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev3 final delta review active at c0b4afbaa, exact four changed hashes supplied. Check A provisional publication lifecycle, D1 honestly withdrawn or sourced, B remains blocked, no prior cross-doc defects. No edits/tests/build/Git."
+      "receipt": "CLEAN R21 rev3 document-conformance delta review. A staging/publication cycle fixed; D1 withdrawn, fixed ResultMap OPEN; B remains blocked; no soundness or parent closure claimed. Exact four hashes/pins match. No edits/tests/build/Git."
     }
   ],
   "leases": [
