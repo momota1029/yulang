@@ -5,9 +5,9 @@
   "session": "current-session",
   "active_sprint": {
     "id": "operation-v1-runtime-evidence-and-callback-resume-20261018-r18",
-    "contract": "tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18.md",
-    "revision": 1,
-    "sha256": "472ea2f65946bf815834decf599fd105f20dc0c97fde9711746b8d87c0fea1c4",
+    "contract": "tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-rev2.md",
+    "revision": 2,
+    "sha256": "225d4c59aad72d5731aed0adc97f0dc31adf5931f8a66484366a5b2058bdf07e",
     "state": "ACTIVE",
     "baseline": "HEAD 2a3f2a47d5013761f0e0717b0c6073c54c62d36c plus exact reviewed/tested r17 uncommitted dependency hashes pinned in r18 contract. Git commit/push still blocked: local .git read-only; GitHub MCP write rejected by approval policy never.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers preserved; OPEN/closure0.",
@@ -23,8 +23,8 @@
       "available_seconds": 0,
       "allocation": "Reserved: constructive proof600s + Luna implementation1500s + independent review600s + focused runtime test/integration/state300s. Astra0. Actual worker resource metadata UNKNOWN; no carryover/reset."
     },
-    "next_action": "Complete implementation under the fixed predicate. Reconcile the proof lane findings: function-return handler response is rejected in two runtime consumers; local_grant eligibility may need an annotated computation-formal relay; the response callback Apply may occur after raw resumption rather than in its saved suffix. Do not claim stronger saved-suffix application unless source/runtime proves it. Then freeze, independently review, and run focused runtime_resume.",
-    "history": "r17 ended ENDED-PARTIAL-REVIEWED: original conditions closed0; explicit research-only source-linked static consumer through typed native drain; independent review final deltas CLEAN; candidate_operation_catch test 16/16 PASS. Runtime Phase R and parent theorem remain open. See tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. No Git commit/push; local .git read-only and GitHub MCP write approval rejected. Primary checkpoint: commit cbbb2abf38a51215d4065745e6aef5edd949e7be pushed to origin/research/simple-sub-intrusion; r17 code, closed research artifacts and initial r18 state included; active r18 code and quarantined outputs excluded. See r17-git-checkpoint.md.",
+    "next_action": "Implementation must use the clarified sequence: raw continuation returns the exact response closure; the surrounding Apply invokes it while the live outer catch remains active. Do not claim that callback Apply is inside the raw saved suffix. Wait for implementation author to acknowledge r18 rev2, then continue exact source/candidate/runtime bridge; freeze, independently review and run focused runtime_resume.",
+    "history": "r17 ended ENDED-PARTIAL-REVIEWED: original conditions closed0; explicit research-only source-linked static consumer through typed native drain; independent review final deltas CLEAN; candidate_operation_catch test 16/16 PASS. Runtime Phase R and parent theorem remain open. See tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. No Git commit/push; local .git read-only and GitHub MCP write approval rejected. Primary checkpoint: commit cbbb2abf38a51215d4065745e6aef5edd949e7be pushed to origin/research/simple-sub-intrusion; r17 code, closed research artifacts and initial r18 state included; active r18 code and quarantined outputs excluded. See r17-git-checkpoint.md. Dispatcher approved r18 rev2 execution-order clarification within same goal/leases/budget: callback Apply occurs after raw continuation returns the exact response closure, while outer catch remains active; no claim it is inside raw saved suffix. New contract hash 225d4c59aad72d5731aed0adc97f0dc31adf5931f8a66484366a5b2058bdf07e.",
     "last_stage_receipt": "r17 static Phase-S source consumer commit cbbb2abf38a51215d4065745e6aef5edd949e7be is pushed. r18 proof r1 remains conditional and stopped; runtime implementation remains active; no runtime tests yet. Parent OPEN/closure0.",
     "git_checkpoint": {
       "commit": "cbbb2abf38a51215d4065745e6aef5edd949e7be",
@@ -158,6 +158,11 @@
     },
     {
       "path": "tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-git-checkpoint.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-rev2.md",
       "owner": "/root",
       "state": "FROZEN"
     }
