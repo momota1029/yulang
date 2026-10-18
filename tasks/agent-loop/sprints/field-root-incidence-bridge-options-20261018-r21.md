@@ -173,3 +173,42 @@ and keep that semantic alternative unavailable for selection:
 Keep the rev1 source falsifier/soundness packet unchanged and incorporated by
 reference. Freeze new hashes before requesting same-reviewer delta review. The
 parent remains OPEN / closure 0; no option is adopted absent user selection.
+
+## R21 rev3 bounded formal-closure repair
+
+The rev2 packet and BLOCKING delta review remain frozen. Two small formal
+inconsistencies remain: `AnnCarry-A` is scheduled before `PublishLocal` while
+one premise requires publication already complete; and bounded D1 invokes an
+empty-suffix identity/return not present in the closed `Orig` introduction
+list. B remains BLOCKED on its missing rooted capture traversal.
+
+This versioned continuation adds 300 seconds (total cap 3600, fully charged;
+Astra 0): 90 seconds author repair (60 for options/proof handoff, 30 for
+implementation contract/handoff), 150 seconds for the same independent
+reviewer to recheck the exact delta, and 60 seconds for Luna integration. The
+previous 3300 seconds remain fully charged; no carryover. No code, test, or
+semantic-adoption authority is added.
+
+Exact write leases are limited to the R21 options/proof handoff and
+implementation contract/implementation handoff. Repair only these points:
+
+1. Change AnnCarry-A to require completed callback/initializer/computation and
+   annotation comparison drains plus the constructed exposed root and prepared
+   provisional payload, while `PublishLocal` is still withheld. Use an explicit
+   provisional judgment or staging marker. `PublishLocal` must consume that
+   staged result only after prefix checks succeed; final candidate validation
+   remains a later publication gate. No premise may assume completed
+   publication before the proposed pre-publication rule fires. Align the
+   implementation contract and handoff with this order.
+2. Either add a bounded empty-suffix/return introduction to the least `Orig`
+   judgment with exact source constructor, authenticated continuation/suffix
+   boundary, actual result port, and native counterpart, then apply it
+   explicitly in D1; or withdraw the fixed-specimen D1 derivation and leave
+   that case OPEN if no pinned source rule supports it. Do not supply a
+   general identity equation or identify unrelated declared endpoints.
+   Remove stale text that says the fixed-specimen ResultMap derivation is
+   missing if the derivation is in fact supplied; otherwise retain that status.
+
+Freeze all four changed hashes before the same reviewer's 150-second delta
+review. The R21 rev1 falsifier/soundness artifacts remain frozen and unchanged.
+The parent stays OPEN / closure 0; no rule is selected or adopted.

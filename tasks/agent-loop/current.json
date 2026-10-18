@@ -6,26 +6,26 @@
   "active_sprint": {
     "id": "field-root-incidence-bridge-options-20261018-r21",
     "contract": "tasks/agent-loop/sprints/field-root-incidence-bridge-options-20261018-r21.md",
-    "revision": 2,
-    "sha256": "ea62d1ba4de3c0c2fae56098cd445063035c1ecedbc13b1cf4af4790826f81c3",
+    "revision": 3,
+    "sha256": "5aeee672437a27f307af00c14635d366f694b7527c39a04690e751a07033a1b1",
     "state": "ACTIVE",
     "baseline": "R21 rev1 integrated checkpoint 5a26fa2e4; BLOCKING review retained. Rev2 repairs only rule options and implementation correspondence; no code authority.",
     "parent": "CHOOSE-SOURCE-2 / RECEIVE-NEGATIVE-PAIR-20261017; original quantifiers/domain unchanged; OPEN/closure0.",
     "fixed_outcome": "Two reviewed bridge-rule options for annotation/exposed-root and actual FreshUse/resumption/Catch/installed-g typed incidence, independent falsifiers/soundness audit, and implementation contract. No rule adopted or code semantics changed.",
     "resources": {
-      "cap_seconds": 3300,
-      "charged_seconds": 3300,
+      "cap_seconds": 3600,
+      "charged_seconds": 3600,
       "available_seconds": 0,
-      "allocation": "R21 rev1 2700 retained fully charged; rev2 adds 600: author repair240 (proof/options120 + implementation contract120) + same independent delta review240 + integration120. Astra0; no R20 carryover."
+      "allocation": "R21 rev1 2700 + rev2 600 retained fully charged; rev3 adds 300: author90 (options/proof60 + implementation30) + same delta review150 + integration60. Astra0; no R20 carryover."
     },
-    "next_action": "Freeze four rev2 document/handoff hashes and request same independent reviewer delta review against all three rev1 blockers. No semantic adoption or implementation code.",
-    "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption.",
-    "last_stage_receipt": "R21 rev2 source protocol repair root-pushed at 0bc19eb0d; same independent compiler referee is reviewing exact delta across the options, implementation contract and handoffs. Parent OPEN/closure0.",
+    "next_action": "Commit/push rev3 contract/state; repair only AnnCarry-A provisional publication cycle and D1 empty-suffix rule provenance; freeze four hashes; same reviewer delta review; integrate reviewed docs, no semantic selection.",
+    "history": "R20 completed at d2ff62845. Its runtime gate passed 18/18 after CLEAN delta review; R20 source proof CLEAN identified missing typed annotation-root to same-FreshUse incidence. R20 closeout and theorem remain OPEN/closure0. Rev1 integrated review BLOCKING at three cross-document/source schedule findings; rev2 bounded documentation repair authorized; no semantic adoption. Rev2 delta review BLOCKING on A provisional/publication cycle and D1 unstated empty-suffix rule; rev3 narrow document-only repair authorized.",
+    "last_stage_receipt": "R21 rev2 delta BLOCKING only on (1) AnnCarry-A publication cycle, (2) D1 empty-suffix return absent from Orig rules. B capture rule is aligned and remains BLOCKED. Rev3 adds 300s for narrow doc repair, same reviewer delta review and integration; parent OPEN/closure0.",
     "git_checkpoint": {
-      "commit": "0bc19eb0d",
+      "commit": "PENDING",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
-      "receipt": "R21 rev2 four-file repair integrated/pushed under authorized 600s continuation; same reviewer delta review active, no code semantics adopted."
+      "receipt": "R21 rev3 contract/state frozen for two exact formal repairs; rev2 artifacts/review preserved; no code/test/semantic adoption."
     }
   },
   "history": "R17 closeout: tasks/agent-loop/sprints/operation-v1-source-completion-and-consumer-20261018-r17-closeout.md. R18 closeout: tasks/agent-loop/sprints/operation-v1-runtime-evidence-and-callback-resume-20261018-r18-closeout.md. R19 closeout: tasks/agent-loop/sprints/operation-v1-local-install-use-lineage-and-capture-20261018-r19-closeout.md. Original parent remains OPEN/closure0. R20 rev2 repaired fallback-Apply expected-ID mismatch; independent delta review CLEAN; focused runtime_resume 18/18. Runtime/HIR gate resolved for specimen; source/native FreshUse incidence still missing; original parent closure0.",
@@ -51,7 +51,7 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev2 options/proof frozen at 18dfcc745276fba6ddbdfaa4b58db73155f9c67117eb7cb1490f01dbbe0f1035 / d375786224b4856ba212483650c4c8911801300c1efcad97c4e4411ad7267dc5. Adds bounded D0/D1/D2 and proposed pre-PublishLocal EarlyFieldBound action with same h_arg, full-schedule slot250 check, duplicate suppression and rollback. No tests/code/Git."
+      "receipt": "R21 rev2 options/proof frozen at 18dfcc745...f1035 / d3757862...67dc5; rev3 repair authorized only for A provisional publication and D1 exact source-backed empty suffix or leave OPEN."
     },
     {
       "id": "/root/r21_bridge_falsifiers",
@@ -73,18 +73,18 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev2 implementation contract frozen at af512f3bba69c334dd7a2bb43a19ee79520480a6361a7a98e7a6c27d6abb2a2e / 0f2fa60e1ee1ae1535bcae5aea2daaff9862cd7604ddc2b73b462188577e83c2. Pre-capture schedule/rollback specified; B explicitly BLOCKED absent source-scoped rooted traversal proof. No tests/code/Git."
+      "receipt": "R21 rev2 implementation contract frozen at af512f3b...b2a2e / 0f2fa60e...e83c2; rev3 alignment authorized only for provisional A staging/publication order; B remains BLOCKED."
     },
     {
       "id": "/root/r21_bridge_integrated_review",
       "role": "compiler_referee",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "requested_model": "configured default",
       "requested_effort": "configured default",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-session",
-      "receipt": "R21 rev2 delta review active at 0bc19eb0d; exact four changed hashes supplied. Verify prior ResultMap, scheduling, Pending/Realize blockers; no edits/tests/build/Git."
+      "receipt": "BLOCKING R21 rev2 delta review: A publication premise cycle; D1 uses unstated empty-suffix return; B ordering aligned and remains BLOCKED. No edits/tests/build/Git; rev3 exact delta review pending."
     }
   ],
   "leases": [
@@ -101,12 +101,12 @@
     {
       "path": "notes/design/2026-10-18-field-root-incidence-bridge-options.md",
       "owner": "/root/r21_bridge_proof",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-proof.md",
       "owner": "/root/r21_bridge_proof",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "notes/theory/2026-10-18-field-root-incidence-bridge-soundness.md",
@@ -126,12 +126,12 @@
     {
       "path": "notes/design/2026-10-18-field-root-incidence-implementation-contract.md",
       "owner": "/root/r21_bridge_impl_contract",
-      "state": "FROZEN"
+      "state": "HELD"
     },
     {
       "path": "tasks/agent-loop/inbox/20261018-field-root-bridge-implementation.md",
       "owner": "/root/r21_bridge_impl_contract",
-      "state": "FROZEN"
+      "state": "HELD"
     }
   ],
   "pending": [],
