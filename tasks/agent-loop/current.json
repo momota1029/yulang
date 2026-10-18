@@ -24,7 +24,7 @@
       "charged_seconds": 2400,
       "available_seconds": 0,
       "allocation": "Proof 900s + counter-reading 300s + Luna owner map 500s + fresh compiler/spec reviews 200s each + Luna integration 300s; Astra 0; no carryover.",
-      "actual_runtime": "Child launch receipts pending; CPU/RSS UNKNOWN. Full grant reserved; actual elapsed from runtime receipts."
+      "actual_runtime": "Proof and counter-reading launched in current session; requested settings recorded, observed model/effort UNKNOWN. CPU/RSS UNKNOWN; full grant reserved at activation."
     },
     "next_action": "Launch constructive prover and complementary researcher on disjoint exact paths; Luna traces actual callsite, mutation, replay handoff and owner map. No compiler code/test lane is authorized. Freeze authors before fresh compiler/spec review.",
     "history": "R68 CLOSED/pushed. R69 remains NOT ACTIVATED pending user source-law choice."
@@ -88,24 +88,24 @@
     {
       "id": "/root/r70_ordinary_extrusion_proof",
       "role": "R70 constructive proof; exact proof artifact and handoff only",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Assigned under R70; launch/runtime acknowledgement pending."
+      "receipt": "Actual launch acknowledged by collaboration runtime in current R70 session; proof lane active."
     },
     {
       "id": "/root/r70_extrusion_countertrace",
       "role": "R70 complementary transition counter-reading; exact countertrace and handoff only",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "requested_model": "gpt-6-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "session": "current-conversation-2026-10-19-r70-extrusion",
-      "receipt": "Assigned under R70; launch/runtime acknowledgement pending."
+      "receipt": "Actual launch acknowledged by collaboration runtime in current R70 session; independent attack active."
     }
   ],
   "leases": [
