@@ -491,7 +491,10 @@ pub(crate) fn inline_colon_argument(node: &SyntaxNode) -> Result<SyntaxNode, For
     }
     Ok(child)
 }
-fn body(statement: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
+fn body(
+    statement: &SyntaxNode,
+    admitted_visibility: HirVisibility,
+) -> Result<SyntaxNode, FormationError> {
     let mut nodes = Vec::new();
     for node in statement.children() {
         push(&mut nodes, node)?;
@@ -512,7 +515,13 @@ fn body(statement: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
             )
         })
         .map(|element| element.kind());
-    if header_kinds.next() != Some(SyntaxKind::MyKw)
+    let source_visibility = match header_kinds.next() {
+        Some(SyntaxKind::MyKw) => HirVisibility::Private,
+        Some(SyntaxKind::OurKw) => HirVisibility::Our,
+        Some(SyntaxKind::PubKw) => HirVisibility::Public,
+        _ => return Err(unsupported()),
+    };
+    if source_visibility != admitted_visibility
         || header_kinds.next() != Some(SyntaxKind::Pattern)
         || header_kinds.next() != Some(SyntaxKind::Equals)
         || header_kinds.next().is_some()
@@ -662,7 +671,11 @@ pub(super) fn form(
         builder.record_named_group(id.clone(), LocalSourceNamedGroupOwner::Definition(owner.definition_root().ok_or_else(invalid)?.clone()), &plan.node,
             None, named_formals, current.clone())?;
     }
-    let body_chain = if admitted.is_some() { body(&plan.node)? } else { plan.node.clone() };
+    let body_chain = if let Some(admitted) = admitted {
+        body(&plan.node, admitted.visibility)?
+    } else {
+        plan.node.clone()
+    };
     push(
         &mut builder.work,
         Work::Expression(body_chain.clone(), current, scope, named_group.clone()),
@@ -730,7 +743,7 @@ pub(super) fn form(
                 }
                 push(
                     &mut builder.work,
-                    Work::Expression(body(&node)?, index, scope, named_group.clone()),
+                    Work::Expression(body(&node, HirVisibility::Private)?, index, scope, named_group.clone()),
                 )?;
             }
             Work::Publish(binding, guard) => {
@@ -1401,7 +1414,7 @@ impl Builder<'_> {
             if visibility != HirVisibility::Private {
                 return Err(unsupported());
             }
-            body(&statement)?;
+            body(&statement, HirVisibility::Private)?;
             let ordinal = u32::try_from(self.bindings.len())
                 .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
             let id = HirLocalId {
@@ -1600,6 +1613,44 @@ mod tests {
         let HirItem::Binding(foreign) = &foreign.items()[0] else { panic!("binding"); };
         assert!(matches!(module.source_carrier(foreign.definition_root()), Err(HirAvailabilityError::InconsistentIdentity)));
         assert!(matches!(module.local_source(foreign.definition_root()), Err(HirAvailabilityError::InconsistentIdentity)));
+    }
+    #[test]
+    fn root_visibility_carrier_matches_admission_and_keeps_local_bindings_private() {
+        for (text, visibility) in [
+            ("my private_identity value = value", HirVisibility::Private),
+            ("our our_identity value = value", HirVisibility::Our),
+            ("pub public_identity value = value", HirVisibility::Public),
+        ] {
+            let module = lower(text).expect("admitted root visibility should form its carrier");
+            let HirItem::Binding(binding) = &module.items()[0] else { panic!("binding"); };
+            assert_eq!(binding.visibility(), visibility, "{text}");
+            let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+            assert_eq!(source.definition_root(), Some(binding.definition_root()));
+            assert_eq!(module.definition_source_key(binding.definition_root()).unwrap(), Some(&source.expressions()[0].source));
+            assert_eq!(binding.parameters().len(), 1);
+            let LocalSourceForm::Lambda { parameter, body } =
+                &source.expression(source.body()).unwrap().form
+            else { panic!("named lambda"); };
+            assert_eq!(&parameter.id, binding.parameters()[0].id());
+            assert!(matches!(
+                &source.expression(body).unwrap().form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(id), .. }
+                    if id == binding.parameters()[0].id()
+            ));
+        }
+
+        let private_local = lower("my outer = {my local = 1; local}")
+            .expect("private block bindings remain supported");
+        let HirItem::Binding(binding) = &private_local.items()[0] else { panic!("binding"); };
+        let source = private_local.local_source(binding.definition_root()).unwrap().unwrap();
+        assert_eq!(source.bindings().len(), 1);
+
+        for text in [
+            "my outer = {our local = 1; local}",
+            "my outer = {pub local = 1; local}",
+        ] {
+            assert!(matches!(lower(text), Err(HirAvailabilityError::StructuralProjection)), "{text}");
+        }
     }
     #[test]
     fn ordinary_inline_parameter_provenance_retains_source_key_and_binder_span() {

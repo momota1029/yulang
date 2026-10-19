@@ -1,7 +1,9 @@
 import init, { infer, run } from "./wasm/yulang_wasm.js";
 import "./style.css";
+import yulang2IdentityIsland from "../examples/yulang2-identity-island.yu?raw";
 
 const examples: Record<string, string> = {
+  yulang2_identity_island: yulang2IdentityIsland,
   ordinary: "my identity x = x\nmy main = identity 7",
   closure: "my make x = \\y -> x\nmy main = make 12 7",
   recursion: "my loop condition = if condition: loop false else: 11\nmy main = loop true",
@@ -29,7 +31,7 @@ const status = document.querySelector<HTMLElement>("#status")!;
 const inferButton = document.querySelector<HTMLButtonElement>("#infer")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run")!;
 
-source.value = examples.ordinary;
+source.value = examples.yulang2_identity_island;
 
 function showResult(label: string, value: string, failed = false): void {
   title.textContent = label;
@@ -55,6 +57,7 @@ async function withBusy(action: () => string): Promise<void> {
 document.querySelector<HTMLSelectElement>("#example")!.addEventListener("change", (event) => {
   const selected = (event.currentTarget as HTMLSelectElement).value;
   source.value = examples[selected] ?? examples.ordinary;
+  definition.value = selected === "yulang2_identity_island" ? "int_identity" : "main";
 });
 
 inferButton.addEventListener("click", () => {

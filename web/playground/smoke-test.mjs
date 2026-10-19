@@ -28,14 +28,31 @@ const examples = {
     "91\n",
   ],
 };
+const yulang2Source = fs.readFileSync("./examples/yulang2-identity-island.yu", "utf8");
+const yulang2Definitions = {
+  int_identity: "7\n",
+  bool_identity: "true\n",
+  string_identity: '"ok"\n',
+};
 const results = Object.fromEntries(
-  Object.entries(examples).map(([name, [source, expected]]) => [name, run(source, "main", 100_000)]),
+  Object.entries(examples).map(([name, [source]]) => [name, run(source, "main", 100_000)]),
+);
+const yulang2Results = Object.fromEntries(
+  Object.entries(yulang2Definitions).map(([definition, expected]) => [
+    definition,
+    run(yulang2Source, definition, 100_000),
+  ]),
 );
 const graph = infer("my identity x = x\nmy main = identity 7");
 
 for (const [name, [, expected]] of Object.entries(examples)) {
   if (results[name] !== expected) {
     throw new Error(`unexpected ${name} runtime value: ${JSON.stringify(results[name])}`);
+  }
+}
+for (const [definition, expected] of Object.entries(yulang2Definitions)) {
+  if (yulang2Results[definition] !== expected) {
+    throw new Error(`unexpected ${definition} runtime value: ${JSON.stringify(yulang2Results[definition])}`);
   }
 }
 if (!graph.startsWith("Experimental candidate inference graph")) {
@@ -59,4 +76,4 @@ if (!shallowHandlerAbsent) {
   throw new Error("the resumed Case arm must leave its shallow tick handler absent");
 }
 
-console.log(`WASM smoke passed: inference and ${Object.keys(examples).length} execution examples.`);
+console.log(`WASM smoke passed: inference, ${Object.keys(examples).length} execution examples, and three Yulang2 identity definitions.`);

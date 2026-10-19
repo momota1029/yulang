@@ -1,0 +1,15 @@
+// one generalized function used at three types
+my identity x = x
+our int_identity = identity 7
+our bool_identity = identity true
+our string_identity = identity "ok"
+int_identity
+bool_identity
+string_identity
+
+
+// recursive function with inferred argument and result types
+my countdown flag = if flag { 8 } else { countdown true }
+our countdown_result = countdown false
+countdown_result
+

@@ -27,6 +27,7 @@
           <div class="panel-heading">
             <label for="source">Source</label>
             <select id="example" aria-label="Load an example">
+              <option value="yulang2_identity_island">Yulang2 generalized identity</option>
               <option value="ordinary">Polymorphic identity</option>
               <option value="closure">Closure capture</option>
               <option value="recursion">Recursive definition</option>
@@ -43,7 +44,7 @@
           </div>
           <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Yulang source"></textarea>
           <div class="controls">
-            <label class="definition-field">Run definition <input id="definition" value="main" /></label>
+            <label class="definition-field">Run definition <input id="definition" value="int_identity" /></label>
             <div class="buttons">
               <button id="infer" class="secondary">Inspect types</button>
               <button id="run" class="primary">Run</button>
@@ -59,6 +60,8 @@
           <pre id="output">Choose an action to inspect or run your source.</pre>
         </section>
       </section>
+
+      <p class="scope-note">For the Yulang2 identity example, run <code>int_identity</code>, <code>bool_identity</code>, or <code>string_identity</code>.</p>
 
       <footer>
         <span>Source stays in this browser tab.</span>
