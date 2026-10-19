@@ -974,3 +974,134 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
     }
     false
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Instruction, ParameterRole, RuntimeEvidence, RuntimeProgram};
+    use std::sync::Arc;
+    use yu_hir::shadow::{LocalSourceForm, lower_module_with_local_source};
+    use yu_hir::{
+        FileId, FileKey, HirItem, ModuleIdentity, SemanticImports, SourceAnnotation,
+        SourceAnnotationValue, SourceRootId,
+    };
+    use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+
+    const SOURCE: &str = "act signal:\n    our ping: () -> int\nmy loop x = loop x\nmy ignore (x:[] int) = 9\nmy main = ignore (loop ())";
+
+    fn formal_for<'a>(hir: &'a yu_hir::HirModule, name: &str) -> (SourceRootId, &'a yu_hir::shadow::LocalSourceExpr, &'a yu_hir::shadow::LocalSourceParameter) {
+        let binding = hir
+            .items()
+            .iter()
+            .find_map(|item| match item {
+                HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("missing {name} binding"));
+        let root = SourceRootId::Definition(binding.definition_root().clone());
+        let source = hir.local_source_for(&root).unwrap().unwrap();
+        let (lambda, parameter) = source
+            .expressions()
+            .iter()
+            .find_map(|expression| match &expression.form {
+                LocalSourceForm::Lambda { parameter, .. } if parameter.spelling.as_ref() == "x" => {
+                    Some((expression, parameter))
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("missing {name} formal lambda"));
+        (root, lambda, parameter)
+    }
+
+    fn assert_annotation_projection(original: &SourceAnnotation, projected: &SourceAnnotation) {
+        assert_eq!(projected.owner, original.owner);
+        assert_eq!(projected.position, original.position);
+        assert!(matches!(&original.ty.value, SourceAnnotationValue::Int));
+        assert!(matches!(&projected.ty.value, SourceAnnotationValue::Int));
+        let original_effects = original.ty.effects.as_ref().expect("source [] row retained");
+        let projected_effects = projected.ty.effects.as_ref().expect("projected [] row retained");
+        assert_eq!(projected_effects.position, original_effects.position);
+        assert_eq!(projected_effects.concrete, original_effects.concrete);
+        assert_eq!(projected_effects.variables, original_effects.variables);
+        assert!(original_effects.concrete.is_empty());
+        assert!(original_effects.variables.is_empty());
+    }
+
+    #[test]
+    fn runtime_program_emits_computation_role_with_original_formal_and_schema() {
+        let source: Arc<SourceText> = Arc::from(SOURCE);
+        let parsed = parse_file(
+            source.clone(),
+            Arc::new(scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let hir = Arc::new(
+            lower_module_with_local_source(
+                ModuleIdentity::source_root(FileId::new(FileKey::new(
+                    "runtime-program-projection",
+                    "test.yu",
+                ))),
+                &parsed,
+                SemanticImports::empty(),
+            )
+            .unwrap(),
+        );
+
+        let (ignore_root, ignore_lambda, original_formal) = formal_for(&hir, "ignore");
+        let original_annotation = original_formal
+            .annotation
+            .as_ref()
+            .expect("ignore formal has the source [] int annotation");
+        assert_eq!(original_annotation.owner, ignore_root);
+
+        let program = RuntimeProgram::from_hir(hir.clone(), RuntimeEvidence::default()).unwrap();
+        let mut ignore_emissions = program.code.iter().filter_map(|code| match &code.instruction {
+            Instruction::Lambda {
+                parameter,
+                role,
+                root_schema,
+                ..
+            } if parameter == &original_formal.id => Some((code, *role, root_schema)),
+            _ => None,
+        });
+        let (ignore_code, ignore_role, ignore_schema) =
+            ignore_emissions.next().expect("ignore Lambda emitted");
+        assert!(ignore_emissions.next().is_none(), "formal emitted exactly once");
+        assert_eq!(ignore_role, ParameterRole::Computation);
+        assert_eq!(ignore_code.site.source_root, ignore_root);
+        assert_eq!(ignore_code.site.occurrence, ignore_lambda.occurrence);
+        assert_eq!(ignore_code.site.range, ignore_lambda.range);
+        let ignore_schema = ignore_schema.as_ref().expect("positive RootCompSchema emitted");
+        assert_eq!(ignore_schema.formal.id, original_formal.id);
+        assert_eq!(ignore_schema.formal.source, original_formal.source);
+        assert_eq!(ignore_schema.formal.range, original_formal.range);
+        assert_eq!(ignore_schema.formal.spelling, original_formal.spelling);
+        assert_eq!(ignore_schema.lambda.source_root, ignore_root);
+        assert_eq!(ignore_schema.lambda.occurrence, ignore_lambda.occurrence);
+        assert_eq!(ignore_schema.lambda.range, ignore_lambda.range);
+        assert_annotation_projection(
+            original_annotation,
+            ignore_schema.formal.annotation.as_ref().unwrap(),
+        );
+
+        let (loop_root, loop_lambda, original_loop_formal) = formal_for(&program._hir, "loop");
+        assert!(original_loop_formal.annotation.is_none());
+        let mut loop_emissions = program.code.iter().filter_map(|code| match &code.instruction {
+            Instruction::Lambda {
+                parameter,
+                role,
+                root_schema,
+                ..
+            } if parameter == &original_loop_formal.id => Some((code, *role, root_schema)),
+            _ => None,
+        });
+        let (loop_code, loop_role, loop_schema) =
+            loop_emissions.next().expect("loop Lambda emitted");
+        assert!(loop_emissions.next().is_none(), "formal emitted exactly once");
+        assert_eq!(loop_role, ParameterRole::Value);
+        assert!(loop_schema.is_none());
+        assert_eq!(loop_code.site.source_root, loop_root);
+        assert_eq!(loop_code.site.occurrence, loop_lambda.occurrence);
+        assert_eq!(loop_code.site.range, loop_lambda.range);
+    }
+}
