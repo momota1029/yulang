@@ -1,11 +1,15 @@
 import init, { infer, run } from "./wasm/yulang_wasm.js";
 import "./style.css";
 import yulang2IdentityIsland from "../examples/yulang2-identity-island.yu?raw";
+import yulang2TypeMismatch from "../examples/yulang2-type-mismatch.yu?raw";
+import yulang2ParameterProvenance from "../examples/yulang2-parameter-provenance.yu?raw";
 import repeatedChoice from "../examples/repeated-choice.yu?raw";
 import polymorphicEscapingClosure from "../examples/polymorphic-escaping-closure.yu?raw";
 
 const examples: Record<string, string> = {
   yulang2_identity_island: yulang2IdentityIsland,
+  yulang2_type_mismatch: yulang2TypeMismatch,
+  yulang2_parameter_provenance: yulang2ParameterProvenance,
   repeated_choice: repeatedChoice,
   polymorphic_escaping_closure: polymorphicEscapingClosure,
   ordinary: "my identity x = x\nmy main = identity 7",

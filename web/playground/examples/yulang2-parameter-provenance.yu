@@ -1,0 +1,7 @@
+// The argument is an int, but the body uses value as a condition.
+my choose(value) = if value:
+    "yes"
+else:
+    "no"
+
+choose 42

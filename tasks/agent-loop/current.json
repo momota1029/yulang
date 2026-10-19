@@ -5,57 +5,35 @@
   "session": "current-conversation-2026-10-20-r139",
   "active_sprint": {
     "id": "yulang2-diagnostic-examples-20261020-r139",
-    "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev4.md",
-    "revision": 4,
-    "contract_sha256": "3c799b9f735de41ea8a033ad6b5d9920e296a0bc19e5b907159009f7cfadc47f",
-    "state": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev5.md",
+    "revision": 5,
+    "contract_sha256": "5aaa9e95df0c48032409908dbe90a2b1ab6231b1c868c67f3a2150bb2aee9e21",
+    "state": "CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY",
     "baseline": "0e7a71b23b86390390e608282b217ef354930e86",
     "authority": "unchanged curated Y2 diagnostic-example compatibility only; no semantic or parent-gate promotion",
     "resources": {
-      "cap_seconds": 2100,
-      "reserved_seconds": 2100,
+      "cap_seconds": 2190,
+      "reserved_seconds": 2190,
       "astra_seconds": 0,
       "heavy_processes": 1,
-      "proof_seconds": 600,
+      "proof_charged_seconds": 450,
+      "proof_released_seconds": 150,
       "implementation_seconds": 540,
-      "reviews_seconds": 300,
+      "review_seconds": 540,
       "verification_seconds": 360,
       "closeout_seconds": 120,
-      "prior_elapsed": "Not reconstructible from receipts; retains full prior reservations within the same 2100s cap."
+      "prior_elapsed": "Unknown work charged; no resets. 150s released proof reserve plus 90s Luna amendment.",
+      "verification_charged_seconds": 360
     },
-    "review_status": "Rev2 prospective and rev3 dependency-delta spec/compiler CLEAN; rev4 spec/compiler reactivation delta CLEAN. Rev4 3/3 added dependency pins revalidated.",
-    "outputs": {
-      "proof": [
-        "notes/theory/2026-10-20-r139-yulang2-diagnostic-examples.md",
-        "tasks/agent-loop/inbox/20261020-r139-proof.md"
-      ],
-      "implementation": [
-        "web/playground/examples/yulang2-type-mismatch.yu",
-        "web/playground/examples/yulang2-parameter-provenance.yu",
-        "tools/inference-playground/tests/cli_yulang2_diagnostic_examples.rs",
-        "web/playground/src/main.ts",
-        "web/playground/index.html",
-        "web/playground/smoke-test.mjs",
-        "tasks/agent-loop/inbox/20261020-r139-implementation.md"
-      ]
-    },
-    "verification": "After frozen outputs and fresh final reviews: serial CLI 120s then Web check 240s; stop on first failure.",
-    "next_action": "Resume finite proof and complete serial implementation; freeze outputs, final reviews, exact CLI/Web verification, closeout.",
+    "review_status": "CLEAN final spec/authority and regression/source reviews; exact CLI and Web checks PASS.",
+    "verification": "CLI: timeout 120s cargo test -q -p yu-playground --test cli_yulang2_diagnostic_examples — PASS, 1/1. Web: timeout 240s npm --prefix web/playground run check — PASS (WASM build + smoke). Conservatively charged 360s verification reservation.",
+    "next_action": "R135 user choice remains critical path for further successful unchanged Yulang2 examples; then new exact sprint contract. R138 action31 route is independent research option only under a new contract.",
     "r135_brace_decision": "PENDING; R139 does not depend on or decide it.",
-    "dependency_delta": {
-      "added": [
-        "crates/yu-solver/src/candidate_effect.rs",
-        "crates/yu-solver/src/candidate_extrusion.rs",
-        "crates/yu-solver/src/lib.rs"
-      ],
-      "pins": "all match baseline tree and live bytes",
-      "reason": "finite parameter-provenance conflict bridge requires annotation construction, candidate row-bound propagation and conflict consumption"
-    },
-    "pin_revalidation": {
-      "prior_receipt": "R139 rev2 activation verified 15 Y3 rows against baseline tree/live plus external oracle blob before output edits.",
-      "delta_now": "Rev3 added candidate_effect.rs, candidate_extrusion.rs, lib.rs; all three matched baseline tree/live.",
-      "current_contract_rule": "Rev4 carries forward prior input/output pre-edit pin receipt and requires delta pins revalidated."
-    }
+    "proof_assignment": "FROZEN rev1 STOPPED; 450/600s charged, 150s reallocated to reviews. Theory 38c055e8dee959bddd1a0a09cb90a1d04020dc026ec003503e7abccc9a53cc7f; handoff 3c8d59ff17169455302e2479b323489dcd14c3d01deb38eba8dffa67b3284ff4. Parent gates OPEN.",
+    "implementation_status": "FROZEN; final reviews CLEAN; exact CLI/Web checks PASS. Handoff SHA e2c3df3ff9f457c3e57b41a604463005cd5fea524bf1c3f1878164bd9f90d03b.",
+    "review_receipts": "R139 rev2/3/4 prospective+delta spec/compiler-source reviews CLEAN; rev5 final spec `/root/r139_final_spec` CLEAN, regression/source `/root/r139_final_regression` CLEAN. CLI 1/1 and Web build/smoke PASS.",
+    "closure": "R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two unchanged expected-error examples. All general inference/evaluator/source-native/production gates remain OPEN; R135 pending.",
+    "closeout": "notes/progress/2026-10-20-r139-closeout.md; SHA-256 8f5d44953f2968566fddd0e140ebfc5d8b3edb34b79af041c9fa850047bdca4e"
   },
   "workers": [
     {
@@ -105,13 +83,13 @@
     {
       "id": "/root/r139_proof",
       "role": "constructive finite source-correspondence proof",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-20-r139",
       "requested_model": "prover",
       "requested_effort": "per configured role",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Resumed exact leases under rev4 after CLEAN delta reviews and 3/3 added-pin revalidation. Prior elapsed not reconstructed; no budget reset."
+      "receipt": "Frozen proof rev1; 450/600s charged, 150s released; writes ceased 2026-10-19 23:41:55 UTC; full bridge status in active_sprint."
     }
   ],
   "leases": [
@@ -127,6 +105,51 @@
       "state": "HELD"
     },
     {
+      "path": "notes/theory/2026-10-20-r139-yulang2-diagnostic-examples.md",
+      "owner": "/root/r139_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r139-proof.md",
+      "owner": "/root/r139_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "web/playground/examples/yulang2-type-mismatch.yu",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "web/playground/examples/yulang2-parameter-provenance.yu",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tools/inference-playground/tests/cli_yulang2_diagnostic_examples.rs",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "web/playground/src/main.ts",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "web/playground/index.html",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "web/playground/smoke-test.mjs",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r139-implementation.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
       "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev1.md",
       "owner": "/root",
       "state": "FROZEN"
@@ -137,49 +160,24 @@
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-20-r139-yulang2-diagnostic-examples.md",
-      "owner": "/root/r139_proof",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r139-proof.md",
-      "owner": "/root/r139_proof",
-      "state": "HELD"
-    },
-    {
-      "path": "web/playground/examples/yulang2-type-mismatch.yu",
+      "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev3.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
-      "path": "web/playground/examples/yulang2-parameter-provenance.yu",
+      "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev4.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
-      "path": "tools/inference-playground/tests/cli_yulang2_diagnostic_examples.rs",
+      "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev5.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
-      "path": "web/playground/src/main.ts",
+      "path": "notes/progress/2026-10-20-r139-closeout.md",
       "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "web/playground/index.html",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "web/playground/smoke-test.mjs",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r139-implementation.md",
-      "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -261,8 +259,8 @@
       "falsifier": "Any blocking/major finding or dependency mismatch keeps candidate provisional."
     }
   ],
-  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH; all parent inference/evaluator/production gates OPEN. R139 active under rev4.",
-  "next_action": "Complete R139 proof and serial implementation, then final reviews, exact CLI/Web verification and closeout.",
+  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN.",
+  "next_action": "R135 user choice is critical path for additional successful unchanged Yulang2 examples. R138 action31 certified-cut route remains an independent option only under a fresh contract.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -368,23 +366,13 @@
     },
     {
       "id": "R139",
-      "state": "ACTIVE_AFTER_PROSPECTIVE_REVIEWS",
-      "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev2.md",
-      "contract_sha256": "15b6e95ec569e4387cb4dce1063b3ddb7b51b5170b8350bbec81fa1a8901cbee",
-      "baseline": "0e7a71b23b86390390e608282b217ef354930e86"
-    },
-    {
-      "id": "R139-rev3",
-      "state": "CLEAN_DEPENDENCY_DELTA",
-      "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev3.md",
-      "contract_sha256": "4ab85cb6255534e9e73f087ae61579f854f710a222405d2a37fcd4267ff2a195"
-    },
-    {
-      "id": "R139-rev4",
-      "state": "CLEAN_REACTIVATION_DELTA",
-      "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev4.md",
-      "contract_sha256": "3c799b9f735de41ea8a033ad6b5d9920e296a0bc19e5b907159009f7cfadc47f"
+      "state": "CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY",
+      "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev5.md",
+      "contract_sha256": "5aaa9e95df0c48032409908dbe90a2b1ab6231b1c868c67f3a2150bb2aee9e21",
+      "closeout": "notes/progress/2026-10-20-r139-closeout.md",
+      "closeout_sha256": "8f5d44953f2968566fddd0e140ebfc5d8b3edb34b79af041c9fa850047bdca4e",
+      "verification": "CLI 1/1 PASS; WASM build and smoke PASS; charged full 360s reservation"
     }
   ],
-  "review_receipts": "R139 rev2 prospective, rev3 dependency delta, rev4 reactivation pin rule: spec and compiler/source CLEAN. R135 rev5 CLEAN; user decision pending."
+  "review_receipts": "R139 rev2/3/4 spec+compiler/source CLEAN; rev5 final spec+regression/source CLEAN. CLI/Web exact checks pending. R135 decision pending."
 }

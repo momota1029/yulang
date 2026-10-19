@@ -46,6 +46,10 @@ assertRun(polymorphicEscapingClosureSource, "main", "7\n");
 assertRun(polymorphicEscapingClosureSource, "bool_result", "true\n");
 assertRun(polymorphicEscapingClosureSource, "string_result", '"ok"\n');
 const yulang2Source = fs.readFileSync("./examples/yulang2-identity-island.yu", "utf8");
+const yulang2DiagnosticExamples = {
+  typeMismatch: fs.readFileSync("./examples/yulang2-type-mismatch.yu", "utf8"),
+  parameterProvenance: fs.readFileSync("./examples/yulang2-parameter-provenance.yu", "utf8"),
+};
 const yulang2Definitions = {
   int_identity: "7\n",
   bool_identity: "true\n",
@@ -61,6 +65,18 @@ const yulang2Results = Object.fromEntries(
   ]),
 );
 const graph = infer("my identity x = x\nmy main = identity 7");
+
+for (const [name, source] of Object.entries(yulang2DiagnosticExamples)) {
+  let rejectedAtCandidateConflict = false;
+  try {
+    infer(source);
+  } catch (error) {
+    rejectedAtCandidateConflict = String(error).includes("candidate type conflicts");
+  }
+  if (!rejectedAtCandidateConflict) {
+    throw new Error(`unexpected ${name} outcome: expected candidate type conflict`);
+  }
+}
 
 for (const [name, [, expected]] of Object.entries(examples)) {
   if (results[name] !== expected) {
@@ -93,4 +109,4 @@ if (!shallowHandlerAbsent) {
   throw new Error("the resumed Case arm must leave its shallow tick handler absent");
 }
 
-console.log(`WASM smoke passed: inference, ${Object.keys(examples).length} execution examples, and three Yulang2 identity definitions.`);
+console.log(`WASM smoke passed: inference, ${Object.keys(examples).length} execution examples, three Yulang2 identity definitions, and two Yulang2 diagnostic examples.`);
