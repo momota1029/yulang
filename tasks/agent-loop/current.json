@@ -37,7 +37,7 @@
     },
     "review_status": "Prospective spec/compiler CLEAN; final compiler/source, regression, and proof-source delta CLEAN; both minor findings closed.",
     "verification": "PASS: CLI isolated test 1/1; npm run check PASS; no retries.",
-    "next_action": "Luna integration: inspect outbound range, stage explicit R137 paths, commit and non-forced push.",
+    "next_action": "push reviewed R137 integration commits non-forced after remote-head check",
     "prospective_reviews": {
       "spec": {
         "result": "CLEAN",
@@ -79,7 +79,9 @@
     },
     "proof_status": "REV2 FROZEN; note 3d60420518032025211ae927f266d840dfa67d49f44e9e279ed28292a4a48f51; handoff 702b740089bd68a5a053932a5bcebfe2967fd242880b9fb1303fb3d2b9ebf3c1; 420/660 seconds",
     "closeout": "notes/progress/2026-10-20-r137-closeout.md",
-    "closeout_sha256": "31de8c2a510d8f783da9611866c0fb5ed7b7bfc5427e87d75a6e7d7f3bc9d590"
+    "closeout_sha256": "31de8c2a510d8f783da9611866c0fb5ed7b7bfc5427e87d75a6e7d7f3bc9d590",
+    "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de",
+    "commit_message": "Verify polymorphic escaping closure example"
   },
   "workers": [
     {
@@ -279,8 +281,8 @@
       "falsifier": "Any blocking/major finding or dependency mismatch keeps candidate provisional."
     }
   ],
-  "closure": "R136 closed and pushed as 93385cb6a finite verified example; no general theorem/production gate closure. R135 remains approval-pending; parent gates OPEN.",
-  "next_action": "Luna integration: inspect outbound range, stage explicit R137 paths, commit and non-forced push.",
+  "closure": "R137 closed and locally committed as 09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de finite verified conditional witness; push pending. Stronger native transport, original A/B, and production gates remain OPEN. R135 remains approval-pending.",
+  "next_action": "push reviewed R137 integration commits non-forced after remote-head check",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -374,7 +376,7 @@
       "closeout": "notes/progress/2026-10-20-r137-closeout.md",
       "contract": "tasks/agent-loop/sprints/polymorphic-escaping-closure-20261020-r137-rev1.md",
       "proof": "notes/theory/2026-10-20-r137-polymorphic-escaping-closure.md",
-      "commit": "PENDING_LUNA_INTEGRATION"
+      "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de"
     }
   ],
   "review_receipts": "R135 rev3 spec MINOR/compiler MAJOR; rev4 spec/compiler two MAJOR; rev5 paired focused deltas CLEAN. Full findings/hashes in frozen contracts and closeout."
