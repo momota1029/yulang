@@ -2,90 +2,53 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-20-r137",
+  "session": "current-conversation-2026-10-20-r138",
   "active_sprint": {
-    "id": "polymorphic-escaping-closure-20261020-r137",
-    "contract": "tasks/agent-loop/sprints/polymorphic-escaping-closure-20261020-r137-rev1.md",
+    "id": "helper-cut-ledger-20261020-r138",
+    "contract": "tasks/agent-loop/sprints/helper-cut-ledger-20261020-r138-rev1.md",
     "revision": 1,
-    "contract_sha256": "b9ad941e29dc650818b9da5468156b07ec41722c1616bdc90e97846857f2c5fc",
-    "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
-    "baseline": "93385cb6ab1e83a769e84af4997d39b9f57c9684",
-    "authority": "existing local generalization, lexical closure, CLI/WASM semantics; no semantic change",
+    "contract_sha256": "8bfe31e038f1c7684ac2d9dba95164f13448e150ccb08a874bea22610fc6e04f",
+    "state": "ACTIVE_REVIEWED_READY_TO_LAUNCH",
+    "baseline": "66c7b52b197aa035d6feaf20ff4f84198a92f9cb",
+    "authority": "unchanged computation-forwarding preservation §§1,6–7; no semantic/code/test/observer authority",
     "resources": {
-      "cap_seconds": 2100,
-      "reserved_seconds": 240,
+      "cap_seconds": 1800,
+      "reserved_seconds": 1800,
       "astra_seconds": 0,
       "heavy_processes": 1
     },
     "outputs": {
-      "canonical_source": "web/playground/examples/polymorphic-escaping-closure.yu",
-      "cli": "tools/inference-playground/tests/cli_polymorphic_escaping_closure.rs",
-      "web": [
-        "web/playground/src/main.ts",
-        "web/playground/index.html",
-        "web/playground/smoke-test.mjs"
-      ],
       "proof": [
-        "notes/theory/2026-10-20-r137-polymorphic-escaping-closure.md",
-        "tasks/agent-loop/inbox/20261020-r137-proof.md"
+        "notes/theory/2026-10-20-r138-helper-cut-ledger.md",
+        "tasks/agent-loop/inbox/20261020-r138-proof.md"
       ],
-      "implementation": "tasks/agent-loop/inbox/20261020-r137-implementation.md",
-      "reviews": [
-        "tasks/agent-loop/inbox/20261020-r137-prespec-review.md",
-        "tasks/agent-loop/inbox/20261020-r137-precompiler-review.md"
+      "owner_map": [
+        "notes/progress/2026-10-20-r138-cut-owner-map.md",
+        "tasks/agent-loop/inbox/20261020-r138-implementation.md"
       ]
     },
-    "review_status": "Prospective spec/compiler CLEAN; final compiler/source, regression, and proof-source delta CLEAN; both minor findings closed.",
-    "verification": "PASS: CLI isolated test 1/1; npm run check PASS; no retries.",
-    "next_action": "next sprint start: consult dispatcher; preserve open parent gates and unknown legacy reservations",
+    "review_status": "CLEAN prospective spec and compiler/source; reviewer identities in this receipt",
+    "verification": "39/39 direct dependencies match baseline Git tree and live bytes; 8 historical R73 owners repinned",
+    "next_action": "launch proof lane; Luna continues owner map; preserve R73 unreviewed and all parent gates OPEN",
+    "dispatcher_delta": {
+      "worker": "/root/r129_dispatch",
+      "result": "accepted exact candidate hash; no amendment",
+      "contract_sha256": "8bfe31e038f1c7684ac2d9dba95164f13448e150ccb08a874bea22610fc6e04f"
+    },
     "prospective_reviews": {
       "spec": {
         "result": "CLEAN",
-        "worker": "/root/r137_prespec_review",
-        "pins": "all 16 match",
-        "receipt": "reviewer final message; no file written per read-only instruction"
+        "reviewer": "/root/r138_prespec",
+        "receipt": "collaboration final; read-only"
       },
       "compiler_source": {
         "result": "CLEAN",
-        "worker": "/root/r137_precompiler_review",
-        "pins": "all 16 match",
-        "receipt": "reviewer final message; no file written per read-only instruction"
+        "reviewer": "/root/r138_precompiler",
+        "receipt": "collaboration final; read-only"
       }
     },
-    "implementation_status": "FROZEN; handoff 948213d04373007a83c1132c354a574a3de00d267e8696bb25f251075cc99710",
-    "dispatcher_delta": {
-      "worker": "/root/r137_runtime_dispatch",
-      "result": "continue within R137 rev1; primary Luna serial implementation; proof remains active; no budget increase; preserve unknown legacy reservations"
-    },
-    "artifact_hashes": {
-      "fixture": "cd7448c79b2997f1bfda9bf2533d2a2c0ff152aec886f19a03d36d831e3f0944",
-      "cli": "901b4b598c1a20f2db7276b06f403966262d4d461809a55aaa55535f68ceb79d",
-      "main": "ba647e27df494d15e4bf8edbfc82e4cb8a506b62396c649a26ae6212a0fdea2d",
-      "index": "9edd1341444f4ff15a12733313202d3255d6b470b4736a52d85708591d0d5a03",
-      "smoke": "8ec96d938a0b3f3286f9de26743204c0a944eff26ea6bd892c6a598a6d8e216d"
-    },
-    "final_reviews": {
-      "compiler_source": {
-        "result": "CLEAN_AFTER_DELTA",
-        "reviewer": "/root/r137_final_compiler",
-        "closed": "first-failure check; immediate comparisons of main, bool_result, string_result"
-      },
-      "regression": {
-        "result": "CLEAN_AFTER_DELTA",
-        "reviewer": "/root/r137_final_regression",
-        "closed": "immediate-failure behavior; existing expectations preserved; no tests/builds/Git"
-      },
-      "proof_source": "CLEAN_AFTER_DELTA; P-FORM/P-PREPARE boundary corrected; rev1 snapshots preserved"
-    },
-    "proof_status": "REV2 FROZEN; note 3d60420518032025211ae927f266d840dfa67d49f44e9e279ed28292a4a48f51; handoff 702b740089bd68a5a053932a5bcebfe2967fd242880b9fb1303fb3d2b9ebf3c1; 420/660 seconds",
-    "closeout": "notes/progress/2026-10-20-r137-closeout.md",
-    "closeout_sha256": "c01305c45e65e82768a7636e62c1789d2294f41b8d8f30ff6c29e37db8e877d6",
-    "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de",
-    "commit_message": "Verify polymorphic escaping closure example",
-    "pushed_commits": [
-      "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de",
-      "2bd30298598d749b88fee32ed158e76f74943106"
-    ]
+    "proof_assignment": "RUNNING; active-work acknowledgment received; 900s budget; no descendants",
+    "implementation_status": "Luna primary exact owner-map lane; no safe production code slice established"
   },
   "workers": [
     {
@@ -125,12 +88,23 @@
       "id": "/root",
       "role": "Luna primary; exact leases, review adjudication, state and sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r137",
+      "session": "current-conversation-2026-10-20-r138",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Luna sole integrator; R137 proof, CLI and Web/WASM verified; commits 09e3c41a5 and 2bd302985 pushed; parent gates OPEN."
+      "receipt": "R138 primary active; exact candidate accepted; prospective spec/compiler reviews CLEAN; no child launched yet."
+    },
+    {
+      "id": "/root/r138_proof",
+      "role": "Sol/high constructive proof lane",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-20-r138",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Active-work acknowledgment received; session current-conversation-2026-10-20-r138; requested gpt-6-sol/high, observed UNKNOWN/UNKNOWN; two exact proof leases only; no descendants; start 2026-10-19 23:08 UTC approximate; 900s grant."
     }
   ],
   "leases": [
@@ -146,64 +120,29 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/polymorphic-escaping-closure-20261020-r137-rev1.md",
+      "path": "tasks/agent-loop/sprints/helper-cut-ledger-20261020-r138-rev1.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-20-r138-helper-cut-ledger.md",
+      "owner": "/root/r138_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r138-proof.md",
+      "owner": "/root/r138_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-20-r138-cut-owner-map.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-20-r137-polymorphic-escaping-closure.md",
+      "path": "tasks/agent-loop/inbox/20261020-r138-implementation.md",
       "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r137-proof.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "web/playground/examples/polymorphic-escaping-closure.yu",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tools/inference-playground/tests/cli_polymorphic_escaping_closure.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "web/playground/src/main.ts",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "web/playground/index.html",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "web/playground/smoke-test.mjs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r137-implementation.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-20-r137-polymorphic-escaping-closure-rev1.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r137-proof-rev1.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-20-r137-closeout.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -285,8 +224,8 @@
       "falsifier": "Any blocking/major finding or dependency mismatch keeps candidate provisional."
     }
   ],
-  "closure": "R137 closed, verified, and pushed as a finite conditional witness. Stronger native transport, original A/B, and production gates remain OPEN. R135 remains approval-pending.",
-  "next_action": "next sprint start: consult dispatcher; preserve open parent gates and unknown legacy reservations",
+  "closure": "R138 active; R72-LATER-OCCURRENCE-1 and original inference/evaluator/A-B/production gates remain OPEN. R135 awaits user design choice.",
+  "next_action": "R138: launch proof lane and complete Luna source/native owner map; no tests/builds/observer/code changes.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
