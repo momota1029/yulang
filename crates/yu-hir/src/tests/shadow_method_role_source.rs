@@ -342,3 +342,238 @@ fn exact_role_impl_member_source_reaches_original_occurrences() {
     assert_ne!(formal_selected_key, body_selected_key);
     assert_ne!(formal_position, body_position);
 }
+
+#[test]
+fn member_annotations_stay_on_their_original_formal() {
+    const SOURCES: [(&str, Option<&str>); 3] = [
+        (
+            "role SecondInt {\n    my second: int -> int -> int\n}\nimpl int: SecondInt {\n    my second self selected = selected\n}\nmy answer = SecondInt::second 1 2",
+            None,
+        ),
+        (
+            "role SecondInt {\n    my second: int -> int -> int\n}\nimpl int: SecondInt {\n    my second self (selected:int) = selected\n}\nmy answer = SecondInt::second 1 2",
+            Some("int"),
+        ),
+        (
+            "role SecondInt {\n    my second: int -> int -> int\n}\nimpl int: SecondInt {\n    my second self (selected:[] int) = selected\n}\nmy answer = SecondInt::second 1 2",
+            Some("[] int"),
+        ),
+    ];
+
+    for (source, expected_annotation) in SOURCES {
+        assert!(!source.ends_with('\n'));
+        let parsed_file = parsed(source);
+        assert!(parsed_file.syntax_diagnostics().unwrap().is_empty(), "{source}");
+        let artifact = ShadowArtifact::from_parsed(parsed_file).unwrap();
+        assert_eq!(artifact.source(), source);
+        let keys = source_keys(artifact.parsed());
+        let range_of = |node: &yu_syntax::SyntaxNode| {
+            usize::from(node.text_range().start())..usize::from(node.text_range().end())
+        };
+        let node_text = |node: &yu_syntax::SyntaxNode| {
+            &source[range_of(node)]
+        };
+        let retained_position = |node: &yu_syntax::SyntaxNode| {
+            let key = keys.get(node).expect("original syntax node has a source key");
+            assert!(artifact.parsed().owns_source_key(key));
+            let id = artifact.source_position(key).unwrap();
+            let retained = artifact.position(&id).unwrap();
+            assert_eq!(retained.kind(), node.kind());
+            assert_eq!(retained.range(), &range_of(node));
+            id
+        };
+        let retained_descends_from = |child: &PositionId, parent: &PositionId| {
+            let mut ancestor = artifact.position(child).unwrap().parent().cloned();
+            while let Some(position) = ancestor {
+                if &position == parent {
+                    return true;
+                }
+                ancestor = artifact.position(&position).unwrap().parent().cloned();
+            }
+            false
+        };
+
+        let member_matches = keys
+            .keys()
+            .filter(|node| {
+                node.kind() == SyntaxKind::BindingStatement
+                    && node_text(node).starts_with("my second self")
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(member_matches.len(), 1);
+        let member = &member_matches[0];
+        let member_key = keys.get(member).unwrap();
+        assert!(artifact.parsed().owns_source_key(member_key));
+        let member_position = retained_position(member);
+
+        let impl_matches = keys
+            .keys()
+            .filter(|node| {
+                node.kind() == SyntaxKind::ImplDeclaration
+                    && node_text(node).starts_with("impl int: SecondInt")
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        assert_eq!(impl_matches.len(), 1);
+        let impl_node = &impl_matches[0];
+        let impl_key = keys.get(impl_node).unwrap();
+        assert!(artifact.parsed().owns_source_key(impl_key));
+
+        let mut ancestor = Some(member.clone());
+        let mut found_impl = false;
+        while let Some(node) = ancestor {
+            let key = keys.get(&node).expect("member ancestry remains in this parse");
+            assert!(artifact.parsed().owns_source_key(key));
+            if node == *impl_node {
+                found_impl = true;
+                break;
+            }
+            ancestor = node.parent();
+        }
+        assert!(found_impl, "member must descend from its original impl node");
+
+        let header = member
+            .children()
+            .find(|node| node.kind() == SyntaxKind::BindingHeader)
+            .expect("member retains its original BindingHeader");
+        let target = header
+            .children()
+            .find(|node| node.kind() == SyntaxKind::Pattern)
+            .expect("member header retains its target Pattern");
+        let binders = target.children().collect::<Vec<_>>();
+        assert_eq!(binders.len(), 3);
+        let binder_positions = binders.iter().map(&retained_position).collect::<Vec<_>>();
+        for binder in &binders {
+            let binder_position = retained_position(binder);
+            assert!(retained_descends_from(&binder_position, &member_position), "retained binder remains under its member");
+        }
+        let binder_names = binders
+            .iter()
+            .map(|binder| {
+                let identifier = if binder.kind() == SyntaxKind::IdentifierPattern {
+                    binder.clone()
+                } else {
+                    binder
+                        .descendants()
+                        .find(|node| node.kind() == SyntaxKind::IdentifierPattern)
+                        .expect("application tail retains its original formal pattern")
+                };
+                let range = range_of(&identifier);
+                assert!(keys.contains_key(&identifier));
+                assert!(artifact
+                    .parsed()
+                    .owns_source_key(keys.get(&identifier).unwrap()));
+                source[range].to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(binder_names, ["second", "self", "selected"]);
+
+        let annotation_count = |node: &yu_syntax::SyntaxNode| {
+            node.descendants()
+                .filter(|descendant| descendant.kind() == SyntaxKind::PatternTypeAnnotation)
+                .count()
+        };
+        assert_eq!(annotation_count(&binders[0]), 0, "second has no own annotation");
+        assert_eq!(annotation_count(&binders[1]), 0, "self has no own annotation");
+        let selected_annotations = binders[2]
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternTypeAnnotation)
+            .collect::<Vec<_>>();
+        match expected_annotation {
+            None => assert!(selected_annotations.is_empty()),
+            Some(annotation_text) => {
+                assert_eq!(selected_annotations.len(), 1);
+                let annotation = &selected_annotations[0];
+                let annotation_position = retained_position(annotation);
+                assert!(retained_descends_from(&annotation_position, &binder_positions[2]), "annotation remains owned by selected formal");
+                let range = range_of(annotation);
+                assert!(keys.contains_key(annotation));
+                assert!(artifact
+                    .parsed()
+                    .owns_source_key(keys.get(annotation).unwrap()));
+                let actual = &source[range];
+                assert!(actual.contains(annotation_text), "{actual}");
+                let bracket_rows = annotation
+                    .descendants()
+                    .filter(|node| node.kind() == SyntaxKind::BracketRow)
+                    .collect::<Vec<_>>();
+                if annotation_text == "[] int" {
+                    assert_eq!(bracket_rows.len(), 1, "the empty outer row is syntax-owned here");
+                    assert_eq!(node_text(&bracket_rows[0]), "[]");
+                    let row_position = retained_position(&bracket_rows[0]);
+                    assert!(retained_descends_from(&row_position, &annotation_position), "row remains under its annotation");
+                } else {
+                    assert!(bracket_rows.is_empty(), "ordinary int has no explicit row");
+                }
+                assert!(node_text(&binders[2]).contains("selected"));
+            }
+        }
+
+        let body = member
+            .children()
+            .find(|node| node.kind() == SyntaxKind::BindingBody)
+            .expect("member retains its original body");
+        let body_position = retained_position(&body);
+        assert!(retained_descends_from(&body_position, &member_position));
+        let body_selected = body
+            .descendants()
+            .find(|node| {
+                node.kind() == SyntaxKind::IdentifierExpression
+                    && node_text(node) == "selected"
+            })
+            .expect("body occurrence remains distinct from the formal");
+        let formal_selected = binders[2]
+            .descendants()
+            .find(|node| {
+                node.kind() == SyntaxKind::IdentifierPattern
+                    && node_text(node) == "selected"
+            })
+            .expect("selected formal is retained under the third binder");
+        assert_ne!(formal_selected, body_selected);
+        assert_ne!(range_of(&formal_selected), range_of(&body_selected));
+        let formal_key = keys.get(&formal_selected).unwrap();
+        let body_key = keys.get(&body_selected).unwrap();
+        assert_ne!(formal_key, body_key);
+        assert!(artifact.parsed().owns_source_key(formal_key));
+        assert!(artifact.parsed().owns_source_key(body_key));
+        let formal_position = retained_position(&formal_selected);
+        let body_selected_position = retained_position(&body_selected);
+        assert_ne!(formal_position, body_selected_position);
+        assert!(retained_descends_from(&formal_position, &binder_positions[2]), "formal identifier remains under its binder");
+        assert!(retained_descends_from(&body_selected_position, &body_position), "body occurrence remains under the body");
+
+        let pending = artifact.pending_role_impl_sources();
+        assert_eq!(pending.len(), 2);
+        assert_eq!(pending[0].kind(), SyntaxKind::RoleDeclaration);
+        assert_eq!(pending[1].kind(), SyntaxKind::ImplDeclaration);
+        for declaration in &pending {
+            let position = artifact.position(declaration.position()).unwrap();
+            assert_eq!(position.kind(), declaration.kind());
+            assert!(position.parent().is_some());
+        }
+
+        artifact
+            .with_associated_method_role_sources(|fields, declarations| {
+                assert!(fields.is_empty());
+                assert_eq!(declarations.len(), 2);
+                for (declaration, expected_kind) in declarations.iter().zip([
+                    SyntaxKind::RoleDeclaration,
+                    SyntaxKind::ImplDeclaration,
+                ]) {
+                    assert_eq!(declaration.node().kind(), expected_kind);
+                    assert_eq!(declaration.source().kind(), expected_kind);
+                    let key = keys.get(declaration.node()).unwrap();
+                    assert!(artifact.parsed().owns_source_key(key));
+                    assert_eq!(
+                        artifact.source_position(key).unwrap(),
+                        declaration.source().position().clone()
+                    );
+                }
+                // These declaration APIs retain original Role/Impl nodes; the
+                // binder order and selected's own annotation are read from the
+                // member subtree above, not returned as declaration metadata.
+            })
+            .unwrap();
+    }
+}
