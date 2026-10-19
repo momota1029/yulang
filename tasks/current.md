@@ -2,7 +2,48 @@
 
 Date: 2026-10-19
 Branch: `research/simple-sub-intrusion`
-Status: the full user objective—proof-backed type inference and evaluator implementation, followed by complete Simple-sub/F5 replacement—remains active. R68 is closed as a reviewed conditional same-carrier `RetainBind`/resolved-Name lemma with the exact retained `ConsumerOrigin`, body-check and invocation premise still unsupplied; both fresh reviews confirmed 37/37 hashes and found no blocking, major or minor issue in scope. The next owner obligation is `R68-OWNER-CONSUMER-1`: identify the authentic source rule and applicability test. The R69 candidate was checked at 41/41 pins but not activated because its named rules presuppose an existing consumer; its 2,400s envelope remains ungranted. Luna routed an unadopted source-law completion proposal at [retained consumer origin proposal](../notes/design/2026-10-19-retained-consumer-origin-source-law-proposal.md). `R65-CURRENT-OPERAND-1`, `R66-LAMBDA-RESULT-STAGE-1`, `R67-DIRECT-BODY-CHECK-1`, downstream R64/R61, and the original theorem/Simple-sub A/B remain OPEN at 0; R50 remains NOT ADOPTED. See the [R68 closeout](../notes/progress/2026-10-19-r68-closeout.md), [R68 contract](agent-loop/sprints/retained-lambda-introduction-20261019-r68.md), and [current sprint state](agent-loop/current.json). No code or test work is authorized.
+Status: the full objective remains proof-backed inference/evaluator progress and complete Simple-sub/F5 replacement. The user's current steering requires sustained breadth across six effect-hygiene fronts, proof-backed method/role progress, and early ordinary/effectful source execution without letting any one front monopolize the work. R116 supplied a reviewed conditional method/role consumer bridge and a public stdin CLI observation where ordinary and single-arm effectful sources both passed (2/2). R117 added a reviewed conditional Catch payload binder projection from LocalSource through candidate/runtime consumers, leaving the public caller's same-HIR join as `R117-JOIN-1`; it also made a bounded six-instance warning cleanup. The authorized verification's production `cargo check` passed and reported the eleven intentionally retained warnings. The following `cargo test --lib` failed to compile two `Graph` test initializers in `yu-solver/shadow_apply.rs` because they omit `capture_forest`; the one-shot contract forbids retry or repair in R117. The reviewed source and conditional proof are preserved in a local R111–R117 checkpoint; the test-build failure blocks push. A separate R118 gate will inspect and repair the two authentic `capture_forest` fixtures before new verification. R100-P2 remains OPEN, R85 is Draft/unadopted, and no semantic change is authorized. The R68 consumer-origin obligation, R65/R66/R67, downstream R64/R61, and original theorem/Simple-sub A/B remain OPEN; R50 remains NOT ADOPTED. See the [R117 closeout](../notes/progress/2026-10-19-r117-closeout.md), [R117 contract](agent-loop/sprints/effect-static-runtime-projection-warning-audit-20261019-r117-rev4.md), [R116 closeout](../notes/progress/2026-10-19-r116-closeout.md), and [current sprint state](agent-loop/current.json).
+
+## Current checkpoint (2026-10-19): R117 effect projection and bounded warning cleanup
+
+R117 traces the exact effectful fixture's original Catch payload ID through
+LocalSource resolution, candidate endpoint assignment, cloned runtime arm,
+saved lexical environment and exact-ID body lookup. Fresh compiler/source and
+spec reviews found the internal bridge sound under its authentic shared-HIR and
+successful-transition premises. The public caller's same-HIR Arc join remains
+`R117-JOIN-1`; R116's `7\n` CLI result does not prove that edge. Every one of the
+six effect parents remains OPEN.
+
+The R116 compiler run reported 17 unused-code/field warning instances. The
+owner audit selected six safe local removals: unused
+`yu_hir::module::replace_admission_root`; test-only solver observations
+`requested`, `graph_row`, `completion`, and `freshen_candidate_graph`; and the
+redundant stored `OperationV1Plan.callback_apply`. The source changes are
+bounded to `yu-hir/src/module.rs`, `yu-solver/src/candidate_scheme.rs`,
+`yu-solver/src/candidate_context.rs`, and `inference-playground/src/runtime/program.rs`.
+Fresh review found and repaired an incomplete production pattern before any
+build was run; compiler, spec and regression reviews now pass.
+
+Eleven warning instances remain intentionally retained: HIR token/synthetic
+association provenance, associated field/role source views and their consumers
+in `yu-hir/src/shadow.rs`; effect operation declaration/license/handler and
+callback realization evidence in `yu-solver/src/candidate_source.rs`; and
+source occurrence plus lower/upper endpoint evidence in
+`yu-solver/src/candidate_effect.rs`. These fields implement retained source and
+resource-accounted evidence contracts; deleting or suppressing them needs an
+owner-level design change. No suppression was added. The exact rev4 shared
+verification ran once: `cargo check` passed; `cargo test --lib` stopped with
+exit 101 at `crates/yu-solver/src/shadow_apply.rs:2304` and `:2410`, where two
+`Graph` fixtures omit `capture_forest`. This test-build obstruction is outside
+R117's four-file cleanup diff. It was preserved with no retry or test fixture
+repair under the one-shot contract. R117 is preserved in the local checkpoint; its test-build failure blocks push. The next separate gate will inspect and repair the two authentic `capture_forest` fixtures before new verification.
+
+R116's two public stdin CLI cells passed: ordinary identity and an unambiguous
+direct effect handler both exit successfully with exactly `7\n` and empty
+stderr. This is finite surface evidence, not a general effect theorem. R100-P2,
+R85 adoption, the other effect fronts, original evaluator/A/B obligations and
+R68 consumer-origin remain OPEN. See the [R117 closeout](../notes/progress/2026-10-19-r117-closeout.md)
+and [R116 closeout](../notes/progress/2026-10-19-r116-closeout.md).
 
 ## Current checkpoint (2026-10-19)
 

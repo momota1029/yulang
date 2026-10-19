@@ -755,6 +755,7 @@ impl<'a> Capture<'a> {
         Ok(index)
     }
     fn row(&mut self, key: RowKey) -> Result<usize, SolveAvailabilityError> {
+        #[cfg(test)]
         let requested = key;
         let key = self.session.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.rep(key);
         if let Some(&index) = self.rows.get(&key) {
@@ -1493,6 +1494,7 @@ impl InferenceSession {
         self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry_scratch;
         result
     }
+    #[cfg(test)]
     pub(super) fn freshen_candidate_graph(
         &mut self, graph: &Graph, use_level: u32,
         occurrence: &ConstraintOccurrenceId, cause: &CauseId,
@@ -1592,6 +1594,7 @@ impl InferenceSession {
         state.use_peak_bytes = state.use_peak_bytes.max(state.scratch_bytes);
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         for row in &graph.rows {
+            #[cfg(test)]
             let graph_row = rows.len();
             let source = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.rep(row.key);
             let (level, metadata) = match source { RowKey::Value(i) => (self.value_levels[i as usize], self.value_metadata[i as usize]), RowKey::Effect(i) => (self.effect_levels[i as usize], self.effect_metadata[i as usize]) };

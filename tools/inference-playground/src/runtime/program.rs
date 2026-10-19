@@ -72,7 +72,6 @@ pub(super) struct OperationV1Link {
 pub(super) struct OperationV1Plan {
     pub(super) link: OperationV1Link,
     pub(super) response_lambda: SourceSite,
-    pub(super) callback_apply: SourceSite,
     pub(super) callback_operation: SourceSite,
     pub(super) request: SourceSite,
     pub(super) request_apply: SourceSite,
@@ -720,7 +719,6 @@ impl RuntimeProgram {
             Ok(OperationV1Plan {
                 link,
                 response_lambda,
-                callback_apply,
                 callback_operation,
                 request,
                 request_apply,

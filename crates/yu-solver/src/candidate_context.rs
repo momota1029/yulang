@@ -3904,7 +3904,7 @@ impl InferenceSession {
                 let _ = self.step_typed_drain(drain_index)?;
                 Ok(ReplayChildStep::More)
             }
-            ReplayChildWait::Ready { ack, drain_index, completion } => {
+            ReplayChildWait::Ready { ack, drain_index, #[cfg(test)] completion, .. } => {
                 let next = ack.index.checked_add(1).ok_or_else(exhausted)?;
                 if ack.operation != id || operation.consumed != next || operation.queued != next
                     || self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains.len() != drain_index {

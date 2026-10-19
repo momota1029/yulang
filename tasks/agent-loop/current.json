@@ -1,278 +1,413 @@
 {
-  "schema_version": 1,
-  "mode": "LIVE",
-  "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r110-cli-entry-demand",
-  "active_sprint": {
-    "id": "cli-entry-demand-20261019-r110",
-    "contract": "tasks/agent-loop/sprints/cli-entry-demand-20261019-r110-rev1.md",
-    "revision": 1,
-    "contract_sha256": "d651d326981e1b27bb329b3655ccd612809a1c871f67511baf365cd7d0082976",
-    "state": "CLOSED_CLEAN_FINITE_CLI_OBSERVATION",
-    "baseline": "R97 finite six-cell matrix, R103 C-loop projection, R105 public CLI convention; R109 separate SourceSite range mismatch recorded, not reused.",
-    "parent": "Proof-backed type inference/evaluator with broad, deep progress. Balance six independent effect-hygiene fronts (ordered handler priority; §21 Value/Computation entry; wrong/sibling permission; unmatched outward request plus suffix; continuation capture/resumption; static-to-runtime projection), advancing bounded evidence across them over time. In parallel, prove method/role behavior with source-corresponding steps and make ordinary/effectful source execution runnable early. Do not let effect storage/fiber analysis or any single front monopolize the sequence. Luna alone commits/pushes at coherent reviewed checkpoints; keep the working tree clean; preserve original Simple-sub/evaluator claims and semantic adoption gates.",
-    "authority": "One test-only serial CLI subprocess pair for exact R97 Value/Computation recursive sources, fresh reviews, then one Luna-owned command; no production or language-semantics changes.",
-    "resources": {
-      "cap_seconds": 1200,
-      "allocation": "proof360; implementation240; pre/post spec120; compiler/source180; command120; closeout180; Astra0."
-    },
-    "verification": {
-      "command": "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_entry_demand entry_demand_controls_cli_completion -- --exact --nocapture",
-      "owner": "Luna; exactly once after frozen outputs and CLEAN post-output reviews.",
-      "result": "PASS once; exit 0; 1 test passed; Value finite fuel exit failure/stdout empty/diagnostic; Computation exit success/stdout 9\\n/stderr empty.",
-      "retry": "PROHIBITED"
-    },
-    "outputs": {
-      "proof": "notes/theory/2026-10-19-r110-cli-entry-demand.md",
-      "proof_handoff": "tasks/agent-loop/inbox/20261019-r110-proof.md",
-      "implementation": "tools/inference-playground/tests/cli_entry_demand.rs",
-      "implementation_handoff": "tasks/agent-loop/inbox/20261019-r110-implementation.md",
-      "pre_spec_review": "tasks/agent-loop/inbox/20261019-r110-pre-spec-review.md",
-      "post_spec_review": "tasks/agent-loop/inbox/20261019-r110-post-spec-review.md",
-      "compiler_review": "tasks/agent-loop/inbox/20261019-r110-compiler-review.md",
-      "closeout": "notes/progress/2026-10-19-r110-cli-entry-demand.md",
-      "pre_spec_sha256": "fa767add9732b937bd4155c0c13c9e408d1f9f5e3f06042dba560c1fe9fbcaee",
-      "proof_sha256": "edb279cab8e76f6fbff38eaac85d5cc8478fd5785cc6cd04b4fe071dc528f11f",
-      "proof_handoff_sha256": "11e950999109f314ae9617dc73422be3576581d0f79b56842e7045eff3b500b1",
-      "implementation_sha256": "283e3518f8d28efedd171cacfe97fc7246225339b1c160d06b3c58944f86c8bc",
-      "implementation_handoff_sha256": "3965fb85fb4a97936c241a919d284d03ab18c00eeed986516802bc57d371fc34",
-      "closeout_sha256": "00c0f00f0eabf4ad54aede9fe48964ec1c7aced4995ef6f9ba452130623c4cd1"
-    },
-    "worker_receipts": {
-      "selector": "R111 recommended: reuse two exact continuation source recipes to observe raw resumption and Bool result projection through stdin CLI; do not invoke R99 fresh-receiver law. After one R111 slice, rotate to method/role proof/source behavior per user goal.",
-      "pre_spec": "CLEAN; all 22 pins and exact 97/106-byte sources match; finite CLI observation authorized without semantic change.",
-      "proof": "FROZEN conditional proof and handoff; edb279ca...8f11f; all 22 pins matched; no CLI execution.",
-      "implementation": "FROZEN test 283e3518...f86c8bc and handoff 3965fb85...d371fc34; exact two sources; no command.",
-      "post_spec": "CLEAN; exact test sources, serial stdin subprocesses, statuses/streams and scope verified.",
-      "compiler_source": "CLEAN; current role/entry/fuel/publication path and Rust/subprocess plausibility verified.",
-      "command": "Luna exact command once; 1 passed, 0 failed; finite CLI outcome pair observed."
-    },
-    "review_status": "All three reviews CLEAN; exact command passed. Closed as finite CLI observation only; no divergence or universal §21 claim."
+ "schema_version": 1,
+ "mode": "LIVE",
+ "phase": "ACTIVE",
+ "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
+ "active_sprint": {
+  "id": "effect-static-runtime-projection-warning-audit-20261019-r117",
+  "contract": "tasks/agent-loop/sprints/effect-static-runtime-projection-warning-audit-20261019-r117-rev4.md",
+  "revision": 4,
+  "contract_sha256": "2847b47bfea4ecac5bd3d9d318432252222416dc3419c9e335ba50bb1472ca6d",
+  "state": "CLOSED_VERIFICATION_FAILURE_LOCAL_CHECKPOINT",
+  "baseline": "R116 proof/CLI reviewed; R117 proof/cleanup reviewed; test build failure recorded.",
+  "authority": "User goal: six-front effect hygiene, method/role proofs, early surface execution; no new semantics.",
+  "resources": {
+   "cap_seconds": 1860,
+   "proof_seconds": 480,
+   "implementation_seconds": 300,
+   "reviews_seconds": 300,
+   "verification_seconds": 240,
+   "luna_seconds": 300,
+   "astra_assignments": 0,
+   "review_repair_amendment_seconds": 240
   },
-  "workers": [
-    {
-      "id": "/root",
-      "role": "Luna primary; exact leases, review, central state and sole Git integrator",
-      "state": "RUNNING",
-      "session": "current-conversation-2026-10-19-r110-cli-entry-demand",
-      "requested_model": "gpt-6-luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "R110 command passed once; closeout frozen; consulting selector and preparing coherent checkpoint."
-    },
-    {
-      "id": "/root/resident_dispatcher_loop_a",
-      "role": "legacy dispatcher; historical runtime unavailable",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Keep unknown; board path quarantined."
-    },
-    {
-      "id": "/root/resident_implementer_idle",
-      "role": "legacy implementation worker; historical runtime unavailable",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Keep unknown; no current identity or write-cessation evidence; consumes a slot."
-    },
-    {
-      "id": "/root/runtime_source_supplier_proof",
-      "role": "legacy proof worker; historical runtime unavailable",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Historical P2 proof frozen; no successor lease."
-    }
-  ],
-  "leases": [
-    {
-      "path": "tasks/agent-loop/board.md",
-      "owner": "/root/resident_dispatcher_loop_a",
-      "state": "QUARANTINED",
-      "reason": "Historical writer identity remains UNKNOWN; no current cessation/handoff evidence for board.md."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
-      "owner": "/root",
-      "state": "HELD"
-    }
-  ],
-  "pending": [
-    {
-      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
-      "state": "OPEN",
-      "owner": "Luna; original whole-ascription formation obligation",
-      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R64-SRC-ANN-ARG-1",
-      "state": "OPEN",
-      "owner": "Luna; downstream of the current operand supplier",
-      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R65-CURRENT-OPERAND-1",
-      "state": "OPEN",
-      "owner": "Luna; original ordinary typed Lambda operand supplier",
-      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R66-LAMBDA-RESULT-STAGE-1",
-      "state": "OPEN",
-      "owner": "Luna; direct Lambda-checking follow-up under R67",
-      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R67-DIRECT-BODY-CHECK-1",
-      "state": "OPEN",
-      "owner": "Luna; source Lambda checking/body-consumer premise",
-      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R68-OWNER-CONSUMER-1",
-      "state": "OPEN",
-      "owner": "Luna; authentic retained body/result-consumer source owner",
-      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
-      "state": "OPEN_UNADOPTED_PROPOSAL",
-      "owner": "Luna; source-law completion",
-      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
-      "state": "OPEN",
-      "owner": "Luna; exact source/native owners assigned within R70",
-      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
-      "state": "OPEN",
-      "owner": "Luna; exact source/native owners assigned within R71",
-      "details": "tasks/agent-loop/inbox/20261019-r71-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R72-LATER-OCCURRENCE-1",
-      "state": "OPEN",
-      "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
-      "details": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
-      "falsifier": "See frozen gate record."
-    }
-  ],
-  "closure": "R110 passed one serial two-child CLI test: Value source exhausted finite 10,000-step budget with failure/empty stdout/diagnostic; Computation source succeeded with stdout 9\\n and empty stderr. Method/role, other hygiene fronts, R101-ENTRY-1, parent and adoption gates remain open.",
-  "next_action": "After committing R110, prepare R111 finite CLI observation for continuation capture/resumption using exact pinned recipes; then prioritize method/role source-corresponding proof rather than extending a single effect front.",
-  "worker_inventory_scope": "R89 completed primary-only; all R88 workers/reviewers STOPPED and archived in closeout. Three inherited identities remain UNKNOWN, board lease quarantined, legacy idle implementer reserves one slot. No unknown lease reclaimed.",
-  "legacy_reconciliation": {
-    "required": false,
-    "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
-    "history": "tasks/agent-loop/history/board-7336f290.md",
-    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
-    "action": "Restored the three UNKNOWN identities and board quarantine from the immutable activation snapshot 18fd5363e; kept later NPAIR handoff scope limited to its two transferred paths."
+  "verification": {
+   "command": "Rev4 exact one-shot 240s monotonic coordinator; full command in contract.",
+   "owner": "Luna",
+   "result": "command 1 cargo check PASS exit 0, 8 yu-hir + 3 yu-solver retained warnings; command 2 cargo test --lib FAIL exit 101: Graph missing capture_forest at shadow_apply.rs:2304,2410; no retry."
   },
-  "state_audit": {
-    "reviewer": "/root/goal_sprint_migration_review",
-    "result": "CLEAN delta; migration omissions/schema repaired; three UNKNOWN identities and board quarantine retained.",
-    "open_minors": [
-      "AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
-    ]
+  "outputs": {
+   "proof": "notes/theory/2026-10-19-r117-catch-payload-projection.md",
+   "proof_handoff": "tasks/agent-loop/inbox/20261019-r117-proof.md",
+   "implementation": "Source paths and handoffs are listed in contract and leases.",
+   "implementation_handoff": "tasks/agent-loop/inbox/20261019-r117-warning-audit.md",
+   "closeout": "notes/progress/2026-10-19-r117-closeout.md",
+   "repair_candidate_context_sha256": "002b9d86e26cfda6fdf094ea4d161501849a7127d55c2d147d408a781b9fd28d",
+   "proof_sha256": "efd4a06e222e5de2bb546e3eb2cde1db1eba8710e7b42bda65b8139b1aea708a",
+   "proof_handoff_sha256": "36dda08e16d90bab40f87c92b969e8f4c7a4fcc0683c0658f0c7a7f05ec44f6a",
+   "warning_handoff_sha256": "f23ff5c992eaed99edbd805b3adb02318037274edca9ba3e0be44623f6193306",
+   "module_sha256": "153a23ecaa68fd150d8bd0cc0316f3723e1cb5d98a6e3026aadef2bfd08fd907",
+   "candidate_scheme_sha256": "2e64dc8781189b4da21c30f4d1b3208aaef48ca247cae55fb7e77e68b5857850",
+   "candidate_context_sha256": "002b9d86e26cfda6fdf094ea4d161501849a7127d55c2d147d408a781b9fd28d",
+   "runtime_program_sha256": "c2363ad42104b895519bb29a8eb9aeda545bd0176cebbd78750d3a2df90849ca",
+   "closeout_sha256": "956f7b242743582762d8f7ab29f17da27e96e0f04245bcec8f784c7165b1f33b"
   },
-  "user_goal": "Proof-backed type inference/evaluator with broad, deep progress. Balance six independent effect-hygiene fronts (ordered handler priority; §21 Value/Computation entry; wrong/sibling permission; unmatched outward request plus suffix; continuation capture/resumption; static-to-runtime projection), advancing bounded evidence across them over time. In parallel, prove method/role behavior with source-corresponding steps and make ordinary/effectful source execution runnable early. Do not let effect storage/fiber analysis or any single front monopolize the sequence. Luna alone commits/pushes at coherent reviewed checkpoints; keep the working tree clean; preserve original Simple-sub/evaluator claims and semantic adoption gates.",
-  "history": [
-    {
-      "id": "R96",
-      "state": "CLEAN_BOUNDED_CANDIDATE_CORRESPONDENCE",
-      "closeout": "notes/progress/2026-10-19-r96-sibling-receiver-permission.md"
-    },
-    {
-      "id": "R97",
-      "state": "CLEAN_FINITE_ENTRY_CORRESPONDENCE",
-      "closeout": "notes/progress/2026-10-19-r97-value-computation-entry.md"
-    },
-    {
-      "id": "R98",
-      "state": "FAILED_TO_ACHIEVE",
-      "closeout": "notes/progress/2026-10-19-r98-continuation-current-context.md"
-    },
-    {
-      "id": "R99",
-      "state": "FAILED_TO_ACHIEVE",
-      "closeout": "notes/progress/2026-10-19-r99-unmatched-outward-suffix.md"
-    },
-    {
-      "id": "R100",
-      "state": "CLOSED_CONDITIONAL_SOURCE_EVIDENCE",
-      "closeout": "notes/progress/2026-10-19-r100-method-body-source-consumer.md"
-    },
-    {
-      "id": "R101",
-      "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE",
-      "closeout": "notes/progress/2026-10-19-r101-nested-handler-priority.md"
-    },
-    {
-      "id": "R102",
-      "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE",
-      "closeout": "notes/progress/2026-10-19-r102-source-entry-completion.md"
-    },
-    {
-      "id": "R103",
-      "state": "CLOSED_CLEAN_FINITE_CONSTRUCTOR_EVIDENCE",
-      "closeout": "notes/progress/2026-10-19-r103-parameter-projection.md"
-    },
-    {
-      "id": "R104",
-      "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE",
-      "closeout": "notes/progress/2026-10-19-r104-cli-entry-publication.md"
-    },
-    {
-      "id": "R105",
-      "state": "CLOSED_CLEAN_FINITE_CLI_EVIDENCE",
-      "closeout": "notes/progress/2026-10-19-r105-cli-receiver-permission.md"
-    },
-    {
-      "id": "R106",
-      "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE_NOT_RUN",
-      "closeout": "notes/progress/2026-10-19-r106-method-source-entry.md"
-    },
-    {
-      "id": "R107",
-      "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE_NOT_RUN",
-      "closeout": "notes/progress/2026-10-19-r107-method-role-entry-correction.md"
-    },
-    {
-      "id": "R108",
-      "state": "CLOSED_CLEAN_FINITE_SOURCE_ENTRY",
-      "closeout": "notes/progress/2026-10-19-r108-method-role-entry-reference-fix.md"
-    },
-    {
-      "id": "R109",
-      "state": "FAILED_TO_ACHIEVE_FIXED_SOURCE_SITE_RANGE_ASSERTION",
-      "closeout": "notes/progress/2026-10-19-r109-nested-handler-observation.md"
-    },
-    {
-      "id": "R110",
-      "state": "CLOSED_CLEAN_FINITE_CLI_OBSERVATION",
-      "closeout": "notes/progress/2026-10-19-r110-cli-entry-demand.md"
-    }
+  "review_status": "All proof/source/spec/regression reviews CLEAN; cargo check PASS; cargo test --lib FAIL 101, no retry.",
+  "warning_audit": "17 baseline instances: six removed, eleven evidence/provenance retained; no suppressions."
+ },
+ "workers": [
+  {
+   "id": "/root",
+   "role": "Luna primary; exact leases, review, central state and sole Git integrator",
+   "state": "RUNNING",
+   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
+   "requested_model": "gpt-6-luna",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "R117 closeout frozen; cargo check PASS, cargo test --lib FAIL 101; no retry. R111-R117 local checkpoint prepared; test-build failure blocks push. R118 fixture repair is separate."
+  },
+  {
+   "id": "/root/resident_dispatcher_loop_a",
+   "role": "legacy dispatcher; historical runtime unavailable",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Legacy identity UNKNOWN; board path quarantined."
+  },
+  {
+   "id": "/root/resident_implementer_idle",
+   "role": "legacy implementation worker; historical runtime unavailable",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Legacy identity UNKNOWN; slot reservation retained."
+  },
+  {
+   "id": "/root/runtime_source_supplier_proof",
+   "role": "legacy proof worker; historical runtime unavailable",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Legacy identity UNKNOWN; no successor lease."
+  },
+  {
+   "id": "/root/r117_proof",
+   "role": "R117 Catch projection proof",
+   "state": "STOPPED",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "STOPPED; frozen; R117-JOIN-1 remains OPEN."
+  },
+  {
+   "id": "/root/r117_warning_implementation",
+   "role": "R117 warning cleanup",
+   "state": "STOPPED",
+   "requested_model": "gpt-6-luna",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "STOPPED; frozen handoff/hash receipts; no executable checks."
+  },
+  {
+   "id": "/root/r114_proof",
+   "role": "R114 proof",
+   "state": "STOPPED",
+   "requested_model": "UNKNOWN",
+   "requested_effort": "UNKNOWN",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "STOPPED; frozen conditional proof; no retry."
+  },
+  {
+   "id": "/root/r114_implementation",
+   "role": "R114 CLI",
+   "state": "STOPPED",
+   "requested_model": "UNKNOWN",
+   "requested_effort": "UNKNOWN",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "STOPPED; frozen unverified test; NOT_RUN/no retry."
+  },
+  {
+   "id": "/root/r116_method_proof",
+   "role": "R116 method bridge",
+   "state": "STOPPED",
+   "requested_model": "UNKNOWN",
+   "requested_effort": "UNKNOWN",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "STOPPED; conditional; P2 remains OPEN."
+  },
+  {
+   "id": "/root/r116_surface_implementation",
+   "role": "R116 CLI observation",
+   "state": "STOPPED",
+   "requested_model": "UNKNOWN",
+   "requested_effort": "UNKNOWN",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "STOPPED; reviewed test; exact command passed 2/2."
+  }
+ ],
+ "leases": [
+  {
+   "path": "tasks/agent-loop/board.md",
+   "owner": "/root/resident_dispatcher_loop_a",
+   "state": "QUARANTINED",
+   "reason": "Historical writer identity remains UNKNOWN; no current cessation/handoff evidence for board.md."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "tools/inference-playground/tests/cli_raw_resume.rs",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/cli-wrong-family-permission-20261019-r114-rev1.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/theory/2026-10-19-r114-wrong-family-permission.md",
+   "owner": "/root/r114_proof",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r114-proof.md",
+   "owner": "/root/r114_proof",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tools/inference-playground/tests/cli_permission_boundary.rs",
+   "owner": "/root/r114_implementation",
+   "state": "FROZEN",
+   "reason": "R114 hard pin stop; exact leased output exists, frozen unverified, no command run and no retry authority."
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r114-implementation.md",
+   "owner": "/root/r114_implementation",
+   "state": "FROZEN",
+   "reason": "R114 hard pin stop; exact leased output exists, frozen unverified, no command run and no retry authority."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/method-role-and-approved-surface-20261019-r116-rev1.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/method-role-and-approved-surface-20261019-r116-rev2.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/theory/2026-10-19-r116-method-role-callable-bridge.md",
+   "owner": "/root/r116_method_proof",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r116-proof.md",
+   "owner": "/root/r116_method_proof",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tools/inference-playground/tests/cli_approved_surface.rs",
+   "owner": "/root/r116_surface_implementation",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r116-implementation.md",
+   "owner": "/root/r116_surface_implementation",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/progress/2026-10-19-r116-closeout.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/theory/2026-10-19-r117-catch-payload-projection.md",
+   "owner": "/root/r117_proof",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r117-proof.md",
+   "owner": "/root/r117_proof",
+   "state": "FROZEN"
+  },
+  {
+   "path": "crates/yu-hir/src/module.rs",
+   "owner": "/root/r117_warning_implementation",
+   "state": "FROZEN"
+  },
+  {
+   "path": "crates/yu-solver/src/candidate_scheme.rs",
+   "owner": "/root/r117_warning_implementation",
+   "state": "FROZEN"
+  },
+  {
+   "path": "crates/yu-solver/src/candidate_context.rs",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Rev4 exact Luna-only `..` repair after independent blocking review; rev3 snapshot preserved in contract/handoff."
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r117-warning-audit.md",
+   "owner": "/root/r117_warning_implementation",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tools/inference-playground/src/runtime/program.rs",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Luna-only cleanup after proof worker STOP; source pin remains immutable until then."
+  }
+ ],
+ "pending": [
+  {
+   "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+   "state": "OPEN",
+   "owner": "Luna; original whole-ascription formation obligation",
+   "details": "tasks/agent-loop/inbox/20261019-r61-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R64-SRC-ANN-ARG-1",
+   "state": "OPEN",
+   "owner": "Luna; downstream of the current operand supplier",
+   "details": "tasks/agent-loop/inbox/20261019-r64-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R65-CURRENT-OPERAND-1",
+   "state": "OPEN",
+   "owner": "Luna; original ordinary typed Lambda operand supplier",
+   "details": "tasks/agent-loop/inbox/20261019-r65-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R66-LAMBDA-RESULT-STAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; direct Lambda-checking follow-up under R67",
+   "details": "tasks/agent-loop/inbox/20261019-r66-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R67-DIRECT-BODY-CHECK-1",
+   "state": "OPEN",
+   "owner": "Luna; source Lambda checking/body-consumer premise",
+   "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R68-OWNER-CONSUMER-1",
+   "state": "OPEN",
+   "owner": "Luna; authentic retained body/result-consumer source owner",
+   "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+   "state": "OPEN_UNADOPTED_PROPOSAL",
+   "owner": "Luna; source-law completion",
+   "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+   "state": "OPEN",
+   "owner": "Luna; exact source/native owners assigned within R70",
+   "details": "tasks/agent-loop/inbox/20261019-r70-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; exact source/native owners assigned within R71",
+   "details": "tasks/agent-loop/inbox/20261019-r71-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R72-LATER-OCCURRENCE-1",
+   "state": "OPEN",
+   "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
+   "details": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
+   "falsifier": "See frozen gate record."
+  }
+ ],
+ "closure": "R117 conditional proof/cleanup preserved locally; cargo check PASS, lib test fails at two Graph initializers outside diff; no retry. R117-JOIN-1 and six parents OPEN; push awaits separate fixture gate.",
+ "next_action": "R118 candidate: inspect/repair authentic capture_forest fixtures under a separate gate; investigate nested selection only after pinning approved ordering authority. Keep method/role and runnable surface in rotation.",
+ "worker_inventory_scope": "R89 completed primary-only; all R88 workers/reviewers STOPPED and archived in closeout. Three inherited identities remain UNKNOWN, board lease quarantined, legacy idle implementer reserves one slot. No unknown lease reclaimed.",
+ "legacy_reconciliation": {
+  "required": false,
+  "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
+  "history": "tasks/agent-loop/history/board-7336f290.md",
+  "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
+  "action": "Restored the three UNKNOWN identities and board quarantine from the immutable activation snapshot 18fd5363e; kept later NPAIR handoff scope limited to its two transferred paths."
+ },
+ "state_audit": {
+  "reviewer": "/root/goal_sprint_migration_review",
+  "result": "CLEAN delta; migration omissions/schema repaired; three UNKNOWN identities and board quarantine retained.",
+  "open_minors": [
+   "AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
   ]
+ },
+ "user_goal": "Proof-backed type inference/evaluator with broad, deep progress. Balance six independent effect-hygiene fronts (ordered handler priority; §21 Value/Computation entry; wrong/sibling permission; unmatched outward request plus suffix; continuation capture/resumption; static-to-runtime projection), advancing bounded evidence across them over time. In parallel, prove method/role behavior with source-corresponding steps and make ordinary/effectful source execution runnable early. Do not let effect storage/fiber analysis or any single front monopolize the sequence. Luna alone commits/pushes at coherent reviewed checkpoints; keep the working tree clean; preserve original Simple-sub/evaluator claims and semantic adoption gates.",
+ "history": [
+  {
+   "id": "R100",
+   "state": "CLOSED_CONDITIONAL_SOURCE_EVIDENCE",
+   "closeout": "notes/progress/2026-10-19-r100-method-body-source-consumer.md"
+  },
+  {
+   "id": "R108",
+   "state": "CLOSED_CLEAN_FINITE_SOURCE_ENTRY",
+   "closeout": "notes/progress/2026-10-19-r108-method-role-entry-reference-fix.md"
+  },
+  {
+   "id": "R109",
+   "state": "FAILED_TO_ACHIEVE_FIXED_SOURCE_SITE_RANGE_ASSERTION",
+   "closeout": "notes/progress/2026-10-19-r109-nested-handler-observation.md"
+  },
+  {
+   "id": "R110",
+   "state": "CLOSED_CLEAN_FINITE_CLI_OBSERVATION",
+   "closeout": "notes/progress/2026-10-19-r110-cli-entry-demand.md"
+  },
+  {
+   "id": "R111",
+   "state": "CLOSED_COMMAND_FAILURE_NOT_RUN",
+   "closeout": "notes/progress/2026-10-19-r111-cli-raw-resume.md"
+  },
+  {
+   "id": "R112",
+   "state": "CLOSED_CLEAN_FINITE_SOURCE_OBSTRUCTION",
+   "closeout": "notes/progress/2026-10-19-r112-method-member-constructor-gap.md"
+  },
+  {
+   "id": "R113",
+   "state": "CLOSED_INPUT_BOUNDARY_PARTIAL_REVIEWED_NOT_RUN",
+   "closeout": "notes/progress/2026-10-19-r113-module-request-suffix.md"
+  },
+  {
+   "id": "R114",
+   "state": "CLOSED_INPUT_BOUNDARY_PARTIAL_REVIEWED_NOT_RUN",
+   "closeout": "notes/progress/2026-10-19-r114-wrong-family-permission.md"
+  },
+  {
+   "id": "R116",
+   "state": "CLOSED_REVIEWED_CLI_PASS_PENDING_WARNING_AUDIT_INTEGRATION",
+   "closeout": "notes/progress/2026-10-19-r116-closeout.md"
+  },
+  {
+   "id": "R117",
+   "state": "CLOSED_REVIEWED_CARGO_CHECK_PASS_TEST_BUILD_FAILURE_NO_RETRY_PENDING_INTEGRATION",
+   "closeout": "notes/progress/2026-10-19-r117-closeout.md"
+  }
+ ]
 }

@@ -1749,27 +1749,6 @@ fn set_expression_occurrence(
     Ok(())
 }
 
-fn replace_admission_root(
-    expression: &mut ResolvedExpr,
-    target: &HirOccurrenceId,
-    replacement: &mut Option<ResolvedExpr>,
-) -> Result<bool, HirAvailabilityError> {
-    let mut current = expression;
-    loop {
-        if current.occurrence() == target {
-            if matches!(current, ResolvedExpr::Error { errors, .. } if errors.is_empty()) {
-                *current = replacement.take().ok_or(HirAvailabilityError::StructuralProjection)?;
-                return Ok(true);
-            }
-            return Ok(false);
-        }
-        match current {
-            ResolvedExpr::Lambda { body, .. } => current = body,
-            _ => return Ok(false),
-        }
-    }
-}
-
 fn admission_root_placeholder_matches(
     expression: &ResolvedExpr,
     target: &HirOccurrenceId,
