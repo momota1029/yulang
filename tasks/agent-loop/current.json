@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/polymorphic-escaping-closure-20261020-r137-rev1.md",
     "revision": 1,
     "contract_sha256": "b9ad941e29dc650818b9da5468156b07ec41722c1616bdc90e97846857f2c5fc",
-    "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+    "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
     "baseline": "93385cb6ab1e83a769e84af4997d39b9f57c9684",
     "authority": "existing local generalization, lexical closure, CLI/WASM semantics; no semantic change",
     "resources": {
@@ -37,7 +37,7 @@
     },
     "review_status": "Prospective spec/compiler CLEAN; final compiler/source, regression, and proof-source delta CLEAN; both minor findings closed.",
     "verification": "PASS: CLI isolated test 1/1; npm run check PASS; no retries.",
-    "next_action": "push reviewed R137 integration commits non-forced after remote-head check",
+    "next_action": "next sprint start: consult dispatcher; preserve open parent gates and unknown legacy reservations",
     "prospective_reviews": {
       "spec": {
         "result": "CLEAN",
@@ -79,9 +79,13 @@
     },
     "proof_status": "REV2 FROZEN; note 3d60420518032025211ae927f266d840dfa67d49f44e9e279ed28292a4a48f51; handoff 702b740089bd68a5a053932a5bcebfe2967fd242880b9fb1303fb3d2b9ebf3c1; 420/660 seconds",
     "closeout": "notes/progress/2026-10-20-r137-closeout.md",
-    "closeout_sha256": "31de8c2a510d8f783da9611866c0fb5ed7b7bfc5427e87d75a6e7d7f3bc9d590",
+    "closeout_sha256": "c01305c45e65e82768a7636e62c1789d2294f41b8d8f30ff6c29e37db8e877d6",
     "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de",
-    "commit_message": "Verify polymorphic escaping closure example"
+    "commit_message": "Verify polymorphic escaping closure example",
+    "pushed_commits": [
+      "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de",
+      "2bd30298598d749b88fee32ed158e76f74943106"
+    ]
   },
   "workers": [
     {
@@ -126,7 +130,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Primary active; R137 reviews CLEAN; proof lane active; implementer reported STOPPED with no writes because Luna/high routing was not verifiable; Luna resumes implementation under own lease."
+      "receipt": "Luna sole integrator; R137 proof, CLI and Web/WASM verified; commits 09e3c41a5 and 2bd302985 pushed; parent gates OPEN."
     }
   ],
   "leases": [
@@ -281,8 +285,8 @@
       "falsifier": "Any blocking/major finding or dependency mismatch keeps candidate provisional."
     }
   ],
-  "closure": "R137 closed and locally committed as 09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de finite verified conditional witness; push pending. Stronger native transport, original A/B, and production gates remain OPEN. R135 remains approval-pending.",
-  "next_action": "push reviewed R137 integration commits non-forced after remote-head check",
+  "closure": "R137 closed, verified, and pushed as a finite conditional witness. Stronger native transport, original A/B, and production gates remain OPEN. R135 remains approval-pending.",
+  "next_action": "next sprint start: consult dispatcher; preserve open parent gates and unknown legacy reservations",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -372,11 +376,12 @@
     },
     {
       "id": "R137",
-      "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+      "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
       "closeout": "notes/progress/2026-10-20-r137-closeout.md",
       "contract": "tasks/agent-loop/sprints/polymorphic-escaping-closure-20261020-r137-rev1.md",
       "proof": "notes/theory/2026-10-20-r137-polymorphic-escaping-closure.md",
-      "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de"
+      "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de",
+      "push_commit": "2bd30298598d749b88fee32ed158e76f74943106"
     }
   ],
   "review_receipts": "R135 rev3 spec MINOR/compiler MAJOR; rev4 spec/compiler two MAJOR; rev5 paired focused deltas CLEAN. Full findings/hashes in frozen contracts and closeout."
