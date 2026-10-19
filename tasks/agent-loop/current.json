@@ -2,38 +2,31 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-20-r139",
+  "session": "current-conversation-2026-10-20-r140",
   "active_sprint": {
-    "id": "yulang2-diagnostic-examples-20261020-r139",
-    "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev5.md",
-    "revision": 5,
-    "contract_sha256": "5aaa9e95df0c48032409908dbe90a2b1ab6231b1c868c67f3a2150bb2aee9e21",
-    "state": "CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY",
-    "baseline": "0e7a71b23b86390390e608282b217ef354930e86",
-    "authority": "unchanged curated Y2 diagnostic-example compatibility only; no semantic or parent-gate promotion",
+    "id": "action31-certified-cut-20261020-r140",
+    "contract": "tasks/agent-loop/sprints/action31-certified-cut-20261020-r140-rev2.md",
+    "revision": 2,
+    "contract_sha256": "7b59e9b448ed7e03859ab1777652ae4d8efacc001a363305ea654698a9243bb9",
+    "state": "ACTIVE_PROOF_RUNNING",
+    "baseline": "7a584032e",
+    "authority": "unchanged action31 certified-cut research only; no semantic, compiler, test, or parent-gate promotion",
     "resources": {
-      "cap_seconds": 2190,
-      "reserved_seconds": 2190,
+      "cap_seconds": 1500,
+      "reserved_seconds": 1500,
       "astra_seconds": 0,
-      "heavy_processes": 1,
-      "proof_charged_seconds": 450,
-      "proof_released_seconds": 150,
-      "implementation_seconds": 540,
-      "review_seconds": 540,
-      "verification_seconds": 360,
-      "closeout_seconds": 120,
-      "prior_elapsed": "Unknown work charged; no resets. 150s released proof reserve plus 90s Luna amendment.",
-      "verification_charged_seconds": 360
+      "proof_seconds": 780,
+      "primary_audit_seconds": 120,
+      "review_seconds": 300,
+      "closeout_seconds": 180,
+      "prep_review_pin_reservations_seconds": 120,
+      "spent_prior": "0 inherited; R138/R73 budgets do not carry over"
     },
-    "review_status": "CLEAN final spec/authority and regression/source reviews; exact CLI and Web checks PASS.",
-    "verification": "CLI: timeout 120s cargo test -q -p yu-playground --test cli_yulang2_diagnostic_examples — PASS, 1/1. Web: timeout 240s npm --prefix web/playground run check — PASS (WASM build + smoke). Conservatively charged 360s verification reservation.",
-    "next_action": "R135 user choice remains critical path for further successful unchanged Yulang2 examples; then new exact sprint contract. R138 action31 route is independent research option only under a new contract.",
-    "r135_brace_decision": "PENDING; R139 does not depend on or decide it.",
-    "proof_assignment": "FROZEN rev1 STOPPED; 450/600s charged, 150s reallocated to reviews. Theory 38c055e8dee959bddd1a0a09cb90a1d04020dc026ec003503e7abccc9a53cc7f; handoff 3c8d59ff17169455302e2479b323489dcd14c3d01deb38eba8dffa67b3284ff4. Parent gates OPEN.",
-    "implementation_status": "FROZEN; final reviews CLEAN; exact CLI/Web checks PASS. Handoff SHA e2c3df3ff9f457c3e57b41a604463005cd5fea524bf1c3f1878164bd9f90d03b.",
-    "review_receipts": "R139 rev2/3/4 prospective+delta spec/compiler-source reviews CLEAN; rev5 final spec `/root/r139_final_spec` CLEAN, regression/source `/root/r139_final_regression` CLEAN. CLI 1/1 and Web build/smoke PASS.",
-    "closure": "R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two unchanged expected-error examples. All general inference/evaluator/source-native/production gates remain OPEN; R135 pending.",
-    "closeout": "notes/progress/2026-10-20-r139-closeout.md; SHA-256 8f5d44953f2968566fddd0e140ebfc5d8b3edb34b79af041c9fa850047bdca4e"
+    "review_status": "Prospective spec/compiler reviews CLEAN, including activation amendment. Complete inherited 39/39 pin manifest and lib.rs/shadow_apply pins match baseline and live tree.",
+    "implementation_status": "NO_SAFE_CODE_SLICE from R138; no compiler edits authorized absent a concrete approved-behavior defect.",
+    "proof_assignment": "/root/r140_action31_proof RUNNING; requested Sol/high; observed model/effort UNKNOWN; exact leases are theory note and proof inbox; 780s cap.",
+    "parent_status": "Original computation-forwarding theorem, R72/R73, Simple-sub A/B, inference/evaluator, source-native and production gates remain OPEN.",
+    "next_action": "Continue both action31 replay-family backward cuts and prove omitted-state frame condition; stop at proof cap or material authority/dependency/lease change."
   },
   "workers": [
     {
@@ -73,12 +66,12 @@
       "id": "/root",
       "role": "Luna primary; implementation, review adjudication, state and sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r139",
+      "session": "current-conversation-2026-10-20-r140",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Activated R139 after exact prospective reviews and baseline pin validation."
+      "receipt": "Activated R140 after CLEAN prospective spec/compiler review and 39/39 inherited pin validation; proof launched."
     },
     {
       "id": "/root/r139_proof",
@@ -90,6 +83,17 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Frozen proof rev1; 450/600s charged, 150s released; writes ceased 2026-10-19 23:41:55 UTC; full bridge status in active_sprint."
+    },
+    {
+      "id": "/root/r140_action31_proof",
+      "role": "R140 constructive action31 replay-cut proof",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-20-r140",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R140-PROOF actual current-session active acknowledgement received after exact lease acceptance; start approx 2026-10-20 23:51:50 UTC; requested Sol/high, observed model/effort UNKNOWN; no descendants; 780s cap."
     }
   ],
   "leases": [
@@ -105,79 +109,19 @@
       "state": "HELD"
     },
     {
-      "path": "notes/theory/2026-10-20-r139-yulang2-diagnostic-examples.md",
-      "owner": "/root/r139_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r139-proof.md",
-      "owner": "/root/r139_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "web/playground/examples/yulang2-type-mismatch.yu",
+      "path": "tasks/agent-loop/sprints/action31-certified-cut-20261020-r140-rev2.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "web/playground/examples/yulang2-parameter-provenance.yu",
-      "owner": "/root",
-      "state": "FROZEN"
+      "path": "notes/theory/2026-10-20-r140-action31-certified-cut.md",
+      "owner": "/root/r140_action31_proof",
+      "state": "HELD"
     },
     {
-      "path": "tools/inference-playground/tests/cli_yulang2_diagnostic_examples.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "web/playground/src/main.ts",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "web/playground/index.html",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "web/playground/smoke-test.mjs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r139-implementation.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev1.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev2.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev3.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev4.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev5.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-20-r139-closeout.md",
-      "owner": "/root",
-      "state": "FROZEN"
+      "path": "tasks/agent-loop/inbox/20261020-r140-proof.md",
+      "owner": "/root/r140_action31_proof",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -260,7 +204,7 @@
     }
   ],
   "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN.",
-  "next_action": "R135 user choice is critical path for additional successful unchanged Yulang2 examples. R138 action31 certified-cut route remains an independent option only under a fresh contract.",
+  "next_action": "R140 active: finish both action31 replay-family cuts with a proved omitted-state frame; R135 remains pending for further unchanged Y2 successful examples.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
