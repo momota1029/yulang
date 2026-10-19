@@ -41,8 +41,9 @@
     "spec_review": "CLEAN: no blocking/major/minor; scope, claims and exact test slice conform.",
     "compiler_review": "CLEAN: no blocking/major/minor; source constructor and consumer claims match; 102 immutable pins matched.",
     "closeout": "notes/progress/2026-10-19-r88-closeout.md",
-    "closeout_sha256": "930a3cdb2749e3c9de6b5e131c9370a703e4f5d30b9a402aaf230f28b5b3a7b1",
-    "end_selector": "R89 candidate: original unmatched effectful suffix after raw resumption; independent of R85; 600s proof + 420s one runtime contrast; require Luna re-pin, new contract and source evidence before grant."
+    "closeout_sha256": "e190f71dc28010b59a8ccd973d42c7f146622b15cb59df87b96394a6de081bd9",
+    "end_selector": "R89 candidate: original unmatched effectful suffix after raw resumption; independent of R85; 600s proof + 420s one runtime contrast; require Luna re-pin, new contract and source evidence before grant.",
+    "integration_commit": "ab9d3ee19f16cdc35c0672255bc3bd6c63f3e183; pushed origin/research/simple-sub-intrusion; clean tree and local/remote HEAD matched."
   },
   "workers": [
     {
@@ -286,7 +287,7 @@
     }
   ],
   "closure": "R88 CLEAN: both independent reviews CLEAN; one runtime test command 19/19. Applied candidate constructor bridge only to exact R78 U/O/S premise. Six effect-hygiene fronts, native/source correspondence, parent/evaluator A/B OPEN 0→0; R50 NOT_ADOPTED; R85 AWAITING_USER_ADOPTION. Three legacy UNKNOWN reservations and board quarantine preserved.",
-  "next_action": "Dispatcher R89 candidate: prove/test one original unmatched write request after raw resumption, independent of R85. First integrate/push the reviewed R88 checkpoint. R89 requires fresh pins and a separate contract; method/role remains gated on exact R85 adoption. Preserve six open hygiene fronts.",
+  "next_action": "R88 commit pushed and clean. Next candidate R89: one original unmatched write effect after raw resumption; require fresh pins/contract. Method/role runnable work remains behind exact R85 adoption; preserve all six OPEN hygiene fronts.",
   "worker_inventory_scope": "All R88 producers and reviewers STOPPED with frozen outputs/receipts. Three inherited legacy identities remain UNKNOWN and retained; former board.md lease QUARANTINED; legacy idle implementer consumes one assignment slot. No unknown lease reclaimed.",
   "legacy_reconciliation": {
     "required": false,
