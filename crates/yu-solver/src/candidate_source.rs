@@ -984,15 +984,12 @@ impl ConstraintBatch {
                             push(&mut work, Work::CatchArms(index, level, region))?;
                             push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level, region))?;
                         }
-                        LocalSourceForm::Case { scrutinee, arms } => {
-                            for arm in arms.iter().rev() {
-                                push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?;
-                                if let yu_hir::shadow::LocalSourceCasePattern::Integer(pattern) = &arm.pattern {
-                                    push(&mut work, Work::Visit(pattern.ordinal() as usize, level, region))?;
-                                }
-                            }
-                            push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level, region))?;
+                        LocalSourceForm::Case { scrutinee, .. } => {
+                            // LIFO must visit the scrutinee before CaseArms copies its
+                            // endpoint into arm binders. CaseArms owns the only visits
+                            // of the arm patterns and bodies.
                             push(&mut work, Work::CaseArms(index, level, region))?;
+                            push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level, region))?;
                         }
                         LocalSourceForm::If { arms, else_branch } => {
                             if let Some(else_branch) = else_branch {
@@ -1111,14 +1108,20 @@ impl ConstraintBatch {
                     let LocalSourceForm::Case { scrutinee, arms } = &source.expressions()[index].form else { return Err(invalid()); };
                     for arm in arms {
                         if let yu_hir::shadow::LocalSourceCasePattern::Binder(binder) = &arm.pattern {
-                            let position = case_positions.get(&binder.id).copied().ok_or_else(invalid)?;
                             case_binders.try_reserve(1).map_err(|_| unavailable())?;
                             case_binders.insert(binder.id.clone(), endpoints[scrutinee.ordinal() as usize]);
-                            self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
-                            self.candidate_source.component_levels.insert(position, level);
+                            if let Some(position) = case_positions.get(&binder.id).copied() {
+                                self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
+                                self.candidate_source.component_levels.insert(position, level);
+                            }
                         }
                     }
-                    for arm in arms.iter().rev() { push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?; }
+                    for arm in arms.iter().rev() {
+                        push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?;
+                        if let yu_hir::shadow::LocalSourceCasePattern::Integer(pattern) = &arm.pattern {
+                            push(&mut work, Work::Visit(pattern.ordinal() as usize, level, region))?;
+                        }
+                    }
                 }
                 Work::Initializer(binding, level, parent_region) => {
                     let region = self.candidate_source.region(Some(parent_region))?;

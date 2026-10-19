@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/case-source-progress-20261019-r130-rev3.md",
   "revision": 3,
   "contract_sha256": "f6acca90ba74abdebd6f851863eb6aaa76e00c5d523c6b2e70d5602f0b7cd2fe",
-  "state": "PROOF_RUNNING",
+  "state": "VERIFIED_REVIEWED_AWAITING_INTEGRATION",
   "baseline": "1f44d6087d696a2bf436c18cbb6c7446af9fa6f1",
   "authority": "Finite experimental integer/binder/wildcard Case LocalSource -> candidate worklist -> public CLI evaluator correspondence; no production semantics or theorem/adoption authority.",
   "resources": {
@@ -22,25 +22,37 @@
    "closeout_seconds": 60,
    "inventory_seconds_charged": 180,
    "prespec_seconds_charged": 180,
-   "proof_seconds_reserved": 480,
-   "implementation_seconds_reserved": 360
+   "proof_seconds_charged": 480,
+   "implementation_seconds_charged": 360,
+   "reviews_seconds_charged": 180,
+   "verification_seconds_charged": 60
   },
   "verification": {
    "commands": [
     "cargo test -p yu-playground --test cli_case_source_progress -- --exact case_unused_and_nested_binder_endpoints_are_inferred_and_executed"
    ],
-   "result": "NOT_RUN; only after both lanes stop and all three independent final reviews are CLEAN."
+   "result": "PASS: 1 passed, 0 failed; exact contracted test run once in session 15363 after all workers STOPPED and three CLEAN reviews."
   },
   "outputs": {
    "proof": "notes/theory/2026-10-19-r130-case-source-progress.md",
    "proof_handoff": "tasks/agent-loop/inbox/20261019-r130-proof.md",
    "implementation": "crates/yu-solver/src/candidate_source.rs",
    "test": "tools/inference-playground/tests/cli_case_source_progress.rs",
-   "contract_previous": "tasks/agent-loop/sprints/case-source-progress-20261019-r130-rev2.md"
+   "contract_previous": "tasks/agent-loop/sprints/case-source-progress-20261019-r130-rev2.md",
+   "proof_sha256": "3157a90ad1ab9d6b826b0a12f0d909e974f17caf2c80061af6e7b67b7ab31b7e",
+   "proof_handoff_sha256": "69f0516e82b49f2c77472781c3950da7ccf3e21056f8eada6e2a1a129d899f52",
+   "implementation_sha256": "cbc39315f4243b0bae1db74976cf94282bc94cd28b9eb463699c085f421065f7",
+   "test_sha256": "f831c17a06edca36ea13df9cdece3c7ac8fdf4e025488f17375b87a598c7fa44",
+   "closeout": "notes/progress/2026-10-19-r130-closeout.md"
   },
-  "review_status": "Rev3 CLEAN delta pre-spec by /root/r130_prespec_rev3. Proof worker has the final source derivation ready and is acknowledged for rev3 outputs; implementation waits until source handoff is frozen.",
+  "review_status": "Three fresh independent reviews CLEAN (compiler/source, spec/authority, regression); all frozen hashes matched. Exact final CLI verification PASS (1 passed).",
   "open_premises": "Original Simple-sub/evaluator A/B, H/A/E/B, six effect-hygiene parents, R85 adoption, method M/T/A remain OPEN. R128 final review also pending.",
-  "next_action": "R130 rev3 is CLEAN and acknowledged. The proof worker may freeze its exact outputs; Luna implementation starts after intake and checks the source findings against the pinned owners. All A/B and adoption gates remain OPEN."
+  "next_action": "Record closeout and integrate reviewed R130 paths; then consult dispatcher for next sprint. R128 review remains pending; R129 provisional; all original theorem/adoption gates OPEN.",
+  "checkpoint": {
+   "commit": "d843c2a6e",
+   "push": "origin/research/simple-sub-intrusion non-forced succeeded from 1f44d6087",
+   "claim": "Reviewed R130 rev3 contract and current sprint assignments; proof lane stopped; implementation now frozen for independent review."
+  }
  },
  "workers": [
   {
@@ -52,7 +64,7 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Active Luna primary for R130; rev2 contract frozen after CLEAN pre-spec delta; sole lease/state/review/Git owner."
+   "receipt": "R130 implementation stopped; all R130 lanes STOPPED; three independent final reviews CLEAN; exact contracted cargo test PASS in session 15363 (1 passed); Luna sole integrator."
   },
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -88,59 +100,48 @@
    "receipt": "Legacy identity UNKNOWN; no successor lease."
   },
   {
-   "id": "/root/r130_dispatch",
-   "role": "R130 sprint-start selector",
-   "state": "STOPPED",
-   "session": "current-conversation-2026-10-19-r130-case-source-progress",
-   "requested_model": "UNKNOWN",
-   "requested_effort": "UNKNOWN",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "Proposed R130 case source-progress and correspondence; read-only; stopped after final handoff."
-  },
-  {
-   "id": "/root/r130_prespec",
-   "role": "R130 rev1 pre-spec reviewer",
-   "state": "STOPPED",
-   "session": "current-conversation-2026-10-19-r130-case-source-progress",
-   "requested_model": "UNKNOWN",
-   "requested_effort": "UNKNOWN",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "MAJOR: unleased optional browser output and conflicting verification sequence; frozen rev1 SHA c0c17c1a5e6c7c21e14b0b0f336b92d927baf94c2b2ec069546bd099e1516d6d."
-  },
-  {
-   "id": "/root/r130_prespec_rev2",
-   "role": "R130 rev2 delta pre-spec reviewer",
-   "state": "STOPPED",
-   "session": "current-conversation-2026-10-19-r130-case-source-progress",
-   "requested_model": "UNKNOWN",
-   "requested_effort": "UNKNOWN",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "CLEAN delta; prior majors closed; rev1 SHA verified; no checks or edits."
-  },
-  {
    "id": "/root/r130_proof",
    "role": "R130 constructive case source/worklist correspondence proof",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "session": "current-conversation-2026-10-19-r130-case-source-progress",
    "requested_model": "gpt-6.1-sol",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Supported prover spawn returned agent /root/r130_proof; current agent inventory confirms RUNNING. R130 rev2 exact-output 480s assignment active. Requested Sol/high; observed model/effort UNKNOWN."
+   "receipt": "STOPPED; artifact SHA 3157a90ad1ab9d6b826b0a12f0d909e974f17caf2c80061af6e7b67b7ab31b7e; handoff SHA 69f0516e82b49f2c77472781c3950da7ccf3e21056f8eada6e2a1a129d899f52; all pins matched; no checks; full 480s charged conservatively; writes ceased."
   },
   {
-   "id": "/root/r130_prespec_rev3",
-   "role": "R130 rev3 delta pre-spec reviewer",
+   "id": "/root/r130_compiler_review",
+   "role": "R130 independent compiler/source review",
    "state": "STOPPED",
    "session": "current-conversation-2026-10-19-r130-case-source-progress",
    "requested_model": "UNKNOWN",
    "requested_effort": "UNKNOWN",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "CLEAN delta; exact rev2/rev3 hashes; no semantic authority expansion; verification test name accurately describes evidence; read-only; STOP."
+   "receipt": "CLEAN frozen source/hash review; read-only; no checks; STOP."
+  },
+  {
+   "id": "/root/r130_spec_review",
+   "role": "R130 independent spec/authority review",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-r130-case-source-progress",
+   "requested_model": "UNKNOWN",
+   "requested_effort": "UNKNOWN",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "CLEAN scope/authority/hash review; read-only; no checks; STOP."
+  },
+  {
+   "id": "/root/r130_regression_review",
+   "role": "R130 independent regression review",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-r130-case-source-progress",
+   "requested_model": "UNKNOWN",
+   "requested_effort": "UNKNOWN",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "CLEAN regression/hash review; no execution; STOP."
   }
  ],
  "leases": [
@@ -170,29 +171,37 @@
   {
    "path": "notes/theory/2026-10-19-r130-case-source-progress.md",
    "owner": "/root/r130_proof",
-   "state": "HELD"
+   "state": "FROZEN",
+   "reason": "Sole author STOPPED; source artifact frozen for independent review."
   },
   {
    "path": "tasks/agent-loop/inbox/20261019-r130-proof.md",
    "owner": "/root/r130_proof",
-   "state": "HELD"
+   "state": "FROZEN",
+   "reason": "Frozen proof and handoff; author STOPPED; independent final review pending."
   },
   {
    "path": "crates/yu-solver/src/candidate_source.rs",
    "owner": "/root",
-   "state": "HELD",
-   "reason": "Implementation begins only after proof/source premise and no overlapping proof reads."
+   "state": "FROZEN",
+   "reason": "Luna implementation writes stopped; frozen for independent R130 review."
   },
   {
    "path": "tools/inference-playground/tests/cli_case_source_progress.rs",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN",
+   "reason": "Luna implementation writes stopped; frozen for independent R130 review."
   },
   {
    "path": "tasks/agent-loop/sprints/case-source-progress-20261019-r130-rev3.md",
    "owner": "/root",
    "state": "FROZEN",
    "reason": "CLEAN delta reviewed and acknowledged by Luna; exact lanes authorized."
+  },
+  {
+   "path": "notes/progress/2026-10-19-r130-closeout.md",
+   "owner": "/root",
+   "state": "HELD"
   }
  ],
  "pending": [
@@ -275,7 +284,7 @@
   }
  ],
  "closure": "R127 conditional native-payload entry witness committed 2a5790da1; closeout/push 8bad5d05f on origin. R128 source/HIR T candidate checkpoint 58d5507d4 remains NOT independently reviewed. R129 resumption receiver-permission CLI probe 9a2b1683b remains provisional/unreviewed. Experimental case integer/wildcard/binder source-to-inference-to-playground path is committed through 1f44d6087 but lacks a focused unused-binder/worklist correspondence gate. Original H/A/E/B, six effect-hygiene parents, method M/T/A, R85 adoption and evaluator A/B remain OPEN.",
- "next_action": "R130 rev2 is pre-spec CLEAN. Its fixed scope is the experimental case candidate path: establish duplicate Case arm scheduling and unused-binder lookup, then repair confirmed issues and test public CLI inference/evaluation. R128 remains an independently unreviewed provisional candidate at commit 58d5507d4; R129 is an unreviewed provisional CLI witness at 9a2b1683b. HEAD 1f44d6087 already includes the experimental integer/wildcard/binder case path through WebAssembly, superseding the stale no-Case-consumer inventory. Start only the leased R130 proof lane; implementation awaits its source finding. Preserve all original A/B and semantic adoption gates OPEN.",
+ "next_action": "R130 verified: three independent reviews CLEAN and exact focused CLI test PASS (1 passed). Luna integration/commit/push receipt is pending. R128 remains review-pending at frozen commit 58d5507d4; R129 remains provisional; all original theorem/adoption gates OPEN.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
