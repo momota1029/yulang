@@ -4,48 +4,48 @@
  "phase": "ACTIVE",
  "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
  "active_sprint": {
-  "id": "nested-handler-outside-selection-20261019-r118",
-  "contract": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md",
+  "id": "local-resumption-cli-20261019-r120",
+  "contract": "tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev2.md",
   "revision": 2,
-  "contract_sha256": "7b588d4e5990b142381f2993e4fa49376d5ebdd0efd2311bb3418f42f3879d63",
+  "contract_sha256": "6af7d6ad17684de717742586baa3d504adc73da6a37b8ba511b59a2ca327ff68",
   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-  "baseline": "6caae031058b53545e03a205be2ab1bab9179a44; R117 local checkpoint preserved with cargo check PASS and --lib test-build failure.",
-  "authority": "Charter §§14–15 bounded outside shallow selection; no general handler-order theorem or implementation authority. User goal includes six-front effect hygiene, method/role proof, early runnable surfaces.",
+  "baseline": "af551a720; R119 reviewed conditional artifacts remain in working tree; R120 pins committed source owners.",
+  "authority": "Finite continuation/resumption trace and one test-only public CLI observation under charter §§14–17/21 as clarified by §24; no general law, production authority, or method adoption.",
   "resources": {
-   "cap_seconds": 1800,
-   "inventory_seconds": 120,
-   "proof_seconds": 480,
-   "implementation_seconds": 420,
-   "reviews_seconds": 360,
-   "verification_seconds": 240,
-   "closeout_seconds": 180,
+   "cap_seconds": 1500,
+   "inventory_seconds": 180,
+   "prespec_seconds": 120,
+   "proof_seconds": 420,
+   "implementation_seconds": 300,
+   "reviews_seconds": 240,
+   "verification_seconds": 120,
+   "closeout_seconds": 120,
    "astra_assignments": 0
   },
   "verification": {
    "commands": [
-    "cargo test -p yu-solver --lib --no-run",
-    "cargo test -p yu-playground --test cli_nested_handler_selection -- --nocapture"
+    "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_local_resume -- --nocapture"
    ],
-   "owner": "Luna, one shared monotonic 240s coordinator; not run before CLEAN reviews.",
-   "result": "PASS: command 1 exit 0; command 2 exit 0; exact CLI cell passed (stdout 11\\n, stderr empty). One shared monotonic coordinator; hashes matched before execution; no retry."
+   "result": "PASS: exact one-shot cargo test command exit 0; 1 passed; test asserts CLI success, stdout 9\\n, empty stderr. 18 input and 4 output hashes matched before execution; no retry."
   },
   "outputs": {
-   "proof": "notes/theory/2026-10-19-r118-nested-outside-selection.md",
-   "proof_handoff": "tasks/agent-loop/inbox/20261019-r118-proof.md",
-   "implementation": "crates/yu-solver/src/shadow_apply.rs; tools/inference-playground/tests/cli_nested_handler_selection.rs",
-   "implementation_handoff": "tasks/agent-loop/inbox/20261019-r118-implementation.md",
-   "pre_spec_review": "CLEAN rev2, `r118_prespec`; rev1 preserved.",
-   "implementation_handoff_sha256": "5a27e3cb2e4fd5eda4a0ca6aae6409db0152e6165c7dace27f22f37489bf183e",
-   "shadow_apply_sha256": "838d862dd34fe2b2bd70c5d92c5ce9af0aa98f10f8b6a8eddf313ae798686543",
-   "cli_test_sha256": "cc56cb82c363c13b34d09bb28b6b12372451334e2d24e2412106ea1611fc91b6",
-   "proof_sha256": "363a882f7a64eb5454708ff6dc8183b2bf3c69049b9d4c9c6a695fda8faead88",
-   "proof_handoff_sha256": "ee9aa20b2e1b40b3a26713ed9b57c380ca2086561aff638e7950caf9bc525d71",
-   "spec_review": "CLEAN; all frozen hashes matched; no findings.",
-   "compiler_review": "CLEAN; exact source/runtime trace and authentic fixture owners verified; no findings.",
-   "regression_review": "CLEAN; source baseline and fixture provenance reconstructed; new CLI scope confirmed."
+   "proof": "notes/theory/2026-10-19-r120-local-resumption.md",
+   "proof_handoff": "tasks/agent-loop/inbox/20261019-r120-proof.md",
+   "implementation": "tools/inference-playground/tests/cli_local_resume.rs",
+   "implementation_handoff": "tasks/agent-loop/inbox/20261019-r120-implementation.md",
+   "pre_spec_review": "CLEAN rev2; r118_spec_review; rev1 preserved.",
+   "expected_cli": "success; stdout 9\\n; stderr empty",
+   "tools/inference-playground/tests/cli_local_resume.rs": "c315daccfd28279192b0052f55c5558fa11133509291855129f744037633e747",
+   "tasks/agent-loop/inbox/20261019-r120-implementation.md": "08bfed5da2d08e47732ad55f351c8728333baab814d7b829899f830b2f8fd3a9",
+   "notes/theory/2026-10-19-r120-local-resumption.md": "b88d6af71537459b9460ea15637bdf91d7613c0825d08fa354b6a264e30cfb2f",
+   "tasks/agent-loop/inbox/20261019-r120-proof.md": "c3ed08b72bdd206bec0deee14cd34147240fb52ebf98e1580ff500e0a7b168bc",
+   "compiler_review": "CLEAN; exact source/runtime/template trace; H/S/E/B conditional premises retained.",
+   "spec_review": "CLEAN; §§14–17/21 subject to §24; no broad continuation or old expectation claim.",
+   "regression_review": "CLEAN; exact source, public CLI assertions, R111 and runtime fixture unchanged.",
+   "closeout": "notes/progress/2026-10-19-r120-closeout.md"
   },
-  "review_status": "All three independent reviews CLEAN and STOPPED. All frozen hashes matched before verification. Both contracted one-shot commands passed.",
-  "open_premises": "No general source/native order theorem. R117-JOIN-1; R100-P2; R85 adoption; all six effect parents; original evaluator and Simple-sub A/B remain OPEN."
+  "review_status": "All three fresh post-output reviews CLEAN and STOPPED (compiler/source, spec/authority, regression). Implementation handoff external receipt digest typo did not affect file bytes; actual handoff hash recorded and independently confirmed.",
+  "open_premises": "H/S/E/B source preparation, same-HIR, receiving evidence and 10,000-step completion are conditional (CLI completes); arbitrary/foreign resumption, all six effect parents, R85 adoption, evaluator/Simple-sub A/B remain OPEN."
  },
  "workers": [
   {
@@ -57,7 +57,7 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R118 verification passed under the frozen one-shot coordinator; all three reviews CLEAN; preparing reviewed local checkpoint. No parent theorem closed."
+   "receipt": "R120 one-shot public CLI test passed after three CLEAN reviews; preparing reviewed local checkpoint."
   },
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -94,58 +94,25 @@
   },
   {
    "id": "/root/r118_proof_lane",
-   "role": "R118 conditional outside-selection proof",
+   "role": "R120 constructive local-resumption source proof",
    "state": "STOPPED",
    "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
    "requested_model": "gpt-6-sol",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Frozen proof and handoff hashes 363a882f and ee9aa20b; no commands; STOPPED, no descendants."
+   "receipt": "R120 proof frozen with matched byte hashes; current-session cessation confirmed; no commands/descendants."
   },
   {
    "id": "/root/r118_implementation_lane",
-   "role": "R118 authentic forest fixture repair and finite CLI cell",
+   "role": "R120 test-only public local-resumption CLI cell",
    "state": "STOPPED",
    "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Frozen implementation handoff 5a27e3cb; source and CLI outputs hashed; no commands run; writer STOPPED, no descendants."
-  },
-  {
-   "id": "/root/r118_compiler_review",
-   "role": "R118 independent compiler/source review",
-   "state": "STOPPED",
-   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "medium",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "CLEAN compiler/source review; exact source/runtime trace and authentic fixture owners checked; read-only; STOPPED."
-  },
-  {
-   "id": "/root/r118_spec_review",
-   "role": "R118 independent specification/authority review",
-   "state": "STOPPED",
-   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "medium",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "CLEAN R118 spec review; all frozen hashes matched; read-only; STOPPED."
-  },
-  {
-   "id": "/root/r118_regression_review",
-   "role": "R118 independent regression review",
-   "state": "STOPPED",
-   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "low",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "CLEAN regression review; all hashes matched; authentic snapshots and exact new CLI cell checked; read-only; STOPPED."
+   "receipt": "R120 test and handoff frozen; Luna recorded actual written-byte hashes. Worker message misstated handoff digest; handoff itself names the correct test hash. No post-STOP edits."
   }
  ],
  "leases": [
@@ -161,37 +128,32 @@
    "state": "HELD"
   },
   {
-   "path": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev1.md",
+   "path": "tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev1.md",
    "owner": "/root",
    "state": "FROZEN"
   },
   {
-   "path": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md",
+   "path": "tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev2.md",
    "owner": "/root",
    "state": "FROZEN"
   },
   {
-   "path": "notes/theory/2026-10-19-r118-nested-outside-selection.md",
+   "path": "notes/theory/2026-10-19-r120-local-resumption.md",
    "owner": "/root/r118_proof_lane",
    "state": "FROZEN"
   },
   {
-   "path": "tasks/agent-loop/inbox/20261019-r118-proof.md",
+   "path": "tasks/agent-loop/inbox/20261019-r120-proof.md",
    "owner": "/root/r118_proof_lane",
    "state": "FROZEN"
   },
   {
-   "path": "crates/yu-solver/src/shadow_apply.rs",
+   "path": "tools/inference-playground/tests/cli_local_resume.rs",
    "owner": "/root/r118_implementation_lane",
    "state": "FROZEN"
   },
   {
-   "path": "tools/inference-playground/tests/cli_nested_handler_selection.rs",
-   "owner": "/root/r118_implementation_lane",
-   "state": "FROZEN"
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261019-r118-implementation.md",
+   "path": "tasks/agent-loop/inbox/20261019-r120-implementation.md",
    "owner": "/root/r118_implementation_lane",
    "state": "FROZEN"
   }
@@ -268,8 +230,8 @@
    "falsifier": "See frozen gate record."
   }
  ],
- "closure": "R117 conditional proof and cleanup committed locally in 6caae031; historical cargo check PASS and --lib test build FAIL at two Graph initializers remain preserved, with no retry. R118 repairs those fixtures from authentic states; fresh solver --lib --no-run and exact nested handler CLI test both PASS. R117-JOIN-1 and six parents OPEN.",
- "next_action": "R118 verified conditional witness and runnable CLI cell complete. Await sprint-end selector delta; proposed rotation to R100-P2 method/role member producer or R85 adoption while balancing all six effect fronts and runnable ordinary/effectful surfaces.",
+ "closure": "R118 nested-handler public CLI and R120 local-resumption public CLI are finite passing observations; R119 supplies reviewed conditional method/role producer feasibility. R85 unadopted; R117-JOIN-1, all six effect parents and original evaluator/Simple-sub A/B remain OPEN.",
+ "next_action": "R120 closed verified conditional. Consult selector for next distinct outward-request-plus-suffix hygiene front while preserving method/role adoption decision and ordinary/effectful runnable-surface progress.",
  "worker_inventory_scope": "Keep three inherited identities UNKNOWN and board lease quarantined. R114/R116/R117 STOPPED workers and FROZEN leases archived in local checkpoint 6caae031; no unknown writer or capacity reclaimed.",
  "legacy_reconciliation": {
   "required": false,
@@ -339,10 +301,22 @@
   },
   {
    "id": "R118",
-   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
    "contract": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md",
-   "closeout": "notes/progress/2026-10-19-r118-closeout.md",
-   "verification": "both authorized commands PASS; all three reviews CLEAN; parents OPEN"
+   "closeout": "notes/progress/2026-10-19-r118-closeout.md; commit af551a720, pushed"
+  },
+  {
+   "id": "R119",
+   "state": "CLOSED_REVIEWED_CONDITIONAL",
+   "contract": "tasks/agent-loop/sprints/method-role-producer-feasibility-20261019-r119-rev2.md",
+   "closeout": "notes/progress/2026-10-19-r119-closeout.md"
+  },
+  {
+   "id": "R120",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+   "contract": "tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev2.md",
+   "closeout": "notes/progress/2026-10-19-r120-closeout.md",
+   "verification": "one authorized CLI test PASS; all three reviews CLEAN; parents OPEN"
   }
  ]
 }
