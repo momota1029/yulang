@@ -344,6 +344,151 @@ fn exact_role_impl_member_source_reaches_original_occurrences() {
 }
 
 #[test]
+fn qualified_member_head_routes_through_operation_namespace_without_target_join() {
+    use crate::{FileId, FileKey, ModuleIdentity, SemanticImports};
+
+    let source = "role SecondInt {\n    my second: int -> int -> int\n}\nimpl int: SecondInt {\n    my second self selected = selected\n}\nmy answer = SecondInt::second 1 2";
+    assert_eq!(source.len(), 148);
+    assert!(!source.ends_with('\n'));
+
+    let parsed_file = parsed(source);
+    let artifact = ShadowArtifact::from_parsed(parsed_file.clone()).unwrap();
+    let keys = source_keys(&parsed_file);
+    let source_node = |kind: SyntaxKind, predicate: &dyn Fn(&str) -> bool| {
+        let matches = keys
+            .iter()
+            .filter(|(node, _)| {
+                let range = node.text_range();
+                node.kind() == kind
+                    && predicate(
+                        &source[usize::from(range.start())..usize::from(range.end())],
+                    )
+            })
+            .map(|(node, key)| (node.clone(), key.clone()))
+            .collect::<Vec<_>>();
+        assert_eq!(matches.len(), 1, "expected one original {kind:?} source");
+        matches.into_iter().next().unwrap()
+    };
+
+    let (_, answer_key) = source_node(SyntaxKind::BindingStatement, &|text| {
+        text.starts_with("my answer")
+    });
+    let (path_tail, path_key) = source_node(SyntaxKind::PathTail, &|text| text.contains("::second"));
+    assert_eq!(artifact.position(&artifact.source_position(&path_key).unwrap()).unwrap().kind(), SyntaxKind::PathTail);
+    assert!(parsed_file.owns_source_key(&answer_key));
+    assert!(parsed_file.owns_source_key(&path_key));
+
+    let hir = lower_module_with_local_source(
+        ModuleIdentity::source_root(FileId::new(FileKey::new("test", "r128-role-impl.yu"))),
+        &parsed_file,
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    let answer = hir
+        .items()
+        .iter()
+        .find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "answer" => Some(binding),
+            _ => None,
+        })
+        .expect("the original answer binding is admitted as a HIR item");
+    let root = SourceRootId::Definition(answer.definition_root().clone());
+    assert!(hir.owns_source_root(&root));
+    assert_eq!(hir.source_root_source_key(&root).unwrap(), Some(&answer_key));
+    let local = hir
+        .local_source_for(&root)
+        .unwrap()
+        .expect("answer's ordinary LocalSource carrier is available");
+    assert_eq!(local.source_root(), &root);
+
+    let outer = local.expression(local.body()).unwrap();
+    let LocalSourceForm::Apply {
+        callee: inner_index,
+        argument: outer_argument_index,
+        source_form: outer_form,
+    } = &outer.form
+    else {
+        panic!("the second ordinary application edge is retained");
+    };
+    assert_eq!(*outer_form, SyntaxKind::MlArgument);
+    let outer_argument = local.expression(outer_argument_index).unwrap();
+    assert!(matches!(&outer_argument.form, LocalSourceForm::Integer(text) if text.as_ref() == "2"));
+    let (outer_tail, outer_tail_key) = source_node(SyntaxKind::MlArgument, &|text| text.trim() == "2");
+    assert_eq!(outer.source, outer_tail_key);
+    assert_eq!(artifact.position(&artifact.source_position(&outer.source).unwrap()).unwrap().kind(), SyntaxKind::MlArgument);
+    let (_, two_key) = source_node(SyntaxKind::IntegerLiteral, &|text| text == "2");
+    assert_eq!(outer_argument.source, two_key);
+    assert_eq!(artifact.position(&artifact.source_position(&outer_argument.source).unwrap()).unwrap().kind(), SyntaxKind::IntegerLiteral);
+    assert!(parsed_file.owns_source_key(&outer_tail_key));
+    assert_eq!(outer_tail.kind(), SyntaxKind::MlArgument);
+
+    let inner = local.expression(inner_index).unwrap();
+    let LocalSourceForm::Apply {
+        callee: operation_index,
+        argument: inner_argument_index,
+        source_form: inner_form,
+    } = &inner.form
+    else {
+        panic!("the first ordinary application edge is retained");
+    };
+    assert_eq!(*inner_form, SyntaxKind::MlArgument);
+    let inner_argument = local.expression(inner_argument_index).unwrap();
+    assert!(matches!(&inner_argument.form, LocalSourceForm::Integer(text) if text.as_ref() == "1"));
+    let (_, inner_tail_key) = source_node(SyntaxKind::MlArgument, &|text| text.trim() == "1");
+    assert_eq!(inner.source, inner_tail_key);
+    assert_eq!(artifact.position(&artifact.source_position(&inner.source).unwrap()).unwrap().kind(), SyntaxKind::MlArgument);
+    let (one, one_key) = source_node(SyntaxKind::IntegerLiteral, &|text| text == "1");
+    assert_eq!(inner_argument.source, one_key);
+    assert_eq!(artifact.source_position(&inner_argument.source).unwrap(), artifact.source_position(&one_key).unwrap());
+    assert_eq!(artifact.position(&artifact.source_position(&inner_argument.source).unwrap()).unwrap().kind(), SyntaxKind::IntegerLiteral);
+    assert!(parsed_file.owns_source_key(&inner_tail_key));
+    assert_eq!(one.kind(), SyntaxKind::IntegerLiteral);
+
+    let operation = local.expression(operation_index).unwrap();
+    let LocalSourceForm::Operation { resolution } = &operation.form else {
+        panic!("the qualified head is carried as a source operation");
+    };
+    assert!(matches!(resolution, SourceOperationResolution::Unresolved));
+    assert_eq!(operation.source, path_key);
+    assert_eq!(path_tail.kind(), SyntaxKind::PathTail);
+    assert_eq!(artifact.position(&artifact.source_position(&operation.source).unwrap()).unwrap().kind(), SyntaxKind::PathTail);
+    assert!(parsed_file.owns_source_key(&operation.source));
+
+    let act_source = "act SecondInt:\n    our second: int -> int -> int\nmy answer = SecondInt::second 1 2";
+    let act_parsed = parsed(act_source);
+    let act_hir = lower_module_with_local_source(
+        ModuleIdentity::source_root(FileId::new(FileKey::new("test", "r128-act.yu"))),
+        &act_parsed,
+        SemanticImports::empty(),
+    )
+    .unwrap();
+    let act_answer = act_hir
+        .items()
+        .iter()
+        .find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "answer" => Some(binding),
+            _ => None,
+        })
+        .expect("the independently parsed Act control retains its answer binding");
+    let act_root = SourceRootId::Definition(act_answer.definition_root().clone());
+    let act_local = act_hir.local_source_for(&act_root).unwrap().unwrap();
+    let act_outer = act_local.expression(act_local.body()).unwrap();
+    let LocalSourceForm::Apply { callee: act_inner_index, .. } = &act_outer.form else {
+        panic!("Act control's second application edge remains structurally ordinary");
+    };
+    let act_inner = act_local.expression(act_inner_index).unwrap();
+    let LocalSourceForm::Apply { callee: act_operation_index, .. } = &act_inner.form else {
+        panic!("Act control's first application edge remains structurally ordinary");
+    };
+    let act_operation = act_local.expression(act_operation_index).unwrap();
+    let LocalSourceForm::Operation { resolution: act_resolution } = &act_operation.form else {
+        panic!("Act control's qualified head uses the operation carrier");
+    };
+    assert!(matches!(act_resolution, SourceOperationResolution::Resolved(_)));
+    assert!(act_hir.owns_source_root(&act_root));
+}
+
+#[test]
 fn member_annotations_stay_on_their_original_formal() {
     const SOURCES: [(&str, Option<&str>); 3] = [
         (

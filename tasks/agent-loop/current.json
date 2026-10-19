@@ -2,13 +2,13 @@
 "schema_version":1,
 "mode":"LIVE",
 "phase":"ACTIVE",
-"session":"current-conversation-2026-10-19-r128-resume",
+"session":"current-conversation-2026-10-19-solo-resume",
 "active_sprint":{
 "id":"qualified-member-target-20261019-r128",
 "contract":"tasks/agent-loop/sprints/qualified-member-target-20261019-r128-rev3.md",
 "revision":3,
 "contract_sha256":"0b7a1e2b625a1d95d62cbf63e19ef5c51d6ea1427baffc6b1820ed02b82a5273",
-"state":"PROOF_AND_IMPLEMENTATION_ACTIVE",
+"state":"CANDIDATE_TESTED_REVIEW_PENDING",
 "baseline":"8bad5d05f17b433b2c5164b91248462de3f7a6fe",
 "authority":"Finite source-to-HIR trace of qualified member head T and two Apply edges through operation namespace and candidate gate; no method selection/adoption or production implementation authority.",
 "resources":{
@@ -21,36 +21,43 @@
 "verification_seconds":120,
 "closeout_seconds":60,
 "inventory_seconds_charged":180,
-"prespec_seconds_charged":240
+"prespec_seconds_charged":240,
+"implementation_seconds_charged":180,
+"proof_seconds_charged":480,
+"verification_seconds_charged":4
 },
 "verification":{
 "commands":[
 "cargo test -p yu-hir --lib tests::shadow_method_role_source::qualified_member_head_routes_through_operation_namespace_without_target_join -- --exact"
 ],
-"result":"NOT_RUN; gated on proof/implementation STOP and three CLEAN reviews."
+"result":"PASS after Luna fixed six PositionId borrow errors in the source-structure test: 1 passed, 0 failed, 135 filtered out. The exact command ran once after repair; independent final reviews remain NOT_RUN. This is not proof-gate closure."
 },
 "outputs":{
 "proof":"notes/theory/2026-10-19-r128-qualified-member-target.md",
 "proof_handoff":"tasks/agent-loop/inbox/20261019-r128-proof.md",
 "test":"crates/yu-hir/src/tests/shadow_method_role_source.rs",
 "implementation_handoff":"tasks/agent-loop/inbox/20261019-r128-implementation.md",
-"contract_previous":"tasks/agent-loop/sprints/qualified-member-target-20261019-r128-rev2.md"
+"contract_previous":"tasks/agent-loop/sprints/qualified-member-target-20261019-r128-rev2.md",
+"test_sha256":"65de2d91ff14af0c5408fc1f1770deefd4a4e611d7bd327d4c3bfc55b58e98fb",
+"implementation_handoff_sha256":"b6cc72d0e11ce0ee3ce90d731788c6b5fec7b71cf8ce7d19dac08520bc3b5cf2",
+"proof_sha256":"3d1ffc3f2fa32b7b3a663235c1d8abfbef7ad42880b308fd098fdc05c7e9ae786",
+"proof_handoff_sha256":"f82b99e371a1c227cbffb03b4fd2796fc45b7cf6b19bdd71e40e32ceb3571003"
 },
-"review_status":"Rev3 delta CLEAN: reviewer confirmed contract SHA and yu-hir/src/lib.rs pin; exact registered test path, implementation180s ceiling, 1500s allocation and authority boundaries match. Producers granted by Luna; proof lane active and implementation lane awaiting current-state receipt.",
+"review_status":"Luna reread the frozen candidate and the exact contracted HIR test passed after a compile-only borrowing repair. Fresh independent compiler/source, spec/authority and regression reviews remain NOT_RUN. This stays a provisional research candidate; no theorem, semantic adoption or production gate is closed.",
 "open_premises":"R119 M/T/A, R85 adoption, all six effect-hygiene parents, and original Simple-sub/evaluator A/B remain OPEN. This packet addresses T evidence only.",
-"next_action":"Continue both exact-lane artifacts. After both STOP, obtain fresh independent compiler/source, spec/authority and regression reviews (80s each); run only the exact contracted HIR test after all three are CLEAN."
+"next_action":"Keep R128 provisional with independent review pending; continue the user's broad type-inference/evaluator goal without treating the structural test as method execution or proof closure."
 },
 "workers":[
 {
 "id":"/root",
 "role":"Luna primary; exact leases, review, state and sole Git integrator",
-"state":"UNKNOWN",
-"session":"current-conversation-2026-10-19-r128-resume",
+"state":"RUNNING",
+"session":"current-conversation-2026-10-19-solo-resume",
 "requested_model":"gpt-6-luna",
 "requested_effort":"high",
 "observed_model":"UNKNOWN",
 "observed_effort":"UNKNOWN",
-"receipt":"Resumed from the recorded user-requested session end; reconciling R128 rev2 and sole Luna integrator."
+"receipt":"User resumed the goal and authorized solo judgment; Luna is the only active agent and sole Git integrator. The exact R128 HIR test passed after a narrow compile repair; independent review remains pending."
 },
 {
 "id":"/root/resident_dispatcher_loop_a",
@@ -160,29 +167,29 @@
 "requested_effort":"low",
 "observed_model":"UNKNOWN",
 "observed_effort":"UNKNOWN",
-"receipt":"R128 rev3 delta CLEAN; verified new lib.rs pin, full exact test path, 180s implementation cap, 1500s sum, and authority/source boundaries; STOP."
+"receipt":"Rev3 delta CLEAN; verified contract and lib.rs hash, exact registered test path, 180s implementation ceiling and 1500s allocation; STOP."
 },
 {
 "id":"/root/r128_proof",
 "role":"R128 constructive source/candidate-gate proof lane",
-"state":"RUNNING",
+"state":"STOPPED",
 "session":"current-conversation-2026-10-19-r128-resume",
 "requested_model":"gpt-6.1-sol",
 "requested_effort":"high",
 "observed_model":"UNKNOWN",
 "observed_effort":"UNKNOWN",
-"receipt":"Actual followup active under exact 480s grant; requested Sol/high, observed metadata UNKNOWN; read-only pins so far; no execution."
+"receipt":"STOPPED; proof SHA 3d1ffc3f2fa32b7b3a663235c1d8abef7ad42880b308fd098fdc05c7e9ae786; handoff SHA f82b99e371a1c227cbffb03b4fd2796fc45b7cf6b19bdd71e40e32ceb3571003; all20 pins matched; no execution; 480s charged conservatively."
 },
 {
 "id":"/root/r128_impl",
 "role":"R128 isolated HIR structure-test implementation lane",
-"state":"RUNNING",
+"state":"STOPPED",
 "session":"current-conversation-2026-10-19-r128-resume",
 "requested_model":"gpt-6-luna",
 "requested_effort":"high",
 "observed_model":"UNKNOWN",
 "observed_effort":"UNKNOWN",
-"receipt":"Resumed after Luna current-state grant; exact 180s source-test/handoff lease active, no execution or Git."
+"receipt":"STOPPED, writes ceased. HIR test SHA 1e4ffaa52e14008716da3a790808cf6bae7aea5b165b71df4283d94c7c7f9571; handoff SHA b6cc72d0e11ce0ee3ce90d731788c6b5fec7b71cf8ce7d19dac08520bc3b5cf2; pins matched; no verification; 180s charged."
 }
 ],
 "leases":[
@@ -255,22 +262,22 @@
 {
 "path":"notes/theory/2026-10-19-r128-qualified-member-target.md",
 "owner":"/root/r128_proof",
-"state":"HELD"
+"state":"FROZEN"
 },
 {
 "path":"tasks/agent-loop/inbox/20261019-r128-proof.md",
 "owner":"/root/r128_proof",
-"state":"HELD"
+"state":"FROZEN"
 },
 {
 "path":"crates/yu-hir/src/tests/shadow_method_role_source.rs",
 "owner":"/root/r128_impl",
-"state":"HELD"
+"state":"FROZEN"
 },
 {
 "path":"tasks/agent-loop/inbox/20261019-r128-implementation.md",
 "owner":"/root/r128_impl",
-"state":"HELD"
+"state":"FROZEN"
 }
 ],
 "pending":[
@@ -346,7 +353,7 @@
 }
 ],
 "closure":"R127 conditional declaration-role/native payload entry witness and paired CLI observation committed as 2a5790da1; closeout and push receipt 8bad5d05f are on origin. H/A/E/B, six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
-"next_action":"R128 proof and implementation are separately leased and active. No tests before frozen outputs and three CLEAN reviews.",
+"next_action":"R128 artifacts are frozen and the exact structural HIR test passed under solo primary verification. Independent final reviews remain pending; keep all theorem and production gates OPEN.",
 "legacy_reconciliation":{
 "required":false,
 "reason":"Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
