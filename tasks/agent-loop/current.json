@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/helper-cut-ledger-20261020-r138-rev1.md",
     "revision": 1,
     "contract_sha256": "8bfe31e038f1c7684ac2d9dba95164f13448e150ccb08a874bea22610fc6e04f",
-    "state": "ACTIVE_REVIEWED_READY_TO_LAUNCH",
+    "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
     "baseline": "66c7b52b197aa035d6feaf20ff4f84198a92f9cb",
     "authority": "unchanged computation-forwarding preservation §§1,6–7; no semantic/code/test/observer authority",
     "resources": {
@@ -16,8 +16,8 @@
       "reserved_seconds": 1800,
       "astra_seconds": 0,
       "heavy_processes": 1,
-      "proof_charged_seconds": 405,
-      "proof_remaining_seconds": 495
+      "proof_charged_seconds": 840,
+      "proof_remaining_seconds": 60
     },
     "outputs": {
       "proof": [
@@ -29,12 +29,12 @@
         "tasks/agent-loop/inbox/20261020-r138-implementation.md"
       ]
     },
-    "review_status": "CLEAN prospective spec and compiler/source; reviewer identities in this receipt",
+    "review_status": "CLEAN fresh spec/authority and compiler/source reviews; partial submission only; no A/B/C certification",
     "verification": "39/39 direct dependencies match baseline Git tree and live bytes; 8 historical R73 owners repinned",
-    "next_action": "launch proof lane; Luna continues owner map; preserve R73 unreviewed and all parent gates OPEN",
+    "next_action": "Successor proposal only: bounded certified cut for action31 loop-Lambda replays via backward dependency slice and proved frame condition; requires a new exact contract, leases and finite budget.",
     "dispatcher_delta": {
       "worker": "/root/r129_dispatch",
-      "result": "accepted exact candidate hash; no amendment",
+      "result": "checkpoint partial research after contracted reviews; proposed bounded action31 loop-Lambda certified-cut successor",
       "contract_sha256": "8bfe31e038f1c7684ac2d9dba95164f13448e150ccb08a874bea22610fc6e04f"
     },
     "prospective_reviews": {
@@ -49,14 +49,24 @@
         "receipt": "collaboration final; read-only"
       }
     },
-    "proof_assignment": "RUNNING; active-work acknowledgment received; 900s budget; no descendants",
+    "proof_assignment": "STOPPED; frozen revision1; 840/900s charged; 39/39 pins revalidated; no descendants",
     "implementation_status": "Luna primary exact owner-map lane; no safe production code slice established",
     "activation_commit": "09820335c",
     "activation_push": "origin/research/simple-sub-intrusion",
     "owner_map_status": "FROZEN_PARTIAL_NO_SAFE_CODE_SLICE",
     "owner_map_sha256": "7a4c9ab358b6a11df313380bc9ed24e7d78cdabba6d57f94bf21a6402c49b6fd",
     "implementation_handoff_sha256": "db18d0681cb50d18e15e71b188fa25a75a1828170cf60b5621ff3a6c4a920825",
-    "proof_progress": "17 source expressions/44 actions; helper Local index25, loop Local index36; H/t event argument current; exact bound and memo/replay generation ledger still unfinished; no A/B/C."
+    "proof_progress": "CLOSED_UNFINISHED_REVIEWED_RESEARCH: 17 LocalSource expressions/44 actions; helper capture/restoration and action27 duplicate-fiber fragment reviewed CLEAN. Earlier memo/replay heads, effect products, both loop Lambda replay families, boundary1 Local and independent later Work::Bound consumer remain open.",
+    "spec_review": {
+      "result": "CLEAN",
+      "reviewer": "/root/r138_proof_spec_review",
+      "receipt": "independent read-only review; exact frozen artifact hashes verified; does not certify theorem"
+    },
+    "compiler_review": {
+      "result": "CLEAN_PARTIAL_RESEARCH",
+      "reviewer": "/root/r138_proof_compiler_review",
+      "receipt": "independent read-only review; exact frozen artifact hashes and 39/39 live pins verified; no theorem certification"
+    }
   },
   "workers": [
     {
@@ -95,24 +105,46 @@
     {
       "id": "/root",
       "role": "Luna primary; exact leases, review adjudication, state and sole Git integrator",
-      "state": "WAITING",
+      "state": "RUNNING",
       "session": "current-conversation-2026-10-20-r138",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R138 Luna source/native owner map frozen; NO_SAFE_CODE_SLICE; proof lane remains active; Luna waits for proof handoff before integration."
+      "receipt": "Current Luna primary session; proof and both reviews STOPPED; closeout and sole integration in progress."
     },
     {
       "id": "/root/r138_proof",
       "role": "Sol/high constructive proof lane",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-20-r138",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Progress at 23:14:45 UTC; observed 330s, conservative charge 405/900s, 495s remaining. Static ledger 17 expressions/44 actions; helper Local 25, loop Local 36; memo/replay generation inventory remains open. No descendants."
+      "receipt": "STOPPED/writes ceased at 2026-10-19 23:21:44 UTC. Frozen note SHA b9b91d5250b3f05def89891cca314ad24fcf84ec711b8c6e76c7c4dcf936c467; inbox SHA d7504666ab99ed3822fd91c103c056e4fbb9aad344ab10f2477567ba5a8b991c. 39/39 pins revalidated; 840/900s charged; no descendants, tests, builds, execution or Git. Outcome UNFINISHED/OPEN."
+    },
+    {
+      "id": "/root/r138_proof_spec_review",
+      "role": "independent spec/authority review of frozen R138 candidate",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-20-r138",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "CLEAN independent spec/authority review; exact frozen artifacts verified; no findings. No edits/tests/builds/Git/descendants. Does not certify theorem."
+    },
+    {
+      "id": "/root/r138_proof_compiler_review",
+      "role": "independent compiler/source review of frozen R138 candidate",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-20-r138",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "CLEAN for partial research only; exact hashes and 39/39 pins match; uncovered suffix remains open. No edits/tests/builds/Git/descendants; no theorem certification."
     }
   ],
   "leases": [
@@ -135,12 +167,12 @@
     {
       "path": "notes/theory/2026-10-20-r138-helper-cut-ledger.md",
       "owner": "/root/r138_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261020-r138-proof.md",
       "owner": "/root/r138_proof",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-20-r138-cut-owner-map.md",
@@ -232,7 +264,7 @@
       "falsifier": "Any blocking/major finding or dependency mismatch keeps candidate provisional."
     }
   ],
-  "closure": "R138 active; R72-LATER-OCCURRENCE-1 and original inference/evaluator/A-B/production gates remain OPEN. R135 awaits user design choice.",
+  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH; A/B/C and all parent/inference/evaluator/production gates remain OPEN. Next route is a new bounded action31 loop-Lambda certified-cut proposal; no successor authority yet. R135 awaits user design choice.",
   "next_action": "R138: launch proof lane and complete Luna source/native owner map; no tests/builds/observer/code changes.",
   "legacy_reconciliation": {
     "required": false,
@@ -329,6 +361,13 @@
       "proof": "notes/theory/2026-10-20-r137-polymorphic-escaping-closure.md",
       "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de",
       "push_commit": "2bd30298598d749b88fee32ed158e76f74943106"
+    },
+    {
+      "id": "R138",
+      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+      "closeout": "notes/progress/2026-10-20-r138-closeout.md",
+      "contract": "tasks/agent-loop/sprints/helper-cut-ledger-20261020-r138-rev1.md",
+      "proof": "notes/theory/2026-10-20-r138-helper-cut-ledger.md"
     }
   ],
   "review_receipts": "R135 rev3 spec MINOR/compiler MAJOR; rev4 spec/compiler two MAJOR; rev5 paired focused deltas CLEAN. Full findings/hashes in frozen contracts and closeout."
