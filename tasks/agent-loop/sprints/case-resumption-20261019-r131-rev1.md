@@ -1,0 +1,159 @@
+# R131 rev1 — effectful Case scrutinee across shallow resumption
+
+Status: CANDIDATE only. No proof, implementation, test or browser edit lease is
+active until an independent CLEAN pre-spec review and Luna's explicit grant.
+
+Branch `research/simple-sub-intrusion`; proposed baseline
+`53c313c7b32aa3d7f4f49aacb3b447f9c53ae908`.
+
+## Original outcome and authority
+
+The user's ongoing outcome is proof-backed inference/evaluation breadth while
+preserving original Simple-sub and evaluator A/B claims, quantifiers and
+semantic adoption gates. R131 targets a finite source-to-runtime correspondence
+slice: a request in an effectful Case scrutinee is handled by a declared
+`[io] int` receiver; resuming its captured continuation with an integer returns
+through the saved Case frame, retains that frame's lexical environment and
+received value/view, selects the expected Case arm, then evaluates that arm.
+The selected shallow handler is absent when the arm runs.
+
+This is experimental inference-playground and WebAssembly-playground evidence.
+It adds no language rule, stable syntax, runtime behavior, production authority
+or theorem premise. Original Simple-sub/evaluator A/B, H/A/E/B, all six
+effect-hygiene parents, R85 adoption, method M/T/A, R128 review and R129 review
+remain OPEN or provisional as currently recorded. The R130 finite Case result
+is a dependency for scheduling only; it does not prove this resumption path.
+
+## Fixed outcome and probes
+
+Establish the finite request -> capture -> resumption -> saved Case frame ->
+selected arm transition, or identify the exact missing runtime/source premise.
+Carry one positive and one paired shallow-handler negative through the public
+CLI and browser WASM example path. Required candidate sources:
+
+```yu
+act io:
+    our tick: int -> int
+    our other: int -> int
+my relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 9 }
+my main = relay { case io::tick 0: 9 -> 91, _ -> 17 }
+```
+
+The positive must complete with `91\n`: the receiver supplies 9 to the
+interrupted Case scrutinee, selecting its first arm. Paired negative:
+
+```yu
+act io:
+    our tick: int -> int
+    our other: int -> int
+my relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 9 }
+my main = relay { case io::tick 0: 9 -> io::other 8, _ -> 17 }
+```
+
+The negative must fail with an unhandled `io::other` request and publish no
+completed output: the shallow `tick` handler that selected the continuation
+does not handle a request made by the resumed Case arm. A different failure,
+including unsupported source, inference rejection, wrong arm/value, lost
+environment or view, or handler reinstallation, falsifies the proposed route.
+The browser example must expose both positive and negative runs; the smoke test
+must check the positive result and the negative error/no-completion outcome.
+
+These exact sources are candidates pending grammar/owner review. If either
+requires new syntax or runtime policy, stop and return the exact choice to Luna.
+
+## Proof lane — 450 seconds, Sol/high
+
+Produce `notes/theory/2026-10-19-r131-case-resumption.md` and
+`tasks/agent-loop/inbox/20261019-r131-proof.md`. Trace the exact retained
+constructors and machine transitions from the source Case and declared
+receiver through `Frame::Case`, request propagation, suffix capture,
+`capture_template`, `TemplateNode::Bind`, continuation application, response
+validation, restored frame return, source-order Case selection, and selected
+arm execution. Use an induction over the finite captured frame sequence and an
+explicit event/owner trace. State exactly which environment, value, view and
+handler-boundary frames are retained, discarded or re-entered. Show the paired
+negative reaches the unhandled request boundary after the selected arm starts.
+
+Establish the finite preservation result under explicit successful formation,
+receiver evidence, continuation response compatibility and resource premises,
+or identify the first obstruction with source owner and counterexample. Do not
+generalize from the transition trace to arbitrary effects, full evaluator
+correctness, native compiler behavior or A/B. Apply no open hygiene lemma
+outside its actual premises. The existing R130 proof and old receiver
+permission CLI regression are context, not substitutes for this derivation.
+
+## Implementation lane — Luna/high, 360 seconds
+
+After CLEAN contract review and Luna's grant, add the paired public CLI
+regression at `tools/inference-playground/tests/cli_case_resumption.rs` and
+extend only the browser example surface at `web/playground/src/main.ts`,
+`web/playground/index.html` and `web/playground/smoke-test.mjs`. Reuse the
+existing `[io] int` receiver and Case source path. The implementation does not
+edit runtime, solver, parser, stable syntax, expected behavior of existing
+examples, or inference policy. Keep both sources and assertions exact in the
+contract. No tests, build or browser checks run in the implementation lane.
+
+The final browser verification may run `npm --prefix web/playground run
+build:wasm` followed by `node web/playground/smoke-test.mjs`; any generated
+`web/playground/src/wasm/yulang_wasm.js`, `yulang_wasm.d.ts`,
+`yulang_wasm_bg.wasm`, and `yulang_wasm_bg.wasm.d.ts` are ignored build outputs,
+not integration files. No edits outside the named sources are authorized.
+
+## Pinned source owners at baseline
+
+| Input | SHA-256 |
+|---|---|
+| `crates/yu-solver/src/candidate_source.rs` | `cbc39315f4243b0bae1db74976cf94282bc94cd28b9eb463699c085f421065f7` |
+| `tools/inference-playground/src/runtime/program.rs` | `28748da0458da92b9d1190b250bbb84bdecc6643718eacbca95a04f5d6c9aa0d` |
+| `tools/inference-playground/src/runtime/machine.rs` | `4fb918732047f61184bc8f89b829bde68a8d1e6649a24d02640ec14500ae0acd` |
+| `tools/inference-playground/src/runtime/continuation.rs` | `194e925c2e19816e05e8d0cdf773123f205dce47d36d83a70385daa07a77e2b3` |
+| `tools/inference-playground/src/runtime/receiving.rs` | `8c81deadc48c4770f25760e9086d2053815785ff16cfd5580fa814fb83af9bd9` |
+| `tools/inference-playground/src/lib.rs` | `bdf996d0264e252e345c05bc77b2adcf625120281244171f0054f1d87a8d1e1b` |
+| `tools/inference-playground/Cargo.toml` | `87e77de221b023c1c9f07e90f1ce6a692a56e8bb398eca4725f4910254be0a56` |
+| `tools/inference-playground/tests/cli_resumed_receiver_permission.rs` | `9a5fd48d1f89ae064960554d8ece36d6b9b437ae6cc91504a1e7c035aec9257a` |
+| `tools/inference-playground/tests/cli_case_source_progress.rs` | `f831c17a06edca36ea13df9cdece3c7ac8fdf4e025488f17375b87a598c7fa44` |
+| `apps/yulang-wasm/src/lib.rs` | `2fc9feb353b3130c4efc888270cec14cba8b2bbcc2fca03d3780c676e0468f8a` |
+| `apps/yulang-wasm/Cargo.toml` | `c00101fa1b063622a9826a7971add7396e0f73b614d408f2e962a006799966f6` |
+| `Cargo.lock` | `de2c030452a0764cbeb459e2545585a880edc6683a8acceaea45276e24b67ca5` |
+| `web/playground/src/main.ts` | `efdf8bcd8c727a105a85c3ff7c581bcfcb218781db17e88be50e330b7ce6bcab` |
+| `web/playground/index.html` | `157d70d0cdc757f485208f0df1f934c647bd2f807696a1140f873bece8ba65ce` |
+| `web/playground/smoke-test.mjs` | `67d498313fdab02cb1689d4a9a5bde44ce46cae1d8938f133a7d25f65cfe602e` |
+| `web/playground/package.json` | `ff870bfa1ba5cbb139a5a0b1d34673684eed9984f821548703ad648d0c9d1caf` |
+
+Before any grant, verify all listed hashes at the proposed baseline. Preserve
+the R130 commit and push receipt. Any changed byte
+requires a sequentially revised contract and another read-only delta review.
+
+## Reviews, verification, resources and stop conditions
+
+The pre-spec reviewer has read-only access to this candidate and pinned
+owners. No producer or code/browser write begins before CLEAN review and Luna's
+explicit acknowledgement. After both author lanes STOP, freeze proof,
+handoffs, implementation and direct dependencies for fresh independent
+compiler/source, spec/authority and regression review. Authors and coauthors
+cannot review their own evidence. Only after all required reviews are CLEAN may
+Luna run exactly these bounded verification commands, serially:
+
+```text
+cargo test -p yu-playground --test cli_case_resumption -- --exact case_scrutinee_resumes_into_selected_arm_and_shallow_handler_stays_absent
+npm --prefix web/playground run build:wasm
+node web/playground/smoke-test.mjs
+```
+
+No separate package check, full workspace test, browser automation or benchmark
+is authorized. At most one heavyweight compiler/build process at a time.
+
+Budget cap: 1,560 seconds total; inventory 180, pre-spec 210, proof 450,
+implementation 360, final reviews 180, verification 120, closeout 60. One
+proof worker and Luna primary only; zero Astra. No nested sprint team. Record
+actual IDs/session/model/effort (UNKNOWN if unavailable), active work and STOP
+receipts. Preserve every inherited UNKNOWN identity, reservation and
+quarantined lease. Return to Luna before any runtime/compiler change, syntax
+change, path expansion, second verification attempt, or budget increase.
+
+Luna alone integrates explicit paths, reviews the complete outbound range,
+updates compact state and closeout, and commits/pushes non-forcibly. Success is
+only finite reviewed source/runtime and public CLI/WASM evidence. It cannot
+close the original A/B, any hygiene parent, R85 adoption, R128 review or R129
+review. Consultation triggers: material obstruction, authority/dependency/
+lease change, integration boundary, or next sprint start/end.

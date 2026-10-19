@@ -15,6 +15,10 @@ const examples: Record<string, string> = {
   conditional: "my choose condition yes no = if condition: yes else: no\nmy main = choose true 7 9",
   case: "my classify x = case x: 2 -> 22, _ -> 0\nmy main = classify 2",
   case_binder: "my retain x = case x: value -> value\nmy other = retain \"kept\"\nmy main = retain 7",
+  case_resumption:
+    "act io:\n    our tick: int -> int\n    our other: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 9 }\nmy main = relay { case io::tick 0: 9 -> 91, _ -> 17 }",
+  case_shallow_handler_absent:
+    "act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 9 }\nmy main = relay { case io::tick 0: 9 -> io::tick 8, _ -> 17 }",
 };
 
 const source = document.querySelector<HTMLTextAreaElement>("#source")!;

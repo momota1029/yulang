@@ -23,6 +23,10 @@ const examples = {
   case: ["my classify x = case x: 2 -> 22, _ -> 0\nmy main = classify 2", "22\n"],
   caseWildcard: ["my classify x = case x: 2 -> 22, _ -> 0\nmy main = classify 3", "0\n"],
   caseBinder: ["my retain x = case x: value -> value\nmy other = retain \"kept\"\nmy main = retain 7", "7\n"],
+  caseResumption: [
+    "act io:\n    our tick: int -> int\n    our other: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 9 }\nmy main = relay { case io::tick 0: 9 -> 91, _ -> 17 }",
+    "91\n",
+  ],
 };
 const results = Object.fromEntries(
   Object.entries(examples).map(([name, [source, expected]]) => [name, run(source, "main", 100_000)]),
@@ -36,6 +40,23 @@ for (const [name, [, expected]] of Object.entries(examples)) {
 }
 if (!graph.startsWith("Experimental candidate inference graph")) {
   throw new Error(`unexpected inference output: ${graph.slice(0, 120)}`);
+}
+
+const shallowNegative =
+  "act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 9 }\nmy main = relay { case io::tick 0: 9 -> io::tick 8, _ -> 17 }";
+let shallowHandlerAbsent = false;
+const secondTickStart = shallowNegative.lastIndexOf("io::tick 8");
+const payloadStart = secondTickStart + "io::tick ".length;
+const secondTickPayloadRange = `${payloadStart}..${payloadStart + 1}`;
+try {
+  run(shallowNegative, "main", 100_000);
+} catch (error) {
+  shallowHandlerAbsent = String(error).includes(
+    `unhandled runtime request at ${secondTickPayloadRange}`,
+  );
+}
+if (!shallowHandlerAbsent) {
+  throw new Error("the resumed Case arm must leave its shallow tick handler absent");
 }
 
 console.log(`WASM smoke passed: inference and ${Object.keys(examples).length} execution examples.`);
