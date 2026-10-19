@@ -154,6 +154,48 @@ fn computation_payload_is_published_without_running_it() {
 }
 
 #[test]
+fn section21_outer_annotation_selects_entry_for_ignored_arguments() {
+    assert_unhandled(
+        &format!("{DECL}my ignore x = 9\nmy main = ignore (signal::ping())"),
+        false,
+    );
+    {
+        let (mut runtime, _) = machine(&format!(
+            "{DECL}my loop x = loop x\nmy ignore x = 9\nmy main = ignore (loop ())"
+        ));
+        assert!(matches!(
+            runtime.run(10_000),
+            RuntimeOutcome::ResourceExhausted { .. }
+        ));
+    }
+
+    assert_unhandled(
+        &format!("{DECL}my ignore (x:int) = 9\nmy main = ignore (signal::ping())"),
+        false,
+    );
+    {
+        let (mut runtime, _) = machine(&format!(
+            "{DECL}my loop x = loop x\nmy ignore (x:int) = 9\nmy main = ignore (loop ())"
+        ));
+        assert!(matches!(
+            runtime.run(10_000),
+            RuntimeOutcome::ResourceExhausted { .. }
+        ));
+    }
+
+    assert_integer(
+        &format!(
+            "{DECL}my loop x = loop x\nmy ignore (x:[] int) = 9\nmy main = ignore (loop ())"
+        ),
+        "9",
+    );
+    assert_integer(
+        &format!("{DECL}my ignore (x:[] int) = 9\nmy main = ignore (signal::ping())"),
+        "9",
+    );
+}
+
+#[test]
 fn cli_unhandled_request_withholds_output() {
     let mut child = Command::new(env!("CARGO_BIN_EXE_yu-playground"))
         .args(["--run", "main", "--steps", "1000", "-"])
