@@ -2,6 +2,8 @@
 
 This index is a navigation aid. The listed source document remains authoritative for its own text and scope. If this file conflicts with a source, read the source and correct the index.
 
+- [Braced `if` arm compatibility proposal](2026-10-20-braced-if-compatibility.md) — Draft only; not approved or authoritative. Scope: proposed dedicated expression-list bodies for braced `if`/`elsif`/`else`; current accepted Y3 syntax remains colon-only. The Yulang2 consumer audit has a major correction under review. User approval and a successor implementation contract are required before any syntax or compiler change.
+
 ## Resident Yulang orchestration (2026-10-16)
 
 - [Reduced Astra use in goal-driven sprints](2026-10-17-astra-budget-reduction.md)
