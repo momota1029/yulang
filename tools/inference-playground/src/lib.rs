@@ -402,10 +402,14 @@ fn bounded_message(arguments: std::fmt::Arguments<'_>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{conflict_ranges_for, prepare};
+    use super::{conflict_ranges_for, execute, prepare};
     use super::output;
-    use yu_hir::shadow::LocalSourceForm;
-    use yu_hir::{HirItem, HirOccurrenceId, HirModule, SourceRootId};
+    use yu_hir::shadow::{LocalSourceForm, lower_module_with_local_source};
+    use yu_hir::{FileId, FileKey, HirItem, HirOccurrenceId, HirModule, ModuleIdentity, SemanticImports, SourceRootId};
+    use yu_solver::shadow_apply::CandidateInference;
+    use crate::runtime::{RuntimeEvidence, RuntimeOutcome, RuntimeProgram, RuntimeUnavailable};
+    use std::sync::Arc;
+    use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
     fn integer_expression<'hir>(
         hir: &'hir HirModule,
@@ -422,6 +426,48 @@ mod tests {
                 LocalSourceForm::Integer(value) if value.as_ref() == spelling
             ))
             .expect("the requested original integer expression")
+    }
+
+    #[test]
+    fn wrong_family_permission_withholds_runtime_and_cli_result() {
+        let source = "act signal:\n    our ping: bool -> bool\nact other:\n    our unrelated: int -> int\nmy receive (input:[other] bool) = catch input { signal::ping(p), _ -> false }\nmy main = receive (signal::ping true)";
+        assert_eq!(source.len(), 195);
+
+        let text: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(
+            text.clone(),
+            Arc::new(scan_header(text)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+        let hir = Arc::new(
+            lower_module_with_local_source(
+                ModuleIdentity::source_root(FileId::new(FileKey::new(
+                    "inference-playground",
+                    "-",
+                ))),
+                &parsed,
+                SemanticImports::empty(),
+            )
+            .unwrap(),
+        );
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty(), "{source}");
+
+        let program = RuntimeProgram::from_hir(hir, RuntimeEvidence::default()).unwrap();
+        let selected = program.definition_named("main").unwrap();
+        let mut machine = program.start_source_schedule(selected).unwrap();
+        let direct_error = match machine.run(10_000) {
+            RuntimeOutcome::Unavailable(RuntimeUnavailable::HandlerEvidence(site)) => {
+                RuntimeUnavailable::HandlerEvidence(site)
+            }
+            outcome => panic!("expected HandlerEvidence, got {outcome:?}"),
+        };
+
+        assert_eq!(
+            execute(source, "-", "main", 10_000, false).unwrap_err(),
+            format!("runtime unavailable: {direct_error:?}")
+        );
     }
 
     #[test]
