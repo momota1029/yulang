@@ -8,7 +8,7 @@
 "contract":"tasks/agent-loop/sprints/normal-value-arm-outside-20261019-r126-rev2.md",
 "revision":2,
 "contract_sha256":"80b994bb759e12f19888512fc2d99c0563eb6497a58e3af3db1b023123237be8",
-"state":"VERIFICATION_PASS_PENDING_GIT",
+"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
 "baseline":"cbb462687",
 "authority":"Finite §14–15 normal-value arm delimiter-exit correspondence for two exact sources plus paired typed Machine/public CLI outcomes; no general handler theorem or semantic promotion.",
 "resources":{
@@ -40,9 +40,9 @@
 "test":"tools/inference-playground/tests/cli_value_arm_outside.rs",
 "implementation_handoff":"tasks/agent-loop/inbox/20261019-r126-implementation.md"
 },
-"review_status":"Three final reviews CLEAN; exact contracted test PASS (1 passed). Conditional claim only; Luna integration and push remain.",
+"review_status":"Three independent reviews CLEAN; exact test PASS; artifact checkpoint committed as 719d3a293; non-forced push receipt to follow.",
 "open_premises":"Exact source/HIR identity H, successful candidate/runtime admission A, original value-return arm consumer transition E, and bounded machine/CLI outcomes B are separate candidate premises. All six effect-hygiene parents, method M/T/A, R85 adoption, and Simple-sub/evaluator A/B remain OPEN.",
-"next_action":"Integrate and push the reviewed R126 checkpoint. Selector recommends R127 native operation-payload Value/Computation entry (candidate only); follow with method/role source correspondence, then expired receiver permission after resumption."
+"next_action":"R126 is closed as a conditional witness. R127 native Value/Computation payload-entry remains a candidate pending fresh pins/pre-spec/grant; then rotate to method/role source correspondence."
 },
 "workers":[
 {
@@ -271,7 +271,7 @@
 "falsifier":"See frozen gate record."
 }
 ],
-"closure":"R126 conditional normal-value-arm delimiter-exit witness and paired public stdin observation PASS; H/A/E/B, all six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
+"closure":"R126 conditional normal-value-arm delimiter-exit witness and paired public stdin observation committed as 719d3a293; H/A/E/B, all six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
 "next_action":"R127 candidate: trace declaration-to-native Value/Computation entry and paired runnable outcomes; candidate only pending fresh pins/pre-spec/grant. Then method/role source correspondence.",
 "legacy_reconciliation":{
 "required":false,
@@ -306,12 +306,13 @@
 },
 {
 "id":"R126",
-"state":"VERIFIED_CONDITIONAL_WITNESS_PENDING_GIT",
+"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS_PENDING_PUSH",
 "contract":"tasks/agent-loop/sprints/normal-value-arm-outside-20261019-r126-rev2.md",
 "contract_sha256":"80b994bb759e12f19888512fc2d99c0563eb6497a58e3af3db1b023123237be8",
 "verification":"three final reviews CLEAN; exact targeted stdin CLI test PASS (1 passed); all parents OPEN",
 "closeout":"notes/progress/2026-10-19-r126-closeout.md",
-"closeout_sha256":"6dcd63c144e5d4aca68ca869bcfb2b9beac3e4a579f54aa2c6be9353144911af"
+"closeout_sha256":"0c59a0a453571d984587efdf825f9ea650010df7f453a78cc672c367b5d3f3d9",
+"commit":"719d3a293"
 }
 ]
 }
