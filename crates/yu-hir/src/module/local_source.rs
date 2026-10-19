@@ -183,6 +183,9 @@ impl LocalSource {
                                 }
                             }).sum::<usize>()
                     }
+                    LocalSourceForm::Case { arms, .. } => {
+                        arms.capacity() * std::mem::size_of::<LocalSourceCaseArm>()
+                    }
                     LocalSourceForm::If { arms, .. } => {
                         arms.capacity() * std::mem::size_of::<(LocalSourceIndex, LocalSourceIndex)>()
                     }
@@ -247,6 +250,10 @@ pub enum LocalSourceForm {
     Catch {
         scrutinee: LocalSourceIndex,
         arms: Vec<LocalSourceCatchArm>,
+    },
+    Case {
+        scrutinee: LocalSourceIndex,
+        arms: Vec<LocalSourceCaseArm>,
     },
     If {
         arms: Vec<(LocalSourceIndex, LocalSourceIndex)>,
@@ -342,6 +349,21 @@ pub struct LocalSourceCatchArm {
     pub range: Range<usize>,
     pub pattern: LocalSourceCatchPattern,
     pub body: LocalSourceIndex,
+}
+
+/// A source-owned case arm in the initial literal-pattern carrier.
+#[derive(Clone, Debug)]
+pub struct LocalSourceCaseArm {
+    pub source: SourceNodeKey,
+    pub range: Range<usize>,
+    pub pattern: LocalSourceCasePattern,
+    pub body: LocalSourceIndex,
+}
+
+#[derive(Clone, Debug)]
+pub enum LocalSourceCasePattern {
+    Integer(LocalSourceIndex),
+    Wildcard,
 }
 
 #[derive(Clone, Debug)]
@@ -1053,6 +1075,7 @@ impl Builder<'_> {
                 self.set(index, &node, scope, named_group.clone(), LocalSourceForm::String(string_spelling(&node)?))?;
             }
             SyntaxKind::CatchExpression => self.catch(node, index, scope, named_group.clone())?,
+            SyntaxKind::CaseExpression => self.case(node, index, scope, named_group.clone())?,
             SyntaxKind::IfExpression => self.conditional(node, index, scope, named_group.clone())?,
             SyntaxKind::ParenthesizedExpression => {
                 if node.children_with_tokens().any(|element| {
@@ -1179,6 +1202,76 @@ impl Builder<'_> {
             push(&mut self.work, Work::CatchArm(body, index, scope, binder, named_group.clone()))?;
         }
         push(&mut self.work, Work::Restore(self.lexical.len()))?;
+        push(&mut self.work, Work::Expression(scrutinee_node, scrutinee_index, scope, named_group.clone()))?;
+        Ok(())
+    }
+    fn case(
+        &mut self,
+        node: SyntaxNode,
+        index: LocalSourceIndex,
+        scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
+    ) -> Result<(), FormationError> {
+        let parts: Vec<_> = node.children().collect();
+        let [scrutinee, block] = parts.as_slice() else { return Err(unsupported()); };
+        if scrutinee.kind() != SyntaxKind::CaseScrutinee || block.kind() != SyntaxKind::CaseBlock {
+            return Err(unsupported());
+        }
+        let scrutinee_node = only_child(scrutinee)?;
+        let scrutinee_index = self.slot()?;
+        let mut arms = Vec::new();
+        let mut children = Vec::new();
+        for arm in block.children() {
+            if arm.kind() == SyntaxKind::CaseArmSeparator { continue; }
+            if arm.kind() != SyntaxKind::CaseArm { return Err(unsupported()); }
+            let arm_parts: Vec<_> = arm.children().collect();
+            let (body, patterns) = arm_parts.split_last().ok_or_else(unsupported)?;
+            if !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock)
+                || patterns.len() != 1
+                || patterns[0].kind() != SyntaxKind::Pattern
+            {
+                return Err(unsupported());
+            }
+            let pattern = only_child(&patterns[0])?;
+            let pattern = match pattern.kind() {
+                SyntaxKind::IntegerPattern => {
+                    let pattern_index = self.slot()?;
+                    self.set(
+                        pattern_index.clone(),
+                        &pattern,
+                        scope.clone(),
+                        named_group.clone(),
+                        LocalSourceForm::Integer(integer_spelling(&pattern)?),
+                    )?;
+                    LocalSourceCasePattern::Integer(pattern_index)
+                }
+                SyntaxKind::IdentifierPattern if identifier_spelling(&pattern)?.as_ref() == "_" => {
+                    LocalSourceCasePattern::Wildcard
+                }
+                _ => return Err(unsupported()),
+            };
+            let arm_source = self.key(&arm)?;
+            let body_index = self.slot()?;
+            push(&mut arms, LocalSourceCaseArm {
+                source: arm_source,
+                range: range_of(&arm),
+                pattern,
+                body: body_index.clone(),
+            })?;
+            push(&mut children, (body.clone(), body_index))?;
+        }
+        if arms.is_empty() { return Err(unsupported()); }
+        self.set(index.clone(), &node, scope.clone(), named_group.clone(), LocalSourceForm::Case {
+            scrutinee: scrutinee_index.clone(),
+            arms,
+        })?;
+        let case_scope = LocalSourceScope::Expression(index);
+        let depth = self.lexical.len();
+        for (body, body_index) in children.into_iter().rev() {
+            push(&mut self.work, Work::Restore(depth))?;
+            push(&mut self.work, Work::Expression(body, body_index, case_scope.clone(), named_group.clone()))?;
+        }
+        push(&mut self.work, Work::Restore(depth))?;
         push(&mut self.work, Work::Expression(scrutinee_node, scrutinee_index, scope, named_group.clone()))?;
         Ok(())
     }

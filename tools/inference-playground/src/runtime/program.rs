@@ -123,6 +123,7 @@ pub enum RuntimeUnavailable {
     ContinuationResponse(SourceSite),
     ExpectedCallable(SourceSite),
     ExpectedBoolean(SourceSite),
+    NonExhaustiveCase(SourceSite),
     ExpectedComputation(SourceSite),
     ModuleInitializationOrder,
 }
@@ -158,6 +159,14 @@ pub(super) struct CatchArm {
     pub source: yu_syntax::SourceNodeKey,
     pub range: Range<usize>,
 }
+pub(super) struct CaseArm {
+    pub pattern: CasePattern,
+    pub body: Label,
+}
+pub(super) enum CasePattern {
+    Integer(Box<str>),
+    Wildcard,
+}
 pub(super) enum Instruction {
     Unit,
     Integer(Box<str>),
@@ -185,6 +194,10 @@ pub(super) enum Instruction {
     If {
         arms: Vec<(Label, Label)>,
         else_branch: Option<Label>,
+    },
+    Case {
+        scrutinee: Label,
+        arms: Vec<CaseArm>,
     },
     Operation(SourceOperationResolution),
     // Retained intact until the owning handler/interface gate supplies evidence.
@@ -405,6 +418,15 @@ impl RuntimeProgram {
                                     work.push(Walk::Expression(arm.body.clone()));
                                 }
                             }
+                            LocalSourceForm::Case { scrutinee, arms } => {
+                                work.push(Walk::Expression(scrutinee.clone()));
+                                for arm in arms {
+                                    if let yu_hir::shadow::LocalSourceCasePattern::Integer(pattern) = &arm.pattern {
+                                        work.push(Walk::Expression(pattern.clone()));
+                                    }
+                                    work.push(Walk::Expression(arm.body.clone()));
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -532,6 +554,25 @@ impl RuntimeProgram {
                             .map(|(test, body)| Ok((label(test)?, label(body)?)))
                             .collect::<Result<_, RuntimeUnavailable>>()?,
                         else_branch: else_branch.as_ref().map(label).transpose()?,
+                    },
+                    LocalSourceForm::Case { scrutinee, arms } => Instruction::Case {
+                        scrutinee: label(scrutinee)?,
+                        arms: arms.iter().map(|arm| {
+                            let pattern = match &arm.pattern {
+                                yu_hir::shadow::LocalSourceCasePattern::Integer(index) => {
+                                    let expression = source.expression(index).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                                    let LocalSourceForm::Integer(text) = &expression.form else {
+                                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                                    };
+                                    let text = super::literal::integer(text).ok_or_else(|| RuntimeUnavailable::LiteralDecoding(SourceSite {
+                                        source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
+                                    }))?;
+                                    CasePattern::Integer(text)
+                                }
+                                yu_hir::shadow::LocalSourceCasePattern::Wildcard => CasePattern::Wildcard,
+                            };
+                            Ok(CaseArm { pattern, body: label(&arm.body)? })
+                        }).collect::<Result<_, RuntimeUnavailable>>()?,
                     },
                     LocalSourceForm::Operation { resolution } => {
                         Instruction::Operation(resolution.clone())
@@ -963,6 +1004,10 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
                 for (test, body) in arms { stack.push(*body); stack.push(*test); }
             }
             Instruction::Catch { scrutinee, arms } => {
+                stack.push(*scrutinee);
+                stack.extend(arms.iter().map(|arm| arm.body));
+            }
+            Instruction::Case { scrutinee, arms } => {
                 stack.push(*scrutinee);
                 stack.extend(arms.iter().map(|arm| arm.body));
             }

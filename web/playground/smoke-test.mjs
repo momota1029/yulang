@@ -20,6 +20,8 @@ const examples = {
     "act io:\n    our tick: int -> int\nmy main = catch (catch io::tick 7 { io::tick(value), _ -> value }) { io::tick(value), _ -> value }",
     "7\n",
   ],
+  case: ["my classify x = case x: 2 -> 22, _ -> 0\nmy main = classify 2", "22\n"],
+  caseWildcard: ["my classify x = case x: 2 -> 22, _ -> 0\nmy main = classify 3", "0\n"],
 };
 const results = Object.fromEntries(
   Object.entries(examples).map(([name, [source, expected]]) => [name, run(source, "main", 100_000)]),

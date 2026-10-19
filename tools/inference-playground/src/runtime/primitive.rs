@@ -80,6 +80,13 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                     }
                 }
             }
+            Instruction::Case { arms, .. } => {
+                if arms.iter().any(|arm| matches!(arm.pattern, super::program::CasePattern::Wildcard)) {
+                    // Integer and wildcard patterns are closed, local primitive tests.
+                } else {
+                    return false;
+                }
+            }
             _ => {}
         }
     }
@@ -177,6 +184,12 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                 }
             }
             Instruction::Catch { scrutinee, arms } => {
+                work.push(Visit::Enter(*scrutinee, Role::Ground));
+                for arm in arms {
+                    work.push(Visit::Enter(arm.body, Role::Ground));
+                }
+            }
+            Instruction::Case { scrutinee, arms } => {
                 work.push(Visit::Enter(*scrutinee, Role::Ground));
                 for arm in arms {
                     work.push(Visit::Enter(arm.body, Role::Ground));

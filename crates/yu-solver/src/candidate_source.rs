@@ -974,6 +974,15 @@ impl ConstraintBatch {
                             push(&mut work, Work::CatchArms(index, level, region))?;
                             push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level, region))?;
                         }
+                        LocalSourceForm::Case { scrutinee, arms } => {
+                            for arm in arms.iter().rev() {
+                                push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?;
+                                if let yu_hir::shadow::LocalSourceCasePattern::Integer(pattern) = &arm.pattern {
+                                    push(&mut work, Work::Visit(pattern.ordinal() as usize, level, region))?;
+                                }
+                            }
+                            push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level, region))?;
+                        }
                         LocalSourceForm::If { arms, else_branch } => {
                             if let Some(else_branch) = else_branch {
                                 push(&mut work, Work::Visit(else_branch.ordinal() as usize, level, region))?;
@@ -1163,6 +1172,42 @@ impl ConstraintBatch {
                             }
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(arms.len()).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(arms.len()).ok_or_else(unavailable)?;
+                        }
+                        LocalSourceForm::Case { scrutinee, arms } => {
+                            let scrutinee_index = scrutinee.ordinal() as usize;
+                            let scrutinee_occurrence = &source.expressions()[scrutinee_index].occurrence;
+                            let result = self.component_term_at(pos.value);
+                            let result_effect = self.component_term_at(pos.effect);
+                            self.emit(scrutinee_occurrence.clone(), 51, self.component_term_at(positions[scrutinee_index].effect), result_effect)?;
+                            let int_negative = self.term_for_leaf(Leaf::IntNegative)?;
+                            let mut value_constraints = 0usize;
+                            for arm in arms {
+                                match &arm.pattern {
+                                    yu_hir::shadow::LocalSourceCasePattern::Integer(pattern) => {
+                                        let pattern_index = pattern.ordinal() as usize;
+                                        let pattern_occurrence = &source.expressions()[pattern_index].occurrence;
+                                        push(&mut actions, Action::ValueConstraint {
+                                            occurrence: pattern_occurrence.clone(), slot: 52,
+                                            endpoint: endpoints[pattern_index], upper: self.component_term_at(positions[scrutinee_index].value),
+                                        })?;
+                                        push(&mut actions, Action::ValueConstraint {
+                                            occurrence: pattern_occurrence.clone(), slot: 53,
+                                            endpoint: endpoints[scrutinee_index], upper: int_negative,
+                                        })?;
+                                        value_constraints = value_constraints.checked_add(2).ok_or_else(unavailable)?;
+                                    }
+                                    yu_hir::shadow::LocalSourceCasePattern::Wildcard => {}
+                                }
+                                let body_index = arm.body.ordinal() as usize;
+                                let body_occurrence = &source.expressions()[body_index].occurrence;
+                                push(&mut actions, Action::ValueConstraint {
+                                    occurrence: body_occurrence.clone(), slot: 50,
+                                    endpoint: endpoints[body_index], upper: result,
+                                })?;
+                                self.emit(body_occurrence.clone(), 51, self.component_term_at(positions[body_index].effect), result_effect)?;
+                            }
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(value_constraints + arms.len()).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(value_constraints + arms.len()).ok_or_else(unavailable)?;
                         }
                         LocalSourceForm::If { arms, else_branch } => {
                             // Direct children have unique source occurrences in the HIR tree.

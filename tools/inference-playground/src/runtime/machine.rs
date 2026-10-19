@@ -2,7 +2,7 @@ use super::{
     continuation::{ResumeTemplate, TemplateHandle, TemplateNode},
     literal,
     program::{
-        Binder, Code, ExecutionRoot, Instruction, Label, NameConsumption, ParameterRole,
+        Binder, CasePattern, Code, ExecutionRoot, Instruction, Label, NameConsumption, ParameterRole,
         RuntimeProgram, RuntimeUnavailable, SourceSite,
     },
     receiving::{ExecutionView, Observation, Receiving, RootCompSchema, ViewHandle},
@@ -235,6 +235,10 @@ pub(super) enum Frame {
     Condition {
         conditional: Arc<Code>,
         arm: usize,
+        environment: usize,
+    },
+    Case {
+        case: Arc<Code>,
         environment: usize,
     },
     Root {
@@ -677,6 +681,16 @@ impl Machine {
                 } else {
                     self.ground_data(site, RuntimeValueKind::Unit, None);
                 }
+            }
+            Instruction::Case { scrutinee, .. } => {
+                self.frames.push(Frame::Case {
+                    case: code.clone(),
+                    environment,
+                });
+                self.state = State::Evaluate {
+                    code: *scrutinee,
+                    environment,
+                };
             }
             Instruction::Operation(resolution) => {
                 let execution_owner = self.current_execution_owner();
@@ -1199,6 +1213,24 @@ impl Machine {
                     };
                 } else {
                     self.ground_data(&conditional.site, RuntimeValueKind::Unit, None);
+                }
+            }
+            Frame::Case { case, environment } => {
+                let Instruction::Case { arms, .. } = &case.instruction else {
+                    unreachable!()
+                };
+                let selected = arms.iter().find(|arm| match (&arm.pattern, &self.values[received.value.0].kind) {
+                    (CasePattern::Integer(expected), RuntimeValueKind::Integer(actual)) => expected == actual,
+                    (CasePattern::Wildcard, _) => true,
+                    _ => false,
+                });
+                if let Some(arm) = selected {
+                    self.state = State::Evaluate {
+                        code: arm.body,
+                        environment,
+                    };
+                } else {
+                    return Err(RuntimeUnavailable::NonExhaustiveCase(case.site.clone()));
                 }
             }
             Frame::ExpressionReturn { root, next } => {
