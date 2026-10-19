@@ -69,7 +69,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Read-only inspection found R85 adoption gate still active and current main at 99/103 R80 source pins after quarantining four R74-R77 overlays. Exploratory yu-playground runs did not produce a runnable role example; no source files were changed. No child writers are active."
+      "receipt": "Primary-only probes: ordinary identity/Apply returned 42; one handled tick Computation/continuation path returned 11. Both are exploratory yu-playground evidence. Role source attempts stop at structural diagnostics; no source edits. No child writers are active."
     },
     {
       "id": "/root/r85_positive_proof",
@@ -265,7 +265,7 @@
     }
   ],
   "closure": "R85 reviewed conditionally; exact offer awaits user adoption. Current main is 99/103 against frozen R80 manifest due four quarantined R74-R77 source overlay deltas; historical review remains scoped to frozen snapshot. Six effect-hygiene fronts OPEN; P1-P4 OPEN; parent/evaluator A/B OPEN 0→0; R50 NOT_ADOPTED. Unknown legacy reservations remain preserved and board quarantined.",
-  "next_action": "Candidate snapshot is preserved at checkpoint/2026-10-19-research-candidates (0c100cd9a36c10eb986569b5718a3dbca384488e) and pushed. Current main matches 99/103 R80 source pins; the four deltas are yu-hir lib.rs/shadow.rs and yu-solver lib.rs/shadow_apply.rs, restored when unverified R74-R77 overlays were quarantined. Historical 103/103 review applies to its frozen snapshot; pin current main before new implementation. R85 exact positive InterfaceMatch offer SHA fee3feaec5e8873fe4f056df3a9ae9ca16c342f0a8b314c027a35719eedd4609 still awaits adoption. After that gate, pair the runnable role path with one representative effect-hygiene obligation and keep all six tracked; no indefinite storage/fiber study.",
+  "next_action": "Runnable probe record: notes/progress/2026-10-19-runnable-surface-baseline.md. Experimental yu-playground returns 42 for identity/Apply and 11 for one handled tick/resumption path; neither closes proof or production gates. R85 exact positive InterfaceMatch offer SHA fee3feaec5e8873fe4f056df3a9ae9ca16c342f0a8b314c027a35719eedd4609 still awaits adoption. After that authority boundary, pin current main and freeze a vertical role-call implementation sprint paired with one representative hygiene obligation; keep all six tracked.",
   "worker_inventory_scope": "Current collaboration inventory reconciled: all R85 and R86 children STOPPED; R86 migration reviewer STOPPED. Three inherited legacy identities remain UNKNOWN and retained below. The former board.md lease remains QUARANTINED; resident_implementer_idle consumes one assignment-slot reservation; the frozen P2 proof has no successor output lease. No legacy cessation is inferred from current-session child completion.",
   "legacy_reconciliation": {
     "required": false,
