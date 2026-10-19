@@ -2,9 +2,28 @@
 
 Date: 2026-10-19
 Branch: `research/simple-sub-intrusion`
-Status: the full objective remains proof-backed inference/evaluator progress and complete Simple-sub/F5 replacement. The user's steering requires sustained breadth across six effect-hygiene fronts, proof-backed method/role progress, and early ordinary/effectful source execution without letting any one front monopolize the work. R116 supplied a reviewed conditional method/role consumer bridge and a public stdin CLI observation where ordinary and single-arm effectful sources both passed (2/2). R117 added a reviewed conditional Catch payload binder projection from LocalSource through candidate/runtime consumers, leaving the public caller's same-HIR join as `R117-JOIN-1`; it also made a bounded six-instance warning cleanup. Its production `cargo check` passed; `cargo test --lib` failed to compile two `Graph` test initializers missing `capture_forest`, with no retry under the one-shot contract. The R111–R117 artifacts are preserved in local commit `6caae031`; push waits for a separate fixture repair gate. R118 rev2 is approved to start: it pairs authentic `capture_forest` fixture repair with a finite nested outside-selection proof and a new public CLI observation. The proof is conditional and no language semantics change is authorized. R100-P2, R85 adoption, the six effect parents, R68 consumer-origin, R65/R66/R67, downstream R64/R61 and original theorem/Simple-sub A/B remain OPEN; R50 remains NOT ADOPTED. See the [R117 closeout](../notes/progress/2026-10-19-r117-closeout.md), [R118 contract](agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md), and [current sprint state](agent-loop/current.json).
+Status: the full objective remains proof-backed inference/evaluator progress and complete Simple-sub/F5 replacement. The user's current direction requires breadth across all six effect-hygiene fronts, proof-backed method/role progress, and ordinary/effectful surface execution early; no single effect-storage/fiber line should monopolize the work. Latest, R121 adds a reviewed conditional two-root outward-forwarding derivation and one positive/negative public CLI test target passed. R120 supplies a separate local-resumption CLI witness; R119 supplies conditional method/role producer feasibility, while R85 remains Draft and unadopted. All six effect parents and the original Simple-sub/evaluator A/B remain OPEN. The next sprint must rotate to another effect front and keep method/role and runnable-surface outcomes in view. See the [R121 closeout](../notes/progress/2026-10-19-r121-closeout.md) and [current sprint state](agent-loop/current.json).
 
-## Current checkpoint (2026-10-19): R117 effect projection and bounded warning cleanup
+## Current checkpoint (2026-10-19): R121 outward suffix and effectful surface
+
+R121's exact negative source forwards the original `tick` request. The reviewed
+conditional trace connects its saved `ExpressionReturn(e1, next=1)` to the real
+second expression root in the still-live runtime schedule, and shows that the
+negative path stops before that root or the separate `main` fallback. A paired
+positive source handles both effectful roots and then returns `7` from `main`.
+The test-only public CLI target passed once: positive success with `7\n` and
+empty stderr; negative failure with empty stdout and the existing HIR Apply
+range diagnostic. Proof premises H/A/P/B and the quantified parent remain open.
+
+Initial post-output reviews found a cross-type root assertion and a guessed
+whole-operation source span; Luna repaired both. Fresh compiler/source,
+spec/authority and regression delta reviews were CLEAN. The build repeated the
+eight HIR and three solver warnings already audited as retained evidence in
+the R117 closeout; R121 introduced no warning. No runtime or language
+semantics changed. R119 method/role producer evidence remains conditional and
+R85 adoption remains an explicit open decision. See the [R121 closeout](../notes/progress/2026-10-19-r121-closeout.md).
+
+## Prior checkpoint (2026-10-19): R117 effect projection and bounded warning cleanup
 
 R117 traces the exact effectful fixture's original Catch payload ID through
 LocalSource resolution, candidate endpoint assignment, cloned runtime arm,

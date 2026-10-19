@@ -4,60 +4,63 @@
  "phase": "ACTIVE",
  "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
  "active_sprint": {
-  "id": "local-resumption-cli-20261019-r120",
-  "contract": "tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev2.md",
-  "revision": 2,
-  "contract_sha256": "6af7d6ad17684de717742586baa3d504adc73da6a37b8ba511b59a2ca327ff68",
+  "id": "outward-root-suffix-cli-20261019-r121",
+  "contract": "tasks/agent-loop/sprints/outward-root-suffix-cli-20261019-r121-rev1.md",
+  "revision": 1,
+  "contract_sha256": "33c0c714e08667093732a8abb6ecf22ceed8547cae8459fa978b971996310fa8",
   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-  "baseline": "af551a720; R119 reviewed conditional artifacts remain in working tree; R120 pins committed source owners.",
-  "authority": "Finite continuation/resumption trace and one test-only public CLI observation under charter §§14–17/21 as clarified by §24; no general law, production authority, or method adoption.",
+  "baseline": "0d33b715b9f311674ec7ebf125b9d2f73d70f037",
+  "authority": "Finite paired effectful-root trace and test-only CLI observation under charter §§14–15 and approved module root ordering; no production authority, broad law, or semantic adoption.",
   "resources": {
-   "cap_seconds": 1500,
+   "cap_seconds": 1800,
    "inventory_seconds": 180,
    "prespec_seconds": 120,
-   "proof_seconds": 420,
-   "implementation_seconds": 300,
-   "reviews_seconds": 240,
+   "proof_seconds": 600,
+   "implementation_seconds": 360,
+   "reviews_seconds": 300,
    "verification_seconds": 120,
    "closeout_seconds": 120,
    "astra_assignments": 0
   },
   "verification": {
    "commands": [
-    "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_local_resume -- --nocapture"
+    "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_outward_root_suffix -- --nocapture"
    ],
-   "result": "PASS: exact one-shot cargo test command exit 0; 1 passed; test asserts CLI success, stdout 9\\n, empty stderr. 18 input and 4 output hashes matched before execution; no retry."
+   "result": "PASS: exact one-shot command exit 0; 1 passed. Positive success/7\\n/empty stderr; negative failure/empty stdout/Apply-range unhandled diagnostic. No retry."
   },
   "outputs": {
-   "proof": "notes/theory/2026-10-19-r120-local-resumption.md",
-   "proof_handoff": "tasks/agent-loop/inbox/20261019-r120-proof.md",
-   "implementation": "tools/inference-playground/tests/cli_local_resume.rs",
-   "implementation_handoff": "tasks/agent-loop/inbox/20261019-r120-implementation.md",
-   "pre_spec_review": "CLEAN rev2; r118_spec_review; rev1 preserved.",
-   "expected_cli": "success; stdout 9\\n; stderr empty",
-   "tools/inference-playground/tests/cli_local_resume.rs": "c315daccfd28279192b0052f55c5558fa11133509291855129f744037633e747",
-   "tasks/agent-loop/inbox/20261019-r120-implementation.md": "08bfed5da2d08e47732ad55f351c8728333baab814d7b829899f830b2f8fd3a9",
-   "notes/theory/2026-10-19-r120-local-resumption.md": "b88d6af71537459b9460ea15637bdf91d7613c0825d08fa354b6a264e30cfb2f",
-   "tasks/agent-loop/inbox/20261019-r120-proof.md": "c3ed08b72bdd206bec0deee14cd34147240fb52ebf98e1580ff500e0a7b168bc",
-   "compiler_review": "CLEAN; exact source/runtime/template trace; H/S/E/B conditional premises retained.",
-   "spec_review": "CLEAN; §§14–17/21 subject to §24; no broad continuation or old expectation claim.",
-   "regression_review": "CLEAN; exact source, public CLI assertions, R111 and runtime fixture unchanged.",
-   "closeout": "notes/progress/2026-10-19-r120-closeout.md"
+   "proof": "notes/theory/2026-10-19-r121-outward-root-suffix.md",
+   "proof_handoff": "tasks/agent-loop/inbox/20261019-r121-proof.md",
+   "implementation": "tools/inference-playground/tests/cli_outward_root_suffix.rs",
+   "implementation_handoff": "tasks/agent-loop/inbox/20261019-r121-implementation.md",
+   "negative_source_sha256": "685aa2465d5a5b47d18447762637107b4cb0da5971d384fad7bc1ad56937448f",
+   "positive_source_sha256": "11f811ba795dfc8420aadd0706221fe14f1efa9a192b902bda5b7816d627924f",
+   "pre_spec_review": "CLEAN rev1; r118_prespec; contract SHA matched.",
+   "expected_cli": "positive success/7\\n/empty stderr; negative failure/empty stdout/existing unhandled-request diagnostic.",
+   "tools/inference-playground/tests/cli_outward_root_suffix.rs": "c56e1a2a58900728e87069f3e467ceabaa4e91886dc6befd8e79268d8b630f06",
+   "tasks/agent-loop/inbox/20261019-r121-implementation.md": "0abffb092443b92313910b9c5eedfae07abcfb6b8638e981c403d1b50ed8a779",
+   "notes/theory/2026-10-19-r121-outward-root-suffix.md": "8b9428ecbf64463426d961d0f2f57fcb78c24566724445d4f1ae7653f95602a4",
+   "tasks/agent-loop/inbox/20261019-r121-proof.md": "24be5af6a2a7c9ce468e8d08e3108346433659cc601143a44f5b4009fb4d07b3",
+   "review_round1": "Compiler, spec and regression found the incompatible root vector comparison and unsupported whole-operation span; conditional proof/authority claims clean.",
+   "review_delta": "Compiler/source CLEAN, spec/authority CLEAN, regression CLEAN; all round-1 findings closed by one Luna repair.",
+   "warning_audit": "8 HIR + 3 solver dead-code warnings reproduce the already reviewed R117 retained-evidence owners; no new warning from R121. Prior owner audit in notes/progress/2026-10-19-r117-closeout.md.",
+   "notes/progress/2026-10-19-r121-closeout.md": "2a7bc9e46255df739d4f9c13d08e110adb00165bf5a6137d6de36c6eb37aa0ce; reviews, command result, six-front map, and R122 candidate recorded."
   },
-  "review_status": "All three fresh post-output reviews CLEAN and STOPPED (compiler/source, spec/authority, regression). Implementation handoff external receipt digest typo did not affect file bytes; actual handoff hash recorded and independently confirmed.",
-  "open_premises": "H/S/E/B source preparation, same-HIR, receiving evidence and 10,000-step completion are conditional (CLI completes); arbitrary/foreign resumption, all six effect parents, R85 adoption, evaluator/Simple-sub A/B remain OPEN."
+  "review_status": "All three post-output reviews completed; initial findings repaired once; all three delta reviews CLEAN; exact one-shot test PASS; no retries.",
+  "open_premises": "H/A/P/B remain conditional/unobserved by proof author; actual CLI pass is finite only. Other five effect fronts, all parent/evaluator Simple-sub A/B, method/role M/T/A and R85 adoption remain OPEN.",
+   "next_action": "R122 candidate: wrong/sibling receiving permission CLI pair plus same-HIR prepare/execute evidence toward R117-JOIN-1. Validate pins before leasing. Keep method/role proof and runnable source progress near-term; rotate effect fronts."
  },
  "workers": [
   {
    "id": "/root",
-   "role": "Luna primary; exact leases, review, central state and sole Git integrator",
+   "role": "Luna primary; exact leases, review, state and sole Git integrator",
    "state": "RUNNING",
    "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R120 one-shot public CLI test passed after three CLEAN reviews; preparing reviewed local checkpoint."
+   "receipt": "R121 all required reviews closed cleanly, one-shot public CLI test PASS, retained warnings audited, durable records updated; integration pending."
   },
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -94,25 +97,58 @@
   },
   {
    "id": "/root/r118_proof_lane",
-   "role": "R120 constructive local-resumption source proof",
+   "role": "R121 constructive source/schedule proof",
    "state": "STOPPED",
    "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
    "requested_model": "gpt-6-sol",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R120 proof frozen with matched byte hashes; current-session cessation confirmed; no commands/descendants."
+   "receipt": "R121 proof rev1 frozen/STOPPED; exact negative live cursor and original Apply provenance plus positive full-root trace; H/A/P/B and parents OPEN; no commands."
   },
   {
    "id": "/root/r118_implementation_lane",
-   "role": "R120 test-only public local-resumption CLI cell",
+   "role": "R121 paired direct-Machine/public CLI test",
    "state": "STOPPED",
    "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R120 test and handoff frozen; Luna recorded actual written-byte hashes. Worker message misstated handoff digest; handoff itself names the correct test hash. No post-STOP edits."
+   "receipt": "R121 outputs frozen and STOPPED; exact sources, root order, positive completion, negative tick/payload/HIR source/continuation and public CLI assertions added; no checks run."
+  },
+  {
+   "id": "/root/r118_prespec",
+   "role": "R121 pre-spec reviewer",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "low",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "CLEAN review of exact R121 rev1; read-only inspection; no descendants."
+  },
+  {
+   "id": "/root/r118_spec_review",
+   "role": "R121 spec/authority reviewer",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "low",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "R121 initial implementation findings/no authority issue; delta2 CLEAN exact-conformance closure; STOPPED."
+  },
+  {
+   "id": "/root/r118_regression_review",
+   "role": "R121 regression reviewer",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "low",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "R121 initial findings confirmed; delta2 CLEAN changed lines/API/diagnostic/test scope; STOPPED."
   }
  ],
  "leases": [
@@ -155,6 +191,31 @@
   {
    "path": "tasks/agent-loop/inbox/20261019-r120-implementation.md",
    "owner": "/root/r118_implementation_lane",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/outward-root-suffix-cli-20261019-r121-rev1.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/theory/2026-10-19-r121-outward-root-suffix.md",
+   "owner": "/root/r118_proof_lane",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r121-proof.md",
+   "owner": "/root/r118_proof_lane",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tools/inference-playground/tests/cli_outward_root_suffix.rs",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r121-implementation.md",
+   "owner": "/root",
    "state": "FROZEN"
   }
  ],
@@ -230,8 +291,8 @@
    "falsifier": "See frozen gate record."
   }
  ],
- "closure": "R118 nested-handler and R120 local-resumption public CLI cells passed under their one-shot reviewed gates. R119 reviewed conditional method/role producer feasibility, R120 proof/CLI artifacts and closeouts committed as ca2e3f51 and pushed. R85 remains unadopted; R117-JOIN-1, all six effect parents and evaluator/Simple-sub A/B remain OPEN.",
- "next_action": "R120 completed and pushed. Sprint-end selector to choose the next broad/deep front, with outward request plus suffix as the leading candidate and method/role adoption kept separate.",
+ "closure": "R121 passes one reviewed test-only paired surface observation: positive effectful two-root CLI outputs 7\\n; negative original tick request fails before live second root, with HIR Apply-range diagnostic. Conditional proof connects actual root schedule/cursor, but H/A/P/B parent premises remain OPEN.",
+ "next_action": "R122 selector candidate: wrong/sibling receiving permission CLI pair plus same-HIR evidence toward R117-JOIN-1. Validate pins before leasing. Keep method/role proof and runnable source progress near-term; rotate effect fronts.",
  "worker_inventory_scope": "Keep three inherited identities UNKNOWN and board lease quarantined. R114/R116/R117 STOPPED workers and FROZEN leases archived in local checkpoint 6caae031; no unknown writer or capacity reclaimed.",
  "legacy_reconciliation": {
   "required": false,
@@ -247,38 +308,8 @@
    "AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
   ]
  },
- "user_goal": "Proof-backed type inference/evaluator with broad, deep progress. Balance six independent effect-hygiene fronts (ordered handler priority; §21 Value/Computation entry; wrong/sibling permission; unmatched outward request plus suffix; continuation capture/resumption; static-to-runtime projection), advancing bounded evidence across them over time. In parallel, prove method/role behavior with source-corresponding steps and make ordinary/effectful source execution runnable early. Do not let effect storage/fiber analysis or any single front monopolize the sequence. Luna alone commits/pushes at coherent reviewed checkpoints; keep the working tree clean; preserve original Simple-sub/evaluator claims and semantic adoption gates.",
+ "user_goal": "Proof-backed type inference/evaluator with breadth and depth. Advance all six distinct effect-hygiene fronts over time; do not let storage/fiber analysis or any single front monopolize work. Prove method syntax/role behavior with source correspondence and make ordinary/effectful source execution runnable early. Preserve original Simple-sub/evaluator A/B claims and semantic adoption gates. Luna alone integrates and pushes coherent reviewed checkpoints.",
  "history": [
-  {
-   "id": "R100",
-   "state": "CLOSED_CONDITIONAL_SOURCE_EVIDENCE",
-   "closeout": "notes/progress/2026-10-19-r100-method-body-source-consumer.md"
-  },
-  {
-   "id": "R108",
-   "state": "CLOSED_CLEAN_FINITE_SOURCE_ENTRY",
-   "closeout": "notes/progress/2026-10-19-r108-method-role-entry-reference-fix.md"
-  },
-  {
-   "id": "R109",
-   "state": "FAILED_TO_ACHIEVE_FIXED_SOURCE_SITE_RANGE_ASSERTION",
-   "closeout": "notes/progress/2026-10-19-r109-nested-handler-observation.md"
-  },
-  {
-   "id": "R110",
-   "state": "CLOSED_CLEAN_FINITE_CLI_OBSERVATION",
-   "closeout": "notes/progress/2026-10-19-r110-cli-entry-demand.md"
-  },
-  {
-   "id": "R111",
-   "state": "CLOSED_COMMAND_FAILURE_NOT_RUN",
-   "closeout": "notes/progress/2026-10-19-r111-cli-raw-resume.md"
-  },
-  {
-   "id": "R112",
-   "state": "CLOSED_CLEAN_FINITE_SOURCE_OBSTRUCTION",
-   "closeout": "notes/progress/2026-10-19-r112-method-member-constructor-gap.md"
-  },
   {
    "id": "R113",
    "state": "CLOSED_INPUT_BOUNDARY_PARTIAL_REVIEWED_NOT_RUN",
@@ -317,6 +348,15 @@
    "contract": "tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev2.md",
    "closeout": "notes/progress/2026-10-19-r120-closeout.md",
    "verification": "one authorized CLI test PASS; all three reviews CLEAN; parents OPEN"
+  },
+  {
+   "id": "R121",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+   "contract": "tasks/agent-loop/sprints/outward-root-suffix-cli-20261019-r121-rev1.md",
+   "pre_spec": "CLEAN",
+   "baseline": "0d33b715b9f311674ec7ebf125b9d2f73d70f037",
+   "verification": "one authorized CLI test PASS; all three post-output reviews and three delta reviews CLEAN; parents OPEN",
+   "closeout": "notes/progress/2026-10-19-r121-closeout.md"
   }
  ]
 }
