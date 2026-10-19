@@ -2,54 +2,66 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r89-syntax-triage",
+  "session": "current-conversation-2026-10-19-r90-lambda-consumer",
   "active_sprint": {
-    "id": "method-role-syntax-triage-20261019-r89",
-    "contract": "tasks/agent-loop/sprints/method-role-syntax-triage-20261019-r89-rev2.md",
-    "revision": 2,
+    "id": "lambda-body-consumer-owner-20261019-r90",
+    "contract": "tasks/agent-loop/sprints/lambda-body-consumer-owner-20261019-r90.md",
+    "revision": 1,
     "state": "DONE",
-    "baseline": "6eb68efa47a8272981aca84ad091c61e28868f2b",
-    "contract_sha256": "008098b8769a2c57b92427abca54b958d797bd8f87477c643e89d96ec4cbe750",
-    "parent": "Type-inference/evaluator implementation goal unchanged; R88 source bridge integrated in 6eb68efa; A/B OPEN 0→0; R50 NOT_ADOPTED.",
-    "user_priority": "Breadth and depth across six effect-hygiene fronts; prioritize proof-backed method/role and early runnable source. R85 exact semantics remain AWAITING_USER_ADOPTION.",
-    "authority": "Authoritative RLD role syntax only. No R85 role dispatch, conformance, HIR, inference or runtime semantics.",
+    "baseline": "271f6da0da7b6b43d911171348882df12e4839a6",
+    "contract_sha256": "e495acb52fb6a112a3780fd9582b7c4332ed735cee31de1d664c2658d804052a",
+    "parent": "R67-DIRECT-BODY-CHECK-1 applied to R68 and original computation-forwarding preservation §§1,6–7; A/B OPEN 0→0; R50 NOT_ADOPTED.",
+    "user_priority": "Proof-backed implementation of type inference and evaluator; Luna-only commits/pushes at coherent checkpoints; keep the working tree clean. Balance breadth/depth across six distinct effect-hygiene fronts: ordered handler priority, §21 Value/Computation entry, wrong/sibling permission, unmatched outward request plus suffix, continuation capture/resumption, and static-to-runtime projection. Advance one bounded evidence slice per front over time while also proving method/role behavior and making ordinary/effectful source execution runnable early; never let storage/fiber analysis monopolize progress. Preserve original Simple-sub/evaluator claims and semantic adoption gates.",
+    "authority": "Existing selected Source Generalize rule and R67 claim only. No new semantics, implementation, tests, or production authority.",
     "resources": {
-      "cap_seconds": 300,
-      "allocation": "Luna primary 300; one cargo run timeout 120; no child agents, Astra0."
+      "cap_seconds": 600,
+      "allocation": "Luna primary source/proof derivation 600; one fresh compiler/source review up to 240 after freeze; Astra0; no children."
     },
     "verification": {
-      "commands_authorized": [
-        "printf \"role Pick 'container 'key:\\\\n    type value\\\\n    our container.pick: 'key -> value\\\\nmy answer = 1\\\\n\" | CARGO_BUILD_JOBS=2 timeout 120s cargo run -q -p yu-playground -- --run answer -"
-      ],
-      "count": 1,
-      "owner": "Luna"
+      "commands_authorized": [],
+      "owner": "Luna; static hash/state checks only, no compiler/test/CLI/probe."
     },
     "source_pins": {
-      "architecture": "08beb9711c2373e161a408b19a6ccd6c08e24e0b41791e7fac2ea0a332dec1ed",
-      "role_decl": "0ec972a3acc036764a9d1407e292a4c676a24beb4cd0b5c3348c093cf3cf8634",
-      "role_test": "9981d46be2ce1642184e315c5e9393802ea3e7899a31f3825201be51853dbcce",
-      "playground_lib": "bdf996d0264e252e345c05bc77b2adcf625120281244171f0054f1d87a8d1e1b",
-      "main": "75b38435f4634ee35b3e14a54fb4d021b78bda834b4fd53965302a73309e0100"
+      "lib_rs": "2300400e87d0a487225f207d414ac71fa4f21c6f80279fea4f793e43c7809aee",
+      "candidate_source": "66b8f88bad86755c2716cfa7e9c35eabc7031d408b774358ca72446db2b3180c",
+      "candidate_call": "e038ad0dfc4b12bd0d513d6cd6b34cee6b2b062d8b33368bc1c0dcdef980d479",
+      "candidate_effect": "6112343b4014c67dcb7d814a46412b3af3e1d12183924e891df4817a59f58da0",
+      "r67": "0d9a9a8b98611a6f7e9897d3b242614ee36c4a724cfe5968eee536cb959e7bea",
+      "source_generalize": "46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38",
+      "source_generalize_proof": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240",
+      "top_level_principles": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81"
     },
     "outputs": {
-      "closeout": "notes/progress/2026-10-19-r89-method-role-syntax.md"
+      "proof": "notes/theory/2026-10-19-r90-lambda-consumer-owner.md",
+      "handoff": "tasks/agent-loop/inbox/20261019-r90-proof.md",
+      "closeout": "notes/progress/2026-10-19-r90-closeout.md"
     },
-    "next_action": "Isolate RLD-authorized role member Pattern annotation parser behavior from deferred Type companion with:. If parser mismatch is confirmed, revisioned exact code/test lease; otherwise stop semantic routing at R85 adoption gate.",
-    "closeout": "notes/progress/2026-10-19-r89-method-role-syntax.md",
-    "closeout_sha256": "3798eb5ce82222efebfea1411c166fbe8d5560ca761f2422efff96a9b252b026",
-    "result": "One reduced parser probe: exit 1, Structural ErrorGroup 59..79 on dotted Binding target. RLD example and explicit dotted-Pattern deferral conflict; Type companion with: separately deferred. R85 plain target parses but CandidateInference is Unsupported. No code/test writes."
+    "next_action": "Continue toward the proof-backed Role::member runnable slice after exact R85 adoption, while rotating bounded evidence across all six effect-hygiene fronts. Keep R67 OPEN at its source body target/provider consumer until an adopted source rule supplies it.",
+    "worker_receipts": {
+      "root": "Luna primary source/proof owner active in current session; no child agents launched."
+    },
+    "proof_candidate_sha256": "2df2583d59cba97b629b18e2e75ed7fd3d945fbc2ade1be38ee61592b35ee905",
+    "handoff_sha256": "9dae89e621bf6307ce57e7294c4dd73abf0aec15e23f530cca707952c405c21c",
+    "result": "Reviewed candidate source-owner trace refines R67 owners: native formal domain, FormalNameEffect row equality, Lambda Function construction, whole annotation links. No source body target/event provider consumer or complete prefix evidence; R67 OPEN. NO_SAFE_CODE_SLICE.",
+    "handoff_revision": 2,
+    "prior_handoff_revision_1_sha256": "50bda417d7bdab2d539a0a2cf483e04eaecb712df9b99806e882e2c2e3482c91",
+    "closeout": "notes/progress/2026-10-19-r90-closeout.md",
+    "closeout_sha256": "74f8c6e61d37d1134cd2beb85a0b8bff7e11f1b179ef0423dcd72f496de5a566",
+    "verification_result": "PASS: all eight exact source pins matched at freeze and delta review; python3 tools/agent_sprint.py check PASS. No tests/builds/compiler CLI/probes.",
+    "review_status": "ACCEPT: fresh independent compiler/source review; one minor omission repaired; delta review ACCEPT with no remaining findings.",
+    "compiler_review": "Bounded source-owner trace accepted; native annotation-derived formal domain and Lambda consumer recorded, distinct from source challenge. R67 remains OPEN."
   },
   "workers": [
     {
       "id": "/root",
       "role": "Luna primary; exact diagnostics, current-state owner, review and sole Git integrator",
       "state": "WAITING",
-      "session": "current-conversation-2026-10-19-r89-syntax-triage",
+      "session": "current-conversation-2026-10-19-r90-lambda-consumer",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R89 primary-only diagnostic complete; no child agents. One probe exited 1 at Structural ErrorGroup 59..79; RLD dotted-target conflict and companion with: deferral recorded. No source/test changes."
+      "receipt": "R90 candidate adjudicated and closeout frozen; no source/test implementation or CLI execution."
     },
     {
       "id": "/root/r85_positive_proof",
@@ -94,6 +106,17 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Historical P2 proof frozen; no successor lease."
+    },
+    {
+      "id": "/root/r90_compiler_review",
+      "role": "Fresh independent read-only compiler/source review of frozen R90 candidate",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-19-r90-lambda-consumer",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Fresh compiler/source review accepted frozen R90 candidate after delta repair; no remaining findings. Read-only; no tests/builds/probes/Git."
     }
   ],
   "leases": [
@@ -145,6 +168,21 @@
     },
     {
       "path": "notes/progress/2026-10-19-r89-method-role-syntax.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/lambda-body-consumer-owner-20261019-r90.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-19-r90-lambda-consumer-owner.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r90-proof.md",
       "owner": "/root",
       "state": "FROZEN"
     }
@@ -221,8 +259,8 @@
       "falsifier": "See frozen gate record."
     }
   ],
-  "closure": "R89 parser boundary classified; no semantic/code gate closed. R88 CLEAN/pushed. Six effect-hygiene fronts OPEN; parent/evaluator A/B OPEN 0→0; source/native correspondence OPEN; R50 NOT_ADOPTED. R85 AWAITING_USER_ADOPTION. Three inherited UNKNOWN identities and board quarantine preserved.",
-  "next_action": "Preserve and push the R89 parser-boundary diagnostic. Then present the exact reviewed R85 Role::member offer (canonical SHA fee3feaec5e8873fe4f056df3a9ae9ca16c342f0a8b314c027a35719eedd4609) for adoption; broad method/role priority does not choose its exact dispatch semantics. In parallel, advance the independent R67/R68 authentic Lambda body/result-consumer proof from the actual Action::Lambda/Annotation consumer toward the original source obligation. Keep all six effect-hygiene fronts visible and rotate bounded proof/implementation slices across them; do not let mapped-bound storage/fiber work monopolize the program. After exact R85 adoption, take one vertical runnable Role::member slice to SecondInt::second 1 2 -> 2, with constructive proof and a representative hygiene obligation. Keep implementation behind the adoption gate.",
+  "closure": "R90 bounded candidate source-owner trace independently accepted; R67 and original parent remain OPEN. R89 committed/pushed. Six effect-hygiene fronts remain OPEN; A/B OPEN 0→0; R50 NOT_ADOPTED. R85 exact semantics await user adoption; three inherited UNKNOWN identities and board quarantine retained.",
+  "next_action": "Finish the frozen R90 source-owner review and apply its exact result to R67. Then continue the proof-backed Role::member vertical path after the user selects the exact R85 semantics, targeting SecondInt::second 1 2 -> 2. Keep the six distinct effect-hygiene fronts in rotation: (1) ordered Catch matching, (2) Value/Computation entry, (3) wrong/sibling permission, (4) unmatched outward request/suffix, (5) continuation capture/resumption, (6) static-to-runtime projection and joint K,D/residual. At each meaningful boundary choose the next owner-specific falsifier; preserve all six OPEN until actual evidence closes one. No storage/fiber-only continuation without a new discriminating premise.",
   "worker_inventory_scope": "R89 completed primary-only; all R88 workers/reviewers STOPPED and archived in closeout. Three inherited identities remain UNKNOWN, board lease quarantined, legacy idle implementer reserves one slot. No unknown lease reclaimed.",
   "legacy_reconciliation": {
     "required": false,
@@ -238,7 +276,7 @@
       "AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
     ]
   },
-  "user_goal": "Proof-backed implementation of type inference and evaluator; Luna-only commits/pushes at coherent checkpoints; keep the working tree clean. Maintain breadth and depth across all six effect-hygiene frontiers, with bounded rotation so no single storage/fiber obligation monopolizes progress. Prove and implement representative effect behavior and method/role behavior; make ordinary and effectful source execution runnable early, including a proof-backed method/role vertical slice once its exact semantics are adopted. Preserve original Simple-sub/evaluator claims and all semantic adoption gates.",
+  "user_goal": "Proof-backed implementation of type inference and evaluator; Luna-only commits/pushes at coherent checkpoints; keep the working tree clean. Balance breadth/depth across six distinct effect-hygiene fronts: ordered handler priority, §21 Value/Computation entry, wrong/sibling permission, unmatched outward request plus suffix, continuation capture/resumption, and static-to-runtime projection. Advance one bounded evidence slice per front over time while also proving method/role behavior and making ordinary/effectful source execution runnable early; never let storage/fiber analysis monopolize progress. Preserve original Simple-sub/evaluator claims and semantic adoption gates.",
   "history": [
     {
       "id": "R88",
@@ -250,7 +288,13 @@
       "id": "R89",
       "closeout": "notes/progress/2026-10-19-r89-method-role-syntax.md",
       "sha256": "3798eb5ce82222efebfea1411c166fbe8d5560ca761f2422efff96a9b252b026",
-      "result": "Parser-authority conflict; no source writes; user route selection needed."
+      "commit": "271f6da0da7b6b43d911171348882df12e4839a6"
+    },
+    {
+      "id": "R90",
+      "closeout": "notes/progress/2026-10-19-r90-closeout.md",
+      "sha256": "74f8c6e61d37d1134cd2beb85a0b8bff7e11f1b179ef0423dcd72f496de5a566",
+      "result": "Reviewed candidate owner trace; no theorem gate closed."
     }
   ]
 }
