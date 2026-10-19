@@ -27,6 +27,10 @@ const examples = {
     "act io:\n    our tick: int -> int\n    our other: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 9 }\nmy main = relay { case io::tick 0: 9 -> 91, _ -> 17 }",
     "91\n",
   ],
+  repeatedChoice: [
+    fs.readFileSync("./examples/repeated-choice.yu", "utf8"),
+    "23\n",
+  ],
 };
 const yulang2Source = fs.readFileSync("./examples/yulang2-identity-island.yu", "utf8");
 const yulang2Definitions = {

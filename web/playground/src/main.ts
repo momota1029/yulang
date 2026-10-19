@@ -1,9 +1,11 @@
 import init, { infer, run } from "./wasm/yulang_wasm.js";
 import "./style.css";
 import yulang2IdentityIsland from "../examples/yulang2-identity-island.yu?raw";
+import repeatedChoice from "../examples/repeated-choice.yu?raw";
 
 const examples: Record<string, string> = {
   yulang2_identity_island: yulang2IdentityIsland,
+  repeated_choice: repeatedChoice,
   ordinary: "my identity x = x\nmy main = identity 7",
   closure: "my make x = \\y -> x\nmy main = make 12 7",
   recursion: "my loop condition = if condition: loop false else: 11\nmy main = loop true",
