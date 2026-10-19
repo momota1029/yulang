@@ -48,7 +48,12 @@
       }
     },
     "proof_assignment": "RUNNING; active-work acknowledgment received; 900s budget; no descendants",
-    "implementation_status": "Luna primary exact owner-map lane; no safe production code slice established"
+    "implementation_status": "Luna primary exact owner-map lane; no safe production code slice established",
+    "activation_commit": "09820335c",
+    "activation_push": "origin/research/simple-sub-intrusion",
+    "owner_map_status": "FROZEN_PARTIAL_NO_SAFE_CODE_SLICE",
+    "owner_map_sha256": "7a4c9ab358b6a11df313380bc9ed24e7d78cdabba6d57f94bf21a6402c49b6fd",
+    "implementation_handoff_sha256": "db18d0681cb50d18e15e71b188fa25a75a1828170cf60b5621ff3a6c4a920825"
   },
   "workers": [
     {
@@ -87,13 +92,13 @@
     {
       "id": "/root",
       "role": "Luna primary; exact leases, review adjudication, state and sole Git integrator",
-      "state": "RUNNING",
+      "state": "WAITING",
       "session": "current-conversation-2026-10-20-r138",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R138 primary active; exact candidate accepted; prospective spec/compiler reviews CLEAN; no child launched yet."
+      "receipt": "R138 Luna source/native owner map frozen; NO_SAFE_CODE_SLICE; proof lane remains active; Luna waits for proof handoff before integration."
     },
     {
       "id": "/root/r138_proof",
@@ -137,12 +142,12 @@
     {
       "path": "notes/progress/2026-10-20-r138-cut-owner-map.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261020-r138-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     }
   ],
   "pending": [
