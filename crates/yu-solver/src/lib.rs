@@ -18629,6 +18629,9 @@ mod tests {
     mod kind_qualified_graph;
     #[cfg(feature = "shadow-apply-candidate")]
     mod candidate_graph_call;
+    #[cfg(feature = "shadow-apply-candidate")]
+    #[path = "../candidate_c1_observer_tests.rs"]
+    mod candidate_c1_observer_tests;
     mod f5c_binder_substitution;
     mod f5c_depth_limit;
     mod f5c_flat_walk_sink;

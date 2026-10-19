@@ -155,6 +155,10 @@ impl State {
             (id, group.occurrence, group.start, group.end, group.activated)
         }).collect()
     }
+    #[cfg(test)]
+    pub(super) fn observed_output_index(&self) -> Vec<((TypedPairKey, ExtrusionEndpoint), Vec<usize>)> {
+        self.by_output.iter().map(|(&key, groups)| (key, groups.clone())).collect()
+    }
     pub fn observed_groups(&self) -> impl Iterator<Item = (usize, usize, usize, usize, bool)> + '_ {
         self.groups.iter().enumerate().map(|(id, group)| (id, group.occurrence, group.start, group.end, group.activated))
     }

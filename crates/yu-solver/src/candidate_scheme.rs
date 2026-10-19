@@ -589,6 +589,53 @@ pub(super) struct LocalUse {
     fresh: FreshUse,
     pub cursor: LocalUseCursor,
 }
+#[cfg(test)]
+#[derive(Debug)]
+pub(super) struct CandidateC1Observation {
+    pub local: yu_hir::HirLocalId,
+    pub occurrence: HirOccurrenceId,
+    pub cursor: LocalUseCursor,
+    pub value_graph: candidate_value_graph::C1IdentityProjection,
+    pub ledger: String,
+}
+#[cfg(test)]
+thread_local! {
+    static CANDIDATE_C1_OBSERVATIONS: std::cell::RefCell<Option<Vec<CandidateC1Observation>>> = const { std::cell::RefCell::new(None) };
+}
+#[cfg(test)]
+pub(super) fn candidate_test_begin_c1_observation() {
+    CANDIDATE_C1_OBSERVATIONS.with(|records| *records.borrow_mut() = Some(Vec::new()));
+}
+#[cfg(test)]
+pub(super) fn candidate_test_take_c1_observations() -> Vec<CandidateC1Observation> {
+    CANDIDATE_C1_OBSERVATIONS.with(|records| records.borrow_mut().take().unwrap_or_default())
+}
+#[cfg(test)]
+fn observe_candidate_c1(session: &InferenceSession) {
+    CANDIDATE_C1_OBSERVATIONS.with(|records| {
+        let mut records = records.borrow_mut();
+        let Some(records) = records.as_mut() else { return; };
+        let state = session.candidate_graph.as_ref().expect("C1 owns candidate graph");
+        let frame = state.local_use.last().expect("C1 owns newly pushed LocalUse");
+        let output_index = state.intrusion.observed_output_index();
+        let value_graph = session.batch.candidate_source.references.observed_c1_identity_projection();
+        let ledger = format!(
+            "CUT=C1_AFTER_LOCAL_USE_PUSH_BEFORE_FIRST_STEP\nLOCAL_USE={frame:#?}\nCANDIDATE_GRAPH={state:#?}\nBY_OUTPUT_INDEX={output_index:#?}\nVALUE_GRAPH_IDENTITY_PROJECTION={value_graph:#?}\nTYPED_PAIR_MEMOS={:#?}\nTYPED_WORKLIST={:#?}\nSOURCE_PLAN={:#?}\nLIVE_VALUE_BOUNDS={:#?}\nLIVE_EFFECT_BOUNDS={:#?}\n",
+            session.typed_pairs,
+            session.typed_worklist,
+            session.batch.candidate_source,
+            session.bounds,
+            session.effect_bounds,
+        );
+        records.push(CandidateC1Observation {
+            local: frame.local.clone(),
+            occurrence: frame.occurrence.clone(),
+            cursor: frame.cursor,
+            value_graph,
+            ledger,
+        });
+    });
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum LocalRun { Complete, Paused }
 // This closed script holds one exclusive session borrow from the first pause
@@ -2043,6 +2090,8 @@ impl InferenceSession {
                 state.scratch_bytes = 0;
                 state.retained_bytes = retained;
                 session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+                #[cfg(test)]
+                observe_candidate_c1(session);
             }
             {
                 let frame = session.candidate_graph.as_ref().unwrap().local_use.last().ok_or_else(exhausted)?;

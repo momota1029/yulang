@@ -1,0 +1,3 @@
+R75 C1 IDENTITY LEDGER — NOT PRODUCED
+
+The sole authorized focused command failed at compilation with E0382 before the test ran. No observed C1 snapshot, identity labels, owner dictionary, or ledger rows exist. The command and failure are recorded in notes/progress/2026-10-19-r75-c1-identity-ledger.md. The R75 execution authority is exhausted; no retry is authorized.

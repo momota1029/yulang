@@ -896,6 +896,178 @@ impl ShadowArtifact {
                 })
         }).collect()
     }
+    /// Visits every retained field tail together with the actual receiver child
+    /// produced by the ordinary association constructor. The callback borrows
+    /// the one retained association result; no receiver subtree is copied.
+    /// This is source correspondence only and makes no field/method judgment.
+    pub fn visit_associated_member_receivers(
+        &self,
+        mut visitor: impl FnMut(&PendingFieldTailSource, &crate::HirExpr),
+    ) -> Result<(), ShadowError> {
+        use crate::{AssociationProvenance, HirExpr, associate_chain_owned_with_sources};
+
+        fn visit_pair<'a>(
+            artifact: &ShadowArtifact,
+            keys: &HashMap<SyntaxNode, SourceNodeKey>,
+            selected: &[Option<usize>],
+            receivers: &mut [Option<&'a HirExpr>],
+            expression: &'a HirExpr,
+            provenance: &'a AssociationProvenance,
+        ) -> Result<(), ShadowError> {
+            let mut pending = vec![(expression, provenance)];
+            while let Some((expression, provenance)) = pending.pop() {
+                let (hir_children, source_children) = match (expression, provenance) {
+                    (HirExpr::Value { kind, children, .. }, AssociationProvenance::Node { source, children: sources }) => {
+                        if *kind != source.kind() || children.len() != sources.len() {
+                            return Err(ShadowError::InvalidExpressionReference);
+                        }
+                        let key = keys.get(source).ok_or(ShadowError::InvalidExpressionReference)?;
+                        let id = artifact.source_position(key).map_err(|_| ShadowError::InvalidExpressionReference)?;
+                        if artifact.position(&id)?.kind != *kind {
+                            return Err(ShadowError::InvalidExpressionReference);
+                        }
+                        if *kind == SyntaxKind::FieldTail {
+                            let slot = selected.get(id.0.index).and_then(|slot| *slot)
+                                .ok_or(ShadowError::InvalidExpressionReference)?;
+                            let receiver = children.first().ok_or(ShadowError::InvalidExpressionReference)?;
+                            if receivers[slot].replace(receiver).is_some() {
+                                return Err(ShadowError::InvalidExpressionReference);
+                            }
+                        }
+                        (children.as_slice(), sources.as_slice())
+                    }
+                    (HirExpr::Value { children, .. }, AssociationProvenance::Synthetic(sources)) => {
+                        if children.len() != sources.len() {
+                            return Err(ShadowError::InvalidExpressionReference);
+                        }
+                        (children.as_slice(), sources.as_slice())
+                    }
+                    (HirExpr::Error { children, .. }, AssociationProvenance::Synthetic(sources)) => {
+                        if children.len() != sources.len() {
+                            return Err(ShadowError::InvalidExpressionReference);
+                        }
+                        (children.as_slice(), sources.as_slice())
+                    }
+                    (HirExpr::Apply { operands, .. }, AssociationProvenance::Synthetic(sources)) => {
+                        if operands.len() != sources.len() {
+                            return Err(ShadowError::InvalidExpressionReference);
+                        }
+                        (operands.as_ref(), sources.as_slice())
+                    }
+                    (HirExpr::Error { kind, children, .. }, AssociationProvenance::Node { source, children: sources }) => {
+                        if children.len() != sources.len() || *kind != source.kind() {
+                            return Err(ShadowError::InvalidExpressionReference);
+                        }
+                        let key = keys.get(source).ok_or(ShadowError::InvalidExpressionReference)?;
+                        let id = artifact.source_position(key).map_err(|_| ShadowError::InvalidExpressionReference)?;
+                        if artifact.position(&id)?.kind != *kind {
+                            return Err(ShadowError::InvalidExpressionReference);
+                        }
+                        (children.as_slice(), sources.as_slice())
+                    }
+                    (HirExpr::Error { children, .. }, AssociationProvenance::Token(_)) if children.is_empty() => continue,
+                    _ => return Err(ShadowError::InvalidExpressionReference),
+                };
+                pending.try_reserve(hir_children.len()).map_err(|_| ShadowError::ElementLimit)?;
+                pending.extend(hir_children.iter().zip(source_children).rev());
+            }
+            Ok(())
+        }
+
+        let fields = self.pending_field_tail_sources()?;
+        if fields.is_empty() {
+            return Ok(());
+        }
+        let mut selected = vec![None; self.positions.len()];
+        for (slot, field) in fields.iter().enumerate() {
+            let position = self.position(&field.tail)?;
+            let Some(entry) = selected.get_mut(field.tail.0.index) else {
+                return Err(ShadowError::InvalidExpressionReference);
+            };
+            if position.kind != SyntaxKind::FieldTail || entry.replace(slot).is_some() {
+                return Err(ShadowError::InvalidExpressionReference);
+            }
+        }
+        let keys = source_keys(&self.parsed);
+        let mut roots = Vec::new();
+        let mut pending = vec![SyntaxNode::new_root(self.parsed.green().clone())];
+        while let Some(node) = pending.pop() {
+            if node.kind() == SyntaxKind::OperatorChain {
+                roots.push(node);
+                continue;
+            }
+            let children: Vec<_> = node.children().collect();
+            pending.extend(children.into_iter().rev());
+        }
+        let mut associations = Vec::new();
+        associations.try_reserve(roots.len()).map_err(|_| ShadowError::ElementLimit)?;
+        for root in roots {
+            associations.push(
+                associate_chain_owned_with_sources(&self.parsed, root)
+                    .map_err(|_| ShadowError::MalformedSource)?,
+            );
+        }
+        let associated: Vec<_> = associations.into_iter().map(|owned| {
+            let (expression, provenance, _) = owned.into_projection_parts();
+            (expression, provenance)
+        }).collect();
+        let mut receivers = vec![None; fields.len()];
+        for (expression, provenance) in &associated {
+            visit_pair(self, &keys, &selected, &mut receivers, expression, provenance)?;
+        }
+        for (field, receiver) in fields.iter().zip(receivers.iter()) {
+            if receiver.is_none() {
+                return Err(ShadowError::InvalidExpressionReference);
+            }
+            field.receiver_prefix(self)?;
+        }
+        for (field, receiver) in fields.iter().zip(receivers.iter()) {
+            visitor(field, receiver.expect("validated receiver inventory"));
+        }
+        Ok(())
+    }
+
+    /// Visits the exact parser nodes corresponding to the retained role and
+    /// standalone implementation occurrences, in source order. No semantic
+    /// role identity or implementation-selection rule is implied.
+    pub fn visit_role_impl_nodes(
+        &self,
+        mut visitor: impl FnMut(&PendingRoleImplSource, &SyntaxNode),
+    ) -> Result<(), ShadowError> {
+        let declarations = self.pending_role_impl_sources();
+        if declarations.is_empty() {
+            return Ok(());
+        }
+        let keys = source_keys(&self.parsed);
+        let mut seen = vec![false; self.positions.len()];
+        let mut cursor = 0usize;
+        let mut resolved = Vec::new();
+        let mut pending = vec![SyntaxNode::new_root(self.parsed.green().clone())];
+        while let Some(node) = pending.pop() {
+            if matches!(node.kind(), SyntaxKind::RoleDeclaration | SyntaxKind::ImplDeclaration) {
+                let key = keys.get(&node).ok_or(ShadowError::InvalidUseReference)?;
+                let id = self.source_position(key).map_err(|_| ShadowError::InvalidUseReference)?;
+                let declaration = declarations.get(cursor).ok_or(ShadowError::InvalidUseReference)?;
+                if declaration.position != id || declaration.kind != node.kind()
+                    || seen.get_mut(id.0.index).is_none_or(|entry| std::mem::replace(entry, true))
+                {
+                    return Err(ShadowError::InvalidUseReference);
+                }
+                resolved.try_reserve(1).map_err(|_| ShadowError::ElementLimit)?;
+                resolved.push((declaration, node.clone()));
+                cursor += 1;
+            }
+            let children: Vec<_> = node.children().collect();
+            pending.extend(children.into_iter().rev());
+        }
+        if cursor != declarations.len() {
+            return Err(ShadowError::InvalidUseReference);
+        }
+        for (declaration, node) in &resolved {
+            visitor(declaration, node);
+        }
+        Ok(())
+    }
     pub fn annotations(&self) -> &[AnnotationOccurrence] {
         &self.annotations
     }

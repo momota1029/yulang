@@ -23,6 +23,15 @@ pub(super) struct Graph {
     pub seal_scratch_peak: usize,
     pub construction_scratch_peak: usize,
 }
+#[cfg(test)]
+#[derive(Debug)]
+pub(super) struct C1IdentityProjection {
+    pub modules: Vec<(DefinitionRootId, DefId)>,
+    pub vertices: Vec<(Value, usize)>,
+    pub values_by_ordinal: Vec<(usize, Value)>,
+    pub checking: Vec<(ConstraintOccurrenceId, usize)>,
+    pub checking_by_event: Vec<(usize, ConstraintOccurrenceId)>,
+}
 fn unavailable() -> CollectionAvailabilityError { CollectionAvailabilityError::ComponentIdentityExhausted }
 impl Graph {
     // Observation only: auxiliary fragment vertices have no Value descriptor.
@@ -33,6 +42,16 @@ impl Graph {
     pub fn observed_checking(&self, event: usize) -> Option<&ConstraintOccurrenceId> {
         let checking = self.checking_by_event.get(event)?;
         (self.checking.get(checking) == Some(&event)).then_some(checking)
+    }
+    #[cfg(test)]
+    pub(super) fn observed_c1_identity_projection(&self) -> C1IdentityProjection {
+        C1IdentityProjection {
+            modules: self.modules.iter().map(|(root, id)| (root.clone(), id.clone())).collect(),
+            vertices: self.vertices.iter().map(|(value, ordinal)| (value.clone(), *ordinal)).collect(),
+            values_by_ordinal: self.values_by_ordinal.iter().map(|(ordinal, value)| (*ordinal, value.clone())).collect(),
+            checking: self.checking.iter().map(|(id, event)| (id.clone(), *event)).collect(),
+            checking_by_event: self.checking_by_event.iter().cloned().enumerate().collect(),
+        }
     }
     pub fn register_module(&mut self, root: DefinitionRootId, id: DefId) -> Result<(), CollectionAvailabilityError> {
         self.modules.try_reserve(1).map_err(|_| unavailable())?;

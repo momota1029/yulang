@@ -824,6 +824,7 @@ mod tests {
     mod shadow_source_core;
     mod shadow_source_view_premise_locator;
     mod shadow_method_role_source;
+    mod shadow_member_receiver_association;
 
     use std::{collections::HashMap, sync::Arc};
 
