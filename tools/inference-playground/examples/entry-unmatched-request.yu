@@ -1,0 +1,4 @@
+act signal:
+    our ping: () -> int
+my ignore x = 9
+my main = ignore (signal::ping())

@@ -2,56 +2,60 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r103-source-runtime-parameter-projection",
+  "session": "current-conversation-2026-10-19-r104-cli-entry-publication",
   "active_sprint": {
-    "id": "source-runtime-parameter-projection-20261019-r103",
-    "contract": "tasks/agent-loop/sprints/source-runtime-parameter-projection-20261019-r103.md",
+    "id": "cli-entry-publication-20261019-r104",
+    "contract": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
     "revision": 2,
     "state": "CLOSED",
-    "contract_sha256": "be75da329bc186bcc300bd7764f7a4dd7307f20cb6e1a8505917681b8eb6e7c5",
-    "baseline": "R97 finite §21 entry matrix and exact C-loop cell completed and reviewed; R101/R102 nested source-entry seam preserved OPEN after two pin-boundary stops, no new command run.",
-    "parent": "Original proof-backed type inference/evaluator goals and six effect-hygiene fronts; advance a finite static-to-runtime parameter role/schema projection cell and keep method/role plus runnable source work in rotation.",
-    "authority": "Test-only unit assertion in runtime/program.rs comparing authentic LocalSource formal/annotation with emitted Lambda role and RootCompSchema; one Luna-owned command after CLEAN reviews. No production behavior edits or semantic adoption.",
+    "contract_sha256": "8cd15a5ab18a3923399ce2f14415df2782b131e626a7937b1e926decc8d40a61",
+    "baseline": "R103 finite parameter projection closed CLEAN and its authorized test passed; selector recommends public CLI publication for two exact R97 cells.",
+    "parent": "Six effect-hygiene fronts, proof-backed method/role behavior and early runnable ordinary/effectful source execution.",
+    "authority": "Exact R97 unmatched-request and Computation-argument source cells as CLI examples plus one subprocess test; one Luna-owned command after CLEAN reviews. No production edits.",
     "resources": {
       "cap_seconds": 1800,
-      "allocation": "proof600; implementation360; spec180; compiler review240; one command120; closeout300; Astra0."
+      "allocation": "proof600; implementation360; spec180; compiler review240; command120; closeout300; Astra0."
     },
     "verification": {
       "commands_authorized": [
-        "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --lib runtime::program::tests::runtime_program_emits_computation_role_with_original_formal_and_schema -- --exact --nocapture"
+        "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_entry_publication -- --exact entry_role_controls_cli_publication --nocapture"
       ],
-      "owner": "Luna; exactly one run after output freeze and CLEAN independent reviews.",
-      "result": "PASS: 1 passed, 0 failed; exact authorized command run once in 2.76s; existing warnings only.",
+      "owner": "Luna; exactly once after outputs freeze and CLEAN independent reviews.",
+      "result": "NOT_RUN: R104 stop condition, frozen source identity mismatch.",
       "retry": "PROHIBITED"
     },
     "outputs": {
-      "proof": "notes/theory/2026-10-19-r103-parameter-projection.md",
-      "proof_handoff": "tasks/agent-loop/inbox/20261019-r103-proof.md",
-      "implementation": "tools/inference-playground/src/runtime/program.rs",
-      "implementation_handoff": "tasks/agent-loop/inbox/20261019-r103-implementation.md",
-      "pre_edit_spec_review": "tasks/agent-loop/inbox/20261019-r103-spec-review.md",
-      "closeout": "notes/progress/2026-10-19-r103-parameter-projection.md"
+      "proof": "notes/theory/2026-10-19-r104-cli-entry-publication.md",
+      "proof_handoff": "tasks/agent-loop/inbox/20261019-r104-proof.md",
+      "implementation": "two exact examples and tests/cli_entry_publication.rs",
+      "implementation_handoff": "tasks/agent-loop/inbox/20261019-r104-implementation.md",
+      "pre_edit_spec_review": "tasks/agent-loop/inbox/20261019-r104-spec-review.md",
+      "closeout": "notes/progress/2026-10-19-r104-cli-entry-publication.md",
+      "contract_rev1": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104-rev1.md"
     },
     "worker_receipts": {
-      "r103_proof": "FROZEN; all contract pins matched; finite mapping note/handoff retained.",
-      "r103_impl": "FROZEN test-only addition; no production changes.",
-      "r103_reviews": "Fresh post-output spec CLEAN and compiler/source CLEAN; output hashes matched.",
-      "r103_command": "Exact authorized unit test PASS 1/1, 0 failed, 17 filtered; 2.76s; no retry."
+      "selector": "Selected finite public CLI outcomes for unmatched request and successful Computation-argument source.",
+      "r104_rev1_review": "MAJOR dependency gap: output.rs needed for bounded stdout and diagnostic publication; all original pins matched.",
+      "r104_rev2_spec_review": "CLEAN; 14 pins match; output.rs bounded publication and failure propagation support both outcomes.",
+      "r104_cli_impl": "FROZEN; both example bytes and serial CLI test/handoff pinned; no execution.",
+      "r104_source_proof": "FROZEN; 14 pins match; publication mappings conditional on R104 CLI observations; no execution.",
+      "r104_post_spec": "MAJOR: examples add unauthorized final LF; source identity mismatch.",
+      "r104_post_compiler": "Stopped after spec gate failure; no execution."
     },
-    "review_status": "CLOSED: finite constructor evidence CLEAN; one authorized projection test passed.",
-    "closeout": "notes/progress/2026-10-19-r103-parameter-projection.md"
+    "review_status": "FAILED_TO_ACHIEVE: post-spec MAJOR source identity mismatch; command NOT_RUN.",
+    "closeout": "notes/progress/2026-10-19-r104-cli-entry-publication.md"
   },
   "workers": [
     {
       "id": "/root",
       "role": "Luna primary; exact leases, review, central state and sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-19-r103-source-runtime-parameter-projection",
+      "session": "current-conversation-2026-10-19-r104-cli-entry-publication",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R103 ACTIVE; proof and test-only implementation lanes live; Luna owns review and one command."
+      "receipt": "R103 closed/pushed; R104 draft awaiting pre-edit review."
     },
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -87,26 +91,26 @@
       "receipt": "Historical P2 proof frozen; no successor lease."
     },
     {
-      "id": "/root/r103_parameter_proof",
-      "role": "Proof lane",
+      "id": "/root/r104_source_proof",
+      "role": "R104 proof: R97 finite cells to public CLI outcomes",
       "state": "STOPPED",
-      "session": "current-conversation-2026-10-19-r103-source-runtime-parameter-projection",
-      "requested_model": "UNKNOWN",
-      "requested_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r104-cli-entry-publication",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R103 outputs frozen; pin match; no execution."
+      "receipt": "R104 finite outcome trace frozen; all 14 pins match; new 1000-step/file preparation seams open."
     },
     {
-      "id": "/root/r103_projection_impl",
-      "role": "Test-only implementation lane",
+      "id": "/root/r104_cli_impl",
+      "role": "R104 examples and single subprocess integration test",
       "state": "STOPPED",
-      "session": "current-conversation-2026-10-19-r103-source-runtime-parameter-projection",
-      "requested_model": "UNKNOWN",
-      "requested_effort": "UNKNOWN",
+      "session": "current-conversation-2026-10-19-r104-cli-entry-publication",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R103 test-only output frozen; no production edits."
+      "receipt": "R104 exact examples and serial CLI test frozen; no command run."
     }
   ],
   "leases": [
@@ -127,23 +131,43 @@
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-19-r103-parameter-projection.md",
-      "owner": "/root/r103_parameter_proof",
+      "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104-rev1.md",
+      "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r103-proof.md",
-      "owner": "/root/r103_parameter_proof",
+      "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-19-r104-cli-entry-publication.md",
+      "owner": "/root/r104_source_proof",
       "state": "FROZEN"
     },
     {
-      "path": "tools/inference-playground/src/runtime/program.rs",
-      "owner": "/root/r103_projection_impl",
+      "path": "tasks/agent-loop/inbox/20261019-r104-proof.md",
+      "owner": "/root/r104_source_proof",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261019-r103-implementation.md",
-      "owner": "/root/r103_projection_impl",
+      "path": "tools/inference-playground/examples/entry-unmatched-request.yu",
+      "owner": "/root/r104_cli_impl",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tools/inference-playground/examples/entry-computation-argument.yu",
+      "owner": "/root/r104_cli_impl",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tools/inference-playground/tests/cli_entry_publication.rs",
+      "owner": "/root/r104_cli_impl",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r104-implementation.md",
+      "owner": "/root/r104_cli_impl",
       "state": "FROZEN"
     }
   ],
@@ -219,8 +243,8 @@
       "falsifier": "See frozen gate record."
     }
   ],
-  "closure": "R103 closed with finite source-to-runtime parameter projection evidence and one passing authorized unit test. R101/R102 obstructions remain preserved. Six effect-hygiene fronts, method/role proof and ordinary/effectful runnable source remain active broad goals.",
-  "next_action": "Consult selector with R103 receipts and choose next bounded sprint across six effect-hygiene fronts, method/role proof, or early runnable ordinary/effectful source execution.",
+  "closure": "R103 closed/pushed with finite projection test PASS. R104 failed at explicit source-identity stop; artifacts preserved, command NOT_RUN. R101/R102 obstructions remain open.",
+  "next_action": "Consult sprint selector after R104 failure; preserve artifacts and choose another bounded breadth slice or a newly authorized corrected CLI candidate.",
   "worker_inventory_scope": "R89 completed primary-only; all R88 workers/reviewers STOPPED and archived in closeout. Three inherited identities remain UNKNOWN, board lease quarantined, legacy idle implementer reserves one slot. No unknown lease reclaimed.",
   "legacy_reconciliation": {
     "required": false,
@@ -291,6 +315,13 @@
       "sha256": "701abe0a6f319eab8c282281ff66f66a63a8758becd238b44d30581894d49377",
       "proof_sha256": "114f5bcfa31a50ffc6111364f28d1e0f1abe41d94030dc1a5afc3d4e66756c74",
       "test": "PASS 1/1; exact authorized command once; 2.76s"
+    },
+    {
+      "id": "R104",
+      "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE",
+      "closeout": "notes/progress/2026-10-19-r104-cli-entry-publication.md",
+      "sha256": "b9fcb773a8322ccb6dfb07f0c13c3ffb23f4f5a451db29af48b116b56147ad22",
+      "reason": "Post-output spec MAJOR: unauthorized final LF changes exact R97 source identity; command not run."
     }
   ]
 }
