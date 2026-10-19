@@ -111,7 +111,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Current Luna primary session; proof and both reviews STOPPED; closeout and sole integration in progress."
+      "receipt": "Current Luna primary session; R138 and all child lanes STOPPED; evaluating authorized successor scope, sole state/Git integrator."
     },
     {
       "id": "/root/r138_proof",
@@ -264,8 +264,8 @@
       "falsifier": "Any blocking/major finding or dependency mismatch keeps candidate provisional."
     }
   ],
-  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH; A/B/C and all parent/inference/evaluator/production gates remain OPEN. Next route is a new bounded action31 loop-Lambda certified-cut proposal; no successor authority yet. R135 awaits user design choice.",
-  "next_action": "R138: launch proof lane and complete Luna source/native owner map; no tests/builds/observer/code changes.",
+  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH; A/B/C and all parent/inference/evaluator/production gates remain OPEN. No successor sprint is active. R139 source-syntax route awaits explicit R135 decision; compatible sample expansion remains available. R135 awaits user design choice.",
+  "next_action": "R138 is closed. R139 decision input is the reviewed R135 braced-if proposal and the user choice between narrow countdown-only semantics or broader Y2 brace-shape compatibility. No successor leases are active. Once authority is recorded, prefer an end-to-end unchanged Y2 Web-demo expansion with a proof lane and reviewed implementation; if deferred, select a compatible existing sample expansion.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
