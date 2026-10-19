@@ -8,7 +8,7 @@
 "contract":"tasks/agent-loop/sprints/native-payload-entry-cli-20261019-r127-rev3.md",
 "revision":3,
 "contract_sha256":"04b707e493f53e1fe35747c11ec1fadb57238a560e9f37d6b57d4865fb04fa7f",
-"state":"VERIFICATION_PASS_PENDING_GIT",
+"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS_PENDING_PUSH",
 "baseline":"234d2b6d579f12e01448042a8d79d1cf145afb73",
 "authority":"Finite §21 declaration-argument role to native Value-before-publication versus Computation-payload publication for two exact sources; no general laziness/effect or permission theorem.",
 "resources":{
@@ -40,9 +40,9 @@
 "test":"tools/inference-playground/tests/cli_native_payload_entry.rs",
 "implementation_handoff":"tasks/agent-loop/inbox/20261019-r127-implementation.md"
 },
-"review_status":"Three final reviews CLEAN; exact paired CLI test PASS; R127 closeout frozen. Luna integration and push remain.",
+"review_status":"Three independent reviews CLEAN; exact test PASS; artifact checkpoint committed as 2a5790da1; non-forced push receipt to follow.",
 "open_premises":"Source/declaration/HIR identity H, successful candidate/runtime admission A, declaration-owned native consumer transition E, and bounded Machine/CLI outcomes B are candidate premises. All six effect-hygiene parents, method M/T/A, R85 adoption, and Simple-sub/evaluator A/B remain OPEN.",
-"next_action":"Integrate R127; then prepare R128 candidate for the R119 method-target join T using PathTail→operation namespace→candidate gate evidence, keeping R85 adoption separate."
+"next_action":"After push, prepare the R128 method-target join T candidate from the unchanged R119 fixture; no method semantics or R85 adoption implied."
 },
 "workers":[
 {
@@ -281,7 +281,7 @@
 "falsifier":"See frozen gate record."
 }
 ],
-"closure":"R127 conditional declaration-role/native Value versus Computation entry correspondence and paired CLI observation PASS; H/A/E/B, all six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
+"closure":"R127 conditional declaration-role/native payload entry witness and paired CLI observation committed as 2a5790da1; H/A/E/B, six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
 "next_action":"R128 selector candidate: trace missing method-target join T on the unchanged R119 fixture through actual PathTail resolver and candidate gate; no R85 adoption or method-execution claim. Fresh pre-spec and Luna grant required.",
 "legacy_reconciliation":{
 "required":false,
@@ -319,12 +319,13 @@
 },
 {
 "id":"R127",
-"state":"VERIFIED_CONDITIONAL_WITNESS_PENDING_GIT",
+"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS_PENDING_PUSH",
 "contract":"tasks/agent-loop/sprints/native-payload-entry-cli-20261019-r127-rev3.md",
 "contract_sha256":"04b707e493f53e1fe35747c11ec1fadb57238a560e9f37d6b57d4865fb04fa7f",
 "verification":"three final reviews CLEAN; exact paired stdin CLI test PASS (1 passed); all parents OPEN",
 "closeout":"notes/progress/2026-10-19-r127-closeout.md",
-"closeout_sha256":"a36b2137c390aa00cfc2ae76274bf379e52c0438f871abf98a1594bb69463b88"
+"closeout_sha256":"533e221d71b3c94a28e93f28ba47098f1d4b2fecf00a10d133ff687b87ca5c24",
+"commit":"2a5790da1"
 }
 ]
 }
