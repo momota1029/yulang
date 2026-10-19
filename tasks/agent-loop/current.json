@@ -26,7 +26,7 @@
     "implementation_status": "NO_SAFE_CODE_SLICE from R138; no compiler edits authorized absent a concrete approved-behavior defect.",
     "proof_assignment": "/root/r140_action31_proof RUNNING; requested Sol/high; observed model/effort UNKNOWN; exact leases are theory note and proof inbox; 780s cap.",
     "parent_status": "Original computation-forwarding theorem, R72/R73, Simple-sub A/B, inference/evaluator, source-native and production gates remain OPEN.",
-    "next_action": "Continue both action31 replay-family backward cuts and prove omitted-state frame condition; stop at proof cap or material authority/dependency/lease change."
+    "next_action": "Sweep-aware cut: retain the ordered bound_keys prefix read by each pre-generation canonicalization; trace transports/attachments/interner/replay-head effects, and frame only entries proven state-preserving. Continue both action31 Lambda replay families; report UNFINISHED/OPEN if closure exceeds cap."
   },
   "workers": [
     {
@@ -204,7 +204,7 @@
     }
   ],
   "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN.",
-  "next_action": "R140 active: finish both action31 replay-family cuts with a proved omitted-state frame; R135 remains pending for further unchanged Y2 successful examples.",
+  "next_action": "R140 active: Sweep-aware cut: retain the ordered bound_keys prefix read by each pre-generation canonicalization; trace transports/attachments/interner/replay-head effects, and frame only entries proven state-preserving. R135 remains pending for further unchanged Y2 successful examples.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
