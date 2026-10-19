@@ -1,475 +1,467 @@
 {
-"schema_version": 1,
-"mode": "LIVE",
-"phase": "ACTIVE",
-"session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-"active_sprint": {
-"id": "effectful-response-entry-cli-20261019-r124",
-"contract": "tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev3.md",
-"revision": 3,
-"contract_sha256": "0463b605f1b339966a6e1b69c2347d3d18133210b305dd35d56b5fffdd1c92c3",
-"state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-"baseline": "dfcdea084",
-"authority": "One exact effectful response evaluation-order trace for j and k plus one public stdin CLI observation; no general continuation/effect theorem or parent closure.",
-"resources": {
-"cap_seconds": 1500,
-"inventory_seconds": 120,
-"prespec_seconds": 180,
-"proof_seconds": 480,
-"implementation_seconds": 240,
-"reviews_seconds": 240,
-"verification_seconds": 120,
-"closeout_seconds": 120,
-"proof_seconds_charged": 377,
-"implementation_seconds_charged": 240,
-"reviews_seconds_charged": 240,
-"prespec_seconds_charged": 134,
-"verification_seconds_charged": 3,
-"closeout_seconds_charged": 120
+"schema_version":1,
+"mode":"LIVE",
+"phase":"ACTIVE",
+"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"active_sprint":{
+"id":"returned-closure-binder-cli-20261019-r125",
+"contract":"tasks/agent-loop/sprints/returned-closure-binder-cli-20261019-r125-rev2.md",
+"revision":2,
+"contract_sha256":"e97f2b72e4c73089f10174255c754c3e465cd1026d2fc7af67bd217b6940770d",
+"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+"baseline":"145aca5f6",
+"authority":"Finite exact returned-closure source-to-runtime binder correspondence plus ordinary public stdin CLI result; no general closure theorem or parent closure.",
+"resources":{
+"cap_seconds":1440,
+"inventory_seconds":120,
+"prespec_seconds":180,
+"proof_seconds":420,
+"implementation_seconds":240,
+"reviews_seconds":240,
+"verification_seconds":120,
+"closeout_seconds":120,
+"proof_seconds_charged":420,
+"implementation_seconds_charged":240,
+"reviews_seconds_charged":240,
+"prespec_seconds_charged":180,
+"inventory_seconds_charged":120,
+"verification_seconds_charged":3,
+"closeout_seconds_charged":120
 },
-"verification": {
-"commands": [
-"CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_response_entry -- --exact response_expression_runs_before_saved_continuation_entry --nocapture"
+"verification":{
+"commands":[
+"CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_returned_closure -- --exact returned_closure_preserves_original_capture_through_cli --nocapture"
 ],
-"result": "PASS: 1 passed, 0 failed, 0 ignored; sole contracted CLI command run once after three CLEAN final reviews."
+"result":"PASS; exit 0; 1 passed, 0 failed, 0 ignored; exact CLI test asserts stdout 7\\n and empty stderr."
 },
-"outputs": {
-"proof": "notes/theory/2026-10-19-r124-response-entry.md",
-"proof_handoff": "tasks/agent-loop/inbox/20261019-r124-proof.md",
-"test": "tools/inference-playground/tests/cli_response_entry.rs",
-"implementation_handoff": "tasks/agent-loop/inbox/20261019-r124-implementation.md",
-"implementation_candidate_sha256": "32e663e7ca11538e14456ba5d8b54d65267fc04b59ab141074de6a849278d6bf",
-"implementation_handoff_sha256": "bc1aecf6f0a1418a2d48a0d98e1a0554773cbe1967b1d26b11017d5604ed2410",
-"proof_sha256": "247cf092fd07a25380435e03ecf45738590ffc95a424d4c4128d20f8f057744a",
-"proof_handoff_sha256": "b4f10c5f7031f753e75b26082eb5759f97c013cab0f98f9be4ad5a1f756cd104",
-"closeout": "notes/progress/2026-10-19-r124-closeout.md",
-"closeout_sha256": "dcc56ca3d4ae573f0b942914337bdf33d19685dfd4f0d7c2921acffe1fe40e98"
+"outputs":{
+"proof":"notes/theory/2026-10-19-r125-returned-closure.md",
+"proof_handoff":"tasks/agent-loop/inbox/20261019-r125-proof.md",
+"test":"tools/inference-playground/tests/cli_returned_closure.rs",
+"implementation_handoff":"tasks/agent-loop/inbox/20261019-r125-implementation.md",
+"closeout":"notes/progress/2026-10-19-r125-closeout.md"
 },
-"review_status": "Final compiler/source, spec/authority and regression reviews CLEAN on frozen hashes before sole CLI command; test PASS.",
-"open_premises": "The source-to-runtime order is a finite conditional claim for the pinned fixture only. CLI output is an independent completion observation and does not establish event count/order. General effect hygiene, all parents and Simple-sub/evaluator A/B remain OPEN.",
-"next_action": "R124 closed. Selector recommends R125: prove returned-closure capture preserves original binder x through later invocation, paired with ordinary public stdin CLI output 7; keep effect hygiene rotating and method/role gates separate."
+"review_status":"Three final reviews CLEAN; exact contracted CLI command PASS (1 passed). Conditional proof and all H/A/E/B premises remain distinct; no parent gate closed.",
+"open_premises":"Exact source/candidate identity formation H, successful candidate solve/admission A, concrete runtime consumer checks E, and bounded completion/stdin-stdout observation B remain unproved as general premises. R125 conditionally derives original x endpoint/environment retention through alias and later y call. General closure soundness, all six effect-hygiene parents, method M/T/A and Simple-sub/evaluator A/B remain OPEN.",
+"next_action":"R125 closed as a conditional finite witness. At the next goal boundary select across effect hygiene, method/role proof, and runnable source surfaces; selector candidates are recorded in closeout and current user_goal.",
+"grant_receipt":{
+"authorized_by":"/root",
+"contract_revision":2,
+"contract_sha256":"e97f2b72e4c73089f10174255c754c3e465cd1026d2fc7af67bd217b6940770d",
+"pre_spec":"CLEAN delta review by /root/r118_prespec; runtime/receiving.rs owner pin verified",
+"proof_lease":[
+"notes/theory/2026-10-19-r125-returned-closure.md",
+"tasks/agent-loop/inbox/20261019-r125-proof.md"
+],
+"implementation_lease":[
+"tools/inference-playground/tests/cli_returned_closure.rs",
+"tasks/agent-loop/inbox/20261019-r125-implementation.md"
+],
+"budgets_seconds":{
+"proof":420,
+"implementation":240
 },
-"workers": [
+"authority":"Only the finite returned-closure binder/environment chain and exact public stdin CLI witness; no general theorem or semantic promotion."
+}
+},
+"workers":[
 {
-"id": "/root",
-"role": "Luna primary; exact leases, review, state and sole Git integrator",
-"state": "RUNNING",
-"session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-"requested_model": "gpt-6-luna",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R124 closed after three CLEAN reviews and exact public stdin CLI PASS; closeout frozen; sole integrator."
-},
-{
-"id": "/root/resident_dispatcher_loop_a",
-"role": "legacy dispatcher; historical runtime unavailable",
-"state": "UNKNOWN",
-"session": null,
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "Legacy identity UNKNOWN; board path quarantined."
-},
-{
-"id": "/root/resident_implementer_idle",
-"role": "legacy implementation worker; historical runtime unavailable",
-"state": "UNKNOWN",
-"session": null,
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "Legacy identity UNKNOWN; slot reservation retained."
+"id":"/root",
+"role":"Luna primary; exact leases, review, state and sole Git integrator",
+"state":"RUNNING",
+"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"requested_model":"gpt-6-luna",
+"requested_effort":"high",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"R124 committed/pushed as145aca5f6; R125 returned-closure binder/CLI rev1 frozen for pre-spec only."
 },
 {
-"id": "/root/runtime_source_supplier_proof",
-"role": "legacy proof worker; historical runtime unavailable",
-"state": "UNKNOWN",
-"session": null,
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "Legacy identity UNKNOWN; no successor lease."
+"id":"/root/resident_dispatcher_loop_a",
+"role":"legacy dispatcher; historical runtime unavailable",
+"state":"UNKNOWN",
+"session":null,
+"requested_model":"gpt-6.1-sol",
+"requested_effort":"high",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"Legacy identity UNKNOWN; board path quarantined."
 },
 {
-"id": "/root/r118_proof_lane",
-"role": "R124 response-entry source/runtime proof",
-"state": "STOPPED",
-"session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-"requested_model": "gpt-6-sol",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R124 proof/handoff frozen; 377/480 seconds charged; all18 pins matched; no execution/Git."
+"id":"/root/resident_implementer_idle",
+"role":"legacy implementation worker; historical runtime unavailable",
+"state":"UNKNOWN",
+"session":null,
+"requested_model":"gpt-6.1-sol",
+"requested_effort":"high",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"Legacy identity UNKNOWN; slot reservation retained."
 },
 {
-"id": "/root/r118_implementation_lane",
-"role": "R124 public stdin CLI test",
-"state": "STOPPED",
-"session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-"requested_model": "gpt-6-luna",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R124 CLI test/handoff frozen; cap240 fully charged; no execution."
-},
-{
-"id": "/root/r118_prespec",
-"role": "R124 pre-spec reviewer",
-"state": "STOPPED",
-"session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "low",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R124 rev3 delta CLEAN; 8s observed, no edits/execution."
-},
-{
-"id": "/root/r118_spec_review",
-"role": "R123 final spec/authority reviewer",
-"state": "STOPPED",
-"session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "low",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R124 final frozen-candidate review CLEAN; no edits/tests/Git."
-},
-{
-"id": "/root/r118_regression_review",
-"role": "R123 final regression reviewer",
-"state": "STOPPED",
-"session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "low",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R124 final frozen-candidate review CLEAN; no edits/tests/Git."
-},
-{
-"id": "/root/r118_compiler_review",
-"role": "R123 final compiler/source reviewer",
-"state": "STOPPED",
-"session": "current-conversation-2026-10-19-breadth-surface-method-goal",
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "low",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R124 final frozen-candidate review CLEAN; no edits/tests/Git."
+"id":"/root/runtime_source_supplier_proof",
+"role":"legacy proof worker; historical runtime unavailable",
+"state":"UNKNOWN",
+"session":null,
+"requested_model":"gpt-6.1-sol",
+"requested_effort":"high",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"Legacy identity UNKNOWN; no successor lease."
 }
 ],
-"leases": [
+"leases":[
 {
-"path": "tasks/agent-loop/board.md",
-"owner": "/root/resident_dispatcher_loop_a",
-"state": "QUARANTINED",
-"reason": "Historical writer identity UNKNOWN; no cessation/handoff for board.md."
+"path":"tasks/agent-loop/board.md",
+"owner":"/root/resident_dispatcher_loop_a",
+"state":"QUARANTINED",
+"reason":"Historical writer identity UNKNOWN; no cessation/handoff for board.md."
 },
 {
-"path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
-"owner": "/root",
-"state": "HELD"
+"path":"tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
+"owner":"/root",
+"state":"HELD"
 },
 {
-"path": "tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev1.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev1.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev2.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev2.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "notes/theory/2026-10-19-r120-local-resumption.md",
-"owner": "/root/r118_proof_lane",
-"state": "FROZEN"
+"path":"notes/theory/2026-10-19-r120-local-resumption.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/inbox/20261019-r120-proof.md",
-"owner": "/root/r118_proof_lane",
-"state": "FROZEN"
+"path":"tasks/agent-loop/inbox/20261019-r120-proof.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
 },
 {
-"path": "tools/inference-playground/tests/cli_local_resume.rs",
-"owner": "/root/r118_implementation_lane",
-"state": "FROZEN"
+"path":"tools/inference-playground/tests/cli_local_resume.rs",
+"owner":"/root/r118_implementation_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/inbox/20261019-r120-implementation.md",
-"owner": "/root/r118_implementation_lane",
-"state": "FROZEN"
+"path":"tasks/agent-loop/inbox/20261019-r120-implementation.md",
+"owner":"/root/r118_implementation_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/outward-root-suffix-cli-20261019-r121-rev1.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/outward-root-suffix-cli-20261019-r121-rev1.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "notes/theory/2026-10-19-r121-outward-root-suffix.md",
-"owner": "/root/r118_proof_lane",
-"state": "FROZEN"
+"path":"notes/theory/2026-10-19-r121-outward-root-suffix.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/inbox/20261019-r121-proof.md",
-"owner": "/root/r118_proof_lane",
-"state": "FROZEN"
+"path":"tasks/agent-loop/inbox/20261019-r121-proof.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
 },
 {
-"path": "tools/inference-playground/tests/cli_outward_root_suffix.rs",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tools/inference-playground/tests/cli_outward_root_suffix.rs",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/inbox/20261019-r121-implementation.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/inbox/20261019-r121-implementation.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev1.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev1.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev2.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev2.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev3.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev3.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev4.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev4.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "notes/theory/2026-10-19-r122-receiver-permission.md",
-"owner": "/root/r118_proof_lane",
-"state": "FROZEN"
+"path":"notes/theory/2026-10-19-r122-receiver-permission.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/inbox/20261019-r122-proof.md",
-"owner": "/root/r118_proof_lane",
-"state": "FROZEN"
+"path":"tasks/agent-loop/inbox/20261019-r122-proof.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
 },
 {
-"path": "tools/inference-playground/tests/cli_receiver_permission.rs",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tools/inference-playground/tests/cli_receiver_permission.rs",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/inbox/20261019-r122-implementation.md",
-"owner": "/root/r118_implementation_lane",
-"state": "FROZEN"
+"path":"tasks/agent-loop/inbox/20261019-r122-implementation.md",
+"owner":"/root/r118_implementation_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev5.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev5.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev6.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev6.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev7.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev7.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev1.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev1.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev2.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev2.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev3.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev3.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "notes/theory/2026-10-19-r123-method-annotation-source.md",
-"owner": "/root/r118_proof_lane",
-"state": "FROZEN"
+"path":"notes/theory/2026-10-19-r123-method-annotation-source.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/inbox/20261019-r123-proof.md",
-"owner": "/root/r118_proof_lane",
-"state": "FROZEN"
+"path":"tasks/agent-loop/inbox/20261019-r123-proof.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
 },
 {
-"path": "crates/yu-hir/src/tests/shadow_method_role_source.rs",
-"owner": "/root/r118_implementation_lane",
-"state": "FROZEN"
+"path":"crates/yu-hir/src/tests/shadow_method_role_source.rs",
+"owner":"/root/r118_implementation_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/inbox/20261019-r123-implementation.md",
-"owner": "/root/r118_implementation_lane",
-"state": "FROZEN"
+"path":"tasks/agent-loop/inbox/20261019-r123-implementation.md",
+"owner":"/root/r118_implementation_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev4.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev4.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "notes/progress/2026-10-19-r123-closeout.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"notes/progress/2026-10-19-r123-closeout.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev1.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev1.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev2.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev2.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "notes/theory/2026-10-19-r124-response-entry.md",
-"owner": "/root/r118_proof_lane",
-"state": "FROZEN"
+"path":"notes/theory/2026-10-19-r124-response-entry.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/inbox/20261019-r124-proof.md",
-"owner": "/root/r118_proof_lane",
-"state": "FROZEN"
+"path":"tasks/agent-loop/inbox/20261019-r124-proof.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
 },
 {
-"path": "tools/inference-playground/tests/cli_response_entry.rs",
-"owner": "/root/r118_implementation_lane",
-"state": "FROZEN"
+"path":"tools/inference-playground/tests/cli_response_entry.rs",
+"owner":"/root/r118_implementation_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/inbox/20261019-r124-implementation.md",
-"owner": "/root/r118_implementation_lane",
-"state": "FROZEN"
+"path":"tasks/agent-loop/inbox/20261019-r124-implementation.md",
+"owner":"/root/r118_implementation_lane",
+"state":"FROZEN"
 },
 {
-"path": "tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev3.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev3.md",
+"owner":"/root",
+"state":"FROZEN"
 },
 {
-"path": "notes/progress/2026-10-19-r124-closeout.md",
-"owner": "/root",
-"state": "FROZEN"
+"path":"notes/progress/2026-10-19-r124-closeout.md",
+"owner":"/root",
+"state":"FROZEN"
+},
+{
+"path":"tasks/agent-loop/sprints/returned-closure-binder-cli-20261019-r125-rev1.md",
+"owner":"/root",
+"state":"FROZEN"
+},
+{
+"path":"tasks/agent-loop/sprints/returned-closure-binder-cli-20261019-r125-rev2.md",
+"owner":"/root",
+"state":"FROZEN"
+},
+{
+"path":"notes/theory/2026-10-19-r125-returned-closure.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
+},
+{
+"path":"tasks/agent-loop/inbox/20261019-r125-proof.md",
+"owner":"/root/r118_proof_lane",
+"state":"FROZEN"
+},
+{
+"path":"tools/inference-playground/tests/cli_returned_closure.rs",
+"owner":"/root/r118_implementation_lane",
+"state":"FROZEN"
+},
+{
+"path":"tasks/agent-loop/inbox/20261019-r125-implementation.md",
+"owner":"/root/r118_implementation_lane",
+"state":"FROZEN"
+},
+{
+"path":"notes/progress/2026-10-19-r125-closeout.md",
+"owner":"/root",
+"state":"FROZEN"
 }
 ],
-"pending": [
+"pending":[
 {
-"id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
-"state": "OPEN",
-"owner": "Luna; original whole-ascription formation obligation",
-"details": "tasks/agent-loop/inbox/20261019-r61-proof.md",
-"falsifier": "See frozen gate record."
+"id":"R61-SOURCE-ASCRIPTION-FORMATION-1",
+"state":"OPEN",
+"owner":"Luna; original whole-ascription formation obligation",
+"details":"tasks/agent-loop/inbox/20261019-r61-proof.md",
+"falsifier":"See frozen gate record."
 },
 {
-"id": "R64-SRC-ANN-ARG-1",
-"state": "OPEN",
-"owner": "Luna; downstream of the current operand supplier",
-"details": "tasks/agent-loop/inbox/20261019-r64-proof.md",
-"falsifier": "See frozen gate record."
+"id":"R64-SRC-ANN-ARG-1",
+"state":"OPEN",
+"owner":"Luna; downstream of the current operand supplier",
+"details":"tasks/agent-loop/inbox/20261019-r64-proof.md",
+"falsifier":"See frozen gate record."
 },
 {
-"id": "R65-CURRENT-OPERAND-1",
-"state": "OPEN",
-"owner": "Luna; original ordinary typed Lambda operand supplier",
-"details": "tasks/agent-loop/inbox/20261019-r65-proof.md",
-"falsifier": "See frozen gate record."
+"id":"R65-CURRENT-OPERAND-1",
+"state":"OPEN",
+"owner":"Luna; original ordinary typed Lambda operand supplier",
+"details":"tasks/agent-loop/inbox/20261019-r65-proof.md",
+"falsifier":"See frozen gate record."
 },
 {
-"id": "R66-LAMBDA-RESULT-STAGE-1",
-"state": "OPEN",
-"owner": "Luna; direct Lambda-checking follow-up under R67",
-"details": "tasks/agent-loop/inbox/20261019-r66-proof.md",
-"falsifier": "See frozen gate record."
+"id":"R66-LAMBDA-RESULT-STAGE-1",
+"state":"OPEN",
+"owner":"Luna; direct Lambda-checking follow-up under R67",
+"details":"tasks/agent-loop/inbox/20261019-r66-proof.md",
+"falsifier":"See frozen gate record."
 },
 {
-"id": "R67-DIRECT-BODY-CHECK-1",
-"state": "OPEN",
-"owner": "Luna; source Lambda checking/body-consumer premise",
-"details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md",
-"falsifier": "See frozen gate record."
+"id":"R67-DIRECT-BODY-CHECK-1",
+"state":"OPEN",
+"owner":"Luna; source Lambda checking/body-consumer premise",
+"details":"notes/theory/2026-10-19-r67-direct-lambda-checking.md",
+"falsifier":"See frozen gate record."
 },
 {
-"id": "R68-OWNER-CONSUMER-1",
-"state": "OPEN",
-"owner": "Luna; authentic retained body/result-consumer source owner",
-"details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
-"falsifier": "See frozen gate record."
+"id":"R68-OWNER-CONSUMER-1",
+"state":"OPEN",
+"owner":"Luna; authentic retained body/result-consumer source owner",
+"details":"tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
+"falsifier":"See frozen gate record."
 },
 {
-"id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
-"state": "OPEN_UNADOPTED_PROPOSAL",
-"owner": "Luna; source-law completion",
-"details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md",
-"falsifier": "See frozen gate record."
+"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+"state":"OPEN_UNADOPTED_PROPOSAL",
+"owner":"Luna; source-law completion",
+"details":"tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md",
+"falsifier":"See frozen gate record."
 },
 {
-"id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
-"state": "OPEN",
-"owner": "Luna; exact source/native owners assigned within R70",
-"details": "tasks/agent-loop/inbox/20261019-r70-proof.md",
-"falsifier": "See frozen gate record."
+"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+"state":"OPEN",
+"owner":"Luna; exact source/native owners assigned within R70",
+"details":"tasks/agent-loop/inbox/20261019-r70-proof.md",
+"falsifier":"See frozen gate record."
 },
 {
-"id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
-"state": "OPEN",
-"owner": "Luna; exact source/native owners assigned within R71",
-"details": "tasks/agent-loop/inbox/20261019-r71-proof.md",
-"falsifier": "See frozen gate record."
+"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+"state":"OPEN",
+"owner":"Luna; exact source/native owners assigned within R71",
+"details":"tasks/agent-loop/inbox/20261019-r71-proof.md",
+"falsifier":"See frozen gate record."
 },
 {
-"id": "R72-LATER-OCCURRENCE-1",
-"state": "OPEN",
-"owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
-"details": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
-"falsifier": "See frozen gate record."
+"id":"R72-LATER-OCCURRENCE-1",
+"state":"OPEN",
+"owner":"Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
+"details":"notes/theory/2026-10-19-r72-third-owner-prefix.md",
+"falsifier":"See frozen gate record."
 }
 ],
-"closure": "R124 conditional response-order witness committed after three CLEAN reviews and public CLI PASS; effect hygiene and all semantic parents remain OPEN.",
-"next_action": "R125 candidate: static-to-runtime binder correspondence through returned closure, plus ordinary stdin CLI evidence. It rotates after R124 effectful resumption and complements R123 method/role source proof.",
-"legacy_reconciliation": {
-"required": false,
-"reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
-"source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+"closure":"R125 conditional returned-closure binder/environment witness and public CLI observation frozen after CLEAN reviews and PASS; integration pending, semantic parents OPEN.",
+"next_action":"Next selection must rotate among six distinct effect-hygiene fronts, method/role source proofs, and ordinary/effectful runnable surfaces. Do not let a single effect front monopolize work; R125 closeout records four concrete candidates.",
+"legacy_reconciliation":{
+"required":false,
+"reason":"Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
+"source_blob":"c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
 },
-"state_audit": {
-"reviewer": "/root/goal_sprint_migration_review",
-"result": "CLEAN delta; migration omissions/schema repaired; three UNKNOWN identities and board quarantine retained.",
-"open_minors": [
+"state_audit":{
+"reviewer":"/root/goal_sprint_migration_review",
+"result":"CLEAN delta; migration omissions/schema repaired; three UNKNOWN identities and board quarantine retained.",
+"open_minors":[
 "AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
 ]
 },
-"user_goal": "Proof-backed type inference/evaluator with breadth and depth. Advance all six distinct effect-hygiene fronts over time; do not let storage/fiber analysis or any single front monopolize work. Prove method syntax/role behavior with source correspondence and make ordinary/effectful source execution runnable early. Preserve original Simple-sub/evaluator A/B claims and semantic adoption gates. Luna alone integrates and pushes coherent reviewed checkpoints.",
-"history": [
+"user_goal":"Proof-backed type inference/evaluator with breadth and depth. Advance all six distinct effect-hygiene fronts over time; rotate among them rather than letting one front monopolize work. Prove method syntax and role behavior with source correspondence, and make ordinary/effectful source execution runnable early. Preserve original Simple-sub/evaluator A/B claims and semantic adoption gates. Luna alone integrates and pushes coherent reviewed checkpoints.",
+"history":[
 {
-"id": "R123",
-"state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-"contract": "tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev4.md",
-"verification": "three final delta reviews CLEAN; exact targeted yu-hir test PASS (1 passed); all parents OPEN",
-"closeout": "notes/progress/2026-10-19-r123-closeout.md"
+"id":"R123",
+"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+"contract":"tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev4.md",
+"verification":"three final delta reviews CLEAN; exact targeted yu-hir test PASS (1 passed); all parents OPEN",
+"closeout":"notes/progress/2026-10-19-r123-closeout.md"
 },
 {
-"id": "R124",
-"state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-"contract": "tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev3.md",
-"verification": "three final reviews CLEAN; exact stdin CLI test PASS (1 passed); all parents OPEN",
-"closeout": "notes/progress/2026-10-19-r124-closeout.md"
+"id":"R124",
+"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+"contract":"tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev3.md",
+"verification":"three final reviews CLEAN; exact stdin CLI test PASS (1 passed); all parents OPEN",
+"closeout":"notes/progress/2026-10-19-r124-closeout.md",
+"commit":"145aca5f6"
+},
+{
+"id":"R125",
+"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+"contract":"tasks/agent-loop/sprints/returned-closure-binder-cli-20261019-r125-rev2.md",
+"verification":"three final reviews CLEAN; exact stdin CLI command PASS (1 passed); all H/A/E/B and parent gates OPEN",
+"closeout":"notes/progress/2026-10-19-r125-closeout.md"
 }
 ]
 }
