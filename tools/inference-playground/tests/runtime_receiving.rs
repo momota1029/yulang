@@ -98,6 +98,22 @@ fn a_different_operation_arm_does_not_preempt_the_exact_operation() {
 }
 
 #[test]
+fn same_operation_arms_follow_source_order() {
+    assert_integer(
+        &format!(
+            "{IO}my relay (thunk:[io] int) = catch thunk {{ io::tick(p), _ -> 11, io::tick(p), _ -> 23 }}\nmy main = relay (io::tick 7)"
+        ),
+        "11",
+    );
+    assert_integer(
+        &format!(
+            "{IO}my relay (thunk:[io] int) = catch thunk {{ io::tick(p), _ -> 23, io::tick(p), _ -> 11 }}\nmy main = relay (io::tick 7)"
+        ),
+        "23",
+    );
+}
+
+#[test]
 fn selected_operation_arm_runs_outside_its_shallow_handler() {
     let source = format!(
         "{IO}my relay (thunk:[io] int) = catch thunk {{ io::tick(p), _ -> io::other p, io::other(p), _ -> 99 }}\nmy main = relay (io::tick 7)"

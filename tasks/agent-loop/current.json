@@ -2,118 +2,92 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r86-reconcile",
+  "session": "current-conversation-2026-10-19-r88-source-bridge",
   "active_sprint": {
-    "id": "effect-hygiene-runnable-role-positive-20261019-r85",
-    "contract": "tasks/agent-loop/sprints/effect-hygiene-runnable-role-positive-20261019-r85.md",
+    "id": "ordered-selection-source-bridge-20261019-r88",
+    "contract": "tasks/agent-loop/sprints/ordered-selection-source-bridge-20261019-r88.md",
     "revision": 1,
-    "state": "AWAITING_USER_ADOPTION",
-    "baseline": "af3ccf2d63ba7f87e0359e183568db548ea53307",
-    "contract_sha256": "6bab1a76954829dee5c84e438dee66ebb3bac43b7ea7abb403485ae8bd51c62e",
-    "canonical_decision": "notes/design/2026-10-19-r85-role-call-positive-contract.md",
-    "canonical_sha256": "fee3feaec5e8873fe4f056df3a9ae9ca16c342f0a8b314c027a35719eedd4609",
-    "parent": "Original Simple-sub/evaluator and A/B unchanged; OPEN 0→0; R50 NOT_ADOPTED.",
-    "user_priority": "Breadth and depth together: maintain the six effect-hygiene frontiers as a live evidence map; pursue bounded proofs on representative effect preservation and method/role behavior; make a runnable source-to-runtime surface an early milestone. No indefinite storage/fiber analysis.",
-    "selector": "Stop three-way classifier; use positive certificate relation. Separate InterfaceMatch, CheckedBody and ValidatedTarget; exact canonical file is sole semantic decision surface.",
-    "predecessors": {
-      "R84_closeout": "2fa55b61aaf430e29be13274ee0d624887c5efd160f7126af8b9e4325e016bf5",
-      "R84_source_path": "c5cb26e5e70739b7ea467c13ccd89bf0219aa538ba78a3917ea75ae1240f4165",
-      "R81_proof": "d3b3d52e19332506c6fab8eea7878a5ff1c81f90cf96dff548b30ab5f88c767f",
-      "R80_manifest": "a54331b710300baeb0b88a2032dccc0cf73a7cca838242643255e44108179803"
-    },
+    "state": "DONE",
+    "baseline": "acb4366cfd901fe286d692a04336e7ace2c8c949",
+    "contract_sha256": "56708a4a531bb55b996632bdce3e5fb1e06b8ce4b4903ca5988a4f6f368bb195",
+    "manifest": "tasks/agent-loop/sprints/r88-source-manifest-20261019.md",
+    "manifest_sha256": "c6321c23f92259a255098d1f7528ee532c899d12cb0fea70959e7dce95a65fe5",
+    "parent": "Original effect hygiene/source-native and evaluator/type-inference objective unchanged; A/B OPEN 0→0; R50 NOT_ADOPTED.",
+    "user_priority": "Breadth and depth: keep all six hygiene fronts live; prove representative effect and method/role paths; make ordinary and effectful source execution runnable early; avoid indefinite storage/fiber focus.",
+    "authority": "Existing ordered Catch semantics only; R85 exact role semantics remain AWAITING_USER_ADOPTION.",
     "resources": {
-      "stage1_cap_seconds": 1200,
-      "allocation": "Luna300+proof300+compiler200+spec200+integration200; charged at grant; Astra0; no carryover."
+      "cap_seconds": 1920,
+      "allocation": "proof600+implementer420+verification120+compiler240+spec240+integration300; Astra0; no carryover."
     },
     "verification": {
-      "commands_authorized": [],
-      "note": "No tests/builds/probes/CLI/Git/source edits. Reuse frozen R84 source handoff; no new source reads unless independent pinned falsifier."
+      "commands_authorized": [
+        "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test runtime_receiving -- --test-threads=1"
+      ],
+      "owner": "Luna primary; one command after both lanes freeze"
     },
     "outputs": {
-      "canonical": "notes/design/2026-10-19-r85-role-call-positive-contract.md",
-      "proof": "notes/theory/2026-10-19-r85-role-call-preservation.md",
-      "proof_handoff": "tasks/agent-loop/inbox/20261019-r85-proof.md",
-      "readiness": "notes/progress/2026-10-19-r85-readiness.md",
-      "closeout": "notes/progress/2026-10-19-r85-closeout.md"
+      "proof": "notes/theory/2026-10-19-r88-ordered-selection-source-bridge.md",
+      "proof_handoff": "tasks/agent-loop/inbox/20261019-r88-proof.md",
+      "implementation": "tools/inference-playground/tests/runtime_receiving.rs (one new test only)",
+      "closeout": "notes/progress/2026-10-19-r88-closeout.md"
     },
-    "next_action": "Keep R85 semantics unadopted; preserve the broad type-inference/evaluator objective. R85 implementation waits for explicit adoption; no code/test authority is supplied by its review.",
-    "proof_sha256": "92d207aecb043c102409c543758213511c9843c9302e09fcc415c76fb6fea259",
-    "proof_handoff_sha256": "9aa0062e381a4fd83583d585857583a726b6e123ccbb11ad6bca2c6fa9886e4c",
-    "readiness_sha256": "addca293221ff794f68fcaec060a397f549478b0a9d6e8c9c988232bcee4a6fd",
-    "review_inputs": {
-      "contract": "6bab1a76954829dee5c84e438dee66ebb3bac43b7ea7abb403485ae8bd51c62e",
-      "canonical": "fee3feaec5e8873fe4f056df3a9ae9ca16c342f0a8b314c027a35719eedd4609",
-      "proof": "92d207aecb043c102409c543758213511c9843c9302e09fcc415c76fb6fea259",
-      "proof_handoff": "9aa0062e381a4fd83583d585857583a726b6e123ccbb11ad6bca2c6fa9886e4c",
-      "R84_source_path": "c5cb26e5e70739b7ea467c13ccd89bf0219aa538ba78a3917ea75ae1240f4165",
-      "R84_readiness": "f2e722c7078d0c3eb80f04535a3b5223c6193fac13ee29547ae6e5d11d2ff578",
-      "R84_closeout": "2fa55b61aaf430e29be13274ee0d624887c5efd160f7126af8b9e4325e016bf5",
-      "R81_proof": "d3b3d52e19332506c6fab8eea7878a5ff1c81f90cf96dff548b30ab5f88c767f",
-      "R80_manifest": "a54331b710300baeb0b88a2032dccc0cf73a7cca838242643255e44108179803",
-      "readiness": "addca293221ff794f68fcaec060a397f549478b0a9d6e8c9c988232bcee4a6fd"
-    },
-    "review": {
-      "compiler": "CLEAN; inline final verdict from /root/r85_compiler_review; no blocking/major/minor; 10 hashes and 103 pins matched.",
-      "spec": "No blocking/major; inline final verdict from /root/r85_spec_review; one minor non-semantic stale sprint-id spelling; intended ID recorded; canonical unchanged."
-    },
-    "metadata_resolution": "Canonical line 5 says effect-hygiene-runnable-role-slice-20261019-r85; intended R85 id is effect-hygiene-runnable-role-positive-20261019-r85. This is a provenance typo. Keep canonical bytes frozen; correction requires replan and refreshed hashes/reviews.",
-    "closeout_sha256": "96225be463777ac0e7924bf52163b168cf9908d6ccfa800743f7e628690c0097"
+    "next_action": "R88 closed: reviewed exact U/O/S source-constructor bridge and one passing ordered-selection contrast. Keep R85 adoption pending. Route next approved work toward role/method proof and runnable surface without losing the six open hygiene fronts.",
+    "implementation_sha256": "355c3cfb6b505780b0eeaf93e6f5b2b443182b2be20912824383b4a6b8bfd357",
+    "proof_sha256": "185eff03dfcef4cd9ea346434d60e34b39fcc0f34d46641b160decb58f0f1782",
+    "proof_handoff_sha256": "8c10cd6f2271ea4830274b5d20b303c518ac268c82d5a7c491d11276cc3ac639",
+    "evidence_note": "Proof producer matched 102 immutable manifest entries; implementation-owned test path excluded after authorized edit. Full R88 verification command remains pending.",
+    "verification_result": "PASS: authorized runtime_receiving command; 19 passed, 0 failed; exit 0; 0.62s test execution after incremental compile.",
+    "review_status": "Two fresh isolated read-only reviewers RUNNING; compiler/source and specification conformance, 240s each.",
+    "spec_review": "CLEAN: no blocking/major/minor; scope, claims and exact test slice conform.",
+    "compiler_review": "CLEAN: no blocking/major/minor; source constructor and consumer claims match; 102 immutable pins matched.",
+    "closeout": "notes/progress/2026-10-19-r88-closeout.md",
+    "closeout_sha256": "930a3cdb2749e3c9de6b5e131c9370a703e4f5d30b9a402aaf230f28b5b3a7b1",
+    "end_selector": "R89 candidate: original unmatched effectful suffix after raw resumption; independent of R85; 600s proof + 420s one runtime contrast; require Luna re-pin, new contract and source evidence before grant."
   },
   "workers": [
     {
       "id": "/root",
-      "role": "Luna primary; authority, current-state owner, review adjudication and sole Git integrator",
+      "role": "Luna primary, authority/state/review/Git owner",
       "state": "WAITING",
-      "session": "current-conversation-2026-10-19-r86-reconcile",
+      "session": "current-conversation-2026-10-19-r88-source-bridge",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Primary-only probes: ordinary identity/Apply returned 42; one handled tick Computation/continuation path returned 11. Both are exploratory yu-playground evidence. Role source attempts stop at structural diagnostics; no source edits. No child writers are active."
+      "receipt": "Ready to activate exact R88 leases; runtime evidence only after actual spawn receipts."
+    },
+    {
+      "id": "/root/r88_proof",
+      "role": "R88 constructive source-to-HIR bridge proof",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-19-r88-source-bridge",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Frozen proof and handoff; proof SHA 185eff03dfcef4cd9ea346434d60e34b39fcc0f34d46641b160decb58f0f1782; handoff SHA 8c10cd6f2271ea4830274b5d20b303c518ac268c82d5a7c491d11276cc3ac639; writes stopped, no descendants. 102 immutable dependencies matched; 600s charged; model/effort UNKNOWN."
+    },
+    {
+      "id": "/root/r88_implementation",
+      "role": "R88 one runtime order-contrast test",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-19-r88-source-bridge",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Frozen one-test implementation, SHA-256 355c3cfb6b505780b0eeaf93e6f5b2b443182b2be20912824383b4a6b8bfd357; writer stop confirmed; no execution or Git."
     },
     {
       "id": "/root/r85_positive_proof",
-      "role": "R85 positive InterfaceMatch §21 preservation and conditional ordinary-Apply proof",
+      "role": "R85 frozen proof artifact author",
       "state": "STOPPED",
       "session": "current-conversation-2026-10-19-r85-stage1",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Frozen candidate positive-relation proof and handoff; 300s charged; no source/tests/CLI/Git/descendants."
-    },
-    {
-      "id": "/root/r85_compiler_review",
-      "role": "R85 independent compiler/source path review",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-19-r85-stage1",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Frozen independent read-only review; no edits/execution/descendants."
-    },
-    {
-      "id": "/root/r85_spec_review",
-      "role": "R85 independent specification/adoption review",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-19-r85-stage1",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Frozen independent read-only review; no edits/execution/descendants."
-    },
-    {
-      "id": "/root/goal_sprint_migration_review",
-      "role": "fresh isolated one-time workflow migration spec review",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-19-r86-reconcile",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Historical migration review was already CLEAN before 18fd5363e activation. Fresh R86 audit found current-state omissions/schema drift plus two minor inherited issues; findings recorded in current state. Read-only; no descendants."
+      "receipt": "Frozen proof and handoff remain immutable; writer stopped in R85 closeout."
     },
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -147,19 +121,31 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Historical P2 proof output is frozen; no successor output lease. Identity remains UNKNOWN."
+    },
+    {
+      "id": "/root/r88_compiler_review",
+      "role": "fresh independent compiler/source review",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-19-r88-source-bridge",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "CLEAN: no findings; 102 immutable pins and all target hashes matched. R78-SOURCE-HIR-1 only; native/universal obligations OPEN. Read-only; no execution/Git; model UNKNOWN."
+    },
+    {
+      "id": "/root/r88_spec_review",
+      "role": "fresh independent specification/conformance review",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-19-r88-source-bridge",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "CLEAN: no findings; scope, claim classes and exact test-only slice conform. 102 immutable pins matched; no tests rerun; model UNKNOWN."
     }
   ],
   "leases": [
-    {
-      "path": "tasks/agent-loop/current.json",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/effect-hygiene-runnable-role-positive-20261019-r85.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
     {
       "path": "notes/design/2026-10-19-r85-role-call-positive-contract.md",
       "owner": "/root",
@@ -190,6 +176,41 @@
       "owner": "/root/resident_dispatcher_loop_a",
       "state": "QUARANTINED",
       "reason": "Historical writer identity remains UNKNOWN; no current cessation/handoff evidence for board.md."
+    },
+    {
+      "path": "tasks/agent-loop/current.json",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/ordered-selection-source-bridge-20261019-r88.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/r88-source-manifest-20261019.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-19-r88-ordered-selection-source-bridge.md",
+      "owner": "/root/r88_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r88-proof.md",
+      "owner": "/root/r88_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tools/inference-playground/tests/runtime_receiving.rs",
+      "owner": "/root/r88_implementation",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/progress/2026-10-19-r88-closeout.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -264,9 +285,9 @@
       "falsifier": "See frozen gate record."
     }
   ],
-  "closure": "R85 reviewed conditionally; exact offer awaits user adoption. Current main is 99/103 against frozen R80 manifest due four quarantined R74-R77 source overlay deltas; historical review remains scoped to frozen snapshot. Six effect-hygiene fronts OPEN; P1-P4 OPEN; parent/evaluator A/B OPEN 0→0; R50 NOT_ADOPTED. Unknown legacy reservations remain preserved and board quarantined.",
-  "next_action": "Runnable probe record: notes/progress/2026-10-19-runnable-surface-baseline.md. Experimental yu-playground returns 42 for identity/Apply and 11 for one handled tick/resumption path; neither closes proof or production gates. R85 exact positive InterfaceMatch offer SHA fee3feaec5e8873fe4f056df3a9ae9ca16c342f0a8b314c027a35719eedd4609 still awaits adoption. After that authority boundary, pin current main and freeze a vertical role-call implementation sprint paired with one representative hygiene obligation; keep all six tracked.",
-  "worker_inventory_scope": "Current collaboration inventory reconciled: all R85 and R86 children STOPPED; R86 migration reviewer STOPPED. Three inherited legacy identities remain UNKNOWN and retained below. The former board.md lease remains QUARANTINED; resident_implementer_idle consumes one assignment-slot reservation; the frozen P2 proof has no successor output lease. No legacy cessation is inferred from current-session child completion.",
+  "closure": "R88 CLEAN: both independent reviews CLEAN; one runtime test command 19/19. Applied candidate constructor bridge only to exact R78 U/O/S premise. Six effect-hygiene fronts, native/source correspondence, parent/evaluator A/B OPEN 0→0; R50 NOT_ADOPTED; R85 AWAITING_USER_ADOPTION. Three legacy UNKNOWN reservations and board quarantine preserved.",
+  "next_action": "Dispatcher R89 candidate: prove/test one original unmatched write request after raw resumption, independent of R85. First integrate/push the reviewed R88 checkpoint. R89 requires fresh pins and a separate contract; method/role remains gated on exact R85 adoption. Preserve six open hygiene fronts.",
+  "worker_inventory_scope": "All R88 producers and reviewers STOPPED with frozen outputs/receipts. Three inherited legacy identities remain UNKNOWN and retained; former board.md lease QUARANTINED; legacy idle implementer consumes one assignment slot. No unknown lease reclaimed.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -275,13 +296,11 @@
     "action": "Restored the three UNKNOWN identities and board quarantine from the immutable activation snapshot 18fd5363e; kept later NPAIR handoff scope limited to its two transferred paths."
   },
   "state_audit": {
-    "reviewer": "/root/goal_sprint_migration_review; fresh isolated spec_auditor; read-only",
-    "result": "BLOCKING current-state omissions and major schema drift repaired by retaining unknown workers/quarantine and using supported phase/lease states. Historical migration review was already CLEAN before activation; original NOT_RUN receipt is historical.",
+    "reviewer": "/root/goal_sprint_migration_review",
+    "result": "CLEAN delta; migration omissions/schema repaired; three UNKNOWN identities and board quarantine retained.",
     "open_minors": [
-      "AGENTS.pre-sprint.md differs from its declared immutable baseline blob; active conversation style remains present.",
-      "Astra role prompt retains historical 8-stage/1800s wording, superseded by active three-stage/300s policy."
-    ],
-    "no_semantic_or_code_authority": true
+      "AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
+    ]
   },
-  "user_goal": "Proof-backed implementation of type inference and evaluator; Luna-only commits/pushes at coherent checkpoints; keep the working tree clean. Balance breadth and depth: track all six effect-hygiene frontiers, prove and implement representative end-to-end paths (including method/role syntax), and get an early runnable surface. Avoid indefinite storage/fiber analysis. Preserve original Simple-sub/evaluator claims and semantic adoption gates."
+  "user_goal": "Proof-backed implementation of type inference and evaluator; Luna-only commits/pushes at coherent checkpoints; keep the working tree clean. Balance breadth and depth across the six effect-hygiene frontiers, prove and implement representative effect and method/role behavior, and make ordinary plus effectful source execution runnable early. Avoid indefinite storage/fiber analysis. Preserve original Simple-sub/evaluator claims and semantic adoption gates."
 }
