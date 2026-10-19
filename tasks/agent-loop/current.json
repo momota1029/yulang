@@ -4,13 +4,13 @@
  "phase": "ACTIVE",
  "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
  "active_sprint": {
-  "id": "outward-root-suffix-cli-20261019-r121",
-  "contract": "tasks/agent-loop/sprints/outward-root-suffix-cli-20261019-r121-rev1.md",
-  "revision": 1,
-  "contract_sha256": "33c0c714e08667093732a8abb6ecf22ceed8547cae8459fa978b971996310fa8",
+  "id": "receiver-permission-cli-20261019-r122",
+  "contract": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev7.md",
+  "revision": 7,
+  "contract_sha256": "b29680fb01e98032dcf4472487190af97ddc19f8a4377d405cc7c0e586763cfd",
   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-  "baseline": "0d33b715b9f311674ec7ebf125b9d2f73d70f037",
-  "authority": "Finite paired effectful-root trace and test-only CLI observation under charter §§14–15 and approved module root ordering; no production authority, broad law, or semantic adoption.",
+  "baseline": "a1d04100f6b6d175f4ca0ec20831ccba3f5d7e0e",
+  "authority": "Finite nested receiving-view contrast and public CLI under charter §21 and §§14–15; conditional role/source bridge only; no language semantics, production edit or parent closure.",
   "resources": {
    "cap_seconds": 1800,
    "inventory_seconds": 180,
@@ -20,35 +20,29 @@
    "reviews_seconds": 300,
    "verification_seconds": 120,
    "closeout_seconds": 120,
-   "astra_assignments": 0
+   "astra_assignments": 0,
+   "charged_before_resume_seconds": 100,
+   "proof_seconds_charged": 509,
+   "implementation_seconds_charged": 100
   },
   "verification": {
    "commands": [
-    "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_outward_root_suffix -- --nocapture"
+    "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_receiver_permission -- --nocapture"
    ],
-   "result": "PASS: exact one-shot command exit 0; 1 passed. Positive success/7\\n/empty stderr; negative failure/empty stdout/Apply-range unhandled diagnostic. No retry."
+   "result": "PASS: sole authorized command exit 0; 2 passed, 0 failed. Existing public CLI pair at 10,000 steps and added direct-Machine pair at 30,000 transitions both observed; no retry. Eight HIR and three solver warnings match R117 retained-evidence audit."
   },
   "outputs": {
-   "proof": "notes/theory/2026-10-19-r121-outward-root-suffix.md",
-   "proof_handoff": "tasks/agent-loop/inbox/20261019-r121-proof.md",
-   "implementation": "tools/inference-playground/tests/cli_outward_root_suffix.rs",
-   "implementation_handoff": "tasks/agent-loop/inbox/20261019-r121-implementation.md",
-   "negative_source_sha256": "685aa2465d5a5b47d18447762637107b4cb0da5971d384fad7bc1ad56937448f",
-   "positive_source_sha256": "11f811ba795dfc8420aadd0706221fe14f1efa9a192b902bda5b7816d627924f",
-   "pre_spec_review": "CLEAN rev1; r118_prespec; contract SHA matched.",
-   "expected_cli": "positive success/7\\n/empty stderr; negative failure/empty stdout/existing unhandled-request diagnostic.",
-   "tools/inference-playground/tests/cli_outward_root_suffix.rs": "c56e1a2a58900728e87069f3e467ceabaa4e91886dc6befd8e79268d8b630f06",
-   "tasks/agent-loop/inbox/20261019-r121-implementation.md": "0abffb092443b92313910b9c5eedfae07abcfb6b8638e981c403d1b50ed8a779",
-   "notes/theory/2026-10-19-r121-outward-root-suffix.md": "8b9428ecbf64463426d961d0f2f57fcb78c24566724445d4f1ae7653f95602a4",
-   "tasks/agent-loop/inbox/20261019-r121-proof.md": "24be5af6a2a7c9ce468e8d08e3108346433659cc601143a44f5b4009fb4d07b3",
-   "review_round1": "Compiler, spec and regression found the incompatible root vector comparison and unsupported whole-operation span; conditional proof/authority claims clean.",
-   "review_delta": "Compiler/source CLEAN, spec/authority CLEAN, regression CLEAN; all round-1 findings closed by one Luna repair.",
-   "warning_audit": "8 HIR + 3 solver dead-code warnings reproduce the already reviewed R117 retained-evidence owners; no new warning from R121. Prior owner audit in notes/progress/2026-10-19-r117-closeout.md.",
-   "notes/progress/2026-10-19-r121-closeout.md": "2a7bc9e46255df739d4f9c13d08e110adb00165bf5a6137d6de36c6eb37aa0ce; reviews, command result, six-front map, and R122 candidate recorded."
+   "proof": "notes/theory/2026-10-19-r122-receiver-permission.md",
+   "proof_sha256": "de0aa652fad35e4dff03e361fc59bfbbb560aed6cc5e80302e4dcb9790c85cde",
+   "proof_handoff": "tasks/agent-loop/inbox/20261019-r122-proof.md",
+   "proof_handoff_sha256": "20738194f7c64bd4a4aed2d0443fcb2834d94294ca0899e0799803963f11d09f",
+   "implementation_candidate_sha256": "543271f4bea2f488c8997d82178fdf9cfdbcc6e85441bee58e5aa25cf0bb67",
+   "implementation_handoff_sha256": "144fdc25029c00b3fb07965072aeba3ce6eb3ba662f83fefb50a724e35a58012",
+   "protected_target_baseline_sha256": "8c083bf45f889aa69f1bdaec13ebbc6bcc20f032f7e29167862ef189a11e99e4"
   },
-  "review_status": "All three post-output reviews completed; initial findings repaired once; all three delta reviews CLEAN; exact one-shot test PASS; no retries.",
-  "open_premises": "H/A/P/B remain conditional/unobserved by proof author; actual CLI pass is finite only. Other five effect fronts, all parent/evaluator Simple-sub A/B, method/role M/T/A and R85 adoption remain OPEN.",
-   "next_action": "R122 candidate: wrong/sibling receiving permission CLI pair plus same-HIR prepare/execute evidence toward R117-JOIN-1. Validate pins before leasing. Keep method/role proof and runnable source progress near-term; rotate effect fronts."
+  "review_status": "Rev7 compiler/source, spec/authority and regression delta reviews CLEAN; one authorized command PASS; no retry.",
+  "open_premises": "Conditional source/runtime proof only. H/A/E and general source/native correspondence remain open; no effect parent, method M/T/A, R85 adoption or Simple-sub/evaluator A/B closes.",
+  "next_action": "Next slice: method syntax/role source correspondence without assuming R85 adoption; continue rotating effect fronts and early source execution."
  },
  "workers": [
   {
@@ -60,7 +54,7 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R121 all required reviews closed cleanly, one-shot public CLI test PASS, retained warnings audited, durable records updated; integration pending."
+   "receipt": "R122 rev7 freezes 10,000-step preserved CLI vs 30,000-step direct Machine distinction; exact three delta reviews pending; no executable command run."
   },
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -97,58 +91,58 @@
   },
   {
    "id": "/root/r118_proof_lane",
-   "role": "R121 constructive source/schedule proof",
+   "role": "R122 constructive receiving-view and same-HIR source bridge",
    "state": "STOPPED",
    "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
    "requested_model": "gpt-6-sol",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R121 proof rev1 frozen/STOPPED; exact negative live cursor and original Apply provenance plus positive full-root trace; H/A/P/B and parents OPEN; no commands."
+   "receipt": "R122 conditional proof and handoff frozen within original cap; Luna rev7 clarified public CLI bound separately; no executable verification/Git."
   },
   {
    "id": "/root/r118_implementation_lane",
-   "role": "R121 paired direct-Machine/public CLI test",
+   "role": "R122 paired direct-Machine/public CLI test",
    "state": "STOPPED",
    "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R121 outputs frozen and STOPPED; exact sources, root order, positive completion, negative tick/payload/HIR source/continuation and public CLI assertions added; no checks run."
+   "receipt": "R122 additive test preserves tracked R105 CLI test byte-for-byte; original implementation cap charged in full; no tests run."
   },
   {
    "id": "/root/r118_prespec",
-   "role": "R121 pre-spec reviewer",
+   "role": "R122 rev4 pre-spec reviewer",
    "state": "STOPPED",
    "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
    "requested_model": "gpt-6.1-sol",
    "requested_effort": "low",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "CLEAN review of exact R121 rev1; read-only inspection; no descendants."
+   "receipt": "CLEAN rev2 with exact 25 pins; CLEAN rev3 added runtime/mod.rs API pin; CLEAN rev4 inspection-command delta; read-only only."
   },
   {
    "id": "/root/r118_spec_review",
-   "role": "R121 spec/authority reviewer",
+   "role": "R122 rev5/rev6 pre-spec review",
    "state": "STOPPED",
    "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
    "requested_model": "gpt-6.1-sol",
    "requested_effort": "low",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R121 initial implementation findings/no authority issue; delta2 CLEAN exact-conformance closure; STOPPED."
+   "receipt": "Rev7 CLEAN: 10,000-step preserved CLI `.contains` assertion separated from 30,000-step Machine bound; one-shot gate and open parents intact."
   },
   {
    "id": "/root/r118_regression_review",
-   "role": "R121 regression reviewer",
+   "role": "R122 rev4 regression review",
    "state": "STOPPED",
    "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
    "requested_model": "gpt-6.1-sol",
    "requested_effort": "low",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R121 initial findings confirmed; delta2 CLEAN changed lines/API/diagnostic/test scope; STOPPED."
+   "receipt": "Rev7 CLEAN: target hash unchanged; first 1,535 bytes match protected R105 baseline; CLI budget/assertion distinct from Machine bound."
   }
  ],
  "leases": [
@@ -215,6 +209,61 @@
   },
   {
    "path": "tasks/agent-loop/inbox/20261019-r121-implementation.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev1.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev2.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev3.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev4.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/theory/2026-10-19-r122-receiver-permission.md",
+   "owner": "/root/r118_proof_lane",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r122-proof.md",
+   "owner": "/root/r118_proof_lane",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tools/inference-playground/tests/cli_receiver_permission.rs",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r122-implementation.md",
+   "owner": "/root/r118_implementation_lane",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev5.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev6.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev7.md",
    "owner": "/root",
    "state": "FROZEN"
   }
@@ -291,8 +340,8 @@
    "falsifier": "See frozen gate record."
   }
  ],
- "closure": "R121 passes one reviewed test-only paired surface observation: positive effectful two-root CLI outputs 7\\n; negative original tick request fails before live second root, with HIR Apply-range diagnostic. Conditional proof connects actual root schedule/cursor, but H/A/P/B parent premises remain OPEN.",
- "next_action": "R122 selector candidate: wrong/sibling receiving permission CLI pair plus same-HIR evidence toward R117-JOIN-1. Validate pins before leasing. Keep method/role proof and runnable source progress near-term; rotate effect fronts.",
+ "closure": "R122 one-shot test PASS: preserved R105 CLI pair (10,000 steps, original `.contains` assertion) and appended direct-Machine pair (30,000 transitions); all three rev7 delta reviews CLEAN. Conditional two-view/receipt proof and R117 caller identity subedge only; all parents remain OPEN.",
+ "next_action": "Complete R122 receiver-view pair and same-HIR evidence under exact leases. Keep method/role proof next in sequence; rotate effect fronts. No single front dominates.",
  "worker_inventory_scope": "Keep three inherited identities UNKNOWN and board lease quarantined. R114/R116/R117 STOPPED workers and FROZEN leases archived in local checkpoint 6caae031; no unknown writer or capacity reclaimed.",
  "legacy_reconciliation": {
   "required": false,
@@ -310,26 +359,6 @@
  },
  "user_goal": "Proof-backed type inference/evaluator with breadth and depth. Advance all six distinct effect-hygiene fronts over time; do not let storage/fiber analysis or any single front monopolize work. Prove method syntax/role behavior with source correspondence and make ordinary/effectful source execution runnable early. Preserve original Simple-sub/evaluator A/B claims and semantic adoption gates. Luna alone integrates and pushes coherent reviewed checkpoints.",
  "history": [
-  {
-   "id": "R113",
-   "state": "CLOSED_INPUT_BOUNDARY_PARTIAL_REVIEWED_NOT_RUN",
-   "closeout": "notes/progress/2026-10-19-r113-module-request-suffix.md"
-  },
-  {
-   "id": "R114",
-   "state": "CLOSED_INPUT_BOUNDARY_PARTIAL_REVIEWED_NOT_RUN",
-   "closeout": "notes/progress/2026-10-19-r114-wrong-family-permission.md"
-  },
-  {
-   "id": "R116",
-   "state": "CLOSED_REVIEWED_CLI_PASS_PENDING_WARNING_AUDIT_INTEGRATION",
-   "closeout": "notes/progress/2026-10-19-r116-closeout.md"
-  },
-  {
-   "id": "R117",
-   "state": "CLOSED_REVIEWED_TEST_BUILD_FAILURE_PRESERVED_LOCAL_CHECKPOINT",
-   "closeout": "notes/progress/2026-10-19-r117-closeout.md; local checkpoint 6caae031, not pushed"
-  },
   {
    "id": "R118",
    "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
@@ -357,6 +386,13 @@
    "baseline": "0d33b715b9f311674ec7ebf125b9d2f73d70f037",
    "verification": "one authorized CLI test PASS; all three post-output reviews and three delta reviews CLEAN; parents OPEN",
    "closeout": "notes/progress/2026-10-19-r121-closeout.md"
+  },
+  {
+   "id": "R122",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+   "contract": "tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev7.md",
+   "verification": "one authorized test target PASS (2 passed); compiler/source, spec/authority and regression rev7 delta reviews CLEAN; all parents OPEN",
+   "closeout": "notes/progress/2026-10-19-r122-closeout.md"
   }
  ]
 }

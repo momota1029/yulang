@@ -53,3 +53,57 @@ fn receiver_permission_controls_cli_publication() {
         .unwrap()
         .contains("runtime unavailable: HandlerEvidence"));
 }
+
+fn machine(source: &str) -> yu_playground::runtime::Machine {
+    let text: std::sync::Arc<yu_syntax::SourceText> = std::sync::Arc::from(source);
+    let parsed = yu_syntax::parse_file(
+        text.clone(),
+        std::sync::Arc::new(yu_syntax::scan_header(text)),
+        std::sync::Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+    );
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+    let hir = std::sync::Arc::new(
+        yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "cli-receiver-permission-machine",
+                "test.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        )
+        .unwrap(),
+    );
+    let candidate = yu_solver::shadow_apply::CandidateInference::solve(hir.clone()).unwrap();
+    assert!(candidate.candidate_conflicts().is_empty(), "{source}");
+    let program = yu_playground::runtime::RuntimeProgram::from_hir(
+        hir,
+        yu_playground::runtime::RuntimeEvidence::default(),
+    )
+    .unwrap();
+    let selected = program.definition_named("main").unwrap();
+    let roots = program.execution_roots().unwrap();
+    program.start(selected, &roots).unwrap()
+}
+
+#[test]
+fn nested_receiver_permission_has_distinct_machine_outcomes() {
+    let mut positive = machine(POSITIVE);
+    let positive_outcome = positive.run(30_000);
+    let yu_playground::runtime::RuntimeOutcome::Completed(value) = positive_outcome else {
+        panic!("positive nested receiver must complete: {positive_outcome:?}");
+    };
+    let yu_playground::runtime::RuntimeValueKind::Integer(value) =
+        &positive.value(value).unwrap().kind
+    else {
+        panic!("positive result must be an integer");
+    };
+    assert_eq!(value.as_ref(), "7");
+
+    let mut negative = machine(NEGATIVE);
+    assert!(matches!(
+        negative.run(30_000),
+        yu_playground::runtime::RuntimeOutcome::Unavailable(
+            yu_playground::runtime::RuntimeUnavailable::HandlerEvidence(_)
+        )
+    ));
+}
