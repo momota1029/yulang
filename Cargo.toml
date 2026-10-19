@@ -9,6 +9,7 @@ members = [
     "crates/yu-core",
     "crates/yu-backend-vm",
     "crates/yu-backend-native",
+    "apps/yulang-wasm",
     "tools/bench-runner",
     "tools/inference-playground",
     "tools/xtask",

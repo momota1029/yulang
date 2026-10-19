@@ -6,6 +6,21 @@ The optional `--run` mode executes a selected definition with a provisional
 source evaluator. This is a research tool, not the production compiler path;
 its output does not establish soundness, principality, or production admission.
 
+## Browser playground
+
+The experimental inference and execution entry points are also available in a
+local WebAssembly playground. From `web/playground/`, install the JavaScript
+dependencies once with `npm install`, then run `npm run dev` or create a static
+build with `npm run build`. `npm run check` builds the page and runs a Node
+smoke test against the generated Wasm; `npm run typecheck` checks the page
+sources. The browser runs inference and evaluation locally through
+`apps/yulang-wasm`; source is not sent to a server.
+
+The browser exposes the same source subset and limits as this playground. It
+does not provide Yulang2 compatibility, standard-library imports, arithmetic,
+or the production compiler. Unsupported source is reported by the current
+candidate/evaluator path rather than being assigned a new language diagnostic.
+
 ## Observe the inference graph by default
 
 From the repository root, pass one source path:

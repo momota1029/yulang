@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101518" />
+    <title>Yulang playground</title>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand-mark" aria-hidden="true">yu</div>
+        <div>
+          <p class="eyebrow">LANGUAGE PLAYGROUND</p>
+          <h1>Yulang, in the browser</h1>
+        </div>
+        <span class="runtime-tag"><span></span> runs locally</span>
+      </header>
+
+      <section class="intro">
+        <p>Write a small Yulang program, inspect its candidate inference graph, or run a definition.</p>
+        <p class="scope-note">This demo uses the current experimental inference path and provisional source evaluator.</p>
+      </section>
+
+      <section class="workspace" aria-label="Yulang playground">
+        <div class="editor-panel">
+          <div class="panel-heading">
+            <label for="source">Source</label>
+            <select id="example" aria-label="Load an example">
+              <option value="ordinary">Polymorphic identity</option>
+              <option value="effects">Handled operation</option>
+              <option value="conditional">Conditional</option>
+            </select>
+          </div>
+          <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Yulang source"></textarea>
+          <div class="controls">
+            <label class="definition-field">Run definition <input id="definition" value="main" /></label>
+            <div class="buttons">
+              <button id="infer" class="secondary">Inspect types</button>
+              <button id="run" class="primary">Run</button>
+            </div>
+          </div>
+        </div>
+
+        <section class="output-panel" aria-live="polite">
+          <div class="panel-heading output-heading">
+            <h2 id="output-title">Ready</h2>
+            <span id="status" class="status">local WASM</span>
+          </div>
+          <pre id="output">Choose an action to inspect or run your source.</pre>
+        </section>
+      </section>
+
+      <footer>
+        <span>Source stays in this browser tab.</span>
+        <span>Unsupported source is reported as a limitation of this demo.</span>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

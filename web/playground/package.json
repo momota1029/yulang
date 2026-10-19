@@ -1,0 +1,17 @@
+{
+  "name": "yulang-playground",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build:wasm": "wasm-pack build ../../apps/yulang-wasm --target web --out-dir ../../web/playground/src/wasm --release --no-opt",
+    "build": "npm run build:wasm && vite build",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run build && node ./smoke-test.mjs",
+    "dev": "npm run build:wasm && vite --host 127.0.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}

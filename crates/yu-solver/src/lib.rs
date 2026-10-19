@@ -1954,11 +1954,8 @@ impl ConstraintBatch {
             .intern(TermNode::Component(component.clone()))?;
         let position = self.component_terms.len();
         self.component_terms.push(term);
-        debug_assert!(
-            self.component_term_positions
-                .insert(term, position)
-                .is_none()
-        );
+        let previous = self.component_term_positions.insert(term, position);
+        debug_assert!(previous.is_none());
         self.counters.component_allocations += 1;
         Ok(component)
     }
@@ -1977,11 +1974,8 @@ impl ConstraintBatch {
             .intern(TermNode::Component(component.clone()))?;
         let position = self.component_terms.len();
         self.component_terms.push(term);
-        debug_assert!(
-            self.component_term_positions
-                .insert(term, position)
-                .is_none()
-        );
+        let previous = self.component_term_positions.insert(term, position);
+        debug_assert!(previous.is_none());
         self.counters.component_allocations += 1;
         Ok(component)
     }
