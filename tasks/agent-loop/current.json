@@ -40,7 +40,7 @@
 "test":"tools/inference-playground/tests/cli_value_arm_outside.rs",
 "implementation_handoff":"tasks/agent-loop/inbox/20261019-r126-implementation.md"
 },
-"review_status":"Three independent reviews CLEAN; exact test PASS; artifact checkpoint committed as 719d3a293; non-forced push receipt to follow.",
+"review_status":"Three independent reviews CLEAN; exact test PASS; committed as 719d3a293 and pushed non-forced through 40c404d37.",
 "open_premises":"Exact source/HIR identity H, successful candidate/runtime admission A, original value-return arm consumer transition E, and bounded machine/CLI outcomes B are separate candidate premises. All six effect-hygiene parents, method M/T/A, R85 adoption, and Simple-sub/evaluator A/B remain OPEN.",
 "next_action":"R126 is closed as a conditional witness. R127 native Value/Computation payload-entry remains a candidate pending fresh pins/pre-spec/grant; then rotate to method/role source correspondence."
 },
@@ -271,7 +271,7 @@
 "falsifier":"See frozen gate record."
 }
 ],
-"closure":"R126 conditional normal-value-arm delimiter-exit witness and paired public stdin observation committed as 719d3a293; H/A/E/B, all six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
+"closure":"R126 conditional normal-value-arm delimiter-exit witness and paired public stdin observation committed as 719d3a293 and pushed through 40c404d37; H/A/E/B, all six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
 "next_action":"R127 candidate: trace declaration-to-native Value/Computation entry and paired runnable outcomes; candidate only pending fresh pins/pre-spec/grant. Then method/role source correspondence.",
 "legacy_reconciliation":{
 "required":false,
@@ -306,13 +306,14 @@
 },
 {
 "id":"R126",
-"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS_PENDING_PUSH",
+"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
 "contract":"tasks/agent-loop/sprints/normal-value-arm-outside-20261019-r126-rev2.md",
 "contract_sha256":"80b994bb759e12f19888512fc2d99c0563eb6497a58e3af3db1b023123237be8",
 "verification":"three final reviews CLEAN; exact targeted stdin CLI test PASS (1 passed); all parents OPEN",
 "closeout":"notes/progress/2026-10-19-r126-closeout.md",
 "closeout_sha256":"0c59a0a453571d984587efdf825f9ea650010df7f453a78cc672c367b5d3f3d9",
-"commit":"719d3a293"
+"commit":"719d3a293",
+"push":"origin/research/simple-sub-intrusion succeeded non-forced through 40c404d37"
 }
 ]
 }
