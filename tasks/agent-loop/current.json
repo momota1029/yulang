@@ -2,59 +2,55 @@
 "schema_version":1,
 "mode":"LIVE",
 "phase":"ACTIVE",
-"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"session":"current-conversation-2026-10-19-r128-resume",
 "active_sprint":{
-"id":"native-payload-entry-cli-20261019-r127",
-"contract":"tasks/agent-loop/sprints/native-payload-entry-cli-20261019-r127-rev3.md",
+"id":"qualified-member-target-20261019-r128",
+"contract":"tasks/agent-loop/sprints/qualified-member-target-20261019-r128-rev3.md",
 "revision":3,
-"contract_sha256":"04b707e493f53e1fe35747c11ec1fadb57238a560e9f37d6b57d4865fb04fa7f",
-"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS_PENDING_PUSH",
-"baseline":"234d2b6d579f12e01448042a8d79d1cf145afb73",
-"authority":"Finite §21 declaration-argument role to native Value-before-publication versus Computation-payload publication for two exact sources; no general laziness/effect or permission theorem.",
+"contract_sha256":"0b7a1e2b625a1d95d62cbf63e19ef5c51d6ea1427baffc6b1820ed02b82a5273",
+"state":"PROOF_AND_IMPLEMENTATION_ACTIVE",
+"baseline":"8bad5d05f17b433b2c5164b91248462de3f7a6fe",
+"authority":"Finite source-to-HIR trace of qualified member head T and two Apply edges through operation namespace and candidate gate; no method selection/adoption or production implementation authority.",
 "resources":{
-"cap_seconds":1800,
+"cap_seconds":1500,
 "inventory_seconds":180,
-"prespec_seconds":300,
-"proof_seconds":540,
-"implementation_seconds":240,
-"reviews_seconds":300,
+"prespec_seconds":240,
+"proof_seconds":480,
+"implementation_seconds":180,
+"reviews_seconds":240,
 "verification_seconds":120,
-"closeout_seconds":120,
+"closeout_seconds":60,
 "inventory_seconds_charged":180,
-"prespec_seconds_charged":300,
-"proof_seconds_charged":540,
-"implementation_seconds_charged":240,
-"reviews_seconds_charged":300,
-"verification_seconds_charged":1,
-"closeout_seconds_charged":120
+"prespec_seconds_charged":240
 },
 "verification":{
 "commands":[
-"CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_native_payload_entry -- --exact native_operation_payload_role_controls_publication --nocapture"
+"cargo test -p yu-hir --lib tests::shadow_method_role_source::qualified_member_head_routes_through_operation_namespace_without_target_join -- --exact"
 ],
-"result":"PASS; exit 0; 1 passed, 0 failed, 0 ignored; exact Value fuel-exhaustion and Computation unhandled-request stderr bytes with terminal LF."
+"result":"NOT_RUN; gated on proof/implementation STOP and three CLEAN reviews."
 },
 "outputs":{
-"proof":"notes/theory/2026-10-19-r127-native-payload-entry.md",
-"proof_handoff":"tasks/agent-loop/inbox/20261019-r127-proof.md",
-"test":"tools/inference-playground/tests/cli_native_payload_entry.rs",
-"implementation_handoff":"tasks/agent-loop/inbox/20261019-r127-implementation.md"
+"proof":"notes/theory/2026-10-19-r128-qualified-member-target.md",
+"proof_handoff":"tasks/agent-loop/inbox/20261019-r128-proof.md",
+"test":"crates/yu-hir/src/tests/shadow_method_role_source.rs",
+"implementation_handoff":"tasks/agent-loop/inbox/20261019-r128-implementation.md",
+"contract_previous":"tasks/agent-loop/sprints/qualified-member-target-20261019-r128-rev2.md"
 },
-"review_status":"Three independent reviews CLEAN; exact test PASS; artifact checkpoint committed as 2a5790da1; non-forced push receipt to follow.",
-"open_premises":"Source/declaration/HIR identity H, successful candidate/runtime admission A, declaration-owned native consumer transition E, and bounded Machine/CLI outcomes B are candidate premises. All six effect-hygiene parents, method M/T/A, R85 adoption, and Simple-sub/evaluator A/B remain OPEN.",
-"next_action":"After push, prepare the R128 method-target join T candidate from the unchanged R119 fixture; no method semantics or R85 adoption implied."
+"review_status":"Rev3 delta CLEAN: reviewer confirmed contract SHA and yu-hir/src/lib.rs pin; exact registered test path, implementation180s ceiling, 1500s allocation and authority boundaries match. Producers granted by Luna; proof lane active and implementation lane awaiting current-state receipt.",
+"open_premises":"R119 M/T/A, R85 adoption, all six effect-hygiene parents, and original Simple-sub/evaluator A/B remain OPEN. This packet addresses T evidence only.",
+"next_action":"Continue both exact-lane artifacts. After both STOP, obtain fresh independent compiler/source, spec/authority and regression reviews (80s each); run only the exact contracted HIR test after all three are CLEAN."
 },
 "workers":[
 {
 "id":"/root",
 "role":"Luna primary; exact leases, review, state and sole Git integrator",
-"state":"RUNNING",
-"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"state":"UNKNOWN",
+"session":"current-conversation-2026-10-19-r128-resume",
 "requested_model":"gpt-6-luna",
 "requested_effort":"high",
 "observed_model":"UNKNOWN",
 "observed_effort":"UNKNOWN",
-"receipt":"R126 active; R125 checkpoint pushed at cbb462687; sole Luna integrator."
+"receipt":"Resumed from the recorded user-requested session end; reconciling R128 rev2 and sole Luna integrator."
 },
 {
 "id":"/root/resident_dispatcher_loop_a",
@@ -88,17 +84,6 @@
 "observed_model":"UNKNOWN",
 "observed_effort":"UNKNOWN",
 "receipt":"Legacy identity UNKNOWN; no successor lease."
-},
-{
-"id":"/root/r118_prespec",
-"role":"R127 exact source/authority pre-spec reviewer",
-"state":"STOPPED",
-"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
-"requested_model":"gpt-6.1-sol",
-"requested_effort":"low",
-"observed_model":"UNKNOWN",
-"observed_effort":"UNKNOWN",
-"receipt":"R127 rev3 resource delta CLEAN; allocations total1800; proof540/implementation240 consistent; read-only; STOP."
 },
 {
 "id":"/root/r118_proof_lane",
@@ -154,6 +139,50 @@
 "observed_model":"UNKNOWN",
 "observed_effort":"UNKNOWN",
 "receipt":"R127 final review CLEAN; all31 pins and five artifacts match; read-only; STOP."
+},
+{
+"id":"/root/r113_replan_selector",
+"role":"R127 boundary/replanning selector; read-only",
+"state":"STOPPED",
+"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"requested_model":"UNKNOWN",
+"requested_effort":"UNKNOWN",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"Selected R128 target T; six-front evidence map preserved; next R129 receiver-permission expiry after resumption with public execution."
+},
+{
+"id":"/root/r118_prespec",
+"role":"R128 source/authority pre-spec review",
+"state":"STOPPED",
+"session":"current-conversation-2026-10-19-r128-resume",
+"requested_model":"gpt-6.1-sol",
+"requested_effort":"low",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"R128 rev3 delta CLEAN; verified new lib.rs pin, full exact test path, 180s implementation cap, 1500s sum, and authority/source boundaries; STOP."
+},
+{
+"id":"/root/r128_proof",
+"role":"R128 constructive source/candidate-gate proof lane",
+"state":"RUNNING",
+"session":"current-conversation-2026-10-19-r128-resume",
+"requested_model":"gpt-6.1-sol",
+"requested_effort":"high",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"Actual followup active under exact 480s grant; requested Sol/high, observed metadata UNKNOWN; read-only pins so far; no execution."
+},
+{
+"id":"/root/r128_impl",
+"role":"R128 isolated HIR structure-test implementation lane",
+"state":"RUNNING",
+"session":"current-conversation-2026-10-19-r128-resume",
+"requested_model":"gpt-6-luna",
+"requested_effort":"high",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"Resumed after Luna current-state grant; exact 180s source-test/handoff lease active, no execution or Git."
 }
 ],
 "leases":[
@@ -207,6 +236,41 @@
 "path":"notes/progress/2026-10-19-r127-closeout.md",
 "owner":"/root",
 "state":"FROZEN"
+},
+{
+"path":"tasks/agent-loop/sprints/qualified-member-target-20261019-r128-rev1.md",
+"owner":"/root",
+"state":"FROZEN"
+},
+{
+"path":"tasks/agent-loop/sprints/qualified-member-target-20261019-r128-rev2.md",
+"owner":"/root",
+"state":"FROZEN"
+},
+{
+"path":"tasks/agent-loop/sprints/qualified-member-target-20261019-r128-rev3.md",
+"owner":"/root",
+"state":"FROZEN"
+},
+{
+"path":"notes/theory/2026-10-19-r128-qualified-member-target.md",
+"owner":"/root/r128_proof",
+"state":"HELD"
+},
+{
+"path":"tasks/agent-loop/inbox/20261019-r128-proof.md",
+"owner":"/root/r128_proof",
+"state":"HELD"
+},
+{
+"path":"crates/yu-hir/src/tests/shadow_method_role_source.rs",
+"owner":"/root/r128_impl",
+"state":"HELD"
+},
+{
+"path":"tasks/agent-loop/inbox/20261019-r128-implementation.md",
+"owner":"/root/r128_impl",
+"state":"HELD"
 }
 ],
 "pending":[
@@ -281,8 +345,8 @@
 "falsifier":"See frozen gate record."
 }
 ],
-"closure":"R127 conditional declaration-role/native payload entry witness and paired CLI observation committed as 2a5790da1; H/A/E/B, six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
-"next_action":"R128 selector candidate: trace missing method-target join T on the unchanged R119 fixture through actual PathTail resolver and candidate gate; no R85 adoption or method-execution claim. Fresh pre-spec and Luna grant required.",
+"closure":"R127 conditional declaration-role/native payload entry witness and paired CLI observation committed as 2a5790da1; closeout and push receipt 8bad5d05f are on origin. H/A/E/B, six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
+"next_action":"R128 proof and implementation are separately leased and active. No tests before frozen outputs and three CLEAN reviews.",
 "legacy_reconciliation":{
 "required":false,
 "reason":"Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -295,7 +359,7 @@
 "AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
 ]
 },
-"user_goal":"Proof-backed type inference/evaluator with breadth and depth. Advance all six distinct effect-hygiene fronts over time; rotate among them rather than letting one front monopolize work. Prove method syntax and role behavior with source correspondence, and make ordinary/effectful source execution runnable early. Preserve original Simple-sub/evaluator A/B claims and semantic adoption gates. Luna alone integrates and pushes coherent reviewed checkpoints.",
+"user_goal":"Proof-backed type inference/evaluator with breadth and depth. Rotate evidence across all six distinct effect-hygiene fronts; do not let effect-storage accounting or any one front monopolize the sequence. Advance method syntax and role behavior with source correspondence and bounded proofs. Make ordinary and effectful source execution runnable early, then keep broadening public execution coverage. Preserve original Simple-sub/evaluator A/B claims, quantifiers, semantic adoption gates and honest OPEN statuses. Luna alone integrates and pushes coherent reviewed checkpoints.",
 "history":[
 {
 "id":"R125",
@@ -319,13 +383,14 @@
 },
 {
 "id":"R127",
-"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS_PENDING_PUSH",
+"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
 "contract":"tasks/agent-loop/sprints/native-payload-entry-cli-20261019-r127-rev3.md",
 "contract_sha256":"04b707e493f53e1fe35747c11ec1fadb57238a560e9f37d6b57d4865fb04fa7f",
 "verification":"three final reviews CLEAN; exact paired stdin CLI test PASS (1 passed); all parents OPEN",
 "closeout":"notes/progress/2026-10-19-r127-closeout.md",
 "closeout_sha256":"533e221d71b3c94a28e93f28ba47098f1d4b2fecf00a10d133ff687b87ca5c24",
-"commit":"2a5790da1"
+"commit":"2a5790da1",
+"push":"origin/research/simple-sub-intrusion succeeded non-forced through 8bad5d05f"
 }
 ]
 }
