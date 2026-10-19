@@ -44,6 +44,7 @@
 "proof_handoff_sha256":"f82b99e371a1c227cbffb03b4fd2796fc45b7cf6b19bdd71e40e32ceb3571003"
 },
 "review_status":"Luna reread the frozen candidate and the exact contracted HIR test passed after a compile-only borrowing repair. Fresh independent compiler/source, spec/authority and regression reviews remain NOT_RUN. This stays a provisional research candidate; no theorem, semantic adoption or production gate is closed.",
+"checkpoint":{"commit":"58d5507d4","push":"origin/research/simple-sub-intrusion non-forced succeeded through 58d5507d4","claim":"Provisional R128 source/HIR correspondence candidate; independent final reviews pending; no proof or production gate closed."},
 "open_premises":"R119 M/T/A, R85 adoption, all six effect-hygiene parents, and original Simple-sub/evaluator A/B remain OPEN. This packet addresses T evidence only.",
 "next_action":"Keep R128 provisional with independent review pending; continue the user's broad type-inference/evaluator goal without treating the structural test as method execution or proof closure."
 },
