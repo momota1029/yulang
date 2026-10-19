@@ -2,60 +2,55 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r105-cli-receiver-permission",
+  "session": "current-conversation-2026-10-19-r108-method-role-entry-reference-fix",
   "active_sprint": {
-    "id": "cli-receiver-permission-20261019-r105",
-    "contract": "tasks/agent-loop/sprints/cli-receiver-permission-20261019-r105.md",
+    "id": "method-role-entry-reference-fix-20261019-r108",
+    "contract": "tasks/agent-loop/sprints/method-role-entry-reference-fix-20261019-r108-rev1.md",
     "revision": 1,
-    "state": "CLOSED",
-    "contract_sha256": "2e037e3848b95f7a60f5809e4a88018b7088d12489cb45149fceca38ed3f1d77",
-    "baseline": "R96 bounded wrong/sibling pair has CLEAN proof/reviews and a passing runtime test; R104 CLI candidate failed exact source identity and is excluded.",
-    "parent": "Six effect-hygiene fronts, proof-backed method/role behavior, runnable ordinary/effectful source surface.",
-    "authority": "Exact R96 P/N bytes via stdin to public CLI and one test-only serial subprocess integration test. One Luna-owned command after fresh CLEAN reviews.",
+    "contract_sha256": "ebe3bd813d0959c84f6eb969e610654aa2f031ff99cd0222bcdd9a3dc951e547",
+    "state": "CLOSED_CLEAN_FINITE_SOURCE_ENTRY",
+    "baseline": "R106 and R107 closed NOT_RUN; R107 ownership omissions repaired but two reference-level type mismatches remain at compiler review.",
+    "parent": "Six separate effect-hygiene fronts; proof-backed method/role behavior; early runnable ordinary/effectful source surface.",
+    "authority": "Two exact test-only reference fixes, fresh independent review, then one Luna-owned exact test command; no proof lane, no production edits.",
     "resources": {
-      "cap_seconds": 1800,
-      "allocation": "proof600; implementation360; spec180; compiler review240; command120; closeout300; Astra0."
+      "cap_seconds": 420,
+      "allocation": "pre-spec30; implementation60; post-spec30; compiler review120; command120; closeout60; Astra0; no proof allocation."
     },
     "verification": {
-      "commands_authorized": [
-        "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_receiver_permission -- --exact receiver_permission_controls_cli_publication --nocapture"
-      ],
-      "owner": "Luna; exactly once after output freeze and CLEAN reviews.",
-      "result": "PASS: 1 passed, 0 failed; R96 P/N CLI outcomes observed; exact command once.",
+      "command": "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-hir --lib tests::shadow_method_role_source::exact_role_impl_member_source_reaches_original_occurrences -- --exact --nocapture",
+      "owner": "Luna; exactly once after corrected output and CLEAN post-reviews.",
+      "result": "PASS: 1 passed, 0 failed, 133 filtered; exit 0; sole command once; existing dead_code warning.",
       "retry": "PROHIBITED"
     },
     "outputs": {
-      "proof": "notes/theory/2026-10-19-r105-cli-receiver-permission.md",
-      "proof_handoff": "tasks/agent-loop/inbox/20261019-r105-proof.md",
-      "implementation": "tools/inference-playground/tests/cli_receiver_permission.rs",
-      "implementation_handoff": "tasks/agent-loop/inbox/20261019-r105-implementation.md",
-      "pre_edit_spec_review": "tasks/agent-loop/inbox/20261019-r105-spec-review.md",
-      "closeout": "notes/progress/2026-10-19-r105-cli-receiver-permission.md"
+      "implementation": "crates/yu-hir/src/tests/shadow_method_role_source.rs",
+      "implementation_handoff": "tasks/agent-loop/inbox/20261019-r108-implementation.md",
+      "pre_edit_spec_review": "tasks/agent-loop/inbox/20261019-r108-spec-review.md",
+      "post_spec_review": "tasks/agent-loop/inbox/20261019-r108-post-spec-review.md",
+      "compiler_review": "tasks/agent-loop/inbox/20261019-r108-compiler-review.md",
+      "closeout": "notes/progress/2026-10-19-r108-method-role-entry-reference-fix.md"
     },
     "worker_receipts": {
-      "selector": "R105: R96 P/N wrong/sibling contrast through public CLI.",
-      "r104_closeout": "R104 identity stop preserved; pushed 97d8b4e3d; no command.",
-      "r105_pre_spec_review": "CLEAN; 16 pins match; exact P/N bytes and stdin/public mapping supported.",
-      "r105_cli_impl": "FROZEN; exact P/N lengths/hashes match; no execution.",
-      "r105_source_proof": "FROZEN; pin match; mistaken Debug-owner gap retracted; proof allocation 600s fully charged.",
-      "r105_post_spec": "CLEAN; exact P/N, test, hashes and scope match.",
-      "r105_post_compiler": "CLEAN; R96 outcomes and separate stdin FileKey/public mapping supported.",
-      "r105_command": "PASS 1/1; P stdout 7\\n, N failure with empty stdout and HandlerEvidence diagnostic; no retry."
+      "selector": "Recommend exact two-reference correction; preserve R106/R107 records and proof; no further assertion edits or proof lane.",
+      "pre_edit_spec_review": "CLEAN; exact two corrections resolve the listed R107 blockers; all seven pins match; no new owner.",
+      "implementation": "FROZEN; test ea90e8ef445aae1155e28e10356068dfaecb8b2bc430d5bf6f18094acee21e1a; handoff fd853ccabacde019d65065a7dbb3ca9c53690fcc66ebd39a76ed17f2faabdce2; exactly two edits; no command.",
+      "post_spec_review": "CLEAN; all pins match; exactly two edits; reverse reconstruction yields R107 input hash; exact fixture unchanged.",
+      "compiler_review": "CLEAN within pins; both reference blockers resolved; surrounding traversal type-plausible; no other blocker visible."
     },
-    "review_status": "CLOSED CLEAN: post-output spec/compiler reviews CLEAN; exact CLI test passed once.",
-    "closeout": "notes/progress/2026-10-19-r105-cli-receiver-permission.md"
+    "review_status": "CLOSED CLEAN: pre-edit spec CLEAN, post-output spec CLEAN, compiler/source CLEAN; one authorized command passed.",
+    "closeout": "notes/progress/2026-10-19-r108-method-role-entry-reference-fix.md"
   },
   "workers": [
     {
       "id": "/root",
       "role": "Luna primary; exact leases, review, central state and sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-19-r105-cli-receiver-permission",
+      "session": "current-conversation-2026-10-19-r108-method-role-entry-reference-fix",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R103/R104 checkpoints pushed; R105 lanes active."
+      "receipt": "R106/R107 closed NOT_RUN; R108 minimal reference-fix preflight active."
     },
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -99,79 +94,9 @@
       "reason": "Historical writer identity remains UNKNOWN; no current cessation/handoff evidence for board.md."
     },
     {
-      "path": "tasks/agent-loop/sprints/nested-handler-priority-20261019-r101-rev2.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/source-runtime-parameter-projection-20261019-r103.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104-rev1.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
       "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
       "owner": "/root",
       "state": "HELD"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r104-cli-entry-publication.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r104-proof.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tools/inference-playground/examples/entry-unmatched-request.yu",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tools/inference-playground/examples/entry-computation-argument.yu",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tools/inference-playground/tests/cli_entry_publication.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r104-implementation.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/cli-receiver-permission-20261019-r105.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r105-cli-receiver-permission.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r105-proof.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tools/inference-playground/tests/cli_receiver_permission.rs",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r105-implementation.md",
-      "owner": "/root",
-      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -246,8 +171,8 @@
       "falsifier": "See frozen gate record."
     }
   ],
-  "closure": "R103 closed clean/pushed; R104 stopped at source identity prerequisite and preserved/pushed; R105 closed with clean finite sibling-permission CLI evidence and one passing command. Method/role and remaining effect fronts stay open.",
-  "next_action": "Consult selector at R105 closeout; balance next bounded method/role proof with other hygiene fronts and runnable surface.",
+  "closure": "R108 closed CLEAN: exact R100-ENTRY fixture observed with same-parse syntax/retained source ownership, 1/1 pass. R100-P2-MEMBER and P3/P4 remain OPEN. R106/R107 remain failed NOT_RUN.",
+  "next_action": "Selector recommended R109: bounded execution observation of the existing nested-handler three-cell test, with fresh contracts/reviews and explicit entry-probe authority; do not infer static completeness or close any universal hygiene gate.",
   "worker_inventory_scope": "R89 completed primary-only; all R88 workers/reviewers STOPPED and archived in closeout. Three inherited identities remain UNKNOWN, board lease quarantined, legacy idle implementer reserves one slot. No unknown lease reclaimed.",
   "legacy_reconciliation": {
     "required": false,
@@ -263,77 +188,72 @@
       "AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
     ]
   },
-  "user_goal": "Proof-backed implementation of type inference and evaluator; Luna-only commits/pushes at coherent checkpoints; keep the working tree clean. Balance breadth/depth across six distinct effect-hygiene fronts: ordered handler priority, §21 Value/Computation entry, wrong/sibling permission, unmatched outward request plus suffix, continuation capture/resumption, and static-to-runtime projection. Advance one bounded evidence slice per front over time while also proving method/role behavior and making ordinary/effectful source execution runnable early; never let storage/fiber analysis monopolize progress. Preserve original Simple-sub/evaluator claims and semantic adoption gates.",
+  "user_goal": "Proof-backed type inference/evaluator with broad, deep progress. Balance six independent effect-hygiene fronts (ordered handler priority; §21 Value/Computation entry; wrong/sibling permission; unmatched outward request plus suffix; continuation capture/resumption; static-to-runtime projection), advancing bounded evidence across them over time. In parallel, prove method/role behavior with source-corresponding steps and make ordinary/effectful source execution runnable early. Do not let effect storage/fiber analysis or any single front monopolize the sequence. Luna alone commits/pushes at coherent reviewed checkpoints; keep the working tree clean; preserve original Simple-sub/evaluator claims and semantic adoption gates.",
   "history": [
     {
       "id": "R96",
       "state": "CLEAN_BOUNDED_CANDIDATE_CORRESPONDENCE",
-      "closeout": "notes/progress/2026-10-19-r96-sibling-receiver-permission.md",
-      "sha256": "f106525812de5a2788b465dfffb4d8a386883aa8d90b631616ea4bdcb5dd9533"
+      "closeout": "notes/progress/2026-10-19-r96-sibling-receiver-permission.md"
     },
     {
       "id": "R97",
       "state": "CLEAN_FINITE_ENTRY_CORRESPONDENCE",
-      "closeout": "notes/progress/2026-10-19-r97-value-computation-entry.md",
-      "sha256": "aa06b04ff9ad0fb882c89c26e0375fd21eddba489c44b7d54f6156585a66d734"
+      "closeout": "notes/progress/2026-10-19-r97-value-computation-entry.md"
     },
     {
       "id": "R98",
       "state": "FAILED_TO_ACHIEVE",
-      "closeout": "notes/progress/2026-10-19-r98-continuation-current-context.md",
-      "sha256": "51b1e67f32bd970809ae7a7fe341d1de1918f4bfc32365ec575ec8d065aff63c"
+      "closeout": "notes/progress/2026-10-19-r98-continuation-current-context.md"
     },
     {
       "id": "R99",
       "state": "FAILED_TO_ACHIEVE",
-      "closeout": "notes/progress/2026-10-19-r99-unmatched-outward-suffix.md",
-      "sha256": "b819a13766b672bb01508beb949157e6aa6825ea6b60ecedfe476f3368a05f42"
+      "closeout": "notes/progress/2026-10-19-r99-unmatched-outward-suffix.md"
     },
     {
       "id": "R100",
       "state": "CLOSED_CONDITIONAL_SOURCE_EVIDENCE",
-      "closeout": "notes/progress/2026-10-19-r100-method-body-source-consumer.md",
-      "sha256": "6fefb70bf9c211e7cdb5a37a9d09706b8530f5aa7a3fa80575af6ea74ef3516b",
-      "proof_sha256": "84a2aad8a63cad8673e2862e343eff27664c3daf003e97015a0289ba9569a971",
-      "review": "CLEAN proof compiler/spec; implementation no-safe-slice conclusion survives with R84 excluded; one inaccurate preflight qualifier excluded."
+      "closeout": "notes/progress/2026-10-19-r100-method-body-source-consumer.md"
     },
     {
       "id": "R101",
       "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE",
-      "closeout": "notes/progress/2026-10-19-r101-nested-handler-priority.md",
-      "sha256": "2b60c45691a30d66b858241edf838d0161f9c1d49df32054703024d4e04141e5",
-      "reason": "Spec MAJOR: exact parser/CST/declaration/candidate source correspondence absent; authorized command not run."
+      "closeout": "notes/progress/2026-10-19-r101-nested-handler-priority.md"
     },
     {
       "id": "R102",
       "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE",
-      "closeout": "notes/progress/2026-10-19-r102-source-entry-completion.md",
-      "sha256": "970960b76965bc4b0337992b1326f1ed4ce4dff0e837f0128bbeb96d75693bff",
-      "reason": "Rev3 stopped at mandatory declaration selectors and runtime primitive owner; no unpinned reads or execution."
+      "closeout": "notes/progress/2026-10-19-r102-source-entry-completion.md"
     },
     {
       "id": "R103",
       "state": "CLOSED_CLEAN_FINITE_CONSTRUCTOR_EVIDENCE",
-      "closeout": "notes/progress/2026-10-19-r103-parameter-projection.md",
-      "sha256": "701abe0a6f319eab8c282281ff66f66a63a8758becd238b44d30581894d49377",
-      "proof_sha256": "114f5bcfa31a50ffc6111364f28d1e0f1abe41d94030dc1a5afc3d4e66756c74",
-      "test": "PASS 1/1; exact authorized command once; 2.76s",
-      "commit": "0bd244f37"
+      "closeout": "notes/progress/2026-10-19-r103-parameter-projection.md"
     },
     {
       "id": "R104",
       "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE",
-      "closeout": "notes/progress/2026-10-19-r104-cli-entry-publication.md",
-      "sha256": "b9fcb773a8322ccb6dfb07f0c13c3ffb23f4f5a451db29af48b116b56147ad22",
-      "reason": "Post-output spec MAJOR: unauthorized final LF changes exact R97 source identity; command not run.",
-      "commit": "97d8b4e3d"
+      "closeout": "notes/progress/2026-10-19-r104-cli-entry-publication.md"
     },
     {
       "id": "R105",
       "state": "CLOSED_CLEAN_FINITE_CLI_EVIDENCE",
-      "closeout": "notes/progress/2026-10-19-r105-cli-receiver-permission.md",
-      "sha256": "8b1662794800df84b65839c27d3536ed7b05068e6c74955ed44f6b86377b7a07",
-      "test": "PASS 1/1; exact command once"
+      "closeout": "notes/progress/2026-10-19-r105-cli-receiver-permission.md"
+    },
+    {
+      "id": "R106",
+      "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE_NOT_RUN",
+      "closeout": "notes/progress/2026-10-19-r106-method-source-entry.md"
+    },
+    {
+      "id": "R107",
+      "state": "FAILED_TO_ACHIEVE_CONTRACT_PREREQUISITE_NOT_RUN",
+      "closeout": "notes/progress/2026-10-19-r107-method-role-entry-correction.md"
+    },
+    {
+      "id": "R108",
+      "state": "CLOSED_CLEAN_FINITE_SOURCE_ENTRY",
+      "closeout": "notes/progress/2026-10-19-r108-method-role-entry-reference-fix.md"
     }
   ]
 }
