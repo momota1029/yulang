@@ -491,7 +491,10 @@ fn body(statement: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
         return Err(unsupported());
     }
     let child = only_child(&nodes[1])?;
-    if child.kind() != SyntaxKind::OperatorChain {
+    if !matches!(
+        child.kind(),
+        SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock
+    ) {
         return Err(unsupported());
     }
     Ok(child)

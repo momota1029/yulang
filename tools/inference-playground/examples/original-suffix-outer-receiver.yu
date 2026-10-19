@@ -1,0 +1,12 @@
+act signal:
+    our ping: () -> int
+act write:
+    our ping: int -> int
+my relay (thunk:[signal] int) =
+    catch thunk { signal::ping(), k -> k 11 }
+my receive (pending:[write] int) =
+    catch pending { write::ping(p), _ -> 23 }
+my main = receive (relay {
+    my first = signal::ping()
+    write::ping first
+})

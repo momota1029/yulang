@@ -1,300 +1,248 @@
 {
-  "schema_version": 1,
-  "mode": "LIVE",
-  "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r90-lambda-consumer",
-  "active_sprint": {
-    "id": "lambda-body-consumer-owner-20261019-r90",
-    "contract": "tasks/agent-loop/sprints/lambda-body-consumer-owner-20261019-r90.md",
-    "revision": 1,
-    "state": "DONE",
-    "baseline": "271f6da0da7b6b43d911171348882df12e4839a6",
-    "contract_sha256": "e495acb52fb6a112a3780fd9582b7c4332ed735cee31de1d664c2658d804052a",
-    "parent": "R67-DIRECT-BODY-CHECK-1 applied to R68 and original computation-forwarding preservation §§1,6–7; A/B OPEN 0→0; R50 NOT_ADOPTED.",
-    "user_priority": "Proof-backed implementation of type inference and evaluator; Luna-only commits/pushes at coherent checkpoints; keep the working tree clean. Balance breadth/depth across six distinct effect-hygiene fronts: ordered handler priority, §21 Value/Computation entry, wrong/sibling permission, unmatched outward request plus suffix, continuation capture/resumption, and static-to-runtime projection. Advance one bounded evidence slice per front over time while also proving method/role behavior and making ordinary/effectful source execution runnable early; never let storage/fiber analysis monopolize progress. Preserve original Simple-sub/evaluator claims and semantic adoption gates.",
-    "authority": "Existing selected Source Generalize rule and R67 claim only. No new semantics, implementation, tests, or production authority.",
-    "resources": {
-      "cap_seconds": 600,
-      "allocation": "Luna primary source/proof derivation 600; one fresh compiler/source review up to 240 after freeze; Astra0; no children."
-    },
-    "verification": {
-      "commands_authorized": [],
-      "owner": "Luna; static hash/state checks only, no compiler/test/CLI/probe."
-    },
-    "source_pins": {
-      "lib_rs": "2300400e87d0a487225f207d414ac71fa4f21c6f80279fea4f793e43c7809aee",
-      "candidate_source": "66b8f88bad86755c2716cfa7e9c35eabc7031d408b774358ca72446db2b3180c",
-      "candidate_call": "e038ad0dfc4b12bd0d513d6cd6b34cee6b2b062d8b33368bc1c0dcdef980d479",
-      "candidate_effect": "6112343b4014c67dcb7d814a46412b3af3e1d12183924e891df4817a59f58da0",
-      "r67": "0d9a9a8b98611a6f7e9897d3b242614ee36c4a724cfe5968eee536cb959e7bea",
-      "source_generalize": "46884ce3717e4f7ae081e19581cff50bdbbf666941096f253df307d710d42a38",
-      "source_generalize_proof": "e8ba493415b5fe1001086455d39ba47f543af66cb2cf65fcb8ebad939d4b2240",
-      "top_level_principles": "7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81"
-    },
-    "outputs": {
-      "proof": "notes/theory/2026-10-19-r90-lambda-consumer-owner.md",
-      "handoff": "tasks/agent-loop/inbox/20261019-r90-proof.md",
-      "closeout": "notes/progress/2026-10-19-r90-closeout.md"
-    },
-    "next_action": "Continue toward the proof-backed Role::member runnable slice after exact R85 adoption, while rotating bounded evidence across all six effect-hygiene fronts. Keep R67 OPEN at its source body target/provider consumer until an adopted source rule supplies it.",
-    "worker_receipts": {
-      "root": "Luna primary source/proof owner active in current session; no child agents launched."
-    },
-    "proof_candidate_sha256": "2df2583d59cba97b629b18e2e75ed7fd3d945fbc2ade1be38ee61592b35ee905",
-    "handoff_sha256": "9dae89e621bf6307ce57e7294c4dd73abf0aec15e23f530cca707952c405c21c",
-    "result": "Reviewed candidate source-owner trace refines R67 owners: native formal domain, FormalNameEffect row equality, Lambda Function construction, whole annotation links. No source body target/event provider consumer or complete prefix evidence; R67 OPEN. NO_SAFE_CODE_SLICE.",
-    "handoff_revision": 2,
-    "prior_handoff_revision_1_sha256": "50bda417d7bdab2d539a0a2cf483e04eaecb712df9b99806e882e2c2e3482c91",
-    "closeout": "notes/progress/2026-10-19-r90-closeout.md",
-    "closeout_sha256": "74f8c6e61d37d1134cd2beb85a0b8bff7e11f1b179ef0423dcd72f496de5a566",
-    "verification_result": "PASS: all eight exact source pins matched at freeze and delta review; python3 tools/agent_sprint.py check PASS. No tests/builds/compiler CLI/probes.",
-    "review_status": "ACCEPT: fresh independent compiler/source review; one minor omission repaired; delta review ACCEPT with no remaining findings.",
-    "compiler_review": "Bounded source-owner trace accepted; native annotation-derived formal domain and Lambda consumer recorded, distinct from source challenge. R67 remains OPEN."
+ "schema_version": 1,
+ "mode": "LIVE",
+ "phase": "ACTIVE",
+ "session": "current-conversation-2026-10-19-r92-indented-body",
+ "active_sprint": {
+  "id": "indented-binding-body-local-source-bridge-20261019-r92",
+  "contract": "tasks/agent-loop/sprints/indented-binding-body-local-source-bridge-20261019-r92.md",
+  "revision": 1,
+  "state": "DONE",
+  "baseline": "44a23937f99c55dea03714e82581e4a5a409576d",
+  "contract_sha256": "fba26b57c3c37ddaf9d7e4ebc41ade0e52c97d6464957513ac004efd277770f9",
+  "parent": "Original effect-hygiene/source-native obligation; original inference/evaluator claims and quantifiers unchanged. A/B OPEN 0→0; R50 NOT_ADOPTED; R67 OPEN.",
+  "user_priority": "Proof-backed implementation of type inference and evaluator; Luna-only commits/pushes at coherent checkpoints; keep the working tree clean. Balance breadth/depth across six distinct effect-hygiene fronts: ordered handler priority, §21 Value/Computation entry, wrong/sibling permission, unmatched outward request plus suffix, continuation capture/resumption, and static-to-runtime projection. Advance one bounded evidence slice per front over time while also proving method/role behavior and making ordinary/effectful source execution runnable early; never let storage/fiber analysis monopolize progress. Preserve original Simple-sub/evaluator claims and semantic adoption gates.",
+  "authority": "Existing accepted syntax, LocalSource projection, candidate inference and evaluator behavior only; one-owner semantics-preserving adapter, no method/role adoption or production authority.",
+  "resources": {
+   "cap_seconds": 2640,
+   "allocation": "Implementation Luna/high 900; sequential proof Sol/high 600; one CLI verification max240; sequential compiler/source and spec reviews 300 each; integration 300; Astra0. R91 grants remain charged and unchanged."
   },
-  "workers": [
-    {
-      "id": "/root",
-      "role": "Luna primary; exact diagnostics, current-state owner, review and sole Git integrator",
-      "state": "WAITING",
-      "session": "current-conversation-2026-10-19-r90-lambda-consumer",
-      "requested_model": "gpt-6-luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "R90 candidate adjudicated and closeout frozen; no source/test implementation or CLI execution."
-    },
-    {
-      "id": "/root/r85_positive_proof",
-      "role": "R85 frozen proof artifact author",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-19-r85-stage1",
-      "requested_model": "gpt-6-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Frozen proof/handoff remain immutable; writer stop in R85 closeout."
-    },
-    {
-      "id": "/root/resident_dispatcher_loop_a",
-      "role": "legacy dispatcher; historical runtime unavailable",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Keep unknown; board path quarantined."
-    },
-    {
-      "id": "/root/resident_implementer_idle",
-      "role": "legacy implementation worker; historical runtime unavailable",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Keep one assignment-slot reservation; no inferred cessation."
-    },
-    {
-      "id": "/root/runtime_source_supplier_proof",
-      "role": "legacy proof worker; historical runtime unavailable",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Historical P2 proof frozen; no successor lease."
-    },
-    {
-      "id": "/root/r90_compiler_review",
-      "role": "Fresh independent read-only compiler/source review of frozen R90 candidate",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-19-r90-lambda-consumer",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Fresh compiler/source review accepted frozen R90 candidate after delta repair; no remaining findings. Read-only; no tests/builds/probes/Git."
-    }
-  ],
-  "leases": [
-    {
-      "path": "notes/design/2026-10-19-r85-role-call-positive-contract.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r85-role-call-preservation.md",
-      "owner": "/root/r85_positive_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r85-proof.md",
-      "owner": "/root/r85_positive_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r85-readiness.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r85-closeout.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/board.md",
-      "owner": "/root/resident_dispatcher_loop_a",
-      "state": "QUARANTINED",
-      "reason": "Historical writer identity remains UNKNOWN; no current cessation/handoff evidence for board.md."
-    },
-    {
-      "path": "tasks/agent-loop/current.json",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/method-role-syntax-triage-20261019-r89.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/method-role-syntax-triage-20261019-r89-rev2.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-19-r89-method-role-syntax.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/lambda-body-consumer-owner-20261019-r90.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-19-r90-lambda-consumer-owner.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261019-r90-proof.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    }
-  ],
-  "pending": [
-    {
-      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
-      "state": "OPEN",
-      "owner": "Luna; original whole-ascription formation obligation",
-      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R64-SRC-ANN-ARG-1",
-      "state": "OPEN",
-      "owner": "Luna; downstream of the current operand supplier",
-      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R65-CURRENT-OPERAND-1",
-      "state": "OPEN",
-      "owner": "Luna; original ordinary typed Lambda operand supplier",
-      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R66-LAMBDA-RESULT-STAGE-1",
-      "state": "OPEN",
-      "owner": "Luna; direct Lambda-checking follow-up under R67",
-      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R67-DIRECT-BODY-CHECK-1",
-      "state": "OPEN",
-      "owner": "Luna; source Lambda checking/body-consumer premise",
-      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R68-OWNER-CONSUMER-1",
-      "state": "OPEN",
-      "owner": "Luna; authentic retained body/result-consumer source owner",
-      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
-      "state": "OPEN_UNADOPTED_PROPOSAL",
-      "owner": "Luna; source-law completion",
-      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
-      "state": "OPEN",
-      "owner": "Luna; exact source/native owners assigned within R70",
-      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
-      "state": "OPEN",
-      "owner": "Luna; exact source/native owners assigned within R71",
-      "details": "tasks/agent-loop/inbox/20261019-r71-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R72-LATER-OCCURRENCE-1",
-      "state": "OPEN",
-      "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
-      "details": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
-      "falsifier": "See frozen gate record."
-    }
-  ],
-  "closure": "R90 bounded candidate source-owner trace independently accepted; R67 and original parent remain OPEN. R89 committed/pushed. Six effect-hygiene fronts remain OPEN; A/B OPEN 0→0; R50 NOT_ADOPTED. R85 exact semantics await user adoption; three inherited UNKNOWN identities and board quarantine retained.",
-  "next_action": "Finish the frozen R90 source-owner review and apply its exact result to R67. Then continue the proof-backed Role::member vertical path after the user selects the exact R85 semantics, targeting SecondInt::second 1 2 -> 2. Keep the six distinct effect-hygiene fronts in rotation: (1) ordered Catch matching, (2) Value/Computation entry, (3) wrong/sibling permission, (4) unmatched outward request/suffix, (5) continuation capture/resumption, (6) static-to-runtime projection and joint K,D/residual. At each meaningful boundary choose the next owner-specific falsifier; preserve all six OPEN until actual evidence closes one. No storage/fiber-only continuation without a new discriminating premise.",
-  "worker_inventory_scope": "R89 completed primary-only; all R88 workers/reviewers STOPPED and archived in closeout. Three inherited identities remain UNKNOWN, board lease quarantined, legacy idle implementer reserves one slot. No unknown lease reclaimed.",
-  "legacy_reconciliation": {
-    "required": false,
-    "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
-    "history": "tasks/agent-loop/history/board-7336f290.md",
-    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
-    "action": "Restored the three UNKNOWN identities and board quarantine from the immutable activation snapshot 18fd5363e; kept later NPAIR handoff scope limited to its two transferred paths."
+  "verification": {
+   "commands_authorized": [
+    "CARGO_BUILD_JOBS=2 timeout 120s cargo run -q -p yu-playground -- --run main --steps 100000 tools/inference-playground/examples/original-suffix-outer-receiver.yu"
+   ],
+   "owner": "Luna; one CLI run after code and proof freeze. No tests/builds/probes are authorized.",
+   "result": "PASS: one authorized R92 CLI run, exit 0, stdout `23`; existing Cargo dead-code/unused warnings only. No tests or retries.",
+   "receipt": "CARGO_BUILD_JOBS=2 timeout 120s cargo run -q -p yu-playground -- --run main --steps 100000 tools/inference-playground/examples/original-suffix-outer-receiver.yu; exit 0, stdout 23."
   },
-  "state_audit": {
-    "reviewer": "/root/goal_sprint_migration_review",
-    "result": "CLEAN delta; migration omissions/schema repaired; three UNKNOWN identities and board quarantine retained.",
-    "open_minors": [
-      "AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
-    ]
+  "outputs": {
+   "closeout": "notes/progress/2026-10-19-r92-closeout.md",
+   "implementation": "crates/yu-hir/src/module/local_source.rs",
+   "proof": "notes/theory/2026-10-19-r92-indented-binding-body-correspondence.md",
+   "handoff": "tasks/agent-loop/inbox/20261019-r92-proof.md",
+   "fixture": "tools/inference-playground/examples/original-suffix-outer-receiver.yu"
   },
-  "user_goal": "Proof-backed implementation of type inference and evaluator; Luna-only commits/pushes at coherent checkpoints; keep the working tree clean. Balance breadth/depth across six distinct effect-hygiene fronts: ordered handler priority, §21 Value/Computation entry, wrong/sibling permission, unmatched outward request plus suffix, continuation capture/resumption, and static-to-runtime projection. Advance one bounded evidence slice per front over time while also proving method/role behavior and making ordinary/effectful source execution runnable early; never let storage/fiber analysis monopolize progress. Preserve original Simple-sub/evaluator claims and semantic adoption gates.",
-  "history": [
-    {
-      "id": "R88",
-      "closeout": "notes/progress/2026-10-19-r88-closeout.md",
-      "sha256": "e190f71dc28010b59a8ccd973d42c7f146622b15cb59df87b96394a6de081bd9",
-      "commit": "6eb68efa47a8272981aca84ad091c61e28868f2b"
-    },
-    {
-      "id": "R89",
-      "closeout": "notes/progress/2026-10-19-r89-method-role-syntax.md",
-      "sha256": "3798eb5ce82222efebfea1411c166fbe8d5560ca761f2422efff96a9b252b026",
-      "commit": "271f6da0da7b6b43d911171348882df12e4839a6"
-    },
-    {
-      "id": "R90",
-      "closeout": "notes/progress/2026-10-19-r90-closeout.md",
-      "sha256": "74f8c6e61d37d1134cd2beb85a0b8bff7e11f1b179ef0423dcd72f496de5a566",
-      "result": "Reviewed candidate owner trace; no theorem gate closed."
-    }
+  "source_pins": {
+   "local_source_baseline": "ede8b845e1ad19bb1481d7e6337cefa1f117197512975f0f306dc6edb79672e5",
+   "binding": "eb9b7c9b97b999d16b364531fdcfad0bfc0cb377855e86ce6d5b825f5aba3544",
+   "fixture": "0530c7ce6ef6d881d3106c9f69b42a992d701928f163c4c34c8b14f89408b6c7",
+   "R91_reviewed_obstruction": "notes/progress/2026-10-19-r91-closeout.md",
+   "local_source_final": "3014628f861840ca8e716b3baf8e6a3c9dd736b1bad318b32e7a7b195ddf8786"
+  },
+  "next_action": "R93: prove and implement exact source correspondence from raw member-field prefixes to the actual association-generated receiver/source occurrence. Exclude dispatch, dotted Pattern, companion and RoleId semantics; R85 remains AWAITING_USER_ADOPTION. Then rotate to wrong/sibling permission and §21 Value/Computation entry; keep all six effect fronts and R92 runnable fixture visible.",
+  "worker_receipts": {
+   "root": "R91 reviewed and closed unmet; R92 contract frozen and exact sequential leases issued.",
+   "r92_implementation": "STOPPED; exact one-file diff inspected, SHA 3014628f861840ca8e716b3baf8e6a3c9dd736b1bad318b32e7a7b195ddf8786; no tests/CLI.",
+   "r92_proof": "STOPPED; hashes 95b4f651f132c289264e331b580264359f71f0c7da62db7f935972577732463d / 9b4b21ab5ab7f2d2fa5f53fa4fd744f89b2bc241a833172ebc868e7e99ea76fb; dependency pins match.",
+   "r92_execution": "PASS; one authorized public CLI run exit0/stdout23 after source and proof freezes; no retry.",
+   "r92_compiler_review": "STOPPED; no blocking/major/minor; finite source/runtime application accepted. Hashes matched; no tests/builds/CLI rerun/Git.",
+   "r92_spec_review": "STOPPED; CLEAN scope/authority review; all six fronts and adoption gates remain open.",
+   "next_action_selector": "STOPPED; R93 source correspondence chosen to resume method/role breadth without adopting dispatch semantics. Wrong/sibling and §21 fronts remain queued after R93."
+  },
+  "review_status": "ACCEPTED NARROW CANDIDATE: compiler/source no blocking/major/minor; spec CLEAN. Source/native/universal theorem and production gates remain open.",
+  "closeout": "notes/progress/2026-10-19-r92-closeout.md",
+  "closeout_sha256": "5ddddc68b64ce7e24abee7afe1352ed6dc74ac3a22d8d57b2c3d1646a4a88568"
+ },
+ "workers": [
+  {
+   "id": "/root",
+   "role": "Luna primary; exact diagnostics, current-state owner, review and sole Git integrator",
+   "state": "WAITING",
+   "session": "current-conversation-2026-10-19-r90-lambda-consumer",
+   "requested_model": "gpt-6-luna",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "R90 candidate adjudicated and closeout frozen; no source/test implementation or CLI execution."
+  },
+  {
+   "id": "/root/resident_dispatcher_loop_a",
+   "role": "legacy dispatcher; historical runtime unavailable",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Keep unknown; board path quarantined."
+  },
+  {
+   "id": "/root/resident_implementer_idle",
+   "role": "legacy implementation worker; historical runtime unavailable",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Keep one assignment-slot reservation; no inferred cessation."
+  },
+  {
+   "id": "/root/runtime_source_supplier_proof",
+   "role": "legacy proof worker; historical runtime unavailable",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Historical P2 proof frozen; no successor lease."
+  },
+  {
+   "id": "/root/r87_goal_selector",
+   "role": "R92 sprint-end next-action recommendation",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-r92-indented-body",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "R92 end-boundary selector chose R93 associated member source correspondence as next prerequisite to method/role work; runtime dispatch, dotted/companion semantics excluded; R85 adoption stays pending."
+  }
+ ],
+ "leases": [
+  {
+   "path": "tasks/agent-loop/board.md",
+   "owner": "/root/resident_dispatcher_loop_a",
+   "state": "QUARANTINED",
+   "reason": "Historical writer identity remains UNKNOWN; no current cessation/handoff evidence for board.md."
+  },
+  {
+   "path": "tasks/agent-loop/current.json",
+   "owner": "/root",
+   "state": "HELD"
+  }
+ ],
+ "pending": [
+  {
+   "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+   "state": "OPEN",
+   "owner": "Luna; original whole-ascription formation obligation",
+   "details": "tasks/agent-loop/inbox/20261019-r61-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R64-SRC-ANN-ARG-1",
+   "state": "OPEN",
+   "owner": "Luna; downstream of the current operand supplier",
+   "details": "tasks/agent-loop/inbox/20261019-r64-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R65-CURRENT-OPERAND-1",
+   "state": "OPEN",
+   "owner": "Luna; original ordinary typed Lambda operand supplier",
+   "details": "tasks/agent-loop/inbox/20261019-r65-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R66-LAMBDA-RESULT-STAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; direct Lambda-checking follow-up under R67",
+   "details": "tasks/agent-loop/inbox/20261019-r66-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R67-DIRECT-BODY-CHECK-1",
+   "state": "OPEN",
+   "owner": "Luna; source Lambda checking/body-consumer premise",
+   "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R68-OWNER-CONSUMER-1",
+   "state": "OPEN",
+   "owner": "Luna; authentic retained body/result-consumer source owner",
+   "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+   "state": "OPEN_UNADOPTED_PROPOSAL",
+   "owner": "Luna; source-law completion",
+   "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+   "state": "OPEN",
+   "owner": "Luna; exact source/native owners assigned within R70",
+   "details": "tasks/agent-loop/inbox/20261019-r70-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; exact source/native owners assigned within R71",
+   "details": "tasks/agent-loop/inbox/20261019-r71-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R72-LATER-OCCURRENCE-1",
+   "state": "OPEN",
+   "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
+   "details": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
+   "falsifier": "See frozen gate record."
+  }
+ ],
+ "closure": "R92 reviewed candidate bridge and runnable effectful source slice accepted narrowly. CLI exit0/stdout23. Six hygiene, source/native/universal theorem, A/B OPEN0→0, R50 NOT_ADOPTED; R85 awaits exact adoption.",
+ "next_action": "R93: prove and implement exact source correspondence from raw member-field prefixes to the actual association-generated receiver/source occurrence. Exclude dispatch, dotted Pattern, companion and RoleId semantics; R85 remains AWAITING_USER_ADOPTION. Then rotate to wrong/sibling permission and §21 Value/Computation entry; keep all six effect fronts and R92 runnable fixture visible.",
+ "worker_inventory_scope": "R89 completed primary-only; all R88 workers/reviewers STOPPED and archived in closeout. Three inherited identities remain UNKNOWN, board lease quarantined, legacy idle implementer reserves one slot. No unknown lease reclaimed.",
+ "legacy_reconciliation": {
+  "required": false,
+  "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
+  "history": "tasks/agent-loop/history/board-7336f290.md",
+  "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
+  "action": "Restored the three UNKNOWN identities and board quarantine from the immutable activation snapshot 18fd5363e; kept later NPAIR handoff scope limited to its two transferred paths."
+ },
+ "state_audit": {
+  "reviewer": "/root/goal_sprint_migration_review",
+  "result": "CLEAN delta; migration omissions/schema repaired; three UNKNOWN identities and board quarantine retained.",
+  "open_minors": [
+   "AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
   ]
+ },
+ "user_goal": "Proof-backed implementation of type inference and evaluator; Luna-only commits/pushes at coherent checkpoints; keep the working tree clean. Balance breadth/depth across six distinct effect-hygiene fronts: ordered handler priority, §21 Value/Computation entry, wrong/sibling permission, unmatched outward request plus suffix, continuation capture/resumption, and static-to-runtime projection. Advance one bounded evidence slice per front over time while also proving method/role behavior and making ordinary/effectful source execution runnable early; never let storage/fiber analysis monopolize progress. Preserve original Simple-sub/evaluator claims and semantic adoption gates.",
+ "history": [
+  {
+   "id": "R88",
+   "closeout": "notes/progress/2026-10-19-r88-closeout.md",
+   "sha256": "e190f71dc28010b59a8ccd973d42c7f146622b15cb59df87b96394a6de081bd9",
+   "commit": "6eb68efa47a8272981aca84ad091c61e28868f2b"
+  },
+  {
+   "id": "R89",
+   "closeout": "notes/progress/2026-10-19-r89-method-role-syntax.md",
+   "sha256": "3798eb5ce82222efebfea1411c166fbe8d5560ca761f2422efff96a9b252b026",
+   "commit": "271f6da0da7b6b43d911171348882df12e4839a6"
+  },
+  {
+   "id": "R90",
+   "closeout": "notes/progress/2026-10-19-r90-closeout.md",
+   "sha256": "74f8c6e61d37d1134cd2beb85a0b8bff7e11f1b179ef0423dcd72f496de5a566",
+   "result": "Reviewed candidate owner trace; no theorem gate closed."
+  },
+  {
+   "id": "R91",
+   "closeout": "notes/progress/2026-10-19-r91-closeout.md",
+   "sha256": "8bf9558d6f1b7732dca259f1b41b2724f6f9d9eb462910003e98a357b1a8dbe3",
+   "result": "FAILED_TO_ACHIEVE; BindingBody LocalSource admission mismatch; CLI exit1 StructuralProjection; no parent premise accepted."
+  },
+  {
+   "id": "R92",
+   "closeout": "notes/progress/2026-10-19-r92-closeout.md",
+   "sha256": "6edc04c98d0757b21c59c47f441958fdb70a3e778ec7a802723e2bac3ef439cf",
+   "result": "Reviewed narrow LocalSource adapter/source bridge; one exact CLI exit0/stdout23; no theorem or production gate closed."
+  }
+ ]
 }
