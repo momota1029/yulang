@@ -4,46 +4,40 @@
  "phase": "ACTIVE",
  "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
  "active_sprint": {
-  "id": "effect-static-runtime-projection-warning-audit-20261019-r117",
-  "contract": "tasks/agent-loop/sprints/effect-static-runtime-projection-warning-audit-20261019-r117-rev4.md",
-  "revision": 4,
-  "contract_sha256": "2847b47bfea4ecac5bd3d9d318432252222416dc3419c9e335ba50bb1472ca6d",
-  "state": "CLOSED_VERIFICATION_FAILURE_LOCAL_CHECKPOINT",
-  "baseline": "R116 proof/CLI reviewed; R117 proof/cleanup reviewed; test build failure recorded.",
-  "authority": "User goal: six-front effect hygiene, method/role proofs, early surface execution; no new semantics.",
+  "id": "nested-handler-outside-selection-20261019-r118",
+  "contract": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md",
+  "revision": 2,
+  "contract_sha256": "7b588d4e5990b142381f2993e4fa49376d5ebdd0efd2311bb3418f42f3879d63",
+  "state": "APPROVED_READY_TO_ASSIGN",
+  "baseline": "6caae031058b53545e03a205be2ab1bab9179a44; R117 local checkpoint preserved with cargo check PASS and --lib test-build failure.",
+  "authority": "Charter §§14–15 bounded outside shallow selection; no general handler-order theorem or implementation authority. User goal includes six-front effect hygiene, method/role proof, early runnable surfaces.",
   "resources": {
-   "cap_seconds": 1860,
+   "cap_seconds": 1800,
+   "inventory_seconds": 120,
    "proof_seconds": 480,
-   "implementation_seconds": 300,
-   "reviews_seconds": 300,
+   "implementation_seconds": 420,
+   "reviews_seconds": 360,
    "verification_seconds": 240,
-   "luna_seconds": 300,
-   "astra_assignments": 0,
-   "review_repair_amendment_seconds": 240
+   "closeout_seconds": 180,
+   "astra_assignments": 0
   },
   "verification": {
-   "command": "Rev4 exact one-shot 240s monotonic coordinator; full command in contract.",
-   "owner": "Luna",
-   "result": "command 1 cargo check PASS exit 0, 8 yu-hir + 3 yu-solver retained warnings; command 2 cargo test --lib FAIL exit 101: Graph missing capture_forest at shadow_apply.rs:2304,2410; no retry."
+   "commands": [
+    "cargo test -p yu-solver --lib --no-run",
+    "cargo test -p yu-playground --test cli_nested_handler_selection -- --nocapture"
+   ],
+   "owner": "Luna, one shared monotonic 240s coordinator; not run before CLEAN reviews.",
+   "result": "NOT_RUN"
   },
   "outputs": {
-   "proof": "notes/theory/2026-10-19-r117-catch-payload-projection.md",
-   "proof_handoff": "tasks/agent-loop/inbox/20261019-r117-proof.md",
-   "implementation": "Source paths and handoffs are listed in contract and leases.",
-   "implementation_handoff": "tasks/agent-loop/inbox/20261019-r117-warning-audit.md",
-   "closeout": "notes/progress/2026-10-19-r117-closeout.md",
-   "repair_candidate_context_sha256": "002b9d86e26cfda6fdf094ea4d161501849a7127d55c2d147d408a781b9fd28d",
-   "proof_sha256": "efd4a06e222e5de2bb546e3eb2cde1db1eba8710e7b42bda65b8139b1aea708a",
-   "proof_handoff_sha256": "36dda08e16d90bab40f87c92b969e8f4c7a4fcc0683c0658f0c7a7f05ec44f6a",
-   "warning_handoff_sha256": "f23ff5c992eaed99edbd805b3adb02318037274edca9ba3e0be44623f6193306",
-   "module_sha256": "153a23ecaa68fd150d8bd0cc0316f3723e1cb5d98a6e3026aadef2bfd08fd907",
-   "candidate_scheme_sha256": "2e64dc8781189b4da21c30f4d1b3208aaef48ca247cae55fb7e77e68b5857850",
-   "candidate_context_sha256": "002b9d86e26cfda6fdf094ea4d161501849a7127d55c2d147d408a781b9fd28d",
-   "runtime_program_sha256": "c2363ad42104b895519bb29a8eb9aeda545bd0176cebbd78750d3a2df90849ca",
-   "closeout_sha256": "956f7b242743582762d8f7ab29f17da27e96e0f04245bcec8f784c7165b1f33b"
+   "proof": "notes/theory/2026-10-19-r118-nested-outside-selection.md",
+   "proof_handoff": "tasks/agent-loop/inbox/20261019-r118-proof.md",
+   "implementation": "crates/yu-solver/src/shadow_apply.rs; tools/inference-playground/tests/cli_nested_handler_selection.rs",
+   "implementation_handoff": "tasks/agent-loop/inbox/20261019-r118-implementation.md",
+   "pre_spec_review": "CLEAN rev2, `r118_prespec`; rev1 preserved."
   },
-  "review_status": "All proof/source/spec/regression reviews CLEAN; cargo check PASS; cargo test --lib FAIL 101, no retry.",
-  "warning_audit": "17 baseline instances: six removed, eleven evidence/provenance retained; no suppressions."
+  "review_status": "Pre-spec rev2 CLEAN. Compiler/source, spec and regression reviews are required after both writers stop.",
+  "open_premises": "No general source/native order theorem. R117-JOIN-1; R100-P2; R85 adoption; all six effect parents; original evaluator and Simple-sub A/B remain OPEN."
  },
  "workers": [
   {
@@ -55,7 +49,7 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R117 closeout frozen; cargo check PASS, cargo test --lib FAIL 101; no retry. R111-R117 local checkpoint prepared; test-build failure blocks push. R118 fixture repair is separate."
+   "receipt": "R117 checkpoint committed locally as 6caae031; push awaits separate test-fixture repair. R118 rev2 pre-spec CLEAN; assigning bounded proof and implementation lanes."
   },
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -89,66 +83,6 @@
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "receipt": "Legacy identity UNKNOWN; no successor lease."
-  },
-  {
-   "id": "/root/r117_proof",
-   "role": "R117 Catch projection proof",
-   "state": "STOPPED",
-   "requested_model": "gpt-6.1-sol",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "STOPPED; frozen; R117-JOIN-1 remains OPEN."
-  },
-  {
-   "id": "/root/r117_warning_implementation",
-   "role": "R117 warning cleanup",
-   "state": "STOPPED",
-   "requested_model": "gpt-6-luna",
-   "requested_effort": "high",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "STOPPED; frozen handoff/hash receipts; no executable checks."
-  },
-  {
-   "id": "/root/r114_proof",
-   "role": "R114 proof",
-   "state": "STOPPED",
-   "requested_model": "UNKNOWN",
-   "requested_effort": "UNKNOWN",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "STOPPED; frozen conditional proof; no retry."
-  },
-  {
-   "id": "/root/r114_implementation",
-   "role": "R114 CLI",
-   "state": "STOPPED",
-   "requested_model": "UNKNOWN",
-   "requested_effort": "UNKNOWN",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "STOPPED; frozen unverified test; NOT_RUN/no retry."
-  },
-  {
-   "id": "/root/r116_method_proof",
-   "role": "R116 method bridge",
-   "state": "STOPPED",
-   "requested_model": "UNKNOWN",
-   "requested_effort": "UNKNOWN",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "STOPPED; conditional; P2 remains OPEN."
-  },
-  {
-   "id": "/root/r116_surface_implementation",
-   "role": "R116 CLI observation",
-   "state": "STOPPED",
-   "requested_model": "UNKNOWN",
-   "requested_effort": "UNKNOWN",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "STOPPED; reviewed test; exact command passed 2/2."
   }
  ],
  "leases": [
@@ -156,7 +90,7 @@
    "path": "tasks/agent-loop/board.md",
    "owner": "/root/resident_dispatcher_loop_a",
    "state": "QUARANTINED",
-   "reason": "Historical writer identity remains UNKNOWN; no current cessation/handoff evidence for board.md."
+   "reason": "Historical writer identity UNKNOWN; no cessation/handoff for board.md."
   },
   {
    "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
@@ -164,108 +98,14 @@
    "state": "HELD"
   },
   {
-   "path": "tools/inference-playground/tests/cli_raw_resume.rs",
+   "path": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev1.md",
    "owner": "/root",
    "state": "FROZEN"
   },
   {
-   "path": "tasks/agent-loop/sprints/cli-wrong-family-permission-20261019-r114-rev1.md",
+   "path": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md",
    "owner": "/root",
    "state": "FROZEN"
-  },
-  {
-   "path": "notes/theory/2026-10-19-r114-wrong-family-permission.md",
-   "owner": "/root/r114_proof",
-   "state": "FROZEN"
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261019-r114-proof.md",
-   "owner": "/root/r114_proof",
-   "state": "FROZEN"
-  },
-  {
-   "path": "tools/inference-playground/tests/cli_permission_boundary.rs",
-   "owner": "/root/r114_implementation",
-   "state": "FROZEN",
-   "reason": "R114 hard pin stop; exact leased output exists, frozen unverified, no command run and no retry authority."
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261019-r114-implementation.md",
-   "owner": "/root/r114_implementation",
-   "state": "FROZEN",
-   "reason": "R114 hard pin stop; exact leased output exists, frozen unverified, no command run and no retry authority."
-  },
-  {
-   "path": "tasks/agent-loop/sprints/method-role-and-approved-surface-20261019-r116-rev1.md",
-   "owner": "/root",
-   "state": "FROZEN"
-  },
-  {
-   "path": "tasks/agent-loop/sprints/method-role-and-approved-surface-20261019-r116-rev2.md",
-   "owner": "/root",
-   "state": "FROZEN"
-  },
-  {
-   "path": "notes/theory/2026-10-19-r116-method-role-callable-bridge.md",
-   "owner": "/root/r116_method_proof",
-   "state": "FROZEN"
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261019-r116-proof.md",
-   "owner": "/root/r116_method_proof",
-   "state": "FROZEN"
-  },
-  {
-   "path": "tools/inference-playground/tests/cli_approved_surface.rs",
-   "owner": "/root/r116_surface_implementation",
-   "state": "FROZEN"
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261019-r116-implementation.md",
-   "owner": "/root/r116_surface_implementation",
-   "state": "FROZEN"
-  },
-  {
-   "path": "notes/progress/2026-10-19-r116-closeout.md",
-   "owner": "/root",
-   "state": "FROZEN"
-  },
-  {
-   "path": "notes/theory/2026-10-19-r117-catch-payload-projection.md",
-   "owner": "/root/r117_proof",
-   "state": "FROZEN"
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261019-r117-proof.md",
-   "owner": "/root/r117_proof",
-   "state": "FROZEN"
-  },
-  {
-   "path": "crates/yu-hir/src/module.rs",
-   "owner": "/root/r117_warning_implementation",
-   "state": "FROZEN"
-  },
-  {
-   "path": "crates/yu-solver/src/candidate_scheme.rs",
-   "owner": "/root/r117_warning_implementation",
-   "state": "FROZEN"
-  },
-  {
-   "path": "crates/yu-solver/src/candidate_context.rs",
-   "owner": "/root",
-   "state": "FROZEN",
-   "reason": "Rev4 exact Luna-only `..` repair after independent blocking review; rev3 snapshot preserved in contract/handoff."
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261019-r117-warning-audit.md",
-   "owner": "/root/r117_warning_implementation",
-   "state": "FROZEN"
-  },
-  {
-   "path": "tools/inference-playground/src/runtime/program.rs",
-   "owner": "/root",
-   "state": "FROZEN",
-   "reason": "Luna-only cleanup after proof worker STOP; source pin remains immutable until then."
   }
  ],
  "pending": [
@@ -340,9 +180,9 @@
    "falsifier": "See frozen gate record."
   }
  ],
- "closure": "R117 conditional proof/cleanup preserved locally; cargo check PASS, lib test fails at two Graph initializers outside diff; no retry. R117-JOIN-1 and six parents OPEN; push awaits separate fixture gate.",
- "next_action": "R118 candidate: inspect/repair authentic capture_forest fixtures under a separate gate; investigate nested selection only after pinning approved ordering authority. Keep method/role and runnable surface in rotation.",
- "worker_inventory_scope": "R89 completed primary-only; all R88 workers/reviewers STOPPED and archived in closeout. Three inherited identities remain UNKNOWN, board lease quarantined, legacy idle implementer reserves one slot. No unknown lease reclaimed.",
+ "closure": "R117 conditional proof and cleanup committed locally in 6caae031; cargo check PASS, --lib test build FAIL at two Graph initializers; no retry or push. R117-JOIN-1 and six parents OPEN.",
+ "next_action": "Assign R118 proof and implementation lanes under rev2. At closeout rotate toward method/role producer or adoption while preserving six-front breadth and runnable-surface progress.",
+ "worker_inventory_scope": "Keep three inherited identities UNKNOWN and board lease quarantined. R114/R116/R117 STOPPED workers and FROZEN leases archived in local checkpoint 6caae031; no unknown writer or capacity reclaimed.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -406,8 +246,13 @@
   },
   {
    "id": "R117",
-   "state": "CLOSED_REVIEWED_CARGO_CHECK_PASS_TEST_BUILD_FAILURE_NO_RETRY_PENDING_INTEGRATION",
-   "closeout": "notes/progress/2026-10-19-r117-closeout.md"
+   "state": "CLOSED_REVIEWED_TEST_BUILD_FAILURE_PRESERVED_LOCAL_CHECKPOINT",
+   "closeout": "notes/progress/2026-10-19-r117-closeout.md; local checkpoint 6caae031, not pushed"
+  },
+  {
+   "id": "R118",
+   "state": "APPROVED_READY_TO_ASSIGN",
+   "contract": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md"
   }
  ]
 }
