@@ -354,7 +354,7 @@
 }
 ],
 "closure":"R127 conditional declaration-role/native payload entry witness and paired CLI observation committed as 2a5790da1; closeout and push receipt 8bad5d05f are on origin. H/A/E/B, six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
-"next_action":"R128 remains provisional with independent reviews NOT_RUN. The solo R129 CLI witness is committed. A local WebAssembly playground now builds and runs ordinary and effectful examples; optimized testing exposed and repaired a debug_assert side-effect bug in component_term_positions. Next broaden against the Yulang2 example corpus; all theorem and production gates remain OPEN.",
+"next_action":"R128 remains provisional with independent reviews NOT_RUN. The local WebAssembly playground now offers seven smoke-covered execution examples: identity, closure, recursion, module expressions, handled effects, continuation resumption, and nested handlers. This is observed subset coverage, not Yulang2 compatibility or feature completeness. Next inspect broad Yulang2 showcase failures for the highest-leverage supported source gap; all theorem and production gates remain OPEN.",
 "legacy_reconciliation":{
 "required":false,
 "reason":"Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",

@@ -18,7 +18,7 @@
       </header>
 
       <section class="intro">
-        <p>Write a small Yulang program, inspect its candidate inference graph, or run a definition.</p>
+        <p>Explore small programs supported by the current experimental inference and evaluator path.</p>
         <p class="scope-note">This demo uses the current experimental inference path and provisional source evaluator.</p>
       </section>
 
@@ -28,7 +28,12 @@
             <label for="source">Source</label>
             <select id="example" aria-label="Load an example">
               <option value="ordinary">Polymorphic identity</option>
+              <option value="closure">Closure capture</option>
+              <option value="recursion">Recursive definition</option>
+              <option value="module_expression">Module expression and definition</option>
               <option value="effects">Handled operation</option>
+              <option value="continuation">Continuation resumption</option>
+              <option value="nested_receiver">Nested handlers</option>
               <option value="conditional">Conditional</option>
             </select>
           </div>

@@ -3,8 +3,15 @@ import "./style.css";
 
 const examples: Record<string, string> = {
   ordinary: "my identity x = x\nmy main = identity 7",
+  closure: "my make x = \\y -> x\nmy main = make 12 7",
+  recursion: "my loop condition = if condition: loop false else: 11\nmy main = loop true",
+  module_expression: "99\nmy main = 7",
   effects:
     "act io:\n    our tick: int -> int\nmy main = catch io::tick 7 { io::tick(value), _ -> value }",
+  continuation:
+    "act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 11 }\nmy main = relay(io::tick 7)",
+  nested_receiver:
+    "act io:\n    our tick: int -> int\nmy main = catch (catch io::tick 7 { io::tick(value), _ -> value }) { io::tick(value), _ -> value }",
   conditional: "my choose condition yes no = if condition: yes else: no\nmy main = choose true 7 9",
 };
 

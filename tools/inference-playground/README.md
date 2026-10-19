@@ -20,6 +20,10 @@ The browser exposes the same source subset and limits as this playground. It
 does not provide Yulang2 compatibility, standard-library imports, arithmetic,
 or the production compiler. Unsupported source is reported by the current
 candidate/evaluator path rather than being assigned a new language diagnostic.
+Its bundled execution examples cover identity, closure capture, recursion,
+module expressions, conditionals, handled operations, continuation resumption,
+and nested handlers. The examples exercise implemented paths; they do not
+establish completeness for any of those language features.
 
 ## Observe the inference graph by default
 
