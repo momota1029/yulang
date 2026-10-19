@@ -425,7 +425,7 @@
 "falsifier":"See frozen gate record."
 }
 ],
-"closure":"R125 conditional returned-closure binder/environment witness and public CLI observation frozen after CLEAN reviews and PASS; integration pending, semantic parents OPEN.",
+"closure":"R125 conditional returned-closure binder/environment witness and public CLI observation committed as 42177633a and pushed to origin after CLEAN reviews and PASS; semantic parents OPEN.",
 "next_action":"Next selection must rotate among six distinct effect-hygiene fronts, method/role source proofs, and ordinary/effectful runnable surfaces. Do not let a single effect front monopolize work; R125 closeout records four concrete candidates.",
 "legacy_reconciliation":{
 "required":false,
@@ -461,7 +461,9 @@
 "state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
 "contract":"tasks/agent-loop/sprints/returned-closure-binder-cli-20261019-r125-rev2.md",
 "verification":"three final reviews CLEAN; exact stdin CLI command PASS (1 passed); all H/A/E/B and parent gates OPEN",
-"closeout":"notes/progress/2026-10-19-r125-closeout.md"
+"closeout":"notes/progress/2026-10-19-r125-closeout.md",
+"commit":"42177633a",
+"push":"origin/research/simple-sub-intrusion succeeded, non-forced"
 }
 ]
 }
