@@ -2,55 +2,63 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-19-r108-method-role-entry-reference-fix",
+  "session": "current-conversation-2026-10-19-r109-nested-handler-observation",
   "active_sprint": {
-    "id": "method-role-entry-reference-fix-20261019-r108",
-    "contract": "tasks/agent-loop/sprints/method-role-entry-reference-fix-20261019-r108-rev1.md",
+    "id": "nested-handler-observation-20261019-r109",
+    "contract": "tasks/agent-loop/sprints/nested-handler-observation-20261019-r109-rev1.md",
     "revision": 1,
-    "contract_sha256": "ebe3bd813d0959c84f6eb969e610654aa2f031ff99cd0222bcdd9a3dc951e547",
-    "state": "CLOSED_CLEAN_FINITE_SOURCE_ENTRY",
-    "baseline": "R106 and R107 closed NOT_RUN; R107 ownership omissions repaired but two reference-level type mismatches remain at compiler review.",
-    "parent": "Six separate effect-hygiene fronts; proof-backed method/role behavior; early runnable ordinary/effectful source surface.",
-    "authority": "Two exact test-only reference fixes, fresh independent review, then one Luna-owned exact test command; no proof lane, no production edits.",
+    "contract_sha256": "834bf38f690b9fa9fc617a57e40e1c09bbce996949176aafdf5f6e995bc8eb43",
+    "state": "CLOSED_FAILED_FINITE_RANGE_ASSERTION",
+    "baseline": "R101/R102 commands NOT_RUN; R101 fixture remains exact and unchanged; program.rs has only the reviewed candidate test-module delta since R101 pin.",
+    "parent": "Proof-backed type inference/evaluator with broad, deep progress. Balance six independent effect-hygiene fronts (ordered handler priority; §21 Value/Computation entry; wrong/sibling permission; unmatched outward request plus suffix; continuation capture/resumption; static-to-runtime projection), advancing bounded evidence across them over time. In parallel, prove method/role behavior with source-corresponding steps and make ordinary/effectful source execution runnable early. Do not let effect storage/fiber analysis or any single front monopolize the sequence. Luna alone commits/pushes at coherent reviewed checkpoints; keep the working tree clean; preserve original Simple-sub/evaluator claims and semantic adoption gates.",
+    "authority": "One exact existing three-cell public-API runtime observation after CLEAN reviews; no edits, no retry, no static/universal gate closure.",
     "resources": {
-      "cap_seconds": 420,
-      "allocation": "pre-spec30; implementation60; post-spec30; compiler review120; command120; closeout60; Astra0; no proof allocation."
+      "cap_seconds": 1200,
+      "allocation": "proof360; implementation inventory180; spec120; compiler/source180; exact command120; closeout240; Astra0."
     },
     "verification": {
-      "command": "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-hir --lib tests::shadow_method_role_source::exact_role_impl_member_source_reaches_original_occurrences -- --exact --nocapture",
-      "owner": "Luna; exactly once after corrected output and CLEAN post-reviews.",
-      "result": "PASS: 1 passed, 0 failed, 133 filtered; exit 0; sole command once; existing dead_code warning.",
+      "command": "CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test runtime_handler_priority nested_handler_priority_and_shallow_arm_requests -- --exact --nocapture",
+      "owner": "Luna; once after all review gates are CLEAN.",
+      "result": "FAILED once; exit 101; compile succeeded in 2.48s; one test failed at line 105: actual SourceSite range 128..130, expected 121..130; no retry.",
       "retry": "PROHIBITED"
     },
     "outputs": {
-      "implementation": "crates/yu-hir/src/tests/shadow_method_role_source.rs",
-      "implementation_handoff": "tasks/agent-loop/inbox/20261019-r108-implementation.md",
-      "pre_edit_spec_review": "tasks/agent-loop/inbox/20261019-r108-spec-review.md",
-      "post_spec_review": "tasks/agent-loop/inbox/20261019-r108-post-spec-review.md",
-      "compiler_review": "tasks/agent-loop/inbox/20261019-r108-compiler-review.md",
-      "closeout": "notes/progress/2026-10-19-r108-method-role-entry-reference-fix.md"
+      "proof": "notes/theory/2026-10-19-r109-nested-handler-observation.md",
+      "proof_handoff": "tasks/agent-loop/inbox/20261019-r109-proof.md",
+      "implementation_inventory": "tasks/agent-loop/inbox/20261019-r109-implementation.md",
+      "pre_spec_review": "tasks/agent-loop/inbox/20261019-r109-pre-spec-review.md",
+      "post_spec_review": "tasks/agent-loop/inbox/20261019-r109-post-spec-review.md",
+      "compiler_review": "tasks/agent-loop/inbox/20261019-r109-compiler-review.md",
+      "closeout": "notes/progress/2026-10-19-r109-nested-handler-observation.md",
+      "proof_sha256": "bf540b6e44f4c490f08c7afd83b276b0105b4d6d70ef156f4786625d28e0b8c6",
+      "proof_handoff_sha256": "bb1c3da475fdcda98b83e3fd7bc3c0c1328be796502b1edf14d337974b27059b",
+      "implementation_inventory_sha256": "32094364786d9700bd449dfb4a8992c68d33cc23d5bf0a27c0710ccd5d0ae24e",
+      "command_receipt": "notes/progress/2026-10-19-r109-nested-handler-observation.md",
+      "closeout_sha256": "86fb0949fd87f66dbebc6c9615e4987607f6590f49655b2b649a8f8cac34da89"
     },
     "worker_receipts": {
-      "selector": "Recommend exact two-reference correction; preserve R106/R107 records and proof; no further assertion edits or proof lane.",
-      "pre_edit_spec_review": "CLEAN; exact two corrections resolve the listed R107 blockers; all seven pins match; no new owner.",
-      "implementation": "FROZEN; test ea90e8ef445aae1155e28e10356068dfaecb8b2bc430d5bf6f18094acee21e1a; handoff fd853ccabacde019d65065a7dbb3ca9c53690fcc66ebd39a76ed17f2faabdce2; exactly two edits; no command.",
-      "post_spec_review": "CLEAN; all pins match; exactly two edits; reverse reconstruction yields R107 input hash; exact fixture unchanged.",
-      "compiler_review": "CLEAN within pins; both reference blockers resolved; surrounding traversal type-plausible; no other blocker visible."
+      "pre_spec": "CLEAN; exact probe authority and boundaries conformed; all current pins match; program.rs historical preimage reconstructed from current test-only suffix.",
+      "proof": "FROZEN conditional derivation and observation protocol; SHA bf540b6e...0b8c6; all 16 pins matched; command NOT_RUN.",
+      "implementation_inventory": "FROZEN read-only inventory; SHA 32094364...ae24e; all 16 pins matched; no source edits or command.",
+      "post_spec": "CLEAN; exact cells/assertions and limits conform; no runtime result inferred.",
+      "compiler_source": "CLEAN within pins; current path and historical test-only suffix verified; no type/source blocker found.",
+      "command": "Luna exact command once; exit 101; range actual 128..130 vs expected 121..130; no retry or edits.",
+      "selector": "R110 recommended: finite §21 Value/Computation entry contrast through ordinary recursive source to public CLI completion/output; R109 fixture not reused or repaired."
     },
-    "review_status": "CLOSED CLEAN: pre-edit spec CLEAN, post-output spec CLEAN, compiler/source CLEAN; one authorized command passed.",
-    "closeout": "notes/progress/2026-10-19-r108-method-role-entry-reference-fix.md"
+    "review_status": "R109 closed after one authorized command. Three independent reviews CLEAN; C source-range assertion failed at observed 128..130 vs expected 121..130. No repair/retry. Selector recommends R110 public CLI entry-demand contrast.",
+    "closeout": "notes/progress/2026-10-19-r109-nested-handler-observation.md"
   },
   "workers": [
     {
       "id": "/root",
       "role": "Luna primary; exact leases, review, central state and sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-19-r108-method-role-entry-reference-fix",
+      "session": "current-conversation-2026-10-19-r109-nested-handler-observation",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R106/R107 closed NOT_RUN; R108 minimal reference-fix preflight active."
+      "receipt": "R109 command failed once on C SourceSite range; no retry. Closeout and next sprint selection active."
     },
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -84,6 +92,28 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Historical P2 proof frozen; no successor lease."
+    },
+    {
+      "id": "/root/r109_proof",
+      "role": "bounded proof lane; current pinned finite transition only",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-19-r109-nested-handler-observation",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Frozen R109 output submitted; no command or code edits."
+    },
+    {
+      "id": "/root/r109_implementation_inventory",
+      "role": "read-only implementation/source inventory",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-19-r109-nested-handler-observation",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Frozen R109 output submitted; no command or code edits."
     }
   ],
   "leases": [
@@ -97,6 +127,26 @@
       "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
       "owner": "/root",
       "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/nested-handler-observation-20261019-r109-rev1.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-19-r109-nested-handler-observation.md",
+      "owner": "/root/r109_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r109-proof.md",
+      "owner": "/root/r109_proof",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261019-r109-implementation.md",
+      "owner": "/root/r109_implementation_inventory",
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -171,8 +221,8 @@
       "falsifier": "See frozen gate record."
     }
   ],
-  "closure": "R108 closed CLEAN: exact R100-ENTRY fixture observed with same-parse syntax/retained source ownership, 1/1 pass. R100-P2-MEMBER and P3/P4 remain OPEN. R106/R107 remain failed NOT_RUN.",
-  "next_action": "Selector recommended R109: bounded execution observation of the existing nested-handler three-cell test, with fresh contracts/reviews and explicit entry-probe authority; do not infer static completeness or close any universal hygiene gate.",
+  "closure": "R109 one-shot finite probe reached all three paths; A=11 and B=23; C operation/payload correct but source range actual 128..130 vs expected 121..130. No repair/retry. R101-ENTRY-1 remains OPEN; R101/R102 commands NOT_RUN.",
+  "next_action": "Start R110 after recording the R109 checkpoint: balance finite §21 Value/Computation entry proof with runnable ordinary recursive source and public CLI outcome; preserve all open parent gates.",
   "worker_inventory_scope": "R89 completed primary-only; all R88 workers/reviewers STOPPED and archived in closeout. Three inherited identities remain UNKNOWN, board lease quarantined, legacy idle implementer reserves one slot. No unknown lease reclaimed.",
   "legacy_reconciliation": {
     "required": false,
@@ -254,6 +304,11 @@
       "id": "R108",
       "state": "CLOSED_CLEAN_FINITE_SOURCE_ENTRY",
       "closeout": "notes/progress/2026-10-19-r108-method-role-entry-reference-fix.md"
+    },
+    {
+      "id": "R109",
+      "state": "FAILED_TO_ACHIEVE_FIXED_SOURCE_SITE_RANGE_ASSERTION",
+      "closeout": "notes/progress/2026-10-19-r109-nested-handler-observation.md"
     }
   ]
 }
