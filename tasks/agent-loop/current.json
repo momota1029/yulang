@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md",
   "revision": 2,
   "contract_sha256": "7b588d4e5990b142381f2993e4fa49376d5ebdd0efd2311bb3418f42f3879d63",
-  "state": "APPROVED_READY_TO_ASSIGN",
+  "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
   "baseline": "6caae031058b53545e03a205be2ab1bab9179a44; R117 local checkpoint preserved with cargo check PASS and --lib test-build failure.",
   "authority": "Charter §§14–15 bounded outside shallow selection; no general handler-order theorem or implementation authority. User goal includes six-front effect hygiene, method/role proof, early runnable surfaces.",
   "resources": {
@@ -27,16 +27,24 @@
     "cargo test -p yu-playground --test cli_nested_handler_selection -- --nocapture"
    ],
    "owner": "Luna, one shared monotonic 240s coordinator; not run before CLEAN reviews.",
-   "result": "NOT_RUN"
+   "result": "PASS: command 1 exit 0; command 2 exit 0; exact CLI cell passed (stdout 11\\n, stderr empty). One shared monotonic coordinator; hashes matched before execution; no retry."
   },
   "outputs": {
    "proof": "notes/theory/2026-10-19-r118-nested-outside-selection.md",
    "proof_handoff": "tasks/agent-loop/inbox/20261019-r118-proof.md",
    "implementation": "crates/yu-solver/src/shadow_apply.rs; tools/inference-playground/tests/cli_nested_handler_selection.rs",
    "implementation_handoff": "tasks/agent-loop/inbox/20261019-r118-implementation.md",
-   "pre_spec_review": "CLEAN rev2, `r118_prespec`; rev1 preserved."
+   "pre_spec_review": "CLEAN rev2, `r118_prespec`; rev1 preserved.",
+   "implementation_handoff_sha256": "5a27e3cb2e4fd5eda4a0ca6aae6409db0152e6165c7dace27f22f37489bf183e",
+   "shadow_apply_sha256": "838d862dd34fe2b2bd70c5d92c5ce9af0aa98f10f8b6a8eddf313ae798686543",
+   "cli_test_sha256": "cc56cb82c363c13b34d09bb28b6b12372451334e2d24e2412106ea1611fc91b6",
+   "proof_sha256": "363a882f7a64eb5454708ff6dc8183b2bf3c69049b9d4c9c6a695fda8faead88",
+   "proof_handoff_sha256": "ee9aa20b2e1b40b3a26713ed9b57c380ca2086561aff638e7950caf9bc525d71",
+   "spec_review": "CLEAN; all frozen hashes matched; no findings.",
+   "compiler_review": "CLEAN; exact source/runtime trace and authentic fixture owners verified; no findings.",
+   "regression_review": "CLEAN; source baseline and fixture provenance reconstructed; new CLI scope confirmed."
   },
-  "review_status": "Pre-spec rev2 CLEAN. Compiler/source, spec and regression reviews are required after both writers stop.",
+  "review_status": "All three independent reviews CLEAN and STOPPED. All frozen hashes matched before verification. Both contracted one-shot commands passed.",
   "open_premises": "No general source/native order theorem. R117-JOIN-1; R100-P2; R85 adoption; all six effect parents; original evaluator and Simple-sub A/B remain OPEN."
  },
  "workers": [
@@ -49,7 +57,7 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R117 checkpoint committed locally as 6caae031; push awaits separate test-fixture repair. R118 rev2 pre-spec CLEAN; assigning bounded proof and implementation lanes."
+   "receipt": "R118 verification passed under the frozen one-shot coordinator; all three reviews CLEAN; preparing reviewed local checkpoint. No parent theorem closed."
   },
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -83,6 +91,61 @@
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "receipt": "Legacy identity UNKNOWN; no successor lease."
+  },
+  {
+   "id": "/root/r118_proof_lane",
+   "role": "R118 conditional outside-selection proof",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
+   "requested_model": "gpt-6-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Frozen proof and handoff hashes 363a882f and ee9aa20b; no commands; STOPPED, no descendants."
+  },
+  {
+   "id": "/root/r118_implementation_lane",
+   "role": "R118 authentic forest fixture repair and finite CLI cell",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
+   "requested_model": "gpt-6-luna",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Frozen implementation handoff 5a27e3cb; source and CLI outputs hashed; no commands run; writer STOPPED, no descendants."
+  },
+  {
+   "id": "/root/r118_compiler_review",
+   "role": "R118 independent compiler/source review",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "CLEAN compiler/source review; exact source/runtime trace and authentic fixture owners checked; read-only; STOPPED."
+  },
+  {
+   "id": "/root/r118_spec_review",
+   "role": "R118 independent specification/authority review",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "CLEAN R118 spec review; all frozen hashes matched; read-only; STOPPED."
+  },
+  {
+   "id": "/root/r118_regression_review",
+   "role": "R118 independent regression review",
+   "state": "STOPPED",
+   "session": "current-conversation-2026-10-19-breadth-surface-method-goal",
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "low",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "CLEAN regression review; all hashes matched; authentic snapshots and exact new CLI cell checked; read-only; STOPPED."
   }
  ],
  "leases": [
@@ -105,6 +168,31 @@
   {
    "path": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md",
    "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/theory/2026-10-19-r118-nested-outside-selection.md",
+   "owner": "/root/r118_proof_lane",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r118-proof.md",
+   "owner": "/root/r118_proof_lane",
+   "state": "FROZEN"
+  },
+  {
+   "path": "crates/yu-solver/src/shadow_apply.rs",
+   "owner": "/root/r118_implementation_lane",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tools/inference-playground/tests/cli_nested_handler_selection.rs",
+   "owner": "/root/r118_implementation_lane",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261019-r118-implementation.md",
+   "owner": "/root/r118_implementation_lane",
    "state": "FROZEN"
   }
  ],
@@ -180,8 +268,8 @@
    "falsifier": "See frozen gate record."
   }
  ],
- "closure": "R117 conditional proof and cleanup committed locally in 6caae031; cargo check PASS, --lib test build FAIL at two Graph initializers; no retry or push. R117-JOIN-1 and six parents OPEN.",
- "next_action": "Assign R118 proof and implementation lanes under rev2. At closeout rotate toward method/role producer or adoption while preserving six-front breadth and runnable-surface progress.",
+ "closure": "R117 conditional proof and cleanup committed locally in 6caae031; historical cargo check PASS and --lib test build FAIL at two Graph initializers remain preserved, with no retry. R118 repairs those fixtures from authentic states; fresh solver --lib --no-run and exact nested handler CLI test both PASS. R117-JOIN-1 and six parents OPEN.",
+ "next_action": "R118 verified conditional witness and runnable CLI cell complete. Await sprint-end selector delta; proposed rotation to R100-P2 method/role member producer or R85 adoption while balancing all six effect fronts and runnable ordinary/effectful surfaces.",
  "worker_inventory_scope": "Keep three inherited identities UNKNOWN and board lease quarantined. R114/R116/R117 STOPPED workers and FROZEN leases archived in local checkpoint 6caae031; no unknown writer or capacity reclaimed.",
  "legacy_reconciliation": {
   "required": false,
@@ -251,8 +339,10 @@
   },
   {
    "id": "R118",
-   "state": "APPROVED_READY_TO_ASSIGN",
-   "contract": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md"
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+   "contract": "tasks/agent-loop/sprints/nested-handler-outside-selection-20261019-r118-rev2.md",
+   "closeout": "notes/progress/2026-10-19-r118-closeout.md",
+   "verification": "both authorized commands PASS; all three reviews CLEAN; parents OPEN"
   }
  ]
 }
