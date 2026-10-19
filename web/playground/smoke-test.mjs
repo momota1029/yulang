@@ -32,6 +32,19 @@ const examples = {
     "23\n",
   ],
 };
+const polymorphicEscapingClosureSource = fs.readFileSync(
+  "./examples/polymorphic-escaping-closure.yu",
+  "utf8",
+);
+function assertRun(source, definition, expected) {
+  const actual = run(source, definition, 100_000);
+  if (actual !== expected) {
+    throw new Error(`unexpected ${definition} runtime value: ${JSON.stringify(actual)}`);
+  }
+}
+assertRun(polymorphicEscapingClosureSource, "main", "7\n");
+assertRun(polymorphicEscapingClosureSource, "bool_result", "true\n");
+assertRun(polymorphicEscapingClosureSource, "string_result", '"ok"\n');
 const yulang2Source = fs.readFileSync("./examples/yulang2-identity-island.yu", "utf8");
 const yulang2Definitions = {
   int_identity: "7\n",

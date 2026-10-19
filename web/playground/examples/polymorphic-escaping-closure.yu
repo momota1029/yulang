@@ -1,0 +1,7 @@
+my identity x = 0
+my make seed = { my identity x = x; \unused -> identity }
+my chooser = make ()
+our int_result = chooser () 7
+our bool_result = chooser () true
+our string_result = chooser () "ok"
+my main = int_result
