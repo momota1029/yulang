@@ -431,6 +431,63 @@ fn forwarded_handler_reentry_runs_its_normal_value_arm_before_parent_completion(
 }
 
 #[test]
+fn same_raw_continuation_reuses_suffix_under_each_current_receiver() {
+    let positive = "act io:\n    our tick: int -> int\n    our other: int -> bool\nmy first (thunk:[io] bool) = catch thunk { io::other(p), _ -> true }\nmy second (thunk:[io] bool) = catch thunk { io::other(p), _ -> false }\nmy relay (thunk:[io] bool) = catch thunk { io::tick(p), k -> { my before = first (k 11); if before: second (k 23) else: true } }\nmy main = relay { my result = io::tick 7; io::other result }";
+
+    let (mut machine, _) = machine(positive);
+    let outcome = machine.run(30_000);
+    let RuntimeOutcome::Completed(value) = outcome else {
+        panic!("expected completion under the second current receiver, got {outcome:?}");
+    };
+    assert!(matches!(
+        &machine.value(value).unwrap().kind,
+        RuntimeValueKind::Boolean(false)
+    ));
+
+    for (variant, receiver, expected_payload) in [
+        (
+            positive.replacen(
+                "first (thunk:[io] bool) = catch thunk { io::other(p)",
+                "first (thunk:[io] bool) = catch thunk { io::tick(p)",
+                1,
+            ),
+            "first",
+            "11",
+        ),
+        (
+            positive.replacen(
+                "second (thunk:[io] bool) = catch thunk { io::other(p)",
+                "second (thunk:[io] bool) = catch thunk { io::tick(p)",
+                1,
+            ),
+            "second",
+            "23",
+        ),
+    ] {
+        let (mut machine, operations) = machine(&variant);
+        let outcome = machine.run(30_000);
+        let RuntimeOutcome::UnhandledRequest {
+            operation, payload, ..
+        } = outcome
+        else {
+            panic!("expected forwarded request under {receiver}, got {outcome:?}");
+        };
+        assert_eq!(
+            operation,
+            operations
+                .iter()
+                .find(|(name, _)| name.as_ref() == "other")
+                .unwrap()
+                .1
+        );
+        let RuntimeValueKind::Integer(actual) = &machine.value(payload).unwrap().kind else {
+            panic!("expected integer payload under {receiver}");
+        };
+        assert_eq!(actual.as_ref(), expected_payload);
+    }
+}
+
+#[test]
 fn response_expression_is_forced_once_before_entering_the_saved_context() {
     assert_integer(
         &format!(
