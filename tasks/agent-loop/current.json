@@ -2,70 +2,59 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-20-r138",
+  "session": "current-conversation-2026-10-20-r139",
   "active_sprint": {
-    "id": "helper-cut-ledger-20261020-r138",
-    "contract": "tasks/agent-loop/sprints/helper-cut-ledger-20261020-r138-rev1.md",
-    "revision": 1,
-    "contract_sha256": "8bfe31e038f1c7684ac2d9dba95164f13448e150ccb08a874bea22610fc6e04f",
-    "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-    "baseline": "66c7b52b197aa035d6feaf20ff4f84198a92f9cb",
-    "authority": "unchanged computation-forwarding preservation §§1,6–7; no semantic/code/test/observer authority",
+    "id": "yulang2-diagnostic-examples-20261020-r139",
+    "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev4.md",
+    "revision": 4,
+    "contract_sha256": "3c799b9f735de41ea8a033ad6b5d9920e296a0bc19e5b907159009f7cfadc47f",
+    "state": "ACTIVE",
+    "baseline": "0e7a71b23b86390390e608282b217ef354930e86",
+    "authority": "unchanged curated Y2 diagnostic-example compatibility only; no semantic or parent-gate promotion",
     "resources": {
-      "cap_seconds": 1800,
-      "reserved_seconds": 1800,
+      "cap_seconds": 2100,
+      "reserved_seconds": 2100,
       "astra_seconds": 0,
       "heavy_processes": 1,
-      "proof_charged_seconds": 840,
-      "proof_remaining_seconds": 60
+      "proof_seconds": 600,
+      "implementation_seconds": 540,
+      "reviews_seconds": 300,
+      "verification_seconds": 360,
+      "closeout_seconds": 120,
+      "prior_elapsed": "Not reconstructible from receipts; retains full prior reservations within the same 2100s cap."
     },
+    "review_status": "Rev2 prospective and rev3 dependency-delta spec/compiler CLEAN; rev4 spec/compiler reactivation delta CLEAN. Rev4 3/3 added dependency pins revalidated.",
     "outputs": {
       "proof": [
-        "notes/theory/2026-10-20-r138-helper-cut-ledger.md",
-        "tasks/agent-loop/inbox/20261020-r138-proof.md"
+        "notes/theory/2026-10-20-r139-yulang2-diagnostic-examples.md",
+        "tasks/agent-loop/inbox/20261020-r139-proof.md"
       ],
-      "owner_map": [
-        "notes/progress/2026-10-20-r138-cut-owner-map.md",
-        "tasks/agent-loop/inbox/20261020-r138-implementation.md"
+      "implementation": [
+        "web/playground/examples/yulang2-type-mismatch.yu",
+        "web/playground/examples/yulang2-parameter-provenance.yu",
+        "tools/inference-playground/tests/cli_yulang2_diagnostic_examples.rs",
+        "web/playground/src/main.ts",
+        "web/playground/index.html",
+        "web/playground/smoke-test.mjs",
+        "tasks/agent-loop/inbox/20261020-r139-implementation.md"
       ]
     },
-    "review_status": "CLEAN fresh spec/authority and compiler/source reviews; partial submission only; no A/B/C certification",
-    "verification": "39/39 direct dependencies match baseline Git tree and live bytes; 8 historical R73 owners repinned",
-    "next_action": "Successor proposal only: bounded certified cut for action31 loop-Lambda replays via backward dependency slice and proved frame condition; requires a new exact contract, leases and finite budget.",
-    "dispatcher_delta": {
-      "worker": "/root/r129_dispatch",
-      "result": "checkpoint partial research after contracted reviews; proposed bounded action31 loop-Lambda certified-cut successor",
-      "contract_sha256": "8bfe31e038f1c7684ac2d9dba95164f13448e150ccb08a874bea22610fc6e04f"
+    "verification": "After frozen outputs and fresh final reviews: serial CLI 120s then Web check 240s; stop on first failure.",
+    "next_action": "Resume finite proof and complete serial implementation; freeze outputs, final reviews, exact CLI/Web verification, closeout.",
+    "r135_brace_decision": "PENDING; R139 does not depend on or decide it.",
+    "dependency_delta": {
+      "added": [
+        "crates/yu-solver/src/candidate_effect.rs",
+        "crates/yu-solver/src/candidate_extrusion.rs",
+        "crates/yu-solver/src/lib.rs"
+      ],
+      "pins": "all match baseline tree and live bytes",
+      "reason": "finite parameter-provenance conflict bridge requires annotation construction, candidate row-bound propagation and conflict consumption"
     },
-    "prospective_reviews": {
-      "spec": {
-        "result": "CLEAN",
-        "reviewer": "/root/r138_prespec",
-        "receipt": "collaboration final; read-only"
-      },
-      "compiler_source": {
-        "result": "CLEAN",
-        "reviewer": "/root/r138_precompiler",
-        "receipt": "collaboration final; read-only"
-      }
-    },
-    "proof_assignment": "STOPPED; frozen revision1; 840/900s charged; 39/39 pins revalidated; no descendants",
-    "implementation_status": "Luna primary exact owner-map lane; no safe production code slice established",
-    "activation_commit": "09820335c",
-    "activation_push": "origin/research/simple-sub-intrusion",
-    "owner_map_status": "FROZEN_PARTIAL_NO_SAFE_CODE_SLICE",
-    "owner_map_sha256": "7a4c9ab358b6a11df313380bc9ed24e7d78cdabba6d57f94bf21a6402c49b6fd",
-    "implementation_handoff_sha256": "db18d0681cb50d18e15e71b188fa25a75a1828170cf60b5621ff3a6c4a920825",
-    "proof_progress": "CLOSED_UNFINISHED_REVIEWED_RESEARCH: 17 LocalSource expressions/44 actions; helper capture/restoration and action27 duplicate-fiber fragment reviewed CLEAN. Earlier memo/replay heads, effect products, both loop Lambda replay families, boundary1 Local and independent later Work::Bound consumer remain open.",
-    "spec_review": {
-      "result": "CLEAN",
-      "reviewer": "/root/r138_proof_spec_review",
-      "receipt": "independent read-only review; exact frozen artifact hashes verified; does not certify theorem"
-    },
-    "compiler_review": {
-      "result": "CLEAN_PARTIAL_RESEARCH",
-      "reviewer": "/root/r138_proof_compiler_review",
-      "receipt": "independent read-only review; exact frozen artifact hashes and 39/39 live pins verified; no theorem certification"
+    "pin_revalidation": {
+      "prior_receipt": "R139 rev2 activation verified 15 Y3 rows against baseline tree/live plus external oracle blob before output edits.",
+      "delta_now": "Rev3 added candidate_effect.rs, candidate_extrusion.rs, lib.rs; all three matched baseline tree/live.",
+      "current_contract_rule": "Rev4 carries forward prior input/output pre-edit pin receipt and requires delta pins revalidated."
     }
   },
   "workers": [
@@ -104,47 +93,25 @@
     },
     {
       "id": "/root",
-      "role": "Luna primary; exact leases, review adjudication, state and sole Git integrator",
+      "role": "Luna primary; implementation, review adjudication, state and sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r138",
+      "session": "current-conversation-2026-10-20-r139",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Current Luna primary session; R138 and all child lanes STOPPED; evaluating authorized successor scope, sole state/Git integrator."
+      "receipt": "Activated R139 after exact prospective reviews and baseline pin validation."
     },
     {
-      "id": "/root/r138_proof",
-      "role": "Sol/high constructive proof lane",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-20-r138",
-      "requested_model": "gpt-6-sol",
-      "requested_effort": "high",
+      "id": "/root/r139_proof",
+      "role": "constructive finite source-correspondence proof",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-20-r139",
+      "requested_model": "prover",
+      "requested_effort": "per configured role",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "STOPPED/writes ceased at 2026-10-19 23:21:44 UTC. Frozen note SHA b9b91d5250b3f05def89891cca314ad24fcf84ec711b8c6e76c7c4dcf936c467; inbox SHA d7504666ab99ed3822fd91c103c056e4fbb9aad344ab10f2477567ba5a8b991c. 39/39 pins revalidated; 840/900s charged; no descendants, tests, builds, execution or Git. Outcome UNFINISHED/OPEN."
-    },
-    {
-      "id": "/root/r138_proof_spec_review",
-      "role": "independent spec/authority review of frozen R138 candidate",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-20-r138",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "low",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "CLEAN independent spec/authority review; exact frozen artifacts verified; no findings. No edits/tests/builds/Git/descendants. Does not certify theorem."
-    },
-    {
-      "id": "/root/r138_proof_compiler_review",
-      "role": "independent compiler/source review of frozen R138 candidate",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-20-r138",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "CLEAN for partial research only; exact hashes and 39/39 pins match; uncovered suffix remains open. No edits/tests/builds/Git/descendants; no theorem certification."
+      "receipt": "Resumed exact leases under rev4 after CLEAN delta reviews and 3/3 added-pin revalidation. Prior elapsed not reconstructed; no budget reset."
     }
   ],
   "leases": [
@@ -160,29 +127,59 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/helper-cut-ledger-20261020-r138-rev1.md",
+      "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev1.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/2026-10-20-r138-helper-cut-ledger.md",
-      "owner": "/root/r138_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r138-proof.md",
-      "owner": "/root/r138_proof",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/progress/2026-10-20-r138-cut-owner-map.md",
+      "path": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev2.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261020-r138-implementation.md",
+      "path": "notes/theory/2026-10-20-r139-yulang2-diagnostic-examples.md",
+      "owner": "/root/r139_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r139-proof.md",
+      "owner": "/root/r139_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "web/playground/examples/yulang2-type-mismatch.yu",
       "owner": "/root",
-      "state": "FROZEN"
+      "state": "HELD"
+    },
+    {
+      "path": "web/playground/examples/yulang2-parameter-provenance.yu",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tools/inference-playground/tests/cli_yulang2_diagnostic_examples.rs",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "web/playground/src/main.ts",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "web/playground/index.html",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "web/playground/smoke-test.mjs",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r139-implementation.md",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -264,8 +261,8 @@
       "falsifier": "Any blocking/major finding or dependency mismatch keeps candidate provisional."
     }
   ],
-  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH; A/B/C and all parent/inference/evaluator/production gates remain OPEN. No successor sprint is active. R139 source-syntax route awaits explicit R135 decision; compatible sample expansion remains available. R135 awaits user design choice.",
-  "next_action": "R138 is closed. R139 decision input is the reviewed R135 braced-if proposal and the user choice between narrow countdown-only semantics or broader Y2 brace-shape compatibility. No successor leases are active. Once authority is recorded, prefer an end-to-end unchanged Y2 Web-demo expansion with a proof lane and reviewed implementation; if deferred, select a compatible existing sample expansion.",
+  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH; all parent inference/evaluator/production gates OPEN. R139 active under rev4.",
+  "next_action": "Complete R139 proof and serial implementation, then final reviews, exact CLI/Web verification and closeout.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -368,7 +365,26 @@
       "closeout": "notes/progress/2026-10-20-r138-closeout.md",
       "contract": "tasks/agent-loop/sprints/helper-cut-ledger-20261020-r138-rev1.md",
       "proof": "notes/theory/2026-10-20-r138-helper-cut-ledger.md"
+    },
+    {
+      "id": "R139",
+      "state": "ACTIVE_AFTER_PROSPECTIVE_REVIEWS",
+      "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev2.md",
+      "contract_sha256": "15b6e95ec569e4387cb4dce1063b3ddb7b51b5170b8350bbec81fa1a8901cbee",
+      "baseline": "0e7a71b23b86390390e608282b217ef354930e86"
+    },
+    {
+      "id": "R139-rev3",
+      "state": "CLEAN_DEPENDENCY_DELTA",
+      "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev3.md",
+      "contract_sha256": "4ab85cb6255534e9e73f087ae61579f854f710a222405d2a37fcd4267ff2a195"
+    },
+    {
+      "id": "R139-rev4",
+      "state": "CLEAN_REACTIVATION_DELTA",
+      "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev4.md",
+      "contract_sha256": "3c799b9f735de41ea8a033ad6b5d9920e296a0bc19e5b907159009f7cfadc47f"
     }
   ],
-  "review_receipts": "R135 rev3 spec MINOR/compiler MAJOR; rev4 spec/compiler two MAJOR; rev5 paired focused deltas CLEAN. Full findings/hashes in frozen contracts and closeout."
+  "review_receipts": "R139 rev2 prospective, rev3 dependency delta, rev4 reactivation pin rule: spec and compiler/source CLEAN. R135 rev5 CLEAN; user decision pending."
 }
