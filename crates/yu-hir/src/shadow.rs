@@ -407,6 +407,60 @@ impl PendingStateSlotSourceInput {
     }
 }
 
+/// One exact, unresolved `.identifier` source occurrence. The receiver prefix
+/// is retained verbatim as all preceding raw OperatorChain children; this
+/// records source structure only and does not classify dispatch.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PendingFieldTailSource {
+    tail: PositionId,
+    expression: PositionId,
+    receiver_prefix_len: usize,
+    member: PositionId,
+}
+
+impl PendingFieldTailSource {
+    pub fn tail(&self) -> &PositionId {
+        &self.tail
+    }
+    pub fn expression(&self) -> &PositionId {
+        &self.expression
+    }
+    pub fn receiver_prefix<'a>(
+        &'a self,
+        artifact: &'a ShadowArtifact,
+    ) -> Result<&'a [PositionId], ShadowError> {
+        let tail = artifact.position(&self.tail)?;
+        let expression = artifact.position(&self.expression)?;
+        if tail.parent() != Some(&self.expression)
+            || expression.kind() != SyntaxKind::OperatorChain
+            || expression.children().get(self.receiver_prefix_len) != Some(&self.tail)
+        {
+            return Err(ShadowError::InvalidUseReference);
+        }
+        Ok(&expression.children()[..self.receiver_prefix_len])
+    }
+    pub fn member(&self) -> &PositionId {
+        &self.member
+    }
+}
+
+/// A declared role or standalone implementation occurrence, still identified
+/// only by its parse artifact and syntax kind.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PendingRoleImplSource {
+    position: PositionId,
+    kind: SyntaxKind,
+}
+
+impl PendingRoleImplSource {
+    pub fn position(&self) -> &PositionId {
+        &self.position
+    }
+    pub fn kind(&self) -> SyntaxKind {
+        self.kind
+    }
+}
+
 pub const MAX_SYNTAX_DEPTH: usize = 128;
 pub const MAX_RAW_ELEMENTS: usize = 65_536;
 
@@ -789,6 +843,58 @@ impl ShadowArtifact {
                 (position.is_node && position.kind == SyntaxKind::IdentifierExpression)
                     .then(|| self.position_id(index))
             })
+    }
+    /// Enumerates complete FieldTail constructors in source order. Receiver
+    /// structure is the exact preceding raw child prefix of the enclosing
+    /// OperatorChain. Unsupported or recovered shapes fail as a whole, so a
+    /// caller cannot mistake omission for completeness.
+    pub fn pending_field_tail_sources(
+        &self,
+    ) -> Result<Vec<PendingFieldTailSource>, ShadowError> {
+        let mut result = Vec::new();
+        for (index, tail) in self.positions.iter().enumerate() {
+            if !tail.is_node || tail.kind != SyntaxKind::FieldTail { continue; }
+            let tail_id = self.position_id(index);
+            let parent_id = tail.parent.as_ref().ok_or(ShadowError::InvalidUseReference)?;
+            let parent = self.position(parent_id)?;
+            if !parent.is_node || parent.kind != SyntaxKind::OperatorChain {
+                return Err(ShadowError::InvalidUseReference);
+            }
+            let tail_index = tail.ordinal;
+            if parent.children.get(tail_index) != Some(&tail_id) {
+                return Err(ShadowError::InvalidUseReference);
+            }
+            if tail_index == 0 { return Err(ShadowError::InvalidUseReference); }
+            let [dot_id, member_id] = tail.children.as_slice() else {
+                return Err(ShadowError::InvalidUseReference);
+            };
+            let dot = self.position(dot_id)?;
+            let member = self.position(member_id)?;
+            if dot.is_node || dot.kind != SyntaxKind::Dot || member.is_node
+                || member.kind != SyntaxKind::Identifier
+            {
+                return Err(ShadowError::InvalidUseReference);
+            }
+            result.try_reserve(1).map_err(|_| ShadowError::ElementLimit)?;
+            result.push(PendingFieldTailSource {
+                tail: tail_id,
+                expression: parent_id.clone(),
+                receiver_prefix_len: tail_index,
+                member: member_id.clone(),
+            });
+        }
+        Ok(result)
+    }
+    /// Exact parser occurrences of RoleDeclaration and standalone
+    /// ImplDeclaration nodes, in retained source order. These are not semantic
+    /// RoleId/implementation identities and imply no selection rule.
+    pub fn pending_role_impl_sources(&self) -> Vec<PendingRoleImplSource> {
+        self.positions.iter().enumerate().filter_map(|(index, position)| {
+            matches!(position.kind, SyntaxKind::RoleDeclaration | SyntaxKind::ImplDeclaration)
+                .then(|| PendingRoleImplSource {
+                    position: self.position_id(index), kind: position.kind,
+                })
+        }).collect()
     }
     pub fn annotations(&self) -> &[AnnotationOccurrence] {
         &self.annotations

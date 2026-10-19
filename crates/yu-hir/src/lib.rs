@@ -823,6 +823,7 @@ mod tests {
     mod shadow_retained_expression_inventory;
     mod shadow_source_core;
     mod shadow_source_view_premise_locator;
+    mod shadow_method_role_source;
 
     use std::{collections::HashMap, sync::Arc};
 
