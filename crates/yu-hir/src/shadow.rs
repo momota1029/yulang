@@ -1,11 +1,12 @@
 //! Opt-in immutable source artifact. Syntax provenance carries no type or role judgment.
 use crate::{
-    DefinitionRootId, HirAvailabilityError, HirModule, HirOccurrenceId, HirParameterId,
-    ModuleIdentity, SemanticImports,
+    AssociationError, AssociationProvenance, DefinitionRootId, HirAvailabilityError, HirExpr,
+    HirModule, HirOccurrenceId, HirParameterId, ModuleIdentity, SemanticImports,
+    associate_chain_owned_with_sources,
 };
 use crate::{range_of, range_of_token};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     ops::Range,
     sync::Arc,
 };
@@ -346,6 +347,7 @@ pub struct ShadowArtifact {
     identity: Arc<()>,
     parsed: ParsedFile,
     source_positions: HashMap<SourceNodeKey, Option<PositionId>>,
+    position_source_keys: Vec<Option<SourceNodeKey>>,
     positions: Vec<Position>,
     annotations: Vec<AnnotationOccurrence>,
     skeleton: Result<Skeleton, ShadowError>,
@@ -450,6 +452,31 @@ impl PendingFieldTailSource {
 pub struct PendingRoleImplSource {
     position: PositionId,
     kind: SyntaxKind,
+}
+
+/// A checked borrowed view of one associated field tail. Both values are the
+/// exact child-zero pair emitted by the same association constructor.
+pub(crate) struct AssociatedFieldTailSource<'a> {
+    source: &'a PendingFieldTailSource,
+    receiver: &'a HirExpr,
+    receiver_provenance: &'a AssociationProvenance,
+}
+
+impl<'a> AssociatedFieldTailSource<'a> {
+    pub(crate) fn source(&self) -> &'a PendingFieldTailSource { self.source }
+    pub(crate) fn receiver(&self) -> &'a HirExpr { self.receiver }
+    pub(crate) fn receiver_provenance(&self) -> &'a AssociationProvenance { self.receiver_provenance }
+}
+
+/// A retained declaration paired with its exact parser node from this parse.
+pub(crate) struct AssociatedRoleImplSource<'a> {
+    source: &'a PendingRoleImplSource,
+    node: &'a SyntaxNode,
+}
+
+impl<'a> AssociatedRoleImplSource<'a> {
+    pub(crate) fn source(&self) -> &'a PendingRoleImplSource { self.source }
+    pub(crate) fn node(&self) -> &'a SyntaxNode { self.node }
 }
 
 impl PendingRoleImplSource {
@@ -610,6 +637,7 @@ impl ShadowArtifact {
             identity: identity.clone(),
             parsed,
             source_positions: HashMap::new(),
+            position_source_keys: Vec::new(),
             positions: Vec::new(),
             annotations: Vec::new(),
             skeleton: Err(ShadowError::MalformedSource),
@@ -896,6 +924,129 @@ impl ShadowArtifact {
                 })
         }).collect()
     }
+
+    /// Validates the complete retained method/role source inventory, then
+    /// publishes borrowed constructor-owned pairs to one infallible callback.
+    /// Association failures retain their original error category.
+    pub(crate) fn with_associated_method_role_sources<R>(
+        &self,
+        publish: impl FnOnce(&[AssociatedFieldTailSource<'_>], &[AssociatedRoleImplSource<'_>]) -> R,
+    ) -> Result<R, AssociationError> {
+        struct AssociatedRoot {
+            hir: HirExpr,
+            provenance: AssociationProvenance,
+        }
+
+        let fields = self.pending_field_tail_sources().map_err(|error| match error {
+            ShadowError::ElementLimit => AssociationError::Allocation,
+            _ => AssociationError::StructuralInvariant,
+        })?;
+        let roles = self.pending_role_impl_sources();
+        let mut source_nodes = HashMap::<SourceNodeKey, SyntaxNode>::new();
+        let source_key_by_node = source_keys(&self.parsed);
+        source_nodes.try_reserve(source_key_by_node.len()).map_err(|_| AssociationError::Allocation)?;
+        for (node, key) in &source_key_by_node {
+            if !self.parsed.owns_source_key(key) || source_nodes.insert(key.clone(), node.clone()).is_some() {
+                return Err(AssociationError::StructuralInvariant);
+            }
+        }
+
+        let mut field_by_key = HashMap::<SourceNodeKey, usize>::new();
+        field_by_key.try_reserve(fields.len()).map_err(|_| AssociationError::Allocation)?;
+        for (index, field) in fields.iter().enumerate() {
+            let position = self.position(field.tail()).map_err(|_| AssociationError::StructuralInvariant)?;
+            if !position.is_node() || position.kind() != SyntaxKind::FieldTail {
+                return Err(AssociationError::StructuralInvariant);
+            }
+            let key = self.position_source_keys.get(field.tail().0.index)
+                .and_then(Option::as_ref).ok_or(AssociationError::StructuralInvariant)?;
+            if !self.parsed.owns_source_key(key)
+                || self.source_position(key).map_err(|_| AssociationError::StructuralInvariant)? != *field.tail()
+                || !matches!(source_nodes.get(key), Some(node) if node.kind() == SyntaxKind::FieldTail)
+                || field_by_key.insert(key.clone(), index).is_some()
+            {
+                return Err(AssociationError::StructuralInvariant);
+            }
+        }
+
+        let mut role_nodes = Vec::new();
+        role_nodes.try_reserve_exact(roles.len()).map_err(|_| AssociationError::Allocation)?;
+        let mut seen_roles = HashSet::new();
+        seen_roles.try_reserve(roles.len()).map_err(|_| AssociationError::Allocation)?;
+        for role in &roles {
+            let position = self.position(role.position()).map_err(|_| AssociationError::StructuralInvariant)?;
+            let key = self.position_source_keys.get(role.position().0.index)
+                .and_then(Option::as_ref).ok_or(AssociationError::StructuralInvariant)?;
+            if !position.is_node()
+                || position.kind() != role.kind()
+                || !matches!(role.kind(), SyntaxKind::RoleDeclaration | SyntaxKind::ImplDeclaration)
+                || !self.parsed.owns_source_key(key)
+                || self.source_position(key).map_err(|_| AssociationError::StructuralInvariant)? != *role.position()
+                || !seen_roles.insert(role.position().0.index)
+            {
+                return Err(AssociationError::StructuralInvariant);
+            }
+            let node = source_nodes.get(key).ok_or(AssociationError::StructuralInvariant)?;
+            if node.kind() != role.kind() { return Err(AssociationError::StructuralInvariant); }
+            role_nodes.push(node);
+        }
+
+        // Associate only the outermost OperatorChain owning each retained tail;
+        // nested chains are reached by the same constructor's recursive walk.
+        let mut root_indices = HashSet::<usize>::new();
+        let mut root_positions = Vec::<PositionId>::new();
+        root_positions.try_reserve(fields.len()).map_err(|_| AssociationError::Allocation)?;
+        root_indices.try_reserve(fields.len()).map_err(|_| AssociationError::Allocation)?;
+        for field in &fields {
+            let mut root = field.expression().clone();
+            let mut parent = self.position(&root).map_err(|_| AssociationError::StructuralInvariant)?.parent().cloned();
+            while let Some(candidate) = parent {
+                let position = self.position(&candidate).map_err(|_| AssociationError::StructuralInvariant)?;
+                if position.is_node() && position.kind() == SyntaxKind::OperatorChain { root = candidate.clone(); }
+                parent = position.parent().cloned();
+            }
+            if root_indices.insert(root.0.index) { root_positions.push(root); }
+        }
+        let mut roots = Vec::new();
+        roots.try_reserve_exact(root_positions.len()).map_err(|_| AssociationError::Allocation)?;
+        for position in root_positions {
+            let key = self.position_source_keys.get(position.0.index)
+                .and_then(Option::as_ref).ok_or(AssociationError::StructuralInvariant)?;
+            if self.source_position(key).map_err(|_| AssociationError::StructuralInvariant)? != position {
+                return Err(AssociationError::StructuralInvariant);
+            }
+            let node = source_nodes.get(key).ok_or(AssociationError::StructuralInvariant)?;
+            if node.kind() != SyntaxKind::OperatorChain { return Err(AssociationError::StructuralInvariant); }
+            let associated = associate_chain_owned_with_sources(&self.parsed, node.clone())?;
+            let (hir, provenance, _) = associated.into_projection_parts();
+            roots.push(AssociatedRoot { hir, provenance });
+        }
+
+        let mut found = Vec::new();
+        found.try_reserve_exact(fields.len()).map_err(|_| AssociationError::Allocation)?;
+        found.resize(fields.len(), 0u8);
+        for root in &roots {
+            walk_associated_pairs(&root.hir, &root.provenance, &source_key_by_node, &field_by_key, &fields, &mut found, None)?;
+        }
+        if found.iter().any(|count| *count != 1) { return Err(AssociationError::StructuralInvariant); }
+
+        let mut slots = Vec::new();
+        slots.try_reserve_exact(fields.len()).map_err(|_| AssociationError::Allocation)?;
+        slots.resize_with(fields.len(), || None);
+        for root in &roots {
+            walk_associated_pairs(&root.hir, &root.provenance, &source_key_by_node, &field_by_key, &fields, &mut found, Some(&mut slots))?;
+        }
+        if slots.iter().any(Option::is_none) { return Err(AssociationError::StructuralInvariant); }
+        let mut published = Vec::new();
+        published.try_reserve_exact(slots.len()).map_err(|_| AssociationError::Allocation)?;
+        for slot in slots {
+            published.push(slot.ok_or(AssociationError::StructuralInvariant)?);
+        }
+        let mut role_views = Vec::new();
+        role_views.try_reserve_exact(roles.len()).map_err(|_| AssociationError::Allocation)?;
+        role_views.extend(roles.iter().zip(role_nodes).map(|(source, node)| AssociatedRoleImplSource { source, node }));
+        Ok(publish(&published, &role_views))
+    }
     pub fn annotations(&self) -> &[AnnotationOccurrence] {
         &self.annotations
     }
@@ -1052,11 +1203,14 @@ impl ShadowArtifact {
         let mut stack = vec![(RawElement::Node(root), None, 0)];
         while let Some((element, parent, ordinal)) = stack.pop() {
             let id = self.position_id(self.positions.len());
-            if let Some(node) = element.as_node() {
+            let position_source_key = if let Some(node) = element.as_node() {
                 if let Some(key) = source_keys.get(node) {
                     self.retain_source_position(key.clone(), id.clone());
+                    Some(key.clone())
+                } else {
+                    None
                 }
-            }
+            } else { None };
             if let Some(node) = element.as_node()
                 && matches!(
                     node.kind(),
@@ -1093,6 +1247,7 @@ impl ShadowArtifact {
                 ordinal,
                 children: Vec::new(),
             });
+            self.position_source_keys.push(position_source_key);
             if let Some(parent) = parent {
                 self.positions[parent.0.index].children.push(id.clone());
             }
@@ -1625,6 +1780,73 @@ pub enum ShadowError {
     InvalidUseReference,
     InvalidCallReference,
     InvalidExpressionReference,
+}
+
+fn walk_associated_pairs<'a>(
+    root_hir: &'a HirExpr,
+    root_provenance: &'a AssociationProvenance,
+    source_key_by_node: &HashMap<SyntaxNode, SourceNodeKey>,
+    field_by_key: &HashMap<SourceNodeKey, usize>,
+    fields: &'a [PendingFieldTailSource],
+    found: &mut [u8],
+    mut output: Option<&mut [Option<AssociatedFieldTailSource<'a>>]>,
+) -> Result<(), AssociationError> {
+    let mut stack = Vec::new();
+    stack.try_reserve(1).map_err(|_| AssociationError::Allocation)?;
+    stack.push((root_hir, root_provenance));
+    while let Some((hir, provenance)) = stack.pop() {
+        let (hir_kind, hir_children): (Option<SyntaxKind>, &[HirExpr]) = match hir {
+            HirExpr::Value { kind, children, .. } => (Some(*kind), children),
+            HirExpr::Error { kind, children, .. } => (Some(*kind), children),
+            HirExpr::Apply { operands, .. } => (None, operands),
+        };
+        let source_children = match provenance {
+            AssociationProvenance::Node { source, children } => {
+                if hir_kind != Some(source.kind()) { return Err(AssociationError::StructuralInvariant); }
+                let source_key = source_key_by_node.get(source).ok_or(AssociationError::StructuralInvariant)?;
+                if source.kind() == SyntaxKind::FieldTail {
+                    if let Some(index) = field_by_key.get(source_key).copied() {
+                        if hir_kind != Some(SyntaxKind::FieldTail)
+                            || hir_children.is_empty()
+                            || children.is_empty()
+                            || found.get(index).is_none()
+                        {
+                            return Err(AssociationError::StructuralInvariant);
+                        }
+                        found[index] = found[index].saturating_add(1);
+                        if let Some(slots) = output.as_deref_mut() {
+                            let slot = slots.get_mut(index).ok_or(AssociationError::StructuralInvariant)?;
+                            if slot.is_some() { return Err(AssociationError::StructuralInvariant); }
+                            *slot = Some(AssociatedFieldTailSource {
+                                source: fields.get(index).ok_or(AssociationError::StructuralInvariant)?,
+                                receiver: hir_children.first().ok_or(AssociationError::StructuralInvariant)?,
+                                receiver_provenance: children.first().ok_or(AssociationError::StructuralInvariant)?,
+                            });
+                        }
+                    }
+                }
+                children.as_slice()
+            }
+            AssociationProvenance::Synthetic(children) => {
+                if !matches!(hir, HirExpr::Apply { .. } | HirExpr::Value { kind: SyntaxKind::OperatorChain, .. }) {
+                    return Err(AssociationError::StructuralInvariant);
+                }
+                children.as_slice()
+            }
+            AssociationProvenance::Token(token) => {
+                if !matches!(hir, HirExpr::Error { kind, children, .. } if *kind == token.kind() && children.is_empty()) {
+                    return Err(AssociationError::StructuralInvariant);
+                }
+                &[]
+            }
+        };
+        if hir_children.len() != source_children.len() { return Err(AssociationError::StructuralInvariant); }
+        stack.try_reserve(hir_children.len()).map_err(|_| AssociationError::Allocation)?;
+        for (child, child_provenance) in hir_children.iter().zip(source_children).rev() {
+            stack.push((child, child_provenance));
+        }
+    }
+    Ok(())
 }
 
 fn build_skeleton(

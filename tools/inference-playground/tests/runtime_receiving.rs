@@ -155,6 +155,17 @@ fn a_nested_helper_cannot_borrow_its_captured_formals_receiver_permission() {
 }
 
 #[test]
+fn nested_helper_permission_tracks_its_own_received_view() {
+    let positive = format!(
+        "{IO}my relay (thunk:[io] int) = {{\n    my helper (pending:[io] int) = catch pending {{ io::tick(p), _ -> p }}\n    helper(thunk)\n}}\nmy main = relay (io::tick 7)"
+    );
+    let negative = positive.replacen("catch pending", "catch thunk", 1);
+
+    assert_integer(&positive, "7");
+    assert_missing_evidence(&negative);
+}
+
+#[test]
 fn matching_continuation_binder_can_be_discarded_by_its_arm() {
     assert_integer(
         &format!(
