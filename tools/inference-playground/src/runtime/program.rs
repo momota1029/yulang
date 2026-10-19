@@ -165,6 +165,7 @@ pub(super) struct CaseArm {
 }
 pub(super) enum CasePattern {
     Integer(Box<str>),
+    Binder(yu_hir::shadow::LocalSourceCatchBinderId),
     Wildcard,
 }
 pub(super) enum Instruction {
@@ -568,6 +569,9 @@ impl RuntimeProgram {
                                         source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
                                     }))?;
                                     CasePattern::Integer(text)
+                                }
+                                yu_hir::shadow::LocalSourceCasePattern::Binder(binder) => {
+                                    CasePattern::Binder(binder.id.clone())
                                 }
                                 yu_hir::shadow::LocalSourceCasePattern::Wildcard => CasePattern::Wildcard,
                             };

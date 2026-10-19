@@ -22,6 +22,7 @@ const examples = {
   ],
   case: ["my classify x = case x: 2 -> 22, _ -> 0\nmy main = classify 2", "22\n"],
   caseWildcard: ["my classify x = case x: 2 -> 22, _ -> 0\nmy main = classify 3", "0\n"],
+  caseBinder: ["my retain x = case x: value -> value\nmy other = retain \"kept\"\nmy main = retain 7", "7\n"],
 };
 const results = Object.fromEntries(
   Object.entries(examples).map(([name, [source, expected]]) => [name, run(source, "main", 100_000)]),

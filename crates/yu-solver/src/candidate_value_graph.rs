@@ -71,6 +71,7 @@ impl Graph {
         match resolution { LocalSourceResolution::ModuleDef(id) => Some(Value::Module(id.clone())),
             LocalSourceResolution::Local(id) => Some(Value::Local(id.clone())),
             LocalSourceResolution::CatchBinder(id) => Some(Value::CatchBinder(id.clone())),
+            LocalSourceResolution::CaseBinder(id) => Some(Value::CatchBinder(id.clone())),
             LocalSourceResolution::Parameter(id) => Some(Value::Parameter(id.clone())), _ => None }
     }
     fn expression_value(source: &LocalSource, mut index: usize) -> Value {
@@ -112,6 +113,16 @@ impl Graph {
                                 for payload in payloads { if let Payload::Value(pattern) = payload { retain(pattern)?; } }
                                 retain(continuation)?;
                             }
+                        }
+                        work.push((arm.body.ordinal() as usize, owner));
+                    }
+                },
+                LocalSourceForm::Case { scrutinee, arms } => {
+                    work.try_reserve(arms.len().checked_add(1).ok_or_else(unavailable)?).map_err(|_| unavailable())?;
+                    work.push((scrutinee.ordinal() as usize, owner));
+                    for arm in arms {
+                        if let yu_hir::shadow::LocalSourceCasePattern::Binder(binder) = &arm.pattern {
+                            self.intern(Value::CatchBinder(binder.id.clone()))?;
                         }
                         work.push((arm.body.ordinal() as usize, owner));
                     }

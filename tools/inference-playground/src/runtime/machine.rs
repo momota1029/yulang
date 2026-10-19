@@ -581,6 +581,11 @@ impl Machine {
                             matches!(binder, Binder::Catch(candidate) if candidate == id)
                         })
                     }
+                    LocalSourceResolution::CaseBinder(id) => {
+                        self.lookup(environment, |binder| {
+                            matches!(binder, Binder::Catch(candidate) if candidate == id)
+                        })
+                    }
                     LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous => None,
                 }
                 .ok_or_else(|| RuntimeUnavailable::MissingBinding(site.clone()))?;
@@ -1221,10 +1226,19 @@ impl Machine {
                 };
                 let selected = arms.iter().find(|arm| match (&arm.pattern, &self.values[received.value.0].kind) {
                     (CasePattern::Integer(expected), RuntimeValueKind::Integer(actual)) => expected == actual,
+                    (CasePattern::Binder(_), _) => true,
                     (CasePattern::Wildcard, _) => true,
                     _ => false,
                 });
                 if let Some(arm) = selected {
+                    let environment = match &arm.pattern {
+                        CasePattern::Binder(id) => self.bind(
+                            environment,
+                            Binder::Catch(id.clone()),
+                            ReceivedValue { value: received.value, interface: ParameterRole::Value, view: received.view },
+                        ),
+                        _ => environment,
+                    };
                     self.state = State::Evaluate {
                         code: arm.body,
                         environment,

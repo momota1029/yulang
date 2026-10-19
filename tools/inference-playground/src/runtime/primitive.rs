@@ -81,10 +81,18 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                 }
             }
             Instruction::Case { arms, .. } => {
-                if arms.iter().any(|arm| matches!(arm.pattern, super::program::CasePattern::Wildcard)) {
-                    // Integer and wildcard patterns are closed, local primitive tests.
+                if arms.iter().any(|arm| matches!(arm.pattern, super::program::CasePattern::Wildcard | super::program::CasePattern::Binder(_))) {
+                    // Integer tests and total binders are closed local primitive patterns.
                 } else {
                     return false;
+                }
+                for arm in arms {
+                    if let super::program::CasePattern::Binder(id) = &arm.pattern {
+                        if id.source_root() != &code.site.source_root {
+                            return false;
+                        }
+                        catches.insert(id);
+                    }
                 }
             }
             _ => {}
@@ -158,6 +166,7 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                         work.push(Visit::Enter(*initializer, Role::Ground));
                     }
                     LocalSourceResolution::CatchBinder(id) if catches.contains(id) => {}
+                    LocalSourceResolution::CaseBinder(id) if catches.contains(id) => {}
                     _ => return false,
                 }
             }

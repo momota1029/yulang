@@ -14,6 +14,7 @@ const examples: Record<string, string> = {
     "act io:\n    our tick: int -> int\nmy main = catch (catch io::tick 7 { io::tick(value), _ -> value }) { io::tick(value), _ -> value }",
   conditional: "my choose condition yes no = if condition: yes else: no\nmy main = choose true 7 9",
   case: "my classify x = case x: 2 -> 22, _ -> 0\nmy main = classify 2",
+  case_binder: "my retain x = case x: value -> value\nmy other = retain \"kept\"\nmy main = retain 7",
 };
 
 const source = document.querySelector<HTMLTextAreaElement>("#source")!;

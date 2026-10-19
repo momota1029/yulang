@@ -808,6 +808,7 @@ enum Work {
     Install(usize, usize, u32),
     Initializer(usize, u32, SourceRegionId),
     CatchArms(usize, u32, SourceRegionId),
+    CaseArms(usize, u32, SourceRegionId),
 }
 impl ConstraintBatch {
     fn prepare_source_annotation_primitives(&mut self, ty: &yu_hir::shadow::SourceAnnotationType) -> Result<(), CollectionAvailabilityError> {
@@ -932,13 +933,19 @@ impl ConstraintBatch {
             }
         }
         let mut catch_positions = HashMap::new();
+        let mut case_positions = HashMap::new();
         for (index, expr) in source.expressions().iter().enumerate() {
             if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(id), .. } = &expr.form {
                 catch_positions.try_reserve(1).map_err(|_| unavailable())?;
                 catch_positions.entry(id.clone()).or_insert(positions[index].value);
             }
+            if let LocalSourceForm::Name { resolution: LocalSourceResolution::CaseBinder(id), .. } = &expr.form {
+                case_positions.try_reserve(1).map_err(|_| unavailable())?;
+                case_positions.entry(id.clone()).or_insert(positions[index].value);
+            }
         }
         let mut catch_binders = HashMap::new();
+        let mut case_binders = HashMap::new();
         let mut actions = Vec::new();
         let mut field_bound_v1 = Vec::new();
         let mut work = Vec::new();
@@ -962,6 +969,9 @@ impl ConstraintBatch {
                     if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(binder), .. } = &expr.form {
                         endpoints[index] = *catch_binders.get(binder).ok_or_else(invalid)?;
                     }
+                    if let LocalSourceForm::Name { resolution: LocalSourceResolution::CaseBinder(binder), .. } = &expr.form {
+                        endpoints[index] = *case_binders.get(binder).ok_or_else(invalid)?;
+                    }
                     let pos = positions[index];
                     self.candidate_source.component_levels.try_reserve(2).map_err(|_| unavailable())?;
                     // A Catch binder's representative is introduced at the arm level;
@@ -982,6 +992,7 @@ impl ConstraintBatch {
                                 }
                             }
                             push(&mut work, Work::Visit(scrutinee.ordinal() as usize, level, region))?;
+                            push(&mut work, Work::CaseArms(index, level, region))?;
                         }
                         LocalSourceForm::If { arms, else_branch } => {
                             if let Some(else_branch) = else_branch {
@@ -1096,6 +1107,19 @@ impl ConstraintBatch {
                     }
                     for arm in arms.iter().rev() { push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?; }
                 }
+                Work::CaseArms(index, level, region) => {
+                    let LocalSourceForm::Case { scrutinee, arms } = &source.expressions()[index].form else { return Err(invalid()); };
+                    for arm in arms {
+                        if let yu_hir::shadow::LocalSourceCasePattern::Binder(binder) = &arm.pattern {
+                            let position = case_positions.get(&binder.id).copied().ok_or_else(invalid)?;
+                            case_binders.try_reserve(1).map_err(|_| unavailable())?;
+                            case_binders.insert(binder.id.clone(), endpoints[scrutinee.ordinal() as usize]);
+                            self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
+                            self.candidate_source.component_levels.insert(position, level);
+                        }
+                    }
+                    for arm in arms.iter().rev() { push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?; }
+                }
                 Work::Initializer(binding, level, parent_region) => {
                     let region = self.candidate_source.region(Some(parent_region))?;
                     if self.candidate_source.scoped_experiment {
@@ -1196,6 +1220,7 @@ impl ConstraintBatch {
                                         })?;
                                         value_constraints = value_constraints.checked_add(2).ok_or_else(unavailable)?;
                                     }
+                                    yu_hir::shadow::LocalSourceCasePattern::Binder(_) => {}
                                     yu_hir::shadow::LocalSourceCasePattern::Wildcard => {}
                                 }
                                 let body_index = arm.body.ordinal() as usize;
@@ -1286,7 +1311,7 @@ impl ConstraintBatch {
                                     push(uses, PendingDefinitionUse { parent: parent.clone(), target, occurrence: occurrence.clone() })?;
                                     push(&mut actions, Action::Module(occurrence.clone()))?;
                                 }
-                                LocalSourceResolution::Parameter(_) | LocalSourceResolution::CatchBinder(_) => {}
+                                LocalSourceResolution::Parameter(_) | LocalSourceResolution::CatchBinder(_) | LocalSourceResolution::CaseBinder(_) => {}
                                 LocalSourceResolution::Local(local) => {
                                     if let Some(&endpoint) = active_initializers.get(local) {
                                         push(&mut actions, Action::Link { occurrence: occurrence.clone(), endpoint, target: pos.value })?;
@@ -1308,7 +1333,7 @@ impl ConstraintBatch {
                                     self.candidate_source.charge_scoped_work(1)?;
                                     match &source.expressions()[argument_index].form {
                                         LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => argument_index = inner.ordinal() as usize,
-                                        LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. } => return Err(unavailable()),
+                                        LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. } | LocalSourceForm::Case { .. } => return Err(unavailable()),
                                         LocalSourceForm::Block { bindings, final_expression } => {
                                             if !bindings.is_empty() { return Err(unavailable()); }
                                             argument_index = final_expression.ordinal() as usize;
@@ -1333,7 +1358,7 @@ impl ConstraintBatch {
                                         }
                                         LocalSourceForm::Apply { .. } => { scoped_result_callee(source, callee_index, &mut self.candidate_source)?; break; }
                                         LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. }
-                                        | LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(_), .. } => return Err(unavailable()),
+                                        | LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(_) | LocalSourceResolution::CaseBinder(_), .. } => return Err(unavailable()),
                                         LocalSourceForm::Name { resolution: LocalSourceResolution::Local(local), .. } => {
                                             if crossed_ascription || crossed_nonempty_block || local.source_root() != source.source_root() { return Err(unavailable()); }
                                             let mut binding_work = 0usize;

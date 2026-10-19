@@ -22,9 +22,9 @@ or the production compiler. Unsupported source is reported by the current
 candidate/evaluator path rather than being assigned a new language diagnostic.
 Its bundled execution examples cover identity, closure capture, recursion,
 module expressions, conditionals, handled operations, continuation resumption,
-and nested handlers, plus integer `case` patterns with a wildcard fallback. The
-examples exercise implemented paths; they do not establish completeness for
-any of those language features.
+and nested handlers, plus integer `case` patterns, arm-local value binders and
+wildcard fallbacks. The examples exercise implemented paths; they do not
+establish completeness for any of those language features.
 
 ## Observe the inference graph by default
 
@@ -131,10 +131,11 @@ recursive local definitions, and applications with `Value` or retained
 branch's value and returns unit. Type ascriptions and binding annotations in
 the covered forms preserve the ordinary value.
 
-The experimental `case` carrier supports integer literal patterns and `_`.
-Arms are checked in source order at runtime; a case with no matching arm has no
-runtime result. Pattern binders, guards, labels, and non-integer patterns are
-outside this initial slice.
+The experimental `case` carrier supports integer literal patterns, identifier
+binders and `_`. A binder receives the original scrutinee value and is visible
+only in its arm body. Arms are checked in source order at runtime; a case with
+no matching arm has no runtime result. Guards, labels, and structured patterns
+are outside this initial slice.
 
 Supported resolved operation calls use the declaration's `Value` or
 `Computation` entry and produce an operation request. If a request remains

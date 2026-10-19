@@ -185,6 +185,10 @@ impl LocalSource {
                     }
                     LocalSourceForm::Case { arms, .. } => {
                         arms.capacity() * std::mem::size_of::<LocalSourceCaseArm>()
+                            + arms.iter().map(|arm| match &arm.pattern {
+                                LocalSourceCasePattern::Binder(binder) => binder.spelling.len(),
+                                _ => 0,
+                            }).sum::<usize>()
                     }
                     LocalSourceForm::If { arms, .. } => {
                         arms.capacity() * std::mem::size_of::<(LocalSourceIndex, LocalSourceIndex)>()
@@ -289,6 +293,7 @@ pub enum LocalSourceResolution {
     ModuleDef(DefId),
     Parameter(HirParameterId),
     CatchBinder(LocalSourceCatchBinderId),
+    CaseBinder(LocalSourceCatchBinderId),
     Local(HirLocalId),
     Unresolved,
     Ambiguous,
@@ -363,6 +368,7 @@ pub struct LocalSourceCaseArm {
 #[derive(Clone, Debug)]
 pub enum LocalSourceCasePattern {
     Integer(LocalSourceIndex),
+    Binder(LocalSourceCatchBinder),
     Wildcard,
 }
 
@@ -406,6 +412,7 @@ enum Work {
     Publish(u32, usize),
     Restore(usize),
     CatchArm(SyntaxNode, LocalSourceIndex, LocalSourceScope, Vec<LocalSourceCatchBinder>, Option<LocalSourceNamedGroupId>),
+    CaseArm(SyntaxNode, LocalSourceIndex, LocalSourceScope, Vec<LocalSourceCatchBinder>, Option<LocalSourceNamedGroupId>),
 }
 struct LexicalEntry {
     spelling: Box<str>,
@@ -670,6 +677,13 @@ pub(super) fn form(
                 push(&mut builder.work, Work::Restore(builder.lexical.len()))?;
                 for binder in binders {
                     builder.push_binding(binder.spelling, LocalSourceResolution::CatchBinder(binder.id))?;
+                }
+                push(&mut builder.work, Work::Expression(node, index, scope, named_group.clone()))?;
+            }
+            Work::CaseArm(node, index, scope, binders, named_group) => {
+                push(&mut builder.work, Work::Restore(builder.lexical.len()))?;
+                for binder in binders {
+                    builder.push_binding(binder.spelling, LocalSourceResolution::CaseBinder(binder.id))?;
                 }
                 push(&mut builder.work, Work::Expression(node, index, scope, named_group.clone()))?;
             }
@@ -1232,6 +1246,8 @@ impl Builder<'_> {
             {
                 return Err(unsupported());
             }
+            let arm_source = self.key(&arm)?;
+            let mut binders = Vec::new();
             let pattern = only_child(&patterns[0])?;
             let pattern = match pattern.kind() {
                 SyntaxKind::IntegerPattern => {
@@ -1245,31 +1261,51 @@ impl Builder<'_> {
                     )?;
                     LocalSourceCasePattern::Integer(pattern_index)
                 }
-                SyntaxKind::IdentifierPattern if identifier_spelling(&pattern)?.as_ref() == "_" => {
-                    LocalSourceCasePattern::Wildcard
+                SyntaxKind::IdentifierPattern => {
+                    let spelling = identifier_spelling(&pattern)?;
+                    if spelling.as_ref() == "_" {
+                        LocalSourceCasePattern::Wildcard
+                    } else {
+                        let binder = LocalSourceCatchBinder {
+                            id: LocalSourceCatchBinderId {
+                                owner: self.owner.clone(),
+                                arm_source: arm_source.clone(),
+                                ordinal: 0,
+                            },
+                            source: self.key(&pattern)?,
+                            range: range_of(&pattern),
+                            spelling,
+                        };
+                        push(&mut binders, binder.clone())?;
+                        LocalSourceCasePattern::Binder(binder)
+                    }
                 }
                 _ => return Err(unsupported()),
             };
-            let arm_source = self.key(&arm)?;
             let body_index = self.slot()?;
             push(&mut arms, LocalSourceCaseArm {
-                source: arm_source,
+                source: arm_source.clone(),
                 range: range_of(&arm),
                 pattern,
                 body: body_index.clone(),
             })?;
-            push(&mut children, (body.clone(), body_index))?;
+            push(&mut children, (body.clone(), body_index, binders))?;
         }
         if arms.is_empty() { return Err(unsupported()); }
         self.set(index.clone(), &node, scope.clone(), named_group.clone(), LocalSourceForm::Case {
             scrutinee: scrutinee_index.clone(),
             arms,
         })?;
-        let case_scope = LocalSourceScope::Expression(index);
+        let case_index = index.clone();
         let depth = self.lexical.len();
-        for (body, body_index) in children.into_iter().rev() {
-            push(&mut self.work, Work::Restore(depth))?;
-            push(&mut self.work, Work::Expression(body, body_index, case_scope.clone(), named_group.clone()))?;
+        for (body, body_index, binders) in children.into_iter().rev() {
+            push(&mut self.work, Work::CaseArm(
+                body,
+                body_index,
+                LocalSourceScope::Expression(case_index.clone()),
+                binders,
+                named_group.clone(),
+            ))?;
         }
         push(&mut self.work, Work::Restore(depth))?;
         push(&mut self.work, Work::Expression(scrutinee_node, scrutinee_index, scope, named_group.clone()))?;
