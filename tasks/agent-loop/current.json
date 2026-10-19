@@ -42,7 +42,7 @@
     "compiler_review": "CLEAN: no blocking/major/minor; source constructor and consumer claims match; 102 immutable pins matched.",
     "closeout": "notes/progress/2026-10-19-r88-closeout.md",
     "closeout_sha256": "e190f71dc28010b59a8ccd973d42c7f146622b15cb59df87b96394a6de081bd9",
-    "end_selector": "R89 candidate: original unmatched effectful suffix after raw resumption; independent of R85; 600s proof + 420s one runtime contrast; require Luna re-pin, new contract and source evidence before grant.",
+    "end_selector": "Selector proposed R89 original unmatched suffix after raw resumption. Deferred behind the user-prioritized method/role path; R85 exact offer remains an adoption gate. Preserve R89 as a later independent depth candidate.",
     "integration_commit": "ab9d3ee19f16cdc35c0672255bc3bd6c63f3e183; pushed origin/research/simple-sub-intrusion; clean tree and local/remote HEAD matched."
   },
   "workers": [
@@ -287,7 +287,7 @@
     }
   ],
   "closure": "R88 CLEAN: both independent reviews CLEAN; one runtime test command 19/19. Applied candidate constructor bridge only to exact R78 U/O/S premise. Six effect-hygiene fronts, native/source correspondence, parent/evaluator A/B OPEN 0→0; R50 NOT_ADOPTED; R85 AWAITING_USER_ADOPTION. Three legacy UNKNOWN reservations and board quarantine preserved.",
-  "next_action": "R88 commit pushed and clean. Next candidate R89: one original unmatched write effect after raw resumption; require fresh pins/contract. Method/role runnable work remains behind exact R85 adoption; preserve all six OPEN hygiene fronts.",
+  "next_action": "Prioritize the reviewed method/role path. The exact R85 positive InterfaceMatch offer is still AWAITING_USER_ADOPTION; present its frozen text/hash for explicit adoption. Once adopted, freeze a vertical role/method source→constraint→runtime sprint with one representative hygiene obligation and a runnable surface. Keep all six hygiene fronts open. R89 original unmatched suffix remains a later depth candidate.",
   "worker_inventory_scope": "All R88 producers and reviewers STOPPED with frozen outputs/receipts. Three inherited legacy identities remain UNKNOWN and retained; former board.md lease QUARANTINED; legacy idle implementer consumes one assignment slot. No unknown lease reclaimed.",
   "legacy_reconciliation": {
     "required": false,
