@@ -4,65 +4,45 @@
 "phase":"ACTIVE",
 "session":"current-conversation-2026-10-19-breadth-surface-method-goal",
 "active_sprint":{
-"id":"returned-closure-binder-cli-20261019-r125",
-"contract":"tasks/agent-loop/sprints/returned-closure-binder-cli-20261019-r125-rev2.md",
+"id":"normal-value-arm-outside-20261019-r126",
+"contract":"tasks/agent-loop/sprints/normal-value-arm-outside-20261019-r126-rev2.md",
 "revision":2,
-"contract_sha256":"e97f2b72e4c73089f10174255c754c3e465cd1026d2fc7af67bd217b6940770d",
-"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-"baseline":"145aca5f6",
-"authority":"Finite exact returned-closure source-to-runtime binder correspondence plus ordinary public stdin CLI result; no general closure theorem or parent closure.",
+"contract_sha256":"80b994bb759e12f19888512fc2d99c0563eb6497a58e3af3db1b023123237be8",
+"state":"VERIFICATION_PASS_PENDING_GIT",
+"baseline":"cbb462687",
+"authority":"Finite §14–15 normal-value arm delimiter-exit correspondence for two exact sources plus paired typed Machine/public CLI outcomes; no general handler theorem or semantic promotion.",
 "resources":{
-"cap_seconds":1440,
-"inventory_seconds":120,
-"prespec_seconds":180,
-"proof_seconds":420,
-"implementation_seconds":240,
-"reviews_seconds":240,
+"cap_seconds":1920,
+"inventory_seconds":180,
+"prespec_seconds":240,
+"proof_seconds":600,
+"implementation_seconds":300,
+"reviews_seconds":360,
 "verification_seconds":120,
 "closeout_seconds":120,
-"proof_seconds_charged":420,
-"implementation_seconds_charged":240,
-"reviews_seconds_charged":240,
-"prespec_seconds_charged":180,
-"inventory_seconds_charged":120,
+"inventory_seconds_charged":180,
+"prespec_seconds_charged":240,
+"proof_seconds_charged":600,
+"implementation_seconds_charged":300,
+"reviews_seconds_charged":360,
 "verification_seconds_charged":3,
 "closeout_seconds_charged":120
 },
 "verification":{
 "commands":[
-"CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_returned_closure -- --exact returned_closure_preserves_original_capture_through_cli --nocapture"
+"CARGO_BUILD_JOBS=2 timeout 120s cargo test -p yu-playground --test cli_value_arm_outside -- --exact normal_value_arm_runs_after_shallow_handler_exit --nocapture"
 ],
-"result":"PASS; exit 0; 1 passed, 0 failed, 0 ignored; exact CLI test asserts stdout 7\\n and empty stderr."
+"result":"PASS; exit 0; 1 passed, 0 failed, 0 ignored; control CLI stdout 7\\n, outside request diagnostic 101..103."
 },
 "outputs":{
-"proof":"notes/theory/2026-10-19-r125-returned-closure.md",
-"proof_handoff":"tasks/agent-loop/inbox/20261019-r125-proof.md",
-"test":"tools/inference-playground/tests/cli_returned_closure.rs",
-"implementation_handoff":"tasks/agent-loop/inbox/20261019-r125-implementation.md",
-"closeout":"notes/progress/2026-10-19-r125-closeout.md"
+"proof":"notes/theory/2026-10-19-r126-value-arm-outside.md",
+"proof_handoff":"tasks/agent-loop/inbox/20261019-r126-proof.md",
+"test":"tools/inference-playground/tests/cli_value_arm_outside.rs",
+"implementation_handoff":"tasks/agent-loop/inbox/20261019-r126-implementation.md"
 },
-"review_status":"Three final reviews CLEAN; exact contracted CLI command PASS (1 passed). Conditional proof and all H/A/E/B premises remain distinct; no parent gate closed.",
-"open_premises":"Exact source/candidate identity formation H, successful candidate solve/admission A, concrete runtime consumer checks E, and bounded completion/stdin-stdout observation B remain unproved as general premises. R125 conditionally derives original x endpoint/environment retention through alias and later y call. General closure soundness, all six effect-hygiene parents, method M/T/A and Simple-sub/evaluator A/B remain OPEN.",
-"next_action":"R125 closed as a conditional finite witness. At the next goal boundary select across effect hygiene, method/role proof, and runnable source surfaces; selector candidates are recorded in closeout and current user_goal.",
-"grant_receipt":{
-"authorized_by":"/root",
-"contract_revision":2,
-"contract_sha256":"e97f2b72e4c73089f10174255c754c3e465cd1026d2fc7af67bd217b6940770d",
-"pre_spec":"CLEAN delta review by /root/r118_prespec; runtime/receiving.rs owner pin verified",
-"proof_lease":[
-"notes/theory/2026-10-19-r125-returned-closure.md",
-"tasks/agent-loop/inbox/20261019-r125-proof.md"
-],
-"implementation_lease":[
-"tools/inference-playground/tests/cli_returned_closure.rs",
-"tasks/agent-loop/inbox/20261019-r125-implementation.md"
-],
-"budgets_seconds":{
-"proof":420,
-"implementation":240
-},
-"authority":"Only the finite returned-closure binder/environment chain and exact public stdin CLI witness; no general theorem or semantic promotion."
-}
+"review_status":"Three final reviews CLEAN; exact contracted test PASS (1 passed). Conditional claim only; Luna integration and push remain.",
+"open_premises":"Exact source/HIR identity H, successful candidate/runtime admission A, original value-return arm consumer transition E, and bounded machine/CLI outcomes B are separate candidate premises. All six effect-hygiene parents, method M/T/A, R85 adoption, and Simple-sub/evaluator A/B remain OPEN.",
+"next_action":"Integrate and push the reviewed R126 checkpoint. Selector recommends R127 native operation-payload Value/Computation entry (candidate only); follow with method/role source correspondence, then expired receiver permission after resumption."
 },
 "workers":[
 {
@@ -74,7 +54,7 @@
 "requested_effort":"high",
 "observed_model":"UNKNOWN",
 "observed_effort":"UNKNOWN",
-"receipt":"R124 committed/pushed as145aca5f6; R125 returned-closure binder/CLI rev1 frozen for pre-spec only."
+"receipt":"R126 active; R125 checkpoint pushed at cbb462687; sole Luna integrator."
 },
 {
 "id":"/root/resident_dispatcher_loop_a",
@@ -108,6 +88,72 @@
 "observed_model":"UNKNOWN",
 "observed_effort":"UNKNOWN",
 "receipt":"Legacy identity UNKNOWN; no successor lease."
+},
+{
+"id":"/root/r118_prespec",
+"role":"R126 exact source/authority pre-spec reviewer",
+"state":"STOPPED",
+"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"requested_model":"gpt-6.1-sol",
+"requested_effort":"low",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"R126 rev2 delta review CLEAN on SHA 80b994bb759e12f19888512fc2d99c0563eb6497a58e3af3db1b023123237be8; read-only; stop reported."
+},
+{
+"id":"/root/r118_proof_lane",
+"role":"R126 constructive proof lane",
+"state":"STOPPED",
+"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"requested_model":"gpt-6.1-sol",
+"requested_effort":"high",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"STOPPED; proof SHA d4d1bd81fe832c7804eee2815845bcd09174150ee7bfe1201532175dc1b3607b; handoff SHA 18b4b5577b961999d79b55bdebc94424c5b83ab2a9435bf151f42e05a0ea12b6; 300s observed, full 600s charged conservatively; no executable verification."
+},
+{
+"id":"/root/r118_implementation_lane",
+"role":"R126 paired public stdin implementation lane",
+"state":"STOPPED",
+"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"requested_model":"gpt-6-luna",
+"requested_effort":"high",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"STOPPED; all 30 pins matched; test SHA 86d63b45b4ee9df84efce69210b574f09882f07a5c8e5b1c7dd18e10e1953791; handoff SHA 7e69c5f12fd9206d9e27dac8a7bd319d7801307fb2821e0487365b540beaa38f; no execution; cap 300s charged conservatively."
+},
+{
+"id":"/root/r118_compiler_review",
+"role":"R126 independent compiler/source review",
+"state":"STOPPED",
+"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"requested_model":"UNKNOWN",
+"requested_effort":"UNKNOWN",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"R126 final review CLEAN; assigned frozen artifacts and all 30 pins matched; read-only, no executable actions; STOP."
+},
+{
+"id":"/root/r118_spec_review",
+"role":"R126 independent spec/authority review",
+"state":"STOPPED",
+"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"requested_model":"UNKNOWN",
+"requested_effort":"UNKNOWN",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"R126 final review CLEAN; assigned frozen artifacts and all 30 pins matched; read-only, no executable actions; STOP."
+},
+{
+"id":"/root/r118_regression_review",
+"role":"R126 independent regression review",
+"state":"STOPPED",
+"session":"current-conversation-2026-10-19-breadth-surface-method-goal",
+"requested_model":"UNKNOWN",
+"requested_effort":"UNKNOWN",
+"observed_model":"UNKNOWN",
+"observed_effort":"UNKNOWN",
+"receipt":"R126 final review CLEAN; assigned frozen artifacts and all 30 pins matched; read-only, no executable actions; STOP."
 }
 ],
 "leases":[
@@ -123,232 +169,32 @@
 "state":"HELD"
 },
 {
-"path":"tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev1.md",
+"path":"tasks/agent-loop/sprints/normal-value-arm-outside-20261019-r126-rev1.md",
 "owner":"/root",
 "state":"FROZEN"
 },
 {
-"path":"tasks/agent-loop/sprints/local-resumption-cli-20261019-r120-rev2.md",
+"path":"tasks/agent-loop/sprints/normal-value-arm-outside-20261019-r126-rev2.md",
 "owner":"/root",
 "state":"FROZEN"
 },
 {
-"path":"notes/theory/2026-10-19-r120-local-resumption.md",
+"path":"notes/theory/2026-10-19-r126-value-arm-outside.md",
 "owner":"/root/r118_proof_lane",
 "state":"FROZEN"
 },
 {
-"path":"tasks/agent-loop/inbox/20261019-r120-proof.md",
+"path":"tasks/agent-loop/inbox/20261019-r126-proof.md",
 "owner":"/root/r118_proof_lane",
 "state":"FROZEN"
 },
 {
-"path":"tools/inference-playground/tests/cli_local_resume.rs",
+"path":"tasks/agent-loop/inbox/20261019-r126-implementation.md",
 "owner":"/root/r118_implementation_lane",
 "state":"FROZEN"
 },
 {
-"path":"tasks/agent-loop/inbox/20261019-r120-implementation.md",
-"owner":"/root/r118_implementation_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/outward-root-suffix-cli-20261019-r121-rev1.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"notes/theory/2026-10-19-r121-outward-root-suffix.md",
-"owner":"/root/r118_proof_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/inbox/20261019-r121-proof.md",
-"owner":"/root/r118_proof_lane",
-"state":"FROZEN"
-},
-{
-"path":"tools/inference-playground/tests/cli_outward_root_suffix.rs",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/inbox/20261019-r121-implementation.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev1.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev2.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev3.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev4.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"notes/theory/2026-10-19-r122-receiver-permission.md",
-"owner":"/root/r118_proof_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/inbox/20261019-r122-proof.md",
-"owner":"/root/r118_proof_lane",
-"state":"FROZEN"
-},
-{
-"path":"tools/inference-playground/tests/cli_receiver_permission.rs",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/inbox/20261019-r122-implementation.md",
-"owner":"/root/r118_implementation_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev5.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev6.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/receiver-permission-cli-20261019-r122-rev7.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev1.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev2.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev3.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"notes/theory/2026-10-19-r123-method-annotation-source.md",
-"owner":"/root/r118_proof_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/inbox/20261019-r123-proof.md",
-"owner":"/root/r118_proof_lane",
-"state":"FROZEN"
-},
-{
-"path":"crates/yu-hir/src/tests/shadow_method_role_source.rs",
-"owner":"/root/r118_implementation_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/inbox/20261019-r123-implementation.md",
-"owner":"/root/r118_implementation_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev4.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"notes/progress/2026-10-19-r123-closeout.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev1.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev2.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"notes/theory/2026-10-19-r124-response-entry.md",
-"owner":"/root/r118_proof_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/inbox/20261019-r124-proof.md",
-"owner":"/root/r118_proof_lane",
-"state":"FROZEN"
-},
-{
-"path":"tools/inference-playground/tests/cli_response_entry.rs",
-"owner":"/root/r118_implementation_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/inbox/20261019-r124-implementation.md",
-"owner":"/root/r118_implementation_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/effectful-response-entry-cli-20261019-r124-rev3.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"notes/progress/2026-10-19-r124-closeout.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/returned-closure-binder-cli-20261019-r125-rev1.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/sprints/returned-closure-binder-cli-20261019-r125-rev2.md",
-"owner":"/root",
-"state":"FROZEN"
-},
-{
-"path":"notes/theory/2026-10-19-r125-returned-closure.md",
-"owner":"/root/r118_proof_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/inbox/20261019-r125-proof.md",
-"owner":"/root/r118_proof_lane",
-"state":"FROZEN"
-},
-{
-"path":"tools/inference-playground/tests/cli_returned_closure.rs",
-"owner":"/root/r118_implementation_lane",
-"state":"FROZEN"
-},
-{
-"path":"tasks/agent-loop/inbox/20261019-r125-implementation.md",
-"owner":"/root/r118_implementation_lane",
-"state":"FROZEN"
-},
-{
-"path":"notes/progress/2026-10-19-r125-closeout.md",
+"path":"notes/progress/2026-10-19-r126-closeout.md",
 "owner":"/root",
 "state":"FROZEN"
 }
@@ -425,8 +271,8 @@
 "falsifier":"See frozen gate record."
 }
 ],
-"closure":"R125 conditional returned-closure binder/environment witness and public CLI observation committed as 42177633a and pushed to origin after CLEAN reviews and PASS; semantic parents OPEN.",
-"next_action":"Next selection must rotate among six distinct effect-hygiene fronts, method/role source proofs, and ordinary/effectful runnable surfaces. Do not let a single effect front monopolize work; R125 closeout records four concrete candidates.",
+"closure":"R126 conditional normal-value-arm delimiter-exit witness and paired public stdin observation PASS; H/A/E/B, all six effect-hygiene parents, method M/T/A, R85 and Simple-sub/evaluator A/B remain OPEN.",
+"next_action":"R127 candidate: trace declaration-to-native Value/Computation entry and paired runnable outcomes; candidate only pending fresh pins/pre-spec/grant. Then method/role source correspondence.",
 "legacy_reconciliation":{
 "required":false,
 "reason":"Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -441,13 +287,6 @@
 },
 "user_goal":"Proof-backed type inference/evaluator with breadth and depth. Advance all six distinct effect-hygiene fronts over time; rotate among them rather than letting one front monopolize work. Prove method syntax and role behavior with source correspondence, and make ordinary/effectful source execution runnable early. Preserve original Simple-sub/evaluator A/B claims and semantic adoption gates. Luna alone integrates and pushes coherent reviewed checkpoints.",
 "history":[
-{
-"id":"R123",
-"state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-"contract":"tasks/agent-loop/sprints/method-member-annotation-source-20261019-r123-rev4.md",
-"verification":"three final delta reviews CLEAN; exact targeted yu-hir test PASS (1 passed); all parents OPEN",
-"closeout":"notes/progress/2026-10-19-r123-closeout.md"
-},
 {
 "id":"R124",
 "state":"CLOSED_VERIFIED_CONDITIONAL_WITNESS",
@@ -464,6 +303,15 @@
 "closeout":"notes/progress/2026-10-19-r125-closeout.md",
 "commit":"42177633a",
 "push":"origin/research/simple-sub-intrusion succeeded, non-forced"
+},
+{
+"id":"R126",
+"state":"VERIFIED_CONDITIONAL_WITNESS_PENDING_GIT",
+"contract":"tasks/agent-loop/sprints/normal-value-arm-outside-20261019-r126-rev2.md",
+"contract_sha256":"80b994bb759e12f19888512fc2d99c0563eb6497a58e3af3db1b023123237be8",
+"verification":"three final reviews CLEAN; exact targeted stdin CLI test PASS (1 passed); all parents OPEN",
+"closeout":"notes/progress/2026-10-19-r126-closeout.md",
+"closeout_sha256":"6dcd63c144e5d4aca68ca869bcfb2b9beac3e4a579f54aa2c6be9353144911af"
 }
 ]
 }
