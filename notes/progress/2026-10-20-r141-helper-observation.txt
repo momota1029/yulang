@@ -1,0 +1,69 @@
+# R141 closeout: observer not executed, source cut remains open
+
+## Outcome
+
+R141 closes **CLOSED_UNFINISHED_REVIEWED_RESEARCH**. No runtime observation was
+obtained. The authentic complete helper Local/action25 state and both direct
+and helper action31 replay-family histories remain UNFINISHED/OPEN. The original
+computation-forwarding theorem, R72/R73, Simple-sub A/B, inference/evaluator
+correspondence, source/native correspondence and production gates remain OPEN.
+No language semantics or sample-compatibility claim changed.
+
+Rev4 corrected the source route to public `CandidateInference::solve(hir)` and
+was CLEAN prospectively for its repair envelope. The stopped implementation
+was NOT CLEAN. Under rev4, the primary began repairing the public route,
+feature gate and source occurrence mapping, and added initial replay-product
+and currentness hooks. The remaining task still required authentic direct/helper
+family ancestry plus ordered capture/restoration, dispatch, acknowledgement and
+sweep histories. The dispatcher found no evidenced positive implementation
+balance: earlier implementation elapsed time was UNKNOWN. The primary charged
+the full original 540-second implementation allocation conservatively, did not
+run the sole heavy test, and removed all temporary observer code. The four
+restored Rust files match baseline HEAD; the untracked observer module is gone.
+
+## Reviews and evidence boundary
+
+`/root/r141_pre_spec` returned CLEAN for rev4 contract SHA
+`815f725274bfde49b2821721d605224bf472ce6a6e14bb5e77d1412a21871d00`, strictly
+as a prospective repair envelope. `/root/r141_pre_compiler` returned CLEAN for
+the same contract's repair authority while finding the stopped implementation
+NOT CLEAN, with blocking/major route, lineage, trace-completeness and feature
+configuration findings. No final review was performed. No test, build or
+compiler execution ran. The exact authorized command remains unused and must
+not be inferred as PASS.
+
+The 46 baseline dependencies matched baseline Git and live bytes at activation.
+The five stopped-draft hashes recorded in rev4 matched before rev4 review.
+Temporary edited Rust snapshots and hashes were:
+
+```text
+508b4315bd98c265dcb5294798a7f71261314a3da787297096d93bf29c40f0b9  crates/yu-solver/src/lib.rs
+098e0806507de677140d0a4c50574eba13fe4a3e81b486e4c3851b8f8aa737a1  crates/yu-solver/src/candidate_source.rs
+10d54f7b93a7191ee6e9dd310ca5d2b6d235b2029f794fd9c312daaee9bcf276  crates/yu-solver/src/candidate_context.rs
+433ef56d412cf8581d62a2ba7bcb2df895ef85d5a1522a40a86a9420b7f83761  crates/yu-solver/src/candidate_intrusion.rs
+da246b2ec167c1428d1ba68bfdb20b54fb1533afb27615d7718e331c5be944e2  crates/yu-solver/src/r141_observer.rs
+```
+
+After cleanup, all four existing files equal their rev4 baseline pins and the
+new module is absent. No dirty source paths remain.
+
+## Accounting
+
+R141 cap: 2,160 seconds. Conservatively charged: preparation/pin validation
+120, all four prospective review rounds 480 (including 360 for rev1–rev3 and
+120 for rev4), the full original implementation allocation 540 because exact
+elapsed time was unavailable, and closeout 120. Total charge: 1,260 seconds.
+Released unused: 900 seconds for mapping/theory, final reviews and the exact
+test. No budget carried from R140. Astra: zero. The three inherited UNKNOWN
+workers, board quarantine and held R104 lease remain unchanged.
+
+## Frozen artifacts
+
+- Contract: `tasks/agent-loop/sprints/helper-observation-20261020-r141-rev4.md`
+  SHA-256 `815f725274bfde49b2821721d605224bf472ce6a6e14bb5e77d1412a21871d00`.
+- Theory/mapping status: `notes/theory/2026-10-20-r141-helper-observation.md`.
+- Implementation handoff: `tasks/agent-loop/inbox/20261020-r141-implementation.md`.
+- Proof handoff: `tasks/agent-loop/inbox/20261020-r141-proof.md`.
+
+R140 remains CLOSED_UNFINISHED_REVIEWED_RESEARCH. This instrumentation sprint
+adds no source/native premise and no production authority.

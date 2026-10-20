@@ -5,10 +5,10 @@
   "session": "current-conversation-2026-10-20-r141",
   "active_sprint": {
     "id": "helper-observation-20261020-r141",
-    "contract": "tasks/agent-loop/sprints/helper-observation-20261020-r141-rev3.md",
-    "revision": 3,
-    "contract_sha256": "5212c2b2cf4763f68f235c9e1a7c8f1691d24ba1536c1a83e3883df301b24c75",
-    "state": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/helper-observation-20261020-r141-rev4.md",
+    "revision": 4,
+    "contract_sha256": "815f725274bfde49b2821721d605224bf472ce6a6e14bb5e77d1412a21871d00",
+    "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
     "baseline": "94a34c4113cb4e5a0de3d0e4b88ffe3c785d9fd4",
     "authority": "test-only observer and constructive source mapping for fixed ordinary-mode R72 source; no semantic or production authority",
     "dependencies": {
@@ -20,23 +20,25 @@
       {
         "reviewer": "/root/r141_pre_spec",
         "result": "CLEAN",
-        "contract_sha256": "5212c2b2cf4763f68f235c9e1a7c8f1691d24ba1536c1a83e3883df301b24c75",
+        "scope": "rev4 contract and authority envelope; stopped draft not certified",
+        "contract_sha256": "815f725274bfde49b2821721d605224bf472ce6a6e14bb5e77d1412a21871d00",
         "elapsed_seconds": "UNKNOWN"
       },
       {
         "reviewer": "/root/r141_pre_compiler",
         "result": "CLEAN",
-        "contract_sha256": "5212c2b2cf4763f68f235c9e1a7c8f1691d24ba1536c1a83e3883df301b24c75",
+        "scope": "rev4 repair authority; stopped implementation draft NOT CLEAN with listed blocking/major findings",
+        "contract_sha256": "815f725274bfde49b2821721d605224bf472ce6a6e14bb5e77d1412a21871d00",
         "elapsed_seconds": "UNKNOWN"
       }
     ],
     "resources": {
-      "cap_seconds": 2040,
+      "cap_seconds": 2160,
       "reserved_seconds": 0,
       "astra_seconds": 0,
       "prep_pin_validation_charged_or_reserved_seconds": 120,
-      "prospective_review_allowance_seconds": 360,
-      "prospective_review_rounds": 3,
+      "prospective_review_allowance_seconds": 480,
+      "prospective_review_rounds": 4,
       "prior_prospective_rounds_conservative_charge_seconds": 240,
       "rev3_prospective_round_conservative_charge_seconds": 120,
       "implementation_seconds": 540,
@@ -45,12 +47,20 @@
       "single_test_seconds": 240,
       "closeout_seconds": 120,
       "no_R140_budget_carryover": true,
-      "initial_reserved_seconds": 1500,
-      "released_seconds": 90,
-      "reservation_state": "CLOSED; 1410 charged, 90 released; zero remaining reservation, no carryover."
+      "rev4_prospective_round_conservative_charge_seconds": 120,
+      "prior_rounds_total_conservative_charge_seconds": 360,
+      "rev4_round_conservative_charge_seconds": 120,
+      "prospective_allowance_remaining_seconds": 0,
+      "implementation_allocation_seconds": 540,
+      "implementation_elapsed_receipt": "UNKNOWN; full original 540-second allocation charged conservatively at stop, no renewal",
+      "implementation_remaining_seconds": 0,
+      "charged_seconds": 1260,
+      "released_seconds": 900,
+      "remaining_reservation_seconds": 0,
+      "reservation_state": "CLOSED; conservatively charged prep120 + prospective reviews480 + full original implementation allocation540 + closeout120; released unused mapping/theory360 + final reviews300 + test240 = 900; no carryover"
     },
     "parent_status": "Computation-forwarding preservation; R72/R73, Simple-sub A/B, inference/evaluator, source-native and production gates remain OPEN.",
-    "next_boundary": "freeze code and pre-execution claims; run the one exact test; add actual records only to leased theory/handoffs; freeze complete snapshot for fresh final reviews."
+    "next_boundary": "R141 closed unfinished; no heavy command run; next sprint requires dispatcher selection under the persistent user goal"
   },
   "workers": [
     {
@@ -95,7 +105,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Activated R141 after CLEAN prospective spec/compiler reviews of contract rev3; 46 baseline/live pins and HEAD-baseline validation complete. Beginning bounded test-only observer and source mapping under exact leases."
+      "receipt": "R141 closed unfinished. No heavy command/test/build ran. Temporary observer code removed; exact leased Rust files restored to baseline. Closeout artifacts frozen; persistent user goal remains active for dispatcher-selected next sprint."
     }
   ],
   "leases": [
@@ -113,62 +123,67 @@
     {
       "path": "crates/yu-solver/src/lib.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_source.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_scheme.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_context.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/candidate_intrusion.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/term.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "crates/yu-solver/src/r141_observer.rs",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/sprints/helper-observation-20261020-r141-rev3.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/progress/2026-10-20-r141-helper-observation.txt",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/2026-10-20-r141-helper-observation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261020-r141-implementation.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/20261020-r141-proof.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/helper-observation-20261020-r141-rev4.md",
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -250,8 +265,8 @@
       "falsifier": "Any blocking/major finding or dependency mismatch keeps candidate provisional."
     }
   ],
-  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN.",
-  "next_action": "R141 ACTIVE: implement bounded test-only observer and constructive source mapping, freeze code/assertions before the single exact run; keep every parent and production gate OPEN.",
+  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN. R141 CLOSED_UNFINISHED_REVIEWED_RESEARCH; no runtime observation, all parent and production gates remain OPEN.",
+  "next_action": "R141 closed UNFINISHED/OPEN after conservative implementation budget exhaustion; no test/build was run. Consult dispatcher for next proof-backed inference/evaluator or sample-compatibility sprint under user goal.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -378,7 +393,25 @@
         "released_seconds": 90,
         "remaining_reservation_seconds": 0
       }
+    },
+    {
+      "id": "R141",
+      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+      "closeout": "notes/progress/2026-10-20-r141-helper-observation.txt",
+      "closeout_sha256": "62dc99098fdf2ae8fd2eec4091066c3c5a7b09068acb3a34e1588c68486b6207",
+      "contract": "tasks/agent-loop/sprints/helper-observation-20261020-r141-rev4.md",
+      "contract_sha256": "815f725274bfde49b2821721d605224bf472ce6a6e14bb5e77d1412a21871d00",
+      "theory": "notes/theory/2026-10-20-r141-helper-observation.md",
+      "proof_handoff": "tasks/agent-loop/inbox/20261020-r141-proof.md",
+      "implementation_handoff": "tasks/agent-loop/inbox/20261020-r141-implementation.md",
+      "resources": {
+        "cap_seconds": 2160,
+        "charged_seconds": 1260,
+        "released_seconds": 900,
+        "remaining_reservation_seconds": 0,
+        "test_run": false
+      }
     }
   ],
-  "review_receipts": "R141 rev1 NOT CLEAN (two major contract defects); rev2 NOT CLEAN (missing direct R138 pins and stale active path); rev3 CLEAN prospective spec and compiler/source, SHA 5212c2b2cf4763f68f235c9e1a7c8f1691d24ba1536c1a83e3883df301b24c75. All prior review rounds count against R141 360-second allowance; elapsed UNKNOWN; conservative reservations applied. R141 rev3 CLEAN prospective reviews and 46/46 pins validated; 2040 seconds reserved once, prior R140 reservation closed."
+  "review_receipts": "R141 rev1 NOT CLEAN (two major contract defects); rev2 NOT CLEAN (missing direct R138 pins and stale active path); rev3 CLEAN prospective spec and compiler/source, SHA 5212c2b2cf4763f68f235c9e1a7c8f1691d24ba1536c1a83e3883df301b24c75. All prior review rounds count against R141 360-second allowance; elapsed UNKNOWN; conservative reservations applied. R141 rev3 CLEAN prospective reviews and 46/46 pins validated; 2040 seconds reserved once, prior R140 reservation closed. R141 rev3 ordinary-mode mismatch discovered before any test/build; code frozen at recorded stopped-draft hashes. Rev4 prospective reviews pending; 480s total allowance (360s conservatively charged for rev1-rev3, 120s reserved for rev4), 2160s cap. Rev4 prospective spec CLEAN; compiler/source CLEAN for repair envelope, stopped draft NOT CLEAN. Required repairs: ordinary public solve route; authenticate helper/loop source occurrences and exact replay families; complete ordered product/dispatch/currentness/acknowledgement/sweep and capture/restoration observations; match module hook feature guard. All fit existing lease and rev4 budget. R141 closed UNFINISHED: implementation elapsed UNKNOWN, full 540s original implementation allocation charged conservatively; temporary observer code rolled back; no heavy command or final review; 900s unused phase allocation released."
 }
