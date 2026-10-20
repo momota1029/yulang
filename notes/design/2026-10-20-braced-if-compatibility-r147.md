@@ -1,6 +1,6 @@
 # Braced `if` bodies for the unchanged countdown sample
 
-Status: **DRAFT — awaiting proof-lane source note and independent review. No
+Status: **DRAFT — proof-lane source note frozen; pending independent review. No
 semantic approval or implementation authority is recorded.**
 
 This decision packet targets the unchanged Web example

@@ -8,7 +8,7 @@
   "contract": "tasks/agent-loop/sprints/braced-if-approval-packet-20261020-r147-rev2.md",
   "revision": 2,
   "contract_sha256": "87ec019b57a2e885bff6aab5e7cf16929526ebb07df593646f495442184ff281",
-  "state": "ACTIVE_PROOF_AND_DECISION_DRAFT",
+  "state": "RESULT_AWAITING_FINAL_REVIEW",
   "baseline": "4d9c9c74e0c56b8e34b60d521b68bcf8504946b2",
   "authority": "Luna activated after CLEAN prospective reviews, 26/26 pins and code-tree parity. Proof writes only theory/handoff; Luna writes decision draft/current/closeout and owns Git. No implementation/execution; semantic approval remains required.",
   "dependencies": {
@@ -19,14 +19,14 @@
   },
   "resources": {
    "cap_seconds": 1200,
-   "charged_seconds": 360,
-   "reserved_seconds": 840,
+   "charged_seconds": 780,
+   "reserved_seconds": 420,
    "astra_seconds": 0,
    "no_carryover": true,
-   "reservation_state": "Prep/pin validation180 + prospective reviews180 charged. Proof420, Luna decision draft180, final review120, closeout120 reserved."
+   "reservation_state": "Prep+prospective reviews360 and proof420 charged (proof elapsed unknown, full cap). Luna draft180, final review120, closeout120 reserved; no carryover."
   },
   "parent_status": "R70/R71, Simple-sub/evaluator A/B, source/native correspondence, evaluator/sample compatibility and production remain OPEN. R146 supervisor conformance UNVERIFIED.",
-  "next_boundary": "Freeze source note and decision draft; final compiler/source review; closeout; then ask user to select a reviewed semantic option. No implementation before approval.",
+  "next_boundary": "Final compiler/source review of frozen contract, theory, proof handoff, Luna decision draft and Luna handoff; then closeout and user decision.",
   "prospective_reviews": [
    {
     "reviewer": "/root/r146_pre_spec",
@@ -41,7 +41,18 @@
     "receipt": "26/26 live pins; source map and bare-else path checked; Web sample integration remains a later gate; no execution authority."
    }
   ],
-  "implementation_result": "NO_SAFE_CODE_SLICE pending explicit user semantic approval; current lane is decision packet only."
+  "implementation_result": "NO_SAFE_CODE_SLICE pending explicit user semantic approval; current lane is decision packet only.",
+  "proof_result": "Source-correct Y2/Y3 decision packet support; singleton representation remains conditional. Web countdown is not selected or smoke-run today.",
+  "proof_outputs": {
+   "theory": "notes/theory/2026-10-20-braced-if-elaboration-r147.md",
+   "theory_sha256": "f2a9ef20bc981ba40310aaca5ff20f2c0edaff6e60f5e07e63f13fdd33e4094b",
+   "handoff": "tasks/agent-loop/inbox/20261020-r147-proof.md",
+   "handoff_sha256": "02890c687a4be4f82d071cc9c24d4ee728192107e48f0f74dc93fd1b553e1887",
+   "decision_draft": "notes/design/2026-10-20-braced-if-compatibility-r147.md",
+   "decision_draft_sha256": "2dbbf05c2c74810c4684a71d81933d4b6b4a9be2067dcc60b943bb090ff64f12",
+   "decision_handoff": "tasks/agent-loop/inbox/20261020-r147-decision-packet.md",
+   "decision_handoff_sha256": "d3bb3264ffb64df0d7948e3460c43ce1f037a4bd51ef7ebb4fb3de8dea031355"
+  }
  },
  "workers": [
   {
@@ -124,13 +135,13 @@
   {
    "id": "/root/r147_proof",
    "role": "R147 source correspondence proof author",
-   "state": "RUNNING",
-   "session": "current-conversation-2026-10-20-r147-proof-and-decision",
+   "state": "STOPPED",
+   "session": null,
    "requested_model": "prover default Sol/high",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Proof writer launched for exact theory/handoff leases; active source correspondence audit. No execution."
+   "receipt": "Writes STOPPED 2026-10-20T02:19:53.979209Z; theory/handoff frozen at listed hashes; no descendants."
   }
  ],
  "leases": [
@@ -206,22 +217,22 @@
   {
    "path": "notes/design/2026-10-20-braced-if-compatibility-r147.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "tasks/agent-loop/inbox/20261020-r147-decision-packet.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "notes/theory/2026-10-20-braced-if-elaboration-r147.md",
    "owner": "/root/r147_proof",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "tasks/agent-loop/inbox/20261020-r147-proof.md",
    "owner": "/root/r147_proof",
-   "state": "HELD"
+   "state": "FROZEN"
   },
   {
    "path": "notes/progress/2026-10-20-r147-closeout.md",
@@ -302,7 +313,7 @@
   }
  ],
  "closure": "R146 CLOSED_UNFINISHED_REVIEWED_RESEARCH: finite OBSERVED_PREPARED record, but supervisor conformance UNVERIFIED because inline source was not retained. See notes/progress/2026-10-20-r146-closeout.md. R70/R71 and higher parents remain OPEN.",
- "next_action": "R147 active after clean reviews and refreshed pins. Start proof audit and Luna decision draft; no implementation before reviewed packet and user approval.",
+ "next_action": "R147 proof and decision draft are frozen and await fresh independent compiler/source review. No code or execution authority.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
@@ -318,64 +329,10 @@
  "user_goal": "Proof-backed Yulang inference/evaluator breadth; broaden unchanged Yulang2 sample execution with source correspondence and bounded proofs. Preserve Simple-sub/evaluator A/B claims, quantifiers, adoption gates and honest OPEN statuses. Luna alone integrates and pushes reviewed checkpoints.",
  "history": [
   {
-   "id": "R125",
-   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-   "closeout": "notes/progress/2026-10-19-r125-closeout.md"
-  },
-  {
-   "id": "R126",
-   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-   "closeout": "notes/progress/2026-10-19-r126-closeout.md"
-  },
-  {
-   "id": "R127",
-   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-   "closeout": "notes/progress/2026-10-19-r127-closeout.md"
-  },
-  {
-   "id": "R129",
-   "state": "PROVISIONAL_CLI_WITNESS_UNREVIEWED",
-   "commit": "9a2b1683b"
-  },
-  {
-   "id": "R128",
-   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_RECOVERED",
-   "closeout": "notes/progress/2026-10-20-r128-closeout.md",
-   "commit": "8b781bc71db1295c9fefe850280fa74c6c37f48b"
-  },
-  {
-   "id": "R130",
-   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-   "closeout": "notes/progress/2026-10-19-r130-closeout.md",
-   "commit": "64d43010b"
-  },
-  {
-   "id": "R131",
-   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-   "closeout": "notes/progress/2026-10-19-r131-closeout.md",
-   "commit": "df18c2b22"
-  },
-  {
    "id": "R114",
    "state": "CLOSED_VERIFIED_FINITE_RUNTIME_CLI_WITNESS",
    "closeout": "notes/progress/2026-10-20-r114-rev4-closeout.md",
    "commit": "6a383747139fc03b45c1051e0a0d95b4d443c134"
-  },
-  {
-   "id": "R132",
-   "state": "CLOSED_FAILED_FIXED_OUTCOME",
-   "closeout": "notes/progress/2026-10-20-r132-closeout.md"
-  },
-  {
-   "id": "R133",
-   "state": "CLOSED_FAILED_FIXED_OUTCOME",
-   "closeout": "notes/progress/2026-10-20-r133-closeout.md"
-  },
-  {
-   "id": "R134",
-   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
-   "closeout": "notes/progress/2026-10-20-r134-closeout.md",
-   "commit": "b0afbbacb"
   },
   {
    "id": "R135",
