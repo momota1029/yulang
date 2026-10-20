@@ -12,15 +12,15 @@
     "current_state_input_sha256": "8039b4216461a92e071c0ef4cd1002c312c2701634f4e95ddec69c7960fb5bb5",
     "resources": {
       "cap_seconds": 6000,
-      "charged_seconds": 240,
-      "reserved_seconds": 5760,
+      "charged_seconds": 950,
+      "reserved_seconds": 5050,
       "no_carryover": true,
-      "allocation": "prep+initial review 240; proof 1200; design 600; conditional code 2400; focused checks 600; reviews 600 (120 contract prospective, 180 proof, 300 final); closeout 360."
+      "allocation": "prep 240 charged; design lane capped/closed at 600; initial contract review 110 charged (10 expires unused); proof 1200; conditional code 2400 currently blocked; focused checks 600 blocked; remaining proof/final reviews 480; closeout 360; no borrowing/carryover."
     },
     "proof": "R185-POSITIVE-N-EMISSION-1 assigned Sol/high, max 1200s; exact outputs held; not yet launched.",
-    "implementation": "Frozen prospective sequence-slice contract; note 0c6f7a69d288dbaf1fd8a1c6b41dbe80ed2860e5edf512ce86b63341ab1a8441; handoff a2e57ea4af779cdbac2ed2e28d6860ce7242886a8e9e70af54918f9812e1bf36; independent 120s prospective review RUNNING; no code authority yet.",
-    "review_receipt": "CLEAN /root/r186_initial_prospective_review; 50 exact blob/mode pins, authority, leases/capacity, 6000s arithmetic verified; no semantic reads; prep charged 240s.",
-    "next_action": "Await fresh implementation-contract prospective review; on CLEAN activate exact justified subset and continue broad unchanged Web sample support."
+    "implementation": "Rev1 review MAJOR; revised note SHA 4e59c25947f3e3ea5acc746ca3e4483f7c4225028f93ad9ec54db3035c2117d9 and handoff rev2 SHA d4ad8e9bfbe15a49d99de7759b20e6d99f7a768774b03f254d5350cd733fb3dd. Universal all-retained-object primitive certification added. No remaining R186 prospective-review allocation; code gate blocked.",
+    "review_receipt": "MAJOR /root/r186_contract_review, ~110/120s charged: selected-child wording underspecified; pinned primitive certificate universal across all constructed definitions/arms/dependencies including unused. Revision 2 corrects wording but is not independently reviewed and has no code authority.",
+    "next_action": "Continue R186 proof lane; dispatcher to replan contract review as separate budgeted next sprint. No R186 code activation."
   },
   "workers": [
     {
@@ -131,13 +131,13 @@
     {
       "id": "/root/r186_contract_review",
       "role": "independent prospective implementation-contract reviewer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-21-r186",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Fresh review of frozen contract; max 120s; exact pinned baseline only; no tests/execution/Git."
+      "receipt": "Review stopped; MAJOR finding frozen against contract rev1; ~110s charged, no artifact writes."
     }
   ],
   "leases": [
@@ -343,13 +343,13 @@
       "path": "notes/design/2026-10-21-r186-option-b-implementation-contract.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "R186 Luna design frozen at SHA 0c6f7a69d288dbaf1fd8a1c6b41dbe80ed2860e5edf512ce86b63341ab1a8441 pending independent prospective review."
+      "reason": "Luna revision 2 frozen; SHA 4e59c25947f3e3ea5acc746ca3e4483f7c4225028f93ad9ec54db3035c2117d9; corrects universal primitive certificate finding; fresh review still required."
     },
     {
       "path": "tasks/agent-loop/inbox/20261021-r186-implementation.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "R186 Luna handoff frozen at SHA a2e57ea4af779cdbac2ed2e28d6860ce7242886a8e9e70af54918f9812e1bf36 pending independent prospective review."
+      "reason": "Handoff rev2 frozen; SHA d4ad8e9bfbe15a49d99de7759b20e6d99f7a768774b03f254d5350cd733fb3dd; code gate remains closed."
     }
   ],
   "pending": [
@@ -433,7 +433,7 @@
     }
   ],
   "closure": "R185 CLOSED_REVIEWED_UNFINISHED; R186 active after CLEAN initial prospective review. Parent/frontier/production gates OPEN.",
-  "next_action": "Launch R186 proof lane; Luna drafts exact implementation contract; no code until its prospective review is CLEAN.",
+  "next_action": "Continue active R186 proof; dispatcher replan for separately budgeted review of corrected implementation contract. Do not activate code under R186.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
