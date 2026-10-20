@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev1.md",
     "revision": 1,
     "contract_sha256": "a7848b9138898a04213a071172f41d4b351233a1ae82e713232a1dbd320273da",
-    "state": "CANDIDATE_PROSPECTIVE_SPEC_REVIEW",
+    "state": "CANDIDATE_PROSPECTIVE_COMPILER_REVIEW",
     "baseline": "f6e59e42bcfcfb3c13a0c511c63bcf9d0390005d",
     "authority": "Read-only candidate review only. No process/build/CLI, proof, code, runtime or resource authority before both prospective CLEAN reviews, fresh activation pins, exact leases and explicit Luna activation.",
     "dependencies": {
@@ -27,7 +27,7 @@
       "reservation_state": "Candidate only; prep 180s charged conservatively; no remaining resource is authorized unless candidate activates."
     },
     "parent_status": "R70/R71 OPEN; higher Simple-sub A/B, source/native correspondence, evaluator/sample compatibility and production gates remain OPEN.",
-    "next_boundary": "Prospective spec review result; then sequential compiler/source review. Any contract change requires revision and fresh review.",
+    "next_boundary": "Sequential prospective compiler/source review result. Candidate remains inactive.",
     "proof_result": "NOT_STARTED; candidate inactive.",
     "proof_outputs": {
       "theory": "notes/theory/2026-10-20-r146-source-admission.md",
@@ -35,7 +35,15 @@
       "observation": "notes/progress/2026-10-20-r146-admission-observation.txt"
     },
     "closeout": "notes/progress/2026-10-20-r146-closeout.md",
-    "prospective_reviews": [],
+    "prospective_reviews": [
+      {
+        "reviewer": "/root/r146_pre_spec",
+        "role": "spec_auditor",
+        "result": "CLEAN",
+        "scope": "Exact candidate SHA-256 a7848b9138898a04213a071172f41d4b351233a1ae82e713232a1dbd320273da",
+        "receipt": "Parent quantifiers and OPEN gates preserved; one bounded post-activation observation; output finite; infrastructure failure inconclusive; no retry; 19/19 live pins checked. Baseline/tree equality primary-supplied. No writes/builds/CLI."
+      }
+    ],
     "final_reviews": [],
     "primary_complementary_result": "NO_SAFE_CODE_SLICE; no process or source edit authorized at candidate review."
   },
@@ -131,13 +139,24 @@
     {
       "id": "/root/r146_pre_spec",
       "role": "R146 prospective exact-conformance reviewer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-20-r146-candidate-review",
       "requested_model": "spec_auditor default Sol/low",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Fresh isolated read-only review launched against exact R146 rev1 SHA; no Git/writes/tests/build/CLI."
+      "receipt": "CLEAN for exact contract SHA a7848b9138898a04213a071172f41d4b351233a1ae82e713232a1dbd320273da; independently checked 19 live hashes. Baseline/code-tree equality primary-supplied. No Git/writes/tests/builds/CLI."
+    },
+    {
+      "id": "/root/r146_pre_compiler",
+      "role": "R146 prospective compiler/source reviewer",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-20-r146-candidate-review",
+      "requested_model": "compiler_referee default Sol/medium",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Fresh isolated read-only prospective review launched for exact R146 candidate SHA; no Git/writes/tests/builds/CLI."
     }
   ],
   "leases": [
@@ -250,7 +269,7 @@
     }
   ],
   "closure": "R145 CLOSED_UNFINISHED_REVIEWED_RESEARCH: first unpinned syntax-admission premise. Final compiler/source review CLEAN. See notes/progress/2026-10-20-r145-closeout.md. Parent R70/R71 and higher claims remain OPEN.",
-  "next_action": "R146 rev1 prospective spec review active; 19/19 direct pins and baseline code-tree parity checked. No command has run.",
+  "next_action": "R146 prospective compiler/source review running; inactive candidate, no execution authority.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
