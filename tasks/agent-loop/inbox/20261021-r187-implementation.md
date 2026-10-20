@@ -1,28 +1,12 @@
-# R187 Luna implementation handoff — rev10 trailing-separator repair
+# R187 Luna implementation handoff — rev11 Web selector lease proposed
 
 - Owner: Luna primary and sole Git integrator.
-- Candidate rev8: `tasks/agent-loop/sprints/post-lambda-age-and-option-b-sequences-20261021-r187.md` SHA-256 `f0f511d1af5df9f3748e92a2d60601331c177b570e4feac20311069b4e6af652`; design SHA-256 `09593cd9967ff512147cbb83d01ca4421549030280de5054fc03c572ddd586d7`. Rev8 exact malformed-else delta review was CLEAN.
-- Base implementation checkpoint: `facc59222326cedbf12c9cd4ff7dc171d2290ecf`, pushed to `origin/research/simple-sub-intrusion`.
-- Independent static review of that checkpoint was NOT CLEAN: parser-produced terminal `BlockStatementSeparator` caused nonempty braced sequences to be rejected. It affects newline-before-close and explicit trailing semicolon.
+- Candidate rev9 SHA-256 `9942192386814b59e1026a877cb4fd888eff68dcd211b68d367730deee154de2`; design SHA-256 `3c62f8b50c7d59629663f6c725eb22ac52909fc347b6ae1f75d4541edf8d0ed6`. Baseline `d314168e12e2e5138c7d45f84767f5e6eb39edbc`.
+- Pushed checkpoints: `facc59222` sequence implementation, `58af75437` terminal-separator repair, `ff9de939c` static review receipt, `9213647d9` Web main/smoke checkpoint. Repair received CLEAN static review.
+- Rev9 reason: the main.ts map and smoke test name `yulang2_ordinary_islands`, but hard-coded options in `web/playground/index.html` make the fixture unreachable in the UI. Baseline SHA-256 `68ffb6b9c064dc6b0d6047a70acec19c11b55e3082873af640336aad509e587b`, mode `100644`. No HTML edit before CLEAN review.
+- Proposed delta: one option value `yulang2_ordinary_islands`, matching main.ts. Preserve all existing options/defaults and fixture/output.
+- Review grant: 120s transferred from code; remaining code1080. After issue: 3660 charged +2340 reserved =6000. Verification600 remains inactive under user STOP.
+- No further builds/tests/browser execution. Scratch target cleanup: `cargo clean` removed 1236 files /1.3 GiB. Prior solver check and syntax31/31 predate terminal-separator repair and Web changes.
+- HIR/CLI/runtime/Web execution incomplete; parent theorem/A/B/source-native/production OPEN.
 
-## Repair
-
-`sequence()` now rejects only an empty statement list. Separators still must alternate with valid direct `Statement` nodes, so duplicated separators and malformed item shapes remain rejected. The existing malformed-body HIR refusal test remains. The leased HIR test now records the explicit trailing-semicolon case; the multiline regression records newline-before-close.
-
-Changed paths:
-- `crates/yu-hir/src/module/local_source.rs` `7d45e98690551f81f7b18e1778a934c65c43c8e17ed06bff110877b86bf5f14a`
-- `crates/yu-hir/tests/conditional_local_source.rs` `5e8e66511cebfa90189656e9a209e88d6b9ada83cd9ba8fb2fe8e4212f4fbf0f`
-
-## Verification and limits
-
-Previously: isolated `cargo check -p yu-solver` passed; isolated `cargo test -p yu-syntax if_` passed 31/31. After user resource direction, no additional builds/tests/execution were run. Scratch `target` cleanup: `cargo clean` removed 1236 files / 1.3 GiB. HIR, CLI, runtime, Web and end-to-end verification remain incomplete. New HIR case is unexecuted.
-
-Next: fresh static review of this repair, preserving execution stop and existing leases. Parent theorem/A/B/source-native/production gates remain OPEN.
-
-## Repair review receipt
-
-Fresh static review of commit `58af75437808e1a53de001c5fe17d10e7cbb9b3a` returned CLEAN. It confirms valid terminal newline/semicolon separators are accepted after nonempty sequences while empty, leading/repeated separators, adjacent statements, malformed child shapes, and recovery-bearing bodies remain rejected. This review performed no execution. The HIR regression for explicit `;` and all runtime/CLI/Web checks remain unexecuted under the user's resource direction.
-
-## Web route checkpoint
-
-The unchanged `yulang2-ordinary-islands.yu` fixture is now added to the existing Web example selector. Selecting it sets `countdown_result`; `smoke-test.mjs` now expects `8\n`. Fixture SHA-256 remains `f10e7e57cdfc165436a89326c9f069f19aa0afd24cea80b2b570463fcc553487`. Web build/smoke remains unexecuted under the user resource STOP.
+Review boundary: prospective review only for exact HTML path/pin. If CLEAN, add one option, then statically trace option -> handler -> map -> fixture -> `countdown_result`; no browser run.
