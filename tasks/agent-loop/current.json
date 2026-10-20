@@ -1,345 +1,447 @@
 {
-  "schema_version": 1,
-  "mode": "LIVE",
-  "phase": "ENDED",
-  "session": "current-conversation-2026-10-20-r146-final-review",
-  "active_sprint": null,
-  "workers": [
-    {
-      "id": "/root/resident_dispatcher_loop_a",
-      "role": "legacy dispatcher; historical runtime unavailable",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Legacy identity UNKNOWN; board lease quarantined."
-    },
-    {
-      "id": "/root/resident_implementer_idle",
-      "role": "legacy implementation worker; historical runtime unavailable",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Legacy identity UNKNOWN; slot reserved."
-    },
-    {
-      "id": "/root/runtime_source_supplier_proof",
-      "role": "legacy proof worker; historical runtime unavailable",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Legacy identity UNKNOWN; no successor lease."
-    },
-    {
-      "id": "/root",
-      "role": "Luna primary / sole Git integrator",
-      "state": "STOPPED",
-      "session": null,
-      "requested_model": "gpt-6-luna",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "R146 session ended after closeout; no active work or descendants."
-    },
-    {
-      "id": "/root/r146_final_compiler",
-      "role": "R146 independent final compiler/source reviewer",
-      "state": "STOPPED",
-      "session": null,
-      "requested_model": "compiler_referee default Sol/medium",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Final compiler/source review completed read-only; no descendants."
-    }
-  ],
-  "leases": [
-    {
-      "path": "tasks/agent-loop/board.md",
-      "owner": "/root/resident_dispatcher_loop_a",
-      "state": "QUARANTINED",
-      "reason": "Historical writer identity UNKNOWN; no cessation/handoff for board.md."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
-      "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/source-lineage-trace-20261020-r145-rev1.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Exact SHA prospective review target; candidate only."
-    },
-    {
-      "path": "notes/theory/2026-10-20-r145-source-lineage-trace.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Proof author stopped; frozen outputs pending independent final review and Luna adjudication."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r145-proof.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Proof author stopped; frozen outputs pending independent final review and Luna adjudication."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev1.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Exact candidate SHA under prospective review; inactive."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev2.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Sequential rev2 exact SHA under new prospective review; inactive."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev3.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Sequential rev3 exact SHA under prospective review; inactive."
-    },
-    {
-      "path": "notes/theory/2026-10-20-r146-source-admission.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Proof author STOPPED; exact outputs frozen pending independent final review and Luna closeout."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r146-proof.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Proof author STOPPED; exact outputs frozen pending independent final review and Luna closeout."
-    },
-    {
-      "path": "notes/progress/2026-10-20-r146-admission-observation.txt",
-      "owner": "/root",
-      "state": "FROZEN"
-    }
-  ],
-  "pending": [
-    {
-      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
-      "state": "OPEN",
-      "owner": "Luna; original whole-ascription formation obligation",
-      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R64-SRC-ANN-ARG-1",
-      "state": "OPEN",
-      "owner": "Luna; downstream of the current operand supplier",
-      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R65-CURRENT-OPERAND-1",
-      "state": "OPEN",
-      "owner": "Luna; original ordinary typed Lambda operand supplier",
-      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R66-LAMBDA-RESULT-STAGE-1",
-      "state": "OPEN",
-      "owner": "Luna; direct Lambda-checking follow-up under R67",
-      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R67-DIRECT-BODY-CHECK-1",
-      "state": "OPEN",
-      "owner": "Luna; source Lambda checking/body-consumer premise",
-      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R68-OWNER-CONSUMER-1",
-      "state": "OPEN",
-      "owner": "Luna; authentic retained body/result-consumer source owner",
-      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
-      "state": "OPEN_UNADOPTED_PROPOSAL",
-      "owner": "Luna; source-law completion",
-      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
-      "state": "OPEN",
-      "owner": "Luna; exact source/native owners assigned within R70",
-      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
-      "state": "OPEN",
-      "owner": "Luna; exact source/native owners assigned within R71",
-      "details": "tasks/agent-loop/inbox/20261019-r71-proof.md",
-      "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R72-LATER-OCCURRENCE-1",
-      "state": "OPEN",
-      "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
-      "details": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
-      "falsifier": "See frozen gate record."
-    }
-  ],
-  "closure": "R146 CLOSED_UNFINISHED_REVIEWED_RESEARCH: finite OBSERVED_PREPARED record, but supervisor conformance UNVERIFIED because inline source was not retained. See notes/progress/2026-10-20-r146-closeout.md. R70/R71 and higher parents remain OPEN.",
-  "next_action": "R146 ended after final review. No successor is active; use the dispatcher at the next sprint boundary. No further execution authority.",
-  "legacy_reconciliation": {
-    "required": false,
-    "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
-    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+ "schema_version": 1,
+ "mode": "LIVE",
+ "phase": "ACTIVE",
+ "session": "current-conversation-2026-10-20-r147-proof-and-decision",
+ "active_sprint": {
+  "id": "braced-if-approval-packet-20261020-r147",
+  "contract": "tasks/agent-loop/sprints/braced-if-approval-packet-20261020-r147-rev2.md",
+  "revision": 2,
+  "contract_sha256": "87ec019b57a2e885bff6aab5e7cf16929526ebb07df593646f495442184ff281",
+  "state": "ACTIVE_PROOF_AND_DECISION_DRAFT",
+  "baseline": "4d9c9c74e0c56b8e34b60d521b68bcf8504946b2",
+  "authority": "Luna activated after CLEAN prospective reviews, 26/26 pins and code-tree parity. Proof writes only theory/handoff; Luna writes decision draft/current/closeout and owns Git. No implementation/execution; semantic approval remains required.",
+  "dependencies": {
+   "direct_pins": 26,
+   "live_hashes": "26/26 match",
+   "baseline_tree": "e2baa5de4a9796b56fa1a2c85e581346bd54886f",
+   "repository_code_tree_parity": "No diff for Cargo.toml, Cargo.lock, crates/, tools/, apps/, web/ against baseline."
   },
-  "state_audit": {
-    "reviewer": "/root/migration_gate_review",
-    "result": "CLEAN for exact frozen diff 7336f290da53dc39cfc5be18dd492820d1b7451c..93ddff3c132f5da2d73e3efae0a6050dc105dcf7; receipt in notes/progress/2026-10-20-sprint-adoption-reconciliation.md.",
-    "open_minors": [
-      "R145 proposal needs exact pins, prospective reviews and Luna activation."
-    ]
+  "resources": {
+   "cap_seconds": 1200,
+   "charged_seconds": 360,
+   "reserved_seconds": 840,
+   "astra_seconds": 0,
+   "no_carryover": true,
+   "reservation_state": "Prep/pin validation180 + prospective reviews180 charged. Proof420, Luna decision draft180, final review120, closeout120 reserved."
   },
-  "user_goal": "Proof-backed Yulang inference/evaluator breadth; broaden unchanged Yulang2 sample execution with source correspondence and bounded proofs. Preserve Simple-sub/evaluator A/B claims, quantifiers, adoption gates and honest OPEN statuses. Luna alone integrates and pushes reviewed checkpoints.",
-  "history": [
-    {
-      "id": "R125",
-      "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-      "closeout": "notes/progress/2026-10-19-r125-closeout.md"
-    },
-    {
-      "id": "R126",
-      "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-      "closeout": "notes/progress/2026-10-19-r126-closeout.md"
-    },
-    {
-      "id": "R127",
-      "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-      "closeout": "notes/progress/2026-10-19-r127-closeout.md"
-    },
-    {
-      "id": "R129",
-      "state": "PROVISIONAL_CLI_WITNESS_UNREVIEWED",
-      "commit": "9a2b1683b"
-    },
-    {
-      "id": "R128",
-      "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_RECOVERED",
-      "closeout": "notes/progress/2026-10-20-r128-closeout.md",
-      "commit": "8b781bc71db1295c9fefe850280fa74c6c37f48b"
-    },
-    {
-      "id": "R130",
-      "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-      "closeout": "notes/progress/2026-10-19-r130-closeout.md",
-      "commit": "64d43010b"
-    },
-    {
-      "id": "R131",
-      "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
-      "closeout": "notes/progress/2026-10-19-r131-closeout.md",
-      "commit": "df18c2b22"
-    },
-    {
-      "id": "R114",
-      "state": "CLOSED_VERIFIED_FINITE_RUNTIME_CLI_WITNESS",
-      "closeout": "notes/progress/2026-10-20-r114-rev4-closeout.md",
-      "commit": "6a383747139fc03b45c1051e0a0d95b4d443c134"
-    },
-    {
-      "id": "R132",
-      "state": "CLOSED_FAILED_FIXED_OUTCOME",
-      "closeout": "notes/progress/2026-10-20-r132-closeout.md"
-    },
-    {
-      "id": "R133",
-      "state": "CLOSED_FAILED_FIXED_OUTCOME",
-      "closeout": "notes/progress/2026-10-20-r133-closeout.md"
-    },
-    {
-      "id": "R134",
-      "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
-      "closeout": "notes/progress/2026-10-20-r134-closeout.md",
-      "commit": "b0afbbacb"
-    },
-    {
-      "id": "R135",
-      "state": "CLOSED_REVIEWED_PROPOSAL_PENDING_USER_APPROVAL",
-      "closeout": "notes/progress/2026-10-20-r135-closeout.md"
-    },
-    {
-      "id": "R136",
-      "state": "CLOSED_VERIFIED_FINITE_EXAMPLE",
-      "closeout": "notes/progress/2026-10-20-r136-closeout.md",
-      "commit": "93385cb6ab1e83a769e84af4997d39b9f57c9684"
-    },
-    {
-      "id": "R137",
-      "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
-      "closeout": "notes/progress/2026-10-20-r137-closeout.md",
-      "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de"
-    },
-    {
-      "id": "R138",
-      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "closeout": "notes/progress/2026-10-20-r138-closeout.md"
-    },
-    {
-      "id": "R139",
-      "state": "CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY",
-      "closeout": "notes/progress/2026-10-20-r139-closeout.md"
-    },
-    {
-      "id": "R140",
-      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "closeout": "notes/progress/2026-10-20-r140-closeout.md"
-    },
-    {
-      "id": "R141",
-      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "closeout": "notes/progress/2026-10-20-r141-helper-observation.txt"
-    },
-    {
-      "id": "R142",
-      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "closeout": "notes/progress/2026-10-20-r142-closeout.md",
-      "integration_commit": "784bcf78516c0e59e4adfceac6c42ab6a10a087a"
-    },
-    {
-      "id": "R143",
-      "state": "CLOSED_REVIEWED_PUBLIC_RETURN_BARRIER",
-      "closeout": "notes/progress/2026-10-20-r143-closeout.md",
-      "integration_commit": "4ea18840f"
-    },
-    {
-      "id": "R144",
-      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "closeout": "notes/progress/2026-10-20-r144-closeout.md",
-      "integration_commit": "0c540791a"
-    },
-    {
-      "id": "R145",
-      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "closeout": "notes/progress/2026-10-20-r145-closeout.md"
-    },
-    {
-      "id": "R146",
-      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "closeout": "notes/progress/2026-10-20-r146-closeout.md"
-    }
+  "parent_status": "R70/R71, Simple-sub/evaluator A/B, source/native correspondence, evaluator/sample compatibility and production remain OPEN. R146 supervisor conformance UNVERIFIED.",
+  "next_boundary": "Freeze source note and decision draft; final compiler/source review; closeout; then ask user to select a reviewed semantic option. No implementation before approval.",
+  "prospective_reviews": [
+   {
+    "reviewer": "/root/r146_pre_spec",
+    "result": "CLEAN",
+    "scope": "Exact R147 rev2 SHA 87ec019b57a2e885bff6aab5e7cf16929526ebb07df593646f495442184ff281",
+    "receipt": "Exact handoff ownership; required Web/WASM/prepare/smoke owners pinned; approval gate and budget preserved."
+   },
+   {
+    "reviewer": "/root/r146_pre_compiler",
+    "result": "CLEAN",
+    "scope": "Exact R147 rev2 SHA 87ec019b57a2e885bff6aab5e7cf16929526ebb07df593646f495442184ff281",
+    "receipt": "26/26 live pins; source map and bare-else path checked; Web sample integration remains a later gate; no execution authority."
+   }
   ],
-  "review_receipts": "R144/R145 and migration receipts in closeouts. R146 final compiler/source review: source classification clean; MAJOR supervisor-conformance evidence gap and MINOR omitted baseline tree cross-reference; Luna closeout records both."
+  "implementation_result": "NO_SAFE_CODE_SLICE pending explicit user semantic approval; current lane is decision packet only."
+ },
+ "workers": [
+  {
+   "id": "/root/resident_dispatcher_loop_a",
+   "role": "legacy dispatcher; historical runtime unavailable",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Legacy identity UNKNOWN; board lease quarantined."
+  },
+  {
+   "id": "/root/resident_implementer_idle",
+   "role": "legacy implementation worker; historical runtime unavailable",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Legacy identity UNKNOWN; slot reserved."
+  },
+  {
+   "id": "/root/runtime_source_supplier_proof",
+   "role": "legacy proof worker; historical runtime unavailable",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Legacy identity UNKNOWN; no successor lease."
+  },
+  {
+   "id": "/root",
+   "role": "Luna primary / sole Git integrator",
+   "state": "RUNNING",
+   "session": "current-conversation-2026-10-20-r147-proof-and-decision",
+   "requested_model": "gpt-6-luna",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "R147 active; coordinating proof and decision draft only."
+  },
+  {
+   "id": "/root/r146_final_compiler",
+   "role": "R146 independent final compiler/source reviewer",
+   "state": "STOPPED",
+   "session": null,
+   "requested_model": "compiler_referee default Sol/medium",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Final compiler/source review completed read-only; no descendants."
+  },
+  {
+   "id": "/root/r146_pre_spec",
+   "role": "R147 prospective spec/authority reviewer",
+   "state": "STOPPED",
+   "session": null,
+   "requested_model": "spec_auditor default Sol/low",
+   "requested_effort": "low",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "R147 prospective review completed; no descendants."
+  },
+  {
+   "id": "/root/r146_pre_compiler",
+   "role": "R147 prospective compiler/source reviewer",
+   "state": "STOPPED",
+   "session": null,
+   "requested_model": "compiler_referee default Sol/medium",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "R147 prospective review completed; no descendants."
+  },
+  {
+   "id": "/root/r147_proof",
+   "role": "R147 source correspondence proof author",
+   "state": "RUNNING",
+   "session": "current-conversation-2026-10-20-r147-proof-and-decision",
+   "requested_model": "prover default Sol/high",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Proof writer launched for exact theory/handoff leases; active source correspondence audit. No execution."
+  }
+ ],
+ "leases": [
+  {
+   "path": "tasks/agent-loop/board.md",
+   "owner": "/root/resident_dispatcher_loop_a",
+   "state": "QUARANTINED",
+   "reason": "Historical writer identity UNKNOWN; no cessation/handoff for board.md."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/source-lineage-trace-20261020-r145-rev1.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Exact SHA prospective review target; candidate only."
+  },
+  {
+   "path": "notes/theory/2026-10-20-r145-source-lineage-trace.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Proof author stopped; frozen outputs pending independent final review and Luna adjudication."
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261020-r145-proof.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Proof author stopped; frozen outputs pending independent final review and Luna adjudication."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev1.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Exact candidate SHA under prospective review; inactive."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev2.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Sequential rev2 exact SHA under new prospective review; inactive."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev3.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Sequential rev3 exact SHA under prospective review; inactive."
+  },
+  {
+   "path": "notes/theory/2026-10-20-r146-source-admission.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Proof author STOPPED; exact outputs frozen pending independent final review and Luna closeout."
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261020-r146-proof.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Proof author STOPPED; exact outputs frozen pending independent final review and Luna closeout."
+  },
+  {
+   "path": "notes/progress/2026-10-20-r146-admission-observation.txt",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "tasks/agent-loop/sprints/braced-if-approval-packet-20261020-r147-rev2.md",
+   "owner": "/root",
+   "state": "FROZEN"
+  },
+  {
+   "path": "notes/design/2026-10-20-braced-if-compatibility-r147.md",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261020-r147-decision-packet.md",
+   "owner": "/root",
+   "state": "HELD"
+  },
+  {
+   "path": "notes/theory/2026-10-20-braced-if-elaboration-r147.md",
+   "owner": "/root/r147_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261020-r147-proof.md",
+   "owner": "/root/r147_proof",
+   "state": "HELD"
+  },
+  {
+   "path": "notes/progress/2026-10-20-r147-closeout.md",
+   "owner": "/root",
+   "state": "HELD"
+  }
+ ],
+ "pending": [
+  {
+   "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+   "state": "OPEN",
+   "owner": "Luna; original whole-ascription formation obligation",
+   "details": "tasks/agent-loop/inbox/20261019-r61-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R64-SRC-ANN-ARG-1",
+   "state": "OPEN",
+   "owner": "Luna; downstream of the current operand supplier",
+   "details": "tasks/agent-loop/inbox/20261019-r64-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R65-CURRENT-OPERAND-1",
+   "state": "OPEN",
+   "owner": "Luna; original ordinary typed Lambda operand supplier",
+   "details": "tasks/agent-loop/inbox/20261019-r65-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R66-LAMBDA-RESULT-STAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; direct Lambda-checking follow-up under R67",
+   "details": "tasks/agent-loop/inbox/20261019-r66-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R67-DIRECT-BODY-CHECK-1",
+   "state": "OPEN",
+   "owner": "Luna; source Lambda checking/body-consumer premise",
+   "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R68-OWNER-CONSUMER-1",
+   "state": "OPEN",
+   "owner": "Luna; authentic retained body/result-consumer source owner",
+   "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+   "state": "OPEN_UNADOPTED_PROPOSAL",
+   "owner": "Luna; source-law completion",
+   "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+   "state": "OPEN",
+   "owner": "Luna; exact source/native owners assigned within R70",
+   "details": "tasks/agent-loop/inbox/20261019-r70-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; exact source/native owners assigned within R71",
+   "details": "tasks/agent-loop/inbox/20261019-r71-proof.md",
+   "falsifier": "See frozen gate record."
+  },
+  {
+   "id": "R72-LATER-OCCURRENCE-1",
+   "state": "OPEN",
+   "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
+   "details": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
+   "falsifier": "See frozen gate record."
+  }
+ ],
+ "closure": "R146 CLOSED_UNFINISHED_REVIEWED_RESEARCH: finite OBSERVED_PREPARED record, but supervisor conformance UNVERIFIED because inline source was not retained. See notes/progress/2026-10-20-r146-closeout.md. R70/R71 and higher parents remain OPEN.",
+ "next_action": "R147 active after clean reviews and refreshed pins. Start proof audit and Luna decision draft; no implementation before reviewed packet and user approval.",
+ "legacy_reconciliation": {
+  "required": false,
+  "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
+  "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+ },
+ "state_audit": {
+  "reviewer": "/root/migration_gate_review",
+  "result": "CLEAN for exact frozen diff 7336f290da53dc39cfc5be18dd492820d1b7451c..93ddff3c132f5da2d73e3efae0a6050dc105dcf7; receipt in notes/progress/2026-10-20-sprint-adoption-reconciliation.md.",
+  "open_minors": [
+   "R145 proposal needs exact pins, prospective reviews and Luna activation."
+  ]
+ },
+ "user_goal": "Proof-backed Yulang inference/evaluator breadth; broaden unchanged Yulang2 sample execution with source correspondence and bounded proofs. Preserve Simple-sub/evaluator A/B claims, quantifiers, adoption gates and honest OPEN statuses. Luna alone integrates and pushes reviewed checkpoints.",
+ "history": [
+  {
+   "id": "R125",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+   "closeout": "notes/progress/2026-10-19-r125-closeout.md"
+  },
+  {
+   "id": "R126",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+   "closeout": "notes/progress/2026-10-19-r126-closeout.md"
+  },
+  {
+   "id": "R127",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+   "closeout": "notes/progress/2026-10-19-r127-closeout.md"
+  },
+  {
+   "id": "R129",
+   "state": "PROVISIONAL_CLI_WITNESS_UNREVIEWED",
+   "commit": "9a2b1683b"
+  },
+  {
+   "id": "R128",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_RECOVERED",
+   "closeout": "notes/progress/2026-10-20-r128-closeout.md",
+   "commit": "8b781bc71db1295c9fefe850280fa74c6c37f48b"
+  },
+  {
+   "id": "R130",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+   "closeout": "notes/progress/2026-10-19-r130-closeout.md",
+   "commit": "64d43010b"
+  },
+  {
+   "id": "R131",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS",
+   "closeout": "notes/progress/2026-10-19-r131-closeout.md",
+   "commit": "df18c2b22"
+  },
+  {
+   "id": "R114",
+   "state": "CLOSED_VERIFIED_FINITE_RUNTIME_CLI_WITNESS",
+   "closeout": "notes/progress/2026-10-20-r114-rev4-closeout.md",
+   "commit": "6a383747139fc03b45c1051e0a0d95b4d443c134"
+  },
+  {
+   "id": "R132",
+   "state": "CLOSED_FAILED_FIXED_OUTCOME",
+   "closeout": "notes/progress/2026-10-20-r132-closeout.md"
+  },
+  {
+   "id": "R133",
+   "state": "CLOSED_FAILED_FIXED_OUTCOME",
+   "closeout": "notes/progress/2026-10-20-r133-closeout.md"
+  },
+  {
+   "id": "R134",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
+   "closeout": "notes/progress/2026-10-20-r134-closeout.md",
+   "commit": "b0afbbacb"
+  },
+  {
+   "id": "R135",
+   "state": "CLOSED_REVIEWED_PROPOSAL_PENDING_USER_APPROVAL",
+   "closeout": "notes/progress/2026-10-20-r135-closeout.md"
+  },
+  {
+   "id": "R136",
+   "state": "CLOSED_VERIFIED_FINITE_EXAMPLE",
+   "closeout": "notes/progress/2026-10-20-r136-closeout.md",
+   "commit": "93385cb6ab1e83a769e84af4997d39b9f57c9684"
+  },
+  {
+   "id": "R137",
+   "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
+   "closeout": "notes/progress/2026-10-20-r137-closeout.md",
+   "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de"
+  },
+  {
+   "id": "R138",
+   "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+   "closeout": "notes/progress/2026-10-20-r138-closeout.md"
+  },
+  {
+   "id": "R139",
+   "state": "CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY",
+   "closeout": "notes/progress/2026-10-20-r139-closeout.md"
+  },
+  {
+   "id": "R140",
+   "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+   "closeout": "notes/progress/2026-10-20-r140-closeout.md"
+  },
+  {
+   "id": "R141",
+   "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+   "closeout": "notes/progress/2026-10-20-r141-helper-observation.txt"
+  },
+  {
+   "id": "R142",
+   "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+   "closeout": "notes/progress/2026-10-20-r142-closeout.md",
+   "integration_commit": "784bcf78516c0e59e4adfceac6c42ab6a10a087a"
+  },
+  {
+   "id": "R143",
+   "state": "CLOSED_REVIEWED_PUBLIC_RETURN_BARRIER",
+   "closeout": "notes/progress/2026-10-20-r143-closeout.md",
+   "integration_commit": "4ea18840f"
+  },
+  {
+   "id": "R144",
+   "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+   "closeout": "notes/progress/2026-10-20-r144-closeout.md",
+   "integration_commit": "0c540791a"
+  },
+  {
+   "id": "R145",
+   "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+   "closeout": "notes/progress/2026-10-20-r145-closeout.md"
+  },
+  {
+   "id": "R146",
+   "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+   "closeout": "notes/progress/2026-10-20-r146-closeout.md"
+  }
+ ],
+ "review_receipts": "R144/R145 and migration receipts in closeouts. R146 final compiler/source review: source classification clean; MAJOR supervisor-conformance evidence gap and MINOR omitted baseline tree cross-reference; Luna closeout records both."
 }
