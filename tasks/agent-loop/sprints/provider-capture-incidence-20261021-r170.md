@@ -1,6 +1,6 @@
 # R170 — one ordinary provider capture incidence and bounded native observation
 
-Status: CANDIDATE. No assignment, execution or code lease is active until a fresh prospective CLEAN review and Luna records exact current-session receipts. Parent goal is unchanged: proof-backed natural Yulang inference/evaluator breadth and broader execution of unchanged Yulang2 Web samples in this repository. This sprint authorizes no Yulang2 execution. Its single candidate-solver probe, if authorized at activation, runs only in this checkout against an existing Y3 playground source.
+Status: CANDIDATE revision 2. Revision 1 candidate was committed as `20cfd4ccd`; its SHA-256 was `57b517516c524839ff174f0aaf08aaa163e2a6055bb84fd61c03246522fb5234` and received one major finding. No assignment, execution or code lease is active until this exact revision and both handoffs receive a fresh prospective CLEAN review and Luna records exact current-session receipts. Parent goal is unchanged: proof-backed natural Yulang inference/evaluator breadth and broader execution of unchanged Yulang2 Web samples in this repository. This sprint authorizes no Yulang2 execution. Its single candidate-solver probe, if authorized at activation, runs only in this checkout against an existing Y3 playground source.
 
 ## Outcome and parent application
 
@@ -26,7 +26,7 @@ Frozen evidence:
 - Original parent: `d732980d7706538fe18b5d8de312e9a2b6367ec6638ab938b239d46272624e79`.
 - R70: `648b594fdf1cd989e7399db00f396c65ec82cc1b4d3585bcb68ce21b316021e7`; R71: `620947cece53ca60a7f8a2388a398f53850b835c79afd546bfdcfd10349a876e`.
 - R165 closeout: `7c522f0b4f4851ca620f75889c08e78cbe6d63752fb8140492fd66b022506f82`; R166 result: `2e0548ca9fb7ad69504648061c879fa1b69af54ed507f4d65e7e221ce5ffa9c9`; R166 handoff: `84cdff552cbd3d6409d4c06c958dc32320c2031a1147be0fc53f23757020f0fc`.
-- Existing source fixture `tools/inference-playground/examples/entry-computation-argument.yu` must be re-hashed before activation. No Yulang2 fixture is read or executed.
+- Existing source fixture `tools/inference-playground/examples/entry-computation-argument.yu` — frozen SHA-256 `a81a52d582067e9d76ca41bfb946cd539cd98cc369b9b2c2a01fb0b3e0e239fd`. Revalidate it at activation. No Yulang2 fixture is read or executed.
 
 Re-pin all exact inputs and verify the post-R169 baseline before activation. Any changed dependency returns to Luna for a versioned contract update. Do not edit frozen R169 evidence.
 
@@ -60,7 +60,7 @@ Owner: Luna primary. Prospective code leases, only after review/activation:
 - `crates/yu-solver/src/shadow_apply.rs`
 - `tools/inference-playground/examples/r170_provider_incidence.rs`
 
-Exact source fixture (read-only): `tools/inference-playground/examples/entry-computation-argument.yu`.
+Exact source fixture (read-only): `tools/inference-playground/examples/entry-computation-argument.yu`, SHA-256 `a81a52d582067e9d76ca41bfb946cd539cd98cc369b9b2c2a01fb0b3e0e239fd`.
 Exact evidence outputs:
 
 - `notes/theory/2026-10-21-r170-native-tuple.md`
@@ -68,17 +68,23 @@ Exact evidence outputs:
 - `tasks/agent-loop/probes/20261021-r170-provider.stdout`
 - `tasks/agent-loop/probes/20261021-r170-provider.stderr`
 - `tasks/agent-loop/probes/20261021-r170-provider.status`
-- Cargo build artifacts under the repository's existing `target/` tree.
+- Cargo build artifacts under the dedicated in-repository `target/r170/` tree.
 
 Extend borrowed observation only over already-retained capture snapshots, bounds and the exact provider-owned maps available in the two leased solver owners. Keep missing associations explicit. No new semantic state, propagation/admission/rollback behavior, public product API, CLI, network, Yulang2/Yulang3 web sample execution, or external runtime. If an actual tuple requires an unleased source owner or new persistent record, stop at that boundary; no lease expansion is implied.
 
-After the source/example code is reviewed and frozen, run exactly one bounded `cargo run` for the named example in this repository. No test suite or retry. Capture stdout, stderr and exit status to the exact receipt files. Use the workspace's normal Cargo cache/target under this checkout; no `/tmp`, alternate checkout, nested CLI or background service. The probe may fail and still be evidence; report its exact status without modifying the source or replaying a Yulang2 executable.
+Before any probe grant, freeze the exact example-source hash and obtain a fresh independent review of the leased solver diff, example source, fixture membership, and exact invocation. Luna (the example author) cannot review it. Only after that review is CLEAN may Luna run this one command from the repository root, with no other arguments:
+
+```sh
+CARGO_TARGET_DIR=target/r170 cargo run --offline --locked --manifest-path tools/inference-playground/Cargo.toml --example r170_provider_incidence
+```
+
+The only explicit writes are the dedicated in-repository build tree `target/r170/` and the three exact probe receipt paths above. Cargo's registry/cache is read-only; offline+locked is mandatory. Do not override `CARGO_HOME`, `RUSTFLAGS`, proxies or any other environment setting. If Cargo needs registry/cache mutation, resolves an unlocked dependency, writes outside `target/r170/`, or the example is not built from these exact checked-out bytes, stop before retrying and preserve diagnostics. The invocation is one build-and-run, not a test suite. No retry. Capture stdout, stderr and exit status to the exact receipt files. No `/tmp`, alternate checkout, nested CLI, network or background service. The probe may fail and still be evidence; report its exact status without modifying the source or replaying a Yulang2 executable.
 
 The example prints the borrowed observations from `CandidateInference::solve` over the pinned existing fixture. It must label truncated output, retain route alternatives and make no source-fact join the observer does not establish. Probe stdout is diagnostic evidence, not an inference certificate or test oracle.
 
 ## Review, resources and stop conditions
 
-Prospective reviewer: `/root/r157_contract_review` on exact candidate contract/handoff hashes before activation. Final proof review must be fresh and independent of the producer; final observation/code/example review must be independent of Luna's implementation. Review source-domain membership, exact Capture/map joins, route multiplicity/order, borrow-only noninterference and honest probe limits. Reviewer must not run tests/build/probes.
+Prospective reviewer: `/root/r157_contract_review` on exact candidate contract/handoff hashes before activation. Before the probe, a fresh independent source/code review must pin the exact example hash and approve the invocation/write boundary; Luna is not eligible to review her own code. Final proof review must be fresh and independent of the producer; final observation/code/example review must be independent of Luna's implementation. Review source-domain membership, exact Capture/map joins, route multiplicity/order, borrow-only noninterference and honest probe limits. Reviewers do not run tests/builds/probes.
 
 Proposed cap **4800 seconds**, fully charged at grant, no carryover: preparation/pinning 300; prospective review 120; proof 1500; implementation 1500; one build/probe 300; independent reviews 840; closeout 240. Astra 0, no descendants. Stay within the lower runtime/resource ceiling. Keep all three UNKNOWN legacy reservations and unrelated modified/untracked R152–R163 files unchanged.
 
