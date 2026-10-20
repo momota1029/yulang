@@ -14,3 +14,7 @@ Review boundary: prospective review only for exact HTML path/pin. If CLEAN, add 
 ## Rev9 Web selector review receipt
 
 Prospective review returned CLEAN for the exact one-option `web/playground/index.html` delta and pinned baseline blob. The option value matches the existing map. The single HTML option is now added. This is static UI wiring only; browser/smoke/build execution remains stopped and unverified.
+
+## Final Web route review and cleanup
+
+Static regression audit of `d9325b0f8` returned CLEAN for the option -> handler -> map -> unchanged fixture -> `countdown_result` chain. Its explicit limitation: smoke imports the fixture directly and does not exercise HTML selection/browser interaction. No browser/build/test execution occurred. After the review, the entire Luna-owned `/tmp/yulang-r187-validation-r7` tree was deleted; prior `cargo clean` had removed 1236 files / 1.3 GiB from its `target`. No claim about other temporary trees or workspaces.
