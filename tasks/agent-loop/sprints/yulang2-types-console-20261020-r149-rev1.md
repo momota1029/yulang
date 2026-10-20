@@ -40,6 +40,19 @@ identity-bound host response path for `out::write`; a module entrypoint that
 does not invent a selected definition while preserving the existing mixed
 source schedule. R148's 120 seconds do not carry forward.
 
+Current owner evidence narrows that map: `yu-syntax` retains comma-delimited
+parenthesized syntax in `crates/yu-syntax/src/expression/delimited.rs`;
+`crates/yu-hir/src/module/local_source.rs` rejects any comma/separator in a
+`ParenthesizedExpression` before creating `LocalSourceForm`, and
+`crates/yu-hir/src/module.rs` also excludes direct comma/separator from its
+ordinary admission path. `crates/yu-types/src/lib.rs` currently represents
+positive and negative types with only primitive, quantified/recursive,
+function, union/intersection forms. `tools/inference-playground/src/runtime/program.rs`
+and `runtime/machine.rs` have no tuple instruction/value. No standard-library
+source tree was found in the Y3 workspace; `SemanticImports` is supplied to HIR
+from outside the source text. These are implementation owners to verify at
+activation, not approved language decisions or granted write leases.
+
 Non-goals: changing either Y2 source or expected output; spelling-based
 intrinsics for `say`, `println`, `show`, or `out::write`; suppressing effects;
 rewriting module expressions as `main`; claiming general Y2 compatibility or
@@ -63,13 +76,19 @@ self-review of the proof author.
 
 Implementation lane: Luna grants an `implementer` exact per-file leases only
 after the user approves the design and a prospective reviewer confirms the
-source-owner map. Required path families are `crates/yu-syntax/`,
-`crates/yu-hir/`, `crates/yu-types/`, `crates/yu-solver/`,
-`tools/inference-playground/`, `apps/yulang-wasm/`, `web/playground/`, plus
-finite tests/fixtures and vendored pinned stdlib sources. These are planning
-families, not current leases. Activation must replace them with an explicit
-nonoverlapping file list and exact hashes. Production promotion remains
-unauthorized while parent gates remain OPEN.
+source-owner map. Expected paths include
+`crates/yu-syntax/src/expression/delimited.rs`,
+`crates/yu-hir/src/module/local_source.rs`, `crates/yu-hir/src/module.rs`,
+`crates/yu-types/src/lib.rs`, exact tuple constraint/type owners in
+`crates/yu-solver/`, `tools/inference-playground/src/runtime/program.rs`,
+`runtime/machine.rs`, the standard-library/module resolver if one is added,
+`tools/inference-playground/src/lib.rs`, `apps/yulang-wasm/src/lib.rs`,
+`web/playground/src/main.ts`, `web/playground/smoke-test.mjs`, two exact fixtures,
+and finite parser/HIR/type/solver/runtime/playground tests. These are planning
+owners, not current leases. Activation must resolve the solver and resolver
+owners, then replace this set with an explicit nonoverlapping per-file list and
+exact hashes. Production promotion remains unauthorized while parent gates
+remain OPEN.
 
 Both lanes are intended to progress in parallel after activation. A proof
 obstruction does not stop independent implementation whose semantics are
