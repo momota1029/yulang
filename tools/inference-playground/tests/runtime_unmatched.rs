@@ -2,7 +2,7 @@ use std::sync::Arc;
 use yu_hir::shadow::{SourceOperationId, lower_module_with_local_source};
 use yu_hir::{FileId, FileKey, ModuleIdentity, SemanticImports};
 use yu_playground::runtime::{
-    Machine, RuntimeEvidence, RuntimeOutcome, RuntimeProgram, RuntimeValueKind,
+    Machine, RuntimeEvidence, RuntimeOutcome, RuntimeProgram, RuntimeUnavailable, RuntimeValueKind,
 };
 use yu_solver::shadow_apply::CandidateInference;
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
@@ -48,18 +48,18 @@ fn machine(source: &str) -> (Machine, SourceOperationId) {
 }
 
 #[test]
-fn unmatched_request_preserves_original_suffix_across_outer_handling() {
-    // The outer handler resumes tick with 23; the saved suffix then requests
-    // other 23, which the original inner handler accepts.
-    let (mut positive, _) = machine(POSITIVE);
-    let outcome = positive.run(10_000);
-    let RuntimeOutcome::Completed(value) = outcome else {
-        panic!("expected completion after the resumed suffix, got {outcome:?}");
+fn resumed_suffix_reaches_inner_handler_without_reviving_expired_grant() {
+    // The outer handler resumes tick with 23. The preserved suffix then
+    // requests other 23, but its fresh owner has no original receiver Grant.
+    let (mut resumed, _) = machine(POSITIVE);
+    let outcome = resumed.run(10_000);
+    let site = match outcome {
+        RuntimeOutcome::Unavailable(RuntimeUnavailable::HandlerEvidence(site)) => site,
+        outcome => panic!(
+            "expected the resumed request to stop at the inner handler, got {outcome:?}"
+        ),
     };
-    let RuntimeValueKind::Integer(actual) = &positive.value(value).unwrap().kind else {
-        panic!("expected an integer result");
-    };
-    assert_eq!(actual.as_ref(), "23");
+    assert_eq!(site.range, 87..123);
 
     // Change only the outer operation pattern. The inner handler still misses
     // tick, leaving the declaration-owned request and its suffix observable.
