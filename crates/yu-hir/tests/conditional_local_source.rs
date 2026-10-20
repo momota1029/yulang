@@ -77,6 +77,37 @@ fn ordered_arms_retain_every_condition_and_body_even_for_constants() {
 }
 
 #[test]
+fn braced_conditional_retains_ordered_direct_sequence_occurrences() {
+    let text = "my value = if true {\n  3\n  8\n} else {\n  0\n}";
+    let module = lower(text).unwrap();
+    let source = sources(&module)[0];
+    let expression = source.expression(source.body()).unwrap();
+    let LocalSourceForm::If { arms, else_branch } = &expression.form else { panic!("conditional"); };
+    let LocalSourceForm::Sequence { items } = &source.expression(&arms[0].1).unwrap().form else { panic!("then sequence"); };
+    assert_eq!(items.len(), 2);
+    assert!(matches!(&source.expression(&items[0]).unwrap().form, LocalSourceForm::Integer(value) if value.as_ref() == "3"));
+    assert!(matches!(&source.expression(&items[1]).unwrap().form, LocalSourceForm::Integer(value) if value.as_ref() == "8"));
+    let LocalSourceForm::Sequence { items: else_items } = &source.expression(else_branch.as_ref().unwrap()).unwrap().form else { panic!("else sequence"); };
+    assert_eq!(else_items.len(), 1);
+    let sequence_occurrence = source.expression(&arms[0].1).unwrap().occurrence.clone();
+    assert_ne!(sequence_occurrence, source.expression(&items[0]).unwrap().occurrence);
+    let mut occurrences = HashSet::new();
+    for child in items.iter().chain(else_items) {
+        let expression = source.expression(child).unwrap();
+        assert!(occurrences.insert(expression.occurrence.clone()));
+        assert!(module.owns_occurrence(&expression.occurrence));
+    }
+}
+
+#[test]
+fn malformed_braced_else_does_not_publish_a_partial_sequence() {
+    assert!(matches!(
+        lower("my value = if true { 1 } else { rest"),
+        Err(HirAvailabilityError::StructuralProjection)
+    ));
+}
+
+#[test]
 fn lexical_boolean_names_shadow_primitives_and_primitives_precede_module_names() {
     for name in ["true", "false"] {
         let module = lower(&format!("my value {name} = {name}")).unwrap();

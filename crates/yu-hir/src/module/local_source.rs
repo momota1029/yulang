@@ -193,6 +193,9 @@ impl LocalSource {
                     LocalSourceForm::If { arms, .. } => {
                         arms.capacity() * std::mem::size_of::<(LocalSourceIndex, LocalSourceIndex)>()
                     }
+                    LocalSourceForm::Sequence { items } => {
+                        items.capacity() * std::mem::size_of::<LocalSourceIndex>()
+                    }
                     LocalSourceForm::Name { spelling, .. } => spelling.len(),
                     LocalSourceForm::Lambda { parameter, .. } => {
                         parameter.spelling.len()
@@ -263,6 +266,7 @@ pub enum LocalSourceForm {
         arms: Vec<(LocalSourceIndex, LocalSourceIndex)>,
         else_branch: Option<LocalSourceIndex>,
     },
+    Sequence { items: Vec<LocalSourceIndex> },
     Name {
         spelling: Box<str>,
         resolution: LocalSourceResolution,
@@ -1341,7 +1345,7 @@ impl Builder<'_> {
                     let parts: Vec<_> = arm.children().collect();
                     let [condition, body] = parts.as_slice() else { return Err(unsupported()); };
                     if condition.kind() != SyntaxKind::Condition
-                        || !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock)
+                        || !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock | SyntaxKind::BracedStatementBlockExpression)
                     {
                         return Err(unsupported());
                     }
@@ -1355,7 +1359,7 @@ impl Builder<'_> {
                 }
                 SyntaxKind::ElseArm if !arms.is_empty() && else_branch.is_none() => {
                     let body = only_child(&arm)?;
-                    if !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock) {
+                    if !matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock | SyntaxKind::BracedStatementBlockExpression) {
                         return Err(unsupported());
                     }
                     let body_index = self.slot()?;
@@ -1371,7 +1375,48 @@ impl Builder<'_> {
         // Every condition and body starts in the enclosing lexical environment.
         for (child, child_index) in children.into_iter().rev() {
             push(&mut self.work, Work::Restore(depth))?;
-            push(&mut self.work, Work::Expression(child, child_index, conditional_scope.clone(), named_group.clone()))?;
+            if child.kind() == SyntaxKind::BracedStatementBlockExpression {
+                self.sequence(child, child_index, conditional_scope.clone(), named_group.clone())?;
+            } else {
+                push(&mut self.work, Work::Expression(child, child_index, conditional_scope.clone(), named_group.clone()))?;
+            }
+        }
+        Ok(())
+    }
+    fn sequence(
+        &mut self,
+        node: SyntaxNode,
+        index: LocalSourceIndex,
+        scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
+    ) -> Result<(), FormationError> {
+        let mut statements = Vec::new();
+        let mut expect_statement = true;
+        for child in node.children() {
+            if expect_statement && child.kind() == SyntaxKind::Statement {
+                let expression = only_child(&child)?;
+                if expression.kind() != SyntaxKind::OperatorChain { return Err(unsupported()); }
+                push(&mut statements, expression)?;
+            } else if !expect_statement && child.kind() == SyntaxKind::BlockStatementSeparator {
+                if child.children().next().is_some() { return Err(unsupported()); }
+            } else {
+                return Err(unsupported());
+            }
+            expect_statement = !expect_statement;
+        }
+        if statements.is_empty() || expect_statement { return Err(unsupported()); }
+        let mut items = Vec::new();
+        items.try_reserve_exact(statements.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        for _ in &statements { push(&mut items, self.slot()?)?; }
+        let mut retained_items = Vec::new();
+        retained_items.try_reserve_exact(items.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        retained_items.extend(items.iter().cloned());
+        self.set(index.clone(), &node, scope, named_group.clone(), LocalSourceForm::Sequence { items: retained_items })?;
+        let sequence_scope = LocalSourceScope::Expression(index);
+        let depth = self.lexical.len();
+        for (child, child_index) in statements.into_iter().zip(items).rev() {
+            push(&mut self.work, Work::Restore(depth))?;
+            push(&mut self.work, Work::Expression(child, child_index, sequence_scope.clone(), named_group.clone()))?;
         }
         Ok(())
     }

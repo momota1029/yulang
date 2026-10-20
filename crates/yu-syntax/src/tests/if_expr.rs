@@ -492,7 +492,6 @@ fn if_selected_slots_have_exact_structural_kind_and_range_facts() {
 #[test]
 fn if_completed_condition_missing_introducer_owns_ordinary_gap_only() {
     for (source, emitted, at, remaining) in [
-        ("if x { body }", "if x ", 5, " body }"),
         ("if x\nnext", "if x\n", 5, ""),
         ("if α\r\nnext", "if α\r\n", 7, ""),
     ] {
@@ -674,6 +673,9 @@ fn if_inline_boundaries_preserve_pending_payload_leading_and_successor() {
     ] {
         for head in ["if x:", "if x: a else", "if x: a else:"] {
             for error in ["", " @ @"] {
+                if head == "if x: a else" && error.is_empty() && suffix == " { rest" {
+                    continue;
+                }
                 let source = format!("{head}{error}{suffix}");
                 let operators = OperatorTable::from_declarations([OperatorDeclaration::new(
                     "-",
@@ -716,6 +718,17 @@ fn if_inline_boundaries_preserve_pending_payload_leading_and_successor() {
             }
         }
     }
+}
+
+#[test]
+fn incomplete_braced_else_recovers_as_one_malformed_body() {
+    let source = "if x: a else { rest";
+    let (green, _) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(
+        !structural_facts(&green).is_empty(),
+        "the incomplete braced body must retain a recovery marker"
+    );
 }
 
 #[test]
@@ -1048,7 +1061,7 @@ fn if_c6_reuses_indented_block_and_stops_at_companion_words() {
 
 #[test]
 fn if_c6_keeps_non_companion_and_shallow_newline_outward() {
-    for source in ["if x: a\nnext", "if x:\nnext", "if x { body }"] {
+    for source in ["if x: a\nnext", "if x:\nnext"] {
         let (green, exit) = run(source);
         assert!(matches!(exit, Some(Err(Either::Left(_)))), "{source:?}");
         assert!(
@@ -1057,6 +1070,18 @@ fn if_c6_keeps_non_companion_and_shallow_newline_outward() {
             green.to_string()
         );
     }
+}
+
+#[test]
+fn braced_if_body_is_consumed_by_its_arm() {
+    let source = "if x { body }";
+    let (green, exit) = run(source);
+    assert_eq!(green.to_string(), source);
+    assert!(matches!(exit, Some(Err(Either::Right(_)))));
+    let root = SyntaxNode::new_root(green);
+    assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::IfArm).count(), 1);
+    assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression).count(), 1);
+    assert!(!root.descendants().any(|node| matches!(node.kind(), SyntaxKind::Error | SyntaxKind::Invalid)));
 }
 
 #[test]

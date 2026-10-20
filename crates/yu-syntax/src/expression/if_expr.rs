@@ -26,7 +26,7 @@ use crate::{
         stops::{STOP_COLON, STOP_ELSE, STOP_ELSIF, STOP_LBRACE, Stops, lambda_recovery_boundary},
         yumark::FenceBoundary,
     },
-    statement::{StatementLineHandoff, indented_statement_block_normalized},
+    statement::{StatementLineHandoff, braced_statement_block_with_recovery_normalized, indented_statement_block_normalized},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -245,6 +245,21 @@ fn if_arm_normalized(
                 sequence,
             )
         }
+        NormalizedExit::Complete(Err(Either::Left(mut open)), line_entry)
+            if token_kind(&open) == Some(TokenKind::LBrace) =>
+        {
+            open.emit_all_remaining_leading(&mut *i.state);
+            braced_statement_block_with_recovery_normalized(
+                i.rb(),
+                open,
+                baseline,
+                outer_stops | STOP_ELSIF | STOP_ELSE,
+                item_origin,
+                line_entry,
+                fence,
+                ambient,
+            )
+        }
         exit => missing_if_arm_normalized(
             i.rb(),
             exit,
@@ -360,7 +375,7 @@ fn else_arm_normalized(
     i.state.start_node(SyntaxKind::ElseArm.into());
     emit_contextual_keyword(&mut i, keyword, SyntaxKind::ElseKw);
 
-    let (item, item_origin, line_entry) = expression_item(
+    let (mut item, item_origin, line_entry) = expression_item(
         i.rb(),
         OperatorSite::Nud,
         item_origin,
@@ -386,6 +401,18 @@ fn else_arm_normalized(
             fence,
             ambient,
             sequence,
+        )
+    } else if token_kind(&item) == Some(TokenKind::LBrace) {
+        item.emit_all_remaining_leading(&mut *i.state);
+        braced_statement_block_with_recovery_normalized(
+            i.rb(),
+            item,
+            baseline,
+            outer_stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
         )
     } else {
         inline_body_item_normalized(

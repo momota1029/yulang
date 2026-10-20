@@ -237,6 +237,11 @@ pub(super) enum Frame {
         arm: usize,
         environment: usize,
     },
+    Sequence {
+        sequence: Arc<Code>,
+        next: usize,
+        environment: usize,
+    },
     Case {
         case: Arc<Code>,
         environment: usize,
@@ -666,6 +671,13 @@ impl Machine {
                 };
             }
             Instruction::Block { .. } => self.begin_local(code, 0, environment)?,
+            Instruction::Sequence { items } => {
+                let Some(first) = items.first().copied() else {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                };
+                self.frames.push(Frame::Sequence { sequence: code, next: 1, environment });
+                self.state = State::Evaluate { code: first, environment };
+            }
             Instruction::If { arms, else_branch } => {
                 if let Some((test, _)) = arms.first() {
                     let test = *test;
@@ -1218,6 +1230,17 @@ impl Machine {
                     };
                 } else {
                     self.ground_data(&conditional.site, RuntimeValueKind::Unit, None);
+                }
+            }
+            Frame::Sequence { sequence, next, environment } => {
+                let Instruction::Sequence { items } = &sequence.instruction else {
+                    unreachable!()
+                };
+                if let Some(item) = items.get(next).copied() {
+                    self.frames.push(Frame::Sequence { sequence, next: next + 1, environment });
+                    self.state = State::Evaluate { code: item, environment };
+                } else {
+                    self.state = State::Return(received);
                 }
             }
             Frame::Case { case, environment } => {

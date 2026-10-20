@@ -196,6 +196,7 @@ pub(super) enum Instruction {
         arms: Vec<(Label, Label)>,
         else_branch: Option<Label>,
     },
+    Sequence { items: Vec<Label> },
     Case {
         scrutinee: Label,
         arms: Vec<CaseArm>,
@@ -413,6 +414,9 @@ impl RuntimeProgram {
                                     work.push(Walk::Expression(body.clone()));
                                 }
                             }
+                            LocalSourceForm::Sequence { items } => {
+                                for item in items.iter().rev() { work.push(Walk::Expression(item.clone())); }
+                            }
                             LocalSourceForm::Catch { scrutinee, arms } => {
                                 work.push(Walk::Expression(scrutinee.clone()));
                                 for arm in arms {
@@ -555,6 +559,9 @@ impl RuntimeProgram {
                             .map(|(test, body)| Ok((label(test)?, label(body)?)))
                             .collect::<Result<_, RuntimeUnavailable>>()?,
                         else_branch: else_branch.as_ref().map(label).transpose()?,
+                    },
+                    LocalSourceForm::Sequence { items } => Instruction::Sequence {
+                        items: items.iter().map(label).collect::<Result<_, _>>()?,
                     },
                     LocalSourceForm::Case { scrutinee, arms } => Instruction::Case {
                         scrutinee: label(scrutinee)?,
@@ -1007,6 +1014,7 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
                 if let Some(branch) = else_branch { stack.push(*branch); }
                 for (test, body) in arms { stack.push(*body); stack.push(*test); }
             }
+            Instruction::Sequence { items } => stack.extend(items.iter().rev().copied()),
             Instruction::Catch { scrutinee, arms } => {
                 stack.push(*scrutinee);
                 stack.extend(arms.iter().map(|arm| arm.body));

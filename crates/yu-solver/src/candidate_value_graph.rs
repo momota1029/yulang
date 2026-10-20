@@ -138,6 +138,10 @@ impl Graph {
                         work.push((body.ordinal() as usize, owner));
                     }
                 },
+                LocalSourceForm::Sequence { items } => {
+                    work.try_reserve(items.len()).map_err(|_| unavailable())?;
+                    for item in items { work.push((item.ordinal() as usize, owner)); }
+                },
                 LocalSourceForm::Apply { callee, argument, .. } => {
                     work.try_reserve(2).map_err(|_| unavailable())?;
                     work.push((callee.ordinal() as usize, owner)); work.push((argument.ordinal() as usize, owner));
@@ -162,7 +166,7 @@ impl Graph {
         let mut fragments = Vec::new();
         fragments.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
         for expr in source.expressions() {
-            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. }) {
+            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. }) {
                 self.edges.try_reserve(1).map_err(|_| unavailable())?;
                 self.reverse.try_reserve(1).map_err(|_| unavailable())?;
                 fragments.push(Some(self.edges.len()));
@@ -187,6 +191,14 @@ impl Graph {
                 }
                 if let Some(else_branch) = else_branch {
                     if let Some(child) = fragments[else_branch.ordinal() as usize] { self.edge(fragment, child)?; }
+                }
+            }
+            if let LocalSourceForm::Sequence { items } = &expr.form {
+                let result = self.intern(Value::Expression(expr.occurrence.clone()))?;
+                let fragment = fragments[index].unwrap();
+                self.edge(result, fragment)?;
+                for item in items {
+                    if let Some(child) = fragments[item.ordinal() as usize] { self.edge(fragment, child)?; }
                 }
             }
             let LocalSourceForm::Apply { callee, argument, .. } = &expr.form else { continue; };

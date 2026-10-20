@@ -669,6 +669,7 @@ fn operation_v1_catch_source(
         let capacity = match &expression.form {
             F::Catch { arms, .. } => 1usize.checked_add(arms.len())?,
             F::If { arms, else_branch } => arms.len().checked_mul(2)?.checked_add(usize::from(else_branch.is_some()))?,
+            F::Sequence { items } => items.len(),
             F::Apply { .. } => 2,
             F::Block { bindings, .. } => bindings.len().checked_add(1)?,
             F::Group { .. } | F::Ascription { .. } | F::Lambda { .. } => 1,
@@ -678,6 +679,7 @@ fn operation_v1_catch_source(
         match &expression.form {
             F::Catch { scrutinee, arms } => { result.push(scrutinee.ordinal() as usize); result.extend(arms.iter().map(|arm| arm.body.ordinal() as usize)); }
             F::If { arms, else_branch } => { for (condition, body) in arms { result.push(condition.ordinal() as usize); result.push(body.ordinal() as usize); } if let Some(branch)=else_branch { result.push(branch.ordinal() as usize); } }
+            F::Sequence { items } => result.extend(items.iter().map(|item| item.ordinal() as usize)),
             F::Apply { callee, argument, .. } => { result.push(callee.ordinal() as usize); result.push(argument.ordinal() as usize); }
             F::Group { inner } | F::Ascription { inner, .. } => result.push(inner.ordinal() as usize),
             F::Lambda { body, .. } => result.push(body.ordinal() as usize),
@@ -1000,6 +1002,11 @@ impl ConstraintBatch {
                                 push(&mut work, Work::Visit(condition.ordinal() as usize, level, region))?;
                             }
                         }
+                        LocalSourceForm::Sequence { items } => {
+                            for item in items.iter().rev() {
+                                push(&mut work, Work::Visit(item.ordinal() as usize, level, region))?;
+                            }
+                        }
                         LocalSourceForm::Apply { callee, argument, .. } => {
                             push(&mut work, Work::Visit(argument.ordinal() as usize, level, region))?;
                             push(&mut work, Work::Visit(callee.ordinal() as usize, level, region))?;
@@ -1271,6 +1278,24 @@ impl ConstraintBatch {
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(value_count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(value_count).ok_or_else(unavailable)?;
                         }
+                        LocalSourceForm::Sequence { items } => {
+                            let result = self.component_term_at(pos.value);
+                            let result_effect = self.component_term_at(pos.effect);
+                            for (ordinal, item) in items.iter().enumerate() {
+                                let item_index = item.ordinal() as usize;
+                                let item_occurrence = &source.expressions()[item_index].occurrence;
+                                if ordinal + 1 == items.len() {
+                                    push(&mut actions, Action::ValueConstraint {
+                                        occurrence: item_occurrence.clone(), slot: 50,
+                                        endpoint: endpoints[item_index], upper: result,
+                                    })?;
+                                }
+                                self.emit(item_occurrence.clone(), 51, self.component_term_at(positions[item_index].effect), result_effect)?;
+                            }
+                            let facts = items.len();
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(facts).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(facts).ok_or_else(unavailable)?;
+                        }
                         LocalSourceForm::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Resolved(declaration) } => {
                             self.term_for_leaf(Leaf::IntPositive)?;
                             self.term_for_leaf(Leaf::IntNegative)?;
@@ -1336,7 +1361,7 @@ impl ConstraintBatch {
                                     self.candidate_source.charge_scoped_work(1)?;
                                     match &source.expressions()[argument_index].form {
                                         LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => argument_index = inner.ordinal() as usize,
-                                        LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. } | LocalSourceForm::Case { .. } => return Err(unavailable()),
+                                        LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::Catch { .. } | LocalSourceForm::Case { .. } => return Err(unavailable()),
                                         LocalSourceForm::Block { bindings, final_expression } => {
                                             if !bindings.is_empty() { return Err(unavailable()); }
                                             argument_index = final_expression.ordinal() as usize;
@@ -1360,7 +1385,7 @@ impl ConstraintBatch {
                                             callee_index = final_expression.ordinal() as usize;
                                         }
                                         LocalSourceForm::Apply { .. } => { scoped_result_callee(source, callee_index, &mut self.candidate_source)?; break; }
-                                        LocalSourceForm::If { .. } | LocalSourceForm::Catch { .. }
+                                        LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::Catch { .. }
                                         | LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(_) | LocalSourceResolution::CaseBinder(_), .. } => return Err(unavailable()),
                                         LocalSourceForm::Name { resolution: LocalSourceResolution::Local(local), .. } => {
                                             if crossed_ascription || crossed_nonempty_block || local.source_root() != source.source_root() { return Err(unavailable()); }
