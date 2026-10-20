@@ -23,16 +23,18 @@ Oracle identity: repository `yulang2-oracle-capture`, commit
 `a58eefc31e22141574b6f20c6a5748151c6d79f1`; file
 `web/playground/src/main.ts`, blob
 `e6bec9fe44d673ccbf98af078ef4562c9267ef6c`.
-The pinned library blobs are `lib/std/core/fmt.yu`
-(`fd7b6607094c9ad70bde1fd41890363fa8bd6b31`) and
-`lib/std/io/console.yu` (`8c8eabe69755d28bc66a850745f5ea72c136cd74`).
-The resolution path also includes `lib/std/prelude.yu`
-(`e31685be6f17a516b47c3c29c3a124d7ff1c3682`) and `lib/std/io.yu`
-(`4e1852f94f9d5c5c2c47f65bc7b75374a9418f93`), which provide the unqualified
-Console imports and re-exports; `lib/std/core/ops.yu`
-(`575e6fb15ce2d91a39004bbc7b842fedb2d83fdf`) and `lib/std/int.yu`
-(`198b8c2d1ba157e3a9507d1f9353f1bc8df9520c`) provide the `+` and integer
-display primitive leaves.
+The complete source-resolution closure contains 40 files, including the
+implicitly loaded `lib/std.yu` root (`e677e9bce665bc007f9e05e3926b80ccd020eb02`),
+all reachable module declaration files, and transitive `std::` references.
+The six direct sample/library roots include `lib/std/core/fmt.yu`
+(`fd7b6607094c9ad70bde1fd41890363fa8bd6b31`), `lib/std/io/console.yu`
+(`8c8eabe69755d28bc66a850745f5ea72c136cd74`), `lib/std/prelude.yu`
+(`e31685be6f17a516b47c3c29c3a124d7ff1c3682`), `lib/std/io.yu`
+(`4e1852f94f9d5c5c2c47f65bc7b75374a9418f93`), `lib/std/core/ops.yu`
+(`575e6fb15ce2d91a39004bbc7b842fedb2d83fdf`), and `lib/std/int.yu`
+(`198b8c2d1ba157e3a9507d1f9353f1bc8df9520c`). The exact 40-path/blob manifest
+is in sprint contract rev5. These wrappers reach identity-bound integer/string
+primitive leaves; the current Y3 workspace has no equivalent implementations.
 
 | Example | UTF-8 bytes | SHA-256 | Required observable result |
 |---|---:|---|---|
