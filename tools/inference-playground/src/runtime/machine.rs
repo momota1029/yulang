@@ -1887,12 +1887,17 @@ impl Machine {
             };
             return;
         }
+        self.complete_selected_definition(ordinal);
+    }
+    fn complete_selected_definition(&mut self, next_ordinal: usize) {
+        // Schedule exhaustion retains the selected-definition entry contract:
+        // use its cached cell, or evaluate its initializer as the final root.
         if let Some(value) = self.cells[self.selected] {
             self.state = State::Stopped(RuntimeOutcome::Completed(value.value));
         } else {
             self.initializing_globals.insert(self.selected);
             self.frames.push(Frame::Root {
-                next: ordinal,
+                next: next_ordinal,
                 cell: self.selected,
             });
             self.state = State::Evaluate {
