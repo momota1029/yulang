@@ -483,7 +483,7 @@
 "id": "R144",
 "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
 "closeout": "notes/progress/2026-10-20-r144-closeout.md",
-"integration_commit": "PENDING"
+"integration_commit": "0c540791a"
 }
 ],
 "review_receipts": "R142/R143 receipts in closeouts; R144 prospective and final spec/compiler reviews CLEAN for exact frozen hashes. R145 proposed, not active."
