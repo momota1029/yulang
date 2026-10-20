@@ -1,11 +1,35 @@
-# R172 implementation assignment candidate — source-keyed borrowed query
+# R172 Luna implementation handoff
 
-Status: **candidate, not assigned**; no write/probe lease until prospective CLEAN review and Luna activation.
+Sprint: `source-fact-capture-construction-20261021-r172`, contract rev1
+`4d0976759a061241244b06f0eb2ca1c6960f9feb02989eaa73b205e0fd9f108c`.
+Luna implementation/query artifacts are frozen and independently CLEAN reviewed
+at the exact hashes below. Proof worker `/root/r172_source_capture_proof` is STOPPED on proof
+revision 2; its direct-source drain attribution remains UNKNOWN.
 
-- Contract: `tasks/agent-loop/sprints/source-fact-capture-construction-20261021-r172.md`.
-- Baseline: `e6ffba08c`; owner hashes are pinned in the contract.
-- Reuse R171 CLEAN source membership and successful candidate-inference output; fixture is read-only and unchanged. Do not rerun R171.
-- Exact Luna write leases: `candidate_context.rs`, `candidate_scheme.rs`, `shadow_apply.rs`, new `tools/inference-playground/examples/r172_source_capture.rs`, `notes/theory/2026-10-21-r172-source-query.md`, this handoff, exact conditional probe receipts and `target/r172/`. No other paths.
-- Build a bounded borrowed API keyed by authenticated source occurrence identities. Preserve relation to owner-authored source fact keys, origin candidates, same-provider Capture/shared anchor, that route's maps, ordered dependency/Replay alternatives and actual A_F consumer. Preserve all ambiguity. Select required evidence before display truncation and label component-wise completeness. Do not derive incidence from q equality or counts.
-- If current owners cannot construct the association, freeze exact owner/falsifier and do not add persistent data, propagation, source admission or new leases. Conditional one-shot probe only after the query demonstrably exposes the discriminating association and exact command receives independent CLEAN review. Otherwise write NOT_RUN and stop.
-- Proposed implementation grant 1500s plus conditional 300s probe within 4200s total; no Astra, descendants, retries, tests, Y2, evaluator or external execution. Luna owns independent review/adjudication/Git.
+Exact current artifacts:
+
+- `crates/yu-solver/src/shadow_apply.rs` SHA-256
+  `13ae8de60293b91e24659090649ff84002f5632a8909451d3f7bd8492b61bea5`
+- `tools/inference-playground/examples/r172_source_capture.rs` SHA-256
+  `d08852473ae8ce12fd0b8d2d7ee2f5d13e07478609d205de50678fb59ef5c6fa`
+- `notes/theory/2026-10-21-r172-source-query.md` SHA-256
+  `b1595f946f326573dfd98a580142e02e44b6e7bd11cebc753085707c429e9802`
+- Proof note rev2 SHA-256
+  `885ca6ca2eba9937cd7bc81ffb6bd384e8fa96d17cc26392b76e7de4a9876488`
+- Proof handoff rev2 SHA-256
+  `ef35a47437ba1477736f895de4168a8fa8e9f0c43511dd620c9f486891dba1d8`
+
+The query selects exact source provenance, retains ordered dependencies,
+replays and candidate Origin rows, and associates the exact relay Apply with
+its module callee route, NativeInterface terms and that route's Capture/maps.
+It explicitly reports direct-source attribution UNKNOWN, opaque Capture/map
+payloads, and no consumer relation join. Its discriminator is therefore false.
+The harness uses unchanged R171 fixture ranges and locates A_F in `relay`'s
+LocalSource. The conditional Y3 probe is **NOT_RUN**; the query cannot
+discriminate the required source-to-consumer association. No build, test,
+compiler, evaluator, Y2 or Y3 execution occurred.
+
+No A/B theorem, source/native tuple, solver behavior, or production gate is
+closed. R169, R70/R71/R165/R166/Replay, original A/B, F1/FK1 and production
+remain OPEN. Only reviewed intended paths may be integrated; preserve unrelated
+R152–R163 files.

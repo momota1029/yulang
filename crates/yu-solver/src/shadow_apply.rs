@@ -179,6 +179,110 @@ pub struct CandidateProviderObservation<'a> {
     capture_rows: Vec<CandidateProviderCaptureRow<'a>>,
     truncated: bool,
 }
+/// Exact retained source admissions selected by their HIR occurrence. The
+/// occurrence, cause and fact are borrowed from the owning store; this view
+/// does not infer a missing source-to-route edge.
+#[derive(Debug)]
+pub struct CandidateSourceFactRecord<'a> {
+    pub occurrence: &'a HirOccurrenceId,
+    pub cause: &'a ConstraintOccurrenceId,
+    pub fact: &'a SemanticFact,
+}
+/// A drain Origin sharing the requested source Cause's full occurrence key.
+/// This key match is only a candidate association: it does not distinguish a
+/// direct source seed from a replay child or prove downstream reachability.
+#[derive(Debug)]
+pub struct CandidateSourceOriginRecord<'a> {
+    pub graph_index: usize,
+    pub occurrence: &'a HirOccurrenceId,
+    pub local_slot: u8,
+    pub relation: usize,
+    pub attribution: CandidateSourceOriginAttribution,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateSourceOriginAttribution {
+    OccurrenceCandidateOnly,
+}
+/// Source-keyed exact records. Completeness applies to the corresponding
+/// retained collection after selecting by source occurrence.
+pub struct CandidateSourceOccurrenceObservation<'a> {
+    facts: Vec<CandidateSourceFactRecord<'a>>,
+    origins: Vec<CandidateSourceOriginRecord<'a>>,
+    facts_complete: bool,
+    origins_complete: bool,
+}
+impl<'a> CandidateSourceOccurrenceObservation<'a> {
+    pub fn facts(&self) -> impl Iterator<Item = &CandidateSourceFactRecord<'a>> + '_ { self.facts.iter() }
+    pub fn origins(&self) -> impl Iterator<Item = &CandidateSourceOriginRecord<'a>> + '_ { self.origins.iter() }
+    pub fn facts_complete(&self) -> bool { self.facts_complete }
+    pub fn origins_complete(&self) -> bool { self.origins_complete }
+}
+#[derive(Debug)]
+pub struct CandidateSourceDependencyRecord {
+    pub graph_index: usize,
+    pub seed_relation: usize,
+    pub seed_origin_index: usize,
+    pub ordinal: usize,
+    pub dependency: CandidateSourceDependency,
+    pub replay: Option<CandidateSourceReplayInputs>,
+    pub function_port: Option<(FunctionField, crate::candidate_context::FunctionPortOperation)>,
+    pub transport: Option<(usize, Option<crate::candidate_context::TransportWitness>)>,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateSourceDependency {
+    Derived { child: u32, parent: u32 },
+    FunctionPort { child: u32, parent: u32 },
+    Replay { child: u32, lower: u32, upper: u32 },
+    Transport { child: u32, parent: u32 },
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CandidateSourceReplayInputs {
+    pub lower: crate::candidate_effect::BoundKey,
+    pub upper: crate::candidate_effect::BoundKey,
+}
+pub struct CandidateSourceProviderConsumer<'a> {
+    pub apply: &'a HirOccurrenceId,
+    pub callee: &'a HirOccurrenceId,
+    pub module_target: &'a DefId,
+    pub native_callee: Term,
+    pub native_demand: Term,
+}
+pub struct CandidateSourceProviderObservation<'a> {
+    pub facts: Vec<CandidateSourceFactRecord<'a>>,
+    pub origins: Vec<CandidateSourceOriginRecord<'a>>,
+    pub dependencies: Vec<CandidateSourceDependencyRecord>,
+    pub captures: Vec<CandidateProviderCaptureRow<'a>>,
+    pub consumer: CandidateSourceProviderConsumer<'a>,
+    pub facts_complete: bool,
+    pub origins_complete: bool,
+    pub dependencies_complete: bool,
+    pub provider_route_complete: bool,
+    pub provider_route_matches: usize,
+    pub capture_bounds_complete: bool,
+    pub maps_complete: bool,
+    pub direct_source_drain_attribution: CandidateSourceAttributionStatus,
+    pub captures_structured: bool,
+    pub maps_structured: bool,
+    pub consumer_relation_join_complete: bool,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateSourceAttributionStatus {
+    Unknown,
+}
+impl CandidateSourceProviderObservation<'_> {
+    pub fn source_to_consumer_discriminating(&self) -> bool {
+        self.facts_complete
+            && self.origins_complete
+            && self.dependencies_complete
+            && self.provider_route_complete
+            && self.capture_bounds_complete
+            && self.maps_complete
+            && self.direct_source_drain_attribution != CandidateSourceAttributionStatus::Unknown
+            && self.captures_structured
+            && self.maps_structured
+            && self.consumer_relation_join_complete
+    }
+}
 impl<'a> CandidateProviderObservation<'a> {
     pub fn rows(&self) -> impl Iterator<Item = &CandidateProviderObservationRow<'a>> + '_ {
         self.rows.iter()
@@ -809,6 +913,230 @@ impl CandidateInference {
             }
         }
         crate::candidate_call::observe(&data.hir, &data.store, &data.candidate_calls, index)
+    }
+    /// Select source provenance and occurrence-matching Origin candidates by
+    /// one owned HIR occurrence before applying presentation bounds. Full
+    /// Cause identity and FactId/Terms are retained; source-vs-Replay seed
+    /// attribution and Capture/consumer reachability remain separate joins.
+    pub fn source_occurrence_observation<'a>(
+        &'a self,
+        occurrence: &'a HirOccurrenceId,
+        max_rows: usize,
+    ) -> Result<CandidateSourceOccurrenceObservation<'a>, ArtifactMismatch> {
+        const HARD_MAX_ROWS: usize = 256;
+        if !self.solved.data.errors.is_empty() { return Err(ArtifactMismatch); }
+        if !self.solved.data.hir.owns_occurrence(occurrence) { return Err(ArtifactMismatch); }
+        let cap = max_rows.min(HARD_MAX_ROWS);
+        let mut facts = Vec::new();
+        let mut origins = Vec::new();
+        facts.try_reserve(cap).map_err(|_| ArtifactMismatch)?;
+        origins.try_reserve(cap).map_err(|_| ArtifactMismatch)?;
+        let mut facts_complete = true;
+        for edge in self.solved.data.store.provenance() {
+            let cause = edge.cause().occurrence();
+            if cause.occurrence() != occurrence { continue; }
+            let Some(fact) = self.solved.data.store.facts().get(edge.fact().index() as usize)
+                .filter(|fact| fact.id() == edge.fact()) else {
+                return Err(ArtifactMismatch);
+            };
+            if facts.len() == cap { facts_complete = false; break; }
+            facts.push(CandidateSourceFactRecord { occurrence, cause, fact });
+        }
+        let mut origins_complete = true;
+        'graphs: for (graph_index, graph) in self.solved.data.candidate_graph.iter().enumerate() {
+            for origin in &graph.intrusion.effect_algebra.context.origins {
+                if origin.occurrence.occurrence() != occurrence
+                    || !self.solved.data.store.provenance().iter().any(|edge| edge.cause().occurrence() == &origin.occurrence)
+                { continue; }
+                if origins.len() == cap { origins_complete = false; break 'graphs; }
+                origins.push(CandidateSourceOriginRecord {
+                    graph_index,
+                    occurrence,
+                    local_slot: origin.occurrence.local_slot(),
+                    relation: origin.relation.0 as usize,
+                    attribution: CandidateSourceOriginAttribution::OccurrenceCandidateOnly,
+                });
+            }
+        }
+        Ok(CandidateSourceOccurrenceObservation { facts, origins, facts_complete, origins_complete })
+    }
+    /// Source-keyed view for one concrete forwarding Apply. Each selected
+    /// Origin relation is followed through its retained ordered dependency
+    /// alternatives; only that Apply's resolved module-callee route is then
+    /// selected for Capture and FreshUse-map rows. All records remain borrowed
+    /// from their owning solver structures. This is structural evidence, not
+    /// an admission or preservation certificate.
+    pub fn source_provider_observation<'a>(
+        &'a self,
+        source_keys: &[(&'a HirOccurrenceId, u8)],
+        forwarding_apply: &'a HirOccurrenceId,
+        max_rows: usize,
+    ) -> Result<CandidateSourceProviderObservation<'a>, ArtifactMismatch> {
+        use crate::candidate_context::Dependency;
+        use std::collections::HashSet;
+        const HARD_MAX_ROWS: usize = 256;
+        if !self.solved.data.errors.is_empty()
+            || !self.solved.data.hir.owns_occurrence(forwarding_apply)
+            || source_keys.len() > 64
+            || source_keys.iter().any(|(occurrence, _)| !self.solved.data.hir.owns_occurrence(occurrence))
+        { return Err(ArtifactMismatch); }
+        let cap = max_rows.min(HARD_MAX_ROWS);
+        let consumer_index = self.solved.data.candidate_calls.calls.iter()
+            .position(|call| call.checking.occurrence() == forwarding_apply)
+            .ok_or(ArtifactMismatch)?;
+        let native = self.source_call(consumer_index)?;
+        let callee = &native.callee_source().occurrence;
+        let module_target = native.module_callee_target().ok_or(ArtifactMismatch)?;
+        let consumer = CandidateSourceProviderConsumer {
+            apply: forwarding_apply, callee, module_target,
+            native_callee: native.native_callee(), native_demand: native.native_demand(),
+        };
+        let mut facts = Vec::new();
+        let mut origins = Vec::new();
+        facts.try_reserve(cap).map_err(|_| ArtifactMismatch)?;
+        origins.try_reserve(cap).map_err(|_| ArtifactMismatch)?;
+        let mut facts_complete = true;
+        for edge in self.solved.data.store.provenance() {
+            let cause = edge.cause().occurrence();
+            if !source_keys.iter().any(|(source, slot)| cause.occurrence() == *source && cause.local_slot() == *slot) { continue; }
+            let Some(fact) = self.solved.data.store.facts().get(edge.fact().index() as usize)
+                .filter(|fact| fact.id() == edge.fact()) else { return Err(ArtifactMismatch); };
+            if facts.len() == cap { facts_complete = false; break; }
+            facts.push(CandidateSourceFactRecord { occurrence: cause.occurrence(), cause, fact });
+        }
+        let mut origins_complete = true;
+        let mut seeds = Vec::new();
+        for (graph_index, graph) in self.solved.data.candidate_graph.iter().enumerate() {
+            for origin in &graph.intrusion.effect_algebra.context.origins {
+                let source = origin.occurrence.occurrence();
+                let slot = origin.occurrence.local_slot();
+                if !source_keys.iter().any(|(key, key_slot)| *key == source && *key_slot == slot)
+                    || !self.solved.data.store.provenance().iter().any(|edge| edge.cause().occurrence() == &origin.occurrence)
+                { continue; }
+                if origins.len() == cap { origins_complete = false; break; }
+                let origin_index = origins.len();
+                origins.push(CandidateSourceOriginRecord {
+                    graph_index, occurrence: source, local_slot: slot, relation: origin.relation.0 as usize,
+                    attribution: CandidateSourceOriginAttribution::OccurrenceCandidateOnly,
+                });
+                seeds.push((graph_index, origin.relation, origin_index));
+            }
+            if !origins_complete { break; }
+        }
+        let mut dependencies = Vec::new();
+        dependencies.try_reserve(cap).map_err(|_| ArtifactMismatch)?;
+        let mut dependencies_complete = true;
+        let mut reachable: Vec<HashSet<crate::candidate_context::RelationId>> = self.solved.data.candidate_graph.iter().map(|_| HashSet::new()).collect();
+        if !facts_complete || !origins_complete { dependencies_complete = false; }
+        for (graph_index, seed_relation, seed_origin_index) in &seeds {
+            let graph = &self.solved.data.candidate_graph[*graph_index];
+            let context = &graph.intrusion.effect_algebra.context;
+            let mut seed_reachable = HashSet::new();
+            let mut selected_edges = HashSet::new();
+            seed_reachable.insert(*seed_relation);
+            reachable[*graph_index].insert(*seed_relation);
+            loop {
+                let mut changed = false;
+                for (ordinal, dependency) in context.observed_dependencies().enumerate() {
+                    let (parents, child) = match *dependency {
+                        Dependency::Derived { child, parent }
+                        | Dependency::FunctionPort { child, parent, .. }
+                        | Dependency::Transport { child, parent, .. } => ([Some(parent), None], child),
+                        Dependency::Replay { child, lower, upper, .. } => ([Some(lower), Some(upper)], child),
+                    };
+                    if !parents.into_iter().flatten().any(|parent| seed_reachable.contains(&parent)) { continue; }
+                    if selected_edges.insert(ordinal) {
+                        if dependencies.len() == cap { dependencies_complete = false; }
+                        else {
+                            let (dependency, replay, function_port, transport) = match *dependency {
+                                Dependency::Derived { child, parent } => (
+                                    CandidateSourceDependency::Derived { child: child.0, parent: parent.0 }, None, None, None,
+                                ),
+                                Dependency::FunctionPort { child, parent, field, operation } => (
+                                    CandidateSourceDependency::FunctionPort { child: child.0, parent: parent.0 },
+                                    None, Some((field, operation)), None,
+                                ),
+                                Dependency::Replay { child, lower, upper, lower_input, upper_input } => (
+                                    CandidateSourceDependency::Replay { child: child.0, lower: lower.0, upper: upper.0 },
+                                    Some(CandidateSourceReplayInputs { lower: lower_input, upper: upper_input }), None, None,
+                                ),
+                                Dependency::Transport { child, parent, use_origin, witness } => (
+                                    CandidateSourceDependency::Transport { child: child.0, parent: parent.0 },
+                                    None, None, Some((use_origin, witness)),
+                                ),
+                            };
+                            dependencies.push(CandidateSourceDependencyRecord {
+                                graph_index: *graph_index, seed_relation: seed_relation.0 as usize,
+                                seed_origin_index: *seed_origin_index, ordinal, dependency, replay, function_port, transport,
+                            });
+                        }
+                    }
+                    changed |= seed_reachable.insert(child);
+                    reachable[*graph_index].insert(child);
+                }
+                if !changed { break; }
+            }
+        }
+        let mut captures = Vec::new();
+        captures.try_reserve(cap).map_err(|_| ArtifactMismatch)?;
+        let mut provider_route_complete = true;
+        let mut provider_route_matches = 0usize;
+        let mut capture_bounds_complete = true;
+        let mut maps_complete = true;
+        'routes: for (graph_index, graph) in self.solved.data.candidate_graph.iter().enumerate() {
+            for (route, item) in graph.routes.iter().enumerate() {
+                if item.use_id.occurrence() != callee { continue; }
+                provider_route_matches += 1;
+                let context_use = item.retained.observed_context_use();
+                let mut push_capture = |kind, ordinal, relation, map_name, record: &'a dyn std::fmt::Debug| {
+                    if captures.len() == cap { return false; }
+                    captures.push(CandidateProviderCaptureRow {
+                        graph_index, route_owner: CandidateReplayRouteOwner::Module, route,
+                        route_occurrence: item.use_id.occurrence(), context_use, relation,
+                        ordinal, kind, map_name, record,
+                    });
+                    true
+                };
+                if !push_capture(CandidateProviderCaptureKind::CaptureGraph, route, None, None, &item.graph) {
+                    provider_route_complete = false;
+                    capture_bounds_complete = false;
+                    maps_complete = false;
+                    break 'routes;
+                }
+                item.retained.observe_maps(|name, record| {
+                    if !push_capture(CandidateProviderCaptureKind::FreshUseMap, route, None, Some(name), record) { maps_complete = false; }
+                });
+                for (ordinal, bound) in item.graph.bounds.iter().enumerate() {
+                    if !bound.relation.is_some_and(|relation| reachable[graph_index].contains(&relation)) { continue; }
+                    if !push_capture(CandidateProviderCaptureKind::CapturedBound, ordinal, bound.relation.map(|id| id.0 as usize), None, bound) {
+                        capture_bounds_complete = false;
+                        provider_route_complete = false;
+                        maps_complete = false;
+                        break 'routes;
+                    }
+                }
+                for (ordinal, snapshot) in item.graph.bound_evidence.iter().enumerate() {
+                    if !push_capture(CandidateProviderCaptureKind::CaptureSnapshot, ordinal, None, None, snapshot) {
+                        capture_bounds_complete = false;
+                        provider_route_complete = false;
+                        maps_complete = false;
+                        break 'routes;
+                    }
+                }
+            }
+        }
+        provider_route_complete &= provider_route_matches > 0;
+        capture_bounds_complete &= origins_complete && facts_complete;
+        if provider_route_matches == 0 { capture_bounds_complete = false; maps_complete = false; }
+        Ok(CandidateSourceProviderObservation {
+            facts, origins, dependencies, captures, consumer, facts_complete, origins_complete,
+            dependencies_complete, provider_route_complete, provider_route_matches,
+            capture_bounds_complete, maps_complete,
+            direct_source_drain_attribution: CandidateSourceAttributionStatus::Unknown,
+            captures_structured: false,
+            maps_structured: false,
+            consumer_relation_join_complete: false,
+        })
     }
     /// Indexed by original formal registration, including Value formals whose
     /// computation source plan is absent. Observation borrows constructor outputs
