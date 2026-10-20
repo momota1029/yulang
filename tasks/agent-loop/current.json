@@ -1,1 +1,445 @@
-{"schema_version":1,"mode":"LIVE","phase":"ACTIVE","session":"current-conversation-2026-10-21-r183","active_sprint":{"id":"source-to-capture-provisional-option-b-20261021-r183","status":"ACTIVE","contract":"tasks/agent-loop/sprints/source-to-capture-and-sample-readiness-20261021-r183-rev3.md","contract_revision":3,"contract_sha256":"6380fedea2dad3e302fd8ed2ce99a010c61eff493b7010c17476020afa028dd8","proof_packet":"tasks/agent-loop/inbox/20261021-r183-proof-rev3.md","proof_packet_sha256":"1f6aa2d70171b102e1a235a9c6a7d907de33abc10b2b65aa98189130f66c1a05","implementation_packet":"tasks/agent-loop/inbox/20261021-r183-sample-readiness-rev3.md","implementation_packet_sha256":"f8c0fbdb0d325377f67e64f47fa67e5e049f07d1f6c6e6b4fa87c9012cd9ecc5","resources":{"cap_seconds":3000,"charged_seconds":480,"reserved_seconds":2520,"astra_seconds":0,"no_carryover":true,"allocation":"prep240+R183-rev2-prospective120+R183-rev3-delta-review120 charged; proof1200+sample-contract-prep600+final-reviews360+conditional-delta120+closeout360 reserved"},"prospective_review":"CLEAN rev2 + CLEAN rev3 authority/scope delta /root/r183_prospective_review; STOPPED; 240s total charged.","current_review_input":"HEAD 6c690b00b17c71ac354cdc1a714d757aae0fe8b8; tree 9f66e440f3ecf99c2cd8e9a4c6005a802301c5be.","proof":"ASSIGNED R183-SOURCE-TO-CAPTURE; exact output leases only theory note and proof-result handoff; 1200s reserved.","implementation":"Luna primary contract-preparation lane: provisional R147 rev2 Option B; no code/tests/execution authority; exact outputs in contract; 600s reserved.","probe":"0s; NOT_AUTHORIZED","open":"Original §6 source-to-provider/use premise, full forwarding theorem, R70/R71, Simple-sub/evaluator A/B, source/native, inference/evaluator implementation and production remain OPEN. R147 Option B provisional; distinct implementation contract CLEAN review and activation required.","review_receipt":"R183 prospective rev2 CLEAN for read-only readiness; R183 rev3 CLEAN exact-pin delta; all source and dependency pins verified. No code authority.","next_action":"Run source-to-Capture proof in parallel with Option B implementation-contract preparation; separate reviewed contract required before code.","parent":"notes/theory/2026-10-15-computation-forwarding-preservation.md; SHA-256 d732980d7706538fe18b5d8de312e9a2b6367ec6638ab938b239d46272624e79.","fixture":"tools/inference-playground/examples/r171-formal-name-forwarding.yu; SHA-256 cb2fff33a1ab983a932064cc1699d9f4f4a8d5e00d52986525884d42bc58234f.","R147_authority":"User directed provisional adoption/continuation; Luna interprets as R147 rev2 Option B. User did not name B. User need not repeat; implementation remains gated on separate CLEAN contract review and activation."},"workers":[{"id":"/root/resident_dispatcher_loop_a","role":"legacy dispatcher","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Runtime UNKNOWN; lease quarantined."},{"id":"/root/resident_implementer_idle","role":"legacy implementer","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Runtime UNKNOWN; lease quarantined."},{"id":"/root/runtime_source_supplier_proof","role":"legacy proof worker","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Runtime UNKNOWN; lease quarantined."},{"id":"/root/r182_proof","role":"R182 constructive proof","state":"STOPPED","session":"current-conversation-2026-10-21-r182","requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Frozen proof handoff revision 2, SHA-256 73ba5b4061d58c61cae23f36645f47ea15cd60209239a983ad432bcaf2654b94; note SHA-256 ab812298ddb274864f334a484f9aa6a8a3fe301dcc1371943d1a21c317a22857; 1380s charged; STOPPED."},{"id":"/root/r182_mapping","role":"R182 Luna implementation mapping","state":"STOPPED","session":"current-conversation-2026-10-21-r182","requested_model":"gpt-6-luna","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Frozen implementation mapping SHA-256 41b88416c45fbd91ccdc9f606f7efd6513cfd188811bb863f2277d6dfb04a084; NO_SAFE_CODE_SLICE; 600s charged; STOPPED."},{"id":"/root","role":"Luna primary and sole Git integrator","state":"RUNNING","session":"current-conversation-2026-10-21-r183","requested_model":"gpt-6-luna","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"R183 primary session active after CLEAN prospective rev3; Luna owns current state, exact leases, Option B contract preparation, adjudication and Git."},{"id":"/root/r173_source_drain_proof","role":"historical R173 proof owner","state":"STOPPED","session":null,"requested_model":"UNKNOWN","requested_effort":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Historical assignment completed; frozen result retained in R173 handoff."},{"id":"/root/r174_prover","role":"historical R174 proof owner","state":"STOPPED","session":null,"requested_model":"UNKNOWN","requested_effort":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Historical assignment completed; frozen result retained in R174 handoff."},{"id":"/root/r182_final_review","role":"R182 independent final review","state":"STOPPED","session":"current-conversation-2026-10-21-r182","requested_model":"gpt-6.1-sol","requested_effort":"medium","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"CLEAN scoped independent review of frozen R182 result; all pins matched; 300s charged; STOPPED."},{"id":"/root/r183_prospective_review","role":"R183 prospective spec/authority review","state":"STOPPED","session":"current-conversation-2026-10-21-r183","requested_model":"gpt-6.1-sol","requested_effort":"low","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"CLEAN revision 3 delta exact-pin review; contract 6380fedea2dad3e302fd8ed2ce99a010c61eff493b7010c17476020afa028dd8, proof packet 1f6aa2d70171b102e1a235a9c6a7d907de33abc10b2b65aa98189130f66c1a05, Luna packet f8c0fbdb0d325377f67e64f47fa67e5e049f07d1f6c6e6b4fa87c9012cd9ecc5; no edits/execution; STOPPED."},{"id":"/root/r183_source_to_capture_proof","role":"R183 constructive proof: source-to-Capture","state":"RUNNING","session":"current-conversation-2026-10-21-r183","requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Activated under CLEAN R183 rev3; exact proof/result paths only; actual spawn returned this worker identity; active-work packet is R183 proof rev3."}],"leases":[{"path":"tasks/agent-loop/board.md","owner":"/root/resident_dispatcher_loop_a","state":"QUARANTINED","reason":"Historical writer identity."},{"path":"tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md","owner":"/root","state":"HELD","reason":"old"},{"path":"tasks/agent-loop/sprints/yulang2-types-console-20261020-r150-rev2.md","owner":"/root","state":"HELD","reason":"old"},{"path":"notes/theory/2026-10-20-types-console-initializer-certificate-r152-rev2.md","owner":"/root","state":"HELD","reason":"old"},{"path":"tasks/agent-loop/inbox/20261020-types-console-initializer-certificate-r152-rev2.md","owner":"/root","state":"HELD","reason":"old"},{"path":"notes/theory/2026-10-20-types-console-declaration-census-r2.md","owner":"/root","state":"HELD","reason":"old"},{"path":"tasks/agent-loop/inbox/20261020-types-console-declaration-census-r2.md","owner":"/root","state":"HELD","reason":"old"},{"path":"notes/theory/2026-10-20-r167-module-runtime-simulation.md","owner":"/root","state":"HELD","reason":"old"},{"path":"tasks/agent-loop/inbox/20261020-r167-module-implementation.md","owner":"/root","state":"HELD","reason":"old"},{"path":"notes/theory/2026-10-21-r173-source-drain-attribution-proof.md","owner":"/root/r173_source_drain_proof","state":"HELD","reason":"old"},{"path":"tasks/agent-loop/inbox/20261021-r173-proof.md","owner":"/root/r173_source_drain_proof","state":"HELD","reason":"old"},{"path":"tasks/agent-loop/probes/20261021-r173-provider.{stdout,stderr,status}","owner":"/root","state":"HELD","reason":"old"},{"path":"target/r173","owner":"/root","state":"HELD","reason":"old"},{"path":"tasks/agent-loop/inbox/20261021-r174-implementation.md","owner":"/root","state":"HELD","reason":"old"},{"path":"notes/theory/2026-10-21-r174-rollback-and-forwarding-bridge.md","owner":"/root/r174_prover","state":"HELD","reason":"old"},{"path":"tasks/agent-loop/inbox/20261021-r174-proof.md","owner":"/root/r174_prover","state":"HELD","reason":"old"},{"path":"tasks/agent-loop/sprints/capture-coverage-20261021-r179.md","owner":"/root","state":"HELD","reason":"old"},{"path":"tasks/agent-loop/inbox/20261021-r179-implementation.md","owner":"/root","state":"HELD","reason":"R179 Luna packet; sequential revisions."},{"path":"tasks/agent-loop/current.json","owner":"/root","state":"HELD","reason":"R183 primary-owned live state; exact current session recorded."},{"path":"tasks/agent-loop/sprints/source-to-capture-and-sample-readiness-20261021-r183-rev3.md","owner":"/root","state":"HELD","reason":"Frozen active R183 rev3 contract; primary owns sequential revisions."},{"path":"notes/theory/2026-10-21-r183-source-to-capture.md","owner":"/root/r183_source_to_capture_proof","state":"HELD","reason":"Exact R183 proof output lease."},{"path":"tasks/agent-loop/inbox/20261021-r183-proof-result.md","owner":"/root/r183_source_to_capture_proof","state":"HELD","reason":"Exact R183 proof result handoff; assignment packet remains frozen input."},{"path":"tasks/agent-loop/inbox/20261021-r183-sample-readiness-result.md","owner":"/root","state":"HELD","reason":"Exact Luna R183 sample readiness result lease."},{"path":"notes/design/2026-10-21-r183-braced-if-implementation.md","owner":"/root","state":"HELD","reason":"Exact Luna R183 provisional Option B implementation-design receipt lease."},{"path":"tasks/agent-loop/inbox/20261021-r183-braced-if-implementation.md","owner":"/root","state":"HELD","reason":"Exact Luna R183 implementation-contract candidate lease; no code authority."}],"pending":[{"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna; original whole-ascription formation obligation","details":"tasks/agent-loop/inbox/20261019-r61-proof.md"},{"id":"R64-SRC-ANN-ARG-1","state":"OPEN","owner":"Luna; downstream of the current operand supplier","details":"tasks/agent-loop/inbox/20261019-r64-proof.md"},{"id":"R65-CURRENT-OPERAND-1","state":"OPEN","owner":"Luna; original ordinary typed Lambda operand supplier","details":"tasks/agent-loop/inbox/20261019-r65-proof.md"},{"id":"R66-LAMBDA-RESULT-STAGE-1","state":"OPEN","owner":"Luna; direct Lambda-checking follow-up under R67","details":"tasks/agent-loop/inbox/20261019-r66-proof.md"},{"id":"R67-DIRECT-BODY-CHECK-1","state":"OPEN","owner":"Luna; source Lambda checking/body-consumer premise","details":"notes/theory/2026-10-19-r67-direct-lambda-checking.md"},{"id":"R68-OWNER-CONSUMER-1","state":"OPEN","owner":"Luna; authentic retained body/result-consumer source owner","details":"tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"},{"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1","state":"OPEN_UNADOPTED_PROPOSAL","owner":"Luna; source-law completion","details":"tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"},{"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1","state":"OPEN","owner":"Luna; exact source/native owners assigned within R70","details":"tasks/agent-loop/inbox/20261019-r70-proof.md"},{"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1","state":"OPEN","owner":"Luna; exact source/native owners assigned within R71","details":"tasks/agent-loop/inbox/20261019-r71-proof.md"},{"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage","details":"notes/theory/2026-10-19-r72-third-owner-prefix.md"},{"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"STOPPED_UNFROZEN_RESULT","owner":"Luna intake","details":"Worker interrupted 10:44:04Z"},{"id":"R149-PRIMARY-SOURCE-CHECKPOINT-1","state":"REVIEWED_WITH_FINDINGS","owner":"Luna primary","details":"Rev9 artifact hashes 6c5885c4f963071424a01070f6e92c197bd93bbdeef004667eac561a5fe16e17"},{"id":"R149-PRIMARY-SOURCE-CHECKPOINT-REV2","state":"CLEAN_REVIEWED","owner":"/root/r149_primary_checkpoint_review (fresh review turn)","details":"Rev10 rev2 CLEAN independent delta review. Note SHA256 0ce7e3127519e6a17aeb1f2f6d25b24490fbca4ea3644"}],"closure":"R183 ACTIVE; R182 closed scoped unfinished research. Full theorem/A/B/source-native/implementation/production gates remain OPEN.","next_action":"Proof lane and Option B implementation-contract preparation in parallel; code only after distinct contract CLEAN review and Luna activation.","legacy_reconciliation":{"required":false,"reason":"Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.","source_blob":"c066b622b38c2d79319da14e9fe17c15c8aa4b8d"},"state_audit":{"reviewer":"/root/migration_gate_review","result":"CLEAN frozen migration snapshot; receipt in notes/progress/2026-10-20-sprint-adoption-reconciliation.md.","open_minors":["R145 proposal exact pins/reviews/activation."]},"user_goal":"Proof-backed inference/evaluator; broaden unchanged Yulang2 samples; Luna integrates/pushes.","history":[{"id":"contextual-cut-consumer-20261021-r181","outcome":"CLOSED_UNFINISHED_RESEARCH_CLEAN_SCOPED","contract_sha256":"b61d1cc8b0efbd480dd964e52f4fd7e083d1ab9a973d7b1ed91af4956ecf3577","proof_note_sha256":"d345216984a307a6ab1bc1d94e8f3a951411d1f3973dcc52d503b9bcdc201a16","proof_handoff_sha256":"32215df827e5b07cfd78410231d571402336dd7f758e3db681148971a2b3a929","final_review":"CLEAN scoped /root/r176_final_review; STOPPED","git":"0c260fad5 pushed","resources":"2880 charged / 120 expired; no carryover","open":"Same-source/use consumer and all parent/A/B/source-native/production gates OPEN."},{"id":"same-use-caller-consumer-20261021-r182","outcome":"CLOSED_UNFINISHED_RESEARCH_CLEAN_SCOPED","contract_sha256":"6388a401a28efb1e1f1ff025c29a6f2deb2b020c476824acde0ff258946a8efd","proof_note_sha256":"ab812298ddb274864f334a484f9aa6a8a3fe301dcc1371943d1a21c317a22857","proof_handoff_sha256":"73ba5b4061d58c61cae23f36645f47ea15cd60209239a983ad432bcaf2654b94","implementation_sha256":"41b88416c45fbd91ccdc9f606f7efd6513cfd188811bb863f2277d6dfb04a084","review":"CLEAN scoped /root/r182_final_review; STOPPED","git":"1fc682818 pushed for proof; mapping at 10c682fca; sprint start ff65b70ef","resources":"2880 charged / 120 expired; no carryover","result":"Direct ModuleDef common-row both-ordered-Replay/Function/allowance/return subcase. First missing premise: original Name/body to this provider Capture/shared path/same-use lower input; upper lineage/reuse/full semantics/resources open. NO_SAFE_CODE_SLICE.","parent":"OPEN; no counterexample or theorem closure."}],"review_receipts":"R182 final CLEAN scoped; R183 rev2 prospective CLEAN; R183 rev3 prospective CLEAN delta; R147 exact bundle final CLEAN, semantic proposal now provisionally adopted per user direction."}
+{
+  "schema_version": 1,
+  "mode": "LIVE",
+  "phase": "ACTIVE",
+  "session": "current-conversation-2026-10-21-r183",
+  "active_sprint": {
+    "id": "source-to-capture-provisional-option-b-20261021-r183",
+    "status": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/source-to-capture-and-sample-readiness-20261021-r183-rev3.md",
+    "contract_revision": 3,
+    "contract_sha256": "6380fedea2dad3e302fd8ed2ce99a010c61eff493b7010c17476020afa028dd8",
+    "proof_packet": "tasks/agent-loop/inbox/20261021-r183-proof-rev3.md",
+    "proof_packet_sha256": "1f6aa2d70171b102e1a235a9c6a7d907de33abc10b2b65aa98189130f66c1a05",
+    "implementation_packet": "tasks/agent-loop/inbox/20261021-r183-sample-readiness-rev3.md",
+    "implementation_packet_sha256": "f8c0fbdb0d325377f67e64f47fa67e5e049f07d1f6c6e6b4fa87c9012cd9ecc5",
+    "resources": {
+      "cap_seconds": 3000,
+      "charged_seconds": 1200,
+      "reserved_seconds": 1800,
+      "astra_seconds": 0,
+      "no_carryover": true,
+      "allocation": "prep/rev/contract/review1200 charged; proof1200+review240+closeout360 reserved"
+    },
+    "prospective_review": "CLEAN rev2 + CLEAN rev3 authority/scope delta /root/r183_prospective_review; STOPPED; 240s total charged.",
+    "current_review_input": "HEAD 6c690b00b17c71ac354cdc1a714d757aae0fe8b8; tree 9f66e440f3ecf99c2cd8e9a4c6005a802301c5be.",
+    "proof": "ASSIGNED R183-SOURCE-TO-CAPTURE; exact output leases only theory note and proof-result handoff; 1200s reserved.",
+    "implementation": "RESULT: provisional Option B; exact sequence/HIR/constraint/runtime/test owners remain unpinned. NO_SAFE_CODE_CONTRACT pending bounded owner map; 600s charged; no code authority.",
+    "probe": "0s; NOT_AUTHORIZED",
+    "open": "§6 premise, forwarding, R70/71, A/B, source/native, implementation and production OPEN; Option B provisional; implementation needs separate reviewed contract.",
+    "review_receipt": "R183 rev2/rev3 prospective CLEAN; R183 Option-B preparation CLEAN; pins verified; no code authority.",
+    "next_action": "Continue R183 proof. Start bounded read-only source-owner mapping for Option B; exact implementations contract follows review.",
+    "parent": "notes/theory/2026-10-15-computation-forwarding-preservation.md; SHA-256 d732980d7706538fe18b5d8de312e9a2b6367ec6638ab938b239d46272624e79.",
+    "fixture": "tools/inference-playground/examples/r171-formal-name-forwarding.yu; SHA-256 cb2fff33a1ab983a932064cc1699d9f4f4a8d5e00d52986525884d42bc58234f.",
+    "R147_authority": "User directed provisional adoption/continuation; Luna interprets as R147 rev2 Option B; user did not name B. No repeat approval; implementation awaits separate CLEAN contract review/activation.",
+    "sample_review": "CLEAN /root/r183_option_b_packet_review; exact three frozen outputs/dependencies pinned; STOPPED; 120s charged; no code authority."
+  },
+  "workers": [
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "role": "legacy dispatcher",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Runtime UNKNOWN; lease quarantined."
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "role": "legacy implementer",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Runtime UNKNOWN; lease quarantined."
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "role": "legacy proof worker",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Runtime UNKNOWN; lease quarantined."
+    },
+    {
+      "id": "/root/r182_proof",
+      "role": "R182 constructive proof",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-21-r182",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Frozen R182 proof handoff SHA 73ba5b4061d58c61cae23f36645f47ea15cd60209239a983ad432bcaf2654b94; note SHA ab812298ddb274864f334a484f9aa6a8a3fe301dcc1371943d1a21c317a22857; 1380s; STOPPED."
+    },
+    {
+      "id": "/root/r182_mapping",
+      "role": "R182 Luna implementation mapping",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-21-r182",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Frozen implementation mapping SHA-256 41b88416c45fbd91ccdc9f606f7efd6513cfd188811bb863f2277d6dfb04a084; NO_SAFE_CODE_SLICE; 600s charged; STOPPED."
+    },
+    {
+      "id": "/root",
+      "role": "Luna primary and sole Git integrator",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-21-r183",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R183 primary session active after CLEAN prospective rev3; Luna owns current state, exact leases, Option B contract preparation, adjudication and Git."
+    },
+    {
+      "id": "/root/r173_source_drain_proof",
+      "role": "historical R173 proof owner",
+      "state": "STOPPED",
+      "session": null,
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Historical assignment completed; frozen result retained in R173 handoff."
+    },
+    {
+      "id": "/root/r174_prover",
+      "role": "historical R174 proof owner",
+      "state": "STOPPED",
+      "session": null,
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Historical assignment completed; frozen result retained in R174 handoff."
+    },
+    {
+      "id": "/root/r182_final_review",
+      "role": "R182 independent final review",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-21-r182",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "CLEAN scoped independent review of frozen R182 result; all pins matched; 300s charged; STOPPED."
+    },
+    {
+      "id": "/root/r183_prospective_review",
+      "role": "R183 prospective spec/authority review",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-21-r183",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "CLEAN R183 rev3 exact-pin review; contract 6380fedea2dad3e302fd8ed2ce99a010c61eff493b7010c17476020afa028dd8; proof 1f6aa2d70171b102e1a235a9c6a7d907de33abc10b2b65aa98189130f66c1a05; sample f8c0fbdb0d325377f67e64f47fa67e5e049f07d1f6c6e6b4fa87c9012cd9ecc5; STOPPED."
+    },
+    {
+      "id": "/root/r183_source_to_capture_proof",
+      "role": "R183 constructive proof: source-to-Capture",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-21-r183",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Activated under CLEAN R183 rev3; exact proof/result paths only; actual spawn returned this worker identity; active-work packet is R183 proof rev3."
+    },
+    {
+      "id": "/root/r183_option_b_packet_review",
+      "role": "R183 Option B packet independent review",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-21-r183",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "CLEAN exact Option-B preparation review; pins matched; no edits/execution; STOPPED; 120s charged."
+    }
+  ],
+  "leases": [
+    {
+      "path": "tasks/agent-loop/board.md",
+      "owner": "/root/resident_dispatcher_loop_a",
+      "state": "QUARANTINED",
+      "reason": "Historical writer identity."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-types-console-20261020-r150-rev2.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "notes/theory/2026-10-20-types-console-initializer-certificate-r152-rev2.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-types-console-initializer-certificate-r152-rev2.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "notes/theory/2026-10-20-types-console-declaration-census-r2.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-types-console-declaration-census-r2.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "notes/theory/2026-10-20-r167-module-runtime-simulation.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r167-module-implementation.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "notes/theory/2026-10-21-r173-source-drain-attribution-proof.md",
+      "owner": "/root/r173_source_drain_proof",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r173-proof.md",
+      "owner": "/root/r173_source_drain_proof",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "tasks/agent-loop/probes/20261021-r173-provider.{stdout,stderr,status}",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "target/r173",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r174-implementation.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "notes/theory/2026-10-21-r174-rollback-and-forwarding-bridge.md",
+      "owner": "/root/r174_prover",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r174-proof.md",
+      "owner": "/root/r174_prover",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/capture-coverage-20261021-r179.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "old"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r179-implementation.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R179 Luna packet; sequential revisions."
+    },
+    {
+      "path": "tasks/agent-loop/current.json",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R183 primary-owned live state; exact current session recorded."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/source-to-capture-and-sample-readiness-20261021-r183-rev3.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Frozen active R183 rev3 contract; primary owns sequential revisions."
+    },
+    {
+      "path": "notes/theory/2026-10-21-r183-source-to-capture.md",
+      "owner": "/root/r183_source_to_capture_proof",
+      "state": "HELD",
+      "reason": "Exact R183 proof output lease."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r183-proof-result.md",
+      "owner": "/root/r183_source_to_capture_proof",
+      "state": "HELD",
+      "reason": "Exact R183 proof result handoff; assignment packet remains frozen input."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r183-sample-readiness-result.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Exact Luna R183 sample readiness result lease."
+    },
+    {
+      "path": "notes/design/2026-10-21-r183-braced-if-implementation.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Exact Luna R183 provisional Option B implementation-design receipt lease."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r183-braced-if-implementation.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Exact Luna R183 implementation-contract candidate lease; no code authority."
+    }
+  ],
+  "pending": [
+    {
+      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+      "state": "OPEN",
+      "owner": "Luna; original whole-ascription formation obligation",
+      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md"
+    },
+    {
+      "id": "R64-SRC-ANN-ARG-1",
+      "state": "OPEN",
+      "owner": "Luna; downstream of the current operand supplier",
+      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md"
+    },
+    {
+      "id": "R65-CURRENT-OPERAND-1",
+      "state": "OPEN",
+      "owner": "Luna; original ordinary typed Lambda operand supplier",
+      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md"
+    },
+    {
+      "id": "R66-LAMBDA-RESULT-STAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; direct Lambda-checking follow-up under R67",
+      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md"
+    },
+    {
+      "id": "R67-DIRECT-BODY-CHECK-1",
+      "state": "OPEN",
+      "owner": "Luna; source Lambda checking/body-consumer premise",
+      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md"
+    },
+    {
+      "id": "R68-OWNER-CONSUMER-1",
+      "state": "OPEN",
+      "owner": "Luna; authentic retained body/result-consumer source owner",
+      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"
+    },
+    {
+      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+      "state": "OPEN_UNADOPTED_PROPOSAL",
+      "owner": "Luna; source-law completion",
+      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"
+    },
+    {
+      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+      "state": "OPEN",
+      "owner": "Luna; exact source/native owners assigned within R70",
+      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md"
+    },
+    {
+      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; exact source/native owners assigned within R71",
+      "details": "tasks/agent-loop/inbox/20261019-r71-proof.md"
+    },
+    {
+      "id": "R72-LATER-OCCURRENCE-1",
+      "state": "OPEN",
+      "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
+      "details": "notes/theory/2026-10-19-r72-third-owner-prefix.md"
+    },
+    {
+      "id": "R149-SOURCE-OWNER-CLOSURE-1",
+      "state": "STOPPED_UNFROZEN_RESULT",
+      "owner": "Luna intake",
+      "details": "Worker interrupted 10:44:04Z"
+    },
+    {
+      "id": "R149-PRIMARY-SOURCE-CHECKPOINT-1",
+      "state": "REVIEWED_WITH_FINDINGS",
+      "owner": "Luna primary",
+      "details": "Rev9 artifact hashes 6c5885c4f963071424a01070f6e92c197bd93bbdeef004667eac561a5fe16e17"
+    },
+    {
+      "id": "R149-PRIMARY-SOURCE-CHECKPOINT-REV2",
+      "state": "CLEAN_REVIEWED",
+      "owner": "/root/r149_primary_checkpoint_review (fresh review turn)",
+      "details": "Rev10 rev2 CLEAN independent delta review. Note SHA256 0ce7e3127519e6a17aeb1f2f6d25b24490fbca4ea3644"
+    }
+  ],
+  "closure": "R183 ACTIVE; R182 closed scoped unfinished research. Full theorem/A/B/source-native/implementation/production gates remain OPEN.",
+  "next_action": "R183 proof continues; Option B code path awaits a reviewed exact source-owner map and complete implementation contract.",
+  "legacy_reconciliation": {
+    "required": false,
+    "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
+    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+  },
+  "state_audit": {
+    "reviewer": "/root/migration_gate_review",
+    "result": "CLEAN frozen migration snapshot; receipt in notes/progress/2026-10-20-sprint-adoption-reconciliation.md.",
+    "open_minors": [
+      "R145 proposal exact pins/reviews/activation."
+    ]
+  },
+  "user_goal": "Proof-backed inference/evaluator; broaden unchanged Yulang2 samples; Luna integrates/pushes.",
+  "history": [
+    {
+      "id": "contextual-cut-consumer-20261021-r181",
+      "outcome": "CLOSED_UNFINISHED_RESEARCH_CLEAN_SCOPED",
+      "contract_sha256": "b61d1cc8b0efbd480dd964e52f4fd7e083d1ab9a973d7b1ed91af4956ecf3577",
+      "proof_note_sha256": "d345216984a307a6ab1bc1d94e8f3a951411d1f3973dcc52d503b9bcdc201a16",
+      "proof_handoff_sha256": "32215df827e5b07cfd78410231d571402336dd7f758e3db681148971a2b3a929",
+      "final_review": "CLEAN scoped /root/r176_final_review; STOPPED",
+      "git": "0c260fad5 pushed",
+      "resources": "2880 charged / 120 expired; no carryover",
+      "open": "Same-source/use consumer and all parent/A/B/source-native/production gates OPEN."
+    },
+    {
+      "id": "same-use-caller-consumer-20261021-r182",
+      "outcome": "CLOSED_UNFINISHED_RESEARCH_CLEAN_SCOPED",
+      "contract_sha256": "6388a401a28efb1e1f1ff025c29a6f2deb2b020c476824acde0ff258946a8efd",
+      "proof_note_sha256": "ab812298ddb274864f334a484f9aa6a8a3fe301dcc1371943d1a21c317a22857",
+      "proof_handoff_sha256": "73ba5b4061d58c61cae23f36645f47ea15cd60209239a983ad432bcaf2654b94",
+      "implementation_sha256": "41b88416c45fbd91ccdc9f606f7efd6513cfd188811bb863f2277d6dfb04a084",
+      "review": "CLEAN scoped /root/r182_final_review; STOPPED",
+      "git": "1fc682818 pushed for proof; mapping at 10c682fca; sprint start ff65b70ef",
+      "resources": "2880 charged / 120 expired; no carryover",
+      "result": "Direct ModuleDef common-row both-ordered-Replay/Function/allowance/return subcase. First missing premise: original Name/body to this provider Capture/shared path/same-use lower input; upper lineage/reuse/full semantics/resources open. NO_SAFE_CODE_SLICE.",
+      "parent": "OPEN; no counterexample or theorem closure."
+    }
+  ],
+  "review_receipts": "R182 final CLEAN scoped; R183 rev2 prospective CLEAN; R183 rev3 prospective CLEAN delta; R147 exact bundle final CLEAN, semantic proposal now provisionally adopted per user direction."
+}
