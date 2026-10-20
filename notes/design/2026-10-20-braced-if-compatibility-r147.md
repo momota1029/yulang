@@ -92,13 +92,17 @@ it is not broad Yulang2 braced-body compatibility.
 ### Option B — broader source-compatible bodies with explicit unsupported cases
 
 Support ordinary non-record expression lists under a dedicated arm-list owner,
-with source order and the same sequence consumer used for supported Y2 block
-items. Preserve record-shaped meaning for empty records, inline fields, and at
-most one operand-bearing record spread. Reject malformed lists, duplicate
-spreads, and non-record mixed-spread forms explicitly; do not reproduce Y2's
-silent `ExprSpread` omission. This covers more source forms and keeps every
-accepted item accounted for, while naming the mixed-spread rejection as a
-deliberate Y3 difference.
+with source order and explicit left-to-right sequence semantics. The current Y3
+`BracedStatementBlockExpression` HIR builder is insufficient: it accepts only
+private binding statements before one final expression. This option therefore
+requires a dedicated HIR sequence representation and matching inference/runtime
+consumers, to be designed and pinned in the later implementation contract.
+Preserve record-shaped meaning for empty records, inline fields, and at most one
+operand-bearing record spread. Reject malformed lists, duplicate spreads, and
+non-record mixed-spread forms explicitly; do not reproduce Y2's silent
+`ExprSpread` omission. This covers more source forms and keeps every accepted
+item accounted for, while naming the mixed-spread rejection as a deliberate Y3
+difference.
 
 Both options must be specified against parser-produced CST shapes and have
 focused parser recovery, HIR source-link, inference, runtime, and Web/WASM
