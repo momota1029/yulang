@@ -2,32 +2,32 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-20-r145-resume",
+  "session": "current-conversation-2026-10-20-r145-activation",
   "active_sprint": {
     "id": "source-lineage-trace-20261020-r145",
     "contract": "tasks/agent-loop/sprints/source-lineage-trace-20261020-r145-rev1.md",
     "revision": 1,
     "contract_sha256": "728e5884f1750eac69d4d2c3359084afceea313012391fc2f320e3990aef952e",
-    "state": "CANDIDATE_PROSPECTIVE_COMPILER_REVIEW",
+    "state": "ACTIVE_PROOF_AND_PRIMARY_AUDIT",
     "baseline": "619d275c75a465ffefd3875a92640387d1599804",
-    "authority": "Read-only candidate review only; no proof/code/runtime authority until prospective reviews, refreshed pins, exact leases and explicit Luna activation.",
+    "authority": "Luna activated exact R145 rev1 after two CLEAN prospective reviews and 38/38 refreshed pins at b9f1942ed4f395b7989eacb137baf14993325231. Proof owns only theory and handoff leases; primary owns source audit/current/closeout. No code/runtime/test authority.",
     "dependencies": {
       "direct_pins": 38,
       "validated_baseline_live_pairs": 38,
-      "validation": "All 38 direct dependency baseline/live pairs matched at 619d275c75a465ffefd3875a92640387d1599804. Refresh all pins again before activation."
+      "validation": "Activation refresh: all 38 direct pins match baseline 619d275c75a465ffefd3875a92640387d1599804 and live HEAD b9f1942ed4f395b7989eacb137baf14993325231."
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 180,
-      "reserved_seconds": 1620,
+      "charged_seconds": 300,
+      "reserved_seconds": 1500,
       "astra_seconds": 0,
       "proof_seconds": 900,
       "no_carryover": true,
-      "reservation_state": "Proposed only; 180s prep charged conservatively; remaining 1620s reserved only if candidate activates."
+      "reservation_state": "Activated: 300s charged conservatively (prep 180 + prospective review cap 120, including unknown review time); remaining 1500s reserved for proof 900, Luna audit 180, final review 240, closeout 180. No carryover."
     },
     "parent_status": "R70/R71 OPEN. One finite input cannot discharge or refute the universal parent. Simple-sub A/B and production remain OPEN.",
-    "next_boundary": "Prospective compiler/source review result; any requested contract change requires sequential revision and fresh review.",
-    "proof_result": "NOT_STARTED; candidate source path does not yet establish merge→raw Work::Bound→actual consumer.",
+    "next_boundary": "Proof and Luna source audit within exact pins/leases; stop at first missing premise or source-qualified result, then fresh independent final compiler/source review.",
+    "proof_result": "AUTHORIZED_NOT_STARTED; producer must report fresh launch receipt before current records RUNNING.",
     "proof_outputs": {
       "theory": "notes/theory/2026-10-20-r145-source-lineage-trace.md",
       "handoff": "tasks/agent-loop/inbox/20261020-r145-proof.md"
@@ -42,6 +42,13 @@
         "result": "CLEAN",
         "scope": "Exact candidate contract SHA-256 728e5884f1750eac69d4d2c3359084afceea313012391fc2f320e3990aef952e",
         "receipt": "38 live dependency hashes matched; Luna separately verified baseline/live equality for all 38 at 619d275c75a465ffefd3875a92640387d1599804. Universal R70/R71 and higher A/B parents remain OPEN. Finite source falsifier is constrained to the packet; no tests/builds/compiler/Git."
+      },
+      {
+        "reviewer": "/root/r145_pre_compiler",
+        "role": "compiler_referee",
+        "result": "CLEAN",
+        "scope": "Exact candidate contract SHA-256 728e5884f1750eac69d4d2c3359084afceea313012391fc2f320e3990aef952e",
+        "receipt": "Independently verified all 38 live pins. Source checks distinguish Work::Bound from IncomingAllowance and require actual raw slot and consumer reachability. Unpinned parser/HIR owners are a stop-at-first-unpinned boundary. No blockers/majors/minors; no writes/tests/builds/compiler/Git."
       }
     ]
   },
@@ -82,24 +89,24 @@
     {
       "id": "/root",
       "role": "Luna primary / sole Git integrator",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-20-r144",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-20-r145-activation",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R144 closed UNFINISHED/OPEN after final reviews; Git integration complete."
+      "receipt": "Live primary interaction in this session; R145 activated after CLEAN prospective reviews and 38/38 refreshed pins. Owns primary source audit/current/closeout."
     },
     {
       "id": "/root/r145_source_path_probe",
       "role": "read-only R145 source-path feasibility explorer",
-      "state": "WAITING",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-20-r145-resume",
       "requested_model": "UNKNOWN",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Read-only preflight returned a preliminary locator; paused for fixed contract and lease. No writes."
+      "receipt": "Primary stopped this read-only preflight at contract freeze to preserve capacity; preliminary merge locator retained in sprint preparation. No writes or lease."
     },
     {
       "id": "/root/r145_pre_spec",
@@ -111,6 +118,17 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Prospective spec review CLEAN for exact SHA-256 728e5884f1750eac69d4d2c3359084afceea313012391fc2f320e3990aef952e; 38 live hashes match. Baseline equality separately verified by Luna. No writes/tests/builds/Git."
+    },
+    {
+      "id": "/root/r145_proof",
+      "role": "R145 constructive source trace proof owner",
+      "state": "NOT_STARTED",
+      "session": "current-conversation-2026-10-20-r145-activation",
+      "requested_model": "prover default",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Exact theory and handoff leases granted; not RUNNING until fresh launch receipt."
     }
   ],
   "leases": [
@@ -130,6 +148,16 @@
       "owner": "/root",
       "state": "FROZEN",
       "reason": "Exact SHA prospective review target; candidate only."
+    },
+    {
+      "path": "notes/theory/2026-10-20-r145-source-lineage-trace.md",
+      "owner": "/root/r145_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r145-proof.md",
+      "owner": "/root/r145_proof",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -205,7 +233,7 @@
     }
   ],
   "closure": "R144 CLOSED UNFINISHED/OPEN at c7d574009. Migration policy review CLEAN and inherited leases reconciled conservatively; R145 remains a proposal.",
-  "next_action": "R145 spec review CLEAN; compiler/source prospective review remains. Candidate stays inactive until both reviews, fresh pin refresh, exact leases and Luna activation.",
+  "next_action": "R145 activated after CLEAN spec/compiler reviews and 38/38 refreshed pins. Launch one proof producer on theory+handoff; Luna performs the bounded source audit. No implementation lane.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
