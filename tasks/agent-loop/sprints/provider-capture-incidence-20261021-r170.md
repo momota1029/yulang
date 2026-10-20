@@ -1,6 +1,6 @@
 # R170 — one ordinary provider capture incidence and bounded native observation
 
-Status: CANDIDATE revision 2. Revision 1 candidate was committed as `20cfd4ccd`; its SHA-256 was `57b517516c524839ff174f0aaf08aaa163e2a6055bb84fd61c03246522fb5234` and received one major finding. No assignment, execution or code lease is active until this exact revision and both handoffs receive a fresh prospective CLEAN review and Luna records exact current-session receipts. Parent goal is unchanged: proof-backed natural Yulang inference/evaluator breadth and broader execution of unchanged Yulang2 Web samples in this repository. This sprint authorizes no Yulang2 execution. Its single candidate-solver probe, if authorized at activation, runs only in this checkout against an existing Y3 playground source.
+Status: CANDIDATE revision 3. Revision 1 is preserved at commit `20cfd4ccd` (SHA-256 `57b517516c524839ff174f0aaf08aaa163e2a6055bb84fd61c03246522fb5234`); revision 2 is preserved at commit `e9d3a1367` (SHA-256 `45092451735aea21006c46f3b1e479a2a8405b7a1a98c6ab04eec39f99409394`) and received a major write-confinement finding. No assignment, execution or code lease is active until this exact revision and both handoffs receive a fresh prospective CLEAN review and Luna records exact current-session receipts. Parent goal is unchanged: proof-backed natural Yulang inference/evaluator breadth and broader execution of unchanged Yulang2 Web samples in this repository. This sprint authorizes no Yulang2 execution. Its single candidate-solver probe, if authorized at activation, runs only in this checkout against an existing Y3 playground source.
 
 ## Outcome and parent application
 
@@ -72,13 +72,21 @@ Exact evidence outputs:
 
 Extend borrowed observation only over already-retained capture snapshots, bounds and the exact provider-owned maps available in the two leased solver owners. Keep missing associations explicit. No new semantic state, propagation/admission/rollback behavior, public product API, CLI, network, Yulang2/Yulang3 web sample execution, or external runtime. If an actual tuple requires an unleased source owner or new persistent record, stop at that boundary; no lease expansion is implied.
 
-Before any probe grant, freeze the exact example-source hash and obtain a fresh independent review of the leased solver diff, example source, fixture membership, and exact invocation. Luna (the example author) cannot review it. Only after that review is CLEAN may Luna run this one command from the repository root, with no other arguments:
+Before any probe grant, freeze the exact example-source hash and obtain a fresh independent review of the leased solver diff, example source, fixture membership, and exact invocation. Luna (the example author) cannot review it. The host `/usr/bin/bwrap` must be version 0.9.0 with SHA-256 `e318903862396f96de3df57264e0158682b952fd3fb53ac23d876413e7b30f71`. Only after that review is CLEAN may Luna run this one shell command from the repository root; no other command arguments or environment overrides are allowed:
 
 ```sh
-CARGO_TARGET_DIR=target/r170 cargo run --offline --locked --manifest-path tools/inference-playground/Cargo.toml --example r170_provider_incidence
+ROOT=/home/momota1029/rust/yulang
+mkdir -p "$ROOT/target/r170/tmp" "$ROOT/tasks/agent-loop/probes"
+: > "$ROOT/tasks/agent-loop/probes/20261021-r170-provider.stdout"
+: > "$ROOT/tasks/agent-loop/probes/20261021-r170-provider.stderr"
+: > "$ROOT/tasks/agent-loop/probes/20261021-r170-provider.status"
+/usr/bin/bwrap --ro-bind / / --bind "$ROOT/target/r170" "$ROOT/target/r170" --dev /dev --proc /proc --ro-bind /tmp /tmp --chdir "$ROOT" --setenv HOME /home/momota1029 --setenv CARGO_HOME /home/momota1029/.cargo --setenv RUSTUP_HOME /home/momota1029/.rustup --setenv RUSTUP_SKIP_UPDATE_CHECK 1 --setenv CARGO_NET_OFFLINE true --setenv CARGO_TARGET_DIR "$ROOT/target/r170" --setenv TMPDIR "$ROOT/target/r170/tmp" --setenv PATH /home/momota1029/.cargo/bin:/usr/bin:/bin cargo run --offline --locked --manifest-path tools/inference-playground/Cargo.toml --example r170_provider_incidence > "$ROOT/tasks/agent-loop/probes/20261021-r170-provider.stdout" 2> "$ROOT/tasks/agent-loop/probes/20261021-r170-provider.stderr"
+status=$?
+printf '%s\n' "$status" > "$ROOT/tasks/agent-loop/probes/20261021-r170-provider.status"
+test "$status" -eq 0
 ```
 
-The only explicit writes are the dedicated in-repository build tree `target/r170/` and the three exact probe receipt paths above. Cargo's registry/cache is read-only; offline+locked is mandatory. Do not override `CARGO_HOME`, `RUSTFLAGS`, proxies or any other environment setting. If Cargo needs registry/cache mutation, resolves an unlocked dependency, writes outside `target/r170/`, or the example is not built from these exact checked-out bytes, stop before retrying and preserve diagnostics. The invocation is one build-and-run, not a test suite. No retry. Capture stdout, stderr and exit status to the exact receipt files. No `/tmp`, alternate checkout, nested CLI, network or background service. The probe may fail and still be evidence; report its exact status without modifying the source or replaying a Yulang2 executable.
+`bwrap` mounts the host filesystem read-only and grants write access only to `target/r170/`; `/tmp` is read-only. `TMPDIR`, Cargo target, Cargo home and Rustup home are pinned. The caller's stdout/stderr/status redirections are the only other writes and name the three exact receipt files. Cargo registry and Rust toolchain paths are read-only through the root mount. The filesystem boundary, not `--offline` alone, confines writes. If bwrap is missing/changed/fails, if any outside write is attempted, if Cargo needs cache mutation, or if the example is not built from these exact checked-out bytes, preserve diagnostics and stop without retry. The invocation is one build-and-run, not a test suite. No network, alternate checkout, nested CLI or background service. The probe may fail and still be evidence; report its exact status without modifying source or replaying a Yulang2 executable.
 
 The example prints the borrowed observations from `CandidateInference::solve` over the pinned existing fixture. It must label truncated output, retain route alternatives and make no source-fact join the observer does not establish. Probe stdout is diagnostic evidence, not an inference certificate or test oracle.
 
