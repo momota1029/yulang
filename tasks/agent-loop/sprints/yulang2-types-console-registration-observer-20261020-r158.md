@@ -1,6 +1,6 @@
 # Yulang2 Types/Console registration observer — R158
 
-Status: prospective exact implementation contract rev2. Active user goal and `/goal resume` authorize this bounded reversible research instrumentation. Luna activates only after independent CLEAN review and records the exact-path lease. No semantic approval, Y3 implementation, tests, builds, parser/sample execution, expected-output edits, or production cutover is authorized.
+Status: prospective exact implementation contract rev3. Active user goal and `/goal resume` authorize this bounded reversible research instrumentation. Luna activates only after independent CLEAN review and records the exact-path lease. No semantic approval, Y3 implementation, tests, builds, parser/sample execution, expected-output edits, or production cutover is authorized.
 
 ## Parent outcome and baseline
 
@@ -20,7 +20,7 @@ Dependency premise: `infer` depends on `sources`; `sources` has `serde_json`; bo
 
 ## One implementation packet — 120 seconds preparation
 
-The frozen implementation details are in `tasks/agent-loop/inbox/20261020-r158-observer-implementation-packet.md`, SHA-256 to be frozen in `current.json` before review.
+The frozen implementation details are in `tasks/agent-loop/inbox/20261020-r158-observer-implementation-packet.md`, SHA-256 to be frozen in `current.json` before review. Each allowlisted output must be exclusively created for one process invocation; a pre-existing path invalidates the witness and must never be appended to or truncated. Partial output is preserved for diagnosis.
 
 Work only in `/tmp/yulang2-r156-observer/oracle/`, produced from the pinned Y2 commit. Writable files are exactly:
 
@@ -48,7 +48,7 @@ Fresh independent reviewer receives 120 seconds for the frozen exact diff and de
 
 ## Resource ceiling
 
-Fresh R158 cap 840 seconds: 120 packet preparation + 120 prospective review + 360 conditional implementation + 120 independent code review + 120 closeout. Charge grants when issued; Astra 0; no R157 carryover. No build, test, or execution allocation. Only Luna owns state, grants, leases, independent review assignment, adjudication, and Git.
+Fresh R158 cap is 960 seconds: 120 packet preparation + 240 prospective review/delta review + 360 conditional implementation + 120 independent code review + 120 closeout. Charge grants when issued; Astra 0; no R157 carryover. No build, test, or execution allocation. Only Luna owns state, grants, leases, independent review assignment, adjudication, and Git.
 
 ## Lanes, falsifier, and next boundary
 
