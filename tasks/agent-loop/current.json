@@ -2,13 +2,13 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-20-r146-activation",
+  "session": "current-conversation-2026-10-20-r146-final-review",
   "active_sprint": {
     "id": "source-admission-observation-20261020-r146",
     "contract": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev3.md",
     "revision": 3,
     "contract_sha256": "3b6c24726ac4fe51b96d605d8a260d4a02023e009b244178f528f148ccd8171b",
-    "state": "ACTIVE_PROOF_AND_OBSERVATION",
+    "state": "RESULT_AWAITING_FINAL_REVIEW",
     "baseline": "f6e59e42bcfcfb3c13a0c511c63bcf9d0390005d",
     "authority": "Luna activated rev3 after CLEAN spec/compiler reviews and 19/19 refreshed pins plus baseline code-tree parity. Proof owns only theory/handoff; Luna owns one supervised CLI observation and current/closeout. No source edits, tests, runtime evaluation, retries or semantic/production authority.",
     "dependencies": {
@@ -20,20 +20,24 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 660,
-      "reserved_seconds": 1140,
+      "charged_seconds": 924,
+      "reserved_seconds": 876,
       "astra_seconds": 0,
       "proof_seconds": 600,
       "no_carryover": true,
-      "reservation_state": "660s charged: preparation/review rounds540 + single observation lane120 charged conservatively (actual supervised command 4.626s). Remaining1140 reserved for proof600, final review240, closeout180, headroom120; no carryover."
+      "reservation_state": "924s charged: prep/review rounds540 + observation lane120 + proof264 observed. 876s retained for proof lane remainder336 (nonrenewable), final review240, closeout180, headroom120. No carryover.",
+      "proof_elapsed_seconds": 264
     },
     "parent_status": "R70/R71 OPEN; higher Simple-sub A/B, source/native correspondence, evaluator/sample compatibility and production gates remain OPEN.",
-    "next_boundary": "Finish static audit only within the frozen code-tree pin; final review must confirm exact observation and source correspondence, then Luna closeout.",
-    "proof_result": "OBSERVATION OBSERVED_PREPARED; proof/static source audit RUNNING. CLI process exited 0 and emitted the intrusion report. No --run/runtime, theorem, defect or parent closure claim.",
+    "next_boundary": "Fresh final compiler/source review result, then Luna adjudication/closeout or reviewed successor.",
+    "proof_result": "FROZEN OBSERVED_PREPARED + static syntax/HIR/ordinary candidate entrance map. Authentic selected Work::Bound, raw preimages, and actual relation consumer remain OPEN.",
     "proof_outputs": {
       "theory": "notes/theory/2026-10-20-r146-source-admission.md",
       "handoff": "tasks/agent-loop/inbox/20261020-r146-proof.md",
-      "observation": "notes/progress/2026-10-20-r146-admission-observation.txt"
+      "observation": "notes/progress/2026-10-20-r146-admission-observation.txt",
+      "theory_sha256": "4ce290315e66b462052f4999178b6944bccbd3e048f5fe0664e459addb76d375",
+      "handoff_sha256": "782c2c79d26c0f641ab93c33591d5d5b1d7363fb83a5035550a470de48621cf6",
+      "observation_sha256": "8cc78c35af7c09741c84be67b0fbda1862609fcde24b706cfb942e21f82e6548"
     },
     "closeout": "notes/progress/2026-10-20-r146-closeout.md",
     "prospective_reviews": [
@@ -52,7 +56,14 @@
         "receipt": "All 19 live pins verified and CPU 0 available. Main dispatch uses inference only; lib prepares syntax/HIR/candidate before report. Single-core affinity bounds group CPU by wall; explicit env, RLIMITs, bounded capture, TERM by115s/KILL at120s. No activation review of actual supervisor; final review must check conformance."
       }
     ],
-    "final_reviews": [],
+    "final_reviews": [
+      {
+        "reviewer": "/root/r146_final_compiler",
+        "role": "compiler_referee",
+        "state": "RUNNING",
+        "scope": "Frozen R146 rev3 theory/handoff/observation; exact hashes in active_sprint.proof_outputs."
+      }
+    ],
     "primary_complementary_result": "NO_SAFE_CODE_SLICE; Luna owns only the existing-tool observation record, no code repair.",
     "revision_history": [
       {
@@ -78,7 +89,8 @@
       "stderr_bytes": 5445,
       "supervised_child_limit_seconds": 120,
       "actual_command": "cargo run -q -p yu-playground -- --intrusion tools/inference-playground/examples/nested-recursion.yu"
-    }
+    },
+    "proof_worker_stop": "`/root/r146_proof` STOPPED 2026-10-20 02:05:18 UTC; elapsed 264s; no descendants."
   },
   "workers": [
     {
@@ -118,23 +130,23 @@
       "id": "/root",
       "role": "Luna primary / sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r146-activation",
+      "session": "current-conversation-2026-10-20-r146-final-review",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "One authorized R146 Cargo invocation completed OBSERVED_PREPARED in 4.626s under rev3 supervisor; owns frozen observation record/current/closeout."
+      "receipt": "R146 proof/observation frozen; fresh final compiler/source review launched. No additional process."
     },
     {
-      "id": "/root/r146_proof",
-      "role": "R146 static source admission and constructor audit proof owner",
+      "id": "/root/r146_final_compiler",
+      "role": "R146 independent final compiler/source reviewer",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r146-activation",
-      "requested_model": "prover default",
-      "requested_effort": "high",
+      "session": "current-conversation-2026-10-20-r146-final-review",
+      "requested_model": "compiler_referee default Sol/medium",
+      "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Fresh active-work receipt after Luna activation: exact theory/handoff leases; static source audit underway; read-only source commands only, no build/CLI/tests/runtime/Git."
+      "receipt": "Fresh read-only final review launched for exact contract/theory/handoff/observation hashes; no Git/writes/tests/build/CLI."
     }
   ],
   "leases": [
@@ -187,13 +199,15 @@
     },
     {
       "path": "notes/theory/2026-10-20-r146-source-admission.md",
-      "owner": "/root/r146_proof",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Proof author STOPPED; exact outputs frozen pending independent final review and Luna closeout."
     },
     {
       "path": "tasks/agent-loop/inbox/20261020-r146-proof.md",
-      "owner": "/root/r146_proof",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Proof author STOPPED; exact outputs frozen pending independent final review and Luna closeout."
     },
     {
       "path": "notes/progress/2026-10-20-r146-admission-observation.txt",
@@ -274,7 +288,7 @@
     }
   ],
   "closure": "R145 CLOSED_UNFINISHED_REVIEWED_RESEARCH: first unpinned syntax-admission premise. Final compiler/source review CLEAN. See notes/progress/2026-10-20-r145-closeout.md. Parent R70/R71 and higher claims remain OPEN.",
-  "next_action": "R146 single observation succeeded under rev3 supervisor (exit0, intrusion report). Proof lane continues static source tracing within the full pinned code tree; no second process.",
+  "next_action": "Fresh independent compiler/source review running on R146 finite admission result; no more CLI/process authority.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
@@ -407,16 +421,7 @@
     {
       "id": "R145",
       "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "result": "RESULT_2_FIRST_UNPINNED_SYNTAX_ADMISSION; no accepted-source history, merge/raw-slot/consumer, falsifier or defect established. R70/R71 and higher gates OPEN.",
-      "contract": "tasks/agent-loop/sprints/source-lineage-trace-20261020-r145-rev1.md",
-      "contract_sha256": "728e5884f1750eac69d4d2c3359084afceea313012391fc2f320e3990aef952e",
-      "theory": "notes/theory/2026-10-20-r145-source-lineage-trace.md",
-      "theory_sha256": "3727a97d81c165c8682f99ecaaf639425bfde8771ac4d5e7adb5f98b15b24829",
-      "handoff": "tasks/agent-loop/inbox/20261020-r145-proof.md",
-      "handoff_sha256": "6762d499c608f3b5c99ca8edadf95cb3172f22f9e31d69549c1c94b028940f89",
-      "closeout": "notes/progress/2026-10-20-r145-closeout.md",
-      "reviews": "prospective spec CLEAN; prospective compiler/source CLEAN; final compiler/source CLEAN",
-      "resources": "1800/1800 charged conservatively; zero Astra; no carryover"
+      "closeout": "notes/progress/2026-10-20-r145-closeout.md"
     }
   ],
   "review_receipts": "R144 and migration review receipts in closeouts; migration diff CLEAN, exact range and scope archived. R145 proposed, not active."
