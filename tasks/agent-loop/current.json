@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/public-replay-publication-20261020-r143-rev1.md",
     "revision": 1,
     "contract_sha256": "e189a89f4a9974492ceb6999ff5c3d890aa5250882c014fb3a9f1c9608a7b5c5",
-    "state": "ACTIVATED_AWAITING_PROOF_ACK",
+    "state": "ACTIVE_PROOF",
     "baseline": "784bcf78516c0e59e4adfceac6c42ab6a10a087a",
     "authority": "read-only proof of successful public CandidateInference::solve replay publication barrier; no code/semantic/production authority",
     "dependencies": {
@@ -43,7 +43,8 @@
       "no_carryover": true,
       "reservation_state": "300s charged; 1500s reserved once for proof/complement/final reviews/closeout; no renewal or carryover"
     },
-    "parent_status": "R70-DRAIN-1 remains OPEN pending successful public-return barrier proof; R70 entry/fiber, R71, R72/R73, Simple-sub A/B, inference/evaluator, source-native and production remain OPEN."
+    "parent_status": "R70-DRAIN-1 remains OPEN pending successful public-return barrier proof; R70 entry/fiber, R71, R72/R73, Simple-sub A/B, inference/evaluator, source-native and production remain OPEN.",
+    "next_boundary": "Proof producer validates all 15 pins then constructs/falsifies the public successful-return publication barrier; hard stop after 900 seconds."
   },
   "workers": [
     {
@@ -93,13 +94,13 @@
     {
       "id": "/root/r140_action31_proof",
       "role": "R143 constructive public-return proof producer",
-      "state": "WAITING",
+      "state": "RUNNING",
       "session": "current-conversation-2026-10-20-r143",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Exact R143 proof assignment prepared; awaiting fresh active-work acknowledgement. 900s cap; no code/tests/builds/compiler/Git; no descendants."
+      "receipt": "R143 current-session active-work acknowledgement received after activation commit 9d9a7d678; accepted exact two write leases and 900s cap; zero descendants; no code/execution/tests/builds/Git/new dependencies; model/effort UNKNOWN."
     }
   ],
   "leases": [
@@ -277,7 +278,7 @@
     }
   ],
   "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN. R141 CLOSED_UNFINISHED_REVIEWED_RESEARCH; no runtime observation, all parent and production gates remain OPEN. R142 CLOSED_UNFINISHED_REVIEWED_RESEARCH: finite private caller-path replay completion ownership candidate reviewed CLEAN; R70-DRAIN-1 consumer progress and all parent/source-native/production gates OPEN.",
-  "next_action": "R143 activated after two CLEAN prospective reviews and 15/15 pin validation; waiting for proof producer active-work acknowledgement. No R135 dependency.",
+  "next_action": "R143 active proof: public CandidateInference::solve successful-return replay publication barrier; no implementation authority or R135 dependency.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
