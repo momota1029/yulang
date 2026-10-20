@@ -10,3 +10,7 @@
 - HIR/CLI/runtime/Web execution incomplete; parent theorem/A/B/source-native/production OPEN.
 
 Review boundary: prospective review only for exact HTML path/pin. If CLEAN, add one option, then statically trace option -> handler -> map -> fixture -> `countdown_result`; no browser run.
+
+## Rev9 Web selector review receipt
+
+Prospective review returned CLEAN for the exact one-option `web/playground/index.html` delta and pinned baseline blob. The option value matches the existing map. The single HTML option is now added. This is static UI wiring only; browser/smoke/build execution remains stopped and unverified.
