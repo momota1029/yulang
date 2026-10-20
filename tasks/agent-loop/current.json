@@ -11,15 +11,15 @@
     "baseline": "ef15618375343b5bfef0ba4aa3a7fbfbe5606d74",
     "resources": {
       "cap_seconds": 6000,
-      "charged_seconds": 1770,
-      "reserved_seconds": 4230,
+      "charged_seconds": 2150,
+      "reserved_seconds": 3850,
       "no_carryover": true,
-      "allocation": "charged: prep240+design600+review110+proof~820=1770; proof <=380 left; proof review180, closeout360; code2400/checks600/final review300 blocked; unused review10; no borrow."
+      "allocation": "prep240+design600+rev110+proof1200=2150; proof review180; closeout360; code/check/final review3300 blocked; unused10; no borrow."
     },
-    "proof": "Sol proof ~820/1200s, model/effort UNKNOWN. Direct-Name finite Catch/finish route manually closes local compensation chain: captured t′≤shared n≤outer AE≤scrutinee≤Catch≤Block≤outer RE≤shared c≤q≤shared r; relay map keeps n/r shared; terminal branch is direct Name. Bare-Name first-construction attack closed; Group facade is outside parent §1 quantifier. Universal later exposure, recapture, current/reuse and other source routes remain OPEN. Frozen handoff in progress.",
-    "implementation": "Contract rev1 MAJOR; rev2 note 4e59c25947f3e3ea5acc746ca3e4483f7c4225028f93ad9ec54db3035c2117d9 / handoff d4ad8e9bfbe15a49d99de7759b20e6d99f7a768774b03f254d5350cd733fb3dd adds universal coverage. UNREVIEWED; code blocked.",
-    "review_receipt": "MAJOR /root/r186_contract_review, ~110/120s charged: selected-child wording underspecified; pinned primitive certificate universal across all constructed definitions/arms/dependencies including unused. Revision 2 corrects wording but is not independently reviewed and has no code authority.",
-    "next_action": "Freeze proof note/handoff within <=380s; then independent 180s proof review. Contract rev2 UNREVIEWED; code stopped."
+    "proof": "Frozen note 84a235ad62c8ee980c3d71f96bf24496d4e9941ea13d4bca2c33eee44bc0a4ae; handoff 8776b1a2cf3bb7777479c2eb165b00221d526ba4b6fd6409c9909b93c0748a2d. Bare-Name finite Catch path lowers Value+Name effect; shared Lambda return restores same-use chain. Group outside parent §1 whole-Name quantifier, conditional broader candidate. Universal later exposure/age induction OPEN. Independent review RUNNING.",
+    "implementation": "Contract rev1 MAJOR, rev2 universal-coverage correction unreviewed; no code authority. Hashes in frozen contract/handoff.",
+    "review_receipt": "Initial candidate CLEAN; contract rev1 MAJOR, rev2 UNREVIEWED. Proof frozen; 180s review running.",
+    "next_action": "Await proof review, close R186 unfinished, then separately budget corrected contract review. No code."
   },
   "workers": [
     {
@@ -119,13 +119,13 @@
     {
       "id": "/root/r186_positive_name_emission",
       "role": "R186 constructive positive-name emission proof",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-21-r186",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "~820/1200s charged by wall-clock from launch; requested Sol/high, observed model/effort UNKNOWN. Exact bare-Name local compensation chain and terminal discriminator completed; freezing note/handoff now."
+      "receipt": "STOPPED 20:55:06Z; 901s observed, 1200 charged; requested Sol/high, observed UNKNOWN. Frozen hashes recorded above."
     },
     {
       "id": "/root/r186_contract_review",
@@ -137,6 +137,17 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Review stopped; MAJOR finding frozen against contract rev1; ~110s charged, no artifact writes."
+    },
+    {
+      "id": "/root/r186_proof_review",
+      "role": "independent R186 proof reviewer",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-21-r186",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Fresh proof review; exact 50 source pins and named parent only; cap180s; no execution/Git."
     }
   ],
   "leases": [
@@ -329,14 +340,14 @@
     {
       "path": "notes/theory/2026-10-21-r186-positive-name-emission.md",
       "owner": "/root/r186_positive_name_emission",
-      "state": "HELD",
-      "reason": "R186 proof exact output; activate on worker launch."
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; output hashes in active sprint; review active."
     },
     {
       "path": "tasks/agent-loop/inbox/20261021-r186-proof-result.md",
       "owner": "/root/r186_positive_name_emission",
-      "state": "HELD",
-      "reason": "R186 proof handoff exact output."
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; output hashes in active sprint; review active."
     },
     {
       "path": "notes/design/2026-10-21-r186-option-b-implementation-contract.md",
