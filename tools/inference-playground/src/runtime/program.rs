@@ -473,6 +473,7 @@ impl RuntimeProgram {
                     }))
                 })
                 .collect::<Result<Vec<_>, RuntimeUnavailable>>()?;
+            let handler_arm_ranges = handler_arm_operation_ranges(source);
             for expression in source.expressions() {
                 let instruction = match &expression.form {
                     LocalSourceForm::Unit => Instruction::Unit,
@@ -606,7 +607,10 @@ impl RuntimeProgram {
                 let site = SourceSite {
                         source_root: source_root.clone(),
                         occurrence: expression.occurrence.clone(),
-                        range: expression.range.clone(),
+                        range: handler_arm_ranges
+                            .get(&expression.occurrence)
+                            .cloned()
+                            .unwrap_or_else(|| expression.range.clone()),
                     };
                 if let Some(source_labels) = &mut source_labels {
                     source_labels.insert(expression.occurrence.clone(), Label(code.len()));
@@ -1028,6 +1032,97 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
         }
     }
     false
+}
+
+fn handler_arm_operation_ranges(
+    source: &yu_hir::shadow::LocalSource,
+) -> HashMap<HirOccurrenceId, Range<usize>> {
+    use yu_hir::shadow::{
+        LocalSourceForm as Form, LocalSourceIndex, SourceOperationResolution,
+    };
+
+    let mut pending = Vec::<LocalSourceIndex>::new();
+    for expression in source.expressions() {
+        if let Form::Catch { arms, .. } = &expression.form {
+            pending.extend(arms.iter().map(|arm| arm.body.clone()));
+        }
+    }
+
+    let mut seen = HashSet::new();
+    let mut ranges = HashMap::new();
+    while let Some(index) = pending.pop() {
+        if !seen.insert(index.clone()) {
+            continue;
+        }
+        let Some(expression) = source.expression(&index) else {
+            continue;
+        };
+        match &expression.form {
+            Form::Apply { callee, argument, .. } => {
+                // Handler-arm calls own the suspended call site. Include the
+                // operation tail when an explicit payload follows it; an empty
+                // call keeps the Unit payload's narrower source range.
+                if let (Some(callee_expression), Some(argument_expression)) =
+                    (source.expression(callee), source.expression(argument))
+                    && !matches!(argument_expression.form, Form::Unit)
+                    && matches!(
+                        &callee_expression.form,
+                        Form::Operation {
+                            resolution: SourceOperationResolution::Resolved(_),
+                        }
+                    )
+                {
+                    let mut range = expression.range.clone();
+                    range.start = range.start.min(callee_expression.range.start);
+                    range.end = range.end.max(callee_expression.range.end);
+                    ranges.insert(expression.occurrence.clone(), range);
+                }
+                pending.push(callee.clone());
+                pending.push(argument.clone());
+            }
+            Form::Catch { scrutinee, arms } => {
+                pending.push(scrutinee.clone());
+                pending.extend(arms.iter().map(|arm| arm.body.clone()));
+            }
+            Form::Case { scrutinee, arms } => {
+                pending.push(scrutinee.clone());
+                for arm in arms {
+                    if let yu_hir::shadow::LocalSourceCasePattern::Integer(pattern) = &arm.pattern {
+                        pending.push(pattern.clone());
+                    }
+                    pending.push(arm.body.clone());
+                }
+            }
+            Form::If { arms, else_branch } => {
+                for (test, body) in arms {
+                    pending.push(test.clone());
+                    pending.push(body.clone());
+                }
+                if let Some(branch) = else_branch {
+                    pending.push(branch.clone());
+                }
+            }
+            Form::Sequence { items } => pending.extend(items.iter().cloned()),
+            Form::Group { inner } | Form::Ascription { inner, .. } => pending.push(inner.clone()),
+            Form::Lambda { body, .. } => pending.push(body.clone()),
+            Form::Block { bindings, final_expression } => {
+                pending.extend(bindings.iter().filter_map(|ordinal| {
+                    source
+                        .bindings()
+                        .get(*ordinal as usize)
+                        .map(|binding| binding.initializer.clone())
+                }));
+                pending.push(final_expression.clone());
+            }
+            Form::Unit
+            | Form::Operation { .. }
+            | Form::Integer(_)
+            | Form::Boolean(_)
+            | Form::String(_)
+            | Form::Name { .. } => {}
+        }
+    }
+    ranges
 }
 
 #[cfg(test)]

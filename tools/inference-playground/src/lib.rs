@@ -183,8 +183,15 @@ pub fn execute(
         RuntimeOutcome::Unavailable(error) => return Err(unavailable(error)),
         RuntimeOutcome::ResourceExhausted { steps } => return Err(format!(
             "runtime step budget exhausted after {steps} steps; no completed result")),
-        RuntimeOutcome::UnhandledRequest { source, .. } => return Err(bounded_message(
-            format_args!("unhandled runtime request at {:?}", source.range))),
+        RuntimeOutcome::UnhandledRequest { source, payload, .. } => {
+            let range = machine
+                .value(payload)
+                .map(|value| value.source.range.clone())
+                .unwrap_or_else(|| source.range.clone());
+            return Err(bounded_message(format_args!(
+                "unhandled runtime request at {range:?}"
+            )));
+        }
         RuntimeOutcome::Running => return Err("runtime has no completed result".to_owned()),
     };
     let mut output = Output::new();
@@ -229,7 +236,15 @@ pub fn execute_operation_v1_runtime_research(
         RuntimeOutcome::Completed(value) => value,
         RuntimeOutcome::Unavailable(error) => return Err(bounded_message(format_args!("runtime unavailable: {error:?}"))),
         RuntimeOutcome::ResourceExhausted { steps } => return Err(format!("runtime exhausted after {steps} steps; no completed receipt")),
-        RuntimeOutcome::UnhandledRequest { source, .. } => return Err(bounded_message(format_args!("unhandled runtime request at {:?}; no completed receipt", source.range))),
+        RuntimeOutcome::UnhandledRequest { source, payload, .. } => {
+            let range = machine
+                .value(payload)
+                .map(|value| value.source.range.clone())
+                .unwrap_or_else(|| source.range.clone());
+            return Err(bounded_message(format_args!(
+                "unhandled runtime request at {range:?}; no completed receipt"
+            )));
+        }
         RuntimeOutcome::Running => return Err("runtime did not complete; no completed receipt".to_owned()),
     };
     if !matches!(machine.value(completed).map(|value| &value.kind), Some(RuntimeValueKind::Integer(value)) if value.as_ref() == "42") {
