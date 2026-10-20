@@ -60,6 +60,16 @@ const yulang2Definitions = {
   bool_identity: "true\n",
   string_identity: '"ok"\n',
 };
+const yulang2OrdinaryIslandsSource = fs.readFileSync(
+  "./examples/yulang2-ordinary-islands.yu",
+  "utf8",
+);
+const yulang2OrdinaryIslandsDefinitions = {
+  int_identity: "7\n",
+  bool_identity: "true\n",
+  string_identity: '"ok"\n',
+  countdown_result: "8\n",
+};
 const results = Object.fromEntries(
   Object.entries(examples).map(([name, [source, , definition = "main"]]) => [
     name,
@@ -94,6 +104,11 @@ for (const [name, [, expected]] of Object.entries(examples)) {
 for (const [definition, expected] of Object.entries(yulang2Definitions)) {
   if (yulang2Results[definition] !== expected) {
     throw new Error(`unexpected ${definition} runtime value: ${JSON.stringify(yulang2Results[definition])}`);
+  }
+}
+for (const [definition, expected] of Object.entries(yulang2OrdinaryIslandsDefinitions)) {
+  if (run(yulang2OrdinaryIslandsSource, definition, 100_000) !== expected) {
+    throw new Error(`unexpected ordinary-islands ${definition} result`);
   }
 }
 if (!graph.startsWith("Experimental candidate inference graph")) {

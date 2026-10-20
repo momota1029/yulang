@@ -14,12 +14,23 @@ fn run(source: &str, definition: &str) -> std::process::Output {
 }
 
 #[test]
-fn unchanged_yulang2_ordinary_islands_fixture_runs_to_eight() {
+fn unchanged_yulang2_ordinary_islands_fixture_runs_each_sample_definition() {
     let source = include_str!("../../../web/playground/examples/yulang2-ordinary-islands.yu");
-    let output = run(source, "countdown_result");
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    assert_eq!(output.stdout, b"8\n");
-    assert!(output.stderr.is_empty());
+    for (definition, expected) in [
+        ("int_identity", b"7\n".as_slice()),
+        ("bool_identity", b"true\n".as_slice()),
+        ("string_identity", b"\"ok\"\n".as_slice()),
+        ("countdown_result", b"8\n".as_slice()),
+    ] {
+        let output = run(source, definition);
+        assert!(
+            output.status.success(),
+            "{definition}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout, expected, "{definition}");
+        assert!(output.stderr.is_empty(), "{definition}");
+    }
 }
 
 #[test]
