@@ -2,13 +2,13 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-20-r145-activation",
+  "session": "current-conversation-2026-10-20-r145-final-review",
   "active_sprint": {
     "id": "source-lineage-trace-20261020-r145",
     "contract": "tasks/agent-loop/sprints/source-lineage-trace-20261020-r145-rev1.md",
     "revision": 1,
     "contract_sha256": "728e5884f1750eac69d4d2c3359084afceea313012391fc2f320e3990aef952e",
-    "state": "ACTIVE_PROOF_AND_PRIMARY_AUDIT",
+    "state": "FINAL_COMPILER_REVIEW_RUNNING",
     "baseline": "619d275c75a465ffefd3875a92640387d1599804",
     "authority": "Luna activated exact R145 rev1 after two CLEAN prospective reviews and 38/38 refreshed pins at b9f1942ed4f395b7989eacb137baf14993325231. Proof owns only theory and handoff leases; primary owns source audit/current/closeout. No code/runtime/test authority.",
     "dependencies": {
@@ -18,23 +18,32 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 300,
-      "reserved_seconds": 1500,
+      "charged_seconds": 1380,
+      "reserved_seconds": 420,
       "astra_seconds": 0,
       "proof_seconds": 900,
       "no_carryover": true,
-      "reservation_state": "Activated: 300s charged conservatively (prep 180 + prospective review cap 120, including unknown review time); remaining 1500s reserved for proof 900, Luna audit 180, final review 240, closeout 180. No carryover."
+      "reservation_state": "1380s charged conservatively: prep180 + prospective120 + full proof grant900 (elapsed unknown) + Luna audit180. Remaining 420 reserved only for final review240 and closeout180; no carryover."
     },
     "parent_status": "R70/R71 OPEN. One finite input cannot discharge or refute the universal parent. Simple-sub A/B and production remain OPEN.",
-    "next_boundary": "Proof and Luna source audit within exact pins/leases; stop at first missing premise or source-qualified result, then fresh independent final compiler/source review.",
-    "proof_result": "AUTHORIZED_NOT_STARTED; producer must report fresh launch receipt before current records RUNNING.",
+    "next_boundary": "Final review receipt; Luna adjudication and closeout or sequential revision if findings.",
+    "proof_result": "FROZEN RESULT 2: exact first unpinned syntax-admission premise at playground lib.rs:278–286; no accepted-source history or later merge/raw-slot/consumer established; no falsifier/defect claimed.",
     "proof_outputs": {
       "theory": "notes/theory/2026-10-20-r145-source-lineage-trace.md",
-      "handoff": "tasks/agent-loop/inbox/20261020-r145-proof.md"
+      "handoff": "tasks/agent-loop/inbox/20261020-r145-proof.md",
+      "theory_sha256": "3727a97d81c165c8682f99ecaaf639425bfde8771ac4d5e7adb5f98b15b24829",
+      "handoff_sha256": "6762d499c608f3b5c99ca8edadf95cb3172f22f9e31d69549c1c94b028940f89"
     },
     "closeout": "notes/progress/2026-10-20-r145-closeout.md",
-    "final_reviews": [],
-    "primary_complementary_result": "NO_SAFE_CODE_SLICE within this proof-only contract; breadth route remains a separate explicit outcome.",
+    "final_reviews": [
+      {
+        "reviewer": "/root/r145_final_compiler",
+        "role": "compiler_referee",
+        "state": "RUNNING",
+        "scope": "Frozen R145-PROOF-1 rev1 theory + handoff, exact hashes recorded in active_sprint.proof_outputs; pinned source boundary only."
+      }
+    ],
+    "primary_complementary_result": "NO_SAFE_CODE_SLICE within this proof-only contract; Luna source audit independently found the first necessary syntax-admission implementations unpinned at the caller boundary.",
     "prospective_reviews": [
       {
         "reviewer": "/root/r145_pre_spec",
@@ -90,12 +99,12 @@
       "id": "/root",
       "role": "Luna primary / sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r145-activation",
+      "session": "current-conversation-2026-10-20-r145-final-review",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Live primary interaction in this session; R145 activated after CLEAN prospective reviews and 38/38 refreshed pins. Owns primary source audit/current/closeout."
+      "receipt": "Luna froze proof result 2 and exact output hashes; source audit found the same syntax-admission pin boundary. Awaiting independent final review."
     },
     {
       "id": "/root/r145_source_path_probe",
@@ -122,13 +131,24 @@
     {
       "id": "/root/r145_proof",
       "role": "R145 constructive source trace proof owner",
-      "state": "NOT_STARTED",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-20-r145-activation",
       "requested_model": "prover default",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Exact theory and handoff leases granted; not RUNNING until fresh launch receipt."
+      "receipt": "R145-PROOF-1 stopped at 2026-10-20 01:46:34 UTC; result 2 first unpinned syntax-admission premise. Elapsed unknown; full 900s charged. Theory/inbox frozen with exact hashes in active_sprint.proof_outputs."
+    },
+    {
+      "id": "/root/r145_final_compiler",
+      "role": "R145 independent final compiler/source reviewer",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-20-r145-final-review",
+      "requested_model": "compiler_referee default Sol/medium",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Fresh read-only final review launched against exact frozen theory/handoff hashes and pinned source scope; no writes/tests/builds/compiler/Git."
     }
   ],
   "leases": [
@@ -151,13 +171,15 @@
     },
     {
       "path": "notes/theory/2026-10-20-r145-source-lineage-trace.md",
-      "owner": "/root/r145_proof",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Proof author stopped; frozen outputs pending independent final review and Luna adjudication."
     },
     {
       "path": "tasks/agent-loop/inbox/20261020-r145-proof.md",
-      "owner": "/root/r145_proof",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Proof author stopped; frozen outputs pending independent final review and Luna adjudication."
     }
   ],
   "pending": [
@@ -233,7 +255,7 @@
     }
   ],
   "closure": "R144 CLOSED UNFINISHED/OPEN at c7d574009. Migration policy review CLEAN and inherited leases reconciled conservatively; R145 remains a proposal.",
-  "next_action": "R145 activated after CLEAN spec/compiler reviews and 38/38 refreshed pins. Launch one proof producer on theory+handoff; Luna performs the bounded source audit. No implementation lane.",
+  "next_action": "Fresh final compiler/source review running on frozen R145 result 2; no further proof work authorized.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
