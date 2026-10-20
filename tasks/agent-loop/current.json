@@ -9,7 +9,6 @@
     "contract": "tasks/agent-loop/sprints/source-emission-and-option-b-stage1-20261021-r186.md",
     "contract_sha256": "41d2241083e3443918b730cd457428d5128b5abe73896e0ed23aae17390664d3",
     "baseline": "ef15618375343b5bfef0ba4aa3a7fbfbe5606d74",
-    "current_state_input_sha256": "8039b4216461a92e071c0ef4cd1002c312c2701634f4e95ddec69c7960fb5bb5",
     "resources": {
       "cap_seconds": 6000,
       "charged_seconds": 950,
@@ -17,10 +16,10 @@
       "no_carryover": true,
       "allocation": "prep 240 charged; design lane capped/closed at 600; initial contract review 110 charged (10 expires unused); proof 1200; conditional code 2400 currently blocked; focused checks 600 blocked; remaining proof/final reviews 480; closeout 360; no borrowing/carryover."
     },
-    "proof": "R185-POSITIVE-N-EMISSION-1 assigned Sol/high, max 1200s; exact outputs held; not yet launched.",
-    "implementation": "Rev1 review MAJOR; revised note SHA 4e59c25947f3e3ea5acc746ca3e4483f7c4225028f93ad9ec54db3035c2117d9 and handoff rev2 SHA d4ad8e9bfbe15a49d99de7759b20e6d99f7a768774b03f254d5350cd733fb3dd. Universal all-retained-object primitive certification added. No remaining R186 prospective-review allocation; code gate blocked.",
+    "proof": "R185-POSITIVE-N-EMISSION-1 active Sol/high, max 1200s. Candidate nested forwarding provider F(t:[S]int)={R(u:[S]int)=F u; R t} gives recursive F→R→F positive-n path; no finite terminal Name yet, so not a parent counterexample. Exact action/terminal analysis in progress.",
+    "implementation": "Contract rev1 MAJOR; rev2 note 4e59c25947f3e3ea5acc746ca3e4483f7c4225028f93ad9ec54db3035c2117d9 / handoff d4ad8e9bfbe15a49d99de7759b20e6d99f7a768774b03f254d5350cd733fb3dd adds universal coverage. UNREVIEWED; code blocked.",
     "review_receipt": "MAJOR /root/r186_contract_review, ~110/120s charged: selected-child wording underspecified; pinned primitive certificate universal across all constructed definitions/arms/dependencies including unused. Revision 2 corrects wording but is not independently reviewed and has no code authority.",
-    "next_action": "Continue R186 proof lane; dispatcher to replan contract review as separate budgeted next sprint. No R186 code activation."
+    "next_action": "Continue the already-launched proof lane within its 1200s cap; then use reserved 180s independent proof review. Corrected implementation contract remains UNREVIEWED and code is stopped."
   },
   "workers": [
     {
@@ -126,7 +125,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Launched for exact R186 proof outputs under 50-pin contract; 1200s cap; no code/tests/execution/Git."
+      "receipt": "Launch acknowledged; active proof progress reports nested recursive forwarding-provider candidate; exact action/terminal analysis ongoing; model/effort observed UNKNOWN."
     },
     {
       "id": "/root/r186_contract_review",
@@ -433,7 +432,7 @@
     }
   ],
   "closure": "R185 CLOSED_REVIEWED_UNFINISHED; R186 active after CLEAN initial prospective review. Parent/frontier/production gates OPEN.",
-  "next_action": "Continue active R186 proof; dispatcher replan for separately budgeted review of corrected implementation contract. Do not activate code under R186.",
+  "next_action": "R186 proof is active; corrected implementation contract revision 2 is UNREVIEWED and code remains stopped. Replan after proof result/closeout.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
