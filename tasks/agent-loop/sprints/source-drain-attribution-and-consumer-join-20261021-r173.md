@@ -1,12 +1,13 @@
 # R173 source-drain attribution and consumer join — candidate contract
 
-Status: **CANDIDATE** until a fresh prospective review is CLEAN and Luna records
-activation. This candidate grants no worker, write lease, compiler execution or
-probe by itself.
+Status: **REVISION 2 CANDIDATE** pending a fresh exact-hash delta review. Revision
+1 remains preserved in commit `9547edfc7`; its prospective review does not cover
+this revision. The active R173 goal and exact leases continue during this
+reconciliation. No probe is authorized.
 
 Branch: `research/simple-sub-intrusion`  
 Baseline: `7ec64a378` (R172 reviewed checkpoint)  
-Contract revision: 1  
+Contract revision: 2
 Parent theorem: `notes/theory/2026-10-15-computation-forwarding-preservation.md` §§1,6–7,
 SHA-256 `d732980d7706538fe18b5d8de312e9a2b6367ec6638ab938b239d46272624e79`.
 
@@ -86,6 +87,55 @@ R169/R70/R71/R165/R166/Replay and the original A/B/F1/FK1 gates remain OPEN.
 Any baseline, source, fixture or authority change requires a sequential contract
 revision and fresh review. Preserve three UNKNOWN legacy reservations and all
 unrelated R152–R163 work.
+
+## Revision 2: separate proof baseline from implementation candidate
+
+The proof baseline remains immutable commit `7ec64a3788175913a2be46331cf0f64c6bd5b407`;
+its original code-owner SHA-256 values are `lib.rs`
+`c75bf47b3d0d87e99d4365a587e6b90d5d05d05c335db16880cb2943b8b25985`,
+`candidate_context.rs`
+`d884c20a98140da2a737d65f61faa97491bd9a2af7870bf3f0ea7dd428e9ffeb`,
+`candidate_scheme.rs`
+`9569e7cc2ba7152cafe1273fba279a8511fe56aa39358798f3e4586c10ede225`, and
+`shadow_apply.rs`
+`13ae8de60293b91e24659090649ff84002f5632a8909451d3f7bd8492b61bea5`.
+Activation metadata is commit `9547edfc7`. Neither commit substitutes for the
+other.
+
+Proof revision 1 is limited to those original source bytes. Its author stopped
+source reads after observing `candidate_context.rs` change from
+`d884c20a…` to `f9590577…`; no conclusion applies to edited bytes. The frozen
+note and handoff hashes are respectively
+`6a3fa980486875d671b6b2593baee910f1966467c8dec6980a36f29f9e1cb012` and
+`fe66540651d427f3b5ac32f63f82232898cdb7bf4e9d1e7cdea0a28c0825f887`.
+This is a baseline-qualified obstruction, not proof closure or an independent
+review.
+
+The current Luna implementation candidate is separately identified by these
+four owner hashes at the revision 2 review boundary:
+
+```text
+99dc39e970b35f2d06a900826bf686ee5a76795430a3e4167ac5c64184da6af6  crates/yu-solver/src/lib.rs
+ac1375954d0d310bbeaaccb09625dc4701dd1c25a050a67f1f203d91e9456b06  crates/yu-solver/src/candidate_context.rs
+9569e7cc2ba7152cafe1273fba279a8511fe56aa39358798f3e4586c10ede225  crates/yu-solver/src/candidate_scheme.rs
+13ae8de60293b91e24659090649ff84002f5632a8909451d3f7bd8492b61bea5  crates/yu-solver/src/shadow_apply.rs
+```
+
+These hashes identify an intermediate implementation candidate, not a new proof
+baseline. After this delta review, Luna may continue edits under the existing
+implementation lease; every proof or final-code review must instead consume its
+own immutable manifest. The receipt is observational only and becomes visible
+only after enqueue succeeds. It distinguishes incoming relation, Replay owner,
+created seed, selected relation and exact Origin index. Selection, enqueue and
+drain completion remain distinct; absent receipts stay unavailable, and no
+certificate field may alter inference decisions.
+
+The review boundary charges the full 240-second preparation, 1200-second proof
+grant and 1500-second implementation grant because proof elapsed time was
+UNKNOWN and both lane grants were issued. Total charged: 2940 seconds; remaining
+1260 seconds are reserved for independent reviews (720), one still-conditional
+probe (300) and closeout (240). No time is carried over. The cap remains 4200,
+Astra remains zero, and all original parent gates remain OPEN.
 
 ## Exact leases if activated
 

@@ -80,6 +80,17 @@ pub(super) struct TypedDrainFrame {
     pub terminal_prepared: bool,
     pub function: Option<FunctionDispatch>,
     pub replay_destination: Option<ReplayChildAck>,
+    // Passive attribution for the exact work item that entered this drain.
+    // The certificate becomes observable only after its item was enqueued.
+    pub source_drain_receipt: Option<SourceDrainReceipt>,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct SourceDrainReceipt {
+    pub incoming_relation: Option<RelationId>,
+    pub replay_ack: Option<ReplayChildAck>,
+    pub created_seed: RelationId,
+    pub selected_relation: RelationId,
+    pub origin_index: usize,
 }
 #[derive(Debug)]
 struct TypedDrainUndo {
@@ -2189,7 +2200,8 @@ impl State {
         let index = self.typed_drains.len();
         self.typed_drains.push(TypedDrainFrame { initial, occurrence: occurrence.clone(), cause: cause.clone(),
             previous_processing, previous_relation, current: None, stage: TypedDrainStage::Transport,
-            context_consumed: None, transitions: 0, replay_acks: Vec::new(), completed_acks: 0, prepared_acks: 0, terminal_prepared: false, function: None, replay_destination: None });
+            context_consumed: None, transitions: 0, replay_acks: Vec::new(), completed_acks: 0, prepared_acks: 0, terminal_prepared: false, function: None, replay_destination: None,
+            source_drain_receipt: None });
         Ok(index)
     }
     // Keep the original allocation owned by undo, so rollback restores the
@@ -2205,7 +2217,8 @@ impl State {
             previous_processing: frame.previous_processing, previous_relation: frame.previous_relation,
             current: frame.current, stage: frame.stage, context_consumed: frame.context_consumed,
             transitions: frame.transitions, replay_acks, completed_acks: frame.completed_acks,
-            prepared_acks: frame.prepared_acks, terminal_prepared: frame.terminal_prepared, function: frame.function.clone(), replay_destination: frame.replay_destination };
+            prepared_acks: frame.prepared_acks, terminal_prepared: frame.terminal_prepared, function: frame.function.clone(), replay_destination: frame.replay_destination,
+            source_drain_receipt: frame.source_drain_receipt };
         let frame = std::mem::replace(&mut self.typed_drains[index], replacement);
         self.typed_drain_undo.push(TypedDrainUndo { index, frame });
         Ok(())

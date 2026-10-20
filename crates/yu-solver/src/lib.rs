@@ -12280,9 +12280,27 @@ impl InferenceSession {
         self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = None;
         self.clear_diagnostic_scratch()?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        let origin_index = self.candidate_graph.as_ref().map_or(0, |graph|
+            graph.intrusion.effect_algebra.context.origins.len());
+        let incoming_relation = item.relation;
         let seed = self.candidate_context_seed_with_formal(item.task, occurrence, inferred_entry, formal)?;
         item.relation = item.relation.or(seed);
         self.enqueue_item(item, false)?;
+        // Publish passive attribution only after enqueue succeeds. Any earlier
+        // availability failure leaves the frame without a successful receipt.
+        if let (Some(created_seed), Some(selected_relation)) = (seed, item.relation) {
+            if let Some(frame) = self.candidate_graph.as_mut()
+                .and_then(|graph| graph.intrusion.effect_algebra.context.typed_drains.get_mut(index))
+            {
+                frame.source_drain_receipt = Some(candidate_context::SourceDrainReceipt {
+                    incoming_relation,
+                    replay_ack: item.replay_ack,
+                    created_seed,
+                    selected_relation,
+                    origin_index,
+                });
+            }
+        }
         Ok(index)
     }
 
