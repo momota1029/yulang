@@ -20,16 +20,16 @@
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 540,
-      "reserved_seconds": 1260,
+      "charged_seconds": 660,
+      "reserved_seconds": 1140,
       "astra_seconds": 0,
       "proof_seconds": 600,
       "no_carryover": true,
-      "reservation_state": "Activated: 540s charged conservatively (prep180 + rev1 prospective120 + rev2 prospective120 + rev3 prospective120). Remaining 1260 reserved for proof600, one observation120, final review240, closeout180, headroom120. No carryover."
+      "reservation_state": "660s charged: preparation/review rounds540 + single observation lane120 charged conservatively (actual supervised command 4.626s). Remaining1140 reserved for proof600, final review240, closeout180, headroom120; no carryover."
     },
     "parent_status": "R70/R71 OPEN; higher Simple-sub A/B, source/native correspondence, evaluator/sample compatibility and production gates remain OPEN.",
-    "next_boundary": "One proof/static source audit plus exactly one bounded supervised CLI observation; then stop for fresh independent final compiler/source review.",
-    "proof_result": "AUTHORIZED_NOT_STARTED; proof launch receipt required before RUNNING.",
+    "next_boundary": "Finish static audit only within the frozen code-tree pin; final review must confirm exact observation and source correspondence, then Luna closeout.",
+    "proof_result": "OBSERVATION OBSERVED_PREPARED; proof/static source audit RUNNING. CLI process exited 0 and emitted the intrusion report. No --run/runtime, theorem, defect or parent closure claim.",
     "proof_outputs": {
       "theory": "notes/theory/2026-10-20-r146-source-admission.md",
       "handoff": "tasks/agent-loop/inbox/20261020-r146-proof.md",
@@ -59,18 +59,26 @@
         "revision": 1,
         "contract": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev1.md",
         "sha256": "a7848b9138898a04213a071172f41d4b351233a1ae82e713232a1dbd320273da",
-        "prospective_spec": "CLEAN by /root/r146_pre_spec",
-        "prospective_compiler": "MAJOR by /root/r146_pre_compiler: missing group resource/output supervisor; rev1 frozen, rev2 addresses it.",
-        "disposition": "Frozen; not activatable. Rev2 adds explicit one-CPU inherited affinity, monotonic wall deadline, RLIMIT backstops, bounded streaming pipe capture, process-group termination/reap and inconclusive failure."
+        "review": "Spec CLEAN; compiler MAJOR: no aggregate CPU/wall, group kill, bounded Cargo output supervisor. Frozen."
       },
       {
         "revision": 2,
         "contract": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev2.md",
         "sha256": "5a59eb8a01b6c8c9e09acf78f10142e45c900d3ae0ec2105b46ab55a7d6d7cca",
-        "prospective_spec": "MAJOR by /root/r146_rev2_pre_spec: five-second TERM grace could extend strict 120-second aggregate CPU/wall budget.",
-        "disposition": "Frozen; not activatable. Rev3 moves graceful shutdown wholly inside the 120-second deadline and SIGKILLs at deadline."
+        "review": "Spec MAJOR: 5s TERM grace could exceed strict 120s cap. Frozen; rev3 schedules TERM ≤115s and KILL at120s."
       }
-    ]
+    ],
+    "observation": {
+      "path": "notes/progress/2026-10-20-r146-admission-observation.txt",
+      "sha256": "8cc78c35af7c09741c84be67b0fbda1862609fcde24b706cfb942e21f82e6548",
+      "result": "OBSERVED_PREPARED",
+      "exit_code": 0,
+      "elapsed_seconds": 4.626,
+      "stdout_bytes": 4213,
+      "stderr_bytes": 5445,
+      "supervised_child_limit_seconds": 120,
+      "actual_command": "cargo run -q -p yu-playground -- --intrusion tools/inference-playground/examples/nested-recursion.yu"
+    }
   },
   "workers": [
     {
@@ -115,18 +123,18 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Luna activated R146 rev3 after CLEAN spec/compiler reviews, 19/19 direct pins and source-tree parity; owns one supervised CLI observation."
+      "receipt": "One authorized R146 Cargo invocation completed OBSERVED_PREPARED in 4.626s under rev3 supervisor; owns frozen observation record/current/closeout."
     },
     {
       "id": "/root/r146_proof",
       "role": "R146 static source admission and constructor audit proof owner",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "session": "current-conversation-2026-10-20-r146-activation",
       "requested_model": "prover default",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Exact theory and handoff leases granted; not RUNNING until fresh launch receipt."
+      "receipt": "Fresh active-work receipt after Luna activation: exact theory/handoff leases; static source audit underway; read-only source commands only, no build/CLI/tests/runtime/Git."
     }
   ],
   "leases": [
@@ -266,7 +274,7 @@
     }
   ],
   "closure": "R145 CLOSED_UNFINISHED_REVIEWED_RESEARCH: first unpinned syntax-admission premise. Final compiler/source review CLEAN. See notes/progress/2026-10-20-r145-closeout.md. Parent R70/R71 and higher claims remain OPEN.",
-  "next_action": "R146 activated at c841cbb3 after CLEAN reviews and 19/19 activation pins. Start one proof producer on theory/handoff and Luna runs the single supervised `--intrusion` observation.",
+  "next_action": "R146 single observation succeeded under rev3 supervisor (exit0, intrusion report). Proof lane continues static source tracing within the full pinned code tree; no second process.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",

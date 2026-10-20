@@ -1,0 +1,268 @@
+R146 one-time admission observation — OBSERVED_PREPARED
+Contract SHA-256: 3b6c24726ac4fe51b96d605d8a260d4a02023e009b244178f528f148ccd8171b
+Baseline: f6e59e42bcfcfb3c13a0c511c63bcf9d0390005d
+Live commit before invocation: d95030bb2e202f5c83b601bb06a1c2baf6263428
+Input: tools/inference-playground/examples/nested-recursion.yu
+Cargo version: cargo 1.95.0 (f2d3ce0bd 2026-03-21)
+Rustc version: rustc 1.95.0 (59807616e 2026-04-14)
+Allowed CPU affinity before launch: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]; taskset CPU: 0
+Exact Cargo argv: cargo run -q -p yu-playground -- --intrusion tools/inference-playground/examples/nested-recursion.yu
+Supervisor argv: taskset -c 0 prlimit --cpu=125:125 --as=4294967296:4294967296 -- cargo run -q -p yu-playground -- --intrusion tools/inference-playground/examples/nested-recursion.yu
+Child environment delta: CARGO_BUILD_JOBS=1 only
+Start UTC: 2026-10-20T02:01:29.007084+00:00
+Stop UTC: 2026-10-20T02:01:33.633511+00:00
+Elapsed wall seconds: 4.626
+Exit code: 0
+Trigger/status: normal process completion; timed_out=False; capture_overflow=False; group_killed=False
+stdout bytes/hash: 4213 / 57657eab318e9b4ae7ff4c15c7fc1e971be235a37237a7ff2c0970e2968924d8
+stderr bytes/hash: 5445 / 230e7898768791d7c61341fc80502a7bd0f7542dedecec3e45e88dd68eb4006f
+No tests, --run evaluation, retry, code change, or source fixture change. Output excerpt follows (max 16 KiB):
+
+[stdout]
+Experimental candidate inference graph; no principal-type or production-admission claim.
+Effect operands with unavailable contents remain opaque.
+
+definition loop:
+  root = n0
+  observed nodes (finite references):
+    n0 [Positive] = row r0
+    n1 [Positive] = Function(argument=n17, argument-effect=n13, result-effect=n19, result=n18)
+    n2 [Negative] = row r0
+    n3 [Negative] = Function(argument=n15, argument-effect=n11, result-effect=n8, result=n5)
+    n4 [Positive] = row r1
+    n5 [Negative] = row r1
+    n6 [Negative] = row r9
+    n7 [Positive] = row r2
+    n8 [Negative] = row r2
+    n9 [Negative] = row r10
+    n10 [Positive] = EffectBottom
+    n11 [Positive] = row r3
+    n12 [Negative] = row r3
+    n13 [Negative] = row r7
+    n14 [Negative] = EmptyEffect
+    n15 [Positive] = row r4
+    n16 [Negative] = row r4
+    n17 [Negative] = row r8
+    n18 [Positive] = row r5
+    n19 [Positive] = row r6
+    n20 [Negative] = row r6
+    n21 [Positive] = row r7
+    n22 [Positive] = row r8
+    n23 [Positive] = row r9
+    n24 [Negative] = row r5
+    n25 [Positive] = row r10
+    n26 [Negative] = row r11
+    n27 [Positive] = row r11
+    n28 [Negative] = row r12
+    n29 [Positive] = row r12
+    n30 [Negative] = row r13
+    n31 [Positive] = row r13
+  rows (names preserve actual identity):
+    r0: Value, local=true
+    r1: Value, local=true
+    r2: Effect, local=true
+    r3: Effect, local=true
+    r4: Value, local=true
+    r5: Value, local=true
+    r6: Effect, local=true
+    r7: Effect, local=true
+    r8: Value, local=true
+    r9: Value, local=true
+    r10: Effect, local=true
+    r11: Effect, local=true
+    r12: Effect, local=true
+    r13: Effect, local=true
+  retained constraints:
+    n1 <: n2 [Value]
+    n0 <: n3 [Value]
+    n4 <: n5 [Value]
+    n4 <: n6 [Value]
+    n4 <: n6 [Value]
+    n7 <: n8 [Effect]
+    n7 <: n9 [Effect]
+    n7 <: n9 [Effect]
+    n10 <: n8 [Effect]
+    n10 <: n8 [Effect]
+    n11 <: n12 [Effect]
+    n11 <: n13 [Effect]
+    n10 <: n12 [Effect]
+    n10 <: n12 [Effect]
+    n11 <: n14 [Effect]
+    n15 <: n16 [Value]
+    n15 <: n17 [Value]
+    n18 <: n5 [Value]
+    n19 <: n8 [Effect]
+    n10 <: n20 [Effect]
+    n10 <: n20 [Effect]
+    n10 <: n20 [Effect]
+    n10 <: n20 [Effect]
+    n21 <: n20 [Effect]
+    n10 <: n13 [Effect]
+    n22 <: n16 [Value]
+    n23 <: n24 [Value]
+    n25 <: n26 [Effect]
+    n10 <: n9 [Effect]
+    n10 <: n9 [Effect]
+    n10 <: n9 [Effect]
+    n10 <: n9 [Effect]
+    n27 <: n28 [Effect]
+    n10 <: n26 [Effect]
+    n10 <: n26 [Effect]
+    n29 <: n30 [Effect]
+    n10 <: n28 [Effect]
+    n10 <: n28 [Effect]
+    n10 <: n28 [Effect]
+    n31 <: n20 [Effect]
+    n10 <: n30 [Effect]
+    n10 <: n30 [Effect]
+    n10 <: n30 [Effect]
+
+Static computation root source plans (retained entry; no runtime receiver, grant or handling evidence):
+
+Directional introductions (symbolic candidate evidence; not event consumption or runtime hygiene):
+  call 0: no authenticated omitted-formal introduction; other routes are unsupported evidence, not a language-wide absence claim
+  call 1: no authenticated omitted-formal introduction; other routes are unsupported evidence, not a language-wide absence claim
+
+Retained intrusion state (not a chronological trace):
+  pending consumed=4 total=4
+  event 0: origin=v0 (module loop, SCC 0), receiver=v1 (local helper, SCC 0), same_scc=true at retained call-tail occurrence 1:44 (bytes 43..44)
+  my loop x = { my helper y = loop y; helper x }
+  event 1: origin=v1 (local helper, SCC 0), receiver=v0 (module loop, SCC 0), same_scc=true at retained call-tail occurrence 1:34 (bytes 33..34)
+  my loop x = { my helper y = loop y; helper x }
+  pair 0: Value parent=raw11(rep=raw11) copy=raw12(rep=raw11), Positive, target_level=1, occurrence=1, source_set=Some(0), events=[1]
+  pair 1: Effect parent=raw6(rep=raw6) copy=raw10(rep=raw6), Positive, target_level=1, occurrence=1, source_set=Some(0), events=[1]
+  pair 2: Effect parent=raw9(rep=raw9) copy=raw11(rep=raw9), Negative, target_level=1, occurrence=1, source_set=Some(0), events=[1]
+  pair 3: Value parent=raw5(rep=raw5) copy=raw13(rep=raw5), Negative, target_level=1, occurrence=1, source_set=Some(0), events=[1]
+  group 0: occurrence=1, pair_range=0..4, activated=true
+
+[stderr]
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:192:11
+    |
+192 |     Token(SyntaxToken),
+    |     ----- ^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+192 -     Token(SyntaxToken),
+192 +     Token(()),
+    |
+
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:193:15
+    |
+193 |     Synthetic(Vec<AssociationProvenance>),
+    |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+193 -     Synthetic(Vec<AssociationProvenance>),
+193 +     Synthetic(()),
+    |
+
+warning: struct `AssociatedFieldTailSource` is never constructed
+   --> crates/yu-hir/src/shadow.rs:460:19
+    |
+460 | pub(crate) struct AssociatedFieldTailSource<'a> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `source`, `receiver`, and `receiver_provenance` are never used
+   --> crates/yu-hir/src/shadow.rs:467:19
+    |
+466 | impl<'a> AssociatedFieldTailSource<'a> {
+    | -------------------------------------- methods in this implementation
+467 |     pub(crate) fn source(&self) -> &'a PendingFieldTailSource { self.source }
+    |                   ^^^^^^
+468 |     pub(crate) fn receiver(&self) -> &'a HirExpr { self.receiver }
+    |                   ^^^^^^^^
+469 |     pub(crate) fn receiver_provenance(&self) -> &'a AssociationProvenance { self.receiver_provenance }
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AssociatedRoleImplSource` is never constructed
+   --> crates/yu-hir/src/shadow.rs:473:19
+    |
+473 | pub(crate) struct AssociatedRoleImplSource<'a> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `source` and `node` are never used
+   --> crates/yu-hir/src/shadow.rs:479:19
+    |
+478 | impl<'a> AssociatedRoleImplSource<'a> {
+    | ------------------------------------- methods in this implementation
+479 |     pub(crate) fn source(&self) -> &'a PendingRoleImplSource { self.source }
+    |                   ^^^^^^
+480 |     pub(crate) fn node(&self) -> &'a SyntaxNode { self.node }
+    |                   ^^^^
+
+warning: method `with_associated_method_role_sources` is never used
+   --> crates/yu-hir/src/shadow.rs:932:19
+    |
+566 | impl ShadowArtifact {
+    | ------------------- method in this implementation
+...
+932 |     pub(crate) fn with_associated_method_role_sources<R>(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `walk_associated_pairs` is never used
+    --> crates/yu-hir/src/shadow.rs:1786:4
+     |
+1786 | fn walk_associated_pairs<'a>(
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `declaration`, `field_position`, `negative_port`, and `handler_argument` are never read
+   --> crates/yu-solver/src/candidate_source.rs:334:9
+    |
+332 | pub(super) struct LicensedOperationFieldV1 {
+    |                   ------------------------ fields in this struct
+333 |     pub owner_request: HirOccurrenceId,
+334 |     pub declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>,
+    |         ^^^^^^^^^^^
+335 |     pub field_position: yu_hir::shadow::SourceNodeKey,
+    |         ^^^^^^^^^^^^^^
+336 |     pub family: yu_hir::shadow::SourceEffectId,
+337 |     pub negative_port: u32,
+    |         ^^^^^^^^^^^^^
+338 |     pub handler_argument: HandlerContinuationArgumentV1,
+    |         ^^^^^^^^^^^^^^^^
+    |
+    = note: `LicensedOperationFieldV1` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `response_annotation` and `handler_argument` are never read
+   --> crates/yu-solver/src/candidate_source.rs:343:9
+    |
+341 | pub(super) struct CallbackFieldRealizationV1 {
+    |                   -------------------------- fields in this struct
+342 |     pub response_definition: HirLocalId,
+343 |     pub response_annotation: Arc<yu_hir::shadow::SourceAnnotation>,
+    |         ^^^^^^^^^^^^^^^^^^^
+...
+347 |     pub handler_argument: HandlerContinuationArgumentV1,
+    |         ^^^^^^^^^^^^^^^^
+    |
+    = note: `CallbackFieldRealizationV1` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `source_occurrence`, `lower`, and `upper` are never read
+   --> crates/yu-solver/src/candidate_effect.rs:189:9
+    |
+187 | pub(super) struct FieldBoundV1 {
+    |                   ------------ fields in this struct
+188 |     pub id: u32,
+189 |     pub source_occurrence: HirOccurrenceId,
+    |         ^^^^^^^^^^^^^^^^^
+...
+193 |     pub lower: EffectEndpointKey,
+    |         ^^^^^
+194 |     pub upper: EffectEndpointKey,
+    |         ^^^^^
+    |
+    = note: `FieldBoundV1` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+
