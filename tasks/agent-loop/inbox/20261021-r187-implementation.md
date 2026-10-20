@@ -22,3 +22,7 @@ Static regression audit of `d9325b0f8` returned CLEAN for the option -> handler 
 The CLI regression definitions now separate two falsifiers: a middle operation that must reach its handler rather than return the following value, and a resumed `ping` whose continuation must reach a later `pong` handler exactly once. These definitions were not executed under the user resource STOP.
 
 The unchanged ordinary-islands fixture is now represented across all four public definitions in both CLI and Web smoke expectations: `int_identity -> 7`, `bool_identity -> true`, `string_identity -> "ok"`, and `countdown_result -> 8`. These are test definitions only and were not executed after the user resource STOP.
+
+## Current R187 milestone
+
+At `15dd768b3`, the unchanged ordinary-islands fixture is selectable in the Web UI and has CLI/smoke expectations for all four definitions. Rev8 parser delta, terminal-separator repair, rev9 selector lease, and selector-to-fixture static audit are CLEAN within their stated scopes. Remaining: all post-repair CLI/HIR/runtime/Web execution, broader sample coverage, and original proof/source-native obligations. User resource STOP remains active; verification reservation is inactive. This handoff records the milestone but does not close R187 or the parent theorem.
