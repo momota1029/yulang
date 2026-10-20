@@ -35,7 +35,7 @@
     "resources": {
       "cap_seconds": 1800,
       "charged_seconds": 1680,
-      "reserved_seconds": 120,
+      "reserved_seconds": 0,
       "astra_seconds": 0,
       "preparation_charged_seconds": 120,
       "prospective_reviews_charged_seconds": 120,
@@ -46,7 +46,7 @@
       "final_reviews_seconds": 240,
       "closeout_seconds": 180,
       "no_carryover": true,
-      "reservation_state": "1680s charged conservatively; 120 unused proof seconds released, no carryover or renewal",
+      "reservation_state": "1680s charged conservatively; 120 unused proof seconds released and unreserved; no carryover or renewal",
       "proof_assignment_aggregate_seconds": 840,
       "resumed_proof_charged_seconds": 420,
       "resumed_proof_observed_seconds": 329,
@@ -325,7 +325,7 @@
     }
   ],
   "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN. R141 CLOSED_UNFINISHED_REVIEWED_RESEARCH; no runtime observation, all parent and production gates remain OPEN. R142 CLOSED_UNFINISHED_REVIEWED_RESEARCH: finite private caller-path replay completion ownership candidate reviewed CLEAN; R70-DRAIN-1 consumer progress and all parent/source-native/production gates OPEN.",
-  "next_action": "R142 closed reviewed partial research. No successor activated; await/resolve R135 product decision and require a fresh public-entry consumer-progress contract before continuation.",
+  "next_action": "R143 public replay publication barrier is CANDIDATE only; no lease/resources/workers granted. R135 decision remains pending but is not a dependency.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
