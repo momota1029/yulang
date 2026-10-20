@@ -2,34 +2,34 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-20-r146-rev3-review",
+  "session": "current-conversation-2026-10-20-r146-activation",
   "active_sprint": {
     "id": "source-admission-observation-20261020-r146",
     "contract": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev3.md",
     "revision": 3,
     "contract_sha256": "3b6c24726ac4fe51b96d605d8a260d4a02023e009b244178f528f148ccd8171b",
-    "state": "CANDIDATE_REV3_PROSPECTIVE_COMPILER_REVIEW",
+    "state": "ACTIVE_PROOF_AND_OBSERVATION",
     "baseline": "f6e59e42bcfcfb3c13a0c511c63bcf9d0390005d",
-    "authority": "Read-only review of sequential rev3 only. No process/build/CLI/proof/code authority before fresh rev3 spec/compiler reviews, activation pins, exact leases and explicit Luna activation.",
+    "authority": "Luna activated rev3 after CLEAN spec/compiler reviews and 19/19 refreshed pins plus baseline code-tree parity. Proof owns only theory/handoff; Luna owns one supervised CLI observation and current/closeout. No source edits, tests, runtime evaluation, retries or semantic/production authority.",
     "dependencies": {
       "direct_pins": 19,
       "validated_baseline_live_pairs": 19,
       "code_tree_diff": "No diff against baseline for Cargo.toml, Cargo.lock, crates/, tools/inference-playground/.",
       "tree": "38f79bf7203e9766ac26b5876d7569fc84dbc842",
-      "validation": "All 19 direct pins match baseline/live; source-code tree diff from baseline is empty for Cargo.toml, Cargo.lock, crates/, tools/inference-playground."
+      "validation": "Activation refresh: 19/19 direct pins match baseline f6e59e42bcfcfb3c13a0c511c63bcf9d0390005d and live HEAD c841cbb3; code-tree parity confirmed."
     },
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 420,
-      "reserved_seconds": 1380,
+      "charged_seconds": 540,
+      "reserved_seconds": 1260,
       "astra_seconds": 0,
       "proof_seconds": 600,
       "no_carryover": true,
-      "reservation_state": "Candidate rev3 only; 420s charged conservatively (prep 180 + rev1 review window 120 + rev2 review window 120). Remaining prospective round 120 plus proof600, observation120, final240, closeout180, headroom120 reserved; no process authorized."
+      "reservation_state": "Activated: 540s charged conservatively (prep180 + rev1 prospective120 + rev2 prospective120 + rev3 prospective120). Remaining 1260 reserved for proof600, one observation120, final review240, closeout180, headroom120. No carryover."
     },
     "parent_status": "R70/R71 OPEN; higher Simple-sub A/B, source/native correspondence, evaluator/sample compatibility and production gates remain OPEN.",
-    "next_boundary": "Sequential prospective compiler/source review result for exact rev3 SHA. Candidate inactive.",
-    "proof_result": "NOT_STARTED; candidate inactive.",
+    "next_boundary": "One proof/static source audit plus exactly one bounded supervised CLI observation; then stop for fresh independent final compiler/source review.",
+    "proof_result": "AUTHORIZED_NOT_STARTED; proof launch receipt required before RUNNING.",
     "proof_outputs": {
       "theory": "notes/theory/2026-10-20-r146-source-admission.md",
       "handoff": "tasks/agent-loop/inbox/20261020-r146-proof.md",
@@ -43,10 +43,17 @@
         "result": "CLEAN",
         "scope": "Exact R146 rev3 candidate SHA-256 3b6c24726ac4fe51b96d605d8a260d4a02023e009b244178f528f148ccd8171b",
         "receipt": "Rev2 deadline finding closed: TERM by 115s, bounded grace inside 120s, KILL at deadline; reaping outside child execution. Allocation sums exactly 1800. Parent claims and gates preserved. 19 live pins checked; baseline parity primary-supplied."
+      },
+      {
+        "reviewer": "/root/r146_rev3_pre_compiler",
+        "role": "compiler_referee",
+        "result": "CLEAN",
+        "scope": "Exact R146 rev3 SHA-256 3b6c24726ac4fe51b96d605d8a260d4a02023e009b244178f528f148ccd8171b",
+        "receipt": "All 19 live pins verified and CPU 0 available. Main dispatch uses inference only; lib prepares syntax/HIR/candidate before report. Single-core affinity bounds group CPU by wall; explicit env, RLIMITs, bounded capture, TERM by115s/KILL at120s. No activation review of actual supervisor; final review must check conformance."
       }
     ],
     "final_reviews": [],
-    "primary_complementary_result": "NO_SAFE_CODE_SLICE; no process or source edit authorized at candidate review.",
+    "primary_complementary_result": "NO_SAFE_CODE_SLICE; Luna owns only the existing-tool observation record, no code repair.",
     "revision_history": [
       {
         "revision": 1,
@@ -103,34 +110,23 @@
       "id": "/root",
       "role": "Luna primary / sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r146-rev3-review",
+      "session": "current-conversation-2026-10-20-r146-activation",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Primary prepared R146 rev3 after major rev2 cap contradiction; candidate inactive."
+      "receipt": "Luna activated R146 rev3 after CLEAN spec/compiler reviews, 19/19 direct pins and source-tree parity; owns one supervised CLI observation."
     },
     {
-      "id": "/root/r146_rev3_pre_spec",
-      "role": "R146 rev3 prospective exact-conformance reviewer",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-20-r146-rev3-review",
-      "requested_model": "spec_auditor default Sol/low",
-      "requested_effort": "low",
+      "id": "/root/r146_proof",
+      "role": "R146 static source admission and constructor audit proof owner",
+      "state": "NOT_STARTED",
+      "session": "current-conversation-2026-10-20-r146-activation",
+      "requested_model": "prover default",
+      "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "CLEAN prospective spec/authority review for exact rev3 SHA 3b6c24726ac4fe51b96d605d8a260d4a02023e009b244178f528f148ccd8171b. 19 live pins verified; full receipt in active_sprint.prospective_reviews."
-    },
-    {
-      "id": "/root/r146_rev3_pre_compiler",
-      "role": "R146 rev3 prospective compiler/source reviewer",
-      "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r146-rev3-review",
-      "requested_model": "compiler_referee default Sol/medium",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Fresh read-only prospective review launched for exact rev3 SHA after CLEAN spec review; no Git/writes/tests/build/CLI."
+      "receipt": "Exact theory and handoff leases granted; not RUNNING until fresh launch receipt."
     }
   ],
   "leases": [
@@ -180,6 +176,21 @@
       "owner": "/root",
       "state": "FROZEN",
       "reason": "Sequential rev3 exact SHA under prospective review; inactive."
+    },
+    {
+      "path": "notes/theory/2026-10-20-r146-source-admission.md",
+      "owner": "/root/r146_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r146-proof.md",
+      "owner": "/root/r146_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-20-r146-admission-observation.txt",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -255,7 +266,7 @@
     }
   ],
   "closure": "R145 CLOSED_UNFINISHED_REVIEWED_RESEARCH: first unpinned syntax-admission premise. Final compiler/source review CLEAN. See notes/progress/2026-10-20-r145-closeout.md. Parent R70/R71 and higher claims remain OPEN.",
-  "next_action": "R146 rev3 prospective compiler/source review running; candidate remains inactive.",
+  "next_action": "R146 activated at c841cbb3 after CLEAN reviews and 19/19 activation pins. Start one proof producer on theory/handoff and Luna runs the single supervised `--intrusion` observation.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
