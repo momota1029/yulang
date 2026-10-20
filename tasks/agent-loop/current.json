@@ -14,14 +14,14 @@
       "charged_seconds": 2690,
       "reserved_seconds": 0,
       "no_carryover": true,
-      "allocation": "charged 2690: prep240+design600+contract-review110+proof1200+proof-review180+closeout360; 3310 expired unused; no carryover."
+      "allocation": "2690s charged: prep240+design600+contract-review110+proof1200+proof-review180+closeout360. 3310 expired unused; no carryover."
     },
     "proof": "CLEAN scoped independent review; note 84a235ad62c8ee980c3d71f96bf24496d4e9941ea13d4bca2c33eee44bc0a4ae, handoff 8776b1a2cf3bb7777479c2eb165b00221d526ba4b6fd6409c9909b93c0748a2d. Bare-Name local compensation established; universal later exposure and Group same-use remain OPEN.",
     "implementation": "Contract rev1 MAJOR; corrected rev2 4e59c259…5c2117d9 UNREVIEWED; code/tests never activated.",
     "review_receipt": "Proof CLEAN scoped /root/r186_proof_review, full 180 charged. Contract rev1 MAJOR; rev2 unreviewed. No parent/production closure.",
     "next_action": "R186 closed; R187 candidate: post-Lambda age proof + fresh exact contract review, then conditional broad sequence implementation.",
     "closeout_path": "notes/progress/2026-10-21-r186-closeout.md",
-    "closeout_sha256": "73be1f5419b21e7cb2d35263a179b2faafb6f6787d16eec136f30107a7ea2d66"
+    "closeout_sha256": "2f82f1c08deb5ce3bcc3c6ebe5671d966527039eefa8a47e6f99ef83fc5d92c2"
   },
   "workers": [
     {
@@ -468,9 +468,9 @@
       "outcome": "CLEAN scoped unfinished; bare-Name finite Catch path repaired by joint Value/AE level lowering; Group broader candidate outside parent §1 quantifier; post-Lambda age and Group same-use OPEN. Contract rev1 MAJOR, corrected rev2 unreviewed, no code.",
       "proof": "84a235ad62c8ee980c3d71f96bf24496d4e9941ea13d4bca2c33eee44bc0a4ae; review CLEAN scoped",
       "contract_rev2": "4e59c25947f3e3ea5acc746ca3e4483f7c4225028f93ad9ec54db3035c2117d9",
-      "closeout": "73be1f5419b21e7cb2d35263a179b2faafb6f6787d16eec136f30107a7ea2d66",
+      "closeout": "2f82f1c08deb5ce3bcc3c6ebe5671d966527039eefa8a47e6f99ef83fc5d92c2",
       "charged_seconds": 2690,
-      "git": "R186 checkpoints pushed through ec7e767b8; closeout pending primary commit."
+      "git": "R186 checkpoints pushed through ec7e767b8; closeout checkpoint 5c07e4573 pushed."
     }
   ],
   "review_receipts": "R182 final CLEAN scoped; R183 rev2 prospective CLEAN; R183 rev3 prospective CLEAN delta; R147 exact bundle final CLEAN, semantic proposal now provisionally adopted per user direction."
