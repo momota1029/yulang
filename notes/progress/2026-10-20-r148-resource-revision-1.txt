@@ -1,0 +1,20 @@
+R148 resource revision 1 — 2026-10-20
+
+Luna allocation decision after dispatcher review. Frozen governing contract remains rev11 (SHA-256 7ec1a9ac098020515b5651fd4dee8403288ce9c7b43b96b41d1828b0663407f0); no technical scope, source domain, or observation command changes.
+
+Original cap: 3,660 seconds; charged before this amendment: 3,000; reserved: 660. Charge 30 seconds for this resource amendment and preservation of proof revision 1. New charged total: 3,030; remaining: 630. No carryover or cap increase; Astra remains 0.
+
+Remaining allocation:
+- One contracted observation: 120 seconds.
+- Constructive proof continuation after observation: 120 seconds total, using the same two leased proof paths; no raw slot/preimage/consumer may be inferred from event names alone.
+- Fresh compiler/source final review: 120 seconds.
+- Fresh spec/authority final review: 120 seconds.
+- Closeout: 150 seconds.
+
+This reallocates 120 seconds from the original 360-second final-review pool, preserving both independent reviewers and reducing each reservation to 120 seconds. Any uncovered review scope or blocking finding means no acceptance. Closeout reservation includes resource record, exact receipts, final state and review reconciliation. Observer remains inactive until Luna revalidates the frozen implementation/proof inputs and executes the sole authorized command. Failure, incomplete history or ambiguity remains OPEN/UNKNOWN; no retry.
+
+Proof revision 1 is preserved byte-for-byte:
+- notes/progress/2026-10-20-r148-proof-rev1-archive.md: 4d339791fa89cbcce5fe8bbc5d01bd9e3beed7d87946aab51f6e4dada315f087
+- notes/progress/2026-10-20-r148-proof-inbox-rev1-archive.txt: 5b9abc4e08c315af574da8655032452eded1007706ca2cb841844ae615d28b25
+
+R70/R71, R146 authentic-history, source/native correspondence and production gates remain OPEN. This is a finite resource reallocation only.

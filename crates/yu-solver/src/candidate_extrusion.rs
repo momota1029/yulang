@@ -323,6 +323,8 @@ impl InferenceSession {
                         initialized_allowances.push(installed);
                     }
                     Work::Bound(owner, p, key, source) => {
+                        #[cfg(test)]
+                        candidate_context::r148_trace(format!("work-bound raw={source:?} owner={owner:?} side={p:?} selected={key:?}"));
                         let copied = rows
                             .get(&key)
                             .or_else(|| structure.get(&key))

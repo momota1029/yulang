@@ -1,0 +1,5 @@
+R148 resource revision 4 — 2026-10-20
+
+The exact-hash check under revision 3 found two closeout bookkeeping defects: the closeout note did not include the 60-second review charge, and current.json still represented the live review rather than the final ENDED snapshot. Luna corrects these records and allocates up to 60 seconds from the 180 seconds remaining for one final exact-hash spec/authority check. No technical or source scope is reopened.
+
+Cap 3,660 seconds. Before this allocation: 3,480 charged and 180 reserved. If fully charged: 3,540 charged and 120 unspent. Astra 0, no carryover. If any substantive claim is disputed, closeout stops with research unfinished and no promotion.

@@ -680,6 +680,8 @@ impl InferenceSession {
         to: BoundKey,
         reason: candidate_context::TransportReason,
     ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        candidate_context::r148_trace(format!("bound-transport from={from:?} to={to:?} reason={reason:?}"));
         let mut cursor = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_cursor(from);
         while let Some(index) = cursor {
             let (parent, next) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_entry(index);

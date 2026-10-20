@@ -1,6 +1,28 @@
 //! Exact structural context relation authority for the private candidate.
 //! Derivations are a separate fiber: retaining another origin does not create
 //! another semantic task or unfold a recursive identity derivation.
+
+#[cfg(test)]
+thread_local! {
+    static R148_TRACE: std::cell::RefCell<Option<Vec<String>>> = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(super) fn r148_trace_begin() {
+    R148_TRACE.with(|trace| *trace.borrow_mut() = Some(Vec::new()));
+}
+
+#[cfg(test)]
+pub(super) fn r148_trace(event: impl Into<String>) {
+    R148_TRACE.with(|trace| {
+        if let Some(events) = trace.borrow_mut().as_mut() { events.push(event.into()); }
+    });
+}
+
+#[cfg(test)]
+pub(super) fn r148_trace_finish() -> Vec<String> {
+    R148_TRACE.with(|trace| trace.borrow_mut().take().unwrap_or_default())
+}
 use crate::candidate_effect::BoundKey;
 use crate::*;
 use yu_hir::shadow::{SourceEffectId, SourceNodeKey};
@@ -3028,6 +3050,10 @@ impl State {
         Ok(())
     }
     fn dependency(&mut self, dependency: Dependency) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        if matches!(dependency, Dependency::Transport { .. } | Dependency::Replay { .. }) {
+            r148_trace(format!("relation-consumer {dependency:?}"));
+        }
         if self.dependency_keys.contains(&dependency) {
             return Ok(());
         }
@@ -4011,6 +4037,8 @@ impl InferenceSession {
             let (from, parent, _) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.bound_keys[index];
             let to = BoundKey(self.canonical_extrusion(from.0), from.1, self.canonical_extrusion(from.2));
             if to != from {
+                #[cfg(test)]
+                r148_trace(format!("canonicalize raw={from:?} canonical={to:?} relation={parent:?}"));
                 self.candidate_context_transport_witness(parent, to, 0, Some(TransportWitness { from, to, reason: TransportReason::EqualityCanonicalization }))?;
                 let pair = self.candidate_context_pair(bound_pair(to));
                 let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;

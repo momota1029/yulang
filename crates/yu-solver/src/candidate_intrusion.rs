@@ -603,6 +603,8 @@ impl InferenceSession {
         root: Option<CanonicalValuePairKey>,
         parent_index: usize,
     ) -> Result<(), SolveAvailabilityError> {
+        #[cfg(test)]
+        candidate_context::r148_trace(format!("row-merge copy={copy:?} parent={parent:?} root={root:?} parent_index={parent_index}"));
         let state = &self
             .candidate_graph
             .as_ref()

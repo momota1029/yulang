@@ -1,0 +1,74 @@
+# R148 proof handoff — stage 1
+
+Sprint-ID: `raw-bound-history-20261020-r148`.
+Contract revision: 11; SHA-256
+`7ec1a9ac098020515b5651fd4dee8403288ce9c7b43b96b41d1828b0663407f0`.
+Assignment-ID: `R148-PROOF`; handoff revision: 1.
+Baseline: `4c9d549eab9f2ba38a2b319d4329599dd5272430`; tree
+`a93b3c4d2eefdc80eb419b50d8605868d53976ea`.
+Role/actual worker: constructive prover `/root/r148_proof` in this session.
+Requested model/effort: configured Sol/high; observed model/effort: UNKNOWN.
+Launch receipt: parent-issued live assignment; precise launch timestamp missing.
+Authors: this leaf only; no descendants.
+
+Exact leased outputs, both new:
+
+- `notes/theory/2026-10-20-r148-raw-bound-history.md`, SHA-256
+  `4d339791fa89cbcce5fe8bbc5d01bd9e3beed7d87946aab51f6e4dada315f087`.
+- This exact inbox file; its frozen byte hash is returned to Luna separately.
+
+Outcome class: **conditional source/native evidence; finite runtime history
+unsupplied**. The static rule derives actual raw-key retention, canonical
+child lookup, physical emission/readback, exact-prefix fiber transport and
+relation-local replay/drain obligations from the pinned owners. It does not
+assert that the fixed source executes any particular selected slot or consumer.
+
+Parent application: R146-AUTHENTIC-RAW-BOUND-HISTORY-1 remains OPEN on the exact
+chronological slot/preimage/transport/consumer record. R70/R71, Simple-sub A/B,
+F1/FK1, evaluator/source-native and production remain OPEN unchanged. No
+source-qualified counterexample or production repair is established.
+
+Source owners: `candidate_source::emit_candidate_source` and action execution
+retain the actual Lambda/Apply/Local/Module constructors; `candidate_scheme`
+retains FreshUse restoration separately; `lib::dispatch_live_item` selects the
+two ordinary extrusion calls; `candidate_extrude::Work::Bound` retains raw key
+while mapping canonical child; `candidate_transfer_bound_origins` forwards
+only the exact attached prefix; context transport/canonicalization retains
+the witness lineage; replay and typed drains own eventual relation consumption.
+All exact dependency hashes and source locators are in the theory.
+
+Prior work reused: R146 syntax/HIR/entrance audit only, with its supervisor
+conformance UNVERIFIED; R71 one-way preservation facts and R70 conditional
+simulation only under their actual premises. Rejected: quotient equality,
+origins metadata as executable fiber evidence, endpoint equality as consumer
+identity, and final retained state as chronological raw history.
+
+Checks: source reads and SHA-256 checks only. Four mutable source owners were
+read solely from baseline blobs using read-only `git show` explicitly granted
+by Luna; no mutable implementation-lane file was inspected. No observer,
+tests, builds, state edits or Git mutation. No scratch/new paths beyond the
+two leases. An unavailable `python` read command was retried with `python3`.
+
+Resources: hard assignment reservation 300 seconds total. First captured clock
+03:09:52 UTC; final pre-handoff clock 03:11:37 UTC, 105 seconds between those
+anchors. Earlier reading/setup time is UNKNOWN because neither launch time
+nor first-command time was retained. Per contract's missing-runtime rule,
+charge the full 300-second reservation; defensible remaining budget is 0.
+This is accounting conservatism, not a claim that exactly 300 seconds elapsed.
+No budget renewal or additional work is claimed by this leaf.
+
+Mutual TODO R148-OBSERVED-RAW-CONSUMER-1: parent R146 raw-bound history;
+first missing evidence is a complete source-driven selected raw slot and all
+relevant preimages with forest order. Owners: Luna's one observer execution,
+implementation lane's frozen capture, and subsequent reconstruction owner
+assigned by Luna. Required input: frozen complete observation plus exact
+instrumentation snapshot. Required output: the concrete identity join through
+Extrusion/EqualityCanonicalization/FreshUse/Replay to the actual relation-local
+consumer, or its exact absent event. Falsifier: wrong production caller,
+restoration arm substituted for Work::Bound, missing preimage, incomplete log,
+lost lineage, or absent actual consumer. This TODO grants no execution/retry,
+new lease or extra budget.
+
+Worker state: STOPPED after this frozen handoff; no descendants or outstanding
+writer subtree. Stage-1 bytes are ready for Luna intake and independent review.
+The finite parent is unfinished and observation remains Luna's separate gate.

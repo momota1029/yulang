@@ -1,0 +1,14 @@
+R148 resource revision 2 — 2026-10-20
+
+Luna closeout decision after dispatcher review. Frozen technical contract rev11 remains unchanged. The sole observer is NOT run; proof continuation is cancelled because the current instrumentation cannot identify one causally joined physical selection, complete raw preimages, and actual consumer, and no remaining budget can cover correction, independent validation, and replayable reconstruction without weakening required review or closeout.
+
+At revision: hard cap 3,660 seconds; 3,150 charged (including full 120-second final compiler/source reservation because exact startup elapsed was unavailable); 510 reserved. Reallocate remaining reservation to final spec/authority review 120 and closeout 150. The observer 120 and proof continuation 120 lapse unused. If completed, final ledger is 3,420 charged, 240 unspent, cap 3,660, Astra 0, no carryover. No refund or cap increase.
+
+Final compiler/source review found three MAJOR blockers in the frozen test-only observer:
+1. `relation-consumer` is emitted before duplicate detection/publication and does not establish typed Replay consumption.
+2. `Work::Bound` logging lacks physical lane/index, selection occurrence and contemporaneous forest; final admissions are not chronological complete preimages.
+3. `complete=true` is only a product of unrelated nonzero global counts; transport is logged before checking for a nonempty source fiber.
+
+Therefore no observation, build, test, retry or instrumentation repair is authorized in this closeout. Implementation and proof rev1 remain frozen as provisional research. Rev1 proof archive hashes: theory 4d339791fa89cbcce5fe8bbc5d01bd9e3beed7d87946aab51f6e4dada315f087; inbox 5b9abc4e08c315af574da8655032452eded1007706ca2cb841844ae615d28b25. Implementation handoff SHA-256: c6a17451003c336691478e4bd1237ff5f64bef9066894c17cab1bc8090cf5b42.
+
+This obstruction is instrumentation insufficiency, not a proof that the fixed source has no consumer. R146 authentic-history, R70/R71, Simple-sub/evaluator A/B, source/native correspondence and production gates remain OPEN. Legacy UNKNOWN assignments, board quarantine and R104 HELD are preserved. No successor sprint or budget is selected here.

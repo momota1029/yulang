@@ -1,0 +1,5 @@
+R148 resource revision 3 — 2026-10-20
+
+Luna allocates up to 60 seconds from the 240 seconds left unspent after revision 2 for an exact-hash spec/authority check of the final closeout artifact and ENDED current state before integration. This does not reopen implementation, proof, observation, or source work. The same closeout reviewer may perform it; no more than 60 seconds are authorized and uncertainty consumes the full allocation.
+
+Cap remains 3,660 seconds. Prior charged total 3,420; reserved total 240. If fully charged, final total is 3,480 charged and 180 unspent. Astra 0, no carryover. If the final receipt finds a discrepancy, STOP and keep research unfinished; do not amend claims within this allocation.

@@ -16,6 +16,43 @@ fn source_extrude(session: &mut InferenceSession, parent: ExtrusionEndpoint, pol
     copy
 }
 
+#[test]
+fn observe_nested_recursion_raw_bound_history() {
+    let text = include_str!("../../../tools/inference-playground/examples/nested-recursion.yu");
+    let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+    let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+        Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+    assert!(parsed.structural_recoveries().is_empty());
+    let hir = Arc::new(lower_module_with_local_source(
+        yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+            "r148-nested-recursion", "nested-recursion.yu"))),
+        &parsed, yu_hir::SemanticImports::empty()).unwrap());
+    candidate_context::r148_trace_begin();
+    let mut session = InferenceSession::try_new_candidate(
+        ConstraintBatch::collect_candidate_mode_scoped(hir, true, true, false).unwrap()).unwrap();
+    session.execute().unwrap();
+    let events = candidate_context::r148_trace_finish();
+    let work_bounds = events.iter().filter(|event| event.starts_with("work-bound ")).count();
+    let transports = events.iter().filter(|event| event.starts_with("bound-transport ")).count();
+    let consumers = events.iter().filter(|event| event.starts_with("relation-consumer ")).count();
+    let complete = work_bounds > 0 && transports > 0 && consumers > 0;
+    let context = state(&session);
+    eprintln!("R148-BEGIN schema=1 source=tools/inference-playground/examples/nested-recursion.yu complete={complete} events={}", events.len());
+    for (index, event) in events.iter().enumerate() {
+        eprintln!("R148-EVENT {index} {event}");
+    }
+    for (index, admission) in context.evidence.admissions.iter().enumerate() {
+        if let BoundAdmissionCause::BoundTransport { antecedent, through } = admission.cause {
+            eprintln!("R148-PREIMAGE admission={index} raw={:?} relation={:?} antecedent={antecedent:?} through={through:?}", admission.bound, admission.relation);
+        }
+    }
+    eprintln!("R148-END work_bounds={work_bounds} transports={transports} consumers={consumers} complete={complete}");
+    assert!(work_bounds > 0, "fixed source route did not reach Work::Bound");
+    assert!(transports > 0, "selected raw bound has no transported lineage");
+    assert!(consumers > 0, "transported relation has no retained Replay/Transport consumer");
+}
+
 fn detached_rename_state() -> State {
     let mut session = session_with_source("act E\nmy answer:[E] int = 1");
     let owner = empty_bundle_owner(&session);
