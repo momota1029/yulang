@@ -1,6 +1,6 @@
 # Yulang2 Types/Console registration observer — R158
 
-Status: prospective exact implementation contract. Active user goal and `/goal resume` authorize this bounded reversible research instrumentation. Luna activates only after independent CLEAN review and records the exact-path lease. No semantic approval, Y3 implementation, tests, builds, parser/sample execution, expected-output edits, or production cutover is authorized.
+Status: prospective exact implementation contract rev2. Active user goal and `/goal resume` authorize this bounded reversible research instrumentation. Luna activates only after independent CLEAN review and records the exact-path lease. No semantic approval, Y3 implementation, tests, builds, parser/sample execution, expected-output edits, or production cutover is authorized.
 
 ## Parent outcome and baseline
 
@@ -19,6 +19,8 @@ Frozen Y2 source pins:
 Dependency premise: `infer` depends on `sources`; `sources` has `serde_json`; both crates have `serde`. No manifest or lockfile edits are in scope. The three source hashes match the unchanged isolated archive; read-only manifest inspection supports the dependency seam.
 
 ## One implementation packet — 120 seconds preparation
+
+The frozen implementation details are in `tasks/agent-loop/inbox/20261020-r158-observer-implementation-packet.md`, SHA-256 to be frozen in `current.json` before review.
 
 Work only in `/tmp/yulang2-r156-observer/oracle/`, produced from the pinned Y2 commit. Writable files are exactly:
 
