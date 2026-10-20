@@ -1,67 +1,9 @@
 {
  "schema_version": 1,
  "mode": "LIVE",
- "phase": "ACTIVE",
+ "phase": "ENDED",
  "session": "current-conversation-2026-10-20-r147-proof-and-decision",
- "active_sprint": {
-  "id": "braced-if-approval-packet-20261020-r147",
-  "contract": "tasks/agent-loop/sprints/braced-if-approval-packet-20261020-r147-rev2.md",
-  "revision": 2,
-  "contract_sha256": "87ec019b57a2e885bff6aab5e7cf16929526ebb07df593646f495442184ff281",
-  "state": "RESULT_AWAITING_FINAL_REVIEW",
-  "baseline": "4d9c9c74e0c56b8e34b60d521b68bcf8504946b2",
-  "authority": "Luna activated after CLEAN prospective reviews, 26/26 pins and code-tree parity. Proof writes only theory/handoff; Luna writes decision draft/current/closeout and owns Git. No implementation/execution; semantic approval remains required.",
-  "dependencies": {
-   "direct_pins": 26,
-   "live_hashes": "26/26 match",
-   "baseline_tree": "e2baa5de4a9796b56fa1a2c85e581346bd54886f",
-   "repository_code_tree_parity": "No diff for Cargo.toml, Cargo.lock, crates/, tools/, apps/, web/ against baseline."
-  },
-  "resources": {
-   "cap_seconds": 1200,
-   "charged_seconds": 960,
-   "reserved_seconds": 240,
-   "astra_seconds": 0,
-   "no_carryover": true,
-   "reservation_state": "Prep+prospective reviews360, proof420, Luna decision draft180 charged. Final review120 and closeout120 reserved; no carryover."
-  },
-  "parent_status": "R70/R71, Simple-sub/evaluator A/B, source/native correspondence, evaluator/sample compatibility and production remain OPEN. R146 supervisor conformance UNVERIFIED.",
-  "next_boundary": "Final review disposition; closeout; then user option choice if CLEAN. Separate implementation contract required.",
-  "prospective_reviews": [
-   {
-    "reviewer": "/root/r146_pre_spec",
-    "result": "CLEAN",
-    "scope": "Exact R147 rev2 SHA 87ec019b57a2e885bff6aab5e7cf16929526ebb07df593646f495442184ff281",
-    "receipt": "Exact handoff ownership; required Web/WASM/prepare/smoke owners pinned; approval gate and budget preserved."
-   },
-   {
-    "reviewer": "/root/r146_pre_compiler",
-    "result": "CLEAN",
-    "scope": "Exact R147 rev2 SHA 87ec019b57a2e885bff6aab5e7cf16929526ebb07df593646f495442184ff281",
-    "receipt": "26/26 live pins; source map and bare-else path checked; Web sample integration remains a later gate; no execution authority."
-   }
-  ],
-  "implementation_result": "NO_SAFE_CODE_SLICE pending explicit user semantic approval; current lane is decision packet only.",
-  "proof_result": "Source-correct Y2/Y3 decision packet support; singleton representation remains conditional. Web countdown is not selected or smoke-run today.",
-  "proof_outputs": {
-   "theory": "notes/theory/2026-10-20-braced-if-elaboration-r147.md",
-   "theory_sha256": "f2a9ef20bc981ba40310aaca5ff20f2c0edaff6e60f5e07e63f13fdd33e4094b",
-   "handoff": "tasks/agent-loop/inbox/20261020-r147-proof.md",
-   "handoff_sha256": "02890c687a4be4f82d071cc9c24d4ee728192107e48f0f74dc93fd1b553e1887",
-   "decision_draft": "notes/design/2026-10-20-braced-if-compatibility-r147.md",
-   "decision_draft_sha256": "2dbbf05c2c74810c4684a71d81933d4b6b4a9be2067dcc60b943bb090ff64f12",
-   "decision_handoff": "tasks/agent-loop/inbox/20261020-r147-decision-packet.md",
-   "decision_handoff_sha256": "d3bb3264ffb64df0d7948e3460c43ce1f037a4bd51ef7ebb4fb3de8dea031355"
-  },
-  "final_reviews": [
-   {
-    "reviewer": "/root/r146_final_compiler",
-    "role": "compiler_referee",
-    "state": "RUNNING",
-    "scope": "Frozen R147 artifacts; exact hashes in active_sprint.proof_outputs."
-   }
-  ]
- },
+ "active_sprint": null,
  "workers": [
   {
    "id": "/root/resident_dispatcher_loop_a",
@@ -99,24 +41,24 @@
   {
    "id": "/root",
    "role": "Luna primary / sole Git integrator",
-   "state": "RUNNING",
-   "session": "current-conversation-2026-10-20-r147-proof-and-decision",
+   "state": "STOPPED",
+   "session": null,
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R147 active; coordinating proof and decision draft only."
+   "receipt": "R147 closed; no worker active."
   },
   {
    "id": "/root/r146_final_compiler",
    "role": "R146 independent final compiler/source reviewer",
-   "state": "RUNNING",
-   "session": "current-conversation-2026-10-20-r147-proof-and-decision",
+   "state": "STOPPED",
+   "session": null,
    "requested_model": "compiler_referee default Sol/medium",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Fresh read-only final review of frozen R147 source/decision artifacts; no execution or descendants."
+   "receipt": "R147 final review completed CLEAN; read-only, no descendants."
   },
   {
    "id": "/root/r146_pre_spec",
@@ -154,13 +96,13 @@
   {
    "id": "/root/r147_final_compiler",
    "role": "R147 independent final compiler/source reviewer",
-   "state": "RUNNING",
-   "session": "current-conversation-2026-10-20-r147-proof-and-decision",
+   "state": "STOPPED",
+   "session": null,
    "requested_model": "compiler_referee default Sol/medium",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Fresh review of frozen hashes; no execution or Git."
+   "receipt": "R147 final review completed CLEAN; read-only, no descendants."
   }
  ],
  "leases": [
@@ -256,7 +198,7 @@
   {
    "path": "notes/progress/2026-10-20-r147-closeout.md",
    "owner": "/root",
-   "state": "HELD"
+   "state": "FROZEN"
   }
  ],
  "pending": [
@@ -331,8 +273,8 @@
    "falsifier": "See frozen gate record."
   }
  ],
- "closure": "R146 CLOSED_UNFINISHED_REVIEWED_RESEARCH: finite OBSERVED_PREPARED record, but supervisor conformance UNVERIFIED because inline source was not retained. See notes/progress/2026-10-20-r146-closeout.md. R70/R71 and higher parents remain OPEN.",
- "next_action": "R147 frozen packet in final compiler/source review; no implementation/execution authority.",
+ "closure": "R147 CLOSED_REVIEWED_PROPOSAL_PENDING_USER_DECISION. Exact rev2 contract and five frozen artifacts received CLEAN independent final compiler/source review; 26/26 pins remain valid. No code or execution authority. User choice A/B is pending; separate implementation contract required. See notes/progress/2026-10-20-r147-closeout.md. R70/R71 and higher parents remain OPEN; R146 supervisor conformance UNVERIFIED.",
+ "next_action": "Dispatcher: wait for user choice of reviewed R147 Option A or B; then prepare a fresh end-to-end implementation contract. No implementation authority before choice and prospective review. B must cover all declared cases, not only countdown.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
@@ -417,7 +359,12 @@
    "id": "R146",
    "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
    "closeout": "notes/progress/2026-10-20-r146-closeout.md"
+  },
+  {
+   "id": "R147",
+   "state": "CLOSED_REVIEWED_PROPOSAL_PENDING_USER_DECISION",
+   "closeout": "notes/progress/2026-10-20-r147-closeout.md"
   }
  ],
- "review_receipts": "R144/R145 and migration receipts in closeouts. R146 final compiler/source review: source classification clean; MAJOR supervisor-conformance evidence gap and MINOR omitted baseline tree cross-reference; Luna closeout records both."
+ "review_receipts": "R147 prospective spec/authority and compiler/source reviews CLEAN for rev2. Final compiler/source review CLEAN for exact contract and five artifacts; 26/26 live pins; no findings. R147 closeout records resource charge 1,200/1,200 and pending user choice. R146 supervisor conformance remains UNVERIFIED; see closeouts. Sprint-end dispatcher recommends no new sprint before user choice; after approval, fresh contract should cover parser/HIR/inference/evaluator/CLI-WASM-Web and unchanged fixture results, with independent source/scope/effect review."
 }
