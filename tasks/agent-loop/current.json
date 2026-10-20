@@ -20,13 +20,11 @@
 {
 "reviewer": "/root/r144_rev12_pre_spec",
 "result": "CLEAN",
-"scope": "spec/authority exact R144 rev12 contract",
 "contract_sha256": "c60c5c2c4cf2518a1f7840b39fb95db983c6c96b623eade887139a44388ce920"
 },
 {
 "reviewer": "/root/r144_rev12_pre_compiler",
 "result": "CLEAN",
-"scope": "compiler/source constructor closure exact R144 rev12 contract",
 "contract_sha256": "c60c5c2c4cf2518a1f7840b39fb95db983c6c96b623eade887139a44388ce920"
 }
 ],
@@ -47,7 +45,7 @@
 "closeout_seconds": 180,
 "closeout_charged_seconds": 180,
 "no_carryover": true,
-"reservation_state": "1500s charged: prep 180, prospective 120, proof 600, audit 180, final reviews 240, closeout 180; 300 proof seconds released; no carryover.",
+"reservation_state": "1500s charged; proof unused 300s released; zero Astra or carryover.",
 "proof_observed_seconds": 485,
 "released_unused_proof_seconds": 300
 },
@@ -65,17 +63,15 @@
 {
 "reviewer": "/root/r144_final_spec",
 "state": "STOPPED",
-"result": "CLEAN",
-"scope": "fresh independent spec/authority review of exact frozen contract/theory/handoff hashes"
+"result": "CLEAN"
 },
 {
 "reviewer": "/root/r144_final_compiler",
 "state": "STOPPED",
-"result": "CLEAN",
-"scope": "fresh independent compiler/source review of exact frozen contract/theory/handoff hashes"
+"result": "CLEAN"
 }
 ],
-"primary_complementary_result": "Luna read-only audit confirms Work::Bound retains raw BoundKey while canonicalizing target; transfer consults bound_cursor(raw) for direct fibers and separately transports origins without origin-to-fiber association. Merge canonicalization transports each retained old key to its canonical key and attaches a derived relation. Exact required-lineage coverage at the raw transfer point remains unproved; no source-authentic counterexample or code defect established."
+"primary_complementary_result": "Raw BoundKey is retained while target canonicalizes; direct fibers use raw lookup and origin metadata moves separately. Merge forwards keys and derives relations; raw-point consumer coverage remains unproved."
 },
 "workers": [
 {
@@ -113,14 +109,14 @@
 },
 {
 "id": "/root",
-"role": "Luna primary; authority, complementary constructor audit, reviews and sole Git integrator",
+"role": "Luna primary / sole Git integrator",
 "state": "STOPPED",
 "session": "current-conversation-2026-10-20-r144",
 "requested_model": "gpt-6-luna",
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "R144 closed as UNFINISHED/OPEN after final CLEAN reviews and dispatcher closeout; sole Git integrator."
+"receipt": "R144 closed UNFINISHED/OPEN after final reviews; Git integration complete."
 },
 {
 "id": "/root/r144_constructive_proof",
@@ -131,7 +127,7 @@
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "R144-PROOF-r1 WRITES STOPPED 2026-10-20 01:25:59 UTC; 485s observed, 600/900s charged, 300 unused released; no descendants."
+"receipt": "R144 proof frozen UNFINISHED/OPEN; writes stopped 2026-10-20 01:25:59 UTC; no descendants."
 },
 {
 "id": "/root/r144_final_spec",
@@ -142,7 +138,7 @@
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "Fresh final independent review completed CLEAN against exact frozen R144 artifacts; no descendants."
+"receipt": "R144 final independent spec review STOPPED CLEAN; no descendants."
 },
 {
 "id": "/root/r144_final_compiler",
@@ -153,7 +149,18 @@
 "requested_effort": "medium",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "Fresh final independent review completed CLEAN against exact frozen R144 artifacts; no descendants."
+"receipt": "R144 final independent compiler review STOPPED CLEAN; no descendants."
+},
+{
+"id": "/root/migration_gate_review",
+"role": "fresh isolated sprint-policy migration reviewer",
+"state": "STOPPED",
+"session": "current-conversation-2026-10-20-r145-resume",
+"requested_model": "spec_auditor default Sol/low",
+"requested_effort": "low",
+"observed_model": "UNKNOWN",
+"observed_effort": "UNKNOWN",
+"receipt": "CLEAN review of exact migration diff; no writes/tests/builds/Git."
 }
 ],
 "leases": [
@@ -354,19 +361,18 @@
 "falsifier": "See frozen gate record."
 }
 ],
-"closure": "R144 CLOSED UNFINISHED/OPEN; pushed at c7d574009. R145 is a proposal. Sprint migration adoption gate remains unresolved.",
-"next_action": "Resolve the independent migration review and reconcile legacy identities/leases. Then dispatch, freeze, review and explicitly activate a new contract for the unchanged user goal.",
+"closure": "R144 CLOSED UNFINISHED/OPEN at c7d574009. Migration policy review CLEAN and inherited leases reconciled conservatively; R145 remains a proposal.",
+"next_action": "Prepare R145 contract only after checking exact baseline/source pins and exact artifact leases; obtain prospective spec/compiler CLEAN reviews, then activate explicitly.",
 "legacy_reconciliation": {
-"required": true,
-"reason": "Inherited identities remain UNKNOWN and board.md quarantined. Full migration review is unverified; authoritative validation says NOT_RUN. Preserve leases and do not activate a sprint.",
+"required": false,
+"reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
 "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
 },
 "state_audit": {
-"reviewer": "/root/goal_sprint_migration_review",
-"result": "UNVERIFIED: snapshot claims CLEAN delta; authoritative validation records full review NOT_RUN.",
+"reviewer": "/root/migration_gate_review",
+"result": "CLEAN for exact frozen diff 7336f290da53dc39cfc5be18dd492820d1b7451c..93ddff3c132f5da2d73e3efae0a6050dc105dcf7; receipt in notes/progress/2026-10-20-sprint-adoption-reconciliation.md.",
 "open_minors": [
-"Fresh isolated migration review.",
-"Reconcile inherited workers and leases."
+"R145 proposal needs exact pins, prospective reviews and Luna activation."
 ]
 },
 "user_goal": "Proof-backed Yulang inference/evaluator breadth; broaden unchanged Yulang2 sample execution with source correspondence and bounded proofs. Preserve Simple-sub/evaluator A/B claims, quantifiers, adoption gates and honest OPEN statuses. Luna alone integrates and pushes reviewed checkpoints.",
@@ -487,5 +493,5 @@
 "integration_commit": "0c540791a"
 }
 ],
-"review_receipts": "R142/R143 receipts in closeouts; R144 prospective and final spec/compiler reviews CLEAN for exact frozen hashes. R145 proposed, not active."
+"review_receipts": "R144 and migration review receipts in closeouts; migration diff CLEAN, exact range and scope archived. R145 proposed, not active."
 }
