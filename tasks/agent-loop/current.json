@@ -1,66 +1,9 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ACTIVE",
+  "phase": "ENDED",
   "session": "current-conversation-2026-10-20-r145-final-review",
-  "active_sprint": {
-    "id": "source-lineage-trace-20261020-r145",
-    "contract": "tasks/agent-loop/sprints/source-lineage-trace-20261020-r145-rev1.md",
-    "revision": 1,
-    "contract_sha256": "728e5884f1750eac69d4d2c3359084afceea313012391fc2f320e3990aef952e",
-    "state": "FINAL_COMPILER_REVIEW_RUNNING",
-    "baseline": "619d275c75a465ffefd3875a92640387d1599804",
-    "authority": "Luna activated exact R145 rev1 after two CLEAN prospective reviews and 38/38 refreshed pins at b9f1942ed4f395b7989eacb137baf14993325231. Proof owns only theory and handoff leases; primary owns source audit/current/closeout. No code/runtime/test authority.",
-    "dependencies": {
-      "direct_pins": 38,
-      "validated_baseline_live_pairs": 38,
-      "validation": "Activation refresh: all 38 direct pins match baseline 619d275c75a465ffefd3875a92640387d1599804 and live HEAD b9f1942ed4f395b7989eacb137baf14993325231."
-    },
-    "resources": {
-      "cap_seconds": 1800,
-      "charged_seconds": 1380,
-      "reserved_seconds": 420,
-      "astra_seconds": 0,
-      "proof_seconds": 900,
-      "no_carryover": true,
-      "reservation_state": "1380s charged conservatively: prep180 + prospective120 + full proof grant900 (elapsed unknown) + Luna audit180. Remaining 420 reserved only for final review240 and closeout180; no carryover."
-    },
-    "parent_status": "R70/R71 OPEN. One finite input cannot discharge or refute the universal parent. Simple-sub A/B and production remain OPEN.",
-    "next_boundary": "Final review receipt; Luna adjudication and closeout or sequential revision if findings.",
-    "proof_result": "FROZEN RESULT 2: exact first unpinned syntax-admission premise at playground lib.rs:278–286; no accepted-source history or later merge/raw-slot/consumer established; no falsifier/defect claimed.",
-    "proof_outputs": {
-      "theory": "notes/theory/2026-10-20-r145-source-lineage-trace.md",
-      "handoff": "tasks/agent-loop/inbox/20261020-r145-proof.md",
-      "theory_sha256": "3727a97d81c165c8682f99ecaaf639425bfde8771ac4d5e7adb5f98b15b24829",
-      "handoff_sha256": "6762d499c608f3b5c99ca8edadf95cb3172f22f9e31d69549c1c94b028940f89"
-    },
-    "closeout": "notes/progress/2026-10-20-r145-closeout.md",
-    "final_reviews": [
-      {
-        "reviewer": "/root/r145_final_compiler",
-        "role": "compiler_referee",
-        "state": "RUNNING",
-        "scope": "Frozen R145-PROOF-1 rev1 theory + handoff, exact hashes recorded in active_sprint.proof_outputs; pinned source boundary only."
-      }
-    ],
-    "primary_complementary_result": "NO_SAFE_CODE_SLICE within this proof-only contract; Luna source audit independently found the first necessary syntax-admission implementations unpinned at the caller boundary.",
-    "prospective_reviews": [
-      {
-        "reviewer": "/root/r145_pre_spec",
-        "role": "spec_auditor",
-        "result": "CLEAN",
-        "scope": "Exact candidate contract SHA-256 728e5884f1750eac69d4d2c3359084afceea313012391fc2f320e3990aef952e",
-        "receipt": "38 live dependency hashes matched; Luna separately verified baseline/live equality for all 38 at 619d275c75a465ffefd3875a92640387d1599804. Universal R70/R71 and higher A/B parents remain OPEN. Finite source falsifier is constrained to the packet; no tests/builds/compiler/Git."
-      },
-      {
-        "reviewer": "/root/r145_pre_compiler",
-        "role": "compiler_referee",
-        "result": "CLEAN",
-        "scope": "Exact candidate contract SHA-256 728e5884f1750eac69d4d2c3359084afceea313012391fc2f320e3990aef952e",
-        "receipt": "Independently verified all 38 live pins. Source checks distinguish Work::Bound from IncomingAllowance and require actual raw slot and consumer reachability. Unpinned parser/HIR owners are a stop-at-first-unpinned boundary. No blockers/majors/minors; no writes/tests/builds/compiler/Git."
-      }
-    ]
-  },
+  "active_sprint": null,
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -98,13 +41,13 @@
     {
       "id": "/root",
       "role": "Luna primary / sole Git integrator",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-20-r145-final-review",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Luna froze proof result 2 and exact output hashes; source audit found the same syntax-admission pin boundary. Awaiting independent final review."
+      "receipt": "Luna closed R145 after CLEAN final compiler/source review; closeout integrated. No successor worker/lease started."
     },
     {
       "id": "/root/r145_source_path_probe",
@@ -142,13 +85,13 @@
     {
       "id": "/root/r145_final_compiler",
       "role": "R145 independent final compiler/source reviewer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-20-r145-final-review",
       "requested_model": "compiler_referee default Sol/medium",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Fresh read-only final review launched against exact frozen theory/handoff hashes and pinned source scope; no writes/tests/builds/compiler/Git."
+      "receipt": "CLEAN final compiler/source review completed for frozen R145 result 2; full receipt in R145 closeout/history. No writes/tests/builds/execution."
     }
   ],
   "leases": [
@@ -254,8 +197,8 @@
       "falsifier": "See frozen gate record."
     }
   ],
-  "closure": "R144 CLOSED UNFINISHED/OPEN at c7d574009. Migration policy review CLEAN and inherited leases reconciled conservatively; R145 remains a proposal.",
-  "next_action": "Fresh final compiler/source review running on frozen R145 result 2; no further proof work authorized.",
+  "closure": "R145 CLOSED_UNFINISHED_REVIEWED_RESEARCH: first unpinned syntax-admission premise. Final compiler/source review CLEAN. See notes/progress/2026-10-20-r145-closeout.md. Parent R70/R71 and higher claims remain OPEN.",
+  "next_action": "No successor authorized. At the next sprint boundary, compare static syntax-owner dependency expansion, a separately contracted source-admission observation, and unchanged-sample breadth route.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
@@ -384,6 +327,20 @@
       "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
       "closeout": "notes/progress/2026-10-20-r144-closeout.md",
       "integration_commit": "0c540791a"
+    },
+    {
+      "id": "R145",
+      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+      "result": "RESULT_2_FIRST_UNPINNED_SYNTAX_ADMISSION; no accepted-source history, merge/raw-slot/consumer, falsifier or defect established. R70/R71 and higher gates OPEN.",
+      "contract": "tasks/agent-loop/sprints/source-lineage-trace-20261020-r145-rev1.md",
+      "contract_sha256": "728e5884f1750eac69d4d2c3359084afceea313012391fc2f320e3990aef952e",
+      "theory": "notes/theory/2026-10-20-r145-source-lineage-trace.md",
+      "theory_sha256": "3727a97d81c165c8682f99ecaaf639425bfde8771ac4d5e7adb5f98b15b24829",
+      "handoff": "tasks/agent-loop/inbox/20261020-r145-proof.md",
+      "handoff_sha256": "6762d499c608f3b5c99ca8edadf95cb3172f22f9e31d69549c1c94b028940f89",
+      "closeout": "notes/progress/2026-10-20-r145-closeout.md",
+      "reviews": "prospective spec CLEAN; prospective compiler/source CLEAN; final compiler/source CLEAN",
+      "resources": "1800/1800 charged conservatively; zero Astra; no carryover"
     }
   ],
   "review_receipts": "R144 and migration review receipts in closeouts; migration diff CLEAN, exact range and scope archived. R145 proposed, not active."
