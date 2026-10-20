@@ -1,7 +1,7 @@
 # Sprint R142 candidate — replay child completion ownership
 
-Status: **CANDIDATE; no source or theory lease/resources granted yet.**
-Revision 1. Branch `research/simple-sub-intrusion`; baseline
+Status: **FROZEN REVISION 2; prospective delta review pending.**
+Revision 2, sequential to the frozen R142 rev1 partial result. Branch `research/simple-sub-intrusion`; baseline
 `503e5c78ce67a4616044ce981030e5e1bda5223c`. Luna is primary, sole authority
 owner and Git integrator. The candidate follows dispatcher selection at the
 R141 sprint boundary.
@@ -42,6 +42,20 @@ Inspect the actual owners, not an imagined queue protocol:
   return publication, transaction commit/rollback.
 - `candidate_intrusion.rs`: settlement, generation/currentness and retained
   lifecycle effects that can delay or redirect a replay child.
+- `candidate_scheme.rs`: `execute_candidate_graph_plan`, Local routing,
+  transaction boundary, and retained Local restoration/resume callers. This
+  closes the producer-identified caller path beyond the operation protocol.
+- `candidate_source.rs`: source schedule dispatch of `Action::Local` into
+  `route_candidate_local`, needed to establish the Local caller as a real
+  source-driven route.
+- Reuse the already-pinned `lib.rs` owner for consuming inference-session
+  execution, error propagation, rollback, and workspace restoration. The
+  caller-closure map is therefore:
+  `candidate_source::Action::Local` → `candidate_scheme::route_candidate_local`
+  → `finish_route_transaction_with_candidate_accounting` /
+  `rollback_route_transaction` → `lib.rs::execute_scc_plan` and the consuming
+  session runner. Any further required owner is a stop condition; do not import
+  it under this revision.
 
 State and prove a conservation relation over operation lifetime plus child
 index. Keep distinct: child construction, queue transfer, active drain owner,
@@ -95,13 +109,18 @@ Simple-sub, inference/evaluator or production.
 
 ## Resources and stop conditions
 
-Hard cap: **1,800 active seconds**, no carryover, zero Astra. Allocate once:
-preparation and direct pin validation 120; prospective reviews 120; constructive
-proof 900; Luna complementary constructor/control-flow audit 240; final reviews
-240; closeout 180. Unknown elapsed time is charged at the full reservation for
-its lane; no reset or automatic renewal. Preserve two review slots and all
-three legacy UNKNOWN assignments, the board quarantine and held R104 lease.
-No producer child starts before prospective reviews and Luna activation.
+Hard cap: **1,800 active seconds**, no carryover, zero Astra. Rev1 charged 120
+preparation, 120 prospective review, and 300 proof seconds (540 total); preserve
+the frozen partial result and its exact hashes. Reallocate the remaining 1,260
+seconds once: prospective delta reviews 120 (two independent 60-second slots),
+resumed proof 540, Luna complementary constructor/control-flow audit 180, final
+reviews 240 (two independent 120-second slots), and closeout 180. Aggregate
+proof allocation is 840 seconds including rev1's 300 charged seconds. This
+revision transfers 60 seconds from remaining proof and 60 from complementary
+audit into prospective delta review. No renewal, carryover, or implicit use of
+final-review/closeout reserves. Preserve all three legacy UNKNOWN assignments,
+the board quarantine and held R104 lease. No producer resumes before both
+prospective delta reviews are CLEAN and Luna reactivates the exact revision.
 
 Stop on a counterexample needing code/semantic authority, dependency drift,
 missing or unowned constructor state, inability to distinguish child rights,
@@ -126,8 +145,30 @@ c75bf47b3d0d87e99d4365a587e6b90d5d05d05c335db16880cb2943b8b25985  crates/yu-solv
 8a1f531be9fb5e5f160bf4f75c6eb98bbc35ce0a30acaf06424c531840504ba4  crates/yu-solver/src/candidate_intrusion.rs
 6112343b4014c67dcb7d814a46412b3af3e1d12183924e891df4817a59f58da0  crates/yu-solver/src/candidate_effect.rs
 fc0d948d884a406746066f3df8db257d5c6686505166b330bef839a9b9e2f35d  crates/yu-solver/src/candidate_extrusion.rs
+2e64dc8781189b4da21c30f4d1b3208aaef48ca247cae55fb7e77e68b5857850  crates/yu-solver/src/candidate_scheme.rs
+cbc39315f4243b0bae1db74976cf94282bc94cd28b9eb463699c085f421065f7  crates/yu-solver/src/candidate_source.rs
 ```
 
 All dependencies are pinned to the baseline Git tree and must match live bytes
 before activation and at proof freeze. Any drift requires a sequential contract
 revision and fresh prospective review.
+
+## Sequential revision provenance
+
+Rev1 was activated at commit `01aed0dd9d16c09c6685017ab13a21f3875d59d3`
+with contract SHA-256
+`7ee1760617f295bc85cf892c72f3d7af1704cf0095e9c10c1763b14b36e4eb8f`.
+Its proof producer stopped at `2026-10-20 00:39:22 UTC` after 300/900 proof
+seconds and froze a conditional local conservation result as UNFINISHED/OPEN.
+Frozen rev1 theory and handoff hashes are respectively
+`79feff86667e264fabbe1a5f1b13f80cc7506f53555fd99738e88553d9a0d721` and
+`c797dd725db8c9bb97afb14d8f66ce0912a8fe2441ef4ef04466cf57dfecb17c`.
+Full closure stopped at `R142-ERROR-OWNER-1`: actual Local restoration and
+error return ownership required `candidate_scheme.rs`, with
+`candidate_source.rs` added to close the source-dispatch edge. Rev2 preserves
+those partial results without elevating them to parent closure.
+
+The two new direct dependencies are exactly the files and hashes listed above;
+no further source is authorized. Obtain independent prospective compiler/source
+and spec/authority delta reviews of this exact rev2 contract SHA and complete
+pin set before resuming the proof.
