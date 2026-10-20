@@ -1,6 +1,6 @@
 # R167 — source-authenticated whole-module execution
 
-Status: proposed contract, no R167 lease or code change yet. Fixed parent goal remains the user's complete request: proof-backed Yulang type inference/evaluator implementation, frequent primary-owned commits/pushes, and broad execution of unchanged Yulang2 Web samples in this repository. Do not redefine success around this one runtime entrypoint. No Yulang2 binary/sample execution is authorized.
+Status: proposed contract revision 2, no R167 lease or code change yet. Revision 1 was preserved in commit `148666e52`; its independent prospective review found that proof and implementation shared one writable evidence path. Revision 2 assigns distinct evidence paths. Fixed parent goal remains the user's complete request: proof-backed Yulang type inference/evaluator implementation, frequent primary-owned commits/pushes, and broad execution of unchanged Yulang2 Web samples in this repository. Do not redefine success around this one runtime entrypoint. No Yulang2 binary/sample execution is authorized.
 
 ## Outcome and authority
 
@@ -27,7 +27,7 @@ Before activation, Luna rechecks all pins and exact current leases. R166 ordinar
 
 Producer: `/root/r165_native_admission_proof`, after fresh launch and exact lease. Outputs:
 
-- `notes/theory/2026-10-20-r167-module-schedule-completion.md`
+- `notes/theory/2026-10-20-r167-module-schedule-proof.md`
 - `tasks/agent-loop/inbox/20261020-r167-module-proof.md`
 
 Establish the source-owned classification law for each actually admitted top-level binding form, then prove the runtime schedule includes every source-required computation definition and every direct expression root exactly once in source order. Preserve lazy value materialization. Inspect `Case` explicitly and distinguish retained syntax from a source-authorized computation classification. A runtime instruction shape or `HirBinding::evaluation_class` for generalization is not automatically the schedule law. Follow original source occurrence identity through `HirItem`/`LocalSource` to `ExecutionRoot`.
@@ -47,7 +47,7 @@ Owner: Luna primary. Proposed exact code leases:
 
 Evidence outputs:
 
-- `notes/theory/2026-10-20-r167-module-schedule-completion.md`
+- `notes/theory/2026-10-20-r167-module-runtime-simulation.md`
 - `tasks/agent-loop/inbox/20261020-r167-module-implementation.md`
 
 Implementation is conditional on proof-lane support and fresh independent prospective review. Construct the whole-module entrypoint against the reviewed complete schedule; do not require or synthesize a selected `DefId`. Preserve the selected-definition API and its execution/continuation-owner behavior. At schedule exhaustion return a module-level completion representation distinct from a source-bearing `RuntimeValue`; never fabricate a `SourceSite`, Lambda, binding or DefId. Keep value definitions lazy and cached; keep computation roots and direct expressions in their authenticated source order.
