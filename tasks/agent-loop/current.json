@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev3.md",
     "revision": 3,
     "contract_sha256": "3b6c24726ac4fe51b96d605d8a260d4a02023e009b244178f528f148ccd8171b",
-    "state": "CANDIDATE_REV3_PROSPECTIVE_SPEC_REVIEW",
+    "state": "CANDIDATE_REV3_PROSPECTIVE_COMPILER_REVIEW",
     "baseline": "f6e59e42bcfcfb3c13a0c511c63bcf9d0390005d",
     "authority": "Read-only review of sequential rev3 only. No process/build/CLI/proof/code authority before fresh rev3 spec/compiler reviews, activation pins, exact leases and explicit Luna activation.",
     "dependencies": {
@@ -28,7 +28,7 @@
       "reservation_state": "Candidate rev3 only; 420s charged conservatively (prep 180 + rev1 review window 120 + rev2 review window 120). Remaining prospective round 120 plus proof600, observation120, final240, closeout180, headroom120 reserved; no process authorized."
     },
     "parent_status": "R70/R71 OPEN; higher Simple-sub A/B, source/native correspondence, evaluator/sample compatibility and production gates remain OPEN.",
-    "next_boundary": "Prospective spec review for exact rev3 SHA, then sequential prospective compiler/source review. Candidate inactive.",
+    "next_boundary": "Sequential prospective compiler/source review result for exact rev3 SHA. Candidate inactive.",
     "proof_result": "NOT_STARTED; candidate inactive.",
     "proof_outputs": {
       "theory": "notes/theory/2026-10-20-r146-source-admission.md",
@@ -36,7 +36,15 @@
       "observation": "notes/progress/2026-10-20-r146-admission-observation.txt"
     },
     "closeout": "notes/progress/2026-10-20-r146-closeout.md",
-    "prospective_reviews": [],
+    "prospective_reviews": [
+      {
+        "reviewer": "/root/r146_rev3_pre_spec",
+        "role": "spec_auditor",
+        "result": "CLEAN",
+        "scope": "Exact R146 rev3 candidate SHA-256 3b6c24726ac4fe51b96d605d8a260d4a02023e009b244178f528f148ccd8171b",
+        "receipt": "Rev2 deadline finding closed: TERM by 115s, bounded grace inside 120s, KILL at deadline; reaping outside child execution. Allocation sums exactly 1800. Parent claims and gates preserved. 19 live pins checked; baseline parity primary-supplied."
+      }
+    ],
     "final_reviews": [],
     "primary_complementary_result": "NO_SAFE_CODE_SLICE; no process or source edit authorized at candidate review.",
     "revision_history": [
@@ -105,13 +113,24 @@
     {
       "id": "/root/r146_rev3_pre_spec",
       "role": "R146 rev3 prospective exact-conformance reviewer",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-20-r146-rev3-review",
       "requested_model": "spec_auditor default Sol/low",
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Fresh isolated read-only review launched for exact rev3 SHA; no Git/writes/tests/builds/CLI."
+      "receipt": "CLEAN prospective spec/authority review for exact rev3 SHA 3b6c24726ac4fe51b96d605d8a260d4a02023e009b244178f528f148ccd8171b. 19 live pins verified; full receipt in active_sprint.prospective_reviews."
+    },
+    {
+      "id": "/root/r146_rev3_pre_compiler",
+      "role": "R146 rev3 prospective compiler/source reviewer",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-20-r146-rev3-review",
+      "requested_model": "compiler_referee default Sol/medium",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Fresh read-only prospective review launched for exact rev3 SHA after CLEAN spec review; no Git/writes/tests/build/CLI."
     }
   ],
   "leases": [
@@ -236,7 +255,7 @@
     }
   ],
   "closure": "R145 CLOSED_UNFINISHED_REVIEWED_RESEARCH: first unpinned syntax-admission premise. Final compiler/source review CLEAN. See notes/progress/2026-10-20-r145-closeout.md. Parent R70/R71 and higher claims remain OPEN.",
-  "next_action": "R146 rev3 candidate frozen after rev2 timing contradiction; fresh prospective spec review running. 19/19 pins and code-tree parity revalidated; no command run.",
+  "next_action": "R146 rev3 prospective compiler/source review running; candidate remains inactive.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
