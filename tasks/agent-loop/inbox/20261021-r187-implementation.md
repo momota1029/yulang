@@ -18,3 +18,7 @@ Changed paths:
 Previously: isolated `cargo check -p yu-solver` passed; isolated `cargo test -p yu-syntax if_` passed 31/31. After user resource direction, no additional builds/tests/execution were run. Scratch `target` cleanup: `cargo clean` removed 1236 files / 1.3 GiB. HIR, CLI, runtime, Web and end-to-end verification remain incomplete. New HIR case is unexecuted.
 
 Next: fresh static review of this repair, preserving execution stop and existing leases. Parent theorem/A/B/source-native/production gates remain OPEN.
+
+## Repair review receipt
+
+Fresh static review of commit `58af75437808e1a53de001c5fe17d10e7cbb9b3a` returned CLEAN. It confirms valid terminal newline/semicolon separators are accepted after nonempty sequences while empty, leading/repeated separators, adjacent statements, malformed child shapes, and recovery-bearing bodies remain rejected. This review performed no execution. The HIR regression for explicit `;` and all runtime/CLI/Web checks remain unexecuted under the user's resource direction.
