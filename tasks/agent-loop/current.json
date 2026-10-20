@@ -8,25 +8,28 @@
     "contract": "tasks/agent-loop/sprints/action31-certified-cut-20261020-r140-rev2.md",
     "revision": 2,
     "contract_sha256": "7b59e9b448ed7e03859ab1777652ae4d8efacc001a363305ea654698a9243bb9",
-    "state": "ACTIVE_PROOF_RUNNING",
+    "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
     "baseline": "7a584032e",
     "authority": "unchanged action31 certified-cut research only; no semantic, compiler, test, or parent-gate promotion",
     "resources": {
       "cap_seconds": 1500,
       "reserved_seconds": 1500,
       "astra_seconds": 0,
-      "proof_seconds": 780,
-      "primary_audit_seconds": 120,
-      "review_seconds": 300,
-      "closeout_seconds": 180,
-      "prep_review_pin_reservations_seconds": 120,
-      "spent_prior": "0 inherited; R138/R73 budgets do not carry over"
+      "proof_charged_seconds": 690,
+      "proof_released_seconds": 90,
+      "prep_pin_validation_charged_seconds": 120,
+      "primary_audit_charged_seconds": 120,
+      "final_review_charged_seconds": 300,
+      "closeout_charged_seconds": 180,
+      "total_charged_seconds": 1410
     },
-    "review_status": "Prospective spec/compiler reviews CLEAN, including activation amendment. Complete inherited 39/39 pin manifest and lib.rs/shadow_apply pins match baseline and live tree.",
-    "implementation_status": "NO_SAFE_CODE_SLICE from R138; no compiler edits authorized absent a concrete approved-behavior defect.",
-    "proof_assignment": "/root/r140_action31_proof RUNNING; requested Sol/high; observed model/effort UNKNOWN; exact leases are theory note and proof inbox; 780s cap.",
+    "review_status": "CLEAN final compiler/source and spec/authority reviews, strictly for conditional unfinished candidate.",
+    "implementation_status": "NO_SAFE_CODE_SLICE; no code changes authorized or made.",
+    "proof_assignment": "FROZEN rev1 STOPPED 2026-10-20 00:02:44 UTC; 690/780s charged, 90 released; model/effort UNKNOWN; zero descendants.",
     "parent_status": "Original computation-forwarding theorem, R72/R73, Simple-sub A/B, inference/evaluator, source-native and production gates remain OPEN.",
-    "next_action": "Sweep-aware cut: retain the ordered bound_keys prefix read by each pre-generation canonicalization; trace transports/attachments/interner/replay-head effects, and frame only entries proven state-preserving. Continue both action31 Lambda replay families; report UNFINISHED/OPEN if closure exceeds cap."
+    "next_action": "R141 proposal: obtain exact fixed-source native action25/action31 observation plus constructor mapping proof under fresh observer contract. R135 remains pending for further Y2 success examples.",
+    "closure": "R140 CLOSED_UNFINISHED_REVIEWED_RESEARCH. Action31 certified cut, complete action25 state, both actual pop schedules, union frame and parent gates remain OPEN.",
+    "closeout": "notes/progress/2026-10-20-r140-closeout.md; SHA-256 4f9a383eae3f2836c24874e4bba8e9cef234774a316176c40946d6acecc3eb75"
   },
   "workers": [
     {
@@ -72,28 +75,6 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Activated R140 after CLEAN prospective spec/compiler review and 39/39 inherited pin validation; proof launched."
-    },
-    {
-      "id": "/root/r139_proof",
-      "role": "constructive finite source-correspondence proof",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-20-r139",
-      "requested_model": "prover",
-      "requested_effort": "per configured role",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Frozen proof rev1; 450/600s charged, 150s released; writes ceased 2026-10-19 23:41:55 UTC; full bridge status in active_sprint."
-    },
-    {
-      "id": "/root/r140_action31_proof",
-      "role": "R140 constructive action31 replay-cut proof",
-      "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r140",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "R140-PROOF actual current-session active acknowledgement received after exact lease acceptance; start approx 2026-10-20 23:51:50 UTC; requested Sol/high, observed model/effort UNKNOWN; no descendants; 780s cap."
     }
   ],
   "leases": [
@@ -106,21 +87,6 @@
     {
       "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
       "owner": "/root",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/action31-certified-cut-20261020-r140-rev2.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-20-r140-action31-certified-cut.md",
-      "owner": "/root/r140_action31_proof",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261020-r140-proof.md",
-      "owner": "/root/r140_action31_proof",
       "state": "HELD"
     }
   ],
@@ -204,7 +170,7 @@
     }
   ],
   "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN.",
-  "next_action": "R140 active: Sweep-aware cut: retain the ordered bound_keys prefix read by each pre-generation canonicalization; trace transports/attachments/interner/replay-head effects, and frame only entries proven state-preserving. R135 remains pending for further unchanged Y2 successful examples.",
+  "next_action": "R141 candidate, not active: exact fixed-source native action25/action31 observation plus source mapping proof under fresh provisional observer contract; R135 remains pending for more unchanged Y2 success examples.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -316,6 +282,15 @@
       "closeout": "notes/progress/2026-10-20-r139-closeout.md",
       "closeout_sha256": "8f5d44953f2968566fddd0e140ebfc5d8b3edb34b79af041c9fa850047bdca4e",
       "verification": "CLI 1/1 PASS; WASM build and smoke PASS; charged full 360s reservation"
+    },
+    {
+      "id": "R140",
+      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+      "closeout": "notes/progress/2026-10-20-r140-closeout.md",
+      "closeout_sha256": "4f9a383eae3f2836c24874e4bba8e9cef234774a316176c40946d6acecc3eb75",
+      "contract": "tasks/agent-loop/sprints/action31-certified-cut-20261020-r140-rev2.md",
+      "proof": "notes/theory/2026-10-20-r140-action31-certified-cut.md",
+      "proof_sha256": "20127b5c3d3e6cc4e88edbd6ead54521fac7e140e0d3332741ded6b6e2d4d685"
     }
   ],
   "review_receipts": "R139 rev2/3/4 spec+compiler/source CLEAN; rev5 final spec+regression/source CLEAN. CLI/Web exact checks pending. R135 decision pending."
