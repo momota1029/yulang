@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/replay-completion-20261020-r142-rev1.md",
     "revision": 2,
     "contract_sha256": "25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd",
-    "state": "FINAL_REVIEW",
+    "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
     "baseline": "503e5c78ce67a4616044ce981030e5e1bda5223c",
     "authority": "read-only constructor-derived replay-child completion ownership proof or authentic counterexample; no implementation or semantic authority; rev2 adds only candidate_scheme.rs and candidate_source.rs for Local error-owner closure",
     "dependencies": {
@@ -34,8 +34,8 @@
     ],
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 1080,
-      "reserved_seconds": 720,
+      "charged_seconds": 1680,
+      "reserved_seconds": 120,
       "astra_seconds": 0,
       "preparation_charged_seconds": 120,
       "prospective_reviews_charged_seconds": 120,
@@ -46,14 +46,18 @@
       "final_reviews_seconds": 240,
       "closeout_seconds": 180,
       "no_carryover": true,
-      "reservation_state": "1080s charged; 720s reserved: 120 proof remainder, 180 complementary audit, 240 final reviews, 180 closeout; no renewal/carryover",
+      "reservation_state": "1680s charged conservatively; 120 unused proof seconds released, no carryover or renewal",
       "proof_assignment_aggregate_seconds": 840,
       "resumed_proof_charged_seconds": 420,
       "resumed_proof_observed_seconds": 329,
-      "proof_aggregate_charged_seconds": 720
+      "proof_aggregate_charged_seconds": 720,
+      "complementary_analysis_charged_seconds": 180,
+      "final_reviews_charged_seconds": 240,
+      "closeout_charged_seconds": 180,
+      "released_unused_proof_seconds": 120
     },
     "parent_status": "R70-DRAIN-1 remains OPEN until proof applies; R70 entry validity/fiber coverage, R71, R72/R73, Simple-sub A/B, inference/evaluator, source-native and production gates remain OPEN.",
-    "next_boundary": "Two independent final reviews of the frozen R142 rev2 snapshot; then Luna adjudicates and closes UNFINISHED/OPEN unless a review requires bounded repair within existing authority (no new dependencies).",
+    "next_boundary": "No continuation activated. Dispatcher recommends a new exact sprint for public-entry consumer progress after product decision R135; all higher gates remain OPEN.",
     "prospective_delta_reviews": [
       {
         "reviewer": "/root/r141_pre_spec",
@@ -75,7 +79,20 @@
       "theory_sha256": "5f1715db8ccef8777f89d9b64e8625efead68974be53beb8f55a84a86a014a2c",
       "handoff": "tasks/agent-loop/inbox/20261020-r142-proof.md",
       "handoff_sha256": "cbaa0c7e79ca9c04b4325b8358ec17664deb51eb4dc620be0c7e242041b44c26"
-    }
+    },
+    "closeout": "notes/progress/2026-10-20-r142-closeout.md",
+    "final_reviews": [
+      {
+        "reviewer": "/root/r141_pre_spec",
+        "result": "CLEAN",
+        "scope": "spec/authority; frozen R142 rev2 snapshot"
+      },
+      {
+        "reviewer": "/root/r141_pre_compiler",
+        "result": "CLEAN",
+        "scope": "compiler/source; frozen R142 rev2 snapshot"
+      }
+    ]
   },
   "workers": [
     {
@@ -231,7 +248,8 @@
     {
       "path": "notes/progress/2026-10-20-r142-closeout.md",
       "owner": "/root",
-      "state": "HELD"
+      "state": "FROZEN",
+      "reason": "Luna-authored closeout receipt; freeze after integration."
     }
   ],
   "pending": [
@@ -306,8 +324,8 @@
       "falsifier": "See frozen gate record."
     }
   ],
-  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN. R141 CLOSED_UNFINISHED_REVIEWED_RESEARCH; no runtime observation, all parent and production gates remain OPEN.",
-  "next_action": "R142 rev2 FINAL_REVIEW: two independent frozen-snapshot reviews pending; proof writer stopped, all parent gates remain OPEN.",
+  "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN. R141 CLOSED_UNFINISHED_REVIEWED_RESEARCH; no runtime observation, all parent and production gates remain OPEN. R142 CLOSED_UNFINISHED_REVIEWED_RESEARCH: finite private caller-path replay completion ownership candidate reviewed CLEAN; R70-DRAIN-1 consumer progress and all parent/source-native/production gates OPEN.",
+  "next_action": "R142 closed reviewed partial research. No successor activated; await/resolve R135 product decision and require a fresh public-entry consumer-progress contract before continuation.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -418,7 +436,13 @@
       "id": "R141",
       "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
       "closeout": "notes/progress/2026-10-20-r141-helper-observation.txt"
+    },
+    {
+      "id": "R142",
+      "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
+      "closeout": "notes/progress/2026-10-20-r142-closeout.md",
+      "integration_commit": "bd23c8e8d"
     }
   ],
-  "review_receipts": "R142 rev1 prospective spec/compiler CLEAN; rev1 proof frozen UNFINISHED/OPEN after 300s. R142 rev2 delta spec/compiler reviews CLEAN on exact contract SHA 25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd; all 15 baseline/live pins match. See R142 handoff/contract. R142 rev2 proof frozen with exact hashes; 15/15 pins; 329s observed resumed work, 420s conservatively charged."
+  "review_receipts": "R142 rev1 prospective spec/compiler CLEAN; rev1 proof frozen UNFINISHED/OPEN after 300s. R142 rev2 delta spec/compiler reviews CLEAN on exact contract SHA 25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd; all 15 baseline/live pins match. See R142 handoff/contract. R142 rev2 proof frozen with exact hashes; 15/15 pins; 329s observed resumed work, 420s conservatively charged. Final R142 rev2 spec/compiler reviews CLEAN on contract/theory/handoff hashes in notes/progress/2026-10-20-r142-closeout.md."
 }
