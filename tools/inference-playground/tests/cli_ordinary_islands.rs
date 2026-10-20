@@ -49,10 +49,19 @@ fn braced_conditional_without_else_still_returns_unit() {
 }
 
 #[test]
-fn braced_sequence_resumes_after_a_handled_operation() {
-    let source = "act signal:\n    our ping: int -> int\nmy main = catch { if true {\n  3\n  signal::ping 7\n  8\n} else {\n  0\n} } { signal::ping(payload), resume -> resume 9 }\n";
+fn braced_sequence_preserves_a_middle_operation_effect() {
+    let source = "act signal:\n    our ping: int -> int\nmy main = catch { if true {\n  signal::ping 7\n  8\n} else {\n  0\n} } { signal::ping(payload), _ -> 17 }\n";
     let output = run(source, "main");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    assert_eq!(output.stdout, b"8\n");
+    assert_eq!(output.stdout, b"17\n");
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn braced_sequence_resumes_once_and_reaches_the_suffix() {
+    let source = "act signal:\n    our ping: int -> int\n    our pong: int -> int\nmy main = catch { if true {\n  signal::ping 7\n  signal::pong 8\n  3\n} else {\n  0\n} } { signal::ping(payload), resume -> resume 9, signal::pong(payload), _ -> 17 }\n";
+    let output = run(source, "main");
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"17\n");
     assert!(output.stderr.is_empty());
 }

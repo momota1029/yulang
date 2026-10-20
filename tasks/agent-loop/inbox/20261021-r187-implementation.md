@@ -18,3 +18,5 @@ Prospective review returned CLEAN for the exact one-option `web/playground/index
 ## Final Web route review and cleanup
 
 Static regression audit of `d9325b0f8` returned CLEAN for the option -> handler -> map -> unchanged fixture -> `countdown_result` chain. Its explicit limitation: smoke imports the fixture directly and does not exercise HTML selection/browser interaction. No browser/build/test execution occurred. After the review, the entire Luna-owned `/tmp/yulang-r187-validation-r7` tree was deleted; prior `cargo clean` had removed 1236 files / 1.3 GiB from its `target`. No claim about other temporary trees or workspaces.
+
+The CLI regression definitions now separate two falsifiers: a middle operation that must reach its handler rather than return the following value, and a resumed `ping` whose continuation must reach a later `pong` handler exactly once. These definitions were not executed under the user resource STOP.
