@@ -11,15 +11,15 @@
     "baseline": "ef15618375343b5bfef0ba4aa3a7fbfbe5606d74",
     "resources": {
       "cap_seconds": 6000,
-      "charged_seconds": 950,
-      "reserved_seconds": 5050,
+      "charged_seconds": 1430,
+      "reserved_seconds": 4570,
       "no_carryover": true,
-      "allocation": "prep 240 charged; design lane capped/closed at 600; initial contract review 110 charged (10 expires unused); proof 1200; conditional code 2400 currently blocked; focused checks 600 blocked; remaining proof/final reviews 480; closeout 360; no borrowing/carryover."
+      "allocation": "charged: prep240, design600, review110, proof~480 =1430; proof <=720 left; proof review180, closeout360; code2400/checks600/final review300 blocked; unused10 review s; no borrow/carryover."
     },
-    "proof": "R185-POSITIVE-N-EMISSION-1 active Sol/high, max 1200s. Candidate nested forwarding provider F(t:[S]int)={R(u:[S]int)=F u; R t} gives recursive F→R→F positive-n path; no finite terminal Name yet, so not a parent counterexample. Exact action/terminal analysis in progress.",
+    "proof": "Sol proof ~480/1200s, model/effort UNKNOWN. Candidate route: Froot(1)≤callee(2); slot0 D replay positively copies R Name n(2) to target1 and negatively copies invocation c(2), qualifying R↔F. Before R Lambda/Capture: slot2 c(shared1)≤q(local2), Lambda4 q≤Rret(local2), owned by q. Next shallow Catch/direct-Name K terminal; test whether Capture closure recovers missing q/Rret. Candidate only, no parent refutation.",
     "implementation": "Contract rev1 MAJOR; rev2 note 4e59c25947f3e3ea5acc746ca3e4483f7c4225028f93ad9ec54db3035c2117d9 / handoff d4ad8e9bfbe15a49d99de7759b20e6d99f7a768774b03f254d5350cd733fb3dd adds universal coverage. UNREVIEWED; code blocked.",
     "review_receipt": "MAJOR /root/r186_contract_review, ~110/120s charged: selected-child wording underspecified; pinned primitive certificate universal across all constructed definitions/arms/dependencies including unused. Revision 2 corrects wording but is not independently reviewed and has no code authority.",
-    "next_action": "Continue the already-launched proof lane within its 1200s cap; then use reserved 180s independent proof review. Corrected implementation contract remains UNREVIEWED and code is stopped."
+    "next_action": "Continue existing proof within <=720s, freeze result, then use 180s review. Contract rev2 UNREVIEWED; code stopped."
   },
   "workers": [
     {
@@ -125,7 +125,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Launch acknowledged; active proof progress reports nested recursive forwarding-provider candidate; exact action/terminal analysis ongoing; model/effort observed UNKNOWN."
+      "receipt": "Approx 20:48 UTC; ~480/1200s charged; model/effort UNKNOWN. Route and next Catch/Name audit recorded in active proof summary."
     },
     {
       "id": "/root/r186_contract_review",
