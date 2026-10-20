@@ -14,12 +14,12 @@
       "charged_seconds": 1430,
       "reserved_seconds": 4570,
       "no_carryover": true,
-      "allocation": "charged: prep240, design600, review110, proof~480 =1430; proof <=720 left; proof review180, closeout360; code2400/checks600/final review300 blocked; unused10 review s; no borrow/carryover."
+      "allocation": "charged: prep240+design600+review110+proof~480=1430; proof <=720 left; proof review180, closeout360; code2400/checks600/final review300 blocked; unused review10; no borrow."
     },
-    "proof": "Sol proof ~480/1200s, model/effort UNKNOWN. Candidate route: Froot(1)≤callee(2); slot0 D replay positively copies R Name n(2) to target1 and negatively copies invocation c(2), qualifying R↔F. Before R Lambda/Capture: slot2 c(shared1)≤q(local2), Lambda4 q≤Rret(local2), owned by q. Next shallow Catch/direct-Name K terminal; test whether Capture closure recovers missing q/Rret. Candidate only, no parent refutation.",
+    "proof": "Sol proof ~480/1200s, model/effort UNKNOWN. D_F negative extrusion copies Parameter(u) and AE n_u positively to level1. The merge lowers both; R Lambda return uses Value(u), making Rret shared at level1. R Capture therefore restores the same-provider body path through c_F/q to Rret. Exact nested source/finite K trace active; broader wrappers OPEN.",
     "implementation": "Contract rev1 MAJOR; rev2 note 4e59c25947f3e3ea5acc746ca3e4483f7c4225028f93ad9ec54db3035c2117d9 / handoff d4ad8e9bfbe15a49d99de7759b20e6d99f7a768774b03f254d5350cd733fb3dd adds universal coverage. UNREVIEWED; code blocked.",
     "review_receipt": "MAJOR /root/r186_contract_review, ~110/120s charged: selected-child wording underspecified; pinned primitive certificate universal across all constructed definitions/arms/dependencies including unused. Revision 2 corrects wording but is not independently reviewed and has no code authority.",
-    "next_action": "Continue existing proof within <=720s, freeze result, then use 180s review. Contract rev2 UNREVIEWED; code stopped."
+    "next_action": "Complete exact nested source and finite-terminal K trace within <=720s, freeze proof outcome, then use 180s independent review. Contract rev2 UNREVIEWED; code stopped."
   },
   "workers": [
     {
@@ -125,7 +125,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Approx 20:48 UTC; ~480/1200s charged; model/effort UNKNOWN. Route and next Catch/Name audit recorded in active proof summary."
+      "receipt": "~480/1200s; Value and AE both lower to1, Rret shared, Capture restores same-provider path; exact finite-K trace active. Model/effort UNKNOWN."
     },
     {
       "id": "/root/r186_contract_review",
