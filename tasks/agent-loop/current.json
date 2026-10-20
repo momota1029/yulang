@@ -1,1 +1,336 @@
-{"schema_version":1,"mode":"LIVE","phase":"PROSPECTIVE_REVIEW","session":"current-conversation-2026-10-20-r156","active_sprint":{"id":"yulang2-types-console-loaded-registration-witness-20261020-r161","contract":"tasks/agent-loop/sprints/yulang2-types-console-loaded-registration-witness-20261020-r161.md","revision":1,"contract_sha256":"cfb55ae78f9acc8ac103f5f9505735eb1ba83cca4625094ec6603397517fabb1","state":"PROSPECTIVE_REVIEW","baseline":"85586bb7343b41f286f34b937f2d8e99e8629ced","authority":"Exact input/invocation preparation only; build/captures require separate explicit user authorization and Luna execution grant.","resources":{"cap_seconds":1200,"charged_seconds":120,"reserved_seconds":1080,"astra_seconds":0,"no_carryover":true,"resource_revision":1},"parent_status":"Simple-sub/evaluator A/B, R70/R71, source/native correspondence, sample identity and production remain OPEN.","next_boundary":"Independent prospective review of exact inputs, 40-file manifest, command/cache/output paths, and execution boundary."},"workers":[{"id":"/root/resident_dispatcher_loop_a","role":"legacy dispatcher; historical runtime unavailable","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Legacy identity UNKNOWN; board lease quarantined."},{"id":"/root/resident_implementer_idle","role":"legacy implementation worker; historical runtime unavailable","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Legacy identity UNKNOWN; slot reserved."},{"id":"/root/runtime_source_supplier_proof","role":"legacy proof worker; historical runtime unavailable","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Legacy identity UNKNOWN; no successor lease."}],"leases":[{"path":"tasks/agent-loop/board.md","owner":"/root/resident_dispatcher_loop_a","state":"QUARANTINED","reason":"Historical writer identity UNKNOWN; no cessation/handoff for board.md."},{"path":"tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/yulang2-types-console-20261020-r150-rev2.md","owner":"Luna","state":"HELD","reason":"Corre..."},{"path":"notes/theory/2026-10-20-types-console-initializer-certificate-r152-rev2.md","owner":"Luna","state":"HELD","reason":"Separ..."},{"path":"tasks/agent-loop/inbox/20261020-types-console-initializer-certificate-r152-rev2.md","owner":"Luna","state":"HELD","reason":"Separ..."},{"path":"notes/theory/2026-10-20-types-console-declaration-census-r2.md","owner":"Luna","state":"HELD","reason":"Luna ..."},{"path":"tasks/agent-loop/inbox/20261020-types-console-declaration-census-r2.md","owner":"Luna","state":"HELD","reason":"Luna ..."},{"path":"tasks/agent-loop/sprints/yulang2-types-console-loaded-registration-witness-20261020-r161.md","owner":"Luna","state":"HELD","reason":"R161 exact invocation packet frozen for prospective review; no build/capture grant."},{"path":"tasks/agent-loop/inbox/20261020-types-console-loaded-registration-witness.md","owner":"Luna","state":"HELD","reason":"R161 exact invocation packet frozen for prospective review; no build/capture grant."}],"pending":[{"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna; original whole-ascription formation obligation","details":"tasks/agent-loop/inbox/20261019-r61-proof.md","falsifier":"See frozen gate record."},{"id":"R64-SRC-ANN-ARG-1","state":"OPEN","owner":"Luna; downstream of the current operand supplier","details":"tasks/agent-loop/inbox/20261019-r64-proof.md","falsifier":"See frozen gate record."},{"id":"R65-CURRENT-OPERAND-1","state":"OPEN","owner":"Luna; original ordinary typed Lambda operand supplier","details":"tasks/agent-loop/inbox/20261019-r65-proof.md","falsifier":"See frozen gate record."},{"id":"R66-LAMBDA-RESULT-STAGE-1","state":"OPEN","owner":"Luna; direct Lambda-checking follow-up under R67","details":"tasks/agent-loop/inbox/20261019-r66-proof.md","falsifier":"See frozen gate record."},{"id":"R67-DIRECT-BODY-CHECK-1","state":"OPEN","owner":"Luna; source Lambda checking/body-consumer premise","details":"notes/theory/2026-10-19-r67-direct-lambda-checking.md","falsifier":"See frozen gate record."},{"id":"R68-OWNER-CONSUMER-1","state":"OPEN","owner":"Luna; authentic retained body/result-consumer source owner","details":"tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md","falsifier":"See frozen gate record."},{"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1","state":"OPEN_UNADOPTED_PROPOSAL","owner":"Luna; source-law completion","details":"tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md","falsifier":"See frozen gate record."},{"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1","state":"OPEN","owner":"Luna; exact source/native owners assigned within R70","details":"tasks/agent-loop/inbox/20261019-r70-proof.md","falsifier":"See frozen gate record."},{"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1","state":"OPEN","owner":"Luna; exact source/native owners assigned within R71","details":"tasks/agent-loop/inbox/20261019-r71-proof.md","falsifier":"See frozen gate record."},{"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage","details":"notes/theory/2026-10-19-r72-third-owner-prefix.md","falsifier":"See frozen gate record."},{"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"STOPPED_UNFROZEN_RESULT","owner":"Luna intake","details":"Worker interrupted 10:44:04Z; no artifact files. Its message preserved verbatim as provisional lead in primary inbox; no remainder from 300s grant."},{"id":"R149-PRIMARY-SOURCE-CHECKPOINT-1","state":"REVIEWED_WITH_FINDINGS","owner":"Luna primary","details":"Rev9 artifact hashes 6c5885c4f963071424a01070f6e92c197bd93bbdeef004667eac561a5fe16e17; inbox 72d2c97c00ceb688be6f4a3fbafa1f5ea4661b8c72b9ae68a5a3955d1b1efe3e. Major: initializer EvalInstance host request may fail before host resolver. Minors: correct tail.rs locator to lowering/expr/tail.rs; add rev9 contract hash."},{"id":"R149-PRIMARY-SOURCE-CHECKPOINT-REV2","state":"CLEAN_REVIEWED","owner":"/root/r149_primary_checkpoint_review (fresh review turn)","details":"Rev10 rev2 CLEAN independent delta review. Note SHA256 0ce7e3127519e6a17aeb1f2f6d25b24490fbca4ea3644efaf7e1ea8a7b3420c0; inbox SHA256 5d786082cabf7b2ce0f9c463eba13c9b1dc9f0cc1ee8e1f8e9d51a4bb03b2ea4. Remaining initializer/order/role/sample-effect premises OPEN."}],"closure":"R160 CLOSED_UNFINISHED_RESEARCH; R161 exact sample witness packet prepared, execution not authorized.","next_action":"Independent R161 packet review; after CLEAN, request explicit user authorization for the frozen build and two captures.","legacy_reconciliation":{"required":false,"reason":"Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.","source_blob":"c066b622b38c2d79319da14e9fe17c15c8aa4b8d"},"state_audit":{"reviewer":"/root/migration_gate_review","result":"CLEAN frozen migration snapshot; receipt in notes/progress/2026-10-20-sprint-adoption-reconciliation.md.","open_minors":["R145 proposal exact pins/reviews/activation."]},"user_goal":"Proof-backed Yulang inference/evaluator breadth; broaden unchanged Yulang2 sample execution with source correspondence and bounded proofs. Preserve Simple-sub/evaluator A/B claims, quantifiers, adoption gates and honest OPEN statuses. Luna alone integrates and pushes reviewed checkpoints.","history":[{"id":"yulang2-types-console-registration-observer-20261020-r158","state":"CLOSED_UNFINISHED_RESEARCH","contract":"tasks/agent-loop/sprints/yulang2-types-console-registration-observer-20261020-r158.md","contract_sha256":"b066175cf541311b48aa76116f870adc1a34e492db4cd5f7fc348500985f8616","result":"Closed NOT CLEAN at 960s; frozen R158 candidate has one blocking + three major findings and path-coverage concern; no execution.","revision":3,"packet":"tasks/agent-loop/inbox/20261020-r158-observer-implementation-packet.md","packet_sha256":"10b0dafdafd9b720992e272bdf7e6498e00d2a0a316959c58c5d6d3ebc167487","resources":{"cap_seconds":960,"charged_seconds":600,"reserved_seconds":240,"astra_seconds":0,"no_carryover":true,"resource_revision":3},"code_review":"notes/progress/2026-10-20-r158-code-review.md","code_review_sha256":"139e15dc001c5cf85dc83db878640a529ec10bbf20d25bdd592d9c6828b1dc07","closeout":"notes/progress/2026-10-20-r158-closeout.md","closeout_sha256":"2153b443f2e012b6bfaf2734dce5f89de5d43bbf8851eaa77bde9a05742b6b54"},{"id":"yulang2-types-console-registration-observer-20261020-r159","state":"CLOSED_UNFINISHED_RESEARCH","contract":"tasks/agent-loop/sprints/yulang2-types-console-registration-observer-20261020-r159.md","revision":1,"contract_sha256":"27ec569909a6058cfd95532cf39e15fd19c0d2b17cdc6be602de63b168ec844e","packet":"tasks/agent-loop/inbox/20261020-r159-observer-correction.md","packet_sha256":"95000d22d17e4b2d5403a2f20fe4be20b75719136c65e7345fb03f3e366b0515","result":"960s charged; exactly 3 paths confirmed; two type blockers and anonymous join overclaim remain; no execution.","resources":{"cap_seconds":960,"charged_seconds":660,"reserved_seconds":300,"astra_seconds":0,"no_carryover":true,"resource_revision":3},"candidate_hashes":{"sources":"4b1d110923f0d1e885fbdbbb98c16e8ea7e7a0d68093a5c93b277c1733cdd1c9","module_map":"3e545e6f1412fde1287e9a916314995d42f730bf018f3a25213ea07757fca2ee","finish":"33f3e33b051a56f9e96aa601ccae0350f0b94d2020067fdf609ee07eba54b891"},"code_review":"notes/progress/2026-10-20-r159-code-review.md","code_review_sha256":"3938c8a2e8cf49242a121010742cb1ca5348997434b6968fd41192d69062ab1e","closeout":"notes/progress/2026-10-20-r159-closeout.md","closeout_sha256":"459de28906925c1f16fa5a306c4c1adca9e33e64c6da1640d855e74466850499"},{"id":"yulang2-types-console-registration-observer-20261020-r160","state":"CLOSED_UNFINISHED_RESEARCH","contract":"tasks/agent-loop/sprints/yulang2-types-console-registration-observer-20261020-r160.md","contract_sha256":"3901728bb019ddec1a1641014ce7884fbadd036597e741fcdc9e6f0f83959553","packet":"tasks/agent-loop/inbox/20261020-r160-observer-correction.md","packet_sha256":"c1b3cfdbb2949f37b9787b9ba5fd7edf15afb7a93ed67369ccfdbaaa117d5bb0","result":"960s charged; static observer candidate review CLEAN and exactly three paths; compilation, witness execution, sample identity and all parent gates remain OPEN.","resources":{"cap_seconds":960,"charged_seconds":660,"reserved_seconds":300,"astra_seconds":0,"no_carryover":true,"resource_revision":3},"candidate_hashes":{"sources":"b8e3b93046f09f5b5fa0ec26de84879b1da20719b899c6c2ca784532e2df1c69","module_map":"0b8bddf74564fa754c9cf3df891396d7c1b793d9773f117c292a84223348727f","finish":"33f3e33b051a56f9e96aa601ccae0350f0b94d2020067fdf609ee07eba54b891"},"code_review":"notes/progress/2026-10-20-r160-code-review.md","code_review_sha256":"674544376404a4c7f40124cefccd743e0841eb0ef01621c1999c5975ea983540","closeout":"notes/progress/2026-10-20-r160-closeout.md","closeout_sha256":"0c2927bf1aa7598704948a7a150fc35821a01877ad1e5b73681d8e8559046424"},{"id":"yulang2-types-console-loaded-registration-witness-20261020-r161","state":"PROSPECTIVE_REVIEW","contract":"tasks/agent-loop/sprints/yulang2-types-console-loaded-registration-witness-20261020-r161.md","contract_sha256":"cfb55ae78f9acc8ac103f5f9505735eb1ba83cca4625094ec6603397517fabb1","packet":"tasks/agent-loop/inbox/20261020-types-console-loaded-registration-witness.md","packet_sha256":"2beed15203fac46495611a53ad93b2a025019b2a23e95b3325e7c2fa7abdbe86","result":"120s prep charged; exact sample bytes and 40 source blobs verified/copied; offline Cargo cache/config copied to /tmp; packet review pending, no commands run."}],"review_receipts":"R160 static code/path review CLEAN; R161 inputs/sample hashes and 40-file source closure verified; Cargo scratch copy prepared; no execution."}
+{
+  "schema_version": 1,
+  "mode": "LIVE",
+  "phase": "GOAL_REORIENTATION",
+  "session": "current-conversation-2026-10-20-r156",
+  "active_sprint": {
+    "id": "yulang2-types-phase-diagnostic-20261020-r164",
+    "contract": "tasks/agent-loop/sprints/yulang2-types-phase-diagnostic-20261020-r164.md",
+    "revision": 1,
+    "contract_sha256": "43c18cd9fb85a0d61f5bdde74ee630bd746f7b8f80e1c28af25f45f3bcd23b9e",
+    "state": "CLOSED_UNFINISHED_RESEARCH",
+    "baseline": "a58eefc31e22141574b6f20c6a5748151c6d79f1",
+    "authority": "R164 full 960s grant executed once; diagnostic review CLEAN; source note review CLEAN; source worker STOPPED and frozen.",
+    "resources": {
+      "cap_seconds": 960,
+      "charged_seconds": 960,
+      "reserved_seconds": 0,
+      "astra_seconds": 0,
+      "no_carryover": true,
+      "resource_revision": 3
+    },
+    "parent_status": "Simple-sub/evaluator A/B, source/native correspondence, accepted inference, runtime behavior and production remain OPEN.",
+    "next_boundary": "R164 closed. Existing dispatcher consulted for next bounded route; no new command/worker authority until Luna issues a fresh contract/grant."
+  },
+  "workers": [
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "role": "legacy dispatcher; historical runtime unavailable",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Legacy identity UNKNOWN; board lease quarantined."
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "role": "legacy implementation worker; historical runtime unavailable",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Legacy identity UNKNOWN; slot reserved."
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "role": "legacy proof worker; historical runtime unavailable",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Legacy identity UNKNOWN; no successor lease."
+    },
+    {
+      "id": "/root/r163_source_audit",
+      "role": "read-only R162 loaded-file source audit",
+      "state": "STOPPED",
+      "session": null,
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R164 revision 1 frozen; note SHA256 5b6d08a4c6cfb31877bb09130a8d17ec09957d05a2e7c81401aa7214df6786b4; no descendants/background/generated outputs."
+    }
+  ],
+  "leases": [
+    {
+      "path": "tasks/agent-loop/board.md",
+      "owner": "/root/resident_dispatcher_loop_a",
+      "state": "QUARANTINED",
+      "reason": "Historical writer identity UNKNOWN; no cessation/handoff for board.md."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-types-console-20261020-r150-rev2.md",
+      "owner": "Luna",
+      "state": "HELD",
+      "reason": "Corre..."
+    },
+    {
+      "path": "notes/theory/2026-10-20-types-console-initializer-certificate-r152-rev2.md",
+      "owner": "Luna",
+      "state": "HELD",
+      "reason": "Separ..."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-types-console-initializer-certificate-r152-rev2.md",
+      "owner": "Luna",
+      "state": "HELD",
+      "reason": "Separ..."
+    },
+    {
+      "path": "notes/theory/2026-10-20-types-console-declaration-census-r2.md",
+      "owner": "Luna",
+      "state": "HELD",
+      "reason": "Luna ..."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-types-console-declaration-census-r2.md",
+      "owner": "Luna",
+      "state": "HELD",
+      "reason": "Luna ..."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-types-console-loaded-registration-witness-20261020-r161.md",
+      "owner": "Luna",
+      "state": "FROZEN",
+      "reason": "R161 CLOSED_UNFINISHED_RESEARCH; logs and scratch preserved."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-types-console-loaded-registration-witness.md",
+      "owner": "Luna",
+      "state": "FROZEN",
+      "reason": "R161 CLOSED_UNFINISHED_RESEARCH; logs and scratch preserved."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-types-console-loaded-registration-witness-20261020-r162.md",
+      "owner": "Luna",
+      "state": "FROZEN",
+      "reason": "R162 CLOSED_UNFINISHED_RESEARCH; partial output, logs and scratch preserved."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r162-loaded-witness.md",
+      "owner": "Luna",
+      "state": "FROZEN",
+      "reason": "R162 CLOSED_UNFINISHED_RESEARCH; partial output, logs and scratch preserved."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-types-console-loaded-registration-witness-20261020-r163.md",
+      "owner": "Luna",
+      "state": "FROZEN",
+      "reason": "R163 CLOSED_UNFINISHED_RESEARCH; partial outputs and scratch preserved."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r163-loaded-witness.md",
+      "owner": "Luna",
+      "state": "FROZEN",
+      "reason": "R163 CLOSED_UNFINISHED_RESEARCH; partial outputs and scratch preserved."
+    },
+    {
+      "path": "notes/theory/2026-10-20-r163-r162-loaded-file-audit.md",
+      "owner": "/root/r163_source_audit",
+      "state": "FROZEN",
+      "reason": "R163 source audit independently reviewed CLEAN; bounded source identity result preserved."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-types-phase-diagnostic-20261020-r164.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R164 CLOSED_UNFINISHED_RESEARCH; exact command/output/source evidence preserved."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r164-phase-source-bridge.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R164 CLOSED_UNFINISHED_RESEARCH; exact command/output/source evidence preserved."
+    },
+    {
+      "path": "notes/theory/2026-10-20-r164-phase-source-bridge.md",
+      "owner": "/root/r163_source_audit",
+      "state": "FROZEN",
+      "reason": "R164 source note revision 1 independently reviewed CLEAN; hash preserved."
+    },
+    {
+      "path": "/tmp/yulang2-r164-diagnostic/types.stdout",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Single R164 Types diagnostic status124 at120s; frozen after CLEAN independent review."
+    },
+    {
+      "path": "/tmp/yulang2-r164-diagnostic/types.stderr",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Single R164 Types diagnostic status124 at120s; frozen after CLEAN independent review."
+    },
+    {
+      "path": "/tmp/yulang2-r164-diagnostic/types.status",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Single R164 Types diagnostic status124 at120s; frozen after CLEAN independent review."
+    }
+  ],
+  "pending": [
+    {
+      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+      "state": "OPEN",
+      "owner": "Luna; original whole-ascription formation obligation",
+      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md",
+      "falsifier": "See frozen gate record."
+    },
+    {
+      "id": "R64-SRC-ANN-ARG-1",
+      "state": "OPEN",
+      "owner": "Luna; downstream of the current operand supplier",
+      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md",
+      "falsifier": "See frozen gate record."
+    },
+    {
+      "id": "R65-CURRENT-OPERAND-1",
+      "state": "OPEN",
+      "owner": "Luna; original ordinary typed Lambda operand supplier",
+      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md",
+      "falsifier": "See frozen gate record."
+    },
+    {
+      "id": "R66-LAMBDA-RESULT-STAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; direct Lambda-checking follow-up under R67",
+      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md",
+      "falsifier": "See frozen gate record."
+    },
+    {
+      "id": "R67-DIRECT-BODY-CHECK-1",
+      "state": "OPEN",
+      "owner": "Luna; source Lambda checking/body-consumer premise",
+      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md",
+      "falsifier": "See frozen gate record."
+    },
+    {
+      "id": "R68-OWNER-CONSUMER-1",
+      "state": "OPEN",
+      "owner": "Luna; authentic retained body/result-consumer source owner",
+      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md",
+      "falsifier": "See frozen gate record."
+    },
+    {
+      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+      "state": "OPEN_UNADOPTED_PROPOSAL",
+      "owner": "Luna; source-law completion",
+      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md",
+      "falsifier": "See frozen gate record."
+    },
+    {
+      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+      "state": "OPEN",
+      "owner": "Luna; exact source/native owners assigned within R70",
+      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md",
+      "falsifier": "See frozen gate record."
+    },
+    {
+      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; exact source/native owners assigned within R71",
+      "details": "tasks/agent-loop/inbox/20261019-r71-proof.md",
+      "falsifier": "See frozen gate record."
+    },
+    {
+      "id": "R72-LATER-OCCURRENCE-1",
+      "state": "OPEN",
+      "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
+      "details": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
+      "falsifier": "See frozen gate record."
+    },
+    {
+      "id": "R149-SOURCE-OWNER-CLOSURE-1",
+      "state": "STOPPED_UNFROZEN_RESULT",
+      "owner": "Luna intake",
+      "details": "Worker interrupted 10:44:04Z; no artifact files. Its message preserved verbatim as provisional lead in primary inbox; no remainder from 300s grant."
+    },
+    {
+      "id": "R149-PRIMARY-SOURCE-CHECKPOINT-1",
+      "state": "REVIEWED_WITH_FINDINGS",
+      "owner": "Luna primary",
+      "details": "Rev9 artifact hashes 6c5885c4f963071424a01070f6e92c197bd93bbdeef004667eac561a5fe16e17; inbox 72d2c97c00ceb688be6f4a3fbafa1f5ea4661b8c72b9ae68a5a3955d1b1efe3e. Major: initializer EvalInstance host request may fail before host resolver. Minors: correct tail.rs locator to lowering/expr/tail.rs; add rev9 contract hash."
+    },
+    {
+      "id": "R149-PRIMARY-SOURCE-CHECKPOINT-REV2",
+      "state": "CLEAN_REVIEWED",
+      "owner": "/root/r149_primary_checkpoint_review (fresh review turn)",
+      "details": "Rev10 rev2 CLEAN independent delta review. Note SHA256 0ce7e3127519e6a17aeb1f2f6d25b24490fbca4ea3644efaf7e1ea8a7b3420c0; inbox SHA256 5d786082cabf7b2ce0f9c463eba13c9b1dc9f0cc1ee8e1f8e9d51a4bb03b2ea4. Remaining initializer/order/role/sample-effect premises OPEN."
+    }
+  ],
+  "closure": "R164 CLOSED_UNFINISHED_RESEARCH; 37 file-lowering pairs completed through std::text::config, then std::text::parse start-only at 120s. Independent diagnostic and source-note reviews CLEAN; no cause/nontermination/inference acceptance inferred. R165 diagnostic instrumentation proposal withdrawn before grant; no command or source edit authorized under it.",
+  "next_action": "R165 diagnostic-instrumentation proposal withdrawn before grant at user direction. Continue from approved Yulang3 code owners and open proof gates toward the original inference/evaluator goal; avoid further temporary Yulang2 execution.",
+  "legacy_reconciliation": {
+    "required": false,
+    "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
+    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+  },
+  "state_audit": {
+    "reviewer": "/root/migration_gate_review",
+    "result": "CLEAN frozen migration snapshot; receipt in notes/progress/2026-10-20-sprint-adoption-reconciliation.md.",
+    "open_minors": [
+      "R145 proposal exact pins/reviews/activation."
+    ]
+  },
+  "user_goal": "Proof-backed Yulang inference/evaluator breadth; broaden unchanged Yulang2 sample execution with source correspondence and bounded proofs. Preserve Simple-sub/evaluator A/B claims, quantifiers, adoption gates and honest OPEN statuses. Luna alone integrates and pushes reviewed checkpoints.",
+  "history": [
+    {
+      "id": "yulang2-types-console-loaded-registration-witness-20261020-r163",
+      "state": "CLOSED_UNFINISHED_RESEARCH",
+      "contract": "tasks/agent-loop/sprints/yulang2-types-console-loaded-registration-witness-20261020-r163.md",
+      "contract_sha256": "e3f6db10990b9e791402e186a3f5dbbc2bfff543dca4593baa765309fb0a11e0",
+      "result": "R163 build passed; both static captures timed out at 300s. Each 41-file loaded source/CST set authenticated; independent review CLEAN. Registration prefixes incomplete.",
+      "resources": {
+        "cap_seconds": 1800,
+        "charged_seconds": 1800,
+        "reserved_seconds": 0,
+        "astra_seconds": 0,
+        "no_carryover": true,
+        "resource_revision": 7
+      },
+      "closeout": "notes/progress/2026-10-20-r163-closeout.md",
+      "closeout_sha256": "068d63cfb4b1cb05d5b371dc1ae74daabafb08d239ab96992cdaf9c009095bd4"
+    },
+    {
+      "id": "yulang2-types-phase-diagnostic-20261020-r164",
+      "state": "CLOSED_UNFINISHED_RESEARCH",
+      "contract": "tasks/agent-loop/sprints/yulang2-types-phase-diagnostic-20261020-r164.md",
+      "contract_sha256": "43c18cd9fb85a0d61f5bdde74ee630bd746f7b8f80e1c28af25f45f3bcd23b9e",
+      "packet": "tasks/agent-loop/inbox/20261020-r164-phase-source-bridge.md",
+      "packet_sha256": "70cf22d9f986cca200ff6b72bab321eac967177544c6de149b89e943aeed1eda",
+      "result": "One Types timing invocation status124 at120s: 37 complete file pairs through std::text::config, then std::text::parse start only. Diagnostic evidence CLEAN; conditional source bridge CLEAN. Cause, nontermination, accepted inference, runtime and parent gates OPEN.",
+      "resources": {
+        "cap_seconds": 960,
+        "charged_seconds": 960,
+        "reserved_seconds": 0,
+        "astra_seconds": 0,
+        "no_carryover": true,
+        "resource_revision": 2
+      },
+      "closeout": "notes/progress/2026-10-20-r164-closeout.md",
+      "closeout_sha256": "acff2684b37cac0bff9295412cc4e95ee895aff3d47215381ecbbc79ddd81380"
+    }
+  ],
+  "review_receipts": "R163 CLEAN evidence review; closeout notes/progress/2026-10-20-r163-closeout.md SHA256 068d63cfb4b1cb05d5b371dc1ae74daabafb08d239ab96992cdaf9c009095bd4. R164 prospective CLEAN contract 43c18cd9fb85a0d61f5bdde74ee630bd746f7b8f80e1c28af25f45f3bcd23b9e / packet 70cf22d9f986cca200ff6b72bab321eac967177544c6de149b89e943aeed1eda. R164 diagnostic outputs CLEAN: stdout e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; stderr a2a34cdd325933b27837af2ffe4b6541b8fc2308080a32ce7f8871add74b2f90; status ca2ebdf97d7469496b1f4b78958f9dc8447efdcb623953fee7b6996b762f6fff. 37 file pairs; last marker std::text::parse start only. Source note 5b6d08a4c6cfb31877bb09130a8d17ec09957d05a2e7c81401aa7214df6786b4 independently CLEAN; no causal/nontermination/inference claim."
+}
