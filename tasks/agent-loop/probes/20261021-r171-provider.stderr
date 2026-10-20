@@ -1,0 +1,163 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling ident_case v1.0.1
+   Compiling fnv v1.0.7
+   Compiling strsim v0.11.1
+   Compiling autocfg v1.5.1
+   Compiling seq-macro v0.3.6
+   Compiling copy-range v0.1.1
+   Compiling hashbrown v0.14.5
+   Compiling countme v3.0.1
+   Compiling text-size v1.1.1
+   Compiling rustc-hash v1.1.0
+   Compiling memoffset v0.9.1
+   Compiling rowan v0.15.17
+   Compiling syn v2.0.119
+   Compiling darling_core v0.21.3
+   Compiling darling_macro v0.21.3
+   Compiling darling v0.21.3
+   Compiling reborrow-generic-derive v0.1.1
+   Compiling reborrow-generic v0.1.2
+   Compiling chasa-recover v0.2.0 (/home/momota1029/rust/yulang/crates/chasa-recover)
+   Compiling chasa v0.5.0
+   Compiling yu-syntax v0.1.0 (/home/momota1029/rust/yulang/crates/yu-syntax)
+   Compiling yu-hir v0.1.0 (/home/momota1029/rust/yulang/crates/yu-hir)
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:192:11
+    |
+192 |     Token(SyntaxToken),
+    |     ----- ^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+192 -     Token(SyntaxToken),
+192 +     Token(()),
+    |
+
+warning: field `0` is never read
+   --> crates/yu-hir/src/lib.rs:193:15
+    |
+193 |     Synthetic(Vec<AssociationProvenance>),
+    |     --------- ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |     |
+    |     field in this variant
+    |
+    = note: `AssociationProvenance` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+help: consider changing the field to be of unit type to suppress this warning while preserving the field numbering, or remove the field
+    |
+193 -     Synthetic(Vec<AssociationProvenance>),
+193 +     Synthetic(()),
+    |
+
+warning: struct `AssociatedFieldTailSource` is never constructed
+   --> crates/yu-hir/src/shadow.rs:460:19
+    |
+460 | pub(crate) struct AssociatedFieldTailSource<'a> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `source`, `receiver`, and `receiver_provenance` are never used
+   --> crates/yu-hir/src/shadow.rs:467:19
+    |
+466 | impl<'a> AssociatedFieldTailSource<'a> {
+    | -------------------------------------- methods in this implementation
+467 |     pub(crate) fn source(&self) -> &'a PendingFieldTailSource { self.source }
+    |                   ^^^^^^
+468 |     pub(crate) fn receiver(&self) -> &'a HirExpr { self.receiver }
+    |                   ^^^^^^^^
+469 |     pub(crate) fn receiver_provenance(&self) -> &'a AssociationProvenance { self.receiver_provenance }
+    |                   ^^^^^^^^^^^^^^^^^^^
+
+warning: struct `AssociatedRoleImplSource` is never constructed
+   --> crates/yu-hir/src/shadow.rs:473:19
+    |
+473 | pub(crate) struct AssociatedRoleImplSource<'a> {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: methods `source` and `node` are never used
+   --> crates/yu-hir/src/shadow.rs:479:19
+    |
+478 | impl<'a> AssociatedRoleImplSource<'a> {
+    | ------------------------------------- methods in this implementation
+479 |     pub(crate) fn source(&self) -> &'a PendingRoleImplSource { self.source }
+    |                   ^^^^^^
+480 |     pub(crate) fn node(&self) -> &'a SyntaxNode { self.node }
+    |                   ^^^^
+
+warning: method `with_associated_method_role_sources` is never used
+   --> crates/yu-hir/src/shadow.rs:932:19
+    |
+566 | impl ShadowArtifact {
+    | ------------------- method in this implementation
+...
+932 |     pub(crate) fn with_associated_method_role_sources<R>(
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `walk_associated_pairs` is never used
+    --> crates/yu-hir/src/shadow.rs:1786:4
+     |
+1786 | fn walk_associated_pairs<'a>(
+     |    ^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling yu-types v0.1.0 (/home/momota1029/rust/yulang/crates/yu-types)
+   Compiling yu-solver v0.1.0 (/home/momota1029/rust/yulang/crates/yu-solver)
+warning: `yu-hir` (lib) generated 8 warnings
+warning: fields `declaration`, `field_position`, `negative_port`, and `handler_argument` are never read
+   --> crates/yu-solver/src/candidate_source.rs:334:9
+    |
+332 | pub(super) struct LicensedOperationFieldV1 {
+    |                   ------------------------ fields in this struct
+333 |     pub owner_request: HirOccurrenceId,
+334 |     pub declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>,
+    |         ^^^^^^^^^^^
+335 |     pub field_position: yu_hir::shadow::SourceNodeKey,
+    |         ^^^^^^^^^^^^^^
+336 |     pub family: yu_hir::shadow::SourceEffectId,
+337 |     pub negative_port: u32,
+    |         ^^^^^^^^^^^^^
+338 |     pub handler_argument: HandlerContinuationArgumentV1,
+    |         ^^^^^^^^^^^^^^^^
+    |
+    = note: `LicensedOperationFieldV1` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `response_annotation` and `handler_argument` are never read
+   --> crates/yu-solver/src/candidate_source.rs:343:9
+    |
+341 | pub(super) struct CallbackFieldRealizationV1 {
+    |                   -------------------------- fields in this struct
+342 |     pub response_definition: HirLocalId,
+343 |     pub response_annotation: Arc<yu_hir::shadow::SourceAnnotation>,
+    |         ^^^^^^^^^^^^^^^^^^^
+...
+347 |     pub handler_argument: HandlerContinuationArgumentV1,
+    |         ^^^^^^^^^^^^^^^^
+    |
+    = note: `CallbackFieldRealizationV1` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: fields `source_occurrence`, `lower`, and `upper` are never read
+   --> crates/yu-solver/src/candidate_effect.rs:189:9
+    |
+187 | pub(super) struct FieldBoundV1 {
+    |                   ------------ fields in this struct
+188 |     pub id: u32,
+189 |     pub source_occurrence: HirOccurrenceId,
+    |         ^^^^^^^^^^^^^^^^^
+...
+193 |     pub lower: EffectEndpointKey,
+    |         ^^^^^
+194 |     pub upper: EffectEndpointKey,
+    |         ^^^^^
+    |
+    = note: `FieldBoundV1` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+   Compiling yu-playground v0.1.0 (/home/momota1029/rust/yulang/tools/inference-playground)
+warning: `yu-solver` (lib) generated 3 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 21.67s
+     Running `target/r171/debug/examples/r171_provider_incidence`
+POST-RUN PROCESS GROUP CHECK: group 844079 absent
+POST-RUN PROCESS CHECK: no matching command lines found
