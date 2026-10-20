@@ -2,65 +2,52 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-20-r141",
+  "session": "current-conversation-2026-10-20-r142",
   "active_sprint": {
-    "id": "helper-observation-20261020-r141",
-    "contract": "tasks/agent-loop/sprints/helper-observation-20261020-r141-rev4.md",
-    "revision": 4,
-    "contract_sha256": "815f725274bfde49b2821721d605224bf472ce6a6e14bb5e77d1412a21871d00",
-    "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-    "baseline": "94a34c4113cb4e5a0de3d0e4b88ffe3c785d9fd4",
-    "authority": "test-only observer and constructive source mapping for fixed ordinary-mode R72 source; no semantic or production authority",
+    "id": "replay-completion-20261020-r142",
+    "contract": "tasks/agent-loop/sprints/replay-completion-20261020-r142-rev1.md",
+    "revision": 1,
+    "contract_sha256": "7ee1760617f295bc85cf892c72f3d7af1704cf0095e9c10c1763b14b36e4eb8f",
+    "state": "ACTIVE_PROOF",
+    "baseline": "503e5c78ce67a4616044ce981030e5e1bda5223c",
+    "authority": "read-only constructor-derived replay-child completion ownership proof or authentic counterexample; no implementation or semantic authority",
     "dependencies": {
-      "inherited_R138_pairs": 39,
-      "additional_R140_R138_pairs": 7,
-      "validated_baseline_live_pairs": 46
+      "direct_pins": 13,
+      "validated_baseline_live_pairs": 13
     },
     "prospective_reviews": [
       {
         "reviewer": "/root/r141_pre_spec",
         "result": "CLEAN",
-        "scope": "rev4 contract and authority envelope; stopped draft not certified",
-        "contract_sha256": "815f725274bfde49b2821721d605224bf472ce6a6e14bb5e77d1412a21871d00",
+        "scope": "spec/authority; exact R142 rev1 contract",
+        "contract_sha256": "7ee1760617f295bc85cf892c72f3d7af1704cf0095e9c10c1763b14b36e4eb8f",
         "elapsed_seconds": "UNKNOWN"
       },
       {
         "reviewer": "/root/r141_pre_compiler",
         "result": "CLEAN",
-        "scope": "rev4 repair authority; stopped implementation draft NOT CLEAN with listed blocking/major findings",
-        "contract_sha256": "815f725274bfde49b2821721d605224bf472ce6a6e14bb5e77d1412a21871d00",
-        "elapsed_seconds": "UNKNOWN"
+        "scope": "compiler/source feasibility; exact R142 rev1 contract",
+        "contract_sha256": "7ee1760617f295bc85cf892c72f3d7af1704cf0095e9c10c1763b14b36e4eb8f",
+        "elapsed_seconds": "UNKNOWN",
+        "required_cases": "rollback ID reuse; Running/Ready retained acknowledgements; restoration references delaying reclamation; error drain truncation"
       }
     ],
     "resources": {
-      "cap_seconds": 2160,
-      "reserved_seconds": 0,
+      "cap_seconds": 1800,
+      "reserved_seconds": 1560,
       "astra_seconds": 0,
-      "prep_pin_validation_charged_or_reserved_seconds": 120,
-      "prospective_review_allowance_seconds": 480,
-      "prospective_review_rounds": 4,
-      "prior_prospective_rounds_conservative_charge_seconds": 240,
-      "rev3_prospective_round_conservative_charge_seconds": 120,
-      "implementation_seconds": 540,
-      "constructive_mapping_and_theory_seconds": 360,
-      "final_review_seconds": 300,
-      "single_test_seconds": 240,
-      "closeout_seconds": 120,
-      "no_R140_budget_carryover": true,
-      "rev4_prospective_round_conservative_charge_seconds": 120,
-      "prior_rounds_total_conservative_charge_seconds": 360,
-      "rev4_round_conservative_charge_seconds": 120,
-      "prospective_allowance_remaining_seconds": 0,
-      "implementation_allocation_seconds": 540,
-      "implementation_elapsed_receipt": "UNKNOWN; full original 540-second allocation charged conservatively at stop, no renewal",
-      "implementation_remaining_seconds": 0,
-      "charged_seconds": 1260,
-      "released_seconds": 900,
-      "remaining_reservation_seconds": 0,
-      "reservation_state": "CLOSED; conservatively charged prep120 + prospective reviews480 + full original implementation allocation540 + closeout120; released unused mapping/theory360 + final reviews300 + test240 = 900; no carryover"
+      "preparation_charged_seconds": 120,
+      "prospective_reviews_charged_seconds": 120,
+      "proof_seconds": 900,
+      "primary_complementary_analysis_seconds": 240,
+      "final_reviews_seconds": 240,
+      "closeout_seconds": 180,
+      "no_carryover": true,
+      "reservation_state": "1800s granted once: 240s charged, 1560s reserved across proof/complement/final review/closeout; no unobserved return or renewal",
+      "proof_assignment_reservation_seconds": 900
     },
-    "parent_status": "Computation-forwarding preservation; R72/R73, Simple-sub A/B, inference/evaluator, source-native and production gates remain OPEN.",
-    "next_boundary": "R141 closed unfinished; no heavy command run; next sprint requires dispatcher selection under the persistent user goal"
+    "parent_status": "R70-DRAIN-1 remains OPEN until proof applies; R70 entry validity/fiber coverage, R71, R72/R73, Simple-sub A/B, inference/evaluator, source-native and production gates remain OPEN.",
+    "next_boundary": "proof producer to establish or falsify completion-right conservation across all constructors, rollback/error and reclamation; Luna performs complementary audit"
   },
   "workers": [
     {
@@ -100,12 +87,23 @@
       "id": "/root",
       "role": "Luna primary; implementation, review adjudication, state and sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r141",
+      "session": "current-conversation-2026-10-20-r142",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R141 closed unfinished. No heavy command/test/build ran. Temporary observer code removed; exact leased Rust files restored to baseline. Closeout artifacts frozen; persistent user goal remains active for dispatcher-selected next sprint."
+      "receipt": "Activated R142 after CLEAN prospective reviews and 13/13 baseline/live dependency validation. Read-only complementary constructor/control-flow audit; no code or compiler commands."
+    },
+    {
+      "id": "/root/r140_action31_proof",
+      "role": "R142 constructive proof producer",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-20-r142",
+      "requested_model": "gpt-6-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Current-session R142-PROOF active-work acknowledgement received. Accepted exact theory/proof-handoff leases; 900s cap, no code/tests/builds/Git. Independent of final reviewers."
     }
   ],
   "leases": [
@@ -184,6 +182,26 @@
       "path": "tasks/agent-loop/sprints/helper-observation-20261020-r141-rev4.md",
       "owner": "/root",
       "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/replay-completion-20261020-r142-rev1.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-20-r142-replay-completion.md",
+      "owner": "/root/r140_action31_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r142-proof.md",
+      "owner": "/root/r140_action31_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/progress/2026-10-20-r142-closeout.md",
+      "owner": "/root",
+      "state": "HELD"
     }
   ],
   "pending": [
@@ -256,17 +274,10 @@
       "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
       "details": "notes/theory/2026-10-19-r72-third-owner-prefix.md",
       "falsifier": "See frozen gate record."
-    },
-    {
-      "id": "R128-FINAL-REVIEW",
-      "state": "CLOSED_RECOVERED_PUSHED",
-      "owner": "Luna; fresh compiler/source, spec/authority and regression reviews of frozen checkpoint only",
-      "details": "Rev3 workflow breach and NOT CLEAN findings preserved; rev4 provenance, CLEAN reviews, second exact test PASS; checkpoint 8b781bc71 pushed. See closeout.",
-      "falsifier": "Any blocking/major finding or dependency mismatch keeps candidate provisional."
     }
   ],
   "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN. R141 CLOSED_UNFINISHED_REVIEWED_RESEARCH; no runtime observation, all parent and production gates remain OPEN.",
-  "next_action": "R141 closed UNFINISHED/OPEN after conservative implementation budget exhaustion; no test/build was run. Consult dispatcher for next proof-backed inference/evaluator or sample-compatibility sprint under user goal.",
+  "next_action": "R142 ACTIVE: read-only proof of replay-child completion ownership; NO_SAFE_CODE_SLICE; exact proof and complement leases held; no compiler commands.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -344,74 +355,40 @@
     {
       "id": "R135",
       "state": "CLOSED_REVIEWED_PROPOSAL_PENDING_USER_APPROVAL",
-      "closeout": "notes/progress/2026-10-20-r135-closeout.md",
-      "contract": "tasks/agent-loop/sprints/braced-if-adoption-20261020-r135-rev5.md"
+      "closeout": "notes/progress/2026-10-20-r135-closeout.md"
     },
     {
       "id": "R136",
       "state": "CLOSED_VERIFIED_FINITE_EXAMPLE",
       "closeout": "notes/progress/2026-10-20-r136-closeout.md",
-      "proof": "notes/theory/2026-10-20-r136-repeated-choice.md",
       "commit": "93385cb6ab1e83a769e84af4997d39b9f57c9684"
     },
     {
       "id": "R137",
       "state": "CLOSED_VERIFIED_CONDITIONAL_WITNESS_PUSHED",
       "closeout": "notes/progress/2026-10-20-r137-closeout.md",
-      "contract": "tasks/agent-loop/sprints/polymorphic-escaping-closure-20261020-r137-rev1.md",
-      "proof": "notes/theory/2026-10-20-r137-polymorphic-escaping-closure.md",
-      "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de",
-      "push_commit": "2bd30298598d749b88fee32ed158e76f74943106"
+      "commit": "09e3c41a5cbed4a9ae85d3b2b4d2c5cd3db492de"
     },
     {
       "id": "R138",
       "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "closeout": "notes/progress/2026-10-20-r138-closeout.md",
-      "contract": "tasks/agent-loop/sprints/helper-cut-ledger-20261020-r138-rev1.md",
-      "proof": "notes/theory/2026-10-20-r138-helper-cut-ledger.md"
+      "closeout": "notes/progress/2026-10-20-r138-closeout.md"
     },
     {
       "id": "R139",
       "state": "CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY",
-      "contract": "tasks/agent-loop/sprints/yulang2-diagnostic-examples-20261020-r139-rev5.md",
-      "contract_sha256": "5aaa9e95df0c48032409908dbe90a2b1ab6231b1c868c67f3a2150bb2aee9e21",
-      "closeout": "notes/progress/2026-10-20-r139-closeout.md",
-      "closeout_sha256": "8f5d44953f2968566fddd0e140ebfc5d8b3edb34b79af041c9fa850047bdca4e",
-      "verification": "CLI 1/1 PASS; WASM build and smoke PASS; charged full 360s reservation"
+      "closeout": "notes/progress/2026-10-20-r139-closeout.md"
     },
     {
       "id": "R140",
       "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "closeout": "notes/progress/2026-10-20-r140-closeout.md",
-      "closeout_sha256": "4f9a383eae3f2836c24874e4bba8e9cef234774a316176c40946d6acecc3eb75",
-      "contract": "tasks/agent-loop/sprints/action31-certified-cut-20261020-r140-rev2.md",
-      "proof": "notes/theory/2026-10-20-r140-action31-certified-cut.md",
-      "proof_sha256": "20127b5c3d3e6cc4e88edbd6ead54521fac7e140e0d3332741ded6b6e2d4d685",
-      "resources": {
-        "initial_reserved_seconds": 1500,
-        "charged_seconds": 1410,
-        "released_seconds": 90,
-        "remaining_reservation_seconds": 0
-      }
+      "closeout": "notes/progress/2026-10-20-r140-closeout.md"
     },
     {
       "id": "R141",
       "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-      "closeout": "notes/progress/2026-10-20-r141-helper-observation.txt",
-      "closeout_sha256": "62dc99098fdf2ae8fd2eec4091066c3c5a7b09068acb3a34e1588c68486b6207",
-      "contract": "tasks/agent-loop/sprints/helper-observation-20261020-r141-rev4.md",
-      "contract_sha256": "815f725274bfde49b2821721d605224bf472ce6a6e14bb5e77d1412a21871d00",
-      "theory": "notes/theory/2026-10-20-r141-helper-observation.md",
-      "proof_handoff": "tasks/agent-loop/inbox/20261020-r141-proof.md",
-      "implementation_handoff": "tasks/agent-loop/inbox/20261020-r141-implementation.md",
-      "resources": {
-        "cap_seconds": 2160,
-        "charged_seconds": 1260,
-        "released_seconds": 900,
-        "remaining_reservation_seconds": 0,
-        "test_run": false
-      }
+      "closeout": "notes/progress/2026-10-20-r141-helper-observation.txt"
     }
   ],
-  "review_receipts": "R141 rev1 NOT CLEAN (two major contract defects); rev2 NOT CLEAN (missing direct R138 pins and stale active path); rev3 CLEAN prospective spec and compiler/source, SHA 5212c2b2cf4763f68f235c9e1a7c8f1691d24ba1536c1a83e3883df301b24c75. All prior review rounds count against R141 360-second allowance; elapsed UNKNOWN; conservative reservations applied. R141 rev3 CLEAN prospective reviews and 46/46 pins validated; 2040 seconds reserved once, prior R140 reservation closed. R141 rev3 ordinary-mode mismatch discovered before any test/build; code frozen at recorded stopped-draft hashes. Rev4 prospective reviews pending; 480s total allowance (360s conservatively charged for rev1-rev3, 120s reserved for rev4), 2160s cap. Rev4 prospective spec CLEAN; compiler/source CLEAN for repair envelope, stopped draft NOT CLEAN. Required repairs: ordinary public solve route; authenticate helper/loop source occurrences and exact replay families; complete ordered product/dispatch/currentness/acknowledgement/sweep and capture/restoration observations; match module hook feature guard. All fit existing lease and rev4 budget. R141 closed UNFINISHED: implementation elapsed UNKNOWN, full 540s original implementation allocation charged conservatively; temporary observer code rolled back; no heavy command or final review; 900s unused phase allocation released."
+  "review_receipts": "R141 rev1/rev2 NOT CLEAN; rev3 CLEAN; rev4 prospective spec/compiler CLEAN for repair envelope, stopped draft NOT CLEAN; closed UNFINISHED with code rolled back and no test. Full receipts in R141 closeout. R142 prospective spec/compiler CLEAN for exact rev1 contract; see R142 handoff."
 }
