@@ -1,20 +1,23 @@
-# R142 replay-child completion rights: local conservation and caller boundary
+# R142 replay-child completion rights: local conservation through return or attempt abortion
 
-Status: **CANDIDATE/CONDITIONAL; UNFINISHED/OPEN**. This is a partial
-constructor/control-flow derivation, not an independently reviewed theorem,
-source-qualified defect, implementation authority or production gate.
+Status: **CANDIDATE CONSTRUCTOR-DERIVED LOCAL PROOF; independent review pending**.
+Rev2 discharges the former private-caller error-owner premise. This is not an
+independently reviewed theorem, source-qualified defect, implementation
+authority or production gate. R70-DRAIN-1's progress component and higher
+parents stay OPEN. Rev1's partial result remains preserved at its checkpoint.
 Author: `/root/r140_action31_proof`, serving assignment R142-PROOF. No
 descendants. Luna supplied complementary constructor observations, credited
 below; neither contributor can independently certify the combined result.
 Requested `gpt-6-sol` / high; observed effective model/effort UNKNOWN.
 
-Contract revision1:
+Contract revision2 (historical filename retained):
 `tasks/agent-loop/sprints/replay-completion-20261020-r142-rev1.md`, SHA-256
-`7ee1760617f295bc85cf892c72f3d7af1704cf0095e9c10c1763b14b36e4eb8f`.
+`25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd`.
 Baseline supplied by Luna: `503e5c78ce67a4616044ce981030e5e1bda5223c`.
-The contract retains its candidate preparation header; activation/grants come
-from Luna's current-session assignment and current.json activation receipt.
-No contract mutation or Git action was performed. All 13 live dependency pins
+The contract retains its prospective-review preparation header; activation and
+both CLEAN delta reviews come from Luna's current-session assignment/current
+activation receipt at `fcd2f7e39`. No contract mutation or Git action was
+performed. All 15 live dependency pins
 matched at entry and freeze; baseline-tree validation belongs to Luna.
 
 ## 1. Original parent and exact result
@@ -28,19 +31,16 @@ validity/fiber coverage, R71, R72/R73, Simple-sub A/B, inference/evaluator,
 source/native and production remain OPEN. R50 remains NOT ADOPTED.
 
 The established local contribution is a precise accounting of completion
-authority through production replay creation, asynchronous queueing,
+authority through the ordinary replay constructors, asynchronous queueing,
 synchronous child drain, terminal acknowledgement, retained Running/Ready
 return barriers, restoration ownership, successful commit and completed
 rollback. It distinguishes a numeric operation ID from an operation lifetime.
-It exposes the exact error-cleanup/caller premise preventing the full fixed
-outcome: a cleanup can drop a drain carrying uncompleted acknowledgements;
-restoration or attempt abortion must then be proved at the actual caller.
-
-The actual Local/restoration caller and `execute_candidate_graph_plan` owner
-are in `candidate_scheme.rs`, outside this contract's 13 frozen dependencies.
-This leaf did not read/import that owner as a new R142 proof dependency. The
-contract's missing/unowned constructor-state stop condition is reached. This
-note therefore does not claim complete source closure or an authentic defect.
+A cleanup can drop a drain carrying uncompleted acknowledgements. Rev2's
+newly pinned Local/restoration and source-schedule callers establish that the
+error reaches the consuming private-session runner without semantic reuse.
+Complete rollback can restore earlier rights; failed rollback instead ends
+the attempt. Section 7 supplies that previously missing source edge without
+reclassifying an error as successful completion or inferring a defect.
 
 ## 2. Lifetime, index and authority
 
@@ -65,14 +65,15 @@ for q <= i < n:     the retained operation owns the not-yet-transferred child.
 ```
 
 The claim of one consumer needs actual constructor/control-flow exclusivity;
-the interval inequality alone does not prove it. The production transfer API
+the interval inequality alone does not prove it. The ordinary transfer API
 accepts already-queued indices and cannot by itself be treated as a linear
 type. The local caller proof below supplies the new-transfer cases; arbitrary
 struct assignments or synthetic duplicate enqueueing are excluded from the
 source claim.
 
-For a TypedDrainFrame F, the authoritative completion entries are
-`F.replay_acks[F.completed_acks..]`; earlier entries are retained receipts.
+For a TypedDrainFrame F at a completed owner-step boundary, the authoritative
+entries are `F.replay_acks[F.completed_acks..]` whose operation indices have
+not been consumed; earlier entries are retained receipts.
 `prepared_acks` records undo/preflight preparation, not another authority or
 completed child. `F.current.replay_ack`, `replay_destination`, operation wait
 ack and transaction undo copies can contain the same `(ID,index)`. These are
@@ -82,6 +83,20 @@ call `complete_replay_child`. Running/Ready can retain an acknowledged child.
 This formulation is transaction-relative. Rolling back an acknowledgement
 restores its prior completion authority and cancels the rolled-back completion
 event. It does not acknowledge the same child twice in one committed history.
+
+At sub-call mutation points, control owns the one transition: after q advances
+and before infallible queue push, enqueue owns the transferred item; after pop
+and before frame ack append, Transport owns it. After c advances but before
+completed_acks advances, the old vector entry is already a receipt. Ready
+publication before frame pop moves a return barrier while the old destination
+remains an alias. These adjacent mutations perform no reentrant dispatch and
+are not callable suspension points. Copied references are not counted twice.
+
+Initialization supplies the induction base: InferenceSession::try_new
+(lib.rs:9874ff) creates an empty worklist; start_candidate_graph
+(candidate_scheme.rs:1162–1180) publishes GraphState::default only after
+initialization. Replay maps/drains/undo start empty. No synthetic ack or
+manually assigned private state is imported into this base.
 
 ## 3. Creation and queue transfer
 
@@ -107,7 +122,7 @@ The already-queued acceptance branch permits an already transferred item to
 enter a drain without a second frontier increment; this API possibility is
 not proof that the inspected synchronous adapter takes that branch (its Idle
 case starts at q=c). It does not authorize arbitrary callers to enqueue
-duplicate completion owners. No production constructor in the inspected
+duplicate completion owners. No ordinary constructor in the inspected
 replay adapters generates a second asynchronous item for an earlier index:
 each new call re-reads q after the preceding infallible push. Test-only
 compatibility/synthetic adapters are not a source reachability argument.
@@ -256,10 +271,10 @@ There is an additional error case: rollback is not infallible. For example,
 workspace restoration. This note therefore does NOT assert that every Err
 from finish_route_transaction yields a restored reusable session. If rollback
 fails, the partially rolled-back attempt must be aborted without reuse or
-publication. The actual non-reuse supplier is part of §7's open caller bridge;
+publication. The actual non-reuse supplier is §7's private caller bridge;
 no full rollback requirement is imposed on accepted inference semantics.
 
-## 7. Error cleanup and the exact missing constructor premise
+## 7. Error cleanup and private caller closure (rev2)
 
 Two pinned adapters remove transient drain frames on Err:
 
@@ -297,33 +312,78 @@ transfer but before helper return belongs to the attempt owner.
 Pinned lib.rs establishes that InferenceSession is private and
 `run(mut self)` / `run_candidate(mut self)` execute with `?` before result
 publication, so an error reaching those consuming entrypoints drops the
-private session. The public solve path returns no session on Err. But this
-does not establish that EVERY actual intervening source caller propagates
-each error rather than catching/reusing the session. In particular,
-`execute_scc_plan` calls `execute_candidate_graph_plan`, and the actual
-Local/FreshUse restoration caller is outside this 13-pin proof boundary in
-candidate_scheme.rs. Retained resume adapters can also retain preexisting
-frames; their caller-level transaction selection cannot be inferred from a
-helper's q/c guard. Test-only resume helpers in lib.rs do not establish a
-production source supplier.
+private session. The public solve path returns no session on Err. Rev2's two
+additional frozen owners establish the intervening edges:
 
-**R142-ERROR-OWNER-1 (OPEN):** supply the actual source caller chain for replay
-restoration/drain errors and failed rollback, including retained owner cursor
-and every error catch/return. Prove that before any continuation/reuse, complete
-rollback restores all old rights and erases cancelled-lifetime references; or
-prove that the consuming source attempt terminates without publication/reuse.
-Owner: Luna's source/native lane; first required source owner:
-candidate_scheme.rs Local restoration and execute_candidate_graph_plan.
+| Actual caller edge | Error behavior and owner |
+| --- | --- |
+| Fresh bound -> restoration | `begin_candidate_fresh_bound` (scheme:1863–1908) returns `candidate_begin_bound_restoration`; `step_candidate_local_use` (2168–2182) uses `?` on begin/step. It advances next_bound/clears restoration only after successful completion. |
+| Local owner step | `route_candidate_local_run` (2006–2076) pops LocalUse temporarily, runs its step, pushes the entire frame back BEFORE result?. No Err escapes while its cursor is merely a lost stack-local owner. Production supplies pause_after=None. |
+| Local transaction | The same owner wraps work in begin_route_transaction and finish_route_transaction_with_candidate_accounting. Begin failure performs no owner step. Operation failure attempts rollback; failed rollback remains Err. Post-result cleanup only resets accounting/scratch flags and returns that Result. `route_candidate_local` (1998–2003) uses `?`, with no ordinary pause/retry branch. |
+| Source dispatch | `execute_candidate_action` (source:1760) uses `?` for Action::Local. `step_candidate_source` calls the action with `?` BEFORE next increments; drive_candidate_source propagates step errors. `execute_candidate_source_schedule` (1640ff) clears source on Err, then uses result?, with no recovery dispatch. Root/loose/expression entrypoints propagate this result. |
+| SCC graph plan | `execute_candidate_graph_plan` (scheme:1361–1463) uses `?` for every source root, open-use route, capture and incoming-use route. It performs no subsequent member publication/dispatch after Err. `execute_scc_plan` (lib:14795–14810) only clears scratch/orchestration on error, then returns it. |
+| Module FreshUse | `freshen_candidate_graph_core` (scheme:1536–1559) uses `?` for every begin/drive restoration. Its retained wrapper only resets scratch on Err. instantiate_candidate_graph/route_candidate_graph propagate it; scratch reset is not a retry. route_incoming_inner (lib:16885) returns that route directly in graph mode. |
+| Incoming transaction | `route_incoming` (lib:16660–16757) wraps the inner route in with_route_transaction. Post-error resource observations either return another Err or preserve the existing Err (sample_result.and(result)); counters/scratch cleanup cannot turn it into Ok or execute another constraint. |
+| Open-use route | `route_candidate_open_use` (scheme:1465–1472) returns route_internal; route_internal uses with_route_transaction. Its caller is the source action or graph-plan `?` edge above. |
+| Loose/expression suffix | `execute` (lib:10418–10437) uses `?` on SCC plan, loose source and each expression. run/run_candidate consume self and use execute? before finish. On Err no solved publication or returned mutable session exists. |
 
-This is a dependency/constructor-coverage boundary, not a code fix request or
-a proved defect. No observer, simulated transition or arbitrary private struct
-assignment can substitute for that source-authentic caller chain. Per the
-contract, further dependent proof stops here rather than importing an unpinned
-owner or silently assuming propagation. No new external dependency is added.
+This is a conditional source/control correspondence at the exact private
+runner entry, not an activation or production reachability certificate. The
+pinned run_candidate call sites observed by text search are in test modules;
+its non-test method definition alone does not establish a public source entry.
+The consuming run definition also supplies the same execute-error behavior.
+No additional entry owner was imported. The theorem says what these actual
+constructors/callers preserve when entered; it does not claim that an accepted
+source run has been observed to enter run_candidate or that candidate inference
+is adopted. Those source/native/production gates remain OPEN.
+
+This is a backwards control-flow proof. Starting at a cleanup Err, each edge
+either attempts the coupled rollback or performs bookkeeping and returns Err.
+The finite caller stack ends in the consuming runner; no edge goes back to a
+source action or semantic drain. The private attempt, including uncompleted q-c obligations held by its non-dispatching unwind owner, is abandoned. Aborted lifetimes do not satisfy
+completion; they cease to be executable. If rollback completes, §6 restores
+old rights before returning Err; if it fails, this same chain still aborts.
+No full abnormal-state restoration is required by this argument.
+
+The retained adapters candidate_test_retained_local_step (scheme:2135) and
+resume_typed_drain_route (lib:12451) are cfg(test). Their successful
+RetainedResume inverse mechanics are covered by §6, including old frames and
+cursors. They are not a production suspension/retry API. This proof does not
+promise reusable state after an arbitrary failed test-only rollback or direct
+synthetic helper call. No accepted source constructor is excluded: the ordinary
+Local adapter supplies no pause and returns only Complete or Err. Its completed-result
+source adapter attaches no synthetic support registration.
+
+**R142-ERROR-OWNER-1 is discharged by this candidate source proof for the
+pinned private constructor/caller path**, pending fresh review and Luna adjudication.
+It supplies the restoration-or-abort alternative missing from rev1. No new
+dependency, observer, code change or semantic premise is introduced.
+
+### Finite-prefix conservation consequence
+
+Induct on owner transitions of this private execution path beginning at the
+empty replay state. Creation assigns each indexed child to the operation;
+the actual transfer adapter moves its next right through the local enqueue
+phase to the queue; pop moves it to the drain; terminal completion moves it
+to the consumed prefix. The c==index guard and ordered caller vectors preclude
+two forward consumptions. Return barriers and restoration pointers retain
+storage without recreating a consumed right. Commit selects forward history;
+complete rollback restores the saved history, cancelling new lifetimes and
+their holders before reuse. An Err selects the non-dispatching unwind/rollback
+phase proved above and ultimately aborts the attempt if it cannot restore it.
+
+All other inspected transitions either manipulate semantic work with ack=None
+or preserve the authoritative ack suffix; currentness/generation and equality
+settlement do not call the terminal consumer for an existing child. Thus each
+created lifetime/index has exactly one live completion authority, one completed
+receipt, or a cancelled/aborted lifetime. This is conservation with explicit
+abortion, not eventual completion. It proves the requested local ownership
+property for these constructors/callers; malformed entry validity, solver
+progress and source/required-fiber adequacy remain their separate obligations.
 
 ## 8. Application to R70-DRAIN-1 and mutual TODOs
 
-R70's transfer statement can consume §§3–5 as a candidate local ownership
+R70's transfer statement can consume §§3–7 as a candidate local ownership
 derivation: actual new replay children have separate operation/index rights;
 queue transfer preserves them; Dispatch retains them despite currentness or
 canonical requeue; successful terminal drain consumes them once; Running/Ready
@@ -331,20 +391,26 @@ and restoration references explain delayed reclamation. Completed rollback
 uses a coupled frame/operation/workspace inverse, with lifetime-specific ID
 reuse, rather than permanent numeric IDs.
 
-**R70-DRAIN-1 remains OPEN.** The ownership subproblem first requires
-R142-ERROR-OWNER-1, plus fresh independent review of this local derivation.
-Even after that supplier is established, eventual consumer progress remains
+**R70-DRAIN-1 remains OPEN.** Its local ownership component now has the
+constructor/caller proof above, including R142-ERROR-OWNER-1; promotion requires
+fresh independent review and Luna adjudication. Eventual consumer progress remains
 separate: actual settlement/diagnostic/drain termination or successful
 consumption must be proved where needed. No entry-validity, required-fiber,
 source qualification, raw/canonical lineage or foreign-continuation premise
 is discharged by conservation. R71's required lineage is unchanged.
 
-Mutual TODO `R142-ERROR-OWNER-1`: Luna must pin/authorize the missing exact
-caller owner before another producer reads it as a proof dependency. Required
-input is actual Local/restoration/graph-plan error control and cursor state;
-required output is the restoration-or-abort proof above. Falsifier: an authentic
+Mutual TODO `R142-ERROR-OWNER-1`: candidate evidence supplied in rev2 §7;
+Luna submits the frozen source proof to fresh review rather than treating the
+producer's result as independent certification. Falsifier: an authentic pinned
 source path catches an error after cleanup, reuses q>c state with no consumer,
 or reuses a rolled-back numeric ID while a cancelled lifetime holder can act.
+
+Mutual TODO `R70-DRAIN-PROGRESS-1`: Luna retains the original R70-DRAIN-1
+parent and assigns the actual finite/infinite consumer-progress premise where
+needed. Inputs include the ownership result and exact settlement/diagnostic
+work generation; required output is the applicable consumption/progress proof
+or authentic non-progress trace. Ownership and an empty observed queue alone
+are insufficient. This request grants no new lease or test authority.
 
 Mutual TODO `R142-RECLAIM-REVIEW-1`: fresh reviewer checks lifetime/index,
 acknowledged Running/Ready, restoration pointer and transaction undo ordering
@@ -355,7 +421,7 @@ operation while an authoritative old holder can still execute. This is a
 request to Luna, not a producer appointment of reviewers.
 
 No authentic defect was established, hence **NO_SAFE_CODE_SLICE**. No
-implementation/observer TODO is necessary before resolving source authority;
+implementation/observer TODO is necessary for this local result;
 a later authentic defect would require a separate Luna repair contract.
 
 ## 9. Evidence, authorship, checks and frozen inputs
@@ -377,7 +443,7 @@ permanent lifetime, all stored ack references as consumers, currentness as
 acknowledgement, a restored session inferred from any Err, and tests as proof
 that source constructors emit a proposed transition.
 
-The exact 13 direct pins are:
+The exact 15 direct pins are:
 
 ```text
 7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81  notes/design/2026-10-11-yulang-inference-top-level-principles.md
@@ -393,20 +459,29 @@ c75bf47b3d0d87e99d4365a587e6b90d5d05d05c335db16880cb2943b8b25985  crates/yu-solv
 8a1f531be9fb5e5f160bf4f75c6eb98bbc35ce0a30acaf06424c531840504ba4  crates/yu-solver/src/candidate_intrusion.rs
 6112343b4014c67dcb7d814a46412b3af3e1d12183924e891df4817a59f58da0  crates/yu-solver/src/candidate_effect.rs
 fc0d948d884a406746066f3df8db257d5c6686505166b330bef839a9b9e2f35d  crates/yu-solver/src/candidate_extrusion.rs
+2e64dc8781189b4da21c30f4d1b3208aaef48ca247cae55fb7e77e68b5857850  crates/yu-solver/src/candidate_scheme.rs
+cbc39315f4243b0bae1db74976cf94282bc94cd28b9eb463699c085f421065f7  crates/yu-solver/src/candidate_source.rs
 ```
 
 Checks: static source/rule/proof reads, symbolic constructor/cursor analysis,
-hash-only Python3 validation of 13 live pins and contract digest. No tests,
+hash-only Python3 validation of 15 live pins and contract digest. No tests,
 builds, compiler/solver execution, instrumentation, probes, Git, network,
 external contact, nested CLI or delegation. Repository source authorship is
 not reassigned by this proof; no Git author lookup was performed.
 
-Stages: intake/pins complete; normal local ownership and transaction inverse
-derivation complete as candidates; error/caller closure stopped at the named
-dependency boundary. No full invariant or source-authentic counterexample.
-Grant: 900 active seconds, zero Astra, no renewal. First explicit clock
-2026-10-20 00:35:23 UTC; exact stop and conservative resource charge are in
-the assignment handoff/final hash receipt. CPU/RSS and provider-side active
-duration UNKNOWN. Only this theory file and the exact R142 inbox are written;
+Sequential provenance: rev1 froze UNFINISHED at 00:39:22 UTC, charging300s,
+with theory hash `79feff86667e264fabbe1a5f1b13f80cc7506f53555fd99738e88553d9a0d721`
+and handoff hash `c797dd725db8c9bb97afb14d8f66ce0912a8fe2441ef4ef04466cf57dfecb17c`.
+Those bytes are preserved by Luna's checkpoint/activation commit. Rev2 grants
+only the two additional source pins and 540 resumed seconds, aggregate proof
+cap840s; it does not inherit the unspent part of rev1's original grant.
+
+Stages: intake/pins, normal ownership, transaction inverse and source error
+closure complete as candidate proof. R142's local ownership result
+is ready for fresh review; R70 progress and all higher gates remain OPEN.
+Zero Astra, no renewal. First rev2 clock 2026-10-20 00:41:58 UTC; exact stop
+and conservative resource charge are in the assignment handoff/final receipt.
+CPU/RSS and provider-side active duration UNKNOWN. Only this theory file and
+the exact R142 inbox are written;
 no scratch paths or descendant leases. Both freeze for Luna intake, and the
 writer stops rather than claiming to keep running while waiting for authority.
