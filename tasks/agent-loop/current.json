@@ -2,15 +2,15 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-2026-10-20-r142",
+  "session": "current-conversation-2026-10-20-r143",
   "active_sprint": {
-    "id": "replay-completion-20261020-r142",
-    "contract": "tasks/agent-loop/sprints/replay-completion-20261020-r142-rev1.md",
-    "revision": 2,
-    "contract_sha256": "25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd",
-    "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
-    "baseline": "503e5c78ce67a4616044ce981030e5e1bda5223c",
-    "authority": "read-only constructor-derived replay-child completion ownership proof or authentic counterexample; no implementation or semantic authority; rev2 adds only candidate_scheme.rs and candidate_source.rs for Local error-owner closure",
+    "id": "public-replay-publication-20261020-r143",
+    "contract": "tasks/agent-loop/sprints/public-replay-publication-20261020-r143-rev1.md",
+    "revision": 1,
+    "contract_sha256": "e189a89f4a9974492ceb6999ff5c3d890aa5250882c014fb3a9f1c9608a7b5c5",
+    "state": "ACTIVATED_AWAITING_PROOF_ACK",
+    "baseline": "784bcf78516c0e59e4adfceac6c42ab6a10a087a",
+    "authority": "read-only proof of successful public CandidateInference::solve replay publication barrier; no code/semantic/production authority",
     "dependencies": {
       "direct_pins": 15,
       "validated_baseline_live_pairs": 15
@@ -19,80 +19,31 @@
       {
         "reviewer": "/root/r141_pre_spec",
         "result": "CLEAN",
-        "scope": "spec/authority; exact R142 rev1 contract",
-        "contract_sha256": "7ee1760617f295bc85cf892c72f3d7af1704cf0095e9c10c1763b14b36e4eb8f",
-        "elapsed_seconds": "UNKNOWN"
+        "scope": "spec/authority exact R143 rev1 contract",
+        "contract_sha256": "e189a89f4a9974492ceb6999ff5c3d890aa5250882c014fb3a9f1c9608a7b5c5"
       },
       {
         "reviewer": "/root/r141_pre_compiler",
         "result": "CLEAN",
-        "scope": "compiler/source feasibility; exact R142 rev1 contract",
-        "contract_sha256": "7ee1760617f295bc85cf892c72f3d7af1704cf0095e9c10c1763b14b36e4eb8f",
-        "elapsed_seconds": "UNKNOWN",
-        "required_cases": "rollback ID reuse; Running/Ready retained acknowledgements; restoration references delaying reclamation; error drain truncation"
+        "scope": "compiler/source public caller closure exact R143 rev1 contract",
+        "contract_sha256": "e189a89f4a9974492ceb6999ff5c3d890aa5250882c014fb3a9f1c9608a7b5c5"
       }
     ],
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 1680,
-      "reserved_seconds": 0,
+      "charged_seconds": 300,
+      "reserved_seconds": 1500,
       "astra_seconds": 0,
-      "preparation_charged_seconds": 120,
+      "preparation_charged_seconds": 180,
       "prospective_reviews_charged_seconds": 120,
-      "rev1_proof_charged_seconds": 300,
-      "delta_reviews_charged_seconds": 120,
-      "resumed_proof_seconds": 540,
+      "proof_seconds": 900,
       "primary_complementary_analysis_seconds": 180,
       "final_reviews_seconds": 240,
       "closeout_seconds": 180,
       "no_carryover": true,
-      "reservation_state": "1680s charged conservatively; 120 unused proof seconds released and unreserved; no carryover or renewal",
-      "proof_assignment_aggregate_seconds": 840,
-      "resumed_proof_charged_seconds": 420,
-      "resumed_proof_observed_seconds": 329,
-      "proof_aggregate_charged_seconds": 720,
-      "complementary_analysis_charged_seconds": 180,
-      "final_reviews_charged_seconds": 240,
-      "closeout_charged_seconds": 180,
-      "released_unused_proof_seconds": 120
+      "reservation_state": "300s charged; 1500s reserved once for proof/complement/final reviews/closeout; no renewal or carryover"
     },
-    "parent_status": "R70-DRAIN-1 remains OPEN until proof applies; R70 entry validity/fiber coverage, R71, R72/R73, Simple-sub A/B, inference/evaluator, source-native and production gates remain OPEN.",
-    "next_boundary": "No continuation activated. Dispatcher recommends a new exact sprint for public-entry consumer progress after product decision R135; all higher gates remain OPEN.",
-    "prospective_delta_reviews": [
-      {
-        "reviewer": "/root/r141_pre_spec",
-        "result": "CLEAN",
-        "scope": "spec/authority delta; exact R142 rev2 contract and all 15 pins",
-        "contract_sha256": "25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd"
-      },
-      {
-        "reviewer": "/root/r141_pre_compiler",
-        "result": "CLEAN",
-        "scope": "compiler/source caller closure; exact R142 rev2 contract and all 15 pins",
-        "contract_sha256": "25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd"
-      }
-    ],
-    "activation_commit": "fcd2f7e39",
-    "proof_result": "UNFINISHED_OPEN; R142-ERROR-OWNER-1 resolved only for the finite pinned private caller path; R70-DRAIN-1 remains OPEN for consumer progress.",
-    "proof_outputs": {
-      "theory": "notes/theory/2026-10-20-r142-replay-completion.md",
-      "theory_sha256": "5f1715db8ccef8777f89d9b64e8625efead68974be53beb8f55a84a86a014a2c",
-      "handoff": "tasks/agent-loop/inbox/20261020-r142-proof.md",
-      "handoff_sha256": "cbaa0c7e79ca9c04b4325b8358ec17664deb51eb4dc620be0c7e242041b44c26"
-    },
-    "closeout": "notes/progress/2026-10-20-r142-closeout.md",
-    "final_reviews": [
-      {
-        "reviewer": "/root/r141_pre_spec",
-        "result": "CLEAN",
-        "scope": "spec/authority; frozen R142 rev2 snapshot"
-      },
-      {
-        "reviewer": "/root/r141_pre_compiler",
-        "result": "CLEAN",
-        "scope": "compiler/source; frozen R142 rev2 snapshot"
-      }
-    ]
+    "parent_status": "R70-DRAIN-1 remains OPEN pending successful public-return barrier proof; R70 entry/fiber, R71, R72/R73, Simple-sub A/B, inference/evaluator, source-native and production remain OPEN."
   },
   "workers": [
     {
@@ -132,23 +83,23 @@
       "id": "/root",
       "role": "Luna primary; implementation, review adjudication, state and sole Git integrator",
       "state": "RUNNING",
-      "session": "current-conversation-2026-10-20-r142",
+      "session": "current-conversation-2026-10-20-r143",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Activated R142 after CLEAN prospective reviews and 13/13 baseline/live dependency validation. Read-only complementary constructor/control-flow audit; no code or compiler commands."
+      "receipt": "Luna primary actively preparing R143 exact proof handoff and current state after CLEAN prospective reviews and 15/15 pins; sole Git integrator."
     },
     {
       "id": "/root/r140_action31_proof",
-      "role": "R142 constructive proof producer",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-20-r142",
+      "role": "R143 constructive public-return proof producer",
+      "state": "WAITING",
+      "session": "current-conversation-2026-10-20-r143",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R142 rev2 frozen UNFINISHED/OPEN; writes stopped 2026-10-20 00:47:27 UTC; resumed observed 329s, conservatively charged 420s; aggregate proof 720/840s; no descendants or execution; model/effort UNKNOWN."
+      "receipt": "Exact R143 proof assignment prepared; awaiting fresh active-work acknowledgement. 900s cap; no code/tests/builds/compiler/Git; no descendants."
     }
   ],
   "leases": [
@@ -229,27 +180,28 @@
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/sprints/replay-completion-20261020-r142-rev1.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-20-r142-replay-completion.md",
+      "path": "tasks/agent-loop/sprints/public-replay-publication-20261020-r143-rev1.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "R142 rev2 proof output frozen; author stopped. Awaiting fresh independent final review."
+      "reason": "R143 exact prospective-reviewed contract; pinned baseline"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261020-r142-proof.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R142 rev2 proof output frozen; author stopped. Awaiting fresh independent final review."
+      "path": "notes/theory/2026-10-20-r143-public-replay-publication.md",
+      "owner": "/root/r140_action31_proof",
+      "state": "HELD",
+      "reason": "Exact proof lease; begins after current-session acknowledgement"
     },
     {
-      "path": "notes/progress/2026-10-20-r142-closeout.md",
+      "path": "tasks/agent-loop/inbox/20261020-r143-proof.md",
+      "owner": "/root/r140_action31_proof",
+      "state": "HELD",
+      "reason": "Exact assignment handoff; author may update sequentially within R143 rev1"
+    },
+    {
+      "path": "notes/progress/2026-10-20-r143-closeout.md",
       "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Luna-authored closeout receipt; freeze after integration."
+      "state": "HELD",
+      "reason": "Luna closeout output"
     }
   ],
   "pending": [
@@ -325,7 +277,7 @@
     }
   ],
   "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN. R141 CLOSED_UNFINISHED_REVIEWED_RESEARCH; no runtime observation, all parent and production gates remain OPEN. R142 CLOSED_UNFINISHED_REVIEWED_RESEARCH: finite private caller-path replay completion ownership candidate reviewed CLEAN; R70-DRAIN-1 consumer progress and all parent/source-native/production gates OPEN.",
-  "next_action": "R143 public replay publication barrier is CANDIDATE only; no lease/resources/workers granted. R135 decision remains pending but is not a dependency.",
+  "next_action": "R143 activated after two CLEAN prospective reviews and 15/15 pin validation; waiting for proof producer active-work acknowledgement. No R135 dependency.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
@@ -441,8 +393,8 @@
       "id": "R142",
       "state": "CLOSED_UNFINISHED_REVIEWED_RESEARCH",
       "closeout": "notes/progress/2026-10-20-r142-closeout.md",
-      "integration_commit": "bd23c8e8d"
+      "integration_commit": "784bcf78516c0e59e4adfceac6c42ab6a10a087a"
     }
   ],
-  "review_receipts": "R142 rev1 prospective spec/compiler CLEAN; rev1 proof frozen UNFINISHED/OPEN after 300s. R142 rev2 delta spec/compiler reviews CLEAN on exact contract SHA 25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd; all 15 baseline/live pins match. See R142 handoff/contract. R142 rev2 proof frozen with exact hashes; 15/15 pins; 329s observed resumed work, 420s conservatively charged. Final R142 rev2 spec/compiler reviews CLEAN on contract/theory/handoff hashes in notes/progress/2026-10-20-r142-closeout.md."
+  "review_receipts": "R142 rev1 prospective spec/compiler CLEAN; rev1 proof frozen UNFINISHED/OPEN after 300s. R142 rev2 delta spec/compiler reviews CLEAN on exact contract SHA 25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd; all 15 baseline/live pins match. See R142 handoff/contract. R142 rev2 proof frozen with exact hashes; 15/15 pins; 329s observed resumed work, 420s conservatively charged. Final R142 rev2 spec/compiler reviews CLEAN on contract/theory/handoff hashes in notes/progress/2026-10-20-r142-closeout.md. R143 prospective spec/compiler reviews CLEAN for exact contract SHA e189a89f4a9974492ceb6999ff5c3d890aa5250882c014fb3a9f1c9608a7b5c5; 15/15 baseline/live pins."
 }
