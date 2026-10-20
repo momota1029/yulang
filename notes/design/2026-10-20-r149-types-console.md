@@ -1,12 +1,16 @@
 # R149: unchanged Yulang2 Types and Console examples
 
-Status: Reviewed
+Status: Authoritative
 Scope: Preserve the pinned Yulang2 Web `Types` and `Console` examples in the
 Yulang3 CLI and Web playground, including inferred public types, evaluation
-order, and captured output.
+order, and captured output. Provisionally adopted for R149 by the user's
+explicit ongoing goal to implement proof-backed inference/evaluation and run
+unchanged Yulang2 Web examples as broadly as practical.
 Drafted-by: Luna primary
 Reviewed-by: compiler/source reviewer, spec reviewer
-Supersedes: none
+Approved-by: user (provisional R149 adoption)
+Approved-at: 2026-10-20
+Supersedes: none; authority is limited to R149's stated behavior and scope
 
 ## Goal
 
@@ -88,7 +92,7 @@ say: 1 + 2
 7. Public type display is derived from the same accepted inference result as
    execution. Failed inference produces no output or Types pane entries.
 
-## Proposed decisions for review and user approval
+## Provisional adoption recorded for R149
 
 - Support the tuple arities accepted by the pinned Yulang2 grammar and runtime,
   with tuple inference and evaluation preserving arbitrary finite element
@@ -110,11 +114,11 @@ say: 1 + 2
   output become visible only after the same module's inference result is
   accepted; no partial output on rejection or resource exhaustion.
 
-The independent reviewers must check these alternatives against current Y3
-authority, the pinned Y2 source/library, parser and HIR owners, effect
-semantics, and existing runtime admission. User approval is required before
-implementation because the proposal adds tuple semantics and a module-output
-execution surface.
+The independent reviewers checked this scope against current Y3 authority, the
+pinned Y2 source/library, parser and HIR owners, effect semantics, and existing
+runtime admission. The user provisionally adopted this scope through the explicit
+ongoing goal and `/goal resume`. Exact contract, owner pins, leases, and code
+activation remain Luna responsibilities and require prospective review.
 
 ## Explicit exclusions
 

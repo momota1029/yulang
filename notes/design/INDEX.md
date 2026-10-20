@@ -3,7 +3,7 @@
 This index is a navigation aid. The listed source document remains authoritative for its own text and scope. If this file conflicts with a source, read the source and correct the index.
 
 - [Braced `if` arm compatibility proposal](2026-10-20-braced-if-compatibility.md) — Draft only; not approved or authoritative. Scope: proposed dedicated expression-list bodies for braced `if`/`elsif`/`else`; current accepted Y3 syntax remains colon-only. The Yulang2 consumer audit has a major correction under review. User approval and a successor implementation contract are required before any syntax or compiler change.
-- [R149 Types and Console compatibility proposal](2026-10-20-r149-types-console.md) — Reviewed Draft, awaiting user approval. Scope: exact pinned Yulang2 Web `Types` and `Console` examples, tuple inference/Display, standard-library host writes, and ordered whole-module execution; broader unchanged-example compatibility remains the goal. No implementation or proof closure is authorized yet.
+- [R149 Types and Console compatibility](2026-10-20-r149-types-console.md) — Authoritative, provisionally adopted by the user's explicit ongoing goal for R149. Scope: exact pinned Yulang2 Web `Types` and `Console` examples, tuple inference/Display, standard-library host writes, and ordered whole-module execution; broader unchanged-example compatibility remains the goal. R149 is provisionally adopted; Luna activation still requires exact owner pins and prospective review.
 
 ## Resident Yulang orchestration (2026-10-16)
 
