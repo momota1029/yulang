@@ -79,7 +79,7 @@ impl CandidateInference {
         let facts_complete = source.facts_complete;
         let origins_complete = source.origins_complete;
         let mut source_relations = Vec::new();
-        source_relations.try_reserve(self.solved.data.candidate_graph.len()).map_err(|_| ArtifactMismatch)?;
+        source_relations.try_reserve(1).map_err(|_| ArtifactMismatch)?;
         for (graph_index, graph) in self.solved.data.candidate_graph.iter().enumerate() {
             let context = &graph.intrusion.effect_algebra.context;
             let receipts = source_drain_receipts(context)?;
