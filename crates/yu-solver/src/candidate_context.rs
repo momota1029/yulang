@@ -2754,6 +2754,20 @@ impl State {
         })
     }
     pub(super) fn observed_dependencies(&self) -> impl Iterator<Item = &Dependency> { self.dependencies.iter() }
+    // Borrowed research-only access to the retained producer records. These
+    // helpers expose no mutation route and intentionally keep admission and
+    // physical-emission rows separate.
+    pub(super) fn observed_bound_admissions(&self) -> impl Iterator<Item = (usize, &BoundAdmission)> {
+        self.evidence.admissions.iter().enumerate()
+    }
+    pub(super) fn observed_bound_emissions_for_relation(
+        &self, relation: RelationId,
+    ) -> impl Iterator<Item = (usize, &BoundEmission)> {
+        self.evidence.emissions.iter().enumerate().filter(move |(_, emission)| {
+            self.evidence.admissions.get(emission.admission.0)
+                .is_some_and(|admission| admission.relation == Some(relation))
+        })
+    }
     pub(super) fn observed_pair(&self, relation: RelationId) -> Result<TypedPairKey, SolveAvailabilityError> {
         Ok(self.relations.get(relation.0 as usize).ok_or_else(exhausted)?.key.pair)
     }

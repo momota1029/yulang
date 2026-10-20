@@ -122,6 +122,49 @@ pub struct CandidateReplayDemandTransport {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CandidateReplayRouteOwner { Module, Local }
+/// One row from the bounded, borrowed ordinary-provider diagnostic view.
+/// `record` is an existing retained structure, not a reconstructed event.
+#[derive(Debug)]
+pub struct CandidateProviderObservationRow<'a> {
+    pub graph_index: usize,
+    /// Index of the retained AE/RE FunctionPort record whose parent relation
+    /// this row describes.
+    pub function_port_ordinal: usize,
+    pub relation: u32,
+    pub ordinal: usize,
+    pub kind: CandidateProviderObservationKind,
+    pub record: &'a dyn std::fmt::Debug,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateProviderObservationKind {
+    FunctionPort,
+    IncomingDependency,
+    BoundAdmission,
+    BoundEmission,
+    SourceOrigin,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateProviderSourceJoin {
+    /// Context-local provider records are not directly joined to the retained
+    /// Lambda slot-2 source receipt by this observation.
+    NotJoinedToContextRecord,
+}
+/// Rows borrow the final retained graph. The cap limits total rows across all
+/// candidate graphs; hitting it is reported, never silently presented as a
+/// complete census.
+pub struct CandidateProviderObservation<'a> {
+    rows: Vec<CandidateProviderObservationRow<'a>>,
+    truncated: bool,
+}
+impl<'a> CandidateProviderObservation<'a> {
+    pub fn rows(&self) -> impl Iterator<Item = &CandidateProviderObservationRow<'a>> + '_ {
+        self.rows.iter()
+    }
+    pub fn truncated(&self) -> bool { self.truncated }
+    pub fn lambda_slot2_source_join(&self) -> CandidateProviderSourceJoin {
+        CandidateProviderSourceJoin::NotJoinedToContextRecord
+    }
+}
 /// Borrowed final retained state, not an execution trace or soundness certificate.
 pub struct CandidateIntrusionObservation<'a> {
     references: &'a crate::candidate_value_graph::Graph,
@@ -266,6 +309,70 @@ impl CandidateInference {
         let state = &self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?.intrusion;
         let references = &self.solved.data.candidate_references;
         Ok(CandidateIntrusionObservation { references, state })
+    }
+    /// Bounded borrowed view of retained ordinary AE/RE FunctionPort records
+    /// and the relation-local dependency, producer and source-origin records
+    /// already associated with their parent relation. This does not reconstruct
+    /// event order or certify a unique provider route.
+    pub fn ordinary_provider_observation(
+        &self, max_rows: usize,
+    ) -> Result<CandidateProviderObservation<'_>, ArtifactMismatch> {
+        const HARD_MAX_ROWS: usize = 256;
+        if !self.solved.data.errors.is_empty() { return Err(ArtifactMismatch); }
+        let cap = max_rows.min(HARD_MAX_ROWS);
+        let mut rows = Vec::new();
+        rows.try_reserve(cap).map_err(|_| ArtifactMismatch)?;
+        let mut truncated = false;
+        let mut push = |row| {
+            if rows.len() == cap { truncated = true; false }
+            else { rows.push(row); true }
+        };
+        'graphs: for (graph_index, graph) in self.solved.data.candidate_graph.iter().enumerate() {
+            let context = &graph.intrusion.effect_algebra.context;
+            for (ordinal, dependency) in context.observed_dependencies().enumerate() {
+                let crate::candidate_context::Dependency::FunctionPort { parent, field, .. } = *dependency else { continue; };
+                if !matches!(field, FunctionField::ArgumentEffect | FunctionField::ResultEffect) { continue; }
+                if !push(CandidateProviderObservationRow {
+                    graph_index, function_port_ordinal: ordinal, relation: parent.0, ordinal,
+                    kind: CandidateProviderObservationKind::FunctionPort, record: dependency,
+                }) { break 'graphs; }
+                for (incoming_ordinal, incoming) in context.observed_dependencies().enumerate() {
+                    let child = match *incoming {
+                        crate::candidate_context::Dependency::Derived { child, .. }
+                        | crate::candidate_context::Dependency::FunctionPort { child, .. }
+                        | crate::candidate_context::Dependency::Replay { child, .. }
+                        | crate::candidate_context::Dependency::Transport { child, .. } => child,
+                    };
+                    if child != parent { continue; }
+                    if !push(CandidateProviderObservationRow {
+                        graph_index, function_port_ordinal: ordinal, relation: parent.0, ordinal: incoming_ordinal,
+                        kind: CandidateProviderObservationKind::IncomingDependency, record: incoming,
+                    }) { break 'graphs; }
+                }
+                for (admission_ordinal, admission) in context.observed_bound_admissions() {
+                    if admission.relation != Some(parent) { continue; }
+                    if !push(CandidateProviderObservationRow {
+                        graph_index, function_port_ordinal: ordinal, relation: parent.0, ordinal: admission_ordinal,
+                        kind: CandidateProviderObservationKind::BoundAdmission, record: admission,
+                    }) { break 'graphs; }
+                }
+                for (emission_ordinal, emission) in context.observed_bound_emissions_for_relation(parent) {
+                    if !push(CandidateProviderObservationRow {
+                        graph_index, function_port_ordinal: ordinal, relation: parent.0, ordinal: emission_ordinal,
+                        kind: CandidateProviderObservationKind::BoundEmission, record: emission,
+                    }) { break 'graphs; }
+                }
+                for (origin_ordinal, origin) in context.origins.iter().enumerate() {
+                    if origin.relation != parent { continue; }
+                    if !push(CandidateProviderObservationRow {
+                        graph_index, function_port_ordinal: ordinal, relation: parent.0, ordinal: origin_ordinal,
+                        kind: CandidateProviderObservationKind::SourceOrigin, record: origin,
+                    }) { break 'graphs; }
+                }
+            }
+        }
+        drop(push);
+        Ok(CandidateProviderObservation { rows, truncated })
     }
     pub fn solve(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
         Self::solve_mode(hir, false, false)
