@@ -1,6 +1,6 @@
 # R167 — source-authenticated whole-module execution
 
-Status: proposed contract revision 2, no R167 lease or code change yet. Revision 1 was preserved in commit `148666e52`; its independent prospective review found that proof and implementation shared one writable evidence path. Revision 2 assigns distinct evidence paths. Fixed parent goal remains the user's complete request: proof-backed Yulang type inference/evaluator implementation, frequent primary-owned commits/pushes, and broad execution of unchanged Yulang2 Web samples in this repository. Do not redefine success around this one runtime entrypoint. No Yulang2 binary/sample execution is authorized.
+Status: proposed contract revision 3, no R167 lease or code change yet. Revision 1 was preserved in commit `148666e52`; its independent prospective review found that proof and implementation shared one writable evidence path. Revision 2 fixed those paths but froze `fa5fd3a0fb055226875534754646e81e921fa557` as branch baseline; after the R167 documentation commits, the actual branch baseline is `8efcaaa780b12d0ede0852a63ce931b0a46fe319`. The source owner hashes remain byte-identical. Revision 3 records the current HEAD and preserves both prior reviewed revisions. Fixed parent goal remains the user's complete request: proof-backed Yulang type inference/evaluator implementation, frequent primary-owned commits/pushes, and broad execution of unchanged Yulang2 Web samples in this repository. Do not redefine success around this one runtime entrypoint. No Yulang2 binary/sample execution is authorized.
 
 ## Outcome and authority
 
@@ -10,7 +10,7 @@ The R149 authority and finite Types/Console goal do not cap the parent goal. The
 
 ## Baseline and governing pins
 
-- Branch baseline: `fa5fd3a0fb055226875534754646e81e921fa557`.
+- Branch baseline: `8efcaaa780b12d0ede0852a63ce931b0a46fe319` (R167 contract-only commits after runtime baseline `fa5fd3a0fb055226875534754646e81e921fa557`; all pinned source owner hashes revalidated unchanged).
 - R149 authority contract: `tasks/agent-loop/sprints/yulang2-types-console-20261020-r149-rev10.md`, SHA-256 `31214917352b673c7467873b60d5db8e470e4d16c8370d882c266a7fcef5b3e9`.
 - R149 adopted design: `notes/design/2026-10-20-r149-types-console.md`, SHA-256 `1644743185363d3c258c606a2e65245b3db8206dddeb666d2994e2471d74f7fa`.
 - R166 reviewed closeout: `notes/progress/2026-10-20-r166-closeout.md`, SHA-256 `429139155dc96541eff6f4272d2b1684f5b6d095b71eb92db9df78af5b43ce63`.
