@@ -1,8 +1,8 @@
 {
 "schema_version": 1,
 "mode": "LIVE",
-"phase": "ENDED",
-"session": "current-conversation-2026-10-20-r144",
+"phase": "RECONCILE",
+"session": "current-conversation-2026-10-20-r145-resume",
 "active_sprint": {
 "id": "extrusion-entry-validity-20261020-r144",
 "contract": "tasks/agent-loop/sprints/extrusion-entry-validity-20261020-r144-rev12.md",
@@ -278,8 +278,8 @@
 {
 "path": "notes/progress/2026-10-20-r144-closeout.md",
 "owner": "/root",
-"state": "HELD",
-"reason": "Primary closeout output reserved."
+"state": "FROZEN",
+"reason": "Finalized and pushed R144 closeout; no active writer."
 }
 ],
 "pending": [
@@ -354,18 +354,19 @@
 "falsifier": "See frozen gate record."
 }
 ],
-"closure": "R142 closed unfinished; R143 closed reviewed finite public-return barrier; R144 frozen partial constructor audit UNFINISHED/OPEN, no defect established; final review pending.",
-"next_action": "R144 frozen UNFINISHED/OPEN proof; independent final spec/compiler reviews actively running under 240s total cap. 1080/1800s charged; 420s reserved for reviews/closeout; 300 unused proof seconds released, no carryover.",
+"closure": "R144 CLOSED UNFINISHED/OPEN; pushed at c7d574009. R145 is a proposal. Sprint migration adoption gate remains unresolved.",
+"next_action": "Resolve the independent migration review and reconcile legacy identities/leases. Then dispatch, freeze, review and explicitly activate a new contract for the unchanged user goal.",
 "legacy_reconciliation": {
-"required": false,
-"reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
+"required": true,
+"reason": "Inherited identities remain UNKNOWN and board.md quarantined. Full migration review is unverified; authoritative validation says NOT_RUN. Preserve leases and do not activate a sprint.",
 "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
 },
 "state_audit": {
 "reviewer": "/root/goal_sprint_migration_review",
-"result": "CLEAN delta; migration omissions/schema repaired; three UNKNOWN identities and board quarantine retained.",
+"result": "UNVERIFIED: snapshot claims CLEAN delta; authoritative validation records full review NOT_RUN.",
 "open_minors": [
-"AGENTS.pre-sprint baseline differs; superseded Astra prompt wording."
+"Fresh isolated migration review.",
+"Reconcile inherited workers and leases."
 ]
 },
 "user_goal": "Proof-backed Yulang inference/evaluator breadth; broaden unchanged Yulang2 sample execution with source correspondence and bounded proofs. Preserve Simple-sub/evaluator A/B claims, quantifiers, adoption gates and honest OPEN statuses. Luna alone integrates and pushes reviewed checkpoints.",
