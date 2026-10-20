@@ -5,21 +5,23 @@
   "session": "current-conversation-2026-10-21-r186",
   "active_sprint": {
     "id": "source-emission-and-option-b-stage1-20261021-r186",
-    "status": "ACTIVE_REVIEWED_CANDIDATE_ACTIVATED",
+    "status": "CLOSED_REVIEWED_UNFINISHED",
     "contract": "tasks/agent-loop/sprints/source-emission-and-option-b-stage1-20261021-r186.md",
     "contract_sha256": "41d2241083e3443918b730cd457428d5128b5abe73896e0ed23aae17390664d3",
     "baseline": "ef15618375343b5bfef0ba4aa3a7fbfbe5606d74",
     "resources": {
       "cap_seconds": 6000,
-      "charged_seconds": 2150,
-      "reserved_seconds": 3850,
+      "charged_seconds": 2690,
+      "reserved_seconds": 0,
       "no_carryover": true,
-      "allocation": "prep240+design600+rev110+proof1200=2150; proof review180; closeout360; code/check/final review3300 blocked; unused10; no borrow."
+      "allocation": "charged 2690: prep240+design600+contract-review110+proof1200+proof-review180+closeout360; 3310 expired unused; no carryover."
     },
-    "proof": "Frozen note 84a235ad62c8ee980c3d71f96bf24496d4e9941ea13d4bca2c33eee44bc0a4ae; handoff 8776b1a2cf3bb7777479c2eb165b00221d526ba4b6fd6409c9909b93c0748a2d. Bare-Name finite Catch path lowers Value+Name effect; shared Lambda return restores same-use chain. Group outside parent §1 whole-Name quantifier, conditional broader candidate. Universal later exposure/age induction OPEN. Independent review RUNNING.",
-    "implementation": "Contract rev1 MAJOR, rev2 universal-coverage correction unreviewed; no code authority. Hashes in frozen contract/handoff.",
-    "review_receipt": "Initial candidate CLEAN; contract rev1 MAJOR, rev2 UNREVIEWED. Proof frozen; 180s review running.",
-    "next_action": "Await proof review, close R186 unfinished, then separately budget corrected contract review. No code."
+    "proof": "CLEAN scoped independent review; note 84a235ad62c8ee980c3d71f96bf24496d4e9941ea13d4bca2c33eee44bc0a4ae, handoff 8776b1a2cf3bb7777479c2eb165b00221d526ba4b6fd6409c9909b93c0748a2d. Bare-Name local compensation established; universal later exposure and Group same-use remain OPEN.",
+    "implementation": "Contract rev1 MAJOR; corrected rev2 4e59c259…5c2117d9 UNREVIEWED; code/tests never activated.",
+    "review_receipt": "Proof CLEAN scoped /root/r186_proof_review, full 180 charged. Contract rev1 MAJOR; rev2 unreviewed. No parent/production closure.",
+    "next_action": "R186 closed; R187 candidate: post-Lambda age proof + fresh exact contract review, then conditional broad sequence implementation.",
+    "closeout_path": "notes/progress/2026-10-21-r186-closeout.md",
+    "closeout_sha256": "73be1f5419b21e7cb2d35263a179b2faafb6f6787d16eec136f30107a7ea2d66"
   },
   "workers": [
     {
@@ -67,56 +69,6 @@
       "receipt": "R186 candidate received CLEAN initial prospective review; sprint activated; contract-design lane active, no code authority."
     },
     {
-      "id": "/root/r173_source_drain_proof",
-      "role": "historical R173 proof owner",
-      "state": "STOPPED",
-      "requested_model": "UNKNOWN",
-      "requested_effort": "UNKNOWN",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Historical output frozen; STOPPED."
-    },
-    {
-      "id": "/root/r174_prover",
-      "role": "historical R174 proof owner",
-      "state": "STOPPED",
-      "requested_model": "UNKNOWN",
-      "requested_effort": "UNKNOWN",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Historical output frozen; STOPPED."
-    },
-    {
-      "id": "/root/r183_source_to_capture_proof",
-      "role": "R183 constructive proof: source-to-Capture",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "R183 frozen proof; CLEAN scoped review; STOPPED."
-    },
-    {
-      "id": "/root/r185_source_history_proof",
-      "role": "R185 rev1 constructive source-history proof",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "R185 rev1 frozen; 1200s charged; STOPPED."
-    },
-    {
-      "id": "/root/r185_admission_frontier_bridge",
-      "role": "R185 rev2 admission/frontier proof continuation",
-      "state": "STOPPED",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "R185 rev2 bridge frozen; 600s charged; STOPPED."
-    },
-    {
       "id": "/root/r186_positive_name_emission",
       "role": "R186 constructive positive-name emission proof",
       "state": "STOPPED",
@@ -125,7 +77,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "STOPPED 20:55:06Z; 901s observed, 1200 charged; requested Sol/high, observed UNKNOWN. Frozen hashes recorded above."
+      "receipt": "STOPPED 20:55:06Z; 901s observed, 1200 charged; requested Sol/high; observed UNKNOWN."
     },
     {
       "id": "/root/r186_contract_review",
@@ -136,18 +88,48 @@
       "requested_effort": "low",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Review stopped; MAJOR finding frozen against contract rev1; ~110s charged, no artifact writes."
+      "receipt": "MAJOR on rev1; ~110s charged; corrected rev2 unreviewed; no writes."
     },
     {
       "id": "/root/r186_proof_review",
-      "role": "independent R186 proof reviewer",
-      "state": "RUNNING",
+      "role": "compiler_referee",
+      "state": "STOPPED",
       "session": "current-conversation-2026-10-21-r186",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Fresh proof review; exact 50 source pins and named parent only; cap180s; no execution/Git."
+      "receipt": "CLEAN scoped; 107s observed, 180 charged; no edits/tests/Git."
+    },
+    {
+      "id": "/root/r173_source_drain_proof",
+      "role": "historical R173 proof owner",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "STOPPED; frozen historical output."
+    },
+    {
+      "id": "/root/r174_prover",
+      "role": "historical R174 proof owner",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "STOPPED; frozen historical output."
+    },
+    {
+      "id": "/root/r183_source_to_capture_proof",
+      "role": "historical R183 proof owner",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "STOPPED; frozen reviewed result."
     }
   ],
   "leases": [
@@ -334,32 +316,32 @@
     {
       "path": "tasks/agent-loop/sprints/source-emission-and-option-b-stage1-20261021-r186.md",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "Activated R186 contract; primary-owned sequential revisions."
+      "state": "FROZEN",
+      "reason": "R186 closed; immutable artifact hashes and review/budget receipts in closeout note."
     },
     {
       "path": "notes/theory/2026-10-21-r186-positive-name-emission.md",
       "owner": "/root/r186_positive_name_emission",
       "state": "FROZEN",
-      "reason": "Writer STOPPED; output hashes in active sprint; review active."
+      "reason": "R186 closed; immutable artifact hashes and review/budget receipts in closeout note."
     },
     {
       "path": "tasks/agent-loop/inbox/20261021-r186-proof-result.md",
       "owner": "/root/r186_positive_name_emission",
       "state": "FROZEN",
-      "reason": "Writer STOPPED; output hashes in active sprint; review active."
+      "reason": "R186 closed; immutable artifact hashes and review/budget receipts in closeout note."
     },
     {
       "path": "notes/design/2026-10-21-r186-option-b-implementation-contract.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "Luna revision 2 frozen; SHA 4e59c25947f3e3ea5acc746ca3e4483f7c4225028f93ad9ec54db3035c2117d9; corrects universal primitive certificate finding; fresh review still required."
+      "reason": "R186 closed; immutable artifact hashes and review/budget receipts in closeout note."
     },
     {
       "path": "tasks/agent-loop/inbox/20261021-r186-implementation.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "Handoff rev2 frozen; SHA d4ad8e9bfbe15a49d99de7759b20e6d99f7a768774b03f254d5350cd733fb3dd; code gate remains closed."
+      "reason": "R186 closed; immutable artifact hashes and review/budget receipts in closeout note."
     }
   ],
   "pending": [
@@ -442,8 +424,8 @@
       "details": "Rev10 rev2 CLEAN independent delta review. Note SHA256 0ce7e3127519e6a17aeb1f2f6d25b24490fbca4ea3644"
     }
   ],
-  "closure": "R185 CLOSED_REVIEWED_UNFINISHED; R186 active after CLEAN initial prospective review. Parent/frontier/production gates OPEN.",
-  "next_action": "R186 proof is active; corrected implementation contract revision 2 is UNREVIEWED and code remains stopped. Replan after proof result/closeout.",
+  "closure": "R186 CLOSED_REVIEWED_UNFINISHED; local bare-Name attack repaired; universal frontier and production OPEN. Code gate unreviewed, never activated.",
+  "next_action": "R187 preparation per dispatcher: independently budgeted review of corrected contract and post-Lambda proof; no compiler code before CLEAN review.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
@@ -480,6 +462,15 @@
       "artifacts_commit": "2194ac4ee pushed",
       "review": "/root/r185_joint_final_review CLEAN scoped; 600s",
       "charged_seconds": 4440
+    },
+    {
+      "id": "R186",
+      "outcome": "CLEAN scoped unfinished; bare-Name finite Catch path repaired by joint Value/AE level lowering; Group broader candidate outside parent §1 quantifier; post-Lambda age and Group same-use OPEN. Contract rev1 MAJOR, corrected rev2 unreviewed, no code.",
+      "proof": "84a235ad62c8ee980c3d71f96bf24496d4e9941ea13d4bca2c33eee44bc0a4ae; review CLEAN scoped",
+      "contract_rev2": "4e59c25947f3e3ea5acc746ca3e4483f7c4225028f93ad9ec54db3035c2117d9",
+      "closeout": "73be1f5419b21e7cb2d35263a179b2faafb6f6787d16eec136f30107a7ea2d66",
+      "charged_seconds": 2690,
+      "git": "R186 checkpoints pushed through ec7e767b8; closeout pending primary commit."
     }
   ],
   "review_receipts": "R182 final CLEAN scoped; R183 rev2 prospective CLEAN; R183 rev3 prospective CLEAN delta; R147 exact bundle final CLEAN, semantic proposal now provisionally adopted per user direction."
