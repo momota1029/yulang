@@ -1,0 +1,6 @@
+act signal:
+    our ping: () -> int
+
+my terminal (t:[signal] int) = t
+my relay (t:[signal] int) = terminal t
+my answer = relay (signal::ping())
