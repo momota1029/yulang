@@ -4,6 +4,8 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use yu_hir::HirErrorKind;
 pub use crate::candidate_call::{CandidateComputationSourcePlan, CandidateDirectionalIntroduction, CandidateSourceCall, OriginalGenCall0Input, PendingCallConstruction, PendingCallSupplier};
+mod local_source_observation;
+pub use local_source_observation::{CandidateLocalProviderRoute, CandidateLocalSourceProviderObservation};
 
 /// Every entry remains unresolved, including after successful structural solving.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
