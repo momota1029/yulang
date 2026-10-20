@@ -3,6 +3,7 @@ import "./style.css";
 import yulang2IdentityIsland from "../examples/yulang2-identity-island.yu?raw";
 import yulang2TypeMismatch from "../examples/yulang2-type-mismatch.yu?raw";
 import yulang2ParameterProvenance from "../examples/yulang2-parameter-provenance.yu?raw";
+import yulang2OrdinaryIslands from "../examples/yulang2-ordinary-islands.yu?raw";
 import repeatedChoice from "../examples/repeated-choice.yu?raw";
 import polymorphicEscapingClosure from "../examples/polymorphic-escaping-closure.yu?raw";
 
@@ -10,6 +11,7 @@ const examples: Record<string, string> = {
   yulang2_identity_island: yulang2IdentityIsland,
   yulang2_type_mismatch: yulang2TypeMismatch,
   yulang2_parameter_provenance: yulang2ParameterProvenance,
+  yulang2_ordinary_islands: yulang2OrdinaryIslands,
   repeated_choice: repeatedChoice,
   polymorphic_escaping_closure: polymorphicEscapingClosure,
   ordinary: "my identity x = x\nmy main = identity 7",
@@ -65,7 +67,11 @@ async function withBusy(action: () => string): Promise<void> {
 document.querySelector<HTMLSelectElement>("#example")!.addEventListener("change", (event) => {
   const selected = (event.currentTarget as HTMLSelectElement).value;
   source.value = examples[selected] ?? examples.ordinary;
-  definition.value = selected === "yulang2_identity_island" ? "int_identity" : "main";
+  definition.value = selected === "yulang2_identity_island"
+    ? "int_identity"
+    : selected === "yulang2_ordinary_islands"
+      ? "countdown_result"
+      : "main";
 });
 
 inferButton.addEventListener("click", () => {

@@ -22,3 +22,7 @@ Next: fresh static review of this repair, preserving execution stop and existing
 ## Repair review receipt
 
 Fresh static review of commit `58af75437808e1a53de001c5fe17d10e7cbb9b3a` returned CLEAN. It confirms valid terminal newline/semicolon separators are accepted after nonempty sequences while empty, leading/repeated separators, adjacent statements, malformed child shapes, and recovery-bearing bodies remain rejected. This review performed no execution. The HIR regression for explicit `;` and all runtime/CLI/Web checks remain unexecuted under the user's resource direction.
+
+## Web route checkpoint
+
+The unchanged `yulang2-ordinary-islands.yu` fixture is now added to the existing Web example selector. Selecting it sets `countdown_result`; `smoke-test.mjs` now expects `8\n`. Fixture SHA-256 remains `f10e7e57cdfc165436a89326c9f069f19aa0afd24cea80b2b570463fcc553487`. Web build/smoke remains unexecuted under the user resource STOP.

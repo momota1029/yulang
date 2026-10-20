@@ -31,6 +31,11 @@ const examples = {
     fs.readFileSync("./examples/repeated-choice.yu", "utf8"),
     "23\n",
   ],
+  ordinaryIslands: [
+    fs.readFileSync("./examples/yulang2-ordinary-islands.yu", "utf8"),
+    "8\n",
+    "countdown_result",
+  ],
 };
 const polymorphicEscapingClosureSource = fs.readFileSync(
   "./examples/polymorphic-escaping-closure.yu",
@@ -56,7 +61,10 @@ const yulang2Definitions = {
   string_identity: '"ok"\n',
 };
 const results = Object.fromEntries(
-  Object.entries(examples).map(([name, [source]]) => [name, run(source, "main", 100_000)]),
+  Object.entries(examples).map(([name, [source, , definition = "main"]]) => [
+    name,
+    run(source, definition, 100_000),
+  ]),
 );
 const yulang2Results = Object.fromEntries(
   Object.entries(yulang2Definitions).map(([definition, expected]) => [
