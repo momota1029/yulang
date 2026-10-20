@@ -19,14 +19,14 @@
   },
   "resources": {
    "cap_seconds": 1200,
-   "charged_seconds": 780,
-   "reserved_seconds": 420,
+   "charged_seconds": 960,
+   "reserved_seconds": 240,
    "astra_seconds": 0,
    "no_carryover": true,
-   "reservation_state": "Prep+prospective reviews360 and proof420 charged (proof elapsed unknown, full cap). Luna draft180, final review120, closeout120 reserved; no carryover."
+   "reservation_state": "Prep+prospective reviews360, proof420, Luna decision draft180 charged. Final review120 and closeout120 reserved; no carryover."
   },
   "parent_status": "R70/R71, Simple-sub/evaluator A/B, source/native correspondence, evaluator/sample compatibility and production remain OPEN. R146 supervisor conformance UNVERIFIED.",
-  "next_boundary": "Final compiler/source review of frozen contract, theory, proof handoff, Luna decision draft and Luna handoff; then closeout and user decision.",
+  "next_boundary": "Final review disposition; closeout; then user option choice if CLEAN. Separate implementation contract required.",
   "prospective_reviews": [
    {
     "reviewer": "/root/r146_pre_spec",
@@ -52,7 +52,15 @@
    "decision_draft_sha256": "2dbbf05c2c74810c4684a71d81933d4b6b4a9be2067dcc60b943bb090ff64f12",
    "decision_handoff": "tasks/agent-loop/inbox/20261020-r147-decision-packet.md",
    "decision_handoff_sha256": "d3bb3264ffb64df0d7948e3460c43ce1f037a4bd51ef7ebb4fb3de8dea031355"
-  }
+  },
+  "final_reviews": [
+   {
+    "reviewer": "/root/r146_final_compiler",
+    "role": "compiler_referee",
+    "state": "RUNNING",
+    "scope": "Frozen R147 artifacts; exact hashes in active_sprint.proof_outputs."
+   }
+  ]
  },
  "workers": [
   {
@@ -102,13 +110,13 @@
   {
    "id": "/root/r146_final_compiler",
    "role": "R146 independent final compiler/source reviewer",
-   "state": "STOPPED",
-   "session": null,
+   "state": "RUNNING",
+   "session": "current-conversation-2026-10-20-r147-proof-and-decision",
    "requested_model": "compiler_referee default Sol/medium",
    "requested_effort": "medium",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Final compiler/source review completed read-only; no descendants."
+   "receipt": "Fresh read-only final review of frozen R147 source/decision artifacts; no execution or descendants."
   },
   {
    "id": "/root/r146_pre_spec",
@@ -142,6 +150,17 @@
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "receipt": "Writes STOPPED 2026-10-20T02:19:53.979209Z; theory/handoff frozen at listed hashes; no descendants."
+  },
+  {
+   "id": "/root/r147_final_compiler",
+   "role": "R147 independent final compiler/source reviewer",
+   "state": "RUNNING",
+   "session": "current-conversation-2026-10-20-r147-proof-and-decision",
+   "requested_model": "compiler_referee default Sol/medium",
+   "requested_effort": "medium",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Fresh review of frozen hashes; no execution or Git."
   }
  ],
  "leases": [
@@ -313,7 +332,7 @@
   }
  ],
  "closure": "R146 CLOSED_UNFINISHED_REVIEWED_RESEARCH: finite OBSERVED_PREPARED record, but supervisor conformance UNVERIFIED because inline source was not retained. See notes/progress/2026-10-20-r146-closeout.md. R70/R71 and higher parents remain OPEN.",
- "next_action": "R147 proof and decision draft are frozen and await fresh independent compiler/source review. No code or execution authority.",
+ "next_action": "R147 frozen packet in final compiler/source review; no implementation/execution authority.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
