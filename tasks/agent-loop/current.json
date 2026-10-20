@@ -8,7 +8,7 @@
     "contract": "tasks/agent-loop/sprints/replay-completion-20261020-r142-rev1.md",
     "revision": 2,
     "contract_sha256": "25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd",
-    "state": "READY_TO_RESUME",
+    "state": "ACTIVE_PROOF_REV2",
     "baseline": "503e5c78ce67a4616044ce981030e5e1bda5223c",
     "authority": "read-only constructor-derived replay-child completion ownership proof or authentic counterexample; no implementation or semantic authority; rev2 adds only candidate_scheme.rs and candidate_source.rs for Local error-owner closure",
     "dependencies": {
@@ -50,7 +50,7 @@
       "proof_assignment_aggregate_seconds": 840
     },
     "parent_status": "R70-DRAIN-1 remains OPEN until proof applies; R70 entry validity/fiber coverage, R71, R72/R73, Simple-sub A/B, inference/evaluator, source-native and production gates remain OPEN.",
-    "next_boundary": "Luna activates exact rev2 after CLEAN delta reviews; then proof resumes for at most 540s with frozen rev1 outputs and no new dependencies.",
+    "next_boundary": "Resolve R142-ERROR-OWNER-1 within the 15 pinned files; hard stop after 540 resumed proof seconds or earlier completion.",
     "prospective_delta_reviews": [
       {
         "reviewer": "/root/r141_pre_spec",
@@ -64,7 +64,8 @@
         "scope": "compiler/source caller closure; exact R142 rev2 contract and all 15 pins",
         "contract_sha256": "25f019b0d96d8fefe5a7332458226cada068b6d4a07462138c4b3634441b0fdd"
       }
-    ]
+    ],
+    "activation_commit": "fcd2f7e39"
   },
   "workers": [
     {
@@ -114,13 +115,13 @@
     {
       "id": "/root/r140_action31_proof",
       "role": "R142 constructive proof producer",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "session": "current-conversation-2026-10-20-r142",
       "requested_model": "gpt-6-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R142 rev1 outputs frozen UNFINISHED/OPEN; writes stopped 2026-10-20 00:39:22 UTC; 300/900s charged; no descendants."
+      "receipt": "R142 rev2 current-session resume acknowledgement received after commit fcd2f7e39; accepted exact two write leases and 540s cap; aggregate proof cap 840s including rev1 300s; no descendants, code/tests/builds/Git; observed model/effort UNKNOWN."
     }
   ],
   "leases": [
@@ -207,15 +208,15 @@
     },
     {
       "path": "notes/theory/2026-10-20-r142-replay-completion.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Rev1 frozen partial result; proof producer stopped. New revision lease awaits exact resumption grant."
+      "owner": "/root/r140_action31_proof",
+      "state": "HELD",
+      "reason": "R142 rev2 exact resumed proof write lease; 540s cap; output must freeze before review."
     },
     {
       "path": "tasks/agent-loop/inbox/20261020-r142-proof.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Rev1 frozen partial result; proof producer stopped. New revision lease awaits exact resumption grant."
+      "owner": "/root/r140_action31_proof",
+      "state": "HELD",
+      "reason": "R142 rev2 exact resumed proof write lease; 540s cap; output must freeze before review."
     },
     {
       "path": "notes/progress/2026-10-20-r142-closeout.md",
@@ -296,7 +297,7 @@
     }
   ],
   "closure": "R138 CLOSED_UNFINISHED_REVIEWED_RESEARCH. R139 CLOSED_VERIFIED_DIAGNOSTIC_COMPATIBILITY for two exact experimental inputs; all parent inference/evaluator/production gates OPEN. R141 CLOSED_UNFINISHED_REVIEWED_RESEARCH; no runtime observation, all parent and production gates remain OPEN.",
-  "next_action": "R142 rev2 READY_TO_RESUME after two CLEAN delta reviews; Luna activates exact revision and reassigns only the two proof output paths. No compiler commands.",
+  "next_action": "R142 rev2 active: proof producer resolving R142-ERROR-OWNER-1 in 15 frozen source pins; Luna completes complementary source audit; no compiler commands.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Conservative reconciliation preserves every unresolved inherited identity, the exact board quarantine, and the legacy implementer slot reservation. No unknown path or capacity is reclaimed.",
