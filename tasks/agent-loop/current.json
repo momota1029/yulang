@@ -1,9 +1,44 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ENDED",
-  "session": "current-conversation-2026-10-20-r145-final-review",
-  "active_sprint": null,
+  "phase": "ACTIVE",
+  "session": "current-conversation-2026-10-20-r146-candidate-review",
+  "active_sprint": {
+    "id": "source-admission-observation-20261020-r146",
+    "contract": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev1.md",
+    "revision": 1,
+    "contract_sha256": "a7848b9138898a04213a071172f41d4b351233a1ae82e713232a1dbd320273da",
+    "state": "CANDIDATE_PROSPECTIVE_SPEC_REVIEW",
+    "baseline": "f6e59e42bcfcfb3c13a0c511c63bcf9d0390005d",
+    "authority": "Read-only candidate review only. No process/build/CLI, proof, code, runtime or resource authority before both prospective CLEAN reviews, fresh activation pins, exact leases and explicit Luna activation.",
+    "dependencies": {
+      "direct_pins": 19,
+      "validated_baseline_live_pairs": 19,
+      "code_tree_diff": "No diff against baseline for Cargo.toml, Cargo.lock, crates/, tools/inference-playground/.",
+      "tree": "38f79bf7203e9766ac26b5876d7569fc84dbc842"
+    },
+    "resources": {
+      "cap_seconds": 1800,
+      "charged_seconds": 180,
+      "reserved_seconds": 1620,
+      "astra_seconds": 0,
+      "proof_seconds": 840,
+      "no_carryover": true,
+      "reservation_state": "Candidate only; prep 180s charged conservatively; no remaining resource is authorized unless candidate activates."
+    },
+    "parent_status": "R70/R71 OPEN; higher Simple-sub A/B, source/native correspondence, evaluator/sample compatibility and production gates remain OPEN.",
+    "next_boundary": "Prospective spec review result; then sequential compiler/source review. Any contract change requires revision and fresh review.",
+    "proof_result": "NOT_STARTED; candidate inactive.",
+    "proof_outputs": {
+      "theory": "notes/theory/2026-10-20-r146-source-admission.md",
+      "handoff": "tasks/agent-loop/inbox/20261020-r146-proof.md",
+      "observation": "notes/progress/2026-10-20-r146-admission-observation.txt"
+    },
+    "closeout": "notes/progress/2026-10-20-r146-closeout.md",
+    "prospective_reviews": [],
+    "final_reviews": [],
+    "primary_complementary_result": "NO_SAFE_CODE_SLICE; no process or source edit authorized at candidate review."
+  },
   "workers": [
     {
       "id": "/root/resident_dispatcher_loop_a",
@@ -41,13 +76,13 @@
     {
       "id": "/root",
       "role": "Luna primary / sole Git integrator",
-      "state": "STOPPED",
-      "session": "current-conversation-2026-10-20-r145-final-review",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-20-r146-candidate-review",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Luna closed R145 after CLEAN final compiler/source review; closeout integrated. No successor worker/lease started."
+      "receipt": "Live primary session preparing R146 candidate after R145 closeout; candidate inactive, no CLI/build run."
     },
     {
       "id": "/root/r145_source_path_probe",
@@ -92,6 +127,17 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "CLEAN final compiler/source review completed for frozen R145 result 2; full receipt in R145 closeout/history. No writes/tests/builds/execution."
+    },
+    {
+      "id": "/root/r146_pre_spec",
+      "role": "R146 prospective exact-conformance reviewer",
+      "state": "RUNNING",
+      "session": "current-conversation-2026-10-20-r146-candidate-review",
+      "requested_model": "spec_auditor default Sol/low",
+      "requested_effort": "low",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Fresh isolated read-only review launched against exact R146 rev1 SHA; no Git/writes/tests/build/CLI."
     }
   ],
   "leases": [
@@ -123,6 +169,12 @@
       "owner": "/root",
       "state": "FROZEN",
       "reason": "Proof author stopped; frozen outputs pending independent final review and Luna adjudication."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/source-admission-observation-20261020-r146-rev1.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Exact candidate SHA under prospective review; inactive."
     }
   ],
   "pending": [
@@ -198,7 +250,7 @@
     }
   ],
   "closure": "R145 CLOSED_UNFINISHED_REVIEWED_RESEARCH: first unpinned syntax-admission premise. Final compiler/source review CLEAN. See notes/progress/2026-10-20-r145-closeout.md. Parent R70/R71 and higher claims remain OPEN.",
-  "next_action": "No successor authorized. At the next sprint boundary, compare static syntax-owner dependency expansion, a separately contracted source-admission observation, and unchanged-sample breadth route.",
+  "next_action": "R146 rev1 prospective spec review active; 19/19 direct pins and baseline code-tree parity checked. No command has run.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Inventory completed in notes/progress/2026-10-20-sprint-adoption-reconciliation.md. Three historical identities remain UNKNOWN; board writer path stays QUARANTINED, legacy slot reserved, R104 lease HELD. No unknown lease or capacity reclaimed.",
