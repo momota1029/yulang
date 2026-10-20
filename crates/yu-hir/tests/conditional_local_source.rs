@@ -100,6 +100,18 @@ fn braced_conditional_retains_ordered_direct_sequence_occurrences() {
 }
 
 #[test]
+fn braced_conditional_accepts_an_explicit_terminal_statement_separator() {
+    let module = lower("my value = if true { 3; 8; }").unwrap();
+    let source = sources(&module)[0];
+    let expression = source.expression(source.body()).unwrap();
+    let LocalSourceForm::If { arms, .. } = &expression.form else { panic!("conditional"); };
+    let LocalSourceForm::Sequence { items } = &source.expression(&arms[0].1).unwrap().form else { panic!("then sequence"); };
+    assert_eq!(items.len(), 2);
+    assert!(matches!(&source.expression(&items[0]).unwrap().form, LocalSourceForm::Integer(value) if value.as_ref() == "3"));
+    assert!(matches!(&source.expression(&items[1]).unwrap().form, LocalSourceForm::Integer(value) if value.as_ref() == "8"));
+}
+
+#[test]
 fn malformed_braced_else_does_not_publish_a_partial_sequence() {
     assert!(matches!(
         lower("my value = if true { 1 } else { rest"),

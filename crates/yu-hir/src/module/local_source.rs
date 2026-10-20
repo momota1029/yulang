@@ -1404,7 +1404,7 @@ impl Builder<'_> {
             }
             expect_statement = !expect_statement;
         }
-        if statements.is_empty() || expect_statement { return Err(unsupported()); }
+        if statements.is_empty() { return Err(unsupported()); }
         let mut items = Vec::new();
         items.try_reserve_exact(statements.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
         for _ in &statements { push(&mut items, self.slot()?)?; }
