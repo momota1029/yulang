@@ -143,6 +143,28 @@ pub enum CandidateProviderObservationKind {
     BoundEmission,
     SourceOrigin,
 }
+/// Retained Capture and fresh-use map records associated with actual candidate
+/// graph routes. These are structural inputs, not constructor-event history.
+#[derive(Debug)]
+pub struct CandidateProviderCaptureRow<'a> {
+    pub graph_index: usize,
+    pub route_owner: CandidateReplayRouteOwner,
+    pub route: usize,
+    pub route_occurrence: &'a dyn std::fmt::Debug,
+    pub context_use: usize,
+    pub relation: Option<u32>,
+    pub ordinal: usize,
+    pub kind: CandidateProviderCaptureKind,
+    pub map_name: Option<&'static str>,
+    pub record: &'a dyn std::fmt::Debug,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateProviderCaptureKind {
+    CaptureGraph,
+    FreshUseMap,
+    CapturedBound,
+    CaptureSnapshot,
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CandidateProviderSourceJoin {
     /// Context-local provider records are not directly joined to the retained
@@ -154,6 +176,7 @@ pub enum CandidateProviderSourceJoin {
 /// complete census.
 pub struct CandidateProviderObservation<'a> {
     rows: Vec<CandidateProviderObservationRow<'a>>,
+    capture_rows: Vec<CandidateProviderCaptureRow<'a>>,
     truncated: bool,
 }
 impl<'a> CandidateProviderObservation<'a> {
@@ -161,6 +184,9 @@ impl<'a> CandidateProviderObservation<'a> {
         self.rows.iter()
     }
     pub fn truncated(&self) -> bool { self.truncated }
+    pub fn capture_rows(&self) -> impl Iterator<Item = &CandidateProviderCaptureRow<'a>> + '_ {
+        self.capture_rows.iter()
+    }
     pub fn lambda_slot2_source_join(&self) -> CandidateProviderSourceJoin {
         CandidateProviderSourceJoin::NotJoinedToContextRecord
     }
@@ -372,7 +398,84 @@ impl CandidateInference {
             }
         }
         drop(push);
-        Ok(CandidateProviderObservation { rows, truncated })
+        let mut capture_rows = Vec::new();
+        capture_rows.try_reserve(cap.saturating_sub(rows.len())).map_err(|_| ArtifactMismatch)?;
+        let mut push_capture = |row| {
+            if rows.len() + capture_rows.len() == cap { truncated = true; false }
+            else { capture_rows.push(row); true }
+        };
+        'captures: for (graph_index, state) in self.solved.data.candidate_graph.iter().enumerate() {
+            for (route, item) in state.routes.iter().enumerate() {
+                let context_use = item.retained.observed_context_use();
+                let route_occurrence = item.use_id.occurrence();
+                if !push_capture(CandidateProviderCaptureRow {
+                    graph_index, route_owner: CandidateReplayRouteOwner::Module, route, route_occurrence, context_use,
+                    relation: None, ordinal: route, kind: CandidateProviderCaptureKind::CaptureGraph,
+                    map_name: None, record: &item.graph,
+                }) { break 'captures; }
+                let mut maps_complete = true;
+                item.retained.observe_maps(|map_name, record| {
+                    if maps_complete {
+                        maps_complete = push_capture(CandidateProviderCaptureRow {
+                            graph_index, route_owner: CandidateReplayRouteOwner::Module, route, route_occurrence, context_use,
+                            relation: None, ordinal: route, kind: CandidateProviderCaptureKind::FreshUseMap,
+                            map_name: Some(map_name), record,
+                        });
+                    }
+                });
+                if !maps_complete { break 'captures; }
+                for (ordinal, bound) in item.graph.bounds.iter().enumerate() {
+                    if !push_capture(CandidateProviderCaptureRow {
+                        graph_index, route_owner: CandidateReplayRouteOwner::Module, route, route_occurrence, context_use,
+                        relation: bound.relation.map(|id| id.0), ordinal,
+                        kind: CandidateProviderCaptureKind::CapturedBound, map_name: None, record: bound,
+                    }) { break 'captures; }
+                }
+                for (ordinal, snapshot) in item.graph.bound_evidence.iter().enumerate() {
+                    if !push_capture(CandidateProviderCaptureRow {
+                        graph_index, route_owner: CandidateReplayRouteOwner::Module, route, route_occurrence, context_use,
+                        relation: None, ordinal, kind: CandidateProviderCaptureKind::CaptureSnapshot,
+                        map_name: None, record: snapshot,
+                    }) { break 'captures; }
+                }
+            }
+            for (route, item) in state.local_routes.iter().enumerate() {
+                let context_use = item.retained.observed_context_use();
+                let route_occurrence = &item.occurrence;
+                if !push_capture(CandidateProviderCaptureRow {
+                    graph_index, route_owner: CandidateReplayRouteOwner::Local, route, route_occurrence, context_use,
+                    relation: None, ordinal: route, kind: CandidateProviderCaptureKind::CaptureGraph,
+                    map_name: None, record: &item.graph,
+                }) { break 'captures; }
+                let mut maps_complete = true;
+                item.retained.observe_maps(|map_name, record| {
+                    if maps_complete {
+                        maps_complete = push_capture(CandidateProviderCaptureRow {
+                            graph_index, route_owner: CandidateReplayRouteOwner::Local, route, route_occurrence, context_use,
+                            relation: None, ordinal: route, kind: CandidateProviderCaptureKind::FreshUseMap,
+                            map_name: Some(map_name), record,
+                        });
+                    }
+                });
+                if !maps_complete { break 'captures; }
+                for (ordinal, bound) in item.graph.bounds.iter().enumerate() {
+                    if !push_capture(CandidateProviderCaptureRow {
+                        graph_index, route_owner: CandidateReplayRouteOwner::Local, route, route_occurrence, context_use,
+                        relation: bound.relation.map(|id| id.0), ordinal,
+                        kind: CandidateProviderCaptureKind::CapturedBound, map_name: None, record: bound,
+                    }) { break 'captures; }
+                }
+                for (ordinal, snapshot) in item.graph.bound_evidence.iter().enumerate() {
+                    if !push_capture(CandidateProviderCaptureRow {
+                        graph_index, route_owner: CandidateReplayRouteOwner::Local, route, route_occurrence, context_use,
+                        relation: None, ordinal, kind: CandidateProviderCaptureKind::CaptureSnapshot,
+                        map_name: None, record: snapshot,
+                    }) { break 'captures; }
+                }
+            }
+        }
+        drop(push_capture);
+        Ok(CandidateProviderObservation { rows, capture_rows, truncated })
     }
     pub fn solve(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
         Self::solve_mode(hir, false, false)

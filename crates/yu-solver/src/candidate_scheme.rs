@@ -155,7 +155,7 @@ pub(super) struct FreshRoute {
     pub use_id: DefinitionUseId,
     pub graph: Graph,
     pub rows: Vec<RowKey>,
-    retained: RetainedFreshUseMaps,
+    pub(super) retained: RetainedFreshUseMaps,
 }
 #[derive(Debug)]
 pub(super) struct LocalScheme {
@@ -172,7 +172,7 @@ pub(super) struct LocalFreshRoute {
     pub use_instance: usize,
     pub graph: Graph,
     pub rows: Vec<RowKey>,
-    retained: RetainedFreshUseMaps,
+    pub(super) retained: RetainedFreshUseMaps,
 }
 impl LocalFreshRoute {
     pub(super) fn authentic_use_instance(&self) -> bool {
@@ -180,7 +180,7 @@ impl LocalFreshRoute {
     }
 }
 #[derive(Debug)]
-struct RetainedFreshUseMaps {
+pub(super) struct RetainedFreshUseMaps {
     scope_remap: candidate_source::ScopeRemap,
     scoped_relations: HashMap<candidate_context::RelationId, candidate_context::ScopedFlow>,
     #[allow(dead_code)]
@@ -192,6 +192,18 @@ struct RetainedFreshUseMaps {
     evidence_remap: Vec<candidate_context::EvidenceSnapshotId>,
     #[cfg(test)]
     row_observations: Vec<ReconstructedRowObservation>,
+}
+impl RetainedFreshUseMaps {
+    pub(super) fn observed_context_use(&self) -> usize { self.context_use }
+    pub(super) fn observe_maps<'a>(&'a self, mut observe: impl FnMut(&'static str, &'a dyn std::fmt::Debug)) {
+        observe("scope_remap", &self.scope_remap);
+        observe("scoped_relations", &self.scoped_relations);
+        observe("terms", &self.terms);
+        observe("effect_operands", &self.effect_operands);
+        observe("bundle_remap", &self.bundle_remap);
+        observe("context_remap", &self.context_remap);
+        observe("evidence_remap", &self.evidence_remap);
+    }
 }
 impl RetainedFreshUseMaps {
     fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
