@@ -157,8 +157,9 @@ pub struct SyntaxEnvironmentKey(u64);
 impl SyntaxEnvironmentKey {
     pub const EMPTY: Self = Self(0);
 
-    #[cfg(test)]
-    pub(crate) const fn from_raw(value: u64) -> Self {
+    /// Construct an opaque key from a caller-owned stable environment
+    /// fingerprint. Equal keys assert equal imported syntax inputs.
+    pub const fn from_fingerprint(value: u64) -> Self {
         Self(value)
     }
 }
@@ -238,6 +239,12 @@ pub struct SourceRevision(u64);
 impl SourceRevision {
     /// Placeholder used until revision allocation is owned by compiler queries.
     pub const UNTRACKED: Self = Self(0);
+
+    /// Construct a revision label from a caller-owned stable content
+    /// fingerprint. This identifies source bytes; it does not certify them.
+    pub const fn from_fingerprint(value: u64) -> Self {
+        Self(value)
+    }
 }
 
 #[cfg(test)]

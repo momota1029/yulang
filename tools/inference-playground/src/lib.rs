@@ -1,5 +1,6 @@
 //! Local experimental observations, not production admission or principal types.
 mod output;
+mod pinned_stdlib;
 pub mod render;
 pub mod runtime;
 use output::{Output, cap};
@@ -9,7 +10,10 @@ use std::{io::Read, ops::Range, sync::Arc};
 use yu_hir::shadow::lower_module_with_local_source;
 use yu_hir::{FileId, FileKey, HirItem, HirModule, HirOccurrenceId, ModuleIdentity, SemanticImports, SourceRootId};
 use yu_solver::shadow_apply::{CandidateError, CandidateInference};
-use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+use yu_syntax::{
+    SourceRevision, SourceText, SyntaxDependencyProvenance, SyntaxDependencySlot,
+    SyntaxEnvironment, SyntaxEnvironmentKey, parse_file, scan_header,
+};
 
 pub const INPUT_CAP: usize = 64 * 1024;
 
@@ -293,7 +297,7 @@ fn prepare(
     let parsed = parse_file(
         text.clone(),
         Arc::new(scan_header(text)),
-        Arc::new(SyntaxEnvironment::empty()),
+        Arc::new(playground_syntax_environment()?),
     );
     let diagnostics = parsed.syntax_diagnostics().map_err(|error| {
         bounded_message(format_args!("syntax diagnostics unavailable: {error:?}"))
@@ -357,6 +361,27 @@ fn prepare(
     Ok((hir, candidate))
 }
 
+fn playground_syntax_environment() -> Result<SyntaxEnvironment, String> {
+    let source = pinned_stdlib::source_for_module("std::core::ops")
+        .map_err(|error| format!("pinned standard-library bundle unavailable: {error:?}"))?
+        .ok_or_else(|| "pinned standard-library module std::core::ops is missing".to_owned())?;
+    let fingerprint = pinned_stdlib::fingerprint(&source.git_blob);
+    let text: Arc<SourceText> = Arc::from(source.text);
+    let header = scan_header(text);
+    let dependency = SyntaxDependencySlot::from_index(0)
+        .expect("the standard-library syntax dependency fits its slot type");
+    let provenance = Arc::from([SyntaxDependencyProvenance::new(
+        Arc::from(source.path),
+        SourceRevision::from_fingerprint(fingerprint),
+    )]);
+    SyntaxEnvironment::from_imported_headers(
+        SyntaxEnvironmentKey::from_fingerprint(fingerprint),
+        [(dependency, &header)],
+        provenance,
+    )
+    .map_err(|error| format!("pinned standard-library syntax unavailable: {error:?}"))
+}
+
 fn conflict_ranges_for<'requested, 'hir>(
     hir: &'hir HirModule,
     requested: impl IntoIterator<Item = &'requested HirOccurrenceId>,
@@ -417,6 +442,7 @@ fn bounded_message(arguments: std::fmt::Arguments<'_>) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::playground_syntax_environment;
     use super::{conflict_ranges_for, execute, prepare};
     use super::output;
     use yu_hir::shadow::{LocalSourceForm, lower_module_with_local_source};
@@ -425,6 +451,28 @@ mod tests {
     use crate::runtime::{RuntimeEvidence, RuntimeOutcome, RuntimeProgram, RuntimeUnavailable};
     use std::sync::Arc;
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+
+    #[test]
+    fn console_operator_is_loaded_from_the_pinned_imported_source() {
+        let source =
+            "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
+        assert_eq!(source.len(), 92);
+        let environment = playground_syntax_environment().unwrap();
+        assert_ne!(environment.key(), yu_syntax::SyntaxEnvironmentKey::EMPTY);
+        assert_eq!(environment.provenance().len(), 1);
+        assert_eq!(
+            environment.provenance()[0].module_label(),
+            "lib/std/core/ops.yu"
+        );
+
+        let text: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(
+            text.clone(),
+            Arc::new(scan_header(text)),
+            Arc::new(environment),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+    }
 
     fn integer_expression<'hir>(
         hir: &'hir HirModule,

@@ -447,7 +447,7 @@ mod tests {
         );
         let syntax = Arc::new(
             SyntaxEnvironment::from_imported(
-                SyntaxEnvironmentKey::from_raw(7),
+                SyntaxEnvironmentKey::from_fingerprint(7),
                 Arc::new(
                     OperatorTable::from_declarations([OperatorDeclaration::imported_at_range(
                         "?",
@@ -769,7 +769,7 @@ mod tests {
         assert_eq!(header.operators().len(), 1);
         let syntax = Arc::new(
             SyntaxEnvironment::from_imported(
-                SyntaxEnvironmentKey::from_raw(9),
+                SyntaxEnvironmentKey::from_fingerprint(9),
                 Arc::new(
                     OperatorTable::from_declarations([OperatorDeclaration::imported_at_range(
                         "?",
