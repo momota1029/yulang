@@ -102,12 +102,12 @@
       "id": "/root",
       "role": "Luna primary",
       "state": "STOPPED",
-      "session": "r256-20261021",
+      "session": "r270-20261021",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R256 read-only result frozen; no compiler writes."
+      "receipt": "R270 source tuple candidate path checkpoint committed and pushed as 69b03a2ae; focused arity/effect tests pass; full-suite failures recorded, sprint remains ACTIVE."
     }
   ],
   "leases": [
