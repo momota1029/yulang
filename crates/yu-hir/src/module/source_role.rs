@@ -13,6 +13,7 @@ pub struct SourceRoleHead {
     pub source: SourceNodeKey,
     pub range: Range<usize>,
     pub text: Box<str>,
+    pub recovered: bool,
     /// The syntactic role head, not a globally resolved role name.
     pub spelling: Box<str>,
 }
@@ -22,6 +23,7 @@ pub struct SourceRoleBody {
     pub source: SourceNodeKey,
     pub range: Range<usize>,
     pub text: Box<str>,
+    pub recovered: bool,
     pub members: Vec<SourceRoleMember>,
 }
 
@@ -37,6 +39,7 @@ pub struct SourceRoleMember {
     pub kind: SyntaxKind,
     pub range: Range<usize>,
     pub text: Box<str>,
+    pub recovered: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -46,6 +49,7 @@ pub struct SourceRoleDeclaration {
     pub head: SourceRoleHead,
     pub body: Option<SourceRoleBody>,
     pub range: Range<usize>,
+    pub recovered: bool,
 }
 
 fn trivia(kind: SyntaxKind) -> bool {
@@ -70,7 +74,7 @@ fn body_members(
         if child.kind() != SyntaxKind::Statement { return Err(unsupported()); }
         let mut declarations = child.children();
         let declaration = declarations.next().ok_or_else(unsupported)?;
-        if declarations.next().is_some() || has_recovery(&declaration) { return Err(unsupported()); }
+        if declarations.next().is_some() { return Err(unsupported()); }
         members.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
         members.push(SourceRoleMember {
             id: SourceRoleMemberId {
@@ -80,6 +84,7 @@ fn body_members(
             kind: declaration.kind(),
             range: crate::range_of(&declaration),
             text: declaration.text().to_string().into_boxed_str(),
+            recovered: has_recovery(&declaration),
         });
     }
     Ok(members)
@@ -92,9 +97,7 @@ pub(super) fn declarations(
 ) -> Result<Vec<SourceRoleDeclaration>, HirAvailabilityError> {
     let mut result = Vec::new();
     for node in root.children().filter(|node| node.kind() == SyntaxKind::RoleDeclaration) {
-        if has_recovery(&node) {
-            return Err(unsupported());
-        }
+        let recovered = has_recovery(&node);
         let mut parts = node.children_with_tokens().filter(|part| !trivia(part.kind()));
         let first = parts.next().ok_or_else(unsupported)?;
         let visibility = match first.kind() {
@@ -131,6 +134,7 @@ pub(super) fn declarations(
                     source: counters.source_nodes.get(&body).cloned().ok_or_else(unsupported)?,
                     range: crate::range_of(&body),
                     text: body.text().to_string().into_boxed_str(),
+                    recovered: has_recovery(&body),
                     members: body_members(&body, &id, counters)?,
                 })
             }
@@ -140,6 +144,7 @@ pub(super) fn declarations(
                     source: counters.source_nodes.get(&body).cloned().ok_or_else(unsupported)?,
                     range: crate::range_of(&body),
                     text: body.text().to_string().into_boxed_str(),
+                    recovered: has_recovery(&body),
                     members: body_members(&body, &id, counters)?,
                 })
             }
@@ -156,9 +161,11 @@ pub(super) fn declarations(
                 range: crate::range_of(&head),
                 text: head.text().to_string().into_boxed_str(),
                 spelling: spelling.into_boxed_str(),
+                recovered: has_recovery(&head),
             },
             body,
             range: crate::range_of(&node),
+            recovered,
         });
     }
     Ok(result)

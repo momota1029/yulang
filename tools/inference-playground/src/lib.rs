@@ -650,6 +650,114 @@ mod tests {
     }
 
     #[test]
+    fn pinned_stdlib_role_impl_sources_keep_distinct_module_identities() {
+        use std::collections::HashSet;
+
+        let sources = pinned_stdlib::resolve_implicit_stdlib().unwrap();
+        assert_eq!(sources.len(), 40);
+        let mut modules = HashSet::new();
+        let mut roles = HashSet::new();
+        let mut implementations = HashSet::new();
+        let mut diagnostic_count = 0usize;
+        let mut recovered_roles = 0usize;
+        let mut recovered_implementations = 0usize;
+        let mut recovered_paths = HashSet::new();
+
+        for source in sources.iter() {
+            let environment = Arc::new(
+                pinned_stdlib::syntax_environment_for_source(source, &sources)
+                    .unwrap_or_else(|error| panic!("{}: {error:?}", source.path)),
+            );
+            let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+                "yulang2-pinned-stdlib",
+                source.path,
+            )));
+            assert!(modules.insert(identity.module().clone()), "{}", source.path);
+            let text: Arc<SourceText> = Arc::from(source.text);
+            let parsed = parse_file(
+                text.clone(),
+                Arc::new(scan_header(text)),
+                environment.clone(),
+            );
+            let diagnostics = parsed.syntax_diagnostics().unwrap();
+            diagnostic_count += diagnostics.len();
+            let index = index_role_impl_sources(identity.clone(), &parsed)
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "{}: {error:?}; syntax diagnostics {}, first {:?}",
+                        source.path,
+                        diagnostics.len(),
+                        diagnostics
+                            .iter()
+                            .take(12)
+                            .map(|item| {
+                                let range = item.primary().clone();
+                                (range.clone(), source.text.get(range).unwrap_or("<invalid>"))
+                            })
+                            .collect::<Vec<_>>()
+                    )
+                });
+            assert_eq!(index.module(), identity.module());
+            for role in index.roles() {
+                assert_eq!(role.id.module.as_ref(), identity.module(), "{}", source.path);
+                assert!(roles.insert(role.id.clone()), "{}", source.path);
+                if role.recovered {
+                    recovered_roles += 1;
+                    recovered_paths.insert(source.path);
+                }
+                for member in role.body.iter().flat_map(|body| &body.members) {
+                    assert_eq!(member.id.role, role.id, "{}", source.path);
+                    assert_eq!(
+                        &source.text[member.range.clone()],
+                        member.text.as_ref(),
+                        "{}",
+                        source.path
+                    );
+                }
+            }
+            for implementation in index.implementations() {
+                assert_eq!(
+                    implementation.id.module.as_ref(),
+                    identity.module(),
+                    "{}",
+                    source.path
+                );
+                assert!(
+                    implementations.insert(implementation.id.clone()),
+                    "{}",
+                    source.path
+                );
+                if implementation.recovered {
+                    recovered_implementations += 1;
+                    recovered_paths.insert(source.path);
+                }
+                for entry in implementation.body.iter().flat_map(|body| &body.entries) {
+                    assert_eq!(
+                        &source.text[entry.range.clone()],
+                        entry.text.as_ref(),
+                        "{}",
+                        source.path
+                    );
+                    if let Some(member) = &entry.member {
+                        assert_eq!(member.implementation, implementation.id, "{}", source.path);
+                    }
+                }
+            }
+        }
+        assert!(roles.iter().any(|role| role.module.file().key().normalized_workspace_relative_path()
+            == "lib/std/core/fmt.yu"));
+        assert!(implementations.iter().any(|implementation| {
+            implementation.module.file().key().normalized_workspace_relative_path()
+                == "lib/std/core/fmt.yu"
+        }));
+        eprintln!(
+            "indexed {} modules, {} root roles ({} recovered), {} standalone impls ({} recovered) in {:?}; {} total parser diagnostics",
+            modules.len(), roles.len(), recovered_roles, implementations.len(),
+            recovered_implementations, recovered_paths, diagnostic_count
+        );
+    }
+
+    #[test]
     fn execute_renders_nested_ordered_tuple_values() {
         assert_eq!(
             execute("my main = (1, (2, 3), 4)", "tuple.yu", "main", 10_000, false)

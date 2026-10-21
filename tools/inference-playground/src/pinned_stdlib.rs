@@ -119,6 +119,10 @@ pub(crate) enum BundleError {
         imported_from: String,
     },
     UnreachableSource(String),
+    SyntaxEnvironment {
+        module: String,
+        error: String,
+    },
 }
 
 pub(crate) fn sources() -> Result<Vec<PinnedSource>, BundleError> {
@@ -163,6 +167,98 @@ pub(crate) fn resolve_implicit_stdlib() -> Result<std::sync::Arc<[PinnedSource]>
     RESOLVED
         .get_or_init(|| resolve_implicit_stdlib_uncached().map(Arc::from))
         .clone()
+}
+
+#[cfg(test)]
+pub(crate) fn syntax_environment_for_source(
+    source: &PinnedSource,
+    all_sources: &[PinnedSource],
+) -> Result<yu_syntax::SyntaxEnvironment, BundleError> {
+    use std::collections::{HashMap, HashSet};
+    use std::sync::Arc;
+    use yu_syntax::{
+        HeaderImportForm, HeaderImportRouteSeparator, SourceRevision,
+        SyntaxDependencyProvenance, SyntaxDependencySlot, SyntaxEnvironment,
+        SyntaxEnvironmentKey, SourceText, scan_header,
+    };
+
+    let source_by_path = all_sources
+        .iter()
+        .map(|source| (source.path, source))
+        .collect::<HashMap<_, _>>();
+    let text: Arc<SourceText> = Arc::from(source.text);
+    let header = scan_header(Arc::clone(&text));
+    let mut seen = HashSet::new();
+    let mut imported = Vec::new();
+    for import in header.imports() {
+        if !matches!(import.form(), HeaderImportForm::Plain | HeaderImportForm::Mod)
+            || import.path().first().map(String::as_str) != Some("std")
+            || import
+                .route()
+                .separators()
+                .iter()
+                .any(|separator| *separator != HeaderImportRouteSeparator::ColonColon)
+        {
+            continue;
+        }
+        let target = resolve_import_module(import.path(), |candidate| {
+            source_by_path.contains_key(source_path(candidate).as_str())
+        })
+        .ok_or_else(|| BundleError::UnresolvedImport {
+            path: import.path().join("::"),
+            imported_from: source.path.to_owned(),
+        })?;
+        if !seen.insert(target.clone()) {
+            continue;
+        }
+        let path = source_path(&target);
+        let dependency = source_by_path
+            .get(path.as_str())
+            .copied()
+            .ok_or_else(|| BundleError::UnresolvedImport {
+                path: target.clone(),
+                imported_from: source.path.to_owned(),
+            })?;
+        let dependency_text: Arc<SourceText> = Arc::from(dependency.text);
+        imported.push((dependency, scan_header(dependency_text)));
+    }
+
+    let mut provenance = Vec::new();
+    let mut dependencies = Vec::new();
+    let mut hash_value = 0xcbf29ce484222325u64;
+    let mut mix = |bytes: &[u8]| {
+        for byte in bytes {
+            hash_value ^= u64::from(*byte);
+            hash_value = hash_value.wrapping_mul(0x100000001b3);
+        }
+    };
+    mix(source.path.as_bytes());
+    mix(&source.git_blob);
+    for (index, (dependency, dependency_header)) in imported.iter().enumerate() {
+        let slot = SyntaxDependencySlot::from_index(index).ok_or_else(|| {
+            BundleError::SyntaxEnvironment {
+                module: source.path.to_owned(),
+                error: "syntax dependency slot overflow".to_owned(),
+            }
+        })?;
+        provenance.push(SyntaxDependencyProvenance::new(
+            Arc::from(dependency.path),
+            SourceRevision::from_fingerprint(fingerprint(&dependency.git_blob)),
+        ));
+        dependencies.push((slot, dependency_header));
+        mix(dependency.path.as_bytes());
+        mix(&dependency.git_blob);
+    }
+    drop(mix);
+    SyntaxEnvironment::from_imported_headers(
+        SyntaxEnvironmentKey::from_fingerprint(hash_value),
+        dependencies,
+        Arc::from(provenance),
+    )
+    .map_err(|error| BundleError::SyntaxEnvironment {
+        module: source.path.to_owned(),
+        error: format!("{error:?}"),
+    })
 }
 
 fn resolve_implicit_stdlib_uncached() -> Result<Vec<PinnedSource>, BundleError> {

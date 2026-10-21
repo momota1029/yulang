@@ -13,6 +13,7 @@ pub struct SourceImplementationType {
     pub source: SourceNodeKey,
     pub range: Range<usize>,
     pub text: Box<str>,
+    pub recovered: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -23,6 +24,7 @@ pub struct SourceImplementationBodyEntry {
     pub kind: SyntaxKind,
     pub range: Range<usize>,
     pub text: Box<str>,
+    pub recovered: bool,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -36,6 +38,7 @@ pub struct SourceImplementationBody {
     pub source: SourceNodeKey,
     pub range: Range<usize>,
     pub text: Box<str>,
+    pub recovered: bool,
     pub entries: Vec<SourceImplementationBodyEntry>,
 }
 
@@ -48,6 +51,7 @@ pub struct SourceImplementationDeclaration {
     pub role: SourceImplementationType,
     pub body: Option<SourceImplementationBody>,
     pub range: Range<usize>,
+    pub recovered: bool,
 }
 
 fn unavailable() -> HirAvailabilityError {
@@ -66,6 +70,7 @@ fn source_type(
             .ok_or_else(unavailable)?,
         range: crate::range_of(node),
         text: node.text().to_string().into_boxed_str(),
+        recovered: has_recovery(node),
     })
 }
 
@@ -84,15 +89,12 @@ fn body_entries(
                 continue;
             }
             SyntaxKind::WhereClause => {
-                if has_recovery(&child) {
-                    return Err(unavailable());
-                }
                 (child, false)
             }
             SyntaxKind::Statement => {
                 let mut declarations = child.children();
                 let declaration = declarations.next().ok_or_else(unavailable)?;
-                if declarations.next().is_some() || has_recovery(&declaration) {
+                if declarations.next().is_some() {
                     return Err(unavailable());
                 }
                 (declaration, true)
@@ -116,6 +118,7 @@ fn body_entries(
             kind: node.kind(),
             range: crate::range_of(&node),
             text: node.text().to_string().into_boxed_str(),
+            recovered: has_recovery(&node),
         });
     }
     Ok(entries)
@@ -131,9 +134,7 @@ pub(super) fn declarations(
         .children()
         .filter(|node| node.kind() == SyntaxKind::ImplDeclaration)
     {
-        if has_recovery(&node) {
-            return Err(unavailable());
-        }
+        let recovered = has_recovery(&node);
         let mut target = None;
         let mut role = None;
         let mut description_seen = false;
@@ -149,7 +150,7 @@ pub(super) fn declarations(
                         .children()
                         .filter(|part| part.kind() == SyntaxKind::TypeExpression);
                     let role_node = role_types.next().ok_or_else(unavailable)?;
-                    if role_types.next().is_some() || has_recovery(&child) {
+                    if role_types.next().is_some() {
                         return Err(unavailable());
                     }
                     role = Some(source_type(&role_node, counters)?);
@@ -185,6 +186,7 @@ pub(super) fn declarations(
                     .ok_or_else(unavailable)?,
                 range: crate::range_of(&body),
                 text: body.text().to_string().into_boxed_str(),
+                recovered: has_recovery(&body),
                 entries: body_entries(&body, &id, counters)?,
             })
         } else {
@@ -199,6 +201,7 @@ pub(super) fn declarations(
             role,
             body,
             range: crate::range_of(&node),
+            recovered,
         });
     }
     Ok(result)
