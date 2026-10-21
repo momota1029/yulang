@@ -17834,3 +17834,16 @@ same-position/same-provider exposed-AE to checked-provider entrance, including
 source-local permission and correlated result compatibility. A shared row is
 only a candidate factorization. R60 remains a proposal pending a fresh contract, dispatcher boundary check,
 primary activation, exact leases and budget.
+
+## R274 checkpoint — ordered Tuple candidate rendering
+
+The experimental candidate graph renderer now traverses and prints ordered,
+nested Tuple children. The focused playground regression passed and the package
+compiled. Public Tuple view consumers in the legacy F5 adapter traverse child
+types and explicitly return `IdentityExhausted` at unsupported Tuple term
+reconstruction; no structure is flattened. This is an unreviewed provisional
+implementation checkpoint only. R149 Types/Console, Yulang2 sample execution,
+source/native correspondence, proof and production remain OPEN. See the [R274
+handoff](agent-loop/inbox/20261022-r274-candidate-tuple-graph-rendering.md),
+[evidence note](../notes/theory/2026-10-22-r274-candidate-tuple-graph-rendering.md),
+and current state.

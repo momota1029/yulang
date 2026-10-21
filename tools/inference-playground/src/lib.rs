@@ -531,6 +531,32 @@ mod tests {
         );
     }
 
+    #[test]
+    fn candidate_graph_renderer_exposes_nested_tuple_children_in_order() {
+        let (hir, candidate) = prepare("my pair = (42, \"Yulang\")", "tuple-graph.yu", false)
+            .unwrap();
+        let binding = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "pair" => Some(binding),
+            _ => None,
+        }).unwrap();
+        let export = candidate.export(binding.definition_root()).unwrap();
+        let rendered = super::render::graph(&export).unwrap();
+        assert!(rendered.contains("Tuple(["), "{rendered}");
+
+        let (hir, candidate) =
+            prepare("my nested = (1, (2, 3), 4)", "nested-tuple-graph.yu", false).unwrap();
+        let binding = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "nested" => Some(binding),
+            _ => None,
+        }).unwrap();
+        let export = candidate.export(binding.definition_root()).unwrap();
+        let rendered = super::render::graph(&export).unwrap();
+        let tuple_lines: Vec<_> = rendered.lines().filter(|line| line.contains("Tuple([")).collect();
+        assert_eq!(tuple_lines.len(), 2, "{rendered}");
+        assert!(tuple_lines.iter().any(|line| line.contains(", ") && line.matches(", ").count() == 2));
+        assert!(tuple_lines.iter().any(|line| line.contains(", ") && line.matches(", ").count() == 1));
+    }
+
     fn integer_expression<'hir>(
         hir: &'hir HirModule,
         root: &SourceRootId,

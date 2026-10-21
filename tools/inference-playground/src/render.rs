@@ -94,6 +94,11 @@ pub(crate) fn graph_into(
                 intern(&mut nodes, &mut node_indices, child, output)?;
             }
         }
+        if let Some(children) = nodes[cursor].tuple_children() {
+            for child in children {
+                intern(&mut nodes, &mut node_indices, child, output)?;
+            }
+        }
         cursor += 1;
     }
     write!(
@@ -123,6 +128,20 @@ pub(crate) fn graph_into(
                 ids[0], ids[1], ids[2], ids[3]
             )
             .map_err(cap)?;
+        } else if let Some(children) = node.tuple_children() {
+            output.observe(children.len())?;
+            output.write_str("Tuple([").map_err(cap)?;
+            for (child_index, child) in children.enumerate() {
+                if child_index != 0 {
+                    output.write_str(", ").map_err(cap)?;
+                }
+                let child = node_indices.get(&child).copied().ok_or_else(|| {
+                    "candidate graph observation unavailable: missing tuple child identity"
+                        .to_owned()
+                })?;
+                write!(output, "n{child}").map_err(cap)?;
+            }
+            output.write_str("])").map_err(cap)?;
         } else {
             output
                 .write_str("opaque effect operand (contents unavailable)")

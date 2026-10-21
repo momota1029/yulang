@@ -16368,6 +16368,13 @@ impl InferenceSession {
                                     self.sample_instantiation_growth(scratch, grew)?;
                                 }
                             }
+                            PositiveValueView::Tuple(children) => {
+                                for child in children.iter().rev() {
+                                    let grew = scratch
+                                        .push_work(InstantiationWork::Positive(*child, false))?;
+                                    self.sample_instantiation_growth(scratch, grew)?;
+                                }
+                            }
                             _ => {}
                         }
                         continue;
@@ -16427,6 +16434,9 @@ impl InferenceSession {
                                 let grew = scratch.append_range(range)?;
                                 self.sample_instantiation_growth(scratch, grew)?;
                             }
+                        }
+                        PositiveValueView::Tuple(_) => {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
                         }
                         PositiveValueView::Function {
                             argument,
@@ -16505,6 +16515,13 @@ impl InferenceSession {
                                     self.sample_instantiation_growth(scratch, grew)?;
                                 }
                             }
+                            NegativeValueView::Tuple(children) => {
+                                for child in children.iter().rev() {
+                                    let grew = scratch
+                                        .push_work(InstantiationWork::Negative(*child, false))?;
+                                    self.sample_instantiation_growth(scratch, grew)?;
+                                }
+                            }
                             _ => {}
                         }
                         continue;
@@ -16569,6 +16586,9 @@ impl InferenceSession {
                                 let grew = scratch.append_range(range)?;
                                 self.sample_instantiation_growth(scratch, grew)?;
                             }
+                        }
+                        NegativeValueView::Tuple(_) => {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
                         }
                         NegativeValueView::Function {
                             argument,
@@ -18101,7 +18121,8 @@ impl SolvedModule {
             PositiveValueView::Quantified(_)
             | PositiveValueView::Recursive(_)
             | PositiveValueView::Function { .. }
-            | PositiveValueView::Union(_) => Ok(SolvedValue::Unknown),
+            | PositiveValueView::Union(_)
+            | PositiveValueView::Tuple(_) => Ok(SolvedValue::Unknown),
         }
     }
 }
