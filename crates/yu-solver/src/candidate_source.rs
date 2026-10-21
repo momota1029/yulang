@@ -1007,6 +1007,11 @@ impl ConstraintBatch {
                                 push(&mut work, Work::Visit(item.ordinal() as usize, level, region))?;
                             }
                         }
+                        LocalSourceForm::Tuple { elements } => {
+                            for element in elements.iter().rev() {
+                                push(&mut work, Work::Visit(element.ordinal() as usize, level, region))?;
+                            }
+                        }
                         LocalSourceForm::Apply { callee, argument, .. } => {
                             push(&mut work, Work::Visit(argument.ordinal() as usize, level, region))?;
                             push(&mut work, Work::Visit(callee.ordinal() as usize, level, region))?;

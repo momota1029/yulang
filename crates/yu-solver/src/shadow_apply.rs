@@ -2914,7 +2914,7 @@ mod tests {
         let hir = local_source_module("my id x = x\nmy one = (1,)\nmy two = id (2, true)\nmy three = id (3, true, \"x\")\nmy nested = (1, (true, \"x\"))");
         let candidate = CandidateInference::solve(hir.clone()).unwrap();
         let mut arities = Vec::new();
-        for name in ["one", "two", "three"] {
+        for name in ["one", "two", "three", "nested"] {
             let root = hir.items().iter().find_map(|item| match item {
                 HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding.definition_root()),
                 _ => None,
@@ -2944,9 +2944,26 @@ mod tests {
                     }
                 }
             }
+            if name == "nested" {
+                let tuples: Vec<_> = seen.iter().copied()
+                    .filter(|node| node.tuple_children().is_some())
+                    .collect();
+                assert_eq!(tuples.len(), 2, "outer and inner tuples are both exported");
+                let outer_second_child_reaches_tuple = tuples.iter().any(|outer| {
+                    let children: Vec<_> = outer.tuple_children().unwrap().collect();
+                    if children.len() != 2 { return false; }
+                    let Some(second_child_row) = children[1].row() else { return false; };
+                    export.bounds().any(|bound| {
+                        bound.kind() == ComponentKind::Value
+                            && bound.upper().row().is_some_and(|upper| upper.same_identity(second_child_row))
+                            && bound.lower().tuple_children().is_some()
+                    })
+                });
+                assert!(outer_second_child_reaches_tuple, "nested tuple is retained at the source's second child");
+            }
         }
         arities.sort_unstable();
-        assert_eq!(arities, [1, 2, 3]);
+        assert_eq!(arities, [1, 2, 2, 2, 3]);
     }
     #[test]
     fn source_tuple_child_effect_is_admitted_to_tuple_computation_row() {
