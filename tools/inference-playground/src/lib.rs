@@ -840,6 +840,73 @@ mod tests {
             panic!("Display export must resolve to its provider role declaration")
         };
         let expected_display_id = declaration.id.clone();
+        let display_implementations =
+            yu_hir::shadow::resolve_source_role_implementations(
+                &expected_display_id,
+                &provider_role_indexes,
+            )
+            .expect("the authenticated Display role identifies its provider implementations");
+        assert_eq!(display_implementations.role.id, expected_display_id);
+        assert_eq!(
+            display_implementations
+                .module
+                .module()
+                .file()
+                .key()
+                .normalized_workspace_relative_path(),
+            "lib/std/core/fmt.yu"
+        );
+        assert_eq!(display_implementations.implementations.len(), 14);
+        let tuple_display = display_implementations
+            .implementations
+            .iter()
+            .find(|implementation| implementation.target.text.trim() == "('a, 'b)")
+            .expect("Display inventory contains the ordered two-element tuple implementation");
+        assert_eq!(tuple_display.role.text.trim(), "Display");
+        let tuple_show = tuple_display
+            .body
+            .as_ref()
+            .unwrap()
+            .entries
+            .iter()
+            .find_map(|entry| entry.member.as_ref())
+            .expect("tuple implementation retains its show member identity");
+        assert_eq!(tuple_show.implementation, tuple_display.id);
+        assert_eq!(tuple_show.declaration, tuple_display.body.as_ref().unwrap().entries[2].source);
+        assert!(matches!(
+            yu_hir::shadow::resolve_source_role_implementations(
+                &expected_display_id,
+                &[],
+            ),
+            Err(yu_hir::shadow::SourceRoleImplementationError::MissingModule)
+        ));
+        let duplicated_role_indexes = [
+            provider_role_indexes[0].clone(),
+            provider_role_indexes[0].clone(),
+        ];
+        assert!(matches!(
+            yu_hir::shadow::resolve_source_role_implementations(
+                &expected_display_id,
+                &duplicated_role_indexes,
+            ),
+            Err(yu_hir::shadow::SourceRoleImplementationError::DuplicateModule)
+        ));
+        let mut stale_display_id = expected_display_id.clone();
+        stale_display_id.declaration = declaration
+            .body
+            .as_ref()
+            .unwrap()
+            .members[0]
+            .id
+            .declaration
+            .clone();
+        assert!(matches!(
+            yu_hir::shadow::resolve_source_role_implementations(
+                &stale_display_id,
+                &provider_role_indexes,
+            ),
+            Err(yu_hir::shadow::SourceRoleImplementationError::StaleRole)
+        ));
         let consumer_text: Arc<SourceText> = Arc::from("Display\n");
         let consumer_parsed = parse_file(
             consumer_text.clone(),
@@ -875,6 +942,22 @@ mod tests {
                 .role_id("Display"),
             Some(&expected_display_id),
             "the consumer spelling must retain the exact role declaration identity",
+        );
+        let imported_display_id = consumer_imports
+            .source_imports()
+            .unwrap()
+            .role_id("Display")
+            .expect("the resolved public role import carries its exact source identity");
+        let imported_display_implementations =
+            yu_hir::shadow::resolve_source_role_implementations(
+                imported_display_id,
+                &provider_role_indexes,
+            )
+            .expect("the imported role identity reaches its authenticated implementation inventory");
+        assert_eq!(
+            imported_display_implementations.role.id,
+            expected_display_id,
+            "the consumer import and source implementation inventory share one role declaration",
         );
         let say = resolve_public_export(&indexes, "std::prelude", "say").unwrap();
         assert_eq!(say.module.as_ref(), "std::io::console");

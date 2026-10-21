@@ -44,6 +44,23 @@ fn pending_method_and_role_impl_projection_preserves_parse_owned_structure() {
 }
 
 #[test]
+fn source_role_implementation_lookup_rejects_ambiguous_local_role_heads() {
+    let source = "pub role Display 'a;\npub role Display 'b;\nimpl int: Display:\n    our x.show = \"\"";
+    let parsed = parsed(source);
+    assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+    let identity = ModuleIdentity::source_root(crate::FileId::new(crate::FileKey::new(
+        "role-implementation-lookup",
+        "roles.yu",
+    )));
+    let index = index_role_impl_sources(identity, &parsed).unwrap();
+    let role = index.roles()[0].id.clone();
+    assert!(matches!(
+        resolve_source_role_implementations(&role, &[index]),
+        Err(SourceRoleImplementationError::AmbiguousRole)
+    ));
+}
+
+#[test]
 fn chained_field_tails_keep_the_entire_preceding_raw_receiver_prefix() {
     let artifact = ShadowArtifact::from_parsed(parsed("my f x = x.first.second")).unwrap();
     let fields = artifact.pending_field_tail_sources().unwrap();

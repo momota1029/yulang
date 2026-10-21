@@ -219,6 +219,113 @@ impl SourceRoleImplIndex {
     }
 }
 
+/// A source-only role implementation inventory authenticated to one exact
+/// role declaration. Its entries are candidates from one provider module;
+/// this carries no target-type match, conformance, selection, or method type.
+#[derive(Debug)]
+pub struct SourceRoleImplementationSet<'a> {
+    pub module: &'a SourceRoleImplIndex,
+    pub role: &'a SourceRoleDeclaration,
+    pub implementations: Vec<&'a SourceImplementationDeclaration>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceRoleImplementationError {
+    MissingModule,
+    DuplicateModule,
+    StaleRole,
+    AmbiguousRole,
+    RecoveredRole,
+    RecoveredImplementation,
+    MissingImplementationBody,
+    UnsupportedRoleHead,
+    IdentityExhausted,
+}
+
+/// Resolves an exact role identity to source implementation declarations in
+/// that role's provider module. Only an exact, unqualified, unapplied local
+/// role spelling is joined here. An applied or qualified implementation role
+/// with the same head remains unavailable until its source route is resolved.
+pub fn resolve_source_role_implementations<'a>(
+    role_id: &SourceRoleId,
+    indexes: &'a [SourceRoleImplIndex],
+) -> Result<SourceRoleImplementationSet<'a>, SourceRoleImplementationError> {
+    let mut module = None;
+    for index in indexes {
+        if &index.module == role_id.module.as_ref() {
+            if module.replace(index).is_some() {
+                return Err(SourceRoleImplementationError::DuplicateModule);
+            }
+        }
+    }
+    let module = module.ok_or(SourceRoleImplementationError::MissingModule)?;
+    let mut exact_role = None;
+    for role in &module.roles {
+        if role.id == *role_id {
+            if exact_role.replace(role).is_some() {
+                return Err(SourceRoleImplementationError::StaleRole);
+            }
+        }
+    }
+    let role = exact_role.ok_or(SourceRoleImplementationError::StaleRole)?;
+    if role.recovered || role.head.recovered {
+        return Err(SourceRoleImplementationError::RecoveredRole);
+    }
+    let role_head = role.head.spelling.as_ref();
+    if !simple_role_head(role_head) {
+        return Err(SourceRoleImplementationError::UnsupportedRoleHead);
+    }
+    if module.roles.iter().any(|candidate| {
+        candidate.id != *role_id && candidate.head.spelling.as_ref() == role_head
+    }) {
+        return Err(SourceRoleImplementationError::AmbiguousRole);
+    }
+
+    let mut implementations = Vec::new();
+    for implementation in &module.implementations {
+        let text = implementation.role.text.trim();
+        let head = implementation_role_head(text)
+            .ok_or(SourceRoleImplementationError::UnsupportedRoleHead)?;
+        if head != role_head {
+            continue;
+        }
+        if text != role_head {
+            return Err(SourceRoleImplementationError::UnsupportedRoleHead);
+        }
+        if implementation.id.module.as_ref() != &module.module {
+            return Err(SourceRoleImplementationError::StaleRole);
+        }
+        if implementation.recovered || implementation.role.recovered {
+            return Err(SourceRoleImplementationError::RecoveredImplementation);
+        }
+        if implementation.body.is_none() {
+            return Err(SourceRoleImplementationError::MissingImplementationBody);
+        }
+        implementations
+            .try_reserve(1)
+            .map_err(|_| SourceRoleImplementationError::IdentityExhausted)?;
+        implementations.push(implementation);
+    }
+    Ok(SourceRoleImplementationSet {
+        module,
+        role,
+        implementations,
+    })
+}
+
+fn simple_role_head(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .chars()
+            .all(|character| character == '_' || character.is_alphanumeric())
+}
+
+fn implementation_role_head(value: &str) -> Option<&str> {
+    let atom = value.split_whitespace().next()?;
+    let head = atom.rsplit("::").next()?;
+    simple_role_head(head).then_some(head)
+}
+
 /// Retains parse-owned role and implementation identities without requiring
 /// every unrelated binding body in the module to have a candidate carrier.
 pub fn index_role_impl_sources(
