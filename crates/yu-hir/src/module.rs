@@ -3113,13 +3113,16 @@ fn plain_binding_header(
     if target.kind() != SyntaxKind::Pattern || has_recovery(target) {
         return None;
     }
-    let pattern_children = target
-        .children()
-        .filter(|_child| {
-            if _counters.local_source && _child.kind() == SyntaxKind::PatternTypeAnnotation {
-                return false;
-            }
-            true
+    let target_children = target.children().collect::<Vec<_>>();
+    let has_parenthesized_formal = target_children
+        .iter()
+        .any(|child| child.kind() == SyntaxKind::PatternCallTail);
+    let pattern_children = target_children
+        .into_iter()
+        .filter(|child| {
+            !((_counters.local_source
+                || (_counters.ordinary_source_carriers && has_parenthesized_formal))
+                && child.kind() == SyntaxKind::PatternTypeAnnotation)
         })
         .collect::<Vec<_>>();
     let (head, tails) = pattern_children.split_first()?;
@@ -3130,7 +3133,9 @@ fn plain_binding_header(
     }
     let mut parameters = Vec::with_capacity(tails.len());
     for tail in tails {
-        if _counters.local_source && tail.kind() == SyntaxKind::PatternCallTail {
+        if (_counters.local_source || _counters.ordinary_source_carriers)
+            && tail.kind() == SyntaxKind::PatternCallTail
+        {
             if tails.len() != 1 || has_recovery(tail) {
                 return None;
             }

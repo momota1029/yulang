@@ -716,7 +716,9 @@ mod tests {
     fn pinned_public_export_route_retains_source_owned_edges_and_names() {
         let mut indexed = std::collections::BTreeMap::new();
         let mut provider_hirs = Vec::new();
+        let mut ordinary_provider_hirs = Vec::new();
         let mut provider_role_indexes = Vec::new();
+        let mut console_parsed = None;
         let sources = pinned_stdlib::resolve_implicit_stdlib().unwrap();
         for source in sources.iter() {
             let module = source
@@ -733,8 +735,17 @@ mod tests {
             let index = index_source_exports(inventory.identity.clone(), &inventory.parsed).unwrap();
             if matches!(source.path, "lib/std/io/console.yu" | "lib/std/core/fmt.yu") {
                 if source.path == "lib/std/io/console.yu" {
+                    console_parsed = Some(inventory.parsed.clone());
                     provider_hirs.push(Arc::new(
                         yu_hir::shadow::lower_module_with_source_identity(
+                            inventory.identity.clone(),
+                            &inventory.parsed,
+                            yu_hir::SemanticImports::empty(),
+                        )
+                        .unwrap_or_else(|error| panic!("{}: {error:?}", source.path)),
+                    ));
+                    ordinary_provider_hirs.push(Arc::new(
+                        yu_hir::lower_module(
                             inventory.identity.clone(),
                             &inventory.parsed,
                             yu_hir::SemanticImports::empty(),
@@ -890,6 +901,38 @@ mod tests {
             ),
             "the pinned say source declaration is exported but has no admitted binding owner in provider HIR",
         );
+        let say_owner = yu_hir::shadow::resolve_source_export_owner(
+            &ordinary_provider_hirs,
+            &provider_role_indexes,
+            &say,
+        )
+        .unwrap_or_else(|error| panic!("{}: {error:?}", say.name));
+        let yu_hir::shadow::SourceExportOwner::Binding { module, binding } = say_owner else {
+            panic!("say must be retained as its provider value binding")
+        };
+        let carrier = module
+            .local_source(binding.definition_root())
+            .unwrap_or_else(|error| panic!("say carrier: {error:?}"))
+            .expect("LocalSource-aware provider must retain say's source carrier");
+        assert_eq!(carrier.definition_root(), Some(binding.definition_root()));
+        assert_eq!(carrier.where_clauses().len(), 1);
+        let where_clause = &carrier.where_clauses()[0];
+        assert_eq!(
+            module
+                .identity()
+                .module()
+                .file()
+                .key()
+                .normalized_workspace_relative_path(),
+            "lib/std/io/console.yu"
+        );
+        assert!(where_clause.text.contains("where 'a: Display"));
+        assert_eq!(where_clause.subject.text.trim(), "'a");
+        assert_eq!(where_clause.role.text.trim(), "Display");
+        assert!(console_parsed
+            .as_ref()
+            .expect("pinned console parse retained")
+            .owns_source_key(&where_clause.source));
         let mut stale_println =
             resolve_public_export(&indexes, "std::prelude", "println").unwrap();
         stale_println.declaration.range.start += 1;
