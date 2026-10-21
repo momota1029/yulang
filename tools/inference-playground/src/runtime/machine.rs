@@ -114,6 +114,7 @@ pub enum RuntimeValueKind {
     Integer(Box<str>),
     Boolean(bool),
     String(Box<str>),
+    Primitive(yu_hir::shadow::PinnedPrimitiveOp),
     Tuple(Vec<TupleElement>),
     Closure,
     Computation,
@@ -182,6 +183,10 @@ enum ExecutableValue {
         payload: ReceivedValue,
         source: SourceSite,
     },
+    Primitive {
+        operation: yu_hir::shadow::PinnedPrimitiveOp,
+        arguments: Vec<ValueHandle>,
+    },
 }
 enum State {
     Evaluate {
@@ -231,6 +236,11 @@ pub(super) enum Frame {
     Callee {
         argument: Label,
         environment: usize,
+        site: SourceSite,
+    },
+    PrimitiveArgument {
+        operation: yu_hir::shadow::PinnedPrimitiveOp,
+        arguments: Vec<ValueHandle>,
         site: SourceSite,
     },
     ReceiverReturn {
@@ -580,6 +590,11 @@ impl Machine {
                         .ok_or_else(|| RuntimeUnavailable::LiteralDecoding(site.clone()))?,
                 ),
                 None,
+            ),
+            Instruction::Primitive(operation) => self.data(
+                site,
+                RuntimeValueKind::Primitive(operation.clone()),
+                Some(ExecutableValue::Primitive { operation: operation.clone(), arguments: Vec::new() }),
             ),
             Instruction::Tuple { elements } => {
                 if let Some(first) = elements.first().copied() {
@@ -946,6 +961,24 @@ impl Machine {
             } => self.make_request_carrier(declaration, received, &source),
             Frame::OperationResultConsumer { source } => self.execute(received.value, &source)?,
             Frame::DiscardToUnit { site } => self.ground_data(&site, RuntimeValueKind::Unit, None),
+            Frame::PrimitiveArgument { operation, mut arguments, site } => {
+                arguments.try_reserve(1).map_err(|_| RuntimeUnavailable::InvalidSourceReference)?;
+                arguments.push(received.value);
+                let arity = pinned_primitive_arity(&operation).ok_or_else(|| RuntimeUnavailable::InvalidSourceReference)?;
+                if arguments.len() < arity {
+                    self.data(
+                        &site,
+                        RuntimeValueKind::Primitive(operation.clone()),
+                        Some(ExecutableValue::Primitive { operation, arguments }),
+                    );
+                } else if arguments.len() == arity {
+                    let result = pinned_primitive_apply(&operation, &arguments, &self.values)
+                        .ok_or_else(|| RuntimeUnavailable::InvalidSourceReference)?;
+                    self.ground_data(&site, result, None);
+                } else {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
+            }
             Frame::Callee {
                 argument,
                 environment,
@@ -965,6 +998,10 @@ impl Machine {
                 let delay_view = self.receiving.delay(delay, inherited);
                 let executable = self.executables.get(&received.value.0).cloned();
                 match executable {
+                    Some(ExecutableValue::Primitive { operation, arguments }) => {
+                        self.frames.push(Frame::PrimitiveArgument { operation, arguments, site: site.clone() });
+                        self.execute(delay, &site)?;
+                    }
                     Some(ExecutableValue::Continuation(template)) => {
                         let provider = self.values[received.value.0].source.clone();
                         let (activation, previous) = self.new_invocation(site.clone(), provider)?;
@@ -2170,6 +2207,115 @@ impl Machine {
     }
 }
 
+fn pinned_primitive_arity(operation: &yu_hir::shadow::PinnedPrimitiveOp) -> Option<usize> {
+    match operation {
+        yu_hir::shadow::PinnedPrimitiveOp::IntToString => Some(1),
+        yu_hir::shadow::PinnedPrimitiveOp::IntAdd
+        | yu_hir::shadow::PinnedPrimitiveOp::StringConcat => Some(2),
+        yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => None,
+    }
+}
+
+fn pinned_primitive_apply(
+    operation: &yu_hir::shadow::PinnedPrimitiveOp,
+    arguments: &[ValueHandle],
+    values: &[RuntimeValue],
+) -> Option<RuntimeValueKind> {
+    let argument = |index: usize| values.get(arguments.get(index)?.0).map(|value| &value.kind);
+    match operation {
+        yu_hir::shadow::PinnedPrimitiveOp::IntAdd => {
+            let RuntimeValueKind::Integer(left) = argument(0)? else { return None; };
+            let RuntimeValueKind::Integer(right) = argument(1)? else { return None; };
+            Some(RuntimeValueKind::Integer(decimal_add(left, right)?.into_boxed_str()))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::IntToString => {
+            let RuntimeValueKind::Integer(value) = argument(0)? else { return None; };
+            Some(RuntimeValueKind::String(value.clone()))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::StringConcat => {
+            let RuntimeValueKind::String(left) = argument(0)? else { return None; };
+            let RuntimeValueKind::String(right) = argument(1)? else { return None; };
+            let mut result = String::new();
+            result.try_reserve(left.len().checked_add(right.len())?).ok()?;
+            result.push_str(left);
+            result.push_str(right);
+            Some(RuntimeValueKind::String(result.into_boxed_str()))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => None,
+    }
+}
+
+fn decimal_add(left: &str, right: &str) -> Option<String> {
+    fn signed(negative: bool, digits: String) -> Option<String> {
+        if !negative || digits == "0" { return Some(digits); }
+        let mut output = String::new();
+        output.try_reserve(digits.len().checked_add(1)?).ok()?;
+        output.push('-');
+        output.push_str(&digits);
+        Some(output)
+    }
+    fn split(value: &str) -> Option<(bool, &str)> {
+        let (negative, digits) = value.strip_prefix('-').map_or((false, value), |digits| (true, digits));
+        if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) { return None; }
+        let digits = digits.trim_start_matches('0');
+        Some((negative, if digits.is_empty() { "0" } else { digits }))
+    }
+    fn add_magnitude(left: &str, right: &str) -> Option<String> {
+        let width = left.len().max(right.len());
+        let mut output = Vec::new();
+        output.try_reserve(width.checked_add(1)?).ok()?;
+        let (mut carry, mut index) = (0u8, 0usize);
+        while index < width || carry != 0 {
+            let a = left.len().checked_sub(index + 1).and_then(|at| left.as_bytes().get(at)).copied().map_or(0, |b| b - b'0');
+            let b = right.len().checked_sub(index + 1).and_then(|at| right.as_bytes().get(at)).copied().map_or(0, |b| b - b'0');
+            let sum = a + b + carry;
+            output.push(b'0' + sum % 10);
+            carry = sum / 10;
+            index += 1;
+        }
+        output.reverse();
+        String::from_utf8(output).ok()
+    }
+    fn compare_magnitude(left: &str, right: &str) -> std::cmp::Ordering {
+        left.len().cmp(&right.len()).then_with(|| left.cmp(right))
+    }
+    fn subtract_magnitude(larger: &str, smaller: &str) -> Option<String> {
+        let mut output = Vec::new();
+        output.try_reserve(larger.len()).ok()?;
+        let (mut borrow, mut index) = (0i16, 0usize);
+        while index < larger.len() {
+            let a = i16::from(*larger.as_bytes().get(larger.len() - index - 1)? - b'0');
+            let b = i16::from(smaller.len().checked_sub(index + 1).and_then(|at| smaller.as_bytes().get(at)).copied().map_or(0, |digit| digit - b'0'));
+            let mut digit = a - borrow - b;
+            borrow = i16::from(digit < 0);
+            if borrow != 0 { digit += 10; }
+            output.push(b'0' + digit as u8);
+            index += 1;
+        }
+        while output.len() > 1 && output.last() == Some(&b'0') { output.pop(); }
+        output.reverse();
+        String::from_utf8(output).ok()
+    }
+    let (left_negative, left) = split(left)?;
+    let (right_negative, right) = split(right)?;
+    if left_negative == right_negative {
+        let sum = add_magnitude(left, right)?;
+        signed(left_negative, sum)
+    } else {
+        match compare_magnitude(left, right) {
+            std::cmp::Ordering::Equal => Some("0".to_owned()),
+            std::cmp::Ordering::Greater => {
+                let difference = subtract_magnitude(left, right)?;
+                signed(left_negative, difference)
+            }
+            std::cmp::Ordering::Less => {
+                let difference = subtract_magnitude(right, left)?;
+                signed(right_negative, difference)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod module_expression_tests {
     use super::*;
@@ -2254,6 +2400,22 @@ mod module_expression_tests {
                 element.received.value
             ));
         }
+    }
+
+    #[test]
+    fn pinned_primitive_values_execute_with_currying_and_arbitrary_precision() {
+        let mut add = machine("my main = builtin_op::int_add 999999999999999999999999999999 1", true);
+        let outcome = add.run(100);
+        assert_completed_integer(&add, outcome, "1000000000000000000000000000000");
+
+        let mut format = machine(
+            "my main = builtin_op::string_concat (builtin_op::int_to_string 42) \"!\"",
+            true,
+        );
+        let RuntimeOutcome::Completed(value) = format.run(100) else { panic!("expected primitive string result") };
+        assert!(matches!(format.value(value).map(|value| &value.kind), Some(RuntimeValueKind::String(text)) if text.as_ref() == "42!"));
+        assert_eq!(decimal_add("-1000", "1").as_deref(), Some("-999"));
+        assert_eq!(decimal_add("001", "-1").as_deref(), Some("0"));
     }
 
     fn assert_completed_integer(machine: &Machine, outcome: RuntimeOutcome, expected: &str) {

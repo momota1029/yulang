@@ -197,6 +197,7 @@ impl LocalSource {
                 .iter()
                 .map(|expr| match &expr.form {
                     LocalSourceForm::Integer(text) | LocalSourceForm::String(text) => text.len(),
+                    LocalSourceForm::Primitive { operation: source_annotation::PinnedPrimitiveOp::Unsupported(name) } => name.len(),
                     LocalSourceForm::Catch { arms, .. } => {
                         arms.capacity() * std::mem::size_of::<LocalSourceCatchArm>()
                             + arms.iter().map(|arm| match &arm.pattern {
@@ -279,6 +280,7 @@ pub struct LocalSourceExpr {
 #[derive(Clone, Debug)]
 pub enum LocalSourceForm {
     Unit,
+    Primitive { operation: source_annotation::PinnedPrimitiveOp },
     Operation {
         resolution: source_annotation::SourceOperationResolution,
     },
@@ -1153,14 +1155,13 @@ impl Builder<'_> {
                     }
                     let family = identifier_spelling(head)?;
                     let member: Box<str> = member.to_string().into_boxed_str();
-                    let resolution = self.resolve_operation(family.as_ref(), member);
-                    self.set(
-                        current,
-                        tail,
-                        scope,
-                        named_group.clone(),
-                        LocalSourceForm::Operation { resolution },
-                    )?;
+                    let form = match source_annotation::pinned_primitive_op(family.as_ref(), &member) {
+                        Some(operation) => LocalSourceForm::Primitive { operation },
+                        None => LocalSourceForm::Operation {
+                            resolution: self.resolve_operation(family.as_ref(), member),
+                        },
+                    };
+                    self.set(current, tail, scope, named_group.clone(), form)?;
                 } else {
                     push(
                         &mut self.work,

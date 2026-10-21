@@ -3816,6 +3816,52 @@ mod tests {
     }
 
     #[test]
+    fn pinned_builtin_namespace_forms_distinct_primitive_values() {
+        let parsed = parsed("pub add: int -> int -> int = builtin_op::int_add\npub sub = builtin_op::int_sub");
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let hir = lower_module_with_local_source(identity(), &parsed, SemanticImports::empty()).unwrap();
+        let sources = hir.items().iter().filter_map(|item| match item {
+            HirItem::Binding(binding) => hir.local_source(binding.definition_root()).unwrap(),
+            _ => None,
+        }).collect::<Vec<_>>();
+        assert!(sources.iter().flat_map(|source| source.expressions()).any(|expression| matches!(
+            expression.form,
+            local_source::LocalSourceForm::Primitive {
+                operation: source_annotation::PinnedPrimitiveOp::IntAdd,
+            }
+        )));
+        assert!(sources.iter().flat_map(|source| source.expressions()).any(|expression| matches!(
+            &expression.form,
+            local_source::LocalSourceForm::Primitive {
+                operation: source_annotation::PinnedPrimitiveOp::Unsupported(name),
+            } if name.as_ref() == "int_sub"
+        )));
+        assert!(!sources.iter().flat_map(|source| source.expressions()).any(|expression| matches!(
+            expression.form,
+            local_source::LocalSourceForm::Operation {
+                resolution: source_annotation::SourceOperationResolution::Resolved(_),
+            }
+        )));
+    }
+
+    #[test]
+    fn ordinary_effect_operations_keep_source_declaration_identity() {
+        let parsed = parsed("act custom:\n    our ping: int -> int\npub run = custom::ping 1");
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let hir = lower_module_with_local_source(identity(), &parsed, SemanticImports::empty()).unwrap();
+        let HirItem::Binding(binding) = hir.items().iter().find(|item| matches!(item, HirItem::Binding(binding) if binding.name().spelling() == "run")).unwrap() else { unreachable!() };
+        let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+        let operation = source.expressions().iter().find(|expression| matches!(expression.form, local_source::LocalSourceForm::Operation { .. })).unwrap();
+        assert!(matches!(
+            &operation.form,
+            local_source::LocalSourceForm::Operation {
+                resolution: source_annotation::SourceOperationResolution::Resolved(declaration),
+            } if declaration.spelling.as_ref() == "ping"
+        ));
+        assert!(!source.expressions().iter().any(|expression| matches!(expression.form, local_source::LocalSourceForm::Primitive { .. })));
+    }
+
+    #[test]
     fn admission_root_collision_is_rejected_without_overwriting_or_publishing() {
         let parsed = parsed("my first = 1; my second = 2");
         let roots: Vec<_> = parsed.source_root().children().collect();

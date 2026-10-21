@@ -22,8 +22,9 @@ pub use module::{
 pub use module::HirLocalId;
 pub use module::local_source::*;
 pub use module::source_annotation::{
-    SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectId, SourceEffectRow,
-    SourceOperationDeclaration, SourceOperationId, SourceOperationResolution,
+    PinnedPrimitiveOp, SourceAnnotation, SourceAnnotationType, SourceAnnotationValue,
+    SourceEffectId, SourceEffectRow, SourceOperationDeclaration, SourceOperationId,
+    SourceOperationResolution,
 };
 pub use module::source_exports::{
     SourceExportId, SourceExportIndex, SourceExportResolution, SourceImportBinding,

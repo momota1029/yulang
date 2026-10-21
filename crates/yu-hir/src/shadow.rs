@@ -24,7 +24,7 @@ pub fn lower_module_with_source_identity(
 }
 
 pub use crate::module::source_annotation::{
-    SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectDeclaration,
+    PinnedPrimitiveOp, SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectDeclaration,
     SourceEffectId, SourceEffectRow, SourceOperationDeclaration, SourceOperationId,
     SourceOperationResolution,
 };

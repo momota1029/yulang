@@ -133,6 +133,7 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
         if matches!(role, Role::DirectCallee) {
             match &code.instruction {
                 Instruction::Forward(inner) => work.push(Visit::Enter(*inner, role)),
+                Instruction::Primitive(_) => {}
                 Instruction::Operation(SourceOperationResolution::Resolved(declaration))
                     if primitive_operation(declaration, &mut operations) => {}
                 _ => return false,
@@ -212,7 +213,7 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                     work.push(Visit::Enter(arm.body, Role::Ground));
                 }
             }
-            Instruction::Lambda { .. } | Instruction::Operation(_) => return false,
+            Instruction::Lambda { .. } | Instruction::Primitive(_) | Instruction::Operation(_) => return false,
         }
     }
     // Orphaned retained code cannot escape the whole-universe check.

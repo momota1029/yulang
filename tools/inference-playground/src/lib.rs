@@ -228,6 +228,7 @@ fn render_runtime_value(
                     runtime::RuntimeValueKind::Integer(value) => output.write_str(value)?,
                     runtime::RuntimeValueKind::Boolean(value) => write!(output, "{value}")?,
                     runtime::RuntimeValueKind::String(value) => write!(output, "{value:?}")?,
+                    runtime::RuntimeValueKind::Primitive(operation) => write!(output, "<primitive {operation:?}>")?,
                     runtime::RuntimeValueKind::Tuple(elements) => {
                         output.write_char('(')?;
                         if elements.is_empty() {
@@ -1294,8 +1295,37 @@ mod tests {
         let local = projected.local_source(binding.definition_root()).unwrap().unwrap();
         assert!(local.expressions().iter().any(|expression| matches!(
             &expression.form,
-            LocalSourceForm::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Unresolved },
-        )), "the original builtin_op::int_add owner remains unresolved rather than receiving a guessed intrinsic");
+            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::IntAdd },
+        )), "the pinned builtin registry owns int_add as a distinct primitive identity");
+        let projected_candidate = CandidateInference::solve(Arc::new(projected)).expect("the exact projected int provider enters candidate collection");
+        assert!(projected_candidate.candidate_conflicts().is_empty());
+    }
+
+    #[test]
+    fn pinned_int_add_signature_enters_candidate_collection() {
+        let source: Arc<SourceText> = Arc::from(
+            "pub add: int -> int -> int = builtin_op::int_add\npub to_text: int -> str = builtin_op::int_to_string\npub concat: str -> str -> str = builtin_op::string_concat",
+        );
+        let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let hir = Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("pinned-primitive-test", "int.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        ).unwrap());
+        let candidate = CandidateInference::solve(hir).expect("the exact pinned primitive identity has a typed candidate owner");
+        assert!(candidate.candidate_conflicts().is_empty(), "int_add has a consistent pure curried signature");
+
+        let source: Arc<SourceText> = Arc::from("pub wrong: str -> str -> str = builtin_op::int_add");
+        let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let hir = Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("pinned-primitive-test", "wrong.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        ).unwrap());
+        let mismatch = CandidateInference::solve(hir).expect("candidate inference reports a typed signature conflict");
+        assert!(!mismatch.candidate_conflicts().is_empty(), "int_add cannot take string operands");
     }
 
 

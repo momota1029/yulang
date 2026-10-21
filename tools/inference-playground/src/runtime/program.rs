@@ -174,6 +174,7 @@ pub(super) enum Instruction {
     Integer(Box<str>),
     Boolean(bool),
     String(Box<str>),
+    Primitive(yu_hir::shadow::PinnedPrimitiveOp),
     Tuple { elements: Vec<Label> },
     Name {
         resolution: LocalSourceResolution,
@@ -479,6 +480,7 @@ impl RuntimeProgram {
             for expression in source.expressions() {
                 let instruction = match &expression.form {
                     LocalSourceForm::Unit => Instruction::Unit,
+                    LocalSourceForm::Primitive { operation } => Instruction::Primitive(operation.clone()),
                     LocalSourceForm::Integer(text) => Instruction::Integer(text.clone()),
                     LocalSourceForm::Boolean(value) => Instruction::Boolean(*value),
                     LocalSourceForm::String(text) => Instruction::String(text.clone()),
@@ -1044,7 +1046,8 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
                 stack.extend(arms.iter().map(|arm| arm.body));
             }
             Instruction::Unit | Instruction::Integer(_) | Instruction::Boolean(_)
-            | Instruction::String(_) | Instruction::Name { .. } | Instruction::Operation(_) => {}
+            | Instruction::String(_) | Instruction::Primitive(_) | Instruction::Name { .. }
+            | Instruction::Operation(_) => {}
         }
     }
     false
@@ -1133,6 +1136,7 @@ fn handler_arm_operation_ranges(
                 pending.push(final_expression.clone());
             }
             Form::Unit
+            | Form::Primitive { .. }
             | Form::Operation { .. }
             | Form::Integer(_)
             | Form::Boolean(_)

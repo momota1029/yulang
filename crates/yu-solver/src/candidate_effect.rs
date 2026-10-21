@@ -167,11 +167,12 @@ pub(super) enum ViewOrigin {
 enum SignatureContext<'a> {
     Annotation(&'a SourceAnnotation, AnnotationScope),
     Operation { declaration: &'a Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &'a SourceRootId, occurrence: &'a HirOccurrenceId, retained_bytes: usize },
+    Primitive { owner: &'a SourceRootId, position: &'a SourceNodeKey },
 }
 impl SignatureContext<'_> {
-    fn owner(&self) -> &SourceRootId { match self { Self::Annotation(a, _) => &a.owner, Self::Operation { owner, .. } => owner } }
-    fn position(&self) -> &SourceNodeKey { match self { Self::Annotation(a, _) => &a.position, Self::Operation { declaration, .. } => &declaration.signature_position } }
-    fn operation(&self) -> Option<OperationOrigin> { match self { Self::Annotation(_, _) => None, Self::Operation { declaration, occurrence, retained_bytes, .. } => Some(OperationOrigin { declaration: Arc::clone(declaration), occurrence: (*occurrence).clone(), retained_bytes: *retained_bytes }) } }
+    fn owner(&self) -> &SourceRootId { match self { Self::Annotation(a, _) => &a.owner, Self::Operation { owner, .. } | Self::Primitive { owner, .. } => owner } }
+    fn position(&self) -> &SourceNodeKey { match self { Self::Annotation(a, _) => &a.position, Self::Operation { declaration, .. } => &declaration.signature_position, Self::Primitive { position, .. } => position } }
+    fn operation(&self) -> Option<OperationOrigin> { match self { Self::Annotation(_, _) | Self::Primitive { .. } => None, Self::Operation { declaration, occurrence, retained_bytes, .. } => Some(OperationOrigin { declaration: Arc::clone(declaration), occurrence: (*occurrence).clone(), retained_bytes: *retained_bytes }) } }
 }
 #[derive(Debug)]
 pub(super) struct View {
@@ -923,6 +924,40 @@ impl InferenceSession {
         drop((values, effects, views));
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= scratch;
         result
+    }
+
+    pub(super) fn candidate_pinned_primitive(
+        &mut self,
+        operation: yu_hir::shadow::PinnedPrimitiveOp,
+        owner: &SourceRootId,
+        position: &SourceNodeKey,
+        occurrence: &HirOccurrenceId,
+        target: usize,
+        level: u32,
+    ) -> Result<(), SolveAvailabilityError> {
+        use yu_hir::shadow::{SourceAnnotationType as Ty, SourceAnnotationValue as Value};
+        let atom = |value| Ty { effects: None, value };
+        let (argument, result) = match operation {
+            yu_hir::shadow::PinnedPrimitiveOp::IntAdd => (Value::Int, Value::Int),
+            yu_hir::shadow::PinnedPrimitiveOp::IntToString => (Value::Int, Value::Str),
+            yu_hir::shadow::PinnedPrimitiveOp::StringConcat => (Value::Str, Value::Str),
+            yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => return Err(exhausted()),
+        };
+        let value_type = if matches!(&operation, yu_hir::shadow::PinnedPrimitiveOp::IntToString) {
+            Ty { effects: None, value: Value::Function { argument: Box::new(atom(argument)), result: Box::new(atom(result)) } }
+        } else {
+            let inner = Ty { effects: None, value: Value::Function { argument: Box::new(atom(argument.clone())), result: Box::new(atom(result)) } };
+            Ty { effects: None, value: Value::Function { argument: Box::new(atom(argument)), result: Box::new(inner) } }
+        };
+        let mut values = HashMap::new();
+        let mut effects = HashMap::new();
+        let mut views = HashMap::new();
+        let context = SignatureContext::Primitive { owner, position };
+        let value = self.candidate_signature_value(
+            &context, &value_type, Polarity::Positive, Polarity::Positive,
+            level.checked_add(1).ok_or_else(exhausted)?, &mut values, &mut effects, &mut views,
+        )?;
+        self.admit_candidate_value_link(occurrence, 42, value, self.batch.component_term_at(target))
     }
     pub(super) fn candidate_catch_operation(&mut self, declaration: &Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: &SourceRootId, occurrence: &HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: shadow_apply::CandidateEndpoint, effect: usize, level: u32, h_arg: Option<&candidate_source::HandlerContinuationArgumentV1>) -> Result<(), SolveAvailabilityError> {
         if let Some(link) = h_arg {
@@ -1936,7 +1971,7 @@ impl InferenceSession {
                 self.candidate_insert_bound(ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(port)), polarity, ExtrusionEndpoint::Effect(EffectEndpointKey::Support(view)))?;
                 return self.live_effect_term(polarity, port);
             }
-            if matches!(context, SignatureContext::Operation { .. }) {
+            if matches!(context, SignatureContext::Operation { .. } | SignatureContext::Primitive { .. }) {
                 return Ok(self.batch.collected_leaf_term(if polarity == Polarity::Positive { Leaf::EffectBottomPositive } else { Leaf::EmptyEffectNegative }));
             }
             if variance == Polarity::Negative {
@@ -2028,7 +2063,7 @@ impl InferenceSession {
                         composed_polarity: variance,
                         lexical_scope: scope.clone(),
                     }),
-                    SignatureContext::Operation { .. } => None,
+                    SignatureContext::Operation { .. } | SignatureContext::Primitive { .. } => None,
                 },
             )?;
             views.insert(row.position.clone(), view);
@@ -2071,6 +2106,27 @@ mod tests {
         ).unwrap();
         let candidate = crate::shadow_apply::CandidateInference::solve(std::sync::Arc::new(hir)).unwrap();
         assert!(candidate.candidate_conflicts().is_empty(), "negative [io] denotes [io, 'e], so [state] remains in the open tail: {:?}", candidate.candidate_conflicts());
+    }
+
+    #[test]
+    fn unsupported_pinned_primitive_is_not_admitted_as_an_effect_operation() {
+        let text = "pub subtract = builtin_op::int_sub";
+        let source: std::sync::Arc<yu_syntax::SourceText> = std::sync::Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            std::sync::Arc::new(yu_syntax::scan_header(source)),
+            std::sync::Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.structural_recoveries().is_empty());
+        let hir = yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "unsupported-pinned-primitive", "source.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        ).unwrap();
+        let result = crate::shadow_apply::CandidateInference::solve(std::sync::Arc::new(hir));
+        assert!(matches!(result, Err(crate::shadow_apply::CandidateError::Unsupported)));
     }
 
     #[test]

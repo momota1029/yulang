@@ -304,6 +304,7 @@ pub(super) enum Action {
     Local { slot: usize, occurrence: HirOccurrenceId, value: usize, level: u32 },
     Install { slot: usize, initializer: CandidateEndpoint, boundary: u32 },
     Operation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, target: usize, level: u32 },
+    Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp, owner: SourceRootId, position: yu_hir::shadow::SourceNodeKey, occurrence: HirOccurrenceId, target: usize, level: u32 },
     CatchOperation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: CandidateEndpoint, effect: usize, level: u32, h_arg: Option<HandlerContinuationArgumentV1> },
     FieldBoundV1 { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, h_arg: HandlerContinuationArgumentV1 },
     Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, target: usize, occurrence: HirOccurrenceId, level: u32 },
@@ -479,6 +480,12 @@ pub(super) fn preflight_with_imports(
         }
     }
     for expr in source.expressions() {
+        if matches!(
+            &expr.form,
+            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) },
+        ) {
+            return Err(shadow_apply::CandidateError::Unsupported);
+        }
         if let LocalSourceForm::Ascription { annotation, .. } = &expr.form {
             if !preflight_local_annotation(&annotation.ty) {
                 return Err(shadow_apply::CandidateError::Unsupported);
@@ -1383,6 +1390,26 @@ impl ConstraintBatch {
                             continue;
                         }
                         LocalSourceForm::Operation { .. } => return Err(invalid()),
+                        LocalSourceForm::Primitive { operation } => {
+                            let (argument_negative, result_positive) = match operation {
+                                yu_hir::shadow::PinnedPrimitiveOp::IntAdd => (Leaf::IntNegative, Leaf::IntPositive),
+                                yu_hir::shadow::PinnedPrimitiveOp::IntToString => (Leaf::IntNegative, Leaf::StrPositive),
+                                yu_hir::shadow::PinnedPrimitiveOp::StringConcat => (Leaf::StrNegative, Leaf::StrPositive),
+                                yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => return Err(invalid()),
+                            };
+                            for leaf in [argument_negative, result_positive] {
+                                self.term_for_leaf(leaf)?;
+                            }
+                            let bottom = self.term_for_leaf(Leaf::EffectBottomPositive)?;
+                            let empty = self.term_for_leaf(Leaf::EmptyEffectNegative)?;
+                            self.emit(occurrence.clone(), 1, bottom, self.component_term_at(pos.effect))?;
+                            self.emit(occurrence.clone(), 2, self.component_term_at(pos.effect), empty)?;
+                            self.append_source_facts(start, &mut actions)?;
+                            push(&mut actions, Action::Primitive { operation: operation.clone(), owner: owner.clone(), position: expr.source.clone(), occurrence: occurrence.clone(), target: pos.value, level })?;
+                            self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                            self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                            continue;
+                        }
                         LocalSourceForm::Name { resolution, .. } => {
                             let computation = match resolution {
                                 LocalSourceResolution::Parameter(parameter) => {
@@ -1902,6 +1929,7 @@ impl InferenceSession {
                 Action::CatchOperation { declaration, owner, occurrence, payload, continuation, original, effect, level, h_arg } => self.candidate_catch_operation(declaration, owner, occurrence, *payload, *continuation, *original, *effect, *level, h_arg.as_ref())?,
                 Action::FieldBoundV1 { declaration, h_arg } => self.candidate_field_bound_v1(declaration, h_arg)?,
                 Action::Operation { declaration, owner, occurrence, target, level } => self.candidate_operation(declaration, owner, occurrence, *target, *level)?,
+                Action::Primitive { operation, owner, position, occurrence, target, level } => self.candidate_pinned_primitive(operation.clone(), owner, position, occurrence, *target, *level)?,
                 Action::Annotation { annotation, endpoint, computation_effect, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level, *computation_effect)?,
                 Action::WhereClause { source, scope } => self.candidate_register_source_role_obligation(source, scope)?,
             }
