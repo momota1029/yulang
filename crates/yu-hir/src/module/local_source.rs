@@ -196,6 +196,9 @@ impl LocalSource {
                     LocalSourceForm::Sequence { items } => {
                         items.capacity() * std::mem::size_of::<LocalSourceIndex>()
                     }
+                    LocalSourceForm::Tuple { elements } => {
+                        elements.capacity() * std::mem::size_of::<LocalSourceIndex>()
+                    }
                     LocalSourceForm::Name { spelling, .. } => spelling.len(),
                     LocalSourceForm::Lambda { parameter, .. } => {
                         parameter.spelling.len()
@@ -267,6 +270,10 @@ pub enum LocalSourceForm {
         else_branch: Option<LocalSourceIndex>,
     },
     Sequence { items: Vec<LocalSourceIndex> },
+    /// An ordered product formed from multiple direct parenthesized items or
+    /// from one item followed by a trailing comma. Group and Unit remain
+    /// separate source forms.
+    Tuple { elements: Vec<LocalSourceIndex> },
     Name {
         spelling: Box<str>,
         resolution: LocalSourceResolution,
@@ -1109,33 +1116,80 @@ impl Builder<'_> {
             SyntaxKind::CaseExpression => self.case(node, index, scope, named_group.clone())?,
             SyntaxKind::IfExpression => self.conditional(node, index, scope, named_group.clone())?,
             SyntaxKind::ParenthesizedExpression => {
-                if node.children_with_tokens().any(|element| {
-                    matches!(
-                        element.kind(),
-                        SyntaxKind::Comma | SyntaxKind::ExpressionDelimitedSeparator
-                    )
-                }) {
-                    return Err(unsupported());
+                let mut children = Vec::new();
+                let mut has_comma = false;
+                for element in node.children_with_tokens() {
+                    match element.kind() {
+                        SyntaxKind::Comma => has_comma = true,
+                        SyntaxKind::Whitespace
+                        | SyntaxKind::Newline
+                        | SyntaxKind::LineComment
+                        | SyntaxKind::BlockComment
+                        | SyntaxKind::LParen
+                        | SyntaxKind::RParen => {}
+                        SyntaxKind::ExpressionDelimitedSeparator => return Err(unsupported()),
+                        _ => {
+                            let Some(child) = element.into_node() else {
+                                return Err(unsupported());
+                            };
+                            push(&mut children, child)?;
+                        }
+                    }
                 }
-                if node.children().next().is_none() {
-                    self.set(index, &node, scope, named_group.clone(), LocalSourceForm::Unit)?;
+                if children.is_empty() {
+                    self.set(
+                        index,
+                        &node,
+                        scope,
+                        named_group.clone(),
+                        LocalSourceForm::Unit,
+                    )?;
                     return Ok(());
                 }
-                let child = only_child(&node)?;
-                let inner = self.slot()?;
-                self.set(
-                    index,
-                    &node,
-                    scope.clone(),
-                    named_group.clone(),
-                    LocalSourceForm::Group {
-                        inner: inner.clone(),
-                    },
-                )?;
-                push(
-                    &mut self.work,
-                    Work::Expression(child, inner, scope, named_group.clone()),
-                )?;
+                if children.len() == 1 && !has_comma {
+                    let child = children.pop().ok_or_else(invalid)?;
+                    let inner = self.slot()?;
+                    self.set(
+                        index,
+                        &node,
+                        scope.clone(),
+                        named_group.clone(),
+                        LocalSourceForm::Group {
+                            inner: inner.clone(),
+                        },
+                    )?;
+                    push(
+                        &mut self.work,
+                        Work::Expression(child, inner, scope, named_group.clone()),
+                    )?;
+                } else {
+                    let mut elements = Vec::new();
+                    elements
+                        .try_reserve_exact(children.len())
+                        .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                    let mut slots = Vec::new();
+                    slots
+                        .try_reserve_exact(children.len())
+                        .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                    for _ in 0..children.len() {
+                        let slot = self.slot()?;
+                        elements.push(slot.clone());
+                        slots.push(slot);
+                    }
+                    self.set(
+                        index,
+                        &node,
+                        scope.clone(),
+                        named_group.clone(),
+                        LocalSourceForm::Tuple { elements },
+                    )?;
+                    for (child, slot) in children.into_iter().zip(slots).rev() {
+                        push(
+                            &mut self.work,
+                            Work::Expression(child, slot, scope.clone(), named_group.clone()),
+                        )?;
+                    }
+                }
             }
             SyntaxKind::BracedStatementBlockExpression | SyntaxKind::IndentedStatementBlock => self.block(node, index, scope, named_group.clone())?,
             _ => return Err(unsupported()),
@@ -1710,7 +1764,7 @@ mod tests {
     }
     #[test]
     fn ordinary_unsupported_roots_leave_no_partial_identity_and_later_roots_continue() {
-        for text in ["my bad = @; my later = 1", "my bad = {my local x = x; (1, 2)}; my later = 1"] {
+        for text in ["my bad = @; my later = 1", "my bad = {my local x = x; @}; my later = 1"] {
             let (_, legacy, module) = ordinary_fixture(text);
             assert_eq!(legacy, module);
             assert!(matches!(&module.source_carrier_outcomes()[0].1, SourceCarrierOutcome::Unsupported(_)));
@@ -1869,11 +1923,101 @@ mod tests {
         assert!(matches!(unit.form, LocalSourceForm::Unit));
         assert_eq!(unit.range, 11..13);
         assert!(matches!(unit.scope, LocalSourceScope::Definition(_)));
-        for text in ["my value = (1,)", "my value = (1, 2)", "my value = ("] {
+        for text in ["my value = (1,, 2)", "my value = (1; 2)", "my value = ("] {
             assert!(matches!(
                 lower(text),
                 Err(HirAvailabilityError::StructuralProjection)
             ));
+        }
+    }
+
+    #[test]
+    fn parenthesized_tuple_carrier_keeps_real_children_in_source_order() {
+        for text in [
+            "my value = (1, 2, 3)",
+            "my value = (1, 2, 3,)",
+            "my value = (1, 2,)",
+            "my value = (\n  1\n  2\n)",
+        ] {
+            let (_, _, module) = ordinary_fixture(text);
+            let SourceCarrierOutcome::Supported(source) = &module.source_carrier_outcomes()[0].1
+            else {
+                panic!("ordinary tuple source should be retained: {text}");
+            };
+            let tuple = source.expression(source.body()).unwrap();
+            assert!(
+                matches!(tuple.form, LocalSourceForm::Tuple { .. }),
+                "{text}"
+            );
+            let LocalSourceForm::Tuple { elements } = &tuple.form else {
+                unreachable!()
+            };
+            let values: Vec<_> = elements
+                .iter()
+                .map(|element| {
+                    let expression = source.expression(element).unwrap();
+                    let LocalSourceForm::Integer(value) = &expression.form else {
+                        panic!("integer child");
+                    };
+                    (
+                        value.as_ref(),
+                        expression.range.clone(),
+                        expression.occurrence.ordinal(),
+                    )
+                })
+                .collect();
+            let expected = match text {
+                "my value = (1, 2, 3)" | "my value = (1, 2, 3,)" => {
+                    vec!["1", "2", "3"]
+                }
+                _ => vec!["1", "2"],
+            };
+            assert_eq!(
+                values.iter().map(|value| value.0).collect::<Vec<_>>(),
+                expected,
+                "{text}"
+            );
+            assert!(
+                values.windows(2).all(|pair| pair[0].1.start < pair[1].1.start),
+                "{text}"
+            );
+            assert!(
+                values.windows(2).all(|pair| pair[0].2 < pair[1].2),
+                "{text}"
+            );
+            assert!(
+                source.retained_arena_bytes()
+                    >= elements.capacity() * std::mem::size_of::<LocalSourceIndex>()
+            );
+        }
+    }
+
+    #[test]
+    fn singleton_comma_is_a_one_element_tuple_and_plain_parentheses_remain_group() {
+        for (text, tuple_expected) in [("my value = (1,)", true), ("my value = (1)", false)] {
+            let (_, _, module) = ordinary_fixture(text);
+            let SourceCarrierOutcome::Supported(source) = &module.source_carrier_outcomes()[0].1 else {
+                panic!("ordinary parenthesized source should be retained: {text}");
+            };
+            let expression = source.expression(source.body()).unwrap();
+            if tuple_expected {
+                let LocalSourceForm::Tuple { elements } = &expression.form else {
+                    panic!("singleton tuple");
+                };
+                assert_eq!(elements.len(), 1);
+                assert!(matches!(
+                    source.expression(&elements[0]).unwrap().form,
+                    LocalSourceForm::Integer(_)
+                ));
+            } else {
+                let LocalSourceForm::Group { inner } = &expression.form else {
+                    panic!("group");
+                };
+                assert!(matches!(
+                    source.expression(inner).unwrap().form,
+                    LocalSourceForm::Integer(_)
+                ));
+            }
         }
     }
 }

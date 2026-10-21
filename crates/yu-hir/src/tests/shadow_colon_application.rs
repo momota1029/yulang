@@ -211,8 +211,28 @@ fn shadow_colon_application_outer_sequences_keep_their_suffix() {
         );
         assert!(crate::module::local_source::inline_colon_argument(&tail).is_ok());
     }
+    let module = lower("my test f x y = (f: x, y)").unwrap();
+    let HirItem::Binding(binding) = &module.items()[0] else {
+        panic!("binding");
+    };
+    let source = module
+        .local_source(binding.definition_root())
+        .unwrap()
+        .unwrap();
+    let tuple = source
+        .expressions()
+        .iter()
+        .find(|expression| matches!(expression.form, LocalSourceForm::Tuple { .. }))
+        .expect("comma-delimited parenthesized result is a tuple");
+    let LocalSourceForm::Tuple { elements } = &tuple.form else {
+        unreachable!()
+    };
+    assert_eq!(elements.len(), 2);
     assert!(matches!(
-        lower("my test f x y = (f: x, y)"),
-        Err(HirAvailabilityError::StructuralProjection)
+        source.expression(&elements[0]).unwrap().form,
+        LocalSourceForm::Apply {
+            source_form: SyntaxKind::ColonApplicationTail,
+            ..
+        }
     ));
 }

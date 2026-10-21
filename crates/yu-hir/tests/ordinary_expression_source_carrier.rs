@@ -150,7 +150,7 @@ fn only_actual_same_artifact_item_occurrences_yield_expression_roots() {
 
 #[test]
 fn unsupported_and_recovered_expression_carriers_leave_later_roots_available() {
-    for text in ["f(@missing); my later = 7", "{ my local x = x; (1, 2) }; my later = 7"] {
+    for text in ["f(@missing); my later = 7", "{ my local x = x; @ }; my later = 7"] {
         let module = lower(text);
         let owner = expression_owner(&module, 0);
         assert!(matches!(module.source_carrier_for(&owner).unwrap(), Some(SourceCarrierOutcome::Unsupported(_))));
