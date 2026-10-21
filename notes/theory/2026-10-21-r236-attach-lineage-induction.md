@@ -90,6 +90,48 @@ discharged `c` without discharging `r`. A theorem-level commuting or
 non-independence argument must still justify exactly which of those descendants
 the original computation-forwarding claim requires.
 
+## Relation payload and residual chronology
+
+The exact equality-child construction narrows the issue, while preserving this
+distinction. `relation_with_scoped` interns on the full tuple
+`(canonical pair, context, source set, scoped flow)`. For an
+`EqualityCanonicalization` witness, `transported_scoped` can only change a
+`NegativeFunction` demand root when that root is one of the witness endpoints.
+The witness changes row representatives; row canonicalization does not rewrite
+the function term endpoint. Therefore the scoped flow is unchanged on this
+path. Both the evidence transport and its following `Derived` insertion use
+`post_check_context(r)` and the exact source set, so absent an already-existing
+canonical relation with that same full key, they reach the same child `c`.
+
+This is an equality-at-construction fact, not a permanent equality of
+post-check states. `candidate_context_execute_relation` records discharge and
+residual by `RelationId`. Execution canonicalizes a stale pair first in
+`candidate_context_transport_task`; when that creates a distinct canonical
+relation, it samples the parent's then-current post-check context. A later
+discharge of that child changes only the child's residual. A future raw
+`Work::Bound` transport from `r` again samples `post_check_context(r)`, which
+need not equal the child's later residual. If both keys intern to one relation,
+they share that state; if not, the source does not identify their later
+residuals.
+
+The two relevant consumers read different context views. A later bound
+transport reads `post_check_context(parent)`, while
+`candidate_context_begin_replay` combines the original `key.context` of every
+relation in the exact input buckets. Thus a canonical child can be a replay
+input at its canonical key even while the retained physical source remains
+indexed under a raw key. Any consumer law must account for both the child's
+creation-time replay payload and its relation-local transport residual; they
+cannot be replaced by a single “current context” value.
+
+So the candidate shortcut “the canonical child and raw parent always carry the
+same effective context” is false as a source invariant. The remaining consumer
+question is narrower: whether a new extrusion must copy a derived child's
+post-check residual as its own source obligation, or whether transferring the
+retained physical parent's complete relation ancestry is sufficient under the
+original copying-occurrence rule. The current source audit has no theorem
+choosing between those interpretations and no accepted source execution
+showing the child residual is independently required. R71 stays OPEN.
+
 ## Exact remaining seam and falsifier
 
 The census narrows R71's first missing premise to a consumer law, not another
