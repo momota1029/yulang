@@ -2267,6 +2267,20 @@ impl ConstraintBatch {
                     "candidate constraint recipes",
                 ),
                 #[cfg(feature = "shadow-apply-candidate")]
+                checked_usize_sum(self.candidate_recipes.iter().map(|recipe| match &recipe.relation {
+                    shadow_apply::CandidateRelation::DeferredFieldTail { member, role_member_candidates, .. } =>
+                        checked_usize_sum([
+                            member.len(),
+                            checked_capacity_bytes::<yu_hir::shadow::SourceRoleMemberId>(role_member_candidates.capacity(), "deferred FieldTail role-member candidates"),
+                        ], "deferred FieldTail recipe payload"),
+                    shadow_apply::CandidateRelation::Tuple { elements, element_effects, .. } =>
+                        checked_usize_sum([
+                            checked_capacity_bytes::<shadow_apply::CandidateEndpoint>(elements.capacity(), "candidate tuple elements"),
+                            checked_capacity_bytes::<usize>(element_effects.capacity(), "candidate tuple element effects"),
+                        ], "candidate tuple recipe payload"),
+                    _ => 0,
+                }), "candidate recipe payloads"),
+                #[cfg(feature = "shadow-apply-candidate")]
                 self.candidate_source.bytes(),
                 #[cfg(feature = "shadow-apply-candidate")]
                 self.candidate_calls.bytes(),

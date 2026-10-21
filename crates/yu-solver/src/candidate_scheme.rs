@@ -64,6 +64,7 @@ pub(super) struct SourceFieldTailObligation {
     pub occurrence: HirOccurrenceId,
     pub source: yu_hir::shadow::SourceNodeKey,
     pub member: Box<str>,
+    pub role_member_candidates: Vec<yu_hir::shadow::SourceRoleMemberId>,
     pub receiver_row: RowKey,
     pub receiver_effect: RowKey,
     pub result_row: RowKey,
@@ -824,7 +825,9 @@ impl Graph {
                 bytes::<u8>(obligation.role_spelling.len())?,
             ]))?,
             self.source_field_tail_obligations.iter().try_fold(0usize, |total, obligation| sum(&[
-                total, bytes::<u8>(obligation.member.len())?,
+                total,
+                bytes::<u8>(obligation.member.len())?,
+                bytes::<yu_hir::shadow::SourceRoleMemberId>(obligation.role_member_candidates.capacity())?,
             ]))?,
             #[cfg(test)]
             bytes::<CapturedRowObservation>(self.capture_rows.capacity())?,
@@ -899,6 +902,7 @@ impl GraphState {
             bytes::<(SourceRootId, Vec<SourceFieldTailObligation>)>(map_growth)?,
             bytes::<SourceFieldTailObligation>(items.capacity() - old_items_capacity)?,
             bytes::<u8>(obligation.member.len())?,
+            bytes::<yu_hir::shadow::SourceRoleMemberId>(obligation.role_member_candidates.capacity())?,
         ])?;
         self.retained_bytes = self.retained_bytes.checked_add(added).ok_or_else(exhausted)?;
         items.push(obligation);
@@ -963,6 +967,7 @@ impl GraphState {
                 bytes::<SourceFieldTailObligation>(obligations.capacity())?,
                 obligations.iter().try_fold(0usize, |accumulated, obligation| sum(&[
                     accumulated, bytes::<u8>(obligation.member.len())?,
+                    bytes::<yu_hir::shadow::SourceRoleMemberId>(obligation.role_member_candidates.capacity())?,
                 ]))?,
             ])?;
         }
@@ -3118,6 +3123,67 @@ mod authentic_demand_capture_tests {
         let (rows, retained) = fresh.into_retained_parts();
         assert_eq!(retained.source_field_tail_obligation_rows, [(0, indexes)]);
         for index in indexes { let _same_use_image = rows[index]; }
+    }
+
+    #[test]
+    fn deferred_field_tail_keeps_authenticated_role_member_candidates() {
+        let provider_text: Arc<yu_syntax::SourceText> =
+            Arc::from("pub role Display 'a:\n    pub a.show: str\n");
+        let provider_parsed = yu_syntax::parse_file(
+            provider_text.clone(), Arc::new(yu_syntax::scan_header(provider_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let provider_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("fieldtail-role-candidates", "lib/std/prelude.yu"),
+        ));
+        let provider_exports = yu_hir::shadow::index_source_exports(
+            provider_identity.clone(), &provider_parsed,
+        ).unwrap();
+        let provider_roles = yu_hir::shadow::index_role_impl_sources(
+            provider_identity, &provider_parsed,
+        ).unwrap();
+        let expected_member = provider_roles.roles()[0].body.as_ref().unwrap().members[0].id.clone();
+        let std_text: Arc<yu_syntax::SourceText> = Arc::from("pub mod prelude;\n");
+        let std_parsed = yu_syntax::parse_file(
+            std_text.clone(), Arc::new(yu_syntax::scan_header(std_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let std_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("fieldtail-role-candidates", "lib/std.yu"),
+        ));
+        let std_exports = yu_hir::shadow::index_source_exports(std_identity, &std_parsed).unwrap();
+
+        let consumer_text: Arc<yu_syntax::SourceText> =
+            Arc::from("use std::prelude::Display\nmy select x = x.show\n");
+        let consumer_parsed = yu_syntax::parse_file(
+            consumer_text.clone(), Arc::new(yu_syntax::scan_header(consumer_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let consumer_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("fieldtail-role-candidates", "consumer.yu"),
+        ));
+        let imports = yu_hir::SemanticImports::with_source_imports_and_role_indexes(
+            &consumer_parsed, &consumer_identity, &[std_exports, provider_exports], &[provider_roles],
+        ).unwrap();
+        assert_eq!(imports.source_imports().unwrap().role_member_id("Display", "show"), Some(&expected_member));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            consumer_identity, &consumer_parsed, imports,
+        ).unwrap());
+        let root = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "select" => {
+                Some(binding.definition_root().clone())
+            }
+            _ => None,
+        }).unwrap();
+        let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap();
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.start_candidate_graph().unwrap();
+        session.execute_candidate_source_root(&root).unwrap();
+        let owner = SourceRootId::Definition(root.clone());
+        let obligations = &session.candidate_graph.as_ref().unwrap().source_field_tail_obligations[&owner];
+        assert_eq!(obligations.len(), 1);
+        assert_eq!(obligations[0].member.as_ref(), "show");
+        assert_eq!(obligations[0].role_member_candidates, [expected_member]);
     }
 
     #[test]

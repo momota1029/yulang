@@ -1,9 +1,9 @@
 # Sprint R302 — unchanged Yulang2 samples through deferred role selection
 
 Status: RUNNING, solo Luna primary; no independent review or theorem closure is claimed.
-Branch / baseline: `research/simple-sub-intrusion` / `d47629717`.
+Branch / baseline: `research/simple-sub-intrusion` / `8b26a21ef`.
 Authority: continuing user goal and R149; `notes/design/2026-10-20-r149-types-console.md`; unified design §§4.3–4.5, 5.1, 6, 9–10; proof companion §§3.1–3.6, 4.5, 7.1–7.5; R302 exact FieldTail/Capture/FreshUse contract.
-Contract revision 1 / SHA-256 recorded in `current.json`; primary approval: user-goal solo continuation.
+Contract revision 2 / SHA-256 recorded in `current.json`; primary approval: user-goal solo continuation.
 
 ## Original outcome and success evidence
 
@@ -15,7 +15,7 @@ Success evidence: exact sample byte hashes remain unchanged; ordinary CLI tests 
 
 Before: Types reaches `Solve(DeferredSelectionUnavailable)` after candidate collection. The relation carries parse source key and receiver/result value/effect endpoints but is not captured or freshened. Console stops at unsupported imported-name preflight. Neither sample runs.
 
-Open premises: exact source role/member candidate attachment at each FieldTail; receiver/result row capture and FreshUse maps; type-directed implementation selection; `show` discharge on the same receiver; authentic Console providers and `out::write`; complete module schedule/runtime; source/native proof and independent review. No semantic or source restriction is authorized.
+Open premises: receiver-bounds-driven role/member selection at each FieldTail; source/native justification that captured role/member candidate identities and row obligations correspond to source typing; type-directed implementation selection; `show` discharge on the same receiver; authentic Console providers and `out::write`; complete module schedule/runtime; source/native proof and independent review. No semantic or source restriction is authorized.
 
 ## Solo lanes
 

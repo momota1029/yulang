@@ -254,6 +254,7 @@ pub enum SourceRoleMemberError {
     AmbiguousMember,
     RecoveredMember,
     StaleMember,
+    IdentityExhausted,
 }
 
 /// Looks up one member inside one exact, authenticated role declaration.
@@ -310,6 +311,45 @@ pub fn resolve_source_role_member<'a>(
         }
     }
     found.ok_or(SourceRoleMemberError::MissingMember)
+}
+
+/// Lists intact, uniquely named members of one exact imported role. This is a
+/// source identity inventory only; it supplies no member type or dispatch.
+pub fn source_role_member_inventory(
+    role_id: &SourceRoleId,
+    indexes: &[SourceRoleImplIndex],
+) -> Result<Vec<(Box<str>, SourceRoleMemberId)>, SourceRoleMemberError> {
+    let mut module = None;
+    for index in indexes {
+        if &index.module == role_id.module.as_ref() && module.replace(index).is_some() {
+            return Err(SourceRoleMemberError::DuplicateModule);
+        }
+    }
+    let module = module.ok_or(SourceRoleMemberError::MissingModule)?;
+    let mut role = None;
+    for declaration in &module.roles {
+        if declaration.id == *role_id && role.replace(declaration).is_some() {
+            return Err(SourceRoleMemberError::StaleRole);
+        }
+    }
+    let role = role.ok_or(SourceRoleMemberError::StaleRole)?;
+    if role.recovered || role.head.recovered {
+        return Err(SourceRoleMemberError::RecoveredRole);
+    }
+    let body = role.body.as_ref().ok_or(SourceRoleMemberError::MissingBody)?;
+    if body.recovered { return Err(SourceRoleMemberError::RecoveredBody); }
+    let mut members = Vec::new();
+    for member in &body.members {
+        if member.id.role != *role_id { return Err(SourceRoleMemberError::StaleMember); }
+        if member.recovered { return Err(SourceRoleMemberError::RecoveredMember); }
+        let Some(name) = source_role_member_name(&member.text) else { continue; };
+        if members.iter().any(|(old, _): &(Box<str>, SourceRoleMemberId)| old.as_ref() == name) {
+            return Err(SourceRoleMemberError::AmbiguousMember);
+        }
+        members.try_reserve(1).map_err(|_| SourceRoleMemberError::IdentityExhausted)?;
+        members.push((name.into(), member.id.clone()));
+    }
+    Ok(members)
 }
 
 fn source_role_member_name(text: &str) -> Option<&str> {

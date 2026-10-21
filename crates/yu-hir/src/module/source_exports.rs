@@ -125,6 +125,8 @@ pub struct SourceImportEnvironment {
     names: std::collections::HashMap<Box<str>, SourceImportBinding>,
     #[cfg(any(feature = "shadow", test))]
     role_ids: std::collections::HashMap<Box<str>, super::source_role::SourceRoleId>,
+    #[cfg(any(feature = "shadow", test))]
+    role_member_ids: std::collections::HashMap<(Box<str>, Box<str>), super::source_role::SourceRoleMemberId>,
 }
 
 impl SourceImportEnvironment {
@@ -139,6 +141,8 @@ impl SourceImportEnvironment {
             names,
             #[cfg(any(feature = "shadow", test))]
             role_ids: std::collections::HashMap::new(),
+            #[cfg(any(feature = "shadow", test))]
+            role_member_ids: std::collections::HashMap::new(),
         }
     }
 
@@ -165,12 +169,28 @@ impl SourceImportEnvironment {
         self.role_ids.get(name)
     }
 
+    /// Exact source-owned member candidate for one authenticated imported role.
+    /// This does not select the role for a receiver or provide a member type.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn role_member_id(&self, role_name: &str, member_name: &str) -> Option<&super::source_role::SourceRoleMemberId> {
+        self.role_member_ids.iter().find_map(|((role, member), id)|
+            (role.as_ref() == role_name && member.as_ref() == member_name).then_some(id))
+    }
+
     #[cfg(any(feature = "shadow", test))]
     pub(super) fn retain_role_ids(
         &mut self,
         role_ids: std::collections::HashMap<Box<str>, super::source_role::SourceRoleId>,
     ) {
         self.role_ids = role_ids;
+    }
+
+    #[cfg(any(feature = "shadow", test))]
+    pub(super) fn retain_role_member_ids(
+        &mut self,
+        role_member_ids: std::collections::HashMap<(Box<str>, Box<str>), super::source_role::SourceRoleMemberId>,
+    ) {
+        self.role_member_ids = role_member_ids;
     }
 }
 

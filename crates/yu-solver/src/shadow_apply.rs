@@ -2259,6 +2259,7 @@ pub(super) enum CandidateRelation {
     DeferredFieldTail {
         source: yu_hir::shadow::SourceNodeKey,
         member: Box<str>,
+        role_member_candidates: Vec<yu_hir::shadow::SourceRoleMemberId>,
         receiver: CandidateEndpoint,
         receiver_effect: usize,
         result: usize,
@@ -2750,7 +2751,7 @@ impl InferenceSession {
         let mut invocation_effect = None;
         let (lower, upper) = match &recipe.relation {
             CandidateRelation::DeferredFieldTail { .. } => {
-                let CandidateRelation::DeferredFieldTail { source, member, receiver, receiver_effect, result, result_effect } = &recipe.relation else { unreachable!() };
+                let CandidateRelation::DeferredFieldTail { source, member, role_member_candidates, receiver, receiver_effect, result, result_effect } = &recipe.relation else { unreachable!() };
                 let owner = self.batch.candidate_source.source_owners.get(&recipe.occurrence)
                     .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 let value_row = |endpoint: CandidateEndpoint| -> Result<u32, SolveAvailabilityError> {
@@ -2767,6 +2768,7 @@ impl InferenceSession {
                     occurrence: recipe.occurrence.clone(),
                     source: source.clone(),
                     member: member.clone(),
+                    role_member_candidates: role_member_candidates.clone(),
                     receiver_row: crate::candidate_scheme::RowKey::Value(value_row(*receiver)?),
                     receiver_effect: crate::candidate_scheme::RowKey::Effect(self.live_components.get(*receiver_effect).ok_or(SolveAvailabilityError::ReceiptMismatch)?.ordinal),
                     result_row: crate::candidate_scheme::RowKey::Value(self.live_components.get(*result).ok_or(SolveAvailabilityError::ReceiptMismatch)?.ordinal),

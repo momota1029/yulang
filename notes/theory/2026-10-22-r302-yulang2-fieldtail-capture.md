@@ -8,13 +8,13 @@ Read `docs/yulang-unified-design-and-proof-plan-ja.md` §§4.3–4.5, 5.1, 6, 9�
 
 ## Frozen baseline and before evidence
 
-Baseline: `d47629717`. R301 converted the immediate FieldTail collection rejection into `CandidateRelation::DeferredFieldTail`, retaining the parse-owned source key, member spelling, receiver/result value endpoints and receiver/result effect endpoints. It contributes no type fact and fails closed at `Solve(DeferredSelectionUnavailable)`. The unchanged Types focused test passes at that boundary. The relation remains in the batch; it is not yet a `Graph` prerequisite or FreshUse mapping. Console remains before imported-name candidate collection. Neither sample executes.
+R302 entry baseline: `d47629717`. R301 converted the immediate FieldTail collection rejection into `CandidateRelation::DeferredFieldTail`, retaining the parse-owned source key, member spelling, receiver/result value endpoints and receiver/result effect endpoints. It contributes no type fact and fails closed at `Solve(DeferredSelectionUnavailable)`. The unchanged Types focused test passes at that boundary. At entry to R302, the relation remained in the batch; it was not yet a `Graph` prerequisite or FreshUse mapping. Console remains before imported-name candidate collection. Neither sample executes.
 
 R302 preserves the unchanged exact templates and pinned source identities. No method is selected by spelling, no member type is assumed, and no unresolved obligation may escape as a successful candidate result.
 
 ## Next implementation seam
 
-Register each deferred relation under its exact source owner and occurrence; associate the imported exact role/member identity from the pinned role index. Include its receiver/result Value and Effect rows in provider Capture. Reconstruct all row references with the same `FreshUse.rows` map, preserving source/member identity unchanged. Keep unresolved obligations private and fail closed. Then determine the route by receiver bounds in the common session, resolve a unique role implementation, and discharge the method's nested `show` obligation on the same receiver before accepting the method application.
+The exact owner/occurrence, receiver/result Value and Effect rows, one FreshUse row map, and authenticated imported role/member candidates now survive into the deferred obligation. Next determine the route by receiver bounds in the common session, resolve the unique role implementation, and discharge the method's nested `show` obligation on the same receiver before accepting the method application.
 
 Proof work must identify the source constructor, generated obligation, all rows and source identities, graph capture inclusion, one-use remap and actual consumer. Existing proof companion §3.6 justifies the mapping operation once its assumptions hold; it does not establish this FieldTail registration or discharge. Falsifier: drop/alias any receiver/result/effect row across Capture/FreshUse, accept missing/ambiguous/stale role members, or accept a method while `show` remains unresolved.
 
@@ -26,6 +26,15 @@ Candidate admission now registers each deferred FieldTail by exact `SourceRootId
 
 The solver test `deferred_field_tail_rows_survive_capture_and_same_freshuse_map` passes with `shadow-apply-candidate`, including checked resource-byte refresh and local-versus-shared row identity behavior. The unchanged Types and Console focused Playground tests both pass at their current fail-closed boundaries. Types now passes candidate collection, executes capture/session processing and remains rejected because role selection is unresolved; Console still fails at imported-name preflight. Neither source executes.
 
-This does not yet authenticate a role/member candidate from import identities, select a type-directed implementation, discharge nested `show`, or connect the relation to a selected method application. The source-to-obligation registration has executable coverage but no independent source/native proof. The accepted-sample and parent theorem gates remain OPEN.
+At this checkpoint the imported role/member candidate identity is retained, but no receiver-bound implementation is selected, nested `show` discharged, or selected method application connected. The source-to-obligation registration has executable coverage but no independent source/native proof. The accepted-sample and parent theorem gates remain OPEN.
 
 The transport test uses the generic provider source `my select x = x.show`, so it exercises a FieldTail inside a captured definition rather than only the top-level sample expression. It confirms source occurrence/key and spelling survive into `Graph`, all four rows are present after Capture, and each local row's FreshUse image is distinct while shared anchors remain fixed. This is a bounded algebraic bridge test; the ordinary sample tests still stop before method selection.
+
+
+## Authenticated member candidate identities
+
+Pinned provider role indexes now accompany export indexes through Playground preparation and provider projection. Import resolution retains exact role and member IDs only when a resolved imported public declaration is authenticated by a unique intact role index. This inventory supplies identity candidates only; it does not inspect receiver bounds, choose an implementation by spelling, or synthesize a member type. A role declaration that cannot be reconciled with its source export index still rejects import construction, preserving the prior import contract. A recovered, duplicate, or ambiguous member inventory yields no member candidate, so later selection remains fail-closed.
+
+Candidate collection attaches the exact imported role-member IDs whose member spelling matches a FieldTail to the deferred relation. The IDs survive admission beside the existing parse source key and member spelling. The focused solver test `deferred_field_tail_keeps_authenticated_role_member_candidates` verifies that an imported `Display.show` source member identity reaches the FieldTail obligation; `deferred_field_tail_rows_survive_capture_and_same_freshuse_map` verifies the separate row transport contract. The unchanged Types/Console boundary tests and `cargo check -p yu-playground` pass.
+
+This slice still does not select a role implementation from receiver bounds, connect the FieldTail to a chosen method application, discharge nested `show`, or execute either unchanged sample. The exact samples, source/native bridge, independent review, and R149 parent gate remain OPEN.

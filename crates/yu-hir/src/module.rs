@@ -393,6 +393,21 @@ impl SemanticImports {
         })
     }
 
+    /// As `with_source_imports`, while also retaining exact imported role and
+    /// role-member source identities from the supplied provider index.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn with_source_imports_and_role_indexes(
+        parsed: &ParsedFile,
+        identity: &ModuleIdentity,
+        indexes: &[source_exports::SourceExportIndex],
+        role_indexes: &[crate::shadow::SourceRoleImplIndex],
+    ) -> Result<Self, HirAvailabilityError> {
+        let (parse_root, names) = resolve_source_imports(parsed, identity, indexes)?;
+        let mut source_imports = source_exports::SourceImportEnvironment::new(parse_root, identity.clone(), names);
+        retain_authenticated_role_imports(&mut source_imports, role_indexes)?;
+        Ok(Self { caller_evidence: None, source_imports: Some(source_imports) })
+    }
+
     /// Resolves only names appearing in selected parse-owned direct roots.
     /// Pair this environment with `lower_module_with_selected_local_source`
     /// using the same root set so omitted module imports are not mistaken for
@@ -414,6 +429,22 @@ impl SemanticImports {
         })
     }
 
+    /// Selected-root projection with exact imported role/member source IDs.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn with_selected_source_imports_and_role_indexes(
+        parsed: &ParsedFile,
+        identity: &ModuleIdentity,
+        indexes: &[source_exports::SourceExportIndex],
+        selected_roots: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
+        role_indexes: &[crate::shadow::SourceRoleImplIndex],
+    ) -> Result<Self, HirAvailabilityError> {
+        let selected_names = selected_direct_root_names(parsed, selected_roots)?;
+        let (parse_root, names) = resolve_source_imports_selected(parsed, identity, indexes, Some(&selected_names))?;
+        let mut source_imports = source_exports::SourceImportEnvironment::new(parse_root, identity.clone(), names);
+        retain_authenticated_role_imports(&mut source_imports, role_indexes)?;
+        Ok(Self { caller_evidence: None, source_imports: Some(source_imports) })
+    }
+
     /// Retain exact identities for imported public role declarations when
     /// their provider role indexes are supplied and match the resolved export.
     #[cfg(any(feature = "shadow", test))]
@@ -424,34 +455,9 @@ impl SemanticImports {
         role_indexes: &[crate::shadow::SourceRoleImplIndex],
     ) -> Result<Self, HirAvailabilityError> {
         let (parse_root, names) = resolve_implicit_prelude_imports(parsed, identity, indexes)?;
-        let mut role_ids = HashMap::new();
-        role_ids
-            .try_reserve(names.len())
-            .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-        for (name, binding) in &names {
-            let source_exports::SourceImportBinding::Resolved(resolution) = binding else {
-                continue;
-            };
-            if resolution.declaration.kind != SyntaxKind::RoleDeclaration {
-                continue;
-            }
-            let owner = crate::shadow::resolve_source_export_owner(&[], role_indexes, resolution)
-                .map_err(|_| HirAvailabilityError::SourceImportResolutionUnavailable)?;
-            let crate::shadow::SourceExportOwner::Role { declaration, .. } = owner else {
-                return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
-            };
-            role_ids.insert(name.clone(), declaration.id.clone());
-        }
-        let mut source_imports = source_exports::SourceImportEnvironment::new(
-            parse_root,
-            identity.clone(),
-            names,
-        );
-        source_imports.retain_role_ids(role_ids);
-        Ok(Self {
-            caller_evidence: None,
-            source_imports: Some(source_imports),
-        })
+        let mut source_imports = source_exports::SourceImportEnvironment::new(parse_root, identity.clone(), names);
+        retain_authenticated_role_imports(&mut source_imports, role_indexes)?;
+        Ok(Self { caller_evidence: None, source_imports: Some(source_imports) })
     }
 
     /// Retain opaque caller evidence for one exact parsed top-level declaration.
@@ -488,6 +494,42 @@ impl SemanticImports {
     pub fn source_imports(&self) -> Option<&source_exports::SourceImportEnvironment> {
         self.source_imports.as_ref()
     }
+}
+
+#[cfg(any(feature = "shadow", test))]
+fn retain_authenticated_role_imports(
+    imports: &mut source_exports::SourceImportEnvironment,
+    role_indexes: &[crate::shadow::SourceRoleImplIndex],
+) -> Result<(), HirAvailabilityError> {
+    use source_exports::SourceImportBinding;
+    let mut role_ids = std::collections::HashMap::new();
+    let mut role_member_ids = std::collections::HashMap::new();
+    for (name, binding) in imports.names() {
+        let SourceImportBinding::Resolved(resolution) = binding else { continue; };
+        if resolution.declaration.kind != SyntaxKind::RoleDeclaration { continue; }
+        let owner = crate::shadow::resolve_source_export_owner(&[], role_indexes, resolution)
+            .map_err(|_| HirAvailabilityError::SourceImportResolutionUnavailable)?;
+        let crate::shadow::SourceExportOwner::Role { declaration, .. } = owner else {
+            return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+        };
+        let role_id = declaration.id.clone();
+        role_ids.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        role_ids.insert(name.clone(), role_id.clone());
+        let members = match crate::shadow::source_role_member_inventory(&role_id, role_indexes) {
+            Ok(members) => members,
+            Err(crate::shadow::SourceRoleMemberError::IdentityExhausted) => {
+                return Err(HirAvailabilityError::IdentityExhausted);
+            }
+            Err(_) => continue,
+        };
+        role_member_ids.try_reserve(members.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        for (member_name, member_id) in members {
+            role_member_ids.insert((name.clone(), member_name), member_id);
+        }
+    }
+    imports.retain_role_ids(role_ids);
+    imports.retain_role_member_ids(role_member_ids);
+    Ok(())
 }
 
 impl std::fmt::Debug for SemanticImports {

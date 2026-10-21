@@ -357,8 +357,8 @@ fn prepare(
         return Err(output.finish()?);
     }
     let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", name)));
-    let (provider_sources, indexes) = pinned_source_world()?;
-    let imports = match SemanticImports::with_source_imports(&parsed, &identity, &indexes) {
+    let (provider_sources, indexes, role_indexes) = pinned_source_world()?;
+    let imports = match SemanticImports::with_source_imports_and_role_indexes(&parsed, &identity, &indexes, &role_indexes) {
         Ok(imports) => imports,
         Err(import_error @ yu_hir::HirAvailabilityError::StructuralProjection) => {
             // Keep this fallback closed: only a source with no explicit
@@ -394,7 +394,7 @@ fn prepare(
     let solved = if scoped {
         CandidateInference::solve_scoped_experiment(hir.clone())
     } else {
-        let providers = pinned_provider_projection(&hir, &provider_sources, &indexes)?;
+    let providers = pinned_provider_projection(&hir, &provider_sources, &indexes, &role_indexes)?;
         let mut modules = providers;
         modules.push(hir.clone());
         CandidateInference::solve_modules(modules)
@@ -439,15 +439,17 @@ fn prepare(
 
 type PinnedProviderSource = (ModuleIdentity, yu_syntax::ParsedFile);
 
-fn pinned_source_world() -> Result<(Vec<PinnedProviderSource>, Vec<yu_hir::SourceExportIndex>), String> {
+fn pinned_source_world() -> Result<(Vec<PinnedProviderSource>, Vec<yu_hir::SourceExportIndex>, Vec<yu_hir::shadow::SourceRoleImplIndex>), String> {
     use yu_syntax::{SourceText, parse_file, scan_header};
 
     let sources = pinned_stdlib::resolve_implicit_stdlib()
         .map_err(|error| format!("pinned standard-library bundle unavailable: {error:?}"))?;
     let mut parsed_sources = Vec::new();
     let mut indexes = Vec::new();
+    let mut role_indexes = Vec::new();
     parsed_sources.try_reserve_exact(sources.len()).map_err(|_| "pinned source allocation unavailable".to_owned())?;
     indexes.try_reserve_exact(sources.len()).map_err(|_| "pinned index allocation unavailable".to_owned())?;
+    role_indexes.try_reserve_exact(sources.len()).map_err(|_| "pinned role index allocation unavailable".to_owned())?;
     for source in sources.iter() {
         let text: Arc<SourceText> = Arc::from(source.text);
         let parsed = parse_file(
@@ -459,9 +461,11 @@ fn pinned_source_world() -> Result<(Vec<PinnedProviderSource>, Vec<yu_hir::Sourc
         let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("pinned-yulang2", source.path)));
         indexes.push(index_source_exports(identity.clone(), &parsed)
             .map_err(|error| format!("pinned source index unavailable: {error:?}"))?);
+        role_indexes.push(yu_hir::shadow::index_role_impl_sources(identity.clone(), &parsed)
+            .map_err(|error| format!("pinned role index unavailable for {}: {error:?}", source.path))?);
         parsed_sources.push((identity, parsed));
     }
-    Ok((parsed_sources, indexes))
+    Ok((parsed_sources, indexes, role_indexes))
 }
 
 /// Project only exact exported binding roots reached from imported Names,
@@ -470,6 +474,7 @@ fn pinned_provider_projection(
     consumer: &HirModule,
     sources: &[PinnedProviderSource],
     indexes: &[yu_hir::SourceExportIndex],
+    role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
 ) -> Result<Vec<Arc<HirModule>>, String> {
     use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
     use std::collections::HashSet;
@@ -515,8 +520,8 @@ fn pinned_provider_projection(
         if declaration.kind != yu_syntax::SyntaxKind::BindingStatement { continue; }
         if !selected[source_index].insert(export.source.clone()) { continue; }
         let (identity, parsed) = &sources[source_index];
-        let imports = SemanticImports::with_selected_source_imports(
-            parsed, identity, indexes, &selected[source_index],
+        let imports = SemanticImports::with_selected_source_imports_and_role_indexes(
+            parsed, identity, indexes, &selected[source_index], role_indexes,
         ).map_err(|error| format!("selected pinned imports unavailable for {}: {error:?}", identity.file().key().normalized_workspace_relative_path()))?;
         let projected = yu_hir::shadow::lower_module_with_selected_local_source(
             identity.clone(), parsed, imports, selected[source_index].clone(),
@@ -645,10 +650,10 @@ mod tests {
         let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
             "pinned-demand-projection", "consumer.yu",
         )));
-        let (provider_sources, indexes) = pinned_source_world().unwrap();
-        let imports = SemanticImports::with_source_imports(&parsed, &identity, &indexes).unwrap();
+        let (provider_sources, indexes, role_indexes) = pinned_source_world().unwrap();
+        let imports = SemanticImports::with_source_imports_and_role_indexes(&parsed, &identity, &indexes, &role_indexes).unwrap();
         let consumer = Arc::new(lower_module_with_local_source(identity, &parsed, imports).unwrap());
-        let providers = pinned_provider_projection(&consumer, &provider_sources, &indexes).unwrap();
+        let providers = pinned_provider_projection(&consumer, &provider_sources, &indexes, &role_indexes).unwrap();
         assert_eq!(providers.len(), 1, "only std::int::add is demanded");
         let exported_names = providers[0].items().iter().filter_map(|item| match item {
             HirItem::Binding(binding) => Some(binding.name().spelling()),
@@ -1127,6 +1132,11 @@ mod tests {
             None,
             "export lookup alone must not invent a provider role identity",
         );
+        assert_eq!(
+            unauthenticated_imports.source_imports().unwrap().role_member_id("Display", "say"),
+            None,
+            "export lookup alone must not invent a role-member identity",
+        );
         let consumer_imports = SemanticImports::with_implicit_prelude_and_role_indexes(
             &consumer_parsed,
             &consumer_identity,
@@ -1141,6 +1151,11 @@ mod tests {
                 .role_id("Display"),
             Some(&expected_display_id),
             "the consumer spelling must retain the exact role declaration identity",
+        );
+        assert_eq!(
+            consumer_imports.source_imports().unwrap().role_member_id("Display", "say"),
+            Some(&resolved_display_say.id),
+            "the imported role retains the exact source-owned member identity",
         );
         let imported_display_id = consumer_imports
             .source_imports()

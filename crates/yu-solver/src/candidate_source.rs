@@ -1630,10 +1630,22 @@ impl ConstraintBatch {
                         // receiver implementation are available.
                         LocalSourceForm::FieldTail { receiver, member, .. } => {
                             let receiver_index = receiver.ordinal() as usize;
+                            let mut role_member_candidates = Vec::new();
+                            if let Some(imports) = hir.source_imports() {
+                                role_member_candidates.try_reserve(imports.names().len()).map_err(|_| unavailable())?;
+                                for role_name in imports.names().keys() {
+                                    if let Some(member_id) = imports.role_member_id(role_name, member) {
+                                        if !role_member_candidates.contains(member_id) {
+                                            role_member_candidates.push(member_id.clone());
+                                        }
+                                    }
+                                }
+                            }
                             let recipe = self.candidate_recipes.len();
                             self.retain_candidate_relation(occurrence, CandidateRelation::DeferredFieldTail {
                                 source: expr.source.clone(),
                                 member: member.clone(),
+                                role_member_candidates,
                                 receiver: endpoints[receiver_index],
                                 receiver_effect: positions[receiver_index].effect,
                                 result: pos.value,
