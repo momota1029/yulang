@@ -227,7 +227,7 @@ pub struct CandidateSourceFactRecord<'a> {
 pub struct CandidateSourceOriginRecord<'a> {
     pub graph_index: usize,
     pub occurrence: &'a HirOccurrenceId,
-    pub local_slot: u8,
+    pub local_slot: u32,
     pub relation: usize,
     pub attribution: CandidateSourceOriginAttribution<'a>,
 }
@@ -1236,7 +1236,7 @@ impl CandidateInference {
         let mut facts_complete = true;
         for edge in self.solved.data.store.provenance() {
             let cause = edge.cause().occurrence();
-            if !source_keys.iter().any(|(source, slot)| cause.occurrence() == *source && cause.local_slot() == *slot) { continue; }
+            if !source_keys.iter().any(|(source, slot)| cause.occurrence() == *source && cause.local_slot() == u32::from(*slot)) { continue; }
             let Some(fact) = self.solved.data.store.facts().get(edge.fact().index() as usize)
                 .filter(|fact| fact.id() == edge.fact()) else { return Err(ArtifactMismatch); };
             if facts.len() == cap { facts_complete = false; break; }
@@ -1253,7 +1253,7 @@ impl CandidateInference {
             for (origin_index_in_graph, origin) in context.origins.iter().enumerate() {
                 let source = origin.occurrence.occurrence();
                 let slot = origin.occurrence.local_slot();
-                if !source_keys.iter().any(|(key, key_slot)| *key == source && *key_slot == slot)
+                if !source_keys.iter().any(|(key, key_slot)| *key == source && u32::from(*key_slot) == slot)
                     || !self.solved.data.store.provenance().iter().any(|edge| edge.cause().occurrence() == &origin.occurrence)
                 { continue; }
                 if origins.len() == cap { origins_complete = false; break; }
@@ -1593,7 +1593,7 @@ impl<'a> CandidateGraphNode<'a> {
     pub fn polarity(self) -> Polarity {
         use crate::candidate_scheme::{Atom, Node};
         match self.graph.nodes[self.index] {
-            Node::Row { polarity, .. } | Node::Function { polarity, .. } | Node::EffectOperand { polarity, .. } => polarity,
+            Node::Row { polarity, .. } | Node::Function { polarity, .. } | Node::Tuple { polarity, .. } | Node::EffectOperand { polarity, .. } => polarity,
             Node::Leaf(Atom::Bottom | Atom::IntPositive | Atom::UnitPositive | Atom::BoolPositive | Atom::StrPositive | Atom::EffectBottom) => Polarity::Positive,
             Node::Leaf(_) => Polarity::Negative,
         }
@@ -1609,6 +1609,14 @@ impl<'a> CandidateGraphNode<'a> {
             }
             _ => None,
         }
+    }
+    pub fn tuple_children(self) -> Option<impl ExactSizeIterator<Item = Self> + 'a> {
+        let crate::candidate_scheme::Node::Tuple { start, len, .. } = self.graph.nodes[self.index] else {
+            return None;
+        };
+        let end = start.checked_add(len)?;
+        let indices = self.graph.tuple_children.get(start..end)?;
+        Some(indices.iter().map(move |&index| Self { state: self.state, graph: self.graph, index }))
     }
     pub fn row(self) -> Option<CandidateGraphRow<'a>> {
         match self.graph.nodes[self.index] {
@@ -2213,6 +2221,12 @@ pub(super) enum CandidateRelation {
         result: usize,
         result_effect: usize,
     },
+    Tuple {
+        elements: Vec<CandidateEndpoint>,
+        element_effects: Vec<usize>,
+        result: usize,
+        result_effect: usize,
+    },
 }
 #[derive(Clone, Debug)]
 pub(super) struct CandidateConstraintRecipe {
@@ -2405,6 +2419,7 @@ impl ConstraintBatch {
             match &relation {
                 CandidateRelation::Group { .. } => 2,
                 CandidateRelation::Apply { .. } => 3,
+                CandidateRelation::Tuple { element_effects, .. } => 1usize.checked_add(element_effects.len()).ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?,
             }
         } else {
             1
@@ -2673,11 +2688,21 @@ impl InferenceSession {
             { return Err(SolveAvailabilityError::IdentityExhausted); }
         }
         let mut invocation_effect = None;
-        let (lower, upper) = match recipe.relation {
+        let (lower, upper) = match &recipe.relation {
             CandidateRelation::Group { child, result, .. } => (
-                self.candidate_endpoint(child, Polarity::Positive)?,
-                self.candidate_endpoint(CandidateEndpoint::Component(result), Polarity::Negative)?,
+                self.candidate_endpoint(*child, Polarity::Positive)?,
+                self.candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?,
             ),
+            CandidateRelation::Tuple { elements, result, .. } => {
+                let mut element_terms = Vec::new();
+                element_terms.try_reserve_exact(elements.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                for &element in elements {
+                    element_terms.push(self.candidate_endpoint(element, Polarity::Positive)?);
+                }
+                let tuple = self.store.terms.positive_tuple(&element_terms)?;
+                let lower = self.candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?;
+                (tuple, lower)
+            }
             CandidateRelation::Apply {
                 callee,
                 argument,
@@ -2686,19 +2711,19 @@ impl InferenceSession {
                 result_effect,
                 ..
             } => {
-                let callee = self.candidate_endpoint(callee, Polarity::Positive)?;
-                let argument = self.candidate_endpoint(argument, Polarity::Positive)?;
+                let callee = self.candidate_endpoint(*callee, Polarity::Positive)?;
+                let argument = self.candidate_endpoint(*argument, Polarity::Positive)?;
                 let result = self
-                    .candidate_endpoint(CandidateEndpoint::Component(result), Polarity::Negative)?;
+                    .candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?;
                 let (argument_effect, return_effect) = if self.batch.candidate_graph_effects {
-                    let EffectEndpointKey::EffectRow(application_row) = self.canonical_effect(EffectEndpointKey::EffectRow(self.live_components[result_effect].ordinal)) else { unreachable!() };
+                    let EffectEndpointKey::EffectRow(application_row) = self.canonical_effect(EffectEndpointKey::EffectRow(self.live_components[*result_effect].ordinal)) else { unreachable!() };
                     let level = self.effect_levels[application_row as usize];
                     let row = self.fresh_effect_at_level(level)?;
                     invocation_effect = Some(row);
                     (
                         self.live_effect_term(
                             Polarity::Positive,
-                            self.live_components[argument_effect].ordinal,
+                            self.live_components[*argument_effect].ordinal,
                         )?,
                         self.live_effect_term(Polarity::Negative, row)?,
                     )
@@ -2713,7 +2738,7 @@ impl InferenceSession {
                 if let Some(source_input) = recipe.source_input {
                     let row = invocation_effect.ok_or(SolveAvailabilityError::IdentityExhausted)?;
                     let application_effect = self.live_effect_term(
-                        Polarity::Negative, self.live_components[result_effect].ordinal,
+                        Polarity::Negative, self.live_components[*result_effect].ordinal,
                     )?;
                     let CandidateRelation::Apply { callee_effect, .. } = recipe.relation
                         else { return Err(SolveAvailabilityError::IdentityExhausted); };
@@ -2776,7 +2801,7 @@ impl InferenceSession {
         #[cfg(not(test))]
         let _ = transitions;
         if self.batch.candidate_graph_effects {
-            match recipe.relation {
+            match &recipe.relation {
                 CandidateRelation::Group {
                     child_effect,
                     result_effect,
@@ -2785,8 +2810,8 @@ impl InferenceSession {
                     self.admit_candidate_effect(
                         recipe,
                         1,
-                        self.live_components[child_effect].ordinal,
-                        self.live_components[result_effect].ordinal,
+                        self.live_components[*child_effect].ordinal,
+                        self.live_components[*result_effect].ordinal,
                     )?;
                 }
                 CandidateRelation::Apply {
@@ -2794,11 +2819,11 @@ impl InferenceSession {
                     result_effect,
                     ..
                 } => {
-                    let result = self.live_components[result_effect].ordinal;
+                    let result = self.live_components[*result_effect].ordinal;
                     self.admit_candidate_effect(
                         recipe,
                         1,
-                        self.live_components[callee_effect].ordinal,
+                        self.live_components[*callee_effect].ordinal,
                         result,
                     )?;
                     self.admit_candidate_effect(
@@ -2808,6 +2833,19 @@ impl InferenceSession {
                         result,
                     )?;
                 }
+                CandidateRelation::Tuple { element_effects, result_effect, .. } => {
+                    for (index, &element_effect) in element_effects.iter().enumerate() {
+                        let slot = u32::try_from(index).ok()
+                            .and_then(|index| index.checked_add(1))
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        self.admit_candidate_effect(
+                            recipe,
+                            slot,
+                            self.live_components[element_effect].ordinal,
+                            self.live_components[*result_effect].ordinal,
+                        )?;
+                    }
+                }
             }
         }
         self.sample_f4_resources(ResourceBoundary::InitialAdmission)
@@ -2816,11 +2854,11 @@ impl InferenceSession {
     fn admit_candidate_effect(
         &mut self,
         recipe: &CandidateConstraintRecipe,
-        slot: u8,
+        slot: u32,
         lower: u32,
         upper: u32,
     ) -> Result<(), SolveAvailabilityError> {
-        let id = ConstraintOccurrenceId::new(recipe.occurrence.clone(), slot);
+        let id = ConstraintOccurrenceId::new_wide(recipe.occurrence.clone(), slot);
         let occurrence = ConstraintOccurrence {
             cause: CauseId::for_occurrence(id.clone()),
             id,
@@ -2862,6 +2900,73 @@ mod tests {
             )
             .unwrap(),
         )
+    }
+    fn local_source_module(text: &str) -> Arc<HirModule> {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("candidate-tuple-source", "tuple.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap())
+    }
+    #[test]
+    fn source_tuple_is_retained_as_ordered_candidate_graph_node() {
+        let hir = local_source_module("my id x = x\nmy one = (1,)\nmy two = id (2, true)\nmy three = id (3, true, \"x\")\nmy nested = (1, (true, \"x\"))");
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let mut arities = Vec::new();
+        for name in ["one", "two", "three"] {
+            let root = hir.items().iter().find_map(|item| match item {
+                HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding.definition_root()),
+                _ => None,
+            }).unwrap();
+            let export = candidate.export(root).unwrap();
+            let mut pending = vec![export.root()];
+            for bound in export.bounds() {
+                pending.push(bound.lower());
+                pending.push(bound.upper());
+            }
+            let mut seen = Vec::new();
+            while let Some(node) = pending.pop() {
+                if seen.iter().any(|prior: &CandidateGraphNode<'_>| prior.same_identity(node)) { continue; }
+                seen.push(node);
+                if let Some(children) = node.tuple_children() {
+                    arities.push(children.len());
+                    pending.extend(children);
+                }
+                if let Some(children) = node.children() { pending.extend(children); }
+                if let Some(row) = node.row() {
+                    for bound in export.bounds() {
+                        if bound.kind() == ComponentKind::Value
+                            && bound.upper().row().is_some_and(|upper| upper.same_identity(row))
+                        {
+                            pending.push(bound.lower());
+                        }
+                    }
+                }
+            }
+        }
+        arities.sort_unstable();
+        assert_eq!(arities, [1, 2, 3]);
+    }
+    #[test]
+    fn source_tuple_child_effect_is_admitted_to_tuple_computation_row() {
+        let hir = local_source_module("act io:\n    our tick: () -> int\nmy values = (io::tick(), 1)");
+        let source = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "values" => {
+                hir.local_source(binding.definition_root()).ok().flatten()
+            }
+            _ => None,
+        }).unwrap();
+        let tuple_occurrence = source.expressions().iter().find(|expression|
+            matches!(expression.form, yu_hir::shadow::LocalSourceForm::Tuple { .. })).unwrap().occurrence.clone();
+        let candidate = CandidateInference::solve(hir).unwrap();
+        let effect_fact = candidate.solved.data.store.provenance().iter().find_map(|edge| {
+            let id = edge.cause().occurrence();
+            if id.occurrence() != &tuple_occurrence || id.local_slot() != 1 { return None; }
+            candidate.solved.data.store.facts().get(edge.fact().index() as usize)
+        }).expect("first tuple child effect relation has provenance");
+        assert_eq!(candidate.solved.data.store.term_kind(effect_fact.lower()).unwrap(), ComponentKind::Effect);
+        assert_eq!(candidate.solved.data.store.term_kind(effect_fact.upper()).unwrap(), ComponentKind::Effect);
     }
     #[test]
     fn candidate_inference_does_not_reserve_historical_call_inventory() {
@@ -3192,6 +3297,7 @@ mod tests {
             owned_regions: Vec::new(),
             negative_functions: HashMap::new(),
             nodes: Vec::new(),
+            tuple_children: Vec::new(),
             rows: vec![
                 Row { key: RowKey::Value(7), local: false },
                 Row { key: RowKey::Value(7), local: true },
@@ -3300,6 +3406,7 @@ mod tests {
             owned_regions: Vec::new(),
             negative_functions: HashMap::new(),
             nodes: Vec::new(),
+            tuple_children: Vec::new(),
             rows: vec![
                 Row { key: copy_key, local: false },
                 Row { key: parent_key, local: true },

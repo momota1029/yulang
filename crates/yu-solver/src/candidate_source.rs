@@ -1506,10 +1506,24 @@ impl ConstraintBatch {
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                         }
-                        LocalSourceForm::Tuple { .. } => {
-                            // The carrier preserves tuple source identity, but
-                            // inference has no native ordered product term yet.
-                            return Err(unavailable());
+                        LocalSourceForm::Tuple { elements } => {
+                            let mut tuple_elements = Vec::new();
+                            tuple_elements.try_reserve_exact(elements.len()).map_err(|_| unavailable())?;
+                            let mut element_effects = Vec::new();
+                            element_effects.try_reserve_exact(elements.len()).map_err(|_| unavailable())?;
+                            for element in elements {
+                                let element = element.ordinal() as usize;
+                                tuple_elements.push(endpoints[element]);
+                                element_effects.push(positions[element].effect);
+                            }
+                            let recipe = self.candidate_recipes.len();
+                            self.retain_candidate_relation(occurrence, CandidateRelation::Tuple {
+                                elements: tuple_elements,
+                                element_effects,
+                                result: pos.value,
+                                result_effect: pos.effect,
+                            })?;
+                            push(&mut actions, Action::Candidate(recipe))?;
                         }
                         LocalSourceForm::Group { inner } => {
                             if self.candidate_source.scoped_experiment {

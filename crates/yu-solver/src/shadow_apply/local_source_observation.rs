@@ -1368,7 +1368,7 @@ my outer (q:[io] int) = {
         let fact_at = |occurrence: &HirOccurrenceId, slot: u8| {
             let edge = data.store.provenance().iter().find(|edge| {
                 edge.cause().occurrence().occurrence() == occurrence
-                    && edge.cause().occurrence().local_slot() == slot
+                    && edge.cause().occurrence().local_slot() == u32::from(slot)
             }).unwrap_or_else(|| panic!("source occurrence {} slot {slot} has provenance", occurrence.ordinal()));
             data.store.facts().iter().find(|fact| fact.id() == edge.fact()).unwrap()
         };

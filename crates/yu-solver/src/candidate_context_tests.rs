@@ -6297,7 +6297,7 @@ mod native_selected_use_census {
     fn facts<'a>(session: &'a InferenceSession, occurrence: &HirOccurrenceId, slot: u8) -> Vec<&'a SemanticFact> {
         session.store.provenance().iter().filter(|edge| {
             edge.cause().occurrence().occurrence() == occurrence
-                && edge.cause().occurrence().local_slot() == slot
+                && edge.cause().occurrence().local_slot() == u32::from(slot)
         }).map(|edge| session.store.facts().iter().find(|fact| fact.id() == edge.fact()).unwrap()).collect()
     }
     fn canonical_bound(session: &InferenceSession, bound: BoundKey) -> BoundKey {

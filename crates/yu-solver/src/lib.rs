@@ -423,14 +423,17 @@ impl ComponentId {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct ConstraintOccurrenceId {
     occurrence: HirOccurrenceId,
-    local_slot: u8,
+    local_slot: u32,
 }
 impl ConstraintOccurrenceId {
     fn new(occurrence: HirOccurrenceId, local_slot: u8) -> Self {
         Self {
             occurrence,
-            local_slot,
+            local_slot: u32::from(local_slot),
         }
+    }
+    fn new_wide(occurrence: HirOccurrenceId, local_slot: u32) -> Self {
+        Self { occurrence, local_slot }
     }
     pub fn occurrence(&self) -> &HirOccurrenceId {
         &self.occurrence
@@ -438,7 +441,7 @@ impl ConstraintOccurrenceId {
     pub const fn source_ordinal(&self) -> u32 {
         self.occurrence.ordinal()
     }
-    pub const fn local_slot(&self) -> u8 {
+    pub const fn local_slot(&self) -> u32 {
         self.local_slot
     }
 }
@@ -2060,11 +2063,11 @@ impl ConstraintBatch {
     fn emit(
         &mut self,
         occurrence: HirOccurrenceId,
-        local_slot: u8,
+        local_slot: u32,
         lower: Term,
         upper: Term,
     ) -> Result<(), CollectionAvailabilityError> {
-        let id = ConstraintOccurrenceId::new(occurrence, local_slot);
+        let id = ConstraintOccurrenceId::new_wide(occurrence, local_slot);
         self.occurrences.push(ConstraintOccurrence {
             cause: CauseId::for_occurrence(id.clone()),
             id,
@@ -6662,7 +6665,8 @@ impl IndependentResourceLedger {
                         },
                         |event| event.2,
                     );
-                    assert_eq!(owner.capacities, snapshot.0, "Term lane capacities");
+                    assert_eq!(&owner.capacities[..5], &snapshot.0[..5], "Term lane capacities");
+                    assert_eq!(owner.capacities[5], snapshot.0[5] * std::mem::size_of::<u32>() + snapshot.tuple_storage_bytes(), "Term tuple storage accounting");
                     assert_eq!(owner.lengths, snapshot.1.lengths, "Term lane lengths");
                     assert_eq!(owner.requests, snapshot.1.requests, "Term lane requests");
                     assert_eq!(owner.growths, snapshot.1.growths, "Term lane growths");
@@ -23818,7 +23822,7 @@ mod tests {
         let first_item = batch.occurrences()[0].clone();
         let other_id = batch.occurrences()[4].id.clone();
         let duplicate_id =
-            ConstraintOccurrenceId::new(other_id.occurrence.clone(), first_item.id.local_slot);
+            ConstraintOccurrenceId::new_wide(other_id.occurrence.clone(), first_item.id.local_slot);
         let duplicate = ConstraintOccurrence {
             id: duplicate_id.clone(),
             cause: CauseId::for_occurrence(duplicate_id),

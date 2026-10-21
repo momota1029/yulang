@@ -42,6 +42,8 @@ pub(super) struct Graph {
     pub owned_regions: Vec<candidate_source::SourceRegionId>,
     pub negative_functions: HashMap<Term, usize>,
     pub nodes: Vec<Node>,
+    /// Ordered child node indexes for tuple nodes; ranges live in `Node::Tuple`.
+    pub tuple_children: Vec<usize>,
     pub rows: Vec<Row>,
     pub bounds: Vec<Bound>,
     pub bound_evidence: Vec<candidate_context::EvidenceSnapshot>,
@@ -131,6 +133,11 @@ pub(super) enum Node {
     Function {
         polarity: Polarity,
         children: [usize; 4],
+    },
+    Tuple {
+        polarity: Polarity,
+        start: usize,
+        len: usize,
     },
 }
 #[derive(Clone, Copy, Debug)]
@@ -423,6 +430,13 @@ fn mapped_endpoint_at(
             ExtrusionEndpoint::Value(match function_polarity {
                 Polarity::Positive => ValueEndpointKey::PositiveFunction(term),
                 Polarity::Negative => ValueEndpointKey::NegativeFunction(term),
+            })
+        }
+        Node::Tuple { polarity: tuple_polarity, len, .. } => {
+            let term = retained.terms.get(node).copied().flatten()?;
+            ExtrusionEndpoint::Value(match tuple_polarity {
+                Polarity::Positive => ValueEndpointKey::PositiveTuple(term, len),
+                Polarity::Negative => ValueEndpointKey::NegativeTuple(term, len),
             })
         }
         Node::Leaf(atom) => ExtrusionEndpoint::Value(match atom {
@@ -732,6 +746,7 @@ impl Graph {
             bytes::<candidate_source::SourceRegionId>(self.owned_regions.capacity())?,
             bytes::<(Term, usize)>(self.negative_functions.capacity())?,
             bytes::<Node>(self.nodes.capacity())?,
+            bytes::<usize>(self.tuple_children.capacity())?,
             bytes::<Row>(self.rows.capacity())?,
             #[cfg(test)]
             bytes::<CapturedRowObservation>(self.capture_rows.capacity())?,
@@ -1066,6 +1081,16 @@ impl<'a> Capture<'a> {
             {
                 Endpoint::Value(ValueEndpointKey::NegativeFunction(term), polarity)
             }
+            TermView::PositiveTuple { elements }
+                if kind == ComponentKind::Value && polarity == Polarity::Positive =>
+            {
+                Endpoint::Value(ValueEndpointKey::PositiveTuple(term, elements.len()), polarity)
+            }
+            TermView::NegativeTuple { elements }
+                if kind == ComponentKind::Value && polarity == Polarity::Negative =>
+            {
+                Endpoint::Value(ValueEndpointKey::NegativeTuple(term, elements.len()), polarity)
+            }
             TermView::PositiveBottom
                 if kind == ComponentKind::Value && polarity == Polarity::Positive =>
             {
@@ -1233,6 +1258,23 @@ impl<'a> Capture<'a> {
                     polarity: p,
                     children,
                 }
+            }
+            Endpoint::Value(V::PositiveTuple(term, arity), Polarity::Positive)
+            | Endpoint::Value(V::NegativeTuple(term, arity), Polarity::Negative) => {
+                let (polarity, elements) = match self.session.store.term_view(term).map_err(|_| exhausted())? {
+                    TermView::PositiveTuple { elements } => (Polarity::Positive, elements),
+                    TermView::NegativeTuple { elements } => (Polarity::Negative, elements),
+                    _ => return Err(exhausted()),
+                };
+                if elements.len() != arity { return Err(exhausted()); }
+                let start = self.graph.tuple_children.len();
+                self.graph.tuple_children.try_reserve_exact(elements.len()).map_err(|_| exhausted())?;
+                self.graph.tuple_children.resize(start.checked_add(elements.len()).ok_or_else(exhausted)?, usize::MAX);
+                for (offset, &element) in elements.iter().enumerate() {
+                    let child = self.intern_shape(self.term_endpoint(element, ComponentKind::Value, polarity)?)?;
+                    self.graph.tuple_children[start + offset] = child;
+                }
+                Node::Tuple { polarity, start, len: elements.len() }
             }
             _ => return Err(exhausted()),
         };
@@ -1478,7 +1520,7 @@ impl InferenceSession {
             session: self,
             graph: Graph {
                 source_frontier, owned_regions, negative_functions: HashMap::new(),
-                nodes: Vec::new(),
+                nodes: Vec::new(), tuple_children: Vec::new(),
                 rows: Vec::new(),
                 bounds: Vec::new(),
                 bound_evidence: Vec::new(),
@@ -2027,6 +2069,27 @@ impl InferenceSession {
                             self.positive_function_term(a, ae, re, r)?
                         } else {
                             self.negative_function_term(a, ae, re, r)?
+                        }
+                    }
+                    Node::Tuple { polarity, start, len } => {
+                        let end = start.checked_add(len).ok_or_else(exhausted)?;
+                        let children = graph.tuple_children.get(start..end).ok_or_else(exhausted)?;
+                        if !finish {
+                            push(&mut work, (index, true))?;
+                            for &child in children.iter().rev() {
+                                if terms[child].is_none() { push(&mut work, (child, false))?; }
+                            }
+                            continue;
+                        }
+                        let mut elements = Vec::new();
+                        elements.try_reserve_exact(len).map_err(|_| exhausted())?;
+                        for &child in children {
+                            elements.push(terms[child].expect("validated tuple dependency"));
+                        }
+                        if polarity == Polarity::Positive {
+                            self.store.terms.positive_tuple(&elements)?
+                        } else {
+                            self.store.terms.negative_tuple(&elements)?
                         }
                     }
                 };
