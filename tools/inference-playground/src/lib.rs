@@ -1061,6 +1061,13 @@ mod tests {
             "lib/std/core/fmt.yu"
         );
         assert_eq!(display_implementations.implementations.len(), 14);
+        assert_eq!(
+            display_implementations.implementations.iter()
+                .filter(|implementation| implementation.target.text.trim() == "('a, 'b)")
+                .count(),
+            1,
+            "the authenticated Display inventory has one ordered-pair target",
+        );
         let tuple_display = display_implementations
             .implementations
             .iter()
