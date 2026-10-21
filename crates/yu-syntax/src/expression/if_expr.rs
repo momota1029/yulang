@@ -104,9 +104,27 @@ fn if_continuations_normalized(
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
     loop {
-        let NormalizedExit::Complete(Err(Either::Left(mut keyword)), line_entry) = exit else {
-            return exit;
+        let (item, line_entry) = match exit {
+            // A braced arm consumes its closing brace and returns `Ok(())`.
+            // Read the next lexical item so an immediately following `elsif`
+            // or `else` remains part of this IfExpression.
+            NormalizedExit::Complete(Ok(()), line_entry) => {
+                let (item, next_origin, line_entry) = expression_item(
+                    i.rb(),
+                    OperatorSite::Nud,
+                    item_origin,
+                    line_entry,
+                    fence,
+                    if_baseline,
+                    outer_stops,
+                );
+                item_origin = next_origin;
+                (item, line_entry)
+            }
+            NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => (item, line_entry),
+            _ => return exit,
         };
+        let mut keyword = item;
         if keyword.payload_view().is_boundary() {
             return complete(handoff(keyword), line_entry);
         }
