@@ -73,6 +73,15 @@ pub struct LocalSourceWhereClause {
     pub source: SourceNodeKey,
     pub range: Range<usize>,
     pub text: Box<str>,
+    pub subject: LocalSourceWhereType,
+    pub role: LocalSourceWhereType,
+}
+/// One parse-owned type expression within a declaration prerequisite.
+#[derive(Clone, Debug)]
+pub struct LocalSourceWhereType {
+    pub source: SourceNodeKey,
+    pub range: Range<usize>,
+    pub text: Box<str>,
 }
 /// A named header's construction identity within one retained source.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -177,6 +186,10 @@ impl LocalSource {
             + self.bindings.capacity() * std::mem::size_of::<LocalSourceBinding>()
             + self.where_clauses.capacity() * std::mem::size_of::<LocalSourceWhereClause>()
             + self.where_clauses.iter().map(|clause| clause.text.len()).sum::<usize>()
+            + self.where_clauses.iter().map(|clause| {
+                clause.subject.text.len() + clause.role.text.len()
+                    + 2 * std::mem::size_of::<LocalSourceWhereType>()
+            }).sum::<usize>()
             + self.named_groups.capacity() * std::mem::size_of::<LocalSourceNamedGroup>()
             + self.named_groups.iter().map(|group| group.formals.capacity() * std::mem::size_of::<LocalSourceNamedFormal>()).sum::<usize>()
             + self
@@ -725,12 +738,42 @@ pub(super) fn form(
                 .get(&clause)
                 .cloned()
                 .ok_or_else(invalid)?;
+            let mut parts = clause.children_with_tokens().filter(|element| !matches!(
+                element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline
+                    | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+            ));
+            if parts.next().is_none_or(|part| part.kind() != SyntaxKind::WhereKw) {
+                return Err(unsupported());
+            }
+            let subject = parts.next().and_then(|part| part.into_node())
+                .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                .ok_or_else(unsupported)?;
+            if parts.next().is_none_or(|part| part.kind() != SyntaxKind::Colon) {
+                return Err(unsupported());
+            }
+            let role = parts.next().and_then(|part| part.into_node())
+                .filter(|node| node.kind() == SyntaxKind::TypeExpression)
+                .ok_or_else(unsupported)?;
+            if parts.next().is_some() {
+                return Err(unsupported());
+            }
+            let retain_type = |node: &SyntaxNode| -> Result<LocalSourceWhereType, FormationError> {
+                Ok(LocalSourceWhereType {
+                    source: builder.counters.source_nodes.get(node).cloned().ok_or_else(invalid)?,
+                    range: crate::range_of(node),
+                    text: node.text().to_string().into_boxed_str(),
+                })
+            };
+            let subject = retain_type(&subject)?;
+            let role = retain_type(&role)?;
             push(
                 &mut builder.where_clauses,
                 LocalSourceWhereClause {
                     source,
                     range: crate::range_of(&clause),
                     text: clause.text().to_string().into_boxed_str(),
+                    subject,
+                    role,
                 },
             )?;
         }
@@ -1823,7 +1866,7 @@ mod tests {
 
     #[test]
     fn declaration_where_preamble_is_retained_without_becoming_an_expression() {
-        let text = "my display(value: 'a) =\n    where 'a: Display\n    where 'a: Clone\n    value";
+        let text = "my display(value: 'a) =\n    where 'a: Display\n    where 'a: Fold 'item\n    value";
         let module = lower(text).expect("declaration where preamble should form a source carrier");
         let HirItem::Binding(binding) = &module.items()[0] else {
             panic!("binding");
@@ -1840,15 +1883,24 @@ mod tests {
                 .iter()
                 .map(|clause| clause.text.as_ref())
                 .collect::<Vec<_>>(),
-            ["where 'a: Display", "where 'a: Clone"]
+            ["where 'a: Display", "where 'a: Fold 'item"]
         );
         for clause in source.where_clauses() {
             assert_eq!(&text[clause.range.clone()], clause.text.as_ref());
+            assert_eq!(&text[clause.subject.range.clone()], clause.subject.text.as_ref());
+            assert_eq!(&text[clause.role.range.clone()], clause.role.text.as_ref());
+            assert_ne!(clause.source, clause.subject.source);
+            assert_ne!(clause.source, clause.role.source);
+            assert_ne!(clause.subject.source, clause.role.source);
             assert!(source
                 .expressions()
                 .iter()
                 .all(|expression| expression.source != clause.source));
         }
+        assert_eq!(source.where_clauses()[0].subject.text.trim(), "'a");
+        assert_eq!(source.where_clauses()[0].role.text.trim(), "Display");
+        assert_eq!(source.where_clauses()[1].subject.text.trim(), "'a");
+        assert_eq!(source.where_clauses()[1].role.text.trim(), "Fold 'item");
         let LocalSourceForm::Lambda { body, .. } =
             &source.expression(source.body()).unwrap().form
         else {

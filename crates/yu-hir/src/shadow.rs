@@ -35,7 +35,7 @@ pub use crate::module::local_source::{
     LocalSourceNamedGroupId, LocalSourceNamedGroupOwner, LocalSourceNamedFormal, LocalSourceNamedGroup,
     LocalSourceCatchArm, LocalSourceCatchBinder, LocalSourceCatchBinderId, LocalSourceCatchValuePattern, LocalSourceCatchPattern, LocalSourceCatchPayloadPattern,
     LocalSourceCaseArm, LocalSourceCasePattern,
-    LocalSourceWhereClause,
+    LocalSourceWhereClause, LocalSourceWhereType,
 };
 
 /// Forms a nonshipping source carrier during HIR lowering. This does not make

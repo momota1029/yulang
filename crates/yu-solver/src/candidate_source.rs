@@ -537,6 +537,8 @@ mod where_clause_source_tests {
         }).expect("binding");
         let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
         assert_eq!(source.where_clauses().len(), 1);
+        assert_eq!(source.where_clauses()[0].subject.text.trim(), "'a");
+        assert_eq!(source.where_clauses()[0].role.text.trim(), "Display");
         assert!(matches!(
             preflight(source, false),
             Err(shadow_apply::CandidateError::Unsupported)
