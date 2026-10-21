@@ -572,6 +572,7 @@ enum SchemeExportError {
     Lookup,
     UnsupportedUnion,
     UnsupportedIntersection,
+    UnsupportedTuple,
     NodeLimit,
 }
 
@@ -673,6 +674,7 @@ fn export_scheme(
                     GraphTerm::Variable(binder(&mut exported, SchemeBinder::Recursive(r)))
                 }
                 P::Union(_) => return Err(SchemeExportError::UnsupportedUnion),
+                P::Tuple(_) => return Err(SchemeExportError::UnsupportedTuple),
                 P::Function {
                     argument,
                     argument_effect,
@@ -710,6 +712,7 @@ fn export_scheme(
                     GraphTerm::Variable(binder(&mut exported, SchemeBinder::Recursive(r)))
                 }
                 N::Intersection(_) => return Err(SchemeExportError::UnsupportedIntersection),
+                N::Tuple(_) => return Err(SchemeExportError::UnsupportedTuple),
                 N::Function {
                     argument,
                     argument_effect,

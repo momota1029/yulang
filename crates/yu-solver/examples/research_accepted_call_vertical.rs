@@ -65,6 +65,7 @@ fn main() {
         .unwrap();
     let authenticated_fresh_uses = answer
         .expressions()
+        .iter()
         .filter(|expression| {
             matches!(
                 &expression.form,

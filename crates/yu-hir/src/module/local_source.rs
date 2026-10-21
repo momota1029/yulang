@@ -62,8 +62,17 @@ pub struct LocalSource {
     body: LocalSourceIndex,
     expressions: Vec<LocalSourceExpr>,
     bindings: Vec<LocalSourceBinding>,
+    where_clauses: Vec<LocalSourceWhereClause>,
     annotation: Option<source_annotation::SourceAnnotation>,
     named_groups: Vec<LocalSourceNamedGroup>,
+}
+/// A declaration-owned where clause retained as exact source evidence.
+/// This carrier does not resolve the type or role names in the clause.
+#[derive(Clone, Debug)]
+pub struct LocalSourceWhereClause {
+    pub source: SourceNodeKey,
+    pub range: Range<usize>,
+    pub text: Box<str>,
 }
 /// A named header's construction identity within one retained source.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -155,6 +164,9 @@ impl LocalSource {
     pub fn bindings(&self) -> &[LocalSourceBinding] {
         &self.bindings
     }
+    pub fn where_clauses(&self) -> &[LocalSourceWhereClause] {
+        &self.where_clauses
+    }
     /// Reserved arena/vector storage and retained spelling bytes; shared source
     /// and artifact payloads and allocator overhead are excluded.
     pub fn retained_arena_bytes(&self) -> usize {
@@ -163,6 +175,8 @@ impl LocalSource {
             .map_or(0, |annotation| annotation.retained_arena_bytes())
             + self.expressions.capacity() * std::mem::size_of::<LocalSourceExpr>()
             + self.bindings.capacity() * std::mem::size_of::<LocalSourceBinding>()
+            + self.where_clauses.capacity() * std::mem::size_of::<LocalSourceWhereClause>()
+            + self.where_clauses.iter().map(|clause| clause.text.len()).sum::<usize>()
             + self.named_groups.capacity() * std::mem::size_of::<LocalSourceNamedGroup>()
             + self.named_groups.iter().map(|group| group.formals.capacity() * std::mem::size_of::<LocalSourceNamedFormal>()).sum::<usize>()
             + self
@@ -448,6 +462,7 @@ struct Builder<'a> {
     expressions: Vec<Option<LocalSourceExpr>>,
     named_groups: Vec<LocalSourceNamedGroup>,
     bindings: Vec<LocalSourceBinding>,
+    where_clauses: Vec<LocalSourceWhereClause>,
     lexical: Vec<LexicalEntry>,
     latest: HashMap<Box<str>, usize>,
     work: Vec<Work>,
@@ -642,6 +657,7 @@ pub(super) fn form(
         expressions: Vec::new(),
         named_groups: Vec::new(),
         bindings: Vec::new(),
+        where_clauses: Vec::new(),
         lexical: Vec::new(),
         latest: HashMap::new(),
         work: Vec::new(),
@@ -695,6 +711,30 @@ pub(super) fn form(
     } else {
         plan.node.clone()
     };
+    if body_chain.kind() == SyntaxKind::IndentedStatementBlock {
+        for clause in body_chain.children() {
+            if clause.kind() != SyntaxKind::WhereClause {
+                break;
+            }
+            if has_recovery(&clause) {
+                return Err(FormationError::Unsupported(SourceCarrierFailureReason::Recovery));
+            }
+            let source = builder
+                .counters
+                .source_nodes
+                .get(&clause)
+                .cloned()
+                .ok_or_else(invalid)?;
+            push(
+                &mut builder.where_clauses,
+                LocalSourceWhereClause {
+                    source,
+                    range: crate::range_of(&clause),
+                    text: clause.text().to_string().into_boxed_str(),
+                },
+            )?;
+        }
+    }
     push(
         &mut builder.work,
         Work::Expression(body_chain.clone(), current, scope, named_group.clone()),
@@ -787,6 +827,7 @@ pub(super) fn form(
         body: root,
         expressions,
         bindings: builder.bindings,
+        where_clauses: builder.where_clauses,
         named_groups: builder.named_groups,
         annotation: if admitted.is_some() { source_annotation::form(&plan.node, owner, counters)? } else { None },
     };
@@ -1532,8 +1573,22 @@ impl Builder<'_> {
     ) -> Result<(), FormationError> {
         let mut statements = Vec::new();
         let mut expect_statement = true;
+        let mut seen_statement = false;
         for child in node.children() {
-            if expect_statement && child.kind() == SyntaxKind::Statement {
+            if child.kind() == SyntaxKind::WhereClause {
+                if seen_statement {
+                    return Err(unsupported());
+                }
+                let source = self.key(&child)?;
+                if !self
+                    .where_clauses
+                    .iter()
+                    .any(|clause| clause.source == source)
+                {
+                    return Err(unsupported());
+                }
+            } else if expect_statement && child.kind() == SyntaxKind::Statement {
+                seen_statement = true;
                 push(&mut statements, only_child(&child)?)?;
             } else if !expect_statement && child.kind() == SyntaxKind::BlockStatementSeparator {
                 if child.children().next().is_some() {
@@ -1761,6 +1816,51 @@ mod tests {
         let HirItem::Binding(foreign) = &foreign.items()[0] else { panic!("binding"); };
         assert!(matches!(module.source_carrier(foreign.definition_root()), Err(HirAvailabilityError::InconsistentIdentity)));
         assert!(matches!(module.local_source(foreign.definition_root()), Err(HirAvailabilityError::InconsistentIdentity)));
+    }
+
+    #[test]
+    fn declaration_where_preamble_is_retained_without_becoming_an_expression() {
+        let text = "my display(value: 'a) =\n    where 'a: Display\n    where 'a: Clone\n    value";
+        let module = lower(text).expect("declaration where preamble should form a source carrier");
+        let HirItem::Binding(binding) = &module.items()[0] else {
+            panic!("binding");
+        };
+        let source = module
+            .local_source(binding.definition_root())
+            .unwrap()
+            .expect("local source");
+
+        assert_eq!(source.where_clauses().len(), 2);
+        assert_eq!(
+            source
+                .where_clauses()
+                .iter()
+                .map(|clause| clause.text.as_ref())
+                .collect::<Vec<_>>(),
+            ["where 'a: Display", "where 'a: Clone"]
+        );
+        for clause in source.where_clauses() {
+            assert_eq!(&text[clause.range.clone()], clause.text.as_ref());
+            assert!(source
+                .expressions()
+                .iter()
+                .all(|expression| expression.source != clause.source));
+        }
+        let LocalSourceForm::Lambda { body, .. } =
+            &source.expression(source.body()).unwrap().form
+        else {
+            panic!("named parameter lambda");
+        };
+        let LocalSourceForm::Block {
+            final_expression, ..
+        } = &source.expression(body).unwrap().form
+        else {
+            panic!("declaration body block");
+        };
+        assert!(matches!(
+            &source.expression(final_expression).unwrap().form,
+            LocalSourceForm::Name { spelling, .. } if spelling.as_ref() == "value"
+        ));
     }
     #[test]
     fn ordinary_field_tails_preserve_receiver_chain_and_parse_member_identity() {

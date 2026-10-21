@@ -190,6 +190,10 @@ fn candidate_scheme_tokens(view: yu_types::ClosedValueSchemeView<'_>) -> Vec<u64
                     tokens.extend([6, children.len() as u64]);
                     pending.extend(children.iter().rev().copied().map(Visit::Positive));
                 }
+                P::Tuple(children) => {
+                    tokens.extend([20, children.len() as u64]);
+                    pending.extend(children.iter().rev().copied().map(Visit::Positive));
+                }
             },
             Visit::Negative(id) => match view.negative_value(id).unwrap() {
                 N::Top => tokens.push(7),
@@ -228,6 +232,10 @@ fn candidate_scheme_tokens(view: yu_types::ClosedValueSchemeView<'_>) -> Vec<u64
                 }
                 N::Intersection(children) => {
                     tokens.extend([13, children.len() as u64]);
+                    pending.extend(children.iter().rev().copied().map(Visit::Negative));
+                }
+                N::Tuple(children) => {
+                    tokens.extend([21, children.len() as u64]);
                     pending.extend(children.iter().rev().copied().map(Visit::Negative));
                 }
             },

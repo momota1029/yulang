@@ -10,7 +10,8 @@ use yu_hir::{
     lower_module,
     shadow::{LocalSourceForm, LocalSourceResolution},
 };
-use yu_solver::{ComponentKind, shadow_apply::{CandidateGraphExport, CandidateGraphLeaf, CandidateGraphNode, CandidateInference}};
+use yu_solver::shadow_apply::{CandidateGraphExport, CandidateGraphLeaf, CandidateGraphNode, CandidateInference};
+use yu_types::ComponentKind;
 use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
 const SOURCE: &str = "my invoke f = f 1\nmy id x = x\nmy received = invoke id";
@@ -163,7 +164,7 @@ fn main() {
         .filter(|transport| transport.call_index == formal_index)
     {
         println!(
-            "replay.transport call_index={} use_instance={} child={} lower={} upper={} lower_input={} upper_input={} fresh_from={} fresh_to={} port_relations={:?} native_root={:?} copied_root={:?} native_root_matches={} route={:?} scope_map={} input_map={} ports={:?} ports_match={:?}",
+            "replay.transport call_index={} use_instance={} child={} lower={} upper={} lower_input={} upper_input={} fresh_from={:?} fresh_to={:?} port_relations={:?} native_root={:?} copied_root={:?} native_root_matches={} route={:?} scope_map={} input_map={} ports={:?} ports_match={:?}",
             transport.call_index, transport.use_instance,
             transport.child_relation, transport.lower_relation, transport.upper_relation,
             transport.lower_input, transport.upper_input, transport.fresh_from,
@@ -188,7 +189,7 @@ fn binding<'a>(hir: &'a HirModule, name: &str) -> &'a HirBinding {
 fn same_endpoint(left: CandidateGraphNode<'_>, right: CandidateGraphNode<'_>) -> bool {
     left.same_identity(right)
         || match (left.row(), right.row()) {
-            (Some(left), Some(right)) => left.same_identity(&right),
+            (Some(left), Some(right)) => left.same_identity(right),
             _ => false,
         }
 }

@@ -450,6 +450,11 @@ fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), CollectionAvailabilityEr
 }
 pub(super) fn preflight(source: &LocalSource, operation_v1: bool) -> Result<(), shadow_apply::CandidateError> {
     let mut referenced_catch_binders = std::collections::HashSet::new();
+    if !source.where_clauses().is_empty() {
+        // The source carrier retains declaration prerequisites, but candidate
+        // inference has no identity-bound role constraint consumer yet.
+        return Err(shadow_apply::CandidateError::Unsupported);
+    }
     for expr in source.expressions() {
         if let LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(id), .. } = &expr.form {
             referenced_catch_binders.try_reserve(1).map_err(|_| shadow_apply::CandidateError::Collection(unavailable()))?;
@@ -502,6 +507,41 @@ pub(super) fn preflight(source: &LocalSource, operation_v1: bool) -> Result<(), 
         }
     }
     Ok(())
+}
+
+#[cfg(all(test, feature = "shadow-apply-candidate"))]
+mod where_clause_source_tests {
+    use super::*;
+
+    #[test]
+    fn candidate_preflight_does_not_drop_retained_declaration_prerequisites() {
+        let text = "my display(value: 'a) =\n    where 'a: Display\n    where 'a: Clone\n    value";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let hir = yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "where-clause-source",
+                "source.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        )
+        .expect("HIR retains the declaration prerequisite");
+        let binding = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) => Some(binding),
+            _ => None,
+        }).expect("binding");
+        let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+        assert_eq!(source.where_clauses().len(), 2);
+        assert!(matches!(
+            preflight(source, false),
+            Err(shadow_apply::CandidateError::Unsupported)
+        ));
+    }
 }
 pub(super) fn preflight_local_annotation(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
     preflight_annotation(ty, true)

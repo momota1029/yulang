@@ -9005,6 +9005,20 @@ fn fresh_effect_bounds_lane() -> F5bCapacityLane {
     F5bCapacityLane::EffectBounds
 }
 
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum F5cSchemeDecodeError {
+    Availability,
+    UnsupportedTuple,
+}
+
+#[cfg(test)]
+impl From<SolveAvailabilityError> for F5cSchemeDecodeError {
+    fn from(_: SolveAvailabilityError) -> Self {
+        Self::Availability
+    }
+}
+
 impl InferenceSession {
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     fn observe_f5c_live_top(&mut self, lane: usize) {
@@ -16138,7 +16152,7 @@ impl InferenceSession {
         source_meter: &'meter DraftHeapMeter,
         view: yu_types::ClosedValueSchemeView<'_>,
         id: yu_types::PositiveValueId,
-    ) -> Result<F5cPositive<'meter>, SolveAvailabilityError> {
+    ) -> Result<F5cPositive<'meter>, F5cSchemeDecodeError> {
         match view
             .positive_value(id)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
@@ -16163,11 +16177,11 @@ impl InferenceSession {
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                 argument_effect: match view.negative_effect(argument_effect) {
                     Ok(yu_types::NegativeEffectView::Empty) => F5cNegativeEffect::Empty,
-                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
+                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted.into()),
                 },
                 result_effect: match view.positive_effect(result_effect) {
                     Ok(yu_types::PositiveEffectView::Bottom) => F5cPositiveEffect::Bottom,
-                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
+                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted.into()),
                 },
                 result: TrackedOne::try_new(
                     source_meter,
@@ -16180,6 +16194,10 @@ impl InferenceSession {
                 .map(|value| Self::decode_positive_scheme(source_meter, view, *value))
                 .collect::<Result<Vec<_>, _>>()
                 .map(|values| F5cPositive::Union(test_tracked(source_meter, values))),
+            // The test-only F5c graph decoder intentionally covers the
+            // function/union characterization domain. Tuple nodes belong to
+            // the closed scheme, but are not represented by F5cPositive.
+            PositiveValueView::Tuple(_) => Err(F5cSchemeDecodeError::UnsupportedTuple),
         }
     }
 
@@ -16188,7 +16206,7 @@ impl InferenceSession {
         source_meter: &'meter DraftHeapMeter,
         view: yu_types::ClosedValueSchemeView<'_>,
         id: yu_types::NegativeValueId,
-    ) -> Result<F5cNegative<'meter>, SolveAvailabilityError> {
+    ) -> Result<F5cNegative<'meter>, F5cSchemeDecodeError> {
         match view
             .negative_value(id)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
@@ -16214,11 +16232,11 @@ impl InferenceSession {
                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
                 argument_effect: match view.positive_effect(argument_effect) {
                     Ok(yu_types::PositiveEffectView::Bottom) => F5cPositiveEffect::Bottom,
-                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
+                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted.into()),
                 },
                 result_effect: match view.negative_effect(result_effect) {
                     Ok(yu_types::NegativeEffectView::Empty) => F5cNegativeEffect::Empty,
-                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted),
+                    Err(_) => return Err(SolveAvailabilityError::IdentityExhausted.into()),
                 },
                 result: TrackedOne::try_new(
                     source_meter,
@@ -16231,6 +16249,9 @@ impl InferenceSession {
                 .map(|value| Self::decode_negative_scheme(source_meter, view, *value))
                 .collect::<Result<Vec<_>, _>>()
                 .map(|values| F5cNegative::Intersection(test_tracked(source_meter, values))),
+            // Keep the test-only decoder's supported domain explicit rather
+            // than erasing product structure into another graph constructor.
+            NegativeValueView::Tuple(_) => Err(F5cSchemeDecodeError::UnsupportedTuple),
         }
     }
 
@@ -16239,7 +16260,7 @@ impl InferenceSession {
         source_meter: &'meter DraftHeapMeter,
         finalization: &ClosedTypeFinalizationSession,
         scheme: &ClosedValueScheme,
-    ) -> Result<GeneralizationDraft<'meter>, SolveAvailabilityError> {
+    ) -> Result<GeneralizationDraft<'meter>, F5cSchemeDecodeError> {
         let view = finalization
             .scheme_view(scheme)
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
