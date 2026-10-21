@@ -2,26 +2,23 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "r267-20261021",
+  "session": "r268-20261021",
   "active_sprint": {
-    "id": "R267",
-    "status": "RESULT",
-    "contract": "tasks/agent-loop/sprints/yulang2-direct-use-module-prefix-classification-20261021-r267.md",
+    "id": "R268",
+    "status": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/yulang2-pinned-module-route-closure-20261021-r268.md",
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 420,
-      "reserved_seconds": 0,
+      "charged_seconds": 0,
+      "reserved_seconds": 420,
       "no_carryover": true
     },
-    "proof": "108/108 explicit std:: base routes resolve by longest prefix to the pinned 40 modules; 4 non-std routes re-export same-file host acts; 21 grouped selected-item paths.",
-    "implementation": "Primary-only temporary route probe removed; no retained code/tests.",
-    "review_receipt": "Primary-only; unreviewed.",
-    "next_action": "Build the source-ordered module route graph and compare closure with the pinned 40-module set.",
-    "closure": "R260 conditional; Y2 import/re-export semantics, runtime roots, R149 outputs, parent proofs and production OPEN.",
-    "contract_sha256": "17f8964b46d5178906f5ca177f081cddf7eaee0325bfcc117b63c80bf04faccd",
-    "note_sha256": "e96a4871278c50255084e47638933fee257f2b71329ca689dbc5915c8d7d4f5a",
-    "inbox_sha256": "a70a4d2a729fe37786d04b68717c97dbe1777921168d16a535118e254677addb",
-    "note": "notes/theory/2026-10-21-r267-use-module-prefix-map.md"
+    "proof": "Combine source-bound external mod edges and R267 std:: use prefixes; compare reachability with exact pinned 40-module set.",
+    "implementation": "Primary-only temporary graph probe; no retained code/tests or semantics edits.",
+    "review_receipt": "No independent reviewer; provisional evidence only.",
+    "next_action": "Extract ordered direct module and use edges, then compute closure from implicit std.",
+    "closure": "R260 conditional; Y2 loading/publication, R149 outputs, parent proofs and production OPEN.",
+    "contract_sha256": "2d199f5aaef998c925ba72d7a58851e6a7e47a10ed81d10b00dfdcab0bf15fb9"
   },
   "workers": [
     {
@@ -308,6 +305,12 @@
       "owner": "/root",
       "state": "FROZEN",
       "reason": "R267 primary-only result; immutable evidence."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-pinned-module-route-closure-20261021-r268.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R268 active primary contract."
     }
   ],
   "pending": [
@@ -379,7 +382,7 @@
     }
   ],
   "closure": "R267 locates 108 explicit std:: routes in the pinned 40-module set and four same-file host-act reexports; it does not establish Y2 import semantics or runtime roots. R149 remains open.",
-  "next_action": "Continue R149 by computing the source-ordered module route graph and testing whether it accounts for exactly the pinned 40-module closure.",
+  "next_action": "R268: build the source-level mod/use route graph and compare its std-root reachability with the pinned 40-source closure.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
