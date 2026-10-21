@@ -2682,9 +2682,7 @@ mod authentic_demand_capture_tests {
 
     #[test]
     fn imported_binding_uses_keep_distinct_hir_artifacts_in_one_freshuse_world() {
-        let provider_text: Arc<yu_syntax::SourceText> = Arc::from(
-            "pub outer z = { my local h x = h z; local }\n",
-        );
+        let provider_text: Arc<yu_syntax::SourceText> = Arc::from("pub id x = x\n");
         let provider_parsed = yu_syntax::parse_file(
             provider_text.clone(), Arc::new(yu_syntax::scan_header(provider_text)),
             Arc::new(yu_syntax::SyntaxEnvironment::empty()),
@@ -2706,7 +2704,9 @@ mod authentic_demand_capture_tests {
             provider_identity, &provider_parsed, yu_hir::SemanticImports::empty(),
         ).unwrap());
 
-        let consumer_text: Arc<yu_syntax::SourceText> = Arc::from("pub first = outer\npub second = outer\n");
+        let consumer_text: Arc<yu_syntax::SourceText> = Arc::from(
+            "pub first = id 42\npub second = id \"Yulang\"\n",
+        );
         let consumer_parsed = yu_syntax::parse_file(
             consumer_text.clone(), Arc::new(yu_syntax::scan_header(consumer_text)),
             Arc::new(yu_syntax::SyntaxEnvironment::empty()),
@@ -2730,8 +2730,21 @@ mod authentic_demand_capture_tests {
         assert!(candidate.observes_hir(&provider));
         assert!(!candidate.observes_hir(&foreign));
         assert!(candidate.candidate_conflicts().is_empty());
+        let consumer_root = |name: &str| consumer.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding.definition_root().clone()),
+            _ => None,
+        }).unwrap();
+        for (name, leaf) in [
+            ("first", crate::shadow_apply::CandidateGraphLeaf::IntPositive),
+            ("second", crate::shadow_apply::CandidateGraphLeaf::StrPositive),
+        ] {
+            let graph = candidate.export(&consumer_root(name)).unwrap();
+            assert!(graph.bounds().any(|bound| {
+                bound.lower().leaf() == Some(leaf) || bound.upper().leaf() == Some(leaf)
+            }), "the imported polymorphic use retains its concrete {name} constraint");
+        }
         let provider_root = provider.items().iter().find_map(|item| match item {
-            HirItem::Binding(binding) if binding.name().spelling() == "outer" => Some(binding.definition_root().clone()),
+            HirItem::Binding(binding) if binding.name().spelling() == "id" => Some(binding.definition_root().clone()),
             _ => None,
         }).unwrap();
         let provider_graph = candidate.export(&provider_root).unwrap();
