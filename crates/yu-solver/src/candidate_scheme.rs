@@ -2483,6 +2483,120 @@ impl InferenceSession {
 mod authentic_demand_capture_tests {
     use super::*;
 
+    #[test]
+    fn r224_apply_fresh_route_terms() {
+        const SOURCE: &str = r#"act io:
+    our tick: int -> int
+
+my outer (q:[io] int) = {
+    my loop (x:[io] int) = {
+        my direct = loop x
+        my helper (y:[io] int) = loop y
+        helper x
+    }
+    my repeat (f:[io] int -> int) (z:[io] int) = {
+        my first = f z
+        f z
+    }
+    repeat loop q
+}"#;
+        let text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("r224-route-terms", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap();
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.execute().unwrap();
+        assert!(session.errors.is_empty());
+        let graph_state = session.candidate_graph.as_ref().unwrap();
+        let route = |occurrence| graph_state.local_routes.iter().find(|route| route.occurrence.ordinal() == occurrence).unwrap();
+        let actual_loop = route(28);
+        let repeat = route(27);
+        assert!(actual_loop.authentic_use_instance() && repeat.authentic_use_instance());
+        let term_for_row = |route: &LocalFreshRoute, row: RowKey, port: usize| {
+            route.graph.nodes.iter().enumerate().find_map(|(index, node)| {
+                let Node::Function { polarity: Polarity::Positive, children } = node else { return None; };
+                let child = children[port];
+                matches!(route.graph.nodes[child], Node::Row { row: row_index, .. }
+                    if route.graph.rows[row_index].key == row)
+                    .then(|| route.retained.terms.get(index).copied().flatten())
+                    .flatten()
+            })
+        };
+        let actual_function = term_for_row(actual_loop, RowKey::Effect(41), 2)
+            .expect("actual loop positive function node with slot-4 result-effect port");
+        let callback_function = term_for_row(repeat, RowKey::Effect(31), 1)
+            .expect("repeat positive callback function node with formal argument-effect port");
+        let provider = session.batch.candidate_calls.calls.iter()
+            .find(|call| call.checking.occurrence().ordinal() == 26).unwrap().native.unwrap();
+        let callback_call = session.batch.candidate_calls.calls.iter()
+            .find(|call| call.checking.occurrence().ordinal() == 19).unwrap();
+        let callback = session.batch.candidate_calls.calls.iter()
+            .find(|call| call.checking.occurrence().ordinal() == 19).unwrap().native.unwrap();
+        println!("R224 actual_loop_function={actual_function:?} view={:?} callback_scheme_function={callback_function:?} view={:?}",
+            session.store.term_view(actual_function), session.store.term_view(callback_function));
+        println!("R224 provider_native_argument={:?} view={:?} provider_native_callee={:?} callback_native_callee={:?} registered_root={:?}",
+            provider.argument, session.store.term_view(provider.argument), provider.callee,
+            callback.callee, callback_call.formal_name
+                .and_then(|name| session.batch.candidate_calls.names.get(name))
+                .and_then(|name| session.batch.candidate_calls.formals.get(name.registration))
+                .and_then(|registration| registration.native_root));
+        println!("R224 identity actual_to_provider={} callback_scheme_to_callback_callee={} actual_to_callback_scheme={}",
+            actual_function == provider.argument, callback_function == callback.callee,
+            actual_function == callback_function);
+        let mut term_edges = std::collections::HashMap::<Term, Vec<(Term, Option<crate::FactId>)>>::new();
+        let mut term_pending = Vec::new();
+        for fact in session.store.facts() {
+            term_edges.entry(fact.lower()).or_default().push((fact.upper(), Some(fact.id())));
+            term_edges.entry(fact.upper()).or_default().push((fact.lower(), Some(fact.id())));
+            term_pending.extend([fact.lower(), fact.upper()]);
+        }
+        term_pending.extend([actual_function, callback_function, provider.argument, callback.callee]);
+        let mut term_seen = std::collections::HashSet::new();
+        while let Some(term) = term_pending.pop() {
+            if !term_seen.insert(term) { continue; }
+            let children = match session.store.term_view(term).unwrap() {
+                crate::TermView::PositiveFunction { argument, argument_effect, result_effect, result }
+                | crate::TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
+                    [argument, argument_effect, result_effect, result],
+                _ => continue,
+            };
+            for child in children {
+                term_edges.entry(term).or_default().push((child, None));
+                term_edges.entry(child).or_default().push((term, None));
+                term_pending.push(child);
+            }
+        }
+        let term_path = |start: Term, target: Term| {
+            let mut queue = std::collections::VecDeque::from([start]);
+            let mut parent = std::collections::HashMap::<Term, (Term, Option<crate::FactId>)>::new();
+            let mut visited = std::collections::HashSet::from([start]);
+            while let Some(term) = queue.pop_front() {
+                if term == target { break; }
+                for &(next, fact) in term_edges.get(&term).into_iter().flatten() {
+                    if visited.insert(next) { parent.insert(next, (term, fact)); queue.push_back(next); }
+                }
+            }
+            if !visited.contains(&target) { return None; }
+            let mut path = Vec::new(); let mut cursor = target;
+            while cursor != start { let edge = parent[&cursor]; path.push((cursor, edge.1)); cursor = edge.0; }
+            path.reverse(); Some(path)
+        };
+        let actual_to_argument = term_path(actual_function, provider.argument);
+        let callback_to_formal = term_path(callback_function, callback.callee);
+        let argument_to_formal = term_path(provider.argument, callback.callee);
+        let actual_to_callback = term_path(actual_function, callback_function);
+        assert!(actual_to_argument.is_none());
+        assert!(argument_to_formal.is_none());
+        let shared_term_view = callback_to_formal.as_ref().and_then(|path| path.first())
+            .map(|(term, _)| session.store.term_view(*term));
+        println!("R224 source_to_native_paths actual_function_to_argument={actual_to_argument:?} callback_scheme_to_formal_root={callback_to_formal:?} provider_argument_to_formal_root={argument_to_formal:?} actual_function_to_callback_scheme={actual_to_callback:?} shared_term1={:?}",
+            shared_term_view);
+    }
+
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     enum ApplyCaptureMiss {
         WrongSourceOccurrence,
