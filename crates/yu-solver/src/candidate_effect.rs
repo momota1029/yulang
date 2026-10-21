@@ -2053,6 +2053,27 @@ mod tests {
     use super::*;
     use crate::candidate_scheme::{Node, RowKey};
     #[test]
+    fn negative_concrete_formal_row_accepts_a_state_effect_callback() {
+        let text = "act io:\n    our tick: int -> ()\nact state:\n    our tick: int -> ()\nmy bridge (callback: int -> [io] ()) = callback; my state_callback value = state::tick value; my answer = bridge state_callback";
+        let source: std::sync::Arc<yu_syntax::SourceText> = std::sync::Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            std::sync::Arc::new(yu_syntax::scan_header(source)),
+            std::sync::Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.structural_recoveries().is_empty(), "source must parse structurally");
+        let hir = yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "negative-formal-effect-tail", "source.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        ).unwrap();
+        let candidate = crate::shadow_apply::CandidateInference::solve(std::sync::Arc::new(hir)).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty(), "negative [io] denotes [io, 'e], so [state] remains in the open tail: {:?}", candidate.candidate_conflicts());
+    }
+
+    #[test]
     fn capture_inverse_restores_occupied_without_allocation_and_inserts_absent() {
         let mut state = State::default();
         let saved = CaptureBucket { head: 0, tail: 1 };
