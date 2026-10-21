@@ -862,4 +862,111 @@ my outer (q:[io] int) = {
         assert_eq!(bound_mentions, 0, "no later Work::Bound selects the slot-4 item");
         println!("R219 source repeated_loop={repeated_loop_occurrences:?} work_bounds={work_bounds:?} source_checks={source_checking:?} slot4={source_bound:?} physical=Effect({owner})/EffectUpperRow[0] item=Effect({item}) item_forest_events={item_events:?} item_work_bound_mentions={bound_mentions} forest_effect_rows={}", effects.len());
     }
+
+    #[test]
+    fn r220_repeated_loop_local_fresh_use_bound_lineage() {
+        const SOURCE: &str = r#"act io:
+    our tick: int -> int
+
+my outer (q:[io] int) = {
+    my loop (x:[io] int) = {
+        my direct = loop x
+        my helper (y:[io] int) = loop y
+        helper x
+    }
+    my repeated (z:[io] int) = {
+        my first = loop z
+        loop z
+    }
+    repeated q
+}"#;
+        let source: Arc<SourceText> = Arc::from(SOURCE);
+        let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+        assert!(parsed.structural_recoveries().is_empty());
+        let hir = Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("r220-repeat-loop-fresh-use", "source.yu"))),
+            &parsed, SemanticImports::empty(),
+        ).unwrap());
+        let outer = binding(&hir, "outer");
+        let local = hir.local_source(outer.definition_root()).unwrap().unwrap();
+        let loop_id = local.bindings().iter().find(|binding| binding.spelling.as_ref() == "loop").unwrap().id.clone();
+        let applies = local.expressions().iter().filter(|expression| {
+            let LocalSourceForm::Apply { callee, argument, .. } = &expression.form else { return false; };
+            matches!((&local.expression(callee).unwrap().form, &local.expression(argument).unwrap().form),
+                (LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. },
+                 LocalSourceForm::Name { spelling, .. }) if *id == loop_id && spelling.as_ref() == "z")
+        }).collect::<Vec<_>>();
+        assert_eq!(applies.len(), 2);
+
+        crate::candidate_context::r148_trace_begin();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let trace = crate::candidate_context::r148_trace_finish();
+        assert!(candidate.solved.data.errors.is_empty());
+        let solved = candidate.solved.data.candidate_graph.as_ref().unwrap();
+        let context = &solved.intrusion.effect_algebra.context;
+        let loop_initializer = local.bindings().iter().find(|binding| binding.id == loop_id).unwrap().initializer.clone();
+        let loop_ordinal = local.expression(&loop_initializer).unwrap().occurrence.ordinal();
+        let slot4 = context.origins.iter().find(|origin|
+            origin.occurrence.occurrence().ordinal() == loop_ordinal && origin.occurrence.local_slot() == 4)
+            .expect("loop Lambda slot-4 origin");
+        let source_bound = context.test_admission_emissions_for_relation(slot4.relation).iter()
+            .find_map(|(_, admission, _)| matches!(admission.bound,
+                crate::candidate_effect::BoundKey(
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_)),
+                    Polarity::Negative,
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_))))
+                .then_some(admission.bound)).unwrap();
+        let crate::candidate_effect::BoundKey(
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(owner)), Polarity::Negative,
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(item)),
+        ) = source_bound else { unreachable!() };
+        let mut mapped_bounds = Vec::new();
+        for expression in &applies {
+            let observation = candidate.local_source_provider_observation(&expression.occurrence, 4096).unwrap();
+            assert!(observation.facts_complete && observation.origins_complete);
+            assert!(observation.captures_truncated, "the source capture observer's row list is truncated");
+            assert_eq!(observation.routes.len(), 1);
+            let route_observation = &observation.routes[0];
+            let route = &solved.local_routes[route_observation.route];
+            let bound = route.graph.bounds.iter().find(|bound| bound.relation == Some(slot4.relation))
+                .expect("the repeated-loop Local route contains the exact slot-4 source relation");
+            assert_eq!(bound.source_bound, source_bound);
+            let owner_capture = route.graph.rows.iter().position(|row| row.key == crate::candidate_scheme::RowKey::Effect(owner)).unwrap();
+            let item_capture = route.graph.rows.iter().position(|row| row.key == crate::candidate_scheme::RowKey::Effect(item)).unwrap();
+            let mapped_effect = |index: usize| match route.rows[index] {
+                crate::candidate_scheme::RowKey::Effect(mapped) => mapped,
+                other => panic!("effect Capture row maps to an effect row, got {other:?}"),
+            };
+            let mapped = crate::candidate_effect::BoundKey(
+                crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(mapped_effect(owner_capture))),
+                Polarity::Negative,
+                crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(mapped_effect(item_capture))),
+            );
+            let lineage = context.test_relation_lineage(slot4.relation);
+            assert!(lineage.iter().any(|edge| edge.contains(&format!("from: {source_bound:?}"))
+                && edge.contains(&format!("to: {mapped:?}")) && edge.contains("reason: FreshUse")));
+            mapped_bounds.push((expression.occurrence.ordinal(), mapped, lineage.len()));
+        }
+        let work_bounds = trace.iter().filter(|event| event.starts_with("work-bound ")).collect::<Vec<_>>();
+        assert_eq!(work_bounds.len(), 2);
+        assert!(work_bounds.iter().all(|event| !event.contains(&format!("EffectRow({item})"))));
+        assert!(solved.intrusion.forest_event_log_complete());
+        let mapped_items = mapped_bounds.iter().map(|(_, bound, _)| match bound {
+            crate::candidate_effect::BoundKey(_, _, crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(item))) => *item,
+            other => panic!("mapped FreshUse image has an effect item: {other:?}"),
+        }).collect::<Vec<_>>();
+        for mapped_item in &mapped_items {
+            assert!(work_bounds.iter().all(|event| !event.contains(&format!("EffectRow({mapped_item})"))),
+                "no later Work::Bound selects this Local FreshUse image item: Effect({mapped_item})");
+        }
+        assert!(!solved.intrusion.forest_events().iter().any(|event| matches!(event,
+            crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Effect(row)) if *row == item)
+            || matches!(event,
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(row), .. } if *row == item)));
+        assert!(mapped_items.iter().all(|mapped_item| !solved.intrusion.forest_events().iter().any(|event| matches!(event,
+            crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Effect(row)) if row == mapped_item)
+            || matches!(event,
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(row), .. } if row == mapped_item))));
+        println!("R220 source_bound={source_bound:?} physical_owner=Effect({owner}) item=Effect({item}) repeated_local_fresh_uses={mapped_bounds:?} work_bounds={work_bounds:?} forest_complete=true item_in_forest=false");
+    }
 }
