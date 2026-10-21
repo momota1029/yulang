@@ -16,6 +16,12 @@ fixture covers all four public definitions and expected outputs.
 and 9 integration tests passed. This includes the parser and recovery coverage
 for braced conditional arms.
 
+`RUSTC_WRAPPER= cargo test -q -p yu-solver --features shadow-apply-candidate
+local_source_observation` passed on the pushed readback implementation: 1 test
+passed, 731 filtered out. This reproduces the source-local Capture readback
+used by the R213 candidate witness; it does not independently certify the
+model or its source/native correspondence.
+
 The two pre-parenthesized Catch test inputs were also run directly through the
 current CLI and produced syntax diagnostics. The updated test inputs wrap the
 braced conditional scrutinee in parentheses, making the Catch boundary
