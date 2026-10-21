@@ -30,7 +30,7 @@ use yu_hir::shadow::{SourceEffectId, SourceNodeKey};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) struct RelationId(pub u32);
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub(super) struct ReplayOperationId(usize);
+pub(super) struct ReplayOperationId(pub(super) usize);
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct ReplayChildAck {
     pub operation: ReplayOperationId,
@@ -84,13 +84,17 @@ pub(super) struct TypedDrainFrame {
     // The certificate becomes observable only after its item was enqueued.
     pub source_drain_receipt: Option<SourceDrainReceipt>,
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct SourceDrainReceipt {
+    pub drain_index: usize,
     pub incoming_relation: Option<RelationId>,
     pub replay_ack: Option<ReplayChildAck>,
     pub created_seed: RelationId,
     pub selected_relation: RelationId,
     pub origin_index: usize,
+    pub task: LiveConstraintTask,
+    pub cause: CauseId,
+    pub completed: bool,
 }
 #[derive(Debug)]
 struct TypedDrainUndo {
@@ -145,7 +149,7 @@ struct BoundRestorationUndo {
     retired: bool,
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub(super) struct ContextId(u32);
+pub(super) struct ContextId(pub(super) u32);
 const IDENTITY: ContextId = ContextId(0);
 // A payload handle is independent of nominal members and boundary identities.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -342,6 +346,9 @@ pub(super) struct Origin {
     pub(super) occurrence: ConstraintOccurrenceId,
     pub(super) inferred_entry: Option<InferredEntryOriginId>,
     pub(super) formal: Option<FormalConstruction>,
+    // Durable passive evidence: typed drain frames are popped on completion,
+    // while this owner survives for the candidate observation query.
+    pub(super) source_drain_receipt: Option<SourceDrainReceipt>,
 }
 // An owning Lambda construction, never a callback contract or runtime receipt.
 #[derive(Debug)]
@@ -499,6 +506,7 @@ pub(super) enum CoverageGap {
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub(super) struct EvidenceCoverage { gaps: u8 }
 impl EvidenceCoverage {
+    pub(super) const fn bits(self) -> u8 { self.gaps }
     fn add(&mut self, gap: CoverageGap) {
         assert!((gap as u8) < u8::BITS as u8);
         self.gaps |= 1 << gap as u8;
@@ -926,6 +934,9 @@ pub(super) struct State {
     dependencies: Vec<Dependency>,
     dependency_keys: HashSet<Dependency>,
     pub(super) origins: Vec<Origin>,
+    // Completion is an optional event under the same rollback frontier as the
+    // solver state. It never mutates a pre-existing Origin.
+    source_drain_completions: Vec<SourceDrainReceipt>,
     bounds: HashMap<BoundKey, usize>,
     bound_keys: Vec<(BoundKey, RelationId, Option<usize>)>,
     replay_heads: HashMap<(BoundKey, BoundKey), (Option<usize>, Option<usize>)>,
@@ -978,6 +989,7 @@ pub(super) struct Checkpoint {
     relations: usize,
     dependencies: usize,
     origins: usize,
+    source_drain_completions: usize,
     bounds: usize,
     uses: usize,
     replay_log: usize,
@@ -2020,6 +2032,7 @@ impl State {
             relations: self.relations.len(),
             dependencies: self.dependencies.len(),
             origins: self.origins.len(),
+            source_drain_completions: self.source_drain_completions.len(),
             bounds: self.bound_keys.len(),
             uses: self.uses,
             replay_log: self.replay_log.len(),
@@ -2034,6 +2047,7 @@ impl State {
         }
     }
     pub fn rollback(&mut self, checkpoint: Checkpoint) {
+        self.source_drain_completions.truncate(checkpoint.source_drain_completions);
         for observation in self.scope_observations.drain(checkpoint.scope_observations..) { self.scope_observation_keys.remove(&observation); }
         for id in self.source_support_undo.drain(checkpoint.source_support_undo..).rev() {
             self.source_support.get_mut(&id).expect("registered support retained until rollback").valid = true;
@@ -2133,6 +2147,19 @@ impl State {
             }
         }
     }
+    pub(super) fn record_source_drain_completion(&mut self, receipt: &SourceDrainReceipt) {
+        // Observation pressure must never turn a successful inference step
+        // into a solver error. Missing completion evidence remains unavailable.
+        if self.source_drain_completions.try_reserve(1).is_err() { return; }
+        let mut completed = receipt.clone();
+        completed.completed = true;
+        self.source_drain_completions.push(completed);
+    }
+    pub(super) fn source_drain_completed(&self, receipt: &SourceDrainReceipt) -> bool {
+        let mut expected = receipt.clone();
+        expected.completed = true;
+        self.source_drain_completions.contains(&expected)
+    }
     fn remove_replay_operation(&mut self, id: ReplayOperationId) {
         if let Some(operation) = self.replay_operations.remove(&id) {
             self.replay_child_bytes -= operation.children.capacity() * std::mem::size_of::<RelationId>();
@@ -2218,7 +2245,7 @@ impl State {
             current: frame.current, stage: frame.stage, context_consumed: frame.context_consumed,
             transitions: frame.transitions, replay_acks, completed_acks: frame.completed_acks,
             prepared_acks: frame.prepared_acks, terminal_prepared: frame.terminal_prepared, function: frame.function.clone(), replay_destination: frame.replay_destination,
-            source_drain_receipt: frame.source_drain_receipt };
+            source_drain_receipt: frame.source_drain_receipt.clone() };
         let frame = std::mem::replace(&mut self.typed_drains[index], replacement);
         self.typed_drain_undo.push(TypedDrainUndo { index, frame });
         Ok(())
@@ -2234,9 +2261,13 @@ impl State {
                 .checked_mul(std::mem::size_of::<ReplayDrainObservation>()).ok_or_else(exhausted)?)
                 .ok_or_else(exhausted)?;
         }
-        bytes = bytes.checked_add(self.typed_drains.capacity().checked_mul(std::mem::size_of::<TypedDrainFrame>()).ok_or_else(exhausted)?)
+        let frame_bytes = std::mem::size_of::<TypedDrainFrame>()
+            - std::mem::size_of::<Option<SourceDrainReceipt>>();
+        let undo_bytes = std::mem::size_of::<TypedDrainUndo>()
+            - std::mem::size_of::<Option<SourceDrainReceipt>>();
+        bytes = bytes.checked_add(self.typed_drains.capacity().checked_mul(frame_bytes).ok_or_else(exhausted)?)
             .ok_or_else(exhausted)?;
-        bytes = bytes.checked_add(self.typed_drain_undo.capacity().checked_mul(std::mem::size_of::<TypedDrainUndo>()).ok_or_else(exhausted)?).ok_or_else(exhausted)?;
+        bytes = bytes.checked_add(self.typed_drain_undo.capacity().checked_mul(undo_bytes).ok_or_else(exhausted)?).ok_or_else(exhausted)?;
         for frame in self.typed_drains.iter().chain(self.typed_drain_undo.iter().map(|undo| &undo.frame)) {
             bytes = bytes.checked_add(frame.replay_acks.capacity().checked_mul(std::mem::size_of::<ReplayChildAck>()).ok_or_else(exhausted)?)
                 .ok_or_else(exhausted)?;
@@ -2445,9 +2476,8 @@ impl State {
             self.dependency_keys
                 .capacity()
                 .checked_mul(std::mem::size_of::<Dependency>()),
-            self.origins
-                .capacity()
-                .checked_mul(std::mem::size_of::<Origin>()),
+            self.origins.capacity().checked_mul(
+                std::mem::size_of::<Origin>() - std::mem::size_of::<Option<SourceDrainReceipt>>()),
             self.bounds
                 .capacity()
                 .checked_mul(std::mem::size_of::<(BoundKey, usize)>()),
@@ -2513,8 +2543,10 @@ impl State {
             + self.restorations.capacity() * std::mem::size_of::<(ReplayOperationId, BoundRestoration)>()
             + self.restoration_undo.capacity() * std::mem::size_of::<BoundRestorationUndo>()
             + replay_children
-            + self.typed_drains.capacity() * std::mem::size_of::<TypedDrainFrame>()
-            + self.typed_drain_undo.capacity() * std::mem::size_of::<TypedDrainUndo>()
+            + self.typed_drains.capacity() * (std::mem::size_of::<TypedDrainFrame>()
+                - std::mem::size_of::<Option<SourceDrainReceipt>>())
+            + self.typed_drain_undo.capacity() * (std::mem::size_of::<TypedDrainUndo>()
+                - std::mem::size_of::<Option<SourceDrainReceipt>>())
             + self.typed_drains.iter().chain(self.typed_drain_undo.iter().map(|undo| &undo.frame))
                 .map(|frame| frame.replay_acks.capacity() * std::mem::size_of::<ReplayChildAck>()).sum::<usize>()
             + self.inferred_entries.capacity() * std::mem::size_of::<InferredEntryOrigin>()
@@ -2546,7 +2578,8 @@ impl State {
             + self.pair_heads.capacity() * std::mem::size_of::<(TypedPairKey, RelationId)>()
             + self.dependencies.capacity() * std::mem::size_of::<Dependency>()
             + self.dependency_keys.capacity() * std::mem::size_of::<Dependency>()
-            + self.origins.capacity() * std::mem::size_of::<Origin>()
+            + self.origins.capacity() * (std::mem::size_of::<Origin>()
+                - std::mem::size_of::<Option<SourceDrainReceipt>>())
             + self.bounds.capacity() * std::mem::size_of::<(BoundKey, usize)>()
             + self.bound_keys.capacity() * std::mem::size_of::<(BoundKey, RelationId, Option<usize>)>()
             + self.edges.capacity() * std::mem::size_of::<(RelationId, Vec<RelationId>)>()
@@ -3363,6 +3396,7 @@ impl InferenceSession {
             occurrence: occurrence.clone(),
             inferred_entry,
             formal: None,
+            source_drain_receipt: None,
         });
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         Ok(Some(relation))

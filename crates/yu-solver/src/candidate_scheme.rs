@@ -204,6 +204,70 @@ impl RetainedFreshUseMaps {
         observe("context_remap", &self.context_remap);
         observe("evidence_remap", &self.evidence_remap);
     }
+    pub(super) fn observe_map_entries(
+        &self,
+        mut observe: impl FnMut(&'static str, Option<crate::shadow_apply::CandidateFreshUseMapEntry>),
+    ) {
+        use crate::shadow_apply::{CandidateFreshUseDemand as Demand, CandidateFreshUseMapEntry as Entry,
+            CandidateSourceEffectEndpoint as Effect};
+        observe("context_use", Some(Entry::ContextUse(self.context_use)));
+        if self.scope_remap.regions.is_empty() { observe("scope_regions", None); }
+        for (from, to) in &self.scope_remap.regions {
+            observe("scope_regions", Some(Entry::ScopeRegion { from: from.0, to: to.0 }));
+        }
+        if self.scope_remap.scopes.is_empty() { observe("scope_scopes", None); }
+        for (from, to) in &self.scope_remap.scopes {
+            observe("scope_scopes", Some(Entry::EffectScope { from: from.0, to: to.0 }));
+        }
+        if self.scope_remap.inputs.is_empty() { observe("scope_inputs", None); }
+        for (from, to) in &self.scope_remap.inputs {
+            observe("scope_inputs", Some(Entry::InputRoute { from: from.0, to: to.0 }));
+        }
+        if self.scoped_relations.is_empty() { observe("scoped_relations", None); }
+        for (relation, flow) in &self.scoped_relations {
+            observe("scoped_relations", Some(Entry::ScopedRelation {
+                relation: relation.0 as usize,
+                transformer: flow.transformer,
+                demand: flow.demand.map(|demand| Demand {
+                    original_call: demand.original_call, use_instance: demand.use_instance,
+                    root: demand.root, output_scope: demand.output_scope.0, input: demand.input.0,
+                }),
+            }));
+        }
+        if self.terms.is_empty() { observe("terms", None); }
+        for (index, value) in self.terms.iter().enumerate() {
+            observe("terms", Some(Entry::Term { index, value: *value }));
+        }
+        if self.effect_operands.is_empty() { observe("effect_operands", None); }
+        for (index, endpoint) in &self.effect_operands {
+            let endpoint = match *endpoint {
+                EffectEndpointKey::BottomPositive => Effect::BottomPositive,
+                EffectEndpointKey::EmptyNegative => Effect::EmptyNegative,
+                #[cfg(feature = "shadow-apply-candidate")]
+                EffectEndpointKey::Contribution(id) => Effect::Contribution(id),
+                #[cfg(feature = "shadow-apply-candidate")]
+                EffectEndpointKey::Allowance(id) => Effect::Allowance(id),
+                #[cfg(feature = "shadow-apply-candidate")]
+                EffectEndpointKey::Support(id) => Effect::Support(id),
+                #[cfg(feature = "shadow-apply-candidate")]
+                EffectEndpointKey::AnnotationMember(a, b) => Effect::AnnotationMember(a, b),
+                EffectEndpointKey::EffectRow(row) => Effect::EffectRow(row),
+            };
+            observe("effect_operands", Some(Entry::EffectOperand { index: *index, endpoint }));
+        }
+        if self.bundle_remap.is_empty() { observe("bundle_remap", None); }
+        for (from, to) in &self.bundle_remap {
+            observe("bundle_remap", Some(Entry::AttachmentBundle { from: from.0, to: to.0 }));
+        }
+        if self.context_remap.is_empty() { observe("context_remap", None); }
+        for (from, to) in &self.context_remap {
+            observe("context_remap", Some(Entry::Context { from: from.0, to: to.0 }));
+        }
+        if self.evidence_remap.is_empty() { observe("evidence_remap", None); }
+        for (index, snapshot) in self.evidence_remap.iter().enumerate() {
+            observe("evidence_remap", Some(Entry::EvidenceSnapshot { index, snapshot: snapshot.0 }));
+        }
+    }
 }
 impl RetainedFreshUseMaps {
     fn bytes(&self) -> Result<usize, SolveAvailabilityError> {

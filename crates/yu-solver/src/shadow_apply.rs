@@ -1,5 +1,6 @@
 //! Experimental value projection only; no source Apply typing or admission.
 use crate::*;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use yu_hir::HirErrorKind;
@@ -158,7 +159,36 @@ pub struct CandidateProviderCaptureRow<'a> {
     pub ordinal: usize,
     pub kind: CandidateProviderCaptureKind,
     pub map_name: Option<&'static str>,
+    pub map_entry: Option<CandidateFreshUseMapEntry>,
+    pub structure: Option<CandidateProviderCaptureStructure>,
     pub record: &'a dyn std::fmt::Debug,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateProviderCaptureStructure {
+    Graph { root: usize, live_root: u32, boundary: u32, nodes: usize, rows: usize, bounds: usize, snapshots: usize },
+    Bound { evidence: usize, relation: Option<usize>, kind: ComponentKind, side: Polarity, lower: usize, upper: usize },
+    Snapshot { source_bound: CandidateSourceBoundKey, relation: Option<usize>, coverage_bits: u8 },
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateFreshUseMapEntry {
+    ContextUse(usize),
+    ScopeRegion { from: usize, to: usize },
+    EffectScope { from: u32, to: u32 },
+    InputRoute { from: u32, to: u32 },
+    ScopedRelation { relation: usize, transformer: usize, demand: Option<CandidateFreshUseDemand> },
+    Term { index: usize, value: Option<Term> },
+    EffectOperand { index: usize, endpoint: CandidateSourceEffectEndpoint },
+    AttachmentBundle { from: usize, to: usize },
+    Context { from: u32, to: u32 },
+    EvidenceSnapshot { index: usize, snapshot: usize },
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CandidateFreshUseDemand {
+    pub original_call: usize,
+    pub use_instance: usize,
+    pub root: Term,
+    pub output_scope: u32,
+    pub input: u32,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CandidateProviderCaptureKind {
@@ -199,11 +229,67 @@ pub struct CandidateSourceOriginRecord<'a> {
     pub occurrence: &'a HirOccurrenceId,
     pub local_slot: u8,
     pub relation: usize,
-    pub attribution: CandidateSourceOriginAttribution,
+    pub attribution: CandidateSourceOriginAttribution<'a>,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CandidateSourceOriginAttribution {
+pub enum CandidateSourceDrainTask {
+    Value { lower: CandidateSourceValueEndpoint, upper: CandidateSourceValueEndpoint },
+    Effect { lower: CandidateSourceEffectEndpoint, upper: CandidateSourceEffectEndpoint },
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateSourceValueEndpoint {
+    BottomPositive,
+    BottomNegative,
+    TopNegative,
+    IntPositive,
+    IntNegative,
+    UnitPositive,
+    BoolPositive,
+    StrPositive,
+    UnitNegative,
+    BoolNegative,
+    StrNegative,
+    ValueRow(u32),
+    PositiveFunction(Term),
+    NegativeFunction(Term),
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateSourceEffectEndpoint {
+    BottomPositive,
+    EmptyNegative,
+    #[cfg(feature = "shadow-apply-candidate")]
+    Contribution(u32),
+    #[cfg(feature = "shadow-apply-candidate")]
+    Allowance(u32),
+    #[cfg(feature = "shadow-apply-candidate")]
+    Support(u32),
+    #[cfg(feature = "shadow-apply-candidate")]
+    AnnotationMember(u32, u32),
+    EffectRow(u32),
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateSourceBoundEndpoint {
+    Value(CandidateSourceValueEndpoint),
+    Effect(CandidateSourceEffectEndpoint),
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CandidateSourceBoundKey {
+    pub lower: CandidateSourceBoundEndpoint,
+    pub polarity: Polarity,
+    pub upper: CandidateSourceBoundEndpoint,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateSourceOriginAttribution<'a> {
     OccurrenceCandidateOnly,
+    EnqueuedDrain {
+        drain_index: usize,
+        cause: &'a CauseId,
+        task: CandidateSourceDrainTask,
+        incoming_relation: Option<usize>,
+        replay_ack: Option<(usize, usize)>,
+        created_seed: usize,
+        selected_relation: usize,
+    },
 }
 /// Source-keyed exact records. Completeness applies to the corresponding
 /// retained collection after selecting by source occurrence.
@@ -249,11 +335,20 @@ pub struct CandidateSourceProviderConsumer<'a> {
     pub native_callee: Term,
     pub native_demand: Term,
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CandidateSourceConsumerRelationRecord<'a> {
+    pub graph_index: usize,
+    pub drain_index: usize,
+    pub cause: &'a CauseId,
+    pub task: CandidateSourceDrainTask,
+    pub relation: usize,
+}
 pub struct CandidateSourceProviderObservation<'a> {
     pub facts: Vec<CandidateSourceFactRecord<'a>>,
     pub origins: Vec<CandidateSourceOriginRecord<'a>>,
     pub dependencies: Vec<CandidateSourceDependencyRecord>,
     pub captures: Vec<CandidateProviderCaptureRow<'a>>,
+    pub consumer_relations: Vec<CandidateSourceConsumerRelationRecord<'a>>,
     pub consumer: CandidateSourceProviderConsumer<'a>,
     pub facts_complete: bool,
     pub origins_complete: bool,
@@ -270,6 +365,117 @@ pub struct CandidateSourceProviderObservation<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CandidateSourceAttributionStatus {
     Unknown,
+    DirectSourceDrain,
+    ReplayOnly,
+    MixedOrAmbiguous,
+}
+fn source_drain_receipts<'a>(
+    context: &'a crate::candidate_context::State,
+) -> Result<HashMap<usize, &'a crate::candidate_context::Origin>, ArtifactMismatch> {
+    let mut by_origin = HashMap::new();
+    by_origin.try_reserve(context.origins.len()).map_err(|_| ArtifactMismatch)?;
+    for (origin_index, origin) in context.origins.iter().enumerate() {
+        let Some(receipt) = origin.source_drain_receipt.as_ref() else { continue; };
+        if !context.source_drain_completed(receipt) { continue; }
+        if receipt.origin_index != origin_index
+            || origin.relation != receipt.created_seed
+            || receipt.cause.occurrence() != &origin.occurrence
+            || receipt.selected_relation != receipt.incoming_relation.unwrap_or(receipt.created_seed)
+        { return Err(ArtifactMismatch); }
+        by_origin.insert(origin_index, origin);
+    }
+    Ok(by_origin)
+}
+fn source_origin_attribution<'a>(
+    occurrence: &ConstraintOccurrenceId,
+    origin_index: usize,
+    origin: &crate::candidate_context::Origin,
+    receipts: &HashMap<usize, &'a crate::candidate_context::Origin>,
+) -> CandidateSourceOriginAttribution<'a> {
+    let Some(receipt_owner) = receipts.get(&origin_index) else {
+        return CandidateSourceOriginAttribution::OccurrenceCandidateOnly;
+    };
+    let Some(receipt) = receipt_owner.source_drain_receipt.as_ref() else {
+        return CandidateSourceOriginAttribution::OccurrenceCandidateOnly;
+    };
+    if receipt.origin_index != origin_index
+        || receipt.created_seed != origin.relation
+        || &origin.occurrence != occurrence
+        || receipt.cause.occurrence() != occurrence
+        || receipt.selected_relation != receipt.incoming_relation.unwrap_or(receipt.created_seed)
+    {
+        return CandidateSourceOriginAttribution::OccurrenceCandidateOnly;
+    }
+    CandidateSourceOriginAttribution::EnqueuedDrain {
+        drain_index: receipt.drain_index,
+        cause: &receipt.cause,
+        task: source_drain_task(receipt.task),
+        incoming_relation: receipt.incoming_relation.map(|relation| relation.0 as usize),
+        replay_ack: receipt.replay_ack.map(|ack| (ack.operation.0, ack.index)),
+        created_seed: receipt.created_seed.0 as usize,
+        selected_relation: receipt.selected_relation.0 as usize,
+    }
+}
+fn source_value_endpoint(endpoint: ValueEndpointKey) -> CandidateSourceValueEndpoint {
+    use CandidateSourceValueEndpoint as E;
+    match endpoint {
+        ValueEndpointKey::BottomPositive => E::BottomPositive,
+        ValueEndpointKey::BottomNegative => E::BottomNegative,
+        ValueEndpointKey::TopNegative => E::TopNegative,
+        ValueEndpointKey::IntPositive => E::IntPositive,
+        ValueEndpointKey::IntNegative => E::IntNegative,
+        ValueEndpointKey::UnitPositive => E::UnitPositive,
+        ValueEndpointKey::BoolPositive => E::BoolPositive,
+        ValueEndpointKey::StrPositive => E::StrPositive,
+        ValueEndpointKey::UnitNegative => E::UnitNegative,
+        ValueEndpointKey::BoolNegative => E::BoolNegative,
+        ValueEndpointKey::StrNegative => E::StrNegative,
+        ValueEndpointKey::ValueRow(row) => E::ValueRow(row),
+        ValueEndpointKey::PositiveFunction(term) => E::PositiveFunction(term),
+        ValueEndpointKey::NegativeFunction(term) => E::NegativeFunction(term),
+    }
+}
+fn source_effect_endpoint(endpoint: EffectEndpointKey) -> CandidateSourceEffectEndpoint {
+    use CandidateSourceEffectEndpoint as E;
+    match endpoint {
+        EffectEndpointKey::BottomPositive => E::BottomPositive,
+        EffectEndpointKey::EmptyNegative => E::EmptyNegative,
+        #[cfg(feature = "shadow-apply-candidate")]
+        EffectEndpointKey::Contribution(id) => E::Contribution(id),
+        #[cfg(feature = "shadow-apply-candidate")]
+        EffectEndpointKey::Allowance(id) => E::Allowance(id),
+        #[cfg(feature = "shadow-apply-candidate")]
+        EffectEndpointKey::Support(id) => E::Support(id),
+        #[cfg(feature = "shadow-apply-candidate")]
+        EffectEndpointKey::AnnotationMember(a, b) => E::AnnotationMember(a, b),
+        EffectEndpointKey::EffectRow(row) => E::EffectRow(row),
+    }
+}
+fn source_drain_task(task: LiveConstraintTask) -> CandidateSourceDrainTask {
+    match task {
+        LiveConstraintTask::Value(pair) => CandidateSourceDrainTask::Value {
+            lower: source_value_endpoint(pair.lower), upper: source_value_endpoint(pair.upper),
+        },
+        LiveConstraintTask::Effect(lower, upper) => CandidateSourceDrainTask::Effect {
+            lower: source_effect_endpoint(lower), upper: source_effect_endpoint(upper),
+        },
+    }
+}
+fn source_bound_endpoint(endpoint: ExtrusionEndpoint) -> CandidateSourceBoundEndpoint {
+    match endpoint {
+        ExtrusionEndpoint::Value(endpoint) => CandidateSourceBoundEndpoint::Value(source_value_endpoint(endpoint)),
+        ExtrusionEndpoint::Effect(endpoint) => CandidateSourceBoundEndpoint::Effect(source_effect_endpoint(endpoint)),
+    }
+}
+fn source_bound_key(key: crate::candidate_effect::BoundKey) -> CandidateSourceBoundKey {
+    CandidateSourceBoundKey { lower: source_bound_endpoint(key.0), polarity: key.1, upper: source_bound_endpoint(key.2) }
+}
+fn is_direct_source_attribution(attribution: &CandidateSourceOriginAttribution<'_>) -> bool {
+    matches!(attribution,
+        CandidateSourceOriginAttribution::EnqueuedDrain {
+            incoming_relation: None, replay_ack: None,
+            created_seed, selected_relation, ..
+        } if created_seed == selected_relation)
 }
 impl CandidateSourceProviderObservation<'_> {
     pub fn source_to_consumer_discriminating(&self) -> bool {
@@ -279,7 +485,7 @@ impl CandidateSourceProviderObservation<'_> {
             && self.provider_route_complete
             && self.capture_bounds_complete
             && self.maps_complete
-            && self.direct_source_drain_attribution != CandidateSourceAttributionStatus::Unknown
+            && self.direct_source_drain_attribution == CandidateSourceAttributionStatus::DirectSourceDrain
             && self.captures_structured
             && self.maps_structured
             && self.consumer_relation_join_complete
@@ -517,7 +723,11 @@ impl CandidateInference {
                 if !push_capture(CandidateProviderCaptureRow {
                     graph_index, route_owner: CandidateReplayRouteOwner::Module, route, route_occurrence, context_use,
                     relation: None, ordinal: route, kind: CandidateProviderCaptureKind::CaptureGraph,
-                    map_name: None, record: &item.graph,
+                    map_name: None, map_entry: None, structure: Some(CandidateProviderCaptureStructure::Graph {
+                        root: item.graph.root, live_root: item.graph.live_root, boundary: item.graph.boundary,
+                        nodes: item.graph.nodes.len(), rows: item.graph.rows.len(), bounds: item.graph.bounds.len(),
+                        snapshots: item.graph.bound_evidence.len(),
+                    }), record: &item.graph,
                 }) { break 'captures; }
                 let mut maps_complete = true;
                 item.retained.observe_maps(|map_name, record| {
@@ -525,7 +735,7 @@ impl CandidateInference {
                         maps_complete = push_capture(CandidateProviderCaptureRow {
                             graph_index, route_owner: CandidateReplayRouteOwner::Module, route, route_occurrence, context_use,
                             relation: None, ordinal: route, kind: CandidateProviderCaptureKind::FreshUseMap,
-                            map_name: Some(map_name), record,
+                            map_name: Some(map_name), map_entry: None, structure: None, record,
                         });
                     }
                 });
@@ -534,14 +744,20 @@ impl CandidateInference {
                     if !push_capture(CandidateProviderCaptureRow {
                         graph_index, route_owner: CandidateReplayRouteOwner::Module, route, route_occurrence, context_use,
                         relation: bound.relation.map(|id| id.0), ordinal,
-                        kind: CandidateProviderCaptureKind::CapturedBound, map_name: None, record: bound,
+                        kind: CandidateProviderCaptureKind::CapturedBound, map_name: None, map_entry: None,
+                        structure: Some(CandidateProviderCaptureStructure::Bound { evidence: bound.evidence.0,
+                            relation: bound.relation.map(|id| id.0 as usize), kind: bound.kind, side: bound.side,
+                            lower: bound.lower, upper: bound.upper }), record: bound,
                     }) { break 'captures; }
                 }
                 for (ordinal, snapshot) in item.graph.bound_evidence.iter().enumerate() {
                     if !push_capture(CandidateProviderCaptureRow {
                         graph_index, route_owner: CandidateReplayRouteOwner::Module, route, route_occurrence, context_use,
                         relation: None, ordinal, kind: CandidateProviderCaptureKind::CaptureSnapshot,
-                        map_name: None, record: snapshot,
+                        map_name: None, map_entry: None, structure: Some(CandidateProviderCaptureStructure::Snapshot {
+                            source_bound: source_bound_key(snapshot.source_bound),
+                            relation: snapshot.relation.map(|id| id.0 as usize), coverage_bits: snapshot.coverage.bits(),
+                        }), record: snapshot,
                     }) { break 'captures; }
                 }
             }
@@ -551,7 +767,11 @@ impl CandidateInference {
                 if !push_capture(CandidateProviderCaptureRow {
                     graph_index, route_owner: CandidateReplayRouteOwner::Local, route, route_occurrence, context_use,
                     relation: None, ordinal: route, kind: CandidateProviderCaptureKind::CaptureGraph,
-                    map_name: None, record: &item.graph,
+                    map_name: None, map_entry: None, structure: Some(CandidateProviderCaptureStructure::Graph {
+                        root: item.graph.root, live_root: item.graph.live_root, boundary: item.graph.boundary,
+                        nodes: item.graph.nodes.len(), rows: item.graph.rows.len(), bounds: item.graph.bounds.len(),
+                        snapshots: item.graph.bound_evidence.len(),
+                    }), record: &item.graph,
                 }) { break 'captures; }
                 let mut maps_complete = true;
                 item.retained.observe_maps(|map_name, record| {
@@ -559,7 +779,7 @@ impl CandidateInference {
                         maps_complete = push_capture(CandidateProviderCaptureRow {
                             graph_index, route_owner: CandidateReplayRouteOwner::Local, route, route_occurrence, context_use,
                             relation: None, ordinal: route, kind: CandidateProviderCaptureKind::FreshUseMap,
-                            map_name: Some(map_name), record,
+                            map_name: Some(map_name), map_entry: None, structure: None, record,
                         });
                     }
                 });
@@ -568,14 +788,20 @@ impl CandidateInference {
                     if !push_capture(CandidateProviderCaptureRow {
                         graph_index, route_owner: CandidateReplayRouteOwner::Local, route, route_occurrence, context_use,
                         relation: bound.relation.map(|id| id.0), ordinal,
-                        kind: CandidateProviderCaptureKind::CapturedBound, map_name: None, record: bound,
+                        kind: CandidateProviderCaptureKind::CapturedBound, map_name: None, map_entry: None,
+                        structure: Some(CandidateProviderCaptureStructure::Bound { evidence: bound.evidence.0,
+                            relation: bound.relation.map(|id| id.0 as usize), kind: bound.kind, side: bound.side,
+                            lower: bound.lower, upper: bound.upper }), record: bound,
                     }) { break 'captures; }
                 }
                 for (ordinal, snapshot) in item.graph.bound_evidence.iter().enumerate() {
                     if !push_capture(CandidateProviderCaptureRow {
                         graph_index, route_owner: CandidateReplayRouteOwner::Local, route, route_occurrence, context_use,
                         relation: None, ordinal, kind: CandidateProviderCaptureKind::CaptureSnapshot,
-                        map_name: None, record: snapshot,
+                        map_name: None, map_entry: None, structure: Some(CandidateProviderCaptureStructure::Snapshot {
+                            source_bound: source_bound_key(snapshot.source_bound),
+                            relation: snapshot.relation.map(|id| id.0 as usize), coverage_bits: snapshot.coverage.bits(),
+                        }), record: snapshot,
                     }) { break 'captures; }
                 }
             }
@@ -946,17 +1172,20 @@ impl CandidateInference {
         }
         let mut origins_complete = true;
         'graphs: for (graph_index, graph) in self.solved.data.candidate_graph.iter().enumerate() {
-            for origin in &graph.intrusion.effect_algebra.context.origins {
+            let context = &graph.intrusion.effect_algebra.context;
+            let receipts = source_drain_receipts(context)?;
+            for (origin_index, origin) in context.origins.iter().enumerate() {
                 if origin.occurrence.occurrence() != occurrence
                     || !self.solved.data.store.provenance().iter().any(|edge| edge.cause().occurrence() == &origin.occurrence)
                 { continue; }
                 if origins.len() == cap { origins_complete = false; break 'graphs; }
+                let attribution = source_origin_attribution(&origin.occurrence, origin_index, origin, &receipts);
                 origins.push(CandidateSourceOriginRecord {
                     graph_index,
                     occurrence,
                     local_slot: origin.occurrence.local_slot(),
                     relation: origin.relation.0 as usize,
-                    attribution: CandidateSourceOriginAttribution::OccurrenceCandidateOnly,
+                    attribution,
                 });
             }
         }
@@ -1007,21 +1236,43 @@ impl CandidateInference {
             facts.push(CandidateSourceFactRecord { occurrence: cause.occurrence(), cause, fact });
         }
         let mut origins_complete = true;
+        let mut direct_origins = 0usize;
+        let mut replay_origins = 0usize;
+        let mut unavailable_origins = 0usize;
         let mut seeds = Vec::new();
         for (graph_index, graph) in self.solved.data.candidate_graph.iter().enumerate() {
-            for origin in &graph.intrusion.effect_algebra.context.origins {
+            let context = &graph.intrusion.effect_algebra.context;
+            let receipts = source_drain_receipts(context)?;
+            for (origin_index_in_graph, origin) in context.origins.iter().enumerate() {
                 let source = origin.occurrence.occurrence();
                 let slot = origin.occurrence.local_slot();
                 if !source_keys.iter().any(|(key, key_slot)| *key == source && *key_slot == slot)
                     || !self.solved.data.store.provenance().iter().any(|edge| edge.cause().occurrence() == &origin.occurrence)
                 { continue; }
                 if origins.len() == cap { origins_complete = false; break; }
+                let mut attribution = source_origin_attribution(&origin.occurrence, origin_index_in_graph, origin, &receipts);
+                if let CandidateSourceOriginAttribution::EnqueuedDrain { cause, .. } = attribution {
+                    if !facts.iter().any(|fact| fact.cause == cause.occurrence()) {
+                        attribution = CandidateSourceOriginAttribution::OccurrenceCandidateOnly;
+                    }
+                }
                 let origin_index = origins.len();
                 origins.push(CandidateSourceOriginRecord {
                     graph_index, occurrence: source, local_slot: slot, relation: origin.relation.0 as usize,
-                    attribution: CandidateSourceOriginAttribution::OccurrenceCandidateOnly,
+                    attribution,
                 });
-                seeds.push((graph_index, origin.relation, origin_index));
+                if is_direct_source_attribution(&attribution) {
+                    direct_origins += 1;
+                    seeds.push((graph_index, origin.relation, origin_index));
+                } else if matches!(attribution,
+                    CandidateSourceOriginAttribution::EnqueuedDrain {
+                        incoming_relation: Some(incoming), replay_ack: Some(_), selected_relation, ..
+                    } if incoming == selected_relation)
+                {
+                    replay_origins += 1;
+                } else {
+                    unavailable_origins += 1;
+                }
             }
             if !origins_complete { break; }
         }
@@ -1031,7 +1282,7 @@ impl CandidateInference {
         let mut reachable: Vec<HashSet<crate::candidate_context::RelationId>> = self.solved.data.candidate_graph.iter().map(|_| HashSet::new()).collect();
         if !facts_complete || !origins_complete { dependencies_complete = false; }
         for (graph_index, seed_relation, seed_origin_index) in &seeds {
-            let graph = &self.solved.data.candidate_graph[*graph_index];
+            let graph = self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?;
             let context = &graph.intrusion.effect_algebra.context;
             let mut seed_reachable = HashSet::new();
             let mut selected_edges = HashSet::new();
@@ -1085,32 +1336,54 @@ impl CandidateInference {
         let mut provider_route_matches = 0usize;
         let mut capture_bounds_complete = true;
         let mut maps_complete = true;
+        let mut capture_structure_complete = true;
+        let direct_graphs: HashSet<usize> = seeds.iter().map(|(graph_index, _, _)| *graph_index).collect();
         'routes: for (graph_index, graph) in self.solved.data.candidate_graph.iter().enumerate() {
+            if !direct_graphs.contains(&graph_index) { continue; }
             for (route, item) in graph.routes.iter().enumerate() {
                 if item.use_id.occurrence() != callee { continue; }
                 provider_route_matches += 1;
                 let context_use = item.retained.observed_context_use();
-                let mut push_capture = |kind, ordinal, relation, map_name, record: &'a dyn std::fmt::Debug| {
+                let mut push_capture = |kind: CandidateProviderCaptureKind, ordinal: usize,
+                    relation: Option<u32>, map_name: Option<&'static str>,
+                    map_entry: Option<CandidateFreshUseMapEntry>,
+                    structure: Option<CandidateProviderCaptureStructure>,
+                    record: &'a dyn std::fmt::Debug| {
                     if captures.len() == cap { return false; }
+                    if structure.is_none() && !(kind == CandidateProviderCaptureKind::FreshUseMap && map_name.is_some()) {
+                        capture_structure_complete = false;
+                    }
                     captures.push(CandidateProviderCaptureRow {
                         graph_index, route_owner: CandidateReplayRouteOwner::Module, route,
                         route_occurrence: item.use_id.occurrence(), context_use, relation,
-                        ordinal, kind, map_name, record,
+                        ordinal, kind, map_name, map_entry, structure, record,
                     });
                     true
                 };
-                if !push_capture(CandidateProviderCaptureKind::CaptureGraph, route, None, None, &item.graph) {
+                if !push_capture(CandidateProviderCaptureKind::CaptureGraph, route, None, None, None,
+                    Some(CandidateProviderCaptureStructure::Graph {
+                        root: item.graph.root, live_root: item.graph.live_root, boundary: item.graph.boundary,
+                        nodes: item.graph.nodes.len(), rows: item.graph.rows.len(), bounds: item.graph.bounds.len(),
+                        snapshots: item.graph.bound_evidence.len(),
+                    }), &item.graph) {
                     provider_route_complete = false;
                     capture_bounds_complete = false;
                     maps_complete = false;
                     break 'routes;
                 }
-                item.retained.observe_maps(|name, record| {
-                    if !push_capture(CandidateProviderCaptureKind::FreshUseMap, route, None, Some(name), record) { maps_complete = false; }
+                let mut map_ordinal = 0usize;
+                item.retained.observe_map_entries(|name, entry| {
+                    let ok = push_capture(CandidateProviderCaptureKind::FreshUseMap, map_ordinal, None,
+                        Some(name), entry, None, &item.retained);
+                    map_ordinal += 1;
+                    if !ok { maps_complete = false; }
                 });
                 for (ordinal, bound) in item.graph.bounds.iter().enumerate() {
                     if !bound.relation.is_some_and(|relation| reachable[graph_index].contains(&relation)) { continue; }
-                    if !push_capture(CandidateProviderCaptureKind::CapturedBound, ordinal, bound.relation.map(|id| id.0 as usize), None, bound) {
+                    if !push_capture(CandidateProviderCaptureKind::CapturedBound, ordinal, bound.relation.map(|id| id.0), None, None,
+                        Some(CandidateProviderCaptureStructure::Bound { evidence: bound.evidence.0,
+                            relation: bound.relation.map(|id| id.0 as usize), kind: bound.kind, side: bound.side,
+                            lower: bound.lower, upper: bound.upper }), bound) {
                         capture_bounds_complete = false;
                         provider_route_complete = false;
                         maps_complete = false;
@@ -1118,7 +1391,11 @@ impl CandidateInference {
                     }
                 }
                 for (ordinal, snapshot) in item.graph.bound_evidence.iter().enumerate() {
-                    if !push_capture(CandidateProviderCaptureKind::CaptureSnapshot, ordinal, None, None, snapshot) {
+                    if !push_capture(CandidateProviderCaptureKind::CaptureSnapshot, ordinal, None, None, None,
+                        Some(CandidateProviderCaptureStructure::Snapshot {
+                            source_bound: source_bound_key(snapshot.source_bound),
+                            relation: snapshot.relation.map(|id| id.0 as usize), coverage_bits: snapshot.coverage.bits(),
+                        }), snapshot) {
                         capture_bounds_complete = false;
                         provider_route_complete = false;
                         maps_complete = false;
@@ -1127,17 +1404,74 @@ impl CandidateInference {
                 }
             }
         }
+        let mut consumer_relations = Vec::new();
+        consumer_relations.try_reserve(cap).map_err(|_| ArtifactMismatch)?;
+        let mut consumer_relation_join_complete = true;
+        'consumer_drains: for (graph_index, graph) in self.solved.data.candidate_graph.iter().enumerate() {
+            if !direct_graphs.contains(&graph_index) { continue; }
+            let context = &graph.intrusion.effect_algebra.context;
+            for origin in &context.origins {
+                if origin.occurrence.occurrence() != forwarding_apply { continue; }
+                let Some(receipt) = origin.source_drain_receipt.as_ref() else {
+                    consumer_relation_join_complete = false;
+                    continue;
+                };
+                if &receipt.cause != native.checking_cause() {
+                    continue;
+                }
+                if !context.source_drain_completed(receipt) {
+                    consumer_relation_join_complete = false;
+                    continue;
+                }
+                // Replay children are separately attributed above and cannot
+                // stand in for this Apply's direct source consumer relation.
+                if receipt.replay_ack.is_some() || receipt.incoming_relation.is_some() {
+                    continue;
+                }
+                let relation = receipt.selected_relation.0 as usize;
+                let provider_capture_contains_relation = captures.iter().any(|capture|
+                    capture.graph_index == graph_index
+                        && capture.kind == CandidateProviderCaptureKind::CapturedBound
+                        && capture.relation == Some(receipt.selected_relation.0));
+                if receipt.created_seed != receipt.selected_relation
+                    || !reachable[graph_index].contains(&receipt.selected_relation)
+                    || !provider_capture_contains_relation
+                {
+                    consumer_relation_join_complete = false;
+                    continue;
+                }
+                if consumer_relations.len() == cap {
+                    consumer_relation_join_complete = false;
+                    break 'consumer_drains;
+                }
+                consumer_relations.push(CandidateSourceConsumerRelationRecord {
+                    graph_index, drain_index: receipt.drain_index, cause: &receipt.cause,
+                    task: source_drain_task(receipt.task), relation,
+                });
+            }
+        }
+        consumer_relation_join_complete &= consumer_relations.len() == 1
+            && provider_route_matches > 0 && capture_structure_complete && maps_complete;
         provider_route_complete &= provider_route_matches > 0;
         capture_bounds_complete &= origins_complete && facts_complete;
         if provider_route_matches == 0 { capture_bounds_complete = false; maps_complete = false; }
+        let direct_source_drain_attribution = if unavailable_origins != 0 || !origins_complete {
+            CandidateSourceAttributionStatus::Unknown
+        } else if direct_origins != 0 {
+            CandidateSourceAttributionStatus::DirectSourceDrain
+        } else if replay_origins != 0 {
+            CandidateSourceAttributionStatus::ReplayOnly
+        } else {
+            CandidateSourceAttributionStatus::Unknown
+        };
         Ok(CandidateSourceProviderObservation {
-            facts, origins, dependencies, captures, consumer, facts_complete, origins_complete,
+            facts, origins, dependencies, captures, consumer_relations, consumer, facts_complete, origins_complete,
             dependencies_complete, provider_route_complete, provider_route_matches,
             capture_bounds_complete, maps_complete,
-            direct_source_drain_attribution: CandidateSourceAttributionStatus::Unknown,
-            captures_structured: false,
-            maps_structured: false,
-            consumer_relation_join_complete: false,
+            direct_source_drain_attribution,
+            captures_structured: provider_route_matches > 0 && capture_structure_complete,
+            maps_structured: maps_complete && provider_route_matches > 0,
+            consumer_relation_join_complete,
         })
     }
     /// Indexed by original formal registration, including Value formals whose

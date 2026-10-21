@@ -12292,13 +12292,26 @@ impl InferenceSession {
             if let Some(frame) = self.candidate_graph.as_mut()
                 .and_then(|graph| graph.intrusion.effect_algebra.context.typed_drains.get_mut(index))
             {
-                frame.source_drain_receipt = Some(candidate_context::SourceDrainReceipt {
+                let receipt = candidate_context::SourceDrainReceipt {
+                    drain_index: index,
                     incoming_relation,
                     replay_ack: item.replay_ack,
                     created_seed,
                     selected_relation,
                     origin_index,
-                });
+                    task: item.task,
+                    cause: cause.clone(),
+                    completed: false,
+                };
+                frame.source_drain_receipt = Some(receipt.clone());
+                let context = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+                if let Some(origin) = context.origins.get_mut(origin_index)
+                    .filter(|origin| origin.relation == created_seed
+                        && &origin.occurrence == occurrence
+                        && origin.source_drain_receipt.is_none())
+                {
+                    origin.source_drain_receipt = Some(receipt);
+                }
             }
         }
         Ok(index)
@@ -12802,6 +12815,9 @@ impl InferenceSession {
         if let Some(ack) = context.typed_drains[index].replay_destination {
             let receipt = DrainCompletion { transitions: context.typed_drains[index].transitions };
             context.retain_replay_return(ack, index, receipt);
+        }
+        if let Some(receipt) = context.typed_drains[index].source_drain_receipt.clone() {
+            context.record_source_drain_completion(&receipt);
         }
         let frame = context.typed_drains.pop().unwrap();
         self.candidate_processing(frame.previous_processing);
