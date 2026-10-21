@@ -43,6 +43,9 @@ pub(super) struct MemberSchedule {
     /// Exact source role-member key when this root is a role default. An
     /// implementation body stays separately identified by its own root.
     pub role_member: Option<yu_hir::shadow::SourceRoleMemberId>,
+    /// Receiver input and body output remain distinct candidate endpoints;
+    /// a later selected use must freshen the body before linking these rows.
+    pub receiver: CandidateEndpoint,
     pub occurrence: HirOccurrenceId,
     pub components: ComponentPositions,
     pub value: CandidateEndpoint,
@@ -1817,6 +1820,10 @@ impl ConstraintBatch {
                 root: root.clone(), components: positions[body], value: endpoints[body], actions,
             });
         } else if let SourceRootId::Member(root) = owner {
+            let [receiver_parameter] = source.root_parameters() else { return Err(invalid()); };
+            let receiver = CandidateEndpoint::Parameter(
+                *parameters.get(&receiver_parameter.id).ok_or_else(invalid)?,
+            );
             self.candidate_source.members.try_reserve(1).map_err(|_| unavailable())?;
             self.candidate_source.members.push(MemberSchedule {
                 root: root.clone(), occurrence: source.expressions()[body].occurrence.clone(),
@@ -1830,7 +1837,7 @@ impl ConstraintBatch {
                     }),
                     yu_hir::SourceMemberKind::Implementation => None,
                 },
-                components: positions[body], value: endpoints[body], actions,
+                receiver, components: positions[body], value: endpoints[body], actions,
             });
         }
         self.candidate_source.active = true;
@@ -1916,7 +1923,10 @@ impl InferenceSession {
     pub(super) fn execute_candidate_member(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
         let schedule = self.batch.candidate_source.members.get(index).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
         let owner = SourceRootId::Member(schedule.root.clone());
+        let CandidateEndpoint::Parameter(receiver) = schedule.receiver else { return Err(SolveAvailabilityError::ReceiptMismatch); };
         if self.batch.candidate_source.source_owners.get(&schedule.occurrence) != Some(&owner)
+            || self.batch.parameter_recipes.get(receiver).is_none_or(|parameter| parameter.source_root() != &owner)
+            || self.batch.candidate_source.parameter_levels.get(&receiver).is_none()
             || !self.batch.candidate_source.component_levels.contains_key(&schedule.components.value)
             || !self.batch.candidate_source.component_levels.contains_key(&schedule.components.effect)
         { return Err(SolveAvailabilityError::ReceiptMismatch); }
@@ -2395,6 +2405,7 @@ mod member_source_tests {
             }
             let parameter = &source.root_parameters()[0];
             let position = batch.parameter_recipes.iter().position(|id| id == &parameter.id).unwrap();
+            assert!(matches!(schedule.receiver, CandidateEndpoint::Parameter(actual) if actual == position));
             assert!(matches!(schedule.value, CandidateEndpoint::Parameter(actual) if actual == position));
             assert_eq!(batch.candidate_source.parameter_levels.get(&position), Some(&1));
             assert!(batch.candidate_source.references.value_component(
