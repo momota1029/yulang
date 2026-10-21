@@ -1580,4 +1580,73 @@ my outer (q:[io] int) = {
                 "{case}: every started extrusion completes");
         }
     }
+
+    #[test]
+    fn r232_playground_samples_cross_owner_schedule_search() {
+        let samples = [
+            ("identity-island", include_str!("../../../../web/playground/examples/yulang2-identity-island.yu")),
+            ("ordinary-islands", include_str!("../../../../web/playground/examples/yulang2-ordinary-islands.yu")),
+            ("repeated-choice", include_str!("../../../../web/playground/examples/repeated-choice.yu")),
+            ("polymorphic-escaping-closure", include_str!("../../../../web/playground/examples/polymorphic-escaping-closure.yu")),
+        ];
+        let mut accepted = 0;
+        for (name, sample) in samples {
+            let source: Arc<SourceText> = Arc::from(sample);
+            let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+            assert!(parsed.structural_recoveries().is_empty(), "{name}: structural recovery");
+            let hir = Arc::new(lower_module_with_local_source(
+                ModuleIdentity::source_root(FileId::new(FileKey::new(format!("r232-{name}"), "sample.yu"))),
+                &parsed, SemanticImports::empty(),
+            ).unwrap());
+            crate::candidate_context::r148_trace_begin();
+            let candidate = CandidateInference::solve(hir).unwrap();
+            let trace = crate::candidate_context::r148_trace_finish();
+            if !candidate.solved.data.errors.is_empty() || !candidate.candidate_conflicts().is_empty() {
+                println!("R232 sample={name} candidate_accepted=false errors={} conflicts={}",
+                    candidate.solved.data.errors.len(), candidate.candidate_conflicts().len());
+                continue;
+            }
+            accepted += 1;
+            let solved = candidate.solved.data.candidate_graph.as_ref().unwrap();
+            assert!(solved.intrusion.forest_event_log_complete(), "{name}: complete alias history");
+            let writes = solved.intrusion.forest_events().iter().filter(|event| matches!(event,
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(_), .. }
+            )).collect::<Vec<_>>();
+            let merges = trace.iter().filter(|event| event.starts_with("row-merge copy=Effect(")).collect::<Vec<_>>();
+            assert_eq!(writes.len(), merges.len(), "{name}: ordered trace accounts for every effect merge");
+            let row_number = |event: &str, prefix: &str| event.strip_prefix(prefix)
+                .and_then(|rest| rest.split(|ch: char| !ch.is_ascii_digit()).next())
+                .and_then(|number| number.parse::<usize>().ok());
+            let raw_effect_bound = |event: &str| {
+                let raw = event.split("raw=BoundKey(Effect(EffectRow(").nth(1)?;
+                let (owner, rest) = raw.split_once(")), ")?;
+                let rest = rest.strip_prefix("Positive, Effect(EffectRow(")
+                    .or_else(|| rest.strip_prefix("Negative, Effect(EffectRow("))?;
+                let item = rest.split(")))").next()?;
+                Some((owner.parse::<usize>().ok()?, item.parse::<usize>().ok()?))
+            };
+            let mut representatives = (0..4096).collect::<Vec<usize>>();
+            let mut cross_owner_hits = Vec::new();
+            for event in &trace {
+                if event.starts_with("row-merge copy=Effect(") {
+                    let copy = row_number(event, "row-merge copy=Effect(").unwrap();
+                    let parent = row_number(event.split(" parent=").nth(1).unwrap(), "Effect(").unwrap();
+                    representatives[copy] = parent;
+                } else if event.starts_with("work-bound ") {
+                    if let Some((owner, item)) = raw_effect_bound(event) {
+                        let mut owner_root = owner;
+                        while representatives[owner_root] != owner_root { owner_root = representatives[owner_root]; }
+                        let mut item_root = item;
+                        while representatives[item_root] != item_root { item_root = representatives[item_root]; }
+                        if item_root != item && owner_root != item_root {
+                            cross_owner_hits.push((event.clone(), owner_root, item_root));
+                        }
+                    }
+                }
+            }
+            println!("R232 sample={name} candidate_accepted=true effect_merges={merges:?} work_bounds={:?} cross_owner_hits={cross_owner_hits:?}",
+                trace.iter().filter(|event| event.starts_with("work-bound ")).collect::<Vec<_>>());
+        }
+        assert_eq!(accepted, samples.len(), "every executable browser sample enters ordinary candidate inference");
+    }
 }
