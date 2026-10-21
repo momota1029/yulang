@@ -1,7 +1,7 @@
 //! Opt-in immutable source artifact. Syntax provenance carries no type or role judgment.
 use crate::{
     AssociationError, AssociationProvenance, DefinitionRootId, HirAvailabilityError, HirExpr,
-    HirModule, HirOccurrenceId, HirParameterId, ModuleIdentity, SemanticImports,
+    HirItem, HirModule, HirOccurrenceId, HirParameterId, ModuleIdentity, SemanticImports,
     associate_chain_owned_with_sources,
 };
 use crate::{range_of, range_of_token};
@@ -42,6 +42,149 @@ pub use crate::module::source_exports::{
     SourceUseFlattenError, SourceUseLeaf, SourceUseSelection, SourceUseTreeNode,
     flatten_use_declaration, resolve_public_export,
 };
+
+/// Exact provider-side declaration recovered from an authenticated source
+/// export resolution. This is a HIR ownership join only; it supplies no type,
+/// scheme, role-conformance, implementation-selection, or runtime judgment.
+#[derive(Clone, Copy, Debug)]
+pub enum SourceExportOwner<'a> {
+    Binding {
+        module: &'a HirModule,
+        binding: &'a crate::HirBinding,
+    },
+    Role {
+        module: &'a SourceRoleImplIndex,
+        declaration: &'a SourceRoleDeclaration,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceExportOwnerError {
+    MissingModule,
+    DuplicateModule,
+    StaleDeclaration,
+    UnsupportedDeclaration,
+    AmbiguousOwner,
+}
+
+/// Joins one resolver result to the exact declaration in a finite set of
+/// provider HIR modules. The resolution must come from `resolve_public_export`;
+/// this function checks the direct source owner and deliberately does not
+/// re-interpret its public import route.
+pub fn resolve_source_export_owner<'a>(
+    modules: &'a [Arc<HirModule>],
+    role_indexes: &'a [SourceRoleImplIndex],
+    resolution: &SourceExportResolution,
+) -> Result<SourceExportOwner<'a>, SourceExportOwnerError> {
+    let mut provider = None;
+    for module in modules {
+        let module_identity = module.identity();
+        if module_identity.file() != module_identity.module().file() {
+            continue;
+        }
+        let path = module_identity
+            .module()
+            .file()
+            .key()
+            .normalized_workspace_relative_path();
+        let path = path.strip_prefix("lib/").unwrap_or(path);
+        let Some(path) = path.strip_suffix(".yu") else {
+            continue;
+        };
+        let label = path.replace('/', "::");
+        if label != resolution.module.as_ref() {
+            continue;
+        }
+        if provider.replace(module.as_ref()).is_some() {
+            return Err(SourceExportOwnerError::DuplicateModule);
+        }
+    }
+    let declaration = &resolution.declaration;
+    if !declaration.public
+        || declaration.recovered
+        || declaration.name.as_deref() != Some(resolution.name.as_ref())
+        || declaration.namespace.as_ref() != resolution.module.as_ref()
+    {
+        return Err(SourceExportOwnerError::StaleDeclaration);
+    }
+
+    match declaration.kind {
+        SyntaxKind::BindingStatement => {
+            let provider = provider.ok_or(SourceExportOwnerError::MissingModule)?;
+            let mut found = None;
+            for item in provider.items() {
+                let HirItem::Binding(binding) = item else {
+                    continue;
+                };
+                if binding.visibility() != crate::HirVisibility::Public
+                    || binding.name().spelling() != resolution.name.as_ref()
+                    || binding.range() != &declaration.range
+                    || provider
+                        .definition_source_key(binding.definition_root())
+                        .ok()
+                        .flatten()
+                        != Some(&declaration.source)
+                {
+                    continue;
+                }
+                if found.replace(binding).is_some() {
+                    return Err(SourceExportOwnerError::AmbiguousOwner);
+                }
+            }
+            found
+                .map(|binding| SourceExportOwner::Binding {
+                    module: provider,
+                    binding,
+                })
+                .ok_or(SourceExportOwnerError::StaleDeclaration)
+        }
+        SyntaxKind::RoleDeclaration => {
+            let mut provider_role_index = None;
+            for index in role_indexes {
+                let path = index
+                    .module()
+                    .file()
+                    .key()
+                    .normalized_workspace_relative_path();
+                let path = path.strip_prefix("lib/").unwrap_or(path);
+                let Some(path) = path.strip_suffix(".yu") else {
+                    continue;
+                };
+                if path.replace('/', "::") != resolution.module.as_ref() {
+                    continue;
+                }
+                if provider_role_index.replace(index).is_some() {
+                    return Err(SourceExportOwnerError::DuplicateModule);
+                }
+            }
+            let provider_role_index = provider_role_index
+                .ok_or(SourceExportOwnerError::MissingModule)?;
+            let mut found = None;
+            for role in provider_role_index.roles() {
+                if role.visibility != crate::HirVisibility::Public
+                    || role.recovered
+                    || role.head.recovered
+                    || role.head.spelling.as_ref() != resolution.name.as_ref()
+                    || role.range != declaration.range
+                    || role.id.module.as_ref() != provider_role_index.module()
+                    || role.id.declaration != declaration.source
+                {
+                    continue;
+                }
+                if found.replace(role).is_some() {
+                    return Err(SourceExportOwnerError::AmbiguousOwner);
+                }
+            }
+            found
+                .map(|declaration| SourceExportOwner::Role {
+                    module: provider_role_index,
+                    declaration,
+                })
+                .ok_or(SourceExportOwnerError::StaleDeclaration)
+        }
+        _ => Err(SourceExportOwnerError::UnsupportedDeclaration),
+    }
+}
 
 /// Indexes declarations and lossless use-tree syntax with parse-owned source
 /// identities. This records import facts; it does not resolve their meaning.

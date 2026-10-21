@@ -715,14 +715,40 @@ mod tests {
     #[test]
     fn pinned_public_export_route_retains_source_owned_edges_and_names() {
         let mut indexed = std::collections::BTreeMap::new();
+        let mut provider_hirs = Vec::new();
+        let mut provider_role_indexes = Vec::new();
         let sources = pinned_stdlib::resolve_implicit_stdlib().unwrap();
         for source in sources.iter() {
-            let module = source.path.strip_prefix("lib/").unwrap().strip_suffix(".yu").unwrap().replace('/', "::");
+            let module = source
+                .path
+                .strip_prefix("lib/")
+                .unwrap()
+                .strip_suffix(".yu")
+                .unwrap()
+                .replace('/', "::");
             let environment = Arc::new(
                 pinned_stdlib::syntax_environment_for_source(source, &sources).unwrap(),
             );
             let inventory = pinned_stdlib::parse_role_inventory(&module, environment).unwrap();
             let index = index_source_exports(inventory.identity.clone(), &inventory.parsed).unwrap();
+            if matches!(source.path, "lib/std/io/console.yu" | "lib/std/core/fmt.yu") {
+                if source.path == "lib/std/io/console.yu" {
+                    provider_hirs.push(Arc::new(
+                        yu_hir::shadow::lower_module_with_source_identity(
+                            inventory.identity.clone(),
+                            &inventory.parsed,
+                            yu_hir::SemanticImports::empty(),
+                        )
+                        .unwrap_or_else(|error| panic!("{}: {error:?}", source.path)),
+                    ));
+                }
+                if source.path == "lib/std/core/fmt.yu" {
+                    provider_role_indexes.push(
+                        index_role_impl_sources(inventory.identity.clone(), &inventory.parsed)
+                            .unwrap_or_else(|error| panic!("{}: {error:?}", source.path)),
+                    );
+                }
+            }
             assert_eq!(index.module, *inventory.identity.module());
             assert!(index.uses.iter().all(|item| {
                 inventory.parsed.owns_source_key(&item.source)
@@ -732,11 +758,21 @@ mod tests {
                 inventory.parsed.owns_source_key(&item.source)
                     && inventory.source.text.get(item.range.clone()) == Some(item.text.as_ref())
             }));
-            assert!(indexed.insert(module, index).is_none(), "duplicate pinned module {}", source.path);
+            assert!(
+                indexed.insert(module, index).is_none(),
+                "duplicate pinned module {}",
+                source.path
+            );
         }
 
         assert_eq!(indexed.len(), 40);
-        let use_texts = |module: &str| indexed[module].uses.iter().map(|item| item.text.as_ref()).collect::<Vec<_>>();
+        let use_texts = |module: &str| {
+            indexed[module]
+                .uses
+                .iter()
+                .map(|item| item.text.as_ref())
+                .collect::<Vec<_>>()
+        };
         assert!(use_texts("std::prelude").iter().any(|text| text.contains("pub use std::core::fmt::*")));
         assert!(use_texts("std::prelude").iter().any(|text| text.contains("pub use std::io::*")));
         assert!(use_texts("std::io").iter().any(|text| text.contains("pub use std::io::console::*")));
@@ -775,17 +811,105 @@ mod tests {
         assert_eq!(display.module.as_ref(), "std::core::fmt");
         assert_eq!(display.declaration.name.as_deref(), Some("Display"));
         assert_eq!(display.route.len(), 1);
-        assert_eq!(display.route[0].path.iter().map(AsRef::as_ref).collect::<Vec<_>>(), ["std", "core", "fmt"]);
+        assert_eq!(
+            display.route[0]
+                .path
+                .iter()
+                .map(AsRef::as_ref)
+                .collect::<Vec<_>>(),
+            ["std", "core", "fmt"]
+        );
         let say = resolve_public_export(&indexes, "std::prelude", "say").unwrap();
         assert_eq!(say.module.as_ref(), "std::io::console");
         assert_eq!(say.declaration.name.as_deref(), Some("say"));
         assert_eq!(say.route.len(), 2);
-        assert_eq!(say.route[0].path.iter().map(AsRef::as_ref).collect::<Vec<_>>(), ["std", "io"]);
-        assert_eq!(say.route[1].path.iter().map(AsRef::as_ref).collect::<Vec<_>>(), ["std", "io", "console"]);
+        assert_eq!(
+            say.route[0]
+                .path
+                .iter()
+                .map(AsRef::as_ref)
+                .collect::<Vec<_>>(),
+            ["std", "io"]
+        );
+        assert_eq!(
+            say.route[1]
+                .path
+                .iter()
+                .map(AsRef::as_ref)
+                .collect::<Vec<_>>(),
+            ["std", "io", "console"]
+        );
         let println = resolve_public_export(&indexes, "std::prelude", "println").unwrap();
         assert_eq!(println.module.as_ref(), "std::io::console");
         assert_eq!(println.declaration.name.as_deref(), Some("println"));
         assert_eq!(println.route.len(), 2);
+
+        for resolution in [
+            resolve_public_export(&indexes, "std::prelude", "println").unwrap(),
+            display,
+        ] {
+            match yu_hir::shadow::resolve_source_export_owner(
+                &provider_hirs,
+                &provider_role_indexes,
+                &resolution,
+            )
+            .unwrap_or_else(|error| panic!("{}: {error:?}", resolution.name))
+            {
+                yu_hir::shadow::SourceExportOwner::Binding { module, binding } => {
+                    assert_eq!(binding.name().spelling(), resolution.name.as_ref());
+                    assert_eq!(binding.visibility(), yu_hir::HirVisibility::Public);
+                    assert_eq!(
+                        module
+                            .identity()
+                            .module()
+                            .file()
+                            .key()
+                            .normalized_workspace_relative_path(),
+                        "lib/std/io/console.yu",
+                    );
+                }
+                yu_hir::shadow::SourceExportOwner::Role { module, declaration } => {
+                    assert_eq!(declaration.head.spelling.as_ref(), resolution.name.as_ref());
+                    assert_eq!(declaration.visibility, yu_hir::HirVisibility::Public);
+                    assert_eq!(
+                        module.module().file().key().normalized_workspace_relative_path(),
+                        "lib/std/core/fmt.yu",
+                    );
+                }
+            }
+        }
+        let say = resolve_public_export(&indexes, "std::prelude", "say").unwrap();
+        assert!(
+            matches!(
+                yu_hir::shadow::resolve_source_export_owner(
+                    &provider_hirs,
+                    &provider_role_indexes,
+                    &say,
+                ),
+                Err(yu_hir::shadow::SourceExportOwnerError::StaleDeclaration)
+            ),
+            "the pinned say source declaration is exported but has no admitted binding owner in provider HIR",
+        );
+        let mut stale_println =
+            resolve_public_export(&indexes, "std::prelude", "println").unwrap();
+        stale_println.declaration.range.start += 1;
+        assert!(matches!(
+            yu_hir::shadow::resolve_source_export_owner(
+                &provider_hirs,
+                &provider_role_indexes,
+                &stale_println,
+            ),
+            Err(yu_hir::shadow::SourceExportOwnerError::StaleDeclaration)
+        ));
+        let println = resolve_public_export(&indexes, "std::prelude", "println").unwrap();
+        assert!(matches!(
+            yu_hir::shadow::resolve_source_export_owner(
+                &[provider_hirs[0].clone(), provider_hirs[0].clone()],
+                &provider_role_indexes,
+                &println,
+            ),
+            Err(yu_hir::shadow::SourceExportOwnerError::DuplicateModule)
+        ));
     }
 
     #[test]
