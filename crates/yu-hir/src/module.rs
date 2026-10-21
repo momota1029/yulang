@@ -126,49 +126,62 @@ fn resolve_implicit_prelude_imports(
     identity: &ModuleIdentity,
     indexes: &[source_exports::SourceExportIndex],
 ) -> Result<(yu_syntax::SourceNodeKey, HashMap<Box<str>, source_exports::SourceImportBinding>), HirAvailabilityError> {
+    resolve_implicit_prelude_imports_selected(parsed, identity, indexes, None)
+}
+
+fn resolve_implicit_prelude_imports_selected(
+    parsed: &ParsedFile,
+    identity: &ModuleIdentity,
+    indexes: &[source_exports::SourceExportIndex],
+    selected_names: Option<&std::collections::BTreeSet<Box<str>>>,
+) -> Result<(yu_syntax::SourceNodeKey, HashMap<Box<str>, source_exports::SourceImportBinding>), HirAvailabilityError> {
     if identity.file != *identity.module.file() {
         return Err(HirAvailabilityError::InconsistentIdentity);
     }
     let parse_root = parsed.source_root().key();
     let root = SyntaxNode::new_root(parsed.green().clone());
     let mut requested = std::collections::BTreeSet::<Box<str>>::new();
-    for node in root
-        .descendants()
-        .filter(|node| node.kind() == SyntaxKind::IdentifierExpression)
-    {
-        if let Some(name) = node
-            .children_with_tokens()
-            .filter_map(|element| element.into_token())
-            .find(|token| token.kind() == SyntaxKind::Identifier)
+    if let Some(selected) = selected_names {
+        requested.extend(selected.iter().cloned());
+    } else {
+        for node in root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::IdentifierExpression)
         {
-            requested.insert(name.text().into());
+            if let Some(name) = node
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::Identifier)
+            {
+                requested.insert(name.text().into());
+            }
         }
-    }
-    for clause in root
-        .descendants()
-        .filter(|node| node.kind() == SyntaxKind::WhereClause)
-    {
-        let mut parts = clause.children_with_tokens().filter(|element| {
-            !matches!(
-                element.kind(),
-                SyntaxKind::Whitespace
-                    | SyntaxKind::Newline
-                    | SyntaxKind::LineComment
-                    | SyntaxKind::BlockComment
-            )
-        });
-        let _keyword = parts.next();
-        let _subject = parts.next();
-        let _colon = parts.next();
-        let Some(role) = parts.next().and_then(|element| element.into_node()) else {
-            continue;
-        };
-        if let Some(name) = role
-            .descendants_with_tokens()
-            .filter_map(|element| element.into_token())
-            .find(|token| token.kind() == SyntaxKind::Identifier)
+        for clause in root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::WhereClause)
         {
-            requested.insert(name.text().into());
+            let mut parts = clause.children_with_tokens().filter(|element| {
+                !matches!(
+                    element.kind(),
+                    SyntaxKind::Whitespace
+                        | SyntaxKind::Newline
+                        | SyntaxKind::LineComment
+                        | SyntaxKind::BlockComment
+                )
+            });
+            let _keyword = parts.next();
+            let _subject = parts.next();
+            let _colon = parts.next();
+            let Some(role) = parts.next().and_then(|element| element.into_node()) else {
+                continue;
+            };
+            if let Some(name) = role
+                .descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::Identifier)
+            {
+                requested.insert(name.text().into());
+            }
         }
     }
     let mut names = HashMap::new();
@@ -194,6 +207,15 @@ fn resolve_source_imports(
     parsed: &ParsedFile,
     identity: &ModuleIdentity,
     indexes: &[source_exports::SourceExportIndex],
+) -> Result<(yu_syntax::SourceNodeKey, HashMap<Box<str>, source_exports::SourceImportBinding>), HirAvailabilityError> {
+    resolve_source_imports_selected(parsed, identity, indexes, None)
+}
+
+fn resolve_source_imports_selected(
+    parsed: &ParsedFile,
+    identity: &ModuleIdentity,
+    indexes: &[source_exports::SourceExportIndex],
+    selected_names: Option<&std::collections::BTreeSet<Box<str>>>,
 ) -> Result<(yu_syntax::SourceNodeKey, HashMap<Box<str>, source_exports::SourceImportBinding>), HirAvailabilityError> {
     use source_exports::{SourceImportBinding, SourceUseSelection};
 
@@ -259,7 +281,9 @@ fn resolve_source_imports(
                     // Resolve only names observed in pinned declaration indexes. A name with
                     // more than one source route remains explicitly ambiguous.
                     for candidate in &available {
-                        if !excluded.contains(candidate) {
+                        if !excluded.contains(candidate)
+                            && selected_names.is_none_or(|selected| selected.contains(candidate))
+                        {
                             let resolved = match source_exports::resolve_public_export(indexes, &target, candidate) {
                                 Ok(value) => Some(SourceImportBinding::Resolved(value)),
                                 Err(source_exports::SourceExportResolveError::MissingExport { .. }) => None,
@@ -276,6 +300,7 @@ fn resolve_source_imports(
             };
             let selected = selected.expect("named use has selected name");
             let exposed = exposed.expect("named use has exposed name");
+            if selected_names.is_some_and(|names| !names.contains(&exposed)) { continue; }
             let resolved = match source_exports::resolve_public_export(indexes, &target, &selected) {
                 Ok(value) => SourceImportBinding::Resolved(value),
                 Err(source_exports::SourceExportResolveError::MissingExport { .. }) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
@@ -288,10 +313,42 @@ fn resolve_source_imports(
     }
     // The prelude is implicit in Yulang2 modules. Explicit imports already
     // occupy their local names and therefore shadow the prelude binding.
-    let (prelude_root, prelude) = resolve_implicit_prelude_imports(parsed, identity, indexes)?;
+    let (prelude_root, prelude) = resolve_implicit_prelude_imports_selected(parsed, identity, indexes, selected_names)?;
     debug_assert_eq!(parse_root, prelude_root);
     for (name, binding) in prelude { names.entry(name).or_insert(binding); }
     Ok((parse_root, names))
+}
+
+#[cfg(any(feature = "shadow", test))]
+fn selected_direct_root_names(
+    parsed: &ParsedFile,
+    selected_roots: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
+) -> Result<std::collections::BTreeSet<Box<str>>, HirAvailabilityError> {
+    if selected_roots.iter().any(|root| !parsed.owns_source_key(root)) {
+        return Err(HirAvailabilityError::ForeignSourceImport);
+    }
+    let source_nodes = crate::source_identity::try_source_keys(parsed)?;
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    let mut found = std::collections::HashSet::new();
+    let mut names = std::collections::BTreeSet::new();
+    for node in root.children() {
+        let Some(key) = source_nodes.get(&node) else {
+            return Err(HirAvailabilityError::StructuralProjection);
+        };
+        if !selected_roots.contains(key) { continue; }
+        found.insert(key.clone());
+        for element in node.descendants_with_tokens() {
+            if element.kind() == SyntaxKind::Identifier {
+                if let Some(token) = element.into_token() {
+                    names.insert(token.text().into());
+                }
+            }
+        }
+    }
+    if found.len() != selected_roots.len() {
+        return Err(HirAvailabilityError::StructuralProjection);
+    }
+    Ok(names)
 }
 
 impl SemanticImports {
@@ -328,6 +385,27 @@ impl SemanticImports {
         indexes: &[source_exports::SourceExportIndex],
     ) -> Result<Self, HirAvailabilityError> {
         let (parse_root, names) = resolve_source_imports(parsed, identity, indexes)?;
+        Ok(Self {
+            caller_evidence: None,
+            source_imports: Some(source_exports::SourceImportEnvironment::new(
+                parse_root, identity.clone(), names,
+            )),
+        })
+    }
+
+    /// Resolves only names appearing in selected parse-owned direct roots.
+    /// Pair this environment with `lower_module_with_selected_local_source`
+    /// using the same root set so omitted module imports are not mistaken for
+    /// unresolved names in roots that were deliberately projected away.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn with_selected_source_imports(
+        parsed: &ParsedFile,
+        identity: &ModuleIdentity,
+        indexes: &[source_exports::SourceExportIndex],
+        selected_roots: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
+    ) -> Result<Self, HirAvailabilityError> {
+        let selected_names = selected_direct_root_names(parsed, selected_roots)?;
+        let (parse_root, names) = resolve_source_imports_selected(parsed, identity, indexes, Some(&selected_names))?;
         Ok(Self {
             caller_evidence: None,
             source_imports: Some(source_exports::SourceImportEnvironment::new(
@@ -3682,6 +3760,28 @@ mod tests {
             ),
             Err(HirAvailabilityError::StructuralProjection),
         );
+    }
+
+    #[test]
+    fn selected_source_imports_skip_unused_import_leaves() {
+        let indexes = vec![
+            indexed("lib/std.yu", "pub mod core;\npub mod prelude;"),
+            indexed("lib/std/core.yu", "pub id x = x"),
+            indexed("lib/std/prelude.yu", ""),
+        ];
+        let parsed = parsed("use std::core::missing\npub selected = 1");
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("test", "selected.yu")));
+        let roots = parsed.source_root().children().collect::<Vec<_>>();
+        let selected = [roots[1].key()].into_iter().collect::<std::collections::HashSet<_>>();
+
+        assert_eq!(
+            SemanticImports::with_source_imports(&parsed, &identity, &indexes).unwrap_err(),
+            HirAvailabilityError::SourceImportResolutionUnavailable,
+        );
+        let imports = SemanticImports::with_selected_source_imports(&parsed, &identity, &indexes, &selected).unwrap();
+        let hir = lower_module_with_selected_local_source(identity, &parsed, imports, selected).unwrap();
+        assert_eq!(hir.items().len(), 1);
+        assert!(hir.errors().is_empty());
     }
 
     #[test]

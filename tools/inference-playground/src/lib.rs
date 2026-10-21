@@ -538,7 +538,7 @@ mod tests {
     use super::output;
     use yu_hir::shadow::{
         LocalSourceForm, index_role_impl_sources, index_source_exports,
-        lower_module_with_local_source, resolve_public_export,
+        lower_module_with_local_source, lower_module_with_selected_local_source, resolve_public_export,
     };
     use yu_hir::{FileId, FileKey, HirItem, HirOccurrenceId, HirModule, ModuleIdentity, SemanticImports, SourceRootId};
     use yu_solver::shadow_apply::CandidateInference;
@@ -1259,6 +1259,43 @@ mod tests {
             modules.len(), roles.len(), recovered_roles, implementations.len(),
             recovered_implementations, recovered_paths, diagnostic_count
         );
+    }
+
+    #[test]
+    fn pinned_int_add_lowers_from_its_exact_selected_source_root() {
+        let sources = pinned_stdlib::resolve_implicit_stdlib().unwrap();
+        let mut parsed_sources = Vec::new();
+        let mut indexes = Vec::new();
+        for source in sources.iter() {
+            let text: Arc<SourceText> = Arc::from(source.text);
+            let parsed = parse_file(
+                text.clone(),
+                Arc::new(scan_header(text)),
+                Arc::new(pinned_stdlib::syntax_environment_for_source(source, &sources).unwrap()),
+            );
+            let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("pinned-yulang2", source.path)));
+            indexes.push(index_source_exports(identity.clone(), &parsed).unwrap());
+            parsed_sources.push((source.path, identity, parsed));
+        }
+        let export = resolve_public_export(&indexes, "std::int", "add").unwrap();
+        let (path, identity, parsed) = parsed_sources.iter().find(|(path, _, _)| *path == "lib/std/int.yu").unwrap();
+        assert_eq!(*path, "lib/std/int.yu");
+        assert_eq!(export.declaration.text.trim(), "pub add: int -> int -> int = builtin_op::int_add");
+        let selected = [export.declaration.source.clone()].into_iter().collect::<std::collections::HashSet<_>>();
+        let imports = SemanticImports::with_selected_source_imports(parsed, identity, &indexes, &selected).unwrap();
+        assert!(imports.source_imports().unwrap().resolve("builtin_op").is_none());
+        let projected = lower_module_with_selected_local_source(identity.clone(), parsed, imports, selected).unwrap();
+        assert_eq!(projected.items().len(), 1);
+        let HirItem::Binding(binding) = &projected.items()[0] else { panic!("selected export remains a binding") };
+        assert_eq!(binding.name().spelling(), "add");
+        assert!(projected.local_source(binding.definition_root()).unwrap().is_some());
+        assert!(projected.errors().iter().all(|error| !matches!(error.attachment(), yu_hir::HirErrorAttachment::Module)));
+        assert!(projected.errors().iter().all(|error| error.kind() != yu_hir::HirErrorKind::UnresolvedName), "selected imported names stay source-resolved: {:?}", projected.errors());
+        let local = projected.local_source(binding.definition_root()).unwrap().unwrap();
+        assert!(local.expressions().iter().any(|expression| matches!(
+            &expression.form,
+            LocalSourceForm::Operation { resolution: yu_hir::shadow::SourceOperationResolution::Unresolved },
+        )), "the original builtin_op::int_add owner remains unresolved rather than receiving a guessed intrinsic");
     }
 
 
