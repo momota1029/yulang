@@ -1049,6 +1049,124 @@ my outer (q:[io] int) = {
     }
 
     #[test]
+    fn r223_local_apply_provider_route_rows() {
+        const SOURCE: &str = r#"act io:
+    our tick: int -> int
+
+my outer (q:[io] int) = {
+    my loop (x:[io] int) = {
+        my direct = loop x
+        my helper (y:[io] int) = loop y
+        helper x
+    }
+    my repeat (f:[io] int -> int) (z:[io] int) = {
+        my first = f z
+        f z
+    }
+    repeat loop q
+}"#;
+        let source: Arc<SourceText> = Arc::from(SOURCE);
+        let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+        let hir = Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("r223-provider-route", "source.yu"))),
+            &parsed, SemanticImports::empty(),
+        ).unwrap());
+        let outer = binding(&hir, "outer");
+        let local = hir.local_source(outer.definition_root()).unwrap().unwrap();
+        let loop_id = local.bindings().iter().find(|binding| binding.spelling.as_ref() == "loop").unwrap().id.clone();
+        let repeat_id = local.bindings().iter().find(|binding| binding.spelling.as_ref() == "repeat").unwrap().id.clone();
+        let candidate = CandidateInference::solve(hir).unwrap();
+        assert!(candidate.solved.data.errors.is_empty());
+        assert!(candidate.candidate_conflicts().is_empty());
+        let solved = candidate.solved.data.candidate_graph.as_ref().unwrap();
+        let actual_loop = solved.local_routes.iter().find(|route|
+            route.occurrence.ordinal() == 28 && route.local == loop_id).expect("actual loop Name LocalFreshRoute");
+        let repeat = solved.local_routes.iter().find(|route|
+            route.occurrence.ordinal() == 27 && route.local == repeat_id).expect("repeat callee Name LocalFreshRoute");
+        assert!(actual_loop.authentic_use_instance());
+        assert!(repeat.authentic_use_instance());
+        let describe = |route: &crate::candidate_scheme::LocalFreshRoute| {
+            route.graph.rows.iter().zip(&route.rows).map(|(source, image)| (source.key, *image)).collect::<Vec<_>>()
+        };
+        let actual_rows = describe(actual_loop);
+        let repeat_rows = describe(repeat);
+        let actual_slot4 = actual_loop.graph.rows.iter().position(|row| row.key == crate::candidate_scheme::RowKey::Effect(41))
+            .map(|index| actual_loop.rows[index]);
+        let repeat_formal_item = repeat.graph.rows.iter().position(|row| row.key == crate::candidate_scheme::RowKey::Effect(31))
+            .map(|index| repeat.rows[index]);
+        assert_eq!(actual_slot4, Some(crate::candidate_scheme::RowKey::Effect(69)));
+        assert_eq!(repeat_formal_item, Some(crate::candidate_scheme::RowKey::Effect(57)));
+        let actual_bounds = actual_loop.graph.bounds.iter().filter(|bound| {
+            matches!(bound.source_bound,
+                crate::candidate_effect::BoundKey(
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(41)), _, _)
+                | crate::candidate_effect::BoundKey(
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_)), _,
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(41))))
+        }).map(|bound| (bound.source_bound, bound.relation)).collect::<Vec<_>>();
+        let repeat_bounds = repeat.graph.bounds.iter().filter(|bound| {
+            matches!(bound.source_bound,
+                crate::candidate_effect::BoundKey(
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(31)), _, _)
+                | crate::candidate_effect::BoundKey(
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_)), _,
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(31))))
+        }).map(|bound| (bound.source_bound, bound.relation)).collect::<Vec<_>>();
+        println!("R223 actual_loop_occurrence=28 rows={actual_rows:?} slot4_item_image={actual_slot4:?} bounds={actual_bounds:?}");
+        println!("R223 repeat_callee_occurrence=27 rows={repeat_rows:?} callback_item_image={repeat_formal_item:?} bounds={repeat_bounds:?}");
+        println!("R223 roots actual_loop={:?} repeat={:?} node_counts=({}, {})",
+            actual_loop.graph.nodes[actual_loop.graph.root], repeat.graph.nodes[repeat.graph.root],
+            actual_loop.graph.nodes.len(), repeat.graph.nodes.len());
+        println!("R223 graph_intrusion_effect_rows={}", solved.intrusion.forest_snapshot().unwrap().effects.len());
+        println!("R223 mapped_route_effect_representatives actual_slot4={} repeat_formal={}",
+            solved.intrusion.effect_rep(69), solved.intrusion.effect_rep(57));
+        let actual_use = candidate.fresh_use(&actual_loop.occurrence).unwrap();
+        let slot4_source_row = actual_loop.graph.rows.iter().find(|row| row.key == crate::candidate_scheme::RowKey::Effect(41)).unwrap();
+        let slot4_fresh_row = actual_use.rows().find(|row| row.source_row().same_identity(crate::shadow_apply::CandidateGraphRow {
+            state: solved, graph: &actual_loop.graph, index: actual_loop.graph.rows.iter().position(|candidate_row|
+                std::ptr::eq(candidate_row, slot4_source_row)).unwrap(),
+        })).unwrap();
+        let mapped_identity_self_check = std::panic::catch_unwind(std::panic::AssertUnwindSafe(||
+            slot4_fresh_row.same_identity(&slot4_fresh_row)));
+        println!("R223 mapped_fresh_row_identity_self_check={:?}", mapped_identity_self_check);
+        let function_ports = |route: &crate::candidate_scheme::LocalFreshRoute| {
+            route.graph.nodes.iter().enumerate().filter_map(|(index, node)| {
+                let crate::candidate_scheme::Node::Function { polarity, children } = node else { return None; };
+                let ports = children.map(|child| match route.graph.nodes[child] {
+                    crate::candidate_scheme::Node::Row { row, polarity } => Some((route.graph.rows[row].key, polarity)),
+                    _ => None,
+                });
+                Some((index, *polarity, ports))
+            }).collect::<Vec<_>>()
+        };
+        let provider_apply = candidate.solved.data.candidate_calls.calls.iter().find(|call|
+            call.checking.occurrence().ordinal() == 26).unwrap();
+        let provider_apply_index = candidate.solved.data.candidate_calls.calls.iter().position(|call|
+            call.checking.occurrence().ordinal() == 26).unwrap();
+        println!("R223 apply_constructor local_callee={:?} formal_name={:?} argument_endpoint={:?} native={:?}",
+            provider_apply.local_callee, provider_apply.formal_name, provider_apply.argument_value, provider_apply.native);
+        assert!(provider_apply.local_callee.is_none());
+        assert!(provider_apply.formal_name.is_none());
+        println!("R223 actual_loop_function_ports={:?}", function_ports(actual_loop));
+        println!("R223 repeat_function_ports={:?}", function_ports(repeat));
+        let context = &solved.intrusion.effect_algebra.context;
+        let provider_replay_rows = context.replay_demand_rows().filter(|row| row.call == provider_apply_index).collect::<Vec<_>>();
+        println!("R223 provider_replay_rows={provider_replay_rows:?}");
+        assert!(provider_replay_rows.is_empty());
+        for replay in provider_replay_rows {
+            println!("R223 replay_lineage lower={:?} child={:?} upper={:?}",
+                context.test_relation_lineage(replay.lower), context.test_relation_lineage(replay.child),
+                context.test_relation_lineage(replay.upper));
+            let port_edges = context.observed_dependencies().filter_map(|dependency| {
+                let crate::candidate_context::Dependency::FunctionPort { child, parent, field, operation } = *dependency else { return None; };
+                (parent == replay.child).then_some((child, parent, field, operation,
+                    context.relation_pair(child), context.test_relation_lineage(child)))
+            }).collect::<Vec<_>>();
+            println!("R223 replay_function_port_edges={port_edges:?}");
+        }
+    }
+
+    #[test]
     fn r221_higher_order_loop_callback_reachability() {
         const SOURCE: &str = r#"act io:
     our tick: int -> int

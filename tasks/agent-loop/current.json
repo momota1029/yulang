@@ -4,22 +4,22 @@
  "phase": "ACTIVE",
  "session": "current-conversation-2026-10-21-r218",
  "active_sprint": {
-   "id": "higher-order-provider-formal-bridge-20261021-r222",
+   "id": "higher-order-local-apply-provider-route-20261021-r223",
    "status": "CLOSED_SOURCE_NATIVE_EVIDENCE",
-   "contract": "tasks/agent-loop/sprints/higher-order-provider-formal-bridge-20261021-r222.md",
-   "contract_sha256": "26436cbc8f33e1004c1da7a388f40719d0ae161932871c725643c9643122731a",
-   "baseline": "d373418b0",
+   "contract": "tasks/agent-loop/sprints/higher-order-local-apply-provider-route-20261021-r223.md",
+   "contract_sha256": "f82508ca82206b719de2167467c38d84f31d9e221aa4f9f3cde0ea31a13e91a7",
+   "baseline": "d79c07773",
    "resources": {
       "cap_seconds": 600,
       "charged_seconds": 600,
       "reserved_seconds": 0,
       "no_carryover": true
      },
-   "proof": "Trace whether the actual loop provider is source/native-related to the callback formal Work::Bound item.",
-   "implementation": "One focused read-only source/term/route observation using existing records.",
-   "review_receipt": "Solo primary; no independent review claimed.",
-   "next_action": "Trace repeat loop call to f Work::Bound.",
-   "closure": "Bridge absent; R71/R72 OPEN.",
+   "proof": "Join loop row41 to f consumer, or identify missing edge.",
+   "implementation": "Test-only route readback.",
+   "review_receipt": "Solo; no independent review.",
+   "next_action": "Trace Apply 26 to f WorkBound.",
+   "closure": "R223: no Apply-to-formal edge.",
    "handoff_sha256": null
   },
  "workers": [
@@ -67,7 +67,7 @@
    {"path":"notes/design/2026-10-21-r187-option-b-implementation-contract.md","owner":"/root","state":"HELD","reason":"R"},
    {"path":"tasks/agent-loop/inbox/20261021-r187-implementation.md","owner":"/root","state":"HELD","reason":"R"},
    {"path":"crates/yu-solver/src/shadow_apply.rs","owner":"/root","state":"HELD","reason":"R215 test-only initialization of bounded Capture snapshot field; no production change."},
-   {"path":"crates/yu-solver/src/shadow_apply/local_source_observation.rs","owner":"/root","state":"HELD","reason":"R218-R222 bounded source route observations; Luna primary."},
+   {"path":"crates/yu-solver/src/shadow_apply/local_source_observation.rs","owner":"/root","state":"HELD","reason":"R223 bounded retained Local Apply/provider route readback."},
    {"path":"tasks/agent-loop/sprints/source-qualified-capture-frontier-witness-20261021-r213.md","owner":"/root","state":"FROZEN","reason":"R213 closed."},
    {"path":"notes/theory/2026-10-21-r213-source-qualified-capture-frontier-witness.md","owner":"/root","state":"FROZEN","reason":"R213 closed."},
    {"path":"notes/progress/2026-10-21-r202-r212-capture-frontier-audit.md","owner":"/root","state":"FROZEN","reason":"R213 closed."},
@@ -81,7 +81,9 @@
    {"path":"tasks/agent-loop/sprints/higher-order-loop-callback-reachability-20261021-r221.md","owner":"/root","state":"HELD","reason":"R221 exact higher-order source probe."},
    {"path":"notes/theory/2026-10-21-r221-higher-order-loop-callback-reachability.md","owner":"/root","state":"HELD","reason":"R221 source/native result."},
    {"path":"tasks/agent-loop/sprints/higher-order-provider-formal-bridge-20261021-r222.md","owner":"/root","state":"FROZEN","reason":"R222."},
-   {"path":"notes/theory/2026-10-21-r222-higher-order-provider-formal-bridge.md","owner":"/root","state":"FROZEN","reason":"R222."}
+   {"path":"notes/theory/2026-10-21-r222-higher-order-provider-formal-bridge.md","owner":"/root","state":"FROZEN","reason":"R222."},
+   {"path":"tasks/agent-loop/sprints/higher-order-local-apply-provider-route-20261021-r223.md","owner":"/root","state":"FROZEN","reason":"R223."},
+   {"path":"notes/theory/2026-10-21-r223-local-apply-provider-route.md","owner":"/root","state":"FROZEN","reason":"R223."}
   ],
  "pending": [
    {"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna; original whole-ascription formation obligation","details":"tasks/agent-loop/inbox/20261019-r61-proof.md"},
@@ -96,8 +98,8 @@
    {"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage","details":"OPEN. R218-R221 cases do not produce slot-4 merge/copy; R221 WorkBound is callback-formal-owned. Provider lineage gap remains."},
    {"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"STOPPED_UNFROZEN_RESULT","owner":"Luna intake","details":"Worker interrupted 10:44:04Z"}
   ],
- "closure": "R222 bridge OPEN.",
- "next_action": "Trace repeat loop call to f Work::Bound.",
+ "closure": "R223: no Apply-to-formal edge.",
+ "next_action": "Trace Apply 26 to f WorkBound.",
  "legacy_reconciliation": {
    "required": false,
    "reason": "3 U; no reclaim.",
@@ -113,11 +115,12 @@
    {"id":"R216","archive":"notes/theory/2026-10-21-r216-capture-reverse-owner-bound-readback.md","archive_sha256":"ebb6fe85efc12322136c33f112c7cc6f0ef1ddfc352ce15f44c63bc6408114fc","contract":"tasks/agent-loop/sprints/capture-reverse-owner-bound-readback-20261021-r216.md","charged_seconds":20,"checks":"filtered local-source test passed; source-path inspection"},
    {"id":"R217","archive":"notes/theory/2026-10-21-r217-capture-reverse-owner-frontier.md","archive_sha256":"d3600a814f9130fe887675af1b41a3ac157628fad8a25cf49118d67dd8cc0e0f","contract":"tasks/agent-loop/sprints/capture-reverse-owner-frontier-20261021-r217.md","charged_seconds":120,"checks":"Capture 1 pass; playground pass; solver lib: 3 failures by 77/732, stalled >90s; no dispatcher per user instruction."},
    {"id":"R215","archive":"notes/theory/2026-10-21-r215-capture-predecessor-effect-row-readback.md","archive_sha256":"2f65dc442770da5e5f7715d36a8b63a76e9b4ff1ad0a72d63e961b3e92b4e736","contract":"tasks/agent-loop/sprints/capture-predecessor-effect-row-readback-20261021-r215.md","contract_sha256":"c187db7762214cc9b26ed3686ee22b79d75a607314246a881c04633fec52cd05","charged_seconds":18,"checks":"Capture/playground pass; solver lib 3 failures by 77/732, stalled >90s; no dispatcher per user instruction."},
-   {"id":"R218","archive":"notes/theory/2026-10-21-r218-r72-exact-source-execution.md","contract":"tasks/agent-loop/sprints/r72-exact-source-execution-and-owner-trace-20261021-r218.md","charged_seconds":0,"checks":"focused R218, playground, sprint check, and 57 tooling tests passed"},
-   {"id":"R219","archive":"notes/theory/2026-10-21-r219-repeated-loop-source-reachability.md","contract":"tasks/agent-loop/sprints/repeated-loop-source-reachability-20261021-r219.md","charged_seconds":0,"checks":"focused R219, playground, sprint check, and 57 tooling tests passed"},
-   {"id":"R220","archive":"notes/theory/2026-10-21-r220-repeated-loop-fresh-use-route.md","contract":"tasks/agent-loop/sprints/repeated-loop-fresh-use-route-20261021-r220.md","charged_seconds":0,"checks":"focused R220, playground, sprint check, and 57 tooling tests passed"},
-   {"id":"R221","archive":"notes/theory/2026-10-21-r221-higher-order-loop-callback-reachability.md","contract":"tasks/agent-loop/sprints/higher-order-loop-callback-reachability-20261021-r221.md","charged_seconds":0,"checks":"focused R221, playground, sprint check, and 57 tooling tests passed"},
-   {"id":"R222","archive":"notes/theory/2026-10-21-r222-higher-order-provider-formal-bridge.md","archive_sha256":"1e58e9f13b8fbc54928d4d114ed1bdecdacac36206a37f8464d5b7936191af1c","checks":"R222/playground/check/57 tests passed"}
+   {"id":"R218","archive":"notes/theory/2026-10-21-r218-r72-exact-source-execution.md","checks":"focused R218, playground, sprint check, and 57 tooling tests passed"},
+   {"id":"R219","archive":"notes/theory/2026-10-21-r219-repeated-loop-source-reachability.md","checks":"focused R219, playground, sprint check, and 57 tooling tests passed"},
+   {"id":"R220","archive":"notes/theory/2026-10-21-r220-repeated-loop-fresh-use-route.md","checks":"focused R220, playground, sprint check, and 57 tooling tests passed"},
+   {"id":"R221","archive":"notes/theory/2026-10-21-r221-higher-order-loop-callback-reachability.md","checks":"focused R221, playground, sprint check, and 57 tooling tests passed"},
+   {"id":"R222","archive":"notes/theory/2026-10-21-r222-higher-order-provider-formal-bridge.md","archive_sha256":"1e58e9f13b8fbc54928d4d114ed1bdecdacac36206a37f8464d5b7936191af1c","checks":"R222/playground/check/57 tests passed"},
+   {"id":"R223","archive":"notes/theory/2026-10-21-r223-local-apply-provider-route.md","archive_sha256":"8a668bc875061ea555505ff1f659ace9c066736bef8f67ddc7ba87cf2118e4d9","checks":"R223/playground/checks pass"}
   ],
  "review_receipts": "Solo; no independent review."
 }
