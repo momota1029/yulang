@@ -2,26 +2,26 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-20261022-r272",
+  "session": "current-conversation-20261022-r273",
   "active_sprint": {
-    "id": "R272",
-    "status": "COMPLETE",
-    "contract": "tasks/agent-loop/sprints/runtime-ordered-tuple-20261022-r272.md",
+    "id": "R273",
+    "status": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/public-ordered-tuple-types-20261022-r273.md",
     "resources": {
       "cap_seconds": 1200,
-      "charged_seconds": 600,
+      "charged_seconds": 0,
       "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "OPEN. This runtime slice provides provisional source/evaluator evidence only; no source/native or parent theorem closure.",
-    "implementation": "Tuple LocalSource compiles into an ordered runtime instruction. Immutable prefix arena nodes retain full ReceivedValue across cloned continuation frames; tuple children evaluate once in source order. Nested values and output rendering are implemented.",
+    "proof": "OPEN. Public constructor support does not prove source/native correspondence or soundness.",
+    "implementation": "In progress: ordered positive and negative Tuple constructors through the public closed-type arena.",
     "review_receipt": "Primary-only; independent review unavailable under the user's solo-work instruction.",
-    "next_action": "R273: inspect tuple public type constructors and capture/export consumers, then add ordered arbitrary-arity tuple representation at the public type boundary.",
-    "closure": "R272 runtime construction checkpoint complete. Public closed Tuple types, destructuring, imports, host writes, exact Y2 samples, source/native proof, A/B, soundness, principality and production remain OPEN.",
-    "contract_sha256": "02c40ca7acdb5388bcb6e8ab15338724c3ceead6b762573c9431b3a005026974",
-    "note_sha256": "14f4fed6dbfa823c39d797b82a234884b771370bc4ba4d55b4cbc539c54ff467",
-    "inbox_sha256": "ac61c50dfdbbeb0044cfb9d7252d6f4c01ee16612176736a556bfc7d896c4324",
-    "note": "notes/theory/2026-10-22-r272-runtime-ordered-tuple.md"
+    "next_action": "Complete ordered Tuple construction, validation, alpha-equivalence and focused finalization evidence.",
+    "closure": "yu-types API slice only. Candidate export wiring, public sample display, source/native proof, R149 outputs, A/B, soundness, principality and production remain OPEN.",
+    "contract_sha256": "c5d9c937781d2e4f90d33160c48b36c008704f6ae059eb35819758caac24cbec",
+    "note_sha256": "838e5035b8a9d6943b47435a01d8c3b407a7b729b786be9de5ece5d461375be1",
+    "inbox_sha256": "2d4181a56da7d67cdd4c47cde975fb585324f4143840282f8f3f53742b9222c7",
+    "note": "notes/theory/2026-10-22-r273-public-ordered-tuple-types.md"
   },
   "workers": [
     {
@@ -101,13 +101,13 @@
     {
       "id": "/root",
       "role": "Luna primary",
-      "state": "STOPPED",
-      "session": "current-conversation-20261022-r272",
+      "state": "RUNNING",
+      "session": "current-conversation-20261022-r273",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R272 runtime Tuple implementation verified: runtime_resume 21 passed; playground lib tuple-filtered tests 2 passed; static sprint check and diff check pass. No independent review; parent gates open."
+      "receipt": "Primary started R273 after reading R149, R168/R254 tuple obligations, proof companion §7 and current yu-types closed-arena constructors; implementing indexed and draft public Tuple support."
     }
   ],
   "leases": [
@@ -398,6 +398,30 @@
       "owner": "/root",
       "state": "FROZEN",
       "reason": "R272 implementation checkpoint recorded; immutable."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/public-ordered-tuple-types-20261022-r273.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R273 contract."
+    },
+    {
+      "path": "notes/theory/2026-10-22-r273-public-ordered-tuple-types.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R273 type-construction evidence."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261022-r273-public-ordered-tuple-types.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R273 handoff."
+    },
+    {
+      "path": "crates/yu-types/src/lib.rs",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R273 ordered positive/negative Tuple constructors and tests."
     }
   ],
   "pending": [
