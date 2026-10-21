@@ -2,26 +2,26 @@
  "schema_version": 1,
  "mode": "LIVE",
  "phase": "ACTIVE",
- "session": "current-conversation-20261022-r279",
+ "session": "current-conversation-20261022-r280",
  "active_sprint": {
-  "id": "R279",
+  "id": "R280",
   "status": "CHECKPOINTED_UNREVIEWED",
-  "contract": "tasks/agent-loop/sprints/r279-y2-where-clause-syntax-20261021.md",
+  "contract": "tasks/agent-loop/sprints/r280-y2-qualified-constructor-pattern-application-20261022.md",
   "resources": {
    "cap_seconds": 900,
-   "charged_seconds": 780,
+   "charged_seconds": 720,
    "reserved_seconds": 0,
    "no_carryover": true
   },
-  "proof": "OPEN. Syntax support preserves source constraints but does not establish their semantics or source/native theorem.",
-  "implementation": "Implemented declaration-local WhereClause CST prefixes in binding and impl bodies; ordinary body parsing resumes, malformed frontiers stay line-bounded.",
-  "review_receipt": "Primary-only checkpoint; independent review unavailable under user-directed solo work.",
-  "next_action": "Start R280 on the exact residual fmt parser frontier: inspect CaseArm and OperatorChain diagnostics exposed by where parsing, then assign the smallest syntax owners before changing code.",
-  "closure": "Parser syntax only. HIR transport, prerequisite generation/discharge, role selection, sample inference/output, source/native proof and production remain OPEN.",
-  "contract_sha256": "f95675b3b1a6b075e3139321e9ce82fdda6de469bd4bdb1dbb05b1df71978aea",
-  "note_sha256": "6032d2cf4c2e29ffc257640a157457c0467281a36e79aba9a387a3e890e64d7e",
-  "inbox_sha256": "a028433657363c042ef1773cbacbc4f8f7bcca8e2104d151c036f17f506abd86",
-  "note": "notes/theory/2026-10-21-r279-y2-where-clause.md"
+  "proof": "OPEN. Syntax repair does not establish Pattern HIR traversal, constructor semantics or source/native correspondence.",
+  "implementation": "Completed qualified constructor Pattern application for unchanged pinned fmt case arms; 30 paired diagnostics removed and arrow ownership preserved.",
+  "review_receipt": "Primary-only checkpoint; no independent review under the user-directed solo constraint.",
+  "next_action": "Inspect the two remaining source-line-202 diagnostics (StringEscape and root ErrorGroup) and route them to the exact literal/parser owner.",
+  "closure": "Qualified constructor Pattern syntax only. R149 HIR traversal, role resolution, unchanged sample output, source/native proof and production remain OPEN.",
+  "contract_sha256": "5ce506805effaf65a67b8ab3ac161341de01cc742c046ef9961fcbe1cb7d9d92",
+  "note_sha256": "bb9b1f646c92b7a78c4ae0823446473876da8cd659fa1a972aaeea67ddb66a55",
+  "inbox_sha256": "c5e03d909f0021ba86a26c81af6391962a181ed224459c4d36ed4382b4890c7c",
+  "note": "notes/theory/2026-10-22-r280-y2-qualified-constructor-pattern-application.md"
  },
  "workers": [
   {
@@ -102,18 +102,18 @@
    "id": "/root",
    "role": "Luna primary",
    "state": "STOPPED",
-   "session": "current-conversation-20261022-r279",
+   "session": "current-conversation-20261022-r280",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R279 parser checkpoint complete: 32 exact pinned fmt diagnostics (1 Root ErrorGroup, 15 OperatorChain ErrorGroup, 15 Missing CaseArm, 1 Missing StringEscape); focused syntax tests and playground check passed. Solo primary; no independent review."
+   "receipt": "R280 checkpoint complete. Exact fmt census is 2 diagnostics (root ErrorGroup at 5801..5813; Missing/StringEscape at 5800..5800). Focused Pattern/case tests and playground check pass; solo primary, no independent review."
   }
  ],
- "leases": [{"path":"tasks/agent-loop/board.md","owner":"/root/resident_dispatcher_loop_a","state":"QUARANTINED","reason":"U;Q."},{"path":"tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/yulang2-types-console-20261020-r150-rev2.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-20-types-console-initializer-certificate-r152-rev2.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261020-types-console-initializer-certificate-r152-rev2.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-20-types-console-declaration-census-r2.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261020-types-console-declaration-census-r2.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-20-r167-module-runtime-simulation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261020-r167-module-implementation.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-21-r173-source-drain-attribution-proof.md","owner":"/root/r173_source_drain_proof","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r173-proof.md","owner":"/root/r173_source_drain_proof","state":"HELD"},{"path":"tasks/agent-loop/probes/20261021-r173-provider.{stdout,stderr,status}","owner":"/root","state":"HELD"},{"path":"target/r173","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r174-implementation.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-21-r174-rollback-and-forwarding-bridge.md","owner":"/root/r174_prover","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r174-proof.md","owner":"/root/r174_prover","state":"HELD"},{"path":"tasks/agent-loop/sprints/capture-coverage-20261021-r179.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r179-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/source-to-capture-and-sample-readiness-20261021-r183-rev3.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-sample-readiness-result.md","owner":"/root","state":"HELD"},{"path":"notes/design/2026-10-21-r183-braced-if-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-braced-if-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/braced-if-option-b-owner-map-20261021-r184.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-option-b-owner-map.md","owner":"/root","state":"HELD"},{"path":"notes/design/2026-10-21-r183-option-b-owner-map.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-option-b-owner-map-result.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/source-history-and-option-b-representation-20261021-r185.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-21-r187-post-lambda-name-age.md","owner":"/root/r187_post_lambda_age_proof","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r187-proof-result.md","owner":"/root/r187_post_lambda_age_proof","state":"HELD"},{"path":"notes/design/2026-10-21-r187-option-b-implementation-contract.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r187-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/current.json","owner":"/root","state":"HELD","reason":"R279 primary current-state write; sole central state owner."},{"path":"crates/yu-syntax/src/syntax_kind.rs","owner":"/root","state":"HELD","reason":"R278 PatternFieldTail vocabulary."},{"path":"tools/inference-playground/src/lib.rs","owner":"/root","state":"HELD","reason":"R278 pinned fmt diagnostic baseline update."},{"path":"tasks/current.md","owner":"/root","state":"HELD","reason":"R279 primary progress synchronization."},{"path":"tasks/agent-loop/sprints/r279-y2-where-clause-syntax-20261021.md","owner":"/root","state":"HELD","reason":"R279 sprint contract"},{"path":"notes/design/2026-10-21-r279-y2-where-clause.md","owner":"/root","state":"HELD","reason":"R279 syntax addendum"},{"path":"notes/theory/2026-10-21-r279-y2-where-clause.md","owner":"/root","state":"HELD","reason":"R279 evidence note"},{"path":"tasks/agent-loop/inbox/20261021-r279-y2-where-clause.md","owner":"/root","state":"HELD","reason":"R279 primary handoff"},{"path":"crates/yu-syntax/src/declaration/mod.rs","owner":"/root","state":"HELD","reason":"R279 parser module registration"},{"path":"crates/yu-syntax/src/declaration/where_clause.rs","owner":"/root","state":"HELD","reason":"R279 declaration-local where parser"},{"path":"crates/yu-syntax/src/declaration/binding.rs","owner":"/root","state":"HELD","reason":"R279 binding body prefix"},{"path":"crates/yu-syntax/src/declaration/impl_tail.rs","owner":"/root","state":"HELD","reason":"R279 impl body prefix"},{"path":"crates/yu-syntax/src/statement.rs","owner":"/root","state":"HELD","reason":"R279 indented block where prefix integration"},{"path":"crates/yu-syntax/src/tests/declaration/binding.rs","owner":"/root","state":"HELD","reason":"R279 binding syntax/recovery tests"},{"path":"crates/yu-syntax/src/tests/declaration/impl_decl.rs","owner":"/root","state":"HELD","reason":"R279 impl syntax/recovery tests"},{"path":"notes/theory/2026-10-21-r278-y2-dotted-pattern-target.md","owner":"/root","state":"HELD","reason":"R279 correction of omitted Missing/StringEscape category"},{"path":"tasks/agent-loop/inbox/20261021-r278-y2-dotted-pattern-target.md","owner":"/root","state":"HELD","reason":"R279 correction of exact diagnostic partition"}],
+ "leases": [{"path":"tasks/agent-loop/board.md","owner":"/root/resident_dispatcher_loop_a","state":"QUARANTINED","reason":"U;Q."},{"path":"tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/yulang2-types-console-20261020-r150-rev2.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-20-types-console-initializer-certificate-r152-rev2.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261020-types-console-initializer-certificate-r152-rev2.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-20-types-console-declaration-census-r2.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261020-types-console-declaration-census-r2.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-20-r167-module-runtime-simulation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261020-r167-module-implementation.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-21-r173-source-drain-attribution-proof.md","owner":"/root/r173_source_drain_proof","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r173-proof.md","owner":"/root/r173_source_drain_proof","state":"HELD"},{"path":"tasks/agent-loop/probes/20261021-r173-provider.{stdout,stderr,status}","owner":"/root","state":"HELD"},{"path":"target/r173","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r174-implementation.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-21-r174-rollback-and-forwarding-bridge.md","owner":"/root/r174_prover","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r174-proof.md","owner":"/root/r174_prover","state":"HELD"},{"path":"tasks/agent-loop/sprints/capture-coverage-20261021-r179.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r179-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/source-to-capture-and-sample-readiness-20261021-r183-rev3.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-sample-readiness-result.md","owner":"/root","state":"HELD"},{"path":"notes/design/2026-10-21-r183-braced-if-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-braced-if-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/braced-if-option-b-owner-map-20261021-r184.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-option-b-owner-map.md","owner":"/root","state":"HELD"},{"path":"notes/design/2026-10-21-r183-option-b-owner-map.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-option-b-owner-map-result.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/source-history-and-option-b-representation-20261021-r185.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-21-r187-post-lambda-name-age.md","owner":"/root/r187_post_lambda_age_proof","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r187-proof-result.md","owner":"/root/r187_post_lambda_age_proof","state":"HELD"},{"path":"notes/design/2026-10-21-r187-option-b-implementation-contract.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r187-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/current.json","owner":"/root","state":"HELD","reason":"R280 primary current-state write; sole central state owner."},{"path":"tasks/current.md","owner":"/root","state":"HELD","reason":"R280 primary progress synchronization"}],
  "pending": [{"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna; whole-ascription formation","details":"tasks/agent-loop/inbox/20261019-r61-proof.md"},{"id":"R64-SRC-ANN-ARG-1","state":"OPEN","owner":"Luna; annotation argument","details":"tasks/agent-loop/inbox/20261019-r64-proof.md"},{"id":"R65-CURRENT-OPERAND-1","state":"OPEN","owner":"Luna; ordinary typed Lambda operand","details":"tasks/agent-loop/inbox/20261019-r65-proof.md"},{"id":"R66-LAMBDA-RESULT-STAGE-1","state":"OPEN","owner":"Luna; direct Lambda-checking follow-up","details":"tasks/agent-loop/inbox/20261019-r66-proof.md"},{"id":"R67-DIRECT-BODY-CHECK-1","state":"OPEN","owner":"Luna; source Lambda body consumer","details":"notes/theory/2026-10-19-r67-direct-lambda-checking.md"},{"id":"R68-OWNER-CONSUMER-1","state":"OPEN","owner":"Luna; retained body/result consumer","details":"tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"},{"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1","state":"OPEN_UNADOPTED_PROPOSAL","owner":"Luna; source-law completion","details":"tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"},{"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1","state":"OPEN","owner":"Luna; exact source/native owners in R70","details":"tasks/agent-loop/inbox/20261019-r70-proof.md"},{"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1","state":"OPEN","owner":"Luna; source/native owners in R71","details":"R230 sibling prefix; R231-R234 searches; R236 census; R237 no callback slot-4 alias to later raw WorkBound. OPEN."},{"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna; exact Local-to-WorkBound replay and consumer lineage","details":"R229 bridge; R231-R233 no slot-4 post-alias consumer. OPEN."},{"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"STOPPED_UNFROZEN_RESULT","owner":"Luna intake","details":"R258-R259 local roots; R260 conditional census; R261-R267 parser/import route evidence; R268 Y3 source graph reaches all 40 modules (39 mod +108 use edges), but external-mod Missing recoveries leave Y2 ModuleMap/publication OPEN. R149 outputs open."}],
- "closure": "Parser target syntax only. R149 role/HIR/import/typing/output, source/native proof and production remain OPEN.",
- "next_action": "Continue R149 Yulang2 source support from the remaining exact fmt syntax census; next isolate where-constraint and expression recovery owners before any out-of-lease edits.",
+ "closure": "R280 checkpointed syntax reduced pinned fmt diagnostics 32 to 2. Remaining line-202 StringEscape and root ErrorGroup are open. R149 HIR correspondence, unchanged sample output, source/native proof and production remain OPEN.",
+ "next_action": "Start R281 on source-line-202 string escape/root recovery with exact source ownership, while preserving the unchanged fmt bytes and all prior syntax corrections.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "3 U; no reclaim.",
@@ -203,6 +203,29 @@
    "inbox": "tasks/agent-loop/inbox/20261022-r274-candidate-tuple-graph-rendering.md",
    "inbox_sha256": "148cd55b525ecf8d93ae124005daad3d251bb41d97eabe60cfba6a86c7cbca3a",
    "charged_seconds": 360,
+   "status": "CHECKPOINTED_UNREVIEWED"
+  },
+  {
+   "id": "R279",
+   "contract": "tasks/agent-loop/sprints/r279-y2-where-clause-syntax-20261021.md",
+   "contract_sha256": "f95675b3b1a6b075e3139321e9ce82fdda6de469bd4bdb1dbb05b1df71978aea",
+   "archive": "notes/theory/2026-10-21-r279-y2-where-clause.md",
+   "archive_sha256": "6032d2cf4c2e29ffc257640a157457c0467281a36e79aba9a387a3e890e64d7e",
+   "inbox": "tasks/agent-loop/inbox/20261021-r279-y2-where-clause.md",
+   "inbox_sha256": "a028433657363c042ef1773cbacbc4f8f7bcca8e2104d151c036f17f506abd86",
+   "charged_seconds": 780,
+   "status": "CHECKPOINTED_UNREVIEWED",
+   "git": "d6c2c4914 pushed"
+  },
+  {
+   "id": "R280",
+   "contract": "tasks/agent-loop/sprints/r280-y2-qualified-constructor-pattern-application-20261022.md",
+   "contract_sha256": "5ce506805effaf65a67b8ab3ac161341de01cc742c046ef9961fcbe1cb7d9d92",
+   "archive": "notes/theory/2026-10-22-r280-y2-qualified-constructor-pattern-application.md",
+   "archive_sha256": "bb9b1f646c92b7a78c4ae0823446473876da8cd659fa1a972aaeea67ddb66a55",
+   "inbox": "tasks/agent-loop/inbox/20261022-r280-y2-qualified-constructor-pattern-application.md",
+   "inbox_sha256": "c5e03d909f0021ba86a26c81af6391962a181ed224459c4d36ed4382b4890c7c",
+   "charged_seconds": 720,
    "status": "CHECKPOINTED_UNREVIEWED"
   }
  ]

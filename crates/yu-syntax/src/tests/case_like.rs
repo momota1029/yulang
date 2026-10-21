@@ -52,6 +52,45 @@ fn case_sequence_missing_slots_are_exact_at_source_offsets() {
 }
 
 #[test]
+fn qualified_constructor_payloads_leave_the_case_arrow_to_the_arm() {
+    for (pattern, body) in [
+        ("opt::just fill", "fill"),
+        ("std::data::list::list_view::leaf item", "item"),
+        ("result::ok inner", "inner"),
+    ] {
+        let source = format!("case x:\n  {pattern} -> {body}");
+        let green = run(&source).0;
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert!(structural_facts(&green).is_empty(), "{source:?}");
+        let root = crate::SyntaxNode::new_root(green);
+        let arm = root
+            .descendants()
+            .find(|node| node.kind() == crate::SyntaxKind::CaseArm)
+            .expect("case arm");
+        assert!(
+            arm.descendants()
+                .any(|node| node.kind() == crate::SyntaxKind::PatternMlApplicationTail),
+            "{source:?}"
+        );
+        assert!(
+            arm.children_with_tokens()
+                .any(|element| element.kind() == crate::SyntaxKind::Arrow),
+            "{source:?}"
+        );
+    }
+
+    let source = "case x:\n  opt::just fill if accepted -> fill";
+    let green = run(source).0;
+    assert_eq!(green.to_string(), source);
+    assert!(structural_facts(&green).is_empty());
+    let root = crate::SyntaxNode::new_root(green);
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == crate::SyntaxKind::CaseGuard)
+    );
+}
+
+#[test]
 fn catch_sequence_matching_close_after_trailing_comma_is_owned_by_block() {
     for source in [
         "catch x { n -> a, }",

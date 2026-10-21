@@ -3245,6 +3245,37 @@ fn pattern_ml_application_respects_trivia_and_layout_boundaries() {
 }
 
 #[test]
+fn qualified_constructor_pattern_admits_same_line_payload_without_changing_controls() {
+    for source in ["opt::just fill", "std::data::list::list_view::leaf item"] {
+        let (green, _) = run_pattern(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::Missing),
+            0,
+            "{source:?}"
+        );
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == SyntaxKind::PatternMlApplicationTail)
+                .count(),
+            1,
+            "{source:?}"
+        );
+    }
+
+    for source in ["f x", "opt::just\n  fill"] {
+        let (green, _) = run_pattern(source);
+        assert_eq!(green.to_string(), source, "{source:?}");
+        assert_eq!(
+            recovery_count(&green, SyntaxKind::PatternMlApplicationTail),
+            1,
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
 fn pattern_ml_application_validates_every_gml_newline_continuation() {
     let has_application = |source: &str| {
         let (green, exit) = run_pattern(source);

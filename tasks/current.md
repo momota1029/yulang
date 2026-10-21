@@ -17923,3 +17923,19 @@ production remain OPEN. See the [R278 handoff](agent-loop/inbox/20261021-r278-y2
 [syntax addendum](../notes/design/2026-10-21-r278-y2-dotted-binding-pattern.md),
 [evidence](../notes/theory/2026-10-21-r278-y2-dotted-pattern-target.md), and
 current state.
+
+## R280 checkpoint — qualified constructor application in Yulang2 patterns
+
+The unchanged pinned fmt source has 15 paired `CaseArm`/`OperatorChain`
+frontiers at same-line payload patterns after qualified constructors such as
+`opt::just fill` and `result::ok inner`. A minimal CLI probe reproduces the
+failure. The parser now admits the payload after completed qualified paths
+while retaining the case-arrow owner. The exact pinned fmt census falls from 32
+to 2: the independent root debug-string recovery and string-escape Missing. The
+focused test, 80 Pattern tests, 34 case-like tests, pinned census, playground
+check, static check and diff check pass. This is syntax only; R149 HIR
+correspondence, sample output and source/native proof remain OPEN. See the
+[R280 contract](agent-loop/sprints/r280-y2-qualified-constructor-pattern-application-20261022.md),
+[design](../notes/design/2026-10-22-r280-y2-qualified-constructor-pattern-application.md),
+[evidence](../notes/theory/2026-10-22-r280-y2-qualified-constructor-pattern-application.md),
+and [handoff](agent-loop/inbox/20261022-r280-y2-qualified-constructor-pattern-application.md).

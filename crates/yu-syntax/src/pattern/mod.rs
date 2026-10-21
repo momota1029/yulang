@@ -250,6 +250,7 @@ struct PatternState {
     native: PatternCompletion,
     unresolved_path_member: bool,
     identifier_receiver: bool,
+    qualified_constructor: bool,
 }
 
 impl PatternState {
@@ -258,6 +259,7 @@ impl PatternState {
             native,
             unresolved_path_member: false,
             identifier_receiver: false,
+            qualified_constructor: false,
         }
     }
 
@@ -1054,6 +1056,7 @@ fn pattern_tail_normalized(
             member_completion.native == PatternCompletion::Incomplete;
         completion.native = member_completion.native;
         completion.identifier_receiver = member_completion.native == PatternCompletion::Complete;
+        completion.qualified_constructor = member_completion.native == PatternCompletion::Complete;
         i.state.finish_node();
         return pattern_tail_normalized(
             i,
@@ -1074,6 +1077,7 @@ fn pattern_tail_normalized(
         && !item.leading_view().has_ordinary_trivia()
         && completion.identifier_receiver
     {
+        completion.qualified_constructor = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternFieldTail.into());
         emit_token_item(&mut i, item);
@@ -1088,6 +1092,7 @@ fn pattern_tail_normalized(
             emit_token_item(&mut i, item);
             completion.native = PatternCompletion::Complete;
             completion.identifier_receiver = true;
+            completion.qualified_constructor = false;
             (item, item_origin, line_entry) =
                 pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
         } else {
@@ -1113,6 +1118,7 @@ fn pattern_tail_normalized(
     }
     if token_kind(&item) == Some(TokenKind::LParen) && !item.leading_view().has_ordinary_trivia() {
         completion.identifier_receiver = false;
+        completion.qualified_constructor = false;
         let mut call_completion = PatternState::new(PatternCompletion::Complete);
         let exit = delimited::call_pattern(
             i,
@@ -1134,6 +1140,7 @@ fn pattern_tail_normalized(
     }
     if is_pattern_alias(&item) && minimum <= PatternPrecedence::Alias {
         completion.identifier_receiver = false;
+        completion.qualified_constructor = false;
         completion.native = PatternCompletion::Incomplete;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternAliasTail.into());
@@ -1228,6 +1235,7 @@ fn pattern_tail_normalized(
         && minimum <= PatternPrecedence::TypeAnnotation
     {
         completion.identifier_receiver = false;
+        completion.qualified_constructor = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternTypeAnnotation.into());
         emit_token_item(&mut i, item);
@@ -1246,14 +1254,16 @@ fn pattern_tail_normalized(
         i.state.finish_node();
         return exit;
     }
-    if stops & (PATTERN_STOP_ITEM | PATTERN_STOP_RECOVERED_PRIMARY) == 0
-        && minimum < PatternPrecedence::MlApplication
+    if minimum < PatternPrecedence::MlApplication
         && item.leading_view().has_ordinary_trivia()
-        && item.leading_view().gml_continues_deeper_than(baseline)
+        && ((stops & (PATTERN_STOP_ITEM | PATTERN_STOP_RECOVERED_PRIMARY) == 0
+            && item.leading_view().gml_continues_deeper_than(baseline))
+            || (completion.qualified_constructor && !item.leading_view().has_ordinary_newline()))
         && !is_current_pattern_tail(&item, stops)
         && is_pattern_nud(&item, stops)
     {
         completion.identifier_receiver = false;
+        completion.qualified_constructor = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state
             .start_node(SyntaxKind::PatternMlApplicationTail.into());
