@@ -462,11 +462,27 @@ fn definition_root_validation_preserves_program_ownership() {
 }
 
 #[test]
-fn unavailable_or_recovered_expression_source_is_never_skipped() {
-    assert!(matches!(
-        RuntimeProgram::from_hir(hir("(1, 2); my main = 7"), RuntimeEvidence::default()),
-        Err(RuntimeUnavailable::InvalidSourceReference)
-    ));
+fn tuple_expression_runs_before_selected_definition_and_unavailable_source_is_not_skipped() {
+    let tuple_program = RuntimeProgram::from_hir(
+        hir("(1, 2); my main = 7"),
+        RuntimeEvidence::default(),
+    )
+    .expect("ordered tuple expression roots have a runtime source owner");
+    let tuple_roots = tuple_program.execution_roots().unwrap();
+    let mut tuple_machine = tuple_program
+        .start(
+            tuple_program.definition_named("main").unwrap(),
+            &tuple_roots,
+        )
+        .unwrap();
+    let RuntimeOutcome::Completed(tuple_value) = tuple_machine.run(30_000) else {
+        panic!("tuple expression root must finish before the selected definition");
+    };
+    let RuntimeValueKind::Integer(tuple_value) = &tuple_machine.value(tuple_value).unwrap().kind
+    else {
+        panic!("selected tuple-module definition must evaluate to an integer");
+    };
+    assert_eq!(tuple_value.as_ref(), "7");
     assert!(matches!(
         RuntimeProgram::from_hir(hir("f(@missing); my main = 7"), RuntimeEvidence::default()),
         Err(RuntimeUnavailable::MissingSource)
