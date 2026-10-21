@@ -888,6 +888,13 @@ mod tests {
             panic!("Display export must resolve to its provider role declaration")
         };
         let expected_display_id = declaration.id.clone();
+        let display_say = declaration.body.as_ref().unwrap().members.iter()
+            .find(|member| member.text.trim_start().starts_with("pub a.say ="))
+            .expect("pinned Display role owns the default say member");
+        assert_eq!(display_say.id.role, expected_display_id);
+        assert!(!display_say.recovered);
+        assert!(display_say.text.contains("std::io::out::write"));
+        assert!(display_say.text.contains("a.show"));
         let display_implementations =
             yu_hir::shadow::resolve_source_role_implementations(
                 &expected_display_id,
