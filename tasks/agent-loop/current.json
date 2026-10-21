@@ -2,26 +2,23 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "r263-20261021",
+  "session": "r264-20261021",
   "active_sprint": {
-    "id": "R263",
-    "status": "RESULT",
-    "contract": "tasks/agent-loop/sprints/yulang2-inrepo-parser-registration-audit-20261021-r263.md",
+    "id": "R264",
+    "status": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/yulang2-imported-operator-environment-check-20261021-r264.md",
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 420,
-      "reserved_seconds": 0,
+      "charged_seconds": 0,
+      "reserved_seconds": 420,
       "no_carryover": true
     },
-    "proof": "Primary-only audit found no repository-owned Y2 parser or ModuleMap registration path; current playground uses Y3 parse_file and single-file HIR.",
-    "implementation": "Read-only source audit; no code, tests, builds or sample execution.",
-    "review_receipt": "Primary-only; unreviewed.",
-    "next_action": "Define a source-preserving Y2 parser bridge within this repo; prove source/root correspondence before runtime publication.",
-    "closure": "R260 conditional; Y2 root vector, R149 consumers/output, parent proofs and production OPEN.",
-    "contract_sha256": "7479adac6e3e15de8a701cbe3c5a21db605d6328777e930d7f840a8963132a96",
-    "note_sha256": "6ddbba29b4c55f734e862052619d6f576c6fb946c1a8bc481f6afa7abfa16dc9",
-    "inbox_sha256": "06df578aaca4e527ec2a524d8b75b4668db371697e851e72852e0a05d75b89b6",
-    "note": "notes/theory/2026-10-21-r263-y2-parser-registration-audit.md"
+    "proof": "Recheck R262 parser diagnostics under imported operator capabilities; empty SyntaxEnvironment may confound syntax-gap claims.",
+    "implementation": "Primary-only temporary diagnostic test; remove all probe code; no semantic or retained test changes.",
+    "review_receipt": "No independent reviewer assigned; provisional result only.",
+    "next_action": "Build a pinned-header SyntaxEnvironment control and compare diagnostics/recoveries across all 40 sources.",
+    "closure": "R260 conditional; Y2 source/root bridge, R149 output, parent proofs and production OPEN.",
+    "contract_sha256": "aa7d0f4eb58fadcce6e98dab4ee06011b9e2dc932b3ec030ab4e8df8511d8ab0"
   },
   "workers": [
     {
@@ -326,6 +323,12 @@
       "owner": "/root",
       "state": "FROZEN",
       "reason": "R263 primary-only result; immutable evidence."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-imported-operator-environment-check-20261021-r264.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R264 active primary contract."
     }
   ],
   "pending": [
@@ -397,7 +400,7 @@
     }
   ],
   "closure": "R263 found no Y2 parser or module registration implementation in this repository. R260 remains conditional; R149 sample types/output, source/root correspondence, parent proofs and production remain OPEN.",
-  "next_action": "Continue toward R149 by designing a source-preserving Y2 parser bridge within this repository and proving its correspondence to original Y2 root forms before runtime publication.",
+  "next_action": "R264: measure whether the imported syntax environment changes R262 diagnostics; keep R262 provisional until this confounder is resolved.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
