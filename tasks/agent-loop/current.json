@@ -5,20 +5,23 @@
   "session": "r266-20261021",
   "active_sprint": {
     "id": "R266",
-    "status": "ACTIVE",
+    "status": "RESULT",
     "contract": "tasks/agent-loop/sprints/yulang2-direct-use-cst-import-route-20261021-r266.md",
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 0,
-      "reserved_seconds": 420,
+      "charged_seconds": 420,
+      "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "Inspect direct-root UseDeclaration CSTs in pinned Y2 standard sources; header preamble coverage is incomplete.",
-    "implementation": "Primary-only temporary source probe; no retained code/tests or semantics edits.",
-    "review_receipt": "No independent reviewer assigned; provisional evidence only.",
-    "next_action": "Enumerate exact UseDeclaration source ranges/routes and compare against pinned root source bytes.",
-    "closure": "R260 conditional; Y2 import resolution/root vector, R149 outputs, parent proofs and production OPEN.",
-    "contract_sha256": "c86d29bf0cf305cf5f8d4bd47ba5e9e7ded5aae22b872707efc344d380cd58a1"
+    "proof": "Y3 CST locates 112 direct UseDeclaration roots across 27 pinned modules; all have UsePath children and exact source slices, with no local Missing/Error nodes.",
+    "implementation": "Primary-only temporary CST probe removed; no retained code or tests.",
+    "review_receipt": "Primary-only; unreviewed.",
+    "next_action": "Derive import module targets from direct-use CST paths and distinguish module prefixes from selected items/local routes.",
+    "closure": "R260 conditional; Y2 module/re-export semantics, runtime roots, R149 outputs, parent proofs and production OPEN.",
+    "contract_sha256": "c86d29bf0cf305cf5f8d4bd47ba5e9e7ded5aae22b872707efc344d380cd58a1",
+    "note_sha256": "04d3ea03a2ecafa39827ecb59f43efb01cd8b3c5a99d5941db5d922c79ca73da",
+    "inbox_sha256": "610aacc3b98320f87dfba0fa1bdc54f4f1ebce98d2e40103dca26156a7f2d9af",
+    "note": "notes/theory/2026-10-21-r266-direct-use-cst-routes.md"
   },
   "workers": [
     {
@@ -273,8 +276,20 @@
     {
       "path": "tasks/agent-loop/sprints/yulang2-direct-use-cst-import-route-20261021-r266.md",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "R266 active primary contract."
+      "state": "FROZEN",
+      "reason": "R266 result recorded; immutable contract."
+    },
+    {
+      "path": "notes/theory/2026-10-21-r266-direct-use-cst-routes.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R266 primary-only result; immutable evidence."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r266-direct-use-cst-routes.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R266 primary-only result; immutable evidence."
     }
   ],
   "pending": [
@@ -342,11 +357,11 @@
       "id": "R149-SOURCE-OWNER-CLOSURE-1",
       "state": "STOPPED_UNFROZEN_RESULT",
       "owner": "Luna intake",
-      "details": "R258-R259 local roots; R260 conditional imported census; R261-R262 Y3 parser/environment caveat; R263 no in-repo Y2 parser; R264 controls inauthentic; R265 scan_header 45 imports vs 112 root uses across 20 mismatching modules. R149 source/root and outputs OPEN."
+      "details": "R258-R259 local roots; R260 conditional imported census; R261-R265 parser/env qualifications; R266 locates 112 direct-use CST nodes source-exactly but module-prefix/re-export semantics remain open. R149 root composition and outputs OPEN."
     }
   ],
-  "closure": "R261-R265 archive: current Y3 parser is not an authenticated Y2 root witness; R260 remains conditional. Exact direct-use source route coverage is under R266.",
-  "next_action": "R266: extract source-bound direct-root UseDeclaration CST routes from the pinned source bundle; do not infer Y2 module semantics from Y3 nodes.",
+  "closure": "R266 establishes source-exact current-CST locations for 112 direct use roots, not Y2 module/re-export semantics. R260 remains conditional; imported root composition, runtime outputs, parent proofs and production remain OPEN.",
+  "next_action": "Continue R149 by deriving module prefixes and selected-item paths from direct UseDeclaration CSTs, preserving local routes and unresolved-module cases.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
