@@ -307,6 +307,7 @@ pub(super) enum Action {
     CatchOperation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, payload: Option<usize>, continuation: Option<usize>, original: CandidateEndpoint, effect: usize, level: u32, h_arg: Option<HandlerContinuationArgumentV1> },
     FieldBoundV1 { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, h_arg: HandlerContinuationArgumentV1 },
     Annotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, target: usize, occurrence: HirOccurrenceId, level: u32 },
+    WhereClause { source: yu_hir::shadow::LocalSourceWhereClause, scope: candidate_effect::AnnotationScope },
 }
 #[derive(Clone, Debug)]
 pub(super) struct HandlerContinuationArgumentV1 {
@@ -394,7 +395,7 @@ impl Plan {
             checked_usize_sum(self.expressions.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "expression actions")), "expression action storage"),
             checked_capacity_bytes::<(HirOccurrenceId, SourceRootId)>(self.source_owners.capacity(), "source occurrence owners"),
             checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).chain(self.expressions.iter().flat_map(|schedule| schedule.actions.iter())).map(|action| {
-                if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::FieldBoundV1 { declaration, h_arg } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + h_arg.response_annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else if let Action::CatchOperation { declaration, h_arg, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + h_arg.as_ref().map_or(0, |link| std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + link.response_annotation.retained_arena_bytes()) } else { 0 }
+                if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::WhereClause { source, .. } = action { std::mem::size_of::<yu_hir::shadow::LocalSourceWhereClause>() + source.text.len() + source.subject.text.len() + source.role.text.len() } else if let Action::FieldBoundV1 { declaration, h_arg } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + h_arg.response_annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else if let Action::CatchOperation { declaration, h_arg, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + h_arg.as_ref().map_or(0, |link| std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + link.response_annotation.retained_arena_bytes()) } else { 0 }
             }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
             checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
@@ -451,8 +452,8 @@ fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), CollectionAvailabilityEr
 pub(super) fn preflight(source: &LocalSource, operation_v1: bool) -> Result<(), shadow_apply::CandidateError> {
     let mut referenced_catch_binders = std::collections::HashSet::new();
     if !source.where_clauses().is_empty() {
-        // The source carrier retains declaration prerequisites, but candidate
-        // inference has no identity-bound role constraint consumer yet.
+        // Capture/FreshUse retain the subject row and source identities, but
+        // candidate inference still lacks authentic role resolution and discharge.
         return Err(shadow_apply::CandidateError::Unsupported);
     }
     for expr in source.expressions() {
@@ -1654,6 +1655,10 @@ impl ConstraintBatch {
                 self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
                 self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
             }
+            let obligation_scope = candidate_effect::AnnotationScope::for_source(source.source_root().clone());
+            for clause in source.where_clauses() {
+                push(&mut actions, Action::WhereClause { source: clause.clone(), scope: obligation_scope.clone() })?;
+            }
             self.candidate_source.schedules.try_reserve(1).map_err(|_| unavailable())?;
             self.candidate_source.schedules.insert(definition.clone(), actions);
         } else if let SourceRootId::Expression(root) = owner {
@@ -1877,6 +1882,7 @@ impl InferenceSession {
                 Action::FieldBoundV1 { declaration, h_arg } => self.candidate_field_bound_v1(declaration, h_arg)?,
                 Action::Operation { declaration, owner, occurrence, target, level } => self.candidate_operation(declaration, owner, occurrence, *target, *level)?,
                 Action::Annotation { annotation, endpoint, computation_effect, target, occurrence, level } => self.candidate_annotation(annotation, *endpoint, *target, occurrence, *level, *computation_effect)?,
+                Action::WhereClause { source, scope } => self.candidate_register_source_role_obligation(source, scope)?,
             }
         Ok(())
     }

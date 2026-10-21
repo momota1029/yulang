@@ -1608,6 +1608,34 @@ impl InferenceSession {
         result
     }
 
+    pub(super) fn candidate_register_source_role_obligation(
+        &mut self,
+        clause: &yu_hir::shadow::LocalSourceWhereClause,
+        scope: &AnnotationScope,
+    ) -> Result<(), SolveAvailabilityError> {
+        let AnnotationScope::Definition(provider) = scope else { return Err(exhausted()); };
+        let subject = clause.subject.text.trim();
+        let Some(name) = subject.strip_prefix('\'') else { return Err(exhausted()); };
+        if name.is_empty() || name.chars().any(char::is_whitespace) { return Err(exhausted()); }
+        let role_spelling = clause.role.text.trim();
+        if role_spelling.is_empty() { return Err(exhausted()); }
+        let state = &self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra;
+        let value = state.annotation_values.get(&(scope.clone(), Box::<str>::from(subject))).copied().ok_or_else(exhausted)?;
+        let subject_row = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.rep(crate::candidate_scheme::RowKey::Value(value));
+        let candidate = crate::candidate_scheme::SourceRoleObligation {
+            provider: provider.clone(),
+            where_source: clause.source.clone(),
+            subject_source: clause.subject.source.clone(),
+            role_source: clause.role.source.clone(),
+            role_spelling: role_spelling.into(),
+            subject_row,
+        };
+        self.candidate_graph.as_mut().ok_or_else(exhausted)?
+            .retain_source_role_obligation(candidate)?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(())
+    }
+
     pub(super) fn candidate_annotation(
         &mut self,
         annotation: &SourceAnnotation,
