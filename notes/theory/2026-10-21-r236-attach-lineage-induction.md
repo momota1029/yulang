@@ -123,6 +123,18 @@ indexed under a raw key. Any consumer law must account for both the child's
 creation-time replay payload and its relation-local transport residual; they
 cannot be replaced by a single “current context” value.
 
+The source ordering permits this state split before an extrusion in the same
+typed drain. `step_typed_drain` first rewrites the popped item's relation in
+`Transport`, consumes it in `Context`, then reaches `Dispatch`. The ordinary
+`dispatch_live_item` Value route can call `apply_value_task`, which selects
+level-based candidate extrusion; an extruding Visit then queues `Work::Bound`
+from the physical slot's raw key. So if an accepted source schedule supplies
+the stale raw parent to that task and the level condition selects its owner,
+the canonical child can be discharged before that same route copies the raw
+slot. This is a source control-flow possibility, not yet a source-constructed
+accepted occurrence: the exact HIR/Action history that creates the third-owner
+alias and qualifies this slot is still missing from the R218–R234 evidence.
+
 So the candidate shortcut “the canonical child and raw parent always carry the
 same effective context” is false as a source invariant. The remaining consumer
 question is narrower: whether a new extrusion must copy a derived child's
