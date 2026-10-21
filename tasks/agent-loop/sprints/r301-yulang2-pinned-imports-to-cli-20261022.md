@@ -1,6 +1,6 @@
 # Sprint R301 — unchanged Yulang2 samples through pinned imports and CLI
 
-Status: RUNNING, solo primary; no independent review or theorem closure is claimed.
+Status: CHECKPOINTED_UNREVIEWED, solo primary; no independent review or theorem closure is claimed.
 Branch / baseline: `research/simple-sub-intrusion` / `6857f1eb7` (`Test imported identity at distinct concrete types`).
 Authority: user's continuing R149 implementation-and-proof goal; Authoritative `notes/design/2026-10-20-r149-types-console.md`; unified design §§4.1–4.5, 6, 9–10; proof companion §§3.1–3.6, 4.5, 7.1–7.5; top-level Simple-sub principles. The user prohibits subagents. Work is solo; no dispatcher or child is started.
 Parent gate: the exact unchanged 142-byte Types and 92-byte Console templates, their pinned 40-file Yulang2 standard-library closure, public type observations, whole-module execution and exact ordered writes. R149 and all source/native, principality, general theorem, review and production gates remain OPEN.
@@ -35,6 +35,10 @@ R300 added `CandidateInference::solve_modules` and exact imported binding-to-pro
 `crates/yu-hir/src/module.rs`, `crates/yu-hir/src/module/source_exports.rs`, `crates/yu-hir/src/shadow.rs`, `crates/yu-solver/src/lib.rs`, `crates/yu-solver/src/candidate_source.rs`, `crates/yu-solver/src/candidate_effect.rs`, `crates/yu-solver/src/candidate_scheme.rs`, `crates/yu-solver/src/shadow_apply.rs`, `tools/inference-playground/src/pinned_stdlib.rs`, `tools/inference-playground/src/lib.rs`, `tools/inference-playground/src/runtime/program.rs`, `tools/inference-playground/src/runtime/machine.rs`, `tools/inference-playground/src/runtime/mod.rs`, `tools/inference-playground/tests/cli_yulang2_samples.rs`, this contract, `notes/theory/2026-10-22-r301-yulang2-pinned-imports-to-cli.md`, and Luna-owned `tasks/agent-loop/current.json`. No wildcard or directory lease.
 
 One primary process; one Cargo/build/test process at a time; no background work. Cap 1800 seconds for this sprint with no carryover. The known solver suite failures from pre-R300 history are tracked as unresolved; do not attribute or hide them. A new failure in the R301-focused owner path must be isolated before continuing.
+
+## Checkpoint
+
+The parse-owned import API and pinned candidate-world scaffold are committed in `e9ef6bacb`. The focused HIR alias/glob test and `cargo check -p yu-playground` pass. Exact unchanged Types execution is blocked before candidate collection because authentic pinned Yulang2 method bodies produce parser recovery; `std::int` imports the recovered public `std::text::str::str` declaration, and export resolution refuses that owner. No recovery was bypassed.
 
 ## Proof and stop boundary
 

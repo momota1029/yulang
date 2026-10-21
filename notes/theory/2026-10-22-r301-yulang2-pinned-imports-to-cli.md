@@ -1,6 +1,6 @@
 # R301 — unchanged Yulang2 Types/Console CLI path
 
-Status: implementation and proof correspondence in progress; R149 remains OPEN.
+Status: CHECKPOINTED_UNREVIEWED; R149 remains OPEN.
 
 ## Governing source read this iteration
 
