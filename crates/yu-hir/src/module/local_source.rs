@@ -1632,8 +1632,16 @@ impl Builder<'_> {
                 }
                 let mut elements = Vec::new();
                 elements.try_reserve_exact(children.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                let mut binder_names = std::collections::HashSet::<Box<str>>::new();
+                binder_names.try_reserve(children.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
                 for child in &children {
-                    elements.push(self.case_pattern_element(child, arm_source, next_binder, binders)?);
+                    let element = self.case_pattern_element(child, arm_source, next_binder, binders)?;
+                    if let LocalSourceCasePatternElement::Binder(binder) = &element
+                        && !binder_names.insert(binder.spelling.clone())
+                    {
+                        return Err(unsupported());
+                    }
+                    elements.push(element);
                 }
                 Ok(LocalSourceCasePattern::Tuple {
                     source: self.key(pattern)?, range: range_of(pattern), elements,
@@ -2373,6 +2381,9 @@ mod tests {
             LocalSourceCasePatternElement::Binder(right),
         ] = elements.as_slice() else { panic!("two ordered binders"); };
         assert!(module.source_parsed.as_ref().unwrap().owns_source_key(pattern_source));
+        let root = source.source_root();
+        assert!(module.owns_tuple_case_pattern_source(root, &case.occurrence, pattern_source, 0).unwrap());
+        assert!(!module.owns_tuple_case_pattern_source(root, &case.occurrence, &case.source, 0).unwrap());
         assert_eq!(&text[left.range.clone()], "left");
         assert_eq!(&text[right.range.clone()], "right");
         assert_eq!(left.id.ordinal, 0);
@@ -2381,6 +2392,9 @@ mod tests {
             &expression.form,
             LocalSourceForm::Name { resolution: LocalSourceResolution::CaseBinder(id), .. } if id == &left.id
         )));
+
+        assert!(lower("my repeated value = case value: (same, same) -> same").is_err(),
+            "duplicate tuple binders must fail closed instead of silently shadowing one component");
     }
 
     #[test]

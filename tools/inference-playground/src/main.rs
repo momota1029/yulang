@@ -71,7 +71,10 @@ fn run() -> Result<(), String> {
             File::open(path).map_err(|error| format!("cannot open {path}: {error}"))?,
         )?,
     };
-    let name = path.as_deref().unwrap_or("stdin.yu");
+    let name = match path.as_deref() {
+        None | Some("-") => "stdin.yu",
+        Some(path) => path,
+    };
     let output = if let Some(definition) = definition {
         yu_playground::execute(&source, name, &definition, steps.unwrap_or(100_000), scoped)?
     } else {

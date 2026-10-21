@@ -167,6 +167,7 @@ pub(super) struct CaseArm {
 pub(super) enum CasePattern {
     Integer(Box<str>),
     Binder(yu_hir::shadow::LocalSourceCatchBinderId),
+    Tuple(Vec<Option<yu_hir::shadow::LocalSourceCatchBinderId>>),
     Wildcard,
 }
 pub(super) enum Instruction {
@@ -597,6 +598,12 @@ impl RuntimeProgram {
                                 }
                                 yu_hir::shadow::LocalSourceCasePattern::Binder(binder) => {
                                     CasePattern::Binder(binder.id.clone())
+                                }
+                                yu_hir::shadow::LocalSourceCasePattern::Tuple { elements, .. } => {
+                                    CasePattern::Tuple(elements.iter().map(|element| match element {
+                                        yu_hir::shadow::LocalSourceCasePatternElement::Binder(binder) => Some(binder.id.clone()),
+                                        yu_hir::shadow::LocalSourceCasePatternElement::Wildcard => None,
+                                    }).collect())
                                 }
                                 yu_hir::shadow::LocalSourceCasePattern::Wildcard => CasePattern::Wildcard,
                             };

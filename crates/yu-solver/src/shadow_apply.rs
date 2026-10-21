@@ -2286,8 +2286,8 @@ pub(super) enum CandidateRelation {
         result_effect: usize,
     },
     TuplePattern {
-        #[allow(dead_code, reason = "the pattern source key is retained with its candidate recipe for source-to-fact correspondence")]
         source: yu_hir::shadow::SourceNodeKey,
+        local_slot: u32,
         scrutinee: CandidateEndpoint,
         elements: Vec<Option<CandidateEndpoint>>,
         level: u32,
@@ -2801,7 +2801,16 @@ impl InferenceSession {
                 let lower = self.candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?;
                 (tuple, lower)
             }
-            CandidateRelation::TuplePattern { scrutinee, elements, level, .. } => {
+            CandidateRelation::TuplePattern { source, local_slot, scrutinee, elements, level } => {
+                let owner = self.batch.candidate_source.source_owners.get(&recipe.occurrence)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let hir = self.batch.hir_for_source_root(owner)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                if !hir.owns_tuple_case_pattern_source(owner, &recipe.occurrence, source, *local_slot)
+                    .map_err(|_| SolveAvailabilityError::ReceiptMismatch)?
+                {
+                    return Err(SolveAvailabilityError::ReceiptMismatch);
+                }
                 let mut element_terms = Vec::new();
                 element_terms.try_reserve_exact(elements.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                 for element in elements {
@@ -2892,7 +2901,11 @@ impl InferenceSession {
                 (callee, demand)
             }
         };
-        let id = ConstraintOccurrenceId::new(recipe.occurrence.clone(), 0);
+        let local_slot = match &recipe.relation {
+            CandidateRelation::TuplePattern { local_slot, .. } => *local_slot,
+            _ => 0,
+        };
+        let id = ConstraintOccurrenceId::new_wide(recipe.occurrence.clone(), local_slot);
         let occurrence = ConstraintOccurrence {
             cause: CauseId::for_occurrence(id.clone()),
             id,
@@ -3157,6 +3170,12 @@ mod tests {
         let wildcard = local_source_module("my second value = case value: (_, right) -> right");
         let wildcard = CandidateInference::solve(wildcard).expect("wildcard tuple component remains unconstrained");
         assert!(wildcard.candidate_conflicts().is_empty(), "wildcard does not force a component type");
+
+        let multi_arm = local_source_module(
+            "my choose value = case value: (left, right) -> left, (first, second) -> second",
+        );
+        let multi_arm = CandidateInference::solve(multi_arm).expect("each tuple arm retains a distinct source constraint");
+        assert!(multi_arm.candidate_conflicts().is_empty(), "same-arity alternatives share the ordered scrutinee shape");
 
         let wrong_arity = local_source_module(
             "my first value = case value: (left, right) -> left\nmy bad = first (1, 2, 3)",

@@ -331,6 +331,7 @@ fn prepare(
     name: &str,
     scoped: bool,
 ) -> Result<(Arc<HirModule>, CandidateInference), String> {
+    let name = if name == "-" { "stdin.yu" } else { name };
     if source.len() > INPUT_CAP {
         return Err(format!(
             "tool input cap exceeded: more than {INPUT_CAP} bytes"

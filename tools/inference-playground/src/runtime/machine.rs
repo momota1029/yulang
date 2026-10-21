@@ -1353,20 +1353,41 @@ impl Machine {
                 let Instruction::Case { arms, .. } = &case.instruction else {
                     unreachable!()
                 };
-                let selected = arms.iter().find(|arm| match (&arm.pattern, &self.values[received.value.0].kind) {
-                    (CasePattern::Integer(expected), RuntimeValueKind::Integer(actual)) => expected == actual,
-                    (CasePattern::Binder(_), _) => true,
-                    (CasePattern::Wildcard, _) => true,
-                    _ => false,
-                });
-                if let Some(arm) = selected {
+                let selected = {
+                    let value = &self.values[received.value.0].kind;
+                    arms.iter().position(|arm| match (&arm.pattern, value) {
+                        (CasePattern::Integer(expected), RuntimeValueKind::Integer(actual)) => expected == actual,
+                        (CasePattern::Binder(_), _) => true,
+                        (CasePattern::Tuple(patterns), RuntimeValueKind::Tuple(elements)) => {
+                            patterns.len() == elements.len()
+                        }
+                        (CasePattern::Wildcard, _) => true,
+                        _ => false,
+                    })
+                };
+                if let Some(selected) = selected {
+                    let arm = &arms[selected];
                     let environment = match &arm.pattern {
                         CasePattern::Binder(id) => self.bind(
                             environment,
                             Binder::Catch(id.clone()),
                             ReceivedValue { value: received.value, interface: ParameterRole::Value, view: received.view },
                         ),
-                        _ => environment,
+                        CasePattern::Tuple(patterns) => {
+                            let bindings = {
+                                let RuntimeValueKind::Tuple(elements) = &self.values[received.value.0].kind else {
+                                    unreachable!("the selected tuple pattern matched a tuple value")
+                                };
+                                patterns.iter().zip(elements).filter_map(|(pattern, element)| {
+                                    pattern.as_ref().map(|id| (id.clone(), element.received))
+                                }).collect::<Vec<_>>()
+                            };
+                            bindings.into_iter().fold(environment, |environment, (id, value)| {
+                                self.bind(environment, Binder::Catch(id), value)
+                            })
+                        }
+                        CasePattern::Integer(_) => environment,
+                        CasePattern::Wildcard => environment,
                     };
                     self.state = State::Evaluate {
                         code: arm.body,

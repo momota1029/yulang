@@ -1536,6 +1536,32 @@ impl HirModule {
         if !self.owns_occurrence(occurrence) { return Err(HirAvailabilityError::InconsistentIdentity); }
         Ok(self.source_identity.as_ref().and_then(|identity| identity.occurrences.get(occurrence)))
     }
+    /// Checks that a retained tuple-pattern source key is an element of the
+    /// exact local case occurrence and root that candidate inference owns.
+    pub fn owns_tuple_case_pattern_source(
+        &self,
+        root: &SourceRootId,
+        occurrence: &HirOccurrenceId,
+        pattern: &yu_syntax::SourceNodeKey,
+        local_slot: u32,
+    ) -> Result<bool, HirAvailabilityError> {
+        let Some(source) = self.local_source_for(root)? else { return Ok(false); };
+        if source.source_root() != root { return Err(HirAvailabilityError::InconsistentIdentity); }
+        let Some(expression) = source.expressions().iter().find(|expression| &expression.occurrence == occurrence) else {
+            return Ok(false);
+        };
+        let Some(parsed) = self.source_parsed.as_ref() else { return Ok(false); };
+        if !parsed.owns_source_key(pattern) { return Ok(false); }
+        let local_slot = usize::try_from(local_slot).map_err(|_| HirAvailabilityError::InconsistentIdentity)?;
+        Ok(matches!(
+            &expression.form,
+            local_source::LocalSourceForm::Case { arms, .. }
+                if arms.get(local_slot).is_some_and(|arm| matches!(
+                    &arm.pattern,
+                    local_source::LocalSourceCasePattern::Tuple { source, .. } if source == pattern
+                ))
+        ))
+    }
     /// Retains named and inline parameter origins without reconstructing binders.
     pub fn parameter_source_origin(&self, parameter: &HirParameterId)
         -> Result<Option<&crate::HirParameterSourceOrigin>, HirAvailabilityError>

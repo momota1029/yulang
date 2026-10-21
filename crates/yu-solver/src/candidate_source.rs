@@ -1188,7 +1188,7 @@ impl ConstraintBatch {
                 }
                 Work::CaseArms(index, level, region) => {
                     let LocalSourceForm::Case { scrutinee, arms } = &source.expressions()[index].form else { return Err(invalid()); };
-                    for arm in arms {
+                    for (arm_index, arm) in arms.iter().enumerate() {
                         match &arm.pattern {
                             yu_hir::shadow::LocalSourceCasePattern::Binder(binder) => {
                                 case_binders.try_reserve(1).map_err(|_| unavailable())?;
@@ -1217,9 +1217,11 @@ impl ConstraintBatch {
                                     }
                                 }
                                 let occurrence = source.expressions()[index].occurrence.clone();
+                                let local_slot = u32::try_from(arm_index).map_err(|_| unavailable())?;
                                 let recipe = self.candidate_recipes.len();
                                 self.retain_candidate_relation(&occurrence, CandidateRelation::TuplePattern {
                                     source: pattern_source.clone(),
+                                    local_slot,
                                     scrutinee: endpoints[scrutinee.ordinal() as usize],
                                     elements: tuple_elements,
                                     level,
