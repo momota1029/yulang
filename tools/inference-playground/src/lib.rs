@@ -1328,6 +1328,68 @@ mod tests {
         assert!(!mismatch.candidate_conflicts().is_empty(), "int_add cannot take string operands");
     }
 
+    #[test]
+    fn pinned_core_id_imported_through_prelude_keeps_two_fresh_uses() {
+        let sources = pinned_stdlib::resolve_implicit_stdlib().unwrap();
+        let mut indexes = Vec::new();
+        let mut core = None;
+        for source in sources.iter() {
+            let module = source.path.strip_prefix("lib/").unwrap().strip_suffix(".yu").unwrap().replace('/', "::");
+            let environment = Arc::new(pinned_stdlib::syntax_environment_for_source(source, &sources).unwrap());
+            let inventory = pinned_stdlib::parse_role_inventory(&module, environment).unwrap();
+            indexes.push(index_source_exports(inventory.identity.clone(), &inventory.parsed).unwrap());
+            if module == "std::core" {
+                core = Some((inventory.identity, inventory.parsed));
+            }
+        }
+        let (core_identity, core_parsed) = core.expect("pinned std::core provider is present");
+        let exported_id = resolve_public_export(&indexes, "std::prelude", "id").unwrap();
+        assert_eq!(exported_id.module.as_ref(), "std::core");
+        assert_eq!(exported_id.declaration.text.trim(), "pub id x = x");
+        let selected = [exported_id.declaration.source.clone()].into_iter().collect::<std::collections::HashSet<_>>();
+        let imports = SemanticImports::with_selected_source_imports(&core_parsed, &core_identity, &indexes, &selected).unwrap();
+        let provider = Arc::new(lower_module_with_selected_local_source(
+            core_identity,
+            &core_parsed,
+            imports,
+            selected,
+        ).unwrap());
+        assert_eq!(provider.items().len(), 1);
+
+        let text: Arc<SourceText> = Arc::from("my first = id 42\nmy second = id \"Yulang\"");
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)), Arc::new(playground_syntax_environment().unwrap()));
+        let consumer_identity = ModuleIdentity::source_root(FileId::new(FileKey::new("pinned-prelude-id", "consumer.yu")));
+        let imports = SemanticImports::with_implicit_prelude(&parsed, &consumer_identity, &indexes).unwrap();
+        let consumer = Arc::new(lower_module_with_local_source(consumer_identity, &parsed, imports).unwrap());
+        let candidate = CandidateInference::solve_modules(vec![consumer.clone(), provider.clone()]).unwrap();
+        assert!(candidate.observes_hir(&consumer));
+        assert!(candidate.observes_hir(&provider));
+        assert!(candidate.candidate_conflicts().is_empty(), "the pinned polymorphic id accepts both source uses");
+
+        let mut use_occurrences = Vec::new();
+        for (name, leaf) in [("first", yu_solver::shadow_apply::CandidateGraphLeaf::IntPositive), ("second", yu_solver::shadow_apply::CandidateGraphLeaf::StrPositive)] {
+            let root = consumer.items().iter().find_map(|item| match item {
+                HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding.definition_root().clone()),
+                _ => None,
+            }).expect("consumer binding");
+            let graph = candidate.export(&root).unwrap();
+            assert!(graph.bounds().any(|bound| bound.lower().leaf() == Some(leaf) || bound.upper().leaf() == Some(leaf)));
+            let local = consumer.local_source(&root).unwrap().unwrap();
+            let use_occurrence = local.expressions().iter().find_map(|expression| matches!(
+                &expression.form,
+                LocalSourceForm::Name { spelling, resolution: yu_hir::shadow::LocalSourceResolution::Imported(id) }
+                    if spelling.as_ref() == "id" && id == &exported_id.identity()
+            ).then(|| expression.occurrence.clone())).expect("id use keeps the exact prelude export identity");
+            use_occurrences.push(use_occurrence);
+        }
+        assert_eq!(use_occurrences.len(), 2);
+        let fresh_rows = use_occurrences.iter().map(|occurrence| {
+            candidate.fresh_use(occurrence).expect("pinned provider use retains FreshUse").rows().filter(|row| row.source_row().is_local()).collect::<Vec<_>>()
+        }).collect::<Vec<_>>();
+        assert!(fresh_rows.iter().all(|rows| !rows.is_empty()));
+        assert!(fresh_rows[0].iter().all(|first| fresh_rows[1].iter().all(|second| !first.same_identity(second))));
+    }
+
 
     #[test]
     fn execute_renders_nested_ordered_tuple_values() {
