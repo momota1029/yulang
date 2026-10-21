@@ -1189,13 +1189,44 @@ impl ConstraintBatch {
                 Work::CaseArms(index, level, region) => {
                     let LocalSourceForm::Case { scrutinee, arms } = &source.expressions()[index].form else { return Err(invalid()); };
                     for arm in arms {
-                        if let yu_hir::shadow::LocalSourceCasePattern::Binder(binder) = &arm.pattern {
-                            case_binders.try_reserve(1).map_err(|_| unavailable())?;
-                            case_binders.insert(binder.id.clone(), endpoints[scrutinee.ordinal() as usize]);
-                            if let Some(position) = case_positions.get(&binder.id).copied() {
-                                self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
-                                self.candidate_source.component_levels.insert(position, level);
+                        match &arm.pattern {
+                            yu_hir::shadow::LocalSourceCasePattern::Binder(binder) => {
+                                case_binders.try_reserve(1).map_err(|_| unavailable())?;
+                                case_binders.insert(binder.id.clone(), endpoints[scrutinee.ordinal() as usize]);
+                                if let Some(position) = case_positions.get(&binder.id).copied() {
+                                    self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
+                                    self.candidate_source.component_levels.insert(position, level);
+                                }
                             }
+                            yu_hir::shadow::LocalSourceCasePattern::Tuple { source: pattern_source, elements, .. } => {
+                                let mut tuple_elements = Vec::new();
+                                tuple_elements.try_reserve_exact(elements.len()).map_err(|_| unavailable())?;
+                                for element in elements {
+                                    match element {
+                                        yu_hir::shadow::LocalSourceCasePatternElement::Binder(binder) => {
+                                            let component = case_positions.get(&binder.id).copied();
+                                            if let Some(position) = component {
+                                                self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
+                                                self.candidate_source.component_levels.insert(position, level);
+                                                case_binders.try_reserve(1).map_err(|_| unavailable())?;
+                                                case_binders.insert(binder.id.clone(), CandidateEndpoint::Component(position));
+                                            }
+                                            tuple_elements.push(component.map(CandidateEndpoint::Component));
+                                        }
+                                        yu_hir::shadow::LocalSourceCasePatternElement::Wildcard => tuple_elements.push(None),
+                                    }
+                                }
+                                let occurrence = source.expressions()[index].occurrence.clone();
+                                let recipe = self.candidate_recipes.len();
+                                self.retain_candidate_relation(&occurrence, CandidateRelation::TuplePattern {
+                                    source: pattern_source.clone(),
+                                    scrutinee: endpoints[scrutinee.ordinal() as usize],
+                                    elements: tuple_elements,
+                                    level,
+                                })?;
+                                push(&mut actions, Action::Candidate(recipe))?;
+                            }
+                            yu_hir::shadow::LocalSourceCasePattern::Integer(_) | yu_hir::shadow::LocalSourceCasePattern::Wildcard => {}
                         }
                     }
                     for arm in arms.iter().rev() {
@@ -1307,6 +1338,7 @@ impl ConstraintBatch {
                                     }
                                     yu_hir::shadow::LocalSourceCasePattern::Binder(_) => {}
                                     yu_hir::shadow::LocalSourceCasePattern::Wildcard => {}
+                                    yu_hir::shadow::LocalSourceCasePattern::Tuple { .. } => {}
                                 }
                                 let body_index = arm.body.ordinal() as usize;
                                 let body_occurrence = &source.expressions()[body_index].occurrence;

@@ -476,7 +476,7 @@ pub use crate::module::local_source::{
     LocalSourceParameter, LocalSourceResolution, LocalSourceScope,
     LocalSourceNamedGroupId, LocalSourceNamedGroupOwner, LocalSourceNamedFormal, LocalSourceNamedGroup,
     LocalSourceCatchArm, LocalSourceCatchBinder, LocalSourceCatchBinderId, LocalSourceCatchValuePattern, LocalSourceCatchPattern, LocalSourceCatchPayloadPattern,
-    LocalSourceCaseArm, LocalSourceCasePattern,
+    LocalSourceCaseArm, LocalSourceCasePattern, LocalSourceCasePatternElement,
     LocalSourceWhereClause, LocalSourceWhereType,
 };
 

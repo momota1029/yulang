@@ -2285,6 +2285,13 @@ pub(super) enum CandidateRelation {
         result: usize,
         result_effect: usize,
     },
+    TuplePattern {
+        #[allow(dead_code, reason = "the pattern source key is retained with its candidate recipe for source-to-fact correspondence")]
+        source: yu_hir::shadow::SourceNodeKey,
+        scrutinee: CandidateEndpoint,
+        elements: Vec<Option<CandidateEndpoint>>,
+        level: u32,
+    },
 }
 #[derive(Clone, Debug)]
 pub(super) struct CandidateConstraintRecipe {
@@ -2479,6 +2486,7 @@ impl ConstraintBatch {
                 CandidateRelation::Group { .. } => 2,
                 CandidateRelation::Apply { .. } => 3,
                 CandidateRelation::Tuple { element_effects, .. } => 1usize.checked_add(element_effects.len()).ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?,
+                CandidateRelation::TuplePattern { .. } => 1,
             }
         } else {
             usize::from(!matches!(relation, CandidateRelation::DeferredFieldTail { .. }))
@@ -2793,6 +2801,21 @@ impl InferenceSession {
                 let lower = self.candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?;
                 (tuple, lower)
             }
+            CandidateRelation::TuplePattern { scrutinee, elements, level, .. } => {
+                let mut element_terms = Vec::new();
+                element_terms.try_reserve_exact(elements.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                for element in elements {
+                    let term = if let Some(element) = element {
+                        self.candidate_endpoint(*element, Polarity::Negative)?
+                    } else {
+                        let row = self.fresh_value_at_level(*level)?;
+                        self.live_value_term(Polarity::Negative, row)?
+                    };
+                    element_terms.push(term);
+                }
+                let tuple = self.store.terms.negative_tuple(&element_terms)?;
+                (self.candidate_endpoint(*scrutinee, Polarity::Positive)?, tuple)
+            }
             CandidateRelation::Apply {
                 callee,
                 argument,
@@ -2940,6 +2963,7 @@ impl InferenceSession {
                         )?;
                     }
                 }
+                CandidateRelation::TuplePattern { .. } => {}
             }
         }
         self.sample_f4_resources(ResourceBoundary::InitialAdmission)
@@ -3073,6 +3097,76 @@ mod tests {
         }
         arities.sort_unstable();
         assert_eq!(arities, [1, 2, 2, 2, 2, 3]);
+    }
+
+    #[test]
+    fn tuple_case_pattern_projects_binders_through_ordered_tuple_bounds() {
+        let text = "my swap value = case value: (left, right) -> (right, left)";
+        let hir = local_source_module(text);
+        let candidate = CandidateInference::solve(hir.clone()).expect("tuple pattern source constraints solve");
+        let root = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "swap" => Some(binding.definition_root()),
+            _ => None,
+        }).unwrap();
+        let export = candidate.export(root).unwrap();
+        let mut pattern_pairs = Vec::<[CandidateGraphNode<'_>; 2]>::new();
+        let mut result_pairs = Vec::<[CandidateGraphNode<'_>; 2]>::new();
+        for bound in export.bounds() {
+            if let Some(children) = bound.upper().tuple_children() {
+                let children = children.collect::<Vec<_>>();
+                if let Ok(pair) = <Vec<_> as TryInto<[CandidateGraphNode<'_>; 2]>>::try_into(children) {
+                    pattern_pairs.push(pair);
+                }
+            }
+            if let Some(children) = bound.lower().tuple_children() {
+                let children = children.collect::<Vec<_>>();
+                if let Ok(pair) = <Vec<_> as TryInto<[CandidateGraphNode<'_>; 2]>>::try_into(children) {
+                    result_pairs.push(pair);
+                }
+            }
+        }
+        assert!(pattern_pairs.iter().any(|pattern| result_pairs.iter().any(|result|
+            pattern[0].row().zip(result[1].row()).is_some_and(|(left, right)| left.same_identity(right))
+                && pattern[1].row().zip(result[0].row()).is_some_and(|(right, left)| right.same_identity(left))
+        )), "the returned tuple must swap the exact component rows selected by the pattern");
+        let mut pending = vec![export.root()];
+        for bound in export.bounds() { pending.push(bound.lower()); pending.push(bound.upper()); }
+        let mut visited = Vec::<CandidateGraphNode<'_>>::new();
+        let mut tuple_arities = Vec::new();
+        while let Some(node) = pending.pop() {
+            if visited.iter().any(|prior| prior.same_identity(node)) { continue; }
+            visited.push(node);
+            if let Some(children) = node.tuple_children() {
+                tuple_arities.push(children.len());
+                pending.extend(children);
+            }
+            if let Some(children) = node.children() { pending.extend(children); }
+            if let Some(row) = node.row() {
+                for bound in export.bounds() {
+                    if bound.kind() == ComponentKind::Value
+                        && bound.upper().row().is_some_and(|upper| upper.same_identity(row))
+                    {
+                        pending.push(bound.lower());
+                    }
+                }
+            }
+        }
+        assert!(tuple_arities.iter().filter(|&&arity| arity == 2).count() >= 2,
+            "both the pattern input and reversed result retain an ordered pair: {tuple_arities:?}");
+
+        let wildcard = local_source_module("my second value = case value: (_, right) -> right");
+        let wildcard = CandidateInference::solve(wildcard).expect("wildcard tuple component remains unconstrained");
+        assert!(wildcard.candidate_conflicts().is_empty(), "wildcard does not force a component type");
+
+        let wrong_arity = local_source_module(
+            "my first value = case value: (left, right) -> left\nmy bad = first (1, 2, 3)",
+        );
+        let wrong_arity = CandidateInference::solve(wrong_arity).expect("candidate retains a structural type conflict");
+        assert!(wrong_arity.candidate_conflicts().iter().any(|error| matches!(
+            error.kind(),
+            SolverErrorKind::IncompatibleValue { lower: ValueShape::Tuple(3), upper: ValueShape::Tuple(2) }
+                | SolverErrorKind::IncompatibleValue { lower: ValueShape::Tuple(2), upper: ValueShape::Tuple(3) }
+        )), "a three-tuple argument cannot satisfy a two-element case pattern: {:?}", wrong_arity.candidate_conflicts());
     }
     #[test]
     fn source_tuple_child_effect_is_admitted_to_tuple_computation_row() {

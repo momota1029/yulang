@@ -122,8 +122,18 @@ impl Graph {
                     work.try_reserve(arms.len().checked_add(1).ok_or_else(unavailable)?).map_err(|_| unavailable())?;
                     work.push((scrutinee.ordinal() as usize, owner));
                     for arm in arms {
-                        if let yu_hir::shadow::LocalSourceCasePattern::Binder(binder) = &arm.pattern {
-                            self.intern(Value::CatchBinder(binder.id.clone()))?;
+                        match &arm.pattern {
+                            yu_hir::shadow::LocalSourceCasePattern::Binder(binder) => {
+                                self.intern(Value::CatchBinder(binder.id.clone()))?;
+                            }
+                            yu_hir::shadow::LocalSourceCasePattern::Tuple { elements, .. } => {
+                                for element in elements {
+                                    if let yu_hir::shadow::LocalSourceCasePatternElement::Binder(binder) = element {
+                                        self.intern(Value::CatchBinder(binder.id.clone()))?;
+                                    }
+                                }
+                            }
+                            yu_hir::shadow::LocalSourceCasePattern::Integer(_) | yu_hir::shadow::LocalSourceCasePattern::Wildcard => {}
                         }
                         work.push((arm.body.ordinal() as usize, owner));
                     }

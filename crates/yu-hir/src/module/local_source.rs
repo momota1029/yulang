@@ -213,10 +213,7 @@ impl LocalSource {
                     }
                     LocalSourceForm::Case { arms, .. } => {
                         arms.capacity() * std::mem::size_of::<LocalSourceCaseArm>()
-                            + arms.iter().map(|arm| match &arm.pattern {
-                                LocalSourceCasePattern::Binder(binder) => binder.spelling.len(),
-                                _ => 0,
-                            }).sum::<usize>()
+                            + arms.iter().map(|arm| case_pattern_bytes(&arm.pattern)).sum::<usize>()
                     }
                     LocalSourceForm::If { arms, .. } => {
                         arms.capacity() * std::mem::size_of::<(LocalSourceIndex, LocalSourceIndex)>()
@@ -420,6 +417,28 @@ pub enum LocalSourceCasePattern {
     Integer(LocalSourceIndex),
     Binder(LocalSourceCatchBinder),
     Wildcard,
+    Tuple {
+        source: SourceNodeKey,
+        range: Range<usize>,
+        elements: Vec<LocalSourceCasePatternElement>,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub enum LocalSourceCasePatternElement {
+    Binder(LocalSourceCatchBinder),
+    Wildcard,
+}
+
+fn case_pattern_bytes(pattern: &LocalSourceCasePattern) -> usize {
+    match pattern {
+        LocalSourceCasePattern::Binder(binder) => binder.spelling.len(),
+        LocalSourceCasePattern::Tuple { elements, .. } => elements.iter().map(|element| match element {
+            LocalSourceCasePatternElement::Binder(binder) => binder.spelling.len(),
+            LocalSourceCasePatternElement::Wildcard => 0,
+        }).sum(),
+        LocalSourceCasePattern::Integer(_) | LocalSourceCasePattern::Wildcard => 0,
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -1525,6 +1544,105 @@ impl Builder<'_> {
         push(&mut self.work, Work::Expression(scrutinee_node, scrutinee_index, scope, named_group.clone()))?;
         Ok(())
     }
+    fn case_pattern_element(
+        &self,
+        pattern: &SyntaxNode,
+        arm_source: &SourceNodeKey,
+        next_binder: &mut u32,
+        binders: &mut Vec<LocalSourceCatchBinder>,
+    ) -> Result<LocalSourceCasePatternElement, FormationError> {
+        if pattern.kind() != SyntaxKind::IdentifierPattern || has_recovery(pattern) {
+            return Err(unsupported());
+        }
+        let spelling = identifier_spelling(pattern)?;
+        if spelling.as_ref() == "_" {
+            return Ok(LocalSourceCasePatternElement::Wildcard);
+        }
+        let ordinal = *next_binder;
+        *next_binder = ordinal.checked_add(1).ok_or_else(invalid)?;
+        let binder = LocalSourceCatchBinder {
+            id: LocalSourceCatchBinderId {
+                owner: self.owner.clone(),
+                arm_source: arm_source.clone(),
+                ordinal,
+            },
+            source: self.key(pattern)?,
+            range: range_of(pattern),
+            spelling,
+        };
+        push(binders, binder.clone())?;
+        Ok(LocalSourceCasePatternElement::Binder(binder))
+    }
+
+    fn case_pattern(
+        &mut self,
+        pattern: &SyntaxNode,
+        arm_source: &SourceNodeKey,
+        scope: &LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
+        next_binder: &mut u32,
+        binders: &mut Vec<LocalSourceCatchBinder>,
+    ) -> Result<LocalSourceCasePattern, FormationError> {
+        if has_recovery(pattern) { return Err(unsupported()); }
+        match pattern.kind() {
+            SyntaxKind::IntegerPattern => {
+                let pattern_index = self.slot()?;
+                self.set(
+                    pattern_index.clone(), pattern, scope.clone(), named_group,
+                    LocalSourceForm::Integer(integer_spelling(pattern)?),
+                )?;
+                Ok(LocalSourceCasePattern::Integer(pattern_index))
+            }
+            SyntaxKind::IdentifierPattern => {
+                let spelling = identifier_spelling(pattern)?;
+                if spelling.as_ref() == "_" {
+                    return Ok(LocalSourceCasePattern::Wildcard);
+                }
+                let ordinal = *next_binder;
+                *next_binder = ordinal.checked_add(1).ok_or_else(invalid)?;
+                let binder = LocalSourceCatchBinder {
+                    id: LocalSourceCatchBinderId {
+                        owner: self.owner.clone(), arm_source: arm_source.clone(), ordinal,
+                    },
+                    source: self.key(pattern)?, range: range_of(pattern), spelling,
+                };
+                push(binders, binder.clone())?;
+                Ok(LocalSourceCasePattern::Binder(binder))
+            }
+            SyntaxKind::ParenthesizedPattern => {
+                let mut children = Vec::new();
+                let mut has_comma = false;
+                for element in pattern.children_with_tokens() {
+                    match element.kind() {
+                        SyntaxKind::Comma => has_comma = true,
+                        SyntaxKind::Whitespace | SyntaxKind::Newline
+                        | SyntaxKind::LineComment | SyntaxKind::BlockComment
+                        | SyntaxKind::LParen | SyntaxKind::RParen => {}
+                        SyntaxKind::Pattern => {
+                            let Some(child) = element.into_node() else { return Err(unsupported()); };
+                            push(&mut children, only_child(&child)?)?;
+                        }
+                        _ => return Err(unsupported()),
+                    }
+                }
+                if children.is_empty() { return Err(unsupported()); }
+                if !has_comma {
+                    if children.len() != 1 { return Err(unsupported()); }
+                    return self.case_pattern(&children[0], arm_source, scope, named_group, next_binder, binders);
+                }
+                let mut elements = Vec::new();
+                elements.try_reserve_exact(children.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                for child in &children {
+                    elements.push(self.case_pattern_element(child, arm_source, next_binder, binders)?);
+                }
+                Ok(LocalSourceCasePattern::Tuple {
+                    source: self.key(pattern)?, range: range_of(pattern), elements,
+                })
+            }
+            _ => Err(unsupported()),
+        }
+    }
+
     fn case(
         &mut self,
         node: SyntaxNode,
@@ -1555,39 +1673,10 @@ impl Builder<'_> {
             let arm_source = self.key(&arm)?;
             let mut binders = Vec::new();
             let pattern = only_child(&patterns[0])?;
-            let pattern = match pattern.kind() {
-                SyntaxKind::IntegerPattern => {
-                    let pattern_index = self.slot()?;
-                    self.set(
-                        pattern_index.clone(),
-                        &pattern,
-                        scope.clone(),
-                        named_group.clone(),
-                        LocalSourceForm::Integer(integer_spelling(&pattern)?),
-                    )?;
-                    LocalSourceCasePattern::Integer(pattern_index)
-                }
-                SyntaxKind::IdentifierPattern => {
-                    let spelling = identifier_spelling(&pattern)?;
-                    if spelling.as_ref() == "_" {
-                        LocalSourceCasePattern::Wildcard
-                    } else {
-                        let binder = LocalSourceCatchBinder {
-                            id: LocalSourceCatchBinderId {
-                                owner: self.owner.clone(),
-                                arm_source: arm_source.clone(),
-                                ordinal: 0,
-                            },
-                            source: self.key(&pattern)?,
-                            range: range_of(&pattern),
-                            spelling,
-                        };
-                        push(&mut binders, binder.clone())?;
-                        LocalSourceCasePattern::Binder(binder)
-                    }
-                }
-                _ => return Err(unsupported()),
-            };
+            let mut next_binder = 0;
+            let pattern = self.case_pattern(
+                &pattern, &arm_source, &scope, named_group.clone(), &mut next_binder, &mut binders,
+            )?;
             let body_index = self.slot()?;
             push(&mut arms, LocalSourceCaseArm {
                 source: arm_source.clone(),
@@ -2262,6 +2351,36 @@ mod tests {
         assert_eq!(unit.range, 15..17);
         assert_ne!(unit.occurrence, apply.occurrence);
         assert!(matches!(unit.scope, LocalSourceScope::Parameter(_)));
+    }
+
+    #[test]
+    fn ordered_tuple_case_pattern_retains_component_binders_and_source_owner() {
+        let text = "my first value = case value: (left, right) -> left";
+        let module = lower(text).expect("ordered tuple case pattern should form a source carrier");
+        let source = module.local_sources.values().next().unwrap();
+        let LocalSourceForm::Lambda { body, .. } = &source.expression(source.body()).unwrap().form else {
+            panic!("the named formal wraps the case in a lambda");
+        };
+        let case = source.expression(body).unwrap();
+        let LocalSourceForm::Case { arms, .. } = &case.form else { panic!("case expression"); };
+        let LocalSourceCasePattern::Tuple { source: pattern_source, range, elements } = &arms[0].pattern else {
+            panic!("ordered tuple pattern");
+        };
+        assert_eq!(&text[range.clone()], "(left, right)");
+        assert_eq!(module.occurrence_source_key(&case.occurrence).unwrap(), Some(&case.source));
+        let [
+            LocalSourceCasePatternElement::Binder(left),
+            LocalSourceCasePatternElement::Binder(right),
+        ] = elements.as_slice() else { panic!("two ordered binders"); };
+        assert!(module.source_parsed.as_ref().unwrap().owns_source_key(pattern_source));
+        assert_eq!(&text[left.range.clone()], "left");
+        assert_eq!(&text[right.range.clone()], "right");
+        assert_eq!(left.id.ordinal, 0);
+        assert_eq!(right.id.ordinal, 1);
+        assert!(source.expressions().iter().any(|expression| matches!(
+            &expression.form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::CaseBinder(id), .. } if id == &left.id
+        )));
     }
 
     #[test]
