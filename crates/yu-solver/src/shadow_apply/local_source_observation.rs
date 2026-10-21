@@ -969,4 +969,228 @@ my outer (q:[io] int) = {
                 crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(row), .. } if row == mapped_item))));
         println!("R220 source_bound={source_bound:?} physical_owner=Effect({owner}) item=Effect({item}) repeated_local_fresh_uses={mapped_bounds:?} work_bounds={work_bounds:?} forest_complete=true item_in_forest=false");
     }
+
+    #[test]
+    fn r221_higher_order_loop_callback_reachability() {
+        const SOURCE: &str = r#"act io:
+    our tick: int -> int
+
+my outer (q:[io] int) = {
+    my loop (x:[io] int) = {
+        my direct = loop x
+        my helper (y:[io] int) = loop y
+        helper x
+    }
+    my repeat (f:[io] int -> int) (z:[io] int) = {
+        my first = f z
+        f z
+    }
+    repeat loop q
+}"#;
+        let source: Arc<SourceText> = Arc::from(SOURCE);
+        let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+        assert!(parsed.structural_recoveries().is_empty());
+        let hir = Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("r221-higher-order-loop", "source.yu"))),
+            &parsed, SemanticImports::empty(),
+        ).unwrap());
+        let outer = binding(&hir, "outer");
+        let local = hir.local_source(outer.definition_root()).unwrap().unwrap();
+        let loop_id = local.bindings().iter().find(|binding| binding.spelling.as_ref() == "loop").unwrap().id.clone();
+        let callback_applies = local.expressions().iter().filter(|expression| {
+            let LocalSourceForm::Apply { callee, argument, .. } = &expression.form else { return false; };
+            matches!((&local.expression(callee).unwrap().form, &local.expression(argument).unwrap().form),
+                (LocalSourceForm::Name { spelling, .. }, LocalSourceForm::Name { spelling: argument, .. })
+                    if spelling.as_ref() == "f" && argument.as_ref() == "z")
+        }).map(|expression| expression.occurrence.ordinal()).collect::<Vec<_>>();
+        assert_eq!(callback_applies.len(), 2, "the fixed callback body has exactly two f z calls");
+
+        crate::candidate_context::r148_trace_begin();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let trace = crate::candidate_context::r148_trace_finish();
+        assert!(candidate.solved.data.errors.is_empty(), "the exact ordinary source is admitted");
+        assert!(candidate.candidate_conflicts().is_empty(), "the exact higher-order source has no ordinary candidate conflicts");
+        let callback_apply = callback_applies.iter().copied().min().unwrap();
+        let callback_call_index = (0..candidate.source_call_count()).find(|&index| {
+            candidate.source_call(index).unwrap().checking_occurrence().occurrence().ordinal() == callback_apply
+        }).expect("source Call for the first callback f z Apply");
+        let callback_call = candidate.source_call(callback_call_index).unwrap();
+        assert!(matches!(&callback_call.callee_source().form,
+            LocalSourceForm::Name { spelling, .. } if spelling.as_ref() == "f"));
+        assert_eq!(callback_call.formal_registration().unwrap().spelling.as_ref(), "f");
+        assert!(matches!(&callback_call.argument_source().form,
+            LocalSourceForm::Name { spelling, .. } if spelling.as_ref() == "z"));
+        let provider_call_index = (0..candidate.source_call_count()).find(|&index| {
+            let call = candidate.source_call(index).unwrap();
+            matches!((&call.callee_source().form, &call.argument_source().form),
+                (LocalSourceForm::Name { spelling: callee, .. }, LocalSourceForm::Name { spelling: argument, .. })
+                    if callee.as_ref() == "repeat" && argument.as_ref() == "loop")
+        }).expect("source Call passing the retained loop as repeat's callback argument");
+        let provider_call = candidate.source_call(provider_call_index).unwrap();
+        println!("R221 provider_call occurrence={} callee=repeat actual=loop formal_registration={:?}",
+            provider_call.checking_occurrence().occurrence().ordinal(),
+            provider_call.formal_registration().map(|formal| formal.spelling.as_ref()));
+        let starts = trace.iter().filter(|event| event.starts_with("extrusion-start ")).count();
+        let finishes = trace.iter().filter(|event| event.starts_with("extrusion-finish ")).count();
+        assert!(starts > 0 && starts == finishes);
+        let work_bounds = trace.iter().filter(|event| event.starts_with("work-bound ")).collect::<Vec<_>>();
+        for (index, event) in trace.iter().enumerate().filter(|(_, event)|
+            event.starts_with("work-bound ") || event.starts_with("row-merge ")
+                || (event.starts_with("bound-transport ") && (event.contains("EffectRow(31)") || event.contains("EffectRow(41)")))) {
+            println!("R221 alias_consumer_event index={index} {event}");
+        }
+        for event in &work_bounds {
+            let occurrence = event.split_whitespace().find_map(|part|
+                part.strip_prefix("occurrence=").and_then(|value| value.parse::<usize>().ok())).unwrap();
+            let index = trace.iter().position(|candidate| std::ptr::eq(candidate, *event)).unwrap();
+            assert!(index > 0 && trace[index - 1].starts_with(&format!("work-pop occurrence={occurrence} task=Bound(")));
+        }
+        let solved = candidate.solved.data.candidate_graph.as_ref().unwrap();
+        let context = &solved.intrusion.effect_algebra.context;
+        let references = &candidate.solved.data.candidate_references;
+        let callback_work_event = work_bounds.iter().find(|event|
+            event.contains("raw=BoundKey(Effect(EffectRow(21)), Positive, Effect(EffectRow(31)))"))
+            .expect("callback formal Work::Bound lookup");
+        let callback_work_occurrence = callback_work_event.split_whitespace().find_map(|part|
+            part.strip_prefix("occurrence=").and_then(|value| value.parse::<usize>().ok())).unwrap();
+        let callback_start = trace.iter().find(|event| event.starts_with(&format!("extrusion-start occurrence={callback_work_occurrence} ")))
+            .expect("callback Work::Bound extrusion start");
+        let processing_relation = callback_start.split("processing=Some(RelationId(").nth(1)
+            .and_then(|rest| rest.split(')').next()).and_then(|id| id.parse::<u32>().ok()).unwrap();
+        let callback_lineage = context.test_relation_lineage(crate::candidate_context::RelationId(processing_relation));
+        println!("R221 callback_consumer occurrence={callback_work_occurrence} source_apply={} processing_relation=RelationId({processing_relation}) lineage={callback_lineage:?}", callback_applies.iter().copied().min().unwrap());
+        let loop_initializer = local.bindings().iter().find(|binding| binding.id == loop_id).unwrap().initializer.clone();
+        let loop_ordinal = local.expression(&loop_initializer).unwrap().occurrence.ordinal();
+        let slot4 = context.origins.iter().find(|origin|
+            origin.occurrence.occurrence().ordinal() == loop_ordinal && origin.occurrence.local_slot() == 4)
+            .expect("loop Lambda slot-4 origin");
+        let source_bound = context.test_admission_emissions_for_relation(slot4.relation).iter()
+            .find_map(|(_, admission, _)| matches!(admission.bound,
+                crate::candidate_effect::BoundKey(
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_)), Polarity::Negative,
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_))))
+                .then_some(admission.bound)).unwrap();
+        let crate::candidate_effect::BoundKey(
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(owner)), Polarity::Negative,
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(item)),
+        ) = source_bound else { unreachable!() };
+        let repeat_id = local.bindings().iter().find(|binding| binding.spelling.as_ref() == "repeat").unwrap().id.clone();
+        let repeat_route = solved.local_routes.iter().find(|route|
+            route.occurrence.ordinal() == 27 && route.local == repeat_id).expect("repeat loop Local route");
+        let repeat_item_index = repeat_route.graph.rows.iter().position(|row|
+            row.key == crate::candidate_scheme::RowKey::Effect(31)).expect("callback formal's retained item row");
+        let repeat_item_image = match repeat_route.rows[repeat_item_index] {
+            crate::candidate_scheme::RowKey::Effect(row) => row,
+            other => panic!("callback item route maps to an effect row: {other:?}"),
+        };
+        let loop_route = solved.local_routes.iter().find(|route|
+            route.graph.bounds.iter().any(|bound| bound.relation == Some(slot4.relation)))
+            .expect("loop slot-4 Local route");
+        let slot4_route_bound = loop_route.graph.bounds.iter().find(|bound| bound.relation == Some(slot4.relation)).unwrap();
+        assert_eq!(slot4_route_bound.source_bound, source_bound);
+        let route_effect_image = |source_row: u32| {
+            let index = loop_route.graph.rows.iter().position(|row|
+                row.key == crate::candidate_scheme::RowKey::Effect(source_row)).unwrap();
+            match loop_route.rows[index] {
+                crate::candidate_scheme::RowKey::Effect(row) => row,
+                other => panic!("slot-4 Local row maps to an effect row: {other:?}"),
+            }
+        };
+        let loop_owner_image = route_effect_image(owner);
+        let loop_item_image = route_effect_image(item);
+        let slot4_image = crate::candidate_effect::BoundKey(
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(loop_owner_image)), Polarity::Negative,
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(loop_item_image)),
+        );
+        let slot4_lineage = context.test_relation_lineage(slot4.relation);
+        assert!(slot4_lineage.iter().any(|edge| edge.contains(&format!("from: {source_bound:?}"))
+            && edge.contains(&format!("to: {slot4_image:?}")) && edge.contains("reason: FreshUse")));
+        assert!(work_bounds.iter().any(|event| event.contains("raw=BoundKey(Effect(EffectRow(21)), Positive, Effect(EffectRow(31)))")),
+            "the callback's production lookup selects its own formal item Effect(31)");
+        assert_ne!(repeat_item_image, loop_item_image,
+            "the callback formal's Local image and loop slot-4 item have distinct source-qualified rows");
+        let slot4_lineage = context.test_relation_lineage(slot4.relation);
+        assert!(slot4_lineage.iter().any(|edge| edge.contains(&format!("from: {source_bound:?}"))
+            && edge.contains(&format!("to: {slot4_image:?}")) && edge.contains("reason: FreshUse")));
+        let mut source_checks = std::collections::HashSet::new();
+        let mut work_occurrences = std::collections::HashSet::new();
+        for event in &work_bounds {
+            if let Some(occurrence) = event.split_whitespace().find_map(|part|
+                part.strip_prefix("occurrence=").and_then(|value| value.parse::<usize>().ok())) {
+                work_occurrences.insert(occurrence);
+                for (_, group_occurrence, start, end, _) in solved.intrusion.observed_groups()
+                    .filter(|(_, group_occurrence, _, _, _)| *group_occurrence == occurrence)
+                {
+                    for parent in &solved.intrusion.parents[start..end] {
+                        if let Some(sources) = parent.sources {
+                            source_checks.extend(context.source_events(sources).iter()
+                                .filter_map(|&event| references.observed_checking(event))
+                                .map(|checking| checking.source_ordinal()));
+                        }
+                    }
+                }
+            }
+        }
+        let callback_apply = callback_applies.iter().copied().min().unwrap();
+        let callback_work_bound = work_bounds.iter().find(|event|
+            event.contains("raw=BoundKey(Effect(EffectRow(21)), Positive, Effect(EffectRow(31)))"))
+            .expect("callback formal Work::Bound consumer");
+        let callback_work_occurrence = callback_work_bound.split_whitespace().find_map(|part|
+            part.strip_prefix("occurrence=").and_then(|value| value.parse::<usize>().ok())).unwrap();
+        let callback_group_sources = solved.intrusion.observed_groups()
+            .filter(|(_, occurrence, _, _, _)| *occurrence == callback_work_occurrence)
+            .flat_map(|(_, _, start, end, _)| solved.intrusion.parents[start..end].iter()
+                .filter_map(|parent| parent.sources)
+                .flat_map(|sources| context.source_events(sources).iter()
+                    .filter_map(|&event| references.observed_checking(event))
+                    .map(|checking| checking.source_ordinal()).collect::<Vec<_>>()))
+            .collect::<std::collections::HashSet<_>>();
+        assert!(callback_group_sources.contains(&callback_apply),
+            "the callback Work::Bound consumer maps to the exact first f z source Apply");
+        assert!(solved.intrusion.forest_event_log_complete());
+        let (mut values, mut effects) = (Vec::<u32>::new(), Vec::<u32>::new());
+        for event in solved.intrusion.forest_events() {
+            match *event {
+                crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Value(row)) => { assert_eq!(row as usize, values.len()); values.push(row); }
+                crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Effect(row)) => { assert_eq!(row as usize, effects.len()); effects.push(row); }
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Value(row), before, after, .. } => { let slot=&mut values[row as usize]; assert_eq!(*slot,before); *slot=after; }
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(row), before, after, .. } => { let slot=&mut effects[row as usize]; assert_eq!(*slot,before); *slot=after; }
+                crate::candidate_intrusion::ForestEvent::Truncate { values_len, effects_len } => { values.truncate(values_len); effects.truncate(effects_len); }
+            }
+        }
+        let final_forest = solved.intrusion.forest_snapshot().unwrap();
+        assert_eq!(values, final_forest.values);
+        assert_eq!(effects, final_forest.effects);
+        let relevant_alias_writes = solved.intrusion.forest_events().iter().filter(|event| matches!(event,
+            crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(row), after, .. }
+                if *row == item || *after == item || *row == 31 || *after == 31)).collect::<Vec<_>>();
+        assert!(relevant_alias_writes.is_empty(),
+            "complete alias history never attaches either the slot-4 item or callback formal item: {relevant_alias_writes:?}");
+        let forest_root = |forest: &[u32], mut row: u32| {
+            while forest[row as usize] != row { row = forest[row as usize]; }
+            row
+        };
+        let mut callback_slot_alias_history = Vec::new();
+        let (mut value_prefix, mut effect_prefix) = (Vec::<u32>::new(), Vec::<u32>::new());
+        for (cursor, event) in solved.intrusion.forest_events().iter().enumerate() {
+            match *event {
+                crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Value(row)) => { assert_eq!(row as usize, value_prefix.len()); value_prefix.push(row); }
+                crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Effect(row)) => { assert_eq!(row as usize, effect_prefix.len()); effect_prefix.push(row); }
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Value(row), before, after, .. } => { let slot=&mut value_prefix[row as usize]; assert_eq!(*slot,before); *slot=after; }
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(row), before, after, .. } => { let slot=&mut effect_prefix[row as usize]; assert_eq!(*slot,before); *slot=after; }
+                crate::candidate_intrusion::ForestEvent::Truncate { values_len, effects_len } => { value_prefix.truncate(values_len); effect_prefix.truncate(effects_len); }
+            }
+            if effect_prefix.len() > 31 && effect_prefix.len() > item as usize {
+                callback_slot_alias_history.push((cursor, forest_root(&effect_prefix, 31), forest_root(&effect_prefix, item)));
+            }
+        }
+        assert!(callback_slot_alias_history.iter().all(|(_, callback_rep, slot_rep)| callback_rep != slot_rep),
+            "the callback formal item and slot-4 source item never alias in this complete history: {callback_slot_alias_history:?}");
+        println!("R221 callback_applies={callback_applies:?} slot4_source={source_bound:?} slot4_local_image={slot4_image:?} callback_formal_item_image=Effect({repeat_item_image}) slot4_lineage_edges={} callback_slot_alias_history_end={:?} work_bounds={work_bounds:?} work_occurrences={work_occurrences:?} source_checks={source_checks:?} source_item_bound_mentions={} local_item_bound_mentions={} forest_effect_rows={} forest_complete=true replay=true",
+            slot4_lineage.len(),
+            callback_slot_alias_history.last(),
+            work_bounds.iter().filter(|event| event.contains(&format!("EffectRow({item})"))).count(),
+            work_bounds.iter().filter(|event| event.contains(&format!("EffectRow({loop_item_image})"))).count(),
+            effects.len());
+    }
 }

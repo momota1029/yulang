@@ -4,23 +4,23 @@
  "phase": "ACTIVE",
  "session": "current-conversation-2026-10-21-r218",
  "active_sprint": {
-  "id": "repeated-loop-fresh-use-route-20261021-r220",
-  "status": "CLOSED_BOUNDED_CANDIDATE_LINEAGE",
-  "contract": "tasks/agent-loop/sprints/repeated-loop-fresh-use-route-20261021-r220.md",
-  "contract_sha256": "8201cdc6295e2887dab07c1bf56e1b252d010c907e6cdb7fae533663fd2b70a3",
-  "baseline": "6dc402afc",
+  "id": "higher-order-loop-callback-reachability-20261021-r221",
+  "status": "CLOSED_BOUNDED_CANDIDATE_C",
+  "contract": "tasks/agent-loop/sprints/higher-order-loop-callback-reachability-20261021-r221.md",
+  "contract_sha256": "58b24a475dcf86b4fdfbfd5eeb6d5987479d151a39572340a255c0e63f37adab",
+  "baseline": "4a4450f33",
   "resources": {
    "cap_seconds": 600,
    "charged_seconds": 0,
    "reserved_seconds": 0,
    "no_carryover": true
   },
-  "proof": "Repeated-loop route maps the slot-4 source bound to two exact Local FreshUse images; neither reaches a later Work::Bound in this source.",
-  "implementation": "One focused read-only test using existing candidate route/lineage observers.",
+  "proof": "Higher-order source admitted; callback Work::Bound copies its formal item, which remains distinct from the loop slot-4 item across the complete alias history.",
+  "implementation": "One focused source test using existing test-only execution trace and retained route data.",
   "review_receipt": "Solo primary; no independent review claimed.",
-  "next_action": "Resume global R71 required-fiber/source-reachability proof at the missing consumer lineage.",
-  "closure": "R220 closes one repeated-loop FreshUse source path; global R71/R72 and original theorem remain open.",
-  "handoff_sha256": "fb17dfed24c1a47a169b301b8d40d35497b464eaec352bb2d0bd52b4a9aabf24"
+  "next_action": "Resume global R71 source-reachable required-fiber proof at provider-to-consumer lineage.",
+  "closure": "R221 C: callback formal Work::Bound is not the slot-4 lineage; no merge-then-copy pattern in this source.",
+  "handoff_sha256": "fd10c7e72963b63290ec5179802134370c5c5958ee154cb86abef4cf5a8068b9"
  },
  "workers": [
   {"id":"/root/resident_dispatcher_loop_a","role":"legacy dispatcher","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"U;Q."},
@@ -67,7 +67,7 @@
   {"path":"notes/design/2026-10-21-r187-option-b-implementation-contract.md","owner":"/root","state":"HELD","reason":"R"},
   {"path":"tasks/agent-loop/inbox/20261021-r187-implementation.md","owner":"/root","state":"HELD","reason":"R"},
   {"path":"crates/yu-solver/src/shadow_apply.rs","owner":"/root","state":"HELD","reason":"R215 test-only initialization of bounded Capture snapshot field; no production change."},
-  {"path":"crates/yu-solver/src/shadow_apply/local_source_observation.rs","owner":"/root","state":"HELD","reason":"R218-R220 bounded source route observations; Luna primary."},
+  {"path":"crates/yu-solver/src/shadow_apply/local_source_observation.rs","owner":"/root","state":"HELD","reason":"R218-R221 bounded source route observations; Luna primary."},
   {"path":"tasks/agent-loop/sprints/source-qualified-capture-frontier-witness-20261021-r213.md","owner":"/root","state":"FROZEN","reason":"R213 closed."},
   {"path":"notes/theory/2026-10-21-r213-source-qualified-capture-frontier-witness.md","owner":"/root","state":"FROZEN","reason":"R213 closed."},
   {"path":"notes/progress/2026-10-21-r202-r212-capture-frontier-audit.md","owner":"/root","state":"FROZEN","reason":"R213 closed."},
@@ -77,7 +77,9 @@
   {"path":"tasks/agent-loop/sprints/repeated-loop-source-reachability-20261021-r219.md","owner":"/root","state":"HELD","reason":"R219 exact repeated-call source observation."},
   {"path":"notes/theory/2026-10-21-r219-repeated-loop-source-reachability.md","owner":"/root","state":"HELD","reason":"R219 source/native result."},
   {"path":"tasks/agent-loop/sprints/repeated-loop-fresh-use-route-20261021-r220.md","owner":"/root","state":"HELD","reason":"R220 repeated-loop Local FreshUse route trace."},
-  {"path":"notes/theory/2026-10-21-r220-repeated-loop-fresh-use-route.md","owner":"/root","state":"HELD","reason":"R220 source/native result."}
+  {"path":"notes/theory/2026-10-21-r220-repeated-loop-fresh-use-route.md","owner":"/root","state":"HELD","reason":"R220 source/native result."},
+  {"path":"tasks/agent-loop/sprints/higher-order-loop-callback-reachability-20261021-r221.md","owner":"/root","state":"HELD","reason":"R221 exact higher-order source probe."},
+  {"path":"notes/theory/2026-10-21-r221-higher-order-loop-callback-reachability.md","owner":"/root","state":"HELD","reason":"R221 source/native result."}
  ],
  "pending": [
   {"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna; original whole-ascription formation obligation","details":"tasks/agent-loop/inbox/20261019-r61-proof.md"},
@@ -89,11 +91,11 @@
   {"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1","state":"OPEN_UNADOPTED_PROPOSAL","owner":"Luna; source-law completion","details":"tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"},
   {"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1","state":"OPEN","owner":"Luna; exact source/native owners assigned within R70","details":"tasks/agent-loop/inbox/20261019-r70-proof.md"},
   {"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1","state":"OPEN","owner":"Luna; exact source/native owners assigned within R71","details":"tasks/agent-loop/inbox/20261019-r71-proof.md"},
-  {"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage","details":"OPEN. R218/R219 exact cases C; slot-4 item absent from forest and later Work::Bound. Global coverage remains."},
+  {"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage","details":"OPEN. R218-R221 cases do not produce slot-4 merge/copy; R221 WorkBound is callback-formal-owned. Provider lineage gap remains."},
   {"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"STOPPED_UNFROZEN_RESULT","owner":"Luna intake","details":"Worker interrupted 10:44:04Z"}
  ],
- "closure": "R218/R219 exact cases C; R220 closes one FreshUse route lineage. Original theorem and global R71/R72 remain OPEN.",
- "next_action": "Continue global R71 required-fiber/source-reachability proof at the missing consumer-lineage premise.",
+ "closure": "R218-R220 exact paths are bounded; R221 adds an actual callback Work::Bound but no slot-4 lineage merge/copy. Original theorem and global R71/R72 remain OPEN.",
+ "next_action": "Continue global R71 required-fiber source reachability at provider-to-consumer lineage.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "3 U; no reclaim.",
@@ -111,7 +113,8 @@
   {"id":"R215","archive":"notes/theory/2026-10-21-r215-capture-predecessor-effect-row-readback.md","archive_sha256":"2f65dc442770da5e5f7715d36a8b63a76e9b4ff1ad0a72d63e961b3e92b4e736","contract":"tasks/agent-loop/sprints/capture-predecessor-effect-row-readback-20261021-r215.md","contract_sha256":"c187db7762214cc9b26ed3686ee22b79d75a607314246a881c04633fec52cd05","charged_seconds":18,"checks":"Capture/playground pass; solver lib 3 failures by 77/732, stalled >90s; no dispatcher per user instruction."},
   {"id":"R218","archive":"notes/theory/2026-10-21-r218-r72-exact-source-execution.md","contract":"tasks/agent-loop/sprints/r72-exact-source-execution-and-owner-trace-20261021-r218.md","charged_seconds":0,"checks":"focused R218, playground, sprint check, and 57 tooling tests passed"},
   {"id":"R219","archive":"notes/theory/2026-10-21-r219-repeated-loop-source-reachability.md","contract":"tasks/agent-loop/sprints/repeated-loop-source-reachability-20261021-r219.md","charged_seconds":0,"checks":"focused R219, playground, sprint check, and 57 tooling tests passed"},
-  {"id":"R220","archive":"notes/theory/2026-10-21-r220-repeated-loop-fresh-use-route.md","contract":"tasks/agent-loop/sprints/repeated-loop-fresh-use-route-20261021-r220.md","charged_seconds":0,"checks":"focused R220, playground, sprint check, and 57 tooling tests passed"}
+  {"id":"R220","archive":"notes/theory/2026-10-21-r220-repeated-loop-fresh-use-route.md","contract":"tasks/agent-loop/sprints/repeated-loop-fresh-use-route-20261021-r220.md","charged_seconds":0,"checks":"focused R220, playground, sprint check, and 57 tooling tests passed"},
+  {"id":"R221","archive":"notes/theory/2026-10-21-r221-higher-order-loop-callback-reachability.md","contract":"tasks/agent-loop/sprints/higher-order-loop-callback-reachability-20261021-r221.md","charged_seconds":0,"checks":"focused R221, playground, sprint check, and 57 tooling tests passed"}
  ],
  "review_receipts": "Solo; no independent review."
 }
