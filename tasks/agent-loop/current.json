@@ -5,20 +5,23 @@
   "session": "r267-20261021",
   "active_sprint": {
     "id": "R267",
-    "status": "ACTIVE",
+    "status": "RESULT",
     "contract": "tasks/agent-loop/sprints/yulang2-direct-use-module-prefix-classification-20261021-r267.md",
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 0,
-      "reserved_seconds": 420,
+      "charged_seconds": 420,
+      "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "Classify authenticated direct UseDeclaration CST routes into pinned std module prefixes, selected items, unresolved paths and local routes.",
-    "implementation": "Primary-only temporary source probe; no retained code/tests or semantics edits.",
-    "review_receipt": "No independent reviewer assigned; provisional result only.",
-    "next_action": "Enumerate UsePath nodes and resolve each explicit std:: prefix against the 40 pinned module paths.",
-    "closure": "R260 conditional; Y2 import semantics, runtime roots, R149 outputs, parent proofs and production OPEN.",
-    "contract_sha256": "17f8964b46d5178906f5ca177f081cddf7eaee0325bfcc117b63c80bf04faccd"
+    "proof": "108/108 explicit std:: base routes resolve by longest prefix to the pinned 40 modules; 4 non-std routes re-export same-file host acts; 21 grouped selected-item paths.",
+    "implementation": "Primary-only temporary route probe removed; no retained code/tests.",
+    "review_receipt": "Primary-only; unreviewed.",
+    "next_action": "Build the source-ordered module route graph and compare closure with the pinned 40-module set.",
+    "closure": "R260 conditional; Y2 import/re-export semantics, runtime roots, R149 outputs, parent proofs and production OPEN.",
+    "contract_sha256": "17f8964b46d5178906f5ca177f081cddf7eaee0325bfcc117b63c80bf04faccd",
+    "note_sha256": "e96a4871278c50255084e47638933fee257f2b71329ca689dbc5915c8d7d4f5a",
+    "inbox_sha256": "a70a4d2a729fe37786d04b68717c97dbe1777921168d16a535118e254677addb",
+    "note": "notes/theory/2026-10-21-r267-use-module-prefix-map.md"
   },
   "workers": [
     {
@@ -291,8 +294,20 @@
     {
       "path": "tasks/agent-loop/sprints/yulang2-direct-use-module-prefix-classification-20261021-r267.md",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "R267 active primary contract."
+      "state": "FROZEN",
+      "reason": "R267 result recorded; immutable contract."
+    },
+    {
+      "path": "notes/theory/2026-10-21-r267-use-module-prefix-map.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R267 primary-only result; immutable evidence."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r267-use-module-prefix-map.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R267 primary-only result; immutable evidence."
     }
   ],
   "pending": [
@@ -360,11 +375,11 @@
       "id": "R149-SOURCE-OWNER-CLOSURE-1",
       "state": "STOPPED_UNFROZEN_RESULT",
       "owner": "Luna intake",
-      "details": "R258-R259 local roots; R260 conditional imported census; R261-R265 parser/env qualifications; R266 locates 112 direct-use CST nodes source-exactly but module-prefix/re-export semantics remain open. R149 root composition and outputs OPEN."
+      "details": "R258-R259 local roots; R260 conditional census; R261-R265 parser/env qualifications; R266 source-exact 112 uses; R267 resolves 108 std prefixes to 40 pinned modules and identifies 4 same-file host reexports. Need edge closure/order, Y2 semantics and R149 outputs."
     }
   ],
-  "closure": "R266 establishes source-exact current-CST locations for 112 direct use roots, not Y2 module/re-export semantics. R260 remains conditional; imported root composition, runtime outputs, parent proofs and production remain OPEN.",
-  "next_action": "R267: resolve direct UsePath bases against the pinned module map, separating selected items and local routes.",
+  "closure": "R267 locates 108 explicit std:: routes in the pinned 40-module set and four same-file host-act reexports; it does not establish Y2 import semantics or runtime roots. R149 remains open.",
+  "next_action": "Continue R149 by computing the source-ordered module route graph and testing whether it accounts for exactly the pinned 40-module closure.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
