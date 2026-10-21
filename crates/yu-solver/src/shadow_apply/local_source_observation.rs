@@ -1343,6 +1343,112 @@ my outer (q:[io] int) = {
             .collect::<std::collections::HashSet<_>>();
         assert!(callback_group_sources.contains(&callback_apply),
             "the callback Work::Bound consumer maps to the exact first f z source Apply");
+
+        // R229: join this same source Call, source Lambda, annotation, provider
+        // argument port, and Work::Bound consumer without relying on the
+        // separately branded candidate_scheme audit.
+        let data = &candidate.solved.data;
+        let callback_occurrence = callback_call.checking_occurrence().occurrence();
+        let registration_index = data.candidate_calls.formal_use_registration(&data.hir, callback_occurrence)
+            .expect("the exact callback Apply resolves to a formal registration");
+        let registration = &data.candidate_calls.formals[registration_index];
+        let formal_source = data.hir.local_source_for(&registration.owner).unwrap().unwrap();
+        let lambda = formal_source.expressions().get(registration.lambda).unwrap();
+        let LocalSourceForm::Lambda { parameter, .. } = &lambda.form else { panic!("formal registration owns its Lambda") };
+        assert_eq!(parameter.id, registration.parameter);
+        assert_eq!(callback_call.formal_registration().unwrap().id, registration.parameter);
+        assert_eq!(callback_call.formal_parameter_recipe_position(), Some(registration.recipe_position));
+        let formal_root = registration.native_root.unwrap();
+        assert!(matches!(data.store.term_view(formal_root),
+            Ok(crate::TermView::LiveVariable(view)) if view.kind() == ComponentKind::Value
+                && view.polarity() == Polarity::Positive));
+        let algebra = &solved.intrusion.effect_algebra;
+        let formal_domain = *algebra.formal_domains.get(&registration.recipe_position)
+            .expect("the source annotation's function domain is retained at the exact formal recipe");
+        let fact_at = |occurrence: &HirOccurrenceId, slot: u8| {
+            let edge = data.store.provenance().iter().find(|edge| {
+                edge.cause().occurrence().occurrence() == occurrence
+                    && edge.cause().occurrence().local_slot() == slot
+            }).unwrap_or_else(|| panic!("source occurrence {} slot {slot} has provenance", occurrence.ordinal()));
+            data.store.facts().iter().find(|fact| fact.id() == edge.fact()).unwrap()
+        };
+        let formal_annotation_upper = fact_at(&lambda.occurrence, 44);
+        assert_eq!(formal_annotation_upper.lower(), formal_root);
+        assert_eq!(formal_annotation_upper.upper(), formal_domain,
+            "the registered native formal root is linked to its source annotation's negative function domain");
+        let lambda_fact = fact_at(&lambda.occurrence, 2);
+        let crate::TermView::PositiveFunction { argument: lambda_argument, .. } = data.store.term_view(lambda_fact.lower()).unwrap()
+            else { panic!("the exact Lambda constructor emits its positive function") };
+        assert_eq!(lambda_argument, formal_domain,
+            "the registered formal domain is the argument port of the owning Lambda constructor");
+        assert!(matches!(data.store.term_view(lambda_fact.upper()),
+            Ok(crate::TermView::Component(component)) if component.kind() == ComponentKind::Value
+                && component.occurrence() == Some(&lambda.occurrence)),
+            "Lambda slot 2 is owned by the exact source Lambda's value root");
+        let provider_origin = solved.intrusion.effect_algebra.context.origins.iter()
+            .find(|origin| origin.occurrence == *provider_call.checking_occurrence()).unwrap();
+        assert_eq!(provider_origin.occurrence.occurrence().ordinal(), provider_call.checking_occurrence().occurrence().ordinal());
+        let provider_replay = crate::candidate_context::RelationId(363);
+        let TypedPairKey::Value(provider_pair) = solved.intrusion.effect_algebra.context.relation_pair(provider_replay).unwrap()
+            else { panic!("provider callback replay is a value relation") };
+        let provider_expected = match provider_pair.upper {
+            ValueEndpointKey::NegativeFunction(term) => term,
+            other => panic!("provider expected callback function: {other:?}"),
+        };
+        assert_ne!(provider_expected, formal_domain,
+            "the local FreshUse creates a distinct term identity, so identity alone cannot join source annotation to provider expected port");
+        let repeat_binding = local.bindings().iter().find(|binding| binding.spelling.as_ref() == "repeat").unwrap();
+        let LocalSourceForm::Lambda { parameter: repeat_parameter, .. } = &local.expression(&repeat_binding.initializer).unwrap().form
+            else { panic!("repeat's authentic initializer is the registered Lambda") };
+        assert_eq!(local.expression(&repeat_binding.initializer).unwrap().occurrence,
+            formal_source.expressions()[registration.lambda].occurrence);
+        assert_eq!(repeat_parameter.id, registration.parameter);
+        let LocalSourceForm::Name { resolution: LocalSourceResolution::Local(provider_local), .. } = &provider_call.callee_source().form
+            else { panic!("the provider Apply uses the exact repeat local") };
+        assert_eq!(provider_local, &repeat_binding.id);
+        let repeat_route = solved.local_routes.iter().find(|route| route.occurrence.ordinal() == 27)
+            .expect("the exact repeat Name has a retained LocalFreshRoute");
+        assert_eq!(repeat_route.local, repeat_binding.id);
+        let mut mapped_terms = Vec::<Option<Term>>::new();
+        repeat_route.retained.observe_map_entries(|name, entry| {
+            if name == "terms" {
+                if let Some(crate::shadow_apply::CandidateFreshUseMapEntry::Term { index, value }) = entry {
+                    if mapped_terms.len() <= index { mapped_terms.resize(index + 1, None); }
+                    mapped_terms[index] = value;
+                }
+            }
+        });
+        let repeat_use_fact = fact_at(&provider_call.callee_source().occurrence, 0);
+        assert_eq!(repeat_use_fact.lower(), mapped_terms[repeat_route.graph.root].unwrap(),
+            "the exact repeat Name's slot-zero restoration is rooted at this route's mapped graph root");
+        assert!(matches!(data.store.term_view(repeat_use_fact.upper()),
+            Ok(crate::TermView::Component(component)) if component.kind() == ComponentKind::Value
+                && component.occurrence() == Some(&provider_call.callee_source().occurrence)),
+            "the route root is restored to the exact source repeat Name component");
+        let argument_ports = repeat_route.graph.nodes.iter().enumerate().filter_map(|(index, node)| {
+            let crate::candidate_scheme::Node::Function { polarity: Polarity::Positive, children } = node else { return None; };
+            (mapped_terms.get(children[0]).copied().flatten() == Some(provider_expected)).then_some((index, children[0]))
+        }).collect::<Vec<_>>();
+        assert_eq!(argument_ports.len(), 1, "one retained positive repeat function exposes this exact provider expected port");
+        let (repeat_function_node, repeat_argument_node) = argument_ports[0];
+        assert!(matches!(repeat_route.graph.nodes[repeat_argument_node],
+            crate::candidate_scheme::Node::Function { polarity: Polarity::Negative, .. }),
+            "the exact Lambda argument port is a negative function node in the captured route");
+        assert_eq!(mapped_terms[repeat_argument_node], Some(provider_expected),
+            "the same route argument-port node's retained FreshUse image is the provider's expected callback function");
+        let callback_demand = callback_call.native_demand();
+        let demand_fact = fact_at(callback_occurrence, 0);
+        assert_eq!(demand_fact.lower(), formal_root);
+        assert_eq!(demand_fact.upper(), callback_demand,
+            "the same registered formal root owns the callback body's source Apply demand");
+        let callback_work = work_bounds.iter().find(|event|
+            event.contains("raw=BoundKey(Effect(EffectRow(21)), Positive, Effect(EffectRow(31)))"))
+            .expect("the exact callback formal's production Work::Bound selection");
+        assert!(callback_work.contains(&format!("operation=Value(NegativeFunction({callback_demand:?}))")),
+            "the exact body demand term is the operation selected by its source-owned Work::Bound");
+        assert!(callback_group_sources.contains(&callback_apply));
+        println!("R229 formal-registration={registration_index} parameter={:?} lambda={} annotation-domain={formal_domain:?} repeat-function-node={repeat_function_node} mapped-argument-node={repeat_argument_node} provider-expected={provider_expected:?} body-demand={callback_demand:?} demand-view={:?} work-bound={callback_work}",
+            registration.parameter, lambda.occurrence.ordinal(), data.store.term_view(callback_demand));
         assert!(solved.intrusion.forest_event_log_complete());
         let (mut values, mut effects) = (Vec::<u32>::new(), Vec::<u32>::new());
         for event in solved.intrusion.forest_events() {
