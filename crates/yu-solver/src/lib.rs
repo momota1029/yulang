@@ -1466,6 +1466,13 @@ impl ConstraintBatch {
         let definition_endpoint_index_capacity = definition_by_hir_id.capacity();
         let pending_endpoint_capacity = pending_uses.capacity();
         #[cfg(feature = "shadow-apply-candidate")]
+        {
+            batch.candidate_calls.formal_use_by_occurrence.sort_unstable_by_key(|(ordinal, _)| *ordinal);
+            if batch.candidate_calls.formal_use_by_occurrence.windows(2).any(|pair| pair[0].0 == pair[1].0) {
+                return Err(CollectionAvailabilityError::ComponentIdentityExhausted);
+            }
+        }
+        #[cfg(feature = "shadow-apply-candidate")]
         batch.candidate_source.references.seal().map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
         batch.finish_collection_accounting(
             definition_endpoint_index_capacity,

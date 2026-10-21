@@ -1416,18 +1416,32 @@ impl ConstraintBatch {
                             let recipe = self.candidate_recipes.len();
                             self.retain_candidate_relation(occurrence, CandidateRelation::Apply { callee: endpoints[callee.ordinal() as usize], callee_effect: c.effect, argument: endpoints[argument.ordinal() as usize], argument_effect: a.effect, result: pos.value, result_effect: pos.effect })?;
                             let source_input = self.candidate_calls.calls.len();
+                            let formal_name = formal_names[callee.ordinal() as usize];
+                            if self.candidate_source.scoped_experiment {
+                                self.candidate_calls.by_occurrence.try_reserve(1).map_err(|_| unavailable())?;
+                                if self.candidate_calls.by_occurrence.insert(occurrence.clone(), source_input).is_some() {
+                                    return Err(invalid());
+                                }
+                            }
+                            if let Some(name_index) = formal_name {
+                                let name = self.candidate_calls.names.get(name_index).ok_or_else(invalid)?;
+                                self.candidate_calls.formals.get(name.registration).ok_or_else(invalid)?;
+                                let encoded_registration = u32::try_from(name.registration).ok()
+                                    .and_then(|index| index.checked_add(1)).and_then(std::num::NonZeroU32::new)
+                                    .ok_or_else(unavailable)?;
+                                self.candidate_calls.formal_use_by_occurrence.try_reserve(1).map_err(|_| unavailable())?;
+                                self.candidate_calls.formal_use_by_occurrence.push((occurrence.ordinal(), encoded_registration));
+                            }
                             if self.candidate_source.scoped_experiment {
                                 if source_input >= SCOPED_RECORD_LIMIT { return Err(unavailable()); }
                                 self.candidate_source.charge_scoped_work(1)?;
-                                self.candidate_calls.by_occurrence.try_reserve(1).map_err(|_| unavailable())?;
-                                self.candidate_calls.by_occurrence.insert(occurrence.clone(), source_input);
                                 let region = self.candidate_source.occurrence_regions[occurrence];
                                 let input_route = candidate_scope::InputRouteId(u32::try_from(source_input).map_err(|_| unavailable())?);
                                 self.candidate_source.regions[region.0].inputs.try_reserve(1).map_err(|_| unavailable())?;
                                 self.candidate_source.regions[region.0].inputs.push(input_route);
                             }
                             let receiver_attachment = if self.candidate_source.scoped_experiment {
-                                if let Some(name) = formal_names[callee.ordinal() as usize] {
+                                if let Some(name) = formal_name {
                                     let registration_index = self.candidate_calls.names[name].registration;
                                     let registration = &self.candidate_calls.formals[registration_index];
                                     let lambda = &source.expressions()[registration.lambda];
@@ -1450,7 +1464,7 @@ impl ConstraintBatch {
                                 argument_value: endpoints[argument.ordinal() as usize], argument_effect: a.effect,
                                 result: pos.value, application_effect: pos.effect,
                                 cause: CauseId::for_occurrence(checking.clone()), checking,
-                                formal_name: formal_names[callee.ordinal() as usize], local_callee,
+                                formal_name, local_callee,
                                 native: None, introduction: None, receiver_attachment,
                             })?;
                             self.candidate_recipes[recipe].source_input = Some(source_input);

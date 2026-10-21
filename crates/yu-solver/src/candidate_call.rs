@@ -1,6 +1,7 @@
 //! Source-owned inputs to pending complete Call construction, never certificates.
 use crate::shadow_apply::CandidateEndpoint;
 use crate::*;
+use std::num::NonZeroU32;
 use yu_hir::shadow::{
     LocalSource, LocalSourceExpr, LocalSourceForm, LocalSourceIndex, LocalSourceParameter,
     LocalSourceResolution, LocalSourceScope,
@@ -12,6 +13,7 @@ pub(super) struct State {
     pub names: Vec<FormalNameInput>,
     pub calls: Vec<ApplySourceInput>,
     pub by_occurrence: HashMap<HirOccurrenceId, usize>,
+    pub formal_use_by_occurrence: Vec<(u32, NonZeroU32)>,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum FormalRole { Value, Computation }
@@ -144,10 +146,17 @@ pub(super) struct NativeInterface {
     pub application_effect: Term,
 }
 impl State {
+    #[cfg(test)]
+    pub fn formal_use_registration(&self, hir: &yu_hir::HirModule, occurrence: &HirOccurrenceId) -> Option<usize> {
+        if !hir.owns_occurrence(occurrence) { return None; }
+        let index = self.formal_use_by_occurrence.binary_search_by_key(&occurrence.ordinal(), |(ordinal, _)| *ordinal).ok()?;
+        usize::try_from(self.formal_use_by_occurrence[index].1.get() - 1).ok()
+    }
     pub fn bytes(&self) -> usize {
         checked_usize_sum(
             [
                 checked_capacity_bytes::<(HirOccurrenceId, usize)>(self.by_occurrence.capacity(), "Call occurrence index"),
+                checked_capacity_bytes::<(u32, NonZeroU32)>(self.formal_use_by_occurrence.capacity(), "Formal-use occurrence index"),
                 checked_capacity_bytes::<FormalRegistrationInput>(
                     self.formals.capacity(),
                     "Call source formal inputs",

@@ -3176,8 +3176,20 @@ fn captured_bundle_spans_are_sparse_and_shared_across_reconstruction() {
         assert_eq!(actual, expected);
     }
     assert_eq!(referenced.len(), graph.attachment_bundles.len());
-    assert_eq!(graph.bytes().unwrap(), graph.nodes.capacity() * std::mem::size_of::<candidate_scheme::Node>()
+    let capture_frontier_bytes = graph.capture_effect_frontiers.iter().map(|frontier|
+        frontier.direct_lower_rows.capacity() * std::mem::size_of::<u32>()
+            + frontier.direct_upper_rows.capacity() * std::mem::size_of::<u32>()).sum::<usize>();
+    assert_eq!(graph.bytes().unwrap(), graph.context_views.capacity() * std::mem::size_of::<(LocalWeightId, u32, Option<usize>)>()
+        + graph.source_frontier.capacity() * std::mem::size_of::<candidate_source::SourceRegionId>()
+        + graph.owned_regions.capacity() * std::mem::size_of::<candidate_source::SourceRegionId>()
+        + graph.negative_functions.capacity() * std::mem::size_of::<(Term, usize)>()
+        + graph.nodes.capacity() * std::mem::size_of::<candidate_scheme::Node>()
         + graph.rows.capacity() * std::mem::size_of::<candidate_scheme::Row>()
+        + graph.capture_rows.capacity() * std::mem::size_of::<candidate_scheme::CapturedRowObservation>()
+        + graph.capture_effect_frontiers.capacity() * std::mem::size_of::<candidate_scheme::CaptureEffectFrontierObservation>()
+        + capture_frontier_bytes
+        + graph.capture_forest.values.capacity() * std::mem::size_of::<u32>()
+        + graph.capture_forest.effects.capacity() * std::mem::size_of::<u32>()
         + graph.bounds.capacity() * std::mem::size_of::<candidate_scheme::Bound>()
         + graph.bound_evidence.capacity() * std::mem::size_of::<EvidenceSnapshot>()
         + graph.attachment_bundles.capacity() * std::mem::size_of::<(RelationId, AttachmentBundleId)>()

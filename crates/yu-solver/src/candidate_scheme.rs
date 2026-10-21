@@ -2484,7 +2484,7 @@ mod authentic_demand_capture_tests {
     use super::*;
 
     #[test]
-    fn r225_local_apply_relation_map_ownership() {
+    fn r226_callback_formal_use_origin() {
         const SOURCE: &str = r#"act io:
     our tick: int -> int
 
@@ -2519,8 +2519,24 @@ my outer (q:[io] int) = {
         let callback_origin = context.test_relation_lineage(candidate_context::RelationId(146));
         let provider_origin = context.test_relation_lineage(candidate_context::RelationId(357));
         assert!(callback_origin.iter().any(|line| line.contains("ordinal: 19")));
-        assert!(callback_origin.iter().any(|line| line.contains("formal_present=false")));
+        let callback_call_index = session.batch.candidate_calls.calls.iter().position(|call|
+            call.checking.occurrence().ordinal() == 19).unwrap();
+        let callback_call = &session.batch.candidate_calls.calls[callback_call_index];
+        let callback_name_index = callback_call.formal_name.unwrap();
+        let callback_registration = session.batch.candidate_calls.names[callback_name_index].registration;
+        assert!(session.batch.candidate_calls.formal_use_by_occurrence.iter().any(|(ordinal, encoded)|
+            *ordinal == 19 && encoded.get() as usize == callback_registration + 1));
+        let callback_source_origin = context.origins.iter().find(|origin| origin.relation == candidate_context::RelationId(146)).unwrap();
+        assert_eq!(callback_source_origin.occurrence.occurrence().ordinal(), 19);
+        assert_eq!(session.batch.candidate_calls.formal_use_registration(&session.batch.hir,
+            callback_source_origin.occurrence.occurrence()), Some(callback_registration));
         assert!(provider_origin.iter().any(|line| line.contains("ordinal: 26")));
+        let provider_call_index = session.batch.candidate_calls.calls.iter().position(|call|
+            call.checking.occurrence().ordinal() == 26).unwrap();
+        assert!(session.batch.candidate_calls.calls[provider_call_index].formal_name.is_none());
+        let provider_source_origin = context.origins.iter().find(|origin| origin.relation == candidate_context::RelationId(357)).unwrap();
+        assert_eq!(session.batch.candidate_calls.formal_use_registration(&session.batch.hir,
+            provider_source_origin.occurrence.occurrence()), None);
         assert!(actual_loop.retained.scoped_relations.is_empty());
         assert!(repeat.retained.scoped_relations.is_empty());
         let function_endpoint = |relation: u32, upper: bool, positive: bool| {
@@ -2563,7 +2579,7 @@ my outer (q:[io] int) = {
         assert_ne!(provider_expected_argument_type, callback_demand_type);
         assert!(!context.observed_dependencies().any(|dependency|
             matches!(dependency, candidate_context::Dependency::FunctionPort { parent: candidate_context::RelationId(146), .. })));
-        println!("R225 provider Apply26 owns actual-route argument comparison and slot4 effect edge; callback Apply19 WorkBound has no retained formal/FunctionPort bridge in ordinary candidate mode");
+        println!("R226 callback Apply19 retains its exact formal registration; provider Apply26 has none; the typed route/WorkBound bridge remains open");
     }
 
     #[test]
