@@ -40,6 +40,7 @@ pub struct SourceRoleMember {
     pub range: Range<usize>,
     pub text: Box<str>,
     pub recovered: bool,
+    pub(crate) source_path: Box<[u32]>,
 }
 
 #[derive(Clone, Debug)]
@@ -63,6 +64,7 @@ fn unsupported() -> HirAvailabilityError {
 fn body_members(
     body: &SyntaxNode,
     role: &SourceRoleId,
+    root: &SyntaxNode,
     counters: &LoweringCounters,
 ) -> Result<Vec<SourceRoleMember>, HirAvailabilityError> {
     let mut members = Vec::new();
@@ -85,6 +87,7 @@ fn body_members(
             range: crate::range_of(&declaration),
             text: declaration.text().to_string().into_boxed_str(),
             recovered: has_recovery(&declaration),
+            source_path: crate::source_identity::source_path(root, &declaration)?,
         });
     }
     Ok(members)
@@ -135,7 +138,7 @@ pub(super) fn declarations(
                     range: crate::range_of(&body),
                     text: body.text().to_string().into_boxed_str(),
                     recovered: has_recovery(&body),
-                    members: body_members(&body, &id, counters)?,
+                    members: body_members(&body, &id, root, counters)?,
                 })
             }
             (Some(body), None, None) if body.kind() == SyntaxKind::BracedStatementBlockExpression => {
@@ -145,7 +148,7 @@ pub(super) fn declarations(
                     range: crate::range_of(&body),
                     text: body.text().to_string().into_boxed_str(),
                     recovered: has_recovery(&body),
-                    members: body_members(&body, &id, counters)?,
+                    members: body_members(&body, &id, root, counters)?,
                 })
             }
             (Some(semicolon), None, None) if semicolon.kind() == SyntaxKind::Semicolon => None,
@@ -206,6 +209,11 @@ mod tests {
         assert_ne!(members[0].id, second_member.id, "equal member spellings in separate roles remain distinct");
         assert_eq!(hir.source_role_member(&members[0].id).unwrap().unwrap().id, members[0].id);
         assert_eq!(hir.source_role_member(&second_member.id).unwrap().unwrap().id, second_member.id);
+        let member_node = hir.source_role_member_node(&members[0].id).unwrap().unwrap();
+        assert_eq!(member_node.kind(), members[0].kind);
+        assert_eq!(member_node.text().to_string(), members[0].text.as_ref());
+        assert_eq!(crate::range_of(&member_node), members[0].range);
+        assert!(parsed.owns_source_key(&members[0].id.declaration));
         for member in members {
             assert_eq!(&text[member.range.clone()], member.text.as_ref());
         }

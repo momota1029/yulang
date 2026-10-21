@@ -552,6 +552,30 @@ impl HirModule {
         Ok(found)
     }
 
+    /// Reconstructs the original role member syntax node from a stored path in
+    /// the immutable green tree. The source key remains the authority; the
+    /// path is checked against the retained member kind, range and text.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn source_role_member_node(
+        &self,
+        id: &SourceRoleMemberId,
+    ) -> Result<Option<SyntaxNode>, HirAvailabilityError> {
+        let Some(member) = self.source_role_member(id)? else { return Ok(None); };
+        let Some(parsed) = self.source_parsed.as_ref() else { return Ok(None); };
+        if !parsed.owns_source_key(&id.declaration) {
+            return Err(HirAvailabilityError::InconsistentIdentity);
+        }
+        let node = syntax_node_at_path(parsed, &member.source_path)?;
+        if node.kind() != member.kind
+            || crate::range_of(&node) != member.range
+            || node.text().to_string() != member.text.as_ref()
+        {
+            return Err(HirAvailabilityError::StructuralProjection);
+        }
+        Ok(Some(node))
+    }
+
+
     /// Looks up one unrecovered implementation member by its complete source
     /// identity. A declaration-owned where-clause is not a member. This
     /// establishes source ownership only, not implementation conformance.
@@ -589,6 +613,42 @@ impl HirModule {
         Ok(found)
     }
 
+    /// Reconstructs the exact original implementation member syntax node.
+    /// Where clauses, recovered members and unavailable source fail closed.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn source_implementation_member_node(
+        &self,
+        id: &SourceImplementationMemberId,
+    ) -> Result<Option<SyntaxNode>, HirAvailabilityError> {
+        let Some(member) = self.source_implementation_member(id)? else { return Ok(None); };
+        let Some(path) = member.source_path.as_deref() else { return Ok(None); };
+        let Some(parsed) = self.source_parsed.as_ref() else { return Ok(None); };
+        if !parsed.owns_source_key(&id.declaration) {
+            return Err(HirAvailabilityError::InconsistentIdentity);
+        }
+        let node = syntax_node_at_path(parsed, path)?;
+        if node.kind() != member.kind
+            || crate::range_of(&node) != member.range
+            || node.text().to_string() != member.text.as_ref()
+        {
+            return Err(HirAvailabilityError::StructuralProjection);
+        }
+        Ok(Some(node))
+    }
+
+}
+
+#[cfg(any(feature = "shadow", test))]
+fn syntax_node_at_path(
+    parsed: &ParsedFile,
+    path: &[u32],
+) -> Result<SyntaxNode, HirAvailabilityError> {
+    let mut node = SyntaxNode::new_root(parsed.green().clone());
+    for &ordinal in path {
+        node = node.children().nth(ordinal as usize)
+            .ok_or(HirAvailabilityError::StructuralProjection)?;
+    }
+    Ok(node)
 }
 
 /// Retains one leaf-only application with source identity and explicit pending errors.

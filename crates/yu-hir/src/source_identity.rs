@@ -49,6 +49,27 @@ pub(crate) fn try_source_keys(parsed: &ParsedFile) -> Result<HashMap<SyntaxNode,
     Ok(keys)
 }
 
+/// Retains a node's exact child-index path from the owning immutable parse
+/// root. The path is only a reconstruction locator; SourceNodeKey remains the
+/// identity and caller-visible owner.
+pub(crate) fn source_path(
+    root: &SyntaxNode,
+    node: &SyntaxNode,
+) -> Result<Box<[u32]>, crate::HirAvailabilityError> {
+    let mut path = Vec::new();
+    let mut current = node.clone();
+    while current != *root {
+        let parent = current.parent().ok_or(crate::HirAvailabilityError::StructuralProjection)?;
+        let ordinal = parent.children().position(|child| child == current)
+            .ok_or(crate::HirAvailabilityError::StructuralProjection)?;
+        path.try_reserve(1).map_err(|_| crate::HirAvailabilityError::IdentityExhausted)?;
+        path.push(u32::try_from(ordinal).map_err(|_| crate::HirAvailabilityError::IdentityExhausted)?);
+        current = parent;
+    }
+    path.reverse();
+    Ok(path.into_boxed_slice())
+}
+
 impl HirSourceIdentity {
     pub(crate) fn new(parsed: &ParsedFile) -> Self {
         Self {
