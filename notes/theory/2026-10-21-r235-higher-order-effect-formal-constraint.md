@@ -50,9 +50,12 @@ Name argument and reaches the effect conflict consumer.
 The full `yu-solver` library test run did not complete cleanly: two
 candidate-context resource-accounting assertions failed, and a serial run
 stalled in `queued_relation_equality_transport_retains_context_ancestry_and_retry`.
-Those outcomes are unresolved and are not presented as caused by or unrelated to
-this repair. The targeted regression and playground suite pass; full solver
-suite status remains open.
+An isolated rerun of that exact test also remained active for about 76 seconds
+with one test thread and no result; it was stopped during investigation. This
+shows the stall is reproducible without suite-level test parallelism, but does
+not identify its cause. The resource assertion failures and stall are unresolved
+and are not presented as caused by or unrelated to this repair. The targeted
+regression and playground suite pass; full solver suite status remains open.
 
 This is solo, unreviewed candidate work. It does not prove source/native
 completeness, the original Simple-sub theorem or computation-forwarding. No
