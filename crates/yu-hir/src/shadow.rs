@@ -36,6 +36,18 @@ pub use crate::module::source_impl::{
     SourceImplementationBody, SourceImplementationBodyEntry, SourceImplementationDeclaration,
     SourceImplementationId, SourceImplementationMemberId, SourceImplementationType,
 };
+pub use crate::module::source_exports::{
+    SourceExportDeclaration, SourceExportIndex, SourceUseDeclaration, SourceUseTreeNode,
+};
+
+/// Indexes declarations and lossless use-tree syntax with parse-owned source
+/// identities. This records import facts; it does not resolve their meaning.
+pub fn index_source_exports(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+) -> Result<SourceExportIndex, HirAvailabilityError> {
+    crate::module::index_source_exports(identity, parsed)
+}
 
 /// Source-only index of role declarations and implementation declarations for
 /// one supplied module identity and parsed file. It does not lower value bodies

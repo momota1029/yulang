@@ -490,7 +490,7 @@ mod tests {
     use super::{conflict_ranges_for, execute, prepare};
     use super::output;
     use yu_hir::shadow::{
-        LocalSourceForm, index_role_impl_sources, lower_module_with_local_source,
+        LocalSourceForm, index_role_impl_sources, index_source_exports, lower_module_with_local_source,
     };
     use yu_hir::{FileId, FileKey, HirItem, HirOccurrenceId, HirModule, ModuleIdentity, SemanticImports, SourceRootId};
     use yu_solver::shadow_apply::CandidateInference;
@@ -625,6 +625,43 @@ mod tests {
                 assert_eq!(member.implementation, tuple_display.id);
             }
         }
+    }
+
+    #[test]
+    fn pinned_public_export_route_retains_source_owned_edges_and_names() {
+        let environment = Arc::new(playground_syntax_environment().unwrap());
+        let mut indexed = std::collections::BTreeMap::new();
+        for module in ["std::prelude", "std::io", "std::io::console", "std::core::fmt"] {
+            let inventory = pinned_stdlib::parse_role_inventory(module, environment.clone()).unwrap();
+            let index = index_source_exports(inventory.identity.clone(), &inventory.parsed).unwrap();
+            assert_eq!(index.module, *inventory.identity.module());
+            assert!(index.uses.iter().all(|item| {
+                inventory.parsed.owns_source_key(&item.source)
+                    && inventory.source.text.get(item.range.clone()) == Some(item.text.as_ref())
+            }));
+            assert!(index.declarations.iter().all(|item| {
+                inventory.parsed.owns_source_key(&item.source)
+                    && inventory.source.text.get(item.range.clone()) == Some(item.text.as_ref())
+            }));
+            indexed.insert(module, index);
+        }
+
+        let use_texts = |module: &str| indexed[module].uses.iter().map(|item| item.text.as_ref()).collect::<Vec<_>>();
+        assert!(use_texts("std::prelude").iter().any(|text| text.contains("pub use std::core::fmt::*")));
+        assert!(use_texts("std::prelude").iter().any(|text| text.contains("pub use std::io::*")));
+        assert!(use_texts("std::io").iter().any(|text| text.contains("pub use std::io::console::*")));
+        let console = &indexed["std::io::console"];
+        for name in ["say", "println"] {
+            assert!(console.declarations.iter().any(|item| {
+                item.name.as_deref() == Some(name) && item.public && !item.recovered
+            }), "missing public source declaration {name}");
+        }
+        assert!(indexed["std::core::fmt"].declarations.iter().any(|item| {
+            item.kind == yu_syntax::SyntaxKind::RoleDeclaration
+                && item.name.as_deref() == Some("Display")
+                && item.public
+                && !item.recovered
+        }));
     }
 
     #[test]

@@ -19,6 +19,8 @@ use crate::{AssociationError, AssociationProvenance, HirExpr, associate_chain_ow
 pub(crate) mod local_source;
 pub(crate) mod source_annotation;
 #[cfg(any(feature = "shadow", test))]
+pub(crate) mod source_exports;
+#[cfg(any(feature = "shadow", test))]
 pub(crate) mod source_impl;
 #[cfg(any(feature = "shadow", test))]
 pub(crate) mod source_role;
@@ -1158,7 +1160,7 @@ pub(crate) fn lower_module_with_local_source(
     lower_module_with_counters(identity, parsed, imports, &mut counters)
 }
 
-#[cfg(feature = "shadow")]
+#[cfg(any(feature = "shadow", test))]
 pub(crate) fn index_role_impl_sources(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
@@ -1175,6 +1177,20 @@ pub(crate) fn index_role_impl_sources(
     let roles = source_role::declarations(&root, identity.module(), &counters)?;
     let implementations = source_impl::declarations(&root, identity.module(), &counters)?;
     Ok((roles, implementations))
+}
+
+#[cfg(any(feature = "shadow", test))]
+pub(crate) fn index_source_exports(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+) -> Result<source_exports::SourceExportIndex, HirAvailabilityError> {
+    if identity.file != *identity.module.file() {
+        return Err(HirAvailabilityError::InconsistentIdentity);
+    }
+    let mut counters = LoweringCounters::default();
+    counters.source_nodes = crate::source_identity::try_source_keys(parsed)?;
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    source_exports::index(&root, identity.module(), &counters)
 }
 
 fn lower_module_with_counters(
