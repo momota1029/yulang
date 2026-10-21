@@ -43,6 +43,7 @@ pub(super) struct MemberSchedule {
     /// Exact source role-member key when this root is a role default. An
     /// implementation body stays separately identified by its own root.
     pub role_member: Option<yu_hir::shadow::SourceRoleMemberId>,
+    pub header: yu_hir::SourceMemberHeader,
     /// Receiver input and body output remain distinct candidate endpoints;
     /// a later selected use must freshen the body before linking these rows.
     pub receiver: CandidateEndpoint,
@@ -428,6 +429,11 @@ impl Plan {
             checked_usize_sum(self.expressions.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "expression actions")), "expression action storage"),
             checked_capacity_bytes::<MemberSchedule>(self.members.capacity(), "member schedules"),
             checked_usize_sum(self.members.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "member actions")), "member action storage"),
+            checked_usize_sum(self.members.iter().map(|schedule| {
+                let header = &schedule.header;
+                header.receiver.spelling.len() + header.method.spelling.len()
+                    + header.annotation.as_ref().map_or(0, |annotation| annotation.text.len())
+            }), "member header source text"),
             checked_capacity_bytes::<(HirOccurrenceId, SourceRootId)>(self.source_owners.capacity(), "source occurrence owners"),
             checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).chain(self.expressions.iter().flat_map(|schedule| schedule.actions.iter())).chain(self.members.iter().flat_map(|schedule| schedule.actions.iter())).map(|action| {
                 if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::WhereClause { source, .. } = action { std::mem::size_of::<yu_hir::shadow::LocalSourceWhereClause>() + source.text.len() + source.subject.text.len() + source.role.text.len() } else if let Action::FieldBoundV1 { declaration, h_arg } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + h_arg.response_annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else if let Action::CatchOperation { declaration, h_arg, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + h_arg.as_ref().map_or(0, |link| std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + link.response_annotation.retained_arena_bytes()) } else { 0 }
@@ -1821,6 +1827,10 @@ impl ConstraintBatch {
             });
         } else if let SourceRootId::Member(root) = owner {
             let [receiver_parameter] = source.root_parameters() else { return Err(invalid()); };
+            let header = source.member_header().ok_or_else(invalid)?;
+            if header.receiver.source != receiver_parameter.source
+                || header.receiver.spelling != receiver_parameter.spelling
+            { return Err(invalid()); }
             let receiver = CandidateEndpoint::Parameter(
                 *parameters.get(&receiver_parameter.id).ok_or_else(invalid)?,
             );
@@ -1837,6 +1847,7 @@ impl ConstraintBatch {
                     }),
                     yu_hir::SourceMemberKind::Implementation => None,
                 },
+                header: header.clone(),
                 receiver, components: positions[body], value: endpoints[body], actions,
             });
         }
@@ -2370,7 +2381,7 @@ mod member_source_tests {
     #[test]
     fn member_sources_form_separate_candidate_roots_with_receiver_inputs() {
         let source: Arc<yu_syntax::SourceText> = Arc::from(
-            "role Echo:\n    our receiver.echo = receiver\nimpl int: Echo:\n    our value.echo = value",
+            "role Echo:\n    our receiver.echo: int = receiver\nimpl int: Echo:\n    our value.echo: int = value",
         );
         let parsed = yu_syntax::parse_file(
             source.clone(),
@@ -2392,6 +2403,9 @@ mod member_source_tests {
             let yu_hir::SourceCarrierOutcome::Supported(source) = outcome else { panic!("supported fixture"); };
             let member = owner.member_root().unwrap();
             assert_eq!(&schedule.root, member);
+            assert_eq!(schedule.header.receiver.source, source.root_parameters()[0].source);
+            assert_eq!(schedule.header.method.spelling.as_ref(), "echo");
+            assert_eq!(schedule.header.annotation.as_ref().unwrap().text.as_ref(), "int");
             assert_eq!(schedule.occurrence, source.expressions()[0].occurrence);
             assert_eq!(batch.candidate_source.source_owners.get(&schedule.occurrence), Some(owner));
             match member.kind() {

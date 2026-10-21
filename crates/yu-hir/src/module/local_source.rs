@@ -64,6 +64,8 @@ pub struct LocalSource {
     /// Inputs supplied by an enclosing source member invocation. These remain
     /// source formals and are not rewritten into synthetic Lambda expressions.
     root_parameters: Vec<LocalSourceParameter>,
+    /// Original member target and raw annotation, retained with its body.
+    member_header: Option<super::SourceMemberHeader>,
     bindings: Vec<LocalSourceBinding>,
     where_clauses: Vec<LocalSourceWhereClause>,
     annotation: Option<source_annotation::SourceAnnotation>,
@@ -120,6 +122,7 @@ pub struct LocalSourceNamedGroup {
 }
 impl LocalSource {
     pub fn root_parameters(&self) -> &[LocalSourceParameter] { &self.root_parameters }
+    pub fn member_header(&self) -> Option<&super::SourceMemberHeader> { self.member_header.as_ref() }
 
     fn order_occurrences(
         &mut self, plan: &RootPlan, counters: &LoweringCounters,
@@ -188,6 +191,15 @@ impl LocalSource {
             .as_ref()
             .map_or(0, |annotation| annotation.retained_arena_bytes())
             + self.expressions.capacity() * std::mem::size_of::<LocalSourceExpr>()
+            + self.root_parameters.capacity() * std::mem::size_of::<LocalSourceParameter>()
+            + self.root_parameters.iter().map(|parameter| {
+                parameter.spelling.len()
+                    + parameter.annotation.as_ref().map_or(0, |annotation| annotation.retained_arena_bytes())
+            }).sum::<usize>()
+            + self.member_header.as_ref().map_or(0, |header| {
+                header.receiver.spelling.len() + header.method.spelling.len()
+                    + header.annotation.as_ref().map_or(0, |annotation| annotation.text.len())
+            })
             + self.bindings.capacity() * std::mem::size_of::<LocalSourceBinding>()
             + self.where_clauses.capacity() * std::mem::size_of::<LocalSourceWhereClause>()
             + self.where_clauses.iter().map(|clause| clause.text.len()).sum::<usize>()
@@ -717,14 +729,14 @@ pub(super) fn form_ordinary(
     next_occurrence: &mut u32,
 ) -> Result<SourceCarrierOutcome, HirAvailabilityError> {
     form_ordinary_with_root_parameters(
-        plan, owner, parameters, &[], namespace, counters, artifact, next_occurrence,
+        plan, owner, parameters, &[], None, namespace, counters, artifact, next_occurrence,
     )
 }
 
 pub(super) fn form_member(
     plan: &RootPlan,
     owner: &SourceRootId,
-    receiver: &super::SourceMemberIdentifier,
+    header: &super::SourceMemberHeader,
     namespace: &super::ModuleNamespace,
     counters: &mut LoweringCounters,
     artifact: &Arc<HirArtifactToken>,
@@ -733,14 +745,14 @@ pub(super) fn form_member(
     let root = owner.member_root().ok_or(HirAvailabilityError::InconsistentIdentity)?;
     let receiver = LocalSourceParameter {
         id: super::HirParameterId::new(owner.clone(), 0),
-        source: receiver.source.clone(),
-        range: receiver.range.clone(),
-        spelling: receiver.spelling.clone(),
+        source: header.receiver.source.clone(),
+        range: header.receiver.range.clone(),
+        spelling: header.receiver.spelling.clone(),
         scope: LocalSourceScope::SourceMember(root.clone()),
         annotation: None,
     };
     form_ordinary_with_root_parameters(
-        plan, owner, &[], &[receiver], namespace, counters, artifact, next_occurrence,
+        plan, owner, &[], &[receiver], Some(header), namespace, counters, artifact, next_occurrence,
     )
 }
 
@@ -749,6 +761,7 @@ fn form_ordinary_with_root_parameters(
     owner: &SourceRootId,
     parameters: &[HirParameter],
     root_parameters: &[LocalSourceParameter],
+    member_header: Option<&super::SourceMemberHeader>,
     namespace: &super::ModuleNamespace,
     counters: &mut LoweringCounters,
     artifact: &Arc<HirArtifactToken>,
@@ -765,7 +778,7 @@ fn form_ordinary_with_root_parameters(
     let previous_local_source = counters.local_source;
     counters.local_source = true;
     let result = form(
-        plan, owner, parameters, root_parameters, namespace, counters, artifact, &mut staged_next,
+        plan, owner, parameters, root_parameters, member_header, namespace, counters, artifact, &mut staged_next,
     );
     counters.local_source = previous_local_source;
     let mut staged_identity = counters.source_identity.take()
@@ -806,6 +819,7 @@ pub(super) fn form(
     owner: &SourceRootId,
     parameters: &[HirParameter],
     root_parameters: &[LocalSourceParameter],
+    member_header: Option<&super::SourceMemberHeader>,
     namespace: &super::ModuleNamespace,
     counters: &mut LoweringCounters,
     artifact: &Arc<HirArtifactToken>,
@@ -1051,6 +1065,7 @@ pub(super) fn form(
         body: root,
         expressions,
         root_parameters: retained_root_parameters,
+        member_header: member_header.cloned(),
         bindings: builder.bindings,
         where_clauses: builder.where_clauses,
         named_groups: builder.named_groups,

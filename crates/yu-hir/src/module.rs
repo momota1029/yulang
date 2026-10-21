@@ -2003,7 +2003,7 @@ fn lower_module_with_counters(
                 ));
                 let plan = RootPlan { ordinal: 0, range: crate::range_of(&expression), node: expression, kind: RootPlanKind::DirectExpression };
                 let outcome = local_source::form_member(
-                    &plan, &owner, &header.receiver, &namespace, counters, &artifact, &mut next_occurrence_ordinal,
+                    &plan, &owner, header, &namespace, counters, &artifact, &mut next_occurrence_ordinal,
                 )?;
                 carriers.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
                 carriers.push((owner, outcome));
@@ -2029,7 +2029,7 @@ fn lower_module_with_counters(
                 ));
                 let plan = RootPlan { ordinal: 0, range: crate::range_of(&expression), node: expression, kind: RootPlanKind::DirectExpression };
                 let outcome = local_source::form_member(
-                    &plan, &owner, &header.receiver, &namespace, counters, &artifact, &mut next_occurrence_ordinal,
+                    &plan, &owner, header, &namespace, counters, &artifact, &mut next_occurrence_ordinal,
                 )?;
                 carriers.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
                 carriers.push((owner, outcome));
@@ -2907,6 +2907,7 @@ fn lower_plan(
             &SourceRootId::Definition(definition_root.clone()),
             &parameters,
             &[],
+            None,
             namespace,
             counters,
             artifact,
