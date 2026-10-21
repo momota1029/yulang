@@ -64,6 +64,22 @@ fn contravariant_formal_effect_keeps_its_open_tail() {
         "called higher-order formal accepts an open row",
     );
 
+    let higher_order_called_state_residual = format!(
+        "{PRELUDE}my bad: int -> [state] int = \\x -> state::put x\nmy accept (f: int -> [io] int) = f 0\nmy main: [state] int = accept bad\n"
+    );
+    assert_infers(
+        &higher_order_called_state_residual,
+        "calling the callback retains its state effect in the result",
+    );
+
+    let higher_order_called_wrong_residual = format!(
+        "{PRELUDE}my bad: int -> [state] int = \\x -> state::put x\nmy accept (f: int -> [io] int) = f 0\nmy main: [io] int = accept bad\n"
+    );
+    assert_type_conflict(
+        &higher_order_called_wrong_residual,
+        "an open negative formal does not erase the called callback effect",
+    );
+
     let higher_order_inline = format!(
         "{PRELUDE}my accept (f: int -> [io] int) = 0\nmy main = accept (\\x -> state::put x)\n"
     );
