@@ -17953,3 +17953,18 @@ OPEN. See the [R281 contract](agent-loop/sprints/r281-y2-escaped-quote-literal-2
 [design](../notes/design/2026-10-22-r281-y2-escaped-quote-literal.md),
 [evidence](../notes/theory/2026-10-22-r281-y2-escaped-quote-literal.md), and
 [handoff](agent-loop/inbox/20261022-r281-y2-escaped-quote-literal.md).
+
+## R282 checkpoint — sample blockers after parser admission
+
+The exact R149 Types and Console byte counts/hashes match. Types reaches
+candidate collection and fails closed at the FieldTail arm pending authentic
+member/role resolution. Console candidate preflight rejects unresolved
+println/say names because the playground passes empty SemanticImports. The
+pinned fmt source now parses without syntax diagnostics, but HIR local-source
+block projection rejects declaration-local WhereClause children; this causal
+link is provisional because the public StructuralProjection error omits its
+failing node. R150 remains unactivated, so R282 adds no compiler code. Types /
+Console output, role selection, proof, source/native closure and production
+remain OPEN. See the [R282 contract](agent-loop/sprints/r282-y2-post-parser-source-hir-obstruction-20261022.md),
+[evidence](../notes/theory/2026-10-22-r282-y2-post-parser-source-hir-obstruction.md),
+and [handoff](agent-loop/inbox/20261022-r282-y2-post-parser-source-hir-obstruction.md).
