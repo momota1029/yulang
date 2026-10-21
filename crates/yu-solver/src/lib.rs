@@ -1091,6 +1091,10 @@ impl ConstraintBatch {
                                 resolution: NameResolution::Parameter(_),
                                 ..
                             } => CollectedBodyStatus::Error,
+                            ResolvedExpr::Name {
+                                resolution: NameResolution::Imported(_),
+                                ..
+                            } => CollectedBodyStatus::Error,
                             // The owned Lambda body determines whether the
                             // session receives a complete Function recipe.
                             ResolvedExpr::Lambda { body, .. } => match body.as_ref() {
@@ -1100,6 +1104,10 @@ impl ConstraintBatch {
                                         NameResolution::Resolved(_) | NameResolution::Parameter(_),
                                     ..
                                 } => CollectedBodyStatus::Complete,
+                                ResolvedExpr::Name {
+                                    resolution: NameResolution::Imported(_),
+                                    ..
+                                } => CollectedBodyStatus::Error,
                                 ResolvedExpr::Name {
                                     resolution: NameResolution::Ambiguous,
                                     ..

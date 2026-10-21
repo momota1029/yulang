@@ -18,7 +18,6 @@ use crate::{AssociationError, AssociationProvenance, HirExpr, associate_chain_ow
 
 pub(crate) mod local_source;
 pub(crate) mod source_annotation;
-#[cfg(any(feature = "shadow", test))]
 pub(crate) mod source_exports;
 #[cfg(any(feature = "shadow", test))]
 pub(crate) mod source_impl;
@@ -119,11 +118,68 @@ impl ModuleIdentity {
 #[derive(Clone)]
 pub struct SemanticImports {
     caller_evidence: Option<CallerEvidenceBinding>,
+    source_imports: Option<source_exports::SourceImportEnvironment>,
 }
 
 impl SemanticImports {
     pub fn empty() -> Self {
-        Self { caller_evidence: None }
+        Self { caller_evidence: None, source_imports: None }
+    }
+
+    /// Retain source-authenticated names exported by the implicit prelude for
+    /// identifier occurrences in this exact parsed file. Caller-supplied
+    /// indexes are the source authority; this constructor proves their public
+    /// route and binds the result to the consumer parse/module identity.
+    pub fn with_implicit_prelude(
+        parsed: &ParsedFile,
+        identity: &ModuleIdentity,
+        indexes: &[source_exports::SourceExportIndex],
+    ) -> Result<Self, HirAvailabilityError> {
+        if identity.file != *identity.module.file() {
+            return Err(HirAvailabilityError::InconsistentIdentity);
+        }
+        let parse_root = parsed.source_root().key();
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let mut requested = std::collections::BTreeSet::<Box<str>>::new();
+        for node in root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::IdentifierExpression)
+        {
+            if let Some(name) = node
+                .children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::Identifier)
+            {
+                requested.insert(name.text().into());
+            }
+        }
+        let mut names = HashMap::new();
+        names
+            .try_reserve(requested.len())
+            .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        for name in requested {
+            match source_exports::resolve_public_export(indexes, "std::prelude", &name) {
+                Ok(resolution) => {
+                    names.insert(
+                        name,
+                        source_exports::SourceImportBinding::Resolved(resolution),
+                    );
+                }
+                Err(source_exports::SourceExportResolveError::MissingExport { .. }) => {}
+                Err(source_exports::SourceExportResolveError::Ambiguous { .. }) => {
+                    names.insert(name, source_exports::SourceImportBinding::Ambiguous);
+                }
+                Err(_) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
+            }
+        }
+        Ok(Self {
+            caller_evidence: None,
+            source_imports: Some(source_exports::SourceImportEnvironment::new(
+                parse_root,
+                identity.clone(),
+                names,
+            )),
+        })
     }
 
     /// Retain opaque caller evidence for one exact parsed top-level declaration.
@@ -149,11 +205,16 @@ impl SemanticImports {
                 identity: identity.clone(),
                 payload,
             }),
+            source_imports: None,
         })
     }
 
     pub fn caller_evidence(&self) -> Option<&CallerEvidenceBinding> {
         self.caller_evidence.as_ref()
+    }
+
+    pub fn source_imports(&self) -> Option<&source_exports::SourceImportEnvironment> {
+        self.source_imports.as_ref()
     }
 }
 
@@ -161,6 +222,7 @@ impl std::fmt::Debug for SemanticImports {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.debug_struct("SemanticImports")
             .field("caller_evidence", &self.caller_evidence)
+            .field("source_imports", &self.source_imports)
             .finish()
     }
 }
@@ -168,6 +230,7 @@ impl std::fmt::Debug for SemanticImports {
 impl PartialEq for SemanticImports {
     fn eq(&self, other: &Self) -> bool {
         self.caller_evidence == other.caller_evidence
+            && self.source_imports == other.source_imports
     }
 }
 
@@ -557,6 +620,7 @@ pub enum HirVisibility {
 #[derive(Clone, Debug)]
 pub enum NameResolution {
     Resolved(DefId),
+    Imported(source_exports::SourceExportId),
     Parameter(HirParameterId),
     Ambiguous,
     Unresolved,
@@ -566,6 +630,7 @@ impl PartialEq for NameResolution {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Resolved(left), Self::Resolved(right)) => left == right,
+            (Self::Imported(left), Self::Imported(right)) => left == right,
             (Self::Parameter(left), Self::Parameter(right)) => left.ordinal == right.ordinal,
             (Self::Ambiguous, Self::Ambiguous) | (Self::Unresolved, Self::Unresolved) => true,
             _ => false,
@@ -785,7 +850,9 @@ fn evaluation_class(value: &ResolvedExpr) -> Option<EvaluationClass> {
         ResolvedExpr::Lambda { .. }
         | ResolvedExpr::Integer { .. }
         | ResolvedExpr::Name {
-            resolution: NameResolution::Resolved(_) | NameResolution::Parameter(_),
+            resolution: NameResolution::Resolved(_)
+                | NameResolution::Imported(_)
+                | NameResolution::Parameter(_),
             ..
         } => Some(EvaluationClass::FetchValue),
         ResolvedExpr::Name {
@@ -931,6 +998,7 @@ impl HirDiagnostic {
 pub struct HirModule {
     artifact: Arc<HirArtifactToken>,
     caller_evidence: Option<CallerEvidenceBinding>,
+    source_imports: Option<source_exports::SourceImportEnvironment>,
     pub(crate) source_identity: Option<crate::source_identity::HirSourceIdentity>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) captured_source: Option<(DefinitionRootId, Arc<crate::shadow::ShadowArtifact>)>,
@@ -1063,6 +1131,9 @@ impl HirModule {
     pub fn caller_evidence(&self) -> Option<&CallerEvidenceBinding> {
         self.caller_evidence.as_ref()
     }
+    pub fn source_imports(&self) -> Option<&source_exports::SourceImportEnvironment> {
+        self.source_imports.as_ref()
+    }
     pub fn source_revision(&self) -> SourceRevision {
         self.source_revision
     }
@@ -1091,6 +1162,7 @@ impl PartialEq for HirModule {
         self.identity == other.identity
             && self.source_revision == other.source_revision
             && self.items == other.items
+            && self.source_imports == other.source_imports
             && self.errors == other.errors
             && self.diagnostics == other.diagnostics
     }
@@ -1107,6 +1179,8 @@ pub enum HirAvailabilityError {
     ForeignCallerEvidenceSource,
     ForeignCallerEvidenceModule,
     CallerEvidenceNotDeclaration,
+    ForeignSourceImport,
+    SourceImportResolutionUnavailable,
 }
 
 /// Lowers direct-root bindings and expressions against one complete local namespace.
@@ -1179,8 +1253,7 @@ pub(crate) fn index_role_impl_sources(
     Ok((roles, implementations))
 }
 
-#[cfg(any(feature = "shadow", test))]
-pub(crate) fn index_source_exports(
+pub fn index_source_exports(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
 ) -> Result<source_exports::SourceExportIndex, HirAvailabilityError> {
@@ -1213,6 +1286,16 @@ fn lower_module_with_counters(
             return Err(HirAvailabilityError::ForeignCallerEvidenceSource);
         }
     }
+    if let Some(source_imports) = imports.source_imports.as_ref() {
+        if source_imports.identity() != &identity {
+            return Err(HirAvailabilityError::ForeignSourceImport);
+        }
+        if source_imports.parse_root() != &parsed.source_root().key()
+            || !parsed.owns_source_key(source_imports.parse_root())
+        {
+            return Err(HirAvailabilityError::ForeignSourceImport);
+        }
+    }
     let recoveries = validated_recoveries(parsed)?;
     let root = SyntaxNode::new_root(parsed.green().clone());
     #[cfg(any(feature = "shadow", test))]
@@ -1230,7 +1313,7 @@ fn lower_module_with_counters(
         plans.push(plan_root(node, ordinal, &identity, counters)?);
     }
     let partition = partition_recoveries(&recoveries, plans.len(), counters)?;
-    let namespace = namespace(&mut plans)?;
+    let namespace = namespace(&mut plans, imports.source_imports.as_ref())?;
     let mut sink = ErrorSink::default();
     let root_errors = emit_structural_errors(&recoveries, &partition, &plans, &mut sink, counters)?;
 
@@ -1391,6 +1474,7 @@ fn lower_module_with_counters(
         source_carrier_indices,
         artifact,
         caller_evidence: imports.caller_evidence,
+        source_imports: imports.source_imports,
         source_identity: counters.source_identity.take(),
         #[cfg(any(feature = "shadow", test))]
         captured_source: None,
@@ -1476,7 +1560,7 @@ enum PendingProjectionKind { Apply(SyntaxKind), Group, Atom }
 fn lower_ordinary_admission(
     parsed: &ParsedFile,
     chain: &SyntaxNode,
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &ModuleNamespace,
     causal_errors: &[HirErrorId],
     counters: &mut LoweringCounters,
     root_occurrence: HirOccurrenceId,
@@ -2058,9 +2142,21 @@ fn plan_root(
     })
 }
 
-fn namespace(plans: &mut [RootPlan]) -> Result<HashMap<String, Vec<DefId>>, HirAvailabilityError> {
+#[derive(Clone, Debug)]
+pub(super) enum ModuleNameResolution {
+    Local(DefId),
+    Imported(source_exports::SourceExportId),
+    Ambiguous,
+}
+
+pub(super) type ModuleNamespace = HashMap<String, ModuleNameResolution>;
+
+fn namespace(
+    plans: &mut [RootPlan],
+    imports: Option<&source_exports::SourceImportEnvironment>,
+) -> Result<ModuleNamespace, HirAvailabilityError> {
     let mut seen = HashMap::<String, u32>::new();
-    let mut namespace = HashMap::<String, Vec<DefId>>::new();
+    let mut local = HashMap::<String, Vec<DefId>>::new();
     for plan in plans {
         let RootPlanKind::Binding(admitted) = &mut plan.kind else {
             continue;
@@ -2075,10 +2171,33 @@ fn namespace(plans: &mut [RootPlan]) -> Result<HashMap<String, Vec<DefId>>, HirA
             .checked_add(1)
             .ok_or(HirAvailabilityError::IdentityExhausted)?;
         admitted.id = id.clone();
-        namespace
+        local
             .entry(admitted.name.spelling.clone())
             .or_default()
             .push((*id).clone());
+    }
+    let mut namespace = HashMap::new();
+    namespace.try_reserve(local.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    for (name, definitions) in local {
+        let resolution = if definitions.len() == 1 {
+            ModuleNameResolution::Local(definitions[0].clone())
+        } else {
+            ModuleNameResolution::Ambiguous
+        };
+        namespace.insert(name, resolution);
+    }
+    if let Some(imports) = imports {
+        namespace.try_reserve(imports.names().len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        for (name, binding) in imports.names() {
+            if namespace.contains_key(name.as_ref()) { continue; }
+            let resolution = match binding {
+                source_exports::SourceImportBinding::Resolved(export) => {
+                    ModuleNameResolution::Imported(export.identity())
+                }
+                source_exports::SourceImportBinding::Ambiguous => ModuleNameResolution::Ambiguous,
+            };
+            namespace.insert(name.to_string(), resolution);
+        }
     }
     Ok(namespace)
 }
@@ -2086,7 +2205,7 @@ fn namespace(plans: &mut [RootPlan]) -> Result<HashMap<String, Vec<DefId>>, HirA
 fn lower_plan(
     plan: &RootPlan,
     parsed: &ParsedFile,
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &ModuleNamespace,
     mut item_errors: Vec<HirErrorId>,
     value_errors: Vec<HirErrorId>,
     sink: &mut ErrorSink,
@@ -2240,7 +2359,7 @@ fn lower_plan(
 fn lower_direct_root_expression(
     plan: &RootPlan,
     parsed: &ParsedFile,
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &ModuleNamespace,
     mut causal_errors: Vec<HirErrorId>,
     sink: &mut ErrorSink,
     counters: &mut LoweringCounters,
@@ -2311,7 +2430,7 @@ fn lower_direct_root_expression(
 fn lower_body(
     plan: &RootPlan,
     parsed: &ParsedFile,
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &ModuleNamespace,
     id: &DefId,
     mut causal_errors: Vec<HirErrorId>,
     sink: &mut ErrorSink,
@@ -2497,7 +2616,7 @@ enum SimpleChainLowering {
 fn lower_shadow_application(
     parsed: &ParsedFile,
     chain: &SyntaxNode,
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &ModuleNamespace,
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
     scope: &ScopeStack,
@@ -2723,7 +2842,7 @@ fn shadow_application_plan(
 fn lower_shadow_application_plan(
     parsed: &ParsedFile,
     plan: ShadowApplicationPlan,
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &ModuleNamespace,
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
     scope: &ScopeStack,
@@ -2873,7 +2992,7 @@ fn lower_shadow_application_plan(
 fn lower_simple_chain(
     parsed: &ParsedFile,
     chain: &SyntaxNode,
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &ModuleNamespace,
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
     scope: &ScopeStack,
@@ -2899,7 +3018,7 @@ fn lower_simple_chain(
 
 fn lower_leaf(
     atom: crate::OwnedAtom,
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &ModuleNamespace,
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
     scope: &ScopeStack,
@@ -2909,7 +3028,7 @@ fn lower_leaf(
 
 fn lower_leaf_with_identity(
     atom: crate::OwnedAtom,
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &ModuleNamespace,
     counters: &mut LoweringCounters,
     occurrence: HirOccurrenceId,
     scope: &ScopeStack,
@@ -2944,10 +3063,13 @@ fn lower_leaf_with_identity(
                 (NameResolution::Parameter(parameter.id.clone()), None)
             } else {
                 match namespace.get(&name.spelling) {
-                    Some(definitions) if definitions.len() == 1 => {
-                        (NameResolution::Resolved(definitions[0].clone()), None)
+                    Some(ModuleNameResolution::Local(definition)) => {
+                        (NameResolution::Resolved(definition.clone()), None)
                     }
-                    Some(_) => (NameResolution::Ambiguous, Some(HirErrorKind::AmbiguousName)),
+                    Some(ModuleNameResolution::Imported(identity)) => {
+                        (NameResolution::Imported(identity.clone()), None)
+                    }
+                    Some(ModuleNameResolution::Ambiguous) => (NameResolution::Ambiguous, Some(HirErrorKind::AmbiguousName)),
                     None => (
                         NameResolution::Unresolved,
                         Some(HirErrorKind::UnresolvedName),

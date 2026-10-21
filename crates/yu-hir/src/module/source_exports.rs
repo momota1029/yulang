@@ -1,7 +1,7 @@
 //! Parse-owned declaration and import syntax for source-only export analysis.
 //!
-//! This module records syntax and identities only. It does not grant visibility
-//! or resolve an imported name; callers must do that from these retained facts.
+//! This module records syntax and identities only. Public export resolution
+//! checks source routes and visibility, but assigns no type-level meaning.
 
 use super::*;
 use yu_syntax::SourceNodeKey;
@@ -85,6 +85,76 @@ pub struct SourceExportResolution {
     pub route: Vec<SourceUseLeaf>,
 }
 
+/// Stable source identity for an exported declaration, independent of any
+/// consumer HIR's local definition ordinal.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct SourceExportId {
+    pub module: Box<str>,
+    pub name: Box<str>,
+    pub source: SourceNodeKey,
+    pub range: Range<usize>,
+    pub kind: SyntaxKind,
+}
+
+impl SourceExportResolution {
+    pub fn identity(&self) -> SourceExportId {
+        SourceExportId {
+            module: self.module.clone(),
+            name: self.name.clone(),
+            source: self.declaration.source.clone(),
+            range: self.declaration.range.clone(),
+            kind: self.declaration.kind,
+        }
+    }
+}
+
+/// One name imported from source modules. Ambiguity is retained at the name
+/// use site and never converted to an arbitrary declaration choice.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SourceImportBinding {
+    Resolved(SourceExportResolution),
+    Ambiguous,
+}
+
+/// Parse-bound names supplied by one or more authenticated source modules.
+/// The exact public routes are retained beside the exposed-name lookup.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceImportEnvironment {
+    parse_root: SourceNodeKey,
+    identity: ModuleIdentity,
+    names: std::collections::HashMap<Box<str>, SourceImportBinding>,
+}
+
+impl SourceImportEnvironment {
+    pub(super) fn new(
+        parse_root: SourceNodeKey,
+        identity: ModuleIdentity,
+        names: std::collections::HashMap<Box<str>, SourceImportBinding>,
+    ) -> Self {
+        Self {
+            parse_root,
+            identity,
+            names,
+        }
+    }
+
+    pub fn parse_root(&self) -> &SourceNodeKey {
+        &self.parse_root
+    }
+
+    pub fn identity(&self) -> &ModuleIdentity {
+        &self.identity
+    }
+
+    pub fn names(&self) -> &std::collections::HashMap<Box<str>, SourceImportBinding> {
+        &self.names
+    }
+
+    pub fn resolve(&self, name: &str) -> Option<&SourceImportBinding> {
+        self.names.get(name)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SourceExportResolveError {
     MissingModule(Box<str>),
@@ -100,6 +170,7 @@ pub enum SourceExportResolveError {
         module: Box<str>,
         source: SourceNodeKey,
     },
+    PrivateModule(Box<str>),
     UnsupportedUse {
         module: Box<str>,
         source: SourceNodeKey,
@@ -245,6 +316,21 @@ fn declaration(
 ) -> Result<SourceExportDeclaration, HirAvailabilityError> {
     let public = inherited_public
         .unwrap_or_else(|| node.text().to_string().trim_start().starts_with("pub "));
+    // A ModDeclaration's parser-owned Missing child is the unresolved external
+    // module lookup. The resolver discharges that lookup against the supplied
+    // exact child-module index; Error/Invalid still denote malformed syntax.
+    let recovered = if node.kind() == SyntaxKind::ModDeclaration {
+        node.descendants_with_tokens().any(|element| {
+            element
+                .as_node()
+                .is_some_and(|node| node.kind() == SyntaxKind::Invalid)
+                || element
+                    .into_token()
+                    .is_some_and(|token| token.kind() == SyntaxKind::Error)
+        })
+    } else {
+        has_recovery(node)
+    };
     Ok(SourceExportDeclaration {
         source: source_key(node, counters)?,
         kind: node.kind(),
@@ -253,7 +339,7 @@ fn declaration(
         public,
         range: crate::range_of(node),
         text: node.text().to_string().into_boxed_str(),
-        recovered: has_recovery(node),
+        recovered,
     })
 }
 
@@ -577,6 +663,47 @@ fn flatten_error_for_resolver(
     }
 }
 
+fn validate_public_module_path(
+    modules: &std::collections::HashMap<Box<str>, &SourceExportIndex>,
+    module: &str,
+) -> Result<(), SourceExportResolveError> {
+    let segments = module.split("::").collect::<Vec<_>>();
+    if segments.is_empty() || segments.iter().any(|segment| segment.is_empty()) {
+        return Err(SourceExportResolveError::MissingModule(module.into()));
+    }
+    for depth in 2..=segments.len() {
+        let parent = segments[..depth - 1].join("::");
+        let child_module = segments[..depth].join("::");
+        let Some(parent_index) = modules.get(parent.as_str()).copied() else {
+            return Err(SourceExportResolveError::MissingModule(parent.into()));
+        };
+        let mut declarations = parent_index.declarations.iter().filter(|declaration| {
+            declaration.kind == SyntaxKind::ModDeclaration
+                && declaration.namespace.as_ref() == parent
+                && declaration.name.as_deref() == Some(segments[depth - 1])
+        });
+        let Some(declaration) = declarations.next() else {
+            return Err(SourceExportResolveError::MissingModule(child_module.into()));
+        };
+        if declaration.recovered {
+            return Err(SourceExportResolveError::Recovered {
+                module: parent.into(),
+                source: declaration.source.clone(),
+            });
+        }
+        if declarations.next().is_some() {
+            return Err(SourceExportResolveError::Ambiguous {
+                module: parent.into(),
+                name: segments[depth - 1].into(),
+            });
+        }
+        if !declaration.public {
+            return Err(SourceExportResolveError::PrivateModule(child_module.into()));
+        }
+    }
+    Ok(())
+}
+
 fn resolve_walk(
     modules: &std::collections::HashMap<Box<str>, &SourceExportIndex>,
     module: &str,
@@ -606,6 +733,11 @@ fn resolve_walk(
     });
     if index.is_none() && !virtual_namespace {
         return Err(SourceExportResolveError::MissingModule(module.into()));
+    }
+    if index.is_some() {
+        validate_public_module_path(modules, module)?;
+    } else if let Some((parent, _)) = module.rsplit_once("::") {
+        validate_public_module_path(modules, parent)?;
     }
 
     for declaration in modules
@@ -731,6 +863,7 @@ pub fn resolve_public_export(
     if !modules.contains_key(module) {
         return Err(SourceExportResolveError::MissingModule(module.into()));
     }
+    validate_public_module_path(&modules, module)?;
     let mut visited = std::collections::HashSet::new();
     let mut matches = Vec::new();
     resolve_walk(&modules, module, name, &[], &mut visited, &mut matches)?;
@@ -868,10 +1001,11 @@ mod tests {
             super::index(&root, module.module(), &counters).unwrap()
         }
 
+        let root = index("lib/std.yu", "pub mod a;\npub mod b;\npub mod c;\n");
         let a = index("lib/std/a.yu", "pub role Foo 'a:\n    pub a.foo: str\n");
         let b_private = index("lib/std/b.yu", "use std::a::*\n");
         assert_eq!(
-            resolve_public_export(&[a.clone(), b_private], "std::b", "Foo"),
+            resolve_public_export(&[root.clone(), a.clone(), b_private], "std::b", "Foo"),
             Err(SourceExportResolveError::MissingExport {
                 module: "std::b".into(),
                 name: "Foo".into(),
@@ -883,15 +1017,45 @@ mod tests {
             "pub use std::a::*\npub role Foo 'b:\n    pub b.foo: str\n",
         );
         assert!(matches!(
-            resolve_public_export(&[a.clone(), b_public], "std::b", "Foo"),
+            resolve_public_export(&[root.clone(), a.clone(), b_public], "std::b", "Foo"),
             Err(SourceExportResolveError::Ambiguous { .. })
         ));
 
         let recovered = index("lib/std/c.yu", "pub use std::a::{Foo\n");
         assert!(matches!(
-            resolve_public_export(&[a, recovered], "std::c", "Foo"),
+            resolve_public_export(&[root.clone(), a, recovered], "std::c", "Foo"),
             Err(SourceExportResolveError::Recovered { .. })
         ));
+    }
+
+    #[test]
+    fn public_export_resolution_rejects_private_module_ancestors() {
+        fn index(path: &str, text: &str) -> SourceExportIndex {
+            let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+            let parsed = yu_syntax::parse_file(
+                source.clone(),
+                Arc::new(yu_syntax::scan_header(source)),
+                Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+            );
+            let module = ModuleIdentity::source_root(FileId::new(FileKey::new("exports", path)));
+            let mut counters = LoweringCounters::default();
+            counters.source_nodes = crate::source_identity::try_source_keys(&parsed).unwrap();
+            let root = SyntaxNode::new_root(parsed.green().clone());
+            let index = super::index(&root, module.module(), &counters).unwrap();
+            index
+        }
+
+        let root = index("lib/std.yu", "mod hidden;\n");
+        let hidden = index(
+            "lib/std/hidden.yu",
+            "pub role Foo 'a:\n    pub a.foo: str\n",
+        );
+        assert_eq!(
+            resolve_public_export(&[root, hidden], "std::hidden", "Foo"),
+            Err(SourceExportResolveError::PrivateModule(
+                "std::hidden".into()
+            ))
+        );
     }
 
     #[test]
@@ -910,10 +1074,11 @@ mod tests {
             super::index(&root, module.module(), &counters).unwrap()
         }
 
+        let root = index("lib/std.yu", "pub mod a;\npub mod b;\n");
         let a = index("lib/std/a.yu", "pub use std::b::*\n");
         let b = index("lib/std/b.yu", "pub use std::a::*\n");
         assert_eq!(
-            resolve_public_export(&[a, b], "std::a", "Missing"),
+            resolve_public_export(&[root, a, b], "std::a", "Missing"),
             Err(SourceExportResolveError::MissingExport {
                 module: "std::a".into(),
                 name: "Missing".into(),

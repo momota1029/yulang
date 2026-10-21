@@ -502,7 +502,7 @@ pub(super) fn preflight(source: &LocalSource, operation_v1: bool) -> Result<(), 
                 }
             }
         }
-        if matches!(&expr.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous, .. }) {
+        if matches!(&expr.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous | LocalSourceResolution::Imported(_), .. }) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
     }
@@ -1389,6 +1389,7 @@ impl ConstraintBatch {
                                     push(uses, PendingDefinitionUse { parent: parent.clone(), target, occurrence: occurrence.clone() })?;
                                     push(&mut actions, Action::Module(occurrence.clone()))?;
                                 }
+                                LocalSourceResolution::Imported(_) => return Err(unavailable()),
                                 LocalSourceResolution::Parameter(_) | LocalSourceResolution::CatchBinder(_) | LocalSourceResolution::CaseBinder(_) => {}
                                 LocalSourceResolution::Local(local) => {
                                     if let Some(&endpoint) = active_initializers.get(local) {

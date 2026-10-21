@@ -337,6 +337,7 @@ pub enum LocalSourceForm {
 #[derive(Clone, Debug)]
 pub enum LocalSourceResolution {
     ModuleDef(DefId),
+    Imported(super::source_exports::SourceExportId),
     Parameter(HirParameterId),
     CatchBinder(LocalSourceCatchBinderId),
     CaseBinder(LocalSourceCatchBinderId),
@@ -467,7 +468,7 @@ struct LexicalEntry {
 }
 struct Builder<'a> {
     owner: &'a SourceRootId,
-    namespace: &'a HashMap<String, Vec<DefId>>,
+    namespace: &'a super::ModuleNamespace,
     counters: &'a mut LoweringCounters,
     artifact: &'a Arc<HirArtifactToken>,
     next_occurrence: &'a mut u32,
@@ -588,7 +589,7 @@ pub(super) fn form_ordinary(
     plan: &RootPlan,
     owner: &SourceRootId,
     parameters: &[HirParameter],
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &super::ModuleNamespace,
     counters: &mut LoweringCounters,
     artifact: &Arc<HirArtifactToken>,
     next_occurrence: &mut u32,
@@ -642,7 +643,7 @@ pub(super) fn form(
     plan: &RootPlan,
     owner: &SourceRootId,
     parameters: &[HirParameter],
-    namespace: &HashMap<String, Vec<DefId>>,
+    namespace: &super::ModuleNamespace,
     counters: &mut LoweringCounters,
     artifact: &Arc<HirArtifactToken>,
     next_occurrence: &mut u32,
@@ -1215,10 +1216,13 @@ impl Builder<'_> {
                     .get(spelling.as_ref())
                     .map(|&index| self.lexical[index].resolution.clone())
                     .unwrap_or_else(|| match self.namespace.get(spelling.as_ref()) {
-                        Some(ids) if ids.len() == 1 => {
-                            LocalSourceResolution::ModuleDef(ids[0].clone())
+                        Some(super::ModuleNameResolution::Local(id)) => {
+                            LocalSourceResolution::ModuleDef(id.clone())
                         }
-                        Some(_) => LocalSourceResolution::Ambiguous,
+                        Some(super::ModuleNameResolution::Imported(id)) => {
+                            LocalSourceResolution::Imported(id.clone())
+                        }
+                        Some(super::ModuleNameResolution::Ambiguous) => LocalSourceResolution::Ambiguous,
                         None => LocalSourceResolution::Unresolved,
                     });
                 self.set(
@@ -2049,7 +2053,7 @@ mod tests {
         counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(&parsed));
         let root = SyntaxNode::new_root(parsed.green().clone());
         let mut plans = vec![plan_root(root.children().next().unwrap(), 0, module.identity(), &mut counters).unwrap()];
-        let namespace = namespace(&mut plans).unwrap();
+        let namespace = namespace(&mut plans, None).unwrap();
         let missing = root.descendants().find(|node| node.kind() == SyntaxKind::IdentifierExpression).unwrap();
         counters.source_nodes.remove(&missing);
         let mut next = 10;

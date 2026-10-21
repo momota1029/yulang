@@ -16,7 +16,7 @@ pub use module::{
     HirDiagnosticId, HirError, HirErrorAttachment, HirErrorId, HirErrorKind, HirErrorOrigin,
     HirItem, HirModule, HirName, HirOccurrenceId, HirParameter, HirParameterId, HirVisibility,
     CallerEvidenceBinding, ModuleId, ModuleIdentity, NameResolution, ResolvedExpr, SemanticImports,
-    lower_module,
+    index_source_exports, lower_module,
 };
 
 pub use module::HirLocalId;
@@ -24,6 +24,10 @@ pub use module::local_source::*;
 pub use module::source_annotation::{
     SourceAnnotation, SourceAnnotationType, SourceAnnotationValue, SourceEffectId, SourceEffectRow,
     SourceOperationDeclaration, SourceOperationId, SourceOperationResolution,
+};
+pub use module::source_exports::{
+    SourceExportId, SourceExportIndex, SourceExportResolution, SourceImportBinding,
+    SourceImportEnvironment, SourceExportResolveError,
 };
 
 /// Every top-level operator chain associated from one parsed file, in source order.

@@ -628,7 +628,9 @@ impl Machine {
                             matches!(binder, Binder::Catch(candidate) if candidate == id)
                         })
                     }
-                    LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous => None,
+                    LocalSourceResolution::Imported(_)
+                    | LocalSourceResolution::Unresolved
+                    | LocalSourceResolution::Ambiguous => None,
                 }
                 .ok_or_else(|| RuntimeUnavailable::MissingBinding(site.clone()))?;
                 if let Some(received) = self.cells[cell] {

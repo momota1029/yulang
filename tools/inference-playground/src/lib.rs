@@ -500,6 +500,90 @@ mod tests {
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
 
     #[test]
+    fn authenticated_implicit_prelude_names_keep_source_identity_and_local_shadowing() {
+        let sources = pinned_stdlib::resolve_implicit_stdlib().unwrap();
+        let mut indexes = Vec::new();
+        for source in sources.iter() {
+            let module = source.path.strip_prefix("lib/").unwrap().strip_suffix(".yu").unwrap().replace('/', "::");
+            let environment = Arc::new(pinned_stdlib::syntax_environment_for_source(source, &sources).unwrap());
+            let inventory = pinned_stdlib::parse_role_inventory(&module, environment).unwrap();
+            indexes.push(index_source_exports(inventory.identity, &inventory.parsed).unwrap());
+        }
+
+        let source = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
+        assert_eq!(source.len(), 92);
+        let environment = Arc::new(playground_syntax_environment().unwrap());
+        let text: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)), environment);
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "playground", "samples/Console.yu",
+        )));
+        let imports = SemanticImports::with_implicit_prelude(&parsed, &identity, &indexes).unwrap();
+        let hir = lower_module_with_local_source(identity, &parsed, imports).unwrap();
+        assert!(hir.errors().iter().all(|error| error.kind() != yu_hir::HirErrorKind::UnresolvedName));
+        let imported = hir.source_imports().unwrap();
+        for name in ["say", "println"] {
+            let yu_hir::SourceImportBinding::Resolved(export) = imported.resolve(name).unwrap() else {
+                panic!("expected unique pinned prelude export for {name}");
+            };
+            assert_eq!(export.module.as_ref(), "std::io::console");
+            assert!(export.route.iter().any(|step| step.path.iter().map(AsRef::as_ref).collect::<Vec<_>>() == ["std", "io", "console"]));
+            let found = hir.items().iter().filter_map(|item| match item {
+                HirItem::Binding(binding) => hir.local_source(binding.definition_root()).ok().flatten(),
+                HirItem::Expression(expression) => hir.expression_root(expression.occurrence()).ok().flatten()
+                    .and_then(|root| hir.local_source_for(&SourceRootId::Expression(root.clone())).ok().flatten()),
+                HirItem::Error { .. } => None,
+            }).flat_map(|source| source.expressions()).any(|expression| matches!(
+                (&expression.form, name),
+                (LocalSourceForm::Name { spelling, resolution: yu_hir::LocalSourceResolution::Imported(id) }, expected)
+                    if spelling.as_ref() == expected && id == &export.identity()
+            ));
+            if name == "println" {
+                assert!(found, "the unchanged Console println use must retain its pinned source identity");
+            }
+        }
+
+        let say_source = "say";
+        let text: Arc<SourceText> = Arc::from(say_source);
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)), Arc::new(playground_syntax_environment().unwrap()));
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("playground", "say.yu")));
+        let imports = SemanticImports::with_implicit_prelude(&parsed, &identity, &indexes).unwrap();
+        let hir = lower_module_with_local_source(identity, &parsed, imports).unwrap();
+        let say_id = match hir.source_imports().unwrap().resolve("say").unwrap() {
+            yu_hir::SourceImportBinding::Resolved(export) => export.identity(),
+            yu_hir::SourceImportBinding::Ambiguous => panic!("pinned say export must be unique"),
+        };
+        assert!(hir.items().iter().filter_map(|item| match item {
+            HirItem::Expression(expression) => hir.expression_root(expression.occurrence()).ok().flatten()
+                .and_then(|root| hir.local_source_for(&SourceRootId::Expression(root.clone())).ok().flatten()),
+            _ => None,
+        }).flat_map(|source| source.expressions()).any(|expression| matches!(
+            &expression.form,
+            LocalSourceForm::Name { spelling, resolution: yu_hir::LocalSourceResolution::Imported(id) }
+                if spelling.as_ref() == "say" && id == &say_id
+        )));
+
+        let shadow_source = "my say = 1\nsay";
+        let text: Arc<SourceText> = Arc::from(shadow_source);
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)), Arc::new(playground_syntax_environment().unwrap()));
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("playground", "shadow.yu")));
+        let imports = SemanticImports::with_implicit_prelude(&parsed, &identity, &indexes).unwrap();
+        let hir = lower_module_with_local_source(identity, &parsed, imports).unwrap();
+        let local_id = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "say" => Some(binding.id().clone()),
+            _ => None,
+        }).unwrap();
+        assert!(hir.items().iter().filter_map(|item| match item {
+            HirItem::Expression(expression) => hir.expression_root(expression.occurrence()).ok().flatten().and_then(|root| hir.local_source_for(&SourceRootId::Expression(root.clone())).ok().flatten()),
+            _ => None,
+        }).flat_map(|source| source.expressions()).any(|expression| matches!(
+            &expression.form,
+            LocalSourceForm::Name { spelling, resolution: yu_hir::LocalSourceResolution::ModuleDef(id) }
+                if spelling.as_ref() == "say" && id == &local_id
+        )));
+    }
+
+    #[test]
     fn pinned_fmt_role_and_tuple_impl_keep_exact_module_and_parse_positions() {
         let inventory = pinned_stdlib::parse_role_inventory(
             "std::core::fmt",
