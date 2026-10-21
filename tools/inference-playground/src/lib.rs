@@ -1441,6 +1441,28 @@ mod tests {
                 let declaration_text = operator_module.text.get(declaration.clone())
                     .expect("provider declaration range belongs to exact pinned source");
                 assert!(declaration_text.starts_with("pub infix (+)"), "{declaration_text}");
+                let provider_text: Arc<SourceText> = Arc::from(operator_module.text);
+                let provider_parsed = parse_file(
+                    provider_text.clone(),
+                    Arc::new(scan_header(provider_text)),
+                    Arc::new(pinned_stdlib::syntax_environment_for_source(operator_module, &sources).unwrap()),
+                );
+                let provider_identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+                    "yulang2-pinned-stdlib",
+                    operator_module.path,
+                )));
+                let provider_index = index_source_exports(provider_identity.clone(), &provider_parsed)
+                    .unwrap()
+                    .with_source_revision(dependency.revision());
+                let provider_body = provider_index.operator_body_for_receipt(
+                    provider_identity.module(),
+                    dependency.revision(),
+                    declaration,
+                    "+",
+                    yu_syntax::OperatorFixity::Infix,
+                ).expect("imported receipt resolves to the exact pinned declaration body");
+                assert_eq!(provider_body, "\\x -> \\y -> x.add y");
+                assert!(operator_module.text.contains(provider_body));
             }
             let index = index_role_impl_sources(identity.clone(), &parsed)
                 .unwrap_or_else(|error| {

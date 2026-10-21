@@ -4,7 +4,7 @@
 //! checks source routes and visibility, but assigns no type-level meaning.
 
 use super::*;
-use yu_syntax::SourceNodeKey;
+use yu_syntax::{HeaderOperator, OperatorFixity, SourceNodeKey, SourceRevision, Visibility};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceExportDeclaration {
@@ -45,8 +45,39 @@ pub struct SourceUseTreeNode {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceExportIndex {
     pub module: ModuleId,
+    pub revision: SourceRevision,
     pub declarations: Vec<SourceExportDeclaration>,
     pub uses: Vec<SourceUseDeclaration>,
+    operators: Vec<SourceOperatorDeclaration>,
+}
+
+/// Parse-owned operator declaration and its adjacent original value body.
+/// This records syntax ownership only; it does not resolve or type the value.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct SourceOperatorDeclaration {
+    pub source: SourceNodeKey,
+    pub body_source: SourceNodeKey,
+    pub module: ModuleId,
+    pub revision: SourceRevision,
+    pub spelling: Box<str>,
+    pub fixity: OperatorFixity,
+    pub visibility: Visibility,
+    pub lazy: bool,
+    pub declaration_range: Range<usize>,
+    pub body_range: Range<usize>,
+    pub declaration_text: Box<str>,
+    pub body_text: Box<str>,
+    pub recovered: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum SourceOperatorLookupError {
+    WrongModule,
+    WrongRevision,
+    Missing,
+    Ambiguous,
+    MismatchedMetadata,
+    Recovered,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -108,6 +139,69 @@ impl SourceExportResolution {
     }
 }
 
+impl SourceExportIndex {
+    /// Resolve a provider operator only through its exact module snapshot and
+    /// declaration range. Spelling and fixity are checked as receipt fields,
+    /// never used as a fallback lookup key.
+    pub(crate) fn resolve_operator(
+        &self,
+        module: &ModuleId,
+        revision: SourceRevision,
+        declaration_range: &Range<usize>,
+        spelling: &str,
+        fixity: OperatorFixity,
+    ) -> Result<&SourceOperatorDeclaration, SourceOperatorLookupError> {
+        if &self.module != module {
+            return Err(SourceOperatorLookupError::WrongModule);
+        }
+        if self.revision != revision {
+            return Err(SourceOperatorLookupError::WrongRevision);
+        }
+        let mut matches = self
+            .operators
+            .iter()
+            .filter(|operator| &operator.declaration_range == declaration_range);
+        let Some(operator) = matches.next() else {
+            return Err(SourceOperatorLookupError::Missing);
+        };
+        if matches.next().is_some() {
+            return Err(SourceOperatorLookupError::Ambiguous);
+        }
+        if operator.spelling.as_ref() != spelling || operator.fixity != fixity {
+            return Err(SourceOperatorLookupError::MismatchedMetadata);
+        }
+        if operator.recovered {
+            return Err(SourceOperatorLookupError::Recovered);
+        }
+        Ok(operator)
+    }
+
+    /// Rebind this parse-owned index to a revision authenticated by the
+    /// caller's source resolver. The revision identifies the snapshot; it
+    /// does not validate the bytes by itself.
+    pub fn with_source_revision(mut self, revision: SourceRevision) -> Self {
+        self.revision = revision;
+        for operator in &mut self.operators {
+            operator.revision = revision;
+        }
+        self
+    }
+
+    /// Read the body text for an exact provider declaration receipt.
+    pub fn operator_body_for_receipt(
+        &self,
+        module: &ModuleId,
+        revision: SourceRevision,
+        declaration_range: &Range<usize>,
+        spelling: &str,
+        fixity: OperatorFixity,
+    ) -> Option<&str> {
+        self.resolve_operator(module, revision, declaration_range, spelling, fixity)
+            .ok()
+            .map(|operator| operator.body_text.as_ref())
+    }
+}
+
 /// One name imported from source modules. Ambiguity is retained at the name
 /// use site and never converted to an arbitrary declaration choice.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -126,7 +220,8 @@ pub struct SourceImportEnvironment {
     #[cfg(any(feature = "shadow", test))]
     role_ids: std::collections::HashMap<Box<str>, super::source_role::SourceRoleId>,
     #[cfg(any(feature = "shadow", test))]
-    role_member_ids: std::collections::HashMap<(Box<str>, Box<str>), super::source_role::SourceRoleMemberId>,
+    role_member_ids:
+        std::collections::HashMap<(Box<str>, Box<str>), super::source_role::SourceRoleMemberId>,
 }
 
 impl SourceImportEnvironment {
@@ -172,9 +267,16 @@ impl SourceImportEnvironment {
     /// Exact source-owned member candidate for one authenticated imported role.
     /// This does not select the role for a receiver or provide a member type.
     #[cfg(any(feature = "shadow", test))]
-    pub fn role_member_id(&self, role_name: &str, member_name: &str) -> Option<&super::source_role::SourceRoleMemberId> {
-        self.role_member_ids.iter().find_map(|((role, member), id)|
-            (role.as_ref() == role_name && member.as_ref() == member_name).then_some(id))
+    pub fn role_member_id(
+        &self,
+        role_name: &str,
+        member_name: &str,
+    ) -> Option<&super::source_role::SourceRoleMemberId> {
+        self.role_member_ids
+            .iter()
+            .find_map(|((role, member), id)| {
+                (role.as_ref() == role_name && member.as_ref() == member_name).then_some(id)
+            })
     }
 
     #[cfg(any(feature = "shadow", test))]
@@ -188,7 +290,10 @@ impl SourceImportEnvironment {
     #[cfg(any(feature = "shadow", test))]
     pub(super) fn retain_role_member_ids(
         &mut self,
-        role_member_ids: std::collections::HashMap<(Box<str>, Box<str>), super::source_role::SourceRoleMemberId>,
+        role_member_ids: std::collections::HashMap<
+            (Box<str>, Box<str>),
+            super::source_role::SourceRoleMemberId,
+        >,
     ) {
         self.role_member_ids = role_member_ids;
     }
@@ -385,11 +490,56 @@ fn declaration(
 pub(super) fn index(
     root: &SyntaxNode,
     module: &ModuleId,
+    revision: SourceRevision,
+    header_operators: &[HeaderOperator],
     counters: &LoweringCounters,
 ) -> Result<SourceExportIndex, HirAvailabilityError> {
     let namespace = module_label(module).ok_or(HirAvailabilityError::StructuralProjection)?;
     let mut declarations = Vec::new();
     let mut uses = Vec::new();
+    let mut operators = Vec::new();
+    let top_level = root.children().collect::<Vec<_>>();
+    for (position, node) in top_level.iter().enumerate() {
+        if node.kind() != SyntaxKind::OperatorHeader {
+            continue;
+        }
+        let range = crate::range_of(node);
+        let next = top_level[position + 1..]
+            .iter()
+            .cloned()
+            .find(|child| child.kind() != SyntaxKind::Whitespace);
+        let Some(body) = next.filter(|body| body.kind() == SyntaxKind::OperatorChain) else {
+            continue;
+        };
+        let mut facts = header_operators
+            .iter()
+            .filter(|fact| fact.range() == &range);
+        let Some(operator) = facts.next() else {
+            continue;
+        };
+        if facts.next().is_some() {
+            return Err(HirAvailabilityError::StructuralProjection);
+        }
+        let body_range = crate::range_of(&body);
+        operators
+            .try_reserve(1)
+            .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        operators.push(SourceOperatorDeclaration {
+            source: source_key(node, counters)?,
+            body_source: source_key(&body, counters)?,
+            module: module.clone(),
+            revision,
+            spelling: operator.name().into(),
+            fixity: operator.fixity(),
+            visibility: operator.visibility(),
+            lazy: operator.is_lazy(),
+            declaration_range: range,
+            body_range,
+            declaration_text: node.text().to_string().into_boxed_str(),
+            body_text: body.text().to_string().into_boxed_str(),
+            recovered: has_recovery(node) || has_recovery(&body),
+        });
+    }
     for item in root.children() {
         let mut top_level = vec![item.clone()];
         if item.kind() == SyntaxKind::Statement {
@@ -465,8 +615,10 @@ pub(super) fn index(
     }
     Ok(SourceExportIndex {
         module: module.clone(),
+        revision,
         declarations,
         uses,
+        operators,
     })
 }
 
@@ -947,7 +1099,14 @@ mod tests {
         let mut counters = LoweringCounters::default();
         counters.source_nodes = crate::source_identity::try_source_keys(&parsed).unwrap();
         let root = SyntaxNode::new_root(parsed.green().clone());
-        let index = super::index(&root, module.module(), &counters).unwrap();
+        let index = super::index(
+            &root,
+            module.module(),
+            parsed.revision(),
+            parsed.header().operators(),
+            &counters,
+        )
+        .unwrap();
 
         let role = index
             .declarations
@@ -1025,6 +1184,122 @@ mod tests {
     }
 
     #[test]
+    fn operator_source_owner_uses_exact_module_revision_range_and_body_node() {
+        let text = "pub infix (+) 5.0.0 5.0.1 = \\x -> \\y -> x.add y";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("ops", "core/ops.yu")));
+        let index = crate::index_source_exports(identity.clone(), &parsed).unwrap();
+        let declaration_range = parsed.header().operators()[0].range().clone();
+        let declaration = index
+            .resolve_operator(
+                identity.module(),
+                parsed.revision(),
+                &declaration_range,
+                "+",
+                OperatorFixity::Infix,
+            )
+            .unwrap();
+        assert!(parsed.owns_source_key(&declaration.source));
+        assert!(parsed.owns_source_key(&declaration.body_source));
+        assert_eq!(declaration.visibility, Visibility::Public);
+        assert_eq!(
+            declaration.declaration_text.as_ref(),
+            &text[declaration_range.clone()]
+        );
+        assert_eq!(
+            declaration.body_text.as_ref(),
+            &text[declaration.body_range.clone()]
+        );
+        assert_eq!(declaration.body_text.as_ref(), "\\x -> \\y -> x.add y");
+
+        let foreign =
+            ModuleIdentity::source_root(FileId::new(FileKey::new("other", "core/ops.yu")));
+        assert_eq!(
+            index.resolve_operator(
+                foreign.module(),
+                parsed.revision(),
+                &declaration_range,
+                "+",
+                OperatorFixity::Infix
+            ),
+            Err(SourceOperatorLookupError::WrongModule),
+        );
+        assert_eq!(
+            index.resolve_operator(
+                identity.module(),
+                SourceRevision::from_fingerprint(1),
+                &declaration_range,
+                "+",
+                OperatorFixity::Infix
+            ),
+            Err(SourceOperatorLookupError::WrongRevision),
+        );
+        assert_eq!(
+            index.resolve_operator(
+                identity.module(),
+                parsed.revision(),
+                &(declaration_range.start + 1..declaration_range.end),
+                "+",
+                OperatorFixity::Infix
+            ),
+            Err(SourceOperatorLookupError::Missing),
+        );
+        assert_eq!(
+            index.resolve_operator(
+                identity.module(),
+                parsed.revision(),
+                &declaration_range,
+                "+",
+                OperatorFixity::Prefix
+            ),
+            Err(SourceOperatorLookupError::MismatchedMetadata),
+        );
+
+        let mut ambiguous = index.clone();
+        ambiguous.operators.push(declaration.clone());
+        assert_eq!(
+            ambiguous.resolve_operator(
+                identity.module(),
+                parsed.revision(),
+                &declaration_range,
+                "+",
+                OperatorFixity::Infix
+            ),
+            Err(SourceOperatorLookupError::Ambiguous),
+        );
+    }
+
+    #[test]
+    fn operator_source_owner_fails_closed_for_recovered_value_body() {
+        let text = "pub infix (+) 5.0.0 5.0.1 = \\x -> @@";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let identity =
+            ModuleIdentity::source_root(FileId::new(FileKey::new("ops", "recovered.yu")));
+        let index = crate::index_source_exports(identity.clone(), &parsed).unwrap();
+        let declaration_range = parsed.header().operators()[0].range().clone();
+        assert_eq!(
+            index.resolve_operator(
+                identity.module(),
+                parsed.revision(),
+                &declaration_range,
+                "+",
+                OperatorFixity::Infix
+            ),
+            Err(SourceOperatorLookupError::Recovered),
+        );
+    }
+
+    #[test]
     fn public_export_resolution_distinguishes_private_ambiguous_and_recovered_routes() {
         fn index(path: &str, text: &str) -> SourceExportIndex {
             let source: Arc<yu_syntax::SourceText> = Arc::from(text);
@@ -1037,7 +1312,14 @@ mod tests {
             let mut counters = LoweringCounters::default();
             counters.source_nodes = crate::source_identity::try_source_keys(&parsed).unwrap();
             let root = SyntaxNode::new_root(parsed.green().clone());
-            super::index(&root, module.module(), &counters).unwrap()
+            super::index(
+                &root,
+                module.module(),
+                parsed.revision(),
+                parsed.header().operators(),
+                &counters,
+            )
+            .unwrap()
         }
 
         let root = index("lib/std.yu", "pub mod a;\npub mod b;\npub mod c;\n");
@@ -1080,7 +1362,14 @@ mod tests {
             let mut counters = LoweringCounters::default();
             counters.source_nodes = crate::source_identity::try_source_keys(&parsed).unwrap();
             let root = SyntaxNode::new_root(parsed.green().clone());
-            let index = super::index(&root, module.module(), &counters).unwrap();
+            let index = super::index(
+                &root,
+                module.module(),
+                parsed.revision(),
+                parsed.header().operators(),
+                &counters,
+            )
+            .unwrap();
             index
         }
 
@@ -1110,7 +1399,14 @@ mod tests {
             let mut counters = LoweringCounters::default();
             counters.source_nodes = crate::source_identity::try_source_keys(&parsed).unwrap();
             let root = SyntaxNode::new_root(parsed.green().clone());
-            super::index(&root, module.module(), &counters).unwrap()
+            super::index(
+                &root,
+                module.module(),
+                parsed.revision(),
+                parsed.header().operators(),
+                &counters,
+            )
+            .unwrap()
         }
 
         let root = index("lib/std.yu", "pub mod a;\npub mod b;\n");

@@ -1,6 +1,6 @@
 # Sprint R307 — authenticated operator declaration source owner
 
-Status: READY, solo Luna primary, unreviewed; parent R149 remains OPEN.
+Status: RESULT, source-owner outcome complete, solo Luna primary, unreviewed; parent R149 remains OPEN.
 Baseline: `4588437212adf135bc74874aaba58c562aafb0c4` on `research/simple-sub-intrusion`.
 Parent: unchanged Yulang2 Types and Console source and original source/native obligations.
 
@@ -16,6 +16,16 @@ This is source ownership only. Do not create a value by spelling lookup, rewrite
 - The provider bytes at that range match the pinned public `infix (+)` declaration and original lambda body. A same-spelled local declaration, different fixity, stale revision, wrong range, duplicate/ambiguous declaration, or recovered header/body must not resolve.
 - Re-exported or imported syntax provenance must remain separate from value-export routes; no operator value resolution by spelling is inferred.
 - Run focused source-owner tests, pinned fmt/operator trace, `cargo check -p yu-hir --features shadow`, `cargo check -p yu-playground`, and unchanged Types boundary. Tests establish implementation/source evidence only.
+
+## Outcome and receipts
+
+`SourceExportIndex` now retains each complete root `OperatorHeader` paired with its adjacent body `OperatorChain`, both with parse-owned `SourceNodeKey`s, exact ranges and original text. The index records module and source revision; `with_source_revision` accepts the revision supplied by the caller's authenticated resolver because `ParsedFile::revision()` is `UNTRACKED` for these pinned parses. This binds a revision label but does not verify bytes. Operator resolution requires the index's module/revision plus the exact declaration range, then checks spelling/fixity and recovery. A missing body, wrong module/revision/range/fixity, duplicate exact range and recovered body all fail closed.
+
+The pinned `Display.say` test takes the imported syntax dependency receipt, reparses the unchanged `lib/std/core/ops.yu` bytes, binds its pinned dependency revision, and resolves the receipt's exact declaration range to the original body `\\x -> \\y -> x.add y`. HIR tests also verify parse ownership for both nodes, source slicing, visibility, and the negative lookup cases.
+
+Evidence: `cargo test -p yu-hir --features shadow module::source_exports::tests`, the pinned stdlib source-owner test, `cargo check -p yu-hir --features shadow`, `cargo check -p yu-playground`, and `unchanged_types_sample_reaches_deferred_field_tail_boundary` pass. Evidence remains unreviewed and source-only.
+
+No candidate or solver semantics were added. The operator value's candidate scheme, receiver/member relation, deferred readiness, body typing, unchanged Types/Console execution, source/native proof, A/B, principality, termination, independent review and production remain OPEN. R149 remains OPEN.
 
 ## Proof correspondence and boundary
 

@@ -1759,7 +1759,13 @@ pub fn index_source_exports(
     let mut counters = LoweringCounters::default();
     counters.source_nodes = crate::source_identity::try_source_keys(parsed)?;
     let root = SyntaxNode::new_root(parsed.green().clone());
-    source_exports::index(&root, identity.module(), &counters)
+    source_exports::index(
+        &root,
+        identity.module(),
+        parsed.revision(),
+        parsed.header().operators(),
+        &counters,
+    )
 }
 
 fn lower_module_with_counters(
