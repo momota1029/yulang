@@ -29,7 +29,18 @@ explicit. The full playground suite passes with those inputs.
 
 ## Limits
 
-This verifies executable sample and parser behavior only. It does not close the
-Simple-sub/F5 proof, source/native correspondence, the R213 candidate frontier
-witness review, or production inference gates. The original theorem remains
-OPEN; no inference algorithm change is claimed.
+Two newly run bounded probes also build and exit successfully:
+`r173_source_drain_attribution` stdout SHA-256
+`aa9119c11e5f5f041730a72bd59f348b9f74282ca7c9b8df8866ac5f2232a5ae`, and
+`r174_forwarding_bridge` stdout SHA-256
+`c29c51646d219fb5f8b0b20448a314241edf381a0189998354a325b864ab2db5`. Both
+report direct source attribution and structured Capture/maps, but
+`consumer_relation_join_complete=false` and `discriminating=false`. The R171
+module-callee fixture therefore still cannot distinguish the candidate
+consumer path; the later R187 local-route readback is the stronger witness.
+
+This verifies executable sample and parser behavior and reproduces those
+bounded candidate readbacks. It does not close the Simple-sub/F5 proof,
+source/native correspondence, the R213 candidate frontier witness review, or
+production inference gates. The original theorem remains OPEN; no inference
+algorithm change is claimed.
