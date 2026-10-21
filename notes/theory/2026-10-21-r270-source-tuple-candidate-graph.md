@@ -17,9 +17,22 @@ Candidate graph capture records tuple polarity and ordered child node indexes in
 - `python3 tools/agent_sprint.py check` passes. `python3 -m unittest discover -s tools -p 'test_agent_sprint.py'` passes (57 tests).
 - `git diff --check` passes.
 
+## Static source-order correspondence audit
+
+The source-to-graph order path is explicit in the current implementation:
+
+1. `yu-hir` constructs `LocalSourceForm::Tuple.elements` by iterating the syntax children in their retained order. Its existing source-carrier test checks the child values, ranges, and occurrence ordinals in increasing source order.
+2. `candidate_source` iterates those `LocalSourceIndex` values without sorting. At each index it appends the corresponding `endpoints[element]` and `positions[element].effect` to parallel vectors. The retained tuple recipe therefore carries one value endpoint and one computation-effect endpoint per source position.
+3. `shadow_apply` builds the positive tuple term by iterating `elements` in vector order. The per-child effect constraints use the same `element_effects` order, with checked local slots `index + 1`.
+4. Capture reads the ordered tuple term view and writes child node indexes at `start + offset`. FreshUse reads exactly that stored range and rebuilds the positive or negative tuple by iterating the range in order.
+
+This closes the implementation-level ordering correspondence for the stored tuple term and child-effect edges. The source child index itself is not retained as a separate field after endpoint selection; the parent occurrence plus the ordered endpoint/effect vectors encode that correspondence.
+
+An attempted stronger export assertion expected each captured tuple child to expose its literal leaf directly. The focused test showed that exported children are represented as local value rows, so that assertion was invalid and was removed. This run did not identify a tuple reorder: the graph inspection API does not currently expose the row-to-source-child receipt needed for that assertion. A direct exported child/source identity assertion and nested-export shape check remain open; the earlier arity-only regression was not rerun after this audit.
+
 ## Limits and remaining work
 
-This is evidence for the candidate native path only. It does not establish source/native proof closure, public closed `yu-types` tuple schemes, runtime tuple values, or Types/Console playground execution. The graph export test checks tuple arities; it does not yet authenticate every exported child against its source occurrence or a tuple-specific fresh-use receipt. The nested source currently has a successful candidate solve but lacks an exported nested-shape assertion. Effect evidence checks the retained child-to-parent fact, not whole-program effect publication or runtime handling.
+This is evidence for the candidate native path only. It does not establish source/native proof closure, public closed `yu-types` tuple schemes, runtime tuple values, or Types/Console playground execution. The graph export test checks tuple arities; it does not yet authenticate every exported child against its source occurrence or a tuple-specific fresh-use receipt. The nested source currently has a successful candidate solve but lacks an exported nested-shape assertion. Static source-index to term/capture/rebuild order correspondence is audited above; the exported identity check remains open. Effect evidence checks the retained child-to-parent fact, not whole-program effect publication or runtime handling.
 
 The complete feature-enabled `yu-solver` test process failed with a stack overflow in an unnamed worker thread after numerous tests had passed. A serial retry was stopped after over two minutes while one test remained CPU-bound without new output. These are unresolved full-suite receipts, not attributed to this patch. `cargo fmt --all -- --check` also reports extensive formatting differences across pre-existing repository files; no whole-repository formatting was applied.
 

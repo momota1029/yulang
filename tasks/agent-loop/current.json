@@ -9,18 +9,18 @@
     "contract": "tasks/agent-loop/sprints/source-ordered-tuple-candidate-graph-20261021-r270.md",
     "resources": {
       "cap_seconds": 1200,
-      "charged_seconds": 0,
+      "charged_seconds": 90,
       "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "Partial native evidence: source Tuple -> ordered term -> graph capture/fresh reconstruction and child effect edge tested; exact child/source identity, nested exported shape and whole compiler closure remain open.",
+    "proof": "Static source-order path now traced from ordered LocalSourceIndex children through parallel value/effect endpoints, tuple terms, Capture ranges and FreshUse reconstruction. Exported child/source identity and nested export shape remain open; whole compiler closure remains open.",
     "implementation": "Implemented candidate source tuple relations, wide effect fact slots, tuple graph capture/fresh reconstruction and focused arity/effect tests. Full suite unresolved.",
     "review_receipt": "Primary-only; unreviewed.",
-    "next_action": "Audit exact source-child order correspondence and nested tuple capture; isolate full-suite failures; then connect candidate tuple graphs to public types and runtime.",
+    "next_action": "Expose or record a tuple child-to-source-index identity for exported graphs, add a nested export shape check without assuming children are direct leaves, then rerun focused and broader authorized evidence; keep public Tuple/runtime/R149 closure open.",
     "closure": "R270 is a provisional native candidate path only. Public closed Tuple types, runtime Tuple, R149 sample execution, source/native proofs and production remain OPEN.",
     "contract_sha256": "bdf7bed755860657676717ecac75e8cd749b84fca0fc227271f2021766331af1",
-    "note_sha256": "8b0bb73c5861f34bbe5372e1824e3bd173563828578e8666456deaca2b262468",
-    "inbox_sha256": "6aa6adb57b3ae836ca2a89a18101d40bea70f0027a1f9cc10b62faf53f024260",
+    "note_sha256": "7495cf0d4a45ae3de1b7eefd2fd442981741025a3139beb1e47bb761e4b13c4c",
+    "inbox_sha256": "d83551d7f69bea2699af6435478c3967a682c1bf43a4ad004a42685c0c947418",
     "note": "notes/theory/2026-10-21-r270-source-tuple-candidate-graph.md"
   },
   "workers": [
@@ -107,7 +107,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R270 source tuple candidate path checkpoint committed and pushed as 69b03a2ae; focused arity/effect tests pass; full-suite failures recorded, sprint remains ACTIVE."
+      "receipt": "Read and converted both supplied design DOCX files to Markdown (commits 8e4229bdc and 929f3a790). Static R270 source-order path audited. A stronger graph test assumption that child nodes expose literal leaves failed because exported children are local rows; assertion was removed. No new compiler behavior committed; R270 remains ACTIVE and unreviewed."
     }
   ],
   "leases": [
