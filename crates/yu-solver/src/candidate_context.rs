@@ -2255,12 +2255,6 @@ impl State {
             .and_then(|bytes| self.replay_operation_undo.capacity().checked_mul(std::mem::size_of::<ReplayOperationUndo>())
                 .and_then(|undo| bytes.checked_add(undo))).ok_or_else(exhausted)?;
         bytes = bytes.checked_add(self.replay_child_bytes).ok_or_else(exhausted)?;
-        #[cfg(test)]
-        {
-            bytes = bytes.checked_add(self.replay_drain_observations.capacity()
-                .checked_mul(std::mem::size_of::<ReplayDrainObservation>()).ok_or_else(exhausted)?)
-                .ok_or_else(exhausted)?;
-        }
         let frame_bytes = std::mem::size_of::<TypedDrainFrame>()
             - std::mem::size_of::<Option<SourceDrainReceipt>>();
         let undo_bytes = std::mem::size_of::<TypedDrainUndo>()

@@ -60,3 +60,31 @@ regression and playground suite pass; full solver suite status remains open.
 This is solo, unreviewed candidate work. It does not prove source/native
 completeness, the original Simple-sub theorem or computation-forwarding. No
 production cutover or parent-gate closure follows.
+
+## R235 follow-up — test-only replay observation accounting
+
+While investigating the incomplete solver suite, the candidate-context group
+initially had 11 `bytes()`/`enumerated_bytes()` mismatches. `bytes()` included
+the capacity of the `#[cfg(test)] replay_drain_observations` trace while the
+test enumerator omitted it. Adding the capacity to the enumerator removed nine
+mismatches, but two rollback/capacity assertions then showed that the test-only
+trace can retain capacity across failed test routes. Since the trace does not
+exist in ordinary builds, the final correction excludes its capacity from the
+production retained-byte model in both paths.
+
+Evidence at R235 rev3:
+
+- Candidate-context group with only
+  `queued_relation_equality_transport_retains_context_ancestry_and_retry`
+  skipped: 127 passed, 0 failed.
+- `cargo test -p yu-playground`: passed.
+- `npm run check` in `web/playground`: passed; WASM smoke covered inference, 13
+  execution examples, three Yulang2 identity definitions and two diagnostic
+  examples.
+- `python3 tools/agent_sprint.py check`: passed.
+
+The exact skipped test was separately observed active for about 76 seconds and
+stopped during investigation. Its cause remains unknown. The full `yu-solver`
+library suite therefore remains incomplete; these bounded results do not
+change the OPEN R71/R72 or original Simple-sub gates, and no independent review
+is claimed.
