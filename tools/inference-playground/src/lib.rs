@@ -1025,6 +1025,16 @@ mod tests {
         let display_say = declaration.body.as_ref().unwrap().members.iter()
             .find(|member| member.text.trim_start().starts_with("pub a.say ="))
             .expect("pinned Display role owns the default say member");
+        let resolved_display_say = yu_hir::shadow::resolve_source_role_member(
+            &expected_display_id, "say", &provider_role_indexes,
+        ).expect("exact Display identity resolves its source-owned say member");
+        assert_eq!(resolved_display_say.id, display_say.id);
+        assert!(matches!(
+            yu_hir::shadow::resolve_source_role_member(
+                &expected_display_id, "not_a_display_member", &provider_role_indexes,
+            ),
+            Err(yu_hir::shadow::SourceRoleMemberError::MissingMember),
+        ));
         assert_eq!(display_say.id.role, expected_display_id);
         assert!(!display_say.recovered);
         assert!(display_say.text.contains("std::io::out::write"));

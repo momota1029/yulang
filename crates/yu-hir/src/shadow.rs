@@ -242,6 +242,95 @@ pub enum SourceRoleImplementationError {
     IdentityExhausted,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceRoleMemberError {
+    MissingModule,
+    DuplicateModule,
+    StaleRole,
+    RecoveredRole,
+    MissingBody,
+    RecoveredBody,
+    MissingMember,
+    AmbiguousMember,
+    RecoveredMember,
+    StaleMember,
+}
+
+/// Looks up one member inside one exact, authenticated role declaration.
+/// The result retains the member's source identity; it is not a method type,
+/// implementation match, or selected dispatch decision.
+pub fn resolve_source_role_member<'a>(
+    role_id: &SourceRoleId,
+    member_name: &str,
+    indexes: &'a [SourceRoleImplIndex],
+) -> Result<&'a SourceRoleMember, SourceRoleMemberError> {
+    if member_name.is_empty()
+        || !member_name.chars().all(|character| character == '_' || character.is_alphanumeric())
+    {
+        return Err(SourceRoleMemberError::MissingMember);
+    }
+    let mut module = None;
+    for index in indexes {
+        if &index.module == role_id.module.as_ref() {
+            if module.replace(index).is_some() {
+                return Err(SourceRoleMemberError::DuplicateModule);
+            }
+        }
+    }
+    let module = module.ok_or(SourceRoleMemberError::MissingModule)?;
+    let mut role = None;
+    for declaration in &module.roles {
+        if declaration.id == *role_id {
+            if role.replace(declaration).is_some() {
+                return Err(SourceRoleMemberError::StaleRole);
+            }
+        }
+    }
+    let role = role.ok_or(SourceRoleMemberError::StaleRole)?;
+    if role.recovered || role.head.recovered {
+        return Err(SourceRoleMemberError::RecoveredRole);
+    }
+    let body = role.body.as_ref().ok_or(SourceRoleMemberError::MissingBody)?;
+    if body.recovered {
+        return Err(SourceRoleMemberError::RecoveredBody);
+    }
+    let mut found = None;
+    for member in &body.members {
+        if member.id.role != *role_id {
+            return Err(SourceRoleMemberError::StaleMember);
+        }
+        if source_role_member_name(&member.text) != Some(member_name) {
+            continue;
+        }
+        if member.recovered {
+            return Err(SourceRoleMemberError::RecoveredMember);
+        }
+        if found.replace(member).is_some() {
+            return Err(SourceRoleMemberError::AmbiguousMember);
+        }
+    }
+    found.ok_or(SourceRoleMemberError::MissingMember)
+}
+
+fn source_role_member_name(text: &str) -> Option<&str> {
+    let line = text.lines().next()?.trim();
+    let declaration = line
+        .strip_prefix("pub ")
+        .or_else(|| line.strip_prefix("our "))
+        .or_else(|| line.strip_prefix("my "))
+        .unwrap_or(line);
+    let end = declaration.find([':', '='])?;
+    let head = declaration[..end].trim();
+    let (receiver, name) = head.rsplit_once('.')?;
+    if receiver.trim().is_empty()
+        || name.is_empty()
+        || !name.chars().all(|character| character == '_' || character.is_alphanumeric())
+    {
+        return None;
+    }
+    Some(name)
+}
+
 /// Resolves an exact role identity to source implementation declarations in
 /// that role's provider module. Only an exact, unqualified, unapplied local
 /// role spelling is joined here. An applied or qualified implementation role
