@@ -2781,6 +2781,11 @@ impl State {
                 .is_some_and(|admission| admission.relation == Some(relation))
         })
     }
+    #[cfg(test)]
+    pub(super) fn test_source_events_for_relation(&self, relation: RelationId) -> Option<&[usize]> {
+        let sources = self.relations.get(relation.0 as usize)?.key.sources?;
+        self.source_sets.get(sources).map(Vec::as_slice)
+    }
     pub(super) fn observed_pair(&self, relation: RelationId) -> Result<TypedPairKey, SolveAvailabilityError> {
         Ok(self.relations.get(relation.0 as usize).ok_or_else(exhausted)?.key.pair)
     }

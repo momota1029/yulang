@@ -201,3 +201,85 @@ impl CandidateInference {
         })
     }
 }
+
+#[cfg(all(test, feature = "shadow-apply-candidate"))]
+mod r202_capture_lineage_tests {
+    use super::*;
+    use std::sync::Arc;
+    use yu_hir::shadow::lower_module_with_local_source;
+    use yu_hir::{FileId, FileKey, HirBinding, HirModule, ModuleIdentity, SemanticImports};
+    use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+
+    const SOURCE: &str = r#"act signal:
+    our ping: () -> int
+my finish (x:[signal] int) = x
+my outer (t:[signal] int) = {
+    my bridge (x:[signal] int) = outer x;
+    my relay (u:[signal] int) = bridge u;
+    catch t { signal::ping(), _ -> relay t, v -> finish t }
+}"#;
+
+    fn binding<'a>(hir: &'a HirModule, name: &str) -> &'a HirBinding {
+        hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding),
+            _ => None,
+        }).unwrap_or_else(|| panic!("missing binding {name}"))
+    }
+
+    #[test]
+    fn relay_capture_snapshots_join_existing_bound_emissions_and_source_sets() {
+        let source: Arc<SourceText> = Arc::from(SOURCE);
+        let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+        assert!(parsed.structural_recoveries().is_empty());
+        let hir = Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("r202-capture-lineage", "relay.yu"))),
+            &parsed, SemanticImports::empty(),
+        ).unwrap());
+        let outer = binding(&hir, "outer");
+        let local = hir.local_source(outer.definition_root()).unwrap().unwrap();
+        let apply = local.expressions().iter().find(|expr| expr.occurrence.ordinal() == 18).unwrap();
+        assert!(matches!(&apply.form, yu_hir::shadow::LocalSourceForm::Apply { .. }));
+
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let observed = candidate.local_source_provider_observation(&apply.occurrence, 256).unwrap();
+        assert!(observed.facts_complete && observed.origins_complete);
+        assert!(!observed.captures_truncated);
+        assert_eq!(observed.routes.len(), 1);
+
+        let graph = candidate.solved.data.candidate_graph.as_ref().unwrap();
+        let context = &graph.intrusion.effect_algebra.context;
+        let references = &candidate.solved.data.candidate_references;
+        let target_relations = [53usize, 56, 57, 62];
+        let mut seen = std::collections::HashSet::new();
+        for capture in &observed.routes[0].captures {
+            let Some(CandidateProviderCaptureStructure::Snapshot {
+                source_bound, relation: Some(relation), coverage_bits,
+            }) = capture.structure else { continue; };
+            if !target_relations.contains(&relation) { continue; }
+            seen.insert(relation);
+            let relation_id = crate::candidate_context::RelationId(relation as u32);
+            let events = context.test_source_events_for_relation(relation_id).unwrap_or(&[]);
+            let checking = events.iter().filter_map(|&event| references.observed_checking(event))
+                .collect::<Vec<_>>();
+            let admissions = context.observed_bound_admissions().filter(|(_, admission)| {
+                admission.relation == Some(relation_id)
+                    && source_bound_key(admission.bound) == source_bound
+            }).collect::<Vec<_>>();
+            let admission_ids = admissions.iter().map(|(index, _)| *index).collect::<Vec<_>>();
+            let emissions = context.observed_bound_emissions_for_relation(relation_id)
+                .filter(|(_, emission)| admission_ids.contains(&emission.admission.0)
+                    && source_bound_key(emission.bound) == source_bound)
+                .collect::<Vec<_>>();
+            println!("R202 relation={relation} key={source_bound:?} coverage={coverage_bits} events={events:?} checking={checking:?}");
+            for (index, admission) in &admissions {
+                println!("  admission={index} cause={:?} coverage={:?} bound={:?}", admission.cause, admission.coverage, admission.bound);
+            }
+            for (index, emission) in &emissions {
+                println!("  emission={index} admission={} physical={:?} readback={:?}", emission.admission.0, emission.physical, emission.readback);
+            }
+            assert!(!admissions.is_empty(), "captured relation {relation} has no matching retained admission");
+            assert!(!emissions.is_empty(), "captured relation {relation} has no matching physical emission");
+        }
+        assert_eq!(seen.into_iter().collect::<std::collections::HashSet<_>>(), target_relations.into_iter().collect());
+    }
+}

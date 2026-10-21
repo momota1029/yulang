@@ -1,7 +1,7 @@
 //! Operation-local polarity copies for the private mixed graph solver.
 use crate::*;
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct Key(ExtrusionEndpoint, Polarity, u32);
 #[derive(Clone, Copy)]
 enum Work {
