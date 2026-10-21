@@ -725,4 +725,141 @@ my outer (q:[io] int) = {
         assert!(loop_q_route_seen, "the exact outer loop q call has a complete source route");
         println!("R218 complete_observations={complete_observations} total_calls=4");
     }
+
+    #[test]
+    fn r219_repeated_loop_q_source_reachability() {
+        const SOURCE: &str = r#"act io:
+    our tick: int -> int
+
+my outer (q:[io] int) = {
+    my loop (x:[io] int) = {
+        my direct = loop x
+        my helper (y:[io] int) = loop y
+        helper x
+    }
+    my repeated (z:[io] int) = {
+        my first = loop z
+        loop z
+    }
+    repeated q
+}"#;
+        let source: Arc<SourceText> = Arc::from(SOURCE);
+        let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+        assert!(parsed.structural_recoveries().is_empty());
+        let hir = Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("r219-repeat-loop-q", "source.yu"))),
+            &parsed, SemanticImports::empty(),
+        ).unwrap());
+        let outer = binding(&hir, "outer");
+        let local = hir.local_source(outer.definition_root()).unwrap().unwrap();
+        let local_id = |name: &str| local.bindings().iter()
+            .find(|binding| binding.spelling.as_ref() == name).unwrap().id.clone();
+        let loop_id = local_id("loop");
+        let repeated_loop_occurrences = local.expressions().iter().filter_map(|expression| {
+            let LocalSourceForm::Apply { callee, argument, .. } = &expression.form else { return None; };
+            let (LocalSourceForm::Name { resolution: LocalSourceResolution::Local(callee), .. },
+                 LocalSourceForm::Name { spelling, .. }) =
+                (&local.expression(callee).unwrap().form, &local.expression(argument).unwrap().form) else { return None; };
+            (*callee == loop_id && spelling.as_ref() == "z").then_some(expression.occurrence.ordinal())
+        }).collect::<Vec<_>>();
+        assert_eq!(repeated_loop_occurrences.len(), 2, "the exact repeated function body has two loop z applications");
+
+        crate::candidate_context::r148_trace_begin();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let trace = crate::candidate_context::r148_trace_finish();
+        assert!(candidate.solved.data.errors.is_empty(), "the exact ordinary source is admitted");
+        let starts = trace.iter().filter(|event| event.starts_with("extrusion-start ")).count();
+        let finishes = trace.iter().filter(|event| event.starts_with("extrusion-finish ")).count();
+        assert!(starts > 0 && starts == finishes);
+        let work_bounds = trace.iter().filter(|event| event.starts_with("work-bound ")).collect::<Vec<_>>();
+        let work_occurrences = work_bounds.iter().filter_map(|event| event.split_whitespace()
+            .find_map(|part| part.strip_prefix("occurrence=").and_then(|value| value.parse::<usize>().ok())))
+            .collect::<std::collections::HashSet<_>>();
+        for event in &work_bounds {
+            let occurrence = event.split_whitespace().find_map(|part|
+                part.strip_prefix("occurrence=").and_then(|value| value.parse::<usize>().ok())).unwrap();
+            let index = trace.iter().position(|candidate| std::ptr::eq(candidate, *event)).unwrap();
+            assert!(index > 0 && trace[index - 1].starts_with(&format!("work-pop occurrence={occurrence} task=Bound(")));
+        }
+        let solved = candidate.solved.data.candidate_graph.as_ref().unwrap();
+        let context = &solved.intrusion.effect_algebra.context;
+        let references = &candidate.solved.data.candidate_references;
+        for source_occurrence in &repeated_loop_occurrences {
+            let expression = local.expressions().iter().find(|expression|
+                expression.occurrence.ordinal() == *source_occurrence).unwrap();
+            match candidate.local_source_provider_observation(&expression.occurrence, 4096) {
+                Ok(observation) => println!("R219 local_observation occurrence={source_occurrence} complete=({}, {}) truncated={} routes={}",
+                    observation.facts_complete, observation.origins_complete,
+                    observation.captures_truncated, observation.routes.len()),
+                Err(error) => println!("R219 local_observation_unavailable occurrence={source_occurrence} error={error:?}"),
+            }
+        }
+        let loop_initializer = local.bindings().iter().find(|binding| binding.id == loop_id).unwrap().initializer.clone();
+        let loop_ordinal = local.expression(&loop_initializer).unwrap().occurrence.ordinal();
+        let slot4 = context.origins.iter().find(|origin|
+            origin.occurrence.occurrence().ordinal() == loop_ordinal && origin.occurrence.local_slot() == 4)
+            .expect("loop Lambda slot-4 source origin");
+        let slot4_bound = context.test_admission_emissions_for_relation(slot4.relation).iter()
+            .find_map(|(_, admission, emissions)| matches!(admission.bound,
+                crate::candidate_effect::BoundKey(
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_)),
+                    Polarity::Negative,
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_))))
+                .then_some((admission.bound, emissions.to_vec())))
+            .expect("slot-4 physical source bound");
+        let (source_bound, emissions) = slot4_bound;
+        let crate::candidate_effect::BoundKey(
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(owner)),
+            Polarity::Negative,
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(item)),
+        ) = source_bound else { unreachable!() };
+        assert!(emissions.iter().any(|(_, emission)|
+            emission.physical.owner == crate::candidate_scheme::RowKey::Effect(owner)
+                && emission.physical.lane == crate::candidate_context::BoundLane::EffectUpperRow));
+
+        let intrusion = &solved.intrusion;
+        assert!(intrusion.forest_event_log_complete());
+        let mut values = Vec::<u32>::new();
+        let mut effects = Vec::<u32>::new();
+        let mut item_events = Vec::new();
+        for (index, event) in intrusion.forest_events().iter().enumerate() {
+            match *event {
+                crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Value(row)) => {
+                    assert_eq!(row as usize, values.len()); values.push(row);
+                }
+                crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Effect(row)) => {
+                    assert_eq!(row as usize, effects.len()); effects.push(row);
+                    if row == item { item_events.push((index, "birth", row)); }
+                }
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Value(row), before, after, .. } => {
+                    let slot = &mut values[row as usize]; assert_eq!(*slot, before); *slot = after;
+                }
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(row), before, after, .. } => {
+                    let slot = &mut effects[row as usize]; assert_eq!(*slot, before); *slot = after;
+                    if row == item { item_events.push((index, "parent-write", row)); }
+                }
+                crate::candidate_intrusion::ForestEvent::Truncate { values_len, effects_len } => {
+                    values.truncate(values_len); effects.truncate(effects_len);
+                }
+            }
+        }
+        let final_forest = intrusion.forest_snapshot().unwrap();
+        assert_eq!(values, final_forest.values);
+        assert_eq!(effects, final_forest.effects);
+        let bound_mentions = work_bounds.iter().filter(|event| event.contains(&format!("EffectRow({item})"))).count();
+        let source_checking = solved.intrusion.observed_groups().flat_map(|(_, occurrence, start, end, _)| {
+            if !work_occurrences.contains(&occurrence) { return Vec::new(); }
+            solved.intrusion.parents[start..end].iter().filter_map(|parent| parent.sources)
+                .flat_map(|sources| context.source_events(sources).iter()
+                    .filter_map(|&event| references.observed_checking(event))
+                    .map(|checking| checking.source_ordinal()).collect::<Vec<_>>()).collect::<Vec<_>>()
+        }).collect::<std::collections::HashSet<_>>();
+        assert_eq!(work_bounds.len(), 2, "the complete source trace has only the two Work::Bound events");
+        let repeated_checks = repeated_loop_occurrences.iter().copied().collect::<std::collections::HashSet<_>>();
+        assert!(source_checking.is_disjoint(&repeated_checks),
+            "neither repeated loop z Apply owns a Work::Bound group: source checks={source_checking:?}, calls={repeated_loop_occurrences:?}");
+        assert!(item_events.is_empty(), "the slot-4 item has no birth or parent write in the complete forest: {item_events:?}");
+        assert_eq!(bound_mentions, 0, "no later Work::Bound selects the slot-4 item");
+        println!("R219 source repeated_loop={repeated_loop_occurrences:?} work_bounds={work_bounds:?} source_checks={source_checking:?} slot4={source_bound:?} physical=Effect({owner})/EffectUpperRow[0] item=Effect({item}) item_forest_events={item_events:?} item_work_bound_mentions={bound_mentions} forest_effect_rows={}", effects.len());
+    }
 }

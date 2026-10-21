@@ -4,23 +4,23 @@
  "phase": "ACTIVE",
  "session": "current-conversation-2026-10-21-r218",
  "active_sprint": {
-  "id": "r72-exact-source-execution-and-owner-trace-20261021-r218",
+  "id": "repeated-loop-source-reachability-20261021-r219",
   "status": "CLOSED_BOUNDED_CANDIDATE_C",
-  "contract": "tasks/agent-loop/sprints/r72-exact-source-execution-and-owner-trace-20261021-r218.md",
-  "contract_sha256": "b709d3c76e076f1bf509d40f7b7fc7e1897f062f7405affed4c76f4f2df1f038",
-  "baseline": "301a714b2",
+  "contract": "tasks/agent-loop/sprints/repeated-loop-source-reachability-20261021-r219.md",
+  "contract_sha256": "1156860f7903080aa71da08e5ef1c22aaefe9e8c44f8d007fab4db7d4c797d58",
+  "baseline": "b47a9425b",
   "resources": {
    "cap_seconds": 600,
    "charged_seconds": 0,
    "reserved_seconds": 0,
    "no_carryover": true
   },
-  "proof": "Exact R72 source admitted; complete bounded trace yields case-specific outcome C.",
-  "implementation": "Test-only exact-source work-item trace; no semantic or production changes.",
+  "proof": "Repeated-call source admitted; complete bounded trace yields case-specific outcome C.",
+  "implementation": "One focused test using existing cfg(test) work trace; no semantic changes.",
   "review_receipt": "Solo primary; no independent review claimed.",
-  "next_action": "Resume the original inference parent at its still-open arbitrary-prefix and consumer-lineage obligations.",
-  "closure": "R218: fixed R72 source has no slot-4 item birth/parent-write in the complete intrusion forest and no later Work::Bound lookup/copy of that item; case-specific C only.",
-  "handoff_sha256": "1d8202d64361b92f6f7fd6f21bc353fb882dede6dc4764bdc12d9312f8c2a22b"
+  "next_action": "Resume original R71 raw/canonical fiber proof at required-lineage or source-reachability premise.",
+  "closure": "R219 C: slot-4 item absent from complete forest and Work::Bound lookups.",
+  "handoff_sha256": "dd57d7aea9cf2a1aab2b5e8df7bf8c6a66573bec625242addc4faf688342d672"
  },
  "workers": [
   {
@@ -318,7 +318,7 @@
    "path": "crates/yu-solver/src/shadow_apply/local_source_observation.rs",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R218 exact-source observation; Luna primary."
+   "reason": "R218/R219 bounded source observations; Luna primary."
   },
   {
    "path": "tasks/agent-loop/sprints/source-qualified-capture-frontier-witness-20261021-r213.md",
@@ -355,6 +355,18 @@
    "owner": "/root",
    "state": "HELD",
    "reason": "R218 cfg(test) Work trace."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/repeated-loop-source-reachability-20261021-r219.md",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "R219 exact repeated-call source observation."
+  },
+  {
+   "path": "notes/theory/2026-10-21-r219-repeated-loop-source-reachability.md",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "R219 source/native result."
   }
  ],
  "pending": [
@@ -416,7 +428,7 @@
    "id": "R72-LATER-OCCURRENCE-1",
    "state": "OPEN",
    "owner": "Luna; exact Local restoration/replay to later production Work::Bound and independently justified consumer lineage",
-   "details": "OPEN parent. R218 fixed-source outcome C: this source has no slot-4 item birth/parent-write or later Work::Bound copy; general later-occurrence obligation remains."
+   "details": "OPEN. R218/R219 exact cases C; slot-4 item absent from forest and later Work::Bound. Global coverage remains."
   },
   {
    "id": "R149-SOURCE-OWNER-CLOSURE-1",
@@ -425,8 +437,8 @@
    "details": "Worker interrupted 10:44:04Z"
   }
  ],
- "closure": "R218 closed as bounded case-specific outcome C; the computation-forwarding parent, R71/R72 global coverage, and production gates remain open.",
- "next_action": "Resume the original computation-forwarding proof at its first unclosed source/native consumer obligation.",
+ "closure": "R218/R219 exact cases C; original theorem and global R71/R72 coverage remain OPEN.",
+ "next_action": "Continue the original R71 raw/canonical fiber obligation from the exact missing source-reachable consumer lineage.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "3 U; no reclaim.",
@@ -495,7 +507,14 @@
    "archive": "notes/theory/2026-10-21-r218-r72-exact-source-execution.md",
    "contract": "tasks/agent-loop/sprints/r72-exact-source-execution-and-owner-trace-20261021-r218.md",
    "charged_seconds": 0,
-   "checks": "focused R218 test passed; yu-playground passed; agent_sprint check and tooling unittest pending"
+   "checks": "focused R218, playground, sprint check, and 57 tooling tests passed"
+  },
+  {
+   "id": "R219",
+   "archive": "notes/theory/2026-10-21-r219-repeated-loop-source-reachability.md",
+   "contract": "tasks/agent-loop/sprints/repeated-loop-source-reachability-20261021-r219.md",
+   "charged_seconds": 0,
+   "checks": "focused R219, playground, sprint check, and 57 tooling tests passed"
   }
  ],
  "review_receipts": "Solo; no independent review."
