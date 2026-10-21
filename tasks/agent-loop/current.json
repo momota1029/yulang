@@ -1,1 +1,408 @@
-{"schema_version":1,"mode":"LIVE","phase":"ACTIVE","session":"r260-20261021","active_sprint":{"id":"R260","status":"RESULT","contract":"tasks/agent-loop/sprints/yulang2-imported-initializer-census-20261021-r260.md","resources":{"cap_seconds":420,"charged_seconds":420,"reserved_seconds":0,"no_carryover":true},"proof":"Primary-only 40-blob source census suggests zero imported ComputedDef/Expr roots; parser/root-vector correspondence remains conditional.","implementation":"Read-only source audit; no compiler edits or tests.","review_receipt":"Primary-only; unreviewed.","next_action":"Continue exact source-interface/root composition evidence, then revisit R168 implementation gate.","closure":"R149 exact inference/runtime/output, A/B/source-native proofs and production OPEN.","contract_sha256":"9d12db1f9ae0ca12321481e7af7164e31d519cdc8b13055451463ea012d7f575","note_sha256":"4994c22dbb99ce7eee163cd6906a39cf8380c8db3208efcbef88f6d97ec52328","inbox_sha256":"a2ffda80005140e4d6b04e572467f11073e2974229aa3a26e11bbc1f0d1b977a","note":"notes/theory/2026-10-21-r260-imported-initializers.md"},"workers":[{"id":"/root/resident_dispatcher_loop_a","role":"legacy dispatcher","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"U;Q."},{"id":"/root/resident_implementer_idle","role":"legacy implementer","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"U;Q."},{"id":"/root/runtime_source_supplier_proof","role":"legacy proof worker","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"U;Q."},{"id":"/root/r173_source_drain_proof","role":"R173 proof","state":"STOPPED","requested_model":"UNKNOWN","requested_effort":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Stopped."},{"id":"/root/r174_prover","role":"R174 proof","state":"STOPPED","requested_model":"UNKNOWN","requested_effort":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Stopped."},{"id":"/root/r183_source_to_capture_proof","role":"R183 proof","state":"STOPPED","requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Stopped."},{"id":"/root/r187_post_lambda_age_proof","role":"R187 proof","state":"STOPPED","session":"current-conversation-2026-10-21-r187","requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Stopped."},{"id":"/root","role":"Luna primary","state":"STOPPED","session":"r256-20261021","requested_model":"gpt-6-luna","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"R256 read-only result frozen; no compiler writes."}],"leases":[{"path":"tasks/agent-loop/board.md","owner":"/root/resident_dispatcher_loop_a","state":"QUARANTINED","reason":"U;Q."},{"path":"tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/yulang2-types-console-20261020-r150-rev2.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-20-types-console-initializer-certificate-r152-rev2.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261020-types-console-initializer-certificate-r152-rev2.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-20-types-console-declaration-census-r2.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261020-types-console-declaration-census-r2.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-20-r167-module-runtime-simulation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261020-r167-module-implementation.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-21-r173-source-drain-attribution-proof.md","owner":"/root/r173_source_drain_proof","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r173-proof.md","owner":"/root/r173_source_drain_proof","state":"HELD"},{"path":"tasks/agent-loop/probes/20261021-r173-provider.{stdout,stderr,status}","owner":"/root","state":"HELD"},{"path":"target/r173","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r174-implementation.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-21-r174-rollback-and-forwarding-bridge.md","owner":"/root/r174_prover","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r174-proof.md","owner":"/root/r174_prover","state":"HELD"},{"path":"tasks/agent-loop/sprints/capture-coverage-20261021-r179.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r179-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/source-to-capture-and-sample-readiness-20261021-r183-rev3.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-21-r183-source-to-capture.md","owner":"/root/r183_source_to_capture_proof","state":"FROZEN"},{"path":"tasks/agent-loop/inbox/20261021-r183-sample-readiness-result.md","owner":"/root","state":"HELD"},{"path":"notes/design/2026-10-21-r183-braced-if-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-braced-if-implementation.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/braced-if-option-b-owner-map-20261021-r184.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-option-b-owner-map.md","owner":"/root","state":"HELD"},{"path":"notes/design/2026-10-21-r183-option-b-owner-map.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r183-option-b-owner-map-result.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/sprints/source-history-and-option-b-representation-20261021-r185.md","owner":"/root","state":"HELD"},{"path":"notes/theory/2026-10-21-r187-post-lambda-name-age.md","owner":"/root/r187_post_lambda_age_proof","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r187-proof-result.md","owner":"/root/r187_post_lambda_age_proof","state":"HELD"},{"path":"notes/design/2026-10-21-r187-option-b-implementation-contract.md","owner":"/root","state":"HELD"},{"path":"tasks/agent-loop/inbox/20261021-r187-implementation.md","owner":"/root","state":"HELD"},{"path":"crates/yu-solver/src/shadow_apply.rs","owner":"/root","state":"FROZEN"},{"path":"crates/yu-solver/src/candidate_scheme.rs","owner":"/root","state":"FROZEN"},{"path":"crates/yu-solver/src/candidate_extrusion.rs","owner":"/root","state":"FROZEN"},{"path":"crates/yu-solver/src/lib.rs","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/current.json","owner":"/root","state":"HELD","reason":"R256 primary current-state write."},{"path":"crates/yu-solver/src/shadow_apply/local_source_observation.rs","owner":"/root","state":"FROZEN"},{"path":"crates/yu-solver/src/candidate_context.rs","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-attach-lineage-20261021-r236.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r236-attach-lineage-induction.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-source-occurrence-consumer-20261021-r237.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r237-source-occurrence-consumer-route.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-source-occurrence-consumer-20261021-r237-rev2.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-backward-source-alias-20261021-r238.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r238-backward-source-alias-schedule.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-backward-source-alias-20261021-r238-rev2.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-parent-instance-admission-20261021-r239.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r239-parent-instance-admission.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-source-instance-correspondence-20261021-r240.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r240-source-instance-correspondence.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-live-root-apply-correspondence-20261021-r241.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r241-live-root-apply-correspondence.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-direct-name-instance-closure-20261021-r242.md","owner":"/root","state":"FROZEN","reason":"R242 active contract."},{"path":"notes/theory/2026-10-21-r242-direct-name-instance-closure.md","owner":"/root","state":"FROZEN","reason":"R242 active result note."},{"path":"tasks/agent-loop/sprints/simple-sub-forwarding-edge-composition-20261021-r243.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r243-forwarding-edge-composition.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-forwarding-capture-cuts-20261021-r244.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r244-forwarding-capture-cuts.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-receipt-loss-admission-20261021-r245.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r245-receipt-loss-admission.md","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/simple-sub-r187-source-qualification-20261021-r246.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r246-r187-source-qualification.md","owner":"/root","state":"FROZEN"},{"path":"notes/progress/2026-10-21-r236-r246-history-archive.md","owner":"/root","state":"FROZEN","reason":"Compact archived locator index."},{"path":"tasks/agent-loop/sprints/ordered-tuple-native-terms-20261021-r253.md","owner":"/root","state":"FROZEN","reason":"R253 result recorded; immutable evidence."},{"path":"notes/theory/2026-10-21-r253-native-ordered-tuples.md","owner":"/root","state":"FROZEN","reason":"R253 result recorded; immutable evidence."},{"path":"crates/yu-solver/src/term.rs","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/ordered-tuple-live-comparison-20261021-r254.md","owner":"/root","state":"FROZEN"},{"path":"notes/theory/2026-10-21-r254-live-tuple-comparison.md","owner":"/root","state":"FROZEN"},{"path":"crates/yu-solver/src/candidate_context_tests.rs","owner":"/root","state":"FROZEN"},{"path":"crates/yu-solver/src/candidate_unit_tests.rs","owner":"/root","state":"FROZEN"},{"path":"crates/yu-solver/src/tests/kind_qualified_graph.rs","owner":"/root","state":"FROZEN"},{"path":"tasks/agent-loop/sprints/types-tuple-source-runtime-obstruction-20261021-r256.md","owner":"/root","state":"FROZEN","reason":"R256/current-history result recorded."},{"path":"notes/theory/2026-10-21-r256-tuple-source-runtime-obstruction.md","owner":"/root","state":"FROZEN","reason":"R256/current-history result recorded."},{"path":"tasks/agent-loop/inbox/20261021-r256-tuple-source-runtime-result.md","owner":"/root","state":"FROZEN","reason":"R256/current-history result recorded."},{"path":"notes/progress/2026-10-21-r247-r255-history-archive.md","owner":"/root","state":"FROZEN","reason":"R256/current-history result recorded."},{"path":"notes/theory/2026-10-21-r260-imported-initializers.md","owner":"/root","state":"FROZEN","reason":"R260 primary-only source census."}],"pending":[{"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna; whole-ascription formation","details":"tasks/agent-loop/inbox/20261019-r61-proof.md"},{"id":"R64-SRC-ANN-ARG-1","state":"OPEN","owner":"Luna; annotation argument","details":"tasks/agent-loop/inbox/20261019-r64-proof.md"},{"id":"R65-CURRENT-OPERAND-1","state":"OPEN","owner":"Luna; ordinary typed Lambda operand","details":"tasks/agent-loop/inbox/20261019-r65-proof.md"},{"id":"R66-LAMBDA-RESULT-STAGE-1","state":"OPEN","owner":"Luna; direct Lambda-checking follow-up","details":"tasks/agent-loop/inbox/20261019-r66-proof.md"},{"id":"R67-DIRECT-BODY-CHECK-1","state":"OPEN","owner":"Luna; source Lambda body consumer","details":"notes/theory/2026-10-19-r67-direct-lambda-checking.md"},{"id":"R68-OWNER-CONSUMER-1","state":"OPEN","owner":"Luna; retained body/result consumer","details":"tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"},{"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1","state":"OPEN_UNADOPTED_PROPOSAL","owner":"Luna; source-law completion","details":"tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"},{"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1","state":"OPEN","owner":"Luna; exact source/native owners in R70","details":"tasks/agent-loop/inbox/20261019-r70-proof.md"},{"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1","state":"OPEN","owner":"Luna; source/native owners in R71","details":"R230 sibling prefix; R231-R234 searches; R236 census; R237 no callback slot-4 alias to later raw WorkBound. OPEN."},{"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna; exact Local-to-WorkBound replay and consumer lineage","details":"R229 bridge; R231-R233 no slot-4 post-alias consumer. OPEN."},{"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"STOPPED_UNFROZEN_RESULT","owner":"Luna intake","details":"R258-R259 derive sample names and local roots; R260 source census suggests no imported initializer roots but lacks exact parsed per-module vector/review. R149 consumers and output remain OPEN."}],"closure":"R260 narrows imported-root obstruction with a primary-only source census, not an observed parsed root vector. Exact sample identities, accepted types, root specialization, Request reachability, output, parent proofs and production remain OPEN.","next_action":"Continue R149 with a pinned parsed-input/module-map root witness or exact obstruction; keep imported empty-set claim conditional and preserve R168 review gate.","legacy_reconciliation":{"required":false,"reason":"3 U; no reclaim.","source_blob":"c066b622b38c2d79319da14e9fe17c15c8aa4b8d"},"user_goal":"Y2 samples+proof; solo; push.","history":[{"id":"R181-R186","archive":"notes/progress/2026-10-21-r187-current-state-history-archive.md","archive_sha256":"8e7c04756fbc670c4eaaf50485b86ad2168e8c9b47c0c9361d4c017d45a06052"},{"id":"R187-contract-reviews-rev1-rev4","archive":"notes/progress/2026-10-21-r187-contract-review-history.md","archive_sha256":"832a0803db89e3fd0b73ba2d654ddbcc0826aa1b3842a901704ecb161dac8704"},{"id":"R202-R212","archive":"notes/progress/2026-10-21-r202-r212-capture-frontier-audit.md","charged_seconds":432},{"id":"R212-final","archive":"notes/theory/2026-10-21-r212-source-owner-alias-readback.md","charged_seconds":0},{"id":"R218-R235","archive":"notes/progress/2026-10-21-r218-r235-history-archive.md","archive_sha256":"2a2564a14f36a0d16b3230749b4280f434feba7d0e424fc99d1a1269f14de94f"},{"id":"R236-R246","archive":"notes/progress/2026-10-21-r236-r246-history-archive.md","archive_sha256":"6f4ec5f3bbd4a4251683724fc49f5d0ddb046cdb89ca9e53b6f6842ee3b90cdb"},{"id":"R247-R255","archive":"notes/progress/2026-10-21-r247-r255-history-archive.md","archive_sha256":"6845561f7d19fa65fe5f30214ba54016c5400cf593c3642a7de4b1156e4fc0fe"}]}
+{
+  "schema_version": 1,
+  "mode": "LIVE",
+  "phase": "ACTIVE",
+  "session": "r261-20261021",
+  "active_sprint": {
+    "id": "R261",
+    "status": "RESULT",
+    "contract": "tasks/agent-loop/sprints/yulang2-y3-parser-root-witness-boundary-20261021-r261.md",
+    "resources": {
+      "cap_seconds": 420,
+      "charged_seconds": 420,
+      "reserved_seconds": 0,
+      "no_carryover": true
+    },
+    "proof": "Primary-only Y3 parser falsifier: its 40-file CST is not Y2-authentic because -- comments become OperatorChain roots.",
+    "implementation": "Read-only parser dialect probe; temporary diagnostic removed; no compiler or retained test edits.",
+    "review_receipt": "Primary-only; unreviewed.",
+    "next_action": "Find a Y2-authentic parser/registration interface or prove a root-preserving projection over all 40 pinned sources.",
+    "closure": "R260 imported empty-set remains conditional; exact Y2 root vector, R149 consumers/output, parent proofs and production OPEN.",
+    "contract_sha256": "f2104e6e851deda7388d8b3835bb68d3cbd4ed0bb7100a94358d63f735a2497a",
+    "note_sha256": "023dccf202bc821e41b66be52ff9db4818ffe38c866e7b08d16d6c53dc136190",
+    "inbox_sha256": "e9f360500033fa9b2630e6c32acecea8fdac0468a0ddf7669357ce81cb7c8059",
+    "note": "notes/theory/2026-10-21-r261-parser-dialect-boundary.md"
+  },
+  "workers": [
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "role": "legacy dispatcher",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "U;Q."
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "role": "legacy implementer",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "U;Q."
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "role": "legacy proof worker",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "U;Q."
+    },
+    {
+      "id": "/root/r173_source_drain_proof",
+      "role": "R173 proof",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Stopped."
+    },
+    {
+      "id": "/root/r174_prover",
+      "role": "R174 proof",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Stopped."
+    },
+    {
+      "id": "/root/r183_source_to_capture_proof",
+      "role": "R183 proof",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Stopped."
+    },
+    {
+      "id": "/root/r187_post_lambda_age_proof",
+      "role": "R187 proof",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-21-r187",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Stopped."
+    },
+    {
+      "id": "/root",
+      "role": "Luna primary",
+      "state": "STOPPED",
+      "session": "r256-20261021",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R256 read-only result frozen; no compiler writes."
+    }
+  ],
+  "leases": [
+    {
+      "path": "tasks/agent-loop/board.md",
+      "owner": "/root/resident_dispatcher_loop_a",
+      "state": "QUARANTINED",
+      "reason": "U;Q."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/cli-entry-publication-20261019-r104.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-types-console-20261020-r150-rev2.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-20-types-console-initializer-certificate-r152-rev2.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-types-console-initializer-certificate-r152-rev2.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-20-types-console-declaration-census-r2.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-types-console-declaration-census-r2.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-20-r167-module-runtime-simulation.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261020-r167-module-implementation.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-21-r173-source-drain-attribution-proof.md",
+      "owner": "/root/r173_source_drain_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r173-proof.md",
+      "owner": "/root/r173_source_drain_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/probes/20261021-r173-provider.{stdout,stderr,status}",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "target/r173",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r174-implementation.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-21-r174-rollback-and-forwarding-bridge.md",
+      "owner": "/root/r174_prover",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r174-proof.md",
+      "owner": "/root/r174_prover",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/capture-coverage-20261021-r179.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r179-implementation.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/source-to-capture-and-sample-readiness-20261021-r183-rev3.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r183-sample-readiness-result.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/design/2026-10-21-r183-braced-if-implementation.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r183-braced-if-implementation.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/braced-if-option-b-owner-map-20261021-r184.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r183-option-b-owner-map.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/design/2026-10-21-r183-option-b-owner-map.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r183-option-b-owner-map-result.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/source-history-and-option-b-representation-20261021-r185.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/theory/2026-10-21-r187-post-lambda-name-age.md",
+      "owner": "/root/r187_post_lambda_age_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r187-proof-result.md",
+      "owner": "/root/r187_post_lambda_age_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "notes/design/2026-10-21-r187-option-b-implementation-contract.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r187-implementation.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/current.json",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R256 primary current-state write."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-y3-parser-root-witness-boundary-20261021-r261.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R261 primary-only result; immutable evidence."
+    },
+    {
+      "path": "notes/theory/2026-10-21-r261-parser-dialect-boundary.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R261 primary-only result; immutable evidence."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r261-parser-dialect-boundary.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R261 primary-only result; immutable evidence."
+    }
+  ],
+  "pending": [
+    {
+      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+      "state": "OPEN",
+      "owner": "Luna; whole-ascription formation",
+      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md"
+    },
+    {
+      "id": "R64-SRC-ANN-ARG-1",
+      "state": "OPEN",
+      "owner": "Luna; annotation argument",
+      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md"
+    },
+    {
+      "id": "R65-CURRENT-OPERAND-1",
+      "state": "OPEN",
+      "owner": "Luna; ordinary typed Lambda operand",
+      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md"
+    },
+    {
+      "id": "R66-LAMBDA-RESULT-STAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; direct Lambda-checking follow-up",
+      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md"
+    },
+    {
+      "id": "R67-DIRECT-BODY-CHECK-1",
+      "state": "OPEN",
+      "owner": "Luna; source Lambda body consumer",
+      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md"
+    },
+    {
+      "id": "R68-OWNER-CONSUMER-1",
+      "state": "OPEN",
+      "owner": "Luna; retained body/result consumer",
+      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"
+    },
+    {
+      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+      "state": "OPEN_UNADOPTED_PROPOSAL",
+      "owner": "Luna; source-law completion",
+      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"
+    },
+    {
+      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+      "state": "OPEN",
+      "owner": "Luna; exact source/native owners in R70",
+      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md"
+    },
+    {
+      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; source/native owners in R71",
+      "details": "R230 sibling prefix; R231-R234 searches; R236 census; R237 no callback slot-4 alias to later raw WorkBound. OPEN."
+    },
+    {
+      "id": "R72-LATER-OCCURRENCE-1",
+      "state": "OPEN",
+      "owner": "Luna; exact Local-to-WorkBound replay and consumer lineage",
+      "details": "R229 bridge; R231-R233 no slot-4 post-alias consumer. OPEN."
+    },
+    {
+      "id": "R149-SOURCE-OWNER-CLOSURE-1",
+      "state": "STOPPED_UNFROZEN_RESULT",
+      "owner": "Luna intake",
+      "details": "R258-R259 derive declaration/local roots; R260 conditional source census; R261 shows current Y3 CST cannot witness Y2 roots (-- comments misparsed). Exact Y2 parsed root vector and R149 consumers/output OPEN."
+    }
+  ],
+  "closure": "R261 falsifies using current Y3 parser counts as a Y2 root witness. R260 remains conditional; exact Y2 root vector, sample identities/types, specialization, Request reachability, output, parent proofs and production remain OPEN.",
+  "next_action": "Continue R149 by locating a Y2-authentic parser/registration interface or proving an exact root-preserving projection across the pinned 40-file closure; keep R168 implementation gate closed.",
+  "legacy_reconciliation": {
+    "required": false,
+    "reason": "3 U; no reclaim.",
+    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+  },
+  "user_goal": "Y2 samples+proof; solo; push.",
+  "history": [
+    {
+      "id": "R181-R186",
+      "archive": "notes/progress/2026-10-21-r187-current-state-history-archive.md",
+      "archive_sha256": "8e7c04756fbc670c4eaaf50485b86ad2168e8c9b47c0c9361d4c017d45a06052"
+    },
+    {
+      "id": "R187-contract-reviews-rev1-rev4",
+      "archive": "notes/progress/2026-10-21-r187-contract-review-history.md",
+      "archive_sha256": "832a0803db89e3fd0b73ba2d654ddbcc0826aa1b3842a901704ecb161dac8704"
+    },
+    {
+      "id": "R202-R212",
+      "archive": "notes/progress/2026-10-21-r202-r212-capture-frontier-audit.md",
+      "charged_seconds": 432
+    },
+    {
+      "id": "R212-final",
+      "archive": "notes/theory/2026-10-21-r212-source-owner-alias-readback.md",
+      "charged_seconds": 0
+    },
+    {
+      "id": "R218-R235",
+      "archive": "notes/progress/2026-10-21-r218-r235-history-archive.md",
+      "archive_sha256": "2a2564a14f36a0d16b3230749b4280f434feba7d0e424fc99d1a1269f14de94f"
+    },
+    {
+      "id": "R236-R246",
+      "archive": "notes/progress/2026-10-21-r236-r246-history-archive.md",
+      "archive_sha256": "6f4ec5f3bbd4a4251683724fc49f5d0ddb046cdb89ca9e53b6f6842ee3b90cdb"
+    },
+    {
+      "id": "R247-R255",
+      "archive": "notes/progress/2026-10-21-r247-r255-history-archive.md",
+      "archive_sha256": "6845561f7d19fa65fe5f30214ba54016c5400cf593c3642a7de4b1156e4fc0fe"
+    }
+  ]
+}
