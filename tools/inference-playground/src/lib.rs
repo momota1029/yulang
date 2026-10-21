@@ -489,7 +489,9 @@ mod tests {
     use super::pinned_stdlib;
     use super::{conflict_ranges_for, execute, prepare};
     use super::output;
-    use yu_hir::shadow::{LocalSourceForm, lower_module_with_local_source};
+    use yu_hir::shadow::{
+        LocalSourceForm, index_role_impl_sources, lower_module_with_local_source,
+    };
     use yu_hir::{FileId, FileKey, HirItem, HirOccurrenceId, HirModule, ModuleIdentity, SemanticImports, SourceRootId};
     use yu_solver::shadow_apply::CandidateInference;
     use crate::runtime::{RuntimeEvidence, RuntimeOutcome, RuntimeProgram, RuntimeUnavailable};
@@ -551,6 +553,78 @@ mod tests {
         }
         assert!(inventory.diagnostics.is_empty());
         assert!(groups.is_empty());
+
+        let index = index_role_impl_sources(
+            inventory.identity.clone(),
+            &inventory.parsed,
+        )
+        .expect("the authentic fmt role and impl declarations retain source identities");
+        assert_eq!(index.module(), inventory.identity.module());
+        let [display] = index
+            .roles()
+            .iter()
+            .filter(|role| role.head.spelling.as_ref() == "Display")
+            .collect::<Vec<_>>()[..]
+        else {
+            panic!("one Display role source declaration")
+        };
+        assert_eq!(display.id.module.as_ref(), inventory.identity.module());
+        assert_eq!(display.body.as_ref().unwrap().members.len(), 3);
+        assert_eq!(
+            display
+                .body
+                .as_ref()
+                .unwrap()
+                .members
+                .iter()
+                .map(|member| member.text.trim())
+                .collect::<Vec<_>>(),
+            [
+                "pub a.show: str",
+                "pub a.say = std::io::out::write: a.show + \"\\n\"",
+                "pub a.note = std::io::err::write: a.show + \"\\n\"",
+            ]
+        );
+        for member in &display.body.as_ref().unwrap().members {
+            assert_eq!(
+                &inventory.source.text[member.range.clone()],
+                member.text.as_ref()
+            );
+            assert_eq!(member.id.role, display.id);
+        }
+
+        let [tuple_display] = index
+            .implementations()
+            .iter()
+            .filter(|implementation| {
+                implementation.target.text.trim() == "('a, 'b)"
+                    && implementation.role.text.trim() == "Display"
+            })
+            .collect::<Vec<_>>()[..]
+        else {
+            panic!("one tuple Display implementation source declaration")
+        };
+        assert_eq!(
+            tuple_display.id.module.as_ref(),
+            inventory.identity.module()
+        );
+        assert_eq!(tuple_display.body.as_ref().unwrap().entries.len(), 3);
+        assert!(tuple_display.body.as_ref().unwrap().entries[..2]
+            .iter()
+            .all(|entry| entry.kind == yu_syntax::SyntaxKind::WhereClause));
+        assert_eq!(
+            tuple_display.body.as_ref().unwrap().entries[2].kind,
+            yu_syntax::SyntaxKind::BindingStatement
+        );
+        for entry in &tuple_display.body.as_ref().unwrap().entries {
+            assert_eq!(
+                &inventory.source.text[entry.range.clone()],
+                entry.text.as_ref()
+            );
+            if let Some(member) = &entry.member {
+                assert_eq!(member.implementation, tuple_display.id);
+            }
+        }
     }
 
     #[test]

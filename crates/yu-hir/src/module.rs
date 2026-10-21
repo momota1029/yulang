@@ -1158,6 +1158,25 @@ pub(crate) fn lower_module_with_local_source(
     lower_module_with_counters(identity, parsed, imports, &mut counters)
 }
 
+#[cfg(feature = "shadow")]
+pub(crate) fn index_role_impl_sources(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+) -> Result<(
+    Vec<source_role::SourceRoleDeclaration>,
+    Vec<source_impl::SourceImplementationDeclaration>,
+), HirAvailabilityError> {
+    if identity.file != *identity.module.file() {
+        return Err(HirAvailabilityError::InconsistentIdentity);
+    }
+    let mut counters = LoweringCounters::default();
+    counters.source_nodes = crate::source_identity::try_source_keys(parsed)?;
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    let roles = source_role::declarations(&root, identity.module(), &counters)?;
+    let implementations = source_impl::declarations(&root, identity.module(), &counters)?;
+    Ok((roles, implementations))
+}
+
 fn lower_module_with_counters(
     identity: ModuleIdentity,
     parsed: &ParsedFile,

@@ -37,6 +37,45 @@ pub use crate::module::source_impl::{
     SourceImplementationId, SourceImplementationMemberId, SourceImplementationType,
 };
 
+/// Source-only index of role declarations and implementation declarations for
+/// one supplied module identity and parsed file. It does not lower value bodies
+/// or resolve imports, validate conformance, or select an implementation.
+#[derive(Clone, Debug)]
+pub struct SourceRoleImplIndex {
+    module: crate::ModuleId,
+    roles: Vec<SourceRoleDeclaration>,
+    implementations: Vec<SourceImplementationDeclaration>,
+}
+
+impl SourceRoleImplIndex {
+    pub fn module(&self) -> &crate::ModuleId {
+        &self.module
+    }
+
+    pub fn roles(&self) -> &[SourceRoleDeclaration] {
+        &self.roles
+    }
+
+    pub fn implementations(&self) -> &[SourceImplementationDeclaration] {
+        &self.implementations
+    }
+}
+
+/// Retains parse-owned role and implementation identities without requiring
+/// every unrelated binding body in the module to have a candidate carrier.
+pub fn index_role_impl_sources(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+) -> Result<SourceRoleImplIndex, HirAvailabilityError> {
+    let module = identity.module().clone();
+    let (roles, implementations) = crate::module::index_role_impl_sources(identity, parsed)?;
+    Ok(SourceRoleImplIndex {
+        module,
+        roles,
+        implementations,
+    })
+}
+
 pub use crate::module::local_source::{
     LocalSource, LocalSourceBinding, LocalSourceExpr, LocalSourceForm, LocalSourceIndex,
     LocalSourceParameter, LocalSourceResolution, LocalSourceScope,
