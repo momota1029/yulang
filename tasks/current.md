@@ -17968,3 +17968,15 @@ Console output, role selection, proof, source/native closure and production
 remain OPEN. See the [R282 contract](agent-loop/sprints/r282-y2-post-parser-source-hir-obstruction-20261022.md),
 [evidence](../notes/theory/2026-10-22-r282-y2-post-parser-source-hir-obstruction.md),
 and [handoff](agent-loop/inbox/20261022-r282-y2-post-parser-source-hir-obstruction.md).
+
+## R283 checkpoint — sample declaration and role-source owners
+
+Pinned the exact Y2 source-helper, module declaration registration, role method
+registration, and implementation-candidate owners for Types and Console against
+the immutable oracle commit. This narrows where the declaration and role
+identities are created; it does not establish the selected method DefIds,
+initializer publication/order, Y3 correspondence, or either sample's output.
+All R149 proof and production gates remain OPEN. The contravariant `[io]`
+annotation remains the open row `[io,'e]`. See the [R283 contract](agent-loop/sprints/r283-y2-sample-declaration-role-source-map-20261022.md),
+[evidence](../notes/theory/2026-10-22-r283-y2-sample-declaration-role-source-map.md),
+and [handoff](agent-loop/inbox/20261022-r283-y2-sample-declaration-role-source-map.md).
