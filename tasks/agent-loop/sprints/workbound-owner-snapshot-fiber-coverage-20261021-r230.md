@@ -6,7 +6,7 @@ Parent: unchanged computation-forwarding theorem §§1, 6–7; R71/R72 remain OP
 
 ## Fixed outcome
 
-Narrow R71's raw/canonical coverage obligation by proving from the current production source that one selected row visit enumerates every same-owner physical bound slot in its captured prefix, and that each raw slot's retained fibers are transferred to the same canonical child selected for that copy. Identify the exact remaining cross-owner scheduling premise. Do not infer arbitrary reachability or change theorem quantifiers.
+Narrow R71's raw/canonical coverage obligation by proving from the current production source that one extruding row visit (`original_level > target`) enumerates every same-owner physical bound slot in its captured prefix, and that each raw slot's retained fibers are transferred to the same canonical child selected for that copy. Identify the exact remaining cross-owner scheduling premise. Do not infer arbitrary reachability or change theorem quantifiers.
 
 ## Exact evidence and implementation boundary
 
@@ -16,7 +16,7 @@ No production code or solver behavior is authorized by this packet. No independe
 
 ## Success evidence and falsifiers
 
-Success requires: owner merge retains all source physical entries in the destination representative; row visit snapshots their lengths; each raw slot creates one Work::Bound with the raw source key and the canonical mapped child key; the Work::Bound transfers every fiber attached to that exact raw key; and equality canonicalization retains both raw attachment and canonical attachment. A falsifier is any omitted physical slot, source key canonicalized before raw lookup, child mapping divergence for sibling aliases, or transfer that fails to retain a relation parent/transform.
+Success requires: owner merge retains all source physical entries in the destination representative; extruding row visit snapshots their lengths (identity visits at `original_level <= target` create no Work::Bound); each raw slot creates one Work::Bound with the raw source key and the canonical mapped child key; the Work::Bound transfers every fiber attached to that exact raw key; and equality canonicalization retains both raw attachment and canonical attachment. A falsifier is any omitted physical slot, source key canonicalized before raw lookup, child mapping divergence for sibling aliases, or transfer that fails to retain a relation parent/transform.
 
 The conclusion is strictly same-owner, same-visit-prefix coverage. It does not establish that a third owner's slot is scheduled, that its downstream consumer independently requires that fiber, that all source-reachable schedules satisfy the required lineage, or that R71/R72/the parent theorem close.
 
