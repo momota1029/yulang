@@ -249,6 +249,7 @@ pub(super) enum PatternCompletion {
 struct PatternState {
     native: PatternCompletion,
     unresolved_path_member: bool,
+    identifier_receiver: bool,
 }
 
 impl PatternState {
@@ -256,6 +257,7 @@ impl PatternState {
         Self {
             native,
             unresolved_path_member: false,
+            identifier_receiver: false,
         }
     }
 
@@ -651,6 +653,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    completion.identifier_receiver = false;
     if token_kind(&item) == Some(TokenKind::Identifier)
         && item.payload_view().spelling() == Some("rule")
     {
@@ -691,6 +694,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
         i.state.start_node(SyntaxKind::IdentifierPattern.into());
         emit_token_item(&mut i, item);
         i.state.finish_node();
+        completion.identifier_receiver = true;
         return pattern_tail_normalized(
             i,
             successor,
@@ -763,9 +767,11 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
     }
     match token_kind(&item) {
         Some(TokenKind::Identifier | TokenKind::SigilIdentifier) => {
+            let identifier_receiver = token_kind(&item) == Some(TokenKind::Identifier);
             i.state.start_node(SyntaxKind::IdentifierPattern.into());
             emit_token_item(&mut i, item);
             i.state.finish_node();
+            completion.identifier_receiver = identifier_receiver;
             scan_pattern_tail_normalized(
                 i,
                 minimum,
@@ -781,6 +787,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             )
         }
         Some(TokenKind::Integer) => {
+            completion.identifier_receiver = false;
             i.state.start_node(SyntaxKind::IntegerPattern.into());
             emit_token_item(&mut i, item);
             i.state.finish_node();
@@ -799,6 +806,7 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
             )
         }
         Some(TokenKind::Colon | TokenKind::PatternSymbolColon) => {
+            completion.identifier_receiver = false;
             i.state.start_node(SyntaxKind::SymbolPattern.into());
             emit_token_item(&mut i, item);
             let entry = suffix_marker(i.rb());
@@ -1045,6 +1053,48 @@ fn pattern_tail_normalized(
         completion.unresolved_path_member |=
             member_completion.native == PatternCompletion::Incomplete;
         completion.native = member_completion.native;
+        completion.identifier_receiver = member_completion.native == PatternCompletion::Complete;
+        i.state.finish_node();
+        return pattern_tail_normalized(
+            i,
+            item,
+            minimum,
+            baseline,
+            stops,
+            line_handoff,
+            caller_closes,
+            completion,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+    }
+    if token_kind(&item) == Some(TokenKind::Dot)
+        && !item.leading_view().has_ordinary_trivia()
+        && completion.identifier_receiver
+    {
+        item.emit_all_remaining_leading(&mut *i.state);
+        i.state.start_node(SyntaxKind::PatternFieldTail.into());
+        emit_token_item(&mut i, item);
+        (item, item_origin, line_entry) =
+            pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+        let valid_member = !item.payload_view().is_boundary()
+            && !is_pattern_tail_boundary(i.rb(), &item, stops)
+            && !token_kind(&item).is_some_and(|kind| caller_closes.contains(kind))
+            && token_kind(&item) == Some(TokenKind::Identifier)
+            && !item.leading_view().has_ordinary_trivia();
+        if valid_member {
+            emit_token_item(&mut i, item);
+            completion.native = PatternCompletion::Complete;
+            completion.identifier_receiver = true;
+            (item, item_origin, line_entry) =
+                pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
+        } else {
+            emit_pattern_missing(&mut i, &item, item_origin);
+            completion.native = PatternCompletion::Incomplete;
+            completion.identifier_receiver = false;
+        }
         i.state.finish_node();
         return pattern_tail_normalized(
             i,
@@ -1062,6 +1112,7 @@ fn pattern_tail_normalized(
         );
     }
     if token_kind(&item) == Some(TokenKind::LParen) && !item.leading_view().has_ordinary_trivia() {
+        completion.identifier_receiver = false;
         let mut call_completion = PatternState::new(PatternCompletion::Complete);
         let exit = delimited::call_pattern(
             i,
@@ -1082,6 +1133,7 @@ fn pattern_tail_normalized(
         return exit;
     }
     if is_pattern_alias(&item) && minimum <= PatternPrecedence::Alias {
+        completion.identifier_receiver = false;
         completion.native = PatternCompletion::Incomplete;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternAliasTail.into());
@@ -1125,6 +1177,7 @@ fn pattern_tail_normalized(
         );
     }
     if token_kind(&item) == Some(TokenKind::Pipe) && minimum <= PatternPrecedence::Alternation {
+        completion.identifier_receiver = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state
             .start_node(SyntaxKind::PatternAlternationTail.into());
@@ -1174,6 +1227,7 @@ fn pattern_tail_normalized(
         && stops & PATTERN_STOP_COLON == 0
         && minimum <= PatternPrecedence::TypeAnnotation
     {
+        completion.identifier_receiver = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternTypeAnnotation.into());
         emit_token_item(&mut i, item);
@@ -1199,6 +1253,7 @@ fn pattern_tail_normalized(
         && !is_current_pattern_tail(&item, stops)
         && is_pattern_nud(&item, stops)
     {
+        completion.identifier_receiver = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state
             .start_node(SyntaxKind::PatternMlApplicationTail.into());
@@ -1639,6 +1694,59 @@ mod operation_tail_tests {
         root.descendants()
             .filter(|node| node.kind() == SyntaxKind::Missing)
             .count()
+    }
+
+    fn field_tail_nodes(root: &SyntaxNode) -> Vec<SyntaxNode> {
+        root.descendants()
+            .filter(|node| node.kind() == SyntaxKind::PatternFieldTail)
+            .collect()
+    }
+
+    #[test]
+    fn adjacent_identifier_fields_form_ordered_pattern_field_tails() {
+        for (source, field_count) in [("a.show", 1), ("a.show.note", 2)] {
+            let (root, _, completion) = run(source, PATTERN_DEFAULT_STOPS, PatternCallerCloses::NONE);
+            assert_eq!(root.to_string(), source);
+            assert_eq!(completion, PatternCompletion::Complete);
+            let fields = field_tail_nodes(&root);
+            assert_eq!(fields.len(), field_count, "{source}: {root:#?}");
+            for field in &fields {
+                assert_eq!(field.parent().unwrap().kind(), SyntaxKind::Pattern);
+                let children = field.children_with_tokens().collect::<Vec<_>>();
+                assert_eq!(children.len(), 2, "{source}: {field:#?}");
+                assert_eq!(children[0].kind(), SyntaxKind::Dot);
+                assert_eq!(children[1].kind(), SyntaxKind::Identifier);
+            }
+            assert_eq!(
+                fields.iter().map(ToString::to_string).collect::<String>(),
+                source.strip_prefix('a').unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn dotted_pattern_recovery_keeps_member_frontiers_and_rejects_nonidentifiers() {
+        let (root, exit, completion) =
+            run("a.", PATTERN_DEFAULT_STOPS, PatternCallerCloses::NONE);
+        assert_eq!(root.to_string(), "a.");
+        let fields = field_tail_nodes(&root);
+        assert_eq!(fields.len(), 1);
+        assert_eq!(missing_count(&root), 1);
+        assert_eq!(completion, PatternCompletion::Incomplete);
+        assert_eq!(pending(exit).payload_view().token_kind(), None);
+
+        let (root, exit, completion) = run("a. : int", PATTERN_STOP_COLON, PatternCallerCloses::NONE);
+        assert_eq!(root.to_string(), "a.");
+        assert_eq!(field_tail_nodes(&root).len(), 1);
+        assert_eq!(missing_count(&root), 1);
+        assert_eq!(completion, PatternCompletion::Incomplete);
+        assert_eq!(pending(exit).payload_view().token_kind(), Some(TokenKind::Colon));
+
+        for (source, pending_kind) in [("a .show", TokenKind::Dot), ("a..show", TokenKind::DotDot), ("1.show", TokenKind::Dot)] {
+            let (root, exit, _) = run(source, PATTERN_DEFAULT_STOPS, PatternCallerCloses::NONE);
+            assert_eq!(field_tail_nodes(&root).len(), 0, "{source}: {root:#?}");
+            assert_eq!(pending(exit).payload_view().token_kind(), Some(pending_kind), "{source}");
+        }
     }
 
     #[test]

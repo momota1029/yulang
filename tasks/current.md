@@ -17888,3 +17888,19 @@ leaves R149 open. Focused test, playground check, static check and diff check
 pass. See the [R277 handoff](agent-loop/inbox/20261021-r277-pinned-fmt-diagnostic-census.md),
 [evidence note](../notes/theory/2026-10-21-r277-pinned-fmt-diagnostic-census.md),
 and current state.
+
+## R278 checkpoint — dotted Binding targets in Pattern
+
+Ordinary Pattern now preserves adjacent identifier `.field` continuations as
+ordered `PatternFieldTail(Dot, Identifier)` nodes, including exact unchanged
+role-signature and implementation-target syntax. Recovery tests cover chained
+members, absent members, caller-colon ownership, spaced dots, `..`, and
+non-identifier receivers. The exact pinned `fmt.yu` census falls from 50 to 36
+diagnostics (21 root groups, 7 operator-chain groups, 7 missing case arms),
+with the source blob and bytes still pinned. Focused parser tests, the census,
+and `cargo check -p yu-playground` pass. This is parser syntax only: module/HIR
+admission, role lookup, unchanged sample output, source/native proof and
+production remain OPEN. See the [R278 handoff](agent-loop/inbox/20261021-r278-y2-dotted-pattern-target.md),
+[syntax addendum](../notes/design/2026-10-21-r278-y2-dotted-binding-pattern.md),
+[evidence](../notes/theory/2026-10-21-r278-y2-dotted-pattern-target.md), and
+current state.

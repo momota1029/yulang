@@ -2,26 +2,26 @@
  "schema_version": 1,
  "mode": "LIVE",
  "phase": "ACTIVE",
- "session": "current-conversation-20261021-r277",
+ "session": "current-conversation-20261021-r278",
  "active_sprint": {
-  "id": "R277",
+  "id": "R278",
   "status": "CHECKPOINTED_UNREVIEWED",
-  "contract": "tasks/agent-loop/sprints/r277-pinned-fmt-diagnostic-census-20261021.md",
+  "contract": "tasks/agent-loop/sprints/r278-y2-dotted-pattern-target-20261021.md",
   "resources": {
    "cap_seconds": 600,
-   "charged_seconds": 180,
+   "charged_seconds": 390,
    "reserved_seconds": 0,
    "no_carryover": true
   },
-  "proof": "OPEN. R149 source/native correspondence remains unestablished; diagnostic census supplies no theorem premise.",
-  "implementation": "Checkpointed: exact fmt source census records all 50 diagnostics with source ranges, ordered identities and structural category/parent totals; no cross-owner parser edits.",
+  "proof": "OPEN. Grammar acceptance establishes no method-selection or source/native theorem premise.",
+  "implementation": "PatternFieldTail accepts adjacent identifier-dot-field targets with bounded malformed-member recovery; exact pinned fmt syntax diagnostics fell from 50 to 36.",
   "review_receipt": "Primary-only; independent review unavailable under user-directed solo work.",
-  "next_action": "R278: design source-authentic syntax and HIR carriers for the pinned Y2 standard-library constructs needed by unchanged R149 samples.",
-  "closure": "R277 closes diagnostic census only. Parser support, authentic role selection/imports, unchanged R149 sample typing/output, source/native proof and production remain OPEN.",
-  "contract_sha256": "1d4b9e7cd3f05c8e8468043e22b4bb52eb45543bddd5eeaadb9604f89fb4ae23",
-  "note_sha256": "8e1b1b2c73a6fb8c8a130693ee14d3833267adc09abd1ab8ca04d4f76a2e58a6",
-  "inbox_sha256": "da9fe741b003d50e7cb5a07abfd7eb7a50ba87c25700b83303dc1ed4eca15198",
-  "note": "notes/theory/2026-10-21-r277-pinned-fmt-diagnostic-census.md"
+  "next_action": "Continue R149 Yulang2 source support from the remaining exact fmt syntax census; next isolate where-constraint and expression recovery owners before any out-of-lease edits.",
+  "closure": "Parser target syntax only. R149 role/HIR/import/typing/output, source/native proof and production remain OPEN.",
+  "contract_sha256": "3b454b8068c1aa9bb57f4f53df57ed693024a09619a0b62ea4a627b0da3574a3",
+  "note_sha256": "c28b035baf51bd7bbc79c70b6b5cdd99f2631a8f63650d6b074ee0dce0f9fc17",
+  "inbox_sha256": "58e96ba2869894e8ccea26c7df8f27c63617a10817af2497c0cbebe75c0b30a3",
+  "note": "notes/theory/2026-10-21-r278-y2-dotted-pattern-target.md"
  },
  "workers": [
   {
@@ -102,12 +102,12 @@
    "id": "/root",
    "role": "Luna primary",
    "state": "STOPPED",
-   "session": "current-conversation-20261021-r277",
+   "session": "current-conversation-20261021-r278",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Stopped after R277 diagnostic census checkpoint: 50 exact pinned fmt diagnostics mapped (36 root ErrorGroup, 7 OperatorChain ErrorGroup, 7 Missing CaseArm); parser/source-carrier work spans unleased owners; focused test, playground check and static checks pass."
+   "receipt": "Stopped after R278 focused syntax/census checks, playground check, static consistency and diff check; no delegated workers or independent review."
   }
  ],
  "leases": [
@@ -271,43 +271,61 @@
    "path": "tasks/agent-loop/current.json",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R276 primary current-state write; sole central state owner."
+   "reason": "R278 primary current-state write; sole central state owner."
   },
   {
-   "path": "tasks/agent-loop/sprints/r277-pinned-fmt-diagnostic-census-20261021.md",
+   "path": "tasks/agent-loop/sprints/r278-y2-dotted-pattern-target-20261021.md",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R277 contract."
+   "reason": "R278 contract."
   },
   {
-   "path": "notes/theory/2026-10-21-r277-pinned-fmt-diagnostic-census.md",
+   "path": "notes/design/2026-10-21-r278-y2-dotted-binding-pattern.md",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R277 diagnostic evidence."
+   "reason": "R278 Y2 syntax addendum."
   },
   {
-   "path": "tasks/agent-loop/inbox/20261021-r277-pinned-fmt-diagnostic-census.md",
+   "path": "notes/theory/2026-10-21-r278-y2-dotted-pattern-target.md",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R277 primary handoff."
+   "reason": "R278 evidence note."
   },
   {
-   "path": "tools/inference-playground/src/pinned_stdlib.rs",
+   "path": "tasks/agent-loop/inbox/20261021-r278-y2-dotted-pattern-target.md",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R277 exact-source diagnostic inventory."
+   "reason": "R278 primary handoff."
+  },
+  {
+   "path": "crates/yu-syntax/src/syntax_kind.rs",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "R278 PatternFieldTail vocabulary."
+  },
+  {
+   "path": "crates/yu-syntax/src/pattern/mod.rs",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "R278 Pattern grammar and focused parser tests."
+  },
+  {
+   "path": "crates/yu-syntax/src/tests/declaration/role_decl.rs",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "R278 role/impl dotted-target parser tests."
   },
   {
    "path": "tools/inference-playground/src/lib.rs",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R277 focused diagnostic census test."
+   "reason": "R278 pinned fmt diagnostic baseline update."
   },
   {
    "path": "tasks/current.md",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R277 primary progress synchronization."
+   "reason": "R278 primary progress synchronization."
   }
  ],
  "pending": [
@@ -378,8 +396,8 @@
    "details": "R258-R259 local roots; R260 conditional census; R261-R267 parser/import route evidence; R268 Y3 source graph reaches all 40 modules (39 mod +108 use edges), but external-mod Missing recoveries leave Y2 ModuleMap/publication OPEN. R149 outputs open."
   }
  ],
- "closure": "R277 closes the diagnostic census only. Parser support, authentic role selection/imports, unchanged R149 sample execution, source/native proofs and production remain OPEN.",
- "next_action": "R278: design source-authentic syntax and HIR carriers for the pinned Y2 standard-library constructs needed by unchanged R149 samples.",
+ "closure": "Parser target syntax only. R149 role/HIR/import/typing/output, source/native proof and production remain OPEN.",
+ "next_action": "Continue R149 Yulang2 source support from the remaining exact fmt syntax census; next isolate where-constraint and expression recovery owners before any out-of-lease edits.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "3 U; no reclaim.",

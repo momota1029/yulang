@@ -983,6 +983,31 @@ fn role_private_owner_builds_each_body_form_losslessly_with_flat_topology() {
 }
 
 #[test]
+fn yulang2_role_signature_and_impl_member_use_dotted_binding_patterns() {
+    use SyntaxKind::*;
+
+    for source in [
+        "role Display 'a:\n    pub a.show: str",
+        "impl ('a, 'b): Display:\n    our value.show = \"pair\"",
+    ] {
+        let (green, _) = run_statement(source);
+        let root = SyntaxNode::new_root(green.clone());
+        assert_eq!(root.to_string(), source);
+        assert!(structural_facts(&green).is_empty(), "{source:?}: {root:#?}");
+        let fields = root
+            .descendants()
+            .filter(|node| node.kind() == PatternFieldTail)
+            .collect::<Vec<_>>();
+        assert_eq!(fields.len(), 1, "{source:?}: {root:#?}");
+        let children = fields[0].children_with_tokens().collect::<Vec<_>>();
+        assert_eq!(children.len(), 2);
+        assert_eq!(children[0].kind(), Dot);
+        assert_eq!(children[1].kind(), Identifier);
+        assert_eq!(fields[0].to_string(), ".show");
+    }
+}
+
+#[test]
 fn role_intro_is_exact_and_visibility_led_rejections_roll_back() {
     for source in ["role R;", "my role R;", "our role R;", "pub role R;"] {
         let (green, exit, _) = run_role_declaration(source, 0, 0, LineEntry::InLine, None);
