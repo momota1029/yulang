@@ -357,9 +357,30 @@ fn prepare(
         return Err(output.finish()?);
     }
     let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", name)));
-    let (providers, indexes) = pinned_module_world()?;
-    let imports = SemanticImports::with_source_imports(&parsed, &identity, &indexes)
-        .map_err(|error| bounded_message(format_args!("source imports unavailable: {error:?}")))?;
+    let (provider_sources, indexes) = pinned_source_world()?;
+    let imports = match SemanticImports::with_source_imports(&parsed, &identity, &indexes) {
+        Ok(imports) => imports,
+        Err(import_error @ yu_hir::HirAvailabilityError::StructuralProjection) => {
+            // Keep this fallback closed: only a source with no explicit
+            // imports and no HIR errors can ignore unavailable
+            // implicit-prelude routes.
+            let local = lower_module_with_local_source(
+                identity.clone(), &parsed, SemanticImports::empty(),
+            );
+            let no_explicit_imports = parsed.header().imports().is_empty();
+            let locally_resolved = no_explicit_imports && local.as_ref().is_ok_and(|module|
+                module.errors().is_empty()
+            );
+            if locally_resolved {
+                SemanticImports::empty()
+            } else {
+                return Err(bounded_message(format_args!(
+                    "source imports unavailable: {import_error:?}"
+                )));
+            }
+        }
+        Err(error) => return Err(bounded_message(format_args!("source imports unavailable: {error:?}"))),
+    };
     let hir = Arc::new(
         lower_module_with_local_source(
             identity,
@@ -373,6 +394,7 @@ fn prepare(
     let solved = if scoped {
         CandidateInference::solve_scoped_experiment(hir.clone())
     } else {
+        let providers = pinned_provider_projection(&hir, &provider_sources, &indexes)?;
         let mut modules = providers;
         modules.push(hir.clone());
         CandidateInference::solve_modules(modules)
@@ -415,7 +437,9 @@ fn prepare(
     Ok((hir, candidate))
 }
 
-fn pinned_module_world() -> Result<(Vec<Arc<HirModule>>, Vec<yu_hir::SourceExportIndex>), String> {
+type PinnedProviderSource = (ModuleIdentity, yu_syntax::ParsedFile);
+
+fn pinned_source_world() -> Result<(Vec<PinnedProviderSource>, Vec<yu_hir::SourceExportIndex>), String> {
     use yu_syntax::{SourceText, parse_file, scan_header};
 
     let sources = pinned_stdlib::resolve_implicit_stdlib()
@@ -437,16 +461,78 @@ fn pinned_module_world() -> Result<(Vec<Arc<HirModule>>, Vec<yu_hir::SourceExpor
             .map_err(|error| format!("pinned source index unavailable: {error:?}"))?);
         parsed_sources.push((identity, parsed));
     }
-    let mut providers = Vec::new();
-    providers.try_reserve_exact(parsed_sources.len()).map_err(|_| "pinned HIR allocation unavailable".to_owned())?;
-    for (identity, parsed) in parsed_sources {
-        let imports = SemanticImports::with_source_imports(&parsed, &identity, &indexes)
-            .map_err(|error| format!("pinned source imports unavailable for {}: {error:?}", identity.file().key().normalized_workspace_relative_path()))?;
-        let hir = lower_module_with_local_source(identity, &parsed, imports)
-            .map_err(|error| format!("pinned source HIR unavailable: {error:?}"))?;
-        providers.push(Arc::new(hir));
+    Ok((parsed_sources, indexes))
+}
+
+/// Project only exact exported binding roots reached from imported Names,
+/// then recursively follow their SourceExportId dependencies.
+fn pinned_provider_projection(
+    consumer: &HirModule,
+    sources: &[PinnedProviderSource],
+    indexes: &[yu_hir::SourceExportIndex],
+) -> Result<Vec<Arc<HirModule>>, String> {
+    use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
+    use std::collections::HashSet;
+
+    fn imported_exports(hir: &HirModule) -> Result<Vec<yu_hir::shadow::SourceExportId>, String> {
+        let mut exports = Vec::new();
+        for item in hir.items() {
+            let HirItem::Binding(binding) = item else { continue };
+            let Some(source) = hir.local_source(binding.definition_root())
+                .map_err(|error| format!("provider source lookup unavailable: {error:?}"))?
+            else { continue };
+            for expression in source.expressions() {
+                if let LocalSourceForm::Name {
+                    resolution: LocalSourceResolution::Imported(export), ..
+                } = &expression.form
+                {
+                    if !exports.contains(export) {
+                        exports.try_reserve(1).map_err(|_| "provider dependency allocation unavailable".to_owned())?;
+                        exports.push(export.clone());
+                    }
+                }
+            }
+        }
+        Ok(exports)
     }
-    Ok((providers, indexes))
+
+    let mut selected = (0..sources.len()).map(|_| HashSet::new()).collect::<Vec<_>>();
+    let mut built = (0..sources.len()).map(|_| None).collect::<Vec<Option<Arc<HirModule>>>>();
+    let mut pending = imported_exports(consumer)?;
+    let mut seen = HashSet::new();
+    while let Some(export) = pending.pop() {
+        if !seen.insert(export.clone()) { continue; }
+        let owner = indexes.iter().enumerate().find_map(|(index, source_index)| {
+            source_index.declarations.iter().find(|declaration|
+                declaration.source == export.source
+                    && declaration.name.as_deref() == Some(export.name.as_ref())
+                    && declaration.namespace.as_ref() == export.module.as_ref()
+            ).map(|declaration| (index, declaration))
+        });
+        let Some((source_index, declaration)) = owner else {
+            return Err(format!("pinned provider owner missing for {}::{}", export.module, export.name));
+        };
+        if declaration.kind != yu_syntax::SyntaxKind::BindingStatement { continue; }
+        if !selected[source_index].insert(export.source.clone()) { continue; }
+        let (identity, parsed) = &sources[source_index];
+        let imports = SemanticImports::with_selected_source_imports(
+            parsed, identity, indexes, &selected[source_index],
+        ).map_err(|error| format!("selected pinned imports unavailable for {}: {error:?}", identity.file().key().normalized_workspace_relative_path()))?;
+        let projected = yu_hir::shadow::lower_module_with_selected_local_source(
+            identity.clone(), parsed, imports, selected[source_index].clone(),
+        ).map_err(|error| format!("selected pinned source HIR unavailable for {}: {error:?}", identity.file().key().normalized_workspace_relative_path()))?;
+        let projected = Arc::new(projected);
+        let dependencies = imported_exports(&projected)?;
+        pending.try_reserve(dependencies.len()).map_err(|_| "provider dependency allocation unavailable".to_owned())?;
+        pending.extend(dependencies);
+        built[source_index] = Some(projected);
+    }
+
+    let mut providers = Vec::new();
+    providers.try_reserve(built.iter().filter(|module| module.is_some()).count())
+        .map_err(|_| "pinned provider allocation unavailable".to_owned())?;
+    providers.extend(built.into_iter().flatten());
+    Ok(providers)
 }
 
 fn playground_syntax_environment() -> Result<SyntaxEnvironment, String> {
@@ -535,7 +621,7 @@ fn bounded_message(arguments: std::fmt::Arguments<'_>) -> String {
 mod tests {
     use super::playground_syntax_environment;
     use super::pinned_stdlib;
-    use super::{conflict_ranges_for, execute, prepare};
+    use super::{conflict_ranges_for, execute, pinned_provider_projection, pinned_source_world, prepare};
     use super::output;
     use yu_hir::shadow::{
         LocalSourceForm, index_role_impl_sources, index_source_exports,
@@ -546,6 +632,54 @@ mod tests {
     use crate::runtime::{RuntimeEvidence, RuntimeOutcome, RuntimeProgram, RuntimeUnavailable};
     use std::sync::Arc;
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+
+    #[test]
+    fn pinned_provider_projection_follows_exact_imported_value_roots() {
+        let source = "use std::int::add\nmy result = add 20 22";
+        let text: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(
+            text.clone(), Arc::new(scan_header(text)),
+            Arc::new(playground_syntax_environment().unwrap()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "pinned-demand-projection", "consumer.yu",
+        )));
+        let (provider_sources, indexes) = pinned_source_world().unwrap();
+        let imports = SemanticImports::with_source_imports(&parsed, &identity, &indexes).unwrap();
+        let consumer = Arc::new(lower_module_with_local_source(identity, &parsed, imports).unwrap());
+        let providers = pinned_provider_projection(&consumer, &provider_sources, &indexes).unwrap();
+        assert_eq!(providers.len(), 1, "only std::int::add is demanded");
+        let exported_names = providers[0].items().iter().filter_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding.name().spelling()),
+            _ => None,
+        }).collect::<Vec<_>>();
+        assert_eq!(exported_names, ["add"]);
+    }
+
+    #[test]
+    fn unchanged_types_sample_reaches_deferred_field_tail_boundary() {
+        let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
+        assert_eq!(source.len(), 142);
+        let error = match prepare(source, "samples/Types.yu", false) {
+            Err(error) => error,
+            Ok(_) => panic!("pair.say remains behind deferred role selection"),
+        };
+        assert!(error.contains("candidate inference unavailable: Collection(ComponentIdentityExhausted)"), "{error}");
+        assert!(!error.contains("source imports unavailable"), "provider projection reaches candidate collection: {error}");
+    }
+
+    #[test]
+    fn unchanged_console_sample_reaches_imported_name_candidate_boundary() {
+        let source = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
+        assert_eq!(source.len(), 92);
+        let error = match prepare(source, "samples/Console.yu", false) {
+            Err(error) => error,
+            Ok(_) => panic!("Console still requires imported operation/host selection"),
+        };
+        assert!(error.starts_with("unsupported source: current candidate lowering/inference cannot observe this program"), "{error}");
+        assert!(!error.contains("source imports unavailable"), "provider projection reaches candidate preflight: {error}");
+    }
 
     #[test]
     fn authenticated_implicit_prelude_names_keep_source_identity_and_local_shadowing() {
