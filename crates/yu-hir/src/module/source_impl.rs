@@ -265,6 +265,9 @@ mod tests {
         );
         let member_id = body.entries[1].member.as_ref().unwrap();
         assert_eq!(hir.source_implementation_member(member_id).unwrap().unwrap().member.as_ref(), Some(member_id));
+        let member_root = hir.source_implementation_member_root(member_id).unwrap().unwrap();
+        assert!(matches!(member_root, SourceRootId::Member(ref root) if root.kind() == SourceMemberKind::Implementation));
+        assert!(hir.owns_source_root(&member_root));
         let member_node = hir.source_implementation_member_node(member_id).unwrap().unwrap();
         assert_eq!(member_node.kind(), body.entries[1].kind);
         assert_eq!(member_node.text().to_string(), body.entries[1].text.as_ref());

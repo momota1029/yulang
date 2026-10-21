@@ -717,23 +717,90 @@ pub struct ExpressionRootId {
 impl ExpressionRootId {
     pub fn occurrence(&self) -> &HirOccurrenceId { &self.occurrence }
 }
+
+/// Source-backed member root for a role default or implementation body. It is
+/// distinct from an admitted top-level definition and remains branded by the
+/// HIR artifact that formed its source carrier.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum SourceMemberKind {
+    Role,
+    Implementation,
+}
+
+#[derive(Clone)]
+pub struct SourceMemberRootId {
+    artifact: Arc<HirArtifactToken>,
+    module: ModuleId,
+    declaration: yu_syntax::SourceNodeKey,
+    member: yu_syntax::SourceNodeKey,
+    kind: SourceMemberKind,
+}
+
+impl SourceMemberRootId {
+    fn new(
+        artifact: Arc<HirArtifactToken>,
+        module: ModuleId,
+        declaration: yu_syntax::SourceNodeKey,
+        member: yu_syntax::SourceNodeKey,
+        kind: SourceMemberKind,
+    ) -> Self {
+        Self { artifact, module, declaration, member, kind }
+    }
+    pub fn module(&self) -> &ModuleId { &self.module }
+    pub fn declaration_source_key(&self) -> &yu_syntax::SourceNodeKey { &self.declaration }
+    pub fn member_source_key(&self) -> &yu_syntax::SourceNodeKey { &self.member }
+    pub fn kind(&self) -> SourceMemberKind { self.kind }
+}
+
+impl std::fmt::Debug for SourceMemberRootId {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("SourceMemberRootId")
+            .field("kind", &self.kind)
+            .finish_non_exhaustive()
+    }
+}
+impl PartialEq for SourceMemberRootId {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.artifact, &other.artifact)
+            && self.module == other.module
+            && self.declaration == other.declaration
+            && self.member == other.member
+            && self.kind == other.kind
+    }
+}
+impl Eq for SourceMemberRootId {}
+impl Hash for SourceMemberRootId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.artifact).hash(state);
+        self.module.hash(state);
+        self.declaration.hash(state);
+        self.member.hash(state);
+        self.kind.hash(state);
+    }
+}
+
 /// Authentic source ownership without manufacturing a definition.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum SourceRootId {
     Definition(DefinitionRootId),
     Expression(ExpressionRootId),
+    Member(SourceMemberRootId),
 }
 impl SourceRootId {
     pub fn definition_root(&self) -> Option<&DefinitionRootId> {
-        match self { Self::Definition(root) => Some(root), Self::Expression(_) => None }
+        match self { Self::Definition(root) => Some(root), Self::Expression(_) | Self::Member(_) => None }
     }
     pub fn expression_root(&self) -> Option<&ExpressionRootId> {
-        match self { Self::Expression(root) => Some(root), Self::Definition(_) => None }
+        match self { Self::Expression(root) => Some(root), Self::Definition(_) | Self::Member(_) => None }
+    }
+    pub fn member_root(&self) -> Option<&SourceMemberRootId> {
+        match self { Self::Member(root) => Some(root), Self::Definition(_) | Self::Expression(_) => None }
     }
     fn artifact(&self) -> &Arc<HirArtifactToken> {
         match self {
             Self::Definition(root) => &root.artifact,
             Self::Expression(root) => &root.occurrence.artifact,
+            Self::Member(root) => &root.artifact,
         }
     }
 }
@@ -1328,6 +1395,8 @@ pub struct HirModule {
     expression_roots: HashMap<HirOccurrenceId, ExpressionRootId>,
     source_carriers: Vec<(SourceRootId, local_source::SourceCarrierOutcome)>,
     source_carrier_indices: HashMap<SourceRootId, usize>,
+    source_member_carriers: Vec<(SourceRootId, local_source::SourceCarrierOutcome)>,
+    source_member_carrier_indices: HashMap<SourceRootId, usize>,
     identity: ModuleIdentity,
     source_revision: SourceRevision,
     items: Vec<HirItem>,
@@ -1343,6 +1412,11 @@ impl HirModule {
     pub fn source_carrier_outcomes(&self) -> &[(SourceRootId, local_source::SourceCarrierOutcome)] {
         &self.source_carriers
     }
+    /// Source-backed bodies of role and implementation members, kept apart
+    /// from module direct roots because they are not independently executable.
+    pub fn source_member_carrier_outcomes(&self) -> &[(SourceRootId, local_source::SourceCarrierOutcome)] {
+        &self.source_member_carriers
+    }
     /// Resolves only the original occurrence of an actual expression item.
     pub fn expression_root(&self, occurrence: &HirOccurrenceId)
         -> Result<Option<&ExpressionRootId>, HirAvailabilityError>
@@ -1357,13 +1431,31 @@ impl HirModule {
         match root {
             SourceRootId::Definition(root) => self.owns_definition_root(root),
             SourceRootId::Expression(root) => self.owns_expression_root(root),
+            SourceRootId::Member(root) => Arc::ptr_eq(&self.artifact, &root.artifact)
+                && root.module == *self.identity.module()
+                && self.source_parsed.as_ref().is_some_and(|parsed|
+                    parsed.owns_source_key(&root.declaration)
+                        && parsed.owns_source_key(&root.member)),
         }
+    }
+    #[cfg(any(feature = "shadow", test))]
+    pub(crate) fn source_member_root(
+        &self,
+        module: ModuleId,
+        declaration: yu_syntax::SourceNodeKey,
+        member: yu_syntax::SourceNodeKey,
+        kind: SourceMemberKind,
+    ) -> SourceRootId {
+        SourceRootId::Member(SourceMemberRootId::new(
+            self.artifact.clone(), module, declaration, member, kind,
+        ))
     }
     pub fn source_carrier_for(&self, root: &SourceRootId)
         -> Result<Option<&local_source::SourceCarrierOutcome>, HirAvailabilityError>
     {
         if !self.owns_source_root(root) { return Err(HirAvailabilityError::InconsistentIdentity); }
-        Ok(self.source_carrier_indices.get(root).map(|index| &self.source_carriers[*index].1))
+        Ok(self.source_carrier_indices.get(root).map(|index| &self.source_carriers[*index].1)
+            .or_else(|| self.source_member_carrier_indices.get(root).map(|index| &self.source_member_carriers[*index].1)))
     }
     pub fn source_carrier(&self, root: &DefinitionRootId)
         -> Result<Option<&local_source::SourceCarrierOutcome>, HirAvailabilityError>
@@ -1398,12 +1490,16 @@ impl HirModule {
         if !self.owns_expression_root(root) { return Err(HirAvailabilityError::InconsistentIdentity); }
         Ok(self.source_identity.as_ref().and_then(|identity| identity.expressions.get(root)))
     }
-    pub fn source_root_source_key(&self, root: &SourceRootId)
-        -> Result<Option<&yu_syntax::SourceNodeKey>, HirAvailabilityError>
+    pub fn source_root_source_key<'a>(&'a self, root: &'a SourceRootId)
+        -> Result<Option<&'a yu_syntax::SourceNodeKey>, HirAvailabilityError>
     {
         match root {
             SourceRootId::Definition(root) => self.definition_source_key(root),
             SourceRootId::Expression(root) => self.expression_source_key(root),
+            SourceRootId::Member(member) => {
+                if !self.owns_source_root(root) { return Err(HirAvailabilityError::InconsistentIdentity); }
+                Ok(Some(&member.member))
+            }
         }
     }
     /// Exact source node for an ordinary or retained structural occurrence.
@@ -1801,6 +1897,66 @@ fn lower_module_with_counters(
             outcomes[index] = Some((owner, outcome));
         }
     }
+    #[cfg(any(feature = "shadow", test))]
+    let source_member_carriers = if counters.local_source {
+        let mut carriers = Vec::new();
+        // Carrier construction mutates lowering counters, so walk owned
+        // declaration snapshots rather than aliasing the declaration tables.
+        let role_declarations = counters.role_declarations.clone();
+        let implementation_declarations = counters.implementation_declarations.clone();
+        for declaration in &role_declarations {
+            let Some(body) = declaration.body.as_ref() else { continue; };
+            for member in &body.members {
+                if member.recovered { continue; }
+                let syntax = crate::source_identity::syntax_node_at_path(parsed, &member.source_path)?;
+                if syntax.kind() != member.kind
+                    || crate::range_of(&syntax) != member.range
+                    || syntax.text().to_string() != member.text.as_ref()
+                    || counters.source_nodes.get(&syntax) != Some(&member.id.declaration)
+                { return Err(HirAvailabilityError::StructuralProjection); }
+                let Some(expression) = local_source::member_body_expression(&syntax)? else { continue; };
+                let owner = SourceRootId::Member(SourceMemberRootId::new(
+                    artifact.clone(), identity.module().clone(),
+                    declaration.id.declaration.clone(), member.id.declaration.clone(),
+                    SourceMemberKind::Role,
+                ));
+                let plan = RootPlan { ordinal: 0, range: crate::range_of(&expression), node: expression, kind: RootPlanKind::DirectExpression };
+                let outcome = local_source::form_ordinary(
+                    &plan, &owner, &[], &namespace, counters, &artifact, &mut next_occurrence_ordinal,
+                )?;
+                carriers.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                carriers.push((owner, outcome));
+            }
+        }
+        for declaration in &implementation_declarations {
+            let Some(body) = declaration.body.as_ref() else { continue; };
+            for member in body.entries.iter().filter(|entry| entry.member.is_some()) {
+                if member.recovered { continue; }
+                let path = member.source_path.as_deref().ok_or(HirAvailabilityError::StructuralProjection)?;
+                let syntax = crate::source_identity::syntax_node_at_path(parsed, path)?;
+                if syntax.kind() != member.kind
+                    || crate::range_of(&syntax) != member.range
+                    || syntax.text().to_string() != member.text.as_ref()
+                    || counters.source_nodes.get(&syntax) != Some(&member.source)
+                { return Err(HirAvailabilityError::StructuralProjection); }
+                let Some(expression) = local_source::member_body_expression(&syntax)? else { continue; };
+                let owner = SourceRootId::Member(SourceMemberRootId::new(
+                    artifact.clone(), identity.module().clone(),
+                    declaration.id.declaration.clone(), member.source.clone(),
+                    SourceMemberKind::Implementation,
+                ));
+                let plan = RootPlan { ordinal: 0, range: crate::range_of(&expression), node: expression, kind: RootPlanKind::DirectExpression };
+                let outcome = local_source::form_ordinary(
+                    &plan, &owner, &[], &namespace, counters, &artifact, &mut next_occurrence_ordinal,
+                )?;
+                carriers.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                carriers.push((owner, outcome));
+            }
+        }
+        carriers
+    } else { Vec::new() };
+    #[cfg(not(any(feature = "shadow", test)))]
+    let source_member_carriers: Vec<(SourceRootId, local_source::SourceCarrierOutcome)> = Vec::new();
     finalize_ordinary_admissions(
         &mut items,
         counters,
@@ -1842,6 +1998,11 @@ fn lower_module_with_counters(
     for (index, (owner, _)) in source_carriers.iter().enumerate() {
         source_carrier_indices.insert(owner.clone(), index);
     }
+    let mut source_member_carrier_indices = HashMap::new();
+    source_member_carrier_indices.try_reserve(source_member_carriers.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    for (index, (owner, _)) in source_member_carriers.iter().enumerate() {
+        source_member_carrier_indices.insert(owner.clone(), index);
+    }
     if let Some(binding) = imports.caller_evidence.as_ref() {
         let admitted = counters.source_identity.as_ref().is_some_and(|source| {
             source.definitions.values().any(|key| key == &binding.declaration)
@@ -1854,6 +2015,8 @@ fn lower_module_with_counters(
         expression_roots,
         source_carriers,
         source_carrier_indices,
+        source_member_carriers,
+        source_member_carrier_indices,
         artifact,
         caller_evidence: imports.caller_evidence,
         source_imports: imports.source_imports,

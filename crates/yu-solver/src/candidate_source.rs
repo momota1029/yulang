@@ -1583,6 +1583,7 @@ impl ConstraintBatch {
                             let scope = match &expr.scope {
                                 yu_hir::shadow::LocalSourceScope::ModuleExpression(root) => candidate_effect::AnnotationScope::Source(SourceRootId::Expression(root.clone())),
                                 yu_hir::shadow::LocalSourceScope::Definition(owner) => candidate_effect::AnnotationScope::Definition(owner.clone()),
+                                yu_hir::shadow::LocalSourceScope::SourceMember(root) => candidate_effect::AnnotationScope::Source(SourceRootId::Member(root.clone())),
                                 yu_hir::shadow::LocalSourceScope::LocalInitializer(local) => candidate_effect::AnnotationScope::Local(local.clone()),
                                 yu_hir::shadow::LocalSourceScope::Parameter(parameter) => parameter_scopes.get(parameter).cloned().unwrap_or_else(|| candidate_effect::AnnotationScope::for_source(owner.clone())),
                                 yu_hir::shadow::LocalSourceScope::CatchArm { arm, .. } => catch_arm_scopes.get(arm).cloned().ok_or_else(invalid)?,

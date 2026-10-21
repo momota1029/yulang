@@ -463,6 +463,7 @@ fn scope_owned(source: &LocalSource, scope: &LocalSourceScope) -> bool {
     match scope {
         LocalSourceScope::Definition(owner) => source.definition_root() == Some(owner),
         LocalSourceScope::ModuleExpression(root) => source.source_root() == &SourceRootId::Expression(root.clone()),
+        LocalSourceScope::SourceMember(root) => source.source_root() == &SourceRootId::Member(root.clone()),
         LocalSourceScope::Expression(index) => source.expression(index).is_some(),
         LocalSourceScope::CatchArm { catch, arm } => source.expression(catch).is_some_and(|expr| {
             matches!(&expr.form, LocalSourceForm::Catch { arms, .. } if arms.iter().any(|candidate| &candidate.source == arm))

@@ -2,6 +2,7 @@
 use crate::{
     AssociationError, AssociationProvenance, DefinitionRootId, HirAvailabilityError, HirExpr,
     HirItem, HirModule, HirOccurrenceId, HirParameterId, ModuleIdentity, SemanticImports,
+    SourceRootId,
     associate_chain_owned_with_sources,
 };
 use crate::{range_of, range_of_token};
@@ -565,7 +566,7 @@ impl HirModule {
         if !parsed.owns_source_key(&id.declaration) {
             return Err(HirAvailabilityError::InconsistentIdentity);
         }
-        let node = syntax_node_at_path(parsed, &member.source_path)?;
+        let node = crate::source_identity::syntax_node_at_path(parsed, &member.source_path)?;
         if node.kind() != member.kind
             || crate::range_of(&node) != member.range
             || node.text().to_string() != member.text.as_ref()
@@ -573,6 +574,22 @@ impl HirModule {
             return Err(HirAvailabilityError::StructuralProjection);
         }
         Ok(Some(node))
+    }
+
+    /// Creates a distinct HIR root for an exact source-owned role member.
+    /// Unlike a definition root, it is never admitted as a module binding.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn source_role_member_root(
+        &self,
+        id: &SourceRoleMemberId,
+    ) -> Result<Option<SourceRootId>, HirAvailabilityError> {
+        if self.source_role_member_node(id)?.is_none() { return Ok(None); }
+        Ok(Some(self.source_member_root(
+            id.role.module.as_ref().clone(),
+            id.role.declaration.clone(),
+            id.declaration.clone(),
+            crate::SourceMemberKind::Role,
+        )))
     }
 
 
@@ -626,7 +643,7 @@ impl HirModule {
         if !parsed.owns_source_key(&id.declaration) {
             return Err(HirAvailabilityError::InconsistentIdentity);
         }
-        let node = syntax_node_at_path(parsed, path)?;
+        let node = crate::source_identity::syntax_node_at_path(parsed, path)?;
         if node.kind() != member.kind
             || crate::range_of(&node) != member.range
             || node.text().to_string() != member.text.as_ref()
@@ -636,19 +653,22 @@ impl HirModule {
         Ok(Some(node))
     }
 
-}
-
-#[cfg(any(feature = "shadow", test))]
-fn syntax_node_at_path(
-    parsed: &ParsedFile,
-    path: &[u32],
-) -> Result<SyntaxNode, HirAvailabilityError> {
-    let mut node = SyntaxNode::new_root(parsed.green().clone());
-    for &ordinal in path {
-        node = node.children().nth(ordinal as usize)
-            .ok_or(HirAvailabilityError::StructuralProjection)?;
+    /// Creates a distinct HIR root for an exact source-owned implementation
+    /// member. Where clauses do not have implementation member roots.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn source_implementation_member_root(
+        &self,
+        id: &SourceImplementationMemberId,
+    ) -> Result<Option<SourceRootId>, HirAvailabilityError> {
+        if self.source_implementation_member_node(id)?.is_none() { return Ok(None); }
+        Ok(Some(self.source_member_root(
+            id.implementation.module.as_ref().clone(),
+            id.implementation.declaration.clone(),
+            id.declaration.clone(),
+            crate::SourceMemberKind::Implementation,
+        )))
     }
-    Ok(node)
+
 }
 
 /// Retains one leaf-only application with source identity and explicit pending errors.

@@ -209,6 +209,17 @@ mod tests {
         assert_ne!(members[0].id, second_member.id, "equal member spellings in separate roles remain distinct");
         assert_eq!(hir.source_role_member(&members[0].id).unwrap().unwrap().id, members[0].id);
         assert_eq!(hir.source_role_member(&second_member.id).unwrap().unwrap().id, second_member.id);
+        let first_root = hir.source_role_member_root(&members[0].id).unwrap().unwrap();
+        let second_root = hir.source_role_member_root(&second_member.id).unwrap().unwrap();
+        assert!(matches!(first_root, SourceRootId::Member(ref root) if root.kind() == SourceMemberKind::Role));
+        assert!(hir.owns_source_root(&first_root));
+        assert_ne!(first_root, second_root, "same-spelled members in distinct roles have distinct source roots");
+        let other_hir = super::super::lower_module_with_local_source(
+            module_identity.clone(), &parsed, SemanticImports::empty(),
+        ).unwrap();
+        let other_root = other_hir.source_role_member_root(&members[0].id).unwrap().unwrap();
+        assert_ne!(first_root, other_root, "member roots retain the HIR artifact brand");
+        assert!(!other_hir.owns_source_root(&first_root));
         let member_node = hir.source_role_member_node(&members[0].id).unwrap().unwrap();
         assert_eq!(member_node.kind(), members[0].kind);
         assert_eq!(member_node.text().to_string(), members[0].text.as_ref());
@@ -221,5 +232,34 @@ mod tests {
         let first_body = roles[0].body.as_ref().expect("role body");
         assert_eq!(&text[first_body.range.clone()], first_body.text.as_ref());
         assert_ne!(roles[0].head.source, first_body.source);
+    }
+
+    #[test]
+    fn member_body_carriers_keep_role_and_impl_owners_separate_from_direct_roots() {
+        let text = "role Test:\n    pub a.show: str\n    pub a.say = \"ok\"\nimpl int: Test:\n    where 'a: Test\n    our value.show = \"ok\"";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let module_identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "member-carriers", "members.yu",
+        )));
+        let hir = super::super::lower_module_with_local_source(
+            module_identity, &parsed, SemanticImports::empty(),
+        ).expect("member bodies retain source carriers despite unsupported module semantics");
+        let carriers = hir.source_member_carrier_outcomes();
+        assert_eq!(carriers.len(), 2, "signature-only role members and where clauses have no carrier");
+        assert!(carriers.iter().all(|(root, outcome)| {
+            hir.owns_source_root(root)
+                && matches!(root, SourceRootId::Member(_))
+                && matches!(outcome, local_source::SourceCarrierOutcome::Supported(source)
+                    if source.source_root() == root && source.expressions().len() == 1)
+        }));
+        assert!(matches!(carriers[0].0.member_root().unwrap().kind(), SourceMemberKind::Role));
+        assert!(matches!(carriers[1].0.member_root().unwrap().kind(), SourceMemberKind::Implementation));
+        assert!(hir.source_carrier_outcomes().is_empty(), "member bodies are not direct module roots");
     }
 }

@@ -139,7 +139,7 @@ impl LocalSource {
                     let occurrence = if index == self.body.ordinal as usize {
                         match &self.owner {
                             SourceRootId::Expression(root) => root.occurrence().clone(),
-                            SourceRootId::Definition(_) => next_occurrence(artifact, next)?,
+                            SourceRootId::Definition(_) | SourceRootId::Member(_) => next_occurrence(artifact, next)?,
                         }
                     } else { next_occurrence(artifact, next)? };
                     identity.record_occurrence(occurrence.clone(), source.clone());
@@ -351,6 +351,7 @@ pub enum LocalSourceResolution {
 pub enum LocalSourceScope {
     Definition(DefinitionRootId),
     ModuleExpression(ExpressionRootId),
+    SourceMember(super::SourceMemberRootId),
     Expression(LocalSourceIndex),
     Parameter(HirParameterId),
     LocalInitializer(HirLocalId),
@@ -587,6 +588,36 @@ fn body(
     }
     Ok(child)
 }
+
+/// Extracts only the RHS syntax of a source-backed role/implementation member.
+/// The member header remains owned by its SourceMemberRootId and is never
+/// lowered as a module definition. Signature-only members have no body.
+pub(super) fn member_body_expression(
+    member: &SyntaxNode,
+) -> Result<Option<SyntaxNode>, HirAvailabilityError> {
+    if has_recovery(member) { return Err(HirAvailabilityError::StructuralProjection); }
+    if member.kind() != SyntaxKind::BindingStatement {
+        return Ok(None);
+    }
+    let children = member.children().collect::<Vec<_>>();
+    let body = match children.as_slice() {
+        [header] if header.kind() == SyntaxKind::BindingHeader => return Ok(None),
+        [header, body] if header.kind() == SyntaxKind::BindingHeader && body.kind() == SyntaxKind::BindingBody => body,
+        _ => return Err(HirAvailabilityError::StructuralProjection),
+    };
+    let mut expressions = body.children();
+    let Some(expression) = expressions.next() else {
+        return Err(HirAvailabilityError::StructuralProjection);
+    };
+    if expressions.next().is_some()
+        || !matches!(expression.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock)
+    {
+        return Err(HirAvailabilityError::StructuralProjection);
+    }
+    if has_recovery(&expression) { return Err(HirAvailabilityError::StructuralProjection); }
+    Ok(Some(expression))
+}
+
 pub(super) fn form_ordinary(
     plan: &RootPlan,
     owner: &SourceRootId,
@@ -683,6 +714,7 @@ pub(super) fn form(
     let mut scope = match owner {
         SourceRootId::Definition(root) => LocalSourceScope::Definition(root.clone()),
         SourceRootId::Expression(root) => LocalSourceScope::ModuleExpression(root.clone()),
+        SourceRootId::Member(root) => LocalSourceScope::SourceMember(root.clone()),
     };
     let named_group = if parameters.is_empty() { None } else { Some(builder.next_named_group()?) };
     let mut named_formals = Vec::new();
@@ -982,7 +1014,7 @@ impl Builder<'_> {
         let occurrence = if index.ordinal == 0 {
             match self.owner {
                 SourceRootId::Expression(root) => root.occurrence().clone(),
-                SourceRootId::Definition(_) => next_occurrence(self.artifact, self.next_occurrence)?,
+                SourceRootId::Definition(_) | SourceRootId::Member(_) => next_occurrence(self.artifact, self.next_occurrence)?,
             }
         } else { next_occurrence(self.artifact, self.next_occurrence)? };
         self.counters

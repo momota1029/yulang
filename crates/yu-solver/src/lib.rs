@@ -1553,6 +1553,7 @@ impl ConstraintBatch {
             SourceRootId::Expression(root) => self.occurrence_hir_positions.get(root.occurrence())
                 .and_then(|index| self.hirs.get(*index))
                 .filter(|hir| hir.owns_expression_root(root)),
+            SourceRootId::Member(_) => self.hirs.iter().find(|hir| hir.owns_source_root(root)),
         }
     }
     pub fn occurrences(&self) -> &[ConstraintOccurrence] {
@@ -7712,6 +7713,7 @@ impl FrozenInferenceData {
                 .or_else(|| self.hirs.iter().find(|hir| hir.owns_definition_root(root))),
             SourceRootId::Expression(root) => self.hir_for_occurrence(root.occurrence())
                 .filter(|hir| hir.owns_expression_root(root)),
+            SourceRootId::Member(_) => self.hirs.iter().find(|hir| hir.owns_source_root(root)),
         }
     }
     fn owns_occurrence(&self, occurrence: &HirOccurrenceId) -> bool {
@@ -18203,6 +18205,7 @@ impl SolvedModule {
                 .or_else(|| self.hirs.iter().find(|hir| hir.owns_definition_root(root))),
             SourceRootId::Expression(root) => self.hir_for_occurrence(root.occurrence())
                 .filter(|hir| hir.owns_expression_root(root)),
+            SourceRootId::Member(_) => self.hirs.iter().find(|hir| hir.owns_source_root(root)),
         }
     }
     pub(crate) fn owns_occurrence(&self, occurrence: &HirOccurrenceId) -> bool { self.hir_for_occurrence(occurrence).is_some() }

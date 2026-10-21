@@ -85,6 +85,7 @@ impl Graph {
         let value = match source.source_root() {
             SourceRootId::Definition(definition) => Value::Module(self.modules.get(definition).ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?.clone()),
             SourceRootId::Expression(root) => Value::Expression(root.occurrence().clone()),
+            SourceRootId::Member(_) => return Err(CollectionAvailabilityError::MissingDefinitionEndpoint),
         };
         let root = self.intern(value)?;
         let mut owners = Vec::new(); owners.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;

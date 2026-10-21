@@ -70,6 +70,18 @@ pub(crate) fn source_path(
     Ok(path.into_boxed_slice())
 }
 
+pub(crate) fn syntax_node_at_path(
+    parsed: &ParsedFile,
+    path: &[u32],
+) -> Result<SyntaxNode, crate::HirAvailabilityError> {
+    let mut node = SyntaxNode::new_root(parsed.green().clone());
+    for &ordinal in path {
+        node = node.children().nth(ordinal as usize)
+            .ok_or(crate::HirAvailabilityError::StructuralProjection)?;
+    }
+    Ok(node)
+}
+
 impl HirSourceIdentity {
     pub(crate) fn new(parsed: &ParsedFile) -> Self {
         Self {
