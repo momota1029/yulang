@@ -132,6 +132,34 @@ original copying-occurrence rule. The current source audit has no theorem
 choosing between those interpretations and no accepted source execution
 showing the child residual is independently required. R71 stays OPEN.
 
+## Integration with the approved occurrence and residual rules
+
+The approved extrusion qualification makes the semantic copy unit an actual
+extrusion occurrence, its origin/receiver Values, and the parent/copy type
+pairs produced there. It does not identify that unit with every RelationId
+whose pair later canonicalizes to one endpoint. The selected contextual
+residual policy separately forbids coalescing distinct residual-constructor
+lineages merely because their rows or current residual keys become equal; it
+does not classify this equality-derived bound child as a new residual
+constructor. The contextual carrier design requires contexts and replay
+obligations to travel with rows through extrusion and parent-copy intrusion.
+
+Together these rules support an occurrence-rooted obligation: the physical
+slot's exact raw fiber parents are the source relations to which its
+copying-occurrence witnesses must lead, and the canonicalization child remains
+a separately retained descendant of its own parent. The evidence transport
+from the raw parent preserves its own source set, post-check context, scoped
+payload transformation, dependency and FiberTransform; same-owner R230 also
+shows how alias-equivalent physical siblings get their own raw-prefix transfer.
+What these rules do not yet establish is that the occurrence-rooted transport
+is sufficient for a **third-owner** physical slot when its canonical child has
+already served a distinct canonical-key replay or has a distinct residual. In
+particular, the source policy does not grant permission to identify the two
+RelationIds, and the residual policy does not itself prove that the child's
+state is an independent source obligation for the later copy. The next proof
+input must resolve that consumer distinction on an accepted local schedule;
+the finite source searches so far do not provide it.
+
 ## Exact remaining seam and falsifier
 
 The census narrows R71's first missing premise to a consumer law, not another
@@ -177,6 +205,11 @@ Direct source pins at freeze:
 | `crates/yu-solver/src/lib.rs` | `285a39449360b050d7689f9e52f400b821e651ec9ce300bd14a1a3d9a9ab8b64` |
 | `notes/theory/2026-10-19-r71-raw-canonical-fiber-coverage.md` | `620947cece53ca60a7f8a2388a398f53850b835c79afd546bfdcfd10349a876e` |
 | `notes/theory/2026-10-21-r218-r72-exact-source-execution.md` | `1d8202d64361b92f6f7fd6f21bc353fb882dede6dc4764bdc12d9312f8c2a22b` |
+| `notes/theory/2026-10-21-r230-workbound-snapshot-fiber-coverage.md` | `3559d4976625b83e5507a9a476029981e91fbd753968ade6f70e6f0123d7e736` |
+| `notes/design/2026-10-11-yulang-inference-top-level-principles.md` | `7701841ab4b961a788574c899af877f5d69b2eced4b628477cc6065ab0d81b81` |
+| `notes/design/2026-10-12-intrusion-value-type-association.md` | `531a9efae0ab7e03bfbd2f41cd7da86078e2fc8e67675d2c5c941972409f4e89` |
+| `notes/design/2026-10-10-contextual-residual-lineage-selection.md` | `d5c46b74d678028046bdfa0f7fd2b71bb2abfb112987000fe43e0fa5875d5d98` |
+| `notes/design/2026-10-10-contextual-attachment-admission-design.md` | `717f734c42ced6aec52ea5c4280c75955950a793cdb9b020aedde208f02680dc` |
 | `tasks/agent-loop/sprints/simple-sub-attach-lineage-20261021-r236.md` | `1bbd3de2fbf28530b17332fa4b1268f1c1be7b9d53bec603fb2083df22fb9f99` |
 
 No tests, builds, candidate behavior changes or source executions were run for
