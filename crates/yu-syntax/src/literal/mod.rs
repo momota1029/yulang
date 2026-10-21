@@ -618,10 +618,13 @@ fn emit_string_escape(
     let at_close = i
         .token(|lex| Some(is_string_close_source(lex.remainder(), mode)))
         .expect("the literal close probe is total");
+    let escaped_quote_before_close = mode == StringMode::Normal
+        && i.token(|lex| Some(lex.remainder().starts_with("\"\"")))
+            .expect("the escaped-quote close probe is total");
     let at_eof = i
         .token(|lex| Some(lex.remainder().is_empty()))
         .expect("the literal EOF probe is total");
-    if at_close || at_eof {
+    if (at_close && !escaped_quote_before_close) || at_eof {
         emit_literal_missing(i.rb(), *part_origin);
         i.state.finish_node();
         if at_eof {

@@ -846,6 +846,24 @@ fn escape_sentinel_keeps_quote_or_boundary_for_the_string_owner() {
 }
 
 #[test]
+fn escaped_quote_before_a_second_quote_is_string_content() {
+    let source = "\"\\\"\"";
+    let (green, exit, remainder) = run_string(source, 0, &fence(FencePrefixPolicy::None));
+    assert_eq!(exit, StringLiteralExit::Complete);
+    assert_eq!(remainder, "");
+    assert_eq!(node_count(&green, SyntaxKind::Missing), 0);
+    assert_eq!(
+        syntax_tokens(&green),
+        [
+            (SyntaxKind::StringStart, "\"".to_owned()),
+            (SyntaxKind::StringEscapeLead, "\\".to_owned()),
+            (SyntaxKind::StringEscapeSimple, "\"".to_owned()),
+            (SyntaxKind::StringEnd, "\"".to_owned()),
+        ]
+    );
+}
+
+#[test]
 fn unicode_escape_valid_empty_and_malformed_end_have_exact_recovery() {
     for (source, missing, errors, expected_tokens, expected_shape) in [
         (

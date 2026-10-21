@@ -17939,3 +17939,17 @@ correspondence, sample output and source/native proof remain OPEN. See the
 [design](../notes/design/2026-10-22-r280-y2-qualified-constructor-pattern-application.md),
 [evidence](../notes/theory/2026-10-22-r280-y2-qualified-constructor-pattern-application.md),
 and [handoff](agent-loop/inbox/20261022-r280-y2-qualified-constructor-pattern-application.md).
+
+
+## R281 checkpoint — escaped quotes in unchanged Yulang2 strings
+
+The literal parser now recognizes an escaped quote when a second quote remains
+as the closing delimiter, while preserving the existing lone-quote recovery.
+The exact pinned fmt source parses with zero syntax diagnostics and unchanged
+bytes. The escaped-quote/sentinel tests, 38 literal tests, 12 recovery tests,
+pinned census, playground check, static check and diff check pass. HIR, role
+resolution, unchanged sample output, source/native proof and production remain
+OPEN. See the [R281 contract](agent-loop/sprints/r281-y2-escaped-quote-literal-20261022.md),
+[design](../notes/design/2026-10-22-r281-y2-escaped-quote-literal.md),
+[evidence](../notes/theory/2026-10-22-r281-y2-escaped-quote-literal.md), and
+[handoff](agent-loop/inbox/20261022-r281-y2-escaped-quote-literal.md).
