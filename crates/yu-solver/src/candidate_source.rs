@@ -40,10 +40,29 @@ pub(super) struct ExpressionSchedule {
 #[derive(Clone, Debug)]
 pub(super) struct MemberSchedule {
     pub root: yu_hir::SourceMemberRootId,
+    /// Exact source role-member key when this root is a role default. An
+    /// implementation body stays separately identified by its own root.
+    pub role_member: Option<yu_hir::shadow::SourceRoleMemberId>,
     pub occurrence: HirOccurrenceId,
     pub components: ComponentPositions,
     pub value: CandidateEndpoint,
     pub actions: Vec<Action>,
+}
+impl Plan {
+    /// Resolve only an exact role-default source key. Missing and duplicate
+    /// schedules both fail closed; implementation dispatch needs receiver
+    /// evidence and is intentionally not handled here.
+    pub(super) fn unique_role_member_schedule(
+        &self,
+        member: &yu_hir::shadow::SourceRoleMemberId,
+    ) -> Option<usize> {
+        let mut found = None;
+        for (index, schedule) in self.members.iter().enumerate() {
+            if schedule.role_member.as_ref() != Some(member) { continue; }
+            if found.replace(index).is_some() { return None; }
+        }
+        found
+    }
 }
 /// Source ownership is constructed before solving; numeric solver levels never
 /// determine whether a scope belongs to a captured source region.
@@ -1801,6 +1820,16 @@ impl ConstraintBatch {
             self.candidate_source.members.try_reserve(1).map_err(|_| unavailable())?;
             self.candidate_source.members.push(MemberSchedule {
                 root: root.clone(), occurrence: source.expressions()[body].occurrence.clone(),
+                role_member: match root.kind() {
+                    yu_hir::SourceMemberKind::Role => Some(yu_hir::shadow::SourceRoleMemberId {
+                        role: yu_hir::shadow::SourceRoleId {
+                            module: Arc::new(root.module().clone()),
+                            declaration: root.declaration_source_key().clone(),
+                        },
+                        declaration: root.member_source_key().clone(),
+                    }),
+                    yu_hir::SourceMemberKind::Implementation => None,
+                },
                 components: positions[body], value: endpoints[body], actions,
             });
         }
@@ -2347,14 +2376,23 @@ mod member_source_tests {
         ).unwrap());
         let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
         assert_eq!(batch.candidate_source.members.len(), 2);
-        for (schedule, (owner, outcome)) in batch.candidate_source.members.iter()
-            .zip(hir.source_member_carrier_outcomes())
+        for (schedule_index, (schedule, (owner, outcome))) in batch.candidate_source.members.iter()
+            .zip(hir.source_member_carrier_outcomes()).enumerate()
         {
             let yu_hir::SourceCarrierOutcome::Supported(source) = outcome else { panic!("supported fixture"); };
             let member = owner.member_root().unwrap();
             assert_eq!(&schedule.root, member);
             assert_eq!(schedule.occurrence, source.expressions()[0].occurrence);
             assert_eq!(batch.candidate_source.source_owners.get(&schedule.occurrence), Some(owner));
+            match member.kind() {
+                yu_hir::SourceMemberKind::Role => {
+                    assert_eq!(schedule.role_member.as_ref().unwrap().role.declaration, *member.declaration_source_key());
+                    assert_eq!(schedule.role_member.as_ref().unwrap().declaration, *member.member_source_key());
+                    assert_eq!(schedule.role_member.as_ref().unwrap().role.module.as_ref(), member.module());
+                    assert_eq!(batch.candidate_source.unique_role_member_schedule(schedule.role_member.as_ref().unwrap()), Some(schedule_index));
+                }
+                yu_hir::SourceMemberKind::Implementation => assert!(schedule.role_member.is_none()),
+            }
             let parameter = &source.root_parameters()[0];
             let position = batch.parameter_recipes.iter().position(|id| id == &parameter.id).unwrap();
             assert!(matches!(schedule.value, CandidateEndpoint::Parameter(actual) if actual == position));
@@ -2365,6 +2403,14 @@ mod member_source_tests {
         }
         assert!(batch.candidate_source.schedules.is_empty());
         assert!(batch.definitions.is_empty(), "member roots do not become ordinary definitions");
+        let role_member = batch.candidate_source.members.iter()
+            .find_map(|schedule| schedule.role_member.as_ref()).unwrap();
+        let mut stale = role_member.clone();
+        stale.declaration = batch.candidate_source.members[1].root.member_source_key().clone();
+        assert_eq!(batch.candidate_source.unique_role_member_schedule(&stale), None);
+        let mut ambiguous = batch.candidate_source.clone();
+        ambiguous.members.push(ambiguous.members[0].clone());
+        assert_eq!(ambiguous.unique_role_member_schedule(role_member), None);
         let mut session = InferenceSession::try_new_candidate(batch).unwrap();
         session.execute_candidate_member(0).unwrap();
     }
