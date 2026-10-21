@@ -5,20 +5,23 @@
   "session": "r264-20261021",
   "active_sprint": {
     "id": "R264",
-    "status": "ACTIVE",
+    "status": "RESULT",
     "contract": "tasks/agent-loop/sprints/yulang2-imported-operator-environment-check-20261021-r264.md",
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 0,
-      "reserved_seconds": 420,
+      "charged_seconds": 420,
+      "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "Recheck R262 parser diagnostics under imported operator capabilities; empty SyntaxEnvironment may confound syntax-gap claims.",
-    "implementation": "Primary-only temporary diagnostic test; remove all probe code; no semantic or retained test changes.",
-    "review_receipt": "No independent reviewer assigned; provisional result only.",
-    "next_action": "Build a pinned-header SyntaxEnvironment control and compare diagnostics/recoveries across all 40 sources.",
-    "closure": "R260 conditional; Y2 source/root bridge, R149 output, parent proofs and production OPEN.",
-    "contract_sha256": "aa7d0f4eb58fadcce6e98dab4ee06011b9e2dc932b3ec030ab4e8df8511d8ab0"
+    "proof": "Empty-env diagnostic totals from R262 are confounded; all-header env also inauthentic (500 diagnostics/464 recoveries over 34 modules). External mod declarations retain Missing recoveries.",
+    "implementation": "Primary-only temporary parser probe removed; no retained code or test edits.",
+    "review_receipt": "Primary-only; unreviewed.",
+    "next_action": "Derive per-module operator syntax dependencies from authenticated imports before classifying remaining parse diagnostics.",
+    "closure": "R260 conditional; Y2 root vector, R149 consumers/output, parent proofs and production OPEN.",
+    "contract_sha256": "aa7d0f4eb58fadcce6e98dab4ee06011b9e2dc932b3ec030ab4e8df8511d8ab0",
+    "note_sha256": "ca77e44822986cf59b8dafac4086e06da476308751927fc45a9cbf097f5b270d",
+    "inbox_sha256": "96fa7952397e2a7552eac1f42e86b7434b0832aee1804dafc0eb57f2055efb75",
+    "note": "notes/theory/2026-10-21-r264-syntax-environment-confound.md"
   },
   "workers": [
     {
@@ -327,8 +330,20 @@
     {
       "path": "tasks/agent-loop/sprints/yulang2-imported-operator-environment-check-20261021-r264.md",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "R264 active primary contract."
+      "state": "FROZEN",
+      "reason": "R264 result recorded; immutable contract."
+    },
+    {
+      "path": "notes/theory/2026-10-21-r264-syntax-environment-confound.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R264 primary-only result; immutable evidence."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r264-syntax-environment-confound.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R264 primary-only result; immutable evidence."
     }
   ],
   "pending": [
@@ -396,11 +411,11 @@
       "id": "R149-SOURCE-OWNER-CLOSURE-1",
       "state": "STOPPED_UNFROZEN_RESULT",
       "owner": "Luna intake",
-      "details": "R258-R259 local registration/root derivation; R260 conditional imported census; R261-R262 falsify Y3 CST/comment projection; R263 finds no in-repo Y2 parser or ModuleMap. Y2 source/root bridge and R149 consumers/output OPEN."
+      "details": "R258-R259 derive local roots; R260 imported census conditional; R261 Y3 CST not Y2-authentic; R262 474 diagnostics came from empty env; R264 all-header env also inauthentic (500/464). Need per-module syntax dependencies and Y2 root bridge. R149 consumers/output OPEN."
     }
   ],
-  "closure": "R263 found no Y2 parser or module registration implementation in this repository. R260 remains conditional; R149 sample types/output, source/root correspondence, parent proofs and production remain OPEN.",
-  "next_action": "R264: measure whether the imported syntax environment changes R262 diagnostics; keep R262 provisional until this confounder is resolved.",
+  "closure": "R264 shows R262 empty-environment diagnostics are confounded; the broad all-header control is also inauthentic. External module declarations retain Missing recoveries. No exact Y2 root vector is established.",
+  "next_action": "Continue R149 by deriving each pinned module’s syntax environment from authenticated imports; preserve the distinction between Y3 diagnostics and Y2 grammar claims.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
