@@ -2,26 +2,26 @@
  "schema_version": 1,
  "mode": "LIVE",
  "phase": "ACTIVE",
- "session": "current-conversation-20261022-r273",
+ "session": "current-conversation-20261022-r274",
  "active_sprint": {
-  "id": "R273",
-  "status": "COMPLETE",
-  "contract": "tasks/agent-loop/sprints/public-ordered-tuple-types-20261022-r273.md",
+  "id": "R274",
+  "status": "ACTIVE",
+  "contract": "tasks/agent-loop/sprints/candidate-tuple-graph-rendering-20261022-r274.md",
   "resources": {
-   "cap_seconds": 1200,
-   "charged_seconds": 420,
+   "cap_seconds": 600,
+   "charged_seconds": 0,
    "reserved_seconds": 0,
    "no_carryover": true
   },
-  "proof": "OPEN. Ordered closed-type constructors provide no source/native correspondence, soundness or principality proof.",
-  "implementation": "Positive and negative Tuple constructors now span indexed input, draft finalization, checked ordered child lanes, planned/permanent nodes, public views and alpha-equivalence. Nested heterogeneous order and arity verified.",
+  "proof": "OPEN. Renderer output is diagnostic evidence only; no source/native correspondence or theorem closure.",
+  "implementation": "In progress: traverse and print ordered Tuple children in experimental candidate graph rendering.",
   "review_receipt": "Primary-only; independent review unavailable under the user's solo-work instruction.",
-  "next_action": "R274: connect retained candidate Tuple nodes/children to ordered public scheme output, then expose the inferred Types sample without source rewriting.",
-  "closure": "R273 closes only the yu-types constructor API slice. Candidate exporter wiring, public type display from source, source/native proof, R149 outputs, A/B, soundness, principality and production remain OPEN.",
-  "contract_sha256": "c5d9c937781d2e4f90d33160c48b36c008704f6ae059eb35819758caac24cbec",
-  "note_sha256": "272ee604bea47263eb6e0edbaf8265fe0e2fb263bd4b245ef48b0af0e450d0ff",
-  "inbox_sha256": "b88b4fe72917c3fd3ee8bf7d05751b831763cd37fdff58762667754860f532ca",
-  "note": "notes/theory/2026-10-22-r273-public-ordered-tuple-types.md"
+  "next_action": "Verify direct/nested candidate Tuple rendering preserves ordered child references and constructor identity.",
+  "closure": "Candidate graph renderer only. Public scheme/Types pane, R149 samples, source/native proof, A/B, soundness, principality and production remain OPEN.",
+  "contract_sha256": "bd56654954619e4f3f3b2c64bd6cb5a97683684ed7f434a860fb6740685e0fd6",
+  "note_sha256": "c447cde8ac4f31c5b850da48afb1f8cd97d0f8c87b41490972d4bc3ca3abbb56",
+  "inbox_sha256": "9bbe500b20d015f1c43c9c158ae7aa79adb0d91ec319ea44a4bb7c9f60538e57",
+  "note": "notes/theory/2026-10-22-r274-candidate-tuple-graph-rendering.md"
  },
  "workers": [
   {
@@ -101,13 +101,13 @@
   {
    "id": "/root",
    "role": "Luna primary",
-   "state": "STOPPED",
-   "session": "current-conversation-20261022-r273",
+   "state": "RUNNING",
+   "session": "current-conversation-20261022-r274",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "R273 closed-type Tuple checkpoint: cargo test -p yu-types --lib passed 41 tests; cargo check -p yu-types, sprint static check and diff check pass. Primary-only; parent gates remain open."
+   "receipt": "Primary started R274 after auditing candidate graph export and playground renderer; GraphNode::tuple_children exists but renderer omits it."
   }
  ],
  "leases": [
@@ -272,6 +272,36 @@
    "owner": "/root",
    "state": "HELD",
    "reason": "R256 primary current-state write."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/candidate-tuple-graph-rendering-20261022-r274.md",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "R274 contract."
+  },
+  {
+   "path": "notes/theory/2026-10-22-r274-candidate-tuple-graph-rendering.md",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "R274 rendering evidence."
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261022-r274-candidate-tuple-graph-rendering.md",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "R274 handoff."
+  },
+  {
+   "path": "tools/inference-playground/src/render.rs",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "R274 ordered Tuple child traversal and rendering."
+  },
+  {
+   "path": "tools/inference-playground/src/lib.rs",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "R274 candidate Tuple rendering tests."
   }
  ],
  "pending": [
