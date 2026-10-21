@@ -1012,6 +1012,9 @@ impl ConstraintBatch {
                                 push(&mut work, Work::Visit(element.ordinal() as usize, level, region))?;
                             }
                         }
+                        LocalSourceForm::FieldTail { receiver, .. } => {
+                            push(&mut work, Work::Visit(receiver.ordinal() as usize, level, region))?;
+                        }
                         LocalSourceForm::Apply { callee, argument, .. } => {
                             push(&mut work, Work::Visit(argument.ordinal() as usize, level, region))?;
                             push(&mut work, Work::Visit(callee.ordinal() as usize, level, region))?;
@@ -1530,6 +1533,10 @@ impl ConstraintBatch {
                             })?;
                             push(&mut actions, Action::Candidate(recipe))?;
                         }
+                        // The receiver is visited above, but member typing
+                        // requires the authentic imported role/field resolver.
+                        // Do not turn an unselected spelling into a type fact.
+                        LocalSourceForm::FieldTail { .. } => return Err(unavailable()),
                         LocalSourceForm::Group { inner } => {
                             if self.candidate_source.scoped_experiment {
                                 let child_occurrence = &source.expressions()[inner.ordinal() as usize].occurrence;

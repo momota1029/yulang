@@ -17847,3 +17847,16 @@ source/native correspondence, proof and production remain OPEN. See the [R274
 handoff](agent-loop/inbox/20261022-r274-candidate-tuple-graph-rendering.md),
 [evidence note](../notes/theory/2026-10-22-r274-candidate-tuple-graph-rendering.md),
 and current state.
+
+## R275 checkpoint — retain FieldTail source identity
+
+The ordinary HIR carrier now preserves `FieldTail` receiver order, member token
+range, source key and occurrence for the unchanged Types sample and chained
+members. The solver visits the receiver, then fails closed until authentic
+method/field resolution supplies a relation; runtime also rejects direct
+FieldTail execution without that evidence. The focused HIR test and playground
+package check pass. The unchanged Types CLI still does not infer or execute.
+R149 Types/Console, source/native proofs and production remain OPEN. See the
+[R275 handoff](agent-loop/inbox/20261021-r275-field-tail-source-carrier.md),
+[evidence note](../notes/theory/2026-10-21-r275-field-tail-source-carrier.md),
+and current state.

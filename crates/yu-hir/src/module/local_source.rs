@@ -199,6 +199,7 @@ impl LocalSource {
                     LocalSourceForm::Tuple { elements } => {
                         elements.capacity() * std::mem::size_of::<LocalSourceIndex>()
                     }
+                    LocalSourceForm::FieldTail { member, .. } => member.len(),
                     LocalSourceForm::Name { spelling, .. } => spelling.len(),
                     LocalSourceForm::Lambda { parameter, .. } => {
                         parameter.spelling.len()
@@ -274,6 +275,13 @@ pub enum LocalSourceForm {
     /// from one item followed by a trailing comma. Group and Unit remain
     /// separate source forms.
     Tuple { elements: Vec<LocalSourceIndex> },
+    /// A parse-owned member tail. `receiver` is the full preceding expression;
+    /// method or field meaning remains for a later resolver to determine.
+    FieldTail {
+        receiver: LocalSourceIndex,
+        member: Box<str>,
+        member_range: Range<usize>,
+    },
     Name {
         spelling: Box<str>,
         resolution: LocalSourceResolution,
@@ -947,6 +955,47 @@ impl Builder<'_> {
                             },
                         )?;
                         current = inner;
+                        continue;
+                    }
+                    if tail.kind() == SyntaxKind::FieldTail {
+                        if has_recovery(tail) {
+                            return Err(unsupported());
+                        }
+                        let tokens: Vec<_> = tail
+                            .children_with_tokens()
+                            .filter(|element| {
+                                !matches!(
+                                    element.kind(),
+                                    SyntaxKind::Whitespace
+                                        | SyntaxKind::Newline
+                                        | SyntaxKind::LineComment
+                                        | SyntaxKind::BlockComment
+                                )
+                            })
+                            .collect();
+                        let [dot, member] = tokens.as_slice() else {
+                            return Err(unsupported());
+                        };
+                        let dot = dot.as_token().ok_or_else(unsupported)?;
+                        let member = member.as_token().ok_or_else(unsupported)?;
+                        if dot.kind() != SyntaxKind::Dot
+                            || member.kind() != SyntaxKind::Identifier
+                        {
+                            return Err(unsupported());
+                        }
+                        let receiver = self.slot()?;
+                        self.set(
+                            current,
+                            tail,
+                            scope.clone(),
+                            named_group.clone(),
+                            LocalSourceForm::FieldTail {
+                                receiver: receiver.clone(),
+                                member: member.text().into(),
+                                member_range: crate::range_of_token(&member),
+                            },
+                        )?;
+                        current = receiver;
                         continue;
                     }
                     if !matches!(
@@ -1712,6 +1761,49 @@ mod tests {
         let HirItem::Binding(foreign) = &foreign.items()[0] else { panic!("binding"); };
         assert!(matches!(module.source_carrier(foreign.definition_root()), Err(HirAvailabilityError::InconsistentIdentity)));
         assert!(matches!(module.local_source(foreign.definition_root()), Err(HirAvailabilityError::InconsistentIdentity)));
+    }
+    #[test]
+    fn ordinary_field_tails_preserve_receiver_chain_and_parse_member_identity() {
+        let types_sample = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
+        let module = lower(types_sample).expect("the exact Types source has source carriers");
+        let expression = module.items().iter().find_map(|item| match item {
+            HirItem::Expression(expression) => Some(expression),
+            _ => None,
+        }).expect("the sample's final expression is retained");
+        let root = module.expression_root(expression.occurrence()).unwrap().unwrap();
+        let source = module.local_source_for(&SourceRootId::Expression(root.clone()))
+            .unwrap().expect("the exact final expression has a source carrier");
+        let field = source.expressions().iter().find_map(|expression| match &expression.form {
+            LocalSourceForm::FieldTail { receiver, member, member_range } =>
+                Some((receiver, member, member_range, expression)),
+            _ => None,
+        }).expect("pair.say FieldTail is retained");
+        assert_eq!(field.1.as_ref(), "say");
+        assert_eq!(&types_sample[field.2.clone()], "say");
+        assert_eq!(module.occurrence_source_key(&field.3.occurrence).unwrap(), Some(&field.3.source));
+        assert!(matches!(
+            &source.expression(field.0).unwrap().form,
+            LocalSourceForm::Name { spelling, resolution: LocalSourceResolution::ModuleDef(_) }
+                if spelling.as_ref() == "pair"
+        ));
+
+        let chain_source = "my chain = base.first.second";
+        let chain_module = lower(chain_source).unwrap();
+        let HirItem::Binding(binding) = &chain_module.items()[0] else { panic!("binding"); };
+        let chain = chain_module.local_source(binding.definition_root()).unwrap().unwrap();
+        let LocalSourceForm::FieldTail { receiver: first, member, member_range } =
+            &chain.expression(chain.body()).unwrap().form else { panic!("outer field tail"); };
+        assert_eq!(member.as_ref(), "second");
+        assert_eq!(&chain_source[member_range.clone()], "second");
+        let LocalSourceForm::FieldTail { receiver: base, member, member_range } =
+            &chain.expression(first).unwrap().form else { panic!("inner field tail"); };
+        assert_eq!(member.as_ref(), "first");
+        assert_eq!(&chain_source[member_range.clone()], "first");
+        assert!(matches!(
+            &chain.expression(base).unwrap().form,
+            LocalSourceForm::Name { spelling, resolution: LocalSourceResolution::Unresolved }
+                if spelling.as_ref() == "base"
+        ));
     }
     #[test]
     fn root_visibility_carrier_matches_admission_and_keeps_local_bindings_private() {

@@ -125,6 +125,7 @@ pub enum RuntimeUnavailable {
     ExpectedBoolean(SourceSite),
     NonExhaustiveCase(SourceSite),
     ExpectedComputation(SourceSite),
+    UnsupportedFieldTail(SourceSite),
     ModuleInitializationOrder,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -571,6 +572,13 @@ impl RuntimeProgram {
                             .map(label)
                             .collect::<Result<_, _>>()?,
                     },
+                    LocalSourceForm::FieldTail { .. } => {
+                        return Err(RuntimeUnavailable::UnsupportedFieldTail(SourceSite {
+                            source_root: source_root.clone(),
+                            occurrence: expression.occurrence.clone(),
+                            range: expression.range.clone(),
+                        }));
+                    }
                     LocalSourceForm::Case { scrutinee, arms } => Instruction::Case {
                         scrutinee: label(scrutinee)?,
                         arms: arms.iter().map(|arm| {
@@ -1112,6 +1120,7 @@ fn handler_arm_operation_ranges(
             }
             Form::Sequence { items } => pending.extend(items.iter().cloned()),
             Form::Tuple { elements } => pending.extend(elements.iter().cloned()),
+            Form::FieldTail { receiver, .. } => pending.push(receiver.clone()),
             Form::Group { inner } | Form::Ascription { inner, .. } => pending.push(inner.clone()),
             Form::Lambda { body, .. } => pending.push(body.clone()),
             Form::Block { bindings, final_expression } => {
