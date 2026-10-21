@@ -971,6 +971,84 @@ my outer (q:[io] int) = {
     }
 
     #[test]
+    fn r222_higher_order_provider_formal_bridge() {
+        const SOURCE: &str = r#"act io:
+    our tick: int -> int
+
+my outer (q:[io] int) = {
+    my loop (x:[io] int) = {
+        my direct = loop x
+        my helper (y:[io] int) = loop y
+        helper x
+    }
+    my repeat (f:[io] int -> int) (z:[io] int) = {
+        my first = f z
+        f z
+    }
+    repeat loop q
+}"#;
+        let source: Arc<SourceText> = Arc::from(SOURCE);
+        let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+        assert!(parsed.structural_recoveries().is_empty());
+        let hir = Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("r222-provider-formal", "source.yu"))),
+            &parsed, SemanticImports::empty(),
+        ).unwrap());
+        let candidate = CandidateInference::solve(hir).unwrap();
+        assert!(candidate.solved.data.errors.is_empty());
+        assert!(candidate.candidate_conflicts().is_empty());
+        let callback_call = (0..candidate.source_call_count()).map(|index| candidate.source_call(index).unwrap())
+            .find(|call| call.checking_occurrence().occurrence().ordinal() == 19).unwrap();
+        let provider_call = (0..candidate.source_call_count()).map(|index| candidate.source_call(index).unwrap())
+            .find(|call| call.checking_occurrence().occurrence().ordinal() == 26).unwrap();
+        assert_eq!(callback_call.formal_registration().unwrap().spelling.as_ref(), "f");
+        assert!(provider_call.formal_registration().is_none());
+        assert_eq!(callback_call.native_registered_root().unwrap(), callback_call.native_callee());
+        let callback_formal_use = candidate.fresh_use(&callback_call.callee_source().occurrence);
+        let actual_loop_use = candidate.fresh_use(&provider_call.argument_source().occurrence);
+        let repeat_callee_use = candidate.fresh_use(&provider_call.callee_source().occurrence);
+        assert!(callback_formal_use.is_none());
+        assert_eq!(actual_loop_use.as_ref().unwrap().rows().count(), 20);
+        assert_eq!(repeat_callee_use.as_ref().unwrap().rows().count(), 16);
+
+        let provider_term = provider_call.native_argument();
+        let formal_term = callback_call.native_callee();
+        let mut edges = std::collections::HashMap::<Term, Vec<Term>>::new();
+        let mut pending = Vec::new();
+        for fact in candidate.solved.data.store.facts() {
+            edges.entry(fact.lower()).or_default().push(fact.upper());
+            edges.entry(fact.upper()).or_default().push(fact.lower());
+            pending.extend([fact.lower(), fact.upper()]);
+        }
+        pending.extend([provider_term, formal_term]);
+        let mut seen = std::collections::HashSet::new();
+        while let Some(term) = pending.pop() {
+            if !seen.insert(term) { continue; }
+            let children = match candidate.solved.data.store.term_view(term).unwrap() {
+                crate::TermView::PositiveFunction { argument, argument_effect, result_effect, result }
+                | crate::TermView::NegativeFunction { argument, argument_effect, result_effect, result } =>
+                    [argument, argument_effect, result_effect, result],
+                _ => continue,
+            };
+            for child in children {
+                edges.entry(term).or_default().push(child);
+                edges.entry(child).or_default().push(term);
+                pending.push(child);
+            }
+        }
+        let mut search = std::collections::VecDeque::from([provider_term]);
+        let mut reachable = std::collections::HashSet::from([provider_term]);
+        while let Some(term) = search.pop_front() {
+            for &next in edges.get(&term).into_iter().flatten() {
+                if reachable.insert(next) { search.push_back(next); }
+            }
+        }
+        assert!(!reachable.contains(&formal_term));
+        println!("R222 provider_occurrence=26 callback_apply=19 formal_use_available=false provider_formal_registration=false provider_native={:?} callback_native={:?} fact_and_function_path=false",
+            candidate.solved.data.store.term_view(provider_term), candidate.solved.data.store.term_view(formal_term));
+    }
+
+    #[test]
     fn r221_higher_order_loop_callback_reachability() {
         const SOURCE: &str = r#"act io:
     our tick: int -> int
