@@ -2,26 +2,23 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "r265-20261021",
+  "session": "r266-20261021",
   "active_sprint": {
-    "id": "R265",
-    "status": "RESULT",
-    "contract": "tasks/agent-loop/sprints/yulang2-module-local-syntax-environments-20261021-r265.md",
+    "id": "R266",
+    "status": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/yulang2-direct-use-cst-import-route-20261021-r266.md",
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 420,
-      "reserved_seconds": 0,
+      "charged_seconds": 0,
+      "reserved_seconds": 420,
       "no_carryover": true
     },
-    "proof": "Current scan_header yields 45 imports vs 112 direct UseDeclaration roots across the pinned 40 sources; 20 modules mismatch, so module-local environments are incomplete.",
-    "implementation": "Primary-only temporary diagnostic probe removed; no retained tests or semantic edits.",
-    "review_receipt": "Primary-only; unreviewed.",
-    "next_action": "Inspect direct-root UseDeclaration CST for source-bound imports; retain Y2 resolution/ModuleMap semantics as open.",
-    "closure": "R260 conditional; Y2 root vector, R149 consumers/output, parent proofs and production OPEN.",
-    "contract_sha256": "1948327e13f324f7f1b59e73a8cc200d5bca868272c176891c043090a5871dd0",
-    "note_sha256": "d1e4c91e327c388d59595b30d9333463606521fe50786e39092241038f7ea573",
-    "inbox_sha256": "6a9a21db50db69e6c25139f0df01792c04c5262becbcc357bf14a9667e8d71b9",
-    "note": "notes/theory/2026-10-21-r265-header-import-coverage.md"
+    "proof": "Inspect direct-root UseDeclaration CSTs in pinned Y2 standard sources; header preamble coverage is incomplete.",
+    "implementation": "Primary-only temporary source probe; no retained code/tests or semantics edits.",
+    "review_receipt": "No independent reviewer assigned; provisional evidence only.",
+    "next_action": "Enumerate exact UseDeclaration source ranges/routes and compare against pinned root source bytes.",
+    "closure": "R260 conditional; Y2 import resolution/root vector, R149 outputs, parent proofs and production OPEN.",
+    "contract_sha256": "c86d29bf0cf305cf5f8d4bd47ba5e9e7ded5aae22b872707efc344d380cd58a1"
   },
   "workers": [
     {
@@ -274,94 +271,10 @@
       "reason": "R256 primary current-state write."
     },
     {
-      "path": "tasks/agent-loop/sprints/yulang2-y3-parser-root-witness-boundary-20261021-r261.md",
+      "path": "tasks/agent-loop/sprints/yulang2-direct-use-cst-import-route-20261021-r266.md",
       "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R261 primary-only result; immutable evidence."
-    },
-    {
-      "path": "notes/theory/2026-10-21-r261-parser-dialect-boundary.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R261 primary-only result; immutable evidence."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261021-r261-parser-dialect-boundary.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R261 primary-only result; immutable evidence."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/yulang2-bounded-comment-projection-20261021-r262.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R262 result recorded; immutable contract."
-    },
-    {
-      "path": "notes/theory/2026-10-21-r262-comment-projection-falsifier.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R262 primary-only result; immutable evidence."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261021-r262-comment-projection-falsifier.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R262 primary-only result; immutable evidence."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/yulang2-inrepo-parser-registration-audit-20261021-r263.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R263 result recorded; immutable contract."
-    },
-    {
-      "path": "notes/theory/2026-10-21-r263-y2-parser-registration-audit.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R263 primary-only result; immutable evidence."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261021-r263-y2-parser-registration-audit.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R263 primary-only result; immutable evidence."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/yulang2-imported-operator-environment-check-20261021-r264.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R264 result recorded; immutable contract."
-    },
-    {
-      "path": "notes/theory/2026-10-21-r264-syntax-environment-confound.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R264 primary-only result; immutable evidence."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261021-r264-syntax-environment-confound.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R264 primary-only result; immutable evidence."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/yulang2-module-local-syntax-environments-20261021-r265.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R265 result recorded; immutable contract."
-    },
-    {
-      "path": "notes/theory/2026-10-21-r265-header-import-coverage.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R265 primary-only result; immutable evidence."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261021-r265-header-import-coverage.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "R265 primary-only result; immutable evidence."
+      "state": "HELD",
+      "reason": "R266 active primary contract."
     }
   ],
   "pending": [
@@ -432,8 +345,8 @@
       "details": "R258-R259 local roots; R260 conditional imported census; R261-R262 Y3 parser/environment caveat; R263 no in-repo Y2 parser; R264 controls inauthentic; R265 scan_header 45 imports vs 112 root uses across 20 mismatching modules. R149 source/root and outputs OPEN."
     }
   ],
-  "closure": "R265 shows scan_header misses many direct Y2 use roots (45 header imports vs 112 direct roots; 20/40 modules differ). Its 491 parser diagnostics are not a compatibility verdict. R260 remains conditional.",
-  "next_action": "Continue R149 by inspecting direct-root UseDeclaration CSTs for source-bound imports; establish Y2 resolution and registration correspondence before runtime publication.",
+  "closure": "R261-R265 archive: current Y3 parser is not an authenticated Y2 root witness; R260 remains conditional. Exact direct-use source route coverage is under R266.",
+  "next_action": "R266: extract source-bound direct-root UseDeclaration CST routes from the pinned source bundle; do not infer Y2 module semantics from Y3 nodes.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
@@ -475,6 +388,11 @@
       "id": "R247-R255",
       "archive": "notes/progress/2026-10-21-r247-r255-history-archive.md",
       "archive_sha256": "6845561f7d19fa65fe5f30214ba54016c5400cf593c3642a7de4b1156e4fc0fe"
+    },
+    {
+      "id": "R261-R265",
+      "archive": "notes/progress/2026-10-21-r261-r265-parser-evidence-archive.md",
+      "archive_sha256": "55c1157a7bcc6ac234f061778096bad12c7631c305703e7f9f2776186bb33321"
     }
   ]
 }
