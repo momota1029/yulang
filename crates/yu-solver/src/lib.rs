@@ -628,10 +628,11 @@ pub(crate) enum SourceReceiver {
     Definition(DefinitionOrderId),
     #[cfg_attr(not(feature = "shadow-apply-candidate"), allow(dead_code, reason = "expression receivers are constructed by the candidate source planner"))]
     Expression(ExpressionRootId),
+    Member(yu_hir::SourceMemberRootId),
 }
 impl SourceReceiver {
     pub(crate) fn definition(&self) -> Option<&DefinitionOrderId> {
-        match self { Self::Definition(id) => Some(id), Self::Expression(_) => None }
+        match self { Self::Definition(id) => Some(id), Self::Expression(_) | Self::Member(_) => None }
     }
 }
 
@@ -1360,6 +1361,21 @@ impl ConstraintBatch {
                     record.body_fact_range.end = batch.occurrences.len();
                 }
             }
+            #[cfg(feature = "shadow-apply-candidate")]
+            if candidate_graph_effects {
+                for (owner, outcome) in hir.source_member_carrier_outcomes() {
+                    let (Some(member), yu_hir::SourceCarrierOutcome::Supported(source)) =
+                        (owner.member_root(), outcome) else { continue; };
+                    batch.emit_candidate_source(
+                        source,
+                        &SourceReceiver::Member(member.clone()),
+                        hir,
+                        hir_index,
+                        imported_definitions,
+                        &mut pending_uses,
+                    )?;
+                }
+            }
         }
         batch.ensure_total_definition_maps(&definition_by_hir_id)?;
         batch.counters.definition_endpoint_index_peak_capacity = definition_by_hir_id.capacity();
@@ -1387,6 +1403,15 @@ impl ConstraintBatch {
                 }
                 SourceReceiver::Expression(root) => {
                     let owner = SourceRootId::Expression(root.clone());
+                    #[cfg(feature = "shadow-apply-candidate")]
+                    if batch.candidate_source.source_owners.get(&pending.occurrence) != Some(&owner) {
+                        return Err(CollectionAvailabilityError::MissingDefinitionEndpoint);
+                    }
+                    #[cfg(not(feature = "shadow-apply-candidate"))]
+                    { let _ = owner; return Err(CollectionAvailabilityError::MissingDefinitionEndpoint); }
+                }
+                SourceReceiver::Member(root) => {
+                    let owner = SourceRootId::Member(root.clone());
                     #[cfg(feature = "shadow-apply-candidate")]
                     if batch.candidate_source.source_owners.get(&pending.occurrence) != Some(&owner) {
                         return Err(CollectionAvailabilityError::MissingDefinitionEndpoint);

@@ -30,6 +30,9 @@ impl Graph {
         let value = self.values_by_ordinal.get(&ordinal)?;
         Some((value, *self.components.get(ordinal)?))
     }
+    pub fn value_component(&self, value: &Value) -> Option<usize> {
+        self.vertices.get(value).and_then(|ordinal| self.components.get(*ordinal)).copied()
+    }
     pub fn observed_checking(&self, event: usize) -> Option<&ConstraintOccurrenceId> {
         let checking = self.checking_by_event.get(event)?;
         (self.checking.get(checking) == Some(&event)).then_some(checking)
@@ -85,7 +88,11 @@ impl Graph {
         let value = match source.source_root() {
             SourceRootId::Definition(definition) => Value::Module(self.modules.get(definition).ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?.clone()),
             SourceRootId::Expression(root) => Value::Expression(root.occurrence().clone()),
-            SourceRootId::Member(_) => return Err(CollectionAvailabilityError::MissingDefinitionEndpoint),
+            SourceRootId::Member(_) => {
+                let body = source.expressions().get(source.body().ordinal() as usize)
+                    .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?;
+                Value::Expression(body.occurrence.clone())
+            }
         };
         let root = self.intern(value)?;
         let mut owners = Vec::new(); owners.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;

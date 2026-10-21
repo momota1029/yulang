@@ -1958,6 +1958,7 @@ impl CandidateValueObservation {
                 receiving_root: match record.parent() {
                     SourceReceiver::Definition(parent) => SourceRootId::Definition(batch.definitions[parent.ordinal() as usize].root.clone()),
                     SourceReceiver::Expression(root) => SourceRootId::Expression(root.clone()),
+                    SourceReceiver::Member(root) => SourceRootId::Member(root.clone()),
                 },
             })
             .collect();

@@ -61,6 +61,9 @@ pub struct LocalSource {
     owner: SourceRootId,
     body: LocalSourceIndex,
     expressions: Vec<LocalSourceExpr>,
+    /// Inputs supplied by an enclosing source member invocation. These remain
+    /// source formals and are not rewritten into synthetic Lambda expressions.
+    root_parameters: Vec<LocalSourceParameter>,
     bindings: Vec<LocalSourceBinding>,
     where_clauses: Vec<LocalSourceWhereClause>,
     annotation: Option<source_annotation::SourceAnnotation>,
@@ -116,6 +119,8 @@ pub struct LocalSourceNamedGroup {
     pub terminal_body: LocalSourceIndex,
 }
 impl LocalSource {
+    pub fn root_parameters(&self) -> &[LocalSourceParameter] { &self.root_parameters }
+
     fn order_occurrences(
         &mut self, plan: &RootPlan, counters: &LoweringCounters,
         artifact: &Arc<HirArtifactToken>, next: &mut u32,
@@ -711,6 +716,44 @@ pub(super) fn form_ordinary(
     artifact: &Arc<HirArtifactToken>,
     next_occurrence: &mut u32,
 ) -> Result<SourceCarrierOutcome, HirAvailabilityError> {
+    form_ordinary_with_root_parameters(
+        plan, owner, parameters, &[], namespace, counters, artifact, next_occurrence,
+    )
+}
+
+pub(super) fn form_member(
+    plan: &RootPlan,
+    owner: &SourceRootId,
+    receiver: &super::SourceMemberIdentifier,
+    namespace: &super::ModuleNamespace,
+    counters: &mut LoweringCounters,
+    artifact: &Arc<HirArtifactToken>,
+    next_occurrence: &mut u32,
+) -> Result<SourceCarrierOutcome, HirAvailabilityError> {
+    let root = owner.member_root().ok_or(HirAvailabilityError::InconsistentIdentity)?;
+    let receiver = LocalSourceParameter {
+        id: super::HirParameterId::new(owner.clone(), 0),
+        source: receiver.source.clone(),
+        range: receiver.range.clone(),
+        spelling: receiver.spelling.clone(),
+        scope: LocalSourceScope::SourceMember(root.clone()),
+        annotation: None,
+    };
+    form_ordinary_with_root_parameters(
+        plan, owner, &[], &[receiver], namespace, counters, artifact, next_occurrence,
+    )
+}
+
+fn form_ordinary_with_root_parameters(
+    plan: &RootPlan,
+    owner: &SourceRootId,
+    parameters: &[HirParameter],
+    root_parameters: &[LocalSourceParameter],
+    namespace: &super::ModuleNamespace,
+    counters: &mut LoweringCounters,
+    artifact: &Arc<HirArtifactToken>,
+    next_occurrence: &mut u32,
+) -> Result<SourceCarrierOutcome, HirAvailabilityError> {
     let mut identity = counters.source_identity.take()
         .ok_or(HirAvailabilityError::StructuralProjection)?;
     let source = counters.source_nodes.get(&plan.node).cloned()
@@ -721,7 +764,9 @@ pub(super) fn form_ordinary(
     // admission, lowering, errors and occurrence allocation have completed.
     let previous_local_source = counters.local_source;
     counters.local_source = true;
-    let result = form(plan, owner, parameters, namespace, counters, artifact, &mut staged_next);
+    let result = form(
+        plan, owner, parameters, root_parameters, namespace, counters, artifact, &mut staged_next,
+    );
     counters.local_source = previous_local_source;
     let mut staged_identity = counters.source_identity.take()
         .ok_or(HirAvailabilityError::StructuralProjection)?;
@@ -760,6 +805,7 @@ pub(super) fn form(
     plan: &RootPlan,
     owner: &SourceRootId,
     parameters: &[HirParameter],
+    root_parameters: &[LocalSourceParameter],
     namespace: &super::ModuleNamespace,
     counters: &mut LoweringCounters,
     artifact: &Arc<HirArtifactToken>,
@@ -783,7 +829,8 @@ pub(super) fn form(
         counters,
         artifact,
         next_occurrence,
-        next_parameter: u32::try_from(parameters.len())
+        next_parameter: u32::try_from(parameters.len().checked_add(root_parameters.len())
+            .ok_or(HirAvailabilityError::IdentityExhausted)?)
             .map_err(|_| HirAvailabilityError::IdentityExhausted)?,
         expressions: Vec::new(),
         named_groups: Vec::new(),
@@ -793,13 +840,24 @@ pub(super) fn form(
         latest: HashMap::new(),
         work: Vec::new(),
     };
+    for parameter in root_parameters {
+        builder.counters.source_identity.as_mut()
+            .ok_or(HirAvailabilityError::StructuralProjection)?
+            .record_parameter(parameter.id.clone(), parameter.source.clone());
+        builder.push_binding(
+            parameter.spelling.clone(),
+            LocalSourceResolution::Parameter(parameter.id.clone()),
+        )?;
+    }
     let root = builder.slot()?;
     let mut current = root.clone();
-    let mut scope = match owner {
+    let mut scope = root_parameters.first()
+        .map(|parameter| LocalSourceScope::Parameter(parameter.id.clone()))
+        .unwrap_or_else(|| match owner {
         SourceRootId::Definition(root) => LocalSourceScope::Definition(root.clone()),
         SourceRootId::Expression(root) => LocalSourceScope::ModuleExpression(root.clone()),
         SourceRootId::Member(root) => LocalSourceScope::SourceMember(root.clone()),
-    };
+    });
     let named_group = if parameters.is_empty() { None } else { Some(builder.next_named_group()?) };
     let mut named_formals = Vec::new();
     for (parameter, admitted) in parameters.iter().zip(admitted_parameters) {
@@ -984,10 +1042,15 @@ pub(super) fn form(
     for expression in builder.expressions {
         expressions.push(expression.ok_or_else(invalid)?);
     }
+    let mut retained_root_parameters = Vec::new();
+    retained_root_parameters.try_reserve_exact(root_parameters.len())
+        .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    retained_root_parameters.extend(root_parameters.iter().cloned());
     let source = LocalSource {
         owner: owner.clone(),
         body: root,
         expressions,
+        root_parameters: retained_root_parameters,
         bindings: builder.bindings,
         where_clauses: builder.where_clauses,
         named_groups: builder.named_groups,

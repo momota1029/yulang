@@ -21,6 +21,8 @@ pub(super) struct Plan {
     pub references: candidate_value_graph::Graph,
     pub schedules: HashMap<DefinitionRootId, Vec<Action>>,
     pub expressions: Vec<ExpressionSchedule>,
+    /// Source-owned member bodies stay separate from ordinary module roots.
+    pub members: Vec<MemberSchedule>,
     pub source_owners: HashMap<HirOccurrenceId, SourceRootId>,
     pub loose: Vec<Action>,
     pub component_levels: HashMap<usize, u32>,
@@ -31,6 +33,14 @@ pub(super) struct Plan {
 #[derive(Clone, Debug)]
 pub(super) struct ExpressionSchedule {
     pub root: ExpressionRootId,
+    pub components: ComponentPositions,
+    pub value: CandidateEndpoint,
+    pub actions: Vec<Action>,
+}
+#[derive(Clone, Debug)]
+pub(super) struct MemberSchedule {
+    pub root: yu_hir::SourceMemberRootId,
+    pub occurrence: HirOccurrenceId,
     pub components: ComponentPositions,
     pub value: CandidateEndpoint,
     pub actions: Vec<Action>,
@@ -351,7 +361,7 @@ pub(super) struct CallbackFieldRealizationV1 {
 // The plan remains immutable while this frame is live. Root positions select
 // the original schedule, so resume never reconstructs actions from graph edges.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum Schedule { Loose, Root(usize), Expression(usize) }
+pub(super) enum Schedule { Loose, Root(usize), Expression(usize), Member(usize) }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Stage { Execute, PublishLocal { slot: usize, exposed: Term, boundary: u32 } }
 // Synthetic source-boundary token, not a certificate or readiness witness.
@@ -394,8 +404,10 @@ impl Plan {
             checked_capacity_bytes::<Action>(self.loose.capacity(), "source loose actions"),
             checked_capacity_bytes::<ExpressionSchedule>(self.expressions.capacity(), "expression schedules"),
             checked_usize_sum(self.expressions.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "expression actions")), "expression action storage"),
+            checked_capacity_bytes::<MemberSchedule>(self.members.capacity(), "member schedules"),
+            checked_usize_sum(self.members.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "member actions")), "member action storage"),
             checked_capacity_bytes::<(HirOccurrenceId, SourceRootId)>(self.source_owners.capacity(), "source occurrence owners"),
-            checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).chain(self.expressions.iter().flat_map(|schedule| schedule.actions.iter())).map(|action| {
+            checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).chain(self.expressions.iter().flat_map(|schedule| schedule.actions.iter())).chain(self.members.iter().flat_map(|schedule| schedule.actions.iter())).map(|action| {
                 if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::WhereClause { source, .. } = action { std::mem::size_of::<yu_hir::shadow::LocalSourceWhereClause>() + source.text.len() + source.subject.text.len() + source.role.text.len() } else if let Action::FieldBoundV1 { declaration, h_arg } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + h_arg.response_annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else if let Action::CatchOperation { declaration, h_arg, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + h_arg.as_ref().map_or(0, |link| std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + link.response_annotation.retained_arena_bytes()) } else { 0 }
             }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
@@ -904,6 +916,7 @@ impl ConstraintBatch {
             (SourceReceiver::Definition(id), SourceRootId::Definition(root))
                 if self.definitions.get(id.ordinal() as usize).is_some_and(|record| &record.definition == id && &record.root == root) => {},
             (SourceReceiver::Expression(root), SourceRootId::Expression(actual)) if root == actual => {},
+            (SourceReceiver::Member(root), SourceRootId::Member(actual)) if root == actual => {},
             _ => return Err(invalid()),
         }
         self.candidate_source.source_owners.try_reserve(source.expressions().len()).map_err(|_| unavailable())?;
@@ -924,6 +937,14 @@ impl ConstraintBatch {
         let mut formal_registrations = HashMap::new();
         let mut parameter_scopes = HashMap::new();
         let mut catch_arm_scopes = HashMap::new();
+        for parameter in source.root_parameters() {
+            let position = self.parameter_recipes.len();
+            push(&mut self.parameter_recipes, parameter.id.clone())?;
+            parameters.try_reserve(1).map_err(|_| unavailable())?;
+            parameters.insert(parameter.id.clone(), position);
+            self.candidate_source.parameter_levels.try_reserve(1).map_err(|_| unavailable())?;
+            self.candidate_source.parameter_levels.insert(position, 1);
+        }
         for binding in source.bindings() {
             parameter_scopes.try_reserve(binding.parameters.len()).map_err(|_| unavailable())?;
             for parameter in &binding.parameters {
@@ -993,12 +1014,16 @@ impl ConstraintBatch {
         formal_names.resize(positions.len(), None);
         for (index, expr) in source.expressions().iter().enumerate() {
             if let LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(parameter), .. } = &expr.form {
-                let name = self.candidate_calls.names.len();
-                push(&mut self.candidate_calls.names, candidate_call::FormalNameInput {
-                    owner: owner.clone(), expression: index,
-                    registration: *formal_registrations.get(parameter).ok_or_else(invalid)?,
-                })?;
-                formal_names[index] = Some(name);
+                // Member receivers are source parameters too, but are not lambda
+                // formals and therefore have no candidate-call registration.
+                if let Some(&registration) = formal_registrations.get(parameter) {
+                    let name = self.candidate_calls.names.len();
+                    push(&mut self.candidate_calls.names, candidate_call::FormalNameInput {
+                        owner: owner.clone(), expression: index,
+                        registration,
+                    })?;
+                    formal_names[index] = Some(name);
+                }
             }
         }
         let mut catch_positions = HashMap::new();
@@ -1446,10 +1471,9 @@ impl ConstraintBatch {
                         }
                         LocalSourceForm::Name { resolution, .. } => {
                             let computation = match resolution {
-                                LocalSourceResolution::Parameter(parameter) => {
-                                    let registration = *formal_registrations.get(parameter).ok_or_else(invalid)?;
-                                    (self.candidate_calls.formals[registration].role == candidate_call::FormalRole::Computation).then_some(registration)
-                                }
+                                LocalSourceResolution::Parameter(parameter) => formal_registrations.get(parameter)
+                                    .copied()
+                                    .filter(|registration| self.candidate_calls.formals[*registration].role == candidate_call::FormalRole::Computation),
                                 _ => None,
                             };
                             if let Some(registration) = computation {
@@ -1773,6 +1797,12 @@ impl ConstraintBatch {
             self.candidate_source.expressions.push(ExpressionSchedule {
                 root: root.clone(), components: positions[body], value: endpoints[body], actions,
             });
+        } else if let SourceRootId::Member(root) = owner {
+            self.candidate_source.members.try_reserve(1).map_err(|_| unavailable())?;
+            self.candidate_source.members.push(MemberSchedule {
+                root: root.clone(), occurrence: source.expressions()[body].occurrence.clone(),
+                components: positions[body], value: endpoints[body], actions,
+            });
         }
         self.candidate_source.active = true;
         Ok(())
@@ -1854,6 +1884,15 @@ impl InferenceSession {
         self.candidate_endpoint(value, Polarity::Positive)?;
         self.execute_candidate_source_schedule(Schedule::Expression(index))
     }
+    pub(super) fn execute_candidate_member(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
+        let schedule = self.batch.candidate_source.members.get(index).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let owner = SourceRootId::Member(schedule.root.clone());
+        if self.batch.candidate_source.source_owners.get(&schedule.occurrence) != Some(&owner)
+            || !self.batch.candidate_source.component_levels.contains_key(&schedule.components.value)
+            || !self.batch.candidate_source.component_levels.contains_key(&schedule.components.effect)
+        { return Err(SolveAvailabilityError::ReceiptMismatch); }
+        self.execute_candidate_source_schedule(Schedule::Member(index))
+    }
     pub(super) fn execute_candidate_loose(&mut self) -> Result<(), SolveAvailabilityError> {
         self.execute_candidate_source_schedule(Schedule::Loose)
     }
@@ -1927,6 +1966,7 @@ impl InferenceSession {
         let actions = match frame.schedule {
             Schedule::Loose => &self.batch.candidate_source.loose,
             Schedule::Expression(index) => &self.batch.candidate_source.expressions.get(index).ok_or(SolveAvailabilityError::ReceiptMismatch)?.actions,
+            Schedule::Member(index) => &self.batch.candidate_source.members.get(index).ok_or(SolveAvailabilityError::ReceiptMismatch)?.actions,
             Schedule::Root(position) => {
                 let root = &self.batch.definitions.get(position).ok_or(SolveAvailabilityError::IdentityExhausted)?.root;
                 self.batch.candidate_source.schedules.get(root).ok_or(SolveAvailabilityError::IdentityExhausted)?
@@ -2281,5 +2321,51 @@ mod expression_receiver_tests {
         let foreign_owner = SourceRootId::Expression(root(&foreign, 0));
         let foreign_source = foreign.local_source_for(&foreign_owner).unwrap().unwrap();
         assert!(matches!(batch.emit_candidate_source(foreign_source, &SourceReceiver::Expression(root(&foreign, 0)), &foreign, 1, &no_imports, &mut uses), Err(CollectionAvailabilityError::MissingDefinitionEndpoint)));
+    }
+}
+
+#[cfg(test)]
+mod member_source_tests {
+    use super::*;
+
+    #[test]
+    fn member_sources_form_separate_candidate_roots_with_receiver_inputs() {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(
+            "role Echo:\n    our receiver.echo = receiver\nimpl int: Echo:\n    our value.echo = value",
+        );
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_member_sources(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "candidate-member-root", "members.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+        assert_eq!(batch.candidate_source.members.len(), 2);
+        for (schedule, (owner, outcome)) in batch.candidate_source.members.iter()
+            .zip(hir.source_member_carrier_outcomes())
+        {
+            let yu_hir::SourceCarrierOutcome::Supported(source) = outcome else { panic!("supported fixture"); };
+            let member = owner.member_root().unwrap();
+            assert_eq!(&schedule.root, member);
+            assert_eq!(schedule.occurrence, source.expressions()[0].occurrence);
+            assert_eq!(batch.candidate_source.source_owners.get(&schedule.occurrence), Some(owner));
+            let parameter = &source.root_parameters()[0];
+            let position = batch.parameter_recipes.iter().position(|id| id == &parameter.id).unwrap();
+            assert!(matches!(schedule.value, CandidateEndpoint::Parameter(actual) if actual == position));
+            assert_eq!(batch.candidate_source.parameter_levels.get(&position), Some(&1));
+            assert!(batch.candidate_source.references.value_component(
+                &candidate_value_graph::Value::Parameter(parameter.id.clone()),
+            ).is_some());
+        }
+        assert!(batch.candidate_source.schedules.is_empty());
+        assert!(batch.definitions.is_empty(), "member roots do not become ordinary definitions");
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.execute_candidate_member(0).unwrap();
     }
 }

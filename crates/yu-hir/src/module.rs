@@ -1988,6 +1988,7 @@ fn lower_module_with_counters(
             let Some(body) = declaration.body.as_ref() else { continue; };
             for member in &body.members {
                 if member.recovered { continue; }
+                let Some(header) = member.header.as_ref() else { continue; };
                 let syntax = crate::source_identity::syntax_node_at_path(parsed, &member.source_path)?;
                 if syntax.kind() != member.kind
                     || crate::range_of(&syntax) != member.range
@@ -2001,8 +2002,8 @@ fn lower_module_with_counters(
                     SourceMemberKind::Role,
                 ));
                 let plan = RootPlan { ordinal: 0, range: crate::range_of(&expression), node: expression, kind: RootPlanKind::DirectExpression };
-                let outcome = local_source::form_ordinary(
-                    &plan, &owner, &[], &namespace, counters, &artifact, &mut next_occurrence_ordinal,
+                let outcome = local_source::form_member(
+                    &plan, &owner, &header.receiver, &namespace, counters, &artifact, &mut next_occurrence_ordinal,
                 )?;
                 carriers.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
                 carriers.push((owner, outcome));
@@ -2012,6 +2013,7 @@ fn lower_module_with_counters(
             let Some(body) = declaration.body.as_ref() else { continue; };
             for member in body.entries.iter().filter(|entry| entry.member.is_some()) {
                 if member.recovered { continue; }
+                let Some(header) = member.header.as_ref() else { continue; };
                 let path = member.source_path.as_deref().ok_or(HirAvailabilityError::StructuralProjection)?;
                 let syntax = crate::source_identity::syntax_node_at_path(parsed, path)?;
                 if syntax.kind() != member.kind
@@ -2026,8 +2028,8 @@ fn lower_module_with_counters(
                     SourceMemberKind::Implementation,
                 ));
                 let plan = RootPlan { ordinal: 0, range: crate::range_of(&expression), node: expression, kind: RootPlanKind::DirectExpression };
-                let outcome = local_source::form_ordinary(
-                    &plan, &owner, &[], &namespace, counters, &artifact, &mut next_occurrence_ordinal,
+                let outcome = local_source::form_member(
+                    &plan, &owner, &header.receiver, &namespace, counters, &artifact, &mut next_occurrence_ordinal,
                 )?;
                 carriers.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
                 carriers.push((owner, outcome));
@@ -2904,6 +2906,7 @@ fn lower_plan(
             plan,
             &SourceRootId::Definition(definition_root.clone()),
             &parameters,
+            &[],
             namespace,
             counters,
             artifact,

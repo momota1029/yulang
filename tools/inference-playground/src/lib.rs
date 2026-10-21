@@ -943,6 +943,44 @@ mod tests {
     }
 
     #[test]
+    fn member_body_receiver_is_a_source_parameter_not_a_synthetic_lambda() {
+        let source = "role Echo:\n    our receiver.echo = receiver\nimpl int: Echo:\n    our value.echo = value";
+        let text: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(
+            text.clone(), Arc::new(scan_header(text)), Arc::new(SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "member-receiver-root-input", "members.yu",
+        )));
+        let hir = yu_hir::shadow::lower_module_with_member_sources(
+            identity, &parsed, SemanticImports::empty(),
+        ).unwrap();
+        let carriers = hir.source_member_carrier_outcomes();
+        assert_eq!(carriers.len(), 2);
+        for (owner, outcome) in carriers {
+            let yu_hir::SourceCarrierOutcome::Supported(local_source) = outcome else {
+                panic!("simple member body should form a LocalSource: {outcome:?}");
+            };
+            assert_eq!(local_source.root_parameters().len(), 1);
+            let receiver = &local_source.root_parameters()[0];
+            let expected = match owner.member_root().unwrap().kind() {
+                yu_hir::SourceMemberKind::Role => "receiver",
+                yu_hir::SourceMemberKind::Implementation => "value",
+            };
+            assert_eq!(receiver.spelling.as_ref(), expected);
+            assert!(parsed.owns_source_key(&receiver.source));
+            assert_eq!(&source[receiver.range.clone()], expected);
+            assert!(matches!(&local_source.expressions()[0].form,
+                LocalSourceForm::Name { spelling, resolution: yu_hir::shadow::LocalSourceResolution::Parameter(id) }
+                    if spelling.as_ref() == expected && id == &receiver.id));
+            assert!(matches!(local_source.expressions()[0].scope,
+                yu_hir::shadow::LocalSourceScope::Parameter(ref id) if id == &receiver.id));
+            assert_eq!(local_source.expressions().len(), 1, "receiver entry is metadata, not a fake Lambda expression");
+        }
+    }
+
+    #[test]
     fn pinned_public_export_route_retains_source_owned_edges_and_names() {
         let mut indexed = std::collections::BTreeMap::new();
         let mut provider_hirs = Vec::new();

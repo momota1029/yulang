@@ -2664,6 +2664,7 @@ impl InferenceSession {
         let actions = match source.schedule {
             candidate_source::Schedule::Loose => &self.batch.candidate_source.loose,
             candidate_source::Schedule::Expression(index) => &self.batch.candidate_source.expressions.get(index).ok_or_else(exhausted)?.actions,
+            candidate_source::Schedule::Member(index) => &self.batch.candidate_source.members.get(index).ok_or_else(exhausted)?.actions,
             candidate_source::Schedule::Root(index) => {
                 let root = &self.batch.definitions.get(index).ok_or_else(exhausted)?.root;
                 self.batch.candidate_source.schedules.get(root).ok_or_else(exhausted)?

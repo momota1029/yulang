@@ -32,6 +32,14 @@ Use authentic member IDs and the existing `SourceRootId::Member`; never mint an 
 
 Falsify this route if an ordinary Member body is inserted into top-level execution, receiver parameter is disconnected from the member source, any Value/Effect row is dropped or aliased across FreshUse, operator body is selected without provenance, tuple binders share the whole scrutinee instead of ordered component rows, a later bound can invalidate a published choice, or a method returns success while its nested FieldTail remains pending.
 
-## Current state and limits
+## Current implementation checkpoint
 
-No R309 implementation changes are made at this entry note. Exact leases and 1800-second solo cap are in the R309 contract. One Cargo process at a time; no subagents. Types/Console unchanged execution, source/native proof, A/B, principality, termination, independent review and production remain OPEN. R149 remains OPEN.
+`LocalSource` now retains an exact root receiver parameter for a member body, formed from the parsed member header and resolved in the member body's lexical environment. Role defaults and implementation bodies enter this path only when their parse-owned member header/body carrier is present. The receiver remains `SourceRootId::Member`; it is not represented by a fabricated Lambda or ordinary definition.
+
+Candidate collection now accepts the exact Member receiver/root pair, registers the receiver as a level-1 parameter, forms a separate `MemberSchedule`, and lets the Value graph retain the body occurrence and its parameter reference. Root receiver names are not inserted into the lambda FormalName index. A test confirms two distinct role/implementation member roots, exact body ownership, parameter endpoints and Member schedule execution.
+
+Focused evidence: the member HIR receiver test passed; the member candidate-root test passed; `cargo check -p yu-solver --features shadow-apply-candidate` passed; `python3 tools/agent_sprint.py check` and `git diff --check` passed. Compiler warnings include dormant Member schedule/consumer fields because no production selection path calls them yet.
+
+The exact remaining seam is after admission of `DeferredFieldTail`: there is no same-session consumer that resolves its authenticated `SourceRoleMemberId` to the corresponding Member schedule, relates the schedule's receiver/result Value and Effect endpoints to the obligation's four rows, and waits for a stable receiver-bound frontier. `execute_candidate_member` is currently exercised only in a focused test; it is not connected to regular solve. No member body is selected or published, and unchanged Types still cannot execute. Do not treat this checkpoint as method typing or FieldTail closure.
+
+Exact leases and the 1800-second solo cap remain in the R309 contract. One Cargo process at a time; no subagents. Types/Console unchanged execution, source/native proof, A/B, principality, termination, independent review and production remain OPEN. R149 remains OPEN.
