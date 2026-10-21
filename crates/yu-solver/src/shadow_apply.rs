@@ -2911,10 +2911,10 @@ mod tests {
     }
     #[test]
     fn source_tuple_is_retained_as_ordered_candidate_graph_node() {
-        let hir = local_source_module("my id x = x\nmy one = (1,)\nmy two = id (2, true)\nmy three = id (3, true, \"x\")\nmy nested = (1, (true, \"x\"))");
+        let hir = local_source_module("my id x = x\nmy one = (1,)\nmy two = id (2, true)\nmy three = id (3, true, \"x\")\nmy nested = (1, (true, \"x\"))\nmy pair = (1, true)");
         let candidate = CandidateInference::solve(hir.clone()).unwrap();
         let mut arities = Vec::new();
-        for name in ["one", "two", "three", "nested"] {
+        for name in ["one", "two", "three", "nested", "pair"] {
             let root = hir.items().iter().find_map(|item| match item {
                 HirItem::Binding(binding) if binding.name().spelling() == name => Some(binding.definition_root()),
                 _ => None,
@@ -2961,9 +2961,24 @@ mod tests {
                 });
                 assert!(outer_second_child_reaches_tuple, "nested tuple is retained at the source's second child");
             }
+            if name == "pair" {
+                let tuple = seen.iter().copied().find(|node| node.tuple_children().is_some()).unwrap();
+                let children: Vec<_> = tuple.tuple_children().unwrap().collect();
+                for (child, expected_leaf) in children.into_iter().zip([
+                    CandidateGraphLeaf::IntPositive,
+                    CandidateGraphLeaf::BoolPositive,
+                ]) {
+                    let row = child.row().expect("source tuple child retains its value row");
+                    assert!(export.bounds().any(|bound| {
+                        bound.kind() == ComponentKind::Value
+                            && bound.lower().leaf() == Some(expected_leaf)
+                            && bound.upper().row().is_some_and(|upper| upper.same_identity(row))
+                    }), "source child literal constraint reaches the tuple's ordered child row");
+                }
+            }
         }
         arities.sort_unstable();
-        assert_eq!(arities, [1, 2, 2, 2, 3]);
+        assert_eq!(arities, [1, 2, 2, 2, 2, 3]);
     }
     #[test]
     fn source_tuple_child_effect_is_admitted_to_tuple_computation_row() {

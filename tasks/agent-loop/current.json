@@ -9,18 +9,18 @@
     "contract": "tasks/agent-loop/sprints/source-ordered-tuple-candidate-graph-20261021-r270.md",
     "resources": {
       "cap_seconds": 1200,
-      "charged_seconds": 360,
+      "charged_seconds": 660,
       "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "HIR source indices map to ordered tuple endpoints/effects and capture/fresh reconstruction preserve order. Nested export probe found and fixed missing Tuple child traversal in Visit; focused nested export verifies both tuple nodes and the outer second-child link to the inner tuple. Explicit exported child/source index identity and whole compiler closure remain open.",
-    "implementation": "Implemented source tuple relations, wide child effect fact slots, ordered tuple graph capture/fresh reconstruction, and recursive Tuple child visitation. Focused arity/nested-shape/effect tests pass; full suite unresolved.",
+    "proof": "HIR tuple children are visited in source order; heterogeneous source child constraints land in their distinct ordered rows, nested export retains both Tuple nodes, and actual FreshUse terms match each captured child at every offset. R254 tuple polarity/duplicate and indexed arity/mismatch tests pass. Whole source/native and compiler closure remain open.",
+    "implementation": "Tuple child Visit now recurses through children before parent Finish. Candidate source relations, effect edges, graph capture and FreshUse reconstruct arbitrary ordered children in tested arities/nesting. Six tuple-filtered yu-solver unit tests pass; full solver suite remains unresolved.",
     "review_receipt": "Primary-only; unreviewed.",
-    "next_action": "Record and review the Tuple child traversal fix and focused receipts; keep explicit source-child identity, public Tuple/runtime, R149 samples and production promotion open.",
+    "next_action": "Freeze R270 source, capture, effect and FreshUse evidence; retain the full-suite limitation and provisional boundary. Continue the unchanged Yulang2 playground parent through a separately bounded tuple type/runtime integration outcome.",
     "closure": "R270 is a provisional native candidate path only. Public closed Tuple types, runtime Tuple, R149 sample execution, source/native proofs and production remain OPEN.",
     "contract_sha256": "bdf7bed755860657676717ecac75e8cd749b84fca0fc227271f2021766331af1",
-    "note_sha256": "56edeb93efc7331b2f9c18f0cea41dc718181addba4da04b1ad47aa87a6fc654",
-    "inbox_sha256": "a6ab9ca3ada043f1cb1237360dc446991658f3e53d0e96e567752f51c4687632",
+    "note_sha256": "f4f3aafe5434d41213b20d0054396490e65fb3a385b32e5102c25597c487825b",
+    "inbox_sha256": "94880afbe04bc09c211d7d2ce31cc356bcf2a49985eee3d59d6738508f47a7cc",
     "note": "notes/theory/2026-10-21-r270-source-tuple-candidate-graph.md"
   },
   "workers": [
@@ -102,12 +102,12 @@
       "id": "/root",
       "role": "Luna primary",
       "state": "STOPPED",
-      "session": "current-conversation-20261021-r270-resume",
+      "session": "current-conversation-20261021-r270-continuation",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Stopped after adding Tuple child visitation to the LIFO source walk and strengthening the nested export test. Focused source_tuple_ run passed 2 tests. Work remains provisional; no independent review or whole-program closure."
+      "receipt": "Stopped this session after adding source-order child-row and actual FreshUse reconstructed-term assertions. cargo test -p yu-solver --features shadow-apply-candidate --lib tuple passed all 6 matched tests; no independent review. Active parent compiler/playground goal continues beyond this provisional candidate packet."
     }
   ],
   "leases": [

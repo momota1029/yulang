@@ -2547,6 +2547,69 @@ mod authentic_demand_capture_tests {
     use super::*;
 
     #[test]
+    fn tuple_fresh_use_reconstructs_each_captured_child_in_order() {
+        const SOURCE: &str = "my tuple = (1, (true, \"x\"))\nmy copied = tuple";
+        let text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
+        let parsed = yu_syntax::parse_file(
+            text.clone(),
+            Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "tuple-fresh-use-order", "source.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let copied_root = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "copied" =>
+                Some(binding.definition_root()),
+            _ => None,
+        }).unwrap();
+        let source = hir.local_source(copied_root).unwrap().unwrap();
+        let occurrence = source.expressions().iter().find_map(|expression| match &expression.form {
+            yu_hir::shadow::LocalSourceForm::Name {
+                resolution: yu_hir::shadow::LocalSourceResolution::ModuleDef(_), ..
+            } => Some(expression.occurrence.clone()),
+            _ => None,
+        }).unwrap();
+
+        let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap();
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.execute().unwrap();
+        assert!(session.errors.is_empty());
+        let state = session.candidate_graph.as_ref().unwrap();
+        let route = state.routes.iter().find(|route| route.use_id.occurrence() == &occurrence)
+            .expect("the source Name use owns a retained FreshUse route");
+        assert!(route.graph.nodes.iter().any(|node|
+            matches!(node, Node::Tuple { len: 2, .. })));
+
+        let mut tuple_arities = Vec::new();
+        for (node_index, node) in route.graph.nodes.iter().enumerate() {
+            let Node::Tuple { polarity, start, len } = *node else { continue; };
+            tuple_arities.push(len);
+            let rebuilt = route.retained.terms[node_index].expect("tuple node has a FreshUse term");
+            let elements = match session.store.term_view(rebuilt).unwrap() {
+                TermView::PositiveTuple { elements } if polarity == Polarity::Positive => elements,
+                TermView::NegativeTuple { elements } if polarity == Polarity::Negative => elements,
+                other => panic!("tuple polarity/shape changed during FreshUse: {other:?}"),
+            };
+            let end = start.checked_add(len).unwrap();
+            let children = &route.graph.tuple_children[start..end];
+            assert_eq!(elements.len(), children.len());
+            for (offset, &child) in children.iter().enumerate() {
+                assert_eq!(
+                    elements[offset], route.retained.terms[child].unwrap(),
+                    "FreshUse tuple child {offset} must preserve its captured position",
+                );
+            }
+        }
+        tuple_arities.sort_unstable();
+        assert_eq!(tuple_arities, [2, 2], "both nested tuple nodes are reconstructed");
+    }
+
+    #[test]
     fn r226_callback_formal_use_origin() {
         const SOURCE: &str = r#"act io:
     our tick: int -> int
