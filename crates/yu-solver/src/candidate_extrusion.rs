@@ -3,7 +3,7 @@ use crate::*;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct Key(ExtrusionEndpoint, Polarity, u32);
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Work {
     Visit(Key),
     Function(Key, [Key; 4], [Term; 4]),
@@ -25,6 +25,10 @@ impl InferenceSession {
         level: u32,
     ) -> Result<ExtrusionEndpoint, SolveAvailabilityError> {
         let occurrence = self.begin_candidate_extrusion()?;
+        #[cfg(test)]
+        candidate_context::r148_trace(format!(
+            "extrusion-start occurrence={occurrence} initial={initial:?} polarity={polarity:?} target={level} processing={:?}",
+            self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.processing));
         let parent_start = self.candidate_graph.as_ref().unwrap().intrusion.parents.len();
         // Row identities are memoized before traversing bounds. Structural
         // memoization is separate; neither memo survives source mutation.
@@ -76,6 +80,8 @@ impl InferenceSession {
             let root = Key(self.canonical_extrusion(initial), polarity, level);
             work_push!(work, Work::Visit(root))?;
             while let Some(task) = work.pop().or_else(|| pending_bounds.pop()) {
+                #[cfg(test)]
+                candidate_context::r148_trace(format!("work-pop occurrence={occurrence} task={task:?}"));
                 match task {
                     Work::Visit(key @ Key(endpoint, p, target)) => {
                         if rows.contains_key(&key) || structure.contains_key(&key) {
@@ -324,7 +330,7 @@ impl InferenceSession {
                     }
                     Work::Bound(owner, p, key, source) => {
                         #[cfg(test)]
-                        candidate_context::r148_trace(format!("work-bound raw={source:?} owner={owner:?} side={p:?} selected={key:?}"));
+                        candidate_context::r148_trace(format!("work-bound occurrence={occurrence} operation={initial:?} operation_polarity={polarity:?} target={level} raw={source:?} owner={owner:?} side={p:?} selected={key:?}"));
                         let copied = rows
                             .get(&key)
                             .or_else(|| structure.get(&key))
@@ -378,6 +384,8 @@ impl InferenceSession {
                 .or_else(|| structure.get(&root))
                 .copied()
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            #[cfg(test)]
+            candidate_context::r148_trace(format!("extrusion-finish occurrence={occurrence} output={result:?}"));
             self.finish_candidate_extrusion(occurrence, parent_start, result)?;
             // Selected Work::Bound copies are one-sided; only incoming cuts
             // add the opposite side. Wait for all selected lower fibers before

@@ -459,4 +459,270 @@ my outer (t:[signal] int) = {
             assert!(seen.contains(&target), "source-bound capture is independent of relation allocation order: {target:?}");
         }
     }
+
+    #[test]
+    fn r218_exact_r72_source_ordinary_local_routes() {
+        const R72_SOURCE: &str = r#"act io:
+    our tick: int -> int
+
+my outer (q:[io] int) = {
+    my loop (x:[io] int) = {
+        my direct = loop x
+        my helper (y:[io] int) = loop y
+        helper x
+    }
+    loop q
+}"#;
+        let source: Arc<SourceText> = Arc::from(R72_SOURCE);
+        let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+        assert!(parsed.structural_recoveries().is_empty());
+        let hir = Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("r218-r72-source", "source.yu"))),
+            &parsed, SemanticImports::empty(),
+        ).unwrap());
+        let outer = binding(&hir, "outer");
+        let local = hir.local_source(outer.definition_root()).unwrap().unwrap();
+        let binding_id = |name: &str| local.bindings().iter()
+            .find(|binding| binding.spelling.as_ref() == name).unwrap().id.clone();
+        let loop_id = binding_id("loop");
+        let helper_id = binding_id("helper");
+        let source_name = |index: &yu_hir::shadow::LocalSourceIndex| {
+            let expression = local.expression(index).unwrap();
+            match &expression.form {
+                yu_hir::shadow::LocalSourceForm::Name { spelling, resolution, .. } => Some((
+                    spelling.as_ref().to_owned(),
+                    match resolution {
+                        yu_hir::shadow::LocalSourceResolution::Local(id) => Some(id.clone()),
+                        _ => None,
+                    },
+                )),
+                _ => None,
+            }
+        };
+        let applies = local.expressions().iter().filter_map(|expression| {
+            let yu_hir::shadow::LocalSourceForm::Apply { callee, argument, .. } = &expression.form else { return None; };
+            let (callee_spelling, callee_id) = source_name(callee)?;
+            let argument_name = source_name(argument).map(|(name, _)| name);
+            Some((expression, callee_spelling, callee_id, argument_name))
+        }).collect::<Vec<_>>();
+        let target_calls = applies.iter().filter(|(_, _, callee, _)| callee.as_ref() == Some(&loop_id) || callee.as_ref() == Some(&helper_id)).collect::<Vec<_>>();
+        assert_eq!(target_calls.len(), 4, "the unchanged source has direct loop x, helper loop y, helper x, and loop q");
+        println!("R218 source_actions={:?}", target_calls.iter().map(|(expr, callee, _, argument)|
+            (expr.occurrence.ordinal(), callee.as_str(), argument.as_deref())).collect::<Vec<_>>());
+
+        crate::candidate_context::r148_trace_begin();
+        let candidate = CandidateInference::solve(hir.clone()).unwrap();
+        let execution_trace = crate::candidate_context::r148_trace_finish();
+        println!("R218 candidate_solver_errors={:?}", candidate.solved.data.errors);
+        let work_bounds = execution_trace.iter().filter(|event| event.starts_with("work-bound ")).collect::<Vec<_>>();
+        let row_merges = execution_trace.iter().filter(|event| event.starts_with("row-merge ")).collect::<Vec<_>>();
+        let transports = execution_trace.iter().filter(|event| event.starts_with("bound-transport ")).collect::<Vec<_>>();
+        let extrusion_starts = execution_trace.iter().filter(|event| event.starts_with("extrusion-start ")).count();
+        let extrusion_finishes = execution_trace.iter().filter(|event| event.starts_with("extrusion-finish ")).count();
+        let work_pops = execution_trace.iter().filter(|event| event.starts_with("work-pop ")).count();
+        println!("R218 execution_trace events={} work_bounds={} row_merges={} transports={}",
+            execution_trace.len(), work_bounds.len(), row_merges.len(), transports.len());
+        assert!(extrusion_starts > 0 && extrusion_starts == extrusion_finishes,
+            "the successful fixed-source execution has a completed record for every started extrusion");
+        assert!(work_pops >= work_bounds.len());
+        let expected_work_sources = applies.iter().filter_map(|(expression, _, callee, argument)|
+            (callee.as_ref() == Some(&loop_id) && matches!(argument.as_deref(), Some("x" | "y")))
+                .then_some(expression.occurrence.ordinal())).collect::<std::collections::HashSet<_>>();
+        let mut observed_work_sources = std::collections::HashSet::new();
+        let work_occurrences = work_bounds.iter().filter_map(|event| event.split_whitespace()
+            .find_map(|part| part.strip_prefix("occurrence=").and_then(|value| value.parse::<usize>().ok())))
+            .collect::<std::collections::HashSet<_>>();
+        let trace_occurrence = |event: &str| event.split_whitespace().find_map(|part|
+            part.strip_prefix("occurrence=").and_then(|value| value.parse::<usize>().ok()));
+        for (index, event) in execution_trace.iter().enumerate().filter(|(_, event)| {
+            event.starts_with("row-merge ") || event.starts_with("bound-transport ")
+                || ((event.starts_with("extrusion-start ") || event.starts_with("extrusion-finish "))
+                    && trace_occurrence(event).is_some_and(|occurrence| work_occurrences.contains(&occurrence)))
+                || (event.starts_with("work-pop ")
+                    && trace_occurrence(event).is_some_and(|occurrence| work_occurrences.contains(&occurrence)))
+                || (event.starts_with("work-bound ")
+                    && trace_occurrence(event).is_some_and(|occurrence| work_occurrences.contains(&occurrence)))
+        }) {
+            println!("R218 execution_event index={index} event={event}");
+        }
+        let solved = candidate.solved.data.candidate_graph.as_ref().unwrap();
+        let context = &solved.intrusion.effect_algebra.context;
+        let references = &candidate.solved.data.candidate_references;
+        let loop_binding = local.bindings().iter().find(|binding| binding.id == loop_id).unwrap();
+        let loop_lambda_ordinal = local.expression(&loop_binding.initializer).unwrap().occurrence.ordinal();
+        let loop_slot4 = context.origins.iter().find(|origin|
+            origin.occurrence.occurrence().ordinal() == loop_lambda_ordinal
+                && origin.occurrence.local_slot() == 4)
+            .expect("fixed source loop Lambda has its own slot-4 Origin");
+        let slot4_source_bound = context.test_admission_emissions_for_relation(loop_slot4.relation).iter()
+            .find_map(|(_, admission, _)| match admission.bound {
+                crate::candidate_effect::BoundKey(
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_)),
+                    Polarity::Negative,
+                    crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(_)),
+                ) => Some(admission.bound),
+                _ => None,
+            }).expect("slot-4 origin has its exact source effect bound");
+        let crate::candidate_effect::BoundKey(
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(owner)),
+            Polarity::Negative,
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(item)),
+        ) = slot4_source_bound else { unreachable!() };
+        let mut loop_q_route_seen = false;
+        for event in &work_bounds {
+            let occurrence = event.split_whitespace().find_map(|part|
+                part.strip_prefix("occurrence=").and_then(|value| value.parse::<usize>().ok()));
+            let Some(occurrence) = occurrence else { panic!("Work::Bound trace has no extrusion occurrence: {event}"); };
+            let event_index = execution_trace.iter().position(|candidate| std::ptr::eq(candidate, *event)).unwrap();
+            assert!(event_index > 0 && execution_trace[event_index - 1].starts_with(&format!("work-pop occurrence={occurrence} task=Bound(")),
+                "every Work::Bound record follows the exact popped bound work item");
+            for (group, group_occurrence, start, end, active) in solved.intrusion.observed_groups()
+                .filter(|(_, group_occurrence, _, _, _)| *group_occurrence == occurrence)
+            {
+                let parents = solved.intrusion.parents[start..end].iter().enumerate()
+                    .map(|(offset, parent)| (start + offset, parent.copy, parent.parent, parent.polarity,
+                        parent.target, parent.comparison, parent.occurrence, parent.sources,
+                        parent.sources.map(|sources| context.source_events(sources).iter()
+                            .filter_map(|&event| references.observed_checking(event).cloned()).collect::<Vec<_>>())))
+                    .collect::<Vec<_>>();
+                for parent in &solved.intrusion.parents[start..end] {
+                    if let Some(sources) = parent.sources {
+                        observed_work_sources.extend(context.source_events(sources).iter()
+                            .filter_map(|&event| references.observed_checking(event))
+                            .map(|checking| checking.source_ordinal()));
+                    }
+                }
+                println!("R218 work_bound_group occurrence={occurrence} group={group} active={active} parents={parents:?}");
+            }
+        }
+        assert_eq!(observed_work_sources, expected_work_sources,
+            "each selected Work::Bound family maps to the fixed source's direct or helper-body loop Apply");
+        assert_eq!(work_bounds.len(), 2, "the full exact-source extrusion trace has only the two recorded Work::Bound events");
+        let source_item_marker = format!("EffectRow({item})");
+        assert!(work_bounds.iter().all(|event| !event.contains(&source_item_marker)),
+            "neither production Work::Bound lookup selects the fixed source slot-4 item {source_item_marker}: {work_bounds:?}");
+        assert!(solved.intrusion.forest_event_log_complete(), "the alias/merge history did not truncate");
+        let forest_events = solved.intrusion.forest_events();
+        assert!(forest_events.iter().all(|event| !matches!(event,
+            crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Effect(row))
+                if *row == item)
+            && !matches!(event,
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(row), .. }
+                    if *row == item)),
+            "the exact source slot-4 item has no birth or parent-write in the complete intrusion forest: Effect({item})");
+        let mut value_forest = Vec::<u32>::new();
+        let mut effect_forest = Vec::<u32>::new();
+        let mut source_alias_history = Vec::new();
+        let apply_parent_write = |forest: &mut Vec<u32>, key: u32, before: u32, after: u32| {
+            let slot = forest.get_mut(key as usize).expect("parent write follows row birth");
+            assert_eq!(*slot, before, "forest event starts from its recorded previous parent");
+            *slot = after;
+        };
+        let forest_root = |forest: &[u32], mut row: u32| {
+            while forest[row as usize] != row { row = forest[row as usize]; }
+            row
+        };
+        for (cursor, event) in forest_events.iter().enumerate() {
+            match *event {
+                crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Value(row)) => {
+                    assert_eq!(row as usize, value_forest.len()); value_forest.push(row);
+                }
+                crate::candidate_intrusion::ForestEvent::Birth(crate::candidate_scheme::RowKey::Effect(row)) => {
+                    assert_eq!(row as usize, effect_forest.len()); effect_forest.push(row);
+                }
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Value(row), before, after, .. } =>
+                    apply_parent_write(&mut value_forest, row, before, after),
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(row), before, after, .. } =>
+                    apply_parent_write(&mut effect_forest, row, before, after),
+                crate::candidate_intrusion::ForestEvent::Truncate { values_len, effects_len } => {
+                    value_forest.truncate(values_len); effect_forest.truncate(effects_len);
+                }
+            }
+            if effect_forest.len() > owner as usize && effect_forest.len() > item as usize {
+                source_alias_history.push((cursor, forest_root(&effect_forest, owner), forest_root(&effect_forest, item)));
+            }
+        }
+        let final_forest = solved.intrusion.forest_snapshot().unwrap();
+        assert_eq!(value_forest, final_forest.values, "complete Value forest event replay matches final state");
+        assert_eq!(effect_forest, final_forest.effects, "complete Effect forest event replay matches final state");
+        let source_owner_rep = solved.intrusion.effect_rep(owner);
+        let source_item_rep = solved.intrusion.effect_rep(item);
+        assert_ne!(source_owner_rep, source_item_rep, "slot-4 owner and item remain separate at the final source boundary");
+        assert!(source_alias_history.iter().all(|(_, owner_rep, item_rep)| owner_rep != item_rep),
+            "where both rows enter the complete intrusion forest, they never merge: {source_alias_history:?}");
+        println!("R218 forest_replay complete=true effect_rows={} source_owner=Effect({owner}) rep={source_owner_rep} source_item=Effect({item}) rep={source_item_rep} joint_alias_history={source_alias_history:?}", effect_forest.len());
+        let mut complete_observations = 0usize;
+        for (expression, callee, _, argument) in target_calls {
+            let observed = match candidate.local_source_provider_observation(&expression.occurrence, 512) {
+                Ok(observed) => observed,
+                Err(error) => {
+                    println!("R218 observation_unavailable occurrence={} callee={callee} argument={argument:?} error={error:?}", expression.occurrence.ordinal());
+                    continue;
+                }
+            };
+            println!("R218 call_observation occurrence={} callee={callee} argument={argument:?} complete=({}, {}) truncated={} routes={}",
+                expression.occurrence.ordinal(), observed.facts_complete, observed.origins_complete,
+                observed.captures_truncated, observed.routes.len());
+            assert!(observed.facts_complete && observed.origins_complete);
+            assert!(!observed.captures_truncated);
+            complete_observations += 1;
+            for route_observation in &observed.routes {
+                let route = &solved.local_routes[route_observation.route];
+                println!("R218 route occurrence={:?} local={:?} boundary={} root={} live_root={} rows={:?}",
+                    route.occurrence, route.local, route.graph.boundary, route.graph.root,
+                    route.graph.live_root, route.graph.rows);
+                if callee == "loop" && argument.as_deref() == Some("q") {
+                    loop_q_route_seen = true;
+                    assert_eq!(route.local, loop_id, "the top-level loop q call uses the retained loop scheme");
+                    let source_bound = route.graph.bounds.iter()
+                        .find(|bound| bound.relation == Some(loop_slot4.relation))
+                        .expect("loop q Local Capture contains the loop Lambda slot-4 bound").source_bound;
+                    let crate::candidate_effect::BoundKey(
+                        crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(owner)),
+                        Polarity::Negative,
+                        crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(item)),
+                    ) = source_bound else { panic!("loop slot-4 bound is the expected negative owner-to-item edge: {source_bound:?}"); };
+                    assert_eq!(source_bound, slot4_source_bound);
+                    let owner_capture = route.graph.rows.iter().position(|row| row.key == crate::candidate_scheme::RowKey::Effect(owner)).unwrap();
+                    let item_capture = route.graph.rows.iter().position(|row| row.key == crate::candidate_scheme::RowKey::Effect(item)).unwrap();
+                    assert!(route.graph.capture_rows[owner_capture].local && route.graph.capture_rows[item_capture].local);
+                    let mapped_effect = |index: usize| match route.rows[index] {
+                        crate::candidate_scheme::RowKey::Effect(mapped) => mapped,
+                        other => panic!("effect Capture row maps to an effect row, got {other:?}"),
+                    };
+                    let mapped_bound = crate::candidate_effect::BoundKey(
+                        crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(mapped_effect(owner_capture))),
+                        Polarity::Negative,
+                        crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(mapped_effect(item_capture))),
+                    );
+                    let lineage = context.test_relation_lineage(loop_slot4.relation);
+                    assert!(lineage.iter().any(|edge| edge.contains(&format!("from: {source_bound:?}"))
+                        && edge.contains(&format!("to: {mapped_bound:?}"))
+                        && edge.contains("reason: FreshUse")),
+                        "loop slot-4 relation has the exact Local FreshUse image {mapped_bound:?}");
+                    let physical = context.test_admission_emissions_for_relation(loop_slot4.relation);
+                    assert!(physical.iter().any(|(_, admission, emissions)| admission.bound == source_bound
+                        && emissions.iter().any(|(_, emission)| emission.physical.owner == crate::candidate_scheme::RowKey::Effect(owner)
+                            && emission.physical.lane == crate::candidate_context::BoundLane::EffectUpperRow)),
+                        "slot-4 source relation reads back from its owner row's upper lane");
+                    println!("R218 loop_slot4 source={source_bound:?} owner=Effect({owner}) item=Effect({item}) local_fresh_use={mapped_bound:?} lineage_edges={}", lineage.len());
+                }
+                for bound in &route.graph.bounds {
+                    if bound.kind == yu_types::ComponentKind::Effect {
+                        println!("R218 effect_bound occurrence={} source={:?} relation={:?}",
+                            expression.occurrence.ordinal(), bound.source_bound, bound.relation);
+                        if let Some(relation) = bound.relation {
+                            if context.origins.iter().any(|origin| origin.relation == relation && origin.occurrence.local_slot() == 4) {
+                                println!("R218 lambda_slot4_lineage occurrence={} relation={relation:?} lineage={:?}",
+                                    expression.occurrence.ordinal(), context.test_relation_lineage(relation));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(complete_observations > 0, "at least one exact local source route has complete observation");
+        assert!(loop_q_route_seen, "the exact outer loop q call has a complete source route");
+        println!("R218 complete_observations={complete_observations} total_calls=4");
+    }
 }
