@@ -1649,4 +1649,103 @@ my outer (q:[io] int) = {
         }
         assert_eq!(accepted, samples.len(), "every executable browser sample enters ordinary candidate inference");
     }
+
+    #[test]
+    fn r233_playground_tool_examples_cross_owner_schedule_search() {
+        let samples = [
+            ("catch-operation", include_str!("../../../../tools/inference-playground/examples/catch-operation.yu")),
+            ("catch-value", include_str!("../../../../tools/inference-playground/examples/catch-value.yu")),
+            ("compose-scoped-identity", include_str!("../../../../tools/inference-playground/examples/compose-scoped-identity.yu")),
+            ("compose-scoped-independent", include_str!("../../../../tools/inference-playground/examples/compose-scoped-independent.yu")),
+            ("compose-scoped-two-uses", include_str!("../../../../tools/inference-playground/examples/compose-scoped-two-uses.yu")),
+            ("conditional-conflict", include_str!("../../../../tools/inference-playground/examples/conditional-conflict.yu")),
+            ("conditional-union", include_str!("../../../../tools/inference-playground/examples/conditional-union.yu")),
+            ("effects", include_str!("../../../../tools/inference-playground/examples/effects.yu")),
+            ("entry-computation-argument", include_str!("../../../../tools/inference-playground/examples/entry-computation-argument.yu")),
+            ("entry-unmatched-request", include_str!("../../../../tools/inference-playground/examples/entry-unmatched-request.yu")),
+            ("hygiene-argument", include_str!("../../../../tools/inference-playground/examples/hygiene-argument.yu")),
+            ("hygiene-callback-block", include_str!("../../../../tools/inference-playground/examples/hygiene-callback-block.yu")),
+            ("hygiene-callback", include_str!("../../../../tools/inference-playground/examples/hygiene-callback.yu")),
+            ("hygiene-direct", include_str!("../../../../tools/inference-playground/examples/hygiene-direct.yu")),
+            ("hygiene-outside-arm", include_str!("../../../../tools/inference-playground/examples/hygiene-outside-arm.yu")),
+            ("identity", include_str!("../../../../tools/inference-playground/examples/identity.yu")),
+            ("nested-recursion", include_str!("../../../../tools/inference-playground/examples/nested-recursion.yu")),
+            ("original-suffix-outer-receiver", include_str!("../../../../tools/inference-playground/examples/original-suffix-outer-receiver.yu")),
+            ("r171-formal-name-forwarding", include_str!("../../../../tools/inference-playground/examples/r171-formal-name-forwarding.yu")),
+            ("type-error", include_str!("../../../../tools/inference-playground/examples/type-error.yu")),
+        ];
+        let mut accepted = 0;
+        for (name, sample) in samples {
+            let source: Arc<SourceText> = Arc::from(sample);
+            let parsed = parse_file(source.clone(), Arc::new(scan_header(source)), Arc::new(SyntaxEnvironment::empty()));
+            if !parsed.structural_recoveries().is_empty() {
+                println!("R233 sample={name} candidate_accepted=false structural_recoveries={}", parsed.structural_recoveries().len());
+                continue;
+            }
+            let hir = match lower_module_with_local_source(
+                ModuleIdentity::source_root(FileId::new(FileKey::new(format!("r233-{name}"), "example.yu"))),
+                &parsed, SemanticImports::empty(),
+            ) {
+                Ok(hir) => Arc::new(hir),
+                Err(error) => { println!("R233 sample={name} candidate_accepted=false lowering={error:?}"); continue; }
+            };
+            crate::candidate_context::r148_trace_begin();
+            let result = CandidateInference::solve(hir);
+            let trace = crate::candidate_context::r148_trace_finish();
+            let candidate = match result {
+                Ok(candidate) => candidate,
+                Err(error) => { println!("R233 sample={name} candidate_accepted=false solve={error:?}"); continue; }
+            };
+            if !candidate.solved.data.errors.is_empty() || !candidate.candidate_conflicts().is_empty() {
+                println!("R233 sample={name} candidate_accepted=false errors={} conflicts={}",
+                    candidate.solved.data.errors.len(), candidate.candidate_conflicts().len());
+                continue;
+            }
+            accepted += 1;
+            let solved = candidate.solved.data.candidate_graph.as_ref().unwrap();
+            assert!(solved.intrusion.forest_event_log_complete(), "{name}: complete alias history");
+            let writes = solved.intrusion.forest_events().iter().filter(|event| matches!(event,
+                crate::candidate_intrusion::ForestEvent::ParentWrite { key: crate::candidate_scheme::RowKey::Effect(_), .. }
+            )).collect::<Vec<_>>();
+            let merges = trace.iter().filter(|event| event.starts_with("row-merge copy=Effect(")).collect::<Vec<_>>();
+            assert_eq!(writes.len(), merges.len(), "{name}: every effect merge has an ordered trace record");
+            let row_number = |event: &str, prefix: &str| event.strip_prefix(prefix)
+                .and_then(|rest| rest.split(|ch: char| !ch.is_ascii_digit()).next())
+                .and_then(|number| number.parse::<usize>().ok());
+            let raw_effect_bound = |event: &str| {
+                let raw = event.split("raw=BoundKey(Effect(EffectRow(").nth(1)?;
+                let (owner, rest) = raw.split_once(")), ")?;
+                let rest = rest.strip_prefix("Positive, Effect(EffectRow(")
+                    .or_else(|| rest.strip_prefix("Negative, Effect(EffectRow("))?;
+                let item = rest.split(")))").next()?;
+                Some((owner.parse::<usize>().ok()?, item.parse::<usize>().ok()?))
+            };
+            let mut representatives = (0..4096).collect::<Vec<usize>>();
+            let mut cross_owner_hits = Vec::new();
+            for event in &trace {
+                if event.starts_with("row-merge copy=Effect(") {
+                    let copy = row_number(event, "row-merge copy=Effect(").unwrap();
+                    let parent = row_number(event.split(" parent=").nth(1).unwrap(), "Effect(").unwrap();
+                    representatives[copy] = parent;
+                } else if event.starts_with("work-bound ") {
+                    if let Some((owner, item)) = raw_effect_bound(event) {
+                        let mut owner_root = owner;
+                        while representatives[owner_root] != owner_root { owner_root = representatives[owner_root]; }
+                        let mut item_root = item;
+                        while representatives[item_root] != item_root { item_root = representatives[item_root]; }
+                        if item_root != item && owner_root != item_root {
+                            cross_owner_hits.push((event.clone(), owner_root, item_root));
+                        }
+                    }
+                }
+            }
+            println!("R233 sample={name} candidate_accepted=true effect_merges={} work_bounds={} cross_owner_hits={cross_owner_hits:?}",
+                merges.len(), trace.iter().filter(|event| event.starts_with("work-bound ")).count());
+            if name == "nested-recursion" {
+                println!("R233 nested-recursion ordered_merges={merges:?} work_bounds={:?}",
+                    trace.iter().filter(|event| event.starts_with("work-bound ")).collect::<Vec<_>>());
+            }
+        }
+        assert!(accepted > 0, "at least one checked-in tool example enters candidate inference");
+    }
 }
