@@ -1,13 +1,14 @@
 # R173 source-drain attribution and consumer join — candidate contract
 
-Status: **REVISION 2 CANDIDATE** pending a fresh exact-hash delta review. Revision
-1 remains preserved in commit `9547edfc7`; its prospective review does not cover
-this revision. The active R173 goal and exact leases continue during this
-reconciliation. No probe is authorized.
+Status: **REVISION 3 ADOPTED BY LUNA** for the bounded final-review reallocation
+below. Revision 2 remains preserved in commit `e9a7a4fef`; its delta review does
+not cover the final implementation candidate. The active R173 goal and exact
+leases continue. The conditional probe is revoked for this sprint and remains
+NOT_RUN.
 
 Branch: `research/simple-sub-intrusion`  
 Baseline: `7ec64a378` (R172 reviewed checkpoint)  
-Contract revision: 2
+Contract revision: 3
 Parent theorem: `notes/theory/2026-10-15-computation-forwarding-preservation.md` §§1,6–7,
 SHA-256 `d732980d7706538fe18b5d8de312e9a2b6367ec6638ab938b239d46272624e79`.
 
@@ -130,12 +131,38 @@ created seed, selected relation and exact Origin index. Selection, enqueue and
 drain completion remain distinct; absent receipts stay unavailable, and no
 certificate field may alter inference decisions.
 
-The review boundary charges the full 240-second preparation, 1200-second proof
+The review boundary charged the full 240-second preparation, 1200-second proof
 grant and 1500-second implementation grant because proof elapsed time was
-UNKNOWN and both lane grants were issued. Total charged: 2940 seconds; remaining
-1260 seconds are reserved for independent reviews (720), one still-conditional
-probe (300) and closeout (240). No time is carried over. The cap remains 4200,
-Astra remains zero, and all original parent gates remain OPEN.
+UNKNOWN and both lane grants were issued. The 720-second aggregate review grant
+was also issued; its elapsed time is UNKNOWN, so the full 720 seconds are
+charged. Luna explicitly reallocates the unissued 300-second conditional probe
+grant to one fresh independent final-candidate review. The final 240 seconds
+remain for closeout. The ledger is 3660 charged + 300 final review reserved +
+240 closeout reserved = 4200 seconds. Once the final-review grant is issued,
+charge it in full. The probe is revoked for R173 and stays NOT_RUN. There is no
+carryover, Astra remains zero, and all original parent gates remain OPEN.
+
+## Revision 3: final-review resource reallocation
+
+Luna primary explicitly adopts revision 3. The candidate frozen in
+`tasks/agent-loop/inbox/20261021-r173-implementation.md` revision 4 is the exact
+review target; its complete six-path manifest and fixture hash are recorded
+there. The previous 720-second aggregate review grant remains fully charged
+because elapsed time is UNKNOWN. The 300 seconds formerly reserved for a
+conditional probe are reassigned to exactly one fresh independent review of
+the final candidate. No compiler, test, evaluator, Yulang2 or inference probe is
+authorized in this revision. Closeout remains 240 seconds.
+
+The review must inspect receipt availability after enqueue and completion,
+retention after frame removal, exact task/CauseId/source-fact authentication,
+direct versus Replay selection, invocation multiplicity, rollback/index reuse,
+failure and unwind paths, and absence of certificate-dependent solver decisions
+or publication changes. It must also establish the same-provider Capture/maps
+and forwarding consumer join, especially whether requiring the Apply relation
+inside captured provider bounds is justified. The reviewer may validate an
+existing candidate-specific argument but must not invent a missing proof and
+self-certify it. On a material finding, retain the frozen candidate and report
+the exact first obstruction; no repair grant is implied.
 
 ## Exact leases if activated
 
@@ -148,9 +175,6 @@ Luna may write only:
 - `tools/inference-playground/examples/r173_source_drain_attribution.rs`
 - `notes/theory/2026-10-21-r173-source-drain-attribution.md`
 - `tasks/agent-loop/inbox/20261021-r173-implementation.md`
-- one reviewed conditional probe's exact receipts under
-  `tasks/agent-loop/probes/20261021-r173-provider.{stdout,stderr,status}`
-- dedicated build artifacts `target/r173/` only if the probe gate is met.
 
 Proof worker may write only:
 
@@ -163,22 +187,22 @@ R171 fixture stays read-only.
 
 ## Permissions, review and resources
 
-Proposed hard cap **4200 active seconds**: preparation/authority reconciliation
-240; proof 1200; Luna implementation 1500; independent reviews 720; one
-conditional exact Y3 inference probe 300; closeout 240. Astra 0, no descendants
-or carryover. A probe is allowed only if source occurrence, created/selected
-seed, same provider Capture/maps and consumer relation are all represented in the
-reviewed query with complete per-component evidence. Otherwise record NOT_RUN.
+Hard cap **4200 active seconds**: preparation/authority reconciliation 240;
+proof 1200; Luna implementation 1500; aggregate reviews 720 (fully charged);
+one final independent review 300; closeout 240. Astra 0, no descendants or
+carryover. Revision 3 revokes the conditional probe allocation; it remains
+NOT_RUN.
 
-At most one narrowly scoped `cargo run --offline --locked` diagnostic may be
-considered after independent review of exact code, harness, fixture and command
-pins. This is inference evidence, not a test or proof of the universal parent.
-No probe authorization follows from contract review alone.
+No compiler command, test, build, Yulang2/Y3 runtime, evaluator or inference
+probe is authorized by revision 3. Any future probe requires a separately
+funded and reviewed contract revision. An inference probe would not prove the
+universal parent.
 
-Fresh independent review is required for the proof artifact and coherent code/
-harness/query. Luna integrates only CLEAN reviewed exact paths, after checking
-the full outbound range. Re-read runtime/lease evidence before activation; the
-dispatcher does not grant leases or start workers. No writer may alter a frozen
+One fresh independent review is required for the frozen final code/harness/query
+candidate. Proof rev1 remains baseline-only and unreviewed as a parent proof; its
+result does not certify the candidate or close any theorem. Luna integrates
+only CLEAN reviewed exact paths, after checking the full outbound range. The
+reviewer does not grant leases or start workers. No writer may alter a frozen
 review target.
 
 Stop on ambiguous source or owner identity; certificate not tied to selected

@@ -1,58 +1,72 @@
-# R173 Luna implementation packet — revision 2 candidate
+# R173 Luna implementation packet — revision 4 review target
 
 Sprint `source-drain-attribution-and-consumer-join-20261021-r173`, contract
-revision 2, SHA-256 `363135315afd7ee0fdfcc974e12e067c25959fb4475c44968a1a6fc7faed7b99`.
-This is a sequential delta-review packet; it authorizes no compiler execution or
-probe.
+revision 3, SHA-256
+`13660d1a7044ae995f5e326fd610d0d83afa517dc9f31d699b8a1be4288a2b80`. This sequential handoff preserves
+the candidate identity frozen in revision 3 and assigns it to one fresh
+independent final review. It authorizes no probe.
 
-Proof baseline remains commit `7ec64a3788175913a2be46331cf0f64c6bd5b407`; R173
-activation metadata is `9547edfc7`. R172 exact CLEAN code/query/harness review
-remains in that sprint's implementation handoff. The original parent and
-quantifiers remain frozen. Proof rev1 is bounded to original baseline owner bytes
-and stopped after detecting candidate-context drift. It does not certify the
-edited implementation candidate. Proof note SHA-256
-`6a3fa980486875d671b6b2593baee910f1966467c8dec6980a36f29f9e1cb012`, proof
-handoff SHA-256
-`fe66540651d427f3b5ac32f63f82232898cdb7bf4e9d1e7cdea0a28c0825f887`.
+## Identity and result
 
-Candidate snapshot at this delta boundary:
+Proof baseline remains commit `7ec64a3788175913a2be46331cf0f64c6bd5b407`.
+Activation metadata remains `9547edfc7`. Proof rev1 is STOPPED and baseline-only;
+it does not certify any implementation candidate. The unchanged fixture is
+`tools/inference-playground/examples/r171-formal-name-forwarding.yu`,
+SHA-256 `cb2fff33a1ab983a932064cc1699d9f4f4a8d5e00d52986525884d42bc58234f`.
+
+R173 implementation author: Luna primary `/root`, observed model/effort
+UNKNOWN/UNKNOWN. The R173 rev2 delta reviewer was `/root/r173_rev2_delta_review`;
+its CLEAN receipt covers only the reviewed rev2 delta. The aggregate 720-second
+independent-review allocation is charged in full because elapsed runtime is
+UNKNOWN. Luna explicitly reallocated the former 300-second conditional probe
+allocation to one fresh final candidate review; the probe is revoked and remains
+NOT_RUN. Candidate-specific proof remains OPEN; no probe, build, test, evaluator
+or Yulang2 execution was performed.
+
+## Frozen implementation candidate
 
 ```text
-99dc39e970b35f2d06a900826bf686ee5a76795430a3e4167ac5c64184da6af6  crates/yu-solver/src/lib.rs
-ac1375954d0d310bbeaaccb09625dc4701dd1c25a050a67f1f203d91e9456b06  crates/yu-solver/src/candidate_context.rs
-9569e7cc2ba7152cafe1273fba279a8511fe56aa39358798f3e4586c10ede225  crates/yu-solver/src/candidate_scheme.rs
-13ae8de60293b91e24659090649ff84002f5632a8909451d3f7bd8492b61bea5  crates/yu-solver/src/shadow_apply.rs
+c005b99c1aa6da3c6b203e19c37f8b99700618815528f33d67cbf70941df78f5  crates/yu-solver/src/lib.rs
+723cc253090ad2b4a0c67a1a17c57bc0587b26e4dc4d90a642f45ab0d1f468fa  crates/yu-solver/src/candidate_context.rs
+48094aff85175ef7b30d1ef8be0e8fc42d6e5282d0c4d562c4a730c13d401b25  crates/yu-solver/src/candidate_scheme.rs
+7a4c64d3783496029225be043ea8914543ceff1841caed5fcec19d68dcfb4932  crates/yu-solver/src/shadow_apply.rs
+d1652f573dff08336b1e6b4b46faa18d5ab3e38e0e8980402e5e686d74c8c172  tools/inference-playground/examples/r173_source_drain_attribution.rs
+7dfc4b5b186f5056e4f12420f6d62ddaacad1855f715181afab64507898f50ce  notes/theory/2026-10-21-r173-source-drain-attribution.md
 ```
 
-After this delta review, continue the active implementation lease. These are an
-intermediate candidate, not a new proof baseline. Final source review uses its
-own frozen manifest.
+The earlier rev2 manifest remains preserved in the contract and prior handoff
+history; neither it nor proof rev1 certifies these bytes.
 
-Luna/high owns the bounded multi-step implementation across only the leased
-paths: `lib.rs`, `candidate_context.rs`, `candidate_scheme.rs`,
-`shadow_apply.rs`, the R173 diagnostic example, implementation note and this
-handoff. The current candidate retains incoming relation, Replay acknowledgement,
-created seed, selected relation and Origin index in the exact typed-drain frame.
-It records the receipt after successful enqueue; failure before enqueue leaves
-it unavailable. The frame already owns task, occurrence and cause. Continue by
-proving and exposing this association without using it to select solver
-decisions or alter publication. Never infer a missing field from equal IDs.
-Keep selection, enqueue and drain completion as distinct phases, and account
-for transaction rollback, repeated Origin ordinals and Replay-owned relations.
+## Construction and current limits
 
-Build the borrowed query from owner records through the same provider's
-Capture, FreshUse maps and exact forwarding Apply consumer. Preserve all
-dependency alternatives and ordered Replay inputs. Report per-component
-completeness; keep parent gates open. A conditional single probe is possible
-only after the query discriminates every required link and a fresh reviewer is
-CLEAN on exact source, code, harness and command pins. Otherwise record
-`NOT_RUN` with the missing component. No tests, broad build, evaluator, Y2,
-network, external oracle or behavior-changing implementation.
+The typed drain receipt is attached to the exact Origin only after successful
+enqueue. The Origin copy retains task, CauseId, incoming relation, Replay ack,
+created/selected relation and Origin/drain indices. It is initially incomplete;
+the terminal drain path marks it complete before the frame is removed. The
+source query reads completed receipts from retained Origins after solve, and
+keeps incomplete/missing receipts unavailable. Transaction rollback truncates
+newly created Origins; source solver decisions do not read this passive record.
 
-Requested Luna/high. Runtime observed model/effort remain UNKNOWN absent a
-trusted receipt. The full 1500-second implementation grant is charged on issue;
-no descendants. Stop if the certificate cannot stay behaviorally inert, a
-necessary owner is not in the exact leases, failure-path semantics change, the
-proof baseline is silently changed, or the sprint cap is spent. Preserve all
-unrelated working-tree files. Fresh independent review follows frozen exact
-hashes; only Luna stages and integrates reviewed R173 paths.
+The query emits source facts and receipts, direct-seed dependency rows,
+same-graph provider routes, typed Capture bounds/snapshots, typed FreshUse map
+entries (including empty-map markers), and forwarding Apply consumer relation
+rows. Completeness flags fail closed on truncation, unavailable attribution,
+missing routes/maps or non-unique consumer relation.
+
+This does not prove the universal forwarding theorem or establish candidate
+behavior. The exact final review must still challenge receipt lifecycle and
+rollback, source-task authentication, same-provider Capture/maps, and whether
+the consumer relation's membership in the provider's captured bounds is
+justified. No inference probe is authorized from this handoff. If a future exact
+review does not establish an attainable discriminator, record NOT_RUN and the
+first missing owner.
+
+## Worktree and integration
+
+Only the six R173 implementation paths above plus this handoff were written by
+Luna in this continuation. Existing unrelated dirty R152–R163 artifacts remain
+untouched. Static `git diff --check` passed. No tests or builds were run.
+Candidate-specific proof remains OPEN. The fresh final review is assigned
+against this handoff revision and the exact manifest above. Probe and
+integration remain unauthorized pending review and broader parent gates; only
+Luna may stage or commit eligible exact paths.
