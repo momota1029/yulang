@@ -2,26 +2,26 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "r268-20261021",
+  "session": "r269-20261021",
   "active_sprint": {
-    "id": "R268",
+    "id": "R269",
     "status": "RESULT",
-    "contract": "tasks/agent-loop/sprints/yulang2-pinned-module-route-closure-20261021-r268.md",
+    "contract": "tasks/agent-loop/sprints/yulang2-root-binding-publication-census-20261021-r269.md",
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 420,
+      "charged_seconds": 120,
       "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "Conditional Y3 CST source graph has 39 external mod edges + 108 std:: use-prefix edges; BFS from std reaches exactly the pinned 40 modules.",
-    "implementation": "Primary-only temporary graph probe removed; no retained code/tests.",
+    "proof": "Conditional Y3 CST census: 318 direct-root bindings, 313 with bodies; 36/36 direct OperatorChain bodies immediately follow OperatorHeader. R260 textual candidate counts disagree by 11 headers and six body-bearing forms.",
+    "implementation": "No compiler edits; current Y3 source-to-HirItem/runtime schedule seam located but not established as Y2 correspondence.",
     "review_receipt": "Primary-only; unreviewed.",
-    "next_action": "Use the authenticated route closure to inspect exact direct-root declaration forms and establish imported root publication correspondence.",
-    "closure": "R260 conditional; Y2 ModuleMap, runtime roots, R149 outputs, parent proofs and production OPEN.",
-    "contract_sha256": "2d199f5aaef998c925ba72d7a58851e6a7e47a10ed81d10b00dfdcab0bf15fb9",
-    "note_sha256": "b423bbc22cf8d84fa92a7c9d6a7b9df1d1031696eef9e91f6615d2f58b2d1b96",
-    "inbox_sha256": "a4e43115e9c355cb17c7d31af9486289ee28110aa8567200818bce6278d34baf",
-    "note": "notes/theory/2026-10-21-r268-pinned-module-route-closure.md"
+    "next_action": "Follow one unchanged Types/Console source constructor through occurrence/context facts, Value/Computation publication and execution consumer; retain R260/R269 census discrepancy as open.",
+    "closure": "Proof companion §§7.1-7.2 requires the same source derivation, occurrence/context, type/effect facts, publication and execution consumer; R269 CST counts do not close any Y2 or parent gate. R149 outputs remain OPEN.",
+    "contract_sha256": "fd38e92ea6b6a7db746a42402e92ba6241a0e3cdf0bc1fe1295837c40e562988",
+    "note_sha256": "8c1bbcf1540bb8e0c8d00612c1ceeca58c8ee7d827334f1f13ad61feac96273b",
+    "inbox_sha256": "47343c06b5a12125c241fe606b2164903838ab11f899e9c4b839f20bd6fc88a3",
+    "note": "notes/theory/2026-10-21-r269-root-binding-publication-census.md"
   },
   "workers": [
     {
@@ -396,8 +396,8 @@
       "details": "R258-R259 local roots; R260 conditional census; R261-R267 parser/import route evidence; R268 Y3 source graph reaches all 40 modules (39 mod +108 use edges), but external-mod Missing recoveries leave Y2 ModuleMap/publication OPEN. R149 outputs open."
     }
   ],
-  "closure": "R268 source locator graph reaches all 40 pinned modules with 147 edges; it is not an observed Y2 ModuleMap. R260 imported empty-set remains conditional; runtime root publication and R149 outputs remain OPEN.",
-  "next_action": "Continue R149 by classifying direct-root declarations against the 40-module route graph and joining them to Value/Computation publication constructors.",
+  "closure": "Proof companion §§7.1-7.2 requires the same source derivation, occurrence/context, type/effect facts, publication and execution consumer; R269 CST counts do not close any Y2 or parent gate. R149 outputs remain OPEN.",
+  "next_action": "Follow one unchanged Types/Console source constructor through occurrence/context facts, Value/Computation publication and execution consumer; retain R260/R269 census discrepancy as open.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
@@ -444,6 +444,11 @@
       "id": "R261-R265",
       "archive": "notes/progress/2026-10-21-r261-r265-parser-evidence-archive.md",
       "archive_sha256": "55c1157a7bcc6ac234f061778096bad12c7631c305703e7f9f2776186bb33321"
+    },
+    {
+      "id": "R269",
+      "archive": "notes/theory/2026-10-21-r269-root-binding-publication-census.md",
+      "charged_seconds": 120
     }
   ]
 }
