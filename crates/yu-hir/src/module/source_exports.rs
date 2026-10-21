@@ -655,7 +655,7 @@ pub fn flatten_use_declaration(
     Ok(output)
 }
 
-fn module_label(module: &ModuleId) -> Option<Box<str>> {
+pub(crate) fn module_label(module: &ModuleId) -> Option<Box<str>> {
     let path = module.file().key().normalized_workspace_relative_path();
     let path = path.strip_prefix("lib/").unwrap_or(path);
     let path = path.strip_suffix(".yu")?;

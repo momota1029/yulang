@@ -8,7 +8,10 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::{io::Read, ops::Range, sync::Arc};
 use yu_hir::shadow::lower_module_with_local_source;
-use yu_hir::{FileId, FileKey, HirItem, HirModule, HirOccurrenceId, ModuleIdentity, SemanticImports, SourceRootId};
+use yu_hir::{
+    FileId, FileKey, HirItem, HirModule, HirOccurrenceId, ModuleIdentity, SemanticImports,
+    SourceRootId, index_source_exports,
+};
 use yu_solver::shadow_apply::{CandidateError, CandidateInference};
 use yu_syntax::{
     SourceRevision, SourceText, SyntaxDependencyProvenance, SyntaxDependencySlot,
@@ -352,17 +355,27 @@ fn prepare(
         }
         return Err(output.finish()?);
     }
+    let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", name)));
+    let (providers, indexes) = pinned_module_world()?;
+    let imports = SemanticImports::with_source_imports(&parsed, &identity, &indexes)
+        .map_err(|error| bounded_message(format_args!("source imports unavailable: {error:?}")))?;
     let hir = Arc::new(
         lower_module_with_local_source(
-            ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", name))),
+            identity,
             &parsed,
-            SemanticImports::empty(),
+            imports,
         )
         .map_err(|error| {
             bounded_message(format_args!("candidate lowering unavailable: {error:?}"))
         })?,
     );
-    let solved = if scoped { CandidateInference::solve_scoped_experiment(hir.clone()) } else { CandidateInference::solve(hir.clone()) };
+    let solved = if scoped {
+        CandidateInference::solve_scoped_experiment(hir.clone())
+    } else {
+        let mut modules = providers;
+        modules.push(hir.clone());
+        CandidateInference::solve_modules(modules)
+    };
     let candidate = solved.map_err(|error| match error {
         CandidateError::Unsupported => {
             "unsupported source: current candidate lowering/inference cannot observe this program"
@@ -399,6 +412,40 @@ fn prepare(
         return Err(output.finish()?);
     }
     Ok((hir, candidate))
+}
+
+fn pinned_module_world() -> Result<(Vec<Arc<HirModule>>, Vec<yu_hir::SourceExportIndex>), String> {
+    use yu_syntax::{SourceText, parse_file, scan_header};
+
+    let sources = pinned_stdlib::resolve_implicit_stdlib()
+        .map_err(|error| format!("pinned standard-library bundle unavailable: {error:?}"))?;
+    let mut parsed_sources = Vec::new();
+    let mut indexes = Vec::new();
+    parsed_sources.try_reserve_exact(sources.len()).map_err(|_| "pinned source allocation unavailable".to_owned())?;
+    indexes.try_reserve_exact(sources.len()).map_err(|_| "pinned index allocation unavailable".to_owned())?;
+    for source in sources.iter() {
+        let text: Arc<SourceText> = Arc::from(source.text);
+        let parsed = parse_file(
+            text.clone(),
+            Arc::new(scan_header(text)),
+            Arc::new(pinned_stdlib::syntax_environment_for_source(source, &sources)
+                .map_err(|error| format!("pinned syntax environment unavailable: {error:?}"))?),
+        );
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("pinned-yulang2", source.path)));
+        indexes.push(index_source_exports(identity.clone(), &parsed)
+            .map_err(|error| format!("pinned source index unavailable: {error:?}"))?);
+        parsed_sources.push((identity, parsed));
+    }
+    let mut providers = Vec::new();
+    providers.try_reserve_exact(parsed_sources.len()).map_err(|_| "pinned HIR allocation unavailable".to_owned())?;
+    for (identity, parsed) in parsed_sources {
+        let imports = SemanticImports::with_source_imports(&parsed, &identity, &indexes)
+            .map_err(|error| format!("pinned source imports unavailable for {}: {error:?}", identity.file().key().normalized_workspace_relative_path()))?;
+        let hir = lower_module_with_local_source(identity, &parsed, imports)
+            .map_err(|error| format!("pinned source HIR unavailable: {error:?}"))?;
+        providers.push(Arc::new(hir));
+    }
+    Ok((providers, indexes))
 }
 
 fn playground_syntax_environment() -> Result<SyntaxEnvironment, String> {

@@ -169,7 +169,6 @@ pub(crate) fn resolve_implicit_stdlib() -> Result<std::sync::Arc<[PinnedSource]>
         .clone()
 }
 
-#[cfg(test)]
 pub(crate) fn syntax_environment_for_source(
     source: &PinnedSource,
     all_sources: &[PinnedSource],

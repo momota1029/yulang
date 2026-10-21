@@ -190,6 +190,110 @@ fn resolve_implicit_prelude_imports(
     Ok((parse_root, names))
 }
 
+fn resolve_source_imports(
+    parsed: &ParsedFile,
+    identity: &ModuleIdentity,
+    indexes: &[source_exports::SourceExportIndex],
+) -> Result<(yu_syntax::SourceNodeKey, HashMap<Box<str>, source_exports::SourceImportBinding>), HirAvailabilityError> {
+    use source_exports::{SourceImportBinding, SourceUseSelection};
+
+    if identity.file != *identity.module.file() {
+        return Err(HirAvailabilityError::InconsistentIdentity);
+    }
+    let parse_root = parsed.source_root().key();
+    let own = index_source_exports(identity.clone(), parsed)?;
+    source_exports::module_label(&identity.module)
+        .ok_or(HirAvailabilityError::SourceImportResolutionUnavailable)?;
+    let mut names = HashMap::<Box<str>, SourceImportBinding>::new();
+    let mut available = std::collections::BTreeSet::<Box<str>>::new();
+    for index in indexes {
+        for declaration in &index.declarations {
+            if declaration.public {
+                if let Some(name) = &declaration.name {
+                    available.insert(name.clone());
+                }
+            }
+        }
+        for declaration in &index.uses {
+            if !declaration.public { continue; }
+            for leaf in source_exports::flatten_use_declaration(declaration)
+                .map_err(|_| HirAvailabilityError::SourceImportResolutionUnavailable)?
+            {
+                if let source_exports::SourceUseSelection::Name(selected) = leaf.selection {
+                    available.insert(leaf.alias.unwrap_or(selected));
+                }
+            }
+        }
+    }
+
+    fn merge_import(
+        names: &mut HashMap<Box<str>, SourceImportBinding>,
+        name: Box<str>,
+        binding: SourceImportBinding,
+    ) {
+        use SourceImportBinding::{Ambiguous, Resolved};
+        match names.get(&name) {
+            None => { names.insert(name, binding); }
+            Some(Resolved(previous)) => match &binding {
+                Resolved(next) if previous.identity() == next.identity() => {}
+                _ => { names.insert(name, Ambiguous); }
+            },
+            Some(Ambiguous) => {}
+        }
+    }
+    for declaration in &own.uses {
+        let leaves = source_exports::flatten_use_declaration(declaration)
+            .map_err(|_| HirAvailabilityError::SourceImportResolutionUnavailable)?;
+        for leaf in leaves {
+            let (target, selected, exposed) = match leaf.selection {
+                SourceUseSelection::Name(selected) => {
+                    if leaf.path.len() < 2 { return Err(HirAvailabilityError::SourceImportResolutionUnavailable); }
+                    let target = leaf.path[..leaf.path.len() - 1].iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::");
+                    let exposed = leaf.alias.unwrap_or_else(|| selected.clone());
+                    (target, Some(selected), Some(exposed))
+                }
+                SourceUseSelection::Glob { exclusions } => {
+                    if leaf.path.is_empty() { return Err(HirAvailabilityError::SourceImportResolutionUnavailable); }
+                    let excluded = exclusions.into_iter().collect::<std::collections::BTreeSet<_>>();
+                    let target = leaf.path.iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::");
+                    // Resolve only names observed in pinned declaration indexes. A name with
+                    // more than one source route remains explicitly ambiguous.
+                    for candidate in &available {
+                        if !excluded.contains(candidate) {
+                            let resolved = match source_exports::resolve_public_export(indexes, &target, candidate) {
+                                Ok(value) => Some(SourceImportBinding::Resolved(value)),
+                                Err(source_exports::SourceExportResolveError::MissingExport { .. }) => None,
+                                Err(source_exports::SourceExportResolveError::Ambiguous { .. }) => Some(SourceImportBinding::Ambiguous),
+                                Err(_) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
+                            };
+                            if let Some(value) = resolved {
+                                merge_import(&mut names, candidate.clone(), value);
+                            }
+                        }
+                    }
+                    continue;
+                }
+            };
+            let selected = selected.expect("named use has selected name");
+            let exposed = exposed.expect("named use has exposed name");
+            let resolved = match source_exports::resolve_public_export(indexes, &target, &selected) {
+                Ok(value) => SourceImportBinding::Resolved(value),
+                Err(source_exports::SourceExportResolveError::MissingExport { .. }) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
+                Err(source_exports::SourceExportResolveError::Ambiguous { .. }) => SourceImportBinding::Ambiguous,
+                Err(_) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
+            };
+            // Explicit source imports take precedence over the implicit prelude.
+            merge_import(&mut names, exposed, resolved);
+        }
+    }
+    // The prelude is implicit in Yulang2 modules. Explicit imports already
+    // occupy their local names and therefore shadow the prelude binding.
+    let (prelude_root, prelude) = resolve_implicit_prelude_imports(parsed, identity, indexes)?;
+    debug_assert_eq!(parse_root, prelude_root);
+    for (name, binding) in prelude { names.entry(name).or_insert(binding); }
+    Ok((parse_root, names))
+}
+
 impl SemanticImports {
     pub fn empty() -> Self {
         Self { caller_evidence: None, source_imports: None }
@@ -211,6 +315,23 @@ impl SemanticImports {
                 parse_root,
                 identity.clone(),
                 names,
+            )),
+        })
+    }
+
+    /// Resolve all parse-owned `use` leaves against exact indexed source
+    /// providers, then add implicit prelude names not shadowed by explicit
+    /// imports. Glob candidates come only from the supplied provider indexes.
+    pub fn with_source_imports(
+        parsed: &ParsedFile,
+        identity: &ModuleIdentity,
+        indexes: &[source_exports::SourceExportIndex],
+    ) -> Result<Self, HirAvailabilityError> {
+        let (parse_root, names) = resolve_source_imports(parsed, identity, indexes)?;
+        Ok(Self {
+            caller_evidence: None,
+            source_imports: Some(source_exports::SourceImportEnvironment::new(
+                parse_root, identity.clone(), names,
             )),
         })
     }
@@ -3438,6 +3559,34 @@ mod tests {
 
     fn identity() -> ModuleIdentity {
         ModuleIdentity::source_root(FileId::new(FileKey::new("test", "counters.yu")))
+    }
+
+    fn indexed(path: &str, source: &str) -> source_exports::SourceExportIndex {
+        let parsed = parsed(source);
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("test", path)));
+        index_source_exports(identity, &parsed).unwrap()
+    }
+
+    #[test]
+    fn source_imports_resolve_named_alias_and_glob_by_exact_provider() {
+        let indexes = vec![
+            indexed("lib/std.yu", "pub mod core;\npub mod prelude;"),
+            indexed("lib/std/core.yu", "pub id x = x"),
+            indexed("lib/std/prelude.yu", "pub use std::core::*"),
+        ];
+        let consumer = parsed("use std::core::id as identity\npub first = identity 1\npub second = id 2");
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("test", "consumer.yu")));
+        let imports = SemanticImports::with_source_imports(&consumer, &identity, &indexes).unwrap();
+        let environment = imports.source_imports.as_ref().unwrap();
+        let source_exports::SourceImportBinding::Resolved(binding) = environment.resolve("identity").unwrap() else {
+            panic!("named alias resolves to one exact source provider");
+        };
+        assert_eq!(binding.module.as_ref(), "std::core");
+        assert_eq!(binding.name.as_ref(), "id");
+        let source_exports::SourceImportBinding::Resolved(prelude_binding) = environment.resolve("id").unwrap() else {
+            panic!("implicit prelude glob resolves to the same provider");
+        };
+        assert_eq!(prelude_binding.identity(), binding.identity());
     }
 
     #[test]

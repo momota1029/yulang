@@ -1,0 +1,23 @@
+# R301 — unchanged Yulang2 Types/Console CLI path
+
+Status: implementation and proof correspondence in progress; R149 remains OPEN.
+
+## Governing source read this iteration
+
+Read the converted design Markdown (§§9.1–9.6 and §10.1), the converted proof companion (§§3.1–3.6, §4.5 and §7.1–7.5), and the Authoritative R149 Types/Console design. The controlling behavior is the exact unchanged source, exact pinned provider route, same-session inference, ordered whole-module schedule, actual host operation identity, public types and output with no partial publication. The companion explicitly does not let a local Capture/FreshUse result stand in for source typing, public scheme or machine correspondence.
+
+## Current executable evidence
+
+Baseline is `6857f1eb7`. The focused R300 multi-HIR test passes with a pinned `std::prelude` import: two uses of `id` accept `42` and `"Yulang"` in one session, keep distinct FreshUse-local rows and retain `IntPositive` and `StrPositive` bounds. The exact Types CLI input still fails with `Collection(ComponentIdentityExhausted)`. Running a diagnostic source with its final `pair.say` expression removed succeeds; its candidate graph contains the ordered tuple and the expected integer/string child constraints. This variant is only an isolating probe, not a substitute sample. Current `candidate_source` explicitly rejects `LocalSourceForm::FieldTail`; the original sample's `.say` requires actual Display role resolution and tuple implementation selection. The CLI still constructs one HIR using `SemanticImports::empty`, calls single-HIR `CandidateInference::solve`, and selected-definition `execute`; it has no whole-module host-write path.
+
+This iteration adds `SemanticImports::with_source_imports`: parse-owned named, aliased and glob leaves resolve to exact public provider identities; conflicting routes remain ambiguous; explicit names shadow the implicit prelude; glob candidates include indexed declarations and public aliases. A focused HIR test for an alias plus prelude glob passes, and `cargo check -p yu-playground` passes.
+
+The unchanged Types CLI path still stops before candidate collection. The first blocking provider is `lib/std/int.yu`, which imports `std::text::str::str`; exact public export resolution correctly refuses the recovered `pub type str with` declaration. Parsing the pinned `std::text::str` source reports many recovery diagnostics inside its original Yulang2 method bodies (including reference method and delimited argument syntax). This means the current Yulang3 parser cannot yet authenticate and lower the pinned 40-file source closure. No recovered export was accepted or bypassed. The CLI integration currently builds provider indexes/HIRs and invokes one `solve_modules` session only after all providers lower; the exact sample therefore fails during provider import construction. FieldTail, whole-module runtime, host-write authentication and atomic output remain unimplemented.
+
+Prior suite failures are not new R301 findings: the normalization failure and stack-overflow condition are recorded in the R253/R270 receipts; the replay/demand assertion failures are recorded in R228 before the R300 baseline. The R235 test exists in the R300 baseline and fails when rerun now; no baseline rerun was made for that individual test. Package-level solver suite failures remain unresolved, not attributed to R300/R301.
+
+## Planned construction
+
+The source-import API and candidate world scaffolding are present, but the exact closure is not yet lowerable because the parser recovers inside authentic Yulang2 method bodies. Resolve this syntax/source-projection seam before proceeding to type-directed method obligations. Then retain each HIR artifact's original IDs and one candidate solve. For methods, retain a deferred role/member obligation until receiver constraints determine the applicable source implementation; never select by spelling or speculative trial typing. Finally route both samples through the source schedule and authenticate the one `out::write` host implementation.
+
+The R301 contract lists exact write leases and fixed output checks. A passing R301 slice will remain provisional evidence for the CLI samples; Web parity, general source/native proof, principality and production remain open under R149.
