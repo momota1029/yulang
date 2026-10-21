@@ -358,6 +358,14 @@ my outer (t:[signal] int) = {
         for row in &provider_route.graph.capture_rows {
             println!("R210 captured_row={row:?} image={:?}", provider_route.rows.get(row.graph_row));
         }
+        let result_frontier = provider_route.graph.capture_effect_frontiers.iter()
+            .find(|frontier| frontier.representative == crate::candidate_scheme::RowKey::Effect(31))
+            .expect("Capture recorded canonical Effect(31) effect-row predecessors");
+        assert_eq!(result_frontier.requested, crate::candidate_scheme::RowKey::Effect(31));
+        assert_eq!(result_frontier.representative, crate::candidate_scheme::RowKey::Effect(31));
+        assert!(!result_frontier.truncated, "Effect(31) predecessor snapshot is complete");
+        let has_source_owner = result_frontier.direct_lower_rows.contains(&10);
+        println!("R215 effect31_capture_frontier={result_frontier:?} contains_effect10={has_source_owner}");
         for (node_index, node) in provider_route.graph.nodes.iter().enumerate() {
             if let crate::candidate_scheme::Node::Function { polarity, children } = node {
                 println!("R210 function_node={node_index} polarity={polarity:?} children={children:?}");

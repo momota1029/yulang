@@ -3194,6 +3194,7 @@ mod tests {
             live_root: 0,
             boundary: 0,
             capture_rows: Vec::new(),
+            capture_effect_frontiers: Vec::new(),
             capture_forest: state.intrusion.forest_snapshot().unwrap(),
         };
         let first = CandidateGraphRow { state: &state, graph: &graph, index: 0 };
@@ -3300,6 +3301,7 @@ mod tests {
             live_root: 0,
             boundary: 0,
             capture_rows: Vec::new(),
+            capture_effect_frontiers: Vec::new(),
             capture_forest: state.intrusion.forest_snapshot().unwrap(),
         };
         let first = CandidateGraphRow { state, graph: &graph, index: 0 };

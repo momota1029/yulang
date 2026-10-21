@@ -54,6 +54,8 @@ pub(super) struct Graph {
     #[cfg(test)]
     pub capture_rows: Vec<CapturedRowObservation>,
     #[cfg(test)]
+    pub capture_effect_frontiers: Vec<CaptureEffectFrontierObservation>,
+    #[cfg(test)]
     pub capture_forest: candidate_intrusion::ForestSnapshot,
 }
 #[cfg(test)]
@@ -67,6 +69,16 @@ pub(super) struct CapturedRowObservation {
     pub boundary: u32,
     pub local: bool,
     pub forest_event_cursor: usize,
+}
+#[cfg(test)]
+#[derive(Debug)]
+pub(super) struct CaptureEffectFrontierObservation {
+    pub graph_row: usize,
+    pub requested: RowKey,
+    pub representative: RowKey,
+    pub direct_lower_rows: Vec<u32>,
+    pub direct_upper_rows: Vec<u32>,
+    pub truncated: bool,
 }
 #[cfg(test)]
 #[derive(Clone, Copy, Debug)]
@@ -724,6 +736,15 @@ impl Graph {
             #[cfg(test)]
             bytes::<CapturedRowObservation>(self.capture_rows.capacity())?,
             #[cfg(test)]
+            self.capture_effect_frontiers.iter().try_fold(
+                bytes::<CaptureEffectFrontierObservation>(self.capture_effect_frontiers.capacity())?,
+                |total, frontier| sum(&[
+                    total,
+                    bytes::<u32>(frontier.direct_lower_rows.capacity())?,
+                    bytes::<u32>(frontier.direct_upper_rows.capacity())?,
+                ]),
+            )?,
+            #[cfg(test)]
             bytes::<u32>(self.capture_forest.values.capacity())?,
             #[cfg(test)]
             bytes::<u32>(self.capture_forest.effects.capacity())?,
@@ -862,6 +883,29 @@ impl<'a> Capture<'a> {
             non_generic: metadata.non_generic, boundary: self.boundary, local,
             forest_event_cursor: self.session.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.forest_event_cursor(),
         })?;
+        #[cfg(test)]
+        if let RowKey::Effect(effect) = key {
+            const FRONTIER_LIMIT: usize = 256;
+            let bounds = self.session.effect_bounds.get(effect as usize).ok_or_else(exhausted)?;
+            let lower_len = bounds.direct_lower_rows.len();
+            let upper_len = bounds.direct_upper_rows.len();
+            let mut direct_lower_rows = Vec::new();
+            let lower_count = lower_len.min(FRONTIER_LIMIT);
+            direct_lower_rows.try_reserve_exact(lower_count).map_err(|_| exhausted())?;
+            direct_lower_rows.extend_from_slice(&bounds.direct_lower_rows[..lower_count]);
+            let mut direct_upper_rows = Vec::new();
+            let upper_count = upper_len.min(FRONTIER_LIMIT);
+            direct_upper_rows.try_reserve_exact(upper_count).map_err(|_| exhausted())?;
+            direct_upper_rows.extend_from_slice(&bounds.direct_upper_rows[..upper_count]);
+            push(&mut self.graph.capture_effect_frontiers, CaptureEffectFrontierObservation {
+                graph_row: index,
+                requested,
+                representative: key,
+                direct_lower_rows,
+                direct_upper_rows,
+                truncated: lower_len > FRONTIER_LIMIT || upper_len > FRONTIER_LIMIT,
+            })?;
+        }
         self.rows.insert(key, index);
         Ok(index)
     }
@@ -1314,6 +1358,8 @@ impl InferenceSession {
                 boundary,
                 #[cfg(test)]
                 capture_rows: Vec::new(),
+                #[cfg(test)]
+                capture_effect_frontiers: Vec::new(),
                 #[cfg(test)]
                 capture_forest,
             },
