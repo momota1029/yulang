@@ -29,7 +29,7 @@ use crate::{
     pattern::{
         PATTERN_STOP_EQUALS, binding_target_from_entry_item_normalized, pattern_stops_from_owner,
     },
-    statement::{StatementLineHandoff, indented_statement_block_normalized},
+    statement::{StatementLineHandoff, indented_declaration_body_normalized},
 };
 
 pub(crate) fn binding_statement_selected_lexical(
@@ -326,7 +326,7 @@ fn binding_body_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
-        Some(indentation) if indentation > baseline => indented_statement_block_normalized(
+        Some(indentation) if indentation > baseline => indented_declaration_body_normalized(
             i,
             baseline,
             stops,

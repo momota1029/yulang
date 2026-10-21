@@ -291,6 +291,50 @@ fn impl_schema_completed_type_statement_shell_composition() {
 }
 
 #[test]
+fn impl_where_preamble_keeps_repeated_prerequisites_before_members() {
+    use SyntaxKind::*;
+
+    let source = "impl (result 'ok 'err): Display:\n    where 'ok: Display\n    where 'err: Display\n    our value.show = \"result\"";
+    let (green, _) = run_statement(source);
+    let root = SyntaxNode::new_root(green.clone());
+    assert_eq!(root.to_string(), source);
+    assert!(structural_facts(&green).is_empty(), "{root:#?}");
+    let clauses = root
+        .descendants()
+        .filter(|node| node.kind() == WhereClause)
+        .map(|node| node.to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(clauses, ["where 'ok: Display", "where 'err: Display"]);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == BindingStatement)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn malformed_impl_where_clause_keeps_the_member_binding_frontier() {
+    use SyntaxKind::*;
+
+    let source = "impl t: Role:\n    where 'a\n    our value.field = value";
+    let (green, _) = run_statement(source);
+    let root = SyntaxNode::new_root(green.clone());
+    assert_eq!(root.to_string(), source);
+    assert_eq!(
+        root.descendants()
+            .filter(|node| node.kind() == WhereClause)
+            .count(),
+        1
+    );
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == BindingStatement),
+        "{root:#?}"
+    );
+}
+
+#[test]
 fn impl_schema_first_colon_statement_shell_keeps_description_failure_upstream() {
     use SyntaxKind::*;
     for (source, description_children, end, missing, errors) in [

@@ -25,7 +25,7 @@ use crate::{
     statement::{
         StatementAdmission, StatementLineHandoff, braced_statement_block_normalized,
         canonical_statement_from_admission_normalized, classify_statement_item_normalized,
-        indented_statement_block_normalized,
+        indented_declaration_body_normalized,
     },
     type_expr::{
         RequiredTypeFreshPrimaryPolicy, TypeOuterBoundary, is_type_caller_boundary,
@@ -464,7 +464,7 @@ fn colon_body_normalized(
     sequence: crate::sequence::SequenceContext,
 ) -> NormalizedExit {
     match introduced_body_indentation_normalized(i.rb(), item_origin, fence) {
-        Some(indentation) if indentation > baseline => indented_statement_block_normalized(
+        Some(indentation) if indentation > baseline => indented_declaration_body_normalized(
             i,
             baseline,
             stops,

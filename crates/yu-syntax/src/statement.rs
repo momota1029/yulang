@@ -41,7 +41,7 @@ use crate::{
             is_active_stop, is_active_stop_lex, is_close, is_separator, token_kind,
         },
         position::{advanced_origin, suffix_marker},
-        stops::{Stops, stops_for},
+        stops::{STOP_COLON, Stops, stops_for},
         yumark::FenceBoundary,
     },
 };
@@ -472,7 +472,7 @@ enum StatementSequencePolicy {
 }
 
 pub(super) fn indented_statement_block_normalized(
-    mut i: SyntaxIn,
+    i: SyntaxIn,
     base_indent: usize,
     stops: Stops,
     item_origin: usize,
@@ -480,8 +480,38 @@ pub(super) fn indented_statement_block_normalized(
     fence: Option<&FenceBoundary>,
     ambient: AmbientClaimContext<'_>,
 ) -> NormalizedExit {
+    indented_statement_block_inner_normalized(
+        i, base_indent, stops, item_origin, line_entry, fence, ambient, false,
+    )
+}
+
+pub(super) fn indented_declaration_body_normalized(
+    i: SyntaxIn,
+    base_indent: usize,
+    stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> NormalizedExit {
+    indented_statement_block_inner_normalized(
+        i, base_indent, stops, item_origin, line_entry, fence, ambient, true,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn indented_statement_block_inner_normalized(
+    mut i: SyntaxIn,
+    base_indent: usize,
+    stops: Stops,
+    item_origin: usize,
+    line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+    where_prefix: bool,
+) -> NormalizedExit {
     let sequence = Some(crate::sequence::SequenceOwner::IndentedStatement);
-    let (mut item, item_origin, line_entry) =
+    let (mut item, mut item_origin, mut line_entry) =
         statement_item_normalized(i.rb(), item_origin, line_entry, fence, base_indent, stops);
     i.state
         .start_node(SyntaxKind::IndentedStatementBlock.into());
@@ -498,6 +528,24 @@ pub(super) fn indented_statement_block_normalized(
     if !indented_statement_slot_boundary(i.rb(), &item, block_indent, stops) {
         item.emit_all_remaining_leading(&mut *i.state);
     }
+    while where_prefix && is_where_clause_keyword(&item) {
+        let (next, next_origin, next_line_entry) = where_clause_normalized(
+            i.rb(),
+            item,
+            block_indent,
+            stops,
+            item_origin,
+            line_entry,
+            fence,
+            ambient,
+        );
+        item_origin = next_origin;
+        item = next;
+        line_entry = next_line_entry;
+        if !indented_statement_slot_boundary(i.rb(), &item, block_indent, stops) {
+            item.emit_all_remaining_leading(&mut *i.state);
+        }
+    }
     let exit = statement_sequence_normalized(
         i.rb(),
         item,
@@ -513,6 +561,128 @@ pub(super) fn indented_statement_block_normalized(
     );
     i.state.finish_node();
     exit
+}
+
+fn is_where_clause_keyword(item: &Item) -> bool {
+    token_kind(item) == Some(TokenKind::Identifier)
+        && item.payload_view().spelling() == Some("where")
+}
+
+#[allow(clippy::too_many_arguments)]
+fn where_clause_normalized(
+    mut i: SyntaxIn,
+    keyword: Item,
+    baseline: usize,
+    caller_stops: Stops,
+    mut item_origin: usize,
+    mut line_entry: LineEntry,
+    fence: Option<&FenceBoundary>,
+    ambient: AmbientClaimContext<'_>,
+) -> (Item, usize, LineEntry) {
+    i.state.start_node(SyntaxKind::WhereClause.into());
+    keyword.emit_remaining(&mut *i.state, SyntaxKind::WhereKw);
+    let entry = suffix_marker(i.rb());
+    item_origin = advanced_origin(item_origin, entry, i.rb());
+
+    let (subject, subject_origin, subject_line) =
+        crate::type_expr::type_nud_item_normalized_with_ambient(
+            i.rb(), item_origin, line_entry, fence, ambient,
+        );
+    if implicit_delimited_newline(baseline, subject.leading_view()) {
+        emit_recovery_missing(
+            i.rb(),
+            LeadingTrivia::default(),
+            subject.extent(subject_origin).recovery_range().start,
+        );
+        i.state.finish_node();
+        return (subject, subject_origin, subject_line);
+    }
+    let child_entry = suffix_marker(i.rb());
+    let (exit, subject_complete) =
+        crate::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
+            i.rb(),
+            subject,
+            baseline,
+            caller_stops | STOP_COLON,
+            crate::type_expr::TypeOuterBoundary::NONE,
+            subject_origin,
+            subject_line,
+            fence,
+            ambient,
+        );
+    item_origin = advanced_origin(subject_origin, child_entry, i.rb());
+    let (item, origin, next_line_entry) =
+        where_type_successor(i.rb(), exit, item_origin, baseline, caller_stops, fence);
+    item_origin = origin;
+    line_entry = next_line_entry;
+    if !subject_complete || token_kind(&item) != Some(TokenKind::Colon) {
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), item.extent(item_origin).recovery_range().start);
+        i.state.finish_node();
+        return (item, item_origin, line_entry);
+    }
+
+    let entry = suffix_marker(i.rb());
+    emit_token_item(&mut i, item);
+    item_origin = advanced_origin(item_origin, entry, i.rb());
+    let (role, role_origin, role_line) =
+        crate::type_expr::type_nud_item_normalized_with_ambient(
+            i.rb(), item_origin, line_entry, fence, ambient,
+        );
+    if implicit_delimited_newline(baseline, role.leading_view()) {
+        emit_recovery_missing(
+            i.rb(),
+            LeadingTrivia::default(),
+            role.extent(role_origin).recovery_range().start,
+        );
+        i.state.finish_node();
+        return (role, role_origin, role_line);
+    }
+    let child_entry = suffix_marker(i.rb());
+    let (exit, role_complete) =
+        crate::type_expr::required_type_expr_with_caller_stops_and_outer_boundary_normalized_with_ambient(
+            i.rb(),
+            role,
+            baseline,
+            caller_stops,
+            crate::type_expr::TypeOuterBoundary::NONE,
+            role_origin,
+            role_line,
+            fence,
+            ambient,
+        );
+    item_origin = advanced_origin(role_origin, child_entry, i.rb());
+    let (item, item_origin, line_entry) =
+        where_type_successor(i.rb(), exit, item_origin, baseline, caller_stops, fence);
+    if !role_complete {
+        emit_recovery_missing(i.rb(), LeadingTrivia::default(), item.extent(item_origin).recovery_range().start);
+    }
+    i.state.finish_node();
+    (item, item_origin, line_entry)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn where_type_successor(
+    i: SyntaxIn,
+    exit: NormalizedExit,
+    item_origin: usize,
+    baseline: usize,
+    caller_stops: Stops,
+    fence: Option<&FenceBoundary>,
+) -> (Item, usize, LineEntry) {
+    match exit {
+        NormalizedExit::Complete(Err(Either::Left(item)), line_entry) => {
+            (item, item_origin, line_entry)
+        }
+        NormalizedExit::Complete(Err(Either::Right(end)), line_entry) => {
+            (end.item, item_origin, line_entry)
+        }
+        NormalizedExit::Complete(Ok(()), line_entry) => statement_item_normalized(
+            i, item_origin, line_entry, fence, baseline, caller_stops,
+        ),
+        NormalizedExit::Deferred(_, _) => {
+            unreachable!("normalized TypeExpression does not defer a where clause")
+        }
+    }
 }
 
 /// The braced-primary wrapper owns its delimiters and local separator stops;

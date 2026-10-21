@@ -12,7 +12,9 @@ groups. This sprint adds the parser-only Y3-native `PatternFieldTail` for an
 identifier followed by adjacent `.identifier`. It preserves expression
 FieldTail and `::` Pattern paths as distinct constructors. The exact pinned fmt
 census fell from 50 diagnostics to 36: 21 root `ErrorGroup`, 7
-`OperatorChain` `ErrorGroup`, and 7 missing `CaseArm` diagnostics.
+`OperatorChain` `ErrorGroup`, 7 missing `CaseArm`, and 1 missing
+`StringEscape` diagnostic. The earlier three-category subtotal omitted the
+`StringEscape` row.
 
 No role resolution, HIR admission, type/effect result, execution, proof closure
 or production promotion is claimed. The exact Y2 sample and pinned library

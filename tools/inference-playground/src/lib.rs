@@ -550,10 +550,12 @@ mod tests {
                 .or_insert(0usize) += 1;
             assert_eq!(diagnostic.ordinal, Some(groups.values().sum::<usize>() as u32 - 1));
         }
-        assert_eq!(inventory.diagnostics.len(), 36);
-        assert_eq!(groups.get(&("ErrorGroup", "Root")), Some(&21));
-        assert_eq!(groups.get(&("ErrorGroup", "OperatorChain")), Some(&7));
-        assert_eq!(groups.get(&("Missing", "CaseArm")), Some(&7));
+        assert_eq!(inventory.diagnostics.len(), 32);
+        assert_eq!(groups.len(), 4);
+        assert_eq!(groups.get(&("ErrorGroup", "Root")), Some(&1));
+        assert_eq!(groups.get(&("ErrorGroup", "OperatorChain")), Some(&15));
+        assert_eq!(groups.get(&("Missing", "CaseArm")), Some(&15));
+        assert_eq!(groups.get(&("Missing", "StringEscape")), Some(&1));
     }
 
     #[test]

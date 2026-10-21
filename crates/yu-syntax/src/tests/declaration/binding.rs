@@ -113,6 +113,80 @@ fn binding_body_keeps_complete_protected_items_and_quoted_fences() {
 }
 
 #[test]
+fn declaration_binding_where_preamble_parses_subject_role_application_and_body() {
+    use SyntaxKind::*;
+
+    let cases = [
+        (
+            "my format_display(spec: format_spec, value: 'a): str =\n    where 'a: Display\n    value.show",
+            vec!["where 'a: Display"],
+        ),
+        (
+            "my fold(xs: 'container, value: 'item) =\n    where 'container: Fold 'item\n    value",
+            vec!["where 'container: Fold 'item"],
+        ),
+    ];
+    for (source, expected) in cases {
+        let (green, _) = run_statement(source);
+        let root = SyntaxNode::new_root(green.clone());
+        assert_eq!(root.to_string(), source);
+        assert!(structural_facts(&green).is_empty(), "{source:?}: {root:#?}");
+        let clauses = root
+            .descendants()
+            .filter(|node| node.kind() == WhereClause)
+            .map(|node| node.to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(clauses, expected, "{source:?}: {root:#?}");
+        assert_eq!(
+            root.descendants()
+                .filter(|node| node.kind() == BindingStatement)
+                .count(),
+            1
+        );
+    }
+}
+
+#[test]
+fn malformed_binding_where_clause_leaves_the_following_body_statement() {
+    use SyntaxKind::*;
+
+    let source = "my f(value: 'a) =\n    where 'a:\n    value";
+    let (green, _) = run_statement(source);
+    let root = SyntaxNode::new_root(green.clone());
+    assert_eq!(root.to_string(), source);
+    let clauses = root
+        .descendants()
+        .filter(|node| node.kind() == WhereClause)
+        .collect::<Vec<_>>();
+    assert_eq!(clauses.len(), 1, "{root:#?}");
+    assert_eq!(clauses[0].to_string(), "where 'a:");
+    assert!(
+        root.descendants()
+            .any(|node| node.kind() == IdentifierExpression && node.to_string().ends_with("value")),
+        "{root:#?}"
+    );
+}
+
+#[test]
+fn nested_statement_blocks_do_not_enable_declaration_where_prefixes() {
+    use SyntaxKind::*;
+
+    let source = "my f = if true:\n    where 'a: Display\n    1";
+    let (green, exit) = run_statement(source);
+    let root = SyntaxNode::new_root(green.clone());
+    assert_eq!(root.to_string(), "my f = if true:\n    where");
+    assert!(
+        !root.descendants().any(|node| node.kind() == WhereClause),
+        "{root:#?}"
+    );
+    let Some(Err(Either::Left(item))) = exit else {
+        panic!("the ordinary nested parser must leave the unsupported suffix pending")
+    };
+    assert_eq!(token_kind(&item), Some(TokenKind::Unknown));
+    assert_eq!(item.payload_view().spelling(), Some("'"));
+}
+
+#[test]
 fn binding_initial_slots_publish_exact_structural_facts() {
     for (source, kind, range, text) in [
         ("my", StructuralKind::Missing, 2..2, "my"),

@@ -25,10 +25,12 @@ The focused role/impl fixture parses without structural diagnostics and retains
 the exact `PatternFieldTail(Dot, Identifier)` nodes. Focused tests cover chained
 members, missing members, the binding-colon recovery frontier, a spaced dot,
 `..`, and a non-identifier receiver. The exact pinned `fmt.yu` census now has 36
-diagnostics: 21 root `ErrorGroup`s, 7 `OperatorChain` `ErrorGroup`s and 7
-missing `CaseArm`s, down from R277's 50 (36, 7 and 7 respectively). Its exact
-source identity and bytes remain pinned. `cargo check -p yu-playground` passes.
-The sprint static and diff checks are recorded in the handoff after close.
+diagnostics. The corrected four-category R278 census is 21 root `ErrorGroup`s,
+7 `OperatorChain` `ErrorGroup`s, 7 missing `CaseArm`s and 1 missing
+`StringEscape`, down from R277's 50. The earlier subtotal omitted the
+`StringEscape` category. Its exact source identity and bytes remain pinned.
+`cargo check -p yu-playground` passes. The sprint static and diff checks are
+recorded in the handoff after close.
 
 This removes parser recovery at the two dotted target forms only. The remaining
 root recovery, expression errors, HIR admission, role resolution, sample output,

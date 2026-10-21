@@ -17848,6 +17848,25 @@ handoff](agent-loop/inbox/20261022-r274-candidate-tuple-graph-rendering.md),
 [evidence note](../notes/theory/2026-10-22-r274-candidate-tuple-graph-rendering.md),
 and current state.
 
+## R279 checkpoint — declaration-local Yulang2 `where` clauses
+
+Function binding and `impl` bodies now parse consecutive leading `where`
+clauses into ordered `WhereClause` nodes with subject and role TypeExpressions,
+then resume ordinary body parsing. Tests cover applied role types, independent
+repeated prerequisites, malformed frontiers, the following body statement,
+and rejection of declaration-only prefixes inside nested statement blocks.
+The exact pinned fmt census is now 32 diagnostics: 1 root group, 15
+operator-chain groups, 15 missing case arms, and 1 missing string escape. Root
+groups fell from 21 to 1; continued parsing exposed nested expression errors
+previously hidden by root recovery. Six focused where tests, 25 impl declaration
+tests, 16 binding tests, the pinned census, playground check, static check and
+diff check pass. This is syntax only; HIR constraint transport/discharge, role
+selection, sample output, source/native proof and production remain OPEN. See
+the [R279 handoff](agent-loop/inbox/20261021-r279-y2-where-clause.md),
+[design addendum](../notes/design/2026-10-21-r279-y2-where-clause.md),
+[evidence](../notes/theory/2026-10-21-r279-y2-where-clause.md), and current
+state.
+
 ## R275 checkpoint — retain FieldTail source identity
 
 The ordinary HIR carrier now preserves `FieldTail` receiver order, member token
@@ -17896,9 +17915,9 @@ ordered `PatternFieldTail(Dot, Identifier)` nodes, including exact unchanged
 role-signature and implementation-target syntax. Recovery tests cover chained
 members, absent members, caller-colon ownership, spaced dots, `..`, and
 non-identifier receivers. The exact pinned `fmt.yu` census falls from 50 to 36
-diagnostics (21 root groups, 7 operator-chain groups, 7 missing case arms),
-with the source blob and bytes still pinned. Focused parser tests, the census,
-and `cargo check -p yu-playground` pass. This is parser syntax only: module/HIR
+diagnostics (21 root groups, 7 operator-chain groups, 7 missing case arms, 1
+missing string escape), with the source blob and bytes still pinned. Focused
+parser tests, the census, and `cargo check -p yu-playground` pass. This is parser syntax only: module/HIR
 admission, role lookup, unchanged sample output, source/native proof and
 production remain OPEN. See the [R278 handoff](agent-loop/inbox/20261021-r278-y2-dotted-pattern-target.md),
 [syntax addendum](../notes/design/2026-10-21-r278-y2-dotted-binding-pattern.md),

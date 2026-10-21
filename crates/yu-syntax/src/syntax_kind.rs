@@ -291,6 +291,7 @@ pub enum SyntaxKind {
     PatternCallTail,
     LambdaExpression,
     PatternFieldTail,
+    WhereClause,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -495,6 +496,7 @@ impl Language for YulangLanguage {
             value if value == SyntaxKind::PatternPathTail as u16 => SyntaxKind::PatternPathTail,
             value if value == SyntaxKind::PatternCallTail as u16 => SyntaxKind::PatternCallTail,
             value if value == SyntaxKind::PatternFieldTail as u16 => SyntaxKind::PatternFieldTail,
+            value if value == SyntaxKind::WhereClause as u16 => SyntaxKind::WhereClause,
             value if value == SyntaxKind::PatternTypeAnnotation as u16 => {
                 SyntaxKind::PatternTypeAnnotation
             }
@@ -783,10 +785,12 @@ mod tests {
         assert_eq!(SyntaxKind::PatternPathTail as u16, 285);
         assert_eq!(SyntaxKind::PatternCallTail as u16, 286);
         assert_eq!(SyntaxKind::PatternFieldTail as u16, 287);
+        assert_eq!(SyntaxKind::WhereClause as u16, 288);
         for kind in [
             SyntaxKind::PatternPathTail,
             SyntaxKind::PatternCallTail,
             SyntaxKind::PatternFieldTail,
+            SyntaxKind::WhereClause,
         ] {
             let raw = <YulangLanguage as Language>::kind_to_raw(kind);
             assert_eq!(<YulangLanguage as Language>::kind_from_raw(raw), kind);
