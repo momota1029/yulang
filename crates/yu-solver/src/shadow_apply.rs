@@ -2750,9 +2750,32 @@ impl InferenceSession {
         let mut invocation_effect = None;
         let (lower, upper) = match &recipe.relation {
             CandidateRelation::DeferredFieldTail { .. } => {
-                // Preserve the source-owned obligation in the batch, but do
-                // not infer a member type from its spelling or receiver shape.
-                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                let CandidateRelation::DeferredFieldTail { source, member, receiver, receiver_effect, result, result_effect } = &recipe.relation else { unreachable!() };
+                let owner = self.batch.candidate_source.source_owners.get(&recipe.occurrence)
+                    .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let value_row = |endpoint: CandidateEndpoint| -> Result<u32, SolveAvailabilityError> {
+                    match endpoint {
+                        CandidateEndpoint::Component(position) => self.live_components.get(position)
+                            .map(|component| component.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch),
+                        CandidateEndpoint::Parameter(position) => self.parameter_live_base
+                            .checked_add(u32::try_from(position).map_err(|_| SolveAvailabilityError::IdentityExhausted)?)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted),
+                    }
+                };
+                let obligation = crate::candidate_scheme::SourceFieldTailObligation {
+                    owner,
+                    occurrence: recipe.occurrence.clone(),
+                    source: source.clone(),
+                    member: member.clone(),
+                    receiver_row: crate::candidate_scheme::RowKey::Value(value_row(*receiver)?),
+                    receiver_effect: crate::candidate_scheme::RowKey::Effect(self.live_components.get(*receiver_effect).ok_or(SolveAvailabilityError::ReceiptMismatch)?.ordinal),
+                    result_row: crate::candidate_scheme::RowKey::Value(self.live_components.get(*result).ok_or(SolveAvailabilityError::ReceiptMismatch)?.ordinal),
+                    result_effect: crate::candidate_scheme::RowKey::Effect(self.live_components.get(*result_effect).ok_or(SolveAvailabilityError::ReceiptMismatch)?.ordinal),
+                };
+                let state = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                state.retain_source_field_tail_obligation(obligation)?;
+                self.sample_f4_resources(ResourceBoundary::InitialAdmission)?;
+                return Ok(());
             }
             CandidateRelation::Group { child, result, .. } => (
                 self.candidate_endpoint(*child, Polarity::Positive)?,
@@ -3405,6 +3428,7 @@ mod tests {
                 Row { key: RowKey::Effect(7), local: false },
             ],
             source_role_obligations: Vec::new(),
+            source_field_tail_obligations: Vec::new(),
             bounds: Vec::new(),
             bound_evidence: Vec::new(),
             attachment_bundles: Vec::new(),
@@ -3514,6 +3538,7 @@ mod tests {
                 Row { key: parent_key, local: true },
             ],
             source_role_obligations: Vec::new(),
+            source_field_tail_obligations: Vec::new(),
             bounds: Vec::new(),
             bound_evidence: Vec::new(),
             attachment_bundles: Vec::new(),

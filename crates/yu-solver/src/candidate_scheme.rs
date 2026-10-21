@@ -17,6 +17,8 @@ pub(super) struct GraphState {
     pub source: Option<candidate_source::Frame>,
     /// Declaration prerequisites indexed by the exact source provider root.
     pub source_role_obligations: HashMap<DefinitionRootId, Vec<SourceRoleObligation>>,
+    /// Deferred source method lookups indexed by the exact local source root.
+    pub source_field_tail_obligations: HashMap<SourceRootId, Vec<SourceFieldTailObligation>>,
     pub retained_bytes: usize,
     pub scratch_bytes: usize,
     pub orchestration_bytes: usize,
@@ -56,6 +58,18 @@ pub(super) struct SourceRoleObligation {
     pub subject_row: RowKey,
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct SourceFieldTailObligation {
+    pub owner: SourceRootId,
+    pub occurrence: HirOccurrenceId,
+    pub source: yu_hir::shadow::SourceNodeKey,
+    pub member: Box<str>,
+    pub receiver_row: RowKey,
+    pub receiver_effect: RowKey,
+    pub result_row: RowKey,
+    pub result_effect: RowKey,
+}
+
 #[derive(Debug)]
 pub(super) struct Graph {
     pub source_frontier: Vec<candidate_source::SourceRegionId>,
@@ -67,6 +81,7 @@ pub(super) struct Graph {
     pub rows: Vec<Row>,
     /// Each prerequisite points at a row already present in this provider graph.
     pub source_role_obligations: Vec<SourceRoleObligation>,
+    pub source_field_tail_obligations: Vec<SourceFieldTailObligation>,
     pub bounds: Vec<Bound>,
     pub bound_evidence: Vec<candidate_context::EvidenceSnapshot>,
     pub attachment_bundles: Vec<(candidate_context::RelationId, candidate_context::AttachmentBundleId)>,
@@ -232,6 +247,7 @@ pub(super) struct RetainedFreshUseMaps {
     context_remap: HashMap<candidate_context::ContextId, candidate_context::ContextId>,
     evidence_remap: Vec<candidate_context::EvidenceSnapshotId>,
     source_role_obligation_rows: Vec<(usize, usize)>,
+    source_field_tail_obligation_rows: Vec<(usize, [usize; 4])>,
     #[cfg(test)]
     row_observations: Vec<ReconstructedRowObservation>,
 }
@@ -246,6 +262,7 @@ impl RetainedFreshUseMaps {
         observe("context_remap", &self.context_remap);
         observe("evidence_remap", &self.evidence_remap);
         observe("source_role_obligation_rows", &self.source_role_obligation_rows);
+        observe("source_field_tail_obligation_rows", &self.source_field_tail_obligation_rows);
     }
     pub(super) fn observe_map_entries(
         &self,
@@ -362,6 +379,8 @@ pub(super) struct FreshUse {
     /// (obligation ordinal, provider graph row index), both transported by
     /// this same FreshUse row vector.
     source_role_obligation_rows: Vec<(usize, usize)>,
+    /// (FieldTail obligation ordinal, receiver/value-effect and result/value-effect graph rows).
+    source_field_tail_obligation_rows: Vec<(usize, [usize; 4])>,
     terms: Vec<Option<Term>>,
     effect_operands: HashMap<usize, EffectEndpointKey>,
     bundle_remap: HashMap<candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId>,
@@ -374,6 +393,7 @@ impl FreshUse {
     fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         sum(&[self.scope_remap.bytes()?, bytes::<(candidate_context::RelationId, candidate_context::ScopedFlow)>(self.scoped_relations.capacity())?, bytes::<RowKey>(self.rows.capacity())?, bytes::<Option<Term>>(self.terms.capacity())?,
             bytes::<(usize, usize)>(self.source_role_obligation_rows.capacity())?,
+            bytes::<(usize, [usize; 4])>(self.source_field_tail_obligation_rows.capacity())?,
             bytes::<(usize, EffectEndpointKey)>(self.effect_operands.capacity())?,
             bytes::<(candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId)>(self.bundle_remap.capacity())?,
             bytes::<(candidate_context::ContextId, candidate_context::ContextId)>(self.context_remap.capacity())?,
@@ -384,12 +404,14 @@ impl FreshUse {
     fn into_retained_parts(self) -> (Vec<RowKey>, RetainedFreshUseMaps) {
         let FreshUse { scope_remap, scoped_relations, context_use, rows, terms,
             source_role_obligation_rows,
+            source_field_tail_obligation_rows,
             effect_operands, bundle_remap, context_remap, evidence_remap,
             #[cfg(test)] row_observations,
         } = self;
         (rows, RetainedFreshUseMaps { scope_remap, scoped_relations, context_use,
             terms, effect_operands, bundle_remap, context_remap, evidence_remap,
             source_role_obligation_rows,
+            source_field_tail_obligation_rows,
             #[cfg(test)] row_observations,
         })
     }
@@ -764,6 +786,14 @@ fn clone_role_obligations(
     cloned.extend(obligations.iter().cloned());
     Ok(cloned)
 }
+fn clone_field_tail_obligations(
+    obligations: &[SourceFieldTailObligation],
+) -> Result<Vec<SourceFieldTailObligation>, SolveAvailabilityError> {
+    let mut cloned = Vec::new();
+    cloned.try_reserve_exact(obligations.len()).map_err(|_| exhausted())?;
+    cloned.extend(obligations.iter().cloned());
+    Ok(cloned)
+}
 fn bytes<T>(capacity: usize) -> Result<usize, SolveAvailabilityError> {
     capacity
         .checked_mul(std::mem::size_of::<T>())
@@ -788,9 +818,13 @@ impl Graph {
             bytes::<usize>(self.tuple_children.capacity())?,
             bytes::<Row>(self.rows.capacity())?,
             bytes::<SourceRoleObligation>(self.source_role_obligations.capacity())?,
+            bytes::<SourceFieldTailObligation>(self.source_field_tail_obligations.capacity())?,
             self.source_role_obligations.iter().try_fold(0usize, |total, obligation| sum(&[
                 total,
                 bytes::<u8>(obligation.role_spelling.len())?,
+            ]))?,
+            self.source_field_tail_obligations.iter().try_fold(0usize, |total, obligation| sum(&[
+                total, bytes::<u8>(obligation.member.len())?,
             ]))?,
             #[cfg(test)]
             bytes::<CapturedRowObservation>(self.capture_rows.capacity())?,
@@ -845,6 +879,32 @@ impl GraphState {
         Ok(())
     }
 
+    pub(super) fn retain_source_field_tail_obligation(
+        &mut self,
+        obligation: SourceFieldTailObligation,
+    ) -> Result<(), SolveAvailabilityError> {
+        if self.source_field_tail_obligations.get(&obligation.owner).is_some_and(|items|
+            items.iter().any(|old| old.occurrence == obligation.occurrence)) {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
+        }
+        let old_map_capacity = self.source_field_tail_obligations.capacity();
+        if !self.source_field_tail_obligations.contains_key(&obligation.owner) {
+            self.source_field_tail_obligations.try_reserve(1).map_err(|_| exhausted())?;
+        }
+        let map_growth = self.source_field_tail_obligations.capacity() - old_map_capacity;
+        let items = self.source_field_tail_obligations.entry(obligation.owner.clone()).or_default();
+        let old_items_capacity = items.capacity();
+        items.try_reserve(1).map_err(|_| exhausted())?;
+        let added = sum(&[
+            bytes::<(SourceRootId, Vec<SourceFieldTailObligation>)>(map_growth)?,
+            bytes::<SourceFieldTailObligation>(items.capacity() - old_items_capacity)?,
+            bytes::<u8>(obligation.member.len())?,
+        ])?;
+        self.retained_bytes = self.retained_bytes.checked_add(added).ok_or_else(exhausted)?;
+        items.push(obligation);
+        Ok(())
+    }
+
     pub(super) fn commit_local_use(&mut self) {
         let frame = self.local_use.pop().expect("completed local parent");
         let route_index = self.local_routes.len();
@@ -885,6 +945,7 @@ impl GraphState {
             bytes::<(HirOccurrenceId, usize)>(self.local_route_by_occurrence.capacity())?,
             bytes::<LocalUse>(self.local_use.capacity())?,
             bytes::<(DefinitionRootId, Vec<SourceRoleObligation>)>(self.source_role_obligations.capacity())?,
+            bytes::<(SourceRootId, Vec<SourceFieldTailObligation>)>(self.source_field_tail_obligations.capacity())?,
         ])?;
         for obligations in self.source_role_obligations.values() {
             total = sum(&[
@@ -893,6 +954,15 @@ impl GraphState {
                 obligations.iter().try_fold(0usize, |accumulated, obligation| sum(&[
                     accumulated,
                     bytes::<u8>(obligation.role_spelling.len())?,
+                ]))?,
+            ])?;
+        }
+        for obligations in self.source_field_tail_obligations.values() {
+            total = sum(&[
+                total,
+                bytes::<SourceFieldTailObligation>(obligations.capacity())?,
+                obligations.iter().try_fold(0usize, |accumulated, obligation| sum(&[
+                    accumulated, bytes::<u8>(obligation.member.len())?,
                 ]))?,
             ])?;
         }
@@ -1560,13 +1630,13 @@ impl InferenceSession {
         Ok(())
     }
     pub(super) fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
-        self.capture_candidate_graph_owned(row, boundary, &[], &[])
+        self.capture_candidate_graph_owned(row, boundary, &[], &[], &[])
     }
-    fn capture_candidate_graph_owned(&mut self, row: u32, boundary: u32, frontier: &[candidate_source::SourceRegionId], obligations: &[SourceRoleObligation]) -> Result<Graph, SolveAvailabilityError> {
+    fn capture_candidate_graph_owned(&mut self, row: u32, boundary: u32, frontier: &[candidate_source::SourceRegionId], obligations: &[SourceRoleObligation], field_tails: &[SourceFieldTailObligation]) -> Result<Graph, SolveAvailabilityError> {
         if self.batch.candidate_source.scoped_experiment && frontier.is_empty() { return Err(SolveAvailabilityError::ReceiptMismatch); }
         let entry = self.candidate_graph.as_ref().ok_or_else(exhausted)?.scratch_bytes;
         let evidence_charge = CaptureEvidenceMeter::default();
-        let result = self.capture_candidate_graph_inner(row, boundary, &evidence_charge, frontier, obligations);
+        let result = self.capture_candidate_graph_inner(row, boundary, &evidence_charge, frontier, obligations, field_tails);
         #[cfg(test)]
         {
             let state = self.candidate_graph.as_mut().unwrap();
@@ -1593,7 +1663,7 @@ impl InferenceSession {
         }
         result
     }
-    fn capture_candidate_graph_inner(&mut self, row: u32, boundary: u32, evidence_charge: &CaptureEvidenceMeter, frontier: &[candidate_source::SourceRegionId], obligations: &[SourceRoleObligation]) -> Result<Graph, SolveAvailabilityError> {
+    fn capture_candidate_graph_inner(&mut self, row: u32, boundary: u32, evidence_charge: &CaptureEvidenceMeter, frontier: &[candidate_source::SourceRegionId], obligations: &[SourceRoleObligation], field_tails: &[SourceFieldTailObligation]) -> Result<Graph, SolveAvailabilityError> {
         if let Some(first) = obligations.first() {
             if obligations.iter().any(|obligation| {
                 obligation.provider != first.provider
@@ -1603,6 +1673,20 @@ impl InferenceSession {
             }
         }
         let retained_obligations = clone_role_obligations(obligations)?;
+        if let Some(first) = field_tails.first() {
+            if first.owner.definition_root().is_none()
+                || field_tails.iter().any(|obligation| obligation.owner != first.owner) {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
+        }
+        let mut retained_field_tails = clone_field_tail_obligations(field_tails)?;
+        let intrusion = &self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion;
+        for obligation in &mut retained_field_tails {
+            obligation.receiver_row = intrusion.rep(obligation.receiver_row);
+            obligation.receiver_effect = intrusion.rep(obligation.receiver_effect);
+            obligation.result_row = intrusion.rep(obligation.result_row);
+            obligation.result_effect = intrusion.rep(obligation.result_effect);
+        }
         let mut source_frontier = Vec::new(); source_frontier.try_reserve_exact(frontier.len()).map_err(|_| exhausted())?;
         source_frontier.extend_from_slice(frontier);
         let owned_regions = self.candidate_graph.as_mut().ok_or_else(exhausted)?.intrusion.effect_algebra.context.scope_inventory.owned(frontier)?;
@@ -1617,6 +1701,7 @@ impl InferenceSession {
                 nodes: Vec::new(), tuple_children: Vec::new(),
                 rows: Vec::new(),
                 source_role_obligations: retained_obligations,
+                source_field_tail_obligations: retained_field_tails,
                 bounds: Vec::new(),
                 bound_evidence: Vec::new(),
                 attachment_bundles: Vec::new(),
@@ -1654,6 +1739,21 @@ impl InferenceSession {
                 ))?;
             } else {
                 return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
+        }
+        for index in 0..capture.graph.source_field_tail_obligations.len() {
+            let (value_keys, effect_keys) = {
+                let obligation = &capture.graph.source_field_tail_obligations[index];
+                ([obligation.receiver_row, obligation.result_row],
+                    [obligation.receiver_effect, obligation.result_effect])
+            };
+            for key in value_keys {
+                let RowKey::Value(value) = key else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                capture.intern_shape(Endpoint::Value(ValueEndpointKey::ValueRow(value), Polarity::Positive))?;
+            }
+            for key in effect_keys {
+                let RowKey::Effect(effect) = key else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                capture.intern_shape(Endpoint::Effect(EffectEndpointKey::EffectRow(effect), Polarity::Positive))?;
             }
         }
         let mut row_cursor = 0;
@@ -1699,6 +1799,12 @@ impl InferenceSession {
         }
         for obligation in &capture.graph.source_role_obligations {
             if !capture.graph.rows.iter().any(|row| row.key == obligation.subject_row) {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
+        }
+        for obligation in &capture.graph.source_field_tail_obligations {
+            if [obligation.receiver_row, obligation.receiver_effect, obligation.result_row, obligation.result_effect]
+                .iter().any(|key| !capture.graph.rows.iter().any(|row| row.key == *key)) {
                 return Err(SolveAvailabilityError::ReceiptMismatch);
             }
         }
@@ -1837,7 +1943,10 @@ impl InferenceSession {
                     {
                         let obligations = self.candidate_graph.as_ref().ok_or_else(exhausted)?
                             .source_role_obligations.get(&root).map_or(Ok(Vec::new()), |items| clone_role_obligations(items))?;
-                        self.capture_candidate_graph_owned(self.live_components[component].ordinal, 0, &source_frontier, &obligations)?
+                        let field_tails = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                            .source_field_tail_obligations.get(&SourceRootId::Definition(root.clone()))
+                            .map_or(Ok(Vec::new()), |items| clone_field_tail_obligations(items))?;
+                        self.capture_candidate_graph_owned(self.live_components[component].ordinal, 0, &source_frontier, &obligations, &field_tails)?
                     },
                 ));
             }
@@ -1917,7 +2026,7 @@ impl InferenceSession {
         let entry_scratch = self.candidate_graph.as_ref().unwrap().scratch_bytes;
         let result = (|| {
             let graph = if source_frontier.is_empty() { self.capture_candidate_graph(root, boundary)? }
-                else { self.capture_candidate_graph_owned(root, boundary, &source_frontier, &[])? };
+                else { self.capture_candidate_graph_owned(root, boundary, &source_frontier, &[], &[])? };
             self.instantiate_candidate_graph(id, &record, graph, entry_scratch)
         })();
         self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes = entry_scratch;
@@ -2003,6 +2112,16 @@ impl InferenceSession {
                 .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
             source_role_obligation_rows.push((obligation_index, row_index));
         }
+        let mut source_field_tail_obligation_rows = Vec::new();
+        source_field_tail_obligation_rows.try_reserve_exact(graph.source_field_tail_obligations.len()).map_err(|_| exhausted())?;
+        for (obligation_index, obligation) in graph.source_field_tail_obligations.iter().enumerate() {
+            let keys = [obligation.receiver_row, obligation.receiver_effect, obligation.result_row, obligation.result_effect];
+            let mut indexes = [0usize; 4];
+            for (slot, key) in keys.into_iter().enumerate() {
+                indexes[slot] = graph.rows.iter().position(|row| row.key == key).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            }
+            source_field_tail_obligation_rows.push((obligation_index, indexes));
+        }
         #[cfg(test)]
         let mut row_observations = {
             let mut observations = Vec::new();
@@ -2020,6 +2139,7 @@ impl InferenceSession {
         let scratch = sum(&[
             bytes::<RowKey>(rows.capacity())?,
             bytes::<(usize, usize)>(source_role_obligation_rows.capacity())?,
+            bytes::<(usize, [usize; 4])>(source_field_tail_obligation_rows.capacity())?,
             bytes::<(RowKey, RowKey)>(canonical_rows.capacity())?,
             #[cfg(test)]
             bytes::<ReconstructedRowObservation>(row_observations.capacity())?,
@@ -2314,7 +2434,7 @@ impl InferenceSession {
             return Err(error);
         }
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
-        Ok(FreshUse { scope_remap, scoped_relations, context_use, rows, source_role_obligation_rows, terms, effect_operands, bundle_remap, context_remap, evidence_remap,
+        Ok(FreshUse { scope_remap, scoped_relations, context_use, rows, source_role_obligation_rows, source_field_tail_obligation_rows, terms, effect_operands, bundle_remap, context_remap, evidence_remap,
             #[cfg(test)] row_observations,
         })
     }
@@ -2494,7 +2614,7 @@ impl InferenceSession {
                 session.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
                 // Capture and construction remain atomic; no child has started.
                 let frontier = capture_region.as_slice();
-                let graph = session.capture_candidate_graph_owned(root, boundary, frontier, &[])?;
+                let graph = session.capture_candidate_graph_owned(root, boundary, frontier, &[], &[])?;
                 let caller = session.batch.candidate_source.occurrence_regions.get(occurrence).copied();
                 let fresh = session.prepare_candidate_fresh_use(&graph, level, caller)?;
                 let retained = sum(&[session.candidate_graph.as_ref().unwrap().retained_bytes, graph.bytes()?, fresh.bytes()?])?;
@@ -2828,7 +2948,7 @@ mod authentic_demand_capture_tests {
 
         let component = session.batch.root_component_positions[&root].component;
         let graph = session.capture_candidate_graph_owned(
-            session.live_components[component].ordinal, 0, &[], &obligations,
+            session.live_components[component].ordinal, 0, &[], &obligations, &[],
         ).unwrap();
         assert_eq!(graph.source_role_obligations.len(), 1);
         let row_index = graph.rows.iter().position(|row| row.key == obligation.subject_row).unwrap();
@@ -2938,6 +3058,66 @@ mod authentic_demand_capture_tests {
             Some(authenticated_id),
             "the exact imported role identity reaches the retained declaration obligation",
         );
+    }
+
+    #[test]
+    fn deferred_field_tail_rows_survive_capture_and_same_freshuse_map() {
+        const SOURCE: &str = "my select x = x.show\n";
+        let text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "fieldtail-freshuse-identity", "source.yu",
+            ))), &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let root = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "select" => Some(binding.definition_root().clone()),
+            _ => None,
+        }).unwrap();
+        let batch = ConstraintBatch::collect_candidate_mode(hir.clone(), true, true).unwrap();
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.start_candidate_graph().unwrap();
+        session.execute_candidate_source_root(&root).unwrap();
+
+        let retained_bytes = session.candidate_graph.as_ref().unwrap().retained_bytes;
+        session.candidate_graph.as_mut().unwrap().refresh_bytes().unwrap();
+        assert_eq!(session.candidate_graph.as_ref().unwrap().retained_bytes, retained_bytes,
+            "deferred FieldTail records participate in checked accounting");
+        let owner = SourceRootId::Definition(root.clone());
+        let obligations = clone_field_tail_obligations(session.candidate_graph.as_ref().unwrap()
+            .source_field_tail_obligations.get(&owner).unwrap()).unwrap();
+        assert_eq!(obligations.len(), 1);
+        assert_eq!(obligations[0].member.as_ref(), "show");
+        assert_eq!(obligations[0].owner, owner);
+        let source = hir.local_source(&root).unwrap().unwrap();
+        let field = source.expressions().iter().find(|expression|
+            matches!(expression.form, yu_hir::shadow::LocalSourceForm::FieldTail { .. })).unwrap();
+        assert_eq!(obligations[0].occurrence, field.occurrence);
+        assert_eq!(obligations[0].source, field.source);
+
+        let component = session.batch.root_component_positions[&root].component;
+        let graph = session.capture_candidate_graph_owned(
+            session.live_components[component].ordinal, 0, &[], &[], &obligations,
+        ).unwrap();
+        assert_eq!(graph.source_field_tail_obligations.len(), 1);
+        let transported = &graph.source_field_tail_obligations[0];
+        let keys = [transported.receiver_row, transported.receiver_effect, transported.result_row, transported.result_effect];
+        let indexes = keys.map(|key| graph.rows.iter().position(|row| row.key == key).unwrap());
+        let fresh = session.prepare_candidate_fresh_use(&graph, 1, None).unwrap();
+        assert_eq!(fresh.source_field_tail_obligation_rows, [(0, indexes)]);
+        for index in indexes {
+            if graph.rows[index].local {
+                assert_ne!(fresh.rows[index], graph.rows[index].key,
+                    "each local value/effect row uses its same FreshUse image");
+            } else {
+                assert_eq!(fresh.rows[index], graph.rows[index].key,
+                    "shared value/effect anchors remain fixed");
+            }
+        }
+        let (rows, retained) = fresh.into_retained_parts();
+        assert_eq!(retained.source_field_tail_obligation_rows, [(0, indexes)]);
+        for index in indexes { let _same_use_image = rows[index]; }
     }
 
     #[test]
@@ -3815,7 +3995,7 @@ my outer (q:[io] int) = {
         }).unwrap();
         let local = session.candidate_graph.as_ref().unwrap().locals.iter().flatten().find(|local| local.id == initializer).unwrap();
         let (root, boundary, capture_region) = (local.root, local.boundary, local.capture_region);
-        let graph = session.capture_candidate_graph_owned(root, boundary, capture_region.as_slice(), &[]).unwrap();
+        let graph = session.capture_candidate_graph_owned(root, boundary, capture_region.as_slice(), &[], &[]).unwrap();
         let context = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
         // Strict latent-only reachability is not established for this source.
         // This control selects an authentic local-formal demand and its real scheme.

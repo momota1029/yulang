@@ -10583,6 +10583,10 @@ impl InferenceSession {
     #[cfg(feature = "shadow-apply-candidate")]
     fn finish_candidate(self) -> Result<CandidateSolvedResult, SolveAvailabilityError> {
         assert!(self.candidate_graph.is_some() && self.finalization.is_none());
+        if self.candidate_graph.as_ref().is_some_and(|state|
+            state.source_field_tail_obligations.values().any(|obligations| !obligations.is_empty())) {
+            return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+        }
         let finished = self.finish_observations()?;
         assert!(finished.closed_types.is_none());
         assert!(finished.schemes.is_empty());
