@@ -38,3 +38,10 @@ Pinned provider role indexes now accompany export indexes through Playground pre
 Candidate collection attaches the exact imported role-member IDs whose member spelling matches a FieldTail to the deferred relation. The IDs survive admission beside the existing parse source key and member spelling. The focused solver test `deferred_field_tail_keeps_authenticated_role_member_candidates` verifies that an imported `Display.show` source member identity reaches the FieldTail obligation; `deferred_field_tail_rows_survive_capture_and_same_freshuse_map` verifies the separate row transport contract. The unchanged Types/Console boundary tests and `cargo check -p yu-playground` pass.
 
 This slice still does not select a role implementation from receiver bounds, connect the FieldTail to a chosen method application, discharge nested `show`, or execute either unchanged sample. The exact samples, source/native bridge, independent review, and R149 parent gate remain OPEN.
+
+
+## Types receiver bounds
+
+A bounded solver test now runs candidate source scheduling through the unchanged Types bindings and retained `pair.say` FieldTail. After the full source schedule, the receiver row reaches a positive two-element tuple lower bound. Its children remain separate positive Value rows; following the ordinary direct-lower edges reaches `IntPositive` for the first child and `StrPositive` for the second. This is the exact receiver evidence needed to distinguish the pinned ordered-pair `Display` implementation from the other source candidates.
+
+The test `types_sample_fieldtail_receiver_bounds_expose_ordered_pair_shape` passes. It observes solver bounds directly and does not force a type, choose an implementation, type the method body, or run output. The next implementation seam is to match authenticated implementation target structure against these already accumulated receiver bounds, then transport the selected default/member source and its nested `show` prerequisite through the same candidate session.

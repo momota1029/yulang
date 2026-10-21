@@ -3187,6 +3187,67 @@ mod authentic_demand_capture_tests {
     }
 
     #[test]
+    fn types_sample_fieldtail_receiver_bounds_expose_ordered_pair_shape() {
+        const SOURCE: &str = "my id x = x\nmy answer = id 42\nmy name = id \"Yulang\"\nmy pair = (answer, name)\npair.say\n";
+        let text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
+        let parsed = yu_syntax::parse_file(
+            text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "fieldtail-types-bounds", "Types.yu",
+            ))), &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap();
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.start_candidate_graph().unwrap();
+        session.execute().unwrap();
+
+        let obligations = session.candidate_graph.as_ref().unwrap().source_field_tail_obligations.values()
+            .flat_map(|items| items.iter()).collect::<Vec<_>>();
+        assert_eq!(obligations.len(), 1);
+        assert_eq!(obligations[0].member.as_ref(), "say");
+        let RowKey::Value(receiver) = obligations[0].receiver_row else { panic!("FieldTail receiver is a Value row"); };
+        let mut pending = vec![receiver];
+        let mut visited = HashSet::new();
+        let mut pair_element_rows = None;
+        while let Some(row) = pending.pop() {
+            if !visited.insert(row) { continue; }
+            let bounds = &session.bounds[row as usize];
+            pending.extend(bounds.direct_lower_rows.iter().copied());
+            for endpoint in &bounds.exact_non_variable_lowers {
+                let ValueEndpointKey::PositiveTuple(term, 2) = *endpoint else { continue; };
+                let TermView::PositiveTuple { elements } = session.store.term_view(term).unwrap() else {
+                    panic!("positive tuple endpoint retains a positive tuple term");
+                };
+                pair_element_rows = Some(elements.iter().map(|element| {
+                    let TermView::LiveVariable(variable) = session.store.term_view(*element).unwrap() else {
+                        panic!("tuple element type remains a live Value row before its bounds are inspected");
+                    };
+                    assert_eq!(variable.kind(), ComponentKind::Value);
+                    assert_eq!(variable.polarity(), Polarity::Positive);
+                    variable.ordinal()
+                }).collect::<Vec<_>>());
+            }
+        }
+        let pair_element_rows = pair_element_rows.expect("receiver has a two-element tuple lower bound");
+        assert_eq!(pair_element_rows.len(), 2);
+        for (row, expected_leaf) in pair_element_rows.into_iter().zip([ValueEndpointKey::IntPositive, ValueEndpointKey::StrPositive]) {
+            let mut pending = vec![row];
+            let mut visited = HashSet::new();
+            let mut observed_expected_leaf = false;
+            while let Some(row) = pending.pop() {
+                if !visited.insert(row) { continue; }
+                let bounds = &session.bounds[row as usize];
+                pending.extend(bounds.direct_lower_rows.iter().copied());
+                observed_expected_leaf |= bounds.exact_non_variable_lowers.iter().any(|endpoint| *endpoint == expected_leaf);
+            }
+            assert!(observed_expected_leaf, "pair element row retains its corresponding source lower bound");
+        }
+    }
+
+    #[test]
     fn tuple_fresh_use_reconstructs_each_captured_child_in_order() {
         const SOURCE: &str = "my tuple = (1, (true, \"x\"))\nmy copied = tuple";
         let text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
