@@ -5,20 +5,23 @@
   "session": "r262-20261021",
   "active_sprint": {
     "id": "R262",
-    "status": "ACTIVE",
+    "status": "RESULT",
     "contract": "tasks/agent-loop/sprints/yulang2-bounded-comment-projection-20261021-r262.md",
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 0,
-      "reserved_seconds": 420,
+      "charged_seconds": 420,
+      "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "Test whether line-leading Y2 -- comments can be projected byte-preservingly to Y3 // comments for all 40 pinned sources.",
-    "implementation": "Primary-only read-only probe; temporary test only; no compiler edits or retained tests.",
-    "review_receipt": "No independent reviewer assigned; provisional result only.",
-    "next_action": "Authenticate comment locations, parse projected sources, inspect diagnostics/recoveries and compare direct root counts.",
-    "closure": "R260 remains conditional; exact Y2 registration/publication, R149 outputs, parent proofs and production OPEN.",
-    "contract_sha256": "3845d66b8c686e0d62529016a1599c245810cafc917ba567962d29d9cba4b3fa"
+    "proof": "Primary-only projection falsifier: after rewriting all 11 line-leading -- comments to //, 33/40 modules still have 474 syntax diagnostics and structural recoveries.",
+    "implementation": "Read-only parser probe; temporary diagnostic test removed; no compiler or retained test edits.",
+    "review_receipt": "Primary-only; unreviewed.",
+    "next_action": "Search the repository for an authentic Y2 parser/registration path; do not infer Y2 roots from current Y3 CSTs.",
+    "closure": "R260 conditional; exact Y2 root vector, R149 consumers/output, parent proofs and production OPEN.",
+    "contract_sha256": "3845d66b8c686e0d62529016a1599c245810cafc917ba567962d29d9cba4b3fa",
+    "note_sha256": "7db3575d07cefb64cc713c09f0813c8aceb9805478ede74938d6121ebe53d367",
+    "inbox_sha256": "028abb94cc082df43b4d7d641907c8edb48a678227378a0889e7a685e212d681",
+    "note": "notes/theory/2026-10-21-r262-comment-projection-falsifier.md"
   },
   "workers": [
     {
@@ -291,8 +294,20 @@
     {
       "path": "tasks/agent-loop/sprints/yulang2-bounded-comment-projection-20261021-r262.md",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "R262 active primary contract."
+      "state": "FROZEN",
+      "reason": "R262 result recorded; immutable contract."
+    },
+    {
+      "path": "notes/theory/2026-10-21-r262-comment-projection-falsifier.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R262 primary-only result; immutable evidence."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r262-comment-projection-falsifier.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R262 primary-only result; immutable evidence."
     }
   ],
   "pending": [
@@ -360,11 +375,11 @@
       "id": "R149-SOURCE-OWNER-CLOSURE-1",
       "state": "STOPPED_UNFROZEN_RESULT",
       "owner": "Luna intake",
-      "details": "R258-R259 derive declaration/local roots; R260 conditional source census; R261 shows current Y3 CST cannot witness Y2 roots (-- comments misparsed). Exact Y2 parsed root vector and R149 consumers/output OPEN."
+      "details": "R258-R259 derive declaration/local roots; R260 conditional source census; R261 rejects Y3 CST as Y2 root witness; R262 comment-only projection still yields 474 diagnostics/recoveries across 33/40 modules. Exact Y2 root vector and R149 consumers/output OPEN."
     }
   ],
-  "closure": "R261 falsifies using current Y3 parser counts as a Y2 root witness. R260 remains conditional; exact Y2 root vector, sample identities/types, specialization, Request reachability, output, parent proofs and production remain OPEN.",
-  "next_action": "R262: probe exact pinned Y2 comment projection against the current parser; do not treat Y3 parse output as a Y2 root witness without correspondence evidence.",
+  "closure": "R262 falsifies a comment-only Y2-to-Y3 parser projection: 33 modules retain 474 syntax diagnostics/recoveries. R260 remains conditional; exact Y2 roots, sample types, specialization, Request reachability, output, parent proofs and production remain OPEN.",
+  "next_action": "Continue R149 by searching this repository for an authentic Y2 parser/registration path; if absent, map exact Y2 constructs responsible for the failed projection and obtain a source-native root correspondence.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
