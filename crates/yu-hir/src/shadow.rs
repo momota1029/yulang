@@ -360,6 +360,17 @@ pub fn lower_module_with_local_source(
     crate::module::lower_module_with_local_source(identity, parsed, imports)
 }
 
+/// Forms local source carriers only for selected direct roots while retaining
+/// their original parse and module identity.
+pub fn lower_module_with_selected_local_source(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+    selected_roots: std::collections::HashSet<yu_syntax::SourceNodeKey>,
+) -> Result<HirModule, HirAvailabilityError> {
+    crate::module::lower_module_with_selected_local_source(identity, parsed, imports, selected_roots)
+}
+
 impl HirModule {
     pub fn source_effect_declarations(&self) -> &[SourceEffectDeclaration] {
         &self.effect_declarations

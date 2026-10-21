@@ -1429,6 +1429,24 @@ pub(crate) fn lower_module_with_local_source(
 }
 
 #[cfg(any(feature = "shadow", test))]
+pub(crate) fn lower_module_with_selected_local_source(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+    selected_roots: std::collections::HashSet<yu_syntax::SourceNodeKey>,
+) -> Result<HirModule, HirAvailabilityError> {
+    if selected_roots.iter().any(|root| !parsed.owns_source_key(root)) {
+        return Err(HirAvailabilityError::ForeignSourceImport);
+    }
+    let mut counters = LoweringCounters::default();
+    counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(parsed));
+    counters.source_nodes = crate::source_identity::source_keys(parsed);
+    counters.local_source = true;
+    counters.selected_local_source_roots = Some(selected_roots);
+    lower_module_with_counters(identity, parsed, imports, &mut counters)
+}
+
+#[cfg(any(feature = "shadow", test))]
 pub(crate) fn index_role_impl_sources(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
@@ -1506,6 +1524,19 @@ fn lower_module_with_counters(
         let ordinal = u32::try_from(index).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
         plans.push(plan_root(node, ordinal, &identity, counters)?);
     }
+    let selected_ordinals = if let Some(selected) = counters.selected_local_source_roots.as_ref() {
+        let mut ordinals = std::collections::HashSet::new();
+        ordinals.try_reserve(selected.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        for plan in &plans {
+            if counters.source_nodes.get(&plan.node).is_some_and(|source| selected.contains(source)) {
+                ordinals.insert(plan.ordinal);
+            }
+        }
+        if ordinals.len() != selected.len() {
+            return Err(HirAvailabilityError::StructuralProjection);
+        }
+        Some(ordinals)
+    } else { None };
     let partition = partition_recoveries(&recoveries, plans.len(), counters)?;
     let namespace = namespace(&mut plans, imports.source_imports.as_ref())?;
     let mut sink = ErrorSink::default();
@@ -1622,6 +1653,9 @@ fn lower_module_with_counters(
     if counters.ordinary_source_carriers {
         for (index, (plan, item)) in plans.iter().zip(&items).enumerate() {
             let HirItem::Binding(binding) = item else { continue; };
+            if counters.selected_local_source_roots.as_ref().is_some_and(|selected| {
+                counters.source_nodes.get(&plan.node).is_none_or(|source| !selected.contains(source))
+            }) { continue; }
             let owner = SourceRootId::Definition(binding.definition_root.clone());
             let outcome = local_source::form_ordinary(
                 plan, &owner, &binding.parameters, &namespace,
@@ -1633,6 +1667,9 @@ fn lower_module_with_counters(
     if counters.ordinary_source_carriers || counters.local_source {
         for (index, (plan, item)) in plans.iter().zip(&items).enumerate() {
             let HirItem::Expression(expression) = item else { continue; };
+            if counters.selected_local_source_roots.as_ref().is_some_and(|selected| {
+                counters.source_nodes.get(&plan.node).is_none_or(|source| !selected.contains(source))
+            }) { continue; }
             let root = expression_roots.get(expression.occurrence())
                 .ok_or(HirAvailabilityError::StructuralProjection)?;
             let owner = SourceRootId::Expression(root.clone());
@@ -1648,6 +1685,31 @@ fn lower_module_with_counters(
         &artifact,
         &mut next_occurrence_ordinal,
     )?;
+    if let Some(selected) = &selected_ordinals {
+        let retained_definitions = plans.iter().filter_map(|plan| {
+            if !selected.contains(&plan.ordinal) { return None; }
+            match &plan.kind { RootPlanKind::Binding(admitted) => Some(admitted.id.clone()), _ => None }
+        }).collect::<std::collections::HashSet<_>>();
+        let retained_errors = sink.errors.iter().filter(|error| match error.attachment() {
+            HirErrorAttachment::Module => true,
+            HirErrorAttachment::DirectRootItem(ordinal) => selected.contains(ordinal),
+            HirErrorAttachment::Definition(id) | HirErrorAttachment::Value(id) => retained_definitions.contains(id),
+        }).map(HirError::id).collect::<std::collections::HashSet<_>>();
+        sink.errors.retain(|error| retained_errors.contains(&error.id()));
+        sink.diagnostics.retain(|diagnostic| retained_errors.contains(&diagnostic.error()));
+        let mut ordinal = 0u32;
+        items.retain(|_| { let keep = selected.contains(&ordinal); ordinal += 1; keep });
+        expression_roots.retain(|occurrence, _| items.iter().any(|item| matches!(item, HirItem::Expression(expression) if expression.occurrence() == occurrence)));
+        let source_nodes = &counters.source_nodes;
+        if let Some(source) = counters.source_identity.as_mut() {
+            source.definitions.retain(|_, key| plans.iter().any(|plan| {
+                selected.contains(&plan.ordinal) && source_nodes.get(&plan.node).is_some_and(|root| root == key)
+            }));
+            source.expressions.retain(|_, key| plans.iter().any(|plan| {
+                selected.contains(&plan.ordinal) && source_nodes.get(&plan.node).is_some_and(|root| root == key)
+            }));
+        }
+    }
     let source_carriers: Vec<_> = outcomes.into_iter().flatten().collect();
     let mut source_carrier_indices = HashMap::new();
     source_carrier_indices.try_reserve(source_carriers.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
@@ -1704,6 +1766,7 @@ fn next_occurrence(
 struct LoweringCounters {
     ordinary_source_carriers: bool,
     local_source: bool,
+    selected_local_source_roots: Option<std::collections::HashSet<yu_syntax::SourceNodeKey>>,
     local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]
     effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
@@ -2459,7 +2522,12 @@ fn lower_plan(
     }
     let parameters = parameters.into_boxed_slice();
     #[cfg(any(feature = "shadow", test))]
-    let simple_body_projection = if counters.local_source {
+    let selected_for_local_source = counters
+        .selected_local_source_roots
+        .as_ref()
+        .is_none_or(|selected| counters.source_nodes.get(&plan.node).is_some_and(|source| selected.contains(source)));
+    #[cfg(any(feature = "shadow", test))]
+    let simple_body_projection = if counters.local_source && selected_for_local_source {
         let (carrier, projection) = local_source::form(
             plan,
             &SourceRootId::Definition(definition_root.clone()),
@@ -3587,6 +3655,27 @@ mod tests {
             panic!("implicit prelude glob resolves to the same provider");
         };
         assert_eq!(prelude_binding.identity(), binding.identity());
+    }
+
+    #[test]
+    fn selected_local_source_lowers_only_parse_owned_direct_roots() {
+        let parsed = parsed("pub wanted = 1\npub unused = missing.field");
+        let roots = parsed.source_root().children().collect::<Vec<_>>();
+        let selected = [roots[0].key()].into_iter().collect();
+        let hir = lower_module_with_selected_local_source(
+            identity(), &parsed, SemanticImports::empty(), selected,
+        ).unwrap();
+        assert_eq!(hir.items().len(), 1);
+        assert_eq!(hir.local_sources.len(), 1);
+        assert_eq!(hir.source_identity.as_ref().unwrap().definitions.len(), 1);
+
+        let nested = roots[0].children().next().unwrap().key();
+        assert_eq!(
+            lower_module_with_selected_local_source(
+                identity(), &parsed, SemanticImports::empty(), [nested].into_iter().collect(),
+            ),
+            Err(HirAvailabilityError::StructuralProjection),
+        );
     }
 
     #[test]
