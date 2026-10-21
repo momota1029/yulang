@@ -1587,6 +1587,9 @@ impl Builder<'_> {
                 {
                     return Err(unsupported());
                 }
+                // A where clause is a preamble child, not one side of the
+                // statement/separator alternation emitted for the body.
+                continue;
             } else if expect_statement && child.kind() == SyntaxKind::Statement {
                 seen_statement = true;
                 push(&mut statements, only_child(&child)?)?;

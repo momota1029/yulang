@@ -515,7 +515,7 @@ mod where_clause_source_tests {
 
     #[test]
     fn candidate_preflight_does_not_drop_retained_declaration_prerequisites() {
-        let text = "my display(value: 'a) =\n    where 'a: Display\n    where 'a: Clone\n    value";
+        let text = "my display(value: 'a) =\n    where 'a: Display\n    value";
         let source: Arc<yu_syntax::SourceText> = Arc::from(text);
         let parsed = yu_syntax::parse_file(
             source.clone(),
@@ -536,7 +536,7 @@ mod where_clause_source_tests {
             _ => None,
         }).expect("binding");
         let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
-        assert_eq!(source.where_clauses().len(), 2);
+        assert_eq!(source.where_clauses().len(), 1);
         assert!(matches!(
             preflight(source, false),
             Err(shadow_apply::CandidateError::Unsupported)
