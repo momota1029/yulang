@@ -27,8 +27,22 @@ fn assert_type_conflict(source: &str, label: &str) {
     assert!(stderr.contains("IncompatibleEffect"), "{label} must identify the effect mismatch: {stderr}");
 }
 
+fn assert_infers(source: &str, label: &str) {
+    let output = infer_source(source);
+    assert!(
+        output.status.success(),
+        "{label} should infer successfully: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.stderr.is_empty(),
+        "{label} emitted diagnostics: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 #[test]
-fn higher_order_formal_effect_mismatch_is_not_lost() {
+fn contravariant_formal_effect_keeps_its_open_tail() {
     let direct = format!(
         "{PRELUDE}my bad: int -> [state] int = \\x -> state::put x\nmy good: int -> [io] int = bad\n"
     );
@@ -37,23 +51,29 @@ fn higher_order_formal_effect_mismatch_is_not_lost() {
     let higher_order_unused = format!(
         "{PRELUDE}my bad: int -> [state] int = \\x -> state::put x\nmy accept (f: int -> [io] int) = 0\nmy main = accept bad\n"
     );
-    assert_type_conflict(&higher_order_unused, "unused higher-order formal");
+    assert_infers(
+        &higher_order_unused,
+        "unused higher-order formal accepts an open row",
+    );
 
     let higher_order_called = format!(
         "{PRELUDE}my bad: int -> [state] int = \\x -> state::put x\nmy accept (f: int -> [io] int) = f 0\nmy main = accept bad\n"
     );
-    assert_type_conflict(&higher_order_called, "called higher-order formal");
+    assert_infers(
+        &higher_order_called,
+        "called higher-order formal accepts an open row",
+    );
 
     let higher_order_inline = format!(
         "{PRELUDE}my accept (f: int -> [io] int) = 0\nmy main = accept (\\x -> state::put x)\n"
     );
-    assert_type_conflict(&higher_order_inline, "inline higher-order actual");
+    assert_infers(
+        &higher_order_inline,
+        "inline higher-order actual accepts an open row",
+    );
 
     let compatible = format!(
         "{PRELUDE}my good: int -> [io] int = \\x -> io::ping x\nmy accept (f: int -> [io] int) = f 0\nmy main = accept good\n"
     );
-    let output = infer_source(&compatible);
-    assert!(output.status.success(), "matching higher-order effects must remain accepted: {}",
-        String::from_utf8_lossy(&output.stderr));
-    assert!(output.stderr.is_empty());
+    assert_infers(&compatible, "matching higher-order effects");
 }

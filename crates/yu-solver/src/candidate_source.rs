@@ -1506,6 +1506,11 @@ impl ConstraintBatch {
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                         }
+                        LocalSourceForm::Tuple { .. } => {
+                            // The carrier preserves tuple source identity, but
+                            // inference has no native ordered product term yet.
+                            return Err(unavailable());
+                        }
                         LocalSourceForm::Group { inner } => {
                             if self.candidate_source.scoped_experiment {
                                 let child_occurrence = &source.expressions()[inner.ordinal() as usize].occurrence;

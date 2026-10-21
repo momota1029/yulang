@@ -463,12 +463,14 @@ fn definition_root_validation_preserves_program_ownership() {
 
 #[test]
 fn unavailable_or_recovered_expression_source_is_never_skipped() {
-    for source in ["(1, 2); my main = 7", "f(@missing); my main = 7"] {
-        assert!(matches!(
-            RuntimeProgram::from_hir(hir(source), RuntimeEvidence::default()),
-            Err(RuntimeUnavailable::MissingSource)
-        ));
-    }
+    assert!(matches!(
+        RuntimeProgram::from_hir(hir("(1, 2); my main = 7"), RuntimeEvidence::default()),
+        Err(RuntimeUnavailable::InvalidSourceReference)
+    ));
+    assert!(matches!(
+        RuntimeProgram::from_hir(hir("f(@missing); my main = 7"), RuntimeEvidence::default()),
+        Err(RuntimeUnavailable::MissingSource)
+    ));
     let error = yu_playground::execute(
         "@; my main = 7",
         "runtime-module-expressions.yu",

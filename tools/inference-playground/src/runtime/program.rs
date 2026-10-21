@@ -564,6 +564,12 @@ impl RuntimeProgram {
                     LocalSourceForm::Sequence { items } => Instruction::Sequence {
                         items: items.iter().map(label).collect::<Result<_, _>>()?,
                     },
+                    // Candidate inference currently refuses Tuple source forms,
+                    // so runtime compilation must not erase one into Unit or
+                    // Group if an unauthenticated caller reaches this layer.
+                    LocalSourceForm::Tuple { .. } => {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
                     LocalSourceForm::Case { scrutinee, arms } => Instruction::Case {
                         scrutinee: label(scrutinee)?,
                         arms: arms.iter().map(|arm| {
@@ -1103,6 +1109,7 @@ fn handler_arm_operation_ranges(
                 }
             }
             Form::Sequence { items } => pending.extend(items.iter().cloned()),
+            Form::Tuple { elements } => pending.extend(elements.iter().cloned()),
             Form::Group { inner } | Form::Ascription { inner, .. } => pending.push(inner.clone()),
             Form::Lambda { body, .. } => pending.push(body.clone()),
             Form::Block { bindings, final_expression } => {

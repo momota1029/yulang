@@ -1396,35 +1396,10 @@ impl InferenceSession {
                 self.candidate_formal_effect_variable(scope, &row.variables[0], level)?,
             Some(row) if variance == Polarity::Negative && !row.concrete.is_empty() && row.variables.is_empty() => {
                 let port = self.fresh_effect_at_level(level)?;
-                let view = if let Some(&view) = views.get(&row.position) {
-                    view
-                } else {
-                    views.try_reserve(1).map_err(|_| exhausted())?;
-                    let mut allowed = Vec::new();
-                    allowed.try_reserve_exact(row.concrete.len()).map_err(|_| exhausted())?;
-                    allowed.extend(row.concrete.iter().cloned());
-                    let view = self.candidate_signature_view(
-                        annotation.owner.clone(),
-                        row.position.clone(),
-                        allowed,
-                        None,
-                        None,
-                        Some(candidate_context::AttachmentSource {
-                            composed_polarity: variance,
-                            lexical_scope: scope.clone(),
-                        }),
-                    )?;
-                    views.insert(row.position.clone(), view);
-                    view
-                };
-                // Keep the source permission below for the formal's local
-                // handling role, and also retain the negative effect boundary
-                // so a supplied callback must fit its declared effect set.
-                self.candidate_insert_bound(
-                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(port)),
-                    Polarity::Negative,
-                    ExtrusionEndpoint::Effect(EffectEndpointKey::Allowance(view)),
-                )?;
+                // In a negative port, a concrete row such as [io] is an open
+                // effect-row annotation ([io, 'e]); its concrete members grant
+                // the formal's local handling permission but do not form a
+                // closed upper bound on a supplied callback.
                 if permissions.len() == permissions.capacity() { return Err(exhausted()); }
                 let mut retained_path = Vec::new();
                 retained_path.try_reserve_exact(path.len()).map_err(|_| exhausted())?;

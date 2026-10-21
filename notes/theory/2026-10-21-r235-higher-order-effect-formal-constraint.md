@@ -1,5 +1,21 @@
 # R235 — Higher-order formal effect boundary
 
+## R252 correction
+
+The central R235 claim and its regression were incorrect. In the contravariant
+effect position of `f: int -> [io] int`, `[io]` means an open row `[io, 'e]`.
+The `[state]` callback therefore does not violate the formal. The direct
+positive annotation `my good: int -> [io] int = bad` remains a valid mismatch
+control, but it does not establish the higher-order rule.
+
+R252 removed the closed `Allowance([io])` bound from the negative formal-effect
+port and retained its `FormalPermission` for local handler use. The CLI
+regression now expects `[state]` callbacks to infer for unused, called and
+inline higher-order formals, while the direct positive annotation still
+reports `IncompatibleEffect`. All source/native proof and parent closure claims
+remain open. The R235 implementation and conclusions below are historical and
+superseded.
+
 Date: 2026-10-21. Status: unreviewed candidate-path implementation result.
 Branch: `research/simple-sub-intrusion`. Sprint contract:
 [`higher-order-effect-formal-constraint-20261021-r235.md`](../../tasks/agent-loop/sprints/higher-order-effect-formal-constraint-20261021-r235.md).
