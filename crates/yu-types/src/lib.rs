@@ -138,6 +138,7 @@ pub enum IndexedPositiveNode {
     Quantified(u32),
     Recursive(u32),
     Union(IndexedChildSpan),
+    Tuple(IndexedChildSpan),
     Function {
         argument: IndexedNegativeNodeId,
         result: IndexedPositiveNodeId,
@@ -155,6 +156,7 @@ pub enum IndexedNegativeNode {
     Quantified(u32),
     Recursive(u32),
     Intersection(IndexedChildSpan),
+    Tuple(IndexedChildSpan),
     Function {
         argument: IndexedPositiveNodeId,
         result: IndexedNegativeNodeId,
@@ -349,7 +351,7 @@ fn indexed_reserve_overlay(
     let mut functions = 0usize;
     for node in input.positive_nodes {
         match node {
-            IndexedPositiveNode::Union(span) => {
+            IndexedPositiveNode::Union(span) | IndexedPositiveNode::Tuple(span) => {
                 p_children = p_children
                     .checked_add(
                         usize::try_from(span.len)
@@ -367,7 +369,7 @@ fn indexed_reserve_overlay(
     }
     for node in input.negative_nodes {
         match node {
-            IndexedNegativeNode::Intersection(span) => {
+            IndexedNegativeNode::Intersection(span) | IndexedNegativeNode::Tuple(span) => {
                 n_children = n_children
                     .checked_add(
                         usize::try_from(span.len)
@@ -491,6 +493,9 @@ fn indexed_validate(
             IndexedPositiveNode::Union(span) => {
                 indexed_range(span, input.positive_children.len())?;
             }
+            IndexedPositiveNode::Tuple(span) => {
+                indexed_range(span, input.positive_children.len())?;
+            }
             IndexedPositiveNode::Function { argument, result } => {
                 valid_n(argument)?;
                 valid_p(result)?;
@@ -507,6 +512,9 @@ fn indexed_validate(
                 return Err(ClosedTypeFinalizeError::InvalidDraft);
             }
             IndexedNegativeNode::Intersection(span) => {
+                indexed_range(span, input.negative_children.len())?;
+            }
+            IndexedNegativeNode::Tuple(span) => {
                 indexed_range(span, input.negative_children.len())?;
             }
             IndexedNegativeNode::Function { argument, result } => {
@@ -583,6 +591,16 @@ fn indexed_validate(
                                 .push((IndexedVisit::Positive(valid_p(id)?), false));
                         }
                     }
+                    IndexedPositiveNode::Tuple(span) => {
+                        for &id in input.positive_children
+                            [indexed_range(span, input.positive_children.len())?]
+                        .iter()
+                        .rev()
+                        {
+                            temp.reserve(finalizer, |t| &mut t.stack, 1)?;
+                            temp.stack.push((IndexedVisit::Positive(valid_p(id)?), false));
+                        }
+                    }
                     _ => {}
                 },
                 IndexedVisit::Negative(i) => match input.negative_nodes[i] {
@@ -601,6 +619,16 @@ fn indexed_validate(
                             temp.reserve(finalizer, |t| &mut t.stack, 1)?;
                             temp.stack
                                 .push((IndexedVisit::Negative(valid_n(id)?), false));
+                        }
+                    }
+                    IndexedNegativeNode::Tuple(span) => {
+                        for &id in input.negative_children
+                            [indexed_range(span, input.negative_children.len())?]
+                        .iter()
+                        .rev()
+                        {
+                            temp.reserve(finalizer, |t| &mut t.stack, 1)?;
+                            temp.stack.push((IndexedVisit::Negative(valid_n(id)?), false));
                         }
                     }
                     _ => {}
@@ -630,6 +658,7 @@ pub enum PositiveValueView<'a> {
         result: PositiveValueId,
     },
     Union(&'a [PositiveValueId]),
+    Tuple(&'a [PositiveValueId]),
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NegativeValueView<'a> {
@@ -648,6 +677,7 @@ pub enum NegativeValueView<'a> {
         result: NegativeValueId,
     },
     Intersection(&'a [NegativeValueId]),
+    Tuple(&'a [NegativeValueId]),
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PositiveEffectView {
@@ -744,6 +774,7 @@ enum PNode {
         start: u32,
         len: u32,
     },
+    Tuple { start: u32, len: u32 },
 }
 #[derive(Clone, Debug)]
 enum NNode {
@@ -765,6 +796,7 @@ enum NNode {
         start: u32,
         len: u32,
     },
+    Tuple { start: u32, len: u32 },
 }
 #[derive(Clone, Copy, Debug)]
 struct NeutralNode {
@@ -859,6 +891,11 @@ impl ClosedTypeArena {
                     let end = start + *len as usize;
                     PositiveValueView::Union(&self.positive_children[start..end])
                 }
+                PNode::Tuple { start, len } => {
+                    let start = *start as usize;
+                    let end = start + *len as usize;
+                    PositiveValueView::Tuple(&self.positive_children[start..end])
+                }
             },
         )
     }
@@ -895,6 +932,11 @@ impl ClosedTypeArena {
                     let start = *start as usize;
                     let end = start + *len as usize;
                     NegativeValueView::Intersection(&self.negative_children[start..end])
+                }
+                NNode::Tuple { start, len } => {
+                    let start = *start as usize;
+                    let end = start + *len as usize;
+                    NegativeValueView::Tuple(&self.negative_children[start..end])
                 }
             },
         )
@@ -1248,6 +1290,7 @@ enum DP {
     R(u32),
     Function { a: u32, ae: u32, re: u32, r: u32 },
     Union(DraftRange),
+    Tuple(DraftRange),
 }
 #[derive(Clone)]
 enum DN {
@@ -1261,6 +1304,7 @@ enum DN {
     R(u32),
     Function { a: u32, ae: u32, re: u32, r: u32 },
     Intersection(DraftRange),
+    Tuple(DraftRange),
 }
 #[derive(Clone, Copy)]
 struct DBound {
@@ -1284,6 +1328,7 @@ enum PlannedPNode {
     Recursive(u32),
     Function { a: u32, ae: u32, re: u32, r: u32 },
     Union(DraftRange),
+    Tuple(DraftRange),
 }
 #[derive(Clone)]
 enum PlannedNNode {
@@ -1297,6 +1342,7 @@ enum PlannedNNode {
     Recursive(u32),
     Function { a: u32, ae: u32, re: u32, r: u32 },
     Intersection(DraftRange),
+    Tuple(DraftRange),
 }
 #[derive(Clone, Copy)]
 struct PlannedNeutralNode {
@@ -1927,6 +1973,21 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
         let len = Scratch::index_for_len(xs.len(), &mut self.scratch.failure)?;
         self.p(DP::Union(DraftRange { start, len }))
     }
+    pub fn positive_tuple(
+        &mut self,
+        xs: &[DraftPositiveValueId<'tx>],
+    ) -> Result<DraftPositiveValueId<'tx>, ClosedTypeFinalizeError> {
+        let start =
+            Scratch::index_for_len(self.scratch.p_children.len(), &mut self.scratch.failure)?;
+        for x in xs {
+            self.pok(x.index)?;
+            #[cfg(test)]
+            self.before(FinalizationLane::PositiveChild, self.scratch.p_children.len())?;
+            self.push_into(|scratch| &mut scratch.p_children, x.index)?;
+        }
+        let len = Scratch::index_for_len(xs.len(), &mut self.scratch.failure)?;
+        self.p(DP::Tuple(DraftRange { start, len }))
+    }
     pub fn negative_top(&mut self) -> Result<DraftNegativeValueId<'tx>, ClosedTypeFinalizeError> {
         self.n(DN::Top)
     }
@@ -1994,6 +2055,21 @@ impl<'tx> ClosedTypeFinalizer<'tx> {
         }
         let len = Scratch::index_for_len(xs.len(), &mut self.scratch.failure)?;
         self.n(DN::Intersection(DraftRange { start, len }))
+    }
+    pub fn negative_tuple(
+        &mut self,
+        xs: &[DraftNegativeValueId<'tx>],
+    ) -> Result<DraftNegativeValueId<'tx>, ClosedTypeFinalizeError> {
+        let start =
+            Scratch::index_for_len(self.scratch.n_children.len(), &mut self.scratch.failure)?;
+        for x in xs {
+            self.nok(x.index)?;
+            #[cfg(test)]
+            self.before(FinalizationLane::NegativeChild, self.scratch.n_children.len())?;
+            self.push_into(|scratch| &mut scratch.n_children, x.index)?;
+        }
+        let len = Scratch::index_for_len(xs.len(), &mut self.scratch.failure)?;
+        self.n(DN::Tuple(DraftRange { start, len }))
     }
     pub fn positive_effect_bottom(
         &mut self,
@@ -2419,6 +2495,16 @@ impl ClosedTypeFinalizationSession {
                                     }
                                     f.positive_union(&temp.positive_children)?
                                 }
+                                IndexedPositiveNode::Tuple(span) => {
+                                    let range = indexed_range(span, input.positive_children.len())?;
+                                    temp.positive_children.clear();
+                                    temp.reserve(f, |t| &mut t.positive_children, range.len())?;
+                                    for &id in &input.positive_children[range] {
+                                        temp.positive_children
+                                            .push(indexed_positive(id, &temp.positive)?);
+                                    }
+                                    f.positive_tuple(&temp.positive_children)?
+                                }
                             };
                             temp.positive[i] = Some(value);
                         }
@@ -2467,6 +2553,16 @@ impl ClosedTypeFinalizationSession {
                                             .push(indexed_negative(id, &temp.negative)?);
                                     }
                                     f.negative_intersection(&temp.negative_children)?
+                                }
+                                IndexedNegativeNode::Tuple(span) => {
+                                    let range = indexed_range(span, input.negative_children.len())?;
+                                    temp.negative_children.clear();
+                                    temp.reserve(f, |t| &mut t.negative_children, range.len())?;
+                                    for &id in &input.negative_children[range] {
+                                        temp.negative_children
+                                            .push(indexed_negative(id, &temp.negative)?);
+                                    }
+                                    f.negative_tuple(&temp.negative_children)?
                                 }
                             };
                             temp.negative[i] = Some(value);
@@ -2940,6 +3036,10 @@ impl ClosedTypeFinalizationSession {
                     start: checked_add(pc, range.start)?,
                     len: range.len,
                 }),
+                DP::Tuple(range) => PlannedPNode::Tuple(DraftRange {
+                    start: checked_add(pc, range.start)?,
+                    len: range.len,
+                }),
             });
         }
         for &id in &self.scratch.n_children {
@@ -2962,6 +3062,10 @@ impl ClosedTypeFinalizationSession {
                     r: checked_add(n, r)?,
                 },
                 DN::Intersection(range) => PlannedNNode::Intersection(DraftRange {
+                    start: checked_add(nc, range.start)?,
+                    len: range.len,
+                }),
+                DN::Tuple(range) => PlannedNNode::Tuple(DraftRange {
                     start: checked_add(nc, range.start)?,
                     len: range.len,
                 }),
@@ -3140,6 +3244,10 @@ impl ClosedTypeFinalizationSession {
                             start: range.start,
                             len: range.len,
                         },
+                        PlannedPNode::Tuple(range) => PNode::Tuple {
+                            start: range.start,
+                            len: range.len,
+                        },
                     });
                 }
             };
@@ -3193,6 +3301,10 @@ impl ClosedTypeFinalizationSession {
                             },
                         },
                         PlannedNNode::Intersection(range) => NNode::Intersection {
+                            start: range.start,
+                            len: range.len,
+                        },
+                        PlannedNNode::Tuple(range) => NNode::Tuple {
                             start: range.start,
                             len: range.len,
                         },
@@ -3419,7 +3531,7 @@ fn validate(s: &Scratch) -> Result<(), ClosedTypeFinalizeError> {
         match *node {
             DP::Q(x) if !qok(x) => return Err(ClosedTypeFinalizeError::InvalidDraft),
             DP::R(x) if !rok(x) => return Err(ClosedTypeFinalizeError::InvalidDraft),
-            DP::Union(range)
+            DP::Union(range) | DP::Tuple(range)
                 if range
                     .start
                     .checked_add(range.len)
@@ -3434,7 +3546,7 @@ fn validate(s: &Scratch) -> Result<(), ClosedTypeFinalizeError> {
         match *node {
             DN::Q(x) if !qok(x) => return Err(ClosedTypeFinalizeError::InvalidDraft),
             DN::R(x) if !rok(x) => return Err(ClosedTypeFinalizeError::InvalidDraft),
-            DN::Intersection(range)
+            DN::Intersection(range) | DN::Tuple(range)
                 if range
                     .start
                     .checked_add(range.len)
@@ -3544,6 +3656,13 @@ fn alpha_p(
                     .zip(ys)
                     .all(|(x, y)| alpha_p(l, r, *x, *y, q, qr, rb, rbr))
         }
+        (Ok(PositiveValueView::Tuple(xs)), Ok(PositiveValueView::Tuple(ys))) => {
+            xs.len() == ys.len()
+                && xs
+                    .iter()
+                    .zip(ys)
+                    .all(|(x, y)| alpha_p(l, r, *x, *y, q, qr, rb, rbr))
+        }
         _ => false,
     }
 }
@@ -3590,6 +3709,13 @@ fn alpha_n(
                 && alpha_n(l, r, ar, br, q, qr, rb, rbr)
         }
         (Ok(NegativeValueView::Intersection(xs)), Ok(NegativeValueView::Intersection(ys))) => {
+            xs.len() == ys.len()
+                && xs
+                    .iter()
+                    .zip(ys)
+                    .all(|(x, y)| alpha_n(l, r, *x, *y, q, qr, rb, rbr))
+        }
+        (Ok(NegativeValueView::Tuple(xs)), Ok(NegativeValueView::Tuple(ys))) => {
             xs.len() == ys.len()
                 && xs
                     .iter()
@@ -4742,6 +4868,228 @@ mod tests {
             .unwrap()
             .join()
             .unwrap();
+    }
+
+    #[test]
+    fn indexed_positive_and_negative_tuples_preserve_order_and_arity() {
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let positive_nodes = [
+            IndexedPositiveNode::Int,
+            IndexedPositiveNode::Str,
+            IndexedPositiveNode::Tuple(IndexedChildSpan { start: 0, len: 2 }),
+        ];
+        let positive_children = [IndexedPositiveNodeId(0), IndexedPositiveNodeId(1)];
+        let positive = session
+            .finalize_indexed_scheme(IndexedSchemeRef {
+                quantifier_count: 0,
+                predicate: IndexedPositiveNodeId(2),
+                positive_nodes: &positive_nodes,
+                negative_nodes: &[],
+                positive_children: &positive_children,
+                negative_children: &[],
+                recursive_bounds: &[],
+            })
+            .unwrap();
+
+        let nested_positive_nodes = [
+            IndexedPositiveNode::Str,
+            IndexedPositiveNode::Int,
+            IndexedPositiveNode::Tuple(IndexedChildSpan { start: 0, len: 2 }),
+        ];
+        let reordered = session
+            .finalize_indexed_scheme(IndexedSchemeRef {
+                quantifier_count: 0,
+                predicate: IndexedPositiveNodeId(2),
+                positive_nodes: &nested_positive_nodes,
+                negative_nodes: &[],
+                positive_children: &positive_children,
+                negative_children: &[],
+                recursive_bounds: &[],
+            })
+            .unwrap();
+        let one_child_nodes = [
+            IndexedPositiveNode::Int,
+            IndexedPositiveNode::Tuple(IndexedChildSpan { start: 0, len: 1 }),
+        ];
+        let different_arity = session
+            .finalize_indexed_scheme(IndexedSchemeRef {
+                quantifier_count: 0,
+                predicate: IndexedPositiveNodeId(1),
+                positive_nodes: &one_child_nodes,
+                negative_nodes: &[],
+                positive_children: &[IndexedPositiveNodeId(0)],
+                negative_children: &[],
+                recursive_bounds: &[],
+            })
+            .unwrap();
+        let view = session.scheme_view(positive.test_scheme()).unwrap();
+        let PositiveValueView::Tuple(children) = view.positive_value(view.predicate()).unwrap()
+        else {
+            panic!("indexed product must remain a public Tuple")
+        };
+        assert_eq!(children.len(), 2);
+        assert_eq!(view.positive_value(children[0]), Ok(PositiveValueView::Int));
+        assert_eq!(view.positive_value(children[1]), Ok(PositiveValueView::Str));
+        assert!(!view.alpha_eq(session.scheme_view(reordered.test_scheme()).unwrap()));
+        assert!(!view.alpha_eq(session.scheme_view(different_arity.test_scheme()).unwrap()));
+
+        let negative_nodes = [
+            IndexedNegativeNode::Int,
+            IndexedNegativeNode::Str,
+            IndexedNegativeNode::Tuple(IndexedChildSpan { start: 0, len: 2 }),
+        ];
+        let negative_children = [IndexedNegativeNodeId(0), IndexedNegativeNodeId(1)];
+        let function_nodes = [
+            IndexedPositiveNode::Int,
+            IndexedPositiveNode::Function {
+                argument: IndexedNegativeNodeId(2),
+                result: IndexedPositiveNodeId(0),
+            },
+        ];
+        let negative = session
+            .finalize_indexed_scheme(IndexedSchemeRef {
+                quantifier_count: 0,
+                predicate: IndexedPositiveNodeId(1),
+                positive_nodes: &function_nodes,
+                negative_nodes: &negative_nodes,
+                positive_children: &[],
+                negative_children: &negative_children,
+                recursive_bounds: &[],
+            })
+            .unwrap();
+        let negative_scheme = negative.test_scheme();
+
+        let reordered_negative_nodes = [
+            IndexedNegativeNode::Str,
+            IndexedNegativeNode::Int,
+            IndexedNegativeNode::Tuple(IndexedChildSpan { start: 0, len: 2 }),
+        ];
+        let reordered_negative = session
+            .finalize_indexed_scheme(IndexedSchemeRef {
+                quantifier_count: 0,
+                predicate: IndexedPositiveNodeId(1),
+                positive_nodes: &function_nodes,
+                negative_nodes: &reordered_negative_nodes,
+                positive_children: &[],
+                negative_children: &negative_children,
+                recursive_bounds: &[],
+            })
+            .unwrap();
+        let one_negative_nodes = [
+            IndexedNegativeNode::Int,
+            IndexedNegativeNode::Tuple(IndexedChildSpan { start: 0, len: 1 }),
+        ];
+        let one_negative_function_nodes = [
+            IndexedPositiveNode::Int,
+            IndexedPositiveNode::Function {
+                argument: IndexedNegativeNodeId(1),
+                result: IndexedPositiveNodeId(0),
+            },
+        ];
+        let one_negative = session
+            .finalize_indexed_scheme(IndexedSchemeRef {
+                quantifier_count: 0,
+                predicate: IndexedPositiveNodeId(1),
+                positive_nodes: &one_negative_function_nodes,
+                negative_nodes: &one_negative_nodes,
+                positive_children: &[],
+                negative_children: &[IndexedNegativeNodeId(0)],
+                recursive_bounds: &[],
+            })
+            .unwrap();
+        let negative_view = session.scheme_view(negative_scheme).unwrap();
+        let PositiveValueView::Function { argument, .. } = negative_view
+            .positive_value(negative_view.predicate())
+            .unwrap()
+        else {
+            panic!("function argument must retain its negative product")
+        };
+        let NegativeValueView::Tuple(children) = negative_view.negative_value(argument).unwrap()
+        else {
+            panic!("indexed negative product must remain a Tuple")
+        };
+        assert_eq!(children.len(), 2);
+        assert_eq!(negative_view.negative_value(children[0]), Ok(NegativeValueView::Int));
+        assert_eq!(negative_view.negative_value(children[1]), Ok(NegativeValueView::Str));
+        assert!(!negative_view.alpha_eq(
+            session
+                .scheme_view(reordered_negative.test_scheme())
+                .unwrap()
+        ));
+        assert!(!negative_view.alpha_eq(session.scheme_view(one_negative.test_scheme()).unwrap()));
+
+        let malformed_nodes =
+            [IndexedPositiveNode::Tuple(IndexedChildSpan { start: 0, len: 2 })];
+        let malformed_children = [IndexedPositiveNodeId(0)];
+        assert!(matches!(
+            session.finalize_indexed_scheme(IndexedSchemeRef {
+                quantifier_count: 0,
+                predicate: IndexedPositiveNodeId(0),
+                positive_nodes: &malformed_nodes,
+                negative_nodes: &[],
+                positive_children: &malformed_children,
+                negative_children: &[],
+                recursive_bounds: &[],
+            }),
+            Err(ClosedTypeFinalizeError::InvalidDraft)
+        ));
+    }
+
+    #[test]
+    fn draft_tuple_constructors_preserve_nested_positive_and_negative_views() {
+        let mut session = ClosedTypeFinalizationSession::try_new().unwrap();
+        let positive = session
+            .finalize_scheme(|f| {
+                let int = f.positive_int()?;
+                let string = f.positive_str()?;
+                let inner = f.positive_tuple(&[string, int])?;
+                let outer = f.positive_tuple(&[int, inner, string])?;
+                f.set_scheme(0, &[], outer)
+            })
+            .unwrap();
+        let view = session.scheme_view(positive.test_scheme()).unwrap();
+        let PositiveValueView::Tuple(outer) = view.positive_value(view.predicate()).unwrap() else {
+            panic!("positive tuple constructor must be visible")
+        };
+        assert_eq!(outer.len(), 3);
+        assert_eq!(view.positive_value(outer[0]), Ok(PositiveValueView::Int));
+        assert_eq!(view.positive_value(outer[2]), Ok(PositiveValueView::Str));
+        let PositiveValueView::Tuple(inner) = view.positive_value(outer[1]).unwrap() else {
+            panic!("nested positive tuple must remain distinct")
+        };
+        assert_eq!(view.positive_value(inner[0]), Ok(PositiveValueView::Str));
+        assert_eq!(view.positive_value(inner[1]), Ok(PositiveValueView::Int));
+
+        let negative = session
+            .finalize_scheme(|f| {
+                let int = f.negative_int()?;
+                let string = f.negative_str()?;
+                let inner = f.negative_tuple(&[string, int])?;
+                let outer = f.negative_tuple(&[int, inner, string])?;
+                let positive = f.positive_unit()?;
+                let ae = f.negative_effect_empty()?;
+                let re = f.positive_effect_bottom()?;
+                let function = f.positive_function(outer, ae, re, positive)?;
+                f.set_scheme(0, &[], function)
+            })
+            .unwrap();
+        let view = session.scheme_view(negative.test_scheme()).unwrap();
+        let PositiveValueView::Function { argument, .. } =
+            view.positive_value(view.predicate()).unwrap()
+        else {
+            panic!("negative tuple must remain in function input")
+        };
+        let NegativeValueView::Tuple(outer) = view.negative_value(argument).unwrap() else {
+            panic!("negative tuple constructor must be visible")
+        };
+        assert_eq!(outer.len(), 3);
+        assert_eq!(view.negative_value(outer[0]), Ok(NegativeValueView::Int));
+        assert_eq!(view.negative_value(outer[2]), Ok(NegativeValueView::Str));
+        let NegativeValueView::Tuple(inner) = view.negative_value(outer[1]).unwrap() else {
+            panic!("nested negative tuple must remain distinct")
+        };
+        assert_eq!(view.negative_value(inner[0]), Ok(NegativeValueView::Str));
+        assert_eq!(view.negative_value(inner[1]), Ok(NegativeValueView::Int));
     }
 
     #[test]
