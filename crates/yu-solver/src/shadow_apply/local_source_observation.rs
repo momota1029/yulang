@@ -239,6 +239,9 @@ my outer (t:[signal] int) = {
         let local = hir.local_source(outer.definition_root()).unwrap().unwrap();
         let apply = local.expressions().iter().find(|expr| expr.occurrence.ordinal() == 18).unwrap();
         assert!(matches!(&apply.form, yu_hir::shadow::LocalSourceForm::Apply { .. }));
+        let occurrence_15 = local.expressions().iter()
+            .find(|expr| expr.occurrence.ordinal() == 15).map(|expr| &expr.form);
+        println!("R206 source_occurrence_15={occurrence_15:?}");
 
         let candidate = CandidateInference::solve(hir.clone()).unwrap();
         let observed = candidate.local_source_provider_observation(&apply.occurrence, 256).unwrap();
@@ -271,14 +274,141 @@ my outer (t:[signal] int) = {
                     && source_bound_key(emission.bound) == source_bound)
                 .collect::<Vec<_>>();
             println!("R202 relation={relation} key={source_bound:?} coverage={coverage_bits} events={events:?} checking={checking:?}");
+            for (origin_index, origin) in context.origins.iter().enumerate()
+                .filter(|(_, origin)| origin.relation == relation_id)
+            {
+                let drain_completed = origin.source_drain_receipt.as_ref()
+                    .map(|receipt| context.source_drain_completed(receipt));
+                println!("  origin={origin_index} occurrence={:?} entry={:?} formal={:?} drain={:?} drain_completed={drain_completed:?}",
+                    origin.occurrence, origin.inferred_entry, origin.formal, origin.source_drain_receipt);
+            }
             for (index, admission) in &admissions {
                 println!("  admission={index} cause={:?} coverage={:?} bound={:?}", admission.cause, admission.coverage, admission.bound);
+                if let crate::candidate_context::BoundAdmissionCause::OwnerEmission { processing: Some(processing) } = admission.cause {
+                    let process_events = context.test_source_events_for_relation(processing).unwrap_or(&[]);
+                    let process_checking = process_events.iter()
+                        .filter_map(|&event| references.observed_checking(event)).collect::<Vec<_>>();
+                    println!("    processing={processing:?} source_events={process_events:?} checking={process_checking:?}");
+                    for (origin_index, origin) in context.origins.iter().enumerate()
+                        .filter(|(_, origin)| origin.relation == processing)
+                    {
+                        let drain_completed = origin.source_drain_receipt.as_ref()
+                            .map(|receipt| context.source_drain_completed(receipt));
+                        println!("    processing_origin={origin_index} occurrence={:?} entry={:?} formal={:?} drain={:?} drain_completed={drain_completed:?}",
+                            origin.occurrence, origin.inferred_entry, origin.formal, origin.source_drain_receipt);
+                    }
+                }
             }
             for (index, emission) in &emissions {
                 println!("  emission={index} admission={} physical={:?} readback={:?}", emission.admission.0, emission.physical, emission.readback);
             }
             assert!(!admissions.is_empty(), "captured relation {relation} has no matching retained admission");
             assert!(!emissions.is_empty(), "captured relation {relation} has no matching physical emission");
+        }
+        for capture in &observed.routes[0].captures {
+            let Some(CandidateProviderCaptureStructure::Snapshot { source_bound, relation: Some(relation), .. }) = capture.structure else { continue; };
+            let relation_id = crate::candidate_context::RelationId(relation as u32);
+            for (origin_index, origin) in context.origins.iter().enumerate()
+                .filter(|(_, origin)| origin.relation == relation_id && [1, 2, 4].contains(&origin.occurrence.local_slot())
+            ) {
+                let ordinal = origin.occurrence.occurrence().ordinal();
+                let form = local.expressions().iter()
+                    .find(|expr| expr.occurrence.ordinal() == ordinal).map(|expr| &expr.form);
+                let drain_completed = origin.source_drain_receipt.as_ref()
+                    .map(|receipt| context.source_drain_completed(receipt));
+                println!("R207 captured_relation={relation} bound={source_bound:?} origin={origin_index} occurrence={ordinal} slot={} form={form:?} drain_completed={drain_completed:?}",
+                    origin.occurrence.local_slot());
+            }
+        }
+        let captured_relations = observed.routes[0].captures.iter().filter_map(|capture| match capture.structure {
+            Some(CandidateProviderCaptureStructure::Snapshot { relation: Some(relation), .. }) => Some(relation),
+            _ => None,
+        }).collect::<std::collections::HashSet<_>>();
+        for (origin_index, origin) in context.origins.iter().enumerate().filter(|(_, origin)| {
+            origin.occurrence.occurrence().ordinal() == 12 && origin.occurrence.local_slot() == 4
+        }) {
+            let relation = origin.relation;
+            let drain_completed = origin.source_drain_receipt.as_ref()
+                .map(|receipt| context.source_drain_completed(receipt));
+            println!("R208 lambda_slot4 origin={origin_index} relation={relation:?} captured={} occurrence={:?} drain={:?} drain_completed={drain_completed:?}",
+                captured_relations.contains(&(relation.0 as usize)), origin.occurrence, origin.source_drain_receipt);
+            for (admission, record, emissions) in context.test_admission_emissions_for_relation(relation) {
+                println!("  lambda_slot4 admission={admission:?} record={record:?} emissions={emissions:?}");
+            }
+        }
+        let candidate_graph = candidate.solved.data.candidate_graph.as_ref().unwrap();
+        let provider_route = &candidate_graph.local_routes[observed.routes[0].route];
+        assert_eq!(&provider_route.local, observed.target);
+        let source_owner_rep = candidate_graph.intrusion.rep(crate::candidate_scheme::RowKey::Effect(10));
+        let source_result_rep = candidate_graph.intrusion.rep(crate::candidate_scheme::RowKey::Effect(31));
+        println!("R211 source_owner=Effect(10) rep={source_owner_rep:?} source_result=Effect(31) rep={source_result_rep:?}");
+        let provider_binding = local.bindings().iter().find(|binding| &binding.id == observed.target).unwrap();
+        let provider_initializer = local.expression(&provider_binding.initializer).unwrap();
+        let provider_lambda_ordinal = provider_initializer.occurrence.ordinal();
+        println!("R209 provider_binding={} local_id={:?} initializer={} form={:?}",
+            provider_binding.spelling, provider_binding.id, provider_lambda_ordinal, provider_initializer.form);
+        let provider_capture_relations = observed.routes[0].captures.iter().filter_map(|capture| match capture.structure {
+            Some(CandidateProviderCaptureStructure::Snapshot { relation: Some(relation), .. }) => Some(relation),
+            _ => None,
+        }).collect::<std::collections::HashSet<_>>();
+        println!("R210 provider_route={} occurrence={:?} graph_root={} live_root={} boundary={} source_frontier={:?} rows={:?}",
+            observed.routes[0].route, provider_route.occurrence, provider_route.graph.root,
+            provider_route.graph.live_root, provider_route.graph.boundary, provider_route.graph.source_frontier,
+            provider_route.graph.rows);
+        for row in &provider_route.graph.capture_rows {
+            println!("R210 captured_row={row:?} image={:?}", provider_route.rows.get(row.graph_row));
+        }
+        for (node_index, node) in provider_route.graph.nodes.iter().enumerate() {
+            if let crate::candidate_scheme::Node::Function { polarity, children } = node {
+                println!("R210 function_node={node_index} polarity={polarity:?} children={children:?}");
+                for (port, &child) in children.iter().enumerate() {
+                    if let Some(crate::candidate_scheme::Node::Row { row, polarity }) = provider_route.graph.nodes.get(child) {
+                        println!("  function_port={port} child={child} row={:?} polarity={polarity:?} capture={:?} image={:?}",
+                            provider_route.graph.rows.get(*row), provider_route.graph.capture_rows.get(*row),
+                            provider_route.rows.get(*row));
+                    }
+                }
+            }
+        }
+        for (bound_index, bound) in provider_route.graph.bounds.iter().enumerate()
+            .filter(|(_, bound)| bound.kind == yu_types::ComponentKind::Effect)
+        {
+            let lower = match provider_route.graph.nodes.get(bound.lower) {
+                Some(crate::candidate_scheme::Node::Row { row, polarity }) => provider_route.graph.rows.get(*row).map(|row| (row.key, *polarity)),
+                _ => None,
+            };
+            let upper = match provider_route.graph.nodes.get(bound.upper) {
+                Some(crate::candidate_scheme::Node::Row { row, polarity }) => provider_route.graph.rows.get(*row).map(|row| (row.key, *polarity)),
+                _ => None,
+            };
+            println!("R211 captured_effect_bound={bound_index} source={:?} relation={:?} lower={lower:?} upper={upper:?}",
+                bound.source_bound, bound.relation);
+        }
+        for (snapshot_index, snapshot) in provider_route.graph.bound_evidence.iter().enumerate() {
+            let key = source_bound_key(snapshot.source_bound);
+            if format!("{key:?}").contains("EffectRow(10)") || format!("{key:?}").contains("EffectRow(31)") {
+                println!("R211 captured_effect_snapshot={snapshot_index} key={key:?} relation={:?} coverage={:?}",
+                    snapshot.relation, snapshot.coverage);
+            }
+        }
+        println!("R210 replay_dependencies={:?}", observed.routes[0].replay_dependencies);
+        for (origin_index, origin) in context.origins.iter().enumerate().filter(|(_, origin)| {
+            origin.occurrence.occurrence().ordinal() == provider_lambda_ordinal
+                && origin.occurrence.local_slot() == 4
+        }) {
+            let task = origin.source_drain_receipt.as_ref().map(|receipt| receipt.task);
+            let completed = origin.source_drain_receipt.as_ref()
+                .map(|receipt| context.source_drain_completed(receipt));
+            println!("R209 provider_lambda_slot4 origin={origin_index} relation={:?} captured={} occurrence={:?} task={task:?} completed={completed:?}",
+                origin.relation, provider_capture_relations.contains(&(origin.relation.0 as usize)), origin.occurrence);
+            println!("  provider_slot4_lineage={:?}", context.test_relation_lineage(origin.relation));
+        }
+        for row in &provider_route.graph.capture_rows {
+            if [10, 31].iter().any(|&id| row.requested == crate::candidate_scheme::RowKey::Effect(id)
+                || row.representative == crate::candidate_scheme::RowKey::Effect(id))
+            {
+                println!("R209 capture_row={row:?}");
+            }
         }
         assert_eq!(seen.into_iter().collect::<std::collections::HashSet<_>>(), target_relations.into_iter().collect());
     }
