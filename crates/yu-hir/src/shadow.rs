@@ -37,7 +37,9 @@ pub use crate::module::source_impl::{
     SourceImplementationId, SourceImplementationMemberId, SourceImplementationType,
 };
 pub use crate::module::source_exports::{
-    SourceExportDeclaration, SourceExportIndex, SourceUseDeclaration, SourceUseTreeNode,
+    SourceExportDeclaration, SourceExportIndex, SourceExportResolution,
+    SourceExportResolveError, SourceUseDeclaration, SourceUseFlattenError, SourceUseLeaf,
+    SourceUseSelection, SourceUseTreeNode, flatten_use_declaration, resolve_public_export,
 };
 
 /// Indexes declarations and lossless use-tree syntax with parse-owned source
