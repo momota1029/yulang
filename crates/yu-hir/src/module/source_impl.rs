@@ -258,6 +258,13 @@ mod tests {
             body.entries[1].member.as_ref().unwrap().implementation,
             implementations[0].id
         );
+        let member_id = body.entries[1].member.as_ref().unwrap();
+        assert_eq!(hir.source_implementation_member(member_id).unwrap().unwrap().member.as_ref(), Some(member_id));
+        let foreign_member = SourceImplementationMemberId {
+            implementation: implementations[1].id.clone(),
+            declaration: member_id.declaration.clone(),
+        };
+        assert!(hir.source_implementation_member(&foreign_member).unwrap().is_none());
         for entry in &body.entries {
             assert_eq!(&text[entry.range.clone()], entry.text.as_ref());
         }

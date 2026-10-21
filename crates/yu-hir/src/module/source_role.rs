@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn role_identity_uses_module_and_exact_parse_occurrence() {
-        let text = "role Pick 'container 'key:\n    type value\n    our container.pick: 'key -> value\nrole Pick 'container:\n    our value: 'container -> str";
+        let text = "role Pick 'container 'key:\n    our value: 'container -> 'key\nrole Pick 'container:\n    our value: 'container -> str";
         let source: Arc<yu_syntax::SourceText> = Arc::from(text);
         let parsed = yu_syntax::parse_file(
             source.clone(),
@@ -198,15 +198,18 @@ mod tests {
         assert_eq!(roles[1].head.text.trim(), "Pick 'container");
         assert_ne!(roles[0].id, roles[1].id, "equal spellings remain distinct source roles");
         let members = &roles[0].body.as_ref().expect("role body").members;
-        assert_eq!(members.len(), 2);
-        assert_eq!(members[0].kind, SyntaxKind::TypeDeclaration);
-        assert_eq!(members[1].kind, SyntaxKind::BindingStatement);
-        assert!(members.iter().all(|member| member.id.role == roles[0].id));
-        assert_ne!(members[0].id, members[1].id);
+        assert_eq!(members.len(), 1);
+        assert_eq!(members[0].kind, SyntaxKind::BindingStatement);
+        assert_eq!(members[0].id.role, roles[0].id);
+        let second_member = &roles[1].body.as_ref().expect("second role body").members[0];
+        assert_eq!(second_member.text.split(':').next().unwrap().trim(), "our value");
+        assert_ne!(members[0].id, second_member.id, "equal member spellings in separate roles remain distinct");
+        assert_eq!(hir.source_role_member(&members[0].id).unwrap().unwrap().id, members[0].id);
+        assert_eq!(hir.source_role_member(&second_member.id).unwrap().unwrap().id, second_member.id);
         for member in members {
             assert_eq!(&text[member.range.clone()], member.text.as_ref());
         }
-        assert_eq!(&text[roles[0].range.clone()], "role Pick 'container 'key:\n    type value\n    our container.pick: 'key -> value");
+        assert_eq!(&text[roles[0].range.clone()], "role Pick 'container 'key:\n    our value: 'container -> 'key");
         let first_body = roles[0].body.as_ref().expect("role body");
         assert_eq!(&text[first_body.range.clone()], first_body.text.as_ref());
         assert_ne!(roles[0].head.source, first_body.source);

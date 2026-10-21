@@ -515,6 +515,80 @@ impl HirModule {
         &self.implementation_declarations
     }
 
+    /// Looks up one unrecovered role member by its complete source identity.
+    /// This establishes source ownership only; it supplies no role resolution,
+    /// type, or method-selection judgment.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn source_role_member(
+        &self,
+        id: &SourceRoleMemberId,
+    ) -> Result<Option<&SourceRoleMember>, HirAvailabilityError> {
+        if id.role.module.as_ref() != self.identity().module() {
+            return Err(HirAvailabilityError::InconsistentIdentity);
+        }
+        let mut found = None;
+        for declaration in &self.role_declarations {
+            if declaration.id != id.role {
+                continue;
+            }
+            if declaration.recovered {
+                return Ok(None);
+            }
+            let Some(body) = declaration.body.as_ref() else {
+                return Ok(None);
+            };
+            if body.recovered {
+                return Ok(None);
+            }
+            for member in &body.members {
+                if &member.id == id {
+                    if member.recovered || found.is_some() {
+                        return Ok(None);
+                    }
+                    found = Some(member);
+                }
+            }
+        }
+        Ok(found)
+    }
+
+    /// Looks up one unrecovered implementation member by its complete source
+    /// identity. A declaration-owned where-clause is not a member. This
+    /// establishes source ownership only, not implementation conformance.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn source_implementation_member(
+        &self,
+        id: &SourceImplementationMemberId,
+    ) -> Result<Option<&SourceImplementationBodyEntry>, HirAvailabilityError> {
+        if id.implementation.module.as_ref() != self.identity().module() {
+            return Err(HirAvailabilityError::InconsistentIdentity);
+        }
+        let mut found = None;
+        for declaration in &self.implementation_declarations {
+            if declaration.id != id.implementation {
+                continue;
+            }
+            if declaration.recovered {
+                return Ok(None);
+            }
+            let Some(body) = declaration.body.as_ref() else {
+                return Ok(None);
+            };
+            if body.recovered {
+                return Ok(None);
+            }
+            for entry in &body.entries {
+                if entry.member.as_ref() == Some(id) {
+                    if entry.recovered || found.is_some() {
+                        return Ok(None);
+                    }
+                    found = Some(entry);
+                }
+            }
+        }
+        Ok(found)
+    }
+
 }
 
 /// Retains one leaf-only application with source identity and explicit pending errors.

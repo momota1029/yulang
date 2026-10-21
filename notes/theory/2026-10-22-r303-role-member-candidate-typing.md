@@ -22,3 +22,11 @@ The proof lane traces source constructors, source keys, new HIR/candidate roots,
 ## Expected application
 
 If the source-to-candidate bridge holds, apply it only to the original Types sample's `Display.a.say` prerequisite and ordered tuple `show` candidate, then continue toward ordinary execution. Keep Console and all original R149 quantifiers open. If the bridge cannot be represented without manufacturing a binding or losing source identity, preserve that as the exact obstruction and choose a different source-root representation before selection code.
+
+## R303 source lookup slice
+
+Added `HirModule::source_role_member` and `source_implementation_member`. Each lookup checks the module owner, exact enclosing declaration identity and exact member identity. It returns no member when declaration/body/member recovery is present, when an implementation body is absent, or when a member ID has been transplanted under another implementation. A where-clause entry has no member identity and cannot be returned as a member. The API is explicitly source ownership only; it does not resolve roles, type bodies, select implementations or authorize dispatch.
+
+The role identity test now has two distinct `Pick` declarations with the same `value` member spelling and verifies each ID resolves only to its own member. The implementation identity test verifies the exact member resolves and a transplanted declaration key under another implementation ID does not. Both focused `yu-hir` tests pass. The first run exposed an old expected source slice after changing the fixture; the expected text was corrected and the rerun passed.
+
+This closes only the lookup sub-obligation. Original method body syntax is still a retained source snippet/identity, not a candidate definition-use root. Candidate constraint generation, receiver-bound selection, body typing, unchanged Types execution, Console and source/native proof remain OPEN.
