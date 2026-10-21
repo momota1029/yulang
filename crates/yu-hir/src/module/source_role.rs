@@ -40,6 +40,7 @@ pub struct SourceRoleMember {
     pub range: Range<usize>,
     pub text: Box<str>,
     pub recovered: bool,
+    pub header: Option<SourceMemberHeader>,
     pub(crate) source_path: Box<[u32]>,
 }
 
@@ -87,6 +88,7 @@ fn body_members(
             range: crate::range_of(&declaration),
             text: declaration.text().to_string().into_boxed_str(),
             recovered: has_recovery(&declaration),
+            header: local_source::member_header(&declaration, counters)?,
             source_path: crate::source_identity::source_path(root, &declaration)?,
         });
     }

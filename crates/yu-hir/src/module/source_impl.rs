@@ -25,6 +25,7 @@ pub struct SourceImplementationBodyEntry {
     pub range: Range<usize>,
     pub text: Box<str>,
     pub recovered: bool,
+    pub header: Option<SourceMemberHeader>,
     pub(crate) source_path: Option<Box<[u32]>>,
 }
 
@@ -121,6 +122,7 @@ fn body_entries(
             range: crate::range_of(&node),
             text: node.text().to_string().into_boxed_str(),
             recovered: has_recovery(&node),
+            header: if is_member { local_source::member_header(&node, counters)? } else { None },
             source_path: is_member.then(|| crate::source_identity::source_path(root, &node))
                 .transpose()?,
         });

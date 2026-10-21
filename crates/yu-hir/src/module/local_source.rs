@@ -618,6 +618,71 @@ pub(super) fn member_body_expression(
     Ok(Some(expression))
 }
 
+/// Projects the narrow dotted Binding target used by Y2 role and impl methods.
+/// All returned names and annotations remain tied to original CST nodes.
+pub(super) fn member_header(
+    member: &SyntaxNode,
+    counters: &LoweringCounters,
+) -> Result<Option<SourceMemberHeader>, HirAvailabilityError> {
+    if member.kind() != SyntaxKind::BindingStatement || has_recovery(member) {
+        return Ok(None);
+    }
+    let mut headers = member.children().filter(|node| node.kind() == SyntaxKind::BindingHeader);
+    let Some(header) = headers.next() else { return Err(HirAvailabilityError::StructuralProjection); };
+    if headers.next().is_some() { return Err(HirAvailabilityError::StructuralProjection); }
+    let mut patterns = header.children().filter(|node| node.kind() == SyntaxKind::Pattern);
+    let Some(pattern) = patterns.next() else { return Err(HirAvailabilityError::StructuralProjection); };
+    if patterns.next().is_some() { return Err(HirAvailabilityError::StructuralProjection); }
+    let children = pattern.children().collect::<Vec<_>>();
+    if children.iter().any(|node| has_recovery(node)) { return Ok(None); }
+    let identifiers = children.iter().filter(|node| node.kind() == SyntaxKind::IdentifierPattern).collect::<Vec<_>>();
+    let fields = children.iter().filter(|node| node.kind() == SyntaxKind::PatternFieldTail).collect::<Vec<_>>();
+    let annotations = children.iter().filter(|node| node.kind() == SyntaxKind::PatternTypeAnnotation).collect::<Vec<_>>();
+    if identifiers.len() != 1 || fields.len() != 1 || annotations.len() > 1
+        || children.len() != identifiers.len() + fields.len() + annotations.len()
+    { return Ok(None); }
+    let receiver = identifiers[0];
+    let receiver_spelling = identifier_spelling(receiver)
+        .map_err(|_| HirAvailabilityError::StructuralProjection)?;
+    let mut field_tokens = fields[0].children_with_tokens().filter(|element| !matches!(
+        element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+    ));
+    let dot = field_tokens.next().and_then(|element| element.into_token());
+    let method = field_tokens.next().and_then(|element| element.into_token());
+    if dot.as_ref().is_none_or(|token| token.kind() != SyntaxKind::Dot)
+        || method.as_ref().is_none_or(|token| token.kind() != SyntaxKind::Identifier)
+        || field_tokens.next().is_some()
+    { return Ok(None); }
+    let receiver_token = receiver.children_with_tokens().filter_map(|element| element.into_token())
+        .find(|token| token.kind() == SyntaxKind::Identifier)
+        .ok_or(HirAvailabilityError::StructuralProjection)?;
+    let receiver_source = counters.source_nodes.get(receiver).cloned().ok_or(HirAvailabilityError::StructuralProjection)?;
+    let method_source = counters.source_nodes.get(fields[0]).cloned().ok_or(HirAvailabilityError::StructuralProjection)?;
+    let annotation = if let Some(annotation) = annotations.first() {
+        let mut types = annotation.children().filter(|node| node.kind() == SyntaxKind::TypeExpression);
+        let ty = types.next().ok_or(HirAvailabilityError::StructuralProjection)?;
+        if types.next().is_some() || has_recovery(&ty) { return Ok(None); }
+        Some(SourceMemberType {
+            source: counters.source_nodes.get(&ty).cloned().ok_or(HirAvailabilityError::StructuralProjection)?,
+            range: crate::range_of(&ty),
+            text: ty.text().to_string().into_boxed_str(),
+        })
+    } else { None };
+    Ok(Some(SourceMemberHeader {
+        receiver: SourceMemberIdentifier {
+            source: receiver_source,
+            range: crate::range_of_token(&receiver_token),
+            spelling: receiver_spelling,
+        },
+        method: SourceMemberIdentifier {
+            source: method_source,
+            range: crate::range_of_token(method.as_ref().unwrap()),
+            spelling: method.unwrap().text().into(),
+        },
+        annotation,
+    }))
+}
+
 pub(super) fn form_ordinary(
     plan: &RootPlan,
     owner: &SourceRootId,

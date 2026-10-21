@@ -12,7 +12,9 @@ pub use source_identity::HirParameterSourceOrigin;
 pub mod shadow;
 
 pub use module::{
-    DefId, DefinitionRootId, ExpressionRootId, SourceMemberKind, SourceMemberRootId, SourceRootId, FileId, FileKey, HirAvailabilityError, HirBinding, HirDiagnostic,
+    DefId, DefinitionRootId, ExpressionRootId, SourceMemberHeader, SourceMemberIdentifier,
+    SourceMemberKind, SourceMemberRootId, SourceMemberType, SourceRootId, FileId, FileKey,
+    HirAvailabilityError, HirBinding, HirDiagnostic,
     HirDiagnosticId, HirError, HirErrorAttachment, HirErrorId, HirErrorKind, HirErrorOrigin,
     HirItem, HirModule, HirName, HirOccurrenceId, HirParameter, HirParameterId, HirVisibility,
     CallerEvidenceBinding, ModuleId, ModuleIdentity, NameResolution, ResolvedExpr, SemanticImports,

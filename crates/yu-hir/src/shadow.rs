@@ -490,6 +490,17 @@ pub fn lower_module_with_local_source(
     crate::module::lower_module_with_local_source(identity, parsed, imports)
 }
 
+/// Lowers ordinary HIR and forms only role/implementation member source
+/// carriers. Unrelated top-level bindings are not required to have local-source
+/// projections for this source inventory operation.
+pub fn lower_module_with_member_sources(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+) -> Result<HirModule, HirAvailabilityError> {
+    crate::module::lower_module_with_member_sources(identity, parsed, imports)
+}
+
 /// Forms local source carriers only for selected direct roots while retaining
 /// their original parse and module identity.
 pub fn lower_module_with_selected_local_source(

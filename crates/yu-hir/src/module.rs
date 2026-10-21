@@ -727,6 +727,33 @@ pub enum SourceMemberKind {
     Implementation,
 }
 
+/// One exact identifier in a dotted method target Pattern.
+#[derive(Clone, Debug)]
+pub struct SourceMemberIdentifier {
+    /// Source key of the IdentifierPattern or PatternFieldTail that owns it.
+    pub source: yu_syntax::SourceNodeKey,
+    /// Range of the identifier token itself.
+    pub range: Range<usize>,
+    pub spelling: Box<str>,
+}
+
+/// Structural source record for a Y2-compatible `receiver.method` Binding
+/// target. Annotation data remains raw source; this record performs no type
+/// parsing, receiver resolution or method selection.
+#[derive(Clone, Debug)]
+pub struct SourceMemberHeader {
+    pub receiver: SourceMemberIdentifier,
+    pub method: SourceMemberIdentifier,
+    pub annotation: Option<SourceMemberType>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SourceMemberType {
+    pub source: yu_syntax::SourceNodeKey,
+    pub range: Range<usize>,
+    pub text: Box<str>,
+}
+
 #[derive(Clone)]
 pub struct SourceMemberRootId {
     artifact: Arc<HirArtifactToken>,
@@ -1647,6 +1674,19 @@ pub(crate) fn lower_module_with_local_source(
 }
 
 #[cfg(any(feature = "shadow", test))]
+pub(crate) fn lower_module_with_member_sources(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+) -> Result<HirModule, HirAvailabilityError> {
+    let mut counters = LoweringCounters::default();
+    counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(parsed));
+    counters.source_nodes = crate::source_identity::source_keys(parsed);
+    counters.member_sources = true;
+    lower_module_with_counters(identity, parsed, imports, &mut counters)
+}
+
+#[cfg(any(feature = "shadow", test))]
 pub(crate) fn lower_module_with_selected_local_source(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
@@ -1732,6 +1772,9 @@ fn lower_module_with_counters(
     if counters.local_source {
         counters.effect_declarations =
             source_annotation::declarations(&root, identity.module(), counters)?;
+    }
+    #[cfg(any(feature = "shadow", test))]
+    if counters.local_source || counters.member_sources {
         counters.role_declarations =
             source_role::declarations(&root, identity.module(), counters)?;
         counters.implementation_declarations =
@@ -1898,7 +1941,7 @@ fn lower_module_with_counters(
         }
     }
     #[cfg(any(feature = "shadow", test))]
-    let source_member_carriers = if counters.local_source {
+    let source_member_carriers = if counters.local_source || counters.member_sources {
         let mut carriers = Vec::new();
         // Carrier construction mutates lowering counters, so walk owned
         // declaration snapshots rather than aliasing the declaration tables.
@@ -2024,7 +2067,7 @@ fn lower_module_with_counters(
         #[cfg(any(feature = "shadow", test))]
         captured_source: None,
         #[cfg(any(feature = "shadow", test))]
-        source_parsed: counters.local_source.then(|| parsed.clone()),
+        source_parsed: (counters.local_source || counters.member_sources).then(|| parsed.clone()),
         local_sources: std::mem::take(&mut counters.local_sources),
         #[cfg(any(feature = "shadow", test))]
         effect_declarations: std::mem::take(&mut counters.effect_declarations),
@@ -2057,6 +2100,7 @@ fn next_occurrence(
 struct LoweringCounters {
     ordinary_source_carriers: bool,
     local_source: bool,
+    member_sources: bool,
     selected_local_source_roots: Option<std::collections::HashSet<yu_syntax::SourceNodeKey>>,
     local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]

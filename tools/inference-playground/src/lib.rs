@@ -864,6 +864,15 @@ mod tests {
             );
             assert_eq!(member.id.role, display.id);
         }
+        let display_members = &display.body.as_ref().unwrap().members;
+        let show_signature = display_members[0].header.as_ref().expect("dotted role signature header");
+        assert_eq!(show_signature.receiver.spelling.as_ref(), "a");
+        assert_eq!(show_signature.method.spelling.as_ref(), "show");
+        assert_eq!(show_signature.annotation.as_ref().unwrap().text.as_ref(), "str");
+        let say_header = display_members[1].header.as_ref().expect("dotted role default header");
+        assert_eq!(say_header.receiver.spelling.as_ref(), "a");
+        assert_eq!(say_header.method.spelling.as_ref(), "say");
+        assert!(say_header.annotation.is_none());
 
         let [tuple_display] = index
             .implementations()
@@ -888,6 +897,11 @@ mod tests {
             tuple_display.body.as_ref().unwrap().entries[2].kind,
             yu_syntax::SyntaxKind::BindingStatement
         );
+        let show_header = tuple_display.body.as_ref().unwrap().entries[2].header.as_ref()
+            .expect("dotted implementation method header");
+        assert_eq!(show_header.receiver.spelling.as_ref(), "value");
+        assert_eq!(show_header.method.spelling.as_ref(), "show");
+        assert!(show_header.annotation.is_none());
         for entry in &tuple_display.body.as_ref().unwrap().entries {
             assert_eq!(
                 &inventory.source.text[entry.range.clone()],
@@ -897,6 +911,31 @@ mod tests {
                 assert_eq!(member.implementation, tuple_display.id);
             }
         }
+
+        let carrier_hir = yu_hir::shadow::lower_module_with_member_sources(
+            inventory.identity.clone(),
+            &inventory.parsed,
+            SemanticImports::empty(),
+        )
+        .expect("the exact pinned fmt source forms member-owned body carriers");
+        let say = display.body.as_ref().unwrap().members.iter()
+            .find(|member| member.text.trim_start().starts_with("pub a.say ="))
+            .unwrap();
+        let say_root = carrier_hir.source_role_member_root(&say.id).unwrap().unwrap();
+        let say_carrier = carrier_hir.source_carrier_for(&say_root).unwrap().unwrap();
+        assert!(matches!(say_carrier, yu_hir::SourceCarrierOutcome::Unsupported(failure)
+            if failure.reason == yu_hir::SourceCarrierFailureReason::UnsupportedForm),
+            "the exact Display.say source member currently reaches its known operator-form boundary");
+        let tuple_show = tuple_display.body.as_ref().unwrap().entries[2].member.as_ref().unwrap();
+        let show_root = carrier_hir.source_implementation_member_root(tuple_show).unwrap().unwrap();
+        let show_carrier = carrier_hir.source_carrier_for(&show_root).unwrap().unwrap();
+        assert!(matches!(show_carrier, yu_hir::SourceCarrierOutcome::Unsupported(failure)
+            if failure.reason == yu_hir::SourceCarrierFailureReason::UnsupportedForm),
+            "the exact ordered-pair Display.show source member currently reaches its known tuple-pattern boundary");
+        assert!(matches!(say_root, SourceRootId::Member(ref root)
+            if root.kind() == yu_hir::SourceMemberKind::Role));
+        assert!(matches!(show_root, SourceRootId::Member(ref root)
+            if root.kind() == yu_hir::SourceMemberKind::Implementation));
     }
 
     #[test]
