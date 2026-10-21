@@ -2484,6 +2484,89 @@ mod authentic_demand_capture_tests {
     use super::*;
 
     #[test]
+    fn r225_local_apply_relation_map_ownership() {
+        const SOURCE: &str = r#"act io:
+    our tick: int -> int
+
+my outer (q:[io] int) = {
+    my loop (x:[io] int) = {
+        my direct = loop x
+        my helper (y:[io] int) = loop y
+        helper x
+    }
+    my repeat (f:[io] int -> int) (z:[io] int) = {
+        my first = f z
+        f z
+    }
+    repeat loop q
+}"#;
+        let text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("r225-map-owners", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+        assert!(session.errors.is_empty());
+        let graph_state = session.candidate_graph.as_ref().unwrap();
+        let actual_loop = graph_state.local_routes.iter().find(|route| route.occurrence.ordinal() == 28).unwrap();
+        let repeat = graph_state.local_routes.iter().find(|route| route.occurrence.ordinal() == 27).unwrap();
+        let context = &graph_state.intrusion.effect_algebra.context;
+        let callback_origin = context.test_relation_lineage(candidate_context::RelationId(146));
+        let provider_origin = context.test_relation_lineage(candidate_context::RelationId(357));
+        assert!(callback_origin.iter().any(|line| line.contains("ordinal: 19")));
+        assert!(callback_origin.iter().any(|line| line.contains("formal_present=false")));
+        assert!(provider_origin.iter().any(|line| line.contains("ordinal: 26")));
+        assert!(actual_loop.retained.scoped_relations.is_empty());
+        assert!(repeat.retained.scoped_relations.is_empty());
+        let function_endpoint = |relation: u32, upper: bool, positive: bool| {
+            let TypedPairKey::Value(pair) = context.relation_pair(candidate_context::RelationId(relation)).unwrap() else { panic!("value pair"); };
+            match (if upper { pair.upper } else { pair.lower }, positive) {
+                (ValueEndpointKey::PositiveFunction(term), true) | (ValueEndpointKey::NegativeFunction(term), false) => term,
+                other => panic!("function endpoint: {other:?}"),
+            }
+        };
+        let provider_callee_type = function_endpoint(234, false, true);
+        let provider_argument_type = function_endpoint(356, false, true);
+        let provider_expected_argument_type = function_endpoint(362, true, false);
+        let callback_demand_type = function_endpoint(146, true, false);
+        let repeat_callback_type = repeat.graph.nodes.iter().enumerate().find_map(|(index, node)| {
+            let Node::Function { polarity: Polarity::Positive, children } = node else { return None; };
+            matches!(repeat.graph.nodes[children[1]], Node::Row { row, .. }
+                if repeat.graph.rows[row].key == RowKey::Effect(31))
+                .then(|| repeat.retained.terms[index].unwrap())
+        }).unwrap();
+        let provider_callee_view = session.store.term_view(provider_callee_type).unwrap();
+        let callee_argument_port = match provider_callee_view {
+            TermView::PositiveFunction { argument, .. } => argument, _ => panic!("provider function"),
+        };
+        assert_eq!(context.relation_pair(candidate_context::RelationId(362)), Some(TypedPairKey::Value(
+            CanonicalValuePairKey { lower: ValueEndpointKey::ValueRow(28), upper: ValueEndpointKey::NegativeFunction(provider_expected_argument_type) }
+        )));
+        assert_eq!(context.relation_pair(candidate_context::RelationId(363)), Some(TypedPairKey::Value(
+            CanonicalValuePairKey { lower: ValueEndpointKey::PositiveFunction(provider_argument_type), upper: ValueEndpointKey::NegativeFunction(provider_expected_argument_type) }
+        )));
+        assert_eq!(callee_argument_port, provider_expected_argument_type);
+        assert_eq!(context.relation_pair(candidate_context::RelationId(368)), Some(TypedPairKey::Effect {
+            lower: EffectEndpointKey::EffectRow(69), upper: EffectEndpointKey::EffectRow(54),
+        }));
+        assert!(context.observed_dependencies().any(|dependency|
+            matches!(dependency, candidate_context::Dependency::FunctionPort {
+                child: candidate_context::RelationId(368), parent: candidate_context::RelationId(363),
+                field: crate::FunctionField::ResultEffect, operation: candidate_context::FunctionPortOperation::Preserve,
+            })));
+        assert_ne!(provider_expected_argument_type, repeat_callback_type);
+        assert_ne!(provider_expected_argument_type, callback_demand_type);
+        assert!(!context.observed_dependencies().any(|dependency|
+            matches!(dependency, candidate_context::Dependency::FunctionPort { parent: candidate_context::RelationId(146), .. })));
+        println!("R225 provider Apply26 owns actual-route argument comparison and slot4 effect edge; callback Apply19 WorkBound has no retained formal/FunctionPort bridge in ordinary candidate mode");
+    }
+
+    #[test]
     fn r224_apply_fresh_route_terms() {
         const SOURCE: &str = r#"act io:
     our tick: int -> int
