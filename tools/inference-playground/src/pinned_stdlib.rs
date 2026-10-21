@@ -10,6 +10,65 @@ pub(crate) struct PinnedSource {
     pub(crate) text: &'static str,
 }
 
+/// Parse-owned source inventory for one exact pinned module. This is test
+/// evidence for source identity and syntax positions only; it does not resolve
+/// a role or select an implementation.
+#[cfg(test)]
+pub(crate) struct ParsedRoleInventory {
+    pub(crate) source: PinnedSource,
+    pub(crate) identity: yu_hir::ModuleIdentity,
+    pub(crate) parsed: yu_syntax::ParsedFile,
+    pub(crate) declaration_ranges: Vec<(yu_syntax::SyntaxKind, std::ops::Range<usize>)>,
+    pub(crate) syntax_diagnostic_count: usize,
+}
+
+#[cfg(test)]
+pub(crate) fn parse_role_inventory(
+    module: &str,
+    environment: std::sync::Arc<yu_syntax::SyntaxEnvironment>,
+) -> Result<ParsedRoleInventory, String> {
+    use yu_hir::{FileId, FileKey, ModuleIdentity};
+    use yu_syntax::{SourceText, SyntaxKind, SyntaxNode, parse_file, scan_header};
+
+    let source = source_for_module(module)
+        .map_err(|error| format!("pinned source bundle: {error:?}"))?
+        .ok_or_else(|| format!("missing pinned module {module}"))?;
+    let text: std::sync::Arc<SourceText> = std::sync::Arc::from(source.text);
+    let parsed = parse_file(
+        text.clone(),
+        std::sync::Arc::new(scan_header(text)),
+        environment,
+    );
+    let syntax_diagnostic_count = parsed
+        .syntax_diagnostics()
+        .map_err(|error| format!("syntax diagnostics: {error:?}"))?
+        .len();
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    let declaration_ranges = root
+        .descendants()
+        .filter(|node| {
+            matches!(node.kind(), SyntaxKind::RoleDeclaration | SyntaxKind::ImplDeclaration)
+        })
+        .map(|node| {
+            (
+                node.kind(),
+                usize::from(node.text_range().start())..usize::from(node.text_range().end()),
+            )
+        })
+        .collect();
+    let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+        "yulang2-pinned-stdlib",
+        source.path,
+    )));
+    Ok(ParsedRoleInventory {
+        source,
+        identity,
+        parsed,
+        declaration_ranges,
+        syntax_diagnostic_count,
+    })
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum BundleError {
     BadMagic,

@@ -17860,3 +17860,17 @@ R149 Types/Console, source/native proofs and production remain OPEN. See the
 [R275 handoff](agent-loop/inbox/20261021-r275-field-tail-source-carrier.md),
 [evidence note](../notes/theory/2026-10-21-r275-field-tail-source-carrier.md),
 and current state.
+
+## R276 checkpoint — authenticate pinned role source positions
+
+The app-local playground inventory pairs pinned module bytes and Git blob with
+its source-root `ModuleIdentity`, parser snapshot, syntax diagnostic count and
+available role/impl node anchors. The exact bundled `std::core::fmt` bytes
+contain the `Display.say` member and ordered pair implementation. The current
+parser reports syntax diagnostics for this legacy source, so HIR artifact
+publication is rejected; R276 preserves that fact and does not call partial
+anchors complete declaration positions. Focused inventory test passes. Role
+selection, authentic imports, unchanged sample execution, source/native proof
+and production remain OPEN. See the [R276 handoff](agent-loop/inbox/20261021-r276-pinned-role-source-inventory.md),
+[evidence note](../notes/theory/2026-10-21-r276-pinned-role-source-inventory.md),
+and current state.

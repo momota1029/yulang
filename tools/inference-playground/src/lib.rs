@@ -486,6 +486,7 @@ fn bounded_message(arguments: std::fmt::Arguments<'_>) -> String {
 #[cfg(test)]
 mod tests {
     use super::playground_syntax_environment;
+    use super::pinned_stdlib;
     use super::{conflict_ranges_for, execute, prepare};
     use super::output;
     use yu_hir::shadow::{LocalSourceForm, lower_module_with_local_source};
@@ -494,6 +495,49 @@ mod tests {
     use crate::runtime::{RuntimeEvidence, RuntimeOutcome, RuntimeProgram, RuntimeUnavailable};
     use std::sync::Arc;
     use yu_syntax::{SourceText, SyntaxEnvironment, parse_file, scan_header};
+
+    #[test]
+    fn pinned_fmt_role_and_tuple_impl_keep_exact_module_and_parse_positions() {
+        let inventory = pinned_stdlib::parse_role_inventory(
+            "std::core::fmt",
+            Arc::new(playground_syntax_environment().unwrap()),
+        )
+        .unwrap();
+        assert_eq!(inventory.source.path, "lib/std/core/fmt.yu");
+        assert_eq!(
+            inventory
+                .source
+                .git_blob
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>(),
+            "fd7b6607094c9ad70bde1fd41890363fa8bd6b31"
+        );
+        let file_key = inventory.identity.file().key();
+        assert_eq!(file_key.realm(), "yulang2-pinned-stdlib");
+        assert_eq!(
+            file_key.normalized_workspace_relative_path(),
+            inventory.source.path
+        );
+
+        assert_eq!(inventory.parsed.source(), inventory.source.text);
+        let declarations = inventory
+            .declaration_ranges
+            .iter()
+            .map(|(_, range)| &inventory.parsed.source()[range.clone()])
+            .collect::<Vec<_>>();
+        assert!(inventory.syntax_diagnostic_count > 0);
+        assert!(declarations
+            .iter()
+            .any(|text| text.starts_with("pub role Display 'a:")), "{declarations:?}");
+        assert!(declarations
+            .iter()
+            .any(|text| text.starts_with("impl ('a, 'b): Display:")), "{declarations:?}");
+        assert!(inventory.source.text.contains("pub a.show: str"));
+        assert!(inventory.source.text.contains("pub a.say = std::io::out::write: a.show +"));
+        assert!(inventory.source.text.contains("where 'a: Display\n    where 'b: Display\n    our value.show = case value:"));
+        assert!(inventory.source.text.contains("(a, b) -> \"(\" + a.show + \", \" + b.show + \")\""));
+    }
 
     #[test]
     fn console_operator_is_loaded_from_the_pinned_imported_source() {
