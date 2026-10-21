@@ -2649,6 +2649,153 @@ my outer (q:[io] int) = {
     }
 
     #[test]
+    fn r228_provider_argument_local_route_owner_path() {
+        const SOURCE: &str = r#"act io:
+    our tick: int -> int
+
+my outer (q:[io] int) = {
+    my loop (x:[io] int) = {
+        my direct = loop x
+        my helper (y:[io] int) = loop y
+        helper x
+    }
+    my repeat (f:[io] int -> int) (z:[io] int) = {
+        my first = f z
+        f z
+    }
+    repeat loop q
+}"#;
+        let text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("r228-provider-route", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+        assert!(session.errors.is_empty());
+        let graph_state = session.candidate_graph.as_ref().unwrap();
+        let provider = session.batch.candidate_calls.calls.iter().find(|call|
+            call.checking.occurrence().ordinal() == 26).unwrap();
+        let route = graph_state.local_routes.iter().find(|route|
+            route.occurrence.ordinal() == 28).unwrap();
+        let source = session.batch.hir.local_source_for(&provider.owner).unwrap().unwrap();
+        let argument = source.expression(&provider.argument).unwrap();
+        assert_eq!(argument.occurrence, route.occurrence);
+        let yu_hir::shadow::LocalSourceForm::Name {
+            resolution: yu_hir::shadow::LocalSourceResolution::Local(local), ..
+        } = &argument.form else { panic!("provider argument is the exact resolved local Name") };
+        assert_eq!(local, &route.local);
+        let argument_position = match provider.argument_value {
+            crate::shadow_apply::CandidateEndpoint::Component(position) => position,
+            other => panic!("direct local provider argument must use a component endpoint: {other:?}"),
+        };
+        let native = provider.native.unwrap();
+        let argument_ordinal = session.live_components[argument_position].ordinal;
+        assert!(matches!(session.store.term_view(native.argument),
+            Ok(TermView::LiveVariable(view)) if view.kind() == ComponentKind::Value
+                && view.polarity() == Polarity::Positive && view.ordinal() == argument_ordinal));
+        let native_argument = native.argument;
+
+        let route_root = route.retained.terms[route.graph.root].unwrap();
+        let route_target = session.batch.component_term_at(argument_position);
+        let route_slot_zero = ConstraintOccurrenceId::new(route.occurrence.clone(), 0);
+        assert!(session.store.facts().iter().any(|fact| {
+            fact.lower() == route_root && fact.upper() == route_target
+                && session.store.provenance().iter().any(|edge| edge.fact() == fact.id()
+                    && edge.cause().occurrence() == &route_slot_zero)
+        }), "the route's exact source occurrence owns its graph-root-to-component constraint");
+        let route_root_pair = TypedPairKey::Value(CanonicalValuePairKey {
+            lower: session.value_endpoint(route_root, Polarity::Positive),
+            upper: session.value_endpoint(route_target, Polarity::Negative),
+        });
+        let route_root_relations = graph_state.intrusion.effect_algebra.context.observed_relations()
+            .filter(|(_, pair, _)| **pair == route_root_pair).collect::<Vec<_>>();
+        assert!(!route_root_relations.is_empty(),
+            "the route's own restoration must constrain its exact root to its source Apply argument row");
+        let route_relation_events = route_root_relations.iter().map(|(index, _, _)|
+            graph_state.intrusion.effect_algebra.context.test_source_events_for_relation(
+                candidate_context::RelationId(*index as u32)).unwrap_or(&[]).to_vec()
+        ).collect::<Vec<_>>();
+
+        let route_function_node = route.graph.nodes.iter().enumerate().find_map(|(index, node)| {
+            let Node::Function { polarity: Polarity::Positive, children } = node else { return None; };
+            matches!(route.graph.nodes[children[2]], Node::Row { row, .. }
+                if route.graph.rows[row].key == RowKey::Effect(41)).then_some(index)
+        }).unwrap();
+        let provider_function = route.retained.terms[route_function_node].unwrap();
+        let context = &graph_state.intrusion.effect_algebra.context;
+        let provider_origin = context.origins.iter()
+            .find(|origin| origin.relation == candidate_context::RelationId(357)).unwrap();
+        assert_eq!(provider_origin.occurrence.occurrence().ordinal(), 26);
+        assert_eq!(provider_origin.occurrence, provider.checking);
+        assert!(context.observed_dependencies().any(|dependency| matches!(dependency,
+            candidate_context::Dependency::FunctionPort {
+                child: candidate_context::RelationId(362),
+                parent: candidate_context::RelationId(358),
+                field: FunctionField::Argument,
+                operation: candidate_context::FunctionPortOperation::Swap,
+            })));
+        let route_to_function = context.observed_dependencies().any(|dependency| matches!(dependency,
+            candidate_context::Dependency::Replay {
+                child: candidate_context::RelationId(356),
+                upper: candidate_context::RelationId(355),
+                lower_input: candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(42)), Polarity::Positive,
+                    ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(term))),
+                upper_input: candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(42)), Polarity::Negative,
+                    ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(28))), ..
+            } if *term == provider_function));
+        assert!(route_to_function, "the route-owned root-to-component relation participates in the replay that yields the actual function port");
+        let apply_argument_to_expected = context.observed_dependencies().any(|dependency| matches!(dependency,
+            candidate_context::Dependency::Replay {
+                child: candidate_context::RelationId(363),
+                lower: candidate_context::RelationId(356),
+                upper: candidate_context::RelationId(362),
+                lower_input: candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(28)), Polarity::Positive,
+                    ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(term))),
+                upper_input: candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(28)), Polarity::Negative,
+                    ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(_))),
+            } if *term == provider_function));
+        assert!(apply_argument_to_expected, "the exact Apply argument row replays the retained actual function against its expected callback function");
+        let (actual, expected) = {
+            let TypedPairKey::Value(pair) = context
+                .relation_pair(candidate_context::RelationId(363)).unwrap() else { panic!("provider actual-function replay relation") };
+            let actual = match pair.lower {
+                ValueEndpointKey::PositiveFunction(term) => term,
+                other => panic!("provider actual callback endpoint: {other:?}"),
+            };
+            let expected = match pair.upper {
+                ValueEndpointKey::NegativeFunction(term) => term,
+                other => panic!("provider expected callback endpoint: {other:?}"),
+            };
+            (actual, expected)
+        };
+        assert_eq!(provider_function, actual,
+            "the exact source-owned route function node is the actual endpoint consumed by provider Apply replay relation 363");
+        let relevant_dependencies = context.observed_dependencies()
+            .filter(|dependency| match dependency {
+                candidate_context::Dependency::Derived { child, parent }
+                | candidate_context::Dependency::FunctionPort { child, parent, .. }
+                | candidate_context::Dependency::Transport { child, parent, .. } =>
+                    [355, 362, 363].into_iter().any(|id| child.0 == id || parent.0 == id),
+                candidate_context::Dependency::Replay { child, lower, upper, .. } =>
+                    [355, 362, 363].into_iter().any(|id| child.0 == id || lower.0 == id || upper.0 == id),
+            }).map(|dependency| format!("{dependency:?}")).collect::<Vec<_>>();
+        println!("R228 provider Apply 26 argument expression={} occurrence={} resolves local={:?}; route occurrence={} local={:?} target_component={} native_argument={native_argument:?}; route_root={route_root:?}; root relation pair={route_root_pair:?} relation_indices={:?} source_events={route_relation_events:?}; route function node={route_function_node} provider actual={actual:?} expected={expected:?}",
+            provider.argument.ordinal(), argument.occurrence.ordinal(), local,
+            route.occurrence.ordinal(), route.local, argument_position,
+            route_root_relations.iter().map(|(index, _, _)| *index).collect::<Vec<_>>());
+        println!("R228 route/Apply typed dependency edges: {relevant_dependencies:?}");
+    }
+
+    #[test]
     fn r224_apply_fresh_route_terms() {
         const SOURCE: &str = r#"act io:
     our tick: int -> int
