@@ -301,6 +301,27 @@ mod tests {
                 .is_empty()
         );
         assert!(parsed.operators().definition("+").is_some());
+        let selected = parsed.operator_provenance("+", OperatorFixity::Infix)
+            .expect("the accepted use selects an exact imported declaration");
+        assert_eq!(selected.declaration().origin(), OperatorOrigin::Imported(dependency));
+        assert_eq!(selected.declaration().range(), header.operators()[0].range());
+        assert_eq!(selected.dependency().unwrap().module_label(), "std/core/ops.yu");
+        assert_eq!(selected.dependency().unwrap().revision(), SourceRevision::UNTRACKED);
+        assert!(parsed.operator_provenance("+", OperatorFixity::Prefix).is_none());
+    }
+
+    #[test]
+    fn local_operator_use_provenance_does_not_acquire_imported_identity() {
+        let source: Arc<crate::SourceText> = Arc::from("infix (+) 5.0.0 5.0.1 = f\n1 + 2");
+        let parsed = crate::parse_file(
+            Arc::clone(&source),
+            Arc::new(crate::scan_header(source)),
+            Arc::new(SyntaxEnvironment::empty()),
+        );
+        let selected = parsed.operator_provenance("+", OperatorFixity::Infix)
+            .expect("local infix declaration is retained");
+        assert_eq!(selected.declaration().origin(), OperatorOrigin::Local);
+        assert!(selected.dependency().is_none());
     }
 
     #[test]

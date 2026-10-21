@@ -104,6 +104,7 @@ pub struct HirOperator {
     spelling: String,
     fixity: OperatorFixity,
     range: Range<usize>,
+    provenance: yu_syntax::OperatorUseProvenance,
 }
 
 impl HirOperator {
@@ -117,6 +118,11 @@ impl HirOperator {
 
     pub fn range(&self) -> &Range<usize> {
         &self.range
+    }
+
+    /// Exact declaration site and imported syntax dependency chosen by this parse.
+    pub fn provenance(&self) -> &yu_syntax::OperatorUseProvenance {
+        &self.provenance
     }
 }
 
@@ -662,10 +668,18 @@ impl ChainParser<'_> {
                 OperatorFixity::Suffix => OperatorUseRole::Suffix,
             },
         )?;
+        let syntax_fixity = match fixity {
+            OperatorFixity::Prefix => yu_syntax::OperatorFixity::Prefix,
+            OperatorFixity::Infix => yu_syntax::OperatorFixity::Infix,
+            OperatorFixity::Suffix => yu_syntax::OperatorFixity::Suffix,
+        };
+        let provenance = self.parsed.operator_provenance(definition.spelling(), syntax_fixity)
+            .ok_or(AssociationError::ExactOperatorEnvironment)?;
         Ok(HirOperator {
             spelling: definition.spelling().to_owned(),
             fixity,
             range: range_of(node),
+            provenance,
         })
     }
 
@@ -873,6 +887,8 @@ mod tests {
         };
         assert_eq!(operator.spelling(), "<+>");
         assert_eq!(operator.fixity(), OperatorFixity::Infix);
+        assert_eq!(operator.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Local);
+        assert!(operator.provenance().dependency().is_none());
         assert_eq!(operands.len(), 2);
         let HirExpr::Apply {
             operator, operands, ..
@@ -882,6 +898,38 @@ mod tests {
         };
         assert_eq!(operator.spelling(), "<*>");
         assert_eq!(operands.len(), 2);
+    }
+
+    #[test]
+    fn hir_operator_retains_the_selected_imported_site_and_dependency() {
+        let dependency = yu_syntax::SyntaxDependencySlot::from_index(0).unwrap();
+        let provider: Arc<SourceText> = Arc::from("pub infix (+) 5.0.0 5.0.1 = f");
+        let provider_header = scan_header(provider);
+        let revision = yu_syntax::SourceRevision::from_fingerprint(73);
+        let environment = SyntaxEnvironment::from_imported_headers(
+            yu_syntax::SyntaxEnvironmentKey::from_fingerprint(17),
+            [(dependency, &provider_header)],
+            Arc::from([yu_syntax::SyntaxDependencyProvenance::new(
+                Arc::from("lib/std/core/ops.yu"), revision,
+            )]),
+        ).unwrap();
+        let source: Arc<SourceText> = Arc::from("1 + 2");
+        let parsed = parse_file(
+            Arc::clone(&source),
+            Arc::new(scan_header(source)),
+            Arc::new(environment),
+        );
+        let associated = associate_operator_chains(&parsed);
+        let HirExpr::Apply { operator, .. } = associated.chains()[0].expression() else {
+            panic!("infix operator application")
+        };
+        assert_eq!(operator.spelling(), "+");
+        assert_eq!(operator.fixity(), OperatorFixity::Infix);
+        assert_eq!(operator.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Imported(dependency));
+        assert_eq!(operator.provenance().declaration().range(), provider_header.operators()[0].range());
+        let imported = operator.provenance().dependency().expect("import receipt");
+        assert_eq!(imported.module_label(), "lib/std/core/ops.yu");
+        assert_eq!(imported.revision(), revision);
     }
 
     fn value(expression: &HirExpr) -> (SyntaxKind, &[HirExpr]) {

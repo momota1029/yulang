@@ -163,6 +163,21 @@ impl ParsedFile {
         &self.operators
     }
 
+    /// Returns the exact selected declaration site and, for imported sites,
+    /// the dependency provenance that supplied the operator capability.
+    pub fn operator_provenance(
+        &self,
+        spelling: &str,
+        fixity: crate::OperatorFixity,
+    ) -> Option<OperatorUseProvenance> {
+        let declaration = self.operators.definition(spelling)?.declaration_site(fixity)?;
+        let dependency = match declaration.origin() {
+            crate::OperatorOrigin::Local => None,
+            crate::OperatorOrigin::Imported(slot) => Some(self.syntax.dependency(slot)?.clone()),
+        };
+        Some(OperatorUseProvenance { declaration, dependency })
+    }
+
     pub fn green(&self) -> &GreenNode {
         &self.green
     }
@@ -217,6 +232,19 @@ impl ParsedFile {
             .collect();
         Ok(occurrences)
     }
+}
+
+/// The chosen operator declaration site plus its exact imported dependency,
+/// when the selected fixity came from another source module.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OperatorUseProvenance {
+    declaration: crate::OperatorDeclarationProvenance,
+    dependency: Option<crate::SyntaxDependencyProvenance>,
+}
+
+impl OperatorUseProvenance {
+    pub fn declaration(&self) -> &crate::OperatorDeclarationProvenance { &self.declaration }
+    pub fn dependency(&self) -> Option<&crate::SyntaxDependencyProvenance> { self.dependency.as_ref() }
 }
 
 /// A structural recovery projection could not preserve its dense ordinal invariant.

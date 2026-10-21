@@ -36,6 +36,7 @@ impl OperatorTable {
         let entry = self.trie.find(spelling)?;
         Some(OperatorDefinition {
             entry: self.entries.get(entry)?,
+            sites: self.sites.get(entry)?,
         })
     }
 
@@ -93,6 +94,7 @@ impl OperatorTable {
 #[derive(Clone, Copy, Debug)]
 pub struct OperatorDefinition<'table> {
     entry: &'table OperatorEntry,
+    sites: &'table OperatorFixitySites,
 }
 
 impl OperatorDefinition<'_> {
@@ -125,6 +127,27 @@ impl OperatorDefinition<'_> {
     pub fn is_nullfix(&self) -> bool {
         self.entry.fixities().is_nullfix()
     }
+
+    /// The exact declaration site that supplied one selected fixity.
+    pub fn declaration_site(&self, fixity: OperatorFixity) -> Option<OperatorDeclarationProvenance> {
+        let site = self.sites.site(fixity)?;
+        Some(OperatorDeclarationProvenance {
+            origin: site.origin(),
+            range: site.range().clone(),
+        })
+    }
+}
+
+/// Immutable source identity for one fixity capability in an operator table.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OperatorDeclarationProvenance {
+    origin: OperatorOrigin,
+    range: Range<usize>,
+}
+
+impl OperatorDeclarationProvenance {
+    pub fn origin(&self) -> OperatorOrigin { self.origin }
+    pub fn range(&self) -> &Range<usize> { &self.range }
 }
 
 impl Default for OperatorTable {
