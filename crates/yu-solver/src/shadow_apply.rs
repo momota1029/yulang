@@ -79,6 +79,33 @@ pub struct CandidateValueObservation {
 pub struct CandidateInference {
     solved: CandidateSolvedResult,
 }
+
+fn candidate_imported_definitions(
+    hirs: &[Arc<HirModule>],
+) -> Result<HashMap<yu_hir::SourceExportId, yu_hir::DefId>, CandidateError> {
+    let mut definitions = HashMap::new();
+    for hir in hirs {
+        let Some(imports) = hir.source_imports() else { continue; };
+        for binding in imports.names().values() {
+            let yu_hir::SourceImportBinding::Resolved(resolution) = binding else { continue; };
+            let Ok(owner) = yu_hir::shadow::resolve_source_export_owner(hirs, &[], resolution) else { continue; };
+            let (module, provider_binding) = match owner {
+                yu_hir::shadow::SourceExportOwner::Binding { module, binding } => (module, binding),
+                yu_hir::shadow::SourceExportOwner::Role { .. } => continue,
+            };
+            if !module.owns_definition_root(provider_binding.definition_root()) {
+                return Err(CandidateError::Unsupported);
+            }
+            let id = resolution.identity();
+            if definitions.insert(id.clone(), provider_binding.id().clone())
+                .is_some_and(|previous| previous != *provider_binding.id())
+            {
+                return Err(CandidateError::Unsupported);
+            }
+        }
+    }
+    Ok(definitions)
+}
 /// Research-only receipt for one source-linked native callback-field bound.
 /// A yielded row exists only after its exact typed task drains successfully.
 pub struct CandidateOperationFieldV1Receipt<'a> {
@@ -819,6 +846,11 @@ impl CandidateInference {
     pub fn solve(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
         Self::solve_mode(hir, false, false)
     }
+    /// Candidate-only module world: each HIR keeps its original artifact brand,
+    /// while all roots enter one collection batch and one inference session.
+    pub fn solve_modules(hirs: Vec<Arc<HirModule>>) -> Result<Self, CandidateError> {
+        Self::solve_hirs_mode(hirs, false, false)
+    }
     /// Explicit, research-only entry for the statically linked operation field candidate.
     pub fn solve_operation_v1_research(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
         Self::solve_mode(hir, false, true)
@@ -932,7 +964,13 @@ impl CandidateInference {
         Some((inventory.regions.len(), inventory.scope_regions.len(), inventory.input_regions.len(), inventory.work_used, inventory.scratch_peak_bytes))
     }
     fn solve_mode(hir: Arc<HirModule>, scoped: bool, operation_v1: bool) -> Result<Self, CandidateError> {
+        Self::solve_hirs_mode(vec![hir], scoped, operation_v1)
+    }
+    fn solve_hirs_mode(hirs: Vec<Arc<HirModule>>, scoped: bool, operation_v1: bool) -> Result<Self, CandidateError> {
+        if hirs.is_empty() { return Err(CandidateError::Unsupported); }
+        let imported_definitions = candidate_imported_definitions(&hirs)?;
         let mut permitted_errors = HashSet::new();
+        for hir in &hirs {
         let mut declaration_errors = HashSet::new();
         for declaration in hir.source_effect_declarations() {
             declaration_errors.extend(declaration.placeholder_errors.iter().copied());
@@ -949,7 +987,7 @@ impl CandidateInference {
             };
             if let (Some(expression), Some(owner)) = (expression, owner) {
                 if let Some(source) = hir.local_source_for(&owner).map_err(|_| CandidateError::Unsupported)? {
-                    crate::candidate_source::preflight(source, operation_v1)?;
+                    crate::candidate_source::preflight_with_imports(source, operation_v1, &imported_definitions)?;
                     crate::candidate_source::retain_placeholder_errors(expression, &mut permitted_errors)?;
                     continue;
                 }
@@ -967,7 +1005,10 @@ impl CandidateInference {
         }) {
             return Err(CandidateError::Unsupported);
         }
-        let batch = ConstraintBatch::collect_candidate_mode_scoped_v1(hir, true, true, scoped, operation_v1).map_err(CandidateError::Collection)?;
+        }
+        let batch = ConstraintBatch::collect_candidate_world_scoped_v1(
+            hirs, true, true, scoped, operation_v1, &imported_definitions,
+        ).map_err(CandidateError::Collection)?;
         if scoped && batch.scc_plan().components_in_dependency_first_order().any(|component|
             batch.scc_plan().internal_uses(component).is_ok_and(|uses| !uses.is_empty())) {
             return Err(CandidateError::Unsupported);
@@ -1047,7 +1088,7 @@ impl CandidateInference {
         Ok(Self { solved })
     }
     pub fn observes_hir(&self, hir: &HirModule) -> bool {
-        std::ptr::eq(self.solved.data.hir.as_ref(), hir)
+        self.solved.data.hirs.iter().any(|candidate| std::ptr::eq(candidate.as_ref(), hir))
     }
     /// Candidate conflicts never establish source rejection.
     pub fn candidate_conflicts(&self) -> &[SolverError] {
@@ -1077,7 +1118,7 @@ impl CandidateInference {
         if !self.solved.data.errors.is_empty() {
             return Err(ArtifactMismatch);
         }
-        if !self.solved.data.hir.owns_definition_root(root) {
+        if !self.solved.data.owns_definition_root(root) {
             return Err(ArtifactMismatch);
         }
         let position = self
@@ -1100,7 +1141,7 @@ impl CandidateInference {
         if !self.solved.data.errors.is_empty() {
             return None;
         }
-        if !self.solved.data.hir.owns_occurrence(occurrence) {
+        if !self.solved.data.owns_occurrence(occurrence) {
             return None;
         }
         let state = self.solved.data.candidate_graph.as_ref()?;
@@ -1142,12 +1183,14 @@ impl CandidateInference {
     pub fn source_call_count(&self) -> usize { self.solved.data.candidate_calls.calls.len() }
     pub fn source_call(&self, index: usize) -> Result<CandidateSourceCall<'_>, ArtifactMismatch> {
         let data = &self.solved.data;
+        let call = data.candidate_calls.calls.get(index).ok_or(ArtifactMismatch)?;
+        let hir = data.hir_for_source_root(&call.owner).ok_or(ArtifactMismatch)?;
         if let Some(graph) = data.candidate_graph.as_ref() {
             if graph.intrusion.effect_algebra.context.scoped_enabled {
-                return crate::candidate_call::observe_scoped(&data.hir, &data.store, &data.candidate_calls, index, graph);
+                return crate::candidate_call::observe_scoped(hir, &data.store, &data.candidate_calls, index, graph);
             }
         }
-        crate::candidate_call::observe(&data.hir, &data.store, &data.candidate_calls, index)
+        crate::candidate_call::observe(hir, &data.store, &data.candidate_calls, index)
     }
     /// Select source provenance and occurrence-matching Origin candidates by
     /// one owned HIR occurrence before applying presentation bounds. Full
@@ -1160,7 +1203,7 @@ impl CandidateInference {
     ) -> Result<CandidateSourceOccurrenceObservation<'a>, ArtifactMismatch> {
         const HARD_MAX_ROWS: usize = 256;
         if !self.solved.data.errors.is_empty() { return Err(ArtifactMismatch); }
-        if !self.solved.data.hir.owns_occurrence(occurrence) { return Err(ArtifactMismatch); }
+        if !self.solved.data.owns_occurrence(occurrence) { return Err(ArtifactMismatch); }
         let cap = max_rows.min(HARD_MAX_ROWS);
         let mut facts = Vec::new();
         let mut origins = Vec::new();
@@ -1214,9 +1257,9 @@ impl CandidateInference {
         use std::collections::HashSet;
         const HARD_MAX_ROWS: usize = 256;
         if !self.solved.data.errors.is_empty()
-            || !self.solved.data.hir.owns_occurrence(forwarding_apply)
+            || !self.solved.data.owns_occurrence(forwarding_apply)
             || source_keys.len() > 64
-            || source_keys.iter().any(|(occurrence, _)| !self.solved.data.hir.owns_occurrence(occurrence))
+            || source_keys.iter().any(|(occurrence, _)| !self.solved.data.owns_occurrence(occurrence))
         { return Err(ArtifactMismatch); }
         let cap = max_rows.min(HARD_MAX_ROWS);
         let consumer_index = self.solved.data.candidate_calls.calls.iter()
@@ -1491,7 +1534,9 @@ impl CandidateInference {
     /// and adds no solver state or independent Function/AE/FreshUse validation.
     pub fn computation_source_plan_count(&self) -> usize { self.solved.data.candidate_calls.formals.len() }
     pub fn computation_source_plan(&self, index: usize) -> Result<Option<CandidateComputationSourcePlan<'_>>, ArtifactMismatch> {
-        crate::candidate_call::observe_computation_source_plan(&self.solved.data.hir, &self.solved.data.store, &self.solved.data.candidate_calls, index)
+        let registration = self.solved.data.candidate_calls.formals.get(index).ok_or(ArtifactMismatch)?;
+        let hir = self.solved.data.hir_for_source_root(&registration.owner).ok_or(ArtifactMismatch)?;
+        crate::candidate_call::observe_computation_source_plan(hir, &self.solved.data.store, &self.solved.data.candidate_calls, index)
     }
     pub fn unresolved(&self) -> &'static [UnresolvedPremise] {
         UNRESOLVED
@@ -1985,7 +2030,7 @@ impl CandidateValueObservation {
             .find(|u| u.record.occurrence() == occurrence)?;
         if retained.record.id() != retained.record.cause().id()
             || retained.record.id().occurrence() != retained.record.occurrence()
-            || !self.solved.hir.owns_occurrence(occurrence)
+            || !self.solved.owns_occurrence(occurrence)
         {
             return None;
         }
@@ -2672,7 +2717,9 @@ impl InferenceSession {
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?;
             if self.batch.candidate_source.scoped_experiment {
                 let graph = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::IdentityExhausted)?;
-                crate::candidate_call::authenticate_scoped_apply(&self.batch.hir, input, graph)
+                crate::candidate_call::authenticate_scoped_apply(
+                    self.batch.hir_for_source_root(&input.owner).ok_or(SolveAvailabilityError::IdentityExhausted)?, input, graph,
+                )
                     .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             }
             let CandidateRelation::Apply {
@@ -2751,7 +2798,8 @@ impl InferenceSession {
                     let introduction = if let Some(name_index) = source_call.formal_name {
                         let name = &self.batch.candidate_calls.names[name_index];
                         let registration = &self.batch.candidate_calls.formals[name.registration];
-                        let source = self.batch.hir.local_source_for(&registration.owner)
+                        let hir = self.batch.hir_for_source_root(&registration.owner).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let source = hir.local_source_for(&registration.owner)
                             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                         let lambda = source.expressions().get(registration.lambda)

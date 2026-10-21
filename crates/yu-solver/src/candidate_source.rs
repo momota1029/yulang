@@ -450,6 +450,14 @@ fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), CollectionAvailabilityEr
     Ok(())
 }
 pub(super) fn preflight(source: &LocalSource, operation_v1: bool) -> Result<(), shadow_apply::CandidateError> {
+    preflight_with_imports(source, operation_v1, &HashMap::new())
+}
+
+pub(super) fn preflight_with_imports(
+    source: &LocalSource,
+    operation_v1: bool,
+    imported_definitions: &HashMap<yu_hir::SourceExportId, yu_hir::DefId>,
+) -> Result<(), shadow_apply::CandidateError> {
     let mut referenced_catch_binders = std::collections::HashSet::new();
     if !source.where_clauses().is_empty() {
         // Capture/FreshUse retain the subject row and source identities, but
@@ -503,8 +511,12 @@ pub(super) fn preflight(source: &LocalSource, operation_v1: bool) -> Result<(), 
                 }
             }
         }
-        if matches!(&expr.form, LocalSourceForm::Name { resolution: LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous | LocalSourceResolution::Imported(_), .. }) {
-            return Err(shadow_apply::CandidateError::Unsupported);
+        if let LocalSourceForm::Name { resolution, .. } = &expr.form {
+            match resolution {
+                LocalSourceResolution::Unresolved | LocalSourceResolution::Ambiguous => return Err(shadow_apply::CandidateError::Unsupported),
+                LocalSourceResolution::Imported(id) if !imported_definitions.contains_key(id) => return Err(shadow_apply::CandidateError::Unsupported),
+                _ => {}
+            }
         }
     }
     Ok(())
@@ -873,10 +885,13 @@ impl ConstraintBatch {
         &mut self,
         source: &'a LocalSource,
         parent: &SourceReceiver,
+        hir: &Arc<HirModule>,
+        hir_index: usize,
+        imported_definitions: &'a HashMap<yu_hir::SourceExportId, DefId>,
         uses: &mut Vec<PendingDefinitionUse<'a>>,
     ) -> Result<(), CollectionAvailabilityError> {
         let owner = source.source_root();
-        let original = self.hir.local_source_for(owner).map_err(|_| invalid())?.ok_or_else(invalid)?;
+        let original = hir.local_source_for(owner).map_err(|_| invalid())?.ok_or_else(invalid)?;
         if !std::ptr::eq(source, original) { return Err(invalid()); }
         match (parent, owner) {
             (SourceReceiver::Definition(id), SourceRootId::Definition(root))
@@ -885,8 +900,10 @@ impl ConstraintBatch {
             _ => return Err(invalid()),
         }
         self.candidate_source.source_owners.try_reserve(source.expressions().len()).map_err(|_| unavailable())?;
+        self.occurrence_hir_positions.try_reserve(source.expressions().len()).map_err(|_| unavailable())?;
         for expr in source.expressions() {
-            if !self.hir.owns_occurrence(&expr.occurrence) { return Err(invalid()); }
+            if !hir.owns_occurrence(&expr.occurrence) { return Err(invalid()); }
+            if self.occurrence_hir_positions.insert(expr.occurrence.clone(), hir_index).is_some_and(|previous| previous != hir_index) { return Err(invalid()); }
             if self.candidate_source.source_owners.insert(expr.occurrence.clone(), owner.clone()).is_some_and(|previous| &previous != owner) {
                 return Err(invalid());
             }
@@ -1390,7 +1407,11 @@ impl ConstraintBatch {
                                     push(uses, PendingDefinitionUse { parent: parent.clone(), target, occurrence: occurrence.clone() })?;
                                     push(&mut actions, Action::Module(occurrence.clone()))?;
                                 }
-                                LocalSourceResolution::Imported(_) => return Err(unavailable()),
+                                LocalSourceResolution::Imported(export) => {
+                                    let target = imported_definitions.get(export).ok_or_else(invalid)?;
+                                    push(uses, PendingDefinitionUse { parent: parent.clone(), target, occurrence: occurrence.clone() })?;
+                                    push(&mut actions, Action::Module(occurrence.clone()))?;
+                                }
                                 LocalSourceResolution::Parameter(_) | LocalSourceResolution::CatchBinder(_) | LocalSourceResolution::CaseBinder(_) => {}
                                 LocalSourceResolution::Local(local) => {
                                     if let Some(&endpoint) = active_initializers.get(local) {
@@ -2162,14 +2183,16 @@ mod expression_receiver_tests {
         let owner = SourceRootId::Expression(root(&hir, 0));
         let source = hir.local_source_for(&owner).unwrap().unwrap();
         let mut batch = ConstraintBatch::collect(hir.clone()).unwrap();
+        let source_hir = batch.hir.clone();
+        let no_imports = HashMap::new();
         let mut uses = Vec::new();
         for receiver in [SourceReceiver::Expression(root(&hir, 1)), SourceReceiver::Expression(root(&foreign, 0))] {
-            assert!(matches!(batch.emit_candidate_source(source, &receiver, &mut uses), Err(CollectionAvailabilityError::MissingDefinitionEndpoint)));
+            assert!(matches!(batch.emit_candidate_source(source, &receiver, &source_hir, 0, &no_imports, &mut uses), Err(CollectionAvailabilityError::MissingDefinitionEndpoint)));
             assert!(batch.candidate_source.expressions.is_empty());
             assert!(uses.is_empty());
         }
         let foreign_owner = SourceRootId::Expression(root(&foreign, 0));
         let foreign_source = foreign.local_source_for(&foreign_owner).unwrap().unwrap();
-        assert!(matches!(batch.emit_candidate_source(foreign_source, &SourceReceiver::Expression(root(&foreign, 0)), &mut uses), Err(CollectionAvailabilityError::MissingDefinitionEndpoint)));
+        assert!(matches!(batch.emit_candidate_source(foreign_source, &SourceReceiver::Expression(root(&foreign, 0)), &foreign, 1, &no_imports, &mut uses), Err(CollectionAvailabilityError::MissingDefinitionEndpoint)));
     }
 }

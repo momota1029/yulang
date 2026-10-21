@@ -61,7 +61,7 @@ impl CandidateInference {
         max_rows: usize,
     ) -> Result<CandidateLocalSourceProviderObservation<'a>, ArtifactMismatch> {
         if !self.solved.data.errors.is_empty()
-            || !self.solved.data.hir.owns_occurrence(forwarding_apply)
+            || !self.solved.data.owns_occurrence(forwarding_apply)
         {
             return Err(ArtifactMismatch);
         }

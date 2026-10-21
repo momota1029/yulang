@@ -860,9 +860,15 @@ pub struct PendingApplicationOccurrence {
 #[derive(Clone, Debug)]
 pub struct ConstraintBatch {
     hir: Arc<HirModule>,
+    /// Original HIR artifacts participating in this one candidate batch. The
+    /// first entry remains the compatibility view returned by `hir()`.
+    hirs: Vec<Arc<HirModule>>,
     collection_artifact: Arc<CollectionArtifactToken>,
     projection_order: Vec<HirOccurrenceId>,
+    occurrence_hir_positions: HashMap<HirOccurrenceId, usize>,
     root_order: Vec<DefinitionRootId>,
+    /// Parallel to the dense definition/scheme order, not HIR identity.
+    root_hir_positions: Vec<usize>,
     definitions: Vec<CollectedDefinition>,
     definition_positions: HashMap<DefinitionOrderId, usize>,
     definition_uses: Vec<DefinitionUse>,
@@ -951,15 +957,32 @@ impl ConstraintBatch {
     fn collect_candidate_mode_scoped_v1(
         hir: Arc<HirModule>, candidate_values: bool, candidate_graph_effects: bool, scoped_experiment: bool, operation_v1: bool,
     ) -> Result<Self, CollectionAvailabilityError> {
+        Self::collect_candidate_world_scoped_v1(
+            vec![hir], candidate_values, candidate_graph_effects, scoped_experiment, operation_v1,
+            &HashMap::new(),
+        )
+    }
+
+    fn collect_candidate_world_scoped_v1(
+        hirs: Vec<Arc<HirModule>>, candidate_values: bool, candidate_graph_effects: bool,
+        scoped_experiment: bool, operation_v1: bool,
+        imported_definitions: &HashMap<yu_hir::SourceExportId, DefId>,
+    ) -> Result<Self, CollectionAvailabilityError> {
+        let hir = hirs.first().cloned().ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)?;
+        let hir_count = hirs.len();
+        let source_hirs = hirs.clone();
         #[cfg(not(feature = "shadow-apply-candidate"))]
         let _ = (candidate_graph_effects, scoped_experiment);
-        let hir_definition_root_allocation_bytes = hir.definition_root_allocation_bytes();
-        let definition_root_def_id_clone_bytes = hir.definition_root_def_id_clone_bytes();
+        let hir_definition_root_allocation_bytes = hirs.iter().map(|hir| hir.definition_root_allocation_bytes()).sum();
+        let definition_root_def_id_clone_bytes = hirs.iter().map(|hir| hir.definition_root_def_id_clone_bytes()).sum();
         let mut batch = Self {
-            hir,
+            hir: hir.clone(),
+            hirs,
             collection_artifact: Arc::new(CollectionArtifactToken),
             projection_order: Vec::new(),
+            occurrence_hir_positions: HashMap::new(),
             root_order: Vec::new(),
+            root_hir_positions: Vec::new(),
             definitions: Vec::new(),
             definition_positions: HashMap::new(),
             definition_uses: Vec::new(),
@@ -1005,13 +1028,12 @@ impl ConstraintBatch {
             occurrence_component_query_probes: Arc::new(AtomicUsize::new(0)),
             root_component_query_probes: Arc::new(AtomicUsize::new(0)),
             counters: ProductionCounters {
-                hir_traversals: 1,
+                hir_traversals: hir_count,
                 hir_definition_root_allocation_bytes,
                 definition_root_def_id_clone_bytes,
                 ..ProductionCounters::default()
             },
         };
-        let hir = batch.hir.clone();
         #[cfg(test)]
         for leaf in [
             Leaf::IntPositive,
@@ -1025,89 +1047,56 @@ impl ConstraintBatch {
         // endpoint pass; the immutable batch retains only order identities.
         let mut definition_by_hir_id = HashMap::<&DefId, DefinitionOrderId>::new();
         let mut pending_uses = Vec::new();
-        for item in hir.items() {
-            batch.counters.body_pass_visits += 1;
-            let (expression, definition_root, definition) = match item {
-                HirItem::Expression(expression) => (expression, None, None),
-                HirItem::Binding(binding) => {
-                    let ordinal = u32::try_from(batch.definitions.len())
-                        .map_err(|_| CollectionAvailabilityError::DefinitionIdentityExhausted)?;
-                    let definition =
-                        DefinitionOrderId::new(batch.collection_artifact.clone(), ordinal);
-                    let fact_start = batch.occurrences.len();
-                    batch.add_definition_root(binding.definition_root().clone())?;
-                    #[cfg(feature = "shadow-apply-candidate")]
-                    batch.candidate_source.references.register_module(binding.definition_root().clone(), binding.id().clone())?;
-                    let endpoint_identity_payload_bytes = binding.id().hash_eq_payload_bytes();
-                    let old_capacity = definition_by_hir_id.capacity();
-                    let Entry::Vacant(entry) = definition_by_hir_id.entry(binding.id()) else {
-                        return Err(CollectionAvailabilityError::DuplicateDefinitionId);
-                    };
-                    entry.insert(definition.clone());
-                    batch.counters.definition_endpoint_index_inserts += 1;
-                    batch
-                        .counters
-                        .definition_endpoint_identity_hash_byte_incidences +=
-                        endpoint_identity_payload_bytes;
-                    if definition_by_hir_id.capacity() != old_capacity {
-                        batch.counters.definition_endpoint_index_capacity_growths += 1;
-                        batch.counters.index_rebuilds += 1;
-                    }
-                    let definition_position = batch.definitions.len();
-                    let old_capacity = batch.definition_positions.capacity();
-                    let Entry::Vacant(entry) = batch.definition_positions.entry(definition.clone())
-                    else {
-                        return Err(CollectionAvailabilityError::DuplicateDefinitionOrderId);
-                    };
-                    entry.insert(definition_position);
-                    batch.counters.definition_record_index_inserts += 1;
-                    if batch.definition_positions.capacity() != old_capacity {
-                        batch.counters.index_rebuilds += 1;
-                    }
-                    let body_status = if candidate_values {
-                        CollectedBodyStatus::Complete
-                    } else {
-                        match binding.value() {
-                            ResolvedExpr::Integer { .. }
-                            | ResolvedExpr::Name {
-                                resolution: NameResolution::Resolved(_),
-                                ..
-                            } => CollectedBodyStatus::Complete,
-                            ResolvedExpr::Name {
-                                resolution: NameResolution::Ambiguous,
-                                ..
-                            } => {
-                                batch.counters.collected_ambiguous_name_bodies += 1;
-                                CollectedBodyStatus::Error
-                            }
-                            ResolvedExpr::Name {
-                                resolution: NameResolution::Unresolved,
-                                ..
-                            } => {
-                                batch.counters.collected_unresolved_name_bodies += 1;
-                                CollectedBodyStatus::Error
-                            }
-                            ResolvedExpr::Name {
-                                resolution: NameResolution::Parameter(_),
-                                ..
-                            } => CollectedBodyStatus::Error,
-                            ResolvedExpr::Name {
-                                resolution: NameResolution::Imported(_),
-                                ..
-                            } => CollectedBodyStatus::Error,
-                            // The owned Lambda body determines whether the
-                            // session receives a complete Function recipe.
-                            ResolvedExpr::Lambda { body, .. } => match body.as_ref() {
+        for (hir_index, hir) in source_hirs.iter().enumerate() {
+            for item in hir.items() {
+                batch.counters.body_pass_visits += 1;
+                let (expression, definition_root, definition) = match item {
+                    HirItem::Expression(expression) => (expression, None, None),
+                    HirItem::Binding(binding) => {
+                        let ordinal = u32::try_from(batch.definitions.len())
+                            .map_err(|_| CollectionAvailabilityError::DefinitionIdentityExhausted)?;
+                        let definition =
+                            DefinitionOrderId::new(batch.collection_artifact.clone(), ordinal);
+                        let fact_start = batch.occurrences.len();
+                        batch.add_definition_root(binding.definition_root().clone())?;
+                        batch.root_hir_positions.push(hir_index);
+                        #[cfg(feature = "shadow-apply-candidate")]
+                        batch.candidate_source.references.register_module(binding.definition_root().clone(), binding.id().clone())?;
+                        let endpoint_identity_payload_bytes = binding.id().hash_eq_payload_bytes();
+                        let old_capacity = definition_by_hir_id.capacity();
+                        let Entry::Vacant(entry) = definition_by_hir_id.entry(binding.id()) else {
+                            return Err(CollectionAvailabilityError::DuplicateDefinitionId);
+                        };
+                        entry.insert(definition.clone());
+                        batch.counters.definition_endpoint_index_inserts += 1;
+                        batch
+                            .counters
+                            .definition_endpoint_identity_hash_byte_incidences +=
+                            endpoint_identity_payload_bytes;
+                        if definition_by_hir_id.capacity() != old_capacity {
+                            batch.counters.definition_endpoint_index_capacity_growths += 1;
+                            batch.counters.index_rebuilds += 1;
+                        }
+                        let definition_position = batch.definitions.len();
+                        let old_capacity = batch.definition_positions.capacity();
+                        let Entry::Vacant(entry) = batch.definition_positions.entry(definition.clone())
+                        else {
+                            return Err(CollectionAvailabilityError::DuplicateDefinitionOrderId);
+                        };
+                        entry.insert(definition_position);
+                        batch.counters.definition_record_index_inserts += 1;
+                        if batch.definition_positions.capacity() != old_capacity {
+                            batch.counters.index_rebuilds += 1;
+                        }
+                        let body_status = if candidate_values {
+                            CollectedBodyStatus::Complete
+                        } else {
+                            match binding.value() {
                                 ResolvedExpr::Integer { .. }
                                 | ResolvedExpr::Name {
-                                    resolution:
-                                        NameResolution::Resolved(_) | NameResolution::Parameter(_),
+                                    resolution: NameResolution::Resolved(_),
                                     ..
                                 } => CollectedBodyStatus::Complete,
-                                ResolvedExpr::Name {
-                                    resolution: NameResolution::Imported(_),
-                                    ..
-                                } => CollectedBodyStatus::Error,
                                 ResolvedExpr::Name {
                                     resolution: NameResolution::Ambiguous,
                                     ..
@@ -1122,193 +1111,182 @@ impl ConstraintBatch {
                                     batch.counters.collected_unresolved_name_bodies += 1;
                                     CollectedBodyStatus::Error
                                 }
-                                ResolvedExpr::Lambda { .. } | ResolvedExpr::Error { .. } => {
-                                    CollectedBodyStatus::Error
-                                }
+                                ResolvedExpr::Name {
+                                    resolution: NameResolution::Parameter(_),
+                                    ..
+                                } => CollectedBodyStatus::Error,
+                                ResolvedExpr::Name {
+                                    resolution: NameResolution::Imported(_),
+                                    ..
+                                } => CollectedBodyStatus::Error,
+                                // The owned Lambda body determines whether the
+                                // session receives a complete Function recipe.
+                                ResolvedExpr::Lambda { body, .. } => match body.as_ref() {
+                                    ResolvedExpr::Integer { .. }
+                                    | ResolvedExpr::Name {
+                                        resolution:
+                                            NameResolution::Resolved(_) | NameResolution::Parameter(_),
+                                        ..
+                                    } => CollectedBodyStatus::Complete,
+                                    ResolvedExpr::Name {
+                                        resolution: NameResolution::Imported(_),
+                                        ..
+                                    } => CollectedBodyStatus::Error,
+                                    ResolvedExpr::Name {
+                                        resolution: NameResolution::Ambiguous,
+                                        ..
+                                    } => {
+                                        batch.counters.collected_ambiguous_name_bodies += 1;
+                                        CollectedBodyStatus::Error
+                                    }
+                                    ResolvedExpr::Name {
+                                        resolution: NameResolution::Unresolved,
+                                        ..
+                                    } => {
+                                        batch.counters.collected_unresolved_name_bodies += 1;
+                                        CollectedBodyStatus::Error
+                                    }
+                                    ResolvedExpr::Lambda { .. } | ResolvedExpr::Error { .. } => {
+                                        CollectedBodyStatus::Error
+                                    }
+                                    ResolvedExpr::Apply { .. } | ResolvedExpr::Group { .. } => {
+                                        CollectedBodyStatus::Error
+                                    }
+                                },
+                                ResolvedExpr::Error { .. } => CollectedBodyStatus::Error,
                                 ResolvedExpr::Apply { .. } | ResolvedExpr::Group { .. } => {
                                     CollectedBodyStatus::Error
                                 }
-                            },
-                            ResolvedExpr::Error { .. } => CollectedBodyStatus::Error,
-                            ResolvedExpr::Apply { .. } | ResolvedExpr::Group { .. } => {
-                                CollectedBodyStatus::Error
+                            }
+                        };
+                        match body_status {
+                            CollectedBodyStatus::Complete => {
+                                batch.counters.collected_complete_bodies += 1
+                            }
+                            CollectedBodyStatus::Error => batch.counters.collected_error_bodies += 1,
+                        }
+                        batch.definitions.push(CollectedDefinition {
+                            definition: definition.clone(),
+                            root: binding.definition_root().clone(),
+                            body_fact_range: fact_start..fact_start,
+                            body_status,
+                        });
+                        let old_capacity = batch.root_definition_positions.capacity();
+                        if batch
+                            .root_definition_positions
+                            .insert(binding.definition_root().clone(), definition_position)
+                            .is_some()
+                        {
+                            return Err(CollectionAvailabilityError::DuplicateDefinitionId);
+                        }
+                        if batch.root_definition_positions.capacity() != old_capacity {
+                            batch.counters.scheme_root_index_growths += 1;
+                            batch.counters.scheme_root_index_rebuilds += 1;
+                        }
+                        batch
+                            .root_scheme_identity_payload_bytes
+                            .push(binding.id().hash_eq_payload_bytes());
+                        batch.counters.definition_registration_visits += 1;
+                        batch.counters.collected_definitions += 1;
+                        (
+                            binding.value(),
+                            Some(binding.definition_root()),
+                            Some(definition),
+                        )
+                    }
+                    HirItem::Error { .. } => continue,
+                };
+                batch.projection_order.push(expression.occurrence().clone());
+                if batch.occurrence_hir_positions.insert(expression.occurrence().clone(), hir_index).is_some() {
+                    return Err(CollectionAvailabilityError::DuplicateDefinitionUseId);
+                }
+                #[cfg(feature = "shadow-f5")]
+                batch.retain_pending_applications(expression, definition_root);
+                batch.counters.occurrence_allocations += 1;
+                #[cfg(feature = "shadow-apply-candidate")]
+                if candidate_values {
+                    let source_root = match definition_root {
+                        Some(root) => Some(SourceRootId::Definition(root.clone())),
+                        None if candidate_graph_effects => hir.expression_root(expression.occurrence())
+                            .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
+                            .cloned().map(SourceRootId::Expression),
+                        None => None,
+                    };
+                    let source = if candidate_graph_effects {
+                        source_root.as_ref().map(|root| hir.local_source_for(root)).transpose()
+                            .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?.flatten()
+                    } else { None };
+                    let fact_start = batch.occurrences.len();
+                    let candidate_start = batch.candidate_recipes.len();
+                    let lambda_start = batch.lambda_recipes.len();
+                    if let Some(source) = source {
+                        let receiver = match (&definition, source_root.as_ref()) {
+                            (Some(id), Some(SourceRootId::Definition(_))) => SourceReceiver::Definition(id.clone()),
+                            (None, Some(SourceRootId::Expression(root))) => SourceReceiver::Expression(root.clone()),
+                            _ => return Err(CollectionAvailabilityError::MissingDefinitionEndpoint),
+                        };
+                        batch.emit_candidate_source(source, &receiver, &hir, hir_index, imported_definitions, &mut pending_uses)?;
+                    } else {
+                        let local = if !candidate_graph_effects {
+                            definition_root
+                                .map(|root| hir.shadow_local_binding(root))
+                                .transpose()
+                                .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
+                                .flatten()
+                        } else { None };
+                        if let Some(local) = local {
+                            batch.retain_pending_applications(&local.initializer, definition_root);
+                            batch.emit_candidate_local_value(
+                                expression,
+                                local,
+                                definition_root
+                                    .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?,
+                                definition.as_ref(),
+                                &mut pending_uses,
+                            )?;
+                        } else {
+                            batch.emit_candidate_value(
+                                expression,
+                                definition_root,
+                                definition.as_ref(),
+                                &mut pending_uses,
+                            )?;
+                        }
+                        if candidate_graph_effects {
+                            let actions = batch.candidate_legacy_actions(fact_start, batch.occurrences.len(), candidate_start, lambda_start)?;
+                            if let Some(root) = definition_root {
+                                batch.candidate_source.schedules.try_reserve(1)
+                                    .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+                                batch.candidate_source.schedules.insert(root.clone(), actions);
+                            } else {
+                                batch.candidate_source.loose.try_reserve(actions.len())
+                                    .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+                                batch.candidate_source.loose.extend(actions);
                             }
                         }
-                    };
-                    match body_status {
-                        CollectedBodyStatus::Complete => {
-                            batch.counters.collected_complete_bodies += 1
-                        }
-                        CollectedBodyStatus::Error => batch.counters.collected_error_bodies += 1,
-                    }
-                    batch.definitions.push(CollectedDefinition {
-                        definition: definition.clone(),
-                        root: binding.definition_root().clone(),
-                        body_fact_range: fact_start..fact_start,
-                        body_status,
-                    });
-                    let old_capacity = batch.root_definition_positions.capacity();
-                    if batch
-                        .root_definition_positions
-                        .insert(binding.definition_root().clone(), definition_position)
-                        .is_some()
-                    {
-                        return Err(CollectionAvailabilityError::DuplicateDefinitionId);
-                    }
-                    if batch.root_definition_positions.capacity() != old_capacity {
-                        batch.counters.scheme_root_index_growths += 1;
-                        batch.counters.scheme_root_index_rebuilds += 1;
-                    }
-                    batch
-                        .root_scheme_identity_payload_bytes
-                        .push(binding.id().hash_eq_payload_bytes());
-                    batch.counters.definition_registration_visits += 1;
-                    batch.counters.collected_definitions += 1;
-                    (
-                        binding.value(),
-                        Some(binding.definition_root()),
-                        Some(definition),
-                    )
-                }
-                HirItem::Error { .. } => continue,
-            };
-            batch.projection_order.push(expression.occurrence().clone());
-            #[cfg(feature = "shadow-f5")]
-            batch.retain_pending_applications(expression, definition_root);
-            batch.counters.occurrence_allocations += 1;
-            #[cfg(feature = "shadow-apply-candidate")]
-            if candidate_values {
-                let source_root = match definition_root {
-                    Some(root) => Some(SourceRootId::Definition(root.clone())),
-                    None if candidate_graph_effects => hir.expression_root(expression.occurrence())
-                        .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
-                        .cloned().map(SourceRootId::Expression),
-                    None => None,
-                };
-                let source = if candidate_graph_effects {
-                    source_root.as_ref().map(|root| hir.local_source_for(root)).transpose()
-                        .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?.flatten()
-                } else { None };
-                let fact_start = batch.occurrences.len();
-                let candidate_start = batch.candidate_recipes.len();
-                let lambda_start = batch.lambda_recipes.len();
-                if let Some(source) = source {
-                    let receiver = match (&definition, source_root.as_ref()) {
-                        (Some(id), Some(SourceRootId::Definition(_))) => SourceReceiver::Definition(id.clone()),
-                        (None, Some(SourceRootId::Expression(root))) => SourceReceiver::Expression(root.clone()),
-                        _ => return Err(CollectionAvailabilityError::MissingDefinitionEndpoint),
-                    };
-                    batch.emit_candidate_source(source, &receiver, &mut pending_uses)?;
-                } else {
-                    let local = if !candidate_graph_effects {
-                        definition_root
-                            .map(|root| hir.shadow_local_binding(root))
-                            .transpose()
-                            .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
-                            .flatten()
-                    } else { None };
-                    if let Some(local) = local {
-                        batch.retain_pending_applications(&local.initializer, definition_root);
-                        batch.emit_candidate_local_value(
-                            expression,
-                            local,
-                            definition_root
-                                .ok_or(CollectionAvailabilityError::MissingDefinitionEndpoint)?,
-                            definition.as_ref(),
-                            &mut pending_uses,
-                        )?;
-                    } else {
-                        batch.emit_candidate_value(
-                            expression,
-                            definition_root,
-                            definition.as_ref(),
-                            &mut pending_uses,
-                        )?;
-                    }
-                    if candidate_graph_effects {
-                        let actions = batch.candidate_legacy_actions(fact_start, batch.occurrences.len(), candidate_start, lambda_start)?;
-                        if let Some(root) = definition_root {
-                            batch.candidate_source.schedules.try_reserve(1)
-                                .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
-                            batch.candidate_source.schedules.insert(root.clone(), actions);
-                        } else {
-                            batch.candidate_source.loose.try_reserve(actions.len())
-                                .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
-                            batch.candidate_source.loose.extend(actions);
-                        }
                     }
                 }
-            }
-            if !candidate_values {
-                if matches!(expression, ResolvedExpr::Integer { .. }) {
-                    batch
-                        .emit_integer(expression.occurrence().clone(), definition_root.cloned())?;
-                }
-                if let (
-                    Some(parent),
-                    Some(root),
-                    ResolvedExpr::Name {
-                        occurrence,
-                        resolution: NameResolution::Resolved(target),
-                        ..
-                    },
-                ) = (definition.as_ref(), definition_root.as_ref(), expression)
-                {
-                    batch.emit_resolved_binding_name(occurrence.clone(), Some((*root).clone()))?;
-                    let old_capacity = pending_uses.capacity();
-                    pending_uses.push(PendingDefinitionUse {
-                        parent: SourceReceiver::Definition(parent.clone()),
-                        target,
-                        occurrence: occurrence.clone(),
-                    });
-                    let capacity = pending_uses.capacity();
-                    batch
-                        .counters
-                        .definition_use_endpoint_workspace_peak_capacity = batch
-                        .counters
-                        .definition_use_endpoint_workspace_peak_capacity
-                        .max(capacity);
-                    if capacity != old_capacity {
+                if !candidate_values {
+                    if matches!(expression, ResolvedExpr::Integer { .. }) {
                         batch
-                            .counters
-                            .definition_use_endpoint_workspace_capacity_growths += 1;
+                            .emit_integer(expression.occurrence().clone(), definition_root.cloned())?;
                     }
-                }
-                if let (
-                    Some(parent),
-                    Some(root),
-                    ResolvedExpr::Lambda {
-                        occurrence,
-                        parameter,
-                        body,
-                        ..
-                    },
-                ) = (definition.as_ref(), definition_root.as_ref(), expression)
-                {
-                    #[cfg(feature = "shadow-f5")]
-                    if let Some(local) = batch
-                        .hir
-                        .shadow_local_binding(root)
-                        .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
-                        .cloned()
+                    if let (
+                        Some(parent),
+                        Some(root),
+                        ResolvedExpr::Name {
+                            occurrence,
+                            resolution: NameResolution::Resolved(target),
+                            ..
+                        },
+                    ) = (definition.as_ref(), definition_root.as_ref(), expression)
                     {
-                        // Visit the initializer before the terminal local use. That
-                        // use is a value reference and contributes no application.
-                        batch.retain_pending_applications(&local.initializer, Some(root));
-                    }
-                    let parameter_position = batch.parameter_recipes.len();
-                    batch.parameter_recipes.push(parameter.clone());
-                    batch.emit_lambda(occurrence.clone(), parameter_position, body, root)?;
-                    if let ResolvedExpr::Name {
-                        resolution: NameResolution::Resolved(target),
-                        ..
-                    } = body.as_ref()
-                    {
+                        batch.emit_resolved_binding_name(occurrence.clone(), Some((*root).clone()))?;
                         let old_capacity = pending_uses.capacity();
                         pending_uses.push(PendingDefinitionUse {
                             parent: SourceReceiver::Definition(parent.clone()),
                             target,
-                            occurrence: body.occurrence().clone(),
+                            occurrence: occurrence.clone(),
                         });
                         let capacity = pending_uses.capacity();
                         batch
@@ -1323,15 +1301,64 @@ impl ConstraintBatch {
                                 .definition_use_endpoint_workspace_capacity_growths += 1;
                         }
                     }
+                    if let (
+                        Some(parent),
+                        Some(root),
+                        ResolvedExpr::Lambda {
+                            occurrence,
+                            parameter,
+                            body,
+                            ..
+                        },
+                    ) = (definition.as_ref(), definition_root.as_ref(), expression)
+                    {
+                        #[cfg(feature = "shadow-f5")]
+                        if let Some(local) = hir
+                            .shadow_local_binding(root)
+                            .map_err(|_| CollectionAvailabilityError::NonTotalDefinitionMap)?
+                            .cloned()
+                        {
+                            // Visit the initializer before the terminal local use. That
+                            // use is a value reference and contributes no application.
+                            batch.retain_pending_applications(&local.initializer, Some(root));
+                        }
+                        let parameter_position = batch.parameter_recipes.len();
+                        batch.parameter_recipes.push(parameter.clone());
+                        batch.emit_lambda(occurrence.clone(), parameter_position, body, root)?;
+                        if let ResolvedExpr::Name {
+                            resolution: NameResolution::Resolved(target),
+                            ..
+                        } = body.as_ref()
+                        {
+                            let old_capacity = pending_uses.capacity();
+                            pending_uses.push(PendingDefinitionUse {
+                                parent: SourceReceiver::Definition(parent.clone()),
+                                target,
+                                occurrence: body.occurrence().clone(),
+                            });
+                            let capacity = pending_uses.capacity();
+                            batch
+                                .counters
+                                .definition_use_endpoint_workspace_peak_capacity = batch
+                                .counters
+                                .definition_use_endpoint_workspace_peak_capacity
+                                .max(capacity);
+                            if capacity != old_capacity {
+                                batch
+                                    .counters
+                                    .definition_use_endpoint_workspace_capacity_growths += 1;
+                            }
+                        }
+                    }
                 }
-            }
-            if let Some(definition) = definition {
-                let record = batch
-                    .definitions
-                    .get_mut(definition.ordinal() as usize)
-                    .ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)?;
-                debug_assert_eq!(record.definition, definition);
-                record.body_fact_range.end = batch.occurrences.len();
+                if let Some(definition) = definition {
+                    let record = batch
+                        .definitions
+                        .get_mut(definition.ordinal() as usize)
+                        .ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)?;
+                    debug_assert_eq!(record.definition, definition);
+                    record.body_fact_range.end = batch.occurrences.len();
+                }
             }
         }
         batch.ensure_total_definition_maps(&definition_by_hir_id)?;
@@ -1516,6 +1543,17 @@ impl ConstraintBatch {
     }
     pub fn hir(&self) -> &Arc<HirModule> {
         &self.hir
+    }
+    fn hir_for_source_root(&self, root: &SourceRootId) -> Option<&Arc<HirModule>> {
+        match root {
+            SourceRootId::Definition(root) => self.root_definition_positions.get(root)
+                .and_then(|position| self.root_hir_positions.get(*position))
+                .and_then(|index| self.hirs.get(*index))
+                .filter(|hir| hir.owns_definition_root(root)),
+            SourceRootId::Expression(root) => self.occurrence_hir_positions.get(root.occurrence())
+                .and_then(|index| self.hirs.get(*index))
+                .filter(|hir| hir.owns_expression_root(root)),
+        }
     }
     pub fn occurrences(&self) -> &[ConstraintOccurrence] {
         &self.occurrences
@@ -2087,16 +2125,19 @@ impl ConstraintBatch {
         Ok(())
     }
     fn require_owned(&self, occurrence: &HirOccurrenceId) -> Result<(), ArtifactMismatch> {
-        self.hir
-            .owns_occurrence(occurrence)
-            .then_some(())
-            .ok_or(ArtifactMismatch)
+        let indexed = self.occurrence_hir_positions.get(occurrence)
+            .and_then(|index| self.hirs.get(*index))
+            .is_some_and(|hir| hir.owns_occurrence(occurrence));
+        (indexed || self.hirs.iter().any(|hir| hir.owns_occurrence(occurrence)))
+            .then_some(()).ok_or(ArtifactMismatch)
     }
     fn require_owned_root(&self, root: &DefinitionRootId) -> Result<(), ArtifactMismatch> {
-        self.hir
-            .owns_definition_root(root)
-            .then_some(())
-            .ok_or(ArtifactMismatch)
+        let indexed = self.root_definition_positions.get(root)
+            .and_then(|position| self.root_hir_positions.get(*position))
+            .and_then(|index| self.hirs.get(*index))
+            .is_some_and(|hir| hir.owns_definition_root(root));
+        (indexed || self.hirs.iter().any(|hir| hir.owns_definition_root(root)))
+            .then_some(()).ok_or(ArtifactMismatch)
     }
     #[cfg_attr(
         not(test),
@@ -3260,6 +3301,8 @@ impl SemanticFact {
 #[derive(Debug)]
 pub struct ConstraintStore {
     hir: Arc<HirModule>,
+    hirs: Vec<Arc<HirModule>>,
+    occurrence_hir_positions: HashMap<HirOccurrenceId, usize>,
     terms: BranchTermArena,
     receipt_token: Arc<StoreReceiptToken>,
     next_receipt: u64,
@@ -3317,7 +3360,7 @@ struct RouteStoreJournal {
 impl ConstraintStore {
     pub fn from_batch(batch: ConstraintBatch) -> Self {
         let lineage = batch.term_lineage();
-        Self::with_capacity(batch.hir, lineage, 0)
+        Self::with_hirs_and_capacity(batch.hirs, batch.occurrence_hir_positions, lineage, 0)
     }
     /// F4 reserves every store lane before initial admission; the public
     /// batch-transfer constructor deliberately requests zero fact capacity.
@@ -3326,12 +3369,23 @@ impl ConstraintStore {
         lineage: Arc<TermLineage>,
         requested_capacity: usize,
     ) -> Self {
+        Self::with_hirs_and_capacity(vec![hir], HashMap::new(), lineage, requested_capacity)
+    }
+    fn with_hirs_and_capacity(
+        hirs: Vec<Arc<HirModule>>,
+        occurrence_hir_positions: HashMap<HirOccurrenceId, usize>,
+        lineage: Arc<TermLineage>,
+        requested_capacity: usize,
+    ) -> Self {
+        let hir = hirs.first().expect("a constraint store requires one HIR artifact").clone();
         let facts = Vec::with_capacity(requested_capacity);
         let canonical = HashMap::with_capacity(requested_capacity);
         let provenance = Vec::with_capacity(requested_capacity);
         let consumed_receipts = HashSet::with_capacity(requested_capacity);
         Self {
             hir,
+            hirs,
+            occurrence_hir_positions,
             terms: BranchTermArena::new(lineage),
             receipt_token: Arc::new(StoreReceiptToken),
             next_receipt: 0,
@@ -3747,10 +3801,14 @@ impl ConstraintStore {
         &self.counters
     }
     fn require_owned(&self, occurrence: &HirOccurrenceId) -> Result<(), ConstraintError> {
-        self.hir
-            .owns_occurrence(occurrence)
-            .then_some(())
-            .ok_or(ConstraintError::ArtifactMismatch)
+        let indexed = self.occurrence_hir_positions.get(occurrence)
+            .and_then(|index| self.hirs.get(*index))
+            .is_some_and(|hir| hir.owns_occurrence(occurrence));
+        if indexed || self.hirs.iter().any(|hir| hir.owns_occurrence(occurrence)) {
+            Ok(())
+        } else {
+            Err(ConstraintError::ArtifactMismatch)
+        }
     }
     fn finish_accounting(&mut self) {
         self.counters.fact_retained_bytes =
@@ -7549,9 +7607,12 @@ pub struct SolvedModule {
     #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
     collection_artifact: Arc<CollectionArtifactToken>,
     hir: Arc<HirModule>,
+    hirs: Vec<Arc<HirModule>>,
     projection_order: Vec<HirOccurrenceId>,
+    occurrence_hir_positions: HashMap<HirOccurrenceId, usize>,
     projections: HashMap<HirOccurrenceId, SolvedProjection>,
     root_scheme_positions: HashMap<DefinitionRootId, usize>,
+    root_hir_positions: Vec<usize>,
     root_scheme_identity_payload_bytes: Vec<usize>,
     schemes: Vec<Option<ClosedValueScheme>>,
     closed_types: ClosedTypeArena,
@@ -7597,9 +7658,12 @@ struct FrozenInferenceData {
     #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
     collection_artifact: Arc<CollectionArtifactToken>,
     hir: Arc<HirModule>,
+    hirs: Vec<Arc<HirModule>>,
     projection_order: Vec<HirOccurrenceId>,
+    occurrence_hir_positions: HashMap<HirOccurrenceId, usize>,
     projections: HashMap<HirOccurrenceId, SolvedProjection>,
     root_scheme_positions: HashMap<DefinitionRootId, usize>,
+    root_hir_positions: Vec<usize>,
     root_scheme_identity_payload_bytes: Vec<usize>,
     #[allow(
         dead_code,
@@ -7615,6 +7679,32 @@ struct FrozenInferenceData {
     resource_ledger: IndependentResourceLedger,
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     f5c_matrix_observer: Option<F5cMatrixObserver>,
+}
+
+impl FrozenInferenceData {
+    fn hir_for_occurrence(&self, occurrence: &HirOccurrenceId) -> Option<&Arc<HirModule>> {
+        self.occurrence_hir_positions.get(occurrence)
+            .and_then(|index| self.hirs.get(*index))
+            .filter(|hir| hir.owns_occurrence(occurrence))
+            .or_else(|| self.hirs.iter().find(|hir| hir.owns_occurrence(occurrence)))
+    }
+    fn hir_for_source_root(&self, root: &SourceRootId) -> Option<&Arc<HirModule>> {
+        match root {
+            SourceRootId::Definition(root) => self.root_scheme_positions.get(root)
+                .and_then(|position| self.root_hir_positions.get(*position))
+                .and_then(|index| self.hirs.get(*index))
+                .filter(|hir| hir.owns_definition_root(root))
+                .or_else(|| self.hirs.iter().find(|hir| hir.owns_definition_root(root))),
+            SourceRootId::Expression(root) => self.hir_for_occurrence(root.occurrence())
+                .filter(|hir| hir.owns_expression_root(root)),
+        }
+    }
+    fn owns_occurrence(&self, occurrence: &HirOccurrenceId) -> bool {
+        self.hir_for_occurrence(occurrence).is_some()
+    }
+    fn owns_definition_root(&self, root: &DefinitionRootId) -> bool {
+        self.hir_for_source_root(&SourceRootId::Definition(root.clone())).is_some()
+    }
 }
 
 #[cfg(feature = "shadow-apply-candidate")]
@@ -9884,8 +9974,9 @@ impl InferenceSession {
             // The solve branch receives the collected lineage directly.  The
             // retained batch is only F2 plan/recipe state; it never owns a
             // second mutable term arena or rebuilds a handle from HIR.
-            store: ConstraintStore::with_capacity(
-                batch.hir.clone(),
+            store: ConstraintStore::with_hirs_and_capacity(
+                batch.hirs.clone(),
+                batch.occurrence_hir_positions.clone(),
                 batch.term_lineage(),
                 fact_capacity,
             ),
@@ -17704,9 +17795,12 @@ impl InferenceSession {
             #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
             collection_artifact: data.collection_artifact,
             hir: data.hir,
+            hirs: data.hirs,
             projection_order: data.projection_order,
+            occurrence_hir_positions: data.occurrence_hir_positions,
             projections: data.projections,
             root_scheme_positions: data.root_scheme_positions,
+            root_hir_positions: data.root_hir_positions,
             root_scheme_identity_payload_bytes: data.root_scheme_identity_payload_bytes,
             routed_uses: data.routed_uses,
             errors: data.errors,
@@ -17991,10 +18085,13 @@ impl InferenceSession {
             pending_applications: self.batch.pending_applications,
             #[cfg(all(feature = "shadow-f5", feature = "shadow-scc-observer"))]
             collection_artifact: self.batch.collection_artifact,
-            hir: self.batch.hir,
+            hir: self.batch.hir.clone(),
+            hirs: self.batch.hirs,
             projection_order: self.batch.projection_order,
+            occurrence_hir_positions: self.batch.occurrence_hir_positions,
             projections,
             root_scheme_positions: self.batch.root_definition_positions,
+            root_hir_positions: self.batch.root_hir_positions,
             root_scheme_identity_payload_bytes: self.batch.root_scheme_identity_payload_bytes,
             routed_uses: self.routed_uses,
             errors,
@@ -18072,6 +18169,27 @@ impl SolvedModule {
     pub fn hir(&self) -> &Arc<HirModule> {
         &self.hir
     }
+    pub(crate) fn hir_for_occurrence(&self, occurrence: &HirOccurrenceId) -> Option<&Arc<HirModule>> {
+        self.occurrence_hir_positions.get(occurrence)
+            .and_then(|index| self.hirs.get(*index))
+            .filter(|hir| hir.owns_occurrence(occurrence))
+            .or_else(|| self.hirs.iter().find(|hir| hir.owns_occurrence(occurrence)))
+    }
+    pub(crate) fn hir_for_source_root(&self, root: &SourceRootId) -> Option<&Arc<HirModule>> {
+        match root {
+            SourceRootId::Definition(root) => self.root_scheme_positions.get(root)
+                .and_then(|position| self.root_hir_positions.get(*position))
+                .and_then(|index| self.hirs.get(*index))
+                .filter(|hir| hir.owns_definition_root(root))
+                .or_else(|| self.hirs.iter().find(|hir| hir.owns_definition_root(root))),
+            SourceRootId::Expression(root) => self.hir_for_occurrence(root.occurrence())
+                .filter(|hir| hir.owns_expression_root(root)),
+        }
+    }
+    pub(crate) fn owns_occurrence(&self, occurrence: &HirOccurrenceId) -> bool { self.hir_for_occurrence(occurrence).is_some() }
+    pub(crate) fn owns_definition_root(&self, root: &DefinitionRootId) -> bool {
+        self.hir_for_source_root(&SourceRootId::Definition(root.clone())).is_some()
+    }
     pub fn occurrences(&self) -> &[HirOccurrenceId] {
         &self.projection_order
     }
@@ -18098,7 +18216,7 @@ impl SolvedModule {
         &self,
         occurrence: &HirOccurrenceId,
     ) -> Result<SolvedProjection, ArtifactMismatch> {
-        if !self.hir.owns_occurrence(occurrence) {
+        if !self.owns_occurrence(occurrence) {
             return Err(ArtifactMismatch);
         }
         Ok(*self
@@ -18110,7 +18228,7 @@ impl SolvedModule {
             }))
     }
     pub fn root_value_for(&self, root: &DefinitionRootId) -> Result<SolvedValue, ArtifactMismatch> {
-        if !self.hir.owns_definition_root(root) {
+        if !self.owns_definition_root(root) {
             return Err(ArtifactMismatch);
         }
         self.solved_root_query_probes

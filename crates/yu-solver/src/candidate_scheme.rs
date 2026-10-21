@@ -2681,6 +2681,103 @@ mod authentic_demand_capture_tests {
     use super::*;
 
     #[test]
+    fn imported_binding_uses_keep_distinct_hir_artifacts_in_one_freshuse_world() {
+        let provider_text: Arc<yu_syntax::SourceText> = Arc::from(
+            "pub outer z = { my local h x = h z; local }\n",
+        );
+        let provider_parsed = yu_syntax::parse_file(
+            provider_text.clone(), Arc::new(yu_syntax::scan_header(provider_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let provider_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("multi-hir-import", "lib/std/prelude.yu"),
+        ));
+        let exports = yu_hir::shadow::index_source_exports(provider_identity.clone(), &provider_parsed).unwrap();
+        let std_text: Arc<yu_syntax::SourceText> = Arc::from("pub mod prelude;\n");
+        let std_parsed = yu_syntax::parse_file(
+            std_text.clone(), Arc::new(yu_syntax::scan_header(std_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let std_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("multi-hir-import", "lib/std.yu"),
+        ));
+        let std_exports = yu_hir::shadow::index_source_exports(std_identity, &std_parsed).unwrap();
+        let provider = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            provider_identity, &provider_parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+
+        let consumer_text: Arc<yu_syntax::SourceText> = Arc::from("pub first = outer\npub second = outer\n");
+        let consumer_parsed = yu_syntax::parse_file(
+            consumer_text.clone(), Arc::new(yu_syntax::scan_header(consumer_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let consumer_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("multi-hir-import", "consumer.yu"),
+        ));
+        let imports = yu_hir::SemanticImports::with_implicit_prelude(
+            &consumer_parsed, &consumer_identity, &[std_exports, exports],
+        ).unwrap();
+        let consumer = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            consumer_identity, &consumer_parsed, imports,
+        ).unwrap());
+        let foreign = lower("pub id x = x\n");
+        assert!(!Arc::ptr_eq(&provider, &consumer));
+
+        let candidate = crate::shadow_apply::CandidateInference::solve_modules(vec![
+            consumer.clone(), provider.clone(),
+        ]).unwrap();
+        assert!(candidate.observes_hir(&consumer));
+        assert!(candidate.observes_hir(&provider));
+        assert!(!candidate.observes_hir(&foreign));
+        assert!(candidate.candidate_conflicts().is_empty());
+        let provider_root = provider.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "outer" => Some(binding.definition_root().clone()),
+            _ => None,
+        }).unwrap();
+        let provider_graph = candidate.export(&provider_root).unwrap();
+        assert!(provider_graph.rows().any(|row| row.is_local()));
+
+        let use_occurrences: HashSet<_> = consumer.items().iter().filter_map(|item| match item {
+            HirItem::Binding(binding) if matches!(binding.name().spelling(), "first" | "second") => {
+                let source = consumer.local_source(binding.definition_root()).unwrap().unwrap();
+                source.expressions().iter().find_map(|expression| matches!(
+                    &expression.form,
+                    yu_hir::shadow::LocalSourceForm::Name {
+                        resolution: yu_hir::shadow::LocalSourceResolution::Imported(_), ..
+                    }
+                ).then(|| expression.occurrence.clone()))
+            }
+            _ => None,
+        }).collect();
+        assert_eq!(use_occurrences.len(), 2);
+        let imported_uses = use_occurrences.iter().map(|occurrence| {
+            let fresh = candidate.fresh_use(occurrence).expect("authenticated imported use retains its FreshUse route");
+            assert_eq!(fresh.occurrence(), occurrence);
+            fresh.rows().collect::<Vec<_>>()
+        }).collect::<Vec<_>>();
+        assert_eq!(imported_uses.len(), 2);
+        let first_local: Vec<_> = imported_uses[0].iter().filter(|row| row.source_row().is_local()).collect();
+        let second_local: Vec<_> = imported_uses[1].iter().filter(|row| row.source_row().is_local()).collect();
+        assert!(!first_local.is_empty(), "the provider function's quantified value row is captured");
+        assert!(!second_local.is_empty());
+        assert!(first_local.iter().all(|first| second_local.iter().all(|second| !first.same_identity(*second))),
+            "independent imported uses get disjoint local rows");
+    }
+
+    fn lower(text: &str) -> Arc<HirModule> {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(), Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "multi-hir-import-foreign", "foreign.yu",
+            ))), &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap())
+    }
+
+    #[test]
     fn declaration_where_subject_uses_provider_row_and_same_freshuse_image() {
         const SOURCE: &str = "my display(value: 'a) =\n    where 'a: Display\n    value";
         let text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);

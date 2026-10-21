@@ -3378,7 +3378,8 @@ impl InferenceSession {
                         }
                     }
                     2 => {
-                        let source = self.batch.hir.local_source_for(&call.owner).map_err(|_| exhausted())?.ok_or_else(exhausted)?;
+                        let hir = self.batch.hir_for_source_root(&call.owner).ok_or_else(exhausted)?;
+                        let source = hir.local_source_for(&call.owner).map_err(|_| exhausted())?.ok_or_else(exhausted)?;
                         let argument = source.expression(&call.argument).ok_or_else(exhausted)?;
                         let scope = self.batch.candidate_source.computation_scopes.get(&argument.occurrence).copied().ok_or_else(exhausted)?;
                         scoped.transformer = state.intern_scope(candidate_scope::ScopeTransformer::release(scope)?)?;

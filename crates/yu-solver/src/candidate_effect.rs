@@ -1622,7 +1622,8 @@ impl InferenceSession {
         let state = &self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra;
         let value = state.annotation_values.get(&(scope.clone(), Box::<str>::from(subject))).copied().ok_or_else(exhausted)?;
         let subject_row = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.rep(crate::candidate_scheme::RowKey::Value(value));
-        let role_identity = self.batch.hir.source_imports().and_then(|imports| {
+        let role_identity = self.batch.hir_for_source_root(&SourceRootId::Definition(provider.clone()))
+            .and_then(|hir| hir.source_imports()).and_then(|imports| {
             matches!(
                 imports.resolve(role_spelling),
                 Some(yu_hir::shadow::SourceImportBinding::Resolved(_))
