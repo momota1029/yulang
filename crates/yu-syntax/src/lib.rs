@@ -115,6 +115,7 @@ pub enum HeaderStop {
 pub struct HeaderImport {
     range: Range<usize>,
     form: HeaderImportForm,
+    selection: HeaderImportSelection,
     route: HeaderImportRoute,
     visibility: Visibility,
     alias: Option<String>,
@@ -127,6 +128,10 @@ impl HeaderImport {
 
     pub fn form(&self) -> HeaderImportForm {
         self.form
+    }
+
+    pub fn selection(&self) -> HeaderImportSelection {
+        self.selection
     }
 
     pub fn path(&self) -> &[String] {
@@ -149,6 +154,7 @@ impl HeaderImport {
     pub(crate) fn new(
         range: Range<usize>,
         form: HeaderImportForm,
+        selection: HeaderImportSelection,
         route: HeaderImportRoute,
         visibility: Visibility,
         alias: Option<String>,
@@ -156,11 +162,19 @@ impl HeaderImport {
         Self {
             range,
             form,
+            selection,
             route,
             visibility,
             alias,
         }
     }
+}
+
+/// Whether a header route selects one path or imports a module glob.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HeaderImportSelection {
+    Path,
+    Glob,
 }
 
 /// A separator-preserving source route for an unresolved import.

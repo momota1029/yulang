@@ -1,6 +1,6 @@
 # Sprint R306 — retain pinned operator glob imports
 
-Status: READY, solo Luna primary, no independent review; parent R149 remains OPEN.
+Status: RESULT, local source-to-HIR provenance outcome complete; solo primary, unreviewed; parent R149 remains OPEN.
 Baseline: `aedb4d6e6` on `research/simple-sub-intrusion`.
 Parent: unchanged Yulang2 Types and Console samples and original source/native obligations. Preserve exact source bytes and established import/operator semantics.
 
@@ -19,6 +19,12 @@ R305 found that the header scanner exposes only `std::num::frac::frac` from fmt'
 - Run focused header import tests, the pinned fmt role/source test, `cargo check -p yu-syntax`, `cargo check -p yu-playground`, and the unchanged Types boundary regression. These checks are implementation/source evidence, not a theorem or independent review.
 
 No operator rewriting, binding-power/fixity changes, imported-value resolution, candidate lowering, runtime change, or pinned-byte edit. If glob route representation is not source-authenticated by the current CST, stop and record that exact premise before changing source semantics.
+
+## Outcome
+
+`HeaderImportSelection::{Path, Glob}` now distinguishes a module glob from a named path. The header projection retains the path before `*` without adding a fake `*` segment; it retains whole-module globs and continues to fail closed for filtered glob exclusions and malformed routes. The pinned syntax dependency planner consequently selects fmt's four original dependencies, including exact `lib/std/core/ops.yu` revision. The unchanged `Display.say` plus occurrence is now an HIR `HirOperator` with Infix fixity and the R305 receipt; its use range contains the exact plus token and remains separate from the provider declaration range.
+
+Evidence: focused header glob and projection-failure tests pass; the pinned fmt source inventory test passes with assertions on original source bytes, use range, dependency slot, provider module/revision and `pub infix (+)` declaration range; `cargo check -p yu-syntax`, `cargo check -p yu-playground`, and the unchanged Types boundary regression pass. This remains source/implementation evidence, unreviewed and not a type, execution or theorem result.
 
 ## Proof correspondence and remaining parent work
 

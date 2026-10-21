@@ -4,7 +4,8 @@ use reborrow_generic::Reborrow as _;
 use unicode_ident::is_xid_continue;
 
 use crate::{
-    HeaderImport, HeaderImportForm, HeaderImportRoute, HeaderImportRouteSeparator, Visibility,
+    HeaderImport, HeaderImportForm, HeaderImportRoute, HeaderImportRouteSeparator,
+    HeaderImportSelection, Visibility,
     syntax_kind::SyntaxKind,
 };
 use crate::{
@@ -100,7 +101,12 @@ impl Projection {
 
     fn finish(&mut self, end: usize) {
         let frame = self.frames.pop().unwrap();
-        if frame.terminal != Terminal::Single {
+        let selection = match frame.terminal {
+            Terminal::Single => Some(HeaderImportSelection::Path),
+            Terminal::Glob => Some(HeaderImportSelection::Glob),
+            Terminal::Group => None,
+        };
+        if selection.is_none() {
             self.invalid |= !frame.aliases.is_empty();
         } else if self.segments.is_empty()
             || frame.join.is_some()
@@ -117,6 +123,7 @@ impl Projection {
             self.imports.push(HeaderImport::new(
                 start..end,
                 frame.form,
+                selection.expect("path and glob selections are retained"),
                 HeaderImportRoute::new(self.segments.clone(), self.separators.clone()),
                 self.visibility.unwrap_or(Visibility::Private),
                 frame.aliases.into_iter().next(),
@@ -980,7 +987,9 @@ fn parse_glob(
     line_entry: &mut LineEntry,
     fence: Option<&FenceBoundary>,
 ) -> UseResult {
-    projection.invalid = true;
+    // The separator immediately before `*` separates the final module segment
+    // from the selection marker; it is not part of the retained module route.
+    projection.frames.last_mut().unwrap().join = None;
     i.state.start_node(SyntaxKind::UseGlob.into());
     emit_item_as(&mut i, star, SyntaxKind::Star);
     let item = next_use_item(i.rb(), item_origin, line_entry, fence);
@@ -995,7 +1004,13 @@ fn parse_glob(
             line_entry,
             fence,
         )?;
+        if projection.frames.last().is_some_and(|frame| !frame.aliases.is_empty()) {
+            projection.invalid = true;
+        }
         if inline_keyword(&item, "without") {
+            // Header dependency planning retains whole-module globs only; a
+            // filtered glob needs a richer source selection receipt.
+            projection.invalid = true;
             item.emit_all_remaining_leading(&mut *i.state);
             emit_item_as(&mut i, item, SyntaxKind::WithoutKw);
             item = next_use_item(i.rb(), item_origin, line_entry, fence);

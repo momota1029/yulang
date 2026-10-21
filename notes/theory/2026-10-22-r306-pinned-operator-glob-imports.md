@@ -1,6 +1,6 @@
 # R306 — pinned operator glob import boundary
 
-Status: READY, exact syntax import route repair; parent R149 remains OPEN.
+Status: local source-to-HIR provenance RESULT, unreviewed; parent R149 remains OPEN.
 Baseline: commit `aedb4d6e6`.
 
 ## Entry evidence
@@ -13,6 +13,10 @@ The converted unified design §§4.1–4.5 requires source occurrence identity a
 
 R306 follows the exact `use` source nodes through header projection and pinned dependency selection into the already-established operator-site provenance API. It does not resolve the operator value, introduce `.add` rewriting, form a member scheme, or close any original theorem. The source/native, A/B, principal-type, termination and production gates remain OPEN.
 
-## Falsifiable outcome
+## Outcome
 
-The same pinned fmt bytes must retain the three glob routes without making `*` a path segment, select the pinned `core/ops` source with its exact content revision, and associate the original `Display.say` plus token into HIR with the exact imported Infix site. Named imports, separators, unresolved routes and recovery must remain discriminating controls. Only after this connection exists can a separate boundary trace the operator declaration's original value owner and continue toward the deferred member candidate path.
+`HeaderImportSelection::{Path, Glob}` now records whether a route imports one name/path or a module glob. The header importer projects all three original fmt globs as module routes without adding `*` to route segments. Filtered globs remain fail-closed because `HeaderImport` does not yet carry exclusions. The pinned syntax environment for the original fmt source now includes core/ops, data/opt, num and num/frac with their exact revisions.
+
+The original `Display.say` plus is an associated HIR operator. The regression verifies that its source range covers the exact `+` token, its selected `OperatorOrigin` is Imported(slot), that slot selects `lib/std/core/ops.yu` at the pinned revision, and the declaration range points into the original pinned `pub infix (+)` header. The operator use range and provider declaration range remain separate identities. Header glob and failed-projection controls, pinned fmt inventory, syntax/playground checks and the unchanged Types boundary test pass.
+
+This only reconnects source import selection to HIR operator provenance. It does not resolve the operator declaration's exported value owner, lower it into a candidate constraint, type `Display.say`, select an implementation, or execute Types/Console. The next source owner is the original operator declaration value/body and its candidate consumer; all theorem and production gates stay OPEN.

@@ -1,5 +1,5 @@
 use crate::header::discover_header;
-use crate::{HeaderImportForm, HeaderImportRouteSeparator, HeaderStop};
+use crate::{HeaderImportForm, HeaderImportRouteSeparator, HeaderImportSelection, HeaderStop};
 
 #[test]
 fn header_keeps_nonzero_indentation_outside_the_leading_header() {
@@ -52,9 +52,31 @@ fn projection_failure_discards_only_its_whole_declaration() {
             .iter()
             .map(|x| x.path().join("::"))
             .collect::<Vec<_>>(),
-        ["b", "final"]
+        ["b", "q", "final"]
     );
     assert_eq!(header.imports[0].alias(), Some("c"));
+    assert_eq!(header.imports[1].selection(), HeaderImportSelection::Glob);
+    assert_eq!(header.imports[1].path(), ["q"]);
+}
+
+#[test]
+fn leading_module_globs_keep_the_module_route_without_a_fake_star_segment() {
+    let source = "use std::core::ops::*\nuse std::data::opt::*\nuse std::num::*\nuse std::num::frac::frac\n";
+    let header = discover_header(source);
+    assert_eq!(header.stop, HeaderStop::Eof);
+    assert_eq!(header.imports.len(), 4, "{:#?}", header.imports);
+    assert_eq!(
+        header.imports.iter().map(|import| import.path().join("::")).collect::<Vec<_>>(),
+        ["std::core::ops", "std::data::opt", "std::num", "std::num::frac::frac"],
+    );
+    assert_eq!(
+        header.imports.iter().map(|import| import.selection()).collect::<Vec<_>>(),
+        [HeaderImportSelection::Glob, HeaderImportSelection::Glob, HeaderImportSelection::Glob, HeaderImportSelection::Path],
+    );
+    assert!(header.imports[..3].iter().all(|import| {
+        import.route().separators().len() == import.path().len().saturating_sub(1)
+            && import.route().separators().iter().all(|separator| *separator == HeaderImportRouteSeparator::ColonColon)
+    }));
 }
 
 #[test]

@@ -1403,7 +1403,9 @@ mod tests {
                 fn operator_at<'a>(expression: &'a yu_hir::HirExpr, range: &std::ops::Range<usize>) -> Option<&'a yu_hir::HirOperator> {
                     match expression {
                         yu_hir::HirExpr::Apply { operator, operands, .. } => {
-                            if operator.range() == range { return Some(operator); }
+                            if operator.range().start <= range.start && range.start < operator.range().end {
+                                return Some(operator);
+                            }
                             operands.iter().find_map(|operand| operator_at(operand, range))
                         }
                         yu_hir::HirExpr::Value { children, .. } | yu_hir::HirExpr::Error { children, .. } => {
@@ -1417,56 +1419,28 @@ mod tests {
                 let associated = yu_hir::associate_operator_chains(&parsed);
                 let operator = associated.chains().iter()
                     .filter(|chain| chain.range().start <= plus_start && plus_start < chain.range().end)
-                    .find_map(|chain| operator_at(chain.expression(), &plus_range));
-                if let Some(operator) = operator {
-                    assert_eq!(operator.spelling(), "+");
-                    assert_eq!(operator.fixity(), yu_hir::OperatorFixity::Infix);
-                    assert_eq!(operator.range(), &plus_range);
-                    let provenance = operator.provenance();
-                    let yu_syntax::OperatorOrigin::Imported(slot) = provenance.declaration().origin() else {
-                        panic!("pinned Display.say + must use the selected imported operator")
-                    };
-                    let dependency = parsed.selected_syntax_environment().dependency(slot)
-                        .expect("selected dependency slot is owned by this parsed environment");
-                    let operator_module = sources.iter().find(|candidate| candidate.path == "lib/std/core/ops.yu")
-                        .expect("pinned operator provider source");
-                    assert_eq!(dependency.module_label(), operator_module.path);
-                    assert_eq!(dependency.revision(), yu_syntax::SourceRevision::from_fingerprint(
-                        pinned_stdlib::fingerprint(&operator_module.git_blob),
-                    ));
-                    let declaration = provenance.declaration().range();
-                    let declaration_text = operator_module.text.get(declaration.clone())
-                        .expect("provider declaration range belongs to exact pinned source");
-                    assert!(declaration_text.starts_with("pub infix (+)"), "{declaration_text}");
-                } else {
-                    // The original colon-tail token has no expression CST/HIR
-                    // owner, so no selected operator site can be attached to it.
-                    assert!(
-                        associated.chains().iter().all(|chain| {
-                            operator_at(chain.expression(), &plus_range).is_none()
-                        }),
-                        "this checkpoint records the still-missing original use node",
-                    );
-                    let root = yu_syntax::SyntaxNode::new_root(parsed.green().clone());
-                    let plus_token = root.descendants_with_tokens().find_map(|element| {
-                        let token = element.into_token()?;
-                        let range = usize::from(token.text_range().start())..usize::from(token.text_range().end());
-                        (range == plus_range).then_some(token)
-                    }).expect("the source + token is retained in the root CST");
-                    assert_eq!(plus_token.text(), "+");
-                    assert_eq!(plus_token.parent().unwrap().kind(), yu_syntax::SyntaxKind::Root,
-                        "the colon-tail + currently has no expression CST owner");
-                    assert!(parsed.selected_syntax_environment().provenance().iter()
-                        .all(|dependency| dependency.module_label() != "lib/std/core/ops.yu"));
-                    assert_eq!(
-                        parsed.header().imports().iter().map(|import| import.path().to_vec()).collect::<Vec<_>>(),
-                        [vec!["std".to_owned(), "num".to_owned(), "frac".to_owned(), "frac".to_owned()]],
-                        "the header scanner currently drops the three glob imports before this parsed source",
-                    );
-                    assert!(parsed.operator_provenance("+", yu_syntax::OperatorFixity::Infix).is_none(),
-                        "no HIR use provenance exists when the exact source token has no operator node; site={:?}; dependencies={:?}",
-                        parsed.operators().definition("+"), parsed.selected_syntax_environment().provenance());
-                }
+                    .find_map(|chain| operator_at(chain.expression(), &plus_range))
+                    .expect("the original Display.say + occurrence reaches HIR after glob import retention");
+                assert_eq!(operator.spelling(), "+");
+                assert_eq!(operator.fixity(), yu_hir::OperatorFixity::Infix);
+                assert!(operator.range().start <= plus_start && plus_start < operator.range().end);
+                assert_eq!(source.text[operator.range().clone()].trim(), "+");
+                let provenance = operator.provenance();
+                let yu_syntax::OperatorOrigin::Imported(slot) = provenance.declaration().origin() else {
+                    panic!("pinned Display.say + must use the selected imported operator")
+                };
+                let dependency = parsed.selected_syntax_environment().dependency(slot)
+                    .expect("selected dependency slot is owned by this parsed environment");
+                let operator_module = sources.iter().find(|candidate| candidate.path == "lib/std/core/ops.yu")
+                    .expect("pinned operator provider source");
+                assert_eq!(dependency.module_label(), operator_module.path);
+                assert_eq!(dependency.revision(), yu_syntax::SourceRevision::from_fingerprint(
+                    pinned_stdlib::fingerprint(&operator_module.git_blob),
+                ));
+                let declaration = provenance.declaration().range();
+                let declaration_text = operator_module.text.get(declaration.clone())
+                    .expect("provider declaration range belongs to exact pinned source");
+                assert!(declaration_text.starts_with("pub infix (+)"), "{declaration_text}");
             }
             let index = index_role_impl_sources(identity.clone(), &parsed)
                 .unwrap_or_else(|error| {
