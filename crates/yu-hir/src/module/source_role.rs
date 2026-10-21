@@ -22,6 +22,21 @@ pub struct SourceRoleBody {
     pub source: SourceNodeKey,
     pub range: Range<usize>,
     pub text: Box<str>,
+    pub members: Vec<SourceRoleMember>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct SourceRoleMemberId {
+    pub role: SourceRoleId,
+    pub declaration: SourceNodeKey,
+}
+
+#[derive(Clone, Debug)]
+pub struct SourceRoleMember {
+    pub id: SourceRoleMemberId,
+    pub kind: SyntaxKind,
+    pub range: Range<usize>,
+    pub text: Box<str>,
 }
 
 #[derive(Clone, Debug)]
@@ -39,6 +54,35 @@ fn trivia(kind: SyntaxKind) -> bool {
 
 fn unsupported() -> HirAvailabilityError {
     HirAvailabilityError::StructuralProjection
+}
+
+fn body_members(
+    body: &SyntaxNode,
+    role: &SourceRoleId,
+    counters: &LoweringCounters,
+) -> Result<Vec<SourceRoleMember>, HirAvailabilityError> {
+    let mut members = Vec::new();
+    for child in body.children() {
+        if child.kind() == SyntaxKind::BlockStatementSeparator {
+            if child.children().next().is_some() { return Err(unsupported()); }
+            continue;
+        }
+        if child.kind() != SyntaxKind::Statement { return Err(unsupported()); }
+        let mut declarations = child.children();
+        let declaration = declarations.next().ok_or_else(unsupported)?;
+        if declarations.next().is_some() || has_recovery(&declaration) { return Err(unsupported()); }
+        members.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        members.push(SourceRoleMember {
+            id: SourceRoleMemberId {
+                role: role.clone(),
+                declaration: counters.source_nodes.get(&declaration).cloned().ok_or_else(unsupported)?,
+            },
+            kind: declaration.kind(),
+            range: crate::range_of(&declaration),
+            text: declaration.text().to_string().into_boxed_str(),
+        });
+    }
+    Ok(members)
 }
 
 pub(super) fn declarations(
@@ -75,6 +119,8 @@ pub(super) fn declarations(
         let spelling = head.children_with_tokens().find_map(|part| {
             (part.kind() == SyntaxKind::Identifier).then(|| part.to_string())
         }).ok_or_else(unsupported)?;
+        let declaration = counters.source_nodes.get(&node).cloned().ok_or_else(unsupported)?;
+        let id = SourceRoleId { module: Arc::new(module.clone()), declaration };
         let body = match (parts.next(), parts.next(), parts.next()) {
             (None, None, None) => None,
             (Some(marker), Some(body), None)
@@ -85,6 +131,7 @@ pub(super) fn declarations(
                     source: counters.source_nodes.get(&body).cloned().ok_or_else(unsupported)?,
                     range: crate::range_of(&body),
                     text: body.text().to_string().into_boxed_str(),
+                    members: body_members(&body, &id, counters)?,
                 })
             }
             (Some(body), None, None) if body.kind() == SyntaxKind::BracedStatementBlockExpression => {
@@ -93,16 +140,16 @@ pub(super) fn declarations(
                     source: counters.source_nodes.get(&body).cloned().ok_or_else(unsupported)?,
                     range: crate::range_of(&body),
                     text: body.text().to_string().into_boxed_str(),
+                    members: body_members(&body, &id, counters)?,
                 })
             }
             (Some(semicolon), None, None) if semicolon.kind() == SyntaxKind::Semicolon => None,
             _ => return Err(unsupported()),
         };
-        let declaration = counters.source_nodes.get(&node).cloned().ok_or_else(unsupported)?;
         let head_source = counters.source_nodes.get(&head).cloned().ok_or_else(unsupported)?;
         result.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
         result.push(SourceRoleDeclaration {
-            id: SourceRoleId { module: Arc::new(module.clone()), declaration },
+            id,
             visibility,
             head: SourceRoleHead {
                 source: head_source,
@@ -143,6 +190,15 @@ mod tests {
         assert_eq!(roles[0].head.text.trim(), "Pick 'container 'key");
         assert_eq!(roles[1].head.text.trim(), "Pick 'container");
         assert_ne!(roles[0].id, roles[1].id, "equal spellings remain distinct source roles");
+        let members = &roles[0].body.as_ref().expect("role body").members;
+        assert_eq!(members.len(), 2);
+        assert_eq!(members[0].kind, SyntaxKind::TypeDeclaration);
+        assert_eq!(members[1].kind, SyntaxKind::BindingStatement);
+        assert!(members.iter().all(|member| member.id.role == roles[0].id));
+        assert_ne!(members[0].id, members[1].id);
+        for member in members {
+            assert_eq!(&text[member.range.clone()], member.text.as_ref());
+        }
         assert_eq!(&text[roles[0].range.clone()], "role Pick 'container 'key:\n    type value\n    our container.pick: 'key -> value");
         let first_body = roles[0].body.as_ref().expect("role body");
         assert_eq!(&text[first_body.range.clone()], first_body.text.as_ref());

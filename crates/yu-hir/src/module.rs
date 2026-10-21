@@ -18,6 +18,9 @@ use crate::{AssociationError, AssociationProvenance, HirExpr, associate_chain_ow
 
 pub(crate) mod local_source;
 pub(crate) mod source_annotation;
+#[cfg(any(feature = "shadow", test))]
+pub(crate) mod source_impl;
+#[cfg(any(feature = "shadow", test))]
 pub(crate) mod source_role;
 
 /// A compiler-supplied, already-normalized file key.
@@ -934,6 +937,8 @@ pub struct HirModule {
     pub(crate) effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) role_declarations: Vec<source_role::SourceRoleDeclaration>,
+    #[cfg(any(feature = "shadow", test))]
+    pub(crate) implementation_declarations: Vec<source_impl::SourceImplementationDeclaration>,
     expression_roots: HashMap<HirOccurrenceId, ExpressionRootId>,
     source_carriers: Vec<(SourceRootId, local_source::SourceCarrierOutcome)>,
     source_carrier_indices: HashMap<SourceRootId, usize>,
@@ -1181,6 +1186,8 @@ fn lower_module_with_counters(
             source_annotation::declarations(&root, identity.module(), counters)?;
         counters.role_declarations =
             source_role::declarations(&root, identity.module(), counters)?;
+        counters.implementation_declarations =
+            source_impl::declarations(&root, identity.module(), counters)?;
     }
     let mut plans = Vec::new();
     for (index, node) in root.children().enumerate() {
@@ -1357,6 +1364,8 @@ fn lower_module_with_counters(
         effect_declarations: std::mem::take(&mut counters.effect_declarations),
         #[cfg(any(feature = "shadow", test))]
         role_declarations: std::mem::take(&mut counters.role_declarations),
+        #[cfg(any(feature = "shadow", test))]
+        implementation_declarations: std::mem::take(&mut counters.implementation_declarations),
         identity,
         source_revision: parsed.revision(),
         items,
@@ -1387,6 +1396,8 @@ struct LoweringCounters {
     effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
     #[cfg(any(feature = "shadow", test))]
     role_declarations: Vec<source_role::SourceRoleDeclaration>,
+    #[cfg(any(feature = "shadow", test))]
+    implementation_declarations: Vec<source_impl::SourceImplementationDeclaration>,
     effect_namespace: HashMap<String, Vec<source_annotation::SourceEffectId>>,
     operation_namespace: HashMap<
         (source_annotation::SourceEffectId, Box<str>),
