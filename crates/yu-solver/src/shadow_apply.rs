@@ -2252,6 +2252,18 @@ fn preflight_expression(
 pub(super) type CandidateEndpoint = LambdaValueEndpoint;
 #[derive(Clone, Debug)]
 pub(super) enum CandidateRelation {
+    /// An authentic source FieldTail retained until its role/member and
+    /// receiver implementation can be selected from the common candidate
+    /// world. This record contributes no type fact by itself.
+    #[allow(dead_code, reason = "type-directed role selection consumes this record in the next inference stage")]
+    DeferredFieldTail {
+        source: yu_hir::shadow::SourceNodeKey,
+        member: Box<str>,
+        receiver: CandidateEndpoint,
+        receiver_effect: usize,
+        result: usize,
+        result_effect: usize,
+    },
     Group {
         child: CandidateEndpoint,
         child_effect: usize,
@@ -2462,12 +2474,13 @@ impl ConstraintBatch {
             .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
         let fact_count = if self.candidate_graph_effects {
             match &relation {
+                CandidateRelation::DeferredFieldTail { .. } => 0,
                 CandidateRelation::Group { .. } => 2,
                 CandidateRelation::Apply { .. } => 3,
                 CandidateRelation::Tuple { element_effects, .. } => 1usize.checked_add(element_effects.len()).ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?,
             }
         } else {
-            1
+            usize::from(!matches!(relation, CandidateRelation::DeferredFieldTail { .. }))
         };
         self.counters.emitted_facts = self
             .counters
@@ -2736,6 +2749,11 @@ impl InferenceSession {
         }
         let mut invocation_effect = None;
         let (lower, upper) = match &recipe.relation {
+            CandidateRelation::DeferredFieldTail { .. } => {
+                // Preserve the source-owned obligation in the batch, but do
+                // not infer a member type from its spelling or receiver shape.
+                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+            }
             CandidateRelation::Group { child, result, .. } => (
                 self.candidate_endpoint(*child, Polarity::Positive)?,
                 self.candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?,
@@ -2850,6 +2868,9 @@ impl InferenceSession {
         let _ = transitions;
         if self.batch.candidate_graph_effects {
             match &recipe.relation {
+                CandidateRelation::DeferredFieldTail { .. } => {
+                    return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                }
                 CandidateRelation::Group {
                     child_effect,
                     result_effect,

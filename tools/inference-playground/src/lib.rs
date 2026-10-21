@@ -665,7 +665,7 @@ mod tests {
             Err(error) => error,
             Ok(_) => panic!("pair.say remains behind deferred role selection"),
         };
-        assert!(error.contains("candidate inference unavailable: Collection(ComponentIdentityExhausted)"), "{error}");
+        assert!(error.contains("candidate inference unavailable: Solve(DeferredSelectionUnavailable)"), "{error}");
         assert!(!error.contains("source imports unavailable"), "provider projection reaches candidate collection: {error}");
     }
 

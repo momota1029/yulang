@@ -1625,10 +1625,22 @@ impl ConstraintBatch {
                             })?;
                             push(&mut actions, Action::Candidate(recipe))?;
                         }
-                        // The receiver is visited above, but member typing
-                        // requires the authentic imported role/field resolver.
-                        // Do not turn an unselected spelling into a type fact.
-                        LocalSourceForm::FieldTail { .. } => return Err(unavailable()),
+                        // Retain the source-owned lookup obligation. Admission
+                        // stays deferred until an exact role/member and a
+                        // receiver implementation are available.
+                        LocalSourceForm::FieldTail { receiver, member, .. } => {
+                            let receiver_index = receiver.ordinal() as usize;
+                            let recipe = self.candidate_recipes.len();
+                            self.retain_candidate_relation(occurrence, CandidateRelation::DeferredFieldTail {
+                                source: expr.source.clone(),
+                                member: member.clone(),
+                                receiver: endpoints[receiver_index],
+                                receiver_effect: positions[receiver_index].effect,
+                                result: pos.value,
+                                result_effect: pos.effect,
+                            })?;
+                            push(&mut actions, Action::Candidate(recipe))?;
+                        }
                         LocalSourceForm::Group { inner } => {
                             if self.candidate_source.scoped_experiment {
                                 let child_occurrence = &source.expressions()[inner.ordinal() as usize].occurrence;

@@ -4096,6 +4096,7 @@ pub enum SolveAvailabilityError {
     CauseMismatch,
     ReceiptMismatch,
     IdentityExhausted,
+    DeferredSelectionUnavailable,
 }
 impl From<ConstraintError> for SolveAvailabilityError {
     fn from(value: ConstraintError) -> Self {
