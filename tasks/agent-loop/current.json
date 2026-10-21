@@ -2,26 +2,23 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "r264-20261021",
+  "session": "r265-20261021",
   "active_sprint": {
-    "id": "R264",
-    "status": "RESULT",
-    "contract": "tasks/agent-loop/sprints/yulang2-imported-operator-environment-check-20261021-r264.md",
+    "id": "R265",
+    "status": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/yulang2-module-local-syntax-environments-20261021-r265.md",
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 420,
-      "reserved_seconds": 0,
+      "charged_seconds": 0,
+      "reserved_seconds": 420,
       "no_carryover": true
     },
-    "proof": "Empty-env diagnostic totals from R262 are confounded; all-header env also inauthentic (500 diagnostics/464 recoveries over 34 modules). External mod declarations retain Missing recoveries.",
-    "implementation": "Primary-only temporary parser probe removed; no retained code or test edits.",
-    "review_receipt": "Primary-only; unreviewed.",
-    "next_action": "Derive per-module operator syntax dependencies from authenticated imports before classifying remaining parse diagnostics.",
+    "proof": "Derive direct imported operator-header dependencies per pinned module before classifying parser diagnostics.",
+    "implementation": "Primary-only temporary diagnostic test; no semantic or retained test edits.",
+    "review_receipt": "No independent reviewer assigned; provisional evidence only.",
+    "next_action": "Resolve each source import to an authenticated module header and parse under that source-local environment.",
     "closure": "R260 conditional; Y2 root vector, R149 consumers/output, parent proofs and production OPEN.",
-    "contract_sha256": "aa7d0f4eb58fadcce6e98dab4ee06011b9e2dc932b3ec030ab4e8df8511d8ab0",
-    "note_sha256": "ca77e44822986cf59b8dafac4086e06da476308751927fc45a9cbf097f5b270d",
-    "inbox_sha256": "96fa7952397e2a7552eac1f42e86b7434b0832aee1804dafc0eb57f2055efb75",
-    "note": "notes/theory/2026-10-21-r264-syntax-environment-confound.md"
+    "contract_sha256": "1948327e13f324f7f1b59e73a8cc200d5bca868272c176891c043090a5871dd0"
   },
   "workers": [
     {
@@ -344,6 +341,12 @@
       "owner": "/root",
       "state": "FROZEN",
       "reason": "R264 primary-only result; immutable evidence."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/yulang2-module-local-syntax-environments-20261021-r265.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R265 active primary contract."
     }
   ],
   "pending": [
@@ -415,7 +418,7 @@
     }
   ],
   "closure": "R264 shows R262 empty-environment diagnostics are confounded; the broad all-header control is also inauthentic. External module declarations retain Missing recoveries. No exact Y2 root vector is established.",
-  "next_action": "Continue R149 by deriving each pinned module’s syntax environment from authenticated imports; preserve the distinction between Y3 diagnostics and Y2 grammar claims.",
+  "next_action": "R265: derive direct syntax dependencies per source from authenticated import headers; stop on unresolved or conflicting dependencies.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
