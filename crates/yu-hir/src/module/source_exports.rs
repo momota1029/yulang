@@ -123,6 +123,8 @@ pub struct SourceImportEnvironment {
     parse_root: SourceNodeKey,
     identity: ModuleIdentity,
     names: std::collections::HashMap<Box<str>, SourceImportBinding>,
+    #[cfg(any(feature = "shadow", test))]
+    role_ids: std::collections::HashMap<Box<str>, super::source_role::SourceRoleId>,
 }
 
 impl SourceImportEnvironment {
@@ -135,6 +137,8 @@ impl SourceImportEnvironment {
             parse_root,
             identity,
             names,
+            #[cfg(any(feature = "shadow", test))]
+            role_ids: std::collections::HashMap::new(),
         }
     }
 
@@ -152,6 +156,21 @@ impl SourceImportEnvironment {
 
     pub fn resolve(&self, name: &str) -> Option<&SourceImportBinding> {
         self.names.get(name)
+    }
+
+    /// Exact source declaration identity for an imported public role name.
+    /// This is present only when the provider role index was authenticated.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn role_id(&self, name: &str) -> Option<&super::source_role::SourceRoleId> {
+        self.role_ids.get(name)
+    }
+
+    #[cfg(any(feature = "shadow", test))]
+    pub(super) fn retain_role_ids(
+        &mut self,
+        role_ids: std::collections::HashMap<Box<str>, super::source_role::SourceRoleId>,
+    ) {
+        self.role_ids = role_ids;
     }
 }
 

@@ -830,6 +830,52 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["std", "core", "fmt"]
         );
+        let display_owner = yu_hir::shadow::resolve_source_export_owner(
+            &provider_hirs,
+            &provider_role_indexes,
+            &display,
+        )
+        .unwrap();
+        let yu_hir::shadow::SourceExportOwner::Role { declaration, .. } = display_owner else {
+            panic!("Display export must resolve to its provider role declaration")
+        };
+        let expected_display_id = declaration.id.clone();
+        let consumer_text: Arc<SourceText> = Arc::from("Display\n");
+        let consumer_parsed = parse_file(
+            consumer_text.clone(),
+            Arc::new(scan_header(consumer_text)),
+            Arc::new(playground_syntax_environment().unwrap()),
+        );
+        let consumer_identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "pinned-role-import-consumer",
+            "consumer.yu",
+        )));
+        let unauthenticated_imports =
+            SemanticImports::with_implicit_prelude(&consumer_parsed, &consumer_identity, &indexes)
+                .unwrap();
+        assert_eq!(
+            unauthenticated_imports
+                .source_imports()
+                .unwrap()
+                .role_id("Display"),
+            None,
+            "export lookup alone must not invent a provider role identity",
+        );
+        let consumer_imports = SemanticImports::with_implicit_prelude_and_role_indexes(
+            &consumer_parsed,
+            &consumer_identity,
+            &indexes,
+            &provider_role_indexes,
+        )
+        .unwrap();
+        assert_eq!(
+            consumer_imports
+                .source_imports()
+                .unwrap()
+                .role_id("Display"),
+            Some(&expected_display_id),
+            "the consumer spelling must retain the exact role declaration identity",
+        );
         let say = resolve_public_export(&indexes, "std::prelude", "say").unwrap();
         assert_eq!(say.module.as_ref(), "std::io::console");
         assert_eq!(say.declaration.name.as_deref(), Some("say"));

@@ -121,6 +121,75 @@ pub struct SemanticImports {
     source_imports: Option<source_exports::SourceImportEnvironment>,
 }
 
+fn resolve_implicit_prelude_imports(
+    parsed: &ParsedFile,
+    identity: &ModuleIdentity,
+    indexes: &[source_exports::SourceExportIndex],
+) -> Result<(yu_syntax::SourceNodeKey, HashMap<Box<str>, source_exports::SourceImportBinding>), HirAvailabilityError> {
+    if identity.file != *identity.module.file() {
+        return Err(HirAvailabilityError::InconsistentIdentity);
+    }
+    let parse_root = parsed.source_root().key();
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    let mut requested = std::collections::BTreeSet::<Box<str>>::new();
+    for node in root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::IdentifierExpression)
+    {
+        if let Some(name) = node
+            .children_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Identifier)
+        {
+            requested.insert(name.text().into());
+        }
+    }
+    for clause in root
+        .descendants()
+        .filter(|node| node.kind() == SyntaxKind::WhereClause)
+    {
+        let mut parts = clause.children_with_tokens().filter(|element| {
+            !matches!(
+                element.kind(),
+                SyntaxKind::Whitespace
+                    | SyntaxKind::Newline
+                    | SyntaxKind::LineComment
+                    | SyntaxKind::BlockComment
+            )
+        });
+        let _keyword = parts.next();
+        let _subject = parts.next();
+        let _colon = parts.next();
+        let Some(role) = parts.next().and_then(|element| element.into_node()) else {
+            continue;
+        };
+        if let Some(name) = role
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Identifier)
+        {
+            requested.insert(name.text().into());
+        }
+    }
+    let mut names = HashMap::new();
+    names
+        .try_reserve(requested.len())
+        .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    for name in requested {
+        match source_exports::resolve_public_export(indexes, "std::prelude", &name) {
+            Ok(resolution) => {
+                names.insert(name, source_exports::SourceImportBinding::Resolved(resolution));
+            }
+            Err(source_exports::SourceExportResolveError::MissingExport { .. }) => {}
+            Err(source_exports::SourceExportResolveError::Ambiguous { .. }) => {
+                names.insert(name, source_exports::SourceImportBinding::Ambiguous);
+            }
+            Err(_) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
+        }
+    }
+    Ok((parse_root, names))
+}
+
 impl SemanticImports {
     pub fn empty() -> Self {
         Self { caller_evidence: None, source_imports: None }
@@ -135,43 +204,7 @@ impl SemanticImports {
         identity: &ModuleIdentity,
         indexes: &[source_exports::SourceExportIndex],
     ) -> Result<Self, HirAvailabilityError> {
-        if identity.file != *identity.module.file() {
-            return Err(HirAvailabilityError::InconsistentIdentity);
-        }
-        let parse_root = parsed.source_root().key();
-        let root = SyntaxNode::new_root(parsed.green().clone());
-        let mut requested = std::collections::BTreeSet::<Box<str>>::new();
-        for node in root
-            .descendants()
-            .filter(|node| node.kind() == SyntaxKind::IdentifierExpression)
-        {
-            if let Some(name) = node
-                .children_with_tokens()
-                .filter_map(|element| element.into_token())
-                .find(|token| token.kind() == SyntaxKind::Identifier)
-            {
-                requested.insert(name.text().into());
-            }
-        }
-        let mut names = HashMap::new();
-        names
-            .try_reserve(requested.len())
-            .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-        for name in requested {
-            match source_exports::resolve_public_export(indexes, "std::prelude", &name) {
-                Ok(resolution) => {
-                    names.insert(
-                        name,
-                        source_exports::SourceImportBinding::Resolved(resolution),
-                    );
-                }
-                Err(source_exports::SourceExportResolveError::MissingExport { .. }) => {}
-                Err(source_exports::SourceExportResolveError::Ambiguous { .. }) => {
-                    names.insert(name, source_exports::SourceImportBinding::Ambiguous);
-                }
-                Err(_) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
-            }
-        }
+        let (parse_root, names) = resolve_implicit_prelude_imports(parsed, identity, indexes)?;
         Ok(Self {
             caller_evidence: None,
             source_imports: Some(source_exports::SourceImportEnvironment::new(
@@ -179,6 +212,46 @@ impl SemanticImports {
                 identity.clone(),
                 names,
             )),
+        })
+    }
+
+    /// Retain exact identities for imported public role declarations when
+    /// their provider role indexes are supplied and match the resolved export.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn with_implicit_prelude_and_role_indexes(
+        parsed: &ParsedFile,
+        identity: &ModuleIdentity,
+        indexes: &[source_exports::SourceExportIndex],
+        role_indexes: &[crate::shadow::SourceRoleImplIndex],
+    ) -> Result<Self, HirAvailabilityError> {
+        let (parse_root, names) = resolve_implicit_prelude_imports(parsed, identity, indexes)?;
+        let mut role_ids = HashMap::new();
+        role_ids
+            .try_reserve(names.len())
+            .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        for (name, binding) in &names {
+            let source_exports::SourceImportBinding::Resolved(resolution) = binding else {
+                continue;
+            };
+            if resolution.declaration.kind != SyntaxKind::RoleDeclaration {
+                continue;
+            }
+            let owner = crate::shadow::resolve_source_export_owner(&[], role_indexes, resolution)
+                .map_err(|_| HirAvailabilityError::SourceImportResolutionUnavailable)?;
+            let crate::shadow::SourceExportOwner::Role { declaration, .. } = owner else {
+                return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+            };
+            role_ids.insert(name.clone(), declaration.id.clone());
+        }
+        let mut source_imports = source_exports::SourceImportEnvironment::new(
+            parse_root,
+            identity.clone(),
+            names,
+        );
+        source_imports.retain_role_ids(role_ids);
+        Ok(Self {
+            caller_evidence: None,
+            source_imports: Some(source_imports),
         })
     }
 

@@ -49,6 +49,10 @@ pub(super) struct SourceRoleObligation {
     pub subject_source: yu_hir::shadow::SourceNodeKey,
     pub role_source: yu_hir::shadow::SourceNodeKey,
     pub role_spelling: Box<str>,
+    /// Present only when the import environment joined this spelling to an
+    /// exact provider role declaration. It is retained pending discharge.
+    #[allow(dead_code, reason = "retained until type-directed role obligation discharge is implemented")]
+    pub role_identity: Option<yu_hir::shadow::SourceRoleId>,
     pub subject_row: RowKey,
 }
 
@@ -2731,6 +2735,99 @@ mod authentic_demand_capture_tests {
         let (mapped_rows, retained) = fresh.into_retained_parts();
         assert_eq!(retained.source_role_obligation_rows, [(0, row_index)]);
         assert_eq!(mapped_rows[row_index], mapped_subject);
+
+        let provider_text: Arc<yu_syntax::SourceText> =
+            Arc::from("pub role Display 'a:\n    pub a.show: str\n");
+        let provider_parsed = yu_syntax::parse_file(
+            provider_text.clone(),
+            Arc::new(yu_syntax::scan_header(provider_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let provider_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("where-role-provider", "lib/std/prelude.yu"),
+        ));
+        let exports = yu_hir::shadow::index_source_exports(
+            provider_identity.clone(),
+            &provider_parsed,
+        )
+        .unwrap();
+        let std_text: Arc<yu_syntax::SourceText> = Arc::from("pub mod prelude;\n");
+        let std_parsed = yu_syntax::parse_file(
+            std_text.clone(),
+            Arc::new(yu_syntax::scan_header(std_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let std_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("where-role-provider", "lib/std.yu"),
+        ));
+        let std_exports =
+            yu_hir::shadow::index_source_exports(std_identity, &std_parsed).unwrap();
+        let roles = yu_hir::shadow::index_role_impl_sources(
+            provider_identity,
+            &provider_parsed,
+        )
+        .unwrap();
+        let authenticated_id = roles.roles()[0].id.clone();
+        let resolution = yu_hir::shadow::resolve_public_export(
+            &[std_exports.clone(), exports.clone()],
+            "std::prelude",
+            "Display",
+        )
+        .unwrap();
+        yu_hir::shadow::resolve_source_export_owner(&[], &[roles.clone()], &resolution).unwrap();
+
+        let consumer_text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
+        let consumer_parsed = yu_syntax::parse_file(
+            consumer_text.clone(),
+            Arc::new(yu_syntax::scan_header(consumer_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let consumer_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("where-role-consumer", "consumer.yu"),
+        ));
+        let imports = yu_hir::SemanticImports::with_implicit_prelude_and_role_indexes(
+            &consumer_parsed,
+            &consumer_identity,
+            &[std_exports, exports],
+            &[roles],
+        )
+        .unwrap();
+        assert_eq!(
+            imports.source_imports().unwrap().role_id("Display"),
+            Some(&authenticated_id),
+        );
+        let imported_hir = Arc::new(
+            yu_hir::shadow::lower_module_with_local_source(
+                consumer_identity,
+                &consumer_parsed,
+                imports,
+            )
+            .unwrap(),
+        );
+        let imported_root = imported_hir
+            .items()
+            .iter()
+            .find_map(|item| match item {
+                yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "display" => {
+                    Some(binding.definition_root().clone())
+                }
+                _ => None,
+            })
+            .unwrap();
+        let imported_batch =
+            ConstraintBatch::collect_candidate_mode(imported_hir, true, true).unwrap();
+        let mut imported_session = InferenceSession::try_new_candidate(imported_batch).unwrap();
+        imported_session.start_candidate_graph().unwrap();
+        imported_session
+            .execute_candidate_source_root(&imported_root)
+            .unwrap();
+        assert_eq!(
+            imported_session.candidate_graph.as_ref().unwrap().source_role_obligations
+                [&imported_root][0]
+                .role_identity,
+            Some(authenticated_id),
+            "the exact imported role identity reaches the retained declaration obligation",
+        );
     }
 
     #[test]
