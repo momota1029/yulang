@@ -18,6 +18,7 @@ use crate::{AssociationError, AssociationProvenance, HirExpr, associate_chain_ow
 
 pub(crate) mod local_source;
 pub(crate) mod source_annotation;
+pub(crate) mod source_role;
 
 /// A compiler-supplied, already-normalized file key.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -931,6 +932,8 @@ pub struct HirModule {
     pub(crate) local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
+    #[cfg(any(feature = "shadow", test))]
+    pub(crate) role_declarations: Vec<source_role::SourceRoleDeclaration>,
     expression_roots: HashMap<HirOccurrenceId, ExpressionRootId>,
     source_carriers: Vec<(SourceRootId, local_source::SourceCarrierOutcome)>,
     source_carrier_indices: HashMap<SourceRootId, usize>,
@@ -1176,6 +1179,8 @@ fn lower_module_with_counters(
     if counters.local_source {
         counters.effect_declarations =
             source_annotation::declarations(&root, identity.module(), counters)?;
+        counters.role_declarations =
+            source_role::declarations(&root, identity.module(), counters)?;
     }
     let mut plans = Vec::new();
     for (index, node) in root.children().enumerate() {
@@ -1350,6 +1355,8 @@ fn lower_module_with_counters(
         local_sources: std::mem::take(&mut counters.local_sources),
         #[cfg(any(feature = "shadow", test))]
         effect_declarations: std::mem::take(&mut counters.effect_declarations),
+        #[cfg(any(feature = "shadow", test))]
+        role_declarations: std::mem::take(&mut counters.role_declarations),
         identity,
         source_revision: parsed.revision(),
         items,
@@ -1378,6 +1385,8 @@ struct LoweringCounters {
     local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]
     effect_declarations: Vec<source_annotation::SourceEffectDeclaration>,
+    #[cfg(any(feature = "shadow", test))]
+    role_declarations: Vec<source_role::SourceRoleDeclaration>,
     effect_namespace: HashMap<String, Vec<source_annotation::SourceEffectId>>,
     operation_namespace: HashMap<
         (source_annotation::SourceEffectId, Box<str>),

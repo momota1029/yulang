@@ -28,6 +28,7 @@ pub use crate::module::source_annotation::{
     SourceEffectId, SourceEffectRow, SourceOperationDeclaration, SourceOperationId,
     SourceOperationResolution,
 };
+pub use crate::module::source_role::{SourceRoleBody, SourceRoleDeclaration, SourceRoleHead, SourceRoleId};
 
 pub use crate::module::local_source::{
     LocalSource, LocalSourceBinding, LocalSourceExpr, LocalSourceForm, LocalSourceIndex,
@@ -51,6 +52,11 @@ pub fn lower_module_with_local_source(
 impl HirModule {
     pub fn source_effect_declarations(&self) -> &[SourceEffectDeclaration] {
         &self.effect_declarations
+    }
+
+    #[cfg(any(feature = "shadow", test))]
+    pub fn source_role_declarations(&self) -> &[SourceRoleDeclaration] {
+        &self.role_declarations
     }
 
 }
