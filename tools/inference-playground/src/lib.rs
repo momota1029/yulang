@@ -461,7 +461,10 @@ fn pinned_source_world() -> Result<(Vec<PinnedProviderSource>, Vec<yu_hir::Sourc
         );
         let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("pinned-yulang2", source.path)));
         indexes.push(index_source_exports(identity.clone(), &parsed)
-            .map_err(|error| format!("pinned source index unavailable: {error:?}"))?);
+            .map_err(|error| format!("pinned source index unavailable: {error:?}"))?
+            .with_source_revision(SourceRevision::from_fingerprint(
+                pinned_stdlib::fingerprint(&source.git_blob),
+            )));
         role_indexes.push(yu_hir::shadow::index_role_impl_sources(identity.clone(), &parsed)
             .map_err(|error| format!("pinned role index unavailable for {}: {error:?}", source.path))?);
         parsed_sources.push((identity, parsed));
@@ -1372,6 +1375,7 @@ mod tests {
         use std::collections::HashSet;
 
         let sources = pinned_stdlib::resolve_implicit_stdlib().unwrap();
+        let (_, operator_source_indexes, _) = pinned_source_world().unwrap();
         assert_eq!(sources.len(), 40);
         let mut modules = HashSet::new();
         let mut roles = HashSet::new();
@@ -1437,6 +1441,88 @@ mod tests {
                 assert_eq!(dependency.revision(), yu_syntax::SourceRevision::from_fingerprint(
                     pinned_stdlib::fingerprint(&operator_module.git_blob),
                 ));
+                let source_owners = yu_hir::SourceImportEnvironment::for_syntax_operators(
+                    &parsed,
+                    &identity,
+                    &operator_source_indexes,
+                )
+                .expect("syntax-only source bridge retains exact selected operator providers");
+                let operator_body = source_owners.operator_body_for_use(
+                        &provenance,
+                        provenance.declaration().range(),
+                        operator.spelling(),
+                        yu_syntax::OperatorFixity::Infix,
+                    )
+                    .expect("the imported use receipt joins to its one exact provider body");
+                assert_eq!(operator_body, "\\x -> \\y -> x.add y");
+                let declaration_site = provenance.declaration().range();
+                let wrong_range = declaration_site.start + 1..declaration_site.end;
+                assert_eq!(
+                    source_owners.operator_body_for_use(
+                        &provenance,
+                        &wrong_range,
+                        operator.spelling(),
+                        yu_syntax::OperatorFixity::Infix,
+                    ),
+                    None,
+                );
+                assert_eq!(
+                    source_owners.operator_body_for_use(
+                        &provenance,
+                        provenance.declaration().range(),
+                        "*",
+                        yu_syntax::OperatorFixity::Infix,
+                    ),
+                    None,
+                );
+                assert_eq!(
+                    source_owners.operator_body_for_use(
+                        &provenance,
+                        provenance.declaration().range(),
+                        operator.spelling(),
+                        yu_syntax::OperatorFixity::Prefix,
+                    ),
+                    None,
+                );
+                let mut wrong_revision_indexes = operator_source_indexes.clone();
+                let ops_index = wrong_revision_indexes.iter_mut().find(|index|
+                    index.module.file().key().normalized_workspace_relative_path() == operator_module.path
+                ).unwrap();
+                let wrong_revision = yu_syntax::SourceRevision::from_fingerprint(1);
+                assert_ne!(wrong_revision, dependency.revision());
+                ops_index.revision = wrong_revision;
+                let wrong_revision_imports = yu_hir::SourceImportEnvironment::for_syntax_operators(
+                    &parsed, &identity, &wrong_revision_indexes,
+                ).unwrap();
+                assert_eq!(
+                    wrong_revision_imports.operator_body_for_use(
+                        &provenance,
+                        provenance.declaration().range(),
+                        operator.spelling(),
+                        yu_syntax::OperatorFixity::Infix,
+                    ),
+                    None,
+                );
+                let mut wrong_module_indexes = operator_source_indexes.clone();
+                let ops_index = wrong_module_indexes.iter_mut().find(|index|
+                    index.module.file().key().normalized_workspace_relative_path() == operator_module.path
+                ).unwrap();
+                ops_index.module = yu_hir::ModuleId::source_root(FileId::new(FileKey::new(
+                    "yulang2-pinned-stdlib",
+                    "lib/std/core/other_ops.yu",
+                )));
+                let wrong_module_imports = yu_hir::SourceImportEnvironment::for_syntax_operators(
+                    &parsed, &identity, &wrong_module_indexes,
+                ).unwrap();
+                assert_eq!(
+                    wrong_module_imports.operator_body_for_use(
+                        &provenance,
+                        provenance.declaration().range(),
+                        operator.spelling(),
+                        yu_syntax::OperatorFixity::Infix,
+                    ),
+                    None,
+                );
                 let declaration = provenance.declaration().range();
                 let declaration_text = operator_module.text.get(declaration.clone())
                     .expect("provider declaration range belongs to exact pinned source");

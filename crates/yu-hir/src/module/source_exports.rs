@@ -217,6 +217,7 @@ pub struct SourceImportEnvironment {
     parse_root: SourceNodeKey,
     identity: ModuleIdentity,
     names: std::collections::HashMap<Box<str>, SourceImportBinding>,
+    operator_sources: Vec<SourceOperatorDeclaration>,
     #[cfg(any(feature = "shadow", test))]
     role_ids: std::collections::HashMap<Box<str>, super::source_role::SourceRoleId>,
     #[cfg(any(feature = "shadow", test))]
@@ -234,11 +235,32 @@ impl SourceImportEnvironment {
             parse_root,
             identity,
             names,
+            operator_sources: Vec::new(),
             #[cfg(any(feature = "shadow", test))]
             role_ids: std::collections::HashMap::new(),
             #[cfg(any(feature = "shadow", test))]
             role_member_ids: std::collections::HashMap::new(),
         }
+    }
+
+    /// Construct a source-only view of the selected syntax operator providers.
+    /// It carries no ordinary value-import bindings and cannot stand in for
+    /// semantic name imports during lowering.
+    pub fn for_syntax_operators(
+        parsed: &yu_syntax::ParsedFile,
+        identity: &ModuleIdentity,
+        indexes: &[SourceExportIndex],
+    ) -> Result<Self, HirAvailabilityError> {
+        if identity.file() != identity.module().file() {
+            return Err(HirAvailabilityError::InconsistentIdentity);
+        }
+        let mut environment = Self::new(
+            parsed.source_root().key(),
+            identity.clone(),
+            std::collections::HashMap::new(),
+        );
+        environment.retain_syntax_operator_sources(parsed, indexes)?;
+        Ok(environment)
     }
 
     pub fn parse_root(&self) -> &SourceNodeKey {
@@ -255,6 +277,69 @@ impl SourceImportEnvironment {
 
     pub fn resolve(&self, name: &str) -> Option<&SourceImportBinding> {
         self.names.get(name)
+    }
+
+    /// Returns the original body for a selected imported operator use only
+    /// when its dependency and declaration receipt identify one retained
+    /// provider source owner. It performs no value/type lookup.
+    pub fn operator_body_for_use(
+        &self,
+        provenance: &yu_syntax::OperatorUseProvenance,
+        declaration_range: &Range<usize>,
+        spelling: &str,
+        fixity: OperatorFixity,
+    ) -> Option<&str> {
+        if !matches!(provenance.declaration().origin(), yu_syntax::OperatorOrigin::Imported(_)) {
+            return None;
+        }
+        let dependency = provenance.dependency()?;
+        let mut matches = self.operator_sources.iter().filter(|operator| {
+            operator.revision == dependency.revision()
+                && operator.module.file().key().normalized_workspace_relative_path()
+                    == dependency.module_label()
+                && &operator.declaration_range == provenance.declaration().range()
+                && &operator.declaration_range == declaration_range
+                && operator.spelling.as_ref() == spelling
+                && operator.fixity == fixity
+                && operator.visibility == Visibility::Public
+        });
+        let operator = matches.next()?;
+        if matches.next().is_some() || operator.recovered {
+            return None;
+        }
+        Some(operator.body_text.as_ref())
+    }
+
+    pub(super) fn retain_syntax_operator_sources(
+        &mut self,
+        parsed: &yu_syntax::ParsedFile,
+        indexes: &[SourceExportIndex],
+    ) -> Result<(), HirAvailabilityError> {
+        let dependencies = parsed.selected_syntax_environment().provenance();
+        let mut operators = Vec::new();
+        for dependency in dependencies {
+            for index in indexes {
+                if index.revision != dependency.revision()
+                    || index.module.file().key().normalized_workspace_relative_path()
+                        != dependency.module_label()
+                {
+                    continue;
+                }
+                let public = index.operators.iter().filter(|operator|
+                    operator.visibility == Visibility::Public
+                        && operator.module == index.module
+                        && operator.revision == index.revision
+                ).count();
+                operators.try_reserve(public).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                operators.extend(index.operators.iter().filter(|operator|
+                    operator.visibility == Visibility::Public
+                        && operator.module == index.module
+                        && operator.revision == index.revision
+                ).cloned());
+            }
+        }
+        self.operator_sources = operators;
+        Ok(())
     }
 
     /// Exact source declaration identity for an imported public role name.

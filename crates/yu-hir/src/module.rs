@@ -351,6 +351,22 @@ fn selected_direct_root_names(
     Ok(names)
 }
 
+fn source_import_environment(
+    parsed: &ParsedFile,
+    identity: &ModuleIdentity,
+    parse_root: yu_syntax::SourceNodeKey,
+    names: HashMap<Box<str>, source_exports::SourceImportBinding>,
+    indexes: &[source_exports::SourceExportIndex],
+) -> Result<source_exports::SourceImportEnvironment, HirAvailabilityError> {
+    let mut environment = source_exports::SourceImportEnvironment::new(
+        parse_root,
+        identity.clone(),
+        names,
+    );
+    environment.retain_syntax_operator_sources(parsed, indexes)?;
+    Ok(environment)
+}
+
 impl SemanticImports {
     pub fn empty() -> Self {
         Self { caller_evidence: None, source_imports: None }
@@ -366,14 +382,9 @@ impl SemanticImports {
         indexes: &[source_exports::SourceExportIndex],
     ) -> Result<Self, HirAvailabilityError> {
         let (parse_root, names) = resolve_implicit_prelude_imports(parsed, identity, indexes)?;
-        Ok(Self {
-            caller_evidence: None,
-            source_imports: Some(source_exports::SourceImportEnvironment::new(
-                parse_root,
-                identity.clone(),
-                names,
-            )),
-        })
+        Ok(Self { caller_evidence: None, source_imports: Some(source_import_environment(
+            parsed, identity, parse_root, names, indexes,
+        )?) })
     }
 
     /// Resolve all parse-owned `use` leaves against exact indexed source
@@ -385,12 +396,9 @@ impl SemanticImports {
         indexes: &[source_exports::SourceExportIndex],
     ) -> Result<Self, HirAvailabilityError> {
         let (parse_root, names) = resolve_source_imports(parsed, identity, indexes)?;
-        Ok(Self {
-            caller_evidence: None,
-            source_imports: Some(source_exports::SourceImportEnvironment::new(
-                parse_root, identity.clone(), names,
-            )),
-        })
+        Ok(Self { caller_evidence: None, source_imports: Some(source_import_environment(
+            parsed, identity, parse_root, names, indexes,
+        )?) })
     }
 
     /// As `with_source_imports`, while also retaining exact imported role and
@@ -403,7 +411,7 @@ impl SemanticImports {
         role_indexes: &[crate::shadow::SourceRoleImplIndex],
     ) -> Result<Self, HirAvailabilityError> {
         let (parse_root, names) = resolve_source_imports(parsed, identity, indexes)?;
-        let mut source_imports = source_exports::SourceImportEnvironment::new(parse_root, identity.clone(), names);
+        let mut source_imports = source_import_environment(parsed, identity, parse_root, names, indexes)?;
         retain_authenticated_role_imports(&mut source_imports, role_indexes)?;
         Ok(Self { caller_evidence: None, source_imports: Some(source_imports) })
     }
@@ -421,12 +429,9 @@ impl SemanticImports {
     ) -> Result<Self, HirAvailabilityError> {
         let selected_names = selected_direct_root_names(parsed, selected_roots)?;
         let (parse_root, names) = resolve_source_imports_selected(parsed, identity, indexes, Some(&selected_names))?;
-        Ok(Self {
-            caller_evidence: None,
-            source_imports: Some(source_exports::SourceImportEnvironment::new(
-                parse_root, identity.clone(), names,
-            )),
-        })
+        Ok(Self { caller_evidence: None, source_imports: Some(source_import_environment(
+            parsed, identity, parse_root, names, indexes,
+        )?) })
     }
 
     /// Selected-root projection with exact imported role/member source IDs.
@@ -440,7 +445,7 @@ impl SemanticImports {
     ) -> Result<Self, HirAvailabilityError> {
         let selected_names = selected_direct_root_names(parsed, selected_roots)?;
         let (parse_root, names) = resolve_source_imports_selected(parsed, identity, indexes, Some(&selected_names))?;
-        let mut source_imports = source_exports::SourceImportEnvironment::new(parse_root, identity.clone(), names);
+        let mut source_imports = source_import_environment(parsed, identity, parse_root, names, indexes)?;
         retain_authenticated_role_imports(&mut source_imports, role_indexes)?;
         Ok(Self { caller_evidence: None, source_imports: Some(source_imports) })
     }
@@ -455,7 +460,7 @@ impl SemanticImports {
         role_indexes: &[crate::shadow::SourceRoleImplIndex],
     ) -> Result<Self, HirAvailabilityError> {
         let (parse_root, names) = resolve_implicit_prelude_imports(parsed, identity, indexes)?;
-        let mut source_imports = source_exports::SourceImportEnvironment::new(parse_root, identity.clone(), names);
+        let mut source_imports = source_import_environment(parsed, identity, parse_root, names, indexes)?;
         retain_authenticated_role_imports(&mut source_imports, role_indexes)?;
         Ok(Self { caller_evidence: None, source_imports: Some(source_imports) })
     }
