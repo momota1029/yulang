@@ -1691,7 +1691,11 @@ fn lower_module_with_counters(
             match &plan.kind { RootPlanKind::Binding(admitted) => Some(admitted.id.clone()), _ => None }
         }).collect::<std::collections::HashSet<_>>();
         let retained_errors = sink.errors.iter().filter(|error| match error.attachment() {
-            HirErrorAttachment::Module => true,
+            HirErrorAttachment::Module => plans.iter().any(|plan| {
+                selected.contains(&plan.ordinal)
+                    && (error.range.start < plan.range.end && plan.range.start < error.range.end
+                        || error.range.is_empty() && plan.range.start <= error.range.start && error.range.start <= plan.range.end)
+            }),
             HirErrorAttachment::DirectRootItem(ordinal) => selected.contains(ordinal),
             HirErrorAttachment::Definition(id) | HirErrorAttachment::Value(id) => retained_definitions.contains(id),
         }).map(HirError::id).collect::<std::collections::HashSet<_>>();
@@ -3398,31 +3402,33 @@ fn plain_binding_header(
         if (_counters.local_source || _counters.ordinary_source_carriers)
             && tail.kind() == SyntaxKind::PatternCallTail
         {
-            if tails.len() != 1 || has_recovery(tail) {
+            if has_recovery(tail) {
                 return None;
             }
             let arguments = tail.children().collect::<Vec<_>>();
-            let [argument] = arguments.as_slice() else {
-                return None;
-            };
-            if argument.kind() != SyntaxKind::Pattern || has_recovery(argument) {
+            if arguments.is_empty() {
                 return None;
             }
-            let children = argument.children().collect::<Vec<_>>();
-            let (identifier, annotation) = match children.as_slice() {
-                [identifier] => (identifier, None),
-                [identifier, annotation]
-                    if annotation.kind() == SyntaxKind::PatternTypeAnnotation =>
-                {
-                    (identifier, Some(annotation.clone()))
+            for argument in arguments {
+                if argument.kind() != SyntaxKind::Pattern || has_recovery(&argument) {
+                    return None;
                 }
-                _ => return None,
-            };
-            parameters.push(AdmittedParameter {
-                name: identifier_pattern_name(identifier)?,
-                source: _counters.source_nodes.get(identifier).cloned(),
-                annotation,
-            });
+                let children = argument.children().collect::<Vec<_>>();
+                let (identifier, annotation) = match children.as_slice() {
+                    [identifier] => (identifier, None),
+                    [identifier, annotation]
+                        if annotation.kind() == SyntaxKind::PatternTypeAnnotation =>
+                    {
+                        (identifier, Some(annotation.clone()))
+                    }
+                    _ => return None,
+                };
+                parameters.push(AdmittedParameter {
+                    name: identifier_pattern_name(identifier)?,
+                    source: _counters.source_nodes.get(identifier).cloned(),
+                    annotation,
+                });
+            }
             continue;
         }
         if tail.kind() != SyntaxKind::PatternMlApplicationTail || has_recovery(tail) {
@@ -3676,6 +3682,37 @@ mod tests {
             ),
             Err(HirAvailabilityError::StructuralProjection),
         );
+    }
+
+    #[test]
+    fn local_source_admits_parenthesized_multiple_annotated_formals() {
+        let parsed = parsed("pub combine(left: int, right: str): int = left");
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let hir = lower_module_with_local_source(identity(), &parsed, SemanticImports::empty()).unwrap();
+        let HirItem::Binding(binding) = &hir.items()[0] else { panic!("function header remains a binding") };
+        assert_eq!(binding.parameters().len(), 2);
+        assert_eq!(binding.parameters()[0].name().spelling(), "left");
+        assert_eq!(binding.parameters()[1].name().spelling(), "right");
+        assert!(hir.local_source(binding.definition_root()).unwrap().is_some());
+    }
+
+    #[test]
+    fn local_source_admits_multi_formal_where_clause_and_field_tail() {
+        for source in [
+            "pub display(spec: int, value: str): int = spec",
+            "pub display(spec: int, value: str): int = value",
+            "pub display(spec: int, value: 'a): int =\n    where 'a: Display\n    value",
+            "pub display(spec: int, value: 'a): int =\n    where 'a: Display\n    value.show",
+        ] {
+            let parsed = parsed(source);
+            assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+            let result = lower_module_with_local_source(identity(), &parsed, SemanticImports::empty());
+            assert!(result.is_ok(), "{source}: {:?}", result.err());
+            let hir = result.unwrap();
+            let HirItem::Binding(binding) = &hir.items()[0] else { panic!("function header remains a binding") };
+            assert_eq!(binding.parameters().len(), 2);
+            assert!(hir.local_source(binding.definition_root()).unwrap().is_some());
+        }
     }
 
     #[test]
