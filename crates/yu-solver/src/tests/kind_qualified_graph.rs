@@ -210,6 +210,7 @@ enum GraphEndpoint {
     EffectAtom(EffectEndpointKey),
     Row(ResearchRowKey),
     Function(Polarity, ResearchTermId),
+    Tuple(Polarity, ResearchTermId),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -235,6 +236,10 @@ enum TermRecord {
     Function {
         polarity: Polarity,
         children: [ResearchTermId; 4],
+    },
+    Tuple {
+        polarity: Polarity,
+        children: Vec<ResearchTermId>,
     },
 }
 
@@ -281,6 +286,14 @@ fn value_graph_endpoint(
         ValueEndpointKey::NegativeFunction(t) => {
             assert_eq!(polarity, Polarity::Negative);
             GraphEndpoint::Function(polarity, ResearchTermId::Original(t))
+        }
+        ValueEndpointKey::PositiveTuple(t, _) => {
+            assert_eq!(polarity, Polarity::Positive);
+            GraphEndpoint::Tuple(polarity, ResearchTermId::Original(t))
+        }
+        ValueEndpointKey::NegativeTuple(t, _) => {
+            assert_eq!(polarity, Polarity::Negative);
+            GraphEndpoint::Tuple(polarity, ResearchTermId::Original(t))
         }
         atom => {
             let actual = match atom {
@@ -445,6 +458,9 @@ impl GraphRecord {
             if let GraphEndpoint::Function(_, ResearchTermId::Original(term)) = endpoint {
                 pending.push(*term);
             }
+            if let GraphEndpoint::Tuple(_, ResearchTermId::Original(term)) = endpoint {
+                pending.push(*term);
+            }
         }
         while let Some(term) = pending.pop() {
             let id = ResearchTermId::Original(term);
@@ -505,6 +521,20 @@ impl GraphRecord {
                             .map(ResearchTermId::Original),
                     }
                 }
+                TermView::PositiveTuple { elements } => {
+                    pending.extend(elements.iter().copied());
+                    TermRecord::Tuple {
+                        polarity: Polarity::Positive,
+                        children: elements.iter().copied().map(ResearchTermId::Original).collect(),
+                    }
+                }
+                TermView::NegativeTuple { elements } => {
+                    pending.extend(elements.iter().copied());
+                    TermRecord::Tuple {
+                        polarity: Polarity::Negative,
+                        children: elements.iter().copied().map(ResearchTermId::Original).collect(),
+                    }
+                }
             };
             graph.terms.insert(id, record);
         }
@@ -534,6 +564,7 @@ impl GraphRecord {
                 (ComponentKind::Value, Polarity::Negative)
             }
             TermRecord::Function { polarity, .. } => (ComponentKind::Value, *polarity),
+            TermRecord::Tuple { polarity, .. } => (ComponentKind::Value, *polarity),
             TermRecord::Component(..) => return None,
         })
     }
@@ -550,6 +581,11 @@ impl GraphRecord {
                 assert!(
                     matches!(self.terms.get(id), Some(TermRecord::Function { polarity: actual, .. }) if actual == p)
                 );
+            }
+            GraphEndpoint::Tuple(p, id) => {
+                assert_eq!(kind, ComponentKind::Value);
+                assert!(matches!(self.terms.get(id), Some(TermRecord::Tuple { polarity, children })
+                    if polarity == p && !children.is_empty()));
             }
             GraphEndpoint::ValueAtom(atom) => {
                 assert_eq!(kind, ComponentKind::Value);
@@ -614,6 +650,12 @@ impl GraphRecord {
                         assert_eq!(self.term_sort(*child), Some(expected));
                     }
                 }
+                TermRecord::Tuple { polarity, children } => {
+                    assert!(!children.is_empty());
+                    for child in children {
+                        assert_eq!(self.term_sort(*child), Some((ComponentKind::Value, *polarity)));
+                    }
+                }
                 _ => {}
             }
             // Iterative gray/black traversal rejects structural cycles; row cycles
@@ -635,6 +677,9 @@ impl GraphRecord {
                 if let TermRecord::Function { children, .. } = &self.terms[&term] {
                     stack.extend(children.iter().map(|&child| (child, false)));
                 }
+                if let TermRecord::Tuple { children, .. } = &self.terms[&term] {
+                    stack.extend(children.iter().map(|&child| (child, false)));
+                }
             }
         }
         for root in &self.roots {
@@ -650,6 +695,7 @@ impl GraphRecord {
         let endpoint = |e: &GraphEndpoint| match e {
             GraphEndpoint::Row(r) => GraphEndpoint::Row(rows[r]),
             GraphEndpoint::Function(p, t) => GraphEndpoint::Function(*p, terms[t]),
+            GraphEndpoint::Tuple(p, t) => GraphEndpoint::Tuple(*p, terms[t]),
             atom => atom.clone(),
         };
         let result = Self {
@@ -685,6 +731,10 @@ impl GraphRecord {
                             TermRecord::Function { polarity, children } => TermRecord::Function {
                                 polarity: *polarity,
                                 children: children.map(|t| terms[&t]),
+                            },
+                            TermRecord::Tuple { polarity, children } => TermRecord::Tuple {
+                                polarity: *polarity,
+                                children: children.iter().map(|t| terms[t]).collect(),
                             },
                             other => other.clone(),
                         },

@@ -2783,6 +2783,7 @@ my outer (q:[io] int) = {
             .filter(|dependency| match dependency {
                 candidate_context::Dependency::Derived { child, parent }
                 | candidate_context::Dependency::FunctionPort { child, parent, .. }
+                | candidate_context::Dependency::TuplePort { child, parent, .. }
                 | candidate_context::Dependency::Transport { child, parent, .. } =>
                     [355, 362, 363].into_iter().any(|id| child.0 == id || parent.0 == id),
                 candidate_context::Dependency::Replay { child, lower, upper, .. } =>

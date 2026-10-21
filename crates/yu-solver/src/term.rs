@@ -163,6 +163,7 @@ pub enum Polarity {
 ///         TermView::Leaf(_) | TermView::Component(_) | TermView::LiveVariable(_) => {}
 ///         TermView::PositiveBottom | TermView::NegativeTop | TermView::NegativeBottom => {}
 ///         TermView::PositiveFunction { .. } | TermView::NegativeFunction { .. } => {}
+///         TermView::PositiveTuple { .. } | TermView::NegativeTuple { .. } => {}
 ///     }
 /// }
 /// ```
@@ -186,6 +187,8 @@ pub enum TermView<'a> {
         result_effect: Term,
         result: Term,
     },
+    PositiveTuple { elements: &'a [Term] },
+    NegativeTuple { elements: &'a [Term] },
 }
 
 #[allow(
@@ -212,6 +215,8 @@ pub(crate) enum TermNode {
         result_effect: Term,
         result: Term,
     },
+    PositiveTuple { elements: Arc<[Term]> },
+    NegativeTuple { elements: Arc<[Term]> },
 }
 impl TermNode {
     pub(crate) const fn kind(&self) -> ComponentKind {
@@ -223,7 +228,8 @@ impl TermNode {
             // Function collection is a later F5 gate.  These variants exist
             // solely because the approved observation algebra already names
             // them; no F5b path constructs one.
-            Self::PositiveFunction { .. } | Self::NegativeFunction { .. } => ComponentKind::Value,
+            Self::PositiveFunction { .. } | Self::NegativeFunction { .. }
+            | Self::PositiveTuple { .. } | Self::NegativeTuple { .. } => ComponentKind::Value,
         }
     }
     pub(crate) fn view(&self) -> TermView<'_> {
@@ -256,6 +262,8 @@ impl TermNode {
                 result_effect: *result_effect,
                 result: *result,
             },
+            Self::PositiveTuple { elements } => TermView::PositiveTuple { elements },
+            Self::NegativeTuple { elements } => TermView::NegativeTuple { elements },
         }
     }
 }
@@ -426,6 +434,9 @@ pub(crate) struct BranchTermArena {
     positions: HashMap<TermNode, Term>,
     route_journal: Option<BranchTermJournal>,
     route_journal_spare: Option<BranchTermJournal>,
+    /// Owns variable-arity child payloads once; TermNode clones share them.
+    tuple_backings: Vec<Arc<[Term]>>,
+    tuple_payload_bytes: usize,
     capacity_events: TermCapacityEvents,
     #[cfg(all(test, feature = "f5c_resource_probe"))]
     owner_events: [TermOwnerEvent; 5],
@@ -446,7 +457,16 @@ pub(crate) struct TermCapacitySnapshot(
     pub(crate) [usize; 6],
     #[cfg(test)] pub(crate) TermLaneState,
     #[cfg(test)] pub(crate) TermOwnerLanes,
+    pub(crate) usize,
 );
+impl TermCapacitySnapshot {
+    pub(crate) const fn tuple_storage_bytes(self) -> usize {
+        #[cfg(test)]
+        { self.3 }
+        #[cfg(not(test))]
+        { self.1 }
+    }
+}
 
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -479,8 +499,7 @@ enum TermCapacityLane {
     ClaimedPagesJournal = 5,
 }
 
-// One intern can reserve the interner, interned journal, page descriptors,
-// page-position map, and claimed-page journal once each, then add one backing.
+// One intern can reserve five existing owners, then record one Tuple payload.
 const TERM_CAPACITY_EVENT_MAX: usize = 6;
 #[derive(Debug)]
 struct TermCapacityEvents {
@@ -516,6 +535,8 @@ impl TermCapacityEvents {
 pub(crate) struct BranchTermCheckpoint {
     pages_len: usize,
     last_page_initialized: u16,
+    tuple_backings_len: usize,
+    tuple_payload_bytes: usize,
     #[cfg(test)]
     positions_len: usize,
     #[cfg(test)]
@@ -577,7 +598,7 @@ impl BranchTermArena {
             std::mem::size_of::<(u32, usize)>(),
             std::mem::size_of::<(TermNode, Term)>(),
             std::mem::size_of::<TermNode>(),
-            std::mem::size_of::<u32>(),
+            1,
         ]
     }
 
@@ -587,18 +608,23 @@ impl BranchTermArena {
             .route_journal
             .as_ref()
             .or(self.route_journal_spare.as_ref());
+        let tuple_storage = self.tuple_backings.capacity()
+            .checked_mul(std::mem::size_of::<Arc<[Term]>>())?
+            .checked_add(self.tuple_payload_bytes)?;
         let capacities = [
             self.pages.len(),
             self.pages.capacity(),
             self.page_positions.capacity(),
             self.positions.capacity(),
             journal.map_or(0, |owner| owner.interned.capacity()),
-            journal.map_or(0, |owner| owner.claimed_pages.capacity()),
+            journal.map_or(0, |owner| owner.claimed_pages.capacity())
+                .checked_mul(std::mem::size_of::<u32>())?
+                .checked_add(tuple_storage)?,
         ];
         let sizes = Self::independent_lane_sizes();
         let mut bytes = [0; 6];
         for index in 0..6 {
-            bytes[index] = capacities[index].checked_mul(sizes[index])?;
+            bytes[index] = if index == 5 { capacities[index] } else { capacities[index].checked_mul(sizes[index])? };
         }
         Some(TermOwnerLanes {
             lengths: [
@@ -625,6 +651,8 @@ impl BranchTermArena {
             positions: HashMap::new(),
             route_journal: None,
             route_journal_spare: None,
+            tuple_backings: Vec::new(),
+            tuple_payload_bytes: 0,
             capacity_events: TermCapacityEvents::new(),
             #[cfg(all(test, feature = "f5c_resource_probe"))]
             owner_events: std::array::from_fn(|index| {
@@ -647,6 +675,8 @@ impl BranchTermArena {
         BranchTermCheckpoint {
             pages_len: self.pages.len(),
             last_page_initialized: self.pages.last().map_or(0, |page| page.initialized),
+            tuple_backings_len: self.tuple_backings.len(),
+            tuple_payload_bytes: self.tuple_payload_bytes,
             positions_len: self.positions.len(),
             page_positions_len: self.page_positions.len(),
         }
@@ -664,6 +694,8 @@ impl BranchTermArena {
                 checkpoint: BranchTermCheckpoint {
                     pages_len: 0,
                     last_page_initialized: 0,
+                    tuple_backings_len: 0,
+                    tuple_payload_bytes: 0,
                     #[cfg(test)]
                     positions_len: 0,
                     #[cfg(test)]
@@ -679,6 +711,8 @@ impl BranchTermArena {
         journal.checkpoint = BranchTermCheckpoint {
             pages_len: self.pages.len(),
             last_page_initialized: self.pages.last().map_or(0, |page| page.initialized),
+            tuple_backings_len: self.tuple_backings.len(),
+            tuple_payload_bytes: self.tuple_payload_bytes,
             #[cfg(test)]
             positions_len: self.positions.len(),
             #[cfg(test)]
@@ -706,7 +740,7 @@ impl BranchTermArena {
     }
 
     pub(crate) fn rollback_route(&mut self) {
-        let journal = self
+        let mut journal = self
             .route_journal
             .take()
             .expect("Term route transaction is active");
@@ -721,6 +755,9 @@ impl BranchTermArena {
             self.pages[journal.checkpoint.pages_len - 1]
                 .truncate_to(journal.checkpoint.last_page_initialized);
         }
+        journal.interned.clear();
+        self.tuple_backings.truncate(journal.checkpoint.tuple_backings_len);
+        self.tuple_payload_bytes = journal.checkpoint.tuple_payload_bytes;
         self.route_journal_spare = Some(journal);
         #[cfg(all(test, feature = "f5c_resource_probe"))]
         self.observe_owner_events();
@@ -767,7 +804,8 @@ impl BranchTermArena {
     /// Term arena.  The fixed pages are counted by page descriptors, not by a
     /// traversal of initialized nodes.
     pub(crate) fn checked_retained_bytes(&self) -> Option<usize> {
-        Self::checked_capacity_bytes(self.capacity_snapshot().0)
+        let snapshot = self.capacity_snapshot();
+        Self::checked_capacity_bytes(snapshot.0)?.checked_add(snapshot.tuple_storage_bytes())
     }
 
     pub(crate) fn capacity_snapshot(&self) -> TermCapacitySnapshot {
@@ -802,6 +840,9 @@ impl BranchTermArena {
             #[cfg(test)]
             self.independent_owner_lanes()
                 .expect("Term owner lanes fit usize"),
+            self.tuple_backings.capacity().checked_mul(std::mem::size_of::<Arc<[Term]>>())
+                .and_then(|bytes| bytes.checked_add(self.tuple_payload_bytes))
+                .expect("tuple backing bytes fit usize"),
         )
     }
 
@@ -928,7 +969,7 @@ impl BranchTermArena {
                 std::mem::size_of::<(u32, usize)>(),
                 std::mem::size_of::<(TermNode, Term)>(),
                 std::mem::size_of::<TermNode>(),
-                std::mem::size_of::<u32>(),
+                1,
             ])
             .try_fold(0usize, |total, (capacity, size)| {
                 total.checked_add(capacity.checked_mul(size)?)
@@ -968,6 +1009,8 @@ impl BranchTermArena {
                 .capacity()
                 .checked_mul(std::mem::size_of::<(TermNode, Term)>())?,
             journal_bytes,
+            self.tuple_backings.capacity().checked_mul(std::mem::size_of::<Arc<[Term]>>())?,
+            self.tuple_payload_bytes,
         ]
         .into_iter()
         .try_fold(0usize, usize::checked_add)
@@ -1165,6 +1208,66 @@ impl BranchTermArena {
         })
     }
 
+    pub(crate) fn positive_tuple(&mut self, elements: &[Term]) -> Result<Term, crate::ConstraintError> {
+        self.require_tuple_children(elements, Polarity::Positive)?;
+        self.intern_tuple(elements, true)
+    }
+
+    pub(crate) fn negative_tuple(&mut self, elements: &[Term]) -> Result<Term, crate::ConstraintError> {
+        self.require_tuple_children(elements, Polarity::Negative)?;
+        self.intern_tuple(elements, false)
+    }
+
+    fn require_tuple_children(&self, elements: &[Term], polarity: Polarity) -> Result<(), crate::ConstraintError> {
+        if elements.is_empty() {
+            return Err(crate::ConstraintError::ArtifactMismatch);
+        }
+        for &term in elements {
+            let node = self.lookup(term).map_err(|_| crate::ConstraintError::ArtifactMismatch)?;
+            if !matches_endpoint(node, ComponentKind::Value, polarity) {
+                return Err(crate::ConstraintError::ArtifactMismatch);
+            }
+        }
+        Ok(())
+    }
+
+    fn intern_tuple(&mut self, elements: &[Term], positive: bool) -> Result<Term, crate::ConstraintError> {
+        let mut owned = Vec::new();
+        owned.try_reserve_exact(elements.len()).map_err(|_| crate::ConstraintError::IdentityExhausted)?;
+        owned.extend_from_slice(elements);
+        let backing: Arc<[Term]> = Arc::from(owned);
+        let node = if positive { TermNode::PositiveTuple { elements: backing.clone() } }
+            else { TermNode::NegativeTuple { elements: backing.clone() } };
+        if let Some(term) = self.positions.get(&node).copied() {
+            return Ok(term);
+        }
+        let payload_bytes = elements.len()
+            .checked_mul(std::mem::size_of::<Term>())
+            .and_then(|bytes| self.tuple_payload_bytes.checked_add(bytes))
+            .ok_or(crate::ConstraintError::IdentityExhausted)?;
+        let tuple_capacity = self.tuple_backings.capacity();
+        self.tuple_backings.try_reserve(1).map_err(|_| crate::ConstraintError::IdentityExhausted)?;
+        let term = match self.intern(node) {
+            Ok(term) => term,
+            Err(error) => {
+                // A failed first interner reserve may have no event of its own,
+                // but the preceding tuple-owner growth is still retained.
+                if self.tuple_backings.capacity() != tuple_capacity {
+                    self.capacity_events.push(self.capacity_snapshot());
+                    #[cfg(all(test, feature = "f5c_resource_probe"))]
+                    self.observe_owner_events();
+                }
+                return Err(error);
+            }
+        };
+        self.tuple_backings.push(backing);
+        self.tuple_payload_bytes = payload_bytes;
+        self.capacity_events.push(self.capacity_snapshot());
+        #[cfg(all(test, feature = "f5c_resource_probe"))]
+        self.observe_owner_events();
+        Ok(term)
+    }
+
     /// Function construction is the sole post-prefix structural constructor.
     /// Validate lineage, kind, and polarity before `intern` can reserve or
     /// publish a node.  The existing artifact error is the boundary for a
@@ -1234,9 +1337,11 @@ fn matches_endpoint(node: &TermNode, kind: ComponentKind, polarity: Polarity) ->
     match (kind, polarity, node) {
         (ComponentKind::Value, Polarity::Positive, TermNode::Leaf(Leaf::IntPositive | Leaf::UnitPositive | Leaf::BoolPositive | Leaf::StrPositive))
         | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveBottom)
+        | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveTuple { .. })
         | (ComponentKind::Value, Polarity::Negative, TermNode::Leaf(Leaf::IntNegative | Leaf::UnitNegative | Leaf::BoolNegative | Leaf::StrNegative))
         | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeTop)
         | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeBottom)
+        | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeTuple { .. })
         | (ComponentKind::Effect, Polarity::Positive, TermNode::Leaf(Leaf::EffectBottomPositive))
         | (ComponentKind::Effect, Polarity::Negative, TermNode::Leaf(Leaf::EmptyEffectNegative)) => {
             true
@@ -1569,6 +1674,72 @@ mod tests {
             branch.term_view(function),
             Ok(TermView::PositiveFunction { .. })
         ));
+    }
+
+    #[test]
+    fn ordered_tuple_terms_preserve_arity_order_duplicates_and_polarity() {
+        let mut branch = BranchTermArena::new(TermBuilder::new().unwrap().seal().unwrap());
+        macro_rules! positive_tuple {
+            ($elements:expr) => {{
+                let term = branch.positive_tuple($elements).unwrap();
+                branch.take_capacity_events().count();
+                term
+            }};
+        }
+        macro_rules! negative_tuple {
+            ($elements:expr) => {{
+                let term = branch.negative_tuple($elements).unwrap();
+                branch.take_capacity_events().count();
+                term
+            }};
+        }
+        let p0 = branch.live_variable(ComponentKind::Value, Polarity::Positive, 0).unwrap();
+        branch.take_capacity_events().count();
+        let p1 = branch.live_variable(ComponentKind::Value, Polarity::Positive, 1).unwrap();
+        branch.take_capacity_events().count();
+        let p2 = branch.live_variable(ComponentKind::Value, Polarity::Positive, 2).unwrap();
+        branch.take_capacity_events().count();
+        let n0 = branch.live_variable(ComponentKind::Value, Polarity::Negative, 0).unwrap();
+        branch.take_capacity_events().count();
+        let n1 = branch.live_variable(ComponentKind::Value, Polarity::Negative, 1).unwrap();
+        branch.take_capacity_events().count();
+        let n2 = branch.live_variable(ComponentKind::Value, Polarity::Negative, 2).unwrap();
+        branch.take_capacity_events().count();
+
+        for elements in [&[p0][..], &[p0, p1][..], &[p0, p1, p2][..], &[p0, p1, p0][..]] {
+            let tuple = positive_tuple!(elements);
+            assert_eq!(branch.term_view(tuple).unwrap(), TermView::PositiveTuple { elements });
+            assert_eq!(positive_tuple!(elements), tuple);
+        }
+        let pair = positive_tuple!(&[p0, p1]);
+        let swapped = positive_tuple!(&[p1, p0]);
+        let duplicate = positive_tuple!(&[p0, p0]);
+        assert_ne!(pair, swapped);
+        assert_ne!(pair, duplicate);
+        assert_eq!(branch.term_kind(pair).unwrap(), ComponentKind::Value);
+
+        let negative = negative_tuple!(&[n0, n1, n2]);
+        assert_eq!(branch.term_view(negative).unwrap(), TermView::NegativeTuple { elements: &[n0, n1, n2] });
+        let before = branch.observations().committed_nodes;
+        assert_eq!(branch.positive_tuple(&[]), Err(crate::ConstraintError::ArtifactMismatch));
+        assert_eq!(branch.negative_tuple(&[]), Err(crate::ConstraintError::ArtifactMismatch));
+        assert_eq!(branch.positive_tuple(&[n0]), Err(crate::ConstraintError::ArtifactMismatch));
+        assert_eq!(branch.negative_tuple(&[p0]), Err(crate::ConstraintError::ArtifactMismatch));
+        let foreign = BranchTermArena::new(TermBuilder::new().unwrap().seal().unwrap())
+            .live_variable(ComponentKind::Value, Polarity::Positive, 0).unwrap();
+        assert_eq!(branch.positive_tuple(&[foreign]), Err(crate::ConstraintError::ArtifactMismatch));
+        assert_eq!(branch.observations().committed_nodes, before);
+
+        assert_eq!(branch.checked_retained_bytes(), branch.checked_independent_retained_bytes());
+        assert_eq!(branch.independent_owner_lanes().unwrap().bytes.into_iter().sum::<usize>(),
+            branch.checked_retained_bytes().unwrap());
+        let retained = positive_tuple!(&[p2, p1]);
+        branch.begin_route();
+        let rolled_back = branch.positive_tuple(&[p2, p0]).unwrap();
+        branch.rollback_route();
+        assert!(branch.term_view(retained).is_ok());
+        assert_eq!(branch.term_view(rolled_back), Err(TermLookupError::InvalidHandle));
+        assert_eq!(branch.checked_retained_bytes(), branch.checked_independent_retained_bytes());
     }
 
     #[test]

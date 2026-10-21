@@ -771,6 +771,8 @@ enum ValueEndpointKey {
     ValueRow(u32),
     PositiveFunction(Term),
     NegativeFunction(Term),
+    PositiveTuple(Term, usize),
+    NegativeTuple(Term, usize),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -4000,6 +4002,7 @@ pub enum ValueShape {
     Bool,
     Str,
     Function,
+    Tuple(usize),
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SolverError {
@@ -4083,12 +4086,14 @@ struct DiagnosticWitness {
     kind: SolverErrorKind,
     distance: u32,
     first_field: Option<FunctionField>,
+    first_tuple_index: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct DiagnosticEdge {
     child: CanonicalValuePairKey,
     field: Option<FunctionField>,
+    tuple_index: Option<usize>,
 }
 
 #[derive(Debug)]
@@ -4194,6 +4199,7 @@ impl From<Vec<DiagnosticEdge>> for DiagnosticChildren {
 struct DiagnosticReverseEdge {
     parent: usize,
     field: Option<FunctionField>,
+    tuple_index: Option<usize>,
 }
 
 /// One call-local FIFO link.  Pair memo entries deliberately never retain
@@ -10879,6 +10885,7 @@ impl InferenceSession {
                     || store.checked_inference_term_retained_bytes(),
                     |snapshot| {
                         BranchTermArena::checked_capacity_bytes(snapshot.0)
+                            .and_then(|bytes| bytes.checked_add(snapshot.tuple_storage_bytes()))
                             .ok_or(SolveAvailabilityError::IdentityExhausted)
                     },
                 )?
@@ -10889,6 +10896,7 @@ impl InferenceSession {
             || store.checked_inference_term_retained_bytes(),
             |snapshot| {
                 BranchTermArena::checked_capacity_bytes(snapshot.0)
+                    .and_then(|bytes| bytes.checked_add(snapshot.tuple_storage_bytes()))
                     .ok_or(SolveAvailabilityError::IdentityExhausted)
             },
         )?;
@@ -11545,6 +11553,14 @@ impl InferenceSession {
             TermView::NegativeFunction { .. } => {
                 assert_eq!(polarity, Polarity::Negative);
                 ValueEndpointKey::NegativeFunction(term)
+            }
+            TermView::PositiveTuple { elements } => {
+                assert_eq!(polarity, Polarity::Positive);
+                ValueEndpointKey::PositiveTuple(term, elements.len())
+            }
+            TermView::NegativeTuple { elements } => {
+                assert_eq!(polarity, Polarity::Negative);
+                ValueEndpointKey::NegativeTuple(term, elements.len())
             }
             TermView::Leaf(_) => panic!("effect leaf cannot translate as a value endpoint"),
         }
@@ -12452,7 +12468,7 @@ impl InferenceSession {
                 self.dispatch_live_item(item, Some(index), consumed.ok_or(SolveAvailabilityError::IdentityExhausted)?, &mut transitions)?;
                 let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
                 frame.transitions = transitions;
-                if frame.function.is_none() {
+                if frame.function.is_none() && frame.tuple.is_none() {
                     frame.current = None;
                     frame.context_consumed = None;
                     frame.stage = Stage::Transport;
@@ -12463,6 +12479,15 @@ impl InferenceSession {
                     let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
                     frame.current = None;
                     frame.function = None;
+                    frame.context_consumed = None;
+                    frame.stage = Stage::Transport;
+                }
+            }
+            Stage::TupleAdmission | Stage::TupleEnqueue => {
+                if !self.candidate_step_tuple_dispatch(index)? {
+                    let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                    frame.current = None;
+                    frame.tuple = None;
                     frame.context_consumed = None;
                     frame.stage = Stage::Transport;
                 }
@@ -12569,6 +12594,7 @@ impl InferenceSession {
                                     kind: SolverErrorKind::IncompatibleValue { lower, upper },
                                     distance: 0,
                                     first_field: None,
+                                    first_tuple_index: None,
                                 }),
                                 completion: DiagnosticCompletion::Pending,
                             },
@@ -12588,6 +12614,57 @@ impl InferenceSession {
                                 completion: DiagnosticCompletion::Pending,
                             },
                         )?;
+                        return Ok(());
+                    }
+                    if let (
+                        ValueEndpointKey::PositiveTuple(lower_term, lower_arity),
+                        ValueEndpointKey::NegativeTuple(upper_term, upper_arity),
+                    ) = (key.lower, key.upper)
+                    {
+                        if lower_arity != upper_arity { return Err(SolveAvailabilityError::IdentityExhausted); }
+                        let (TermView::PositiveTuple { elements: lower }, TermView::NegativeTuple { elements: upper }) = (
+                            self.store.term_view(lower_term).map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                            self.store.term_view(upper_term).map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                        ) else { return Err(SolveAvailabilityError::IdentityExhausted); };
+                        if lower.len() != lower_arity || upper.len() != upper_arity || lower.len() != upper.len() {
+                            return Err(SolveAvailabilityError::IdentityExhausted);
+                        }
+                        let mut children = Vec::new();
+                        children.try_reserve_exact(lower.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        for (tuple_index, (lower, upper)) in lower.iter().zip(upper).enumerate() {
+                            children.push((tuple_index, TypedPairKey::Value(CanonicalValuePairKey {
+                                lower: self.value_endpoint(*lower, Polarity::Positive),
+                                upper: self.value_endpoint(*upper, Polarity::Negative),
+                            })));
+                        }
+                        self.record_typed_pair_admission(memo_key, TypedPairMemo::Value {
+                            #[cfg(feature = "shadow-apply-candidate")]
+                            retained_extrusion_rewrite: None,
+                            children: DiagnosticChildren::new(),
+                            direct_witness: None,
+                            completion: DiagnosticCompletion::Pending,
+                        })?;
+                        for (tuple_index, child) in &children {
+                            let TypedPairKey::Value(child) = child else { unreachable!() };
+                            self.record_diagnostic_tuple_edge(key, *child, *tuple_index)?;
+                        }
+                        #[cfg(feature = "shadow-apply-candidate")]
+                        if let Some(index) = drain {
+                            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                            frame.tuple = Some(candidate_context::TupleDispatch { children, next: 0, pending: None });
+                            frame.stage = candidate_context::TypedDrainStage::TupleAdmission;
+                            return Ok(());
+                        }
+                        for (_, child) in children.into_iter().rev() {
+                            let TypedPairKey::Value(task) = child else { unreachable!() };
+                            self.enqueue_item(TypedWorkItem {
+                                task: LiveConstraintTask::Value(task),
+                                #[cfg(feature = "shadow-apply-candidate")]
+                                relation: None,
+                                #[cfg(feature = "shadow-apply-candidate")]
+                                replay_ack: None,
+                            }, true)?;
+                        }
                         return Ok(());
                     }
                     let (Some(lower), Some(upper)) = (
@@ -12861,6 +12938,31 @@ impl InferenceSession {
             let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
             frame.function.as_mut().unwrap().pending = Some(TypedWorkItem { task, relation, replay_ack: None });
             frame.stage = candidate_context::TypedDrainStage::FunctionEnqueue;
+        }
+        Ok(true)
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_step_tuple_dispatch(&mut self, drain: usize) -> Result<bool, SolveAvailabilityError> {
+        self.prepare_nonterminal_drain(drain)?;
+        let frame = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+        let dispatch = frame.tuple.as_ref().unwrap();
+        if dispatch.next == dispatch.children.len() { return Ok(false); }
+        if let Some(item) = dispatch.pending {
+            self.enqueue_item(item, true)?;
+            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+            let dispatch = frame.tuple.as_mut().unwrap();
+            dispatch.pending = None;
+            dispatch.next += 1;
+            frame.stage = candidate_context::TypedDrainStage::TupleAdmission;
+        } else {
+            let (index, child) = dispatch.children[dispatch.children.len() - 1 - dispatch.next];
+            let TypedPairKey::Value(pair) = child else { return Err(SolveAvailabilityError::IdentityExhausted); };
+            let task = LiveConstraintTask::Value(pair);
+            let relation = self.candidate_tuple_port_admit(task, index)?;
+            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+            frame.tuple.as_mut().unwrap().pending = Some(TypedWorkItem { task, relation, replay_ack: None });
+            frame.stage = candidate_context::TypedDrainStage::TupleEnqueue;
         }
         Ok(true)
     }
@@ -13201,7 +13303,23 @@ impl InferenceSession {
         child: CanonicalValuePairKey,
         field: Option<FunctionField>,
     ) -> Result<(), SolveAvailabilityError> {
-        let parent_edge = DiagnosticEdge { child, field };
+        self.record_diagnostic_child_edge(parent, DiagnosticEdge { child, field, tuple_index: None })
+    }
+
+    fn record_diagnostic_tuple_edge(
+        &mut self,
+        parent: CanonicalValuePairKey,
+        child: CanonicalValuePairKey,
+        index: usize,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.record_diagnostic_child_edge(parent, DiagnosticEdge { child, field: None, tuple_index: Some(index) })
+    }
+
+    fn record_diagnostic_child_edge(
+        &mut self,
+        parent: CanonicalValuePairKey,
+        parent_edge: DiagnosticEdge,
+    ) -> Result<(), SolveAvailabilityError> {
         #[cfg(feature = "shadow-apply-candidate")]
         if let Some(state) = &self.candidate_graph {
             if state.intrusion.diagnostic_edges.contains(&(parent, parent_edge)) {
@@ -13369,6 +13487,7 @@ impl InferenceSession {
             DiagnosticReverseEdge {
                 parent: 0,
                 field: None,
+                tuple_index: None,
             },
         );
         for (parent, &parent_key) in self.diagnostic_delta.iter().enumerate() {
@@ -13382,6 +13501,7 @@ impl InferenceSession {
                     self.diagnostic_reverse_edges[cursor] = DiagnosticReverseEdge {
                         parent,
                         field: edge.field,
+                        tuple_index: edge.tuple_index,
                     };
                     self.diagnostic_reverse_cursors[child] += 1;
                 }
@@ -13588,7 +13708,7 @@ impl InferenceSession {
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 let distance_stride = shape_count
                     .checked_mul(shape_count)
-                    .and_then(|count| count.checked_mul(5))
+                    .and_then(|count| count.checked_mul(6))
                     .ok_or(SolveAvailabilityError::IdentityExhausted)?;
                 let bucket_count = member_count
                     .checked_mul(distance_stride)
@@ -13625,6 +13745,7 @@ impl InferenceSession {
                                 DiagnosticEdge {
                                     child: self.diagnostic_delta[candidate.node],
                                     field: reverse_edge.field,
+                                    tuple_index: reverse_edge.tuple_index,
                                 },
                             )?;
                             self.push_diagnostic_bucket(
@@ -13876,13 +13997,13 @@ impl InferenceSession {
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         let distance_stride = shape_count
             .checked_mul(shape_count)
-            .and_then(|count| count.checked_mul(5))
+            .and_then(|count| count.checked_mul(6))
             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
         distance
             .checked_mul(distance_stride)
-            .and_then(|offset| offset.checked_add(kind.checked_mul(5)?))
+            .and_then(|offset| offset.checked_add(kind.checked_mul(6)?))
             .and_then(|offset| {
-                offset.checked_add(usize::from(Self::field_rank(witness.first_field)))
+                offset.checked_add(Self::child_path_rank(witness.first_field, witness.first_tuple_index))
             })
             .ok_or(SolveAvailabilityError::IdentityExhausted)
     }
@@ -13909,6 +14030,7 @@ impl InferenceSession {
                 .checked_add(1)
                 .ok_or(SolveAvailabilityError::IdentityExhausted)?,
             first_field: edge.field.or(witness.first_field),
+            first_tuple_index: edge.tuple_index.or(witness.first_tuple_index),
         })
     }
 
@@ -13927,6 +14049,7 @@ impl InferenceSession {
             ValueShape::Unit => 3,
             ValueShape::Bool => 4,
             ValueShape::Str => 5,
+            ValueShape::Tuple(_) => 6,
         }
     }
 
@@ -13937,6 +14060,14 @@ impl InferenceSession {
             Some(FunctionField::ResultEffect) => 2,
             Some(FunctionField::Result) => 3,
             None => 4,
+        }
+    }
+
+    const fn child_path_rank(field: Option<FunctionField>, tuple_index: Option<usize>) -> usize {
+        match (field, tuple_index) {
+            (Some(field), _) => Self::field_rank(Some(field)) as usize,
+            (None, Some(_)) => 4,
+            (None, None) => 5,
         }
     }
 
@@ -14271,6 +14402,7 @@ impl InferenceSession {
             ValueEndpointKey::BoolPositive => ValueShape::Bool,
             ValueEndpointKey::StrPositive => ValueShape::Str,
             ValueEndpointKey::PositiveFunction(_) => ValueShape::Function,
+            ValueEndpointKey::PositiveTuple(_, arity) => ValueShape::Tuple(arity),
             ValueEndpointKey::BottomPositive => ValueShape::Bottom,
             _ => return None,
         };
@@ -14281,6 +14413,7 @@ impl InferenceSession {
             ValueEndpointKey::BoolNegative => ValueShape::Bool,
             ValueEndpointKey::StrNegative => ValueShape::Str,
             ValueEndpointKey::NegativeFunction(_) => ValueShape::Function,
+            ValueEndpointKey::NegativeTuple(_, arity) => ValueShape::Tuple(arity),
             ValueEndpointKey::BottomNegative => ValueShape::Bottom,
             _ => return None,
         };
@@ -24244,6 +24377,54 @@ mod tests {
     }
 
     #[test]
+    fn f5b_ordered_tuple_comparison_keeps_positions_and_reports_arity_mismatch_at_root() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-ordered-tuples")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let int_positive = session.store.terms.intern(TermNode::Leaf(Leaf::IntPositive)).unwrap();
+        let bool_positive = session.store.terms.intern(TermNode::Leaf(Leaf::BoolPositive)).unwrap();
+        let int_negative = session.store.terms.intern(TermNode::Leaf(Leaf::IntNegative)).unwrap();
+        let str_negative = session.store.terms.intern(TermNode::Leaf(Leaf::StrNegative)).unwrap();
+        let lower = session.store.terms.intern(TermNode::PositiveTuple {
+            elements: Arc::from([int_positive, bool_positive, bool_positive]),
+        }).unwrap();
+        let upper = session.store.terms.intern(TermNode::NegativeTuple {
+            elements: Arc::from([int_negative, str_negative, str_negative]),
+        }).unwrap();
+        let occurrence = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 92);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        let pair = CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveTuple(lower, 3),
+            upper: ValueEndpointKey::NegativeTuple(upper, 3),
+        };
+        session.constrain_live_value(pair, &occurrence, &cause).unwrap();
+        assert!(matches!(session.errors.last().map(SolverError::kind), Some(SolverErrorKind::IncompatibleValue {
+            lower: ValueShape::Bool, upper: ValueShape::Str,
+        })));
+        let Some(TypedPairMemo::Value { children, completion: DiagnosticCompletion::Complete(Some(witness)), .. }) =
+            session.typed_pairs.get(&TypedPairKey::Value(pair)) else { panic!("tuple root memo") };
+        assert_eq!(children.entries.iter().map(|edge| edge.tuple_index).collect::<Vec<_>>(), [Some(0), Some(1), Some(2)]);
+        assert_eq!(witness.first_tuple_index, Some(1));
+
+        let short = session.store.terms.intern(TermNode::NegativeTuple {
+            elements: Arc::from([int_negative]),
+        }).unwrap();
+        let mismatch = CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveTuple(lower, 3),
+            upper: ValueEndpointKey::NegativeTuple(short, 1),
+        };
+        let edge_count = children.entries.len();
+        session.constrain_live_value(mismatch, &occurrence, &cause).unwrap();
+        assert!(matches!(session.errors.last().map(SolverError::kind), Some(SolverErrorKind::IncompatibleValue {
+            lower: ValueShape::Tuple(3), upper: ValueShape::Tuple(1),
+        })));
+        let Some(TypedPairMemo::Value { children, direct_witness: Some(witness), .. }) =
+            session.typed_pairs.get(&TypedPairKey::Value(mismatch)) else { panic!("arity mismatch memo") };
+        assert!(children.entries.is_empty());
+        assert_eq!(witness.first_tuple_index, None);
+        assert_eq!(edge_count, 3);
+    }
+
+    #[test]
     fn f5b_structured_variable_extrusion_lowers_value_and_effect_children_in_both_directions() {
         let batch = ConstraintBatch::collect(module("1", "f5b-structured-extrusion")).unwrap();
         let mut session = InferenceSession::try_new(batch).unwrap();
@@ -24753,12 +24934,14 @@ mod tests {
                     kind,
                     distance: 0,
                     first_field: None,
+                                    first_tuple_index: None,
                 }),
                 completion: DiagnosticCompletion::Complete(Some(DiagnosticWitness {
                     terminal,
                     kind,
                     distance: 0,
                     first_field: None,
+                                    first_tuple_index: None,
                 })),
             };
             session.typed_pairs.insert(
@@ -24798,10 +24981,12 @@ mod tests {
                     DiagnosticEdge {
                         child: second,
                         field: Some(FunctionField::Argument),
+                        tuple_index: None,
                     },
                     DiagnosticEdge {
                         child: first_terminal,
                         field: Some(FunctionField::Result),
+                        tuple_index: None,
                     },
                 ]),
             );
@@ -24811,10 +24996,12 @@ mod tests {
                     DiagnosticEdge {
                         child: first,
                         field: Some(FunctionField::Argument),
+                        tuple_index: None,
                     },
                     DiagnosticEdge {
                         child: second_terminal,
                         field: Some(FunctionField::Result),
+                        tuple_index: None,
                     },
                 ]),
             );
@@ -24871,7 +25058,7 @@ mod tests {
         let pending = |child, field| TypedPairMemo::Value {
             #[cfg(feature = "shadow-apply-candidate")]
             retained_extrusion_rewrite: None,
-            children: vec![DiagnosticEdge { child, field }].into(),
+            children: vec![DiagnosticEdge { child, field, tuple_index: None }].into(),
             direct_witness: None,
             completion: DiagnosticCompletion::Pending,
         };
@@ -24919,6 +25106,7 @@ mod tests {
             },
             distance: 0,
             first_field: None,
+                                    first_tuple_index: None,
         };
         session.typed_pairs.insert(
             TypedPairKey::Value(key),
@@ -33811,6 +33999,58 @@ mod retained_drain_workspace_tests {
         assert_eq!((session.diagnostic_delta.capacity(), session.diagnostic_delta_indices.capacity()), capacities);
     }
 
+    #[test]
+    fn tuple_dispatch_records_each_source_index_on_candidate_relations() {
+        let source: Arc<yu_syntax::SourceText> = Arc::from("my seed = 1");
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)), Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("tuple-dispatch", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap());
+        let mut session = InferenceSession::try_new_candidate(ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap()).unwrap();
+        let p = session.store.terms.intern(TermNode::Leaf(Leaf::IntPositive)).unwrap();
+        let n = session.store.terms.intern(TermNode::Leaf(Leaf::IntNegative)).unwrap();
+        let lower = session.store.terms.intern(TermNode::PositiveTuple { elements: Arc::from([p, p, p]) }).unwrap();
+        let upper = session.store.terms.intern(TermNode::NegativeTuple { elements: Arc::from([n, n, n]) }).unwrap();
+        let binding = session.batch.hir.items().iter().find_map(|item| match item { HirItem::Binding(binding) => Some(binding), _ => None }).unwrap();
+        let occurrence = ConstraintOccurrenceId::new(binding.value().occurrence().clone(), 93);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        let pair = CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveTuple(lower, 3),
+            upper: ValueEndpointKey::NegativeTuple(upper, 3),
+        };
+        let index = session.with_route_transaction(|session| {
+            session.start_typed_drain(item(pair), &occurrence, &cause, None, None)
+        }).unwrap();
+        let frame_before = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].clone();
+        let worklist_before = session.typed_worklist.clone();
+        let dependencies_before = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.observed_dependencies().count();
+        assert_eq!(session.resume_typed_drain_route(index, |session, index| {
+            loop {
+                session.step_typed_drain(index)?;
+                if session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].tuple.is_some() {
+                    return Err::<(), _>(SolveAvailabilityError::IdentityExhausted);
+                }
+            }
+        }), Err(SolveAvailabilityError::IdentityExhausted));
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index], frame_before);
+        assert_eq!(session.typed_worklist, worklist_before);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.observed_dependencies().count(), dependencies_before);
+        session.resume_typed_drain_route(index, |session, index| {
+            loop {
+                if matches!(session.step_typed_drain(index)?, DrainStep::Complete(_)) { break; }
+            }
+            Ok(())
+        }).unwrap();
+        let tuple_ports: Vec<_> = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context
+            .observed_dependencies().filter_map(|dependency| match dependency {
+                candidate_context::Dependency::TuplePort { index, .. } => Some(*index),
+                _ => None,
+            }).collect();
+        let mut tuple_ports = tuple_ports;
+        tuple_ports.sort_unstable();
+        assert_eq!(tuple_ports, [0, 1, 2]);
+    }
+
 }
 
 #[cfg(test)]
@@ -33844,5 +34084,25 @@ mod bool_str_primitive_tests {
                 lower: ValueEndpointKey::BottomPositive, upper,
             }), None);
         }
+
+        let mut builder = TermBuilder::new().unwrap();
+        let p = builder.intern(TermNode::Leaf(Leaf::IntPositive)).unwrap();
+        let q = builder.intern(TermNode::Leaf(Leaf::UnitPositive)).unwrap();
+        let n = builder.intern(TermNode::Leaf(Leaf::IntNegative)).unwrap();
+        let one = builder.intern(TermNode::PositiveTuple { elements: Arc::from([p]) }).unwrap();
+        let two = builder.intern(TermNode::PositiveTuple { elements: Arc::from([p, q]) }).unwrap();
+        let one_negative = builder.intern(TermNode::NegativeTuple { elements: Arc::from([n]) }).unwrap();
+        assert_eq!(InferenceSession::incompatible_value_shapes(CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveTuple(one, 1),
+            upper: ValueEndpointKey::NegativeTuple(one_negative, 1),
+        }), None);
+        assert_eq!(InferenceSession::incompatible_value_shapes(CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveTuple(one, 1),
+            upper: ValueEndpointKey::NegativeTuple(one_negative, 2),
+        }), Some((ValueShape::Tuple(1), ValueShape::Tuple(2))));
+        assert_eq!(InferenceSession::incompatible_value_shapes(CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveTuple(two, 2),
+            upper: ValueEndpointKey::IntNegative,
+        }), Some((ValueShape::Tuple(2), ValueShape::Int)));
     }
 }

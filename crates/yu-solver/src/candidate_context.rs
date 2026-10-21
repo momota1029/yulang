@@ -56,10 +56,16 @@ pub(super) enum ReplayDrainObservation {
 // This stack owns the inner synchronous driver's continuation data. Lifecycle
 // suspension and the source/extrusion frames are separate, still-disabled gates.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum TypedDrainStage { Transport, Context, Dispatch, FunctionAdmission, FunctionEnqueue, Diagnostics, Acknowledgements, ReturnReady }
+pub(super) enum TypedDrainStage { Transport, Context, Dispatch, FunctionAdmission, FunctionEnqueue, TupleAdmission, TupleEnqueue, Diagnostics, Acknowledgements, ReturnReady }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct FunctionDispatch {
     pub children: [(FunctionField, TypedPairKey); 4],
+    pub next: usize,
+    pub pending: Option<TypedWorkItem>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct TupleDispatch {
+    pub children: Vec<(usize, TypedPairKey)>,
     pub next: usize,
     pub pending: Option<TypedWorkItem>,
 }
@@ -79,6 +85,7 @@ pub(super) struct TypedDrainFrame {
     pub prepared_acks: usize,
     pub terminal_prepared: bool,
     pub function: Option<FunctionDispatch>,
+    pub tuple: Option<TupleDispatch>,
     pub replay_destination: Option<ReplayChildAck>,
     // Passive attribution for the exact work item that entered this drain.
     // The certificate becomes observable only after its item was enqueued.
@@ -318,6 +325,7 @@ pub(super) enum Dependency {
         field: FunctionField,
         operation: FunctionPortOperation,
     },
+    TuplePort { child: RelationId, parent: RelationId, index: usize },
     // Parent order is lower then upper, independently of insertion direction.
     Replay {
         child: RelationId,
@@ -1089,6 +1097,7 @@ impl RetainedInput<'_> {
 fn dependency_relations(d: Dependency) -> [Option<RelationId>; 3] {
     match d {
         Dependency::Derived { parent, child } | Dependency::FunctionPort { parent, child, .. }
+        | Dependency::TuplePort { parent, child, .. }
         | Dependency::Transport { parent, child, .. } => [Some(parent), Some(child), None],
         Dependency::Replay { lower, upper, child, .. } => [Some(lower), Some(upper), Some(child)],
     }
@@ -1238,7 +1247,7 @@ impl State {
         for bundle in evidence.bundle_incidences() { missing |= self.bundles.get(bundle.bundle.0).is_none(); }
         for dependency in evidence.dependencies() {
             match dependency {
-                Dependency::FunctionPort { .. } => inert = true,
+                Dependency::FunctionPort { .. } | Dependency::TuplePort { .. } => inert = true,
                 Dependency::Replay { lower, upper, lower_input, upper_input, .. } => {
                     inconsistent |= !self.bound_relations(*lower_input).any(|id| id == *lower)
                         || !self.bound_relations(*upper_input).any(|id| id == *upper);
@@ -2227,7 +2236,7 @@ impl State {
         let index = self.typed_drains.len();
         self.typed_drains.push(TypedDrainFrame { initial, occurrence: occurrence.clone(), cause: cause.clone(),
             previous_processing, previous_relation, current: None, stage: TypedDrainStage::Transport,
-            context_consumed: None, transitions: 0, replay_acks: Vec::new(), completed_acks: 0, prepared_acks: 0, terminal_prepared: false, function: None, replay_destination: None,
+            context_consumed: None, transitions: 0, replay_acks: Vec::new(), completed_acks: 0, prepared_acks: 0, terminal_prepared: false, function: None, tuple: None, replay_destination: None,
             source_drain_receipt: None });
         Ok(index)
     }
@@ -2244,7 +2253,7 @@ impl State {
             previous_processing: frame.previous_processing, previous_relation: frame.previous_relation,
             current: frame.current, stage: frame.stage, context_consumed: frame.context_consumed,
             transitions: frame.transitions, replay_acks, completed_acks: frame.completed_acks,
-            prepared_acks: frame.prepared_acks, terminal_prepared: frame.terminal_prepared, function: frame.function.clone(), replay_destination: frame.replay_destination,
+            prepared_acks: frame.prepared_acks, terminal_prepared: frame.terminal_prepared, function: frame.function.clone(), tuple: frame.tuple.clone(), replay_destination: frame.replay_destination,
             source_drain_receipt: frame.source_drain_receipt.clone() };
         let frame = std::mem::replace(&mut self.typed_drains[index], replacement);
         self.typed_drain_undo.push(TypedDrainUndo { index, frame });
@@ -2265,6 +2274,10 @@ impl State {
         for frame in self.typed_drains.iter().chain(self.typed_drain_undo.iter().map(|undo| &undo.frame)) {
             bytes = bytes.checked_add(frame.replay_acks.capacity().checked_mul(std::mem::size_of::<ReplayChildAck>()).ok_or_else(exhausted)?)
                 .ok_or_else(exhausted)?;
+            if let Some(tuple) = &frame.tuple {
+                bytes = bytes.checked_add(tuple.children.capacity().checked_mul(std::mem::size_of::<(usize, TypedPairKey)>()).ok_or_else(exhausted)?)
+                    .ok_or_else(exhausted)?;
+            }
         }
         bytes = bytes.checked_add(self.restorations.capacity().checked_mul(std::mem::size_of::<(ReplayOperationId, BoundRestoration)>()).ok_or_else(exhausted)?)
             .and_then(|bytes| self.restoration_undo.capacity().checked_mul(std::mem::size_of::<BoundRestorationUndo>()).and_then(|undo| bytes.checked_add(undo)))
@@ -2542,7 +2555,8 @@ impl State {
             + self.typed_drain_undo.capacity() * (std::mem::size_of::<TypedDrainUndo>()
                 - std::mem::size_of::<Option<SourceDrainReceipt>>())
             + self.typed_drains.iter().chain(self.typed_drain_undo.iter().map(|undo| &undo.frame))
-                .map(|frame| frame.replay_acks.capacity() * std::mem::size_of::<ReplayChildAck>()).sum::<usize>()
+                .map(|frame| frame.replay_acks.capacity() * std::mem::size_of::<ReplayChildAck>()
+                    + frame.tuple.as_ref().map_or(0, |tuple| tuple.children.capacity() * std::mem::size_of::<(usize, TypedPairKey)>())).sum::<usize>()
             + self.inferred_entries.capacity() * std::mem::size_of::<InferredEntryOrigin>()
             + self.bundles.capacity() * std::mem::size_of::<AttachmentBundle>()
             + self.bundles.iter().map(|bundle| bundle.sets.capacity() * std::mem::size_of::<EmptyAttachmentSet>()).sum::<usize>()
@@ -3134,7 +3148,8 @@ impl State {
         #[cfg(test)]
         self.source_support_fail(SourceSupportFailure::DependencyPublication)?;
         match dependency {
-            Dependency::Derived { child, parent } | Dependency::FunctionPort { child, parent, .. } => self.edge(parent, child)?,
+            Dependency::Derived { child, parent } | Dependency::FunctionPort { child, parent, .. }
+            | Dependency::TuplePort { child, parent, .. } => self.edge(parent, child)?,
             // Transport retains provenance across instantiation and row
             // lifecycle changes; it is not a constraint from the template to
             // a fresh use and must not replay that use's conflicts upstream.
@@ -3521,6 +3536,37 @@ impl InferenceSession {
             field,
             operation,
         })?;
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(Some(child))
+    }
+
+    pub(super) fn candidate_tuple_port_admit(
+        &mut self,
+        task: LiveConstraintTask,
+        index: usize,
+    ) -> Result<Option<RelationId>, SolveAvailabilityError> {
+        let Some(graph) = &self.candidate_graph else { return Ok(None); };
+        let parent = graph.intrusion.effect_algebra.context.processing.ok_or_else(exhausted)?;
+        let derived = graph.intrusion.effect_algebra.processing.is_some();
+        let pair = self.candidate_context_pair(task_pair(task));
+        let local = self.candidate_context_source(pair)?;
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context;
+        let inherited = state.post_check_context(parent);
+        let context = if local == IDENTITY {
+            inherited
+        } else {
+            match state.contexts.get(local.0 as usize - 1).copied() {
+                Some(ContextExpr::PrefixLeft { weight, input: IDENTITY }) =>
+                    state.context(ContextExpr::PrefixLeft { weight, input: inherited })?,
+                _ => return Err(SolveAvailabilityError::IdentityExhausted),
+            }
+        };
+        // Tuple children preserve the parent's polarity and scoped flow. Their
+        // source index remains a separate dependency field, never a Function port.
+        let scoped = state.scoped_flow(parent)?;
+        let child = state.relation_with_scoped(pair, context, state.relations[parent.0 as usize].key.sources, scoped)?;
+        if derived { state.dependency(Dependency::Derived { child, parent })?; }
+        state.dependency(Dependency::TuplePort { child, parent, index })?;
         self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
         Ok(Some(child))
     }

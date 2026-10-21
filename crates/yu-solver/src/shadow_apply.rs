@@ -252,6 +252,8 @@ pub enum CandidateSourceValueEndpoint {
     ValueRow(u32),
     PositiveFunction(Term),
     NegativeFunction(Term),
+    PositiveTuple(Term, usize),
+    NegativeTuple(Term, usize),
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CandidateSourceEffectEndpoint {
@@ -314,12 +316,14 @@ pub struct CandidateSourceDependencyRecord {
     pub dependency: CandidateSourceDependency,
     pub replay: Option<CandidateSourceReplayInputs>,
     pub function_port: Option<(FunctionField, crate::candidate_context::FunctionPortOperation)>,
+    pub tuple_index: Option<usize>,
     pub transport: Option<(usize, Option<crate::candidate_context::TransportWitness>)>,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CandidateSourceDependency {
     Derived { child: u32, parent: u32 },
     FunctionPort { child: u32, parent: u32 },
+    TuplePort { child: u32, parent: u32, index: usize },
     Replay { child: u32, lower: u32, upper: u32 },
     Transport { child: u32, parent: u32 },
 }
@@ -433,6 +437,8 @@ fn source_value_endpoint(endpoint: ValueEndpointKey) -> CandidateSourceValueEndp
         ValueEndpointKey::ValueRow(row) => E::ValueRow(row),
         ValueEndpointKey::PositiveFunction(term) => E::PositiveFunction(term),
         ValueEndpointKey::NegativeFunction(term) => E::NegativeFunction(term),
+        ValueEndpointKey::PositiveTuple(term, arity) => E::PositiveTuple(term, arity),
+        ValueEndpointKey::NegativeTuple(term, arity) => E::NegativeTuple(term, arity),
     }
 }
 fn source_effect_endpoint(endpoint: EffectEndpointKey) -> CandidateSourceEffectEndpoint {
@@ -678,6 +684,7 @@ impl CandidateInference {
                     let child = match *incoming {
                         crate::candidate_context::Dependency::Derived { child, .. }
                         | crate::candidate_context::Dependency::FunctionPort { child, .. }
+                        | crate::candidate_context::Dependency::TuplePort { child, .. }
                         | crate::candidate_context::Dependency::Replay { child, .. }
                         | crate::candidate_context::Dependency::Transport { child, .. } => child,
                     };
@@ -1294,6 +1301,7 @@ impl CandidateInference {
                     let (parents, child) = match *dependency {
                         Dependency::Derived { child, parent }
                         | Dependency::FunctionPort { child, parent, .. }
+                        | Dependency::TuplePort { child, parent, .. }
                         | Dependency::Transport { child, parent, .. } => ([Some(parent), None], child),
                         Dependency::Replay { child, lower, upper, .. } => ([Some(lower), Some(upper)], child),
                     };
@@ -1301,26 +1309,30 @@ impl CandidateInference {
                     if selected_edges.insert(ordinal) {
                         if dependencies.len() == cap { dependencies_complete = false; }
                         else {
-                            let (dependency, replay, function_port, transport) = match *dependency {
+                            let (dependency, replay, function_port, tuple_index, transport) = match *dependency {
                                 Dependency::Derived { child, parent } => (
-                                    CandidateSourceDependency::Derived { child: child.0, parent: parent.0 }, None, None, None,
+                                    CandidateSourceDependency::Derived { child: child.0, parent: parent.0 }, None, None, None, None,
                                 ),
                                 Dependency::FunctionPort { child, parent, field, operation } => (
                                     CandidateSourceDependency::FunctionPort { child: child.0, parent: parent.0 },
-                                    None, Some((field, operation)), None,
+                                    None, Some((field, operation)), None, None,
+                                ),
+                                Dependency::TuplePort { child, parent, index } => (
+                                    CandidateSourceDependency::TuplePort { child: child.0, parent: parent.0, index },
+                                    None, None, Some(index), None,
                                 ),
                                 Dependency::Replay { child, lower, upper, lower_input, upper_input } => (
                                     CandidateSourceDependency::Replay { child: child.0, lower: lower.0, upper: upper.0 },
-                                    Some(CandidateSourceReplayInputs { lower: lower_input, upper: upper_input }), None, None,
+                                    Some(CandidateSourceReplayInputs { lower: lower_input, upper: upper_input }), None, None, None,
                                 ),
                                 Dependency::Transport { child, parent, use_origin, witness } => (
                                     CandidateSourceDependency::Transport { child: child.0, parent: parent.0 },
-                                    None, None, Some((use_origin, witness)),
+                                    None, None, None, Some((use_origin, witness)),
                                 ),
                             };
                             dependencies.push(CandidateSourceDependencyRecord {
                                 graph_index: *graph_index, seed_relation: seed_relation.0 as usize,
-                                seed_origin_index: *seed_origin_index, ordinal, dependency, replay, function_port, transport,
+                                seed_origin_index: *seed_origin_index, ordinal, dependency, replay, function_port, tuple_index, transport,
                             });
                         }
                     }

@@ -80,6 +80,7 @@ fn unit_diagnostic_buckets_keep_kind_and_distance_order_and_replay() {
         kind: SolverErrorKind::IncompatibleValue { lower, upper },
         distance,
         first_field: None,
+        first_tuple_index: None,
     };
     let int_unit = witness(ValueShape::Int, ValueShape::Unit, 0);
     let function_bottom = witness(ValueShape::Function, ValueShape::Bottom, 0);
