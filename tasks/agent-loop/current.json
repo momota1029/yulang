@@ -5,20 +5,23 @@
   "session": "r265-20261021",
   "active_sprint": {
     "id": "R265",
-    "status": "ACTIVE",
+    "status": "RESULT",
     "contract": "tasks/agent-loop/sprints/yulang2-module-local-syntax-environments-20261021-r265.md",
     "resources": {
       "cap_seconds": 420,
-      "charged_seconds": 0,
-      "reserved_seconds": 420,
+      "charged_seconds": 420,
+      "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "Derive direct imported operator-header dependencies per pinned module before classifying parser diagnostics.",
-    "implementation": "Primary-only temporary diagnostic test; no semantic or retained test edits.",
-    "review_receipt": "No independent reviewer assigned; provisional evidence only.",
-    "next_action": "Resolve each source import to an authenticated module header and parse under that source-local environment.",
+    "proof": "Current scan_header yields 45 imports vs 112 direct UseDeclaration roots across the pinned 40 sources; 20 modules mismatch, so module-local environments are incomplete.",
+    "implementation": "Primary-only temporary diagnostic probe removed; no retained tests or semantic edits.",
+    "review_receipt": "Primary-only; unreviewed.",
+    "next_action": "Inspect direct-root UseDeclaration CST for source-bound imports; retain Y2 resolution/ModuleMap semantics as open.",
     "closure": "R260 conditional; Y2 root vector, R149 consumers/output, parent proofs and production OPEN.",
-    "contract_sha256": "1948327e13f324f7f1b59e73a8cc200d5bca868272c176891c043090a5871dd0"
+    "contract_sha256": "1948327e13f324f7f1b59e73a8cc200d5bca868272c176891c043090a5871dd0",
+    "note_sha256": "d1e4c91e327c388d59595b30d9333463606521fe50786e39092241038f7ea573",
+    "inbox_sha256": "6a9a21db50db69e6c25139f0df01792c04c5262becbcc357bf14a9667e8d71b9",
+    "note": "notes/theory/2026-10-21-r265-header-import-coverage.md"
   },
   "workers": [
     {
@@ -345,8 +348,20 @@
     {
       "path": "tasks/agent-loop/sprints/yulang2-module-local-syntax-environments-20261021-r265.md",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "R265 active primary contract."
+      "state": "FROZEN",
+      "reason": "R265 result recorded; immutable contract."
+    },
+    {
+      "path": "notes/theory/2026-10-21-r265-header-import-coverage.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R265 primary-only result; immutable evidence."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r265-header-import-coverage.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R265 primary-only result; immutable evidence."
     }
   ],
   "pending": [
@@ -414,11 +429,11 @@
       "id": "R149-SOURCE-OWNER-CLOSURE-1",
       "state": "STOPPED_UNFROZEN_RESULT",
       "owner": "Luna intake",
-      "details": "R258-R259 derive local roots; R260 imported census conditional; R261 Y3 CST not Y2-authentic; R262 474 diagnostics came from empty env; R264 all-header env also inauthentic (500/464). Need per-module syntax dependencies and Y2 root bridge. R149 consumers/output OPEN."
+      "details": "R258-R259 local roots; R260 conditional imported census; R261-R262 Y3 parser/environment caveat; R263 no in-repo Y2 parser; R264 controls inauthentic; R265 scan_header 45 imports vs 112 root uses across 20 mismatching modules. R149 source/root and outputs OPEN."
     }
   ],
-  "closure": "R264 shows R262 empty-environment diagnostics are confounded; the broad all-header control is also inauthentic. External module declarations retain Missing recoveries. No exact Y2 root vector is established.",
-  "next_action": "R265: derive direct syntax dependencies per source from authenticated import headers; stop on unresolved or conflicting dependencies.",
+  "closure": "R265 shows scan_header misses many direct Y2 use roots (45 header imports vs 112 direct roots; 20/40 modules differ). Its 491 parser diagnostics are not a compatibility verdict. R260 remains conditional.",
+  "next_action": "Continue R149 by inspecting direct-root UseDeclaration CSTs for source-bound imports; establish Y2 resolution and registration correspondence before runtime publication.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
