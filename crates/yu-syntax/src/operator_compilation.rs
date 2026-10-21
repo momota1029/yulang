@@ -132,6 +132,20 @@ pub(crate) fn from_header_operators(
 }
 
 fn from_header_operator(header: HeaderOperator) -> OperatorDeclaration {
+    declaration_from_header(header, None)
+}
+
+pub(crate) fn imported_from_header_operator(
+    header: HeaderOperator,
+    dependency: crate::SyntaxDependencySlot,
+) -> OperatorDeclaration {
+    declaration_from_header(header, Some(dependency))
+}
+
+fn declaration_from_header(
+    header: HeaderOperator,
+    imported_from: Option<crate::SyntaxDependencySlot>,
+) -> OperatorDeclaration {
     let fixities = match header.fixity() {
         OperatorFixity::Prefix => OperatorFixities::new().with_prefix(binding_power_from_header(
             header
@@ -161,7 +175,15 @@ fn from_header_operator(header: HeaderOperator) -> OperatorDeclaration {
         )),
         OperatorFixity::Nullfix => OperatorFixities::new().with_nullfix(),
     };
-    OperatorDeclaration::at_range(header.name(), fixities, header.range().clone())
+    match imported_from {
+        Some(dependency) => OperatorDeclaration::imported_at_range(
+            header.name(),
+            fixities,
+            dependency,
+            header.range().clone(),
+        ),
+        None => OperatorDeclaration::at_range(header.name(), fixities, header.range().clone()),
+    }
 }
 
 fn binding_power_from_header(power: &HeaderBindingPower) -> BindingPower {

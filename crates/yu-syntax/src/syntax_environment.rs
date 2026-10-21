@@ -3,8 +3,11 @@
 use std::{ops::Range, sync::Arc};
 
 use crate::{
-    OperatorFixity,
-    operator_table::{OperatorOrigin, OperatorTable},
+    HeaderInfo, OperatorFixity, Visibility,
+    operator_compilation::imported_from_header_operator,
+    operator_table::{
+        OperatorOrigin, OperatorTable, OperatorTableBuildError, OperatorTableBuilder,
+    },
 };
 
 /// Syntax facts selected for one full parse.
@@ -73,6 +76,34 @@ impl SyntaxEnvironment {
         })
     }
 
+    /// Compile operator capabilities from already scanned imported headers.
+    /// Each header is paired with the environment-local dependency slot that
+    /// identifies its provenance record. This is the source-authenticated
+    /// construction path for callers that resolve imported syntax themselves.
+    pub fn from_imported_headers<'a>(
+        key: SyntaxEnvironmentKey,
+        dependencies: impl IntoIterator<Item = (SyntaxDependencySlot, &'a HeaderInfo)>,
+        provenance: Arc<[SyntaxDependencyProvenance]>,
+    ) -> Result<Self, SyntaxEnvironmentBuildError> {
+        let mut builder = OperatorTableBuilder::default();
+        for (dependency, header) in dependencies {
+            if provenance.get(dependency.index()).is_none() {
+                return Err(SyntaxEnvironmentBuildError::DependencyWithoutProvenance {
+                    dependency,
+                });
+            }
+            for operator in header.operators() {
+                if operator.visibility() != Visibility::Public {
+                    continue;
+                }
+                builder
+                    .merge(imported_from_header_operator(operator.clone(), dependency))
+                    .map_err(map_imported_table_error)?;
+            }
+        }
+        Self::from_imported(key, Arc::new(builder.build()), provenance)
+    }
+
     pub fn key(&self) -> SyntaxEnvironmentKey {
         self.key
     }
@@ -87,6 +118,29 @@ impl SyntaxEnvironment {
 
     pub fn dependency(&self, slot: SyntaxDependencySlot) -> Option<&SyntaxDependencyProvenance> {
         self.provenance.get(slot.index())
+    }
+}
+
+fn map_imported_table_error(error: OperatorTableBuildError) -> SyntaxEnvironmentBuildError {
+    match error {
+        OperatorTableBuildError::EmptySpelling { range } => {
+            SyntaxEnvironmentBuildError::InvalidImportedOperator { range }
+        }
+        OperatorTableBuildError::ConflictingFixity {
+            spelling,
+            fixity,
+            first_origin,
+            first_range,
+            second_origin,
+            second_range,
+        } => SyntaxEnvironmentBuildError::ConflictingImportedFixity {
+            spelling,
+            fixity,
+            first_origin,
+            first_range,
+            second_origin,
+            second_range,
+        },
     }
 }
 
@@ -161,6 +215,20 @@ pub enum SyntaxEnvironmentBuildError {
         dependency: SyntaxDependencySlot,
         range: Range<usize>,
     },
+    DependencyWithoutProvenance {
+        dependency: SyntaxDependencySlot,
+    },
+    InvalidImportedOperator {
+        range: Range<usize>,
+    },
+    ConflictingImportedFixity {
+        spelling: Box<str>,
+        fixity: OperatorFixity,
+        first_origin: OperatorOrigin,
+        first_range: Range<usize>,
+        second_origin: OperatorOrigin,
+        second_range: Range<usize>,
+    },
 }
 
 /// Identity of the source snapshot represented by a phase product.
@@ -181,6 +249,130 @@ mod tests {
         operator_compilation::compile_full_parse_operators,
         operator_table::{BindingPower, OperatorDeclaration, OperatorFixities},
     };
+
+    #[test]
+    fn imported_header_operator_selects_parser_capability_with_source_provenance() {
+        let dependency = SyntaxDependencySlot::from_index(0).expect("first slot fits");
+        let source: Arc<crate::SourceText> =
+            Arc::from("pub infix (+) 5.0.0 5.0.1 = \\x -> \\y -> x.add y");
+        let header = crate::scan_header(Arc::clone(&source));
+        assert_eq!(header.operators().len(), 1);
+        assert_eq!(header.operators()[0].name(), "+");
+        let provenance = Arc::from([SyntaxDependencyProvenance::new(
+            Arc::from("std/core/ops.yu"),
+            SourceRevision::UNTRACKED,
+        )]);
+        let environment = SyntaxEnvironment::from_imported_headers(
+            SyntaxEnvironmentKey(11),
+            [(dependency, &header)],
+            Arc::clone(&provenance),
+        )
+        .expect("the scanned imported header supplies the operator");
+
+        let sites = environment
+            .operators()
+            .fixity_sites("+")
+            .expect("imported plus entry");
+        let site = sites.site(OperatorFixity::Infix).expect("infix capability");
+        assert_eq!(site.origin(), OperatorOrigin::Imported(dependency));
+        assert_eq!(site.range(), header.operators()[0].range());
+        assert!(Arc::ptr_eq(&provenance, &environment.provenance));
+
+        let consumer: Arc<crate::SourceText> = Arc::from(
+            "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n",
+        );
+        assert_eq!(consumer.len(), 92);
+        let parsed = crate::parse_file(
+            Arc::clone(&consumer),
+            Arc::new(crate::scan_header(Arc::clone(&consumer))),
+            Arc::new(environment),
+        );
+        assert!(
+            parsed
+                .syntax_diagnostics()
+                .expect("diagnostics are available")
+                .is_empty()
+        );
+        assert!(parsed.operators().definition("+").is_some());
+    }
+
+    #[test]
+    fn imported_header_operators_require_provenance_even_without_operator_sites() {
+        let dependency = SyntaxDependencySlot::from_index(0).expect("first slot fits");
+        let source: Arc<crate::SourceText> = Arc::from("pub id x = x");
+        let header = crate::scan_header(source);
+
+        let error = SyntaxEnvironment::from_imported_headers(
+            SyntaxEnvironmentKey(12),
+            [(dependency, &header)],
+            Arc::from([]),
+        )
+        .expect_err("an imported header cannot be detached from its dependency identity");
+
+        assert_eq!(
+            error,
+            SyntaxEnvironmentBuildError::DependencyWithoutProvenance { dependency }
+        );
+    }
+
+    #[test]
+    fn imported_header_operators_exclude_nonpublic_declarations() {
+        let dependency = SyntaxDependencySlot::from_index(0).expect("first slot fits");
+        let source: Arc<crate::SourceText> =
+            Arc::from("infix (+) 5.0.0 5.0.1 = \\x -> \\y -> x.add y");
+        let header = crate::scan_header(source);
+        assert_eq!(header.operators().len(), 1);
+        assert_ne!(header.operators()[0].visibility(), Visibility::Public);
+        let provenance = Arc::from([SyntaxDependencyProvenance::new(
+            Arc::from("dependency/private-operator.yu"),
+            SourceRevision::UNTRACKED,
+        )]);
+
+        let environment = SyntaxEnvironment::from_imported_headers(
+            SyntaxEnvironmentKey(14),
+            [(dependency, &header)],
+            provenance,
+        )
+        .expect("private source declarations do not corrupt the import");
+
+        assert!(environment.operators().definition("+").is_none());
+    }
+
+    #[test]
+    fn imported_header_operator_conflicts_preserve_both_source_sites() {
+        let first_dependency = SyntaxDependencySlot::from_index(0).expect("first slot fits");
+        let second_dependency = SyntaxDependencySlot::from_index(1).expect("second slot fits");
+        let first_source: Arc<crate::SourceText> =
+            Arc::from("pub infix (+) 5.0.0 5.0.1 = \\x -> \\y -> x.add y");
+        let second_source: Arc<crate::SourceText> =
+            Arc::from("pub infix (+) 6.0.0 6.0.1 = \\x -> \\y -> x.add y");
+        let first = crate::scan_header(first_source);
+        let second = crate::scan_header(second_source);
+        let provenance = Arc::from([
+            SyntaxDependencyProvenance::new(
+                Arc::from("std/core/ops.yu"),
+                SourceRevision::UNTRACKED,
+            ),
+            SyntaxDependencyProvenance::new(Arc::from("other/ops.yu"), SourceRevision::UNTRACKED),
+        ]);
+
+        let error = SyntaxEnvironment::from_imported_headers(
+            SyntaxEnvironmentKey(13),
+            [(first_dependency, &first), (second_dependency, &second)],
+            provenance,
+        )
+        .expect_err("same-fixity imported declarations cannot silently replace one another");
+
+        assert!(matches!(error,
+            SyntaxEnvironmentBuildError::ConflictingImportedFixity {
+                spelling,
+                fixity: OperatorFixity::Infix,
+                first_origin: OperatorOrigin::Imported(found_first),
+                second_origin: OperatorOrigin::Imported(found_second),
+                ..
+            } if spelling.as_ref() == "+" && found_first == first_dependency && found_second == second_dependency
+        ));
+    }
 
     #[test]
     fn imported_environment_rejects_a_full_table_with_local_sites() {

@@ -178,7 +178,6 @@ impl OperatorDeclaration {
         }
     }
 
-    #[cfg(test)]
     pub(crate) fn imported_at_range(
         spelling: impl Into<Box<str>>,
         fixities: OperatorFixities,
