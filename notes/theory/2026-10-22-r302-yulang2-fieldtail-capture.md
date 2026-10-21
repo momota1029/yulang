@@ -1,6 +1,6 @@
 # R302 — unchanged Yulang2 sample route through deferred FieldTail
 
-Status: RUNNING, solo primary; no independent review. R149 acceptance and theorem remain OPEN.
+Status: CHECKPOINTED at a cross-layer integration seam, solo primary; no independent review. R149 acceptance and theorem remain OPEN.
 
 ## Governing sources read at sprint entry
 
@@ -55,3 +55,7 @@ This is a source-constructor-to-candidate-bound correspondence for the inspected
 
 
 The pinned `Display` source inventory test now also counts matching ordered-pair targets and confirms exactly one among the 14 authenticated implementations. Together with the Types receiver-bound probe, the source inventory has one structurally matching candidate for the observed outer tuple shape. The compiler still has no code that performs this join, checks all receiver bounds against the source target, or routes the selected `show` body; unique source inventory plus observed shape is not yet selection or conformance proof.
+
+## R302 checkpoint and next cross-layer seam
+
+R302 ends at 1740/1800 charged seconds. The evidence changed the next implementation question: matching the raw implementation target to the receiver's outer shape can identify a candidate but cannot type or execute that candidate's original member body. The next route must carry the exact role default member and implementation member source identities into HIR and a candidate definition-use path, then select only after the same session's receiver bounds settle. R302's captured FieldTail rows and imported member IDs are reusable inputs. No method selection was made; both unchanged samples and all source/native, A/B, review and production gates remain OPEN.

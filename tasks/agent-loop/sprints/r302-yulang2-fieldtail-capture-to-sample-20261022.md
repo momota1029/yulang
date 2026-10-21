@@ -1,9 +1,9 @@
 # Sprint R302 — unchanged Yulang2 samples through deferred role selection
 
-Status: RUNNING, solo Luna primary; no independent review or theorem closure is claimed.
+Status: CHECKPOINTED at a cross-layer integration seam; solo Luna primary; no independent review or theorem closure is claimed.
 Branch / baseline: `research/simple-sub-intrusion` / `8b26a21ef`.
 Authority: continuing user goal and R149; `notes/design/2026-10-20-r149-types-console.md`; unified design §§4.3–4.5, 5.1, 6, 9–10; proof companion §§3.1–3.6, 4.5, 7.1–7.5; R302 exact FieldTail/Capture/FreshUse contract.
-Contract revision 2 / SHA-256 recorded in `current.json`; primary approval: user-goal solo continuation.
+Contract revision 3 / SHA-256 recorded in `current.json`; primary approval: user-goal solo continuation.
 
 ## Original outcome and success evidence
 
@@ -32,3 +32,7 @@ Primary-only serial work. Cap 1800 seconds, no carryover, one Cargo/build/test p
 ## Integration and next boundary
 
 Only Luna changes current state and Git. At each substantial coherent slice, update the durable outcome note/hash and current state, check exact scope and outbound range, commit and non-forced push. No independent review is claimed. Return to a boundary only for material source/semantic/dependency changes, a genuine blocker or the next sprint end. R149, general inference, production and source/native theorem gates remain OPEN until their own evidence exists.
+
+## Checkpoint at the cross-layer method-source seam
+
+R302 used 1740/1800 seconds and preserved its verified slice in the R302 note. Candidate receiver bounds now exhibit the ordered `(int, str)` tuple, and the authenticated Display source inventory has exactly one ordered-pair target. No implementation selection or method body has been consumed. A raw target-shape matcher by itself would leave the method body outside the same HIR/candidate source world, so R302 ends here before extending its exact leases. Next work must retain role/implementation member bodies by their original source identities and connect them to a real candidate definition-use path. The original Types+Console parent and all proof/production gates remain OPEN.
