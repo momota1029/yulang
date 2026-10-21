@@ -1,10 +1,10 @@
-# R161 witness packet — unchanged Yulang2 Types and Console
+# R161 witness packet — unchanged Yulang2 Types and Console (revision 2)
 
-Status: frozen exact input/invocation packet for independent prospective review. Packet preparation copied and hash-verified inputs only. No build, test, parser/sample execution, observer output, or Y3 write occurred. Conditional build/captures require a separate exact user authorization after this review.
+Status: revised exact input/invocation packet for independent delta review. Packet preparation copied and hash-verified inputs only. No build, test, parser/sample execution, observer output, or Y3 write occurred. Conditional build and static source captures require separate exact user authorization after review.
 
 ## Identity and dependency pins
 
-- Contract: `tasks/agent-loop/sprints/yulang2-types-console-loaded-registration-witness-20261020-r161.md` (rev1; hash in `current.json`).
+- Contract: `tasks/agent-loop/sprints/yulang2-types-console-loaded-registration-witness-20261020-r161.md` (rev2; hash in `current.json`).
 - Y2 source owner commit: `a58eefc31e22141574b6f20c6a5748151c6d79f1`.
 - `web/playground/src/main.ts`: blob `e6bec9fe44d673ccbf98af078ef4562c9267ef6c`, SHA-256 `baa040dcd9ac837864b4dd0d8ac6c79bfffc3fe2466bcda43b8db14305dcaf90`.
 - Exact sample inputs are `/tmp/yulang2-r161-witness/input/Types.yu` (142 bytes, SHA-256 `8cbfb97a8df8e5dc4916313769c39a84626ae124f91f8a9672f1ad8b866f98e6`) and `Console.yu` (92 bytes, SHA-256 `ada6174d8795ddb10a8c533c812b771d9dddced816762e0e246022467499a076`). They match the full template strings, comments and trailing newline in the pinned Y2 source.
@@ -18,13 +18,16 @@ Status: frozen exact input/invocation packet for independent prospective review.
 
 No writes to the original Cargo home are allowed. The copied offline Cargo state is `/tmp/yulang2-r161-witness/cargo-home/`: registry index (~49 MB), crate cache (~82 MB), unpacked crate sources (~341 MB), Git checkouts (~20 MB), Git DB (~4.4 MB), and linker config. Credentials and executable binaries were excluded. The copied `config.toml` SHA-256 is `ae913eabcfcdcd3c0c22c27c76397f859176c914eae0686b183d68d5b94776e9`; it selects clang and mold. Installed Cargo/rustc are version 1.95.0; rustup toolchains under `/home/momota1029/.rustup/` are read-only.
 
-All Cargo writes must stay under:
+The conditional one-process Cargo write scope is:
 
 - Cargo home/cache: `/tmp/yulang2-r161-witness/cargo-home/`
-- Cargo target/build output: `/tmp/yulang2-r161-witness/target/`
+- Cargo target/build output (Cargo-generated contents only, owned by Luna for this invocation): `/tmp/yulang2-r161-witness/target/`
+- Compiler/linker temporary files: `/tmp/yulang2-r161-witness/tmp/` (`TMPDIR`)
 - stdout, stderr, status, command/environment receipts: `/tmp/yulang2-r161-witness/logs/`
-- exact inputs/library: `/tmp/yulang2-r161-witness/input/` and `/tmp/yulang2-r161-witness/lib/`
+- exact inputs/library (read-only during execution): `/tmp/yulang2-r161-witness/input/` and `/tmp/yulang2-r161-witness/lib/`
 - observer outputs (through exclusive observer creation only): the two R160 allowlisted JSONL paths above.
+
+No writes to the repository, original Cargo home, or installed rustup toolchain. The build is bounded to one Cargo process, 480 seconds, one Cargo build job, and at most 8 GiB new scratch data across cargo-home/target/tmp/logs. Stop at the first bound. Capture the final artifact inventory and command receipts. This packet does not authorize scratch cleanup.
 
 ## Conditional commands — not authorized or run
 
@@ -35,6 +38,8 @@ Single offline locked build:
 ```sh
 CARGO_HOME=/tmp/yulang2-r161-witness/cargo-home \
 CARGO_TARGET_DIR=/tmp/yulang2-r161-witness/target \
+TMPDIR=/tmp/yulang2-r161-witness/tmp \
+CARGO_BUILD_JOBS=1 \
 cargo build --offline --locked \
   --manifest-path /tmp/yulang2-r160-observer/oracle/Cargo.toml \
   -p yulang
@@ -51,13 +56,16 @@ YULANG_LOADED_WITNESS_OUT=/tmp/yulang2-r160-observer/out/types.jsonl \
 
 Repeat with `YULANG_LOADED_WITNESS_OUT=/tmp/yulang2-r160-observer/out/console.jsonl` and `Console.yu`. Capture exact argv, environment variable, stdout, stderr, exit status, binary hash, and full/partial JSONL. CLI exit code alone is not witness validity.
 
-Expected finite observations from the adopted R149 specification:
+`dump-poly-std` emits lowering/source observer records; it does not evaluate either sample or execute host writes. These captures cannot establish or refute host payload expectations. Runtime claims `(42, Yulang)\n`, `hello from Yulang\n`, and `3\n` remain unobserved and require a separately authorized witness through the distinct `run-mono-std` route.
 
-- Types pane includes polymorphic `id`, `answer: int`, `name: str`, `pair: (int, str)`; host write is `(42, Yulang)\n`.
-- Console host writes, in source order: `hello from Yulang\n`, then `3\n`.
+Expected static finite observations from the adopted R149 specification:
 
-A mismatch is recorded as a counterexample/obstruction to this finite sample claim. It never permits rewriting source, expected output, or semantics.
+- Types pane includes polymorphic `id`, `answer: int`, `name: str`, `pair: (int, str)`.
+
+The runtime output expectations remain fixed by R149, but are outside these commands' evidence.
+
+A mismatch in the static records is recorded as evidence against this finite source/lowering sample claim. It never permits rewriting source, expected output, or semantics.
 
 ## Review and stop conditions
 
-Independent reviewer checks sample bytes, exact 40-file closure, manifest/Cargo cache/build paths, R160 pins and output allowlist, source-only `--no-cache` route, one-process ordering, raw capture expectations, and stop behavior. A CLEAN packet review does not authorize the commands. Stop before execution if user authorization is absent, any pin differs, either output exists, Cargo cannot resolve offline, the binary path differs, or the observer reports failure. Preserve partial evidence. No automatic repair/retry, theorem closure, or production promotion follows.
+Independent reviewer checks sample bytes, exact 40-file closure, manifest/Cargo cache/build paths including target/tmp lease scope, R160 pins and output allowlist, source-only `--no-cache` route, one-process ordering, static capture expectations and runtime-evidence exclusion, resource arithmetic, and stop behavior. A CLEAN packet review does not authorize the commands. Stop before execution if user authorization is absent, any pin differs, either output exists, Cargo cannot resolve offline, a bound is reached, or the observer reports failure. Preserve partial evidence and generated artifact inventory. No automatic repair/retry/cleanup, theorem closure, or production promotion follows.

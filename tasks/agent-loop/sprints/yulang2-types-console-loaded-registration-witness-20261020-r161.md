@@ -1,10 +1,10 @@
 # Yulang2 loaded-source/registration witness — R161
 
-Status: prospective exact invocation contract. The active goal provisionally adopts unchanged Types/Console samples and continued source-to-execution research. This sprint is authorized for exact input and invocation preparation plus independent review. The build and sample captures below remain conditional: Luna must record a separate execution grant after the user explicitly authorizes these exact commands. No test suite, Y3 edit, expected-output change, or production cutover is authorized.
+Status: revision 2, prospective exact invocation contract. The active goal provisionally adopts unchanged Types/Console samples and continued source-to-execution research. This sprint is authorized for exact input and invocation preparation plus independent review. The build and static source captures below remain conditional: Luna must record a separate execution grant after the user explicitly authorizes these exact commands. No test suite, Y3 edit, expected-output change, or production cutover is authorized.
 
 ## Outcome and parent status
 
-Collect the exact unchanged Y2 Types and Console source bytes through the pinned R160 provisional observer, using the no-cache source route and exactly the pinned 40-file stdlib closure. Apply the resulting static/dynamic source records to the reviewed R152–R154 relations to find the first actual declaration-census/order/runtime premise. This is a finite source witness only. It does not establish successful Y3 compilation, evaluator correspondence, the original Simple-sub/evaluator A/B theorems, soundness, principality, or production readiness. All those gates remain OPEN.
+Collect the exact unchanged Y2 Types and Console source bytes through the pinned R160 provisional observer, using the no-cache source route and exactly the pinned 40-file stdlib closure. Apply the resulting static source/lowering records to the reviewed R152–R154 relations to find the first actual declaration-census/order premise. This is a finite source witness only. It does not establish runtime behavior, successful Y3 compilation, evaluator correspondence, the original Simple-sub/evaluator A/B theorems, soundness, principality, or production readiness. All those gates remain OPEN.
 
 ## Immutable inputs and current scratch preparation
 
@@ -22,7 +22,8 @@ Collect the exact unchanged Y2 Types and Console source bytes through the pinned
 - Prepared sample inputs and library: `/tmp/yulang2-r161-witness/input/{Types,Console}.yu` and `/tmp/yulang2-r161-witness/lib/`; the two sample hashes/byte lengths and all 40 source blob pins were verified during preparation.
 - Cargo.lock SHA-256: `11b30ff69e3c27978cba1e827cb322a641666f19602a80d42ce7242c14eac6cb`.
 - Read-only global Cargo linker config: `/home/momota1029/.cargo/config.toml`, SHA-256 `ae913eabcfcdcd3c0c22c27c76397f859176c914eae0686b183d68d5b94776e9`; it selects clang and mold. Cargo 1.95.0 and rustc 1.95.0 are installed; rustup toolchain files remain read-only at `/home/momota1029/.rustup/`.
-- Offline Cargo state was copied, excluding credentials and binaries, to `/tmp/yulang2-r161-witness/cargo-home/`: registry index (~49 MB), crate cache (~82 MB), unpacked sources (~341 MB), Git checkouts (~20 MB), and Git DB (~4.4 MB), plus the pinned linker config. All future Cargo cache writes stay inside this temporary home. The build target is `/tmp/yulang2-r161-witness/target/`.
+- Offline Cargo state was copied, excluding credentials and binaries, to `/tmp/yulang2-r161-witness/cargo-home/`: registry index (~49 MB), crate cache (~82 MB), unpacked sources (~341 MB), Git checkouts (~20 MB), and Git DB (~4.4 MB), plus the pinned linker config. All future Cargo cache writes stay inside this temporary home.
+- The one Cargo invocation's generated target tree is scoped to `/tmp/yulang2-r161-witness/target/`, owned by Luna only for this invocation. Cargo-generated contents only; no worker or follow-up process may edit arbitrary files there. Use `/tmp/yulang2-r161-witness/tmp/` as `TMPDIR` for compiler/linker temporaries and `/tmp/yulang2-r161-witness/logs/` for captured receipts. Cargo home, target, tmp, logs, and the two allowlisted observer outputs are the only write locations; source inputs are read-only. Do not write to the repository, original Cargo home, or rustup toolchain. The build is bounded to one Cargo process, 480 seconds, one Cargo build job, and 8 GiB maximum new scratch data across cargo-home/target/tmp/logs; stop at the first bound. Preserve inventory and receipts. Cleanup is not authorized by this packet.
 - At packet preparation, neither R160 observer output file nor its parent `out/` directory exists. After an explicit execution grant only, create that empty directory; never create or alter either JSONL file except through the observer's exclusive-create operation.
 
 ## Conditional build and exact sample commands
@@ -35,6 +36,8 @@ The static reviewer must check this invocation packet, observer allowlist, sourc
    ```sh
    CARGO_HOME=/tmp/yulang2-r161-witness/cargo-home \
    CARGO_TARGET_DIR=/tmp/yulang2-r161-witness/target \
+   TMPDIR=/tmp/yulang2-r161-witness/tmp \
+   CARGO_BUILD_JOBS=1 \
    cargo build --offline --locked \
      --manifest-path /tmp/yulang2-r160-observer/oracle/Cargo.toml \
      -p yulang
@@ -47,7 +50,7 @@ The static reviewer must check this invocation packet, observer allowlist, sourc
 
    Exclusive `create_new` applies. If either output file already exists, stop and preserve it; never truncate, delete, append, or retry. If creation fails, retain stderr and mark the witness invalid.
 
-4. Run two serial, source-only processes with the built binary:
+4. Run two serial, source-only dump processes with the built binary. `dump-poly-std` emits lowering/source observer records; it does not evaluate either sample or execute host writes. These captures therefore cannot establish or refute the expected host payloads. Runtime output claims `(42, Yulang)\n`, `hello from Yulang\n`, and `3\n` remain unobserved and require a separately authorized runtime witness using the distinct `run-mono-std` route.
 
    ```sh
    YULANG_LOADED_WITNESS_OUT=/tmp/yulang2-r160-observer/out/types.jsonl \
@@ -58,16 +61,16 @@ The static reviewer must check this invocation packet, observer allowlist, sourc
 
    Then repeat with output `/tmp/yulang2-r160-observer/out/console.jsonl` and input `Console.yu`. Do not parallelize. Capture exact argv, environment allowlist, stdout, stderr, exit status, binary hash, source pins, full JSONL and any partial output under `/tmp/yulang2-r161-witness/logs/`. Do not claim success from CLI status alone.
 
-The expected oracle claims are fixed by the authoritative R149 design: Types public entries include polymorphic `id`, `answer: int`, `name: str`, and `pair: (int, str)`; its separately captured host payload is `(42, Yulang)\n`. Console captured writes in source order are `hello from Yulang\n`, then `3\n`. Any mismatch is a counterexample to this finite sample claim, not permission to alter output or source.
+The expected static oracle claims are fixed by the authoritative R149 design: Types public entries include polymorphic `id`, `answer: int`, `name: str`, and `pair: (int, str)`. A mismatch in these source/lowering records is evidence against this finite static sample claim, not permission to alter source or expected output. Runtime payload expectations stay fixed in R149 but are outside the evidence produced by these commands.
 
 ## Source-certificate application and independent evidence review
 
-After successful capture, Luna uses 120 seconds to join exact loaded bytes, module/band identities (including explicit anonymous-unavailable cases), initial operator state, CST, and all twelve ordered source registration events. Apply only R152–R154 relations within their stated premises. Identify the first actual census/order/classification/initializer/runtime carrier gap. Independent reviewer (120 seconds) checks omitted/duplicated records, wrong source route, stale/mixed files, identity/provenance, diagnostic behavior, output claims, commands and raw artifact hashes. CLI success alone is insufficient.
+After successful capture, Luna uses 120 seconds to join exact loaded bytes, module/band identities (including explicit anonymous-unavailable cases), initial operator state, CST, and all twelve ordered source registration events. Apply only R152–R154 relations within their stated premises. Identify the first actual census/order/classification gap. Independent reviewer (120 seconds) checks omitted/duplicated records, wrong source route, stale/mixed files, identity/provenance, diagnostic behavior, static output claims, commands and raw artifact hashes. CLI success alone is insufficient. Host runtime effects remain unobserved by this sprint.
 
 ## Conditional resources and current authorization
 
-Fresh R161 cap 1,200 seconds: input/command packet preparation 120 + prospective review 120 + conditional single offline build 480 + conditional two serial source captures 120 + source-certificate application 120 + independent evidence review 120 + closeout 120. Astra 0; no R160 carryover. The 720 seconds for build/capture/application/review/closeout remain UNISSUED. No test suite is included. No build or sample invocation has occurred. Luna will issue execution grants only after this packet is independently CLEAN and the user explicitly authorizes the exact build and captures.
+Fresh R161 cap 1,200 seconds: input/command packet preparation 120 + prospective review 120 + conditional single offline build 480 + conditional two serial source captures 120 + source-certificate application 120 + independent evidence review 120 + closeout 120. Astra 0; no R160 carryover. The unissued build/capture/application/evidence-review/closeout allocations total 960 seconds; the 120-second preparation and 120-second prospective review are charged/reserved separately. No test suite is included. No build or sample invocation has occurred. Luna will issue execution grants only after the packet is independently CLEAN and the user explicitly authorizes the exact build and captures.
 
 ## Stop conditions
 
-Stop before command execution if the user authorization is absent; any source/input/library/lock hash differs; output files already exist; Cargo cannot operate offline with the frozen cache; the pinned binary path differs; observer failure appears; or a source/module/band join contradicts the reviewed schema. Preserve all logs and partial records. No automatic repair, retry, code edit, expected-output change, theorem closure, or production promotion follows.
+Stop before command execution if the user authorization is absent; any source/input/library/lock hash differs; output files already exist; Cargo cannot operate offline with the frozen cache; the pinned binary path differs; observer failure appears; a source/module/band join contradicts the reviewed schema; or time/CPU/scratch bounds are reached. Preserve all logs, partial records and generated artifact inventory. No automatic repair, retry, cleanup, code edit, expected-output change, theorem closure, or production promotion follows.
