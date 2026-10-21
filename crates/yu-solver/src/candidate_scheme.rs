@@ -2583,6 +2583,72 @@ my outer (q:[io] int) = {
     }
 
     #[test]
+    fn r227_formal_registration_route_term_ownership() {
+        const SOURCE: &str = r#"act io:
+    our tick: int -> int
+
+my outer (q:[io] int) = {
+    my loop (x:[io] int) = {
+        my direct = loop x
+        my helper (y:[io] int) = loop y
+        helper x
+    }
+    my repeat (f:[io] int -> int) (z:[io] int) = {
+        my first = f z
+        f z
+    }
+    repeat loop q
+}"#;
+        let text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("r227-formal-route", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+        assert!(session.errors.is_empty());
+        let graph_state = session.candidate_graph.as_ref().unwrap();
+        let repeat = graph_state.local_routes.iter().find(|route| route.occurrence.ordinal() == 27).unwrap();
+        let callback_call = session.batch.candidate_calls.calls.iter().find(|call|
+            call.checking.occurrence().ordinal() == 19).unwrap();
+        let formal_registration = callback_call.formal_name.unwrap();
+        let registration = session.batch.candidate_calls.names[formal_registration].registration;
+        assert_eq!(session.batch.candidate_calls.formal_use_registration(&session.batch.hir,
+            callback_call.checking.occurrence()), Some(registration));
+        let formal = &session.batch.candidate_calls.formals[registration];
+        assert_eq!(session.batch.parameter_recipes[formal.recipe_position], formal.parameter);
+        let source_row = session.parameter_live_base + u32::try_from(formal.recipe_position).unwrap();
+        let formal_nodes = repeat.graph.nodes.iter().enumerate().filter_map(|(index, node)| {
+            let term = repeat.retained.terms[index]?;
+            let view = session.store.term_view(term).ok()?;
+            matches!(node, Node::Function { .. }).then_some((index, term, view))
+        }).collect::<Vec<_>>();
+        let endpoint = |relation: u32, upper: bool| {
+            let TypedPairKey::Value(pair) = graph_state.intrusion.effect_algebra.context
+                .relation_pair(candidate_context::RelationId(relation)).unwrap() else { panic!("value relation") };
+            match if upper { pair.upper } else { pair.lower } {
+                ValueEndpointKey::PositiveFunction(term) | ValueEndpointKey::NegativeFunction(term) => term,
+                other => panic!("function endpoint: {other:?}"),
+            }
+        };
+        let provider_expected = endpoint(362, true);
+        let callback_demand = endpoint(146, true);
+        assert!(matches!(session.store.term_view(formal.native_root.unwrap()),
+            Ok(TermView::LiveVariable(view)) if view.kind() == ComponentKind::Value
+                && view.polarity() == Polarity::Positive && view.ordinal() == source_row));
+        assert!(!repeat.graph.rows.iter().any(|row| row.key == RowKey::Value(source_row)));
+        assert!(repeat.retained.terms.iter().flatten().any(|term| *term == provider_expected));
+        assert!(!repeat.retained.terms.iter().flatten().any(|term| *term == callback_demand));
+        println!("R227 registration={} recipe={} lambda={} native_root={:?} source_row={} graph_rows={:?} route_rows={:?} provider_expected={provider_expected:?} callback_demand={callback_demand:?} route_function_terms={formal_nodes:?}; root row is absent from route graph, provider expected term is retained, callback demand is absent",
+            registration, formal.recipe_position, formal.lambda, formal.native_root, source_row,
+            repeat.graph.rows, repeat.rows);
+    }
+
+    #[test]
     fn r224_apply_fresh_route_terms() {
         const SOURCE: &str = r#"act io:
     our tick: int -> int
