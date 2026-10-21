@@ -142,6 +142,12 @@ impl Graph {
                     work.try_reserve(items.len()).map_err(|_| unavailable())?;
                     for item in items { work.push((item.ordinal() as usize, owner)); }
                 },
+                LocalSourceForm::Tuple { elements } => {
+                    work.try_reserve(elements.len()).map_err(|_| unavailable())?;
+                    for element in elements.iter().rev() {
+                        work.push((element.ordinal() as usize, owner));
+                    }
+                },
                 LocalSourceForm::Apply { callee, argument, .. } => {
                     work.try_reserve(2).map_err(|_| unavailable())?;
                     work.push((callee.ordinal() as usize, owner)); work.push((argument.ordinal() as usize, owner));
@@ -166,7 +172,7 @@ impl Graph {
         let mut fragments = Vec::new();
         fragments.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
         for expr in source.expressions() {
-            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. }) {
+            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::Tuple { .. }) {
                 self.edges.try_reserve(1).map_err(|_| unavailable())?;
                 self.reverse.try_reserve(1).map_err(|_| unavailable())?;
                 fragments.push(Some(self.edges.len()));
@@ -199,6 +205,16 @@ impl Graph {
                 self.edge(result, fragment)?;
                 for item in items {
                     if let Some(child) = fragments[item.ordinal() as usize] { self.edge(fragment, child)?; }
+                }
+            }
+            if let LocalSourceForm::Tuple { elements } = &expr.form {
+                let result = self.intern(Value::Expression(expr.occurrence.clone()))?;
+                let fragment = fragments[index].unwrap();
+                self.edge(result, fragment)?;
+                for element in elements {
+                    if let Some(child) = fragments[element.ordinal() as usize] {
+                        self.edge(fragment, child)?;
+                    }
                 }
             }
             let LocalSourceForm::Apply { callee, argument, .. } = &expr.form else { continue; };
@@ -484,6 +500,64 @@ mod conditional_reference_tests {
             let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
             assert!(references(&graph, &root).contains(&named(&source, "f")));
         }
+    }
+
+    #[test]
+    fn tuple_fragments_retain_direct_and_nested_name_references() {
+        let (graph, source) = fixture("my choose a b = (a, (b, a))");
+        let tuples: Vec<_> = source.expressions().iter().filter_map(|expr|
+            matches!(expr.form, LocalSourceForm::Tuple { .. })
+                .then_some(Value::Expression(expr.occurrence.clone()))
+        ).collect();
+        assert_eq!(tuples.len(), 2);
+        let expected = expected(&source, &["a", "b"]);
+        for tuple in tuples {
+            assert_eq!(references(&graph, &tuple), expected);
+        }
+    }
+
+    #[test]
+    fn tuple_child_references_keep_nested_initializer_owner() {
+        let (graph, source) = fixture("my choose x = { my local = (x, x); local }");
+        let local = Value::Local(source.bindings().iter()
+            .find(|binding| binding.spelling.as_ref() == "local").unwrap().id.clone());
+        assert_eq!(references(&graph, &local), expected(&source, &["x"]));
+        let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
+        assert_eq!(references(&graph, &root), [local].into_iter().collect());
+    }
+
+    #[test]
+    fn tuple_contained_module_reference_contributes_to_semantic_scc() {
+        let text: Arc<yu_syntax::SourceText> = Arc::from("my f = (g,)\nmy g = f");
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "tuple-value-scc", "source.yu",
+            ))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap();
+        let bindings: Vec<_> = hir.items().iter().filter_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) => Some(binding),
+            _ => None,
+        }).collect();
+        let mut graph = Graph::default();
+        for binding in &bindings {
+            graph.register_module(binding.definition_root().clone(), binding.id().clone()).unwrap();
+        }
+        let mut sources = HashMap::new();
+        for binding in &bindings {
+            let source = hir.local_source(binding.definition_root()).unwrap().unwrap().clone();
+            graph.retain_source(&source).unwrap();
+            sources.insert(binding.name().spelling().to_owned(), source);
+        }
+        let f_to_g = named(&sources["f"], "g");
+        let g_to_f = named(&sources["g"], "f");
+        graph.seal().unwrap();
+        assert_eq!(
+            graph.components[graph.vertices[&f_to_g]],
+            graph.components[graph.vertices[&g_to_f]],
+            "the tuple-contained f -> g edge closes the g -> f source cycle",
+        );
     }
 
     #[test]

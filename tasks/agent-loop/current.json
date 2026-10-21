@@ -2,26 +2,26 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "r270-20261021",
+  "session": "current-conversation-20261022-r271",
   "active_sprint": {
-    "id": "R270",
+    "id": "R271",
     "status": "ACTIVE",
-    "contract": "tasks/agent-loop/sprints/source-ordered-tuple-candidate-graph-20261021-r270.md",
+    "contract": "tasks/agent-loop/sprints/tuple-value-reference-graph-20261021-r271.md",
     "resources": {
-      "cap_seconds": 1200,
-      "charged_seconds": 660,
+      "cap_seconds": 600,
+      "charged_seconds": 360,
       "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "HIR tuple children are visited in source order; heterogeneous source child constraints land in their distinct ordered rows, nested export retains both Tuple nodes, and actual FreshUse terms match each captured child at every offset. R254 tuple polarity/duplicate and indexed arity/mismatch tests pass. Whole source/native and compiler closure remain open.",
-    "implementation": "Tuple child Visit now recurses through children before parent Finish. Candidate source relations, effect edges, graph capture and FreshUse reconstruct arbitrary ordered children in tested arities/nesting. Six tuple-filtered yu-solver unit tests pass; full solver suite remains unresolved.",
-    "review_receipt": "Primary-only; unreviewed.",
-    "next_action": "Freeze R270 source, capture, effect and FreshUse evidence; retain the full-suite limitation and provisional boundary. Continue the unchanged Yulang2 playground parent through a separately bounded tuple type/runtime integration outcome.",
-    "closure": "R270 is a provisional native candidate path only. Public closed Tuple types, runtime Tuple, R149 sample execution, source/native proofs and production remain OPEN.",
-    "contract_sha256": "bdf7bed755860657676717ecac75e8cd749b84fca0fc227271f2021766331af1",
-    "note_sha256": "f4f3aafe5434d41213b20d0054396490e65fb3a385b32e5102c25597c487825b",
-    "inbox_sha256": "94880afbe04bc09c211d7d2ce31cc356bcf2a49985eee3d59d6738508f47a7cc",
-    "note": "notes/theory/2026-10-21-r270-source-tuple-candidate-graph.md"
+    "proof": "Direct and nested Tuple expression fragments reach exact child Name Values; nested local tuple initializer ownership remains separate; tuple-contained f->g closes tested f/g SCC. Nine tuple-filtered yu-solver tests pass. Full R149/source-native closure remains open.",
+    "implementation": "candidate_value_graph now visits Tuple children in source order and composes a Tuple expression fragment through child fragments. Auxiliary vertices/edges use existing Graph byte accounting.",
+    "review_receipt": "Primary-only; independent review unavailable under the user's solo-work instruction.",
+    "next_action": "Checkpoint R271, then connect retained Tuple construction to ordered runtime evaluation. Preserve suspension prefixes and verify effectful children are not duplicated or reordered.",
+    "closure": "R271 repairs candidate Value-graph tuple references only. Public schemes/runtime, imports, host continuation, unchanged Y2 samples and parent proof/production gates remain OPEN.",
+    "contract_sha256": "89f7ce02587c7ff6cc2be25ba93d7ff2d2dd53b36dc85e468831af87e3a1f034",
+    "note_sha256": "177b06b533b09110d78d329f21771923066472f67cd38a3e912a6249b5403f96",
+    "inbox_sha256": "d515836dddc6db3cf0fe506aea4bff68469690018214d9362aaf2cef14cec846",
+    "note": "notes/theory/2026-10-21-r271-tuple-value-reference-graph.md"
   },
   "workers": [
     {
@@ -102,12 +102,12 @@
       "id": "/root",
       "role": "Luna primary",
       "state": "STOPPED",
-      "session": "current-conversation-20261021-r270-continuation",
+      "session": "current-conversation-20261022-r271",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Stopped this session after adding source-order child-row and actual FreshUse reconstructed-term assertions. cargo test -p yu-solver --features shadow-apply-candidate --lib tuple passed all 6 matched tests; no independent review. Active parent compiler/playground goal continues beyond this provisional candidate packet."
+      "receipt": "Stopped after Tuple Value-graph traversal/fragment implementation. cargo test -p yu-solver --features shadow-apply-candidate --lib tuple_ passed 9 tests; sprint static check and diff check passed. Primary-only, no independent review."
     }
   ],
   "leases": [
@@ -326,6 +326,30 @@
       "owner": "/root",
       "state": "FROZEN",
       "reason": "R268 primary-only result; immutable evidence."
+    },
+    {
+      "path": "crates/yu-solver/src/candidate_value_graph.rs",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R271 exact source Value graph Tuple traversal."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/tuple-value-reference-graph-20261021-r271.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R271 contract."
+    },
+    {
+      "path": "notes/theory/2026-10-21-r271-tuple-value-reference-graph.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R271 source/native evidence."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261021-r271-tuple-value-reference-graph.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R271 handoff."
     }
   ],
   "pending": [
@@ -397,7 +421,7 @@
     }
   ],
   "closure": "R270 is a provisional native candidate path only. Public closed Tuple types, runtime Tuple, R149 sample execution, source/native proofs and production remain OPEN.",
-  "next_action": "Audit exact source-child order correspondence and nested tuple capture; isolate full-suite failures; then connect candidate tuple graphs to public types and runtime.",
+  "next_action": "R271: preserve source Tuple child Names and SCC inputs; then continue the end-to-end Yulang2 playground chain through public types, authentic library resolution, runtime and host output.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
@@ -449,6 +473,13 @@
       "id": "R269",
       "archive": "notes/theory/2026-10-21-r269-root-binding-publication-census.md",
       "charged_seconds": 120
+    },
+    {
+      "id": "R270",
+      "archive": "notes/theory/2026-10-21-r270-source-tuple-candidate-graph.md",
+      "archive_sha256": "f4f3aafe5434d41213b20d0054396490e65fb3a385b32e5102c25597c487825b",
+      "charged_seconds": 660,
+      "inbox": "tasks/agent-loop/inbox/20261021-r270-source-tuple-candidate-graph.md"
     }
   ]
 }
