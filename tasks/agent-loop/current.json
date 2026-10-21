@@ -2,26 +2,26 @@
  "schema_version": 1,
  "mode": "LIVE",
  "phase": "ACTIVE",
- "session": "current-conversation-20261021-r276",
+ "session": "current-conversation-20261021-r277",
  "active_sprint": {
-  "id": "R276",
+  "id": "R277",
   "status": "CHECKPOINTED_UNREVIEWED",
-  "contract": "tasks/agent-loop/sprints/r276-pinned-role-source-inventory-20261021.md",
+  "contract": "tasks/agent-loop/sprints/r277-pinned-fmt-diagnostic-census-20261021.md",
   "resources": {
    "cap_seconds": 600,
-   "charged_seconds": 300,
+   "charged_seconds": 180,
    "reserved_seconds": 0,
    "no_carryover": true
   },
-  "proof": "OPEN. Inventory proves source identity/position only, not role selection or source/native correspondence.",
-  "implementation": "Checkpointed: authenticated pinned fmt source identity and parser anchors; the parser reports syntax diagnostics, so no HIR artifact is published.",
+  "proof": "OPEN. R149 source/native correspondence remains unestablished; diagnostic census supplies no theorem premise.",
+  "implementation": "Checkpointed: exact fmt source census records all 50 diagnostics with source ranges, ordered identities and structural category/parent totals; no cross-owner parser edits.",
   "review_receipt": "Primary-only; independent review unavailable under user-directed solo work.",
-  "next_action": "R277: isolate the pinned fmt parser diagnostics and establish a syntax-compatible, source-authentic role declaration representation before generic role selection.",
-  "closure": "R276 closes source-identity inventory only. Generic role selection, authentic import graph, unchanged R149 sample typing/output, source/native proof and production remain OPEN.",
-  "contract_sha256": "dfbb774bd8cbb7b9060fe45356a62055ec388500246129a907e260301e8a83e8",
-  "note_sha256": "a881bee513e1002ec3b3df25e650005ef69f66040ad310ca11fba99beef4e455",
-  "inbox_sha256": "f36a4e511cf2589ef350e97a6f5ffd3a7819bb8df704d18ece63e35dbb4b7a04",
-  "note": "notes/theory/2026-10-21-r276-pinned-role-source-inventory.md"
+  "next_action": "R278: design source-authentic syntax and HIR carriers for the pinned Y2 standard-library constructs needed by unchanged R149 samples.",
+  "closure": "R277 closes diagnostic census only. Parser support, authentic role selection/imports, unchanged R149 sample typing/output, source/native proof and production remain OPEN.",
+  "contract_sha256": "1d4b9e7cd3f05c8e8468043e22b4bb52eb45543bddd5eeaadb9604f89fb4ae23",
+  "note_sha256": "8e1b1b2c73a6fb8c8a130693ee14d3833267adc09abd1ab8ca04d4f76a2e58a6",
+  "inbox_sha256": "da9fe741b003d50e7cb5a07abfd7eb7a50ba87c25700b83303dc1ed4eca15198",
+  "note": "notes/theory/2026-10-21-r277-pinned-fmt-diagnostic-census.md"
  },
  "workers": [
   {
@@ -102,12 +102,12 @@
    "id": "/root",
    "role": "Luna primary",
    "state": "STOPPED",
-   "session": "current-conversation-20261021-r276",
+   "session": "current-conversation-20261021-r277",
    "requested_model": "gpt-6-luna",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Stopped after R276 source inventory checkpoint: pinned fmt path/blob/module identity paired with ParsedFile and available Role/Impl anchors; current parser diagnostics prevent ShadowArtifact publication; focused test, playground check, static check and diff check pass."
+   "receipt": "Stopped after R277 diagnostic census checkpoint: 50 exact pinned fmt diagnostics mapped (36 root ErrorGroup, 7 OperatorChain ErrorGroup, 7 Missing CaseArm); parser/source-carrier work spans unleased owners; focused test, playground check and static checks pass."
   }
  ],
  "leases": [
@@ -274,40 +274,40 @@
    "reason": "R276 primary current-state write; sole central state owner."
   },
   {
-   "path": "tasks/agent-loop/sprints/r276-pinned-role-source-inventory-20261021.md",
+   "path": "tasks/agent-loop/sprints/r277-pinned-fmt-diagnostic-census-20261021.md",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R276 contract."
+   "reason": "R277 contract."
   },
   {
-   "path": "notes/theory/2026-10-21-r276-pinned-role-source-inventory.md",
+   "path": "notes/theory/2026-10-21-r277-pinned-fmt-diagnostic-census.md",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R276 role source identity evidence."
+   "reason": "R277 diagnostic evidence."
   },
   {
-   "path": "tasks/agent-loop/inbox/20261021-r276-pinned-role-source-inventory.md",
+   "path": "tasks/agent-loop/inbox/20261021-r277-pinned-fmt-diagnostic-census.md",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R276 primary handoff."
+   "reason": "R277 primary handoff."
   },
   {
    "path": "tools/inference-playground/src/pinned_stdlib.rs",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R276 exact pinned source role inventory."
+   "reason": "R277 exact-source diagnostic inventory."
   },
   {
    "path": "tools/inference-playground/src/lib.rs",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R276 focused pinned role inventory test."
+   "reason": "R277 focused diagnostic census test."
   },
   {
    "path": "tasks/current.md",
    "owner": "/root",
    "state": "HELD",
-   "reason": "R276 primary progress synchronization."
+   "reason": "R277 primary progress synchronization."
   }
  ],
  "pending": [
@@ -378,8 +378,8 @@
    "details": "R258-R259 local roots; R260 conditional census; R261-R267 parser/import route evidence; R268 Y3 source graph reaches all 40 modules (39 mod +108 use edges), but external-mod Missing recoveries leave Y2 ModuleMap/publication OPEN. R149 outputs open."
   }
  ],
- "closure": "R276 is source-identity inventory only. Generic role selection, authentic import graph, unchanged R149 sample execution, source/native proofs and production remain OPEN.",
- "next_action": "R277: isolate the pinned fmt parser diagnostics and establish a syntax-compatible, source-authentic role declaration representation before generic role selection.",
+ "closure": "R277 closes the diagnostic census only. Parser support, authentic role selection/imports, unchanged R149 sample execution, source/native proofs and production remain OPEN.",
+ "next_action": "R278: design source-authentic syntax and HIR carriers for the pinned Y2 standard-library constructs needed by unchanged R149 samples.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "3 U; no reclaim.",

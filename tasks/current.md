@@ -17874,3 +17874,17 @@ selection, authentic imports, unchanged sample execution, source/native proof
 and production remain OPEN. See the [R276 handoff](agent-loop/inbox/20261021-r276-pinned-role-source-inventory.md),
 [evidence note](../notes/theory/2026-10-21-r276-pinned-role-source-inventory.md),
 and current state.
+
+## R277 checkpoint — classify pinned fmt parser diagnostics
+
+The exact pinned `std::core::fmt` parse yields 50 diagnostics: 36 root
+`ErrorGroup`s, 7 `OperatorChain` `ErrorGroup`s, and 7 missing `CaseArm`s. The
+test retains every exact source range, checks UTF-8 mapping and diagnostic
+order, and pins category totals. Root recovery spans role member declarations,
+implementation member bodies and `where` constraints; expression recovery also
+misses operator/case syntax. This crosses several unleased `yu-syntax` owners
+and needs corresponding source carriers, so R277 makes no parser edits and
+leaves R149 open. Focused test, playground check, static check and diff check
+pass. See the [R277 handoff](agent-loop/inbox/20261021-r277-pinned-fmt-diagnostic-census.md),
+[evidence note](../notes/theory/2026-10-21-r277-pinned-fmt-diagnostic-census.md),
+and current state.

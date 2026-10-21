@@ -526,7 +526,7 @@ mod tests {
             .iter()
             .map(|(_, range)| &inventory.parsed.source()[range.clone()])
             .collect::<Vec<_>>();
-        assert!(inventory.syntax_diagnostic_count > 0);
+        assert!(!inventory.diagnostics.is_empty());
         assert!(declarations
             .iter()
             .any(|text| text.starts_with("pub role Display 'a:")), "{declarations:?}");
@@ -537,6 +537,23 @@ mod tests {
         assert!(inventory.source.text.contains("pub a.say = std::io::out::write: a.show +"));
         assert!(inventory.source.text.contains("where 'a: Display\n    where 'b: Display\n    our value.show = case value:"));
         assert!(inventory.source.text.contains("(a, b) -> \"(\" + a.show + \", \" + b.show + \")\""));
+
+        let mut groups = std::collections::BTreeMap::new();
+        for diagnostic in &inventory.diagnostics {
+            assert!(diagnostic.range.start <= diagnostic.range.end);
+            assert!(diagnostic.range.end <= inventory.source.text.len());
+            assert!(inventory.source.text.get(diagnostic.range.clone()).is_some());
+            assert!(diagnostic.excerpt.len() <= 160);
+            assert!(inventory.source.text[diagnostic.range.start..].starts_with(&diagnostic.excerpt));
+            *groups
+                .entry((diagnostic.category.as_str(), diagnostic.parent.as_str()))
+                .or_insert(0usize) += 1;
+            assert_eq!(diagnostic.ordinal, Some(groups.values().sum::<usize>() as u32 - 1));
+        }
+        assert_eq!(inventory.diagnostics.len(), 50);
+        assert_eq!(groups.get(&("ErrorGroup", "Root")), Some(&36));
+        assert_eq!(groups.get(&("ErrorGroup", "OperatorChain")), Some(&7));
+        assert_eq!(groups.get(&("Missing", "CaseArm")), Some(&7));
     }
 
     #[test]

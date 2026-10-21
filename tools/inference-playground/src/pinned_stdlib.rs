@@ -19,7 +19,16 @@ pub(crate) struct ParsedRoleInventory {
     pub(crate) identity: yu_hir::ModuleIdentity,
     pub(crate) parsed: yu_syntax::ParsedFile,
     pub(crate) declaration_ranges: Vec<(yu_syntax::SyntaxKind, std::ops::Range<usize>)>,
-    pub(crate) syntax_diagnostic_count: usize,
+    pub(crate) diagnostics: Vec<ParsedSyntaxDiagnostic>,
+}
+
+#[cfg(test)]
+pub(crate) struct ParsedSyntaxDiagnostic {
+    pub(crate) range: std::ops::Range<usize>,
+    pub(crate) excerpt: String,
+    pub(crate) category: String,
+    pub(crate) parent: String,
+    pub(crate) ordinal: Option<u32>,
 }
 
 #[cfg(test)]
@@ -39,10 +48,36 @@ pub(crate) fn parse_role_inventory(
         std::sync::Arc::new(scan_header(text)),
         environment,
     );
-    let syntax_diagnostic_count = parsed
+    let diagnostics = parsed
         .syntax_diagnostics()
         .map_err(|error| format!("syntax diagnostics: {error:?}"))?
-        .len();
+        .into_iter()
+        .map(|diagnostic| {
+            use yu_syntax::SyntaxDiagnosticCause;
+            let range = diagnostic.primary().clone();
+            let mut excerpt_end = range.end.min(range.start.saturating_add(160));
+            while !source.text.is_char_boundary(excerpt_end) {
+                excerpt_end -= 1;
+            }
+            let excerpt = source.text[range.start..excerpt_end].to_owned();
+            match diagnostic.cause() {
+                SyntaxDiagnosticCause::Structural(structural) => ParsedSyntaxDiagnostic {
+                    range,
+                    excerpt,
+                    category: format!("{:?}", structural.kind()),
+                    parent: format!("{:?}", structural.parent()),
+                    ordinal: Some(structural.ordinal()),
+                },
+                SyntaxDiagnosticCause::ConflictingOperatorFixity(_) => ParsedSyntaxDiagnostic {
+                    range,
+                    excerpt,
+                    category: "ConflictingOperatorFixity".to_owned(),
+                    parent: "operator environment".to_owned(),
+                    ordinal: None,
+                },
+            }
+        })
+        .collect::<Vec<_>>();
     let root = SyntaxNode::new_root(parsed.green().clone());
     let declaration_ranges = root
         .descendants()
@@ -65,7 +100,7 @@ pub(crate) fn parse_role_inventory(
         identity,
         parsed,
         declaration_ranges,
-        syntax_diagnostic_count,
+        diagnostics,
     })
 }
 
@@ -115,6 +150,7 @@ pub(crate) fn sources() -> Result<Vec<PinnedSource>, BundleError> {
     Ok(sources)
 }
 
+#[cfg(test)]
 pub(crate) fn source_for_module(module: &str) -> Result<Option<PinnedSource>, BundleError> {
     let path = format!("lib/{}.yu", module.replace("::", "/"));
     Ok(sources()?.into_iter().find(|source| source.path == path))
