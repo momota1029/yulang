@@ -16,6 +16,15 @@ pub(crate) enum BundleError {
     Truncated,
     InvalidUtf8,
     TrailingBytes,
+    MissingModule {
+        module: String,
+        declared_from: String,
+    },
+    UnresolvedImport {
+        path: String,
+        imported_from: String,
+    },
+    UnreachableSource(String),
 }
 
 pub(crate) fn sources() -> Result<Vec<PinnedSource>, BundleError> {
@@ -50,6 +59,140 @@ pub(crate) fn sources() -> Result<Vec<PinnedSource>, BundleError> {
 pub(crate) fn source_for_module(module: &str) -> Result<Option<PinnedSource>, BundleError> {
     let path = format!("lib/{}.yu", module.replace("::", "/"));
     Ok(sources()?.into_iter().find(|source| source.path == path))
+}
+
+pub(crate) fn resolve_implicit_stdlib() -> Result<std::sync::Arc<[PinnedSource]>, BundleError> {
+    use std::sync::{Arc, OnceLock};
+
+    static RESOLVED: OnceLock<Result<Arc<[PinnedSource]>, BundleError>> = OnceLock::new();
+    RESOLVED
+        .get_or_init(|| resolve_implicit_stdlib_uncached().map(Arc::from))
+        .clone()
+}
+
+fn resolve_implicit_stdlib_uncached() -> Result<Vec<PinnedSource>, BundleError> {
+    use std::collections::{HashMap, HashSet, VecDeque};
+    use yu_syntax::{
+        HeaderImportForm, HeaderImportRouteSeparator, SyntaxEnvironment, SyntaxKind, SyntaxNode,
+        parse_file, scan_header,
+    };
+
+    let all_sources = sources()?;
+    let source_by_path = all_sources
+        .iter()
+        .map(|source| (source.path, source))
+        .collect::<HashMap<_, _>>();
+    let mut seen = HashSet::new();
+    let mut pending = VecDeque::new();
+    enqueue_module("std".to_owned(), &mut seen, &mut pending);
+    let mut resolved = Vec::new();
+
+    while let Some(module) = pending.pop_front() {
+        let path = source_path(&module);
+        let source =
+            source_by_path
+                .get(path.as_str())
+                .ok_or_else(|| BundleError::MissingModule {
+                    module: module.clone(),
+                    declared_from: "implicit std root".to_owned(),
+                })?;
+        resolved.push((*source).clone());
+
+        let text: std::sync::Arc<yu_syntax::SourceText> = std::sync::Arc::from(source.text);
+        let header = scan_header(std::sync::Arc::clone(&text));
+        let parsed = parse_file(
+            text,
+            std::sync::Arc::new(header.clone()),
+            std::sync::Arc::new(SyntaxEnvironment::empty()),
+        );
+        let root = SyntaxNode::new_root(parsed.green().clone());
+
+        for declaration in root
+            .descendants()
+            .filter(|node| node.kind() == SyntaxKind::ModDeclaration)
+        {
+            let Some(name) = declaration
+                .children_with_tokens()
+                .filter_map(|child| child.into_token())
+                .find(|token| token.kind() == SyntaxKind::Identifier)
+            else {
+                continue;
+            };
+            let child_module = format!("{module}::{}", name.text());
+            let child_path = source_path(&child_module);
+            if !source_by_path.contains_key(child_path.as_str()) {
+                return Err(BundleError::MissingModule {
+                    module: child_module,
+                    declared_from: path,
+                });
+            }
+            enqueue_module(child_module, &mut seen, &mut pending);
+        }
+
+        for import in header.imports() {
+            if !matches!(
+                import.form(),
+                HeaderImportForm::Plain | HeaderImportForm::Mod
+            ) || import.path().first().map(String::as_str) != Some("std")
+                || import
+                    .route()
+                    .separators()
+                    .iter()
+                    .any(|separator| *separator != HeaderImportRouteSeparator::ColonColon)
+            {
+                continue;
+            }
+            let segments = import.path();
+            let target = resolve_import_module(segments, |candidate| {
+                source_by_path.contains_key(source_path(candidate).as_str())
+            });
+            let Some(target) = target else {
+                return Err(BundleError::UnresolvedImport {
+                    path: segments.join("::"),
+                    imported_from: path,
+                });
+            };
+            enqueue_module(target, &mut seen, &mut pending);
+        }
+    }
+
+    if resolved.len() != all_sources.len() {
+        let resolved_paths = resolved
+            .iter()
+            .map(|source| source.path)
+            .collect::<HashSet<_>>();
+        if let Some(missing) = all_sources
+            .iter()
+            .find(|source| !resolved_paths.contains(source.path))
+        {
+            return Err(BundleError::UnreachableSource(missing.path.to_owned()));
+        }
+    }
+    Ok(resolved)
+}
+
+fn source_path(module: &str) -> String {
+    format!("lib/{}.yu", module.replace("::", "/"))
+}
+
+fn resolve_import_module(
+    segments: &[String],
+    mut has_source: impl FnMut(&str) -> bool,
+) -> Option<String> {
+    (2..=segments.len())
+        .rev()
+        .map(|length| segments[..length].join("::"))
+        .find(|candidate| has_source(candidate))
+}
+
+fn enqueue_module(
+    module: String,
+    seen: &mut std::collections::HashSet<String>,
+    pending: &mut std::collections::VecDeque<String>,
+) {
+    if seen.insert(module.clone()) {
+        pending.push_back(module);
+    }
 }
 
 pub(crate) fn fingerprint(blob: &[u8; 20]) -> u64 {
@@ -111,6 +254,73 @@ mod tests {
         assert_eq!(
             hex(&source.git_blob),
             "575e6fb15ce2d91a39004bbc7b842fedb2d83fdf"
+        );
+    }
+
+    #[test]
+    fn implicit_root_resolves_exactly_the_pinned_module_graph() {
+        let resolved = resolve_implicit_stdlib().expect("all pinned std references resolve");
+        let all = sources().expect("pinned source bundle parses");
+        let resolved_paths = resolved
+            .iter()
+            .map(|source| source.path)
+            .collect::<std::collections::HashSet<_>>();
+        let all_paths = all
+            .iter()
+            .map(|source| source.path)
+            .collect::<std::collections::HashSet<_>>();
+        assert_eq!(resolved.len(), 40);
+        assert_eq!(resolved_paths, all_paths);
+        assert!(
+            resolved
+                .iter()
+                .any(|source| source.path == "lib/std/prelude.yu")
+        );
+        assert!(
+            resolved
+                .iter()
+                .any(|source| source.path == "lib/std/io/console.yu")
+        );
+    }
+
+    #[test]
+    fn unresolved_import_prefix_is_rejected() {
+        let segments = ["std", "core", "fmt", "show"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            resolve_import_module(&segments, |module| module == "std::core"
+                || module == "std::core::fmt"),
+            Some("std::core::fmt".to_owned())
+        );
+        let missing = ["std", "missing", "item"].map(str::to_owned);
+        assert_eq!(
+            resolve_import_module(&missing, |module| module == "std"),
+            None
+        );
+    }
+
+    #[test]
+    fn module_graph_queue_terminates_on_cycles_and_repeated_edges() {
+        use std::collections::{HashMap, HashSet, VecDeque};
+
+        let graph = HashMap::from([
+            ("a", vec!["b", "c"]),
+            ("b", vec!["a", "c"]),
+            ("c", vec!["a"]),
+        ]);
+        let mut seen = HashSet::new();
+        let mut pending = VecDeque::new();
+        enqueue_module("a".to_owned(), &mut seen, &mut pending);
+        while let Some(node) = pending.pop_front() {
+            for child in &graph[node.as_str()] {
+                enqueue_module((*child).to_owned(), &mut seen, &mut pending);
+            }
+        }
+        assert_eq!(
+            seen,
+            HashSet::from(["a".to_owned(), "b".to_owned(), "c".to_owned()])
         );
     }
 

@@ -362,8 +362,11 @@ fn prepare(
 }
 
 fn playground_syntax_environment() -> Result<SyntaxEnvironment, String> {
-    let source = pinned_stdlib::source_for_module("std::core::ops")
-        .map_err(|error| format!("pinned standard-library bundle unavailable: {error:?}"))?
+    let resolved = pinned_stdlib::resolve_implicit_stdlib()
+        .map_err(|error| format!("pinned standard-library bundle unavailable: {error:?}"))?;
+    let source = resolved
+        .iter()
+        .find(|source| source.path == "lib/std/core/ops.yu")
         .ok_or_else(|| "pinned standard-library module std::core::ops is missing".to_owned())?;
     let fingerprint = pinned_stdlib::fingerprint(&source.git_blob);
     let text: Arc<SourceText> = Arc::from(source.text);
