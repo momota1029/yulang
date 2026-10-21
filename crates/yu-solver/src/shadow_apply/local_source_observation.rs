@@ -1848,4 +1848,32 @@ my outer (q:[io] int) = {
         }
         assert!(accepted > 0, "at least one ordinary handler/recursion source is candidate-accepted");
     }
+
+    #[test]
+    fn r235_higher_order_effect_mismatch_source_route() {
+        const SOURCE: &str = r#"act io:
+    our ping: int -> int
+act state:
+    our put: int -> int
+
+my bad: int -> [state] int = \x -> state::put x
+my accept (f: int -> [io] int) = f 0
+my main = accept bad
+"#;
+        let text: Arc<SourceText> = Arc::from(SOURCE);
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)), Arc::new(SyntaxEnvironment::empty()));
+        assert!(parsed.structural_recoveries().is_empty());
+        let hir = Arc::new(lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("r235-effect-mismatch", "source.yu"))),
+            &parsed, SemanticImports::empty(),
+        ).unwrap());
+        let candidate = CandidateInference::solve(hir).unwrap();
+        assert!(candidate.candidate_conflicts().iter().any(|error|
+            matches!(error.kind(), SolverErrorKind::IncompatibleEffect { .. })),
+            "nested callback effect mismatch reaches the effect conflict consumer");
+        let call = (0..candidate.source_call_count()).map(|index| candidate.source_call(index).unwrap())
+            .find(|call| call.checking_occurrence().occurrence().ordinal() == 14)
+            .expect("outer Apply whose argument is the annotated callback provider");
+        assert!(matches!(call.argument_source().form, LocalSourceForm::Name { .. }));
+    }
 }
