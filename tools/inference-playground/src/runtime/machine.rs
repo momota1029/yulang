@@ -44,6 +44,7 @@ pub struct Machine {
     receiving: Receiving,
     executing_views: Vec<ExecutionView>,
     operation_v1_trace: Option<OperationV1Trace>,
+    tuple_prefixes: Vec<TuplePrefix>,
 }
 #[derive(Default)]
 struct OperationV1Trace {
@@ -113,9 +114,21 @@ pub enum RuntimeValueKind {
     Integer(Box<str>),
     Boolean(bool),
     String(Box<str>),
+    Tuple(Vec<TupleElement>),
     Closure,
     Computation,
     Operation(SourceOperationResolution),
+}
+/// One evaluated tuple element, including the exact source receiving view.
+/// The view remains private so callers cannot forge runtime evidence.
+#[derive(Clone, Copy, Debug)]
+pub struct TupleElement {
+    received: ReceivedValue,
+}
+impl TupleElement {
+    pub fn value(&self) -> ValueHandle {
+        self.received.value
+    }
 }
 #[derive(Clone, Debug)]
 pub enum RuntimeOutcome {
@@ -136,11 +149,15 @@ pub enum RuntimeOutcome {
 // The actual value remains distinct from the source interface under which a
 // receiver holds it. Later complete-view evidence belongs on ReceivedValue,
 // rather than mutating a shared closure or inferring protection from its tag.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct ReceivedValue {
     value: ValueHandle,
     interface: ParameterRole,
     view: ViewHandle,
+}
+struct TuplePrefix {
+    previous: Option<usize>,
+    received: ReceivedValue,
 }
 struct Environment {
     parent: Option<usize>,
@@ -241,6 +258,12 @@ pub(super) enum Frame {
         sequence: Arc<Code>,
         next: usize,
         environment: usize,
+    },
+    Tuple {
+        tuple: Arc<Code>,
+        next: usize,
+        environment: usize,
+        prefix: Option<usize>,
     },
     Case {
         case: Arc<Code>,
@@ -372,6 +395,7 @@ impl RuntimeProgram {
             receiving: Receiving::default(),
             executing_views: Vec::new(),
             operation_v1_trace: self.operation_v1.as_ref().map(|_| OperationV1Trace::default()),
+            tuple_prefixes: Vec::new(),
         };
         machine.begin_root(0);
         Ok(machine)
@@ -557,6 +581,19 @@ impl Machine {
                 ),
                 None,
             ),
+            Instruction::Tuple { elements } => {
+                if let Some(first) = elements.first().copied() {
+                    self.frames.push(Frame::Tuple {
+                        tuple: code,
+                        next: 1,
+                        environment,
+                        prefix: None,
+                    });
+                    self.state = State::Evaluate { code: first, environment };
+                } else {
+                    self.data(site, RuntimeValueKind::Tuple(Vec::new()), None);
+                }
+            }
             Instruction::Forward(inner) => {
                 self.state = State::Evaluate {
                     code: *inner,
@@ -1241,6 +1278,36 @@ impl Machine {
                     self.state = State::Evaluate { code: item, environment };
                 } else {
                     self.state = State::Return(received);
+                }
+            }
+            Frame::Tuple { tuple, next, environment, prefix: previous } => {
+                let prefix = self.tuple_prefixes.len();
+                self.tuple_prefixes.push(TuplePrefix {
+                    previous,
+                    received,
+                });
+                let Instruction::Tuple { elements } = &tuple.instruction else {
+                    unreachable!()
+                };
+                if let Some(element) = elements.get(next).copied() {
+                    self.frames.push(Frame::Tuple {
+                        tuple,
+                        next: next + 1,
+                        environment,
+                        prefix: Some(prefix),
+                    });
+                    self.state = State::Evaluate { code: element, environment };
+                } else {
+                    let mut reversed = Vec::with_capacity(elements.len());
+                    let mut cursor = Some(prefix);
+                    while let Some(index) = cursor {
+                        let node = self.tuple_prefixes.get(index)
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                        reversed.push(TupleElement { received: node.received });
+                        cursor = node.previous;
+                    }
+                    reversed.reverse();
+                    self.data(&tuple.site, RuntimeValueKind::Tuple(reversed), None);
                 }
             }
             Frame::Case { case, environment } => {
@@ -2166,6 +2233,25 @@ mod module_expression_tests {
                 )
             })
             .count()
+    }
+
+    #[test]
+    fn tuple_elements_retain_their_received_views() {
+        let mut machine = machine("my main = (1, 2)", true);
+        let RuntimeOutcome::Completed(tuple) = machine.run(100) else {
+            panic!("expected tuple completion")
+        };
+        let RuntimeValueKind::Tuple(elements) = &machine.value(tuple).unwrap().kind else {
+            panic!("expected tuple value")
+        };
+        assert_eq!(elements.len(), 2);
+        for element in elements {
+            assert_eq!(element.received.interface, ParameterRole::Value);
+            assert!(machine.receiving.matches_value(
+                element.received.view,
+                element.received.value
+            ));
+        }
     }
 
     fn assert_completed_integer(machine: &Machine, outcome: RuntimeOutcome, expected: &str) {

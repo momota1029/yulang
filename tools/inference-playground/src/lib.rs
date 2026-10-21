@@ -175,15 +175,14 @@ pub fn execute(
     step_budget: usize,
     scoped: bool,
 ) -> Result<String, String> {
-    use runtime::{RuntimeEvidence, RuntimeOutcome, RuntimeProgram, RuntimeValueKind};
+    use runtime::{RuntimeEvidence, RuntimeOutcome, RuntimeProgram};
     let (hir, _candidate) = prepare(source, name, scoped)?;
     let unavailable = |error| bounded_message(format_args!("runtime unavailable: {error:?}"));
     let program = RuntimeProgram::from_hir(hir, RuntimeEvidence::default()).map_err(unavailable)?;
     let selected = program.definition_named(definition).map_err(unavailable)?;
     let mut machine = program.start_source_schedule(selected).map_err(unavailable)?;
     let value = match machine.run(step_budget) {
-        RuntimeOutcome::Completed(handle) => machine.value(handle)
-            .ok_or_else(|| "runtime completed value unavailable".to_owned())?,
+        RuntimeOutcome::Completed(handle) => handle,
         RuntimeOutcome::Unavailable(error) => return Err(unavailable(error)),
         RuntimeOutcome::ResourceExhausted { steps } => return Err(format!(
             "runtime step budget exhausted after {steps} steps; no completed result")),
@@ -199,17 +198,58 @@ pub fn execute(
         RuntimeOutcome::Running => return Err("runtime has no completed result".to_owned()),
     };
     let mut output = Output::new();
-    match &value.kind {
-        RuntimeValueKind::Unit => output.write_str("()"),
-        RuntimeValueKind::Integer(value) => output.write_str(value),
-        RuntimeValueKind::Boolean(value) => write!(output, "{value}"),
-        RuntimeValueKind::String(value) => write!(output, "{value:?}"),
-        RuntimeValueKind::Closure => output.write_str("<function>"),
-        RuntimeValueKind::Computation => output.write_str("<computation>"),
-        RuntimeValueKind::Operation(_) => output.write_str("<operation>"),
-    }.map_err(cap)?;
+    render_runtime_value(&machine, value, &mut output).map_err(cap)?;
     output.write_char('\n').map_err(cap)?;
     output.finish()
+}
+
+fn render_runtime_value(
+    machine: &runtime::Machine,
+    root: runtime::ValueHandle,
+    output: &mut Output,
+) -> Result<(), std::fmt::Error> {
+    enum Item {
+        Value(runtime::ValueHandle),
+        Text(&'static str),
+    }
+    let mut pending = vec![Item::Value(root)];
+    while let Some(item) = pending.pop() {
+        match item {
+            Item::Text(text) => output.write_str(text)?,
+            Item::Value(handle) => {
+                let Some(value) = machine.value(handle) else {
+                    return Err(std::fmt::Error);
+                };
+                match &value.kind {
+                    runtime::RuntimeValueKind::Unit => output.write_str("()")?,
+                    runtime::RuntimeValueKind::Integer(value) => output.write_str(value)?,
+                    runtime::RuntimeValueKind::Boolean(value) => write!(output, "{value}")?,
+                    runtime::RuntimeValueKind::String(value) => write!(output, "{value:?}")?,
+                    runtime::RuntimeValueKind::Tuple(elements) => {
+                        output.write_char('(')?;
+                        if elements.is_empty() {
+                            output.write_char(')')?;
+                            continue;
+                        }
+                        pending.push(Item::Text(")"));
+                        if elements.len() == 1 {
+                            pending.push(Item::Text(","));
+                        }
+                        for (index, element) in elements.iter().enumerate().rev() {
+                            pending.push(Item::Value(element.value()));
+                            if index > 0 {
+                                pending.push(Item::Text(", "));
+                            }
+                        }
+                    }
+                    runtime::RuntimeValueKind::Closure => output.write_str("<function>")?,
+                    runtime::RuntimeValueKind::Computation => output.write_str("<computation>")?,
+                    runtime::RuntimeValueKind::Operation(_) => output.write_str("<operation>")?,
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Explicit research-only Phase-R path. It solves the v1 candidate from one
@@ -475,6 +515,20 @@ mod tests {
             Arc::new(environment),
         );
         assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+    }
+
+    #[test]
+    fn execute_renders_nested_ordered_tuple_values() {
+        assert_eq!(
+            execute("my main = (1, (2, 3), 4)", "tuple.yu", "main", 10_000, false)
+                .unwrap(),
+            "(1, (2, 3), 4)\n"
+        );
+        assert_eq!(
+            execute("my main = (1,)", "singleton-tuple.yu", "main", 10_000, false)
+                .unwrap(),
+            "(1,)\n"
+        );
     }
 
     fn integer_expression<'hir>(

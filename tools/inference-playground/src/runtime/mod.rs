@@ -8,7 +8,8 @@ mod program;
 mod receiving;
 
 pub use machine::{
-    ContinuationHandle, Machine, RuntimeOutcome, RuntimeValue, RuntimeValueKind, ValueHandle,
+    ContinuationHandle, Machine, RuntimeOutcome, RuntimeValue, RuntimeValueKind, TupleElement,
+    ValueHandle,
 };
 pub use program::{
     ExecutionRoot, ExpressionExecutionRoot, NameConsumption, RuntimeEvidence, RuntimeProgram,

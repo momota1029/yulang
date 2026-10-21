@@ -67,6 +67,59 @@ fn assert_integer(source: &str, expected: &str) {
     assert_eq!(actual.as_ref(), expected);
 }
 
+#[test]
+fn ordered_tuple_prefix_survives_resumes_without_replaying_prior_children() {
+    let source = format!(
+        "{IO}my ticked (thunk:[io] int) = catch thunk {{ io::tick(p), k -> k 10 }}\nmy other (thunk:[io] int) = catch thunk {{ io::other(p), k -> k 20 }}\nmy main = (42, ticked {{ io::tick 1 }}, other {{ io::other 2 }})"
+    );
+    let (mut machine, _) = machine(&source);
+    let RuntimeOutcome::Completed(tuple) = machine.run(30_000) else {
+        panic!("expected the ordered tuple to complete after both requests")
+    };
+    let RuntimeValueKind::Tuple(elements) = &machine.value(tuple).unwrap().kind else {
+        panic!("expected tuple result")
+    };
+    let integers: Vec<_> = elements
+        .iter()
+        .map(|element| match &machine.value(element.value()).unwrap().kind {
+            RuntimeValueKind::Integer(value) => value.as_ref(),
+            other => panic!("expected integer tuple element, got {other:?}"),
+        })
+        .collect();
+    assert_eq!(integers, ["42", "10", "20"]);
+}
+
+#[test]
+fn nested_tuple_runtime_values_keep_source_element_order() {
+    let (mut machine, _) = machine("my main = (1, (2, 3), 4)");
+    let RuntimeOutcome::Completed(outer) = machine.run(30_000) else {
+        panic!("expected nested tuple completion")
+    };
+    let RuntimeValueKind::Tuple(elements) = &machine.value(outer).unwrap().kind else {
+        panic!("expected outer tuple")
+    };
+    assert_eq!(elements.len(), 3);
+    let RuntimeValueKind::Integer(first) = &machine.value(elements[0].value()).unwrap().kind else {
+        panic!("expected first integer")
+    };
+    let RuntimeValueKind::Tuple(inner) = &machine.value(elements[1].value()).unwrap().kind else {
+        panic!("expected nested tuple")
+    };
+    let RuntimeValueKind::Integer(last) = &machine.value(elements[2].value()).unwrap().kind else {
+        panic!("expected last integer")
+    };
+    assert_eq!(first.as_ref(), "1");
+    assert_eq!(last.as_ref(), "4");
+    let nested: Vec<_> = inner
+        .iter()
+        .map(|element| match &machine.value(element.value()).unwrap().kind {
+            RuntimeValueKind::Integer(value) => value.as_ref(),
+            _ => panic!("expected nested integer"),
+        })
+        .collect();
+    assert_eq!(nested, ["2", "3"]);
+}
+
 fn operation_v1_runtime_source(outer_arm: &str, callback_operation: &str) -> String {
     format!(
         "act outer:\n    our next: () -> int\n    our other: () -> int\nact signal:\n    our ping: () -> (int -> [outer] int)\nmy relay (thunk:[signal, outer] int) = catch thunk {{ outer::next(), _ -> {outer_arm}, value -> value }}\nmy main = relay ((catch signal::ping() {{ signal::ping(), k -> {{ my response: int -> [outer] int = \\x -> outer::{callback_operation}(); my other_response: int -> [outer] int = \\x -> outer::next(); k response }}, v -> v }}) 0)"

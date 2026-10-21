@@ -173,6 +173,7 @@ pub(super) enum Instruction {
     Integer(Box<str>),
     Boolean(bool),
     String(Box<str>),
+    Tuple { elements: Vec<Label> },
     Name {
         resolution: LocalSourceResolution,
         consumption: NameConsumption,
@@ -564,12 +565,12 @@ impl RuntimeProgram {
                     LocalSourceForm::Sequence { items } => Instruction::Sequence {
                         items: items.iter().map(label).collect::<Result<_, _>>()?,
                     },
-                    // Candidate inference currently refuses Tuple source forms,
-                    // so runtime compilation must not erase one into Unit or
-                    // Group if an unauthenticated caller reaches this layer.
-                    LocalSourceForm::Tuple { .. } => {
-                        return Err(RuntimeUnavailable::InvalidSourceReference);
-                    }
+                    LocalSourceForm::Tuple { elements } => Instruction::Tuple {
+                        elements: elements
+                            .iter()
+                            .map(label)
+                            .collect::<Result<_, _>>()?,
+                    },
                     LocalSourceForm::Case { scrutinee, arms } => Instruction::Case {
                         scrutinee: label(scrutinee)?,
                         arms: arms.iter().map(|arm| {
@@ -1025,6 +1026,7 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
                 for (test, body) in arms { stack.push(*body); stack.push(*test); }
             }
             Instruction::Sequence { items } => stack.extend(items.iter().rev().copied()),
+            Instruction::Tuple { elements } => stack.extend(elements.iter().rev().copied()),
             Instruction::Catch { scrutinee, arms } => {
                 stack.push(*scrutinee);
                 stack.extend(arms.iter().map(|arm| arm.body));
