@@ -252,14 +252,24 @@ my outer (t:[signal] int) = {
         let graph = candidate.solved.data.candidate_graph.as_ref().unwrap();
         let context = &graph.intrusion.effect_algebra.context;
         let references = &candidate.solved.data.candidate_references;
-        let target_relations = [53usize, 56, 57, 62];
-        let mut seen = std::collections::HashSet::new();
+        let effect_bound = |lower, polarity, upper| CandidateSourceBoundKey {
+            lower: CandidateSourceBoundEndpoint::Effect(CandidateSourceEffectEndpoint::EffectRow(lower)),
+            polarity,
+            upper: CandidateSourceBoundEndpoint::Effect(CandidateSourceEffectEndpoint::EffectRow(upper)),
+        };
+        let target_bounds = [
+            effect_bound(29, Polarity::Negative, 9),
+            effect_bound(23, Polarity::Negative, 12),
+            effect_bound(12, Polarity::Negative, 23),
+            effect_bound(12, Polarity::Negative, 29),
+        ];
+        let mut seen = Vec::new();
         for capture in &observed.routes[0].captures {
             let Some(CandidateProviderCaptureStructure::Snapshot {
                 source_bound, relation: Some(relation), coverage_bits,
             }) = capture.structure else { continue; };
-            if !target_relations.contains(&relation) { continue; }
-            seen.insert(relation);
+            if !target_bounds.contains(&source_bound) { continue; }
+            if !seen.contains(&source_bound) { seen.push(source_bound); }
             let relation_id = crate::candidate_context::RelationId(relation as u32);
             let events = context.test_source_events_for_relation(relation_id).unwrap_or(&[]);
             let checking = events.iter().filter_map(|&event| references.observed_checking(event))
@@ -366,6 +376,32 @@ my outer (t:[signal] int) = {
         assert!(!result_frontier.truncated, "Effect(31) predecessor snapshot is complete");
         let has_source_owner = result_frontier.direct_lower_rows.contains(&10);
         println!("R215 effect31_capture_frontier={result_frontier:?} contains_effect10={has_source_owner}");
+        let source_relation = context.origins.iter().find(|origin|
+            origin.occurrence.occurrence().ordinal() == 12
+                && origin.occurrence.local_slot() == 4)
+            .expect("Lambda slot-4 source owner is retained").relation;
+        let captured_source_bound = provider_route.graph.bounds.iter()
+            .find(|bound| bound.source_bound == crate::candidate_effect::BoundKey(
+                crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(10)),
+                Polarity::Negative,
+                crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(31)),
+            ))
+            .expect("Capture retains the Lambda slot-4 source bound through its reverse owner");
+        let captured_relation = captured_source_bound.relation
+            .expect("reverse-owner bound retains a context relation");
+        let lineage = context.test_relation_lineage(captured_relation);
+        assert!(lineage.iter().any(|edge| edge.contains(&format!("upper: {source_relation:?}"))),
+            "captured bound lineage retains the Lambda slot-4 owner");
+        assert_eq!(captured_source_bound.source_bound, crate::candidate_effect::BoundKey(
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(10)),
+            Polarity::Negative,
+            crate::ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(31)),
+        ));
+        let captured_owner = provider_route.graph.rows.iter()
+            .position(|row| row.key == crate::candidate_scheme::RowKey::Effect(10))
+            .expect("reverse-owner capture includes Effect(10)");
+        assert!(provider_route.graph.capture_rows[captured_owner].local);
+        assert!(provider_route.rows.get(captured_owner).is_some(), "local owner has a FreshUse image");
         for (node_index, node) in provider_route.graph.nodes.iter().enumerate() {
             if let crate::candidate_scheme::Node::Function { polarity, children } = node {
                 println!("R210 function_node={node_index} polarity={polarity:?} children={children:?}");
@@ -418,6 +454,9 @@ my outer (t:[signal] int) = {
                 println!("R209 capture_row={row:?}");
             }
         }
-        assert_eq!(seen.into_iter().collect::<std::collections::HashSet<_>>(), target_relations.into_iter().collect());
+        assert_eq!(seen.len(), target_bounds.len());
+        for target in target_bounds {
+            assert!(seen.contains(&target), "source-bound capture is independent of relation allocation order: {target:?}");
+        }
     }
 }

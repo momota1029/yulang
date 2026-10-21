@@ -823,6 +823,16 @@ struct Capture<'a> {
     evidence_charge: &'a CaptureEvidenceMeter,
     session: &'a InferenceSession,
     graph: Graph,
+    /// Canonical (upper row, lower owner) pairs stored in lower rows' upper
+    /// adjacency. Only rows local to this capture are indexed.
+    incoming_effect_upper_owners: Vec<(u32, u32)>,
+    incoming_effect_upper_owners_ready: bool,
+    /// Effect rows reached through the captured type shape, before bound
+    /// endpoints are added. Reverse-owner discovery starts at this frontier.
+    shape_effect_rows: Vec<u32>,
+    /// Completed Lambda body-to-result source Origins, the exact direct source
+    /// owners whose reverse edges the local forwarding Capture must preserve.
+    completed_lambda_effect_origins: Vec<candidate_context::RelationId>,
     endpoints: HashMap<Endpoint, usize>,
     rows: HashMap<RowKey, usize>,
     pending: Vec<Endpoint>,
@@ -830,12 +840,103 @@ struct Capture<'a> {
     boundary: u32,
 }
 impl<'a> Capture<'a> {
+    fn ensure_incoming_effect_upper_owners(&mut self) -> Result<(), SolveAvailabilityError> {
+        if self.incoming_effect_upper_owners_ready {
+            return Ok(());
+        }
+        let session = self.session;
+        let boundary = self.boundary;
+        let context = &session.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra.context;
+        let origin_count = context.origins.iter().filter(|origin| origin.occurrence.local_slot() == 4).count();
+        self.completed_lambda_effect_origins
+            .try_reserve_exact(origin_count)
+            .map_err(|_| exhausted())?;
+        for origin in context.origins.iter().filter(|origin| origin.occurrence.local_slot() == 4) {
+            if origin.source_drain_receipt.as_ref()
+                .is_some_and(|receipt| context.source_drain_completed(receipt))
+            {
+                self.completed_lambda_effect_origins.push(origin.relation);
+            }
+        }
+        self.completed_lambda_effect_origins.sort_unstable_by_key(|relation| relation.0);
+        self.completed_lambda_effect_origins.dedup_by_key(|relation| relation.0);
+        self.charge_evidence()?;
+        let is_local_upper = |upper: u32| -> Result<bool, SolveAvailabilityError> {
+            let ordinal = upper as usize;
+            let level = *session.effect_levels.get(ordinal).ok_or_else(exhausted)?;
+            let metadata = session.effect_metadata.get(ordinal).ok_or_else(exhausted)?;
+            Ok(level > boundary && !metadata.non_generic)
+        };
+        let mut edge_count = 0usize;
+        for (raw_owner, bounds) in session.effect_bounds.iter().enumerate() {
+            let owner = match session.canonical_effect(EffectEndpointKey::EffectRow(raw_owner as u32)) {
+                EffectEndpointKey::EffectRow(owner) => owner,
+                _ => return Err(exhausted()),
+            };
+            for &raw_upper in &bounds.direct_upper_rows {
+                let upper = match session.canonical_effect(EffectEndpointKey::EffectRow(raw_upper)) {
+                    EffectEndpointKey::EffectRow(upper) => upper,
+                    _ => return Err(exhausted()),
+                };
+                let key = candidate_effect::BoundKey(
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(owner)),
+                    Polarity::Negative,
+                    ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(upper)),
+                );
+                let has_completed_lambda_origin = context.bound_relations(key)
+                    .any(|relation| self.completed_lambda_effect_origins
+                        .binary_search_by_key(&relation.0, |candidate| candidate.0).is_ok());
+                if upper != owner && is_local_upper(upper)? && has_completed_lambda_origin {
+                    edge_count = edge_count.checked_add(1).ok_or_else(exhausted)?;
+                }
+            }
+        }
+        self.incoming_effect_upper_owners
+            .try_reserve_exact(edge_count)
+            .map_err(|_| exhausted())?;
+        let indexed = (|| {
+            for (raw_owner, bounds) in session.effect_bounds.iter().enumerate() {
+                let owner = match session.canonical_effect(EffectEndpointKey::EffectRow(raw_owner as u32)) {
+                    EffectEndpointKey::EffectRow(owner) => owner,
+                    _ => return Err(exhausted()),
+                };
+                for &raw_upper in &bounds.direct_upper_rows {
+                    let upper = match session.canonical_effect(EffectEndpointKey::EffectRow(raw_upper)) {
+                        EffectEndpointKey::EffectRow(upper) => upper,
+                        _ => return Err(exhausted()),
+                    };
+                    let key = candidate_effect::BoundKey(
+                        ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(owner)),
+                        Polarity::Negative,
+                        ExtrusionEndpoint::Effect(EffectEndpointKey::EffectRow(upper)),
+                    );
+                    let has_completed_lambda_origin = context.bound_relations(key)
+                        .any(|relation| self.completed_lambda_effect_origins
+                            .binary_search_by_key(&relation.0, |candidate| candidate.0).is_ok());
+                    if upper != owner && is_local_upper(upper)? && has_completed_lambda_origin {
+                        self.incoming_effect_upper_owners.push((upper, owner));
+                    }
+                }
+            }
+            self.incoming_effect_upper_owners.sort_unstable();
+            self.incoming_effect_upper_owners.dedup();
+            Ok(())
+        })();
+        let charged = self.charge_evidence();
+        indexed?;
+        charged?;
+        self.incoming_effect_upper_owners_ready = true;
+        Ok(())
+    }
     fn charge_evidence(&self) -> Result<(), SolveAvailabilityError> {
         #[cfg(test)]
         self.evidence_charge.capacity.set(self.evidence_keys.capacity());
         self.evidence_charge.bytes.set(sum(&[
             bytes::<(candidate_context::EvidenceSnapshot, CapturedEvidenceRef)>(self.evidence_keys.capacity())?,
             bytes::<candidate_context::EvidenceSnapshot>(self.graph.bound_evidence.capacity())?,
+            bytes::<(u32, u32)>(self.incoming_effect_upper_owners.capacity())?,
+            bytes::<u32>(self.shape_effect_rows.capacity())?,
+            bytes::<candidate_context::RelationId>(self.completed_lambda_effect_origins.capacity())?,
         ])?);
         Ok(())
     }
@@ -850,6 +951,20 @@ impl<'a> Capture<'a> {
         push(&mut self.pending, endpoint)?;
         self.endpoints.insert(endpoint, index);
         Ok(index)
+    }
+    fn intern_shape(&mut self, endpoint: Endpoint) -> Result<usize, SolveAvailabilityError> {
+        let endpoint = match endpoint {
+            Endpoint::Value(value, polarity) => Endpoint::Value(self.session.canonical_value(value), polarity),
+            Endpoint::Effect(effect, polarity) => Endpoint::Effect(self.session.canonical_effect(effect), polarity),
+        };
+        if let Endpoint::Effect(EffectEndpointKey::EffectRow(row), _) = endpoint {
+            if !self.shape_effect_rows.contains(&row) {
+                self.shape_effect_rows.try_reserve(1).map_err(|_| exhausted())?;
+                self.shape_effect_rows.push(row);
+                self.charge_evidence()?;
+            }
+        }
+        self.intern(endpoint)
     }
     fn row(&mut self, key: RowKey) -> Result<usize, SolveAvailabilityError> {
         #[cfg(test)]
@@ -1053,14 +1168,14 @@ impl<'a> Capture<'a> {
             Endpoint::Effect(endpoint @ E::Contribution(_), Polarity::Positive) => Node::EffectOperand { endpoint, tail: None, polarity: Polarity::Positive },
             Endpoint::Effect(endpoint @ E::AnnotationMember(id, _), Polarity::Positive) => {
                 let tail = self.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[id as usize].tail;
-                let tail = tail.map(|row| self.intern(Endpoint::Effect(E::EffectRow(row), Polarity::Positive))).transpose()?;
+                let tail = tail.map(|row| self.intern_shape(Endpoint::Effect(E::EffectRow(row), Polarity::Positive))).transpose()?;
                 Node::EffectOperand { endpoint, tail, polarity: Polarity::Positive }
             },
             Endpoint::Effect(endpoint @ E::Allowance(id), Polarity::Negative)
             | Endpoint::Effect(endpoint @ E::Support(id), Polarity::Positive) => {
                 let polarity = if matches!(endpoint, E::Support(_)) { Polarity::Positive } else { Polarity::Negative };
                 let tail = self.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.views[id as usize].tail;
-                let tail = tail.map(|row| self.intern(Endpoint::Effect(E::EffectRow(row), polarity))).transpose()?;
+                let tail = tail.map(|row| self.intern_shape(Endpoint::Effect(E::EffectRow(row), polarity))).transpose()?;
                 Node::EffectOperand { endpoint, tail, polarity }
             }
             Endpoint::Value(V::PositiveFunction(term), Polarity::Positive)
@@ -1112,8 +1227,7 @@ impl<'a> Capture<'a> {
                 let polarities = [opposite, opposite, p, p];
                 let mut children = [0; 4];
                 for i in 0..4 {
-                    children[i] =
-                        self.intern(self.term_endpoint(terms[i], kinds[i], polarities[i])?)?;
+                    children[i] = self.intern_shape(self.term_endpoint(terms[i], kinds[i], polarities[i])?)?;
                 }
                 Node::Function {
                     polarity: p,
@@ -1223,6 +1337,10 @@ impl<'a> Capture<'a> {
                 }
             }
             RowKey::Effect(i) => {
+                let reverse_frontier = self.boundary > 0 && self.shape_effect_rows.contains(&i);
+                if reverse_frontier {
+                    self.ensure_incoming_effect_upper_owners()?;
+                }
                 let state = &session.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.effect_algebra;
                 let mut record = state.capture_incidence.get(&i).map(|bucket| bucket.head);
                 while let Some(index) = record {
@@ -1251,6 +1369,20 @@ impl<'a> Capture<'a> {
                         Endpoint::Effect(EffectEndpointKey::EffectRow(i), p),
                         Endpoint::Effect(EffectEndpointKey::EffectRow(upper), n),
                     )?;
+                }
+                if reverse_frontier {
+                    let incoming_start = self.incoming_effect_upper_owners
+                        .partition_point(|(upper, _)| *upper < i);
+                    for cursor in incoming_start..self.incoming_effect_upper_owners.len() {
+                        let (upper, lower) = self.incoming_effect_upper_owners[cursor];
+                        if upper != i { break; }
+                        self.bound(
+                            ComponentKind::Effect,
+                            Polarity::Negative,
+                            Endpoint::Effect(EffectEndpointKey::EffectRow(lower), p),
+                            Endpoint::Effect(EffectEndpointKey::EffectRow(i), n),
+                        )?;
+                    }
                 }
                 for &lower in &row.exact_non_variable_lowers {
                     if matches!(lower, EffectEndpointKey::EffectRow(_)) {
@@ -1365,11 +1497,15 @@ impl InferenceSession {
             },
             endpoints: HashMap::new(),
             rows: HashMap::new(),
+            incoming_effect_upper_owners: Vec::new(),
+            incoming_effect_upper_owners_ready: false,
+            shape_effect_rows: Vec::new(),
+            completed_lambda_effect_origins: Vec::new(),
             pending: Vec::new(),
             bound_keys: HashSet::new(),
             boundary,
         };
-        capture.graph.root = capture.intern(Endpoint::Value(
+        capture.graph.root = capture.intern_shape(Endpoint::Value(
             ValueEndpointKey::ValueRow(row),
             Polarity::Positive,
         ))?;
@@ -1396,7 +1532,7 @@ impl InferenceSession {
                     // A deferred original demand is a retained latent payload,
                     // even when no structural bound reaches its Function root.
                     if let Some(demand) = context.scoped_flow(relation)?.demand {
-                        capture.intern(Endpoint::Value(ValueEndpointKey::NegativeFunction(demand.root), Polarity::Negative))?;
+                        capture.intern_shape(Endpoint::Value(ValueEndpointKey::NegativeFunction(demand.root), Polarity::Negative))?;
                     }
                 }
             }
@@ -1409,7 +1545,7 @@ impl InferenceSession {
                 let view = algebra.views.get(id as usize).ok_or_else(exhausted)?;
                 algebra.context.validate_payload_view(weight, id, view)?;
                 let tail = view.tail;
-                let tail = tail.map(|tail| capture.intern(Endpoint::Effect(EffectEndpointKey::EffectRow(tail), Polarity::Positive))).transpose()?;
+                let tail = tail.map(|tail| capture.intern_shape(Endpoint::Effect(EffectEndpointKey::EffectRow(tail), Polarity::Positive))).transpose()?;
                 push(&mut capture.graph.context_views, (weight, id, tail))?;
             }
             if capture.pending.is_empty() && row_cursor == capture.graph.rows.len() { break; }
@@ -1443,6 +1579,9 @@ impl InferenceSession {
             bytes::<(RowKey, usize)>(capture.rows.capacity())?,
             bytes::<Endpoint>(capture.pending.capacity())?,
             bytes::<(ComponentKind, Polarity, usize, usize, Option<candidate_context::RelationId>)>(capture.bound_keys.capacity())?,
+            bytes::<(u32, u32)>(capture.incoming_effect_upper_owners.capacity())?,
+            bytes::<u32>(capture.shape_effect_rows.capacity())?,
+            bytes::<candidate_context::RelationId>(capture.completed_lambda_effect_origins.capacity())?,
         ])?;
         if capture.session.batch.candidate_source.scoped_experiment {
             capture.graph.negative_functions.try_reserve(capture.endpoints.len()).map_err(|_| exhausted())?;
