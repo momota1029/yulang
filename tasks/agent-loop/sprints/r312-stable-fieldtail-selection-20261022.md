@@ -1,9 +1,10 @@
 # Sprint R312 — stable FieldTail selection and same-use member graph
 
-Status: ACTIVE, solo Luna primary. Parent R149 remains OPEN.
+Status: RESULT, solo Luna primary; selection parent remains OPEN. Parent R149 remains OPEN.
 Branch / baseline: `research/simple-sub-intrusion` / `3eb3b64eb`.
 Authority: unchanged user goal; `notes/design/2026-10-20-r149-types-console.md`; unified design §§4.1–4.5, 6, 9 stages 2/4 and 10; proof companion §§3.2–3.8, 4.5, 7.2–7.4; R310/R311 receipts.
 Dispatch: degraded serial continuation because the user explicitly prohibits subagents. No independent proof or review receipt is claimed.
+Contract revision 2, primary-approved lease expansion: the pinned Display role declaration and its concrete implementations are in different modules, while the current role implementation resolver only inventories same-module implementations.
 
 ## Parent and measurable outcome
 
@@ -25,9 +26,13 @@ Falsifiers: any candidate selected by spelling/order alone; selection changes af
 
 ## Exact leases and resources
 
-Exact write leases: `crates/yu-solver/src/candidate_source.rs`, `crates/yu-solver/src/candidate_scheme.rs`, `crates/yu-solver/src/candidate_context.rs`, `crates/yu-solver/src/shadow_apply.rs`, `crates/yu-solver/src/lib.rs`, `crates/yu-hir/src/module/source_role.rs`, `crates/yu-hir/src/module/source_impl.rs`, `tools/inference-playground/src/lib.rs`, this contract, `notes/theory/2026-10-22-r312-stable-fieldtail-selection.md`, and Luna-owned `tasks/agent-loop/current.json`. Other paths, pinned sources and expected outputs are read-only. Expand leases before touching an unlisted owner.
+Exact write leases: `crates/yu-solver/src/candidate_source.rs`, `crates/yu-solver/src/candidate_scheme.rs`, `crates/yu-solver/src/candidate_context.rs`, `crates/yu-solver/src/shadow_apply.rs`, `crates/yu-solver/src/lib.rs`, `crates/yu-hir/src/module.rs`, `crates/yu-hir/src/module/source_exports.rs`, `crates/yu-hir/src/module/source_role.rs`, `crates/yu-hir/src/module/source_impl.rs`, `crates/yu-hir/src/shadow.rs`, `tools/inference-playground/src/lib.rs`, this contract, `notes/theory/2026-10-22-r312-stable-fieldtail-selection.md`, and Luna-owned `tasks/agent-loop/current.json`. Other paths, pinned sources and expected outputs are read-only. Expand leases before touching an unlisted owner.
 
 Solo cap 1800 seconds, no carryover; one Cargo process at a time; focused checks at most 120 seconds. No workers or reviewers under the user's no-subagent instruction. Results remain solo and unreviewed. Commit and non-forced push at coherent milestones; keep the tree clean.
+
+## R312 result
+
+The sprint added an authenticated cross-module role/member inventory, exact implementation-member schedule identities, solver input transport for source-owned targets, and a bounded simple-name/tuple structural view of implementation targets with plan memory accounting. HIR and solver focused checks passed. The unchanged Types example still ends at `DeferredSelectionUnavailable`; no receiver-bound applicability, where-obligation discharge, stability proof, FreshUse instantiation, sample success, independent review, or commit was achieved. Continue under a fresh resource envelope; do not treat this RESULT as closure of R149.
 
 ## Stop conditions and continuation
 

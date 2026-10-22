@@ -3294,13 +3294,21 @@ mod authentic_demand_capture_tests {
         let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap();
         let mut session = InferenceSession::try_new_candidate(batch).unwrap();
         session.start_candidate_graph().unwrap();
-        session.execute().unwrap();
+        assert!(matches!(session.execute(), Err(SolveAvailabilityError::DeferredSelectionUnavailable)),
+            "the authentic receiver bounds are inspected before method selection is implemented");
 
         let obligations = session.candidate_graph.as_ref().unwrap().source_field_tail_obligations.values()
             .flat_map(|items| items.iter()).collect::<Vec<_>>();
         assert_eq!(obligations.len(), 1);
         assert_eq!(obligations[0].member.as_ref(), "say");
         let RowKey::Value(receiver) = obligations[0].receiver_row else { panic!("FieldTail receiver is a Value row"); };
+        let receiver_bounds = &session.bounds[receiver as usize];
+        assert!(receiver_bounds.direct_lower_rows.is_empty());
+        assert!(receiver_bounds.direct_upper_rows.is_empty());
+        assert_eq!(receiver_bounds.exact_non_variable_lowers.len(), 1,
+            "the receiver has one ordered concrete tuple lower bound after saturation");
+        assert!(receiver_bounds.exact_non_variable_uppers.is_empty(),
+            "this source occurrence contributes no negative receiver bound");
         let mut pending = vec![receiver];
         let mut visited = HashSet::new();
         let mut pair_element_rows = None;
@@ -3326,6 +3334,12 @@ mod authentic_demand_capture_tests {
         let pair_element_rows = pair_element_rows.expect("receiver has a two-element tuple lower bound");
         assert_eq!(pair_element_rows.len(), 2);
         for (row, expected_leaf) in pair_element_rows.into_iter().zip([ValueEndpointKey::IntPositive, ValueEndpointKey::StrPositive]) {
+            let element_bounds = &session.bounds[row as usize];
+            assert!(element_bounds.direct_lower_rows.is_empty());
+            assert!(element_bounds.direct_upper_rows.is_empty());
+            assert!(element_bounds.exact_non_variable_uppers.is_empty());
+            assert!(element_bounds.exact_non_variable_lowers.iter().all(|bound| *bound == expected_leaf),
+                "each element's complete concrete lower frontier agrees with tuple order");
             let mut pending = vec![row];
             let mut visited = HashSet::new();
             let mut observed_expected_leaf = false;

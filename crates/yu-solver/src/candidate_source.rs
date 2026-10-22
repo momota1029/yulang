@@ -23,6 +23,12 @@ pub(super) struct Plan {
     pub expressions: Vec<ExpressionSchedule>,
     /// Source-owned member bodies stay separate from ordinary module roots.
     pub members: Vec<MemberSchedule>,
+    /// Authenticated implementation targets and exact member overrides for
+    /// imported role members used by this source world.
+    pub role_implementation_members: HashMap<
+        yu_hir::shadow::SourceRoleMemberId,
+        Vec<yu_hir::shadow::SourceRoleImplementationMemberCandidate>,
+    >,
     pub source_owners: HashMap<HirOccurrenceId, SourceRootId>,
     pub loose: Vec<Action>,
     pub component_levels: HashMap<usize, u32>,
@@ -43,6 +49,9 @@ pub(super) struct MemberSchedule {
     /// Exact source role-member key when this root is a role default. An
     /// implementation body stays separately identified by its own root.
     pub role_member: Option<yu_hir::shadow::SourceRoleMemberId>,
+    /// Exact implementation-body member identity. This remains distinct from
+    /// the role member that the implementation may satisfy.
+    pub implementation_member: Option<yu_hir::shadow::SourceImplementationMemberId>,
     pub header: yu_hir::SourceMemberHeader,
     /// Receiver input and body output remain distinct candidate endpoints;
     /// a later selected use must freshen the body before linking these rows.
@@ -63,6 +72,20 @@ impl Plan {
         let mut found = None;
         for (index, schedule) in self.members.iter().enumerate() {
             if schedule.role_member.as_ref() != Some(member) { continue; }
+            if found.replace(index).is_some() { return None; }
+        }
+        found
+    }
+
+    /// Resolve an implementation body only by its parse-owned declaration
+    /// identity. Missing, stale, and duplicate schedules remain unavailable.
+    pub(super) fn unique_implementation_member_schedule(
+        &self,
+        member: &yu_hir::shadow::SourceImplementationMemberId,
+    ) -> Option<usize> {
+        let mut found = None;
+        for (index, schedule) in self.members.iter().enumerate() {
+            if schedule.implementation_member.as_ref() != Some(member) { continue; }
             if found.replace(index).is_some() { return None; }
         }
         found
@@ -429,6 +452,13 @@ impl Plan {
             checked_usize_sum(self.expressions.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "expression actions")), "expression action storage"),
             checked_capacity_bytes::<MemberSchedule>(self.members.capacity(), "member schedules"),
             checked_usize_sum(self.members.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "member actions")), "member action storage"),
+            checked_capacity_bytes::<(yu_hir::shadow::SourceRoleMemberId, Vec<yu_hir::shadow::SourceRoleImplementationMemberCandidate>)>(self.role_implementation_members.capacity(), "role implementation member inventory"),
+            checked_usize_sum(self.role_implementation_members.values().map(|candidates| checked_capacity_bytes::<yu_hir::shadow::SourceRoleImplementationMemberCandidate>(candidates.capacity(), "role implementation candidates")), "role implementation candidate storage"),
+            checked_usize_sum(self.role_implementation_members.values().flat_map(|candidates| candidates.iter()).map(|candidate| candidate.target.text.len()), "implementation target source text"),
+            checked_usize_sum(self.role_implementation_members.values().flat_map(|candidates| candidates.iter()).map(|candidate| candidate.target.shape.as_ref().map_or(0, yu_hir::shadow::SourceImplementationTypeShape::retained_bytes)), "implementation target shape storage"),
+            checked_usize_sum(self.role_implementation_members.values().flat_map(|candidates| candidates.iter()).map(|candidate| checked_capacity_bytes::<Option<yu_hir::shadow::SourceImplementationWhereClause>>(candidate.where_clauses.capacity(), "implementation where-clause inventory")), "implementation where-clause inventory storage"),
+            checked_usize_sum(self.role_implementation_members.values().flat_map(|candidates| candidates.iter()).flat_map(|candidate| candidate.where_clauses.iter().flatten()).map(|where_clause| where_clause.subject.text.len() + where_clause.role.text.len() + where_clause.subject.shape.as_ref().map_or(0, yu_hir::shadow::SourceImplementationTypeShape::retained_bytes) + where_clause.role.shape.as_ref().map_or(0, yu_hir::shadow::SourceImplementationTypeShape::retained_bytes)), "implementation where-clause source storage"),
+            checked_usize_sum(self.role_implementation_members.values().flat_map(|candidates| candidates.iter()).map(|candidate| checked_capacity_bytes::<Option<yu_hir::shadow::SourceRoleId>>(candidate.where_roles.capacity(), "implementation where-role identity inventory")), "implementation where-role identity storage"),
             checked_usize_sum(self.members.iter().map(|schedule| {
                 let header = &schedule.header;
                 header.receiver.spelling.len() + header.method.spelling.len()
@@ -1852,6 +1882,18 @@ impl ConstraintBatch {
                     }),
                     yu_hir::SourceMemberKind::Implementation => None,
                 },
+                implementation_member: match root.kind() {
+                    yu_hir::SourceMemberKind::Role => None,
+                    yu_hir::SourceMemberKind::Implementation => Some(
+                        yu_hir::shadow::SourceImplementationMemberId {
+                            implementation: yu_hir::shadow::SourceImplementationId {
+                                module: Arc::new(root.module().clone()),
+                                declaration: root.declaration_source_key().clone(),
+                            },
+                            declaration: root.member_source_key().clone(),
+                        },
+                    ),
+                },
                 header: header.clone(),
                 receiver, components: positions[body], value: endpoints[body], actions,
             });
@@ -2422,6 +2464,16 @@ mod member_source_tests {
                 }
                 yu_hir::SourceMemberKind::Implementation => assert!(schedule.role_member.is_none()),
             }
+            match member.kind() {
+                yu_hir::SourceMemberKind::Role => assert!(schedule.implementation_member.is_none()),
+                yu_hir::SourceMemberKind::Implementation => {
+                    let implementation_member = schedule.implementation_member.as_ref().unwrap();
+                    assert_eq!(implementation_member.implementation.module.as_ref(), member.module());
+                    assert_eq!(implementation_member.implementation.declaration, *member.declaration_source_key());
+                    assert_eq!(implementation_member.declaration, *member.member_source_key());
+                    assert_eq!(batch.candidate_source.unique_implementation_member_schedule(implementation_member), Some(schedule_index));
+                }
+            }
             let parameter = &source.root_parameters()[0];
             let position = batch.parameter_recipes.iter().position(|id| id == &parameter.id).unwrap();
             assert!(matches!(schedule.receiver, CandidateEndpoint::Parameter(actual) if actual == position));
@@ -2436,12 +2488,21 @@ mod member_source_tests {
         assert!(batch.definitions.is_empty(), "member roots do not become ordinary definitions");
         let role_member = batch.candidate_source.members.iter()
             .find_map(|schedule| schedule.role_member.as_ref()).unwrap();
+        let implementation_member = batch.candidate_source.members.iter()
+            .find_map(|schedule| schedule.implementation_member.as_ref()).unwrap();
         let mut stale = role_member.clone();
         stale.declaration = batch.candidate_source.members[1].root.member_source_key().clone();
         assert_eq!(batch.candidate_source.unique_role_member_schedule(&stale), None);
+        let mut stale_implementation = implementation_member.clone();
+        stale_implementation.declaration = role_member.declaration.clone();
+        assert_eq!(batch.candidate_source.unique_implementation_member_schedule(&stale_implementation), None);
         let mut ambiguous = batch.candidate_source.clone();
         ambiguous.members.push(ambiguous.members[0].clone());
         assert_eq!(ambiguous.unique_role_member_schedule(role_member), None);
+        let implementation_index = ambiguous.members.iter().position(|schedule|
+            schedule.implementation_member.as_ref() == Some(implementation_member)).unwrap();
+        ambiguous.members.push(ambiguous.members[implementation_index].clone());
+        assert_eq!(ambiguous.unique_implementation_member_schedule(implementation_member), None);
         let roots: Vec<_> = batch.candidate_source.members.iter().map(|schedule| schedule.root.clone()).collect();
         let mut session = InferenceSession::try_new_candidate(batch).unwrap();
         assert!(matches!(session.execute(), Err(SolveAvailabilityError::DeferredSelectionUnavailable)),
@@ -2471,5 +2532,38 @@ mod member_source_tests {
             assert_eq!(member.graph.source_field_tail_obligations[0].owner,
                 yu_hir::SourceRootId::Member(root.clone()));
         }
+    }
+
+    #[test]
+    fn post_schedule_readback_recovers_receiver_tuple_shape() {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(
+            "role Echo:\n    our receiver.echo = receiver\nimpl int: Echo:\n    our value.echo = value\nmy pair = (1, \"x\")\npair.echo",
+        );
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "receiver-tuple-readback", "receiver.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap();
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        assert!(matches!(session.execute(), Err(SolveAvailabilityError::DeferredSelectionUnavailable)));
+        let state = session.candidate_graph.as_ref().unwrap();
+        let receiver = state.source_field_tail_obligations.values().flatten()
+            .find(|obligation| matches!(obligation.owner, SourceRootId::Expression(_)))
+            .map(|obligation| obligation.receiver_row)
+            .expect("pair.echo retains its receiver row");
+        let crate::candidate_scheme::RowKey::Value(receiver) = receiver else {
+            panic!("FieldTail receiver is a Value row");
+        };
+        assert_eq!(session.candidate_receiver_positive_shape(receiver), Some(
+            CandidateReceiverShape::Tuple(vec![CandidateReceiverShape::Int, CandidateReceiverShape::Str]),
+        ), "all source schedules drain before ordered receiver bounds are read back");
     }
 }

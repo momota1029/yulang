@@ -106,6 +106,51 @@ fn candidate_imported_definitions(
     }
     Ok(definitions)
 }
+
+fn retain_role_implementation_members(
+    batch: &mut ConstraintBatch,
+    source_indexes: &[yu_hir::SourceExportIndex],
+    role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+) -> Result<(), CandidateError> {
+    let mut requested_by_role: HashMap<
+        yu_hir::shadow::SourceRoleId,
+        Vec<yu_hir::shadow::SourceRoleMemberId>,
+    > = HashMap::new();
+    for recipe in &batch.candidate_recipes {
+        let crate::shadow_apply::CandidateRelation::DeferredFieldTail {
+            role_member_candidates, ..
+        } = &recipe.relation else { continue; };
+        for member in role_member_candidates {
+            if !requested_by_role.contains_key(&member.role) {
+                requested_by_role.try_reserve(1).map_err(|_| CandidateError::Unsupported)?;
+            }
+            let members = requested_by_role.entry(member.role.clone()).or_default();
+            if members.contains(member) { continue; }
+            members.try_reserve(1).map_err(|_| CandidateError::Unsupported)?;
+            members.push(member.clone());
+        }
+    }
+    for (role, members) in requested_by_role {
+        let implementations = yu_hir::shadow::resolve_source_role_implementation_candidates(
+            &role, source_indexes, role_indexes,
+        ).map_err(|_| CandidateError::Unsupported)?;
+        for member in members {
+            let inventory = yu_hir::shadow::resolve_source_role_implementation_members(
+                &member, &implementations, role_indexes,
+            ).map_err(|_| CandidateError::Unsupported)?;
+            if batch.candidate_source.role_implementation_members.contains_key(&member) {
+                return Err(CandidateError::Unsupported);
+            }
+            batch.candidate_source.role_implementation_members.try_reserve(1)
+                .map_err(|_| CandidateError::Unsupported)?;
+            batch.candidate_source.role_implementation_members.insert(
+                member,
+                inventory.implementations,
+            );
+        }
+    }
+    Ok(())
+}
 /// Research-only receipt for one source-linked native callback-field bound.
 /// A yielded row exists only after its exact typed task drains successfully.
 pub struct CandidateOperationFieldV1Receipt<'a> {
@@ -851,6 +896,19 @@ impl CandidateInference {
     pub fn solve_modules(hirs: Vec<Arc<HirModule>>) -> Result<Self, CandidateError> {
         Self::solve_hirs_mode(hirs, false, false)
     }
+    /// Candidate-only module world plus the exact source indexes used to
+    /// resolve imported role implementations. This retains implementation
+    /// target/member evidence for deferred FieldTail consumers; it does not
+    /// select a target or type a member body.
+    pub fn solve_modules_with_role_sources(
+        hirs: Vec<Arc<HirModule>>,
+        source_indexes: &[yu_hir::SourceExportIndex],
+        role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+    ) -> Result<Self, CandidateError> {
+        Self::solve_hirs_mode_with_role_sources(
+            hirs, false, false, Some((source_indexes, role_indexes)),
+        )
+    }
     /// Explicit, research-only entry for the statically linked operation field candidate.
     pub fn solve_operation_v1_research(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
         Self::solve_mode(hir, false, true)
@@ -967,6 +1025,14 @@ impl CandidateInference {
         Self::solve_hirs_mode(vec![hir], scoped, operation_v1)
     }
     fn solve_hirs_mode(hirs: Vec<Arc<HirModule>>, scoped: bool, operation_v1: bool) -> Result<Self, CandidateError> {
+        Self::solve_hirs_mode_with_role_sources(hirs, scoped, operation_v1, None)
+    }
+    fn solve_hirs_mode_with_role_sources(
+        hirs: Vec<Arc<HirModule>>,
+        scoped: bool,
+        operation_v1: bool,
+        role_sources: Option<(&[yu_hir::SourceExportIndex], &[yu_hir::shadow::SourceRoleImplIndex])>,
+    ) -> Result<Self, CandidateError> {
         if hirs.is_empty() { return Err(CandidateError::Unsupported); }
         let imported_definitions = candidate_imported_definitions(&hirs)?;
         let mut permitted_errors = HashSet::new();
@@ -1006,9 +1072,12 @@ impl CandidateInference {
             return Err(CandidateError::Unsupported);
         }
         }
-        let batch = ConstraintBatch::collect_candidate_world_scoped_v1(
+        let mut batch = ConstraintBatch::collect_candidate_world_scoped_v1(
             hirs, true, true, scoped, operation_v1, &imported_definitions,
         ).map_err(CandidateError::Collection)?;
+        if let Some((source_indexes, role_indexes)) = role_sources {
+            retain_role_implementation_members(&mut batch, source_indexes, role_indexes)?;
+        }
         if scoped && batch.scc_plan().components_in_dependency_first_order().any(|component|
             batch.scc_plan().internal_uses(component).is_ok_and(|uses| !uses.is_empty())) {
             return Err(CandidateError::Unsupported);

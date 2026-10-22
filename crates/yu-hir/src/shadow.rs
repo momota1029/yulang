@@ -36,6 +36,7 @@ pub use crate::module::source_role::{
 pub use crate::module::source_impl::{
     SourceImplementationBody, SourceImplementationBodyEntry, SourceImplementationDeclaration,
     SourceImplementationId, SourceImplementationMemberId, SourceImplementationType,
+    SourceImplementationTypeShape, SourceImplementationWhereClause,
 };
 pub use crate::module::source_exports::{
     SourceExportDeclaration, SourceExportId, SourceExportIndex, SourceExportResolution,
@@ -230,6 +231,44 @@ pub struct SourceRoleImplementationSet<'a> {
     pub implementations: Vec<&'a SourceImplementationDeclaration>,
 }
 
+/// One implementation of an authenticated imported role, retaining both the
+/// provider-module index and its exact source declaration identity.
+#[derive(Clone, Debug)]
+pub struct SourceRoleImplementationCandidate<'a> {
+    pub module: &'a SourceRoleImplIndex,
+    pub implementation: &'a SourceImplementationDeclaration,
+    /// Where-clause role identities resolved through the implementation
+    /// module's exact import environment; `None` stays unavailable.
+    pub where_roles: Vec<Option<SourceRoleId>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SourceRoleImplementationCandidates<'a> {
+    pub role: SourceRoleId,
+    pub implementations: Vec<SourceRoleImplementationCandidate<'a>>,
+}
+
+/// Exact implementation-body override (when present) for one role member.
+/// `None` denotes no override; the caller must resolve a role default separately.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceRoleImplementationMemberCandidate {
+    pub implementation: SourceImplementationId,
+    /// Syntactic implementation target retained with its exact source key.
+    pub target: SourceImplementationType,
+    pub member: Option<SourceImplementationMemberId>,
+    /// Ordered implementation prerequisites. A `None` entry preserves a
+    /// source where-clause whose syntax is not supported by this projection.
+    pub where_clauses: Vec<Option<SourceImplementationWhereClause>>,
+    /// Exact role identity parallel to each source where clause.
+    pub where_roles: Vec<Option<SourceRoleId>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SourceRoleImplementationMembers {
+    pub role_member: SourceRoleMemberId,
+    pub implementations: Vec<SourceRoleImplementationMemberCandidate>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SourceRoleImplementationError {
     MissingModule,
@@ -240,6 +279,30 @@ pub enum SourceRoleImplementationError {
     RecoveredImplementation,
     MissingImplementationBody,
     UnsupportedRoleHead,
+    MissingSourceIndex,
+    DuplicateSourceIndex,
+    MissingRoleOwner,
+    AmbiguousRoleImport,
+    UnsupportedRoleImport,
+    RecoveredRoleImport,
+    IdentityExhausted,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceRoleImplementationMemberError {
+    MissingRoleModule,
+    DuplicateRoleModule,
+    StaleRoleMember,
+    RecoveredRoleMember,
+    UnsupportedRoleMember,
+    MissingImplementation,
+    DuplicateImplementationCandidate,
+    StaleImplementation,
+    RecoveredImplementation,
+    MissingImplementationBody,
+    RecoveredImplementationBody,
+    UnsupportedImplementationMember,
+    AmbiguousImplementationMember,
     IdentityExhausted,
 }
 
@@ -441,6 +504,341 @@ pub fn resolve_source_role_implementations<'a>(
         role,
         implementations,
     })
+}
+
+/// Resolves every source implementation of one exact role declaration across
+/// provider modules. Each implementation's role head is joined through that
+/// provider module's parse-owned import leaves (or local role declaration) to
+/// a public role export. This inventories candidates only; it does not match
+/// target types, validate conformance, or select an implementation.
+pub fn resolve_source_role_implementation_candidates<'a>(
+    role_id: &SourceRoleId,
+    source_indexes: &[SourceExportIndex],
+    role_indexes: &'a [SourceRoleImplIndex],
+) -> Result<SourceRoleImplementationCandidates<'a>, SourceRoleImplementationError> {
+    source_module_label(&role_id.module)
+        .ok_or(SourceRoleImplementationError::StaleRole)?;
+    let mut target_role = None;
+    for index in role_indexes {
+        if index.module != *role_id.module.as_ref() { continue; }
+        for role in &index.roles {
+            if role.id == *role_id && target_role.replace(role).is_some() {
+                return Err(SourceRoleImplementationError::StaleRole);
+            }
+        }
+    }
+    let target_role = target_role.ok_or(SourceRoleImplementationError::StaleRole)?;
+    if target_role.recovered || target_role.head.recovered {
+        return Err(SourceRoleImplementationError::RecoveredRole);
+    }
+    let target_head = target_role.head.spelling.as_ref();
+    if !simple_role_head(target_head) {
+        return Err(SourceRoleImplementationError::UnsupportedRoleHead);
+    }
+
+    let mut seen_source_modules = HashSet::new();
+    for index in source_indexes {
+        let label = source_module_label(&index.module)
+            .ok_or(SourceRoleImplementationError::MissingSourceIndex)?;
+        if !seen_source_modules.insert(label) {
+            return Err(SourceRoleImplementationError::DuplicateSourceIndex);
+        }
+    }
+    let mut seen_role_modules = HashSet::new();
+    for index in role_indexes {
+        let label = source_module_label(&index.module)
+            .ok_or(SourceRoleImplementationError::MissingSourceIndex)?;
+        if !seen_role_modules.insert(label) {
+            return Err(SourceRoleImplementationError::DuplicateModule);
+        }
+    }
+
+    let mut implementations = Vec::new();
+    for index in role_indexes {
+        let label = source_module_label(&index.module)
+            .ok_or(SourceRoleImplementationError::MissingSourceIndex)?;
+        source_indexes.iter()
+            .find(|source| source_module_label(&source.module).as_deref() == Some(label.as_ref()))
+            .ok_or(SourceRoleImplementationError::MissingSourceIndex)?;
+        for implementation in &index.implementations {
+            if implementation.id.module.as_ref() != &index.module {
+                return Err(SourceRoleImplementationError::StaleRole);
+            }
+            let text = implementation.role.text.trim();
+            let Some(head) = implementation_role_head(text) else {
+                return Err(SourceRoleImplementationError::UnsupportedRoleHead);
+            };
+            if head != target_head { continue; }
+            if text != head {
+                return Err(SourceRoleImplementationError::UnsupportedRoleHead);
+            }
+            if implementation.recovered || implementation.role.recovered {
+                return Err(SourceRoleImplementationError::RecoveredImplementation);
+            }
+            if implementation.body.is_none() {
+                return Err(SourceRoleImplementationError::MissingImplementationBody);
+            }
+            let mut where_roles = Vec::new();
+            let body = implementation.body.as_ref().expect("body checked above");
+            where_roles.try_reserve(body.entries.iter()
+                .filter(|entry| entry.kind == SyntaxKind::WhereClause).count())
+                .map_err(|_| SourceRoleImplementationError::IdentityExhausted)?;
+            for entry in body.entries.iter().filter(|entry| entry.kind == SyntaxKind::WhereClause) {
+                let role = entry.where_clause.as_ref().and_then(|clause| {
+                    let SourceImplementationTypeShape::Name(name) = clause.role.shape.as_ref()? else {
+                        return None;
+                    };
+                    simple_role_head(name).then_some(name.as_ref())
+                }).and_then(|name| resolve_role_name_in_module(
+                    &index.module, name, source_indexes, role_indexes,
+                ).ok());
+                where_roles.push(role);
+            }
+            let resolved = resolve_role_name_in_module(
+                &index.module, head, source_indexes, role_indexes,
+            )?;
+            if resolved != *role_id { continue; }
+            implementations.try_reserve(1)
+                .map_err(|_| SourceRoleImplementationError::IdentityExhausted)?;
+            implementations.push(SourceRoleImplementationCandidate {
+                module: index,
+                implementation,
+                where_roles,
+            });
+        }
+    }
+
+    Ok(SourceRoleImplementationCandidates {
+        role: role_id.clone(),
+        implementations,
+    })
+}
+
+/// Joins one exact role-member declaration to each authenticated implementation
+/// candidate, retaining an exact body-member override when it exists. An
+/// absent override is represented explicitly so the caller can use the role
+/// default after (and only after) it selects that implementation by target.
+/// This does not compare targets, establish applicability, or select.
+pub fn resolve_source_role_implementation_members(
+    role_member_id: &SourceRoleMemberId,
+    candidates: &SourceRoleImplementationCandidates<'_>,
+    role_indexes: &[SourceRoleImplIndex],
+) -> Result<SourceRoleImplementationMembers, SourceRoleImplementationMemberError> {
+    if candidates.role != role_member_id.role {
+        return Err(SourceRoleImplementationMemberError::StaleRoleMember);
+    }
+    let mut role_module = None;
+    for index in role_indexes {
+        if index.module == *role_member_id.role.module.as_ref()
+            && role_module.replace(index).is_some()
+        {
+            return Err(SourceRoleImplementationMemberError::DuplicateRoleModule);
+        }
+    }
+    let role_module = role_module.ok_or(SourceRoleImplementationMemberError::MissingRoleModule)?;
+    let mut role = None;
+    for declaration in &role_module.roles {
+        if declaration.id == role_member_id.role && role.replace(declaration).is_some() {
+            return Err(SourceRoleImplementationMemberError::StaleRoleMember);
+        }
+    }
+    let role = role.ok_or(SourceRoleImplementationMemberError::StaleRoleMember)?;
+    if role.recovered || role.head.recovered {
+        return Err(SourceRoleImplementationMemberError::RecoveredRoleMember);
+    }
+    let body = role.body.as_ref().ok_or(SourceRoleImplementationMemberError::StaleRoleMember)?;
+    if body.recovered { return Err(SourceRoleImplementationMemberError::RecoveredRoleMember); }
+    let mut role_member = None;
+    for member in &body.members {
+        if member.id == *role_member_id && role_member.replace(member).is_some() {
+            return Err(SourceRoleImplementationMemberError::StaleRoleMember);
+        }
+    }
+    let role_member = role_member.ok_or(SourceRoleImplementationMemberError::StaleRoleMember)?;
+    if role_member.recovered { return Err(SourceRoleImplementationMemberError::RecoveredRoleMember); }
+    let name = source_role_member_name(&role_member.text)
+        .ok_or(SourceRoleImplementationMemberError::UnsupportedRoleMember)?;
+
+    let mut implementations = Vec::new();
+    let mut seen_implementations = HashSet::new();
+    for candidate in &candidates.implementations {
+        if !seen_implementations.insert(candidate.implementation.id.clone()) {
+            return Err(SourceRoleImplementationMemberError::DuplicateImplementationCandidate);
+        }
+        if candidate.implementation.id.module.as_ref() != &candidate.module.module {
+            return Err(SourceRoleImplementationMemberError::StaleImplementation);
+        }
+        let mut declaration = None;
+        for implementation in &candidate.module.implementations {
+            if implementation.id == candidate.implementation.id
+                && declaration.replace(implementation).is_some()
+            {
+                return Err(SourceRoleImplementationMemberError::StaleImplementation);
+            }
+        }
+        let declaration = declaration.ok_or(SourceRoleImplementationMemberError::MissingImplementation)?;
+        if !std::ptr::eq(declaration, candidate.implementation) {
+            return Err(SourceRoleImplementationMemberError::StaleImplementation);
+        }
+        if declaration.recovered || declaration.role.recovered || declaration.target.recovered {
+            return Err(SourceRoleImplementationMemberError::RecoveredImplementation);
+        }
+        let implementation_body = declaration.body.as_ref()
+            .ok_or(SourceRoleImplementationMemberError::MissingImplementationBody)?;
+        if implementation_body.recovered {
+            return Err(SourceRoleImplementationMemberError::RecoveredImplementationBody);
+        }
+        let mut override_member = None;
+        for entry in &implementation_body.entries {
+            let Some(member_id) = &entry.member else { continue; };
+            if member_id.implementation != declaration.id {
+                return Err(SourceRoleImplementationMemberError::StaleImplementation);
+            }
+            if entry.recovered {
+                return Err(SourceRoleImplementationMemberError::RecoveredImplementationBody);
+            }
+            let header = entry.header.as_ref()
+                .ok_or(SourceRoleImplementationMemberError::UnsupportedImplementationMember)?;
+            if header.method.spelling.as_ref() != name { continue; }
+            if override_member.replace(member_id.clone()).is_some() {
+                return Err(SourceRoleImplementationMemberError::AmbiguousImplementationMember);
+            }
+        }
+            implementations.try_reserve(1)
+                .map_err(|_| SourceRoleImplementationMemberError::IdentityExhausted)?;
+        let mut where_clauses = Vec::new();
+        where_clauses.try_reserve(implementation_body.entries.iter()
+            .filter(|entry| entry.kind == SyntaxKind::WhereClause).count())
+            .map_err(|_| SourceRoleImplementationMemberError::IdentityExhausted)?;
+        where_clauses.extend(implementation_body.entries.iter()
+            .filter(|entry| entry.kind == SyntaxKind::WhereClause)
+            .map(|entry| entry.where_clause.clone()));
+        implementations.push(SourceRoleImplementationMemberCandidate {
+            implementation: declaration.id.clone(),
+            target: declaration.target.clone(),
+            member: override_member,
+            where_clauses,
+            where_roles: candidate.where_roles.clone(),
+        });
+    }
+    Ok(SourceRoleImplementationMembers {
+        role_member: role_member_id.clone(),
+        implementations,
+    })
+}
+
+fn source_module_label(module: &crate::ModuleId) -> Option<Box<str>> {
+    let path = module.file().key().normalized_workspace_relative_path();
+    let path = path.strip_prefix("lib/").unwrap_or(path).strip_suffix(".yu")?;
+    if path.is_empty() || path.starts_with('/') || path.split('/').any(str::is_empty) {
+        return None;
+    }
+    Some(path.replace('/', "::").into_boxed_str())
+}
+
+fn resolve_role_name_in_module(
+    module: &crate::ModuleId,
+    name: &str,
+    source_indexes: &[SourceExportIndex],
+    role_indexes: &[SourceRoleImplIndex],
+) -> Result<SourceRoleId, SourceRoleImplementationError> {
+    let mut local_index = None;
+    for index in role_indexes {
+        if &index.module == module {
+            if local_index.replace(index).is_some() {
+                return Err(SourceRoleImplementationError::DuplicateModule);
+            }
+        }
+    }
+    let local_index = local_index.ok_or(SourceRoleImplementationError::MissingModule)?;
+    let mut local_role = None;
+    for role in &local_index.roles {
+        if role.head.spelling.as_ref() == name {
+            if local_role.replace(role).is_some() {
+                return Err(SourceRoleImplementationError::AmbiguousRole);
+            }
+        }
+    }
+    if let Some(role) = local_role {
+        if role.recovered || role.head.recovered {
+            return Err(SourceRoleImplementationError::RecoveredRole);
+        }
+        return Ok(role.id.clone());
+    }
+
+    let importer = source_module_label(module)
+        .ok_or(SourceRoleImplementationError::MissingSourceIndex)?;
+    let source_index = source_indexes.iter()
+        .find(|index| source_module_label(&index.module).as_deref() == Some(importer.as_ref()))
+        .ok_or(SourceRoleImplementationError::MissingSourceIndex)?;
+    let mut found = None;
+    for declaration in &source_index.uses {
+        let leaves = flatten_use_declaration(declaration).map_err(|error| match error {
+            SourceUseFlattenError::Recovered(_) => SourceRoleImplementationError::RecoveredRoleImport,
+            SourceUseFlattenError::UnsupportedShape(_) | SourceUseFlattenError::InvalidPath(_) =>
+                SourceRoleImplementationError::UnsupportedRoleImport,
+        })?;
+        for leaf in leaves {
+            let target = match &leaf.selection {
+                SourceUseSelection::Name(selected) => {
+                    if leaf.alias.as_deref().unwrap_or(selected) != name { continue; }
+                    let Some((_, target_segments)) = leaf.path.split_last() else {
+                        return Err(SourceRoleImplementationError::UnsupportedRoleImport);
+                    };
+                    target_segments.iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::")
+                }
+                SourceUseSelection::Glob { exclusions } => {
+                    if leaf.alias.is_some() || exclusions.iter().any(|excluded| excluded.as_ref() == name) {
+                        continue;
+                    }
+                    leaf.path.iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::")
+                }
+            };
+            if target.is_empty() { return Err(SourceRoleImplementationError::UnsupportedRoleImport); }
+            let resolution = match resolve_public_export(source_indexes, &target, name) {
+                Ok(resolution) if resolution.declaration.kind == SyntaxKind::RoleDeclaration => resolution,
+                Ok(_) => return Err(SourceRoleImplementationError::UnsupportedRoleImport),
+                Err(SourceExportResolveError::MissingExport { .. })
+                    if matches!(leaf.selection, SourceUseSelection::Glob { .. }) => continue,
+                Err(SourceExportResolveError::Recovered { .. }) =>
+                    return Err(SourceRoleImplementationError::RecoveredRoleImport),
+                Err(SourceExportResolveError::Ambiguous { .. }) =>
+                    return Err(SourceRoleImplementationError::AmbiguousRoleImport),
+                Err(_) => return Err(SourceRoleImplementationError::UnsupportedRoleImport),
+            };
+            let identity = role_id_for_export(&resolution, role_indexes)?;
+            if found.as_ref().is_some_and(|previous| previous != &identity) {
+                return Err(SourceRoleImplementationError::AmbiguousRoleImport);
+            }
+            found = Some(identity);
+        }
+    }
+    if let Some(identity) = found { return Ok(identity); }
+
+    let resolution = resolve_public_export(source_indexes, "std::prelude", name)
+        .map_err(|_| SourceRoleImplementationError::MissingRoleOwner)?;
+    if resolution.declaration.kind != SyntaxKind::RoleDeclaration {
+        return Err(SourceRoleImplementationError::UnsupportedRoleImport);
+    }
+    role_id_for_export(&resolution, role_indexes)
+}
+
+fn role_id_for_export(
+    resolution: &SourceExportResolution,
+    role_indexes: &[SourceRoleImplIndex],
+) -> Result<SourceRoleId, SourceRoleImplementationError> {
+    let mut found = None;
+    for index in role_indexes {
+        if source_module_label(&index.module).as_deref() != Some(resolution.module.as_ref()) { continue; }
+        for role in &index.roles {
+            if role.id.declaration == resolution.declaration.source {
+                if found.replace(role.id.clone()).is_some() {
+                    return Err(SourceRoleImplementationError::StaleRole);
+                }
+            }
+        }
+    }
+    found.ok_or(SourceRoleImplementationError::MissingRoleOwner)
 }
 
 fn simple_role_head(value: &str) -> bool {
@@ -3756,6 +4154,87 @@ mod tests {
             "test",
             "source-identity.yu",
         )))
+    }
+
+    #[test]
+    fn imported_role_identity_resolves_implementation_in_another_module() {
+        let role_parsed = parsed("pub role Display 'a:\n    pub receiver.show: str");
+        let role_identity = ModuleIdentity::source_root(crate::FileId::new(crate::FileKey::new(
+            "role-source-route", "lib/roles.yu",
+        )));
+        let role_exports = index_source_exports(role_identity.clone(), &role_parsed).unwrap();
+        let role_index = index_role_impl_sources(role_identity.clone(), &role_parsed).unwrap();
+        let role_id = role_index.roles()[0].id.clone();
+
+        let impl_parsed = parsed(
+            "use roles::Display\nimpl int: Display:\n    our value.show: str = \"\"\nimpl bool: Display:\n    our value.other: str = \"\"",
+        );
+        let impl_identity = ModuleIdentity::source_root(crate::FileId::new(crate::FileKey::new(
+            "role-source-route", "lib/fmt.yu",
+        )));
+        let impl_exports = index_source_exports(impl_identity.clone(), &impl_parsed).unwrap();
+        let impl_index = index_role_impl_sources(impl_identity.clone(), &impl_parsed).unwrap();
+
+        let source_indexes = [role_exports.clone(), impl_exports.clone()];
+        let role_indexes = [role_index.clone(), impl_index.clone()];
+        let resolved = resolve_source_role_implementation_candidates(
+            &role_id, &source_indexes, &role_indexes,
+        ).unwrap();
+        assert_eq!(resolved.role, role_id);
+        assert_eq!(resolved.implementations.len(), 2);
+        let implementation = resolved.implementations.iter().find(|candidate|
+            candidate.implementation.target.text.trim() == "int").unwrap();
+        assert_eq!(implementation.module.module(), impl_identity.module());
+        assert_eq!(implementation.implementation.role.text.trim(), "Display");
+        let role_member = role_index.roles()[0].body.as_ref().unwrap().members[0].id.clone();
+        let members = resolve_source_role_implementation_members(&role_member, &resolved, &role_indexes).unwrap();
+        assert_eq!(members.implementations.len(), 2);
+        let show = members.implementations.iter().find(|candidate|
+            candidate.implementation.declaration == implementation.implementation.id.declaration).unwrap();
+        assert_eq!(show.member.as_ref().unwrap().declaration,
+            impl_index.implementations()[0].body.as_ref().unwrap().entries[0].source);
+        assert_eq!(show.target.text.trim(), "int");
+        let other = members.implementations.iter().find(|candidate|
+            candidate.implementation.declaration != implementation.implementation.id.declaration).unwrap();
+        assert!(other.member.is_none(), "a different implementation method does not masquerade as this role member");
+        let duplicate_candidate = resolved.implementations[0].clone();
+        let duplicate_inventory = SourceRoleImplementationCandidates {
+            role: resolved.role.clone(),
+            implementations: vec![duplicate_candidate.clone(), duplicate_candidate],
+        };
+        assert_eq!(
+            resolve_source_role_implementation_members(&role_member, &duplicate_inventory, &role_indexes).unwrap_err(),
+            SourceRoleImplementationMemberError::DuplicateImplementationCandidate,
+        );
+
+        assert_eq!(
+            resolve_source_role_implementation_candidates(
+                &resolved.role,
+                &[role_exports.clone(), impl_exports.clone(), impl_exports],
+                &[role_index.clone(), impl_index.clone()],
+            ).unwrap_err(),
+            SourceRoleImplementationError::DuplicateSourceIndex,
+        );
+        assert_eq!(
+            resolve_source_role_implementation_candidates(
+                &resolved.role,
+                &[role_exports],
+                &[role_index, impl_index],
+            ).unwrap_err(),
+            SourceRoleImplementationError::MissingSourceIndex,
+        );
+        assert_eq!(
+            resolve_source_role_implementation_members(
+                &SourceRoleMemberId {
+                    role: SourceRoleId { module: Arc::new(impl_identity.module().clone()),
+                        declaration: role_member.role.declaration.clone() },
+                    declaration: role_member.declaration.clone(),
+                },
+                &resolved,
+                &role_indexes,
+            ).unwrap_err(),
+            SourceRoleImplementationMemberError::StaleRoleMember,
+        );
     }
 
     #[test]

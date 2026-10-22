@@ -8,12 +8,72 @@ pub struct SourceImplementationId {
     pub declaration: SourceNodeKey,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceImplementationType {
     pub source: SourceNodeKey,
     pub range: Range<usize>,
     pub text: Box<str>,
     pub recovered: bool,
+    /// A bounded structural view for the simple and tuple target forms used
+    /// by source-directed implementation matching. `None` means the syntax
+    /// remains retained as text but is outside this matcher fragment.
+    pub shape: Option<SourceImplementationTypeShape>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SourceImplementationTypeShape {
+    Name(Box<str>),
+    Tuple(Vec<SourceImplementationTypeShape>),
+}
+
+impl SourceImplementationTypeShape {
+    pub fn retained_bytes(&self) -> usize {
+        match self {
+            Self::Name(name) => name.len(),
+            Self::Tuple(items) => items.capacity()
+                .checked_mul(std::mem::size_of::<Self>())
+                .and_then(|bytes| items.iter().try_fold(bytes, |total, item|
+                    total.checked_add(item.retained_bytes())))
+                .expect("implementation type shape accounting fits usize"),
+        }
+    }
+
+    /// Structurally matches an implementation target against a concrete
+    /// receiver shape, returning the source type-variable substitution.
+    /// Unsupported syntax has no shape and cannot enter this relation.
+    pub fn match_target(
+        &self,
+        actual: &Self,
+    ) -> Option<std::collections::HashMap<Box<str>, Self>> {
+        fn go(
+            pattern: &SourceImplementationTypeShape,
+            actual: &SourceImplementationTypeShape,
+            variables: &mut std::collections::HashMap<Box<str>, SourceImplementationTypeShape>,
+        ) -> Option<()> {
+            match (pattern, actual) {
+                (SourceImplementationTypeShape::Name(name), actual) if name.starts_with('\'') => {
+                    if let Some(previous) = variables.get(name.as_ref()) {
+                        return (previous == actual).then_some(());
+                    }
+                    variables.try_reserve(1).ok()?;
+                    variables.insert(name.clone(), actual.clone());
+                    Some(())
+                }
+                (SourceImplementationTypeShape::Name(left), SourceImplementationTypeShape::Name(right)) => {
+                    (left == right).then_some(())
+                }
+                (SourceImplementationTypeShape::Tuple(left), SourceImplementationTypeShape::Tuple(right))
+                    if left.len() == right.len() => {
+                    for (left, right) in left.iter().zip(right) { go(left, right, variables)?; }
+                    Some(())
+                }
+                _ => None,
+            }
+        }
+        let mut variables = std::collections::HashMap::new();
+        go(self, actual, &mut variables)?;
+        Some(variables)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -26,7 +86,17 @@ pub struct SourceImplementationBodyEntry {
     pub text: Box<str>,
     pub recovered: bool,
     pub header: Option<SourceMemberHeader>,
+    /// Structured subject and role for the implementation's parsed where
+    /// prerequisite. Unsupported clause forms remain source-owned as text and
+    /// have no matcher projection.
+    pub where_clause: Option<SourceImplementationWhereClause>,
     pub(crate) source_path: Option<Box<[u32]>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceImplementationWhereClause {
+    pub subject: SourceImplementationType,
+    pub role: SourceImplementationType,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -64,6 +134,7 @@ fn source_type(
     node: &SyntaxNode,
     counters: &LoweringCounters,
 ) -> Result<SourceImplementationType, HirAvailabilityError> {
+    let text = node.text().to_string();
     Ok(SourceImplementationType {
         source: counters
             .source_nodes
@@ -71,8 +142,63 @@ fn source_type(
             .cloned()
             .ok_or_else(unavailable)?,
         range: crate::range_of(node),
-        text: node.text().to_string().into_boxed_str(),
+        shape: implementation_type_shape(&text, 0),
+        text: text.into_boxed_str(),
         recovered: has_recovery(node),
+    })
+}
+
+fn implementation_type_shape(text: &str, depth: usize) -> Option<SourceImplementationTypeShape> {
+    if depth >= 128 { return None; }
+    let text = text.trim();
+    if text.is_empty() { return None; }
+    if text.starts_with('(') && text.ends_with(')') {
+        let inner = &text[1..text.len() - 1];
+        if inner.trim().is_empty() {
+            return Some(SourceImplementationTypeShape::Tuple(Vec::new()));
+        }
+        let mut nesting = 0usize;
+        let mut start = 0usize;
+        let mut parts = Vec::new();
+        let mut tuple = false;
+        for (offset, character) in inner.char_indices() {
+            match character {
+                '(' => nesting = nesting.checked_add(1)?,
+                ')' => nesting = nesting.checked_sub(1)?,
+                ',' if nesting == 0 => {
+                    tuple = true;
+                    let part = inner[start..offset].trim();
+                    if !part.is_empty() {
+                        parts.try_reserve(1).ok()?;
+                        parts.push(implementation_type_shape(part, depth + 1)?);
+                    }
+                    start = offset + character.len_utf8();
+                }
+                _ => {}
+            }
+        }
+        if nesting != 0 { return None; }
+        if tuple {
+            let last = inner[start..].trim();
+            if !last.is_empty() {
+                parts.try_reserve(1).ok()?;
+                parts.push(implementation_type_shape(last, depth + 1)?);
+            }
+            return Some(SourceImplementationTypeShape::Tuple(parts));
+        }
+        return implementation_type_shape(inner, depth + 1);
+    }
+    implementation_type_name(text)
+        .then(|| SourceImplementationTypeShape::Name(text.to_owned().into_boxed_str()))
+}
+
+fn implementation_type_name(text: &str) -> bool {
+    let name = text.strip_prefix('\'').unwrap_or(text);
+    if name.is_empty() { return false; }
+    name.split("::").all(|part| {
+        let mut characters = part.chars();
+        characters.next().is_some_and(|first| first == '_' || first.is_alphabetic())
+            && characters.all(|character| character == '_' || character.is_alphanumeric())
     })
 }
 
@@ -112,6 +238,7 @@ fn body_entries(
             .get(&node)
             .cloned()
             .ok_or_else(unavailable)?;
+        let where_clause = (!is_member).then(|| implementation_where_clause(&node, counters)).flatten();
         entries.push(SourceImplementationBodyEntry {
             source: source.clone(),
             member: is_member.then(|| SourceImplementationMemberId {
@@ -123,11 +250,31 @@ fn body_entries(
             text: node.text().to_string().into_boxed_str(),
             recovered: has_recovery(&node),
             header: if is_member { local_source::member_header(&node, counters)? } else { None },
+            where_clause,
             source_path: is_member.then(|| crate::source_identity::source_path(root, &node))
                 .transpose()?,
         });
     }
     Ok(entries)
+}
+
+fn implementation_where_clause(
+    node: &SyntaxNode,
+    counters: &LoweringCounters,
+) -> Option<SourceImplementationWhereClause> {
+    let mut parts = node.children_with_tokens().filter(|element| !matches!(
+        element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline
+            | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+    ));
+    if parts.next()?.kind() != SyntaxKind::WhereKw { return None; }
+    let subject = parts.next()?.into_node().filter(|node| node.kind() == SyntaxKind::TypeExpression)?;
+    if parts.next()?.kind() != SyntaxKind::Colon { return None; }
+    let role = parts.next()?.into_node().filter(|node| node.kind() == SyntaxKind::TypeExpression)?;
+    if parts.next().is_some() { return None; }
+    Some(SourceImplementationWhereClause {
+        subject: source_type(&subject, counters).ok()?,
+        role: source_type(&role, counters).ok()?,
+    })
 }
 
 pub(super) fn declarations(
@@ -284,5 +431,48 @@ mod tests {
             assert_eq!(&text[entry.range.clone()], entry.text.as_ref());
         }
         assert!(implementations[1].body.is_none());
+    }
+
+    #[test]
+    fn implementation_target_retains_bounded_tuple_shape() {
+        let text = "impl ('a, ('b, int)): Display:\n    our value.show = value";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "impl-tuple-shape", "impls.yu",
+        )));
+        let hir = super::super::lower_module_with_local_source(
+            identity, &parsed, SemanticImports::empty(),
+        ).unwrap();
+        let implementations = hir.source_implementation_declarations();
+        let [implementation] = implementations else {
+            panic!("one implementation declaration")
+        };
+        assert_eq!(implementation.target.text.trim(), "('a, ('b, int))");
+        assert_eq!(implementation.target.shape, Some(SourceImplementationTypeShape::Tuple(vec![
+            SourceImplementationTypeShape::Name("'a".into()),
+            SourceImplementationTypeShape::Tuple(vec![
+                SourceImplementationTypeShape::Name("'b".into()),
+                SourceImplementationTypeShape::Name("int".into()),
+            ]),
+        ])));
+        let target = implementation.target.shape.as_ref().unwrap();
+        let actual = SourceImplementationTypeShape::Tuple(vec![
+            SourceImplementationTypeShape::Name("str".into()),
+            SourceImplementationTypeShape::Tuple(vec![
+                SourceImplementationTypeShape::Name("bool".into()),
+                SourceImplementationTypeShape::Name("int".into()),
+            ]),
+        ]);
+        let variables = target.match_target(&actual).unwrap();
+        assert_eq!(variables.get("'a"), Some(&SourceImplementationTypeShape::Name("str".into())));
+        assert_eq!(variables.get("'b"), Some(&SourceImplementationTypeShape::Name("bool".into())));
+        assert!(target.match_target(&SourceImplementationTypeShape::Tuple(vec![
+            SourceImplementationTypeShape::Name("str".into()),
+        ])).is_none(), "tuple arity is part of applicability");
     }
 }

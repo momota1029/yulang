@@ -779,6 +779,16 @@ enum ValueEndpointKey {
     NegativeTuple(Term, usize),
 }
 
+#[cfg(test)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum CandidateReceiverShape {
+    Unit,
+    Int,
+    Bool,
+    Str,
+    Tuple(Vec<CandidateReceiverShape>),
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct CanonicalValuePairKey {
     lower: ValueEndpointKey,
@@ -11764,6 +11774,76 @@ impl InferenceSession {
             if let ValueEndpointKey::ValueRow(row) = endpoint { return ValueEndpointKey::ValueRow(state.intrusion.value_rep(row)); }
         }
         endpoint
+    }
+    #[cfg(all(test, feature = "shadow-apply-candidate"))]
+    fn candidate_receiver_positive_shape(&self, row: u32) -> Option<CandidateReceiverShape> {
+        fn merge(
+            current: &mut Option<CandidateReceiverShape>,
+            next: Option<CandidateReceiverShape>,
+        ) -> Option<()> {
+            let Some(next) = next else { return Some(()); };
+            match current {
+                Some(previous) if *previous != next => None,
+                Some(_) => Some(()),
+                None => { *current = Some(next); Some(()) }
+            }
+        }
+        fn row_shape(
+            session: &InferenceSession,
+            row: u32,
+            active: &mut HashSet<u32>,
+            depth: usize,
+        ) -> Option<CandidateReceiverShape> {
+            if depth >= 128 { return None; }
+            let ValueEndpointKey::ValueRow(row) = session.canonical_value(ValueEndpointKey::ValueRow(row)) else { unreachable!() };
+            if !active.insert(row) { return None; }
+            let bounds = session.bounds.get(row as usize)?;
+            let mut shape = None;
+            for lower in &bounds.direct_lower_rows {
+                merge(&mut shape, Some(row_shape(session, *lower, active, depth + 1)?))?;
+            }
+            for lower in &bounds.exact_non_variable_lowers {
+                if matches!(session.canonical_value(*lower), ValueEndpointKey::BottomPositive) {
+                    continue;
+                }
+                merge(&mut shape, Some(endpoint_shape(session, *lower, active, depth + 1)?))?;
+            }
+            active.remove(&row);
+            shape
+        }
+        fn endpoint_shape(
+            session: &InferenceSession,
+            endpoint: ValueEndpointKey,
+            active: &mut HashSet<u32>,
+            depth: usize,
+        ) -> Option<CandidateReceiverShape> {
+            if depth >= 128 { return None; }
+            match session.canonical_value(endpoint) {
+                ValueEndpointKey::UnitPositive => Some(CandidateReceiverShape::Unit),
+                ValueEndpointKey::IntPositive => Some(CandidateReceiverShape::Int),
+                ValueEndpointKey::BoolPositive => Some(CandidateReceiverShape::Bool),
+                ValueEndpointKey::StrPositive => Some(CandidateReceiverShape::Str),
+                ValueEndpointKey::ValueRow(row) => row_shape(session, row, active, depth + 1),
+                ValueEndpointKey::PositiveTuple(term, arity) => {
+                    let TermView::PositiveTuple { elements } = session.store.term_view(term).ok()? else { return None; };
+                    if elements.len() != arity { return None; }
+                    let mut tuple = Vec::new();
+                    tuple.try_reserve_exact(arity).ok()?;
+                    for element in elements {
+                        let endpoint = session.value_endpoint(*element, Polarity::Positive);
+                        tuple.push(endpoint_shape(session, endpoint, active, depth + 1)?);
+                    }
+                    Some(CandidateReceiverShape::Tuple(tuple))
+                }
+                // Bottom contributes no concrete receiver shape. Functions,
+                // upper bounds and unsupported constructors fail closed.
+                ValueEndpointKey::BottomPositive => None,
+                _ => None,
+            }
+        }
+
+        let mut active = HashSet::new();
+        row_shape(self, row, &mut active, 0)
     }
     fn canonical_effect(&self, endpoint: EffectEndpointKey) -> EffectEndpointKey {
         #[cfg(feature = "shadow-apply-candidate")]

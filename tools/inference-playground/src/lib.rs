@@ -395,10 +395,10 @@ fn prepare(
     let solved = if scoped {
         CandidateInference::solve_scoped_experiment(hir.clone())
     } else {
-    let providers = pinned_provider_projection(&hir, &provider_sources, &indexes, &role_indexes)?;
+        let providers = pinned_provider_projection(&hir, &provider_sources, &indexes, &role_indexes)?;
         let mut modules = providers;
         modules.push(hir.clone());
-        CandidateInference::solve_modules(modules)
+        CandidateInference::solve_modules_with_role_sources(modules, &indexes, &role_indexes)
     };
     let candidate = solved.map_err(|error| match error {
         CandidateError::Unsupported => {
@@ -897,6 +897,11 @@ mod tests {
         assert!(tuple_display.body.as_ref().unwrap().entries[..2]
             .iter()
             .all(|entry| entry.kind == yu_syntax::SyntaxKind::WhereClause));
+        assert_eq!(tuple_display.body.as_ref().unwrap().entries[..2].iter()
+            .map(|entry| {
+                let where_clause = entry.where_clause.as_ref().expect("structured implementation where clause");
+                (where_clause.subject.text.trim().to_owned(), where_clause.role.text.trim().to_owned())
+            }).collect::<Vec<_>>(), [("'a".to_owned(), "Display".to_owned()), ("'b".to_owned(), "Display".to_owned())]);
         assert_eq!(
             tuple_display.body.as_ref().unwrap().entries[2].kind,
             yu_syntax::SyntaxKind::BindingStatement
@@ -1165,6 +1170,24 @@ mod tests {
             .expect("tuple implementation retains its show member identity");
         assert_eq!(tuple_show.implementation, tuple_display.id);
         assert_eq!(tuple_show.declaration, tuple_display.body.as_ref().unwrap().entries[2].source);
+        let all_display_implementations = yu_hir::shadow::resolve_source_role_implementation_candidates(
+            &expected_display_id, &indexes, &provider_role_indexes,
+        ).expect("all cross-module Display implementation heads resolve to the exact role");
+        let display_say_candidates = yu_hir::shadow::resolve_source_role_implementation_members(
+            &resolved_display_say.id, &all_display_implementations, &provider_role_indexes,
+        ).expect("the exact say member joins each implementation override");
+        let tuple_say = display_say_candidates.implementations.iter()
+            .find(|candidate| candidate.target.text.trim() == "('a, 'b)")
+            .expect("the ordered-pair implementation remains in the authenticated candidate set");
+        assert_eq!(tuple_say.where_clauses.len(), 2);
+        assert_eq!(tuple_say.where_clauses.iter().map(|clause| {
+            let clause = clause.as_ref().expect("supported generic role prerequisite");
+            (clause.subject.text.trim(), clause.role.text.trim())
+        }).collect::<Vec<_>>(), [("'a", "Display"), ("'b", "Display")]);
+        assert_eq!(tuple_say.where_roles, [Some(expected_display_id.clone()), Some(expected_display_id.clone())],
+            "both generic prerequisites resolve through the implementation module to the exact imported Display role");
+        assert_eq!(tuple_say.member, None,
+            "the tuple implementation has no say override, so its default stays a separate source member");
         assert!(matches!(
             yu_hir::shadow::resolve_source_role_implementations(
                 &expected_display_id,
