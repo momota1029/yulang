@@ -202,6 +202,8 @@ pub(crate) fn scan_nud_payload(
         )
     }) {
         CurrentPayload::Operator(operator)
+    } else if let Some(token) = i.token(scan_expression_symbol_colon) {
+        CurrentPayload::Token(token)
     } else if let Some(token) = i.token(scan_identifier) {
         CurrentPayload::Token(token)
     } else {
@@ -966,6 +968,37 @@ fn scan_expression_colon(mut i: LexIn) -> Option<Token> {
         kind: TokenKind::Colon,
         text: text.into(),
     })
+}
+
+fn scan_expression_symbol_colon(mut i: LexIn) -> Option<Token> {
+    let (accepted, text) = i.rb().with_str(|mut symbol| {
+        (symbol.next()? == ':').then_some(())?;
+        identifier_starts(symbol.remainder()).then_some(())
+    });
+    accepted?;
+    Some(Token { kind: TokenKind::ExpressionSymbolColon, text: text.into() })
+}
+
+pub(crate) fn is_expression_symbol_item(remaining: &str, item: &Item) -> bool {
+    item.payload_view().token_kind() == Some(TokenKind::Colon) && identifier_starts(remaining)
+}
+
+/// Expression-only vocabulary; generic declaration scans retain plain Colon.
+/// Consume only the colon so an outer Pattern owner can receive the same Item.
+pub(crate) fn scan_expression_payload_with_symbols(
+    mut i: LexIn, site: OperatorSite, has_leading_trivia: bool,
+    payload_origin: usize, fence: Option<&FenceBoundary>, baseline: usize, stops: Stops,
+) -> Option<AcceptedPayload> {
+    let mut accepted = scan_expression_payload(i.rb(), site, has_leading_trivia,
+        payload_origin, fence, baseline, stops)?;
+    if (matches!(site, OperatorSite::Nud) || has_leading_trivia)
+        && identifier_starts(i.remainder())
+        && let CurrentPayload::Token(token) = &mut accepted.payload
+        && token.kind == TokenKind::Colon
+    {
+        token.kind = TokenKind::ExpressionSymbolColon;
+    }
+    Some(accepted)
 }
 
 fn scan_type_arrow(i: LexIn) -> Option<Token> {

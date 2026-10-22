@@ -250,7 +250,7 @@ struct PatternState {
     native: PatternCompletion,
     unresolved_path_member: bool,
     identifier_receiver: bool,
-    qualified_constructor: bool,
+    explicit_constructor: bool,
 }
 
 impl PatternState {
@@ -259,7 +259,7 @@ impl PatternState {
             native,
             unresolved_path_member: false,
             identifier_receiver: false,
-            qualified_constructor: false,
+            explicit_constructor: false,
         }
     }
 
@@ -807,13 +807,14 @@ fn pattern_from_primary_with_recovered_tail_stops_normalized(
                 ambient,
             )
         }
-        Some(TokenKind::Colon | TokenKind::PatternSymbolColon) => {
+        Some(TokenKind::Colon | TokenKind::PatternSymbolColon | TokenKind::ExpressionSymbolColon) => {
             completion.identifier_receiver = false;
             i.state.start_node(SyntaxKind::SymbolPattern.into());
             emit_token_item(&mut i, item);
             let entry = suffix_marker(i.rb());
             let mut tail_stops = stops;
             if let Some(name) = i.token(scan_identifier) {
+                completion.explicit_constructor = true;
                 emit_token_item(
                     &mut i,
                     Item::plain(LeadingTrivia::default(), Payload::Token(name)),
@@ -1056,7 +1057,7 @@ fn pattern_tail_normalized(
             member_completion.native == PatternCompletion::Incomplete;
         completion.native = member_completion.native;
         completion.identifier_receiver = member_completion.native == PatternCompletion::Complete;
-        completion.qualified_constructor = member_completion.native == PatternCompletion::Complete;
+        completion.explicit_constructor = member_completion.native == PatternCompletion::Complete;
         i.state.finish_node();
         return pattern_tail_normalized(
             i,
@@ -1077,7 +1078,7 @@ fn pattern_tail_normalized(
         && !item.leading_view().has_ordinary_trivia()
         && completion.identifier_receiver
     {
-        completion.qualified_constructor = false;
+        completion.explicit_constructor = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternFieldTail.into());
         emit_token_item(&mut i, item);
@@ -1092,7 +1093,7 @@ fn pattern_tail_normalized(
             emit_token_item(&mut i, item);
             completion.native = PatternCompletion::Complete;
             completion.identifier_receiver = true;
-            completion.qualified_constructor = false;
+            completion.explicit_constructor = false;
             (item, item_origin, line_entry) =
                 pattern_item_normalized(i.rb(), item_origin, line_entry, fence, stops);
         } else {
@@ -1118,7 +1119,7 @@ fn pattern_tail_normalized(
     }
     if token_kind(&item) == Some(TokenKind::LParen) && !item.leading_view().has_ordinary_trivia() {
         completion.identifier_receiver = false;
-        completion.qualified_constructor = false;
+        completion.explicit_constructor = false;
         let mut call_completion = PatternState::new(PatternCompletion::Complete);
         let exit = delimited::call_pattern(
             i,
@@ -1140,7 +1141,7 @@ fn pattern_tail_normalized(
     }
     if is_pattern_alias(&item) && minimum <= PatternPrecedence::Alias {
         completion.identifier_receiver = false;
-        completion.qualified_constructor = false;
+        completion.explicit_constructor = false;
         completion.native = PatternCompletion::Incomplete;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternAliasTail.into());
@@ -1235,7 +1236,7 @@ fn pattern_tail_normalized(
         && minimum <= PatternPrecedence::TypeAnnotation
     {
         completion.identifier_receiver = false;
-        completion.qualified_constructor = false;
+        completion.explicit_constructor = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state.start_node(SyntaxKind::PatternTypeAnnotation.into());
         emit_token_item(&mut i, item);
@@ -1258,12 +1259,13 @@ fn pattern_tail_normalized(
         && item.leading_view().has_ordinary_trivia()
         && ((stops & (PATTERN_STOP_ITEM | PATTERN_STOP_RECOVERED_PRIMARY) == 0
             && item.leading_view().gml_continues_deeper_than(baseline))
-            || (completion.qualified_constructor && !item.leading_view().has_ordinary_newline()))
+            || (completion.explicit_constructor && !item.leading_view().has_ordinary_newline()))
         && !is_current_pattern_tail(&item, stops)
         && is_pattern_nud(&item, stops)
     {
+        let outer_constructor = completion.explicit_constructor;
         completion.identifier_receiver = false;
-        completion.qualified_constructor = false;
+        completion.explicit_constructor = false;
         item.emit_all_remaining_leading(&mut *i.state);
         i.state
             .start_node(SyntaxKind::PatternMlApplicationTail.into());
@@ -1284,6 +1286,10 @@ fn pattern_tail_normalized(
             fence,
             ambient,
         );
+        // The payload's head cannot replace the outer constructor's permission.
+        completion.explicit_constructor = outer_constructor
+            && completion.reported() == PatternCompletion::Complete;
+        completion.identifier_receiver = false;
         item_origin = advanced_origin(item_origin, entry, i.rb());
         i.state.finish_node();
         return continue_pattern_tail_normalized(
@@ -1582,7 +1588,7 @@ pub(super) fn is_pattern_nud(item: &Item, stops: PatternStops) -> bool {
     (!is_pattern_word_stop(item, stops)
         && is_pattern_primary(item)
         && !(stops & PATTERN_STOP_LBRACE != 0 && token_kind(item) == Some(TokenKind::LBrace)))
-        || token_kind(item) == Some(TokenKind::PatternSymbolColon)
+        || matches!(token_kind(item), Some(TokenKind::PatternSymbolColon | TokenKind::ExpressionSymbolColon))
         || (token_kind(item) == Some(TokenKind::Colon)
             && stops & (PATTERN_STOP_COLON | PATTERN_STOP_PRIMARY_COLON) == 0)
         || item.payload_view().spelling() == Some("\"")

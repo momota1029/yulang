@@ -2593,3 +2593,112 @@ No original sample/assertion changed; direct primary only, UNREVIEWED. Next
 inspect original case-pattern/struct source constructors for the remaining
 catalog. General receiving, initialization, source adequacy, A/B, principality
 and production gates remain OPEN.
+
+### Explicit symbol-pattern payload continuation (in progress)
+
+Original Button/Tour case arms use `:label text`, `:ok msg`, `:err code`. The
+existing parser has a complete SymbolPattern constructor but applies the
+case/catch caller's PATTERN_STOP_ITEM to its payload. R280 already permits a
+completed syntactically explicit `::` head to own same-line payloads. Its
+qualified_constructor state is currently overwritten by the argument traversal,
+so a second payload's disposition can depend on the argument's qualification
+rather than the outer head. Pinned Y2 pat/parse.rs admits ordered ApplyML tails
+after both PolyVariantStart and qualified paths, retaining the outer tail loop
+and leaving arrow/guard boundaries with the arm.
+
+Provisional narrow caller contract under the user's original-sample completion
+and autonomous provisional-decision instruction: a completed `:tag` is another
+explicit constructor head. A nonempty same-line run followed by a Pattern NUD
+may form a payload tail; arrow, guard, close, comma and newline remain the
+existing caller frontiers. A missing tag never grants this permission. After
+a child returns, restore the outer constructor classification, conditional on
+complete child/path status; the child's identifier/qualification cannot decide
+which outer payloads exist. Plain unqualified heads still obey PATTERN_STOP_ITEM,
+so the unresolved `just text` contract is not silently changed. This extends
+only R280's explicit-head syntax continuation; actual constructor resolution,
+variant typing/matching and whole Button/Tour execution remain OPEN.
+
+Induction on payload count: the completed head provides the initial permission;
+each successful child consumes one genuine PatternMlApplicationTail under the
+existing precedence and leaves its boundary Item intact; restoring the same
+outer permission repeats that step, preserving child order and the arm's arrow.
+A rejected/missing child does not establish completion. No source rescanning,
+name lookup, invented receiver, or new token/node kind is needed. Direct primary
+only, UNREVIEWED; no independent semantic approval or theorem closure is claimed.
+
+The SymbolPattern focus passes; full syntax is 1441 pass / the same inherited
+ordinal failure / 1 ignored. The remaining two original Button syntax errors
+are its expression `:label`/`:disabled` atoms. Pinned parser scan/mod.rs:140-151
+recognizes the entire colon-plus-ident as Symbol; LED requires leading trivia,
+NUD does not. expr/scan.rs gives accepted dynamic operators priority and admits
+the atom through ordinary ML application. Restore this exact vocabulary in the
+shared expression scanner, with appended Symbol token and SymbolExpression node.
+`f:tag` remains colon application, `f :tag` is ML of a symbol, and `::path`, lone
+colon or colon followed by trivia never become a Symbol. Thus no malformed
+symbol node/recovery slot is introduced: only a completed lexical token owns the
+new primary. Ordinary Item/trivia ownership and expression tails remain shared.
+Downstream source admission stays explicit Unsupported until a real variant
+constructor is added; Symbol must never masquerade as an unresolved identifier
+or integer. This is pinned syntax correspondence, not variant typing/safety.
+
+The first whole-token prototype falsified the proposed shared-scanner boundary:
+generic struct/variant declaration scans also call scan_expression_payload, and
+a Case body can return its next Pattern Item already scanned. Whole Symbol
+consumed the field colon/tag too early (20 new syntax regressions). Refine at
+lexical/expression_item's actual expression wrapper: accepted operators retain
+priority; a plain colon with proven adjacent identifier is reclassified as an
+ExpressionSymbolColon, consuming no identifier yet. Generic declaration scans
+retain plain Colon. The pending Item is also valid at a Pattern primary, which
+consumes its still-present identifier using the existing SymbolPattern path.
+SymbolExpression emits the same Colon/Identifier children, and advances its
+source origin by the actual consumed identifier bytes. This retains owner
+handoff without rescanning or splitting an already-consumed token. Append only
+SymbolExpression; the failed whole-Symbol prototype is not the final grammar.
+
+The final syntax construction also covers canonical statement entry. A plain
+Colon returned by a generic declaration scan is promoted only by the real
+Statement admission owner when its adjacent identifier is still present. The
+expression owner consumes that identifier; the Rowan emitter only emits the
+already-owned tokens. Generic struct/variant fields keep their existing colon
+classification. Public parse tests cover standalone tags, binding/declaration
+successors, braced/indented bodies and the entire unchanged Button sample.
+Current syntax result: 1444 pass / the same pre-existing ordinal failure /
+1 ignored; no existing source, ordinal or expectation was changed. The original
+Button has zero syntax diagnostics and exact original bytes. Its variant
+source carrier, matching constraints/runtime, and interpolation remain OPEN.
+
+Next source correspondence is pinned in Y2 expr/chain.rs:164 onward: a Symbol
+head consumes the consecutive ApplyML/ApplyC payload prefix as a PolyVariant
+constructor, not ordinary Function calls; effects join in payload order and
+both polarized variant endpoints retain the tag and corresponding payload rows.
+Other tails apply after that constructor. pattern.rs:493 retains the same tag
+and ordered binder rows. control.rs:266 onward allocates each arm's own pattern
+row and links it both ways to the original scrutinee with a Pattern origin.
+The original propagation helper at machine/propagate.rs:672 skips unmatched tags
+and unequal arities, so those skips alone cannot serve as an acceptance proof;
+the boundary compatibility/native matching owner must be inspected before
+publishing variant typing. No Record/Tuple encoding or unconditional tag
+compatibility is justified by this source census.
+
+Symbol syntax checkpoint: final native playground **272/272** and fresh WASM
+**54 execution examples plus module/diagnostic checks** pass. All 19 original
+catalog hashes are unchanged; behavior remains **7/19**. Original Tour syntax
+diagnostics decrease from 9 to 5, and Button from 4 to 0. Button's next actual
+reported gate is SourceImportResolutionUnavailable (not successful inference);
+variant source/binder formation and interpolation still need their real owners.
+No source fixture or existing expectation was weakened. Full syntax remains
+1444 pass / the inherited ordinal failure / 1 ignored. Direct primary only,
+UNREVIEWED; all original parent proof/production obligations remain OPEN.
+
+The pinned mono/boundary.rs:155 checks every concrete source variant against a
+same-tag, same-arity target and recursively checks payload compatibility. This
+is stricter than the propagation helper's missing-tag/arity skips. The pinned
+subtype_provenance_characterization test `poly-variant-tag` uses
+`case :some 1: :none -> 0` and retains a real none/some mismatch. Conversely
+pinned lowering/tests/case_03.rs:237 onward expects multi-tag case formals to
+retain payloads and lower without errors. Therefore simply rejecting each
+disjoint positive/negative singleton pair during propagation would not supply
+the required original constructor/case boundary construction. Next retain the
+authentic source constructor/binder data and derive the actual whole-boundary
+variant view before enabling its publication. These source inspections are not
+claimed as a fresh execution of the pinned Oracle tests.

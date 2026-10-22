@@ -16,7 +16,7 @@ use crate::{
 
 use crate::{
     cursor::SyntaxIn,
-    cursor::recovery::emit::{emit_identifier_core, emit_integer_core, emit_operator_use},
+    cursor::recovery::emit::{emit_identifier_core, emit_integer_core, emit_operator_use, emit_symbol_core},
     expression::{
         case_like::{CaseLikeFamily, case_like_nud_normalized},
         delimited::parenthesized_nud_normalized,
@@ -332,6 +332,19 @@ pub(super) fn append_nud(
                 fence,
                 ambient,
                 sequence,
+            )
+        }
+        // A plain Colon reaches this NUD only through the canonical Statement
+        // owner's adjacent-identifier admission; generic declarations keep it.
+        Some(TokenKind::ExpressionSymbolColon | TokenKind::Colon) => {
+            let entry = suffix_marker(i.rb());
+            let identifier = i.token(crate::lexical::lexer::scan_identifier)
+                .expect("a Symbol colon retains its adjacent identifier");
+            emit_symbol_core(&mut i, nud, identifier);
+            let item_origin = advanced_origin(item_origin, entry, i.rb());
+            scan_tail_after_accept_normalized(
+                i, threshold, baseline, stops, ml_mode, line_handoff,
+                item_origin, line_entry, fence, ambient, sequence,
             )
         }
         Some(TokenKind::LParen) => parenthesized_nud_normalized(
@@ -1032,7 +1045,7 @@ fn is_expression_rule_literal_opener(item: &Item) -> bool {
 fn is_normal_core_item(item: &Item) -> bool {
     matches!(
         token_kind(item),
-        Some(TokenKind::Identifier | TokenKind::Integer | TokenKind::LParen | TokenKind::Backslash)
+        Some(TokenKind::Identifier | TokenKind::Integer | TokenKind::ExpressionSymbolColon | TokenKind::LParen | TokenKind::Backslash)
     )
 }
 

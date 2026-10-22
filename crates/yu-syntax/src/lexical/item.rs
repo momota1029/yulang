@@ -281,6 +281,7 @@ pub(crate) enum TokenKind {
     EffectRowApostrophe,
     PolymorphicVariantColon,
     PatternSymbolColon,
+    ExpressionSymbolColon,
     PathSeparator,
     Pipe,
     Unknown,

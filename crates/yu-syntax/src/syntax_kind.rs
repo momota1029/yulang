@@ -292,6 +292,7 @@ pub enum SyntaxKind {
     LambdaExpression,
     PatternFieldTail,
     WhereClause,
+    SymbolExpression,
 }
 
 impl From<SyntaxKind> for RowanSyntaxKind {
@@ -309,6 +310,7 @@ impl Language for YulangLanguage {
 
     fn kind_from_raw(raw: RowanSyntaxKind) -> Self::Kind {
         match raw.0 {
+            value if value == SyntaxKind::SymbolExpression as u16 => SyntaxKind::SymbolExpression,
             value if value == SyntaxKind::LambdaExpression as u16 => SyntaxKind::LambdaExpression,
             value if value == SyntaxKind::Root as u16 => SyntaxKind::Root,
             value if value == SyntaxKind::Missing as u16 => SyntaxKind::Missing,

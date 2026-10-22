@@ -709,6 +709,38 @@ fn assignment_newline_eof_is_protected_before_and_after_error() {
 }
 
 #[test]
+fn symbol_atoms_preserve_colon_and_ml_application_ownership() {
+    for (source, symbols, colon_tails) in [
+        (":disabled", 1, 0),
+        (":label \"send\"", 1, 0),
+        ("render :pending", 1, 0),
+        ("render:pending", 0, 1),
+        ("say: button: :label \"send\"", 1, 2),
+        ("f :タグ", 1, 0),
+        ("f /*gap*/ :ok", 1, 0),
+        ("f ::name", 0, 0),
+    ] {
+        let (green, _, _) = parse(source, None, MlMode::All, 0);
+        assert_eq!(green.to_string(), source);
+        assert!(structural_facts(&green).is_empty(), "{source}");
+        let root = SyntaxNode::new_root(green);
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::SymbolExpression).count(), symbols, "{source}");
+        assert_eq!(root.descendants().filter(|node| node.kind() == SyntaxKind::ColonApplicationTail).count(), colon_tails, "{source}");
+        for symbol in root.descendants().filter(|node| node.kind() == SyntaxKind::SymbolExpression) {
+            let token = symbol.first_token().unwrap();
+            assert_eq!(token.kind(), SyntaxKind::Colon);
+            assert_eq!(token.text(), ":");
+            assert_eq!(symbol.last_token().unwrap().kind(), SyntaxKind::Identifier);
+            assert!(symbol.children().next().is_none());
+        }
+    }
+    for source in [":", ": tag", "::name"] {
+        let (green, _) = run(source);
+        assert!(!SyntaxNode::new_root(green).descendants().any(|node| node.kind() == SyntaxKind::SymbolExpression), "{source}");
+    }
+}
+
+#[test]
 fn ml_argument_whitespace_returns_fixed_tails_to_the_outer_chain() {
     for (source, tail) in [
         ("box {} .say", SyntaxKind::FieldTail),

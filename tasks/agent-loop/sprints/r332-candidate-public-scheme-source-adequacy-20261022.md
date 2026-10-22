@@ -451,3 +451,52 @@ has one unchanged ordinal failure, detailed in the proof note. Original catalog
 7/19 with all source hashes checked. Next inspect remaining case-pattern/struct
 source owners within the existing envelope. Direct primary only, UNREVIEWED;
 original parent proof/source/production gates remain OPEN.
+
+Next syntax slice leases exactly crates/yu-syntax/src/pattern/mod.rs and
+crates/yu-syntax/src/tests/case_like.rs. Under the user's unchanged-original-
+sample/provisional-decision direction, extend R280's syntactically explicit
+constructor payload path to complete `:tag` SymbolPattern heads and preserve
+the outer constructor state across multiple payload children. The governing
+construction/recovery argument is in the same proof note. Plain unqualified
+heads retain their existing caller-owned Item boundary. No semantic pattern
+matching or parent closure is claimed. Compact history keeps R330/R331; earlier
+history is preserved in parent 2bfb4298a and its immutable Git predecessors.
+
+The same original Button syntax slice adds exact lexical/lexer.rs, lexical/item.rs,
+cursor/recovery/emit.rs and syntax_kind.rs leases under crates/yu-syntax/src.
+Retain pinned Y2 scan_symbol's whole `:identifier` token: at NUD, or LED only
+with leading trivia, after accepted dynamic operators. Append Symbol and
+SymbolExpression kinds without renumbering existing kinds. Existing expression
+owner/test leases cover the atom and ordinary application tails. Typed variants
+and native matching remain withheld until their source constraints connect.
+
+The exact lexical/expression_item.rs lease separates expression vocabulary from
+generic declaration scanning. Initial broad Symbol scanning consumed named-field
+colons and a next CaseArm's tag. Refine the construction to an expression-only
+ExpressionSymbolColon Item retaining the adjacent identifier in the input; both
+Expression and Pattern owners then emit their ordinary Colon/Identifier children.
+Only SymbolExpression is appended; no Symbol terminal or existing renumbering.
+
+Lease web/playground/examples/yulang2-button.yu for the unchanged original
+fixture and public parse regression. Syntax acceptance is a source milestone,
+not an assertion that variant typing/matching or original execution works.
+
+Lease crates/yu-syntax/src/statement.rs for canonical statement admission of an
+already-scanned plain colon with its proven adjacent identifier. Generic field
+scanners stay unchanged; the real statement owner supplies this NUD permission,
+including declaration-to-statement handoff. Existing layout/boundary precedence
+remains authoritative.
+
+Symbol syntax checkpoint: original Button parses losslessly; Tour diagnostics
+9 -> 5 and Button 4 -> 0. Native 272 and fresh WASM 54 plus module/diagnostic
+checks pass. Syntax 1444 pass / one inherited ordinal failure / one ignored.
+Catalog remains 7/19 and all hashes match. Next: original variant source/binder
+carrier and whole-boundary type correspondence; actual Button first reports
+SourceImportResolutionUnavailable. Direct primary only, UNREVIEWED.
+
+Direct-fourteen continuation preserves 27207 charged seconds, discards the
+unused 406 seconds from direct-thirteen, and grants 3600 fresh
+primary seconds (cap 30807). Existing exact HIR/solver/runtime leases
+cover source carrier work. Keep variant publication withheld until propagation
+and boundary/native rules are connected; no parent closure or independent
+review. One heavy build/test at a time and no subagents.

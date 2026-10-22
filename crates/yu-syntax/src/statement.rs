@@ -457,7 +457,9 @@ pub(super) fn classify_statement_item_lexical(
         StatementFamily::Binding
     } else if use_declaration_selected_lexical(source, item, item_origin, fence) {
         StatementFamily::Use
-    } else if !is_binding_visibility(item) && is_nud_item(item) {
+    } else if !is_binding_visibility(item)
+        && (is_nud_item(item) || crate::lexical::lexer::is_expression_symbol_item(source, item))
+    {
         StatementFamily::Expression
     } else {
         return None;

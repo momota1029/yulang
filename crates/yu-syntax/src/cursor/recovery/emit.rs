@@ -219,6 +219,14 @@ pub(crate) fn emit_integer_core(i: &mut SyntaxIn, item: Item) {
     i.state.finish_node();
 }
 
+pub(crate) fn emit_symbol_core(i: &mut SyntaxIn, item: Item, identifier: crate::lexical::item::Token) {
+    debug_assert!(matches!(item.payload_view().token_kind(), Some(TokenKind::ExpressionSymbolColon | TokenKind::Colon)));
+    i.state.start_node(SyntaxKind::SymbolExpression.into());
+    item.emit_remaining(&mut *i.state, SyntaxKind::Colon);
+    i.state.token(SyntaxKind::Identifier.into(), identifier.text.as_ref());
+    i.state.finish_node();
+}
+
 pub(crate) fn emit_operator_use(i: &mut SyntaxIn, item: Item, kind: SyntaxKind) {
     debug_assert!(item.payload_view().operator_use().is_some());
     i.state.start_node(kind.into());
@@ -318,6 +326,7 @@ pub(crate) fn token_syntax_kind(kind: TokenKind) -> SyntaxKind {
         TokenKind::EffectRowApostrophe => SyntaxKind::Apostrophe,
         TokenKind::PolymorphicVariantColon => SyntaxKind::Colon,
         TokenKind::PatternSymbolColon => SyntaxKind::Colon,
+        TokenKind::ExpressionSymbolColon => SyntaxKind::Colon,
         TokenKind::PathSeparator => SyntaxKind::ColonColon,
         TokenKind::Pipe => SyntaxKind::Pipe,
         TokenKind::Unknown => SyntaxKind::Unknown,

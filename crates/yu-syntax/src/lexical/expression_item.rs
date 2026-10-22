@@ -4,7 +4,7 @@ use crate::{
     lexical::{
         current_item::{AcceptedPayload, CurrentPayload, LineEntry, current_item},
         item::Item,
-        lexer::{scan_expression_payload, scan_operator_shaped_unknown},
+        lexer::{scan_expression_payload_with_symbols, scan_operator_shaped_unknown},
         operator_scan::OperatorSite,
         stops::Stops,
         yumark::FenceBoundary,
@@ -83,7 +83,7 @@ pub(crate) fn scan_expression_payload_with_literals(
     if let Some(literal) = i.token(|lex| scan_expression_literal_payload(lex, site)) {
         return Some(literal);
     }
-    scan_expression_payload(
+    scan_expression_payload_with_symbols(
         i,
         site,
         has_leading_trivia,
