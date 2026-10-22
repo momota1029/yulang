@@ -12125,6 +12125,7 @@ impl InferenceSession {
                 readbacks.push(shadow_apply::CandidateFieldTailReceiverReadback {
                     owner: owner.clone(),
                     occurrence: obligation.occurrence.clone(),
+                    receiver_row: row,
                     member: obligation.member.clone(),
                     role_member_candidates: obligation.role_member_candidates.clone(),
                     positive_shape,

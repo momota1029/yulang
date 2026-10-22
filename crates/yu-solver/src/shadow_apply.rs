@@ -104,6 +104,9 @@ pub struct CandidateFieldTailWhereReadback {
 pub struct CandidateFieldTailReceiverReadback {
     pub owner: SourceRootId,
     pub occurrence: HirOccurrenceId,
+    /// Canonical receiver row distinguishes repeated template uses that share
+    /// one source occurrence but have different FreshUse substitutions.
+    pub receiver_row: u32,
     pub member: Box<str>,
     pub role_member_candidates: Vec<yu_hir::shadow::SourceRoleMemberId>,
     pub positive_shape: Option<CandidateReceiverShape>,
@@ -3156,6 +3159,7 @@ impl InferenceSession {
                 let CandidateRelation::DeferredFieldTail { source, member, role_member_candidates, receiver, receiver_effect, result, result_effect } = &recipe.relation else { unreachable!() };
                 let owner = self.batch.candidate_source.source_owners.get(&recipe.occurrence)
                     .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let source_owner = owner.clone();
                 let value_row = |endpoint: CandidateEndpoint| -> Result<u32, SolveAvailabilityError> {
                     match endpoint {
                         CandidateEndpoint::Component(position) => self.live_components.get(position)
@@ -3167,6 +3171,7 @@ impl InferenceSession {
                 };
                 let obligation = crate::candidate_scheme::SourceFieldTailObligation {
                     owner,
+                    source_owner,
                     occurrence: recipe.occurrence.clone(),
                     source: source.clone(),
                     member: member.clone(),

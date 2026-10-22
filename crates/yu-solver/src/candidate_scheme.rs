@@ -60,6 +60,7 @@ pub(super) struct GraphState {
 pub(super) struct OperatorFreshUse {
     pub occurrence: HirOccurrenceId,
     pub owner: yu_hir::SourceOperatorOwner,
+    pub use_owner: SourceRootId,
     pub provider: yu_hir::ExpressionRootId,
     pub root: Term,
     pub fresh: FreshUse,
@@ -86,6 +87,7 @@ pub(super) struct SourceRoleObligation {
 #[derive(Clone, Debug)]
 pub(super) struct SourceFieldTailObligation {
     pub owner: SourceRootId,
+    pub source_owner: SourceRootId,
     pub occurrence: HirOccurrenceId,
     pub source: yu_hir::shadow::SourceNodeKey,
     pub member: Box<str>,
@@ -1009,7 +1011,12 @@ impl GraphState {
         obligation: SourceFieldTailObligation,
     ) -> Result<(), SolveAvailabilityError> {
         if self.source_field_tail_obligations.get(&obligation.owner).is_some_and(|items|
-            items.iter().any(|old| old.occurrence == obligation.occurrence)) {
+            items.iter().any(|old| old.source_owner == obligation.source_owner
+                && old.occurrence == obligation.occurrence
+                && old.receiver_row == obligation.receiver_row
+                && old.receiver_effect == obligation.receiver_effect
+                && old.result_row == obligation.result_row
+                && old.result_effect == obligation.result_effect)) {
             return Err(SolveAvailabilityError::ReceiptMismatch);
         }
         let old_map_capacity = self.source_field_tail_obligations.capacity();
@@ -2155,6 +2162,7 @@ impl InferenceSession {
         if self.batch.candidate_source.active {
             self.execute_candidate_operator_providers()?;
             self.execute_candidate_operator_uses()?;
+            self.transport_member_operator_field_tails()?;
             let member_count = self.batch.candidate_source.members.len();
             for index in 0..member_count {
                 self.execute_candidate_member(index)?;
@@ -2315,6 +2323,38 @@ impl InferenceSession {
         self.execute_candidate_operator_uses_for(None)
     }
 
+    fn transport_member_operator_field_tails(&mut self) -> Result<(), SolveAvailabilityError> {
+        let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+        let mut uses = Vec::new();
+        uses.try_reserve_exact(state.operator_uses.len()).map_err(|_| exhausted())?;
+        for operator_use in &state.operator_uses {
+            let SourceRootId::Member(member_root) = &operator_use.use_owner else { continue; };
+            uses.push((member_root.clone(), operator_use.provider.clone(),
+                operator_use.fresh.source_field_tail_obligation_rows.clone(),
+                operator_use.fresh.rows.clone()));
+        }
+        for (member_root, provider, obligations, rows) in uses {
+            let graph = state.operator_graphs.get(&provider)
+                .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            for (obligation_index, row_indexes) in obligations {
+                let source = graph.source_field_tail_obligations.get(obligation_index)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let mapped = row_indexes.map(|index| rows.get(index).copied()
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch));
+                let [receiver_row, receiver_effect, result_row, result_effect] = mapped;
+                let mut obligation = source.clone();
+                obligation.owner = SourceRootId::Member(member_root.clone());
+                obligation.receiver_row = state.intrusion.rep(receiver_row?);
+                obligation.receiver_effect = state.intrusion.rep(receiver_effect?);
+                obligation.result_row = state.intrusion.rep(result_row?);
+                obligation.result_effect = state.intrusion.rep(result_effect?);
+                state.retain_source_field_tail_obligation(obligation)?;
+                state.refresh_bytes()?;
+            }
+        }
+        Ok(())
+    }
+
     fn execute_candidate_operator_uses_for(&mut self, owner_filter: Option<&SourceRootId>) -> Result<(), SolveAvailabilityError> {
         for use_index in 0..self.batch.candidate_source.operator_uses.len() {
             let use_ = self.batch.candidate_source.operator_uses[use_index].clone();
@@ -2410,6 +2450,7 @@ impl InferenceSession {
             state.operator_uses.push(OperatorFreshUse {
                 occurrence: use_.occurrence,
                 owner: use_.operator_owner,
+                use_owner: use_.owner,
                 provider: provider.root,
                 root: operator,
                 fresh,
@@ -2442,17 +2483,22 @@ impl InferenceSession {
                     pending.push(Pending { obligation, ancestry: Vec::new() });
                 }
             }
-            // Operator provider graphs are reusable templates. Their source
-            // FieldTails become active obligations only after a particular
-            // operator FreshUse maps the four interface rows. Keep one item
-            // per use, even when several uses share the same source occurrence.
+            // Non-member operator uses activate their obligations here.
+            let mut operator_uses = Vec::new();
+            operator_uses.try_reserve_exact(state.operator_uses.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             for operator_use in &state.operator_uses {
-                let graph = state.operator_graphs.get(&operator_use.provider)
-                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-                for (obligation_index, row_indexes) in &operator_use.fresh.source_field_tail_obligation_rows {
-                    let source = graph.source_field_tail_obligations.get(*obligation_index)
+                if matches!(operator_use.use_owner, SourceRootId::Member(_)) { continue; }
+                operator_uses.push((operator_use.provider.clone(),
+                    operator_use.fresh.source_field_tail_obligation_rows.clone(),
+                    operator_use.fresh.rows.clone()));
+            }
+            for (provider, obligations, rows) in operator_uses {
+                let graph = state.operator_graphs.get(&provider)
+                    .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                for (obligation_index, row_indexes) in obligations {
+                    let source = graph.source_field_tail_obligations.get(obligation_index)
                         .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-                    let mapped = row_indexes.map(|index| operator_use.fresh.rows.get(index).copied()
+                    let mapped = row_indexes.map(|index| rows.get(index).copied()
                         .ok_or(SolveAvailabilityError::ReceiptMismatch));
                     let [receiver_row, receiver_effect, result_row, result_effect] = mapped;
                     let mut obligation = source.clone();
@@ -2482,10 +2528,16 @@ impl InferenceSession {
                 state.refresh_bytes()?;
             }
             let readback_result = self.candidate_field_tail_receiver_readbacks();
+            let receiver_row = match item.obligation.receiver_row {
+                RowKey::Value(row) => self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                    .intrusion.value_rep(row),
+                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+            };
             let readback = readback_result?
                 .into_iter()
                 .find(|readback| readback.owner == item.obligation.owner
-                    && readback.occurrence == item.obligation.occurrence)
+                    && readback.occurrence == item.obligation.occurrence
+                    && readback.receiver_row == receiver_row)
                 .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
             {
                 let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
@@ -2493,7 +2545,12 @@ impl InferenceSession {
                     return Err(SolveAvailabilityError::ReceiptMismatch);
                 };
                 let before = items.len();
-                items.retain(|old| old.occurrence != item.obligation.occurrence);
+                items.retain(|old| old.source_owner != item.obligation.source_owner
+                    || old.occurrence != item.obligation.occurrence
+                    || old.receiver_row != item.obligation.receiver_row
+                    || old.receiver_effect != item.obligation.receiver_effect
+                    || old.result_row != item.obligation.result_row
+                    || old.result_effect != item.obligation.result_effect);
                 if items.len() + 1 != before {
                     return Err(SolveAvailabilityError::ReceiptMismatch);
                 }

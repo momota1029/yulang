@@ -2,27 +2,27 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "current-conversation-20261022-r324-1",
+  "session": "current-conversation-20261022-r324-2",
   "active_sprint": {
     "id": "R324",
     "status": "OPEN_CONTINUATION",
     "contract": "tasks/agent-loop/sprints/r324-generic-operator-fieldtail-scheme-20261022.md",
     "resources": {
       "cap_seconds": 2400,
-      "charged_seconds": 600,
+      "charged_seconds": 900,
       "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "R324 traced exact + provider and member-template use owners. A prototype exposed an earlier candidate-collection failure; no independent review, source/native A/B, or theorem closure.",
-    "implementation": "R323 remains checkpointed at c49d1bf44. R324 prototype was removed after Collection(MissingDefinitionEndpoint); focused pinned readback passes on restored code. Generic FieldTail template lifecycle remains open.",
+    "proof": "R324 now maps source-owned operator FieldTail rows through member-use FreshUse before member graph capture; exact runtime proof, concrete multi-use discharge, independent review, source/native A/B, and theorem closure remain open.",
+    "implementation": "R324 preserves source owner separately from member use owner and discriminates repeated occurrences by mapped interface rows/receiver row. Playground 42/42 and tooling checks pass; unchanged Types remains deferred at abstract x.add. No closure claim.",
     "review_receipt": "UNREVIEWED; user prohibits subagents.",
-    "next_action": "Isolate why transporting a provider FieldTail into its owning member template triggers Collection(MissingDefinitionEndpoint); then preserve separate source/template owners and retry only after exact dispatch progress.",
+    "next_action": "Exercise concrete consumer evidence and repeated operator uses through the preserved member scheme; establish exact successful Types transition or record the next producer/consumer gap without weakening the deferred boundary.",
     "closure": "Types and Console successful inference, R149, source/native proof, all samples, theorem closure, and production remain open.",
     "dispatch": "Serial primary; selector unavailable under explicit no-subagent instruction; no agents simulated.",
     "note": "notes/theory/2026-10-22-r324-generic-operator-fieldtail-scheme.md",
-    "charged_seconds": 600,
-    "contract_sha256": "60505f930adeed62820f50af631701c00409eab1853a6914e5ce755d6d34fc32",
-    "note_sha256": "ff97033a891fe1301e0ea12fbbc8a734a114ee38f51665d176387886ed026dfe"
+    "charged_seconds": 900,
+    "contract_sha256": "5c0564e1f52f6abd6d3c21043b466a6741f26c15a6b5ded384caff1821ff46d0",
+    "note_sha256": "2955580edd813c90793f1f66eb6e5c74aafc1b5e940635f9504fa3ff5ac95ed0"
   },
   "workers": [
     {
@@ -103,12 +103,12 @@
       "id": "/root",
       "role": "Luna primary",
       "state": "STOPPED",
-      "session": "current-conversation-20261022-r324-1",
+      "session": "current-conversation-20261022-r324-2",
       "requested_model": "gpt-6-luna",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Ended this serial R324 turn after recording the generic + member-template trace; no background workers or unconfirmed child writers."
+      "receipt": "Stopped after mapping operator FieldTails through member FreshUse into captured member graphs; playground 42/42 and sprint tooling pass. Types remains deferred, no proof closure."
     }
   ],
   "leases": [
@@ -230,7 +230,7 @@
     }
   ],
   "closure": "Types remains deferred before selection and successful inference. Console, R149, source/native proof, all-samples goal, and production remain open.",
-  "next_action": "Isolate why transporting a provider FieldTail into its owning member template triggers Collection(MissingDefinitionEndpoint); then preserve separate source/template owners and retry only after exact dispatch progress.",
+  "next_action": "Exercise concrete consumer evidence and repeated operator uses through the preserved member scheme; establish exact successful Types transition or record the next producer/consumer gap without weakening the deferred boundary.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
@@ -317,5 +317,5 @@
       "outcome": "OPEN; abstract std::core::ops + x.add FieldTail has no positive receiver shape; preserve it through enclosing scheme and activate at concrete FreshUse."
     }
   ],
-  "charged_seconds": 600
+  "charged_seconds": 900
 }
