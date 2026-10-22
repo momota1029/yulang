@@ -3,7 +3,7 @@ use std::{
     process::{Command, Stdio},
 };
 use yu_playground::{
-    INPUT_CAP, execute_module_events, infer, infer_types, infer_with_intrusion, location,
+    INPUT_CAP, execute_module_events, execute_module_report, infer, infer_types, infer_with_intrusion, location,
     read_source,
 };
 
@@ -61,6 +61,14 @@ fn unchanged_yulang2_samples_preserve_ordered_module_write_events() {
         execute_module_events(console, "console.yu", 100_000, false).unwrap(),
         ["hello from Yulang\n", "3\n"]
     );
+    let types_report = execute_module_report(types, "types.yu", 100_000, false).unwrap();
+    assert_eq!(types_report.events, ["(42, Yulang)\n"]);
+    for expected in ["id: ∀", "answer: int", "name: str", "pair: (int, str)"] {
+        assert!(types_report.types.contains(expected), "{}", types_report.types);
+    }
+    let console_report = execute_module_report(console, "console.yu", 100_000, false).unwrap();
+    assert_eq!(console_report.events, ["hello from Yulang\n", "3\n"]);
+    assert!(console_report.types.contains("No binding types in this source."));
 }
 
 #[test]
@@ -97,6 +105,18 @@ fn candidate_playground_accepts_state_callback_under_open_io_permission() {
     assert!(answer.contains("⊆ ε"), "the state effect view remains connected to an open residual row: {answer}");
     assert!(output.contains("retained Effect bound"), "the callback effect must remain in the open residual view: {output}");
     assert!(!output.contains("candidate type conflicts"), "[io] is an open permission, so [state] must remain admissible: {output}");
+}
+
+#[test]
+fn combined_module_report_withholds_types_and_events_on_failure() {
+    let conflict = include_str!("../examples/type-error.yu");
+    let error = execute_module_report(conflict, "conflict.yu", 100_000, false).unwrap_err();
+    assert!(error.contains("candidate type conflicts"), "{error}");
+    let exhausted = execute_module_report("my identity x = x\nmy main = identity 7", "budget.yu", 0, false).unwrap_err();
+    assert!(exhausted.contains("runtime step budget exhausted"), "{exhausted}");
+    let unhandled = "act io:\n    our tick: int -> ()\nprintln \"prefix\"\nsay: 1 + 2\nio::tick 1\n";
+    let error = execute_module_report(unhandled, "unhandled.yu", 100_000, false).unwrap_err();
+    assert!(error.contains("unhandled runtime request"), "{error}");
 }
 
 #[test]

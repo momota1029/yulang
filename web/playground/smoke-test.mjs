@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import init, { infer, infer_types, run, run_module } from "./src/wasm/yulang_wasm.js";
+import init, { infer, infer_types, run, run_module, run_module_report } from "./src/wasm/yulang_wasm.js";
 
 await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") });
 
@@ -88,6 +88,23 @@ const graph = infer("my identity x = x\nmy main = identity 7");
 const types = infer_types(yulang2TypesSource);
 const typesEvents = JSON.parse(run_module(yulang2TypesSource, 100_000));
 const consoleEvents = JSON.parse(run_module(yulang2ConsoleSource, 100_000));
+const typesReport = JSON.parse(run_module_report(yulang2TypesSource, 100_000));
+const consoleReport = JSON.parse(run_module_report(yulang2ConsoleSource, 100_000));
+if (typesReport.types !== types || JSON.stringify(typesReport.events) !== JSON.stringify(typesEvents)) {
+  throw new Error("combined Types report must preserve public types and ordered writes");
+}
+if (JSON.stringify(consoleReport.events) !== JSON.stringify(consoleEvents)) {
+  throw new Error("combined Console report must preserve ordered writes");
+}
+for (const [source, budget, reason] of [
+  [yulang2TypesSource, 0, "runtime step budget exhausted"],
+  [yulang2DiagnosticExamples.typeMismatch, 100_000, "candidate type conflicts"],
+  ['act io:\n    our tick: int -> ()\nprintln "prefix"\nsay: 1 + 2\nio::tick 1', 100_000, "unhandled runtime request"],
+]) {
+  let rejected = false;
+  try { run_module_report(source, budget); } catch (error) { rejected = String(error).includes(reason); }
+  if (!rejected) { throw new Error("failed module run must withhold the combined report"); }
+}
 
 for (const [name, source] of Object.entries(yulang2DiagnosticExamples)) {
   let rejectedAtCandidateConflict = false;

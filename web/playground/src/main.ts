@@ -1,4 +1,4 @@
-import init, { infer_types, run, run_module } from "./wasm/yulang_wasm.js";
+import init, { infer_types, run, run_module_report } from "./wasm/yulang_wasm.js";
 import "./style.css";
 import yulang2IdentityIsland from "../examples/yulang2-identity-island.yu?raw";
 import yulang2TypeMismatch from "../examples/yulang2-type-mismatch.yu?raw";
@@ -47,7 +47,9 @@ const inferButton = document.querySelector<HTMLButtonElement>("#infer")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run")!;
 const definitionLabel = definition.closest("label")!;
 
-source.value = examples.yulang2_identity_island;
+source.value = examples.yulang2_types;
+definitionLabel.hidden = true;
+definition.value = "";
 
 function showResult(label: string, value: string, failed = false): void {
   title.textContent = label;
@@ -89,9 +91,13 @@ inferButton.addEventListener("click", () => {
 runButton.addEventListener("click", () => {
   const selected = document.querySelector<HTMLSelectElement>("#example")!.value;
   if (selected === "yulang2_types" || selected === "yulang2_console") {
-    void withBusy("Module output events", () => {
-      const events = JSON.parse(run_module(source.value, 100_000)) as string[];
-      return events.map((payload, index) => `${index + 1}: ${JSON.stringify(payload)}`).join("\n");
+    void withBusy("Module types and output", () => {
+      const report = JSON.parse(run_module_report(source.value, 100_000)) as {
+        types: string;
+        events: string[];
+      };
+      const events = report.events.map((payload, index) => `${index + 1}: ${JSON.stringify(payload)}`).join("\n");
+      return `${report.types}\nOutput events\n${events}`;
     });
   } else {
     void withBusy("Runtime result", () => run(source.value, definition.value.trim() || "main", 100_000));

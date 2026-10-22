@@ -103,6 +103,13 @@ pub fn infer(source: &str, name: &str) -> Result<String, String> {
 /// remain separate proof obligations.
 pub fn infer_types(source: &str, name: &str) -> Result<String, String> {
     let (hir, candidate) = prepare(source, name, false)?;
+    candidate_public_types(&hir, &candidate)
+}
+
+fn candidate_public_types(hir: &HirModule, candidate: &CandidateInference) -> Result<String, String> {
+    if !candidate.observes_hir(hir) || !candidate.candidate_conflicts().is_empty() {
+        return Err("candidate public types require the same conflict-free module".to_owned());
+    }
     let mut output = Output::new();
     output.write_str("Candidate public types and effects (source typing and principality remain open).\n")
         .map_err(cap)?;
@@ -230,6 +237,28 @@ pub fn execute_module_events(
     execute_runtime(source, name, None, step_budget, scoped, true).map(|(_, events)| events)
 }
 
+/// Atomic experimental module observation. Both fields come from one prepared
+/// candidate; no result is returned if typing, projection or execution fails.
+#[derive(Debug)]
+pub struct CandidateModuleReport {
+    pub types: String,
+    pub events: Vec<String>,
+}
+
+pub fn execute_module_report(
+    source: &str,
+    name: &str,
+    step_budget: usize,
+    scoped: bool,
+) -> Result<CandidateModuleReport, String> {
+    let (hir, candidate, world, indexes) = prepare_with_world(source, name, scoped)?;
+    let types = candidate_public_types(&hir, &candidate)?;
+    let program = runtime::RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate)
+        .map_err(|error| bounded_message(format_args!("runtime unavailable: {error:?}")))?;
+    let (_, events) = execute_program(program, None, step_budget, true)?;
+    Ok(CandidateModuleReport { types, events })
+}
+
 fn execute_runtime(
     source: &str,
     name: &str,
@@ -238,11 +267,22 @@ fn execute_runtime(
     scoped: bool,
     retain_events: bool,
 ) -> Result<(String, Vec<String>), String> {
-    use runtime::{RuntimeOutcome, RuntimeProgram};
+    use runtime::RuntimeProgram;
     let (hir, candidate, world, indexes) = prepare_with_world(source, name, scoped)?;
     let unavailable = |error| bounded_message(format_args!("runtime unavailable: {error:?}"));
     let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate)
         .map_err(unavailable)?;
+    execute_program(program, definition, step_budget, retain_events)
+}
+
+fn execute_program(
+    program: Arc<runtime::RuntimeProgram>,
+    definition: Option<&str>,
+    step_budget: usize,
+    retain_events: bool,
+) -> Result<(String, Vec<String>), String> {
+    use runtime::RuntimeOutcome;
+    let unavailable = |error| bounded_message(format_args!("runtime unavailable: {error:?}"));
     let mut machine = if let Some(definition) = definition {
         let selected = program.definition_named(definition).map_err(unavailable)?;
         program.start_source_schedule(selected).map_err(unavailable)?

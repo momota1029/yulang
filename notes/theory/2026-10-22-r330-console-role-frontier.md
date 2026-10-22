@@ -251,3 +251,64 @@ WASM build used one Cargo job with a 300-second timeout. Legacy UNKNOWN workers
 remain quarantined. Existing dependency warnings concern retained HIR/source
 provenance and solver observation APIs; changing those contracts or removing
 proof evidence requires their owner-specific follow-up, not erasure here.
+
+### Same-candidate publication continuation
+
+`execute_module_report` now calls `prepare_with_world` exactly once, derives
+`candidate_public_types(&hir, &candidate)`, and passes that same HIR/world and
+candidate to `RuntimeProgram::from_candidate_world`. Only after the module
+schedule completes does it return `CandidateModuleReport { types, events }`.
+The public-types helper rejects a candidate that does not own the exact HIR,
+even when another independently prepared module has identical source bytes.
+The runtime constructor already checks ownership of the main and imported HIRs.
+The standalone inspection and execution APIs retain their existing roles.
+
+The constructive publication property is: for any successful report, there is
+one prepared tuple (H, C, W, I) such that its types are the projection of C's
+exports for H and its events are execution of the runtime program constructed
+from that same tuple. This follows directly from the single preparation binding,
+shared immutable C references, ownership checks, and final report constructor.
+Every earlier failure returns through `?`, before that constructor. Host writes
+on this path are captured in private memory; they are not externally emitted
+before the report returns. Thus a later unhandled operation or step exhaustion
+discards both the type text and any captured event prefix.
+
+The WASM `run_module_report` serializes this one completed report, and the Web
+Types/Console Run action consumes it atomically. The initial source and hidden
+selected-definition field now agree with the initial Types selector. This
+closes the *implementation gap of two separate preparations on the combined
+path* identified above. It does not make C a production-accepted inference
+result or close the source-typing/generalization/Grant/A/B premises. The new
+structural claim remains UNREVIEWED.
+
+Native and WASM regressions retain the exact Types/Console expectations and
+check combined reports, candidate conflicts, zero runtime budget and an
+unhandled operation after captured Console writes. The type-conflict case uses
+an existing type-error fixture. During construction, a standalone `println`
+program (without Console's following `say: 1 + 2`) stopped earlier with
+`Unsupported`; that probe did not reach the runtime failure boundary. This
+existing source-admission limitation remains part of the broader source/capture
+work and is not hidden by changing the expected error. The post-output failure
+case uses the working Console path plus a distinct unhandled `io::tick`.
+
+One observed owning-package warning is repaired separately: the immutable
+`expected_ids` set in `tests/runtime_resume.rs` no longer has an unused `mut`.
+Its assertions and expected values are unchanged. Dependency provenance/API
+warnings remain assigned to their original HIR/solver owners; no blanket
+warning suppression or removal of retained proof evidence is introduced.
+
+Final continuation checks: `cargo test -q -p yu-playground` passed all 212
+tests (49 library, 29 CLI and 134 other package integration tests). Fresh
+`npm --prefix web/playground run check` and `npm --prefix web/playground run
+typecheck` both passed with wasm-bindgen 0.2.125. The smoke now also checks the
+combined report and its three failure cases. `python3 tools/agent_sprint.py
+check` passed as static bookkeeping evidence only. No broader workspace suite
+or independent review was run. Projection checkpoint `aba924221` and its five
+previously local R331/R332 commits were pushed non-forced; the combined report
+and final receipt are preserved by the commit containing this paragraph.
+
+Next work remains candidate generalization/source-capture adequacy, including
+shared-anchor constraints and the standalone-println admission obstruction,
+then the broader unchanged Yulang2 catalog. R332 is an OPEN continuation, not
+a completed accepted-scheme or parent-theorem gate. The next session can work
+directly from this state without routine dispatcher/producer agents.

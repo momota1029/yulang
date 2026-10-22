@@ -62,3 +62,9 @@ Use a 3600-second direct-primary envelope from this resumption, retaining the
 previous 300-second charge separately. One heavy build/test process at a time.
 The current primary's effective model/effort is not asserted from the user's
 model label. Research checkpoints remain explicitly UNREVIEWED.
+
+The same continuation also leases
+`tools/inference-playground/tests/runtime_resume.rs` for the observed unused
+`mut` warning only. It is a separate mechanical checkpoint; assertions and
+expected outputs are unchanged. The public types/module-events join remains
+inside R149's existing same-inference-result publication requirement.

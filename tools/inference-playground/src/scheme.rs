@@ -753,6 +753,18 @@ mod tests {
     }
 
     #[test]
+    fn public_types_reject_a_separately_prepared_identical_source() {
+        let source = "my id x = x";
+        let (hir, candidate) = crate::prepare(source, "identity.yu", false).unwrap();
+        let (other_hir, _) = crate::prepare(source, "identity.yu", false).unwrap();
+        assert!(crate::candidate_public_types(&hir, &candidate).is_ok());
+        assert!(
+            crate::candidate_public_types(&other_hir, &candidate).is_err(),
+            "equal source text does not establish candidate/HIR ownership"
+        );
+    }
+
+    #[test]
     fn deep_display_is_iterative_and_exhaustion_withholds_result() {
         let (hir, candidate) = crate::prepare("my id x = x", "depth.yu", false).unwrap();
         let graph = candidate.export(&root(&hir, "id")).unwrap();
