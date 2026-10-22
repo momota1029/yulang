@@ -1,6 +1,9 @@
 //! Nonshipping source formation owned by the HIR lowering event.
 use super::*;
 use yu_syntax::SourceNodeKey;
+mod string;
+pub use string::{LocalSourceFormatKind, LocalSourceFormatAlign, LocalSourceFormatSign,
+    LocalSourceFormatSpec, LocalSourceFormatOperation, LocalSourceStringPiece};
 
 /// Retained source availability for one already admitted ordinary binding.
 #[derive(Clone, Debug)]
@@ -215,9 +218,14 @@ impl LocalSource {
                 .iter()
                 .map(|expr| match &expr.form {
                     LocalSourceForm::Integer(text) | LocalSourceForm::String(text) => text.len(),
-                    LocalSourceForm::InterpolatedString { spelling, parts, .. } => spelling.len()
+                    LocalSourceForm::InterpolatedString { spelling, parts, pieces, .. } => spelling.len()
                         + parts.capacity() * std::mem::size_of::<LocalSourceInterpolation>()
-                        + parts.iter().map(|part| part.format.len()).sum::<usize>(),
+                        + parts.iter().map(|part| part.format.len()).sum::<usize>()
+                        + pieces.capacity() * std::mem::size_of::<LocalSourceStringPiece>()
+                        + pieces.iter().map(|piece| match piece {
+                            LocalSourceStringPiece::Text { value, .. } => value.len(),
+                            LocalSourceStringPiece::Interpolation(_) => 0,
+                        }).sum::<usize>(),
                     LocalSourceForm::Primitive { operation: source_annotation::PinnedPrimitiveOp::Unsupported(name) } => name.len(),
                     LocalSourceForm::Catch { arms, .. } => {
                         arms.capacity() * std::mem::size_of::<LocalSourceCatchArm>()
@@ -338,6 +346,7 @@ pub enum LocalSourceForm {
         spelling: Box<str>,
         literal_range: Range<usize>,
         parts: Vec<LocalSourceInterpolation>,
+        pieces: Vec<LocalSourceStringPiece>,
     },
     Catch {
         scrutinee: LocalSourceIndex,
@@ -512,6 +521,7 @@ pub struct LocalSourceInterpolation {
     pub source: SourceNodeKey,
     pub range: Range<usize>,
     pub format: Box<str>,
+    pub format_spec: LocalSourceFormatSpec,
     pub format_range: Range<usize>,
     pub body: LocalSourceIndex,
 }
@@ -1777,11 +1787,13 @@ impl Builder<'_> {
                 return Err(unsupported());
             }
             let body_index = self.slot()?;
-            push(&mut parts, LocalSourceInterpolation { source: self.key(&part)?, range, format, format_range, body: body_index.clone() })?;
+            let format_spec = string::parse_format(&format)?;
+            push(&mut parts, LocalSourceInterpolation { source: self.key(&part)?, range, format, format_spec, format_range, body: body_index.clone() })?;
             push(&mut work, (body, body_index))?;
         }
         if parts.is_empty() { return Err(unsupported()); }
-        self.set(index, &node, scope.clone(), named_group.clone(), LocalSourceForm::InterpolatedString { spelling, literal_range, parts })?;
+        let pieces = string::pieces(&node, &parts)?;
+        self.set(index, &node, scope.clone(), named_group.clone(), LocalSourceForm::InterpolatedString { spelling, literal_range, parts, pieces })?;
         for (body, index) in work.into_iter().rev() {
             push(&mut self.work, Work::Expression(body, index, scope.clone(), named_group.clone()))?;
         }
@@ -2747,6 +2759,49 @@ mod tests {
     use super::*;
 
     #[test]
+    fn interpolation_plan_preserves_decoded_text_and_exact_part_order() {
+        let literal = r#""前\n\u{732b}\q\%{literal}%{text}%x{text}後\u{d800}""#;
+        let text = format!("my text = 7; my value = {literal}");
+        let (_, _, module) = ordinary_fixture(&text);
+        let HirItem::Binding(binding) = &module.items()[1] else { panic!("value"); };
+        let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+        let LocalSourceForm::InterpolatedString { pieces, parts, .. } = &source.expression(source.body()).unwrap().form else { panic!("literal"); };
+        assert_eq!(parts.len(), 2, "escaped percent is text");
+        assert_eq!(pieces.len(), 4);
+        let LocalSourceStringPiece::Text { range, value } = &pieces[0] else { panic!("first text"); };
+        assert_eq!(value.as_ref(), "前\n猫q%{literal}");
+        assert_eq!(&text[range.clone()], r#"前\n\u{732b}\q\%{literal}"#);
+        assert!(matches!(pieces[1], LocalSourceStringPiece::Interpolation(0)));
+        assert!(matches!(pieces[2], LocalSourceStringPiece::Interpolation(1)));
+        let LocalSourceStringPiece::Text { range, value } = &pieces[3] else { panic!("last text"); };
+        assert_eq!(value.as_ref(), "後\u{fffd}");
+        assert_eq!(&text[range.clone()], r#"後\u{d800}"#);
+        assert_eq!(parts[0].format_spec.operation(), LocalSourceFormatOperation::Member("show"));
+        assert_eq!(parts[1].format_spec.operation(), LocalSourceFormatOperation::Member("lower_hex"));
+        for quotes in [1, 3, 4, 8] {
+            let delimiter = "\"".repeat(quotes);
+            let text = format!("my x = {delimiter}%猫^+#08.2X{{7}}{delimiter}");
+            let (_, _, module) = ordinary_fixture(&text);
+            let HirItem::Binding(binding) = &module.items()[0] else { panic!("value"); };
+            let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+            let LocalSourceForm::InterpolatedString { pieces, parts, .. } = &source.expression(source.body()).unwrap().form else { panic!("literal"); };
+            assert!(matches!(pieces.as_slice(), [LocalSourceStringPiece::Interpolation(0)]));
+            assert_eq!(parts[0].format_spec.operation(), LocalSourceFormatOperation::StandardFunction("format_upper_hex"));
+        }
+    }
+
+    #[test]
+    fn interpolation_plan_refuses_invalid_formats_before_typed_publication() {
+        for format in ["s", ".", "xX", "9223372036854775808"] {
+            let text = format!("my value = \"%{format}{{7}}\"");
+            let (parsed, _, module) = ordinary_fixture(&text);
+            assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "format is a lowering obligation: {format}");
+            let HirItem::Binding(binding) = &module.items()[0] else { panic!("value"); };
+            assert!(module.local_source(binding.definition_root()).unwrap().is_none(), "{format}");
+        }
+    }
+
+    #[test]
     fn interpolation_source_keeps_format_ranges_bodies_and_lexical_restore() {
         for literal in [
             "\"前%{my text = 1; text}後%08x{text}\"",
@@ -2757,7 +2812,7 @@ mod tests {
             let HirItem::Binding(binding) = &module.items()[1] else { panic!("value"); };
             let source = module.local_source(binding.definition_root()).unwrap().expect(literal);
             let root = source.expression(source.body()).unwrap();
-            let LocalSourceForm::InterpolatedString { spelling, literal_range, parts } = &root.form else { panic!("interpolated string"); };
+            let LocalSourceForm::InterpolatedString { spelling, literal_range, parts, .. } = &root.form else { panic!("interpolated string"); };
             assert_eq!(spelling.as_ref(), literal);
             assert_eq!(&text[literal_range.clone()], literal);
             assert_eq!(parts.len(), 2);

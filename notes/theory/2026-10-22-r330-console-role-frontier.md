@@ -2938,3 +2938,64 @@ candidate inference after complete source formation. All other observables stay
 unchanged. Logs: target/r332-interpolation-{hir-all,graph,native,wasm}.log and
 target/r332-catalog-interpolation-source.log. No compiler expectation or sample
 was weakened. This is direct-primary evidence, not independent review.
+
+### Original interpolation format and text plan
+
+The carrier now retains LocalSourceFormatSpec on each actual interpolation and
+an ordered LocalSourceStringPiece vector on the literal. Text pieces retain the
+original byte range and decoded contents; interpolation pieces refer to the
+literal's descriptor ordinal, never a synthetic source node. Consecutive text
+and escape tokens coalesce; adjacent interpolations add no empty String value.
+Default, `?`, `x`, `X` choose show/debug/lower_hex/upper_hex. Any layout option
+instead requests the original std::core::fmt function and format_spec argument.
+The request spelling itself establishes no imported provider or selected method.
+Malformed formats are now rejected at source formation, matching original
+lower_string_lit; the earlier raw-only carrier did not validate these formats.
+
+Exact source owners at pinned a58eefc31e22141574b6f20c6a5748151c6d79f1 are
+crates/infer/src/lowering/string_lit.rs::parse_format_spec, parse_format_align,
+parse_format_decimal, string_lit_parts, push_string_lit_text_part,
+collect_string_escape_text and lower_string_interp_part; std_paths.rs confirms
+std::core::fmt and std::text::str::concat. Current syntax wraps each escape in
+StringEscape, so the new decoder visits that node's actual tokens; it never
+scans escaped `%` as an interpolation or parses an expression from text.
+
+Format correspondence argument (UNREVIEWED): relate the old parser index i in
+its char vector to the new iterator's suffix at i. Optional alignment consumes
+one alignment scalar or the same fill/alignment pair, excluding CR/LF fill.
+Optional sign, alternate and zero flag each inspect/consume the same next scalar.
+For decimal stages, induction over digits preserves the identical checked-i64
+accumulator and cursor. Overflow and missing required precision reject in both.
+Kind selection accepts precisely none/`?`/`x`/`X`, and both reject a nonempty
+suffix. Hence accepted specs agree fieldwise, including Unicode fill, absent
+versus zero width/precision and layout-driven operation selection. This proves
+only the finite parsing transformation, not that a requested operation resolves.
+
+Text-plan correspondence argument (UNREVIEWED): induct over direct literal
+children, with a pending text run equal to the original accumulated Text part.
+StringText appends its exact token; a StringEscape appends the same simple
+escape target or decoded scalar/replacement character. At each real
+StringInterpolation, flush the run once and emit the next authentic descriptor
+ordinal. A nested literal stays in its body's source owner. The final flush
+therefore produces the original text/interpolation order and no extra empty
+piece. Source range growth covers exactly the contributing tokens for the run;
+format/body ranges and branded occurrences remain the prior carrier's facts.
+
+The implementation visits format scalars and literal tokens once, with O(1)
+format lookahead and checked decimal accumulation. Text building is amortized
+linear; retained space is O(decoded text bytes + interpolation/piece count),
+fully included in retained_arena_bytes. It neither re-traverses nested bodies
+nor adds Value SCC edges for pure text or format metadata. This discharges the
+text-decomposition and format-choice premises of the conditional Call handoff;
+actual selected-method/Call/concat-provider evidence, typed Variant/native and
+original all-source/A-B gates remain OPEN. Direct primary only, no review claim.
+
+Format/text checkpoint: HIR191/native274/fresh WASM54 plus module/diagnostic
+checks pass. All 19 hashes and non-timing catalog fields match the interpolation
+carrier receipt; catalog remains7/19. Logs target/r332-string-plan-{hir-all,
+native,wasm}.log and target/r332-catalog-string-plan.log. No original assertion
+or sample changes. Next connect a generated formatting selection at its actual
+StringInterpolation source key to the existing four-row selection obligation,
+Capture/FreshUse and member runtime evidence. The one-piece/no-layout source
+case needs no concat operation; multi-piece and layout cases retain their open
+provider/Call premises. This staged implementation does not narrow the parent.

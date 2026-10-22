@@ -879,6 +879,8 @@ pub use crate::module::local_source::{
     LocalSourceCatchArm, LocalSourceCatchBinder, LocalSourceCatchBinderId, LocalSourceCatchValuePattern, LocalSourceCatchPattern, LocalSourceCatchPayloadPattern,
     LocalSourceCaseArm, LocalSourceCasePattern, LocalSourceCasePatternElement,
     LocalSourceWhereClause, LocalSourceWhereType,
+    LocalSourceInterpolation, LocalSourceStringPiece, LocalSourceFormatSpec, LocalSourceFormatKind,
+    LocalSourceFormatAlign, LocalSourceFormatSign, LocalSourceFormatOperation,
 };
 
 /// Forms a nonshipping source carrier during HIR lowering. This does not make

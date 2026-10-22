@@ -542,3 +542,14 @@ Interpolation source checkpoint: HIR188/graph19/native274/fresh WASM54 pass.
 All 19 original hashes match; catalog7/19. Button source formation is complete,
 but generated formatting/concat and typed Variant/native remain OPEN. Next
 connect original formatting decomposition to actual source-selected operations.
+
+Lease crates/yu-hir/src/module/local_source/string.rs for the original
+interpolation format grammar and decoded text/part plan. Existing local_source
+and shadow leases integrate the real CST decomposition. Preserve raw spelling,
+all source ranges and body identities; typed/runtime publication stays withheld.
+
+Format/text checkpoint: HIR191/native274/fresh WASM54 pass; catalog7/19 and
+all original observables/hashes unchanged. Next use existing HIR/solver/runtime
+leases for authentic generated formatting selection and its single-piece
+forwarding case. Keep explicit generated source form and unchanged selection
+transport/receiver obligations; multi-piece concat/layout and parent gates OPEN.
