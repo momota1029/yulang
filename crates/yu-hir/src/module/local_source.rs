@@ -243,7 +243,7 @@ impl LocalSource {
                         elements.capacity() * std::mem::size_of::<LocalSourceIndex>()
                     }
                     LocalSourceForm::FieldTail { member, .. } => member.len(),
-                    LocalSourceForm::InfixOperator { operator, .. } => operator.spelling().len()
+                    LocalSourceForm::OperatorApplication { operator, .. } => operator.spelling().len()
                         + std::mem::size_of::<SourceNodeKey>()
                         + std::mem::size_of::<crate::HirOperator>(),
                     LocalSourceForm::Name { spelling, .. } => spelling.len(),
@@ -352,13 +352,13 @@ pub enum LocalSourceForm {
         argument: LocalSourceIndex,
         source_form: SyntaxKind,
     },
-    /// One exact parser-associated infix use; operands retain their own source
+    /// One exact parser-associated operator use; operands retain their own source
     /// occurrences and the operator keeps its selected declaration receipt.
-    InfixOperator {
+    OperatorApplication {
         operator_source: SourceNodeKey,
         operator: crate::HirOperator,
         left: LocalSourceIndex,
-        right: LocalSourceIndex,
+        right: Option<LocalSourceIndex>,
     },
     Group {
         inner: LocalSourceIndex,
@@ -1350,13 +1350,15 @@ impl Builder<'_> {
         while let Some((expression, index, root)) = pending.pop() {
             match expression {
                 crate::HirExpr::Apply { operator, operands, range } => {
-                    let [left, right] = operands.as_ref() else { return Err(unsupported()); };
-                    if operator.fixity() != crate::OperatorFixity::Infix {
-                        return Err(unsupported());
-                    }
+                    let (left, right, use_kind) = match (operator.fixity(), operands.as_ref()) {
+                        (crate::OperatorFixity::Infix, [left, right]) => (left, Some(right), SyntaxKind::InfixOperatorUse),
+                        (crate::OperatorFixity::Prefix, [operand]) => (operand, None, SyntaxKind::PrefixOperatorUse),
+                        (crate::OperatorFixity::Suffix, [operand]) => (operand, None, SyntaxKind::SuffixOperatorUse),
+                        _ => return Err(unsupported()),
+                    };
                     let source_range = operator.range().clone();
                     let mut operator_nodes = chain_node.descendants().filter(|node|
-                        node.kind() == SyntaxKind::InfixOperatorUse
+                        node.kind() == use_kind
                             && range_of(node) == source_range
                     );
                     let operator_node = operator_nodes.next().ok_or_else(unsupported)?;
@@ -1368,19 +1370,19 @@ impl Builder<'_> {
                     }
                     let operator_source = self.key(&operator_node)?;
                     let left_index = self.slot()?;
-                    let right_index = self.slot()?;
+                    let right_index = right.map(|_| self.slot()).transpose()?;
                     let source_node = if root { &chain_node } else { &operator_node };
                     let retained_range = if root { range_of(&chain_node) } else { range.clone() };
                     self.set_at_range(
                         index, source_node, retained_range, scope.clone(), named_group.clone(),
-                        LocalSourceForm::InfixOperator {
+                        LocalSourceForm::OperatorApplication {
                             operator_source,
                             operator: operator.clone(),
                             left: left_index.clone(),
                             right: right_index.clone(),
                         },
                     )?;
-                    for (operand, child_index) in [(right, right_index), (left, left_index)] {
+                    for (operand, child_index) in right.zip(right_index).into_iter().chain(std::iter::once((left, left_index))) {
                         match operand {
                             crate::HirExpr::Apply { .. } => push(&mut pending, (operand, child_index, false))?,
                             crate::HirExpr::Value { .. } => self.associated_value(
@@ -1471,8 +1473,8 @@ impl Builder<'_> {
                     push(&mut children, child)?;
                 }
                 let (head, all_tails) = children.split_first().ok_or_else(unsupported)?;
-                let operator_uses = all_tails.iter().enumerate()
-                    .filter(|(_, tail)| tail.kind() == SyntaxKind::InfixOperatorUse)
+                let operator_uses = children.iter().enumerate()
+                    .filter(|(_, node)| matches!(node.kind(), SyntaxKind::InfixOperatorUse | SyntaxKind::PrefixOperatorUse | SyntaxKind::SuffixOperatorUse))
                     .collect::<Vec<_>>();
                 if !operator_uses.is_empty() {
                     let source_range = range_of(operator_uses[0].1);
@@ -2571,6 +2573,49 @@ mod tests {
     }
 
     #[test]
+    fn source_unary_operators_keep_association_arity_and_receipts() {
+        let provider: Arc<yu_syntax::SourceText> = Arc::from(
+            "pub prefix (-) 8.0.0 = f\npub suffix (!) 8.0.0 = g\npub infix (+) 5.0.0 5.0.1 = h",
+        );
+        let dependency = yu_syntax::SyntaxDependencySlot::from_index(0).unwrap();
+        let environment = yu_syntax::SyntaxEnvironment::from_imported_headers(
+            yu_syntax::SyntaxEnvironmentKey::from_fingerprint(19),
+            [(dependency, &yu_syntax::scan_header(provider))],
+            Arc::from([yu_syntax::SyntaxDependencyProvenance::new(
+                Arc::from("operators.yu"), yu_syntax::SourceRevision::from_fingerprint(79),
+            )]),
+        ).unwrap();
+        for (body, counts) in [("-12", [1, 0, 0]), ("12!", [0, 1, 0]),
+            ("-12 + 3!", [1, 1, 1]), ("-(-12)", [2, 0, 0])] {
+            let text: Arc<yu_syntax::SourceText> = Arc::from(format!("my value = {body}"));
+            let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)), Arc::new(environment.clone()));
+            assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{body}");
+            let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("test", "unary.yu")));
+            let module = lower_module(identity, &parsed, SemanticImports::empty()).unwrap();
+            let HirItem::Binding(binding) = &module.items()[0] else { panic!("binding"); };
+            let Some(SourceCarrierOutcome::Supported(source)) = module.source_carrier(binding.definition_root()).unwrap() else {
+                panic!("exact unary association must form: {body}");
+            };
+            let mut actual = [0; 3];
+            for expression in source.expressions() {
+                let LocalSourceForm::OperatorApplication { operator_source, operator, left, right } = &expression.form else { continue; };
+                assert!(parsed.owns_source_key(operator_source));
+                assert!(source.expression(left).is_some());
+                assert_eq!(operator.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Imported(dependency));
+                let ordinal = match operator.fixity() {
+                    crate::OperatorFixity::Prefix => 0,
+                    crate::OperatorFixity::Suffix => 1,
+                    crate::OperatorFixity::Infix => 2,
+                };
+                actual[ordinal] += 1;
+                assert_eq!(right.is_some(), ordinal == 2);
+                if let Some(right) = right { assert!(source.expression(right).is_some()); }
+            }
+            assert_eq!(actual, counts, "{body}");
+        }
+    }
+
+    #[test]
     fn pinned_generic_say_header_and_operator_body_form_a_source_carrier() {
         let provider: Arc<yu_syntax::SourceText> = Arc::from("pub infix (+) 5.0.0 5.0.1 = f");
         let dependency = yu_syntax::SyntaxDependencySlot::from_index(0).unwrap();
@@ -2598,7 +2643,7 @@ mod tests {
         assert_eq!(source.where_clauses()[0].subject.text.trim(), "'a");
         assert_eq!(source.where_clauses()[0].role.text.trim(), "Display");
         let operator = source.expressions().iter().find_map(|expression| match &expression.form {
-            LocalSourceForm::InfixOperator { operator_source, operator, .. } => Some((operator_source, operator)),
+            LocalSourceForm::OperatorApplication { operator_source, operator, .. } => Some((operator_source, operator)),
             _ => None,
         }).expect("operator constructor retained");
         assert!(parsed.owns_source_key(operator.0));

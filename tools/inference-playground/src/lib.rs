@@ -733,7 +733,7 @@ fn pinned_provider_projection_inner(
             owners: &mut Vec<yu_hir::SourceOperatorOwner>,
         ) -> Result<(), String> {
             for expression in source.expressions() {
-                let LocalSourceForm::InfixOperator { operator, .. } = &expression.form else { continue; };
+                let LocalSourceForm::OperatorApplication { operator, .. } = &expression.form else { continue; };
                 if !matches!(operator.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Imported(_)) {
                     continue;
                 }
@@ -1175,7 +1175,7 @@ fn source_uses_plus(hir: &HirModule) -> Result<bool, String> {
             HirItem::Error { .. } => None,
         };
         if source.is_some_and(|source| source.expressions().iter().any(|expression|
-            matches!(&expression.form, LocalSourceForm::InfixOperator { operator, .. }
+            matches!(&expression.form, LocalSourceForm::OperatorApplication { operator, .. }
                 if operator.spelling() == "+")
         )) { return Ok(true); }
     }
@@ -1563,7 +1563,7 @@ mod tests {
             let imports = consumer.source_imports().unwrap();
             consumer.source_member_carrier_outcomes().iter().flat_map(|(_, outcome)| match outcome {
                 yu_hir::SourceCarrierOutcome::Supported(source) => source.expressions().iter().filter_map(|expression| {
-                    let LocalSourceForm::InfixOperator { operator, .. } = &expression.form else { return None; };
+                    let LocalSourceForm::OperatorApplication { operator, .. } = &expression.form else { return None; };
                     imports.operator_owner_for_use(
                         operator.provenance(), operator.provenance().declaration().range(), operator.spelling(),
                         yu_syntax::OperatorFixity::Infix,
@@ -1956,7 +1956,7 @@ mod tests {
                 let HirItem::Binding(binding) = item else { continue; };
                 let Some(source) = module.local_source(binding.definition_root()).unwrap() else { continue; };
                 for expression in source.expressions() {
-                    let LocalSourceForm::InfixOperator { operator, .. } = &expression.form else { continue; };
+                    let LocalSourceForm::OperatorApplication { operator, .. } = &expression.form else { continue; };
                     if !matches!(operator.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Imported(_)) { continue; }
                     let fixity = match operator.fixity() {
                         yu_hir::OperatorFixity::Prefix => yu_syntax::OperatorFixity::Prefix,
@@ -2326,8 +2326,8 @@ mod tests {
             match (associated, &local.form) {
                 (
                     yu_hir::HirExpr::Apply { operator, operands, .. },
-                    yu_hir::LocalSourceForm::InfixOperator {
-                        operator_source, operator: local_operator, left, right,
+                    yu_hir::LocalSourceForm::OperatorApplication {
+                        operator_source, operator: local_operator, left, right: Some(right),
                     },
                 ) => {
                     assert_eq!(operator, local_operator);

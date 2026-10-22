@@ -404,7 +404,7 @@ fn candidate_imported_operator_provider_roots(
         owners: &mut Vec<yu_hir::SourceOperatorOwner>,
     ) -> Result<(), CandidateError> {
         for expression in source.expressions() {
-            let yu_hir::shadow::LocalSourceForm::InfixOperator { operator, .. } = &expression.form else {
+            let yu_hir::shadow::LocalSourceForm::OperatorApplication { operator, .. } = &expression.form else {
                 continue;
             };
             if !matches!(operator.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Imported(_)) {

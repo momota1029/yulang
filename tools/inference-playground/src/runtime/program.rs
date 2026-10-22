@@ -252,9 +252,9 @@ pub(super) enum Instruction {
         receiver: Label,
         key: RuntimeFieldTailKey,
     },
-    InfixOperator {
+    OperatorApplication {
         left: Label,
-        right: Label,
+        right: Option<Label>,
         key: RuntimeOperatorUseKey,
     },
     Name {
@@ -412,7 +412,7 @@ impl RuntimeProgram {
                 .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
             if !owner_source.expressions().iter().any(|expression|
                 expression.occurrence == key.occurrence
-                    && matches!(expression.form, LocalSourceForm::InfixOperator { .. }))
+                    && matches!(expression.form, LocalSourceForm::OperatorApplication { .. }))
             {
                 return Err(RuntimeUnavailable::InvalidSourceReference);
             }
@@ -858,9 +858,9 @@ impl RuntimeProgram {
                             use_occurrence: active_use_occurrence.clone(),
                         },
                     },
-                    LocalSourceForm::InfixOperator { left, right, .. } => Instruction::InfixOperator {
+                    LocalSourceForm::OperatorApplication { left, right, .. } => Instruction::OperatorApplication {
                         left: label(left)?,
-                        right: label(right)?,
+                        right: right.as_ref().map(label).transpose()?,
                         key: RuntimeOperatorUseKey {
                             use_owner: active_owner.clone(),
                             occurrence: expression.occurrence.clone(),
@@ -1045,7 +1045,7 @@ impl RuntimeProgram {
                     }));
                     code[index] = Arc::new(Code { site, instruction: Instruction::Forward(call) });
                 }
-                Instruction::InfixOperator { left, right, key } => {
+                Instruction::OperatorApplication { left, right, key } => {
                     let Some(provider) = evidence.operator_providers.get(&key) else {
                         return Err(RuntimeUnavailable::UnsupportedInfixOperator(site));
                     };
@@ -1063,12 +1063,15 @@ impl RuntimeProgram {
                         site: site.clone(),
                         instruction: Instruction::Apply { callee, argument: left },
                     }));
-                    let second = Label(code.len());
-                    code.push(Arc::new(Code {
-                        site: site.clone(),
-                        instruction: Instruction::Apply { callee: first, argument: right },
-                    }));
-                    code[index] = Arc::new(Code { site, instruction: Instruction::Forward(second) });
+                    let result = if let Some(right) = right {
+                        let second = Label(code.len());
+                        code.push(Arc::new(Code {
+                            site: site.clone(),
+                            instruction: Instruction::Apply { callee: first, argument: right },
+                        }));
+                        second
+                    } else { first };
+                    code[index] = Arc::new(Code { site, instruction: Instruction::Forward(result) });
                 }
                 _ => {}
             }
@@ -1400,7 +1403,7 @@ fn reachable_runtime_roots(
                     });
                     }
                 }
-                LocalSourceForm::InfixOperator { .. } => {
+                LocalSourceForm::OperatorApplication { .. } => {
                     let key = RuntimeOperatorUseKey {
                         use_owner: root.active_owner.clone(),
                         occurrence: expression.occurrence.clone(),
@@ -1711,8 +1714,8 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
             Instruction::Sequence { items } => stack.extend(items.iter().rev().copied()),
             Instruction::Tuple { elements } => stack.extend(elements.iter().rev().copied()),
             Instruction::FieldTail { receiver, .. } => stack.push(*receiver),
-            Instruction::InfixOperator { left, right, .. } => {
-                stack.push(*right);
+            Instruction::OperatorApplication { left, right, .. } => {
+                if let Some(right) = right { stack.push(*right); }
                 stack.push(*left);
             }
             Instruction::Catch { scrutinee, arms } => {
@@ -1810,9 +1813,9 @@ fn handler_arm_operation_ranges(
             }
             Form::Tuple { elements } => pending.extend(elements.iter().cloned()),
             Form::FieldTail { receiver, .. } => pending.push(receiver.clone()),
-            Form::InfixOperator { left, right, .. } => {
+            Form::OperatorApplication { left, right, .. } => {
                 pending.push(left.clone());
-                pending.push(right.clone());
+                pending.extend(right.iter().cloned());
             }
             Form::Group { inner } | Form::Ascription { inner, .. } => pending.push(inner.clone()),
             Form::Lambda { body, .. } => pending.push(body.clone()),

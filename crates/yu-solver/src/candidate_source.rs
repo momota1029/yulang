@@ -80,8 +80,7 @@ pub(super) struct OperatorUse {
     pub provider: usize,
     pub left: CandidateEndpoint,
     pub left_effect: usize,
-    pub right: CandidateEndpoint,
-    pub right_effect: usize,
+    pub right: Option<(CandidateEndpoint, usize)>,
     pub result: usize,
     pub result_effect: usize,
 }
@@ -1234,8 +1233,8 @@ impl ConstraintBatch {
                             push(&mut work, Work::Visit(argument.ordinal() as usize, level, region))?;
                             push(&mut work, Work::Visit(callee.ordinal() as usize, level, region))?;
                         }
-                        LocalSourceForm::InfixOperator { left, right, .. } => {
-                            push(&mut work, Work::Visit(right.ordinal() as usize, level, region))?;
+                        LocalSourceForm::OperatorApplication { left, right, .. } => {
+                            if let Some(right) = right { push(&mut work, Work::Visit(right.ordinal() as usize, level, region))?; }
                             push(&mut work, Work::Visit(left.ordinal() as usize, level, region))?;
                         }
                         LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => push(&mut work, Work::Visit(inner.ordinal() as usize, level, region))?,
@@ -1603,7 +1602,8 @@ impl ConstraintBatch {
                         LocalSourceForm::Operation { .. } => return Err(invalid()),
                         LocalSourceForm::Primitive { operation } => {
                             let (argument_negative, result_positive) = match operation {
-                                yu_hir::shadow::PinnedPrimitiveOp::IntAdd => (Leaf::IntNegative, Leaf::IntPositive),
+                                yu_hir::shadow::PinnedPrimitiveOp::IntAdd | yu_hir::shadow::PinnedPrimitiveOp::IntSub
+                                | yu_hir::shadow::PinnedPrimitiveOp::IntMul => (Leaf::IntNegative, Leaf::IntPositive),
                                 yu_hir::shadow::PinnedPrimitiveOp::IntToString => (Leaf::IntNegative, Leaf::StrPositive),
                                 yu_hir::shadow::PinnedPrimitiveOp::StringConcat => (Leaf::StrNegative, Leaf::StrPositive),
                                 yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => return Err(invalid()),
@@ -1864,7 +1864,7 @@ impl ConstraintBatch {
                             })?;
                             push(&mut actions, Action::Candidate(recipe))?;
                         }
-                        LocalSourceForm::InfixOperator { operator_source, operator, left, right } => {
+                        LocalSourceForm::OperatorApplication { operator_source, operator, left, right } => {
                             if !matches!(operator.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Imported(_)) {
                                 return Err(unavailable());
                             }
@@ -1885,7 +1885,7 @@ impl ConstraintBatch {
                             }
                             let provider = provider.ok_or_else(unavailable)?;
                             let left = left.ordinal() as usize;
-                            let right = right.ordinal() as usize;
+                            let right = right.as_ref().map(|right| right.ordinal() as usize);
                             let use_index = self.candidate_source.operator_uses.len();
                             push(&mut self.candidate_source.operator_uses, OperatorUse {
                                 owner: owner.clone(),
@@ -1895,8 +1895,7 @@ impl ConstraintBatch {
                                 provider,
                                 left: endpoints[left],
                                 left_effect: positions[left].effect,
-                                right: endpoints[right],
-                                right_effect: positions[right].effect,
+                                right: right.map(|index| (endpoints[index], positions[index].effect)),
                                 result: pos.value,
                                 result_effect: pos.effect,
                             })?;

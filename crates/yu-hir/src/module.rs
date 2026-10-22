@@ -216,7 +216,15 @@ fn resolve_source_imports(
     identity: &ModuleIdentity,
     indexes: &[source_exports::SourceExportIndex],
 ) -> Result<(yu_syntax::SourceNodeKey, HashMap<Box<str>, source_exports::SourceImportBinding>), HirAvailabilityError> {
-    resolve_source_imports_selected(parsed, identity, indexes, None)
+    let (parse_root, mut names) = resolve_source_imports_selected(parsed, identity, indexes, None)?;
+    // Qualified value uses carry the same exact export identities in a whole
+    // consumer as in a projected provider/member body. No spelling alone
+    // authorizes an import: the supplied public source indexes resolve it.
+    let qualified = selected_member_value_paths(
+        parsed, indexes, &std::collections::HashSet::from([parse_root.clone()]),
+    )?;
+    names.extend(qualified);
+    Ok((parse_root, names))
 }
 
 fn resolve_source_imports_selected(
@@ -402,7 +410,9 @@ fn selected_member_operation_paths(
             let mut children = expression.children();
             let Some(head) = children.next() else { continue; };
             if head.kind() != SyntaxKind::IdentifierExpression { continue; }
-            let mut segments = vec![head.to_string().into_boxed_str()];
+            let Some(head_token) = head.children_with_tokens().filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::Identifier) else { continue; };
+            let mut segments: Vec<Box<str>> = vec![head_token.text().into()];
             for tail in children.take_while(|tail| tail.kind() == SyntaxKind::PathTail) {
                 if has_recovery(&tail) { return Err(HirAvailabilityError::SourceImportResolutionUnavailable); }
                 let tokens = tail.children_with_tokens().filter(|element| !matches!(
@@ -548,7 +558,6 @@ fn selected_member_operation_paths(
     Ok(paths)
 }
 
-#[cfg(any(feature = "shadow", test))]
 fn selected_member_value_paths(
     parsed: &ParsedFile,
     indexes: &[source_exports::SourceExportIndex],
@@ -572,7 +581,9 @@ fn selected_member_value_paths(
             let mut children = expression.children();
             let Some(head) = children.next() else { continue; };
             if head.kind() != SyntaxKind::IdentifierExpression { continue; }
-            let mut segments = vec![head.to_string().into_boxed_str()];
+            let Some(head_token) = head.children_with_tokens().filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::Identifier) else { continue; };
+            let mut segments: Vec<Box<str>> = vec![head_token.text().into()];
             for tail in children.take_while(|tail| tail.kind() == SyntaxKind::PathTail) {
                 if has_recovery(&tail) { return Err(HirAvailabilityError::SourceImportResolutionUnavailable); }
                 let tokens = tail.children_with_tokens().filter(|element| !matches!(
@@ -4711,7 +4722,7 @@ mod tests {
 
     #[test]
     fn pinned_builtin_namespace_forms_distinct_primitive_values() {
-        let parsed = parsed("pub add: int -> int -> int = builtin_op::int_add\npub sub = builtin_op::int_sub");
+        let parsed = parsed("pub add: int -> int -> int = builtin_op::int_add\npub sub = builtin_op::int_sub\npub mul = builtin_op::int_mul\npub divide = builtin_op::int_div");
         assert!(parsed.syntax_diagnostics().unwrap().is_empty());
         let hir = lower_module_with_local_source(identity(), &parsed, SemanticImports::empty()).unwrap();
         let sources = hir.items().iter().filter_map(|item| match item {
@@ -4724,11 +4735,15 @@ mod tests {
                 operation: source_annotation::PinnedPrimitiveOp::IntAdd,
             }
         )));
+        for expected in [source_annotation::PinnedPrimitiveOp::IntSub, source_annotation::PinnedPrimitiveOp::IntMul] {
+            assert!(sources.iter().flat_map(|source| source.expressions()).any(|expression| matches!(
+                &expression.form, local_source::LocalSourceForm::Primitive { operation } if operation == &expected)));
+        }
         assert!(sources.iter().flat_map(|source| source.expressions()).any(|expression| matches!(
             &expression.form,
             local_source::LocalSourceForm::Primitive {
                 operation: source_annotation::PinnedPrimitiveOp::Unsupported(name),
-            } if name.as_ref() == "int_sub"
+            } if name.as_ref() == "int_div"
         )));
         assert!(!sources.iter().flat_map(|source| source.expressions()).any(|expression| matches!(
             expression.form,

@@ -297,3 +297,27 @@ are both reproduced at immediate parent 0144862ce. No expectations changed for
 those failures. Primary only, UNREVIEWED, all-source/original proof scope OPEN.
 Next shared slice: pinned arithmetic source/primitive execution and proofs;
 remaining source record/range/search constructors remain explicit dependencies.
+
+Within direct-eleven remaining allowance, continue the shared pinned arithmetic
+path after pushed checkpoint 0126e5765. Existing HIR/solver/machine/mod/CLI/Web
+leases apply; add exactly `tools/inference-playground/src/runtime/decimal.rs`
+for a bounded per-step signed-decimal multiplication kernel. Preserve pinned
+std/int and std/num source identities; no direct source operator shortcut. Sub
+and Mul use original integer types and arbitrary-precision decimal values. No
+new division semantics or numeric-width limit is introduced. Child-free,
+UNREVIEWED direct-primary work; retain spent resource accounting.
+
+Arithmetic source checks expose qualified consumer value resolution and the
+unary operator carrier gap. Existing exact module/local_source/candidate_scheme/
+shadow_apply/runtime/lib leases cover the constructor extension described in the
+proof note: authenticated fixity+arity, one or two ordinary Apply demands and
+matching runtime frames. No operator spelling shortcut; original binary slot
+identities and effects remain. Explicit `use` HIR items remain a distinct gate.
+
+Arithmetic checkpoint: native 262, HIR shadow 4, solver candidate 5, fresh WASM
+46 execution cases plus original output/diagnostic fixtures, and TS all pass.
+Original catalog remains 6/19 expected behavior; arithmetic is a shared required
+constructor dependency, not full sample completion. One initial no-feature HIR
+invocation failed on feature-gated definitions; no such configuration success
+is claimed. Primary only, UNREVIEWED, parent scope unchanged. Retain accounting;
+next source admission slice starts from the pushed arithmetic checkpoint.

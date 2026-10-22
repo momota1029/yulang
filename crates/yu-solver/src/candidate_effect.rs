@@ -945,7 +945,8 @@ impl InferenceSession {
         use yu_hir::shadow::{SourceAnnotationType as Ty, SourceAnnotationValue as Value};
         let atom = |value| Ty { effects: None, value };
         let (argument, result) = match operation {
-            yu_hir::shadow::PinnedPrimitiveOp::IntAdd => (Value::Int, Value::Int),
+            yu_hir::shadow::PinnedPrimitiveOp::IntAdd | yu_hir::shadow::PinnedPrimitiveOp::IntSub
+                                | yu_hir::shadow::PinnedPrimitiveOp::IntMul => (Value::Int, Value::Int),
             yu_hir::shadow::PinnedPrimitiveOp::IntToString => (Value::Int, Value::Str),
             yu_hir::shadow::PinnedPrimitiveOp::StringConcat => (Value::Str, Value::Str),
             yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => return Err(exhausted()),
@@ -2248,7 +2249,7 @@ mod tests {
 
     #[test]
     fn unsupported_pinned_primitive_is_not_admitted_as_an_effect_operation() {
-        let text = "pub subtract = builtin_op::int_sub";
+        let text = "pub divide = builtin_op::int_div";
         let source: std::sync::Arc<yu_syntax::SourceText> = std::sync::Arc::from(text);
         let parsed = yu_syntax::parse_file(
             source.clone(),

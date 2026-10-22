@@ -61,6 +61,49 @@ fn unchanged_yulang2_effects_sample_runs_through_the_cli() {
 }
 
 #[test]
+fn pinned_integer_subtraction_and_multiplication_use_the_ordinary_source_path() {
+    for (source, expected) in [
+        ("my main = builtin_op::int_sub 7 10", "-3\n"),
+        ("my main = builtin_op::int_mul 12 34", "408\n"),
+        ("my main = std::int::sub 7 10", "-3\n"),
+        ("my main = std::int::mul 12 34", "408\n"),
+        ("my main = 7 - 10", "-3\n"),
+        ("my main = 2 + 3 * 4", "14\n"),
+        ("my square x = x * x\nmy main = square 9", "81\n"),
+        ("my main = (-12) * (-34)", "408\n"),
+        ("my main = -(-12) - 34", "-22\n"),
+        ("my negate x = std::int::sub 0 x\nmy main = negate 7", "-7\n"),
+        ("my times_two = std::int::mul 2\nmy main = (times_two 3, times_two 4)", "(6, 8)\n"),
+        ("my main = 12345678901234567890 * 12345678901234567890", "152415787532388367501905199875019052100\n"),
+        ("act io:\n    our tick: int -> int\nmy relay(thunk:[io] int) = catch thunk { io::tick(p), k -> relay: k p }\nmy main = relay ((io::tick 3) * (io::tick 4))", "12\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(output.status.success(), "{source}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "{source}");
+        assert!(output.stderr.is_empty());
+    }
+    let source = "say: ({ println \"left\"; 3 } * { println \"right\"; 4 })\n";
+    let output = cli_with_args(source, &["--run-module"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"left\nright\n12\n");
+}
+
+#[test]
+fn integer_product_checks_types_and_stops_at_the_runtime_budget() {
+    for source in ["my main = builtin_op::int_mul true 4", "my main = std::int::sub 1 \"x\""] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("candidate type conflicts"));
+    }
+    let source = "my main = builtin_op::int_mul 12345678901234567890 12345678901234567890";
+    let output = cli_with_args(source, &["--run", "main", "--steps", "30"]);
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("runtime step budget exhausted"));
+}
+
+#[test]
 fn unchanged_yulang2_tuple_arity_reports_the_original_argument() {
     let source = include_str!("../../../web/playground/examples/yulang2-tuple-arity.yu");
     let output = cli_with_args(source, &["--run-module"]);

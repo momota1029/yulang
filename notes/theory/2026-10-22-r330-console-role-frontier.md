@@ -1959,3 +1959,124 @@ principality, remaining 13 original samples, general callback receiving and
 operation/component computation gates remain open. The next shared source path
 is ordinary pinned arithmetic used by the record/range/search samples, followed
 by their remaining constructor/iteration gates; no sample rewrite is authorized.
+
+### Pinned subtraction and multiplication construction
+
+Authority is the unchanged pinned `lib/std/int.yu`: sub/mul are curried
+`int -> int -> int` values backed by `builtin_op::int_sub`/`int_mul`.
+`lib/std/num.yu` supplies the authentic Sub/Mul role methods, and
+`lib/std/core/ops.yu` supplies prefix minus and the infix operators. Retain this
+entire import/member/primitive path; recognizing a source `*` or `-` directly
+in runtime is not the construction. Existing runtime integers are arbitrary
+precision signed decimal strings, so no machine-width truncation is allowed.
+
+Subtraction is addition of the sign-normalized negated second integer, reusing
+the existing magnitude addition/subtraction algorithm. Multiplication uses
+base-10 school multiplication with at most n+m output digits. One kernel step
+normalizes one digit pair: sum = accumulated digit + a_i*b_j + carry, which is
+at most 99. Replace that digit by sum mod 10 and move floor(sum/10) into carry;
+at row end the next untouched high digit receives carry. Thus each step
+preserves the represented partial product, and induction over row/column indices
+finishes with |a|*|b|. The output sign is XOR of input signs, except canonical
+zero is unsigned. Equal source operands are read as values, never mutated.
+
+The kernel is a pure Machine state after both curried arguments have returned.
+It performs one digit pair per machine step, preserving all frames, views,
+invocations and environments. Budget exhaustion retains the same private kernel
+state and publishes no partial value. Resuming uses the remaining rows/columns;
+completion returns one ground Int through the existing primitive return path.
+The number of digit steps is finite and bounded by n*m; allocation and final
+normalization are linear in n+m, with checked lengths. Handler capture before
+argument completion keeps the existing PrimitiveArgument frame unchanged.
+
+The HIR unsupported-primitive probe and solver unsupported-operation probe used
+int_sub solely as an example of the then-unimplemented intrinsic. With this
+source-backed constructor added, move that negative probe to still-unsupported
+int_div and add positive Sub/Mul identity, type and execution checks. This is a
+recorded extension justified by the pinned signatures, not weakening the
+unsupported-intrinsic-as-operation invariant. Parent theorem/source completeness
+and independent review remain open; the local arithmetic derivation is UNREVIEWED.
+
+Arithmetic source correspondence continuation: ordinary whole-source imports
+previously omitted fully qualified value paths although selected member roots
+already resolved them. Reuse that exact public-export resolver on the consumer
+parse root, preserving missing/ambiguous outcomes and source identities. Explicit
+`use` statement admission is a separate HIR item gate; this change does not claim
+it closed.
+
+Prefix negation exposed a second representation gap: association already owns
+unary prefix/suffix applications and their declaration receipts, but LocalSource
+accepted only binary infix. Generalize the retained operator application to one
+required operand and an optional second operand. Formation checks the exact
+fixity/arity (prefix or suffix = 1; infix = 2), syntax-node range, source key and
+association receipt. The proof is a constructor case extension: instantiate the
+original operator provider once; generate one ordinary Apply demand for unary,
+two ordered curried Apply demands for binary; restore exactly the same FreshUse
+and dictionary evidence. Unary's first result/effect are the final result/effect;
+no fictitious second operand, computation or effect is inserted. Runtime mirrors
+this by pushing one or two Callee frames in source evaluation order. Existing
+binary slot numbers and source/use identity remain stable. This is constructive
+source/native work, still UNREVIEWED, not parent A/B or general receiving closure.
+
+The arithmetic constructor probe also found a source-name defect inside the
+original prefix-minus provider: `IdentifierExpression::to_string()` retained
+leading trivia, so ` std::int::sub` failed public-export lookup although the
+LocalSource spelling was `std::int::sub`. Both qualified operation/value scanners
+now take the Identifier token rather than the whole node text. This changes no
+namespace rule and does not trim string literals or reinterpret source ranges.
+The exact pinned prefix body `\x -> std::int::sub 0 x` consequently projects its
+actual std/int dependency before capture. Whole-consumer and selected-provider
+qualified paths now share the same identity-based resolver.
+
+Parent application: the admitted literal/Name/Lambda/Apply constructor map gains
+IntSub/IntMul's pure curried signatures and the unary operator's single real
+Apply. Subtraction is composition of checked sign negation and the existing
+signed-add routine. For multiplication, after complete row r the accumulator is
+`sum(i<r, a_i * B * 10^i)`; inside row r, each advance replaces the current digit
+and forwards its quotient carry, preserving that sum plus the unprocessed row
+suffix. Base 10 division yields digit < 10, carry <= 9, and exact sum. Finishing
+all rows yields |A|*|B|; the exclusive-or sign and normalized zero yield signed
+A*B. At every step only the private Product changes; the machine's public result
+is allocated once, after all rows finish. None of these local derivations closes
+the original graph/source adequacy, principality or general receiving theorem.
+
+More explicitly, write D for the numeric accumulator, c for the private carry,
+and B = sum(b_k*10^k). During row r at column j the invariant is
+`D + c*10^(r+j) + a_r*sum(k>=j, b_k*10^(r+k))
+ = sum(i<r, a_i*B*10^i) + a_r*B*10^r`.
+For s = old_digit + a_r*b_j + c, replacing old_digit by s mod 10 and carry by
+floor(s/10) preserves the equality at j+1. At j=m, the untouched high digit
+receives c, establishing the next row's base case. All previous rows have
+largest possible written position <= r+m-1; this justifies assigning the carry
+to position r+m rather than adding to an occupied digit. The machine kernel
+stores these exact coordinates as row/column/carry and uses checked n+m sizing.
+
+### Arithmetic checkpoint (direct primary, UNREVIEWED)
+
+Connected pinned IntSub/IntMul signatures, arbitrary-precision decimal runtime,
+resumable digit multiplication, qualified consumer/provider imports and unary
+operator association/Apply/runtime transport. Exact source cases cover direct
+primitives and std exports, binary precedence, prefix negation, generic and
+partially applied products, large values, recursive handled operand effects,
+left-to-right module writes, type rejection and withheld budget-exhausted output.
+The dedicated live-machine test pauses inside multiplication and resumes the
+same frames, cache and private accumulator. Source HIR checks both prefix and
+suffix receipts/arity, including mixed binary and nested unary forms.
+
+Verification: native yu-playground 262 pass (70 library, 58 primary CLI, 134
+other integration tests); HIR shadow unary 1, primitive registry 1, import
+resolution 2; solver candidate unsupported-primitive 1 and operator schedules 4;
+fresh release WASM 46 execution examples plus original Types/Console/Effects
+module output, three identity definitions and three expected diagnostics;
+TypeScript passes. An initial HIR invocation without the candidate `shadow`
+feature failed on feature-gated fields/types; the above HIR receipts explicitly
+use `--features shadow`. No default-feature HIR success is claimed.
+Logs: `target/r332-arithmetic-{native,hir-unary,hir-primitive,hir-imports,
+solver-primitive,solver-operators,web,typescript}.log`. Rechecking unchanged
+cooked original sources retains 6/19 expected behaviors; the remaining 13 gates
+are recorded in `target/r332-catalog-cooked/results-after-arithmetic.json`.
+Original sample bodies were not rewritten. Prior two solver baseline failures,
+all-source adequacy, general receiving, principals, A/B and independent review
+remain OPEN; those baseline tests were not reclassified or rerun in this slice.
+Next: explicit import item admission and the remaining record/range/pattern
+constructors through their actual source owners.

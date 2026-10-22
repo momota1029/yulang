@@ -207,6 +207,10 @@ enum State {
         response: ReceivedValue,
     },
     Request(PendingRequest),
+    IntegerProduct {
+        product: super::decimal::Product,
+        site: SourceSite,
+    },
     Stopped(RuntimeOutcome),
 }
 #[derive(Clone)]
@@ -639,6 +643,7 @@ impl Machine {
                 response,
             } => self.enter_template(template, node, control, response),
             State::Request(request) => self.propagate_request(request),
+            State::IntegerProduct { product, site } => self.advance_integer_product(product, site),
             State::Stopped(_) => unreachable!(),
         };
         if let Err(error) = result {
@@ -712,17 +717,17 @@ impl Machine {
                 // runtime value tag supplies a missing dictionary.
                 return Err(RuntimeUnavailable::UnsupportedFieldTail(site.clone()));
             }
-            Instruction::InfixOperator { left, right, key } if self.program.dictionaries.is_some() => {
+            Instruction::OperatorApplication { left, right, key } if self.program.dictionaries.is_some() => {
                 let callee = *self.program.operator_bodies.get(key).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
                 let entered = self.dispatch_environment(environment, dispatch::Step {
                     kind: dispatch::Kind::Operator,
                     site: dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() },
                 })?;
-                self.frames.push(Frame::Callee { argument: *right, environment, site: site.clone() });
+                if let Some(right) = right { self.frames.push(Frame::Callee { argument: *right, environment, site: site.clone() }); }
                 self.frames.push(Frame::Callee { argument: *left, environment, site: site.clone() });
                 self.state = State::Evaluate { code: callee, environment: entered };
             }
-            Instruction::InfixOperator { .. } => {
+            Instruction::OperatorApplication { .. } => {
                 return Err(RuntimeUnavailable::InvalidSourceReference);
             }
             Instruction::Forward(inner) => {
@@ -1099,9 +1104,21 @@ impl Machine {
                         Some(ExecutableValue::Primitive { operation, arguments }),
                     );
                 } else if arguments.len() == arity {
-                    let result = pinned_primitive_apply(&operation, &arguments, &self.values)
-                        .ok_or_else(|| RuntimeUnavailable::InvalidSourceReference)?;
-                    self.ground_data(&site, result, None);
+                    if matches!(operation, yu_hir::shadow::PinnedPrimitiveOp::IntMul) {
+                        let Some(RuntimeValueKind::Integer(left)) = self.values.get(arguments[0].0).map(|value| &value.kind) else {
+                            return Err(RuntimeUnavailable::InvalidSourceReference);
+                        };
+                        let Some(RuntimeValueKind::Integer(right)) = self.values.get(arguments[1].0).map(|value| &value.kind) else {
+                            return Err(RuntimeUnavailable::InvalidSourceReference);
+                        };
+                        let product = super::decimal::Product::new(left, right)
+                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                        self.state = State::IntegerProduct { product, site };
+                    } else {
+                        let result = pinned_primitive_apply(&operation, &arguments, &self.values)
+                            .ok_or_else(|| RuntimeUnavailable::InvalidSourceReference)?;
+                        self.ground_data(&site, result, None);
+                    }
                 } else {
                     return Err(RuntimeUnavailable::InvalidSourceReference);
                 }
@@ -2480,10 +2497,24 @@ impl Machine {
     }
 }
 
+impl Machine {
+    fn advance_integer_product(&mut self, mut product: super::decimal::Product, site: SourceSite) -> Result<(), RuntimeUnavailable> {
+        if product.advance() {
+            let value = product.finish().ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            self.ground_data(&site, RuntimeValueKind::Integer(value.into_boxed_str()), None);
+        } else {
+            self.state = State::IntegerProduct { product, site };
+        }
+        Ok(())
+    }
+}
+
 fn pinned_primitive_arity(operation: &yu_hir::shadow::PinnedPrimitiveOp) -> Option<usize> {
     match operation {
         yu_hir::shadow::PinnedPrimitiveOp::IntToString => Some(1),
         yu_hir::shadow::PinnedPrimitiveOp::IntAdd
+        | yu_hir::shadow::PinnedPrimitiveOp::IntSub
+        | yu_hir::shadow::PinnedPrimitiveOp::IntMul
         | yu_hir::shadow::PinnedPrimitiveOp::StringConcat => Some(2),
         yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => None,
     }
@@ -2501,6 +2532,14 @@ fn pinned_primitive_apply(
             let RuntimeValueKind::Integer(right) = argument(1)? else { return None; };
             Some(RuntimeValueKind::Integer(decimal_add(left, right)?.into_boxed_str()))
         }
+        yu_hir::shadow::PinnedPrimitiveOp::IntSub => {
+            let RuntimeValueKind::Integer(left) = argument(0)? else { return None; };
+            let RuntimeValueKind::Integer(right) = argument(1)? else { return None; };
+            let negative = super::decimal::negate(right)?;
+            Some(RuntimeValueKind::Integer(decimal_add(left, &negative)?.into_boxed_str()))
+        }
+        // Multiplication uses the resumable Machine state above.
+        yu_hir::shadow::PinnedPrimitiveOp::IntMul => None,
         yu_hir::shadow::PinnedPrimitiveOp::IntToString => {
             let RuntimeValueKind::Integer(value) = argument(0)? else { return None; };
             Some(RuntimeValueKind::String(value.clone()))
@@ -2654,6 +2693,29 @@ mod module_expression_tests {
                 )
             })
             .count()
+    }
+
+    #[test]
+    fn integer_product_budget_pause_preserves_the_live_machine() {
+        let mut machine = machine("my main = builtin_op::int_mul 12345678901234567890 12345678901234567890", true);
+        for _ in 0..100 {
+            if matches!(machine.state, State::IntegerProduct { .. }) { break; }
+            assert!(matches!(machine.run(1), RuntimeOutcome::ResourceExhausted { .. }));
+        }
+        assert!(matches!(machine.state, State::IntegerProduct { .. }));
+        let before_steps = machine.steps();
+        let before_values = machine.values.len();
+        let before_frames = machine.frames.len();
+        let before_cells = cache_snapshot(&machine);
+        assert!(matches!(machine.run(7), RuntimeOutcome::ResourceExhausted { .. }));
+        assert_eq!(machine.steps(), before_steps + 7);
+        assert_eq!(machine.values.len(), before_values, "no partial product becomes a value");
+        assert_eq!(machine.frames.len(), before_frames);
+        assert_eq!(cache_snapshot(&machine), before_cells);
+        assert!(matches!(machine.state, State::IntegerProduct { .. }));
+        let RuntimeOutcome::Completed(value) = machine.run(1000) else { panic!("resumed product"); };
+        assert!(matches!(&machine.value(value).unwrap().kind,
+            RuntimeValueKind::Integer(value) if value.as_ref() == "152415787532388367501905199875019052100"));
     }
 
     #[test]

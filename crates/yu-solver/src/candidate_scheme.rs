@@ -2934,7 +2934,7 @@ impl InferenceSession {
             .operator_graphs.get(&provider.root).cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
         let level = *self.batch.candidate_source.component_levels.get(&use_.result)
             .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-        // Slots 0..=7 belong to the two Apply value/effect facts; the
+        // Slots 0..=7 are reserved for up to two Apply value/effect facts; the
         // independent FreshUse restoration lane starts after them.
         let occurrence = ConstraintOccurrenceId::new_wide(use_.occurrence.clone(), 8);
         let cause = CauseId::for_occurrence(occurrence.clone());
@@ -2943,14 +2943,11 @@ impl InferenceSession {
         )?;
         let left_effect_row = self.live_components.get(use_.left_effect)
             .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-        let right_effect_row = self.live_components.get(use_.right_effect)
-            .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
         let result_row = self.live_components.get(use_.result)
             .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
         let final_effect_row = self.live_components.get(use_.result_effect)
             .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
         let left = self.candidate_endpoint(use_.left, Polarity::Positive)?;
-        let right = self.candidate_endpoint(use_.right, Polarity::Positive)?;
 
         let (callee_effect_row, left_invocation_row, first_effect_row,
             right_invocation_row) = if self.batch.candidate_graph_effects {
@@ -2958,10 +2955,10 @@ impl InferenceSession {
                 .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
             (Some(self.fresh_effect_at_level(effect_level)?),
                 Some(self.fresh_effect_at_level(effect_level)?),
-                Some(self.fresh_effect_at_level(effect_level)?),
-                Some(self.fresh_effect_at_level(effect_level)?))
+                Some(if use_.right.is_some() { self.fresh_effect_at_level(effect_level)? } else { final_effect_row }),
+                if use_.right.is_some() { Some(self.fresh_effect_at_level(effect_level)?) } else { None })
         } else { (None, None, None, None) };
-        let first_value_row = self.fresh_value_at_level(level)?;
+        let first_value_row = if use_.right.is_some() { self.fresh_value_at_level(level)? } else { result_row };
         let first_result = self.live_value_term(Polarity::Negative, first_value_row)?;
         let left_effect = if self.batch.candidate_graph_effects {
             self.live_effect_term(Polarity::Positive, left_effect_row)?
@@ -2972,24 +2969,31 @@ impl InferenceSession {
         let first_demand = self.negative_function_term(left, left_effect, left_invocation, first_result)?;
         self.admit_operator_value(&use_.occurrence, 0, operator, first_demand)?;
 
-        let final_result = self.live_value_term(Polarity::Negative, result_row)?;
-        let second_callee = self.live_value_term(Polarity::Positive, first_value_row)?;
-        let right_effect = if self.batch.candidate_graph_effects {
-            self.live_effect_term(Polarity::Positive, right_effect_row)?
-        } else { self.batch.collected_leaf_term(Leaf::EffectBottomPositive) };
-        let right_invocation = if let Some(row) = right_invocation_row {
-            self.live_effect_term(Polarity::Negative, row)?
-        } else { self.batch.collected_leaf_term(Leaf::EmptyEffectNegative) };
-        let second_demand = self.negative_function_term(right, right_effect, right_invocation, final_result)?;
-        self.admit_operator_value(&use_.occurrence, 1, second_callee, second_demand)?;
+        if let Some((right, right_effect)) = use_.right {
+            let right_effect_row = self.live_components.get(right_effect)
+                .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let right = self.candidate_endpoint(right, Polarity::Positive)?;
+            let final_result = self.live_value_term(Polarity::Negative, result_row)?;
+            let second_callee = self.live_value_term(Polarity::Positive, first_value_row)?;
+            let right_effect = if self.batch.candidate_graph_effects {
+                self.live_effect_term(Polarity::Positive, right_effect_row)?
+            } else { self.batch.collected_leaf_term(Leaf::EffectBottomPositive) };
+            let right_invocation = if let Some(row) = right_invocation_row {
+                self.live_effect_term(Polarity::Negative, row)?
+            } else { self.batch.collected_leaf_term(Leaf::EmptyEffectNegative) };
+            let second_demand = self.negative_function_term(right, right_effect, right_invocation, final_result)?;
+            self.admit_operator_value(&use_.occurrence, 1, second_callee, second_demand)?;
+        }
 
-        if let (Some(callee_effect), Some(left_invocation), Some(first_effect), Some(right_invocation)) =
-            (callee_effect_row, left_invocation_row, first_effect_row, right_invocation_row)
+        if let (Some(callee_effect), Some(left_invocation), Some(first_effect)) =
+            (callee_effect_row, left_invocation_row, first_effect_row)
         {
             self.admit_operator_effect(&use_.occurrence, 2, callee_effect, first_effect)?;
             self.admit_operator_effect(&use_.occurrence, 3, left_invocation, first_effect)?;
-            self.admit_operator_effect(&use_.occurrence, 4, first_effect, final_effect_row)?;
-            self.admit_operator_effect(&use_.occurrence, 5, right_invocation, final_effect_row)?;
+            if let Some(right_invocation) = right_invocation_row {
+                self.admit_operator_effect(&use_.occurrence, 4, first_effect, final_effect_row)?;
+                self.admit_operator_effect(&use_.occurrence, 5, right_invocation, final_effect_row)?;
+            }
             // Evaluating the imported operator value is pure. This is the
             // same empty computation effect used for a source Lambda.
             let callee_effect_positive = self.live_effect_term(Polarity::Positive, callee_effect)?;
@@ -4720,7 +4724,7 @@ mod authentic_demand_capture_tests {
             _ => panic!("consumer binding"),
         }).unwrap().unwrap();
         let operator = source.expressions().iter().find_map(|expression| match &expression.form {
-            yu_hir::shadow::LocalSourceForm::InfixOperator { operator, .. } => Some(operator),
+            yu_hir::shadow::LocalSourceForm::OperatorApplication { operator, .. } => Some(operator),
             _ => None,
         }).unwrap();
         let resolved_owner = consumer.source_imports().unwrap().operator_owner_for_use(
@@ -4729,7 +4733,7 @@ mod authentic_demand_capture_tests {
         ).unwrap();
         assert_eq!(resolved_owner, owner);
         let use_occurrences: Vec<_> = source.expressions().iter().filter(|expression|
-            matches!(&expression.form, yu_hir::shadow::LocalSourceForm::InfixOperator { .. })
+            matches!(&expression.form, yu_hir::shadow::LocalSourceForm::OperatorApplication { .. })
         ).map(|expression| expression.occurrence.clone()).collect();
         assert_eq!(use_occurrences.len(), 1);
         let expected_operator_owner = owner.clone();

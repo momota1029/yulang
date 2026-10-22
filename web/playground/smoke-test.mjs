@@ -4,6 +4,12 @@ import init, { infer, infer_types, run, run_module, run_module_report } from "./
 await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") });
 
 const examples = {
+  integerSubtraction: ['my main = std::int::sub 7 10', '-3\n'],
+  integerMultiplication: ['my main = 2 + 3 * 4', '14\n'],
+  integerNegation: ['my main = (-12) * (-34)', '408\n'],
+  integerGenericProduct: ['my square x = x * x\nmy main = square 9', '81\n'],
+  integerPartialProduct: ['my times_two = std::int::mul 2\nmy main = (times_two 3, times_two 4)', '(6, 8)\n'],
+  integerLargeProduct: ['my main = 12345678901234567890 * 12345678901234567890', '152415787532388367501905199875019052100\n'],
   annotatedPair: ['my pair(value:(int,int)) = value\nmy main = pair (1,2)', '(1, 2)\n'],
   annotatedSingleton: ['my f(x:(int,)) = x\nmy main = f (7,)', '(7,)\n'],
   annotatedFunctionProduct: ['my f(x:((int -> int),int)) = case x:\n    (g,n) -> g n\nmy id x = x\nmy main = f (id,7)', '7\n'],
@@ -127,6 +133,7 @@ if (JSON.stringify(consoleReport.events) !== JSON.stringify(consoleEvents)) {
 for (const [source, expected] of [
   [fs.readFileSync("./examples/yulang2-effects.yu", "utf8"), ["42\n"]],
   ['println "standalone"\n', ["standalone\n"]],
+  ['say: ({ println "left"; 3 } * { println "right"; 4 })\n', ["left\n", "right\n", "12\n"]],
   ['my f x = { say x; my y = x + x; say y; y }\n(f 3, f "a")\n', ["3\n", "6\n", "a\n", "aa\n"]],
   ['my f x = { say x; my y = x + x; say y; y }\nmy main = (f 3, f "a")\nmain\n', ["3\n", "6\n", "a\n", "aa\n"]],
   ['my main = { println "a"; my x = { println "init"; 7 }; println "b"; x }\n', ["a\n", "init\n", "b\n"]],
@@ -146,6 +153,9 @@ for (const [source, expected] of [
   }
 }
 for (const [source, budget, reason] of [
+  ['my main = builtin_op::int_mul 12345678901234567890 12345678901234567890', 30, 'runtime step budget exhausted'],
+  ['my main = std::int::sub 1 "x"', 100_000, 'candidate type conflicts'],
+  ['my main = -true', 100_000, 'candidate type conflicts'],
   [yulang2TypesSource, 0, "runtime step budget exhausted"],
   [yulang2DiagnosticExamples.typeMismatch, 100_000, "candidate type conflicts"],
   [yulang2DiagnosticExamples.tupleArity, 100_000, "lower: Tuple(3), upper: Tuple(2)"],
