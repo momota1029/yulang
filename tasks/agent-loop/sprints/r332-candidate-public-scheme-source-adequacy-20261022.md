@@ -174,3 +174,28 @@ six baseline failures, plus one passing context-readback test. The note records
 local algebra/finite-map arguments and concrete remaining block/handler gates.
 Full source correspondence, parent A/B, independent review and production stay
 OPEN; this is UNREVIEWED direct-primary progress with minimal sprint records.
+
+Direct-eight continuation from `4c691726b`: previous turn PROGRESS, upstream
+aligned and checkout clean. Preserve 10721 charged seconds, discard 929 unused
+seconds, and grant 3600 fresh direct-primary seconds (cap 14321). Existing
+leases apply. Add exact primary leases for `crates/yu-hir/src/module/local_source.rs`,
+`crates/yu-hir/src/shadow.rs`, `crates/yu-solver/src/candidate_call.rs`,
+`crates/yu-solver/src/candidate_value_graph.rs`, and
+`tools/inference-playground/src/runtime/primitive.rs`. Construct source-owned
+interleaved expression/binding statements, their effects/local publication and
+runtime order using existing approved expression/initialization semantics.
+Retain all existing expected outputs; no invented source binding or authority.
+Fresh runtime contains only /root; legacy UNKNOWN identities and foreign test
+PIDs 95124/95134 stay untouched. No child or independent review is launched.
+
+Direct-eight checkpoint: mixed expression/binding blocks preserve original source
+identities, sequential local publication, all prefix effects and continuation
+suffixes. The note gives the conditional constructor correspondence and exact
+remaining operator/receiving counterexamples. Final native 242 tests, fresh WASM
+27 examples and TypeScript pass. HIR local/catch/conditional coverage passes;
+one old tuple-rejection assertion is baseline-reproduced. Solver ordinary,
+laziness and conditional suites pass; authentic-demand retains six known failures,
+and four effect-annotation failures are independently baseline-reproduced in a
+clean checkout. Existing expectations remain unchanged. Tooling 57 pass; direct
+primary only, UNREVIEWED. Original A/B and the unchanged all-source parent remain
+OPEN_CONTINUATION; no theorem or production gate is promoted.

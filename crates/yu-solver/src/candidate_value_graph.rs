@@ -172,6 +172,20 @@ impl Graph {
                 },
                 LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => { work.try_reserve(1).map_err(|_| unavailable())?; work.push((inner.ordinal() as usize, owner)); },
                 LocalSourceForm::Lambda { body, .. } => { work.try_reserve(1).map_err(|_| unavailable())?; work.push((body.ordinal() as usize, owner)); },
+                LocalSourceForm::StatementBlock { statements, final_expression } => {
+                    work.try_reserve(statements.len() + 1).map_err(|_| unavailable())?;
+                    work.push((final_expression.ordinal() as usize, owner));
+                    for statement in statements {
+                        match statement {
+                            yu_hir::LocalSourceStatement::Expression(expression) => work.push((expression.ordinal() as usize, owner)),
+                            yu_hir::LocalSourceStatement::Binding(ordinal) => {
+                                let binding = &source.bindings()[*ordinal as usize];
+                                let local = self.intern(Value::Local(binding.id.clone()))?;
+                                work.push((binding.initializer.ordinal() as usize, local));
+                            }
+                        }
+                    }
+                },
                 LocalSourceForm::Block { bindings, final_expression } => {
                     work.try_reserve(bindings.len() + 1).map_err(|_| unavailable())?;
                     work.push((final_expression.ordinal() as usize, owner));
@@ -190,7 +204,7 @@ impl Graph {
         let mut fragments = Vec::new();
         fragments.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
         for expr in source.expressions() {
-            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::Tuple { .. }) {
+            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::StatementBlock { .. } | LocalSourceForm::Tuple { .. }) {
                 self.edges.try_reserve(1).map_err(|_| unavailable())?;
                 self.reverse.try_reserve(1).map_err(|_| unavailable())?;
                 fragments.push(Some(self.edges.len()));
@@ -215,6 +229,16 @@ impl Graph {
                 }
                 if let Some(else_branch) = else_branch {
                     if let Some(child) = fragments[else_branch.ordinal() as usize] { self.edge(fragment, child)?; }
+                }
+            }
+            if let LocalSourceForm::StatementBlock { statements, final_expression } = &expr.form {
+                let result = self.intern(Value::Expression(expr.occurrence.clone()))?;
+                let fragment = fragments[index].unwrap();
+                self.edge(result, fragment)?;
+                for item in statements.iter().filter_map(|statement| match statement {
+                    yu_hir::LocalSourceStatement::Expression(expression) => Some(expression), _ => None,
+                }).chain(std::iter::once(final_expression)) {
+                    if let Some(child) = fragments[item.ordinal() as usize] { self.edge(fragment, child)?; }
                 }
             }
             if let LocalSourceForm::Sequence { items } = &expr.form {

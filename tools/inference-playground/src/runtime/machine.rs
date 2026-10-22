@@ -1,3 +1,4 @@
+use super::program::BlockStatement;
 use super::{
     dispatch,
     continuation::{ResumeTemplate, TemplateHandle, TemplateNode},
@@ -266,6 +267,11 @@ pub(super) enum Frame {
     Condition {
         conditional: Arc<Code>,
         arm: usize,
+        environment: usize,
+    },
+    BlockExpression {
+        block: Arc<Code>,
+        next: usize,
         environment: usize,
     },
     Sequence {
@@ -835,7 +841,7 @@ impl Machine {
                     environment,
                 };
             }
-            Instruction::Block { .. } => self.begin_local(code, 0, environment)?,
+            Instruction::Block { .. } | Instruction::StatementBlock { .. } => self.begin_local(code, 0, environment)?,
             Instruction::Sequence { items } => {
                 let Some(first) = items.first().copied() else {
                     return Err(RuntimeUnavailable::InvalidSourceReference);
@@ -1333,6 +1339,10 @@ impl Machine {
                     Instruction::Block { bindings, .. } => bindings
                         .get(next - 1)
                         .ok_or(RuntimeUnavailable::InvalidSourceReference)?,
+                    Instruction::StatementBlock { statements, .. } => match statements.get(next - 1) {
+                        Some(BlockStatement::Binding(binding)) => binding,
+                        _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+                    },
                     _ => return Err(RuntimeUnavailable::InvalidSourceReference),
                 };
                 if let (Some(plan), Some(trace)) =
@@ -1368,15 +1378,13 @@ impl Machine {
                     interface: ParameterRole::Value,
                     view: received.view,
                 });
-                let Instruction::Block { bindings, .. } = &block.instruction else {
-                    unreachable!()
-                };
+                let local = binding.id.clone();
                 let environment = if recursive {
                     environment
                 } else {
                     self.extend(
                         environment,
-                        Binder::Local(bindings[next - 1].id.clone()),
+                        Binder::Local(local),
                         cell,
                     )
                 };
@@ -1425,6 +1433,9 @@ impl Machine {
                 } else {
                     self.ground_data(&conditional.site, RuntimeValueKind::Unit, None);
                 }
+            }
+            Frame::BlockExpression { block, next, environment } => {
+                self.begin_local(block, next, environment)?;
             }
             Frame::Sequence { sequence, next, environment } => {
                 let Instruction::Sequence { items } = &sequence.instruction else {
@@ -2270,14 +2281,21 @@ impl Machine {
         ordinal: usize,
         mut environment: usize,
     ) -> Result<(), RuntimeUnavailable> {
-        let Instruction::Block {
-            bindings,
-            final_expression,
-        } = &block.instruction
-        else {
-            return Err(RuntimeUnavailable::InvalidSourceReference);
+        let (binding, final_expression) = match &block.instruction {
+            Instruction::Block { bindings, final_expression } => (bindings.get(ordinal).cloned(), *final_expression),
+            Instruction::StatementBlock { statements, final_expression } => match statements.get(ordinal) {
+                Some(BlockStatement::Expression(expression)) => {
+                    let code = *expression;
+                    self.frames.push(Frame::BlockExpression { block, next: ordinal + 1, environment });
+                    self.state = State::Evaluate { code, environment };
+                    return Ok(());
+                }
+                Some(BlockStatement::Binding(binding)) => (Some(binding.clone()), *final_expression),
+                None => (None, *final_expression),
+            },
+            _ => return Err(RuntimeUnavailable::InvalidSourceReference),
         };
-        if let Some(binding) = bindings.get(ordinal) {
+        if let Some(binding) = binding {
             let initializer = binding.initializer;
             let recursive = binding.recursive;
             let cell = self.cells.len();
@@ -2299,7 +2317,7 @@ impl Machine {
             };
         } else {
             self.state = State::Evaluate {
-                code: *final_expression,
+                code: final_expression,
                 environment,
             };
         }
@@ -2920,6 +2938,47 @@ mod module_expression_tests {
         assert_eq!(integer_count(&machine, "7"), 1);
         assert!(machine.initializing_globals.is_empty());
         assert!(machine.frames.is_empty());
+    }
+
+    #[test]
+    fn mixed_statement_host_writes_preserve_one_initializer_publication() {
+        let source = "my main = { println \"first\"; my ignored = println \"second\"; 7 }\nprintln \"after\"\n";
+        let (hir, candidate, world, indexes) = crate::prepare_with_world(source, "mixed-host.yu", false).unwrap();
+        let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+        let definition = program.definition_named("main").unwrap();
+        let cell = program.definition_indices[definition];
+        let mut machine = program.start_source_schedule(definition).unwrap();
+        for (ordinal, expected) in ["first\n", "second\n", "after\n"].into_iter().enumerate() {
+            let outcome = machine.run(100_000);
+            let RuntimeOutcome::UnhandledRequest { operation, continuation, .. } = outcome else { panic!("{outcome:?}"); };
+            assert_eq!(machine.cells[cell].is_some(), ordinal == 2);
+            assert_eq!(machine.initializing_globals.contains(&cell), ordinal != 2);
+            if ordinal < 2 {
+                assert_eq!(machine.frames.iter().filter(|frame|
+                    matches!(frame, Frame::Root { cell: actual, .. } if *actual == cell)).count(), 1);
+            }
+            assert_eq!(machine.resume_host_write(continuation, &operation).unwrap().as_ref(), expected);
+        }
+        let outcome = machine.run(100_000);
+        assert_completed_integer(&machine, outcome, "7");
+        assert_eq!(integer_count(&machine, "7"), 1);
+        assert!(machine.frames.is_empty());
+        assert!(machine.initializing_globals.is_empty());
+    }
+
+    #[test]
+    fn mixed_statement_resumption_keeps_completed_prefix_outside_template() {
+        let source = "act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> { k 11; k 23 } }\nmy main = relay { 99; io::tick 0; my x = 7; x }\n";
+        let mut machine = machine(source, true);
+        let outcome = machine.run(100_000);
+        assert_completed_integer(&machine, outcome, "7");
+        assert_eq!(integer_count(&machine, "99"), 1, "completed prefix is not in either resumed suffix");
+        assert_eq!(integer_count(&machine, "7"), 2, "the suffix initializer runs separately for each continuation invocation");
+        assert_eq!(machine.cells.iter().flatten().filter(|value|
+            matches!(&machine.values[value.value.0].kind, RuntimeValueKind::Integer(n) if n.as_ref() == "7")).count(), 3,
+            "two distinct local publications and the final module result");
+        assert!(machine.frames.is_empty());
+        assert!(machine.initializing_globals.is_empty());
     }
 
     #[test]

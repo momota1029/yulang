@@ -86,6 +86,74 @@ fn local_functions_retain_their_member_constraints() {
 }
 
 #[test]
+fn expression_statements_and_bindings_follow_source_order() {
+    for (source, expected) in [
+        ("my main = { 1; my x = 2; 3; x }\n", "2\n"),
+        ("my main = { 1; 2; 7 }\n", "7\n"),
+        ("my main = { true; my x = \"discarded\"; x; 7 }\n", "7\n"),
+        ("my main =\n    1\n    my x = 2\n    3\n    x\n", "2\n"),
+        ("my apply f = ({ 0; f }) 7\nmy main = apply (\\x -> x)\n", "7\n"),
+        ("my main = { 0; my loop b = if b: loop false else: 9; 1; loop true }\n", "9\n"),
+        ("my main = if true { my x = 1; 2; x } else { 3; 4 }\n", "1\n"),
+        ("my main = { my x = 1; x; my x = \"s\"; x }\n", "\"s\"\n"),
+        ("my main = { my add x = x + x; 0; my alias = add; 1; (alias 3, alias \"a\") }\n", "(6, \"aa\")\n"),
+        ("my main = { my x = 3; { my x = 9; 0; x }; x }\n", "3\n"),
+        ("my main = { println \"a\"; my x = { println \"init\"; 7 }; println \"b\"; x }\n", "a\ninit\nb\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "source={source:?}");
+        assert!(output.stderr.is_empty());
+    }
+    for source in [
+        "my main = { 1 + false; my x = 1; x }\n",
+        "my main = { if true: 7 else: 1 + false; 1 }\n",
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("candidate type conflicts"));
+    }
+}
+
+#[test]
+fn statement_prefix_effects_survive_discard_and_local_publication() {
+    let declarations = "act io:\n    our tick: int -> int\nact state:\n    our tick: int -> int\n";
+    for body in [
+        "{ io::tick 0; my x = 7; x }",
+        "{ 0; my x = state::tick 7; 9 }",
+        "{ if false: io::tick 0 else: 3; my x = 7; x }",
+        "{ io::tick 0; my x = state::tick 7; x }",
+    ] {
+        let accepted = format!("{declarations}my main: [io, state] int = {body}\n");
+        assert!(infer_types(&accepted, "statement-effects.yu").is_ok(), "{body}");
+        let rejected = format!("{declarations}my main: [] int = {body}\n");
+        let error = infer_types(&rejected, "statement-effects.yu").unwrap_err();
+        assert!(error.contains("conflict"), "{body}: {error}");
+        let latent = format!("{declarations}my run ignored = {body}\n");
+        let rendered = infer_types(&latent, "statement-effects.yu").unwrap();
+        let expected = if body.contains("io::tick") && body.contains("state::tick") { 2 } else { 1 };
+        assert_eq!(rendered.matches("retained Effect bound support-view").count(), expected,
+            "every performed family remains connected to the function result effect: {rendered}");
+    }
+    let pure = format!("{declarations}my main: [] int = {{ true; my x = 7; x }}\n");
+    assert!(infer_types(&pure, "statement-effects.yu").is_ok());
+}
+
+#[test]
+fn statement_suffixes_resume_without_repeating_the_completed_prefix() {
+    for (source, expected) in [
+        ("act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 11 }\nmy main = relay { 99; io::tick 0; my x = 9; x }\n", "9\n"),
+        ("act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> { k 11; k 23 } }\nmy main = relay { 99; io::tick 0; my x = 7; x }\n", "7\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes());
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
 fn polymorphic_members_follow_aliases_and_captured_closures() {
     for source in [
         "my main = { my add x = x + x; (add 3, add \"a\") }\n",

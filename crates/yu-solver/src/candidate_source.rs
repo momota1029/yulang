@@ -1,7 +1,7 @@
 //! Private, sequential source inference. Planning does not admit constraints.
 use crate::*;
 use crate::shadow_apply::{CandidateEndpoint, CandidateRelation};
-use yu_hir::shadow::{LocalSource, LocalSourceForm, LocalSourceResolution, SourceAnnotationValue};
+use yu_hir::shadow::{LocalSource, LocalSourceForm, LocalSourceStatement, LocalSourceResolution, SourceAnnotationValue};
 use yu_hir::HirLocalId;
 
 #[derive(Clone, Debug, Default)]
@@ -1261,6 +1261,21 @@ impl ConstraintBatch {
                             }
                             push(&mut work, Work::Visit(body.ordinal() as usize, level, body_region))?;
                         }
+                        LocalSourceForm::StatementBlock { statements, final_expression } => {
+                            push(&mut work, Work::Visit(final_expression.ordinal() as usize, level, region))?;
+                            let child = level.checked_add(1).ok_or_else(unavailable)?;
+                            for statement in statements.iter().rev() {
+                                match statement {
+                                    LocalSourceStatement::Expression(expression) =>
+                                        push(&mut work, Work::Visit(expression.ordinal() as usize, level, region))?,
+                                    LocalSourceStatement::Binding(binding) => {
+                                        source.bindings().get(*binding as usize).ok_or_else(invalid)?;
+                                        push(&mut work, Work::Install(*binding as usize, index, level))?;
+                                        push(&mut work, Work::Initializer(*binding as usize, child, region))?;
+                                    }
+                                }
+                            }
+                        }
                         LocalSourceForm::Block { bindings, final_expression } => {
                             push(&mut work, Work::Visit(final_expression.ordinal() as usize, level, region))?;
                             let child = level.checked_add(1).ok_or_else(unavailable)?;
@@ -1627,7 +1642,7 @@ impl ConstraintBatch {
                                     self.candidate_source.charge_scoped_work(1)?;
                                     match &source.expressions()[argument_index].form {
                                         LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => argument_index = inner.ordinal() as usize,
-                                        LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::Catch { .. } | LocalSourceForm::Case { .. } => return Err(unavailable()),
+                                        LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::StatementBlock { .. } | LocalSourceForm::Catch { .. } | LocalSourceForm::Case { .. } => return Err(unavailable()),
                                         LocalSourceForm::Block { bindings, final_expression } => {
                                             if !bindings.is_empty() { return Err(unavailable()); }
                                             argument_index = final_expression.ordinal() as usize;
@@ -1651,7 +1666,7 @@ impl ConstraintBatch {
                                             callee_index = final_expression.ordinal() as usize;
                                         }
                                         LocalSourceForm::Apply { .. } => { scoped_result_callee(source, callee_index, &mut self.candidate_source)?; break; }
-                                        LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::Catch { .. }
+                                        LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::StatementBlock { .. } | LocalSourceForm::Catch { .. }
                                         | LocalSourceForm::Name { resolution: LocalSourceResolution::CatchBinder(_) | LocalSourceResolution::CaseBinder(_), .. } => return Err(unavailable()),
                                         LocalSourceForm::Name { resolution: LocalSourceResolution::Local(local), .. } => {
                                             if crossed_ascription || crossed_nonempty_block || local.source_root() != source.source_root() { return Err(unavailable()); }
@@ -1890,7 +1905,19 @@ impl ConstraintBatch {
                             push(&mut actions, Action::EndLambda)?;
                             continue;
                         }
-                        LocalSourceForm::Block { final_expression, .. } => {
+                        LocalSourceForm::Block { final_expression, .. }
+                        | LocalSourceForm::StatementBlock { final_expression, .. } => {
+                            if let LocalSourceForm::StatementBlock { statements, .. } = &expr.form {
+                                for statement in statements {
+                                    if let LocalSourceStatement::Expression(expression) = statement {
+                                        let prefix = expression.ordinal() as usize;
+                                        self.emit(source.expressions()[prefix].occurrence.clone(), 51,
+                                            self.component_term_at(positions[prefix].effect), self.component_term_at(pos.effect))?;
+                                        self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;
+                                        self.counters.generated_work_items = self.counters.generated_work_items.checked_add(1).ok_or_else(unavailable)?;
+                                    }
+                                }
+                            }
                             if self.candidate_source.scoped_experiment {
                                 let child_occurrence = &source.expressions()[final_expression.ordinal() as usize].occurrence;
                                 let child_scope = self.candidate_source.computation_scopes[child_occurrence];

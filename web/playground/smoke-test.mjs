@@ -6,6 +6,10 @@ await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") }
 const examples = {
   ordinary: ["my identity x = x\nmy main = identity 7", "7\n"],
   capturedInitializer: ["my main = 1 + 2\n", "3\n"],
+  interleavedStatements: ["my main = { 1; my x = 2; 3; x }\n", "2\n"],
+  statementBranchScopes: ["my main = { my x = 3; { my x = 9; 0; x }; x }\n", "3\n"],
+  statementPolymorphicClosure: ['my main = { my add x = x + x; 0; my alias = add; 1; (alias 3, alias "a") }\n', '(6, "aa")\n'],
+  statementRepeatedResumption: ["act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> { k 11; k 23 } }\nmy main = relay { 99; io::tick 0; my x = 7; x }\n", "7\n"],
   localMembers: ['my main = { my add x = x + x; my cat x = x + x; (add 3, cat "a") }\n', '(6, "aa")\n'],
   polymorphicLocalMember: ['my main = { my add x = x + x; my alias = add; (alias 3, alias "a") }\n', '(6, "aa")\n'],
   polymorphicCapturedMember: ['my make f = \\x -> f x\nmy add x = x + x\nmy wrapper = make add\nmy main = (wrapper 3, wrapper "a")\n', '(6, "aa")\n'],
@@ -108,6 +112,7 @@ if (JSON.stringify(consoleReport.events) !== JSON.stringify(consoleEvents)) {
 }
 for (const [source, expected] of [
   ['println "standalone"\n', ["standalone\n"]],
+  ['my main = { println "a"; my x = { println "init"; 7 }; println "b"; x }\n', ["a\n", "init\n", "b\n"]],
   ['my forward message = emit message\nmy emit message = println message\nforward "wrapped"\n', ["wrapped\n"]],
   ['my forward value = emit value\nmy emit value = say value\nforward (3, "text")\n', ["(3, text)\n"]],
   ['{ my emit x = say x; emit (3, "text") }\n', ["(3, text)\n"]],

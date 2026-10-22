@@ -260,6 +260,9 @@ impl LocalSource {
                     LocalSourceForm::Block { bindings, .. } => {
                         bindings.capacity() * std::mem::size_of::<u32>()
                     }
+                    LocalSourceForm::StatementBlock { statements, .. } => {
+                        statements.capacity() * std::mem::size_of::<LocalSourceStatement>()
+                    }
                     _ => 0,
                 })
                 .sum::<usize>()
@@ -295,6 +298,13 @@ pub struct LocalSourceExpr {
     pub scope: LocalSourceScope,
     pub form: LocalSourceForm,
 }
+/// One original statement in a block prefix, in source order. Expression
+/// statements are not represented as invented local bindings.
+#[derive(Clone, Debug)]
+pub enum LocalSourceStatement {
+    Expression(LocalSourceIndex),
+    Binding(u32),
+}
 #[derive(Clone, Debug)]
 pub enum LocalSourceForm {
     Unit,
@@ -318,6 +328,10 @@ pub enum LocalSourceForm {
         else_branch: Option<LocalSourceIndex>,
     },
     Sequence { items: Vec<LocalSourceIndex> },
+    StatementBlock {
+        statements: Vec<LocalSourceStatement>,
+        final_expression: LocalSourceIndex,
+    },
     /// An ordered product formed from multiple direct parenthesized items or
     /// from one item followed by a trailing comma. Group and Unit remain
     /// separate source forms.
@@ -2105,7 +2119,9 @@ impl Builder<'_> {
         // Every condition and body starts in the enclosing lexical environment.
         for (child, child_index) in children.into_iter().rev() {
             push(&mut self.work, Work::Restore(depth))?;
-            if child.kind() == SyntaxKind::BracedStatementBlockExpression {
+            if child.kind() == SyntaxKind::BracedStatementBlockExpression
+                && child.children().filter(|node| node.kind() == SyntaxKind::Statement)
+                    .all(|statement| statement.children().next().is_some_and(|node| node.kind() == SyntaxKind::OperatorChain)) {
                 self.sequence(child, child_index, conditional_scope.clone(), named_group.clone())?;
             } else {
                 push(&mut self.work, Work::Expression(child, child_index, conditional_scope.clone(), named_group.clone()))?;
@@ -2195,8 +2211,17 @@ impl Builder<'_> {
         let block_scope = LocalSourceScope::Expression(index.clone());
         let final_expression = self.slot()?;
         let mut bindings = Vec::new();
-        let mut initializers = Vec::new();
+        let mut prefix_work = Vec::new();
+        let mut ordered = Vec::new();
+        let mut has_expression = false;
         for statement in statements {
+            if statement.kind() == SyntaxKind::OperatorChain {
+                let expression = self.slot()?;
+                push(&mut ordered, LocalSourceStatement::Expression(expression.clone()))?;
+                push(&mut prefix_work, Work::Expression(statement, expression, block_scope.clone(), named_group.clone()))?;
+                has_expression = true;
+                continue;
+            }
             if statement.kind() != SyntaxKind::BindingStatement {
                 return Err(unsupported());
             }
@@ -2273,25 +2298,28 @@ impl Builder<'_> {
                 },
             )?;
             push(&mut bindings, ordinal)?;
-            push(&mut initializers, (ordinal, statement))?;
+            push(&mut ordered, LocalSourceStatement::Binding(ordinal))?;
+            push(&mut prefix_work, Work::Initializer(ordinal, statement, named_group.clone()))?;
         }
+        let form = if has_expression {
+            LocalSourceForm::StatementBlock { statements: ordered, final_expression: final_expression.clone() }
+        } else {
+            LocalSourceForm::Block { bindings, final_expression: final_expression.clone() }
+        };
         self.set(
             index,
             &node,
             scope,
             named_group.clone(),
-            LocalSourceForm::Block {
-                bindings,
-                final_expression: final_expression.clone(),
-            },
+            form,
         )?;
         push(&mut self.work, Work::Restore(self.lexical.len()))?;
         push(
             &mut self.work,
             Work::Expression(final_node, final_expression, block_scope, named_group.clone()),
         )?;
-        for (ordinal, statement) in initializers.into_iter().rev() {
-            push(&mut self.work, Work::Initializer(ordinal, statement, named_group.clone()))?;
+        for work in prefix_work.into_iter().rev() {
+            push(&mut self.work, work)?;
         }
         Ok(())
     }
@@ -2300,6 +2328,67 @@ impl Builder<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mixed_statements_keep_original_order_binders_and_lexical_lookup() {
+        let text = "my outside = 9; my main = { outside; my x = outside; x; my outside = 2; x; outside }";
+        let (parsed, _, module) = ordinary_fixture(text);
+        let HirItem::Binding(binding) = &module.items()[1] else { panic!("main"); };
+        let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+        let LocalSourceForm::StatementBlock { statements, final_expression } = &source.expression(source.body()).unwrap().form
+            else { panic!("source statement block"); };
+        assert_eq!(statements.len(), 5);
+        assert_eq!(source.bindings().len(), 2);
+        assert!(matches!(statements[1], LocalSourceStatement::Binding(0)));
+        assert!(matches!(statements[3], LocalSourceStatement::Binding(1)));
+        let mut previous_end = 0;
+        for statement in statements {
+            match statement {
+                LocalSourceStatement::Expression(index) => {
+                    let expression = source.expression(index).unwrap();
+                    assert!(parsed.owns_source_key(&expression.source));
+                    assert!(module.owns_occurrence(&expression.occurrence));
+                    assert!(expression.range.start >= previous_end);
+                    previous_end = expression.range.end;
+                    match &expression.form {
+                        LocalSourceForm::Name { spelling, resolution: LocalSourceResolution::ModuleDef(_) } => assert_eq!(spelling.as_ref(), "outside"),
+                        LocalSourceForm::Name { spelling, resolution: LocalSourceResolution::Local(id) } => {
+                            assert_eq!(spelling.as_ref(), "x");
+                            assert_eq!(id, &source.bindings()[0].id);
+                        }
+                        other => panic!("unexpected statement {other:?}"),
+                    }
+                }
+                LocalSourceStatement::Binding(ordinal) => {
+                    let binding = &source.bindings()[*ordinal as usize];
+                    assert!(parsed.owns_source_key(&binding.binder_source));
+                    assert!(binding.range.start >= previous_end);
+                    previous_end = binding.range.end;
+                }
+            }
+        }
+        assert!(matches!(&source.expression(&source.bindings()[0].initializer).unwrap().form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_), .. }));
+        assert!(matches!(&source.expression(final_expression).unwrap().form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &source.bindings()[1].id));
+    }
+
+    #[test]
+    fn statement_publication_is_sequential_and_branch_scopes_are_disjoint() {
+        let module = lower("my main = { x; my x = 1; if true { x; my x = 2; x } else { x; x }; x }").unwrap();
+        let HirItem::Binding(binding) = &module.items()[0] else { panic!("main"); };
+        let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+        assert_eq!(source.bindings().len(), 2);
+        let unresolved = source.expressions().iter().filter(|expression| matches!(&expression.form,
+            LocalSourceForm::Name { spelling, resolution: LocalSourceResolution::Unresolved } if spelling.as_ref() == "x")).count();
+        assert_eq!(unresolved, 1, "a future local is not visible before its initializer");
+        let LocalSourceForm::StatementBlock { final_expression, .. } = &source.expression(source.body()).unwrap().form else { panic!("block"); };
+        assert!(matches!(&source.expression(final_expression).unwrap().form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &source.bindings()[0].id));
+        let nested_reads = source.expressions().iter().filter(|expression| matches!(&expression.form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &source.bindings()[1].id)).count();
+        assert_eq!(nested_reads, 1, "the branch's local is confined to its suffix");
+    }
 
     fn lower(text: &str) -> Result<HirModule, HirAvailabilityError> {
         let source: Arc<yu_syntax::SourceText> = Arc::from(text);

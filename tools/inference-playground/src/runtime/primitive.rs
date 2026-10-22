@@ -10,7 +10,7 @@ use yu_hir::shadow::{
     SourceOperationResolution,
 };
 
-use super::program::{Instruction, Label, NameConsumption, RuntimeProgram};
+use super::program::{BlockStatement, Instruction, Label, NameConsumption, RuntimeProgram};
 
 #[derive(Clone, Copy)]
 enum Role {
@@ -42,6 +42,14 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                         || locals.insert(&binding.id, binding.initializer).is_some()
                     {
                         return false;
+                    }
+                }
+            }
+            Instruction::StatementBlock { statements, .. } => {
+                for statement in statements {
+                    if let BlockStatement::Binding(binding) = statement {
+                        if binding.recursive || binding.id.source_root() != &code.site.source_root
+                            || locals.insert(&binding.id, binding.initializer).is_some() { return false; }
                     }
                 }
             }
@@ -182,6 +190,15 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                 work.push(Visit::Enter(*final_expression, Role::Ground));
                 for binding in bindings {
                     work.push(Visit::Enter(binding.initializer, Role::Ground));
+                }
+            }
+            Instruction::StatementBlock { statements, final_expression } => {
+                work.push(Visit::Enter(*final_expression, Role::Ground));
+                for statement in statements {
+                    work.push(Visit::Enter(match statement {
+                        BlockStatement::Expression(expression) => *expression,
+                        BlockStatement::Binding(binding) => binding.initializer,
+                    }, Role::Ground));
                 }
             }
             Instruction::If { arms, else_branch } => {

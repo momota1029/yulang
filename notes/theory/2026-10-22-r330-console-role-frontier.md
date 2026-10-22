@@ -1117,3 +1117,206 @@ workers or independent review. All current-primary process handles are terminal.
 A fresh runtime list contains only /root. Foreign PIDs 95124/95134 still exist
 (12h48m at observation, solver RSS about 1.95 GB); their ownership stays UNKNOWN
 and neither they nor the three quarantined historical identities were reclaimed.
+
+### Ordered mixed source statements: construction before implementation
+
+For a block prefix `s1; ...; sn` followed by the existing final expression `e`,
+retain an ordered sum `Expression(original index) | Binding(original ordinal)`.
+Every expression keeps its original parse-owned source identity; every binding
+keeps its real binder, initializer and parameter identities. No synthetic local
+is introduced for a discarded expression. Existing prefix-only Block and
+conditional expression Sequence carriers retain their contracts; a mixed
+StatementBlock expresses the source ordering absent from those two carriers.
+
+The decisive invariant is prefix induction: before statement i, lexical lookup
+contains precisely the preceding published bindings plus the enclosing scope.
+An expression evaluates/checks in that environment and changes no lexical
+binding. A binding checks/evaluates its original initializer and publishes once
+under the existing self-recursion rule, after which its name is visible to the
+remaining suffix. The final expression has the resulting environment, provides
+the block value, and all prefix effects contribute to the block effect. A
+discarded prefix's value need not constrain the result, but its own internal
+constraints must still be generated and solved. The same lexical-restore boundary
+prevents bindings from escaping into sibling branches or the outer block.
+
+Source work-stack construction, solver actions and runtime continuation frames
+must each implement this induction in order. Local capture brackets surround
+only actual initializers. Source reference ownership assigns initializer Names
+to their local Values and intervening expressions to the enclosing Value; source
+incidence is preserved without fabricating declaration nodes. Interruption saves
+the current suffix/environment, so resumed execution neither skips a later
+statement nor replays an already completed prefix. Formation and each traversal
+are linear in the source statements/children they own, apart from the existing
+solver/runtime work of those expressions. This is a local construction obligation,
+not full source/native or original A/B closure.
+
+#### Ordered-statement correspondence lemma
+
+Let B be a successfully formed block with n retained prefix statements and
+original final expression e. For 0 <= i <= n, let Gamma_i be the enclosing
+lexical environment extended, in order, by the actual bindings in the first
+i statements. The initializer's existing temporary self binding and parameters
+are local to that initializer. Let C_i be the source suffix after those i
+statements. The construction has the following implementation-local properties.
+
+1. **Source identity and scope.** At i = 0, the work stack contains the original
+   block restore boundary, final expression, and reversed prefix work. If the
+   next statement is an expression, its work item observes Gamma_i and introduces
+   no binder. If it is a binding, `Work::Initializer` installs the existing
+   temporary parameter/self scope, then `Work::Publish` restores that scope and
+   publishes precisely the actual binder. Thus the next item observes Gamma_i+1.
+   Induction proves the claim for every prefix and the final expression. After
+   the final expression, the stored restore boundary removes exactly the block's
+   lexical additions. Allocation of later binder identities before work execution
+   does not publish them into lexical lookup. Every expression occurrence and
+   binder source key is obtained from its original syntax node.
+
+2. **Constraints.** `Work::Visit` schedules each expression and actual initializer
+   before the next statement; only actual initializers open local capture brackets.
+   The existing Install step retains its initializer-effect inclusion at slot 20.
+   Finish emits one inclusion epsilon_s <= epsilon_B at slot 51 for every prefix
+   expression and the existing Group relation from e to B. No prefix value is
+   compared to B's result. Slot 51 belongs to the unique parent's contribution,
+   and the child's own rules retain their distinct slots. Consequently, assuming
+   the existing expression/initialization rules and effect inclusions have their
+   intended interpretation, a derivation for every statement and e yields the
+   usual sequential block derivation: the value is e's value, and the effect
+   contains every initializer/expression effect. A discarded value never discharges
+   its internal constraints. The graph traversal gives initializer references
+   their original Local owner and prefix-expression references their enclosing
+   owner; it does not fabricate local generalization for an expression statement.
+
+3. **Machine suffix.** Relate C_i under Gamma_i to `begin_local(B,i,rho_i)`, where
+   rho_i resolves the same published binders to the existing runtime cells. An
+   expression step pushes `BlockExpression(B,i+1,rho_i)`, evaluates that original
+   label, discards only its returned value, and enters the related suffix. A binding
+   step uses the existing Local frame/cell rule; after completion it publishes the
+   returned value/view/dictionary metadata and enters the suffix with the extended
+   environment. At i = n, the machine evaluates e without a discard frame. Induction
+   gives ordered evaluation and the same final value, conditional on the existing
+   child-expression, cell and recursive-local simulation relations. No new runtime
+   value tag, member choice or receiving certificate participates in this step.
+
+4. **Suspension.** A BlockExpression frame contains only B, the next ordinal and
+   the immutable environment index. The existing captured-frame mechanism copies
+   that exact suffix descriptor. A request in statement i therefore retains the
+   unfinished part of i and C_i+1, not a frame that restarts C_0. Repeated invocation
+   repeats the retained suffix according to the existing continuation rules;
+   completed prefix statements stay outside it. A binding located after the
+   request allocates/publishes its own cell on each invocation. This argument
+   does not assert that a partially executed initializer's cell is freshened:
+   that case continues to use the existing Local-frame semantics. Scheduled module
+   publication and authenticated host resumption retain their previous unique
+   live Root frame. The new block frame neither owns nor recreates that frame.
+
+This discharges the newly introduced StatementBlock constructor's structural
+preservation obligations relative to the named existing rules. It supplies a
+compositional case for the parent source/native proof, not a proof of those
+antecedents, all source constructs, principal generalization or original A/B.
+Empty blocks and declaration-only endings still lack the existing final-expression
+formation case; neither they nor unsupported scoped consumers are reclassified
+as accepted. The accepted parent source domain remains unchanged and OPEN.
+
+#### Remaining operator and receiving counterexamples
+
+The source `my f x = { say x; my y = x + x; say y; y }` followed by
+`my main = (f 3, f "a")` still reaches UnsupportedFieldTail. A binding-only
+control replacing each discarded `say` with an actual unused local binding
+also fails through the old Block carrier. Controls with `{ my y = x + x; y }`,
+`{ x + x; x }`, `{ 0; my y = x + x; y }` and `{ say x; x + x }` execute;
+`{ my y = x + x; say y }` fails at the later show. These observations isolate
+the retained dependency/selection problem beyond statement formation.
+
+Temporary readback probes found the original Add descriptors, including module
+f uses and local y uses, with their exact context DAGs. The blocked Add receiver
+has complete positive Int or Str shape, one positive row edge and six retained
+negative row edges (four in a later snapshot). The negative frontier is neither
+empty nor source-qualified by the current witness. The later show lacks a
+positive shape until that Add result is admitted. Only the first say and its
+internal string addition have selected runtime dictionary entries. An executed
+missing entry therefore fails closed; dictionary lookup does not choose a member
+from runtime tags. Logs: `/tmp/yulang-r332-statements-controls.log`,
+`/tmp/yulang-r332-statements-deferred2.log` and
+`/tmp/yulang-r332-statements-frontier.log`. All temporary instrumentation was
+removed before final native/WASM verification.
+
+The exact next proof obligation is to characterize this extra negative frontier
+with authenticated source constraints and stable complete positive shapes, then
+transport that witness through the real Operator/Member and enclosing module/local
+FreshUse maps. The current helper additionally requires the original FieldTail
+owner to be a Definition and an exact reciprocal where-role pair; the generic
+operator FieldTail has an Expression source owner. Merely increasing an edge
+count allowance or admitting every known primitive shape would not establish
+the missing source witness. Active executed instances captured into a main
+template also need a complete source-activity argument; capture ownership alone
+does not establish that an unresolved instance is dormant.
+
+For the `[io] 'a` handler counterexample, the concrete boundary is
+`runtime/receiving.rs::RootCompSchema::from_parameter`: it constructs a schema
+only for Unit/Int/Bool/Str result annotations with an outer effect and matching
+source owners. Its existing test explicitly rejects Variable and Function.
+The generic formal is still classified as a Computation, but no RootComp schema
+is minted. The matching handler consequently has no positive local Grant unless
+the separate whole-program closed-primitive certificate applies. Generalizing
+this constructor requires the result-parametric root-view correspondence,
+including returned closures/tuples and inherited views; it cannot be replaced
+by treating absent evidence as an unprotected request. No receiving gate or
+existing expected rejection was changed in this slice.
+
+These are source-qualified open obligations for the unchanged parent, retained
+by the direct primary. They are not new source restrictions, theorem closure,
+or an independent review receipt.
+
+#### Direct-eight verification receipt
+
+Ordered expression/binding prefixes now pass through original HIR identities,
+sequential solver publication/effect contributions and runtime suffix frames.
+Coverage includes braced and indented bodies, shadowing and branch isolation,
+discarded heterogeneous values, recursive locals, polymorphic closures/member
+dictionaries, effectful initializers, host writes and repeated resumption. An
+invalid discarded expression and an invalid unused branch still produce type
+conflicts. Effect tests reject a pure annotation for every effectful prefix,
+retain both io and state in a function's latent effect, and accept the matching
+closed effect allowance. Formal negative permissions are unchanged.
+
+Final receipts, after all implementation/test edits:
+
+- `cargo test -q -p yu-playground -- --test-threads=1`: **242 passed** (64 library,
+  44 CLI, 134 other integration tests), exit 0. This final whole-package run
+  includes both new private machine tests and the additional effect regression;
+  the earlier 240-test run and focused host test are superseded for coverage.
+- HIR local-source unit filter: **20 passed**. Catch and conditional source
+  integration: **6 + 11 passed**. Inline Lambda source: **5 passed, 1 failed**.
+  `malformed_or_unsupported_literals_refuse_private_formation` still expects
+  `my value = \x -> (1, 2)` to be unsupported; the exact same assertion fails
+  in an isolated clean checkout of baseline `4c691726b`.
+- Solver `ordinary_expression_source`: **14 passed**; computation laziness:
+  **6 passed**; conditionals: **13 passed**. The authentic-demand filter is
+  **19 passed / the same six baseline failures** listed above.
+- Solver effect-annotation suite: **14 passed / 4 failed**, reproduced as
+  **14 / 4 with the same assertions** in a second clean baseline checkout.
+  The failing tests are
+  `annotation_checks_whole_generated_lambda_and_preserves_fresh_alias_uses`,
+  `exported_annotation_support_is_checked_by_an_outside_boundary`,
+  `local_symbolic_effect_tail_keeps_late_concrete_flow`, and
+  `local_symbolic_effect_tails_freshen_independently_per_use`.
+  These pre-existing annotation failures remain open; their expected outputs
+  and assertion bodies are unchanged. Both temporary worktrees were clean
+  before ordinary removal, and their build outputs used a separate /tmp target.
+- Fresh pinned-toolchain `npm --prefix web/playground run check`: **27 execution
+  examples passed**, unchanged Types/Console outputs, identity/diagnostic cases
+  and ordered mixed-block host writes. TypeScript passes.
+- Sprint tooling unit suite: **57 passed**. These are simulation/static tests,
+  not worker launches or independent review. The synchronized current snapshot also passes
+  `python3 -B tools/agent_sprint.py check`.
+
+Logs share prefix `/tmp/yulang-r332-statements-`: `native-final.log`, `hir.log`,
+`hir-integration.log`, `hir-baseline.log`, `solver.log`, `solver-source.log`,
+`solver-effects.log`, `solver-effects-baseline.log`, `web.log`, `typescript.log`
+and `tooling-tests.log`. No test expectation was weakened. No child, independent
+reviewer or background service was started. All owned tool processes reached a
+terminal receipt; foreign PIDs 95124/95134 and historical UNKNOWN identities
+retain their quarantine. The direct-primary result remains UNREVIEWED and R332
+OPEN_CONTINUATION. The statement constructor is an additional conditional case
+of the original source/native obligation; all-source completeness, principal
+schemes, original A/B and production promotion remain OPEN.

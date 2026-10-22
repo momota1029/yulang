@@ -597,9 +597,8 @@ fn observe_inner<'a>(
             }
             routed = match &child.form {
                 LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => inner,
-                LocalSourceForm::Block {
-                    final_expression, ..
-                } => final_expression,
+                LocalSourceForm::Block { final_expression, .. }
+                | LocalSourceForm::StatementBlock { final_expression, .. } => final_expression,
                 _ => return Err(ArtifactMismatch),
             };
         }
@@ -717,6 +716,10 @@ pub(super) fn authenticate_scoped_apply(
             LocalSourceForm::Ascription { inner, .. } => { crossed_ascription = true; cursor = inner.ordinal() as usize; },
             LocalSourceForm::Block { bindings, final_expression } => {
                 crossed_nonempty_block |= !bindings.is_empty();
+                cursor = final_expression.ordinal() as usize;
+            }
+            LocalSourceForm::StatementBlock { final_expression, .. } => {
+                crossed_nonempty_block = true;
                 cursor = final_expression.ordinal() as usize;
             }
             LocalSourceForm::Name { resolution: LocalSourceResolution::Local(local), .. } => {

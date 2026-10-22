@@ -235,6 +235,12 @@ pub(super) enum CasePattern {
     Wildcard,
 }
 #[derive(Clone)]
+pub(super) enum BlockStatement {
+    Expression(Label),
+    Binding(Arc<LocalBinding>),
+}
+
+#[derive(Clone)]
 pub(super) enum Instruction {
     Unit,
     Integer(Box<str>),
@@ -268,6 +274,10 @@ pub(super) enum Instruction {
     },
     Block {
         bindings: Vec<Arc<LocalBinding>>,
+        final_expression: Label,
+    },
+    StatementBlock {
+        statements: Vec<BlockStatement>,
         final_expression: Label,
     },
     If {
@@ -641,6 +651,15 @@ impl RuntimeProgram {
                                     work.push(Walk::Initializer(*ordinal as usize));
                                 }
                             }
+                            LocalSourceForm::StatementBlock { statements, final_expression } => {
+                                work.push(Walk::Expression(final_expression.clone()));
+                                for statement in statements.iter().rev() {
+                                    work.push(match statement {
+                                        yu_hir::LocalSourceStatement::Expression(expression) => Walk::Expression(expression.clone()),
+                                        yu_hir::LocalSourceStatement::Binding(ordinal) => Walk::Initializer(*ordinal as usize),
+                                    });
+                                }
+                            }
                             LocalSourceForm::If { arms, else_branch } => {
                                 if let Some(branch) = else_branch {
                                     work.push(Walk::Expression(branch.clone()));
@@ -804,6 +823,14 @@ impl RuntimeProgram {
                             .collect::<Result<_, _>>()?,
                         final_expression: label(final_expression)?,
                     },
+                    LocalSourceForm::StatementBlock { statements, final_expression } => Instruction::StatementBlock {
+                        statements: statements.iter().map(|statement| Ok(match statement {
+                            yu_hir::LocalSourceStatement::Expression(expression) => BlockStatement::Expression(label(expression)?),
+                            yu_hir::LocalSourceStatement::Binding(ordinal) => BlockStatement::Binding(bindings.get(*ordinal as usize)
+                                .cloned().ok_or(RuntimeUnavailable::InvalidSourceReference)?),
+                        })).collect::<Result<_, RuntimeUnavailable>>()?,
+                        final_expression: label(final_expression)?,
+                    },
                     LocalSourceForm::If { arms, else_branch } => Instruction::If {
                         arms: arms
                             .iter()
@@ -927,7 +954,8 @@ impl RuntimeProgram {
                             Instruction::Apply { .. }
                             | Instruction::If { .. }
                             | Instruction::Catch { .. }
-                            | Instruction::Block { .. } => break true,
+                            | Instruction::Block { .. }
+                            | Instruction::StatementBlock { .. } => break true,
                             _ => break false,
                         }
                     };
@@ -1666,6 +1694,13 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
                 stack.push(*final_expression);
                 stack.extend(bindings.iter().map(|binding| binding.initializer));
             }
+            Instruction::StatementBlock { statements, final_expression } => {
+                stack.push(*final_expression);
+                stack.extend(statements.iter().map(|statement| match statement {
+                    BlockStatement::Expression(expression) => *expression,
+                    BlockStatement::Binding(binding) => binding.initializer,
+                }));
+            }
             Instruction::If { arms, else_branch } => {
                 if let Some(branch) = else_branch { stack.push(*branch); }
                 for (test, body) in arms { stack.push(*body); stack.push(*test); }
@@ -1762,6 +1797,14 @@ fn handler_arm_operation_ranges(
                 }
             }
             Form::Sequence { items } => pending.extend(items.iter().cloned()),
+            Form::StatementBlock { statements, final_expression } => {
+                pending.push(final_expression.clone());
+                pending.extend(statements.iter().filter_map(|statement| match statement {
+                    yu_hir::LocalSourceStatement::Expression(expression) => Some(expression.clone()),
+                    yu_hir::LocalSourceStatement::Binding(ordinal) => source.bindings().get(*ordinal as usize)
+                        .map(|binding| binding.initializer.clone()),
+                }));
+            }
             Form::Tuple { elements } => pending.extend(elements.iter().cloned()),
             Form::FieldTail { receiver, .. } => pending.push(receiver.clone()),
             Form::InfixOperator { left, right, .. } => {
