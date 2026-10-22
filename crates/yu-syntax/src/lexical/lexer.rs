@@ -970,6 +970,7 @@ fn scan_expression_colon(mut i: LexIn) -> Option<Token> {
     })
 }
 
+#[cfg(test)]
 fn scan_expression_symbol_colon(mut i: LexIn) -> Option<Token> {
     let (accepted, text) = i.rb().with_str(|mut symbol| {
         (symbol.next()? == ':').then_some(())?;

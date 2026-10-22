@@ -2795,3 +2795,9 @@ resolver collects IdentifierExpression names before distinguishing lexical
 binders; a bound spelling can therefore trigger an unrelated prelude export
 resolution failure. Keep genuine free-name imports, arm boundaries and source
 identities; next repair lexical ownership at the source-import owner.
+
+Separate warning repair: `scan_expression_symbol_colon` is used only by the
+existing cfg(test) optional NUD scanner, so it now has the same cfg(test)
+boundary. Production uses scan_expression_payload_with_symbols unchanged.
+`cargo check -q -p yu-syntax` passes with no warnings; prior syntax tests cover
+the unchanged test helper. No grammar, expectation or inference changes.
