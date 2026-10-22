@@ -92,7 +92,9 @@ fn candidate_playground_accepts_state_callback_under_open_io_permission() {
     assert!(output.contains("open formal effect permission result"), "{output}");
     assert!(output.contains(" (open)"), "the permission keeps an open effect tail: {output}");
     assert!(output.contains("state_callback:"), "{output}");
-    assert!(output.contains("support-view"), "the performed state effect remains in the callback's residual effect view: {output}");
+    let answer = output.split_once("answer: ").expect("answer type entry").1;
+    assert!(answer.contains("retained Effect bound support-view"), "the performed state effect remains in the answer's residual effect view: {answer}");
+    assert!(answer.contains("⊆ ε"), "the state effect view remains connected to an open residual row: {answer}");
     assert!(output.contains("retained Effect bound"), "the callback effect must remain in the open residual view: {output}");
     assert!(!output.contains("candidate type conflicts"), "[io] is an open permission, so [state] must remain admissible: {output}");
 }
