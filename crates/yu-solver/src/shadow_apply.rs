@@ -1394,7 +1394,21 @@ impl CandidateInference {
             };
             if let (Some(expression), Some(owner)) = (expression, owner) {
                 if let Some(source) = hir.local_source_for(&owner).map_err(|_| CandidateError::Unsupported)? {
-                    crate::candidate_source::preflight_with_imports(source, operation_v1, &imported_definitions)?;
+                    let mut authenticated_roles = HashSet::new();
+                    if let Some(imports) = hir.source_imports() {
+                        for clause in source.where_clauses() {
+                            let spelling = clause.role.text.trim();
+
+                            if imports.role_id(spelling).is_some() {
+                                authenticated_roles.try_reserve(1)
+                                    .map_err(|_| CandidateError::Unsupported)?;
+                                authenticated_roles.insert(Box::<str>::from(spelling));
+                            }
+                        }
+                    }
+                    crate::candidate_source::preflight_with_imports_and_roles(
+                        source, operation_v1, &imported_definitions, &authenticated_roles,
+                    )?;
                     crate::candidate_source::retain_placeholder_errors(expression, &mut permitted_errors)?;
                     continue;
                 }
@@ -1468,6 +1482,7 @@ impl CandidateInference {
             session.execute().map_err(CandidateError::Solve)?;
             if let Err(error) = session.execute_candidate_field_tails() {
                 if error == SolveAvailabilityError::DeferredSelectionUnavailable {
+
                     if let Some(member) = session.missing_candidate_member_source() {
                         return Err(CandidateError::MissingMemberSource(member));
                     }
@@ -3241,6 +3256,7 @@ impl InferenceSession {
                     source: source.clone(),
                     member: member.clone(),
                     role_member_candidates: role_member_candidates.clone(),
+                    required_roles: Vec::new(),
                     receiver_row: crate::candidate_scheme::RowKey::Value(value_row(*receiver)?),
                     receiver_effect: crate::candidate_scheme::RowKey::Effect(self.live_components.get(*receiver_effect).ok_or(SolveAvailabilityError::ReceiptMismatch)?.ordinal),
                     result_row: crate::candidate_scheme::RowKey::Value(self.live_components.get(*result).ok_or(SolveAvailabilityError::ReceiptMismatch)?.ordinal),

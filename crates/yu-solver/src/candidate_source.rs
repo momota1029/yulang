@@ -557,10 +557,22 @@ pub(super) fn preflight_with_imports(
     operation_v1: bool,
     imported_definitions: &HashMap<yu_hir::SourceExportId, yu_hir::DefId>,
 ) -> Result<(), shadow_apply::CandidateError> {
+    preflight_with_imports_and_roles(source, operation_v1, imported_definitions, &std::collections::HashSet::new())
+}
+
+pub(super) fn preflight_with_imports_and_roles(
+    source: &LocalSource,
+    operation_v1: bool,
+    imported_definitions: &HashMap<yu_hir::SourceExportId, yu_hir::DefId>,
+    authenticated_roles: &std::collections::HashSet<Box<str>>,
+) -> Result<(), shadow_apply::CandidateError> {
     let mut referenced_catch_binders = std::collections::HashSet::new();
-    if !source.where_clauses().is_empty() {
-        // Capture/FreshUse retain the subject row and source identities, but
-        // candidate inference still lacks authentic role resolution and discharge.
+    if source.where_clauses().iter().any(|clause|
+        !authenticated_roles.contains(clause.role.text.trim())) {
+
+        // Only exact imported role identities may enter candidate collection;
+        // the retained obligation must still be discharged by a same-row
+        // selected implementation before the result can be published.
         return Err(shadow_apply::CandidateError::Unsupported);
     }
     for expr in source.expressions() {

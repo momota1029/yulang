@@ -31,7 +31,7 @@ pub struct Machine {
     cells: Vec<Option<ReceivedValue>>,
     execution_roots: Vec<ScheduledRoot>,
     initializing_globals: HashSet<usize>,
-    selected: usize,
+    selected: Option<usize>,
     steps: usize,
     next_receiver: usize,
     current_owner: ExecutionOwner,
@@ -336,6 +336,10 @@ impl RuntimeProgram {
         self.start(definition, &self.source_schedule)
     }
 
+    pub(crate) fn start_module_schedule(self: &Arc<Self>) -> Result<Machine, RuntimeUnavailable> {
+        self.start_with_schedule(None, &self.source_schedule)
+    }
+
     /// The source interface owner supplies computation roots in source order.
     /// Value definitions materialize at first access. Successful definition
     /// materialization is cached; executing a delayed argument is never cached.
@@ -348,6 +352,14 @@ impl RuntimeProgram {
             .definition_indices
             .get(definition)
             .ok_or(RuntimeUnavailable::MissingDefinition)?;
+        self.start_with_schedule(Some(selected), execution_roots)
+    }
+
+    fn start_with_schedule(
+        self: &Arc<Self>,
+        selected: Option<usize>,
+        execution_roots: &[ExecutionRoot],
+    ) -> Result<Machine, RuntimeUnavailable> {
         let mut seen_definitions = HashSet::new();
         let mut seen_expressions = HashSet::new();
         let mut roots = Vec::new();
@@ -2114,24 +2126,45 @@ impl Machine {
             };
             return;
         }
-        self.complete_selected_definition(ordinal);
+        if let Some(selected) = self.selected {
+            self.complete_selected_definition(ordinal, selected);
+        } else {
+            self.complete_module();
+        }
     }
-    fn complete_selected_definition(&mut self, next_ordinal: usize) {
+    fn complete_selected_definition(&mut self, next_ordinal: usize, selected: usize) {
         // Schedule exhaustion retains the selected-definition entry contract:
         // use its cached cell, or evaluate its initializer as the final root.
-        if let Some(value) = self.cells[self.selected] {
+        if let Some(value) = self.cells[selected] {
             self.state = State::Stopped(RuntimeOutcome::Completed(value.value));
         } else {
-            self.initializing_globals.insert(self.selected);
+            self.initializing_globals.insert(selected);
             self.frames.push(Frame::Root {
                 next: next_ordinal,
-                cell: self.selected,
+                cell: selected,
             });
             self.state = State::Evaluate {
-                code: self.program.definitions[self.selected].body,
+                code: self.program.definitions[selected].body,
                 environment: 0,
             };
         }
+    }
+    fn complete_module(&mut self) {
+        if self.current_owner != ExecutionOwner::ModuleRun {
+            self.state = State::Stopped(RuntimeOutcome::Unavailable(
+                RuntimeUnavailable::InvalidSourceReference,
+            ));
+            return;
+        }
+        let site = match self.program.module_completion_site() {
+            Ok(site) => site,
+            Err(error) => {
+                self.state = State::Stopped(RuntimeOutcome::Unavailable(error));
+                return;
+            }
+        };
+        let value = self.allocate(&site, RuntimeValueKind::Unit, None);
+        self.state = State::Stopped(RuntimeOutcome::Completed(value));
     }
     fn consume(
         &mut self,

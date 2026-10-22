@@ -140,6 +140,10 @@ fn resolve_implicit_prelude_imports_selected(
     }
     let parse_root = parsed.source_root().key();
     let root = SyntaxNode::new_root(parsed.green().clone());
+    let own = index_source_exports(identity.clone(), parsed)?;
+    let mut locally_declared = std::collections::BTreeSet::<Box<str>>::new();
+    locally_declared.extend(own.declarations.iter().filter_map(|declaration|
+        declaration.name.clone()));
     let mut requested = std::collections::BTreeSet::<Box<str>>::new();
     if let Some(selected) = selected_names {
         requested.extend(selected.iter().cloned());
@@ -189,6 +193,10 @@ fn resolve_implicit_prelude_imports_selected(
         .try_reserve(requested.len())
         .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
     for name in requested {
+        // Local declarations shadow the implicit prelude. Resolving their
+        // spelling through the prelude can fail on an unrelated recovered
+        // export even though the source name is already owned by this module.
+        if locally_declared.contains(&name) { continue; }
         match source_exports::resolve_public_export(indexes, "std::prelude", &name) {
             Ok(resolution) => {
                 names.insert(name, source_exports::SourceImportBinding::Resolved(resolution));
@@ -288,7 +296,7 @@ fn resolve_source_imports_selected(
                                 Ok(value) => Some(SourceImportBinding::Resolved(value)),
                                 Err(source_exports::SourceExportResolveError::MissingExport { .. }) => None,
                                 Err(source_exports::SourceExportResolveError::Ambiguous { .. }) => Some(SourceImportBinding::Ambiguous),
-                                Err(_) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
+                Err(_) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
                             };
                             if let Some(value) = resolved {
                                 merge_import(&mut names, candidate.clone(), value);
@@ -371,6 +379,7 @@ fn selected_direct_root_names(
 #[cfg(any(feature = "shadow", test))]
 fn selected_member_operation_paths(
     parsed: &ParsedFile,
+    identity: &ModuleIdentity,
     indexes: &[source_exports::SourceExportIndex],
     selected_members: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
     effects: &[source_annotation::SourceEffectDeclaration],
@@ -380,6 +389,7 @@ fn selected_member_operation_paths(
         return Err(HirAvailabilityError::ForeignSourceImport);
     }
     let keys = crate::source_identity::try_source_keys(parsed)?;
+    let local_exports = index_source_exports(identity.clone(), parsed)?;
     let root = SyntaxNode::new_root(parsed.green().clone());
     let selected = root.descendants().filter(|node|
         keys.get(node).is_some_and(|key| selected_members.contains(key))
@@ -388,6 +398,7 @@ fn selected_member_operation_paths(
     if found.len() != selected_members.len() { return Err(HirAvailabilityError::StructuralProjection); }
 
     let mut paths = HashMap::new();
+    let mut imported_names = None;
     for member in selected {
         for expression in member.descendants().filter(|node| node.kind() == SyntaxKind::OperatorChain) {
             let mut children = expression.children();
@@ -410,8 +421,98 @@ fn selected_member_operation_paths(
                 }
                 segments.push(segment.text().into());
             }
-            if segments.len() < 3 { continue; }
             let path: Box<str> = segments.iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::").into_boxed_str();
+            if segments.len() == 2 {
+                let mut local_families = Vec::new();
+                for effect in effects.iter().filter(|effect|
+                    effect.id.module.as_ref() == &identity.module
+                        && effect.spelling.as_ref() == segments[0].as_ref()
+                ) {
+                    if !local_families.iter().any(|family: &&source_annotation::SourceEffectDeclaration|
+                        family.id == effect.id
+                    ) {
+                        local_families.push(effect);
+                    }
+                }
+                if !local_families.is_empty() {
+                    let [family] = local_families.as_slice() else {
+                        return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+                    };
+                    let mut operation_matches = Vec::new();
+                    for operation in family.operations.iter().filter(|operation|
+                        operation.spelling == segments[1]
+                    ) {
+                        if !operation_matches.iter().any(|previous: &&Arc<source_annotation::SourceOperationDeclaration>|
+                            previous.id == operation.id
+                        ) {
+                            operation_matches.push(operation);
+                        }
+                    }
+                    let [operation] = operation_matches.as_slice() else {
+                        return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+                    };
+                    let declarations = local_exports.declarations.iter().filter(|declaration|
+                        declaration.kind == SyntaxKind::ActDeclaration
+                            && declaration.source == family.id.declaration
+                            && declaration.name.as_deref() == Some(segments[0].as_ref())
+                    ).collect::<Vec<_>>();
+                    let [declaration] = declarations.as_slice() else {
+                        return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+                    };
+                    let export = source_exports::SourceExportResolution {
+                        module: source_exports::module_label(&identity.module)
+                            .ok_or(HirAvailabilityError::SourceImportResolutionUnavailable)?,
+                        name: segments[0].clone(),
+                        declaration: (*declaration).clone(),
+                        route: Vec::new(),
+                    };
+                    paths.insert(path, SourceOperationPathImport {
+                        export,
+                        operation: (*operation).clone(),
+                    });
+                    continue;
+                }
+                if imported_names.is_none() {
+                    let selected_names = selected_direct_root_names(parsed, selected_members)?;
+                    let (_, names) = resolve_source_imports_selected(
+                        parsed, identity, indexes, Some(&selected_names),
+                    )?;
+                    imported_names = Some(names);
+                }
+                let names = imported_names.as_ref().expect("initialized above");
+                let family_export = match names.get(&segments[0]) {
+                    Some(source_exports::SourceImportBinding::Resolved(export))
+                        if export.declaration.kind == SyntaxKind::ActDeclaration => export,
+                    Some(source_exports::SourceImportBinding::Ambiguous) => {
+                        return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+                    }
+                    _ => continue,
+                };
+                let mut matches = Vec::new();
+                for effect in effects.iter().filter(|effect|
+                    effect.id.declaration == family_export.declaration.source
+                        && source_exports::module_label(&effect.id.module).as_deref()
+                            == Some(family_export.module.as_ref())
+                        && effect.visibility == HirVisibility::Public
+                ) {
+                    for operation in effect.operations.iter().filter(|operation|
+                        operation.spelling.as_ref() == segments[1].as_ref()
+                            && operation.visibility == HirVisibility::Public
+                    ) {
+                        matches.push((family_export.clone(), operation.clone()));
+                    }
+                }
+                matches.dedup_by(|left, right| left.1.id == right.1.id);
+                match matches.as_slice() {
+                    [(export, operation)] => {
+                        paths.insert(path, SourceOperationPathImport { export: export.clone(), operation: operation.clone() });
+                    }
+                    [] => {}
+                    _ => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
+                }
+                continue;
+            }
+            if segments.len() < 3 { continue; }
             let mut matches = Vec::new();
             for family_index in 1..segments.len() - 1 {
                 let module = segments[..family_index].iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::");
@@ -634,13 +735,14 @@ impl SemanticImports {
         if identity.file != *identity.module.file() {
             return Err(HirAvailabilityError::InconsistentIdentity);
         }
-        let operation_paths = selected_member_operation_paths(parsed, indexes, selected_members, effects)?;
+        let operation_paths = selected_member_operation_paths(parsed, identity, indexes, selected_members, effects)?;
         let value_paths = selected_member_value_paths(parsed, indexes, selected_members)?;
         let mut imports = source_import_environment(
             parsed, identity, parsed.source_root().key(), value_paths, indexes,
         )?;
         imports.retain_operation_paths(operation_paths);
         retain_authenticated_role_imports(&mut imports, role_indexes)?;
+        retain_implicit_prelude_role_ids(&mut imports, parsed, identity, indexes, role_indexes)?;
         Ok(Self { caller_evidence: None, source_imports: Some(imports) })
     }
 
@@ -728,6 +830,42 @@ fn retain_authenticated_role_imports(
     }
     imports.retain_role_ids(role_ids);
     imports.retain_role_member_ids(role_member_ids);
+    Ok(())
+}
+
+#[cfg(any(feature = "shadow", test))]
+fn retain_implicit_prelude_role_ids(
+    imports: &mut source_exports::SourceImportEnvironment,
+    parsed: &ParsedFile,
+    identity: &ModuleIdentity,
+    indexes: &[source_exports::SourceExportIndex],
+    role_indexes: &[crate::shadow::SourceRoleImplIndex],
+) -> Result<(), HirAvailabilityError> {
+    use source_exports::SourceImportBinding;
+    let (parse_root, names) = resolve_implicit_prelude_imports(parsed, identity, indexes)?;
+    let mut implicit = source_import_environment(parsed, identity, parse_root, names, indexes)?;
+    retain_authenticated_role_imports(&mut implicit, role_indexes)?;
+
+    let mut role_ids = std::collections::HashMap::new();
+    for (name, binding) in imports.names() {
+        if matches!(binding, SourceImportBinding::Resolved(resolution)
+            if resolution.declaration.kind == SyntaxKind::RoleDeclaration) {
+            if let Some(role) = imports.role_id(name) {
+                role_ids.insert(name.clone(), role.clone());
+            }
+        }
+    }
+    for (name, binding) in implicit.names() {
+        if imports.resolve(name).is_some()
+            || !matches!(binding, SourceImportBinding::Resolved(resolution)
+                if resolution.declaration.kind == SyntaxKind::RoleDeclaration) {
+            continue;
+        }
+        if let Some(role) = implicit.role_id(name) {
+            role_ids.insert(name.clone(), role.clone());
+        }
+    }
+    imports.retain_role_ids(role_ids);
     Ok(())
 }
 
@@ -2089,8 +2227,18 @@ fn lower_module_with_counters(
     }
     #[cfg(any(feature = "shadow", test))]
     if counters.local_source {
-        counters.effect_declarations =
-            source_annotation::declarations(&root, identity.module(), counters)?;
+        counters.effect_declarations = if counters.selected_local_source_roots.is_some() {
+            // A selected provider root carries exact imported operations in
+            // SourceImportEnvironment::operation_paths. Scanning every Act in
+            // the provider file would make an unrelated host declaration a
+            // prerequisite for retaining that binding's LocalSource.
+            let no_local_effects = std::collections::HashSet::new();
+            source_annotation::declarations_selected(
+                &root, identity.module(), counters, Some(&no_local_effects),
+            )?
+        } else {
+            source_annotation::declarations(&root, identity.module(), counters)?
+        };
     }
     #[cfg(any(feature = "shadow", test))]
     if counters.local_source || counters.member_sources {
@@ -2207,7 +2355,10 @@ fn lower_module_with_counters(
             &mut scope,
         )?;
         #[cfg(any(feature = "shadow", test))]
-        if counters.local_source && plan.node.kind() == SyntaxKind::ActDeclaration {
+        if counters.local_source
+            && counters.selected_local_source_roots.is_none()
+            && plan.node.kind() == SyntaxKind::ActDeclaration
+        {
             let declaration = counters
                 .effect_declarations
                 .get_mut(effect_ordinal)
@@ -2260,7 +2411,9 @@ fn lower_module_with_counters(
         }
     }
     #[cfg(any(feature = "shadow", test))]
-    let source_member_carriers = if counters.local_source || counters.member_sources {
+    let source_member_carriers = if counters.member_sources
+        || (counters.local_source && counters.selected_local_source_roots.is_none())
+    {
         let mut carriers = Vec::new();
         let mut selected_member_found = std::collections::HashSet::new();
         if let Some(selected) = &counters.selected_member_sources {

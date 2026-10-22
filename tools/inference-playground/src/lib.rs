@@ -178,13 +178,37 @@ pub fn execute(
     step_budget: usize,
     scoped: bool,
 ) -> Result<String, String> {
+    execute_runtime(source, name, Some(definition), step_budget, scoped)
+}
+
+/// Execute every source-scheduled root without choosing a binding definition.
+pub fn execute_module(
+    source: &str,
+    name: &str,
+    step_budget: usize,
+    scoped: bool,
+) -> Result<String, String> {
+    execute_runtime(source, name, None, step_budget, scoped)
+}
+
+fn execute_runtime(
+    source: &str,
+    name: &str,
+    definition: Option<&str>,
+    step_budget: usize,
+    scoped: bool,
+) -> Result<String, String> {
     use runtime::{RuntimeOutcome, RuntimeProgram};
     let (hir, candidate, world, indexes) = prepare_with_world(source, name, scoped)?;
     let unavailable = |error| bounded_message(format_args!("runtime unavailable: {error:?}"));
     let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate)
         .map_err(unavailable)?;
-    let selected = program.definition_named(definition).map_err(unavailable)?;
-    let mut machine = program.start_source_schedule(selected).map_err(unavailable)?;
+    let mut machine = if let Some(definition) = definition {
+        let selected = program.definition_named(definition).map_err(unavailable)?;
+        program.start_source_schedule(selected).map_err(unavailable)?
+    } else {
+        program.start_module_schedule().map_err(unavailable)?
+    };
     let mut output = Output::new();
     let mut captured_host_write = false;
     let value = loop {
@@ -212,7 +236,7 @@ pub fn execute(
             RuntimeOutcome::Running => return Err("runtime has no completed result".to_owned()),
         }
     };
-    if captured_host_write {
+    if captured_host_write || definition.is_none() {
         return output.finish();
     }
     render_runtime_value(&machine, value, &mut output).map_err(cap)?;
@@ -587,11 +611,19 @@ fn pinned_provider_projection_inner(
             Ok(())
         };
         for item in hir.items() {
-            let HirItem::Binding(binding) = item else { continue };
-            let Some(source) = hir.local_source(binding.definition_root())
-                .map_err(|error| format!("provider source lookup unavailable: {error:?}"))?
-            else { continue };
-            retain(source)?;
+            let source = match item {
+                HirItem::Binding(binding) => hir.local_source(binding.definition_root())
+                    .map_err(|error| format!("provider source lookup unavailable: {error:?}"))?,
+                HirItem::Expression(expression) => hir.expression_root(expression.occurrence())
+                    .map_err(|error| format!("provider expression root unavailable: {error:?}"))?
+                    .cloned()
+                    .map(|root| hir.local_source_for(&SourceRootId::Expression(root)))
+                    .transpose()
+                    .map_err(|error| format!("provider expression source unavailable: {error:?}"))?
+                    .flatten(),
+                HirItem::Error { .. } => None,
+            };
+            if let Some(source) = source { retain(source)?; }
         }
         for (_, outcome) in hir.source_member_carrier_outcomes() {
             if let yu_hir::SourceCarrierOutcome::Supported(source) = outcome {
@@ -674,8 +706,20 @@ fn pinned_provider_projection_inner(
     ) -> Result<Arc<HirModule>, String> {
         let (identity, parsed) = sources.get(source_index)
             .ok_or_else(|| "selected pinned provider source is missing".to_owned())?;
-        let imports = SemanticImports::with_selected_source_imports_and_role_indexes(
-            parsed, identity, indexes, &selected[source_index], role_indexes,
+        let mut effects = Vec::new();
+        for (effect_identity, effect_parsed) in sources {
+            let Some(index) = indexes.iter().find(|index| index.module == *effect_identity.module()) else { continue; };
+            for declaration in index.declarations.iter().filter(|declaration|
+                declaration.kind == yu_syntax::SyntaxKind::ActDeclaration
+                    && effect_parsed.owns_source_key(&declaration.source)
+            ) {
+                if let Ok(indexed) = yu_hir::shadow::index_source_effects(
+                    effect_identity.clone(), effect_parsed, &[declaration.source.clone()].into_iter().collect(),
+                ) { effects.extend(indexed); }
+            }
+        }
+        let imports = SemanticImports::with_selected_member_operations(
+            parsed, identity, indexes, &selected[source_index], role_indexes, &effects,
         ).map_err(|error| format!(
             "selected pinned imports unavailable for {}: {error:?}",
             identity.file().key().normalized_workspace_relative_path(),
@@ -1277,7 +1321,7 @@ mod tests {
     use super::{conflict_ranges_for, execute, pinned_candidate_world, pinned_provider_projection, pinned_source_world, prepare};
     use super::output;
     use yu_hir::shadow::{
-        LocalSourceForm, index_role_impl_sources, index_source_exports,
+        LocalSourceForm, index_role_impl_sources, index_source_effects, index_source_exports,
         lower_module_with_local_source, lower_module_with_selected_local_source, resolve_public_export,
     };
     use yu_hir::{FileId, FileKey, HirItem, HirOccurrenceId, HirModule, ModuleIdentity, SemanticImports, SourceRootId};
@@ -1556,15 +1600,14 @@ mod tests {
     }
 
     #[test]
-    fn unchanged_console_sample_reaches_imported_name_candidate_boundary() {
+    fn unchanged_console_sample_resolves_sources_and_reaches_fieldtail_selection() {
         let source = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
         assert_eq!(source.len(), 92);
         let error = match prepare(source, "samples/Console.yu", false) {
             Err(error) => error,
-            Ok(_) => panic!("Console still requires imported operation/host selection"),
+            Ok(_) => panic!("Console still requires selected Display and Add implementations"),
         };
-        assert!(error.starts_with("unsupported source: current candidate lowering/inference cannot observe this program"), "{error}");
-        assert!(!error.contains("source imports unavailable"), "provider projection reaches candidate preflight: {error}");
+        assert_eq!(error, "candidate inference unavailable: Solve(DeferredSelectionUnavailable)");
     }
 
     #[test]
@@ -2369,6 +2412,50 @@ mod tests {
             Arc::new(environment),
         );
         assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+    }
+
+    #[test]
+    fn selected_console_binding_resolves_its_short_operation_path_by_source_identity() {
+        let (sources, indexes, role_indexes) = pinned_source_world().unwrap();
+        let (identity, parsed) = sources.iter().find(|(identity, _)|
+            identity.module().file().key().normalized_workspace_relative_path()
+                == "lib/std/io/console.yu"
+        ).unwrap();
+        let console_index = indexes.iter().find(|index| index.module == *identity.module()).unwrap();
+        let println = console_index.declarations.iter().find(|declaration|
+            declaration.name.as_deref() == Some("println")
+        ).unwrap();
+        let selected = [println.source.clone()].into_iter().collect();
+        let mut effects = Vec::new();
+        for (effect_identity, effect_parsed) in &sources {
+            let Some(index) = indexes.iter().find(|index| index.module == *effect_identity.module()) else { continue; };
+            for declaration in index.declarations.iter().filter(|declaration|
+                declaration.kind == yu_syntax::SyntaxKind::ActDeclaration
+                    && effect_parsed.owns_source_key(&declaration.source)
+            ) {
+                if let Ok(indexed) = index_source_effects(
+                    effect_identity.clone(), effect_parsed,
+                    &[declaration.source.clone()].into_iter().collect(),
+                ) { effects.extend(indexed); }
+            }
+        }
+        let imports = SemanticImports::with_selected_member_operations(
+            parsed, identity, &indexes, &selected, &role_indexes, &effects,
+        ).unwrap();
+        let operation = imports.source_imports().unwrap().operation_path("out::write").unwrap();
+        assert_eq!(operation.export.module.as_ref(), "std::io::console");
+        assert_eq!(operation.export.name.as_ref(), "out");
+        assert_eq!(operation.operation.spelling.as_ref(), "write");
+        assert_eq!(operation.operation.id.family.declaration, operation.export.declaration.source);
+        let projected = lower_module_with_selected_local_source(
+            identity.clone(), parsed, imports, selected,
+        ).unwrap();
+        assert_eq!(projected.items().len(), 1);
+        let HirItem::Binding(binding) = &projected.items()[0] else {
+            panic!("selected println provider remains its authentic binding root");
+        };
+        assert_eq!(binding.name().spelling(), "println");
+        assert!(projected.local_source(binding.definition_root()).unwrap().is_some());
     }
 
     #[test]

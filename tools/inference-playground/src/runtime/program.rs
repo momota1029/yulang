@@ -401,6 +401,27 @@ impl RuntimeProgram {
         Ok(self.source_schedule.clone())
     }
 
+    pub(super) fn module_completion_site(&self) -> Result<SourceSite, RuntimeUnavailable> {
+        if let Some(root) = self.source_schedule.last() {
+            let code = match root {
+                ExecutionRoot::Definition(id) => {
+                    let index = self.definition_indices.get(id)
+                        .ok_or(RuntimeUnavailable::MissingDefinition)?;
+                    self.definitions.get(*index)
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?.body
+                }
+                ExecutionRoot::Expression(expression) => *self.expression_roots
+                    .get(&expression.root)
+                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?,
+            };
+            return self.code.get(code.0)
+                .map(|code| code.site.clone())
+                .ok_or(RuntimeUnavailable::InvalidSourceReference);
+        }
+        self.code.first().map(|code| code.site.clone())
+            .ok_or(RuntimeUnavailable::MissingSource)
+    }
+
     pub fn host_write_operation(&self) -> Option<&yu_hir::SourceOperationId> {
         self.host_write_operation.as_ref()
     }
