@@ -12,6 +12,95 @@ use crate::output::{Output, cap};
 
 pub const OUTPUT_CAP: usize = 4096;
 
+#[derive(Clone, Copy)]
+enum SchemeRowKind { Value, Effect }
+
+struct SchemeBinder {
+    name: String,
+    kind: SchemeRowKind,
+}
+
+enum SchemeType {
+    Leaf(&'static str),
+    Row { name: String, kind: SchemeRowKind },
+    Function {
+        argument: Box<SchemeType>,
+        argument_effect: Box<SchemeType>,
+        result_effect: Box<SchemeType>,
+        result: Box<SchemeType>,
+    },
+    Tuple(Vec<SchemeType>),
+}
+
+/// Typed, provisional projection of one drained candidate root. The retained
+/// graph constraints and source effect evidence remain attached as text until
+/// a source-adequate accepted scheme carrier is proved.
+struct CandidatePublicScheme {
+    name: String,
+    binders: Vec<SchemeBinder>,
+    anchors: Vec<SchemeBinder>,
+    ty: SchemeType,
+    observations: String,
+}
+
+impl SchemeType {
+    fn render(&self, output: &mut Output) -> Result<(), String> {
+        match self {
+            Self::Leaf(name) => output.write_str(name).map_err(cap),
+            Self::Row { name, kind } => {
+                let prefix = match kind { SchemeRowKind::Value => "α", SchemeRowKind::Effect => "ε" };
+                if !name.starts_with(prefix) {
+                    return Err("candidate scheme row name disagrees with its kind".to_owned());
+                }
+                output.write_str(name).map_err(cap)
+            }
+            Self::Function { argument, argument_effect, result_effect, result } => {
+                output.write_str("Function(argument=").map_err(cap)?;
+                argument.render(output)?;
+                output.write_str(", argument-effect=").map_err(cap)?;
+                argument_effect.render(output)?;
+                output.write_str(", result-effect=").map_err(cap)?;
+                result_effect.render(output)?;
+                output.write_str(", result=").map_err(cap)?;
+                result.render(output)?;
+                output.write_char(')').map_err(cap)
+            }
+            Self::Tuple(items) => {
+                output.write_char('(').map_err(cap)?;
+                for (index, item) in items.iter().enumerate() {
+                    if index != 0 { output.write_str(", ").map_err(cap)?; }
+                    item.render(output)?;
+                }
+                output.write_char(')').map_err(cap)
+            }
+        }
+    }
+}
+
+impl CandidatePublicScheme {
+    fn render(self) -> Result<String, String> {
+        let mut output = Output::new();
+        write!(output, "{}: ", self.name).map_err(cap)?;
+        if let Some((first, rest)) = self.binders.split_first() {
+            output.write_str("∀ ").map_err(cap)?;
+            output.write_str(&first.name).map_err(cap)?;
+            for binder in rest {
+                output.write_char(' ').map_err(cap)?;
+                output.write_str(&binder.name).map_err(cap)?;
+            }
+            output.write_str(". ").map_err(cap)?;
+        }
+        self.ty.render(&mut output)?;
+        output.write_char('\n').map_err(cap)?;
+        for anchor in self.anchors {
+            let kind = match anchor.kind { SchemeRowKind::Value => "Value", SchemeRowKind::Effect => "Effect" };
+            writeln!(output, "  shared {kind} anchor {} (bounds owned by outer context)", anchor.name).map_err(cap)?;
+        }
+        output.write_str(&self.observations).map_err(cap)?;
+        output.finish()
+    }
+}
+
 fn local_source_for_item<'hir>(hir: &'hir HirModule, item: &HirItem) -> Option<&'hir LocalSource> {
     let root = match item {
         HirItem::Binding(binding) => {
@@ -70,9 +159,7 @@ pub fn public_scheme(graph: &CandidateGraphExport<'_>, name: &str) -> Result<Str
     }
     let mut free_rows = std::collections::HashSet::new();
     let mut active_rows = std::collections::HashSet::new();
-    let mut type_output = Output::new();
-    render_type_node(graph, graph.root(), &rows, &mut active_rows, &mut free_rows, &mut type_output)?;
-    let type_text = type_output.finish()?;
+    let ty = project_type_node(graph, graph.root(), &rows, &mut active_rows, &mut free_rows)?;
     let mut details = Output::new();
     for permission in graph.formal_effect_permissions()
         .map_err(|_| "candidate scheme permission projection unavailable".to_owned())?
@@ -135,33 +222,24 @@ pub fn public_scheme(graph: &CandidateGraphExport<'_>, name: &str) -> Result<Str
         render_constraint_node(graph, bound.upper(), &rows, &mut free_rows, &mut details)?;
         details.write_char('\n').map_err(cap)?;
     }
-    let details = details.finish()?;
-    let quantified: Vec<_> = rows.iter()
+    let observations = details.finish()?;
+    let binders = rows.iter()
         .filter(|(row, _)| row.is_local() && free_rows.contains(row))
-        .map(|(_, name)| name.as_str())
+        .map(|(row, name)| SchemeBinder {
+            name: name.clone(),
+            kind: if row.is_effect() { SchemeRowKind::Effect } else { SchemeRowKind::Value },
+        })
         .collect();
     let anchors: Vec<_> = rows.iter()
         .filter(|(row, _)| !row.is_local() && free_rows.contains(row))
-        .map(|(_, name)| name.as_str())
+        .map(|(row, name)| SchemeBinder {
+            name: name.clone(),
+            kind: if row.is_effect() { SchemeRowKind::Effect } else { SchemeRowKind::Value },
+        })
         .collect();
-    let mut output = Output::new();
-    write!(output, "{name}: ").map_err(cap)?;
-    if let Some((first, rest)) = quantified.split_first() {
-        output.write_str("∀ ").map_err(cap)?;
-        output.write_str(first).map_err(cap)?;
-        for row in rest {
-            output.write_char(' ').map_err(cap)?;
-            output.write_str(row).map_err(cap)?;
-        }
-        output.write_str(". ").map_err(cap)?;
-    }
-    output.write_str(&type_text).map_err(cap)?;
-    output.write_char('\n').map_err(cap)?;
-    for anchor in anchors {
-        writeln!(output, "  shared anchor {anchor} (bounds owned by outer context)").map_err(cap)?;
-    }
-    output.write_str(&details).map_err(cap)?;
-    output.finish()
+    CandidatePublicScheme {
+        name: name.to_owned(), binders, anchors, ty, observations,
+    }.render()
 }
 
 fn render_permitted(output: &mut Output, permitted: &[yu_hir::shadow::SourceEffectId]) -> Result<(), String> {
@@ -314,14 +392,13 @@ fn row_name<'a>(rows: &'a [(CandidateGraphRow<'_>, String)], row: CandidateGraph
         .ok_or_else(|| "candidate scheme row identity unavailable".to_owned())
 }
 
-fn render_type_node<'a>(
+fn project_type_node<'a>(
     graph: &CandidateGraphExport<'a>,
     node: CandidateGraphNode<'a>,
     rows: &[(CandidateGraphRow<'a>, String)],
     active_rows: &mut std::collections::HashSet<CandidateGraphRow<'a>>,
     free_rows: &mut std::collections::HashSet<CandidateGraphRow<'a>>,
-    output: &mut Output,
-) -> Result<(), String> {
+) -> Result<SchemeType, String> {
     if let Some(leaf) = node.leaf() {
         let name = match leaf {
             yu_solver::shadow_apply::CandidateGraphLeaf::IntPositive
@@ -338,19 +415,16 @@ fn render_type_node<'a>(
             yu_solver::shadow_apply::CandidateGraphLeaf::EffectBottom => "∅+",
             yu_solver::shadow_apply::CandidateGraphLeaf::EmptyEffect => "∅−",
         };
-        output.write_str(name).map_err(cap)?;
-        return Ok(());
+        return Ok(SchemeType::Leaf(name));
     }
     if let Some(row) = node.row() {
         if row.is_effect() {
             free_rows.insert(row);
-            output.write_str(row_name(rows, row)?).map_err(cap)?;
-            return Ok(());
+            return Ok(SchemeType::Row { name: row_name(rows, row)?.to_owned(), kind: SchemeRowKind::Effect });
         }
         if !active_rows.insert(row) {
             free_rows.insert(row);
-            output.write_str(row_name(rows, row)?).map_err(cap)?;
-            return Ok(());
+            return Ok(SchemeType::Row { name: row_name(rows, row)?.to_owned(), kind: SchemeRowKind::Value });
         }
         let mut heads = graph.bounds().filter(|bound|
             bound.is_effect() == row.is_effect() && bound.upper().row().is_some_and(|upper| upper == row)
@@ -358,40 +432,40 @@ fn render_type_node<'a>(
         );
         let Some(head) = heads.next() else {
             free_rows.insert(row);
-            output.write_str(row_name(rows, row)?).map_err(cap)?;
             active_rows.remove(&row);
-            return Ok(());
+            return Ok(SchemeType::Row { name: row_name(rows, row)?.to_owned(), kind: SchemeRowKind::Value });
         };
         let first = head.lower();
         let ambiguous = heads.any(|bound| !bound.lower().same_identity(first));
         if ambiguous {
             return Err("candidate scheme has multiple concrete Value shapes for one row".to_owned());
-        } else {
-            render_type_node(graph, first, rows, active_rows, free_rows, output)?;
         }
+        let projected = project_type_node(graph, first, rows, active_rows, free_rows)?;
         active_rows.remove(&row);
-        return Ok(());
+        return Ok(projected);
     }
     if let Some(children) = node.children() {
-        output.write_str("Function(").map_err(cap)?;
-        for (index, (label, child)) in ["argument=", "argument-effect=", "result-effect=", "result="]
-            .into_iter().zip(children).enumerate()
-        {
-            if index != 0 { output.write_str(", ").map_err(cap)?; }
-            output.write_str(label).map_err(cap)?;
-            render_type_node(graph, child, rows, active_rows, free_rows, output)?;
-        }
-        output.write_char(')').map_err(cap)?;
-        return Ok(());
+        let [argument, argument_effect, result_effect, result] = children;
+        let argument = project_type_node(graph, argument, rows, active_rows, free_rows)?;
+        let argument_effect = project_type_node(graph, argument_effect, rows, active_rows, free_rows)?;
+        let result_effect = project_type_node(graph, result_effect, rows, active_rows, free_rows)?;
+        let result = project_type_node(graph, result, rows, active_rows, free_rows)?;
+        return Ok(SchemeType::Function {
+            argument: Box::new(argument),
+            argument_effect: Box::new(argument_effect),
+            result_effect: Box::new(result_effect),
+            result: Box::new(result),
+        });
     }
     if let Some(children) = node.tuple_children() {
-        output.write_char('(').map_err(cap)?;
-        for (index, child) in children.enumerate() {
-            if index != 0 { output.write_str(", ").map_err(cap)?; }
-            render_type_node(graph, child, rows, active_rows, free_rows, output)?;
+        let mut projected = Vec::new();
+        for child in children {
+            if projected.len() == OUTPUT_CAP {
+                return Err(format!("tool output cap exceeded: more than {OUTPUT_CAP} tuple elements"));
+            }
+            projected.push(project_type_node(graph, child, rows, active_rows, free_rows)?);
         }
-        output.write_char(')').map_err(cap)?;
-        return Ok(());
+        return Ok(SchemeType::Tuple(projected));
     }
     Err("candidate scheme contains an unsupported type node".to_owned())
 }

@@ -99,3 +99,10 @@ R331 reached its 900-second serial envelope as an open continuation. Its final r
 The exact source-level `[io]` regression reaches candidate inference, retains the formal open permission, and shows the `answer` support bound connected to an open residual row. The separate solver regression establishes that the callback's state label differs from `io` and remains in the residual. This is candidate-path evidence, not a proof of production source typing, runtime Grant, principal schemes, or parent A/B closure. `npm run typecheck` still fails because generated bindings lack `infer_types` and `run_module`; fetching `wasm-bindgen-cli` still fails DNS resolution.
 
 R332 continues the unchanged parent goal by constructing a candidate-owned scheme representation and proving its mapping from the exact source graph. The six checked-in browser fixtures each have sample-specific CLI coverage; the larger original Yulang2 playground catalog remains unverified.
+
+
+## R332 typed candidate scheme projection
+
+The playground projection now first constructs a typed `CandidatePublicScheme`: the value body is a `SchemeType` tree (`Leaf`, typed `Row`, `Function`, or ordered `Tuple`), binders retain Value/Effect row kind, and shared anchors are typed by row kind. The existing display is rendered from that structure, preserving the same shared quantified row in `id` and tuple order in `pair`. Effect operands, permissions, and retained bounds are still held in a textual observation section; this is not yet the solver-owned accepted scheme required by R149.
+
+After this refactor, `cargo test -q -p yu-playground` passed: 45 library tests, 28 CLI tests, and every package integration target. The exact `[io]` open-permission / `[state]` residual tests and the unchanged Types/Console source tests remain included. Browser typecheck still fails on stale generated bindings, and Web smoke remains unavailable without wasm-bindgen-cli.
