@@ -2165,6 +2165,121 @@ impl InferenceSession {
         (authenticated_pairs == 1).then_some(subject)
     }
 
+    /// Match the original source recipe and one actual instantiation's entire
+    /// four-row crosswalk. This is independent of any receiver-shape judgment.
+    pub(super) fn candidate_field_tail_has_source_instance(
+        &self, obligation: &SourceFieldTailObligation,
+    ) -> bool {
+        let Some(state) = self.candidate_graph.as_ref() else { return false; };
+        if self.batch.candidate_source.source_owners.get(&obligation.occurrence) != Some(&obligation.source_owner) {
+            return false;
+        }
+        fn spend(work: &mut usize) -> bool {
+            *work = work.saturating_add(1);
+            *work <= CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT
+        }
+        let mut work = 0;
+        let mut original = None;
+        for recipe in &self.batch.candidate_recipes {
+            if !spend(&mut work) { return false; }
+            if recipe.occurrence != obligation.occurrence { continue; }
+            let shadow_apply::CandidateRelation::DeferredFieldTail {
+                source, member, role_member_candidates, receiver, receiver_effect, result, result_effect,
+            } = &recipe.relation else { continue; };
+            if original.is_some() || source != &obligation.source || member != &obligation.member
+                || role_member_candidates != &obligation.role_member_candidates { return false; }
+            original = Some((*receiver, *receiver_effect, *result, *result_effect));
+        }
+        let Some((receiver, receiver_effect, result, result_effect)) = original else { return false; };
+        let actual = [obligation.receiver_row, obligation.receiver_effect,
+            obligation.result_row, obligation.result_effect].map(|row| state.intrusion.rep(row));
+        let Some(context) = obligation.dispatch_context else {
+            let receiver = match receiver {
+                shadow_apply::CandidateEndpoint::Component(position) => self.live_components.get(position).map(|c| c.ordinal),
+                shadow_apply::CandidateEndpoint::Parameter(position) => u32::try_from(position).ok()
+                    .and_then(|position| self.parameter_live_base.checked_add(position)),
+            };
+            let Some(receiver) = receiver else { return false; };
+            let (Some(receiver_effect), Some(result), Some(result_effect)) = (
+                self.live_components.get(receiver_effect), self.live_components.get(result), self.live_components.get(result_effect),
+            ) else { return false; };
+            return obligation.owner == obligation.source_owner && obligation.operator_origin.is_none()
+                && obligation.required_roles.is_empty()
+                && actual == [RowKey::Value(receiver), RowKey::Effect(receiver_effect.ordinal),
+                    RowKey::Value(result.ordinal), RowKey::Effect(result_effect.ordinal)].map(|row| state.intrusion.rep(row));
+        };
+        let Some(node) = state.dispatch_contexts.get(context) else { return false; };
+        if [node.outer, node.inner].into_iter().flatten().any(|child| child >= context) { return false; }
+        let (graph, rows, mappings, role_rows, outer, operator) = match node.route {
+            DispatchRoute::Module(index) => {
+                let Some(route) = state.routes.get(index) else { return false; };
+                (&route.graph, route.rows.as_slice(), route.retained.source_field_tail_obligation_rows.as_slice(), route.retained.source_role_obligation_rows.as_slice(), None, None)
+            }
+            DispatchRoute::Local(index) => {
+                let Some(route) = state.local_routes.get(index) else { return false; };
+                if !route.authentic_use_instance() { return false; }
+                (&route.graph, route.rows.as_slice(), route.retained.source_field_tail_obligation_rows.as_slice(), route.retained.source_role_obligation_rows.as_slice(), None, None)
+            }
+            DispatchRoute::Operator(index) => {
+                let Some(route) = state.operator_uses.get(index) else { return false; };
+                let Some(graph) = state.operator_graphs.get(&route.provider) else { return false; };
+                (graph.as_ref(), route.fresh.rows.as_slice(), route.fresh.source_field_tail_obligation_rows.as_slice(), route.fresh.source_role_obligation_rows.as_slice(), None, Some(route))
+            }
+            DispatchRoute::Member(index) => {
+                let Some(route) = state.member_uses.get(index) else { return false; };
+                let Some(member) = state.member_graphs.get(&route.member) else { return false; };
+                (member.graph.as_ref(), route.fresh.rows.as_slice(), route.fresh.source_field_tail_obligation_rows.as_slice(), route.fresh.source_role_obligation_rows.as_slice(), route.dispatch_context, None)
+            }
+        };
+        if node.outer != outer { return false; }
+        let mut matches = 0usize;
+        'field: for (field_index, row_indexes) in mappings {
+            if !spend(&mut work) { return false; }
+            let Some(field) = graph.source_field_tail_obligations.get(*field_index) else { return false; };
+            if field.source_owner != obligation.source_owner || field.occurrence != obligation.occurrence
+                || field.source != obligation.source || field.member != obligation.member
+                || field.role_member_candidates != obligation.role_member_candidates
+                || field.required_roles != obligation.required_roles || field.dispatch_context != node.inner { continue; }
+            for identity in &field.required_roles {
+                let mut found = false;
+                for (role_index, row) in role_rows {
+                    if !spend(&mut work) { return false; }
+                    let Some(role) = graph.source_role_obligations.get(*role_index) else { return false; };
+                    if field.source_owner.definition_root() != Some(&role.provider)
+                        || role.role_identity.as_ref() != Some(identity)
+                        || !graph.rows.get(*row).is_some_and(|source| source.key == role.subject_row)
+                        || !rows.get(*row).is_some_and(|mapped| mapped.kind() == ComponentKind::Value)
+                    { continue; }
+                    // The existing reciprocal-role predicate scans at most
+                    // four bound lists. Reserve its worst-case work before use.
+                    if *row != row_indexes[0] {
+                        let Some(search) = graph.bounds.len().checked_mul(4) else { return false; };
+                        let Some(total) = work.checked_add(search) else { return false; };
+                        work = total;
+                        if work > CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT { return false; }
+                    }
+                    if graph_role_subject_matches_receiver(graph, *row, row_indexes[0]) {
+                        found = true;
+                        break;
+                    }
+                }
+                if !found { continue 'field; }
+            }
+            let origin_matches = if let Some(operator) = operator.filter(|operator|
+                field.source_owner.expression_root() == Some(&operator.provider)) {
+                obligation.operator_origin.as_ref().is_some_and(|origin|
+                    origin.owner == operator.use_owner && origin.occurrence == operator.occurrence)
+            } else { field.operator_origin == obligation.operator_origin };
+            if !origin_matches { continue; }
+            let original = [field.receiver_row, field.receiver_effect, field.result_row, field.result_effect];
+            if !row_indexes.iter().enumerate().all(|(port, index)|
+                graph.rows.get(*index).is_some_and(|row| row.key == original[port])
+                    && rows.get(*index).is_some_and(|row| state.intrusion.rep(*row) == actual[port])) { continue; }
+            matches += 1;
+        }
+        matches == 1 && work <= CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT
+    }
+
     pub(super) fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
         self.capture_candidate_graph_owned(row, boundary, &[], &[], &[])
     }
@@ -2936,6 +3051,7 @@ impl InferenceSession {
             u32, u32, shadow_apply::CandidateReceiverShape,
             u32, u32, shadow_apply::CandidateReceiverShape,
         )>::new();
+        let mut component_frontier_snapshots = Vec::new();
 
         let mut pending = Vec::<Pending>::new();
         {
@@ -3023,6 +3139,17 @@ impl InferenceSession {
                     .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 let member_index = match self.unique_candidate_field_tail_member(&readback, &item.obligation.required_roles) {
                     FieldTailMemberSelection::Selected(index) => {
+                        if readback.negative_frontier_closed_component {
+                            let representative = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                                .intrusion.value_rep(receiver_row);
+                            let shape = self.candidate_receiver_positive_shape(representative)
+                                .ok_or(SolveAvailabilityError::DeferredSelectionUnavailable)?;
+                            if readback.positive_shape.as_ref() != Some(&shape) {
+                                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                            }
+                            component_frontier_snapshots.try_reserve(1).map_err(|_| exhausted())?;
+                            component_frontier_snapshots.push((receiver_row, representative, shape));
+                        }
                         if readback.negative_frontier_source_qualified {
                             let representative = self.candidate_graph.as_ref().ok_or_else(exhausted)?
                                 .intrusion.value_rep(receiver_row);
@@ -3236,6 +3363,15 @@ impl InferenceSession {
                         return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
                     }
                 }
+                for (row, representative, shape) in &component_frontier_snapshots {
+                    let current = self.candidate_graph.as_ref().ok_or_else(exhausted)?.intrusion.value_rep(*row);
+                    if current != *representative
+                        || self.candidate_receiver_positive_shape(current).as_ref() != Some(shape)
+                        || self.candidate_receiver_closed_component(current, shape).is_none()
+                    {
+                        return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                    }
+                }
                 // Unselected template descriptors stay with every enclosing
                 // capture owner, including nested descriptors introduced above.
                 // No concrete active instance may take this route.
@@ -3362,7 +3498,8 @@ impl InferenceSession {
             || !readback.implementation_inventory_complete
             || readback.unsupported_target_count != 0
             || !readback.positive_frontier_complete
-            || !(readback.negative_frontier_empty || readback.negative_frontier_source_qualified)
+            || !(readback.negative_frontier_empty || readback.negative_frontier_source_qualified
+                || readback.negative_frontier_closed_component)
             || readback.target_matches.len() != 1
         {
 
@@ -4510,6 +4647,16 @@ mod authentic_demand_capture_tests {
             .expect("consumer uses derived operator");
         assert_eq!(consumer_use.provider, derived_root);
         assert_ne!(dependency_use.fresh.context_use, consumer_use.fresh.context_use);
+        let fields: Vec<_> = state.graphs.iter().flatten()
+            .flat_map(|graph| &graph.source_field_tail_obligations).collect();
+        assert!(!fields.is_empty());
+        for field in fields {
+            assert!(session.candidate_field_tail_has_source_instance(field),
+                "nested operator source uses retain the original four-row crosswalk");
+            let mut wrong = field.clone();
+            wrong.operator_origin = None;
+            assert!(!session.candidate_field_tail_has_source_instance(&wrong));
+        }
     }
 
     #[test]
@@ -4800,6 +4947,123 @@ mod authentic_demand_capture_tests {
         let state = session.candidate_graph.as_ref().unwrap();
         assert!(state.locals[slot].is_some());
         assert!(state.local_capture_stack.is_empty());
+    }
+
+    #[test]
+    fn connected_frontier_requires_independent_positive_evidence() {
+        use shadow_apply::CandidateReceiverShape as Shape;
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(lower("my value = (1, true)\n"), true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+        // Topology probe only; source authentication is tested separately.
+        let receiver = session.fresh_value_at_level(1).unwrap();
+        let input = session.fresh_value_at_level(1).unwrap();
+        let external = session.fresh_value_at_level(1).unwrap();
+        session.bounds[receiver as usize].direct_lower_rows.push(input);
+        session.bounds[input as usize].exact_non_variable_lowers.push(ValueEndpointKey::IntPositive);
+        session.bounds[input as usize].direct_upper_rows.push(external);
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &Shape::Int), None);
+        session.bounds[external as usize].exact_non_variable_uppers.push(ValueEndpointKey::IntNegative);
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &Shape::Int), None,
+            "an upper does not supply the independent positive derivation");
+        session.bounds[external as usize].exact_non_variable_lowers.push(ValueEndpointKey::IntPositive);
+        session.bounds[external as usize].direct_upper_rows.push(input);
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &Shape::Int), Some(()),
+            "a negative cycle revisits independently established positive shapes");
+        assert_eq!(session.candidate_receiver_closed_frontier(&[receiver], &Shape::Int), None,
+            "the old positive-closure-only witness keeps its narrower contract");
+        session.bounds[external as usize].exact_non_variable_lowers.push(ValueEndpointKey::BoolPositive);
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &Shape::Int), None);
+        session.bounds[external as usize].exact_non_variable_lowers.pop();
+        session.bounds[external as usize].exact_non_variable_uppers.push(ValueEndpointKey::BoolNegative);
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &Shape::Int), None);
+        session.bounds[external as usize].exact_non_variable_uppers.pop();
+        session.bounds[input as usize].direct_lower_rows.push(receiver);
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &Shape::Int), None,
+            "positive cycles cannot be justified by their negative neighbors");
+        session.bounds[input as usize].direct_lower_rows.pop();
+        session.bounds[input as usize].direct_upper_rows.extend(std::iter::repeat_n(external, CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT));
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &Shape::Int), None,
+            "duplicate bounds are charged, not erased or silently truncated");
+    }
+
+    #[test]
+    fn connected_frontier_checks_ordered_negative_tuple_children() {
+        use shadow_apply::CandidateReceiverShape as Shape;
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(lower("my value = (1, true)\n"), true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+        let receiver = session.fresh_value_at_level(1).unwrap();
+        let boolean = session.fresh_value_at_level(1).unwrap();
+        let positive = session.store.terms.positive_tuple(&[
+            session.batch.collected_leaf_term(Leaf::IntPositive), session.batch.collected_leaf_term(Leaf::BoolPositive),
+        ]).unwrap();
+        let boolean_negative = session.live_value_term(Polarity::Negative, boolean).unwrap();
+        let negative = session.store.terms.negative_tuple(&[
+            session.batch.collected_leaf_term(Leaf::IntNegative), boolean_negative,
+        ]).unwrap();
+        session.bounds[receiver as usize].exact_non_variable_lowers.push(ValueEndpointKey::PositiveTuple(positive, 2));
+        session.bounds[receiver as usize].exact_non_variable_uppers.push(ValueEndpointKey::NegativeTuple(negative, 2));
+        let shape = Shape::Tuple(vec![Shape::Int, Shape::Bool]);
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &shape), None);
+        session.bounds[boolean as usize].exact_non_variable_lowers.push(ValueEndpointKey::BoolPositive);
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &shape), Some(()));
+        assert_eq!(session.candidate_receiver_closed_frontier(&[receiver], &shape), None);
+        session.bounds[boolean as usize].exact_non_variable_lowers.clear();
+        session.bounds[boolean as usize].exact_non_variable_lowers.push(ValueEndpointKey::IntPositive);
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &shape), None);
+        session.bounds[boolean as usize].exact_non_variable_lowers.clear();
+        session.bounds[boolean as usize].exact_non_variable_lowers.push(ValueEndpointKey::BoolPositive);
+        let unknown = session.fresh_value_at_level(1).unwrap();
+        session.bounds[boolean as usize].direct_upper_rows.push(unknown);
+        assert_eq!(session.candidate_receiver_closed_component(receiver, &shape), None,
+            "negative tuple row children enqueue their entire frontier too");
+    }
+
+    #[test]
+    fn field_source_instances_require_original_metadata_and_all_four_rows() {
+        let mut kinds = HashSet::new();
+        for text in [
+            "my show x = x.show\nmy main = (show 3, show 4)\n",
+            "my main = { my show x = x.show; (show 3, show 4) }\n",
+        ] {
+            let mut session = InferenceSession::try_new_candidate(
+                ConstraintBatch::collect_candidate_mode(lower(text), true, true).unwrap(),
+            ).unwrap();
+            session.execute().unwrap();
+            let fields: Vec<_> = session.candidate_graph.as_ref().unwrap().graphs.iter().flatten()
+                .flat_map(|graph| graph.source_field_tail_obligations.iter().cloned()).collect();
+            assert!(!fields.is_empty());
+            for field in fields {
+                assert!(session.candidate_field_tail_has_source_instance(&field), "{field:?}");
+                kinds.insert(match field.dispatch_context {
+                    None => "direct",
+                    Some(index) => match session.candidate_graph.as_ref().unwrap().dispatch_contexts[index].route {
+                        DispatchRoute::Module(_) => "module", DispatchRoute::Local(_) => "local", _ => panic!("fixture route"),
+                    },
+                });
+                let mut wrong = field.clone();
+                wrong.member = "different".into();
+                assert!(!session.candidate_field_tail_has_source_instance(&wrong));
+                let mut wrong = field.clone();
+                wrong.dispatch_context = Some(usize::MAX);
+                assert!(!session.candidate_field_tail_has_source_instance(&wrong));
+                for port in 0..4 {
+                    let mut wrong = field.clone();
+                    let replacement = if port % 2 == 0 {
+                        RowKey::Value(session.fresh_value_at_level(1).unwrap())
+                    } else { RowKey::Effect(session.fresh_effect_at_level(1).unwrap()) };
+                    match port {
+                        0 => wrong.receiver_row = replacement, 1 => wrong.receiver_effect = replacement,
+                        2 => wrong.result_row = replacement, _ => wrong.result_effect = replacement,
+                    }
+                    assert!(!session.candidate_field_tail_has_source_instance(&wrong), "port {port}");
+                }
+            }
+        }
+        assert_eq!(kinds, HashSet::from(["direct", "module", "local"]));
     }
 
     #[test]

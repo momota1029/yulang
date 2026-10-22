@@ -11878,10 +11878,30 @@ impl InferenceSession {
         roots: &[u32],
         shape: &shadow_apply::CandidateReceiverShape,
     ) -> Option<()> {
+        self.candidate_receiver_frontier(roots, shape, false)
+    }
+    /// Every newly reached upper row must have its own complete positive
+    /// derivation. Negative reachability never supplies positive evidence.
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_receiver_closed_component(
+        &self,
+        row: u32,
+        shape: &shadow_apply::CandidateReceiverShape,
+    ) -> Option<()> {
+        self.candidate_receiver_frontier(&[row], shape, true)
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_receiver_frontier(
+        &self,
+        roots: &[u32],
+        shape: &shadow_apply::CandidateReceiverShape,
+        follow_upper: bool,
+    ) -> Option<()> {
         use shadow_apply::CandidateReceiverShape as Shape;
         struct Check<'a> {
             complete: HashMap<u32, &'a Shape>,
             active: HashSet<u32>,
+            pending: Vec<u32>,
             work: usize,
         }
         impl<'a> Check<'a> {
@@ -11931,6 +11951,8 @@ impl InferenceSession {
                 self.active.remove(&row);
                 self.complete.try_reserve(1).ok()?;
                 self.complete.insert(row, shape);
+                self.pending.try_reserve(1).ok()?;
+                self.pending.push(row);
                 Some(())
             }
             fn endpoint(&mut self, session: &InferenceSession, endpoint: ValueEndpointKey,
@@ -11954,30 +11976,50 @@ impl InferenceSession {
                     _ => None,
                 }
             }
+            fn upper(&mut self, session: &InferenceSession, endpoint: ValueEndpointKey,
+                shape: &'a Shape, depth: usize, follow_upper: bool) -> Option<()> {
+                if depth >= 128 { return None; }
+                self.spend()?;
+                match (session.canonical_value(endpoint), shape) {
+                    (ValueEndpointKey::UnitNegative, Shape::Unit)
+                    | (ValueEndpointKey::IntNegative, Shape::Int)
+                    | (ValueEndpointKey::BoolNegative, Shape::Bool)
+                    | (ValueEndpointKey::StrNegative, Shape::Str) => Some(()),
+                    (ValueEndpointKey::ValueRow(row), _) if follow_upper =>
+                        self.row(session, row, shape, depth + 1),
+                    (ValueEndpointKey::NegativeTuple(term, arity), Shape::Tuple(items))
+                        if follow_upper && items.len() == arity => {
+                        let TermView::NegativeTuple { elements } = session.store.term_view(term).ok()? else { return None; };
+                        if elements.len() != arity { return None; }
+                        for (element, item) in elements.iter().zip(items) {
+                            self.upper(session, session.value_endpoint(*element, Polarity::Negative), item, depth + 1, true)?;
+                        }
+                        Some(())
+                    }
+                    _ => None,
+                }
+            }
         }
-        let mut check = Check { complete: HashMap::new(), active: HashSet::new(), work: 0 };
+        let mut check = Check { complete: HashMap::new(), active: HashSet::new(), pending: Vec::new(), work: 0 };
         for root in roots { check.row(self, *root, shape, 0)?; }
-        // Take the completed map out so the remaining budget can be charged
-        // without cloning either row entries or their borrowed shape trees.
-        let complete = std::mem::take(&mut check.complete);
-        for (&row, &known) in &complete {
+        let mut cursor = 0;
+        while let Some(&row) = check.pending.get(cursor) {
+            cursor += 1;
+            let known = *check.complete.get(&row)?;
             let bounds = self.bounds.get(row as usize)?;
             check.spend()?;
             for upper in &bounds.direct_upper_rows {
                 check.spend()?;
                 let ValueEndpointKey::ValueRow(upper) = self.canonical_value(ValueEndpointKey::ValueRow(*upper)) else { unreachable!() };
-                check.same_shape(known, complete.get(&upper)?, 0)?;
+                if follow_upper {
+                    check.row(self, upper, known, 0)?;
+                } else {
+                    let previous = *check.complete.get(&upper)?;
+                    check.same_shape(known, previous, 0)?;
+                }
             }
             for upper in &bounds.exact_non_variable_uppers {
-                check.spend()?;
-                if !matches!((known, self.canonical_value(*upper)),
-                    (Shape::Unit, ValueEndpointKey::UnitNegative)
-                    | (Shape::Int, ValueEndpointKey::IntNegative)
-                    | (Shape::Bool, ValueEndpointKey::BoolNegative)
-                    | (Shape::Str, ValueEndpointKey::StrNegative))
-                {
-                    return None;
-                }
+                check.upper(self, *upper, known, 0, follow_upper)?;
             }
         }
         Some(())
@@ -12146,6 +12188,12 @@ impl InferenceSession {
                 let negative_frontier_source_qualified = frontier_complete
                     && frontier.negative_bounds == frontier.compatible_terminal_negative_bounds
                     && self.candidate_field_tail_role_frontier_subject(obligation, row).is_some();
+                let negative_frontier_closed_component = frontier_complete
+                    && !negative_frontier_source_qualified
+                    && (frontier.negative_row_edges != 0 || frontier.negative_bounds != 0)
+                    && self.candidate_field_tail_has_source_instance(obligation)
+                    && positive_shape.as_ref().is_some_and(|shape|
+                        self.candidate_receiver_closed_component(row, shape).is_some());
                 let mut target_matches = Vec::new();
                 // This flag covers the source implementation inventory for
                 // each retained exact role-member identity. Unsupported target
@@ -12275,6 +12323,7 @@ impl InferenceSession {
                     negative_frontier_empty: frontier_complete
                         && frontier.negative_row_edges == 0 && frontier.negative_bounds == 0,
                     negative_frontier_source_qualified,
+                    negative_frontier_closed_component,
                 });
             }
         }

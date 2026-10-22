@@ -1320,3 +1320,199 @@ retain their quarantine. The direct-primary result remains UNREVIEWED and R332
 OPEN_CONTINUATION. The statement constructor is an additional conditional case
 of the original source/native obligation; all-source completeness, principal
 schemes, original A/B and production promotion remain OPEN.
+
+### Direct-nine: connected frontier construction before implementation
+
+The current original-source trace for `f x = { say x; my y = x + x; say y; y }`
+at `f 3` has Add receiver 106 with positive child 116. Row 116 has IntPositive
+and upper 112; 112 has independent IntPositive evidence and upper 110; 110 has
+independent IntPositive evidence and uppers 112 and 135; 135 has IntPositive
+and IntNegative. Thus an upper lies outside the receiver's positive closure,
+but the entire connected value component has independently known equal heads.
+The operator's source owner is an Expression and it has no required where role.
+The old reciprocal-role witness cannot describe this ordinary source instance.
+The trace is `/tmp/yulang-r332-frontier9-trace.log`; no gate has been changed
+to obtain this evidence.
+
+Proposed sufficient witness: begin with the receiver's complete positive shape.
+Build its full positive closure as before, requiring independent positive evidence
+on every row and rejecting unknown branches, incompatible heads and positive
+cycles. For a negative row edge to an unvisited row, independently check that
+row's complete positive closure against the source row's established shape;
+never use the negative edge as positive evidence. Repeat until every negative
+edge has been checked. Negative cycles are finite graph revisits; positive
+cycles still fail. Matching closed negative constructors validate their already
+known positive shapes, including ordered tuple children when supported. Every
+edge and duplicate remains in the solver. A finite visit/depth bound withholds
+the witness before unbounded traversal.
+
+Induction over each acyclic positive derivation establishes its shape without
+negative assumptions. Induction over the queue of independently established
+rows extends that invariant to the connected component. Every checked row edge
+then relates the same established shape, and each terminal upper is structurally
+satisfied by its source shape. Consequently none of these frontier constraints
+introduces another implementation head. The exact original member inventory,
+unique matching implementation and existing where-prerequisite checks still
+determine the selected target; the graph argument does not invent a role witness.
+
+Source authentication is a separate premise: join the original FieldTail
+owner/occurrence/source/member inventory to either its direct source recipe or
+one actual retained Module/Local/Operator/Member FreshUse record. Check the
+context DAG node's outer/inner references and all four mapped rows together,
+using its existing retained obligation-index crosswalk. Preserve required roles
+and operator origin through this join. Receiver equality alone is insufficient.
+This supplies the source instance for the graph certificate without assuming
+that every FieldTail belongs to a Definition or has a where annotation.
+
+Before admitting a newly certified member, retain the receiver row,
+representative and shape. At the end of the complete nested dispatch phase,
+require the same representative/shape and recompute the connected-frontier
+certificate. This final check also examines any newly introduced negative edge
+or constructor. If any premise fails, withhold the whole candidate. Conditional
+on publication, monotone constraints and these checks preserve the unique target
+through the phase. The old positive-closure-only helper and reciprocal-role
+witness retain their existing contracts and negative tests.
+
+This is a conditional implementation-level selection argument and an explicit
+source-instance construction, pending implementation/falsification and fresh
+independent review. It does not solve principal schemes, all accepted source
+reachability, generic receiving, complete dictionary/source correspondence or
+the original source/native and A/B obligations.
+
+#### Direct-nine implementation and parent application
+
+`candidate_receiver_closed_component` now realizes the construction above.
+Its shared checker retains a completed row-to-shape map, a positive recursion
+stack and a queue of rows whose negative frontiers remain to be checked. A row
+enters the completed map only after every positive lower has independently
+derived the same ordered shape. Bottom supplies no evidence; an otherwise empty
+row, a positive cycle or an incompatible constructor rejects. Each completed
+row is queued once. Processing an upper may invoke another positive derivation,
+but cannot insert an unproved row. Revisiting a completed negative neighbor
+only checks equality. This proves the queue invariant by induction on successful
+insertions and explains why a negative cycle does not justify a positive cycle.
+The old positive-closure-only checker uses the same positive rules and still
+rejects upper rows outside that closure and negative tuple constructors.
+
+For a negative tuple, the checker first matches arity and ordered children to
+the established positive shape. Primitive children must match their negative
+leaf. A row child must have its own positive derivation, is queued, and later
+has its entire negative frontier checked. Thus accepting the tuple head alone
+cannot hide an unknown child or an incompatible upper on that child. The finite
+checker examines every retained duplicate; no bound is removed or approximated.
+
+`candidate_field_tail_has_source_instance` supplies a separate source premise.
+It checks the original source-owner table and unique DeferredFieldTail recipe,
+including occurrence, source key, member and exact role-member candidates.
+A direct instance requires the original owner, no invented role/operator
+metadata, and the four original component/parameter rows. A transported
+instance uses one actual Module, authentic Local, Operator or Member record,
+the record's own graph and row vector, and the retained obligation-index
+crosswalk. Both the graph keys and all four current row representatives must
+agree. Context references are earlier DAG nodes; the Member outer context is
+the actual selected parent's context and the inner context is the captured
+field's own context. Operator origin is preserved or introduced by that actual
+operator-use constructor. Required roles retain their exact source provider,
+identity and reciprocal subject/receiver relation under this same row map.
+This authenticates the field's required-role crosswalk; it does not establish
+the complete separate Operator/Member role-obligation lifecycle.
+
+The new readback witness is consumed by the existing unique target/where
+checker and by source-body projection. Projection only supplies exact member
+source bodies; it cannot replace solver admission. Selected receiver snapshots
+are retained through the whole nested dispatch phase. Publication requires
+unchanged representatives and positive shapes plus a recomputed connected
+certificate, including bounds introduced by subsequent dispatch. Failure
+returns no candidate. The four-row source join and this stability check are
+separate premises; neither follows merely from a known primitive runtime tag.
+
+For the original mixed-statement counterexample, the solver now selects both
+Int and Str Add instances, retains their negative edges and distinct source
+contexts, and then selects the dependent shows. Native selected-definition
+execution produces `3`, `6`, `a`, `aa` in source order. Binding-only, local and
+escaping-closure controls also execute. The no-host control returns
+`(("3", "6", 6), ("a", "aa", "aa"))`. Bool Add and mismatched operands
+withhold execution and publish no earlier write. These are actual source to
+constraint to selection to dictionary/runtime cases of the original parent,
+not a proof of all-source completeness or principal schemes.
+
+The checker has a shared 16,384-work ceiling and depth 128. Map, recursion-set
+and queue growth use checked reservation; each row is queued once. Source
+authentication separately caps recipe, crosswalk and required-role searches at
+16,384 units; before the existing reciprocal-role predicate it charges its
+worst-case four scans of the graph's bound list. Exhaustion returns no witness.
+Shape snapshots are bounded per selected receiver and held until phase end,
+alongside the existing role snapshots. The total work still repeats bounded
+readbacks per field and can scan the recipe inventory per authentication; this
+is not a global linear-time or complete peak-accounting theorem. No new cache,
+constraint deletion or result approximation is introduced.
+
+#### Whole-module observation and the next source boundary
+
+The first fresh WASM smoke exposed an overbroad assumption in the newly authored
+module fixture. The exact original `my main = (f 3, f "a")` returns the expected
+writes when `main` is explicitly selected, but a whole-module run with no Name
+or expression demand for `main` returns no events. Existing
+`runtime/program.rs` classifies Apply/If/Catch/Block/StatementBlock binding
+roots for the source schedule; Tuple is currently outside that classifier.
+The unchanged module tests all still pass. This is an observed distinction,
+not an adopted claim that arbitrary effectful tuple initializers may be omitted.
+R149 preserves lazy value materialization and requires every source-marked
+computation initializer to run; the initialization decision supplies no new
+effect detector. A source-owned classification/initialization proof is needed
+before extending this classifier. No scheduler or existing expectation changed.
+
+The new Web selected-definition example retains the exact original source and
+expected four writes. The new whole-module examples instead contain actual
+top-level demand: either `(f 3, f "a")`, or the same main binding followed by
+the Name `main`. Both produce the same four writes. Their addition establishes
+these execution paths without claiming that the unforced Tuple binding case
+was repaired. Initial failed smoke and focused observation are retained in
+`/tmp/yulang-r332-frontier9-web.log` and `module-observation.log` under the same
+prefix; the successful final smoke has a separate
+receipt. The complete unchanged Yulang2 parent remains open.
+
+For generic receiving, a further source audit identifies two coupled owners:
+the primitive-only `RootCompSchema::from_parameter` guard, and
+`machine.rs::Frame::RootCompReturn`, which replaces the actual returned view
+with `Receiving::ground`. The reviewed primitive theorem justifies that
+projection because Unit/Int/Bool/Str have no latent effect paths. For a general
+result A, the matching-path map removes the consumed computation root and
+maps each actual result path back to that same result path; it does not map
+the consumed root onto a function's future invocation. Arbitrary A can retain
+its own unknown public profile and private captures. Current closures retain
+their environment, and tuple elements retain whole ReceivedValue records;
+these facts identify useful preservation cases but do not complete the
+general Return/result-view construction. Merely widening the schema guard
+would apply the ground projection without its premise. Both owners remain
+unchanged; the original generic `[io] 'a` obligation remains OPEN.
+
+#### Direct-nine verification receipt
+
+- Latest full native playground run: **244 passed** (65 library, 45 CLI,
+  134 other integration tests), including exact selected-definition output,
+  no-host returned values, local/escaped closures and rejection without writes.
+- Solver authentic-demand suite: **22 passed / the same six baseline failures**.
+  The three new positive/negative frontier and source-crosswalk tests pass;
+  existing nested-operator tests additionally authenticate their actual fields
+  and reject removal of operator origin. A separate actual-source Member test
+  passes for two Relay-to-Render uses and rejects substituting the parent context.
+  Its world uses the public role-source entry's existing unscoped mode.
+- Solver ordinary source **14**, computation laziness **6**, conditionals **13**
+  pass. The older four annotation and one HIR baseline failures remain recorded
+  obligations; those suites were not rerun in this slice.
+- Fresh WASM build and final full `npm --prefix web/playground run check` pass:
+  **29 execution examples**, unchanged Types/Console, three identity definitions
+  and two diagnostic cases, plus ordered whole-module write cases. TypeScript
+  checking passes. The generated WASM is an ignored local artifact, not staged.
+- Sprint tooling **57 simulation tests** pass. Static state checking is a
+  separate final integration receipt, not a proof or an independent reviewer.
+
+Exact local logs share `/tmp/yulang-r332-frontier9-`: `native-final.log`,
+`solver-final2.log`, `member-instance8.log`, `solver-source.log`,
+`web-final.log`, `web-smoke.log`, `typescript.log`, `module-observation.log`
+and `tooling-tests.log`. Earlier fixture/debug iterations are not final receipts;
+all temporary compiler instrumentation is removed. Existing expected outputs
+are unchanged. No child or independent reviewer ran. The conditional proof
+and implementation remain UNREVIEWED, with original A/B, all-source adequacy,
+principality, general receiving, source initialization and production OPEN.

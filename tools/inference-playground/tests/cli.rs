@@ -154,6 +154,31 @@ fn statement_suffixes_resume_without_repeating_the_completed_prefix() {
 }
 
 #[test]
+fn polymorphic_member_results_flow_through_later_uses() {
+    for (source, expected) in [
+        ("my f x = { say x; my y = x + x; say y; y }\nmy main = (f 3, f \"a\")\n", "3\n6\na\naa\n"),
+        ("my f x = { my first = say x; my y = x + x; my second = say y; y }\nmy main = (f 3, f \"a\")\n", "3\n6\na\naa\n"),
+        ("my f x = { my y = x + x; say y }\nmy main = (f 3, f \"a\")\n", "6\naa\n"),
+        ("my f x = { my first = x.show; my y = x + x; my second = y.show; (first, second, y) }\nmy main = (f 3, f \"a\")\n", "((\"3\", \"6\", 6), (\"a\", \"aa\", \"aa\"))\n"),
+        ("my main = { my f x = { say x; my y = x + x; say y; y }; (f 3, f \"a\") }\n", "3\n6\na\naa\n"),
+        ("my make ignored = { my f x = { say x; my y = x + x; say y; y }; f }\nmy main = (make () 3, make () \"a\")\n", "3\n6\na\naa\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "source={source:?}");
+        assert!(output.stderr.is_empty());
+    }
+    for source in [
+        "my f x = { say x; my y = x + x; y }\nmy main = f true\n",
+        "my f x = { say x; my y = x + true; y }\nmy main = f 3\n",
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(!output.status.success(), "source={source:?}");
+        assert!(output.stdout.is_empty(), "a failed candidate cannot publish the earlier say output");
+    }
+}
+
+#[test]
 fn polymorphic_members_follow_aliases_and_captured_closures() {
     for source in [
         "my main = { my add x = x + x; (add 3, add \"a\") }\n",

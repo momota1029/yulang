@@ -1293,7 +1293,8 @@ fn pinned_applicable_member_projection(
                     && receiver.implementation_inventory_complete
                     && receiver.unsupported_target_count == 0
                     && receiver.positive_frontier_complete
-                    && (receiver.negative_frontier_empty || receiver.negative_frontier_source_qualified)
+                    && (receiver.negative_frontier_empty || receiver.negative_frontier_source_qualified
+                        || receiver.negative_frontier_closed_component)
                     && receiver.positive_shape.is_some()
             ) else { continue; };
             let actual = shape(receiver.positive_shape.as_ref().unwrap());
@@ -1348,7 +1349,8 @@ fn pinned_applicable_member_projection(
         if !receiver.implementation_inventory_complete
             || receiver.unsupported_target_count != 0
             || !receiver.positive_frontier_complete
-            || !receiver.negative_frontier_empty
+            || !(receiver.negative_frontier_empty || receiver.negative_frontier_source_qualified
+                || receiver.negative_frontier_closed_component)
         { continue; }
         let Some(positive_shape) = receiver.positive_shape.as_ref() else { continue; };
         let actual = shape(positive_shape);
@@ -1794,6 +1796,45 @@ mod tests {
         assert!(!selected.is_empty(), "the nested library operator must select its member");
         assert!(selected.iter().any(|field|
             field.source_owner == &yu_hir::SourceRootId::Expression(operators[0].provider.clone())));
+    }
+
+    #[test]
+    fn connected_member_frontiers_retain_constraints_and_distinct_source_instances() {
+        let (sources, indexes, role_indexes) = pinned_source_world().unwrap();
+        let text: Arc<SourceText> = Arc::from(
+            "my f x = { say x; my y = x + x; say y; y }\nmy main = (f 3, f \"a\")\n");
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)),
+            Arc::new(playground_syntax_environment().unwrap()));
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", "connected-frontier.yu")));
+        let imports = SemanticImports::with_source_imports_and_role_indexes(
+            &parsed, &identity, &indexes, &role_indexes).unwrap();
+        let hir = Arc::new(lower_module_with_local_source(identity, &parsed, imports).unwrap());
+        let modules = pinned_candidate_world(&hir, &sources, &indexes, &role_indexes).unwrap();
+        let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
+            modules, &indexes, &role_indexes).unwrap();
+        use yu_solver::shadow_apply::CandidateReceiverShape as Shape;
+        let mut contexts = Vec::new();
+        for shape in [Shape::Int, Shape::Str] {
+            let selected = readbacks.selected_receivers.iter().find(|item|
+                item.member.as_ref() == "add" && item.positive_shape.as_ref() == Some(&shape)
+                    && item.negative_frontier_closed_component).expect("connected Add receiver is selected");
+            assert!(selected.positive_frontier_complete);
+            assert!(!selected.negative_frontier_empty);
+            assert!(!selected.negative_frontier_source_qualified,
+                "the operator has an original Expression owner, not an invented where-role pair");
+            assert!(selected.reachable_negative_row_edges > 0,
+                "the retained negative edges were not deleted to make the gate pass");
+            assert_eq!(selected.target_matches.len(), 1);
+            contexts.push(selected.instantiation_context_ordinal.expect("an exact retained source instance"));
+        }
+        assert_ne!(contexts[0], contexts[1]);
+        for shape in [Shape::Int, Shape::Str] {
+            let shows: std::collections::HashSet<_> = readbacks.selected_receivers.iter()
+                .filter(|item| item.member.as_ref() == "show" && item.positive_shape.as_ref() == Some(&shape))
+                .map(|item| item.instantiation_context_ordinal).collect();
+            assert_eq!(shows.len(), 2,
+                "both the first show and the dependent result show have their own selected source instance");
+        }
     }
 
     #[test]

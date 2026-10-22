@@ -199,3 +199,25 @@ and four effect-annotation failures are independently baseline-reproduced in a
 clean checkout. Existing expectations remain unchanged. Tooling 57 pass; direct
 primary only, UNREVIEWED. Original A/B and the unchanged all-source parent remain
 OPEN_CONTINUATION; no theorem or production gate is promoted.
+
+Direct-nine continuation from `ffa3d87c3`: previous turn PROGRESS; checkout clean
+and upstream aligned. Preserve 12867 charged seconds, discard 1454 unused seconds,
+and grant 3600 fresh direct-primary seconds (cap 16467). Existing leases cover
+the retained Add negative frontier, source authentication and dispatch stability
+construction. Derive a sufficient invariant before extending any provisional
+selection gate; retain all bounds and original source/role/context identities.
+No runtime tag selection, semantic reinterpretation or production promotion.
+Only /root is live; foreign 95124/95134 and legacy UNKNOWN leases stay untouched.
+No child or independent reviewer is launched; effective model/effort UNKNOWN.
+
+Direct-nine checkpoint: a bounded connected-frontier witness independently
+checks every reached row's positive shape, preserves all negative constraints,
+authenticates the original field and actual four-row FreshUse map, and rechecks
+stability after nested dispatch. Mixed Add-to-show results now execute for Int
+and Str, including local/escaping closures. Native 244, fresh WASM 29, TS and
+tooling 57 pass; solver source/laziness/conditionals pass, authentic-demand is
+22 pass / the same six baseline failures, and a separate Member-instance test
+passes. The note preserves the unforced whole-module Tuple observation and
+generic RootComp result-view obligations. Existing expectations are unchanged.
+Direct primary only, UNREVIEWED; original A/B and the whole unchanged Y2 parent
+remain OPEN_CONTINUATION. No production or independent-review gate is promoted.

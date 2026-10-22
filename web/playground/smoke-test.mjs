@@ -7,6 +7,8 @@ const examples = {
   ordinary: ["my identity x = x\nmy main = identity 7", "7\n"],
   capturedInitializer: ["my main = 1 + 2\n", "3\n"],
   interleavedStatements: ["my main = { 1; my x = 2; 3; x }\n", "2\n"],
+  connectedMemberResults: ['my f x = { my first = x.show; my y = x + x; my second = y.show; (first, second, y) }\nmy main = (f 3, f "a")\n', '(("3", "6", 6), ("a", "aa", "aa"))\n'],
+  connectedMemberWrites: ['my f x = { say x; my y = x + x; say y; y }\nmy main = (f 3, f "a")\n', '3\n6\na\naa\n'],
   statementBranchScopes: ["my main = { my x = 3; { my x = 9; 0; x }; x }\n", "3\n"],
   statementPolymorphicClosure: ['my main = { my add x = x + x; 0; my alias = add; 1; (alias 3, alias "a") }\n', '(6, "aa")\n'],
   statementRepeatedResumption: ["act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> { k 11; k 23 } }\nmy main = relay { 99; io::tick 0; my x = 7; x }\n", "7\n"],
@@ -112,6 +114,8 @@ if (JSON.stringify(consoleReport.events) !== JSON.stringify(consoleEvents)) {
 }
 for (const [source, expected] of [
   ['println "standalone"\n', ["standalone\n"]],
+  ['my f x = { say x; my y = x + x; say y; y }\n(f 3, f "a")\n', ["3\n", "6\n", "a\n", "aa\n"]],
+  ['my f x = { say x; my y = x + x; say y; y }\nmy main = (f 3, f "a")\nmain\n', ["3\n", "6\n", "a\n", "aa\n"]],
   ['my main = { println "a"; my x = { println "init"; 7 }; println "b"; x }\n', ["a\n", "init\n", "b\n"]],
   ['my forward message = emit message\nmy emit message = println message\nforward "wrapped"\n', ["wrapped\n"]],
   ['my forward value = emit value\nmy emit value = say value\nforward (3, "text")\n', ["(3, text)\n"]],

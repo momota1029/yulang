@@ -134,6 +134,11 @@ pub struct CandidateFieldTailReceiverReadback {
     /// closures between equal shapes, and other negative bounds are matching
     /// closed primitive uppers. The role rows and all edges remain distinct.
     pub negative_frontier_source_qualified: bool,
+    /// Alternative witness for an authenticated original FieldTail instance:
+    /// every reached upper row has independently complete positive evidence,
+    /// every row edge relates matching heads, and terminal uppers match structurally.
+    /// A selected instance is checked again after the nested dispatch phase.
+    pub negative_frontier_closed_component: bool,
 }
 /// Same-session inventory of nested Member FieldTails retained by captured
 /// member graphs. The four graph row positions are the positions consumed by
@@ -3930,6 +3935,80 @@ impl InferenceSession {
 mod tests {
     use super::*;
     use std::collections::HashMap;
+    #[test]
+    fn nested_member_source_instances_keep_the_actual_freshuse_crosswalk() {
+        use crate::candidate_scheme::{DispatchContextNode, DispatchRoute};
+        let text: Arc<yu_syntax::SourceText> = Arc::from(
+            "pub role Render 'a:\n    pub a.render: int\npub role Relay 'a:\n    pub a.relay: int\nimpl int: Render:\n    pub a.render = a\nimpl int: Relay:\n    pub a.relay = a.render\n",
+        );
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{:?}", parsed.syntax_diagnostics());
+        let identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("member-source-instance", "lib/std/prelude.yu")));
+        let exports = yu_hir::shadow::index_source_exports(identity.clone(), &parsed).unwrap();
+        let roles = yu_hir::shadow::index_role_impl_sources(identity.clone(), &parsed).unwrap();
+        let std_text: Arc<yu_syntax::SourceText> = Arc::from("pub mod prelude;\n");
+        let std_parsed = yu_syntax::parse_file(std_text.clone(), Arc::new(yu_syntax::scan_header(std_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let std_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("member-source-instance", "lib/std.yu")));
+        let indexes = [exports, yu_hir::shadow::index_source_exports(std_identity, &std_parsed).unwrap()];
+        let selected = roles.implementations().iter().flat_map(|implementation|
+            implementation.body.iter().flat_map(|body| &body.entries)
+                .filter_map(|entry| entry.member.as_ref().map(|member| member.declaration.clone()))
+        ).collect();
+        let imports = yu_hir::SemanticImports::with_selected_member_operations(
+            &parsed, &identity, &indexes, &selected, &[roles.clone()], &[]).unwrap();
+        let provider = Arc::new(yu_hir::shadow::lower_module_with_selected_member_sources(
+            identity, &parsed, imports, selected).unwrap());
+        let consumer_text: Arc<yu_syntax::SourceText> = Arc::from("my main = (3.relay, 4.relay)\n");
+        let consumer_parsed = yu_syntax::parse_file(consumer_text.clone(),
+            Arc::new(yu_syntax::scan_header(consumer_text)), Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let consumer_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("member-source-instance", "lib/consumer.yu")));
+        let consumer_imports = yu_hir::SemanticImports::with_source_imports_and_role_indexes(
+            &consumer_parsed, &consumer_identity, &indexes, &[roles.clone()]).unwrap();
+        let consumer = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            consumer_identity, &consumer_parsed, consumer_imports).unwrap());
+        let hirs = vec![consumer, provider];
+        let imported = candidate_imported_definitions(&hirs).unwrap();
+        let mut batch = ConstraintBatch::collect_candidate_world_scoped_v1(
+            hirs, true, true, false, false, &imported, &[]).unwrap();
+        retain_role_implementation_members(&mut batch, &indexes, &[roles]).unwrap();
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        session.execute().unwrap();
+        session.execute_candidate_field_tails(None).unwrap();
+        let state = session.candidate_graph.as_ref().unwrap();
+        let mut checked = 0;
+        for (use_index, use_) in state.member_uses.iter().enumerate() {
+            let graph = &state.member_graphs[&use_.member].graph;
+            for (field_index, row_indexes) in &use_.fresh.source_field_tail_obligation_rows {
+                let mut field = graph.source_field_tail_obligations[*field_index].clone();
+                let node = DispatchContextNode {
+                    outer: use_.dispatch_context, route: DispatchRoute::Member(use_index),
+                    inner: field.dispatch_context,
+                };
+                let context = state.dispatch_contexts.iter().position(|actual| *actual == node)
+                    .expect("the actual nested dispatch published its context node");
+                let [receiver, receiver_effect, result, result_effect] = row_indexes
+                    .map(|index| state.intrusion.rep(use_.fresh.rows[index]));
+                field.receiver_row = receiver;
+                field.receiver_effect = receiver_effect;
+                field.result_row = result;
+                field.result_effect = result_effect;
+                field.dispatch_context = Some(context);
+                assert!(session.candidate_field_tail_has_source_instance(&field));
+                let mut wrong = field.clone();
+                wrong.dispatch_context = node.outer;
+                assert!(!session.candidate_field_tail_has_source_instance(&wrong),
+                    "the parent use cannot replace the member-body instance");
+                checked += 1;
+            }
+        }
+        assert_eq!(checked, 2, "both actual relay instances contain their own render use");
+    }
+
     fn module(text: &str) -> Arc<HirModule> {
         let source: Arc<yu_syntax::SourceText> = Arc::from(text);
         let parsed = yu_syntax::parse_file(
