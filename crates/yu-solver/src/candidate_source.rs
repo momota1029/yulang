@@ -596,7 +596,8 @@ pub(super) fn preflight_with_imports_and_roles(
     for expr in source.expressions() {
         if matches!(
             &expr.form,
-            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) },
+            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) }
+                | LocalSourceForm::Record { .. },
         ) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
@@ -1456,6 +1457,7 @@ impl ConstraintBatch {
                     let occurrence = &expr.occurrence;
                     let start = self.occurrences.len();
                     match &expr.form {
+                        LocalSourceForm::Record { .. } => return Err(unavailable()),
                         LocalSourceForm::Integer(_) | LocalSourceForm::Unit | LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) => {
                             let (positive_leaf, negative_leaf) = match &expr.form {
                                 LocalSourceForm::Unit => (Leaf::UnitPositive, Leaf::UnitNegative),

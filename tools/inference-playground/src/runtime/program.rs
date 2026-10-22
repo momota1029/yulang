@@ -186,6 +186,7 @@ pub enum RuntimeUnavailable {
     NonExhaustiveCase(SourceSite),
     ExpectedComputation(SourceSite),
     UnsupportedFieldTail(SourceSite),
+    UnsupportedRecord(SourceSite),
     UnsupportedInfixOperator(SourceSite),
     ModuleInitializationOrder,
 }
@@ -669,6 +670,9 @@ impl RuntimeProgram {
                                     work.push(Walk::Expression(body.clone()));
                                 }
                             }
+                            LocalSourceForm::Record { fields } => {
+                                for field in fields.iter().rev() { work.push(Walk::Expression(field.value.clone())); }
+                            }
                             LocalSourceForm::Sequence { items } => {
                                 for item in items.iter().rev() { work.push(Walk::Expression(item.clone())); }
                             }
@@ -842,6 +846,9 @@ impl RuntimeProgram {
                     LocalSourceForm::Sequence { items } => Instruction::Sequence {
                         items: items.iter().map(label).collect::<Result<_, _>>()?,
                     },
+                    LocalSourceForm::Record { .. } => return Err(RuntimeUnavailable::UnsupportedRecord(SourceSite {
+                        source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
+                    })),
                     LocalSourceForm::Tuple { elements } => Instruction::Tuple {
                         elements: elements
                             .iter()
@@ -1812,6 +1819,7 @@ fn handler_arm_operation_ranges(
                 }));
             }
             Form::Tuple { elements } => pending.extend(elements.iter().cloned()),
+            Form::Record { fields } => pending.extend(fields.iter().map(|field| field.value.clone())),
             Form::FieldTail { receiver, .. } => pending.push(receiver.clone()),
             Form::OperatorApplication { left, right, .. } => {
                 pending.push(left.clone());

@@ -351,3 +351,17 @@ diagnostics, and TS pass. Original catalog remains 6/19 expected behavior.
 Direct-primary source construction is UNREVIEWED; unchanged original parents
 remain OPEN. Next inspect the original record/default-pattern constructor and
 its source/native obligations rather than rewriting the remaining samples.
+
+Within direct-twelve allowance, construct the original no-spread record literal
+source carrier using existing local_source/candidate_source/value_graph/program
+leases. All field labels, actual value expressions, source order and scopes are
+retained; empty records are distinct from Unit. Existing parser already owns the
+needed colon/brace syntax. Record native terms/default witnesses remain the next
+explicit gate; preflight withholds their publication until connected. The proof
+note records the constructor induction and pinned Y2 correspondence. No parent
+closure, independent review, parser change or new semantics is claimed.
+
+Record-source checkpoint: exact ordered field/child carrier and Name-reference
+edges are retained; empty records remain distinct. Native 263, HIR 2 and solver
+reference 1 pass. No original source or expectations changed. Typed record
+transport/default adaptation/runtime remain OPEN, with publication withheld.

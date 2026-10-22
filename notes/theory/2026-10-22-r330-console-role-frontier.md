@@ -2165,3 +2165,48 @@ patterns, struct fields, lists, ranges, search/control and parser patterns remai
 source dependencies, not resolved by this import constructor. Original A/B,
 source adequacy, principality, general receiving, provider initialization and
 independent review stay OPEN. No historical failure was relabeled as a success.
+
+## R332 record-source construction (direct primary, UNREVIEWED)
+
+Pinned Y2 `infer/src/lowering/expr_syntax.rs::brace_group_is_record_literal`
+classifies an empty brace group or a group containing only inline named fields
+(and separately supported spread items) as a record. `expr/chain.rs` applies
+that classification before block lowering. A field label is not a lexical Name
+use; its colon argument is the actual value expression. `record_lit.rs` retains
+source order and joins each actual field's effects. The current parser already
+owns braced Statement/OperatorChain/ColonApplicationTail nodes; no new parser
+production is needed for the no-spread constructor.
+
+Construction: first validate the entire unrecovered brace shape, then retain
+an ordered vector of (label, label SourceNodeKey/range, value LocalSourceIndex).
+Allocate each child's expression slot exactly once and push work in reverse
+order. Thus induction on the vector length gives the same left-to-right child
+formation, lexical environment and exact original value subtrees as Y2; labels
+create no fake Name, binding or Apply. Empty records have zero children and are
+not Unit. Mixed expression/binding blocks remain blocks. Duplicate labels remain
+ordered source facts; source formation must not silently deduplicate them.
+
+This source-carrier step is provisional. Until named record terms, transport,
+selection/default witnesses and runtime values exist, candidate preflight must
+withhold inference for the new constructor. This is an explicit remaining gate,
+not record rejection as a language rule, a Tuple encoding or parent closure.
+Optional defaults require the source-ordered pattern scope: the default is
+lowered before its own field binder, after preceding binders. Y2 pattern.rs
+creates both positive and negative optional record constraints and joins each
+actual/default value into the bound variable. The supplied design §9 stage4
+requires local adaptation witnesses and forbids adding general concrete
+transitivity. Those type/runtime obligations remain OPEN in this checkpoint.
+
+The source Value-reference graph traverses each record value under its original
+owner and connects record fragments to their actual Name/nested fragments; field
+labels add no references. The same graph induction as ordered Tuple applies to
+the child edges, with label metadata retained separately. Formation uses O(n)
+field/work storage and O(n) direct-child work per record (plus existing subtree
+recovery checks); no pairwise field search or deduplication is introduced here.
+Native playground **263** tests pass. Focused HIR record **2** and solver
+record-reference **1** tests pass, covering exact source keys, empty/nested
+records, duplicate label retention, lexical value references, mixed blocks,
+recovery rejection, and local-initializer ownership. Existing expectations are
+unchanged. Browser regeneration is deferred to the next executable record slice;
+this source-only constructor remains explicitly unavailable at candidate/native
+publication. Original catalog stays 6/19; no new sample completion is claimed.

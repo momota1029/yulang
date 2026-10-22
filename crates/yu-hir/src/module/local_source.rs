@@ -242,6 +242,10 @@ impl LocalSource {
                     LocalSourceForm::Tuple { elements } => {
                         elements.capacity() * std::mem::size_of::<LocalSourceIndex>()
                     }
+                    LocalSourceForm::Record { fields } => {
+                        fields.capacity() * std::mem::size_of::<LocalSourceRecordField>()
+                            + fields.iter().map(|field| field.label.len()).sum::<usize>()
+                    }
                     LocalSourceForm::FieldTail { member, .. } => member.len(),
                     LocalSourceForm::OperatorApplication { operator, .. } => operator.spelling().len()
                         + std::mem::size_of::<SourceNodeKey>()
@@ -305,6 +309,14 @@ pub enum LocalSourceStatement {
     Expression(LocalSourceIndex),
     Binding(u32),
 }
+/// A label belongs to the record constructor, not to lexical name resolution.
+#[derive(Clone, Debug)]
+pub struct LocalSourceRecordField {
+    pub label: Box<str>,
+    pub source: SourceNodeKey,
+    pub range: Range<usize>,
+    pub value: LocalSourceIndex,
+}
 #[derive(Clone, Debug)]
 pub enum LocalSourceForm {
     Unit,
@@ -336,6 +348,8 @@ pub enum LocalSourceForm {
     /// from one item followed by a trailing comma. Group and Unit remain
     /// separate source forms.
     Tuple { elements: Vec<LocalSourceIndex> },
+    /// Original brace/colon fields, in source order, including an empty record.
+    Record { fields: Vec<LocalSourceRecordField> },
     /// A parse-owned member tail. `receiver` is the full preceding expression;
     /// method or field meaning remains for a later resolver to determine.
     FieldTail {
@@ -621,6 +635,29 @@ fn only_child(node: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
         return Err(unsupported());
     }
     Ok(child)
+}
+// Y2 classifies whole brace groups before lowering any field. Never turn a
+// mixed statement block into a partial record or resolve its labels as values.
+fn record_fields(node: &SyntaxNode) -> Result<Option<Vec<(SyntaxNode, SyntaxNode)>>, FormationError> {
+    if has_recovery(node) { return Err(unsupported()); }
+    let mut fields = Vec::new();
+    for statement in node.children() {
+        if statement.kind() == SyntaxKind::BlockStatementSeparator { continue; }
+        if statement.kind() != SyntaxKind::Statement { return Ok(None); }
+        let chain = only_child(&statement)?;
+        if chain.kind() != SyntaxKind::OperatorChain { return Ok(None); }
+        let mut children = chain.children();
+        let Some(label) = children.next() else { return Ok(None); };
+        let Some(colon) = children.next() else { return Ok(None); };
+        if children.next().is_some() || label.kind() != SyntaxKind::IdentifierExpression
+            || colon.kind() != SyntaxKind::ColonApplicationTail {
+            return Ok(None);
+        }
+        let value = inline_colon_argument(&colon)?;
+        push(&mut fields, (label, value))?;
+    }
+    if fields.is_empty() && node.children().next().is_some() { return Ok(None); }
+    Ok(Some(fields))
 }
 pub(crate) fn inline_colon_argument(node: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
     let child = only_child(node)?;
@@ -1825,7 +1862,26 @@ impl Builder<'_> {
                     }
                 }
             }
-            SyntaxKind::BracedStatementBlockExpression | SyntaxKind::IndentedStatementBlock => self.block(node, index, scope, named_group.clone())?,
+            SyntaxKind::BracedStatementBlockExpression => {
+                let Some(children) = record_fields(&node)? else {
+                    return self.block(node, index, scope, named_group);
+                };
+                let mut fields = Vec::new();
+                let mut work = Vec::new();
+                for (label, child) in children {
+                    let value = self.slot()?;
+                    push(&mut fields, LocalSourceRecordField {
+                        label: identifier_spelling(&label)?,
+                        source: self.key(&label)?,
+                        range: range_of(&label),
+                        value: value.clone(),
+                    })?;
+                    push(&mut work, Work::Expression(child, value, scope.clone(), named_group.clone()))?;
+                }
+                self.set(index, &node, scope, named_group, LocalSourceForm::Record { fields })?;
+                for child in work.into_iter().rev() { push(&mut self.work, child)?; }
+            }
+            SyntaxKind::IndentedStatementBlock => self.block(node, index, scope, named_group.clone())?,
             _ => return Err(unsupported()),
         }
         Ok(())
@@ -2351,6 +2407,53 @@ impl Builder<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn record_source_preserves_labels_values_order_and_empty_constructor() {
+        for text in [
+            "my outer = 3; my record = {}",
+            "my outer = 3; my record = { width: outer, height: 4 }",
+            "my outer = 3; my record = { width: outer, width: {} }",
+        ] {
+            let (parsed, _, module) = ordinary_fixture(text);
+            let HirItem::Binding(binding) = &module.items()[1] else { panic!("record binding"); };
+            let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+            let expression = source.expression(source.body()).unwrap();
+            let LocalSourceForm::Record { fields } = &expression.form else { panic!("record {expression:?}"); };
+            assert!(parsed.owns_source_key(&expression.source));
+            assert_eq!(fields.len(), if text.ends_with("= {}") { 0 } else { 2 });
+            let mut previous = expression.range.start;
+            for field in fields {
+                assert!(parsed.owns_source_key(&field.source));
+                assert_eq!(text[field.range.clone()].trim(), field.label.as_ref());
+                let value = source.expression(&field.value).unwrap();
+                assert!(parsed.owns_source_key(&value.source));
+                assert!(module.owns_occurrence(&value.occurrence));
+                assert!(previous <= field.range.start && field.range.end <= value.range.start);
+                assert!(matches!((&value.scope, &expression.scope),
+                    (LocalSourceScope::Definition(a), LocalSourceScope::Definition(b)) if a == b));
+                previous = value.range.end;
+            }
+            assert!(!source.expressions().iter().any(|expression| matches!(&expression.form,
+                LocalSourceForm::Name { spelling, .. } if matches!(spelling.as_ref(), "width" | "height"))));
+            if let Some(field) = fields.first() {
+                assert!(matches!(&source.expression(&field.value).unwrap().form,
+                    LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_), .. }));
+            }
+        }
+    }
+
+    #[test]
+    fn record_classification_keeps_mixed_blocks_and_does_not_admit_recovery() {
+        let module = lower("my f x = x; my value = { f: 1; 2 }").unwrap();
+        let HirItem::Binding(binding) = &module.items()[1] else { panic!("value"); };
+        let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+        assert!(matches!(source.expression(source.body()).unwrap().form, LocalSourceForm::StatementBlock { .. }));
+        assert!(!source.expressions().iter().any(|expression| matches!(expression.form, LocalSourceForm::Record { .. })));
+        for text in ["my record = { x: }", "my record = { x: 1,, y: 2 }", "my record = { x: 1"] {
+            assert!(lower(text).is_err(), "{text}");
+        }
+    }
 
     #[test]
     fn mixed_statements_keep_original_order_binders_and_lexical_lookup() {

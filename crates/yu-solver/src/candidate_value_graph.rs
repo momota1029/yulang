@@ -160,6 +160,10 @@ impl Graph {
                     work.try_reserve(items.len()).map_err(|_| unavailable())?;
                     for item in items { work.push((item.ordinal() as usize, owner)); }
                 },
+                LocalSourceForm::Record { fields } => {
+                    work.try_reserve(fields.len()).map_err(|_| unavailable())?;
+                    for field in fields.iter().rev() { work.push((field.value.ordinal() as usize, owner)); }
+                },
                 LocalSourceForm::Tuple { elements } => {
                     work.try_reserve(elements.len()).map_err(|_| unavailable())?;
                     for element in elements.iter().rev() {
@@ -204,7 +208,7 @@ impl Graph {
         let mut fragments = Vec::new();
         fragments.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
         for expr in source.expressions() {
-            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::StatementBlock { .. } | LocalSourceForm::Tuple { .. }) {
+            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::StatementBlock { .. } | LocalSourceForm::Tuple { .. } | LocalSourceForm::Record { .. }) {
                 self.edges.try_reserve(1).map_err(|_| unavailable())?;
                 self.reverse.try_reserve(1).map_err(|_| unavailable())?;
                 fragments.push(Some(self.edges.len()));
@@ -247,6 +251,16 @@ impl Graph {
                 self.edge(result, fragment)?;
                 for item in items {
                     if let Some(child) = fragments[item.ordinal() as usize] { self.edge(fragment, child)?; }
+                }
+            }
+            if let LocalSourceForm::Record { fields } = &expr.form {
+                let result = self.intern(Value::Expression(expr.occurrence.clone()))?;
+                let fragment = fragments[index].unwrap();
+                self.edge(result, fragment)?;
+                for field in fields {
+                    if let Some(child) = fragments[field.value.ordinal() as usize] {
+                        self.edge(fragment, child)?;
+                    }
                 }
             }
             if let LocalSourceForm::Tuple { elements } = &expr.form {
@@ -542,6 +556,23 @@ mod conditional_reference_tests {
             let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
             assert!(references(&graph, &root).contains(&named(&source, "f")));
         }
+    }
+
+    #[test]
+    fn record_fragments_keep_value_references_without_label_name_edges() {
+        let (graph, source) = fixture("my choose a b = { a: a, nested: { b: b, again: a } }");
+        let records: Vec<_> = source.expressions().iter().filter_map(|expr|
+            matches!(expr.form, LocalSourceForm::Record { .. })
+                .then_some(Value::Expression(expr.occurrence.clone()))
+        ).collect();
+        assert_eq!(records.len(), 2);
+        let names = expected(&source, &["a", "b"]);
+        for record in records { assert_eq!(references(&graph, &record), names); }
+        assert_eq!(source.expressions().iter().filter(|expr| matches!(expr.form,
+            LocalSourceForm::Name { .. })).count(), 3);
+        let (graph, source) = fixture("my choose x = { my local = { field: x }; local }");
+        let local = Value::Local(source.bindings()[0].id.clone());
+        assert_eq!(references(&graph, &local), expected(&source, &["x"]));
     }
 
     #[test]
