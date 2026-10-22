@@ -596,3 +596,12 @@ Source admission and concrete Variant comparison remain unavailable; no
 singleton mismatch is reclassified as acceptance. UNREVIEWED, original A/B and
 production OPEN. Next derive a source-owned whole Case family and payload
 constraints, then connect conditional member obligations for original Button.
+
+Closed Case family checkpoint: ordinary typed Variant construction/matching and
+public projection pass solver10, native290 and fresh WASM65. Original catalog
+hashes unchanged, 7/19; Button now reaches deferred member selection, other18
+observables unchanged. Actual payload ports preserve their context and ordered
+alternative indexes. Mixed fallback, conditional members, A/B/principality and
+receiving/production OPEN; direct-primary UNREVIEWED. Next inspect Button's
+actual deferred instances and transport source Case guards through the same
+Capture/FreshUse row maps, with stable publication evidence.

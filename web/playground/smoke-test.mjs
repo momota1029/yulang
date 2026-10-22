@@ -4,6 +4,9 @@ import init, { infer, infer_types, run, run_module, run_module_report } from "./
 await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") });
 
 const examples = {
+  variantFamilyCase: ['my choose option = case option:\n    :left x -> x\n    :right y -> y\nmy main = choose (:right 23)', '23\n'],
+  variantArity: ['my main = case :same():\n    :same -> 1\n    :same(x) -> 2', '2\n'],
+  variantPayloadOrder: ['my main = :pair({ say: 1; 7 }, { say: 2; 8 })', '1\n2\n'],
   strictPrimitiveEntry: ['my main = say: std::int::mul { say: 1; 7 } { say: 2; 3 }', '1\n2\n21\n'],
   strictLocalPrimitiveEntry: ['my main = say: { my mul: int -> int -> int = builtin_op::int_mul; mul { say: 1; 7 } 3 }', '1\n21\n'],
   generatedStringConcat: ['my main = "a%{7}b%{8}c"', '"a7b8c"\n'],

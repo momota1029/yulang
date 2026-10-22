@@ -3536,6 +3536,60 @@ mod tests {
 
 
     #[test]
+    fn typed_variant_cases_keep_full_domains_payloads_and_fresh_uses() {
+        for (source, expected) in [
+            ("my main = :none", ":none\n"),
+            ("my main = :empty()", ":empty(())\n"),
+            ("my main = case :pair(41, 23): :pair(a, b) -> builtin_op::int_add a b", "64\n"),
+            ("my choose option = case option:\n    :left x -> x\n    :right y -> y\nmy main = choose (:left 7)", "7\n"),
+            ("my choose option = case option:\n    :left x -> x\n    :right y -> y\nmy main = choose (:right 23)", "23\n"),
+            ("my choose option = case option: :some x -> x\nmy first = choose (:some 7)\nmy main = choose (:some true)", "true\n"),
+            ("my main = case :some 7: :some _ -> 42", "42\n"),
+            ("my main = (case :some (\\x -> builtin_op::int_add x 1): :some f -> f) 41", "42\n"),
+            ("my main = :pair({ say: 1; 7 }, { say: 2; 8 })", "1\n2\n"),
+            ("my main = case :some 7:\n    :some x -> x\n    :some y -> builtin_op::int_add y 1", "7\n"),
+            ("my main = case :same():\n    :same -> 1\n    :same(x) -> 2", "2\n"),
+            ("my main = case :outer (:inner 7): :outer x -> case x: :inner y -> y", "7\n"),
+        ] {
+            assert_eq!(execute(source, "typed-variant.yu", "main", 100_000, false).unwrap_or_else(|error| panic!("{source}\n{error}")), expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn typed_variant_cases_reject_missing_keys_and_wrong_payloads() {
+        for source in [
+            "my main = case :some 1: :none -> 0",
+            "my main = case :some(1, 2): :some x -> x",
+            "my main = case :some true: :some x -> builtin_op::int_add x 1",
+            "my main = case 1: :some x -> x",
+        ] {
+            let error = execute(source, "typed-variant-error.yu", "main", 100_000, false).unwrap_err();
+            assert!(error.contains("VariantMissingAlternative") || error.contains("IncompatibleValue"), "{source}\n{error}");
+        }
+    }
+
+    #[test]
+    fn typed_variant_payload_effects_remain_in_the_case_result() {
+        let source = "act io:\n    our tick: int -> int\nmy main: [] int = case :some (io::tick 7): :some x -> x";
+        let error = execute(source, "variant-effect.yu", "main", 100_000, false).unwrap_err();
+        assert!(error.contains("IncompatibleEffect"), "{error}");
+    }
+
+    #[test]
+    fn typed_variant_graph_and_public_scheme_retain_family_and_payload_coordinates() {
+        let (hir, candidate) = prepare("my variant = :pair(7, true)", "variant-graph.yu", false).unwrap();
+        let binding = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "variant" => Some(binding),
+            _ => None,
+        }).unwrap();
+        let export = candidate.export(binding.definition_root()).unwrap();
+        let graph = super::render::graph(&export).unwrap();
+        assert!(graph.contains("Variant([:pair("), "{graph}");
+        let public = super::render::public_scheme(&export, "variant").unwrap();
+        assert!(public.contains("Variant(:pair("), "{public}");
+    }
+
+    #[test]
     fn execute_renders_nested_ordered_tuple_values() {
         assert_eq!(
             execute("my main = (1, (2, 3), 4)", "tuple.yu", "main", 10_000, false)

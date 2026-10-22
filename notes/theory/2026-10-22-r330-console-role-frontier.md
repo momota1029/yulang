@@ -3341,3 +3341,95 @@ were not changed. No new WASM build/catalog run was needed for this source-
 inadmissible carrier slice; the prior fresh WASM62/catalog7-of-19 receipt remains
 historical evidence, not a verification of the current bytes. Direct primary
 only, no independent review or parent/production gate closure.
+
+### Whole Case family construction under investigation
+
+For a closed Case whose patterns are all Variant alternatives, create one
+negative family from that Case's arms. Its key domain is exactly the union of
+the arms' (tag, arity) keys; its ordered payload ports are those actual arm-local
+binder rows (fresh unconstrained rows for wildcard payload positions). Connect
+the actual scrutinee positive endpoint to this one negative family. Do not
+inject synthetic positive variants for patterns. Bodies still contribute all
+result/effect constraints, as for the existing If/Case construction; no branch
+is executed or constant-folded to generate constraints.
+
+The local family rule to investigate requires each positive alternative's key
+to occur in the whole negative family, then emits the ordinary same-polarity
+child constraints at matching payload positions. Repeated negative keys impose
+all corresponding payload requirements, representing the pointwise negative
+merge without selecting a convenient matching arm. Repeated positive keys are
+all visited. Under the child compatibility invariant, a native selected arm has
+the same key/arity and each actual payload meets that arm's binder requirements;
+first-match execution is therefore safe. Effects are joined from strict
+constructor payloads and from the scrutinee/arm bodies by ordinary Effect rows.
+This is a conditional local safety derivation; original compact-merge/source
+inference equivalence and whole-program progress remain separate OPEN premises.
+
+Exact source owners are LocalSourceForm::Variant, LocalSourceForm::Case and
+LocalSourceCasePattern::Variant; original pinned owners are
+crates/infer/src/lowering/pattern.rs, compact/merge/entries.rs::merge_variants_with_sink,
+crates/mono/src/boundary.rs and native runtime/bind.rs. Unlike independent
+singleton comparisons, one family retains the Case boundary. It never unions
+unrelated constraints merely because their variables are connected. A mixed
+Variant/non-Variant or wildcard-fallback Case needs conditional constraints
+rather than this closed-domain rule and remains unavailable until supplied.
+The provisional VariantBoundaryUnavailable regression from the preceding
+transport-only checkpoint is explicitly superseded only as this closed-domain
+rule and its own source path are verified; missing tags remain real errors.
+
+The first source-connected focused run passes ten ordinary native positive
+cases and four genuine-error cases, plus graph/public projection. Two old
+Value-reference tests explicitly asserted the earlier temporary Unsupported
+preflight boundary; their source-reference and binder assertions remain intact,
+while preflight now succeeds because the authenticated constructor and closed
+Case recipes exist. This updates a documented implementation-stage boundary,
+not a language acceptance expectation. Their source bytes are unchanged.
+The new retained-drain test initially called raw arena constructors without
+draining capacity events; it now uses the production with_term_events owner.
+
+Closed-family implementation checkpoint: source Variant constructs its actual
+singleton positive family and joins every strict payload effect. A closed
+Variant Case collects one negative family from all actual arm binders before
+visiting their bodies. Matched payload comparisons retain VariantPort(parent,
+child, lower alternative, upper alternative, payload position), inherited
+post-check context and scoped flow; they are not recorded as Tuple/Record
+ports. The retained drain journals/clones the complete dispatch and its pending
+child. Missing whole-family keys have VariantMissingAlternative diagnostics;
+distinct heads and incompatible payloads use the existing value diagnostics.
+Term/fresh/graph transport comes from the preceding checkpoint. Public scheme
+and graph projection now render authentic families and all payload references.
+Mixed Variant/fallback cases remain explicitly unavailable; pure binder/wildcard
+cases keep their existing unconstrained domain. Empty Case is already rejected
+by LocalSource formation. Original global A/B/principality/receiving gates stay
+OPEN, with no independent review or production promotion.
+
+Cost is O(negative alternatives + positive alternatives + matched payload
+constraints), apart from tag hashing and existing graph operations. Equal-key
+negative alternatives retain all their payload requirements; the number of
+matched children includes those duplicates. The index is local to one memoized
+comparison. Retained dispatch vectors are charged in live and journaled context
+storage, and source recipe tags/payloads/effects are charged during collection.
+No benchmark or repeated timing experiment was run.
+
+Verification: solver Variant filter 10/10, focused native typed_variant filter
+3/3, then full native package 290/290 pass after adding the strict-payload-effect
+rejection regression. The full native suite includes twelve positive cases
+(function payload, repeated FreshUse, nested tags, arity distinction, payload
+wildcards, duplicate keys, ordered host effects), four concrete rejection cases,
+and graph/public projection. An initial full run failed only because the new
+ordered-payload test used semicolon sequences inside parentheses; its source was
+corrected to actual block syntax, retaining the same expected ordered writes.
+Fresh `npm --prefix web/playground run check` passes 65 execution examples plus
+prior module/type/diagnostic checks. Logs: target/r332-variant-domain-{solver-final,
+native-final,wasm}.log and r332-variant-source-native-focused-final.log.
+All 19 original catalog hashes are unchanged; still 7/19 complete. Only Button's
+observable boundary changes: Unsupported -> DeferredSelectionUnavailable. The
+other 18 observables are identical to results-after-variant-native.json. New
+receipt: target/r332-catalog-cooked/results-after-variant-domain.json.
+
+Next inspect the actual Button member instances and retain a source Case guard
+with the same Capture/FreshUse row map. A nonempty closed tag frontier disjoint
+from a guard can justify an inactive branch only at stable publication; an empty
+or unknown payload frontier is not that proof. No dictionary was fabricated,
+no unresolved active FieldTail was ignored, and runtime negative-visibility
+certification was not widened.

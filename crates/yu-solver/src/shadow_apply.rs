@@ -816,6 +816,7 @@ pub enum CandidateSourceDependency {
     FunctionPort { child: u32, parent: u32 },
     TuplePort { child: u32, parent: u32, index: usize },
     RecordPort { child: u32, parent: u32, lower_index: usize, upper_index: usize },
+    VariantPort { child: u32, parent: u32, lower_index: usize, upper_index: usize, payload_index: usize },
     Replay { child: u32, lower: u32, upper: u32 },
     Transport { child: u32, parent: u32 },
 }
@@ -1264,6 +1265,7 @@ impl CandidateInference {
                         | crate::candidate_context::Dependency::FunctionPort { child, .. }
                         | crate::candidate_context::Dependency::TuplePort { child, .. }
                         | crate::candidate_context::Dependency::RecordPort { child, .. }
+                        | crate::candidate_context::Dependency::VariantPort { child, .. }
                         | crate::candidate_context::Dependency::Replay { child, .. }
                         | crate::candidate_context::Dependency::Transport { child, .. } => child,
                     };
@@ -2030,6 +2032,7 @@ impl CandidateInference {
                         | Dependency::FunctionPort { child, parent, .. }
                         | Dependency::TuplePort { child, parent, .. }
                         | Dependency::RecordPort { child, parent, .. }
+                        | Dependency::VariantPort { child, parent, .. }
                         | Dependency::Transport { child, parent, .. } => ([Some(parent), None], child),
                         Dependency::Replay { child, lower, upper, .. } => ([Some(lower), Some(upper)], child),
                     };
@@ -2048,6 +2051,10 @@ impl CandidateInference {
                                 Dependency::TuplePort { child, parent, index } => (
                                     CandidateSourceDependency::TuplePort { child: child.0, parent: parent.0, index },
                                     None, None, Some(index), None,
+                                ),
+                                Dependency::VariantPort { child, parent, lower_index, upper_index, payload_index } => (
+                                    CandidateSourceDependency::VariantPort { child: child.0, parent: parent.0, lower_index, upper_index, payload_index },
+                                    None, None, None, None,
                                 ),
                                 Dependency::RecordPort { child, parent, lower_index, upper_index } => (
                                     CandidateSourceDependency::RecordPort { child: child.0, parent: parent.0, lower_index, upper_index },
@@ -3243,6 +3250,19 @@ pub(super) enum CandidateRelation {
         result: usize,
         result_effect: usize,
     },
+    Variant {
+        tag: Box<str>,
+        payloads: Vec<CandidateEndpoint>,
+        element_effects: Vec<usize>,
+        result: usize,
+        result_effect: usize,
+    },
+    /// One negative domain assembled from this occurrence's actual Case arms.
+    VariantCase {
+        scrutinee: CandidateEndpoint,
+        alternatives: Vec<VariantAlternative<Option<CandidateEndpoint>>>,
+        level: u32,
+    },
     TuplePattern {
         source: yu_hir::shadow::SourceNodeKey,
         local_slot: u32,
@@ -3444,8 +3464,8 @@ impl ConstraintBatch {
                 CandidateRelation::DeferredFieldTail { .. } => 0,
                 CandidateRelation::Group { .. } => 2,
                 CandidateRelation::Apply { .. } => 3,
-                CandidateRelation::Tuple { element_effects, .. } | CandidateRelation::Record { element_effects, .. } => 1usize.checked_add(element_effects.len()).ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?,
-                CandidateRelation::TuplePattern { .. } => 1,
+                CandidateRelation::Tuple { element_effects, .. } | CandidateRelation::Record { element_effects, .. } | CandidateRelation::Variant { element_effects, .. } => 1usize.checked_add(element_effects.len()).ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?,
+                CandidateRelation::TuplePattern { .. } | CandidateRelation::VariantCase { .. } => 1,
             }
         } else {
             usize::from(!matches!(relation, CandidateRelation::DeferredFieldTail { .. }))
@@ -3776,6 +3796,33 @@ impl InferenceSession {
                 let lower = self.candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?;
                 (tuple, lower)
             }
+            CandidateRelation::Variant { tag, payloads, result, .. } => {
+                let mut mapped = Vec::new();
+                mapped.try_reserve_exact(payloads.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                for &payload in payloads { mapped.push(self.candidate_endpoint(payload, Polarity::Positive)?); }
+                let alternatives = [VariantAlternative { tag: tag.clone(), payloads: mapped.into_boxed_slice() }];
+                let variant = self.with_term_events(|arena| arena.positive_variant(&alternatives))?;
+                (variant, self.candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?)
+            }
+            CandidateRelation::VariantCase { scrutinee, alternatives, level } => {
+                let mut mapped = Vec::new();
+                mapped.try_reserve_exact(alternatives.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                for alternative in alternatives {
+                    let mut payloads = Vec::new();
+                    payloads.try_reserve_exact(alternative.payloads.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    for &payload in &alternative.payloads {
+                        payloads.push(if let Some(payload) = payload {
+                            self.candidate_endpoint(payload, Polarity::Negative)?
+                        } else {
+                            let row = self.fresh_value_at_level(*level)?;
+                            self.live_value_term(Polarity::Negative, row)?
+                        });
+                    }
+                    mapped.push(VariantAlternative { tag: alternative.tag.clone(), payloads: payloads.into_boxed_slice() });
+                }
+                let domain = self.with_term_events(|arena| arena.negative_variant(&mapped))?;
+                (self.candidate_endpoint(*scrutinee, Polarity::Positive)?, domain)
+            }
             CandidateRelation::TuplePattern { source, local_slot, scrutinee, elements, level } => {
                 let owner = self.batch.candidate_source.source_owners.get(&recipe.occurrence)
                     .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
@@ -3942,7 +3989,8 @@ impl InferenceSession {
                     )?;
                 }
                 CandidateRelation::Tuple { element_effects, result_effect, .. }
-                | CandidateRelation::Record { element_effects, result_effect, .. } => {
+                | CandidateRelation::Record { element_effects, result_effect, .. }
+                | CandidateRelation::Variant { element_effects, result_effect, .. } => {
                     for (index, &element_effect) in element_effects.iter().enumerate() {
                         let slot = u32::try_from(index).ok()
                             .and_then(|index| index.checked_add(1))
@@ -3955,7 +4003,7 @@ impl InferenceSession {
                         )?;
                     }
                 }
-                CandidateRelation::TuplePattern { .. } => {}
+                CandidateRelation::TuplePattern { .. } | CandidateRelation::VariantCase { .. } => {}
             }
         }
         self.sample_f4_resources(ResourceBoundary::InitialAdmission)

@@ -607,12 +607,13 @@ pub(super) fn preflight_with_imports_and_roles(
         if matches!(
             &expr.form,
             LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) }
-                | LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { lowered: None, .. },
+                | LocalSourceForm::InterpolatedString { lowered: None, .. },
         ) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
         if matches!(&expr.form, LocalSourceForm::Case { arms, .. }
-            if arms.iter().any(|arm| matches!(arm.pattern, yu_hir::shadow::LocalSourceCasePattern::Variant { .. }))) {
+            if arms.iter().any(|arm| matches!(arm.pattern, yu_hir::shadow::LocalSourceCasePattern::Variant { .. }))
+                && !arms.iter().all(|arm| matches!(arm.pattern, yu_hir::shadow::LocalSourceCasePattern::Variant { .. }))) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
         if let LocalSourceForm::Ascription { annotation, .. } = &expr.form {
@@ -1242,7 +1243,10 @@ impl ConstraintBatch {
                                 push(&mut work, Work::Visit(item.ordinal() as usize, level, region))?;
                             }
                         }
-                        LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { lowered: None, .. } => return Err(unavailable()),
+                        LocalSourceForm::Variant { payloads, .. } => {
+                            for payload in payloads.iter().rev() { push(&mut work, Work::Visit(payload.ordinal() as usize, level, region))?; }
+                        }
+                        LocalSourceForm::InterpolatedString { lowered: None, .. } => return Err(unavailable()),
                         LocalSourceForm::Record { fields } => {
                             for field in fields.iter().rev() { push(&mut work, Work::Visit(field.value.ordinal() as usize, level, region))?; }
                         }
@@ -1410,6 +1414,7 @@ impl ConstraintBatch {
                 }
                 Work::CaseArms(index, level, region) => {
                     let LocalSourceForm::Case { scrutinee, arms } = &source.expressions()[index].form else { return Err(invalid()); };
+                    let mut variant_alternatives = Vec::new();
                     for (arm_index, arm) in arms.iter().enumerate() {
                         match &arm.pattern {
                             yu_hir::shadow::LocalSourceCasePattern::Binder(binder) => {
@@ -1450,9 +1455,38 @@ impl ConstraintBatch {
                                 })?;
                                 push(&mut actions, Action::Candidate(recipe))?;
                             }
-                            yu_hir::shadow::LocalSourceCasePattern::Variant { .. } => return Err(unavailable()),
+                            yu_hir::shadow::LocalSourceCasePattern::Variant { tag, elements, .. } => {
+                                let mut payloads = Vec::new();
+                                payloads.try_reserve_exact(elements.len()).map_err(|_| unavailable())?;
+                                for element in elements {
+                                    let component = match element {
+                                        yu_hir::shadow::LocalSourceCasePatternElement::Binder(binder) => {
+                                            let component = case_positions.get(&binder.id).copied();
+                                            if let Some(position) = component {
+                                                self.candidate_source.component_levels.try_reserve(1).map_err(|_| unavailable())?;
+                                                self.candidate_source.component_levels.insert(position, level);
+                                                case_binders.try_reserve(1).map_err(|_| unavailable())?;
+                                                case_binders.insert(binder.id.clone(), CandidateEndpoint::Component(position));
+                                            }
+                                            component.map(CandidateEndpoint::Component)
+                                        }
+                                        yu_hir::shadow::LocalSourceCasePatternElement::Wildcard => None,
+                                    };
+                                    payloads.push(component);
+                                }
+                                variant_alternatives.try_reserve(1).map_err(|_| unavailable())?;
+                                variant_alternatives.push(VariantAlternative { tag: tag.clone(), payloads: payloads.into_boxed_slice() });
+                            }
                             yu_hir::shadow::LocalSourceCasePattern::Integer(_) | yu_hir::shadow::LocalSourceCasePattern::Wildcard => {}
                         }
+                    }
+                    if !variant_alternatives.is_empty() {
+                        if variant_alternatives.len() != arms.len() { return Err(unavailable()); }
+                        let recipe = self.candidate_recipes.len();
+                        self.retain_candidate_relation(&source.expressions()[index].occurrence, CandidateRelation::VariantCase {
+                            scrutinee: endpoints[scrutinee.ordinal() as usize], alternatives: variant_alternatives, level,
+                        })?;
+                        push(&mut actions, Action::Candidate(recipe))?;
                     }
                     for arm in arms.iter().rev() {
                         push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?;
@@ -1565,7 +1599,7 @@ impl ConstraintBatch {
                                     yu_hir::shadow::LocalSourceCasePattern::Binder(_) => {}
                                     yu_hir::shadow::LocalSourceCasePattern::Wildcard => {}
                                     yu_hir::shadow::LocalSourceCasePattern::Tuple { .. } => {}
-                                    yu_hir::shadow::LocalSourceCasePattern::Variant { .. } => return Err(unavailable()),
+                                    yu_hir::shadow::LocalSourceCasePattern::Variant { .. } => {}
                                 }
                                 let body_index = arm.body.ordinal() as usize;
                                 let body_occurrence = &source.expressions()[body_index].occurrence;
@@ -1866,7 +1900,23 @@ impl ConstraintBatch {
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                         }
-                        LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { lowered: None, .. } => return Err(unavailable()),
+                        LocalSourceForm::Variant { tag, payloads, .. } => {
+                            let mut values = Vec::new();
+                            let mut effects = Vec::new();
+                            values.try_reserve_exact(payloads.len()).map_err(|_| unavailable())?;
+                            effects.try_reserve_exact(payloads.len()).map_err(|_| unavailable())?;
+                            for payload in payloads {
+                                let i = payload.ordinal() as usize;
+                                values.push(endpoints[i]);
+                                effects.push(positions[i].effect);
+                            }
+                            let recipe = self.candidate_recipes.len();
+                            self.retain_candidate_relation(occurrence, CandidateRelation::Variant {
+                                tag: tag.clone(), payloads: values, element_effects: effects, result: pos.value, result_effect: pos.effect,
+                            })?;
+                            push(&mut actions, Action::Candidate(recipe))?;
+                        }
+                        LocalSourceForm::InterpolatedString { lowered: None, .. } => return Err(unavailable()),
                         LocalSourceForm::Record { fields } => {
                             let mut values = Vec::new();
                             let mut effects = Vec::new();

@@ -2310,6 +2310,16 @@ impl ConstraintBatch {
                             member.len(),
                             checked_capacity_bytes::<yu_hir::shadow::SourceRoleMemberId>(role_member_candidates.capacity(), "deferred FieldTail role-member candidates"),
                         ], "deferred FieldTail recipe payload"),
+                    shadow_apply::CandidateRelation::Variant { tag, payloads, element_effects, .. } => checked_usize_sum([
+                        tag.len(), checked_capacity_bytes::<shadow_apply::CandidateEndpoint>(payloads.capacity(), "variant payloads"),
+                        checked_capacity_bytes::<usize>(element_effects.capacity(), "variant effects"),
+                    ], "variant recipe"),
+                    shadow_apply::CandidateRelation::VariantCase { alternatives, .. } => checked_usize_sum([
+                        checked_capacity_bytes::<VariantAlternative<Option<shadow_apply::CandidateEndpoint>>>(alternatives.capacity(), "case alternatives"),
+                        checked_usize_sum(alternatives.iter().map(|a| checked_usize_sum([
+                            a.tag.len(), checked_capacity_bytes::<Option<shadow_apply::CandidateEndpoint>>(a.payloads.len(), "case payloads"),
+                        ], "case alternative")), "case payload families"),
+                    ], "variant case recipe"),
                     shadow_apply::CandidateRelation::Record { fields, element_effects, .. } => checked_usize_sum([
                         checked_capacity_bytes::<(Box<str>, shadow_apply::CandidateEndpoint)>(fields.capacity(), "record fields"),
                         checked_capacity_bytes::<usize>(element_effects.capacity(), "record effects"),
@@ -4109,6 +4119,7 @@ impl SolvedProjection {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SolverErrorKind {
     RecordMissingField { index: usize },
+    VariantMissingAlternative { index: usize },
     #[cfg(feature = "shadow-apply-candidate")]
     IncompatibleEffect { operand: EffectOperandHandle, annotation: Option<EffectAnnotationHandle> },
     CrossKind {
@@ -4131,6 +4142,7 @@ pub enum ValueShape {
     Function,
     Tuple(usize),
     Record,
+    Variant,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SolverError {
@@ -4151,8 +4163,6 @@ impl SolverError {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SolveAvailabilityError {
-    /// Variant transport exists; whole-case domain checking is not connected.
-    VariantBoundaryUnavailable,
     RecordAdaptationUnavailable,
     ArtifactMismatch,
     CauseMismatch,
@@ -13274,7 +13284,7 @@ impl InferenceSession {
                 self.dispatch_live_item(item, Some(index), consumed.ok_or(SolveAvailabilityError::IdentityExhausted)?, &mut transitions)?;
                 let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
                 frame.transitions = transitions;
-                if frame.function.is_none() && frame.tuple.is_none() && frame.record.is_none() {
+                if frame.function.is_none() && frame.tuple.is_none() && frame.record.is_none() && frame.variant.is_none() {
                     frame.current = None;
                     frame.context_consumed = None;
                     frame.stage = Stage::Transport;
@@ -13303,6 +13313,15 @@ impl InferenceSession {
                     let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
                     frame.current = None;
                     frame.record = None;
+                    frame.context_consumed = None;
+                    frame.stage = Stage::Transport;
+                }
+            }
+            Stage::VariantAdmission | Stage::VariantEnqueue => {
+                if !self.candidate_step_variant_dispatch(index)? {
+                    let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                    frame.current = None;
+                    frame.variant = None;
                     frame.context_consumed = None;
                     frame.stage = Stage::Transport;
                 }
@@ -13431,15 +13450,70 @@ impl InferenceSession {
                         )?;
                         return Ok(());
                     }
-                    // Transporting a family into a row does not establish
-                    // whole-case compatibility. Withhold concrete comparison
-                    // until both the payload rule and the boundary owner exist.
-                    if !matches!(key.lower, ValueEndpointKey::ValueRow(_))
-                        && !matches!(key.upper, ValueEndpointKey::ValueRow(_))
-                        && (matches!(key.lower, ValueEndpointKey::PositiveVariant(_))
-                            || matches!(key.upper, ValueEndpointKey::NegativeVariant(_)))
-                    {
-                        return Err(SolveAvailabilityError::VariantBoundaryUnavailable);
+                    if let (ValueEndpointKey::PositiveVariant(lower_term), ValueEndpointKey::NegativeVariant(upper_term)) = (key.lower, key.upper) {
+                        let (TermView::PositiveVariant { alternatives: lower }, TermView::NegativeVariant { alternatives: upper }) = (
+                            self.store.term_view(lower_term).map_err(|_| SolveAvailabilityError::ReceiptMismatch)?,
+                            self.store.term_view(upper_term).map_err(|_| SolveAvailabilityError::ReceiptMismatch)?,
+                        ) else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                        // A single negative family denotes this whole domain.
+                        // Equal negative keys impose every payload requirement.
+                        let mut by_key: HashMap<(&str, usize), Vec<usize>> = HashMap::new();
+                        by_key.try_reserve(upper.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        for (index, alternative) in upper.iter().enumerate() {
+                            let positions = by_key.entry((alternative.tag.as_ref(), alternative.payloads.len())).or_default();
+                            positions.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            positions.push(index);
+                        }
+                        let mut children = Vec::new();
+                        let mut missing = None;
+                        for (lower_index, actual) in lower.iter().enumerate() {
+                            let Some(indices) = by_key.get(&(actual.tag.as_ref(), actual.payloads.len())) else {
+                                missing = Some(lower_index);
+                                break;
+                            };
+                            for &upper_index in indices {
+                                children.try_reserve(actual.payloads.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                                for (payload_index, (&actual, &expected)) in actual.payloads.iter().zip(upper[upper_index].payloads.iter()).enumerate() {
+                                    children.push((lower_index, upper_index, payload_index, TypedPairKey::Value(CanonicalValuePairKey {
+                                        lower: self.value_endpoint(actual, Polarity::Positive),
+                                        upper: self.value_endpoint(expected, Polarity::Negative),
+                                    })));
+                                }
+                            }
+                        }
+                        self.record_typed_pair_admission(memo_key, TypedPairMemo::Value {
+                            #[cfg(feature = "shadow-apply-candidate")]
+                            retained_extrusion_rewrite: None,
+                            children: DiagnosticChildren::new(),
+                            direct_witness: missing.map(|index| DiagnosticWitness {
+                                terminal: key, kind: SolverErrorKind::VariantMissingAlternative { index },
+                                distance: 0, first_field: None, first_tuple_index: None,
+                            }),
+                            completion: DiagnosticCompletion::Pending,
+                        })?;
+                        if missing.is_some() { return Ok(()); }
+                        for (_, _, _, child) in &children {
+                            let TypedPairKey::Value(child) = child else { unreachable!() };
+                            self.record_diagnostic_edge(key, *child, None)?;
+                        }
+                        #[cfg(feature = "shadow-apply-candidate")]
+                        if let Some(index) = drain {
+                            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                            frame.variant = Some(candidate_context::VariantDispatch { children, next: 0, pending: None });
+                            frame.stage = candidate_context::TypedDrainStage::VariantAdmission;
+                            return Ok(());
+                        }
+                        for (_, _, _, child) in children.into_iter().rev() {
+                            let TypedPairKey::Value(task) = child else { unreachable!() };
+                            self.enqueue_item(TypedWorkItem {
+                                task: LiveConstraintTask::Value(task),
+                                #[cfg(feature = "shadow-apply-candidate")]
+                                relation: None,
+                                #[cfg(feature = "shadow-apply-candidate")]
+                                replay_ack: None,
+                            }, true)?;
+                        }
+                        return Ok(());
                     }
                     if let (ValueEndpointKey::PositiveRecord(lower_term), ValueEndpointKey::NegativeRecord(upper_term)) = (key.lower, key.upper) {
                         let (TermView::PositiveRecord { fields: lower }, TermView::NegativeRecord { fields: upper }) = (
@@ -13875,6 +13949,31 @@ impl InferenceSession {
             let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
             frame.record.as_mut().unwrap().pending = Some(TypedWorkItem { task, relation, replay_ack: None });
             frame.stage = candidate_context::TypedDrainStage::RecordEnqueue;
+        }
+        Ok(true)
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_step_variant_dispatch(&mut self, drain: usize) -> Result<bool, SolveAvailabilityError> {
+        self.prepare_nonterminal_drain(drain)?;
+        let frame = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+        let dispatch = frame.variant.as_ref().unwrap();
+        if dispatch.next == dispatch.children.len() { return Ok(false); }
+        if let Some(item) = dispatch.pending {
+            self.enqueue_item(item, true)?;
+            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+            let dispatch = frame.variant.as_mut().unwrap();
+            dispatch.pending = None;
+            dispatch.next += 1;
+            frame.stage = candidate_context::TypedDrainStage::VariantAdmission;
+        } else {
+            let (lower_index, upper_index, payload_index, child) = dispatch.children[dispatch.children.len() - 1 - dispatch.next];
+            let TypedPairKey::Value(pair) = child else { return Err(SolveAvailabilityError::IdentityExhausted); };
+            let task = LiveConstraintTask::Value(pair);
+            let relation = self.candidate_variant_port_admit(task, lower_index, upper_index, payload_index)?;
+            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+            frame.variant.as_mut().unwrap().pending = Some(TypedWorkItem { task, relation, replay_ack: None });
+            frame.stage = candidate_context::TypedDrainStage::VariantEnqueue;
         }
         Ok(true)
     }
@@ -14947,6 +15046,9 @@ impl InferenceSession {
     }
 
     fn error_rank(kind: SolverErrorKind) -> (u8, u8) {
+        if matches!(kind, SolverErrorKind::VariantMissingAlternative { .. }) {
+            return (Self::shape_rank(ValueShape::Variant), Self::shape_rank(ValueShape::Variant));
+        }
         if matches!(kind, SolverErrorKind::RecordMissingField { .. }) {
             return (Self::shape_rank(ValueShape::Record), Self::shape_rank(ValueShape::Record));
         }
@@ -14966,6 +15068,7 @@ impl InferenceSession {
             ValueShape::Str => 5,
             ValueShape::Tuple(_) => 6,
             ValueShape::Record => 7,
+            ValueShape::Variant => 8,
         }
     }
 
@@ -15006,7 +15109,7 @@ impl InferenceSession {
         }) = witness
         {
             self.report_incompatible(occurrence, cause, *lower, *upper)?;
-        } else if let Some(DiagnosticWitness { kind: kind @ SolverErrorKind::RecordMissingField { .. }, .. }) = witness {
+        } else if let Some(DiagnosticWitness { kind: kind @ (SolverErrorKind::RecordMissingField { .. } | SolverErrorKind::VariantMissingAlternative { .. }), .. }) = witness {
             self.report_solver_kind(occurrence, cause, *kind)?;
         }
         Ok(())
@@ -15321,6 +15424,7 @@ impl InferenceSession {
             ValueEndpointKey::StrPositive => ValueShape::Str,
             ValueEndpointKey::PositiveFunction(_) => ValueShape::Function,
             ValueEndpointKey::PositiveRecord(_) => ValueShape::Record,
+            ValueEndpointKey::PositiveVariant(_) => ValueShape::Variant,
             ValueEndpointKey::PositiveTuple(_, arity) => ValueShape::Tuple(arity),
             ValueEndpointKey::BottomPositive => ValueShape::Bottom,
             _ => return None,
@@ -15333,6 +15437,7 @@ impl InferenceSession {
             ValueEndpointKey::StrNegative => ValueShape::Str,
             ValueEndpointKey::NegativeFunction(_) => ValueShape::Function,
             ValueEndpointKey::NegativeRecord(_) => ValueShape::Record,
+            ValueEndpointKey::NegativeVariant(_) => ValueShape::Variant,
             ValueEndpointKey::NegativeTuple(_, arity) => ValueShape::Tuple(arity),
             ValueEndpointKey::BottomNegative => ValueShape::Bottom,
             _ => return None,
@@ -25353,7 +25458,7 @@ mod tests {
     }
 
     #[test]
-    fn variant_concrete_boundary_stays_unavailable_during_transport_integration() {
+    fn variant_closed_family_comparison_reports_missing_keys_and_distinct_heads() {
         let batch = ConstraintBatch::collect(module("1", "variant-boundary")).unwrap();
         let mut session = InferenceSession::try_new(batch).unwrap();
         let positive = session.store.terms.positive_variant(&[
@@ -25369,9 +25474,12 @@ mod tests {
             (ValueEndpointKey::IntPositive, ValueEndpointKey::NegativeVariant(negative)),
             (ValueEndpointKey::PositiveVariant(positive), ValueEndpointKey::IntNegative),
         ] {
-            assert_eq!(session.constrain_live_value(CanonicalValuePairKey { lower, upper },
-                &occurrence, &cause), Err(SolveAvailabilityError::VariantBoundaryUnavailable));
-            assert!(session.errors.is_empty(), "unconnected comparison is not a type rejection");
+            session.constrain_live_value(CanonicalValuePairKey { lower, upper }, &occurrence, &cause).unwrap();
+            assert!(!session.errors.is_empty(), "a missing whole-family key or a different concrete head is a type error");
+        }
+        assert!(session.errors.iter().any(|error| matches!(error.kind(), SolverErrorKind::VariantMissingAlternative { index: 0 })));
+        for expected in [(ValueShape::Int, ValueShape::Variant), (ValueShape::Variant, ValueShape::Int)] {
+            assert!(session.errors.iter().any(|error| matches!(error.kind(), SolverErrorKind::IncompatibleValue { lower, upper } if (lower, upper) == expected)));
         }
     }
 
@@ -35094,6 +35202,63 @@ mod retained_drain_workspace_tests {
         let mut tuple_ports = tuple_ports;
         tuple_ports.sort_unstable();
         assert_eq!(tuple_ports, [0, 1, 2]);
+    }
+
+    #[test]
+    fn variant_dispatch_retains_alternative_and_payload_indexes_through_resumption() {
+        let source: Arc<yu_syntax::SourceText> = Arc::from("my seed = 1");
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)), Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("variant-dispatch", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap());
+        let mut session = InferenceSession::try_new_candidate(ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap()).unwrap();
+        let p = session.with_term_events(|arena| arena.intern(TermNode::Leaf(Leaf::IntPositive))).unwrap();
+        let n = session.with_term_events(|arena| arena.intern(TermNode::Leaf(Leaf::IntNegative))).unwrap();
+        let lower = session.with_term_events(|arena| arena.positive_variant(&[
+            VariantAlternative { tag: "second".into(), payloads: Box::new([p, p]) },
+            VariantAlternative { tag: "first".into(), payloads: Box::new([p]) },
+        ])).unwrap();
+        let upper = session.with_term_events(|arena| arena.negative_variant(&[
+            VariantAlternative { tag: "first".into(), payloads: Box::new([n]) },
+            VariantAlternative { tag: "unused".into(), payloads: Box::new([]) },
+            VariantAlternative { tag: "second".into(), payloads: Box::new([n, n]) },
+        ])).unwrap();
+        let binding = session.batch.hir.items().iter().find_map(|item| match item { HirItem::Binding(binding) => Some(binding), _ => None }).unwrap();
+        let occurrence = ConstraintOccurrenceId::new(binding.value().occurrence().clone(), 93);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        let pair = CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveVariant(lower),
+            upper: ValueEndpointKey::NegativeVariant(upper),
+        };
+        let index = session.with_route_transaction(|session| {
+            session.start_typed_drain(item(pair), &occurrence, &cause, None, None)
+        }).unwrap();
+        let frame_before = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].clone();
+        let worklist_before = session.typed_worklist.clone();
+        let dependencies_before = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.observed_dependencies().count();
+        assert_eq!(session.resume_typed_drain_route(index, |session, index| {
+            loop {
+                session.step_typed_drain(index)?;
+                if session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].variant.is_some() {
+                    return Err::<(), _>(SolveAvailabilityError::IdentityExhausted);
+                }
+            }
+        }), Err(SolveAvailabilityError::IdentityExhausted));
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index], frame_before);
+        assert_eq!(session.typed_worklist, worklist_before);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.observed_dependencies().count(), dependencies_before);
+        loop {
+            let step = session.resume_typed_drain_route(index, |session, index| session.step_typed_drain(index)).unwrap();
+            if matches!(step, DrainStep::Complete(_)) { break; }
+        }
+        let variant_ports: Vec<_> = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context
+            .observed_dependencies().filter_map(|dependency| match dependency {
+                candidate_context::Dependency::VariantPort { lower_index, upper_index, payload_index, .. } => Some((*lower_index, *upper_index, *payload_index)),
+                _ => None,
+            }).collect();
+        let mut variant_ports = variant_ports;
+        variant_ports.sort_unstable();
+        assert_eq!(variant_ports, [(0, 2, 0), (0, 2, 1), (1, 0, 0)]);
     }
 
     #[test]

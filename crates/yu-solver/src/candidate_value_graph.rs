@@ -616,7 +616,7 @@ mod conditional_reference_tests {
     }
 
     #[test]
-    fn variant_fragments_retain_payload_references_without_enabling_inference() {
+    fn variant_fragments_retain_payload_references_through_source_admission() {
         let (graph, source) = fixture("my choose a b = :pair a (:some b)");
         let variants: Vec<_> = source.expressions().iter().filter_map(|expr| match &expr.form {
             LocalSourceForm::Variant { tag, .. } => Some((tag.as_ref(), Value::Expression(expr.occurrence.clone()))),
@@ -631,8 +631,7 @@ mod conditional_reference_tests {
         }
         let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
         assert_eq!(references(&graph, &root), expected(&source, &["a", "b"]));
-        assert!(matches!(crate::candidate_source::preflight(&source, false),
-            Err(crate::shadow_apply::CandidateError::Unsupported)));
+        crate::candidate_source::preflight(&source, false).unwrap();
 
         let (graph, source) = fixture("my choose x = { my local = :some x; local }");
         let local = Value::Local(source.bindings()[0].id.clone());
@@ -655,8 +654,7 @@ mod conditional_reference_tests {
         let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
         assert_eq!(references(&graph, &root),
             [named(&source, "x"), Value::CatchBinder(binder.id.clone()), outer].into_iter().collect::<HashSet<_>>());
-        assert!(matches!(crate::candidate_source::preflight(&source, false),
-            Err(crate::shadow_apply::CandidateError::Unsupported)));
+        crate::candidate_source::preflight(&source, false).unwrap();
     }
 
     #[test]

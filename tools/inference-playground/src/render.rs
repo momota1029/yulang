@@ -104,6 +104,11 @@ pub(crate) fn graph_into(
                 intern(&mut nodes, &mut node_indices, child, output)?;
             }
         }
+        if let Some(alternatives) = nodes[cursor].variant_alternatives() {
+            for (_, payloads) in alternatives {
+                for child in payloads { intern(&mut nodes, &mut node_indices, child, output)?; }
+            }
+        }
         if let Some(children) = nodes[cursor].tuple_children() {
             for child in children {
                 intern(&mut nodes, &mut node_indices, child, output)?;
@@ -138,6 +143,21 @@ pub(crate) fn graph_into(
                 ids[0], ids[1], ids[2], ids[3]
             )
             .map_err(cap)?;
+        } else if let Some(alternatives) = node.variant_alternatives() {
+            output.observe(alternatives.len())?;
+            output.write_str("Variant([").map_err(cap)?;
+            for (index, (tag, payloads)) in alternatives.enumerate() {
+                output.observe(payloads.len())?;
+                if index != 0 { output.write_str(", ").map_err(cap)?; }
+                write!(output, ":{tag}(").map_err(cap)?;
+                for (position, child) in payloads.enumerate() {
+                    if position != 0 { output.write_str(", ").map_err(cap)?; }
+                    let child = node_indices.get(&child).copied().ok_or_else(|| "missing variant payload identity".to_owned())?;
+                    write!(output, "n{child}").map_err(cap)?;
+                }
+                output.write_char(')').map_err(cap)?;
+            }
+            output.write_str("])").map_err(cap)?;
         } else if let Some(fields) = node.record_fields() {
             output.observe(fields.len())?;
             output.write_str("Record({").map_err(cap)?;

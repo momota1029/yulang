@@ -31,6 +31,7 @@ enum NodeKind<'a> {
     Function([NodeId; 4]),
     Tuple(Vec<NodeId>),
     Record(Vec<(Box<str>, bool, NodeId)>),
+    Variant(Vec<(Box<str>, Vec<NodeId>)>),
     Effect(Effect<'a>),
 }
 struct Effect<'a> {
@@ -121,6 +122,16 @@ impl<'a> CandidatePublicScheme<'a> {
                 budget.observe(4)?;
                 let [a, ae, re, r] = children;
                 NodeKind::Function([node_id(a)?, node_id(ae)?, node_id(re)?, node_id(r)?])
+            } else if let Some(alternatives) = source.variant_alternatives() {
+                budget.observe(alternatives.len())?;
+                bounded(alternatives.len(), "variant alternatives")?;
+                let mut family = Vec::new();
+                for (tag, payloads) in alternatives {
+                    budget.observe(payloads.len())?;
+                    bounded(payloads.len(), "variant payloads")?;
+                    family.push((tag.into(), payloads.map(node_id).collect::<Result<_, _>>()?));
+                }
+                NodeKind::Variant(family)
             } else if let Some(fields) = source.record_fields() {
                 budget.observe(fields.len())?;
                 bounded(fields.len(), "record fields")?;
@@ -430,6 +441,25 @@ impl<'a> CandidatePublicScheme<'a> {
                             stack.push(Step::Text(label));
                         }
                     }
+                    NodeKind::Variant(alternatives) => {
+                        output.observe(alternatives.len())?;
+                        output.write_str("Variant(").map_err(cap)?;
+                        stack.push(Step::Text(")"));
+                        for (index, (tag, payloads)) in alternatives.iter().enumerate().rev() {
+                            output.observe(payloads.len())?;
+                            if !payloads.is_empty() {
+                                stack.push(Step::Text(")"));
+                                for (position, child) in payloads.iter().enumerate().rev() {
+                                    stack.push(Step::Node(*child));
+                                    if position != 0 { stack.push(Step::Text(", ")); }
+                                }
+                                stack.push(Step::Text("("));
+                            }
+                            stack.push(Step::Text(tag));
+                            stack.push(Step::Text(":"));
+                            if index != 0 { stack.push(Step::Text(" | ")); }
+                        }
+                    }
                     NodeKind::Record(fields) => {
                         output.observe(fields.len())?;
                         output.write_char('{').map_err(cap)?;
@@ -594,6 +624,17 @@ mod tests {
                 NodeKind::Function(children) => {
                     for (source, child) in source.children().unwrap().into_iter().zip(children) {
                         assert!(source.same_identity(scheme.nodes[child.0].source));
+                    }
+                }
+                NodeKind::Variant(alternatives) => {
+                    let sources = source.variant_alternatives().unwrap();
+                    assert_eq!(sources.len(), alternatives.len());
+                    for ((source_tag, sources), (tag, payloads)) in sources.zip(alternatives) {
+                        assert_eq!(source_tag, tag.as_ref());
+                        assert_eq!(sources.len(), payloads.len());
+                        for (source, child) in sources.zip(payloads) {
+                            assert!(source.same_identity(scheme.nodes[child.0].source));
+                        }
                     }
                 }
                 NodeKind::Record(fields) => {
