@@ -1826,10 +1826,14 @@ fn lower_module_with_counters(
     if counters.ordinary_source_carriers || counters.local_source || counters.member_sources {
         let associations = crate::associate_operator_chains(parsed);
         let mut uses = HashMap::new();
+        let mut chains = HashMap::new();
         for chain in associations.chains() {
             retain_associated_operator_uses(chain.expression(), &mut uses)?;
+            let tree = Arc::new(chain.expression().clone());
+            retain_associated_operator_chains(&tree, &tree, &mut chains)?;
         }
         counters.source_operator_uses = uses;
+        counters.source_associated_chains = chains;
     }
     #[cfg(any(feature = "shadow", test))]
     if counters.local_source {
@@ -2212,6 +2216,8 @@ struct LoweringCounters {
     source_nodes: HashMap<SyntaxNode, yu_syntax::SourceNodeKey>,
     /// Exact parser-associated dynamic operators retained for source carriers.
     source_operator_uses: HashMap<Range<usize>, crate::HirOperator>,
+    /// Exact parser-associated expression trees indexed by each operator-use range.
+    source_associated_chains: HashMap<Range<usize>, Arc<crate::HirExpr>>,
     recovery_visits: usize,
     syntax_emissions: usize,
     copied_spelling_bytes: usize,
@@ -2237,6 +2243,37 @@ fn retain_associated_operator_uses(
         }
         HirExpr::Value { children, .. } | HirExpr::Error { children, .. } => {
             for child in children { retain_associated_operator_uses(child, uses)?; }
+        }
+    }
+    Ok(())
+}
+
+fn retain_associated_operator_chains(
+    expression: &HirExpr,
+    tree: &Arc<HirExpr>,
+    chains: &mut HashMap<Range<usize>, Arc<HirExpr>>,
+) -> Result<(), HirAvailabilityError> {
+    let mut pending = Vec::new();
+    pending.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    pending.push(expression);
+    while let Some(expression) = pending.pop() {
+        match expression {
+            HirExpr::Apply { operator, operands, .. } => {
+                chains.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                if chains.insert(operator.range().clone(), Arc::clone(tree)).is_some() {
+                    return Err(HirAvailabilityError::StructuralProjection);
+                }
+                pending.try_reserve(operands.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                for operand in operands.iter() {
+                    pending.push(operand);
+                }
+            }
+            HirExpr::Value { children, .. } | HirExpr::Error { children, .. } => {
+                pending.try_reserve(children.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                for child in children {
+                    pending.push(child);
+                }
+            }
         }
     }
     Ok(())

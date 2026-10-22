@@ -574,6 +574,28 @@ fn string_spelling(node: &SyntaxNode) -> Result<Box<str>, FormationError> {
     let end = usize::from(end.text_range().end() - origin);
     node.text().to_string().get(start..end).map(Box::<str>::from).ok_or_else(invalid)
 }
+fn collect_associated_range<'a>(
+    expression: &'a crate::HirExpr,
+    target: &Range<usize>,
+    output: &mut Vec<&'a crate::HirExpr>,
+) -> Result<(), FormationError> {
+    let mut pending = Vec::new();
+    push(&mut pending, expression)?;
+    while let Some(expression) = pending.pop() {
+        if expression.range() == target {
+            push(output, expression)?;
+        }
+        match expression {
+            crate::HirExpr::Apply { operands, .. } => {
+                for operand in operands.iter() { push(&mut pending, operand)?; }
+            }
+            crate::HirExpr::Value { children, .. } | crate::HirExpr::Error { children, .. } => {
+                for child in children { push(&mut pending, child)?; }
+            }
+        }
+    }
+    Ok(())
+}
 fn only_child(node: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
     let mut children = node.children();
     let child = children.next().ok_or_else(unsupported)?;
@@ -1184,6 +1206,17 @@ impl Builder<'_> {
         named_group: Option<LocalSourceNamedGroupId>,
         form: LocalSourceForm,
     ) -> Result<(), FormationError> {
+        self.set_at_range(index, node, range_of(node), scope, named_group, form)
+    }
+    fn set_at_range(
+        &mut self,
+        index: LocalSourceIndex,
+        node: &SyntaxNode,
+        range: Range<usize>,
+        scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
+        form: LocalSourceForm,
+    ) -> Result<(), FormationError> {
         let source = self.key(node)?;
         let occurrence = if index.ordinal == 0 {
             match self.owner {
@@ -1200,11 +1233,137 @@ impl Builder<'_> {
             occurrence,
             source,
             named_group,
-            range: range_of(node),
+            range,
             scope,
             form,
         });
         Ok(())
+    }
+    fn associated_operator_chain(
+        &mut self,
+        chain_node: SyntaxNode,
+        associated: Arc<crate::HirExpr>,
+        index: LocalSourceIndex,
+        scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
+        expected_operator_uses: usize,
+    ) -> Result<(), FormationError> {
+        let chain_range = range_of(&chain_node);
+        let mut associated_nodes = Vec::new();
+        collect_associated_range(&associated, &chain_range, &mut associated_nodes)?;
+        let [associated_root] = associated_nodes.as_slice() else { return Err(unsupported()); };
+        let mut pending = Vec::new();
+        push(&mut pending, (*associated_root, index, true))?;
+        let mut seen = std::collections::HashSet::<Range<usize>>::new();
+        while let Some((expression, index, root)) = pending.pop() {
+            match expression {
+                crate::HirExpr::Apply { operator, operands, range } => {
+                    let [left, right] = operands.as_ref() else { return Err(unsupported()); };
+                    if operator.fixity() != crate::OperatorFixity::Infix {
+                        return Err(unsupported());
+                    }
+                    let source_range = operator.range().clone();
+                    let mut operator_nodes = chain_node.descendants().filter(|node|
+                        node.kind() == SyntaxKind::InfixOperatorUse
+                            && range_of(node) == source_range
+                    );
+                    let operator_node = operator_nodes.next().ok_or_else(unsupported)?;
+                    if operator_nodes.next().is_some()
+                        || self.counters.source_operator_uses.get(&source_range) != Some(operator)
+                        || !seen.insert(source_range.clone())
+                    {
+                        return Err(unsupported());
+                    }
+                    let operator_source = self.key(&operator_node)?;
+                    let left_index = self.slot()?;
+                    let right_index = self.slot()?;
+                    let source_node = if root { &chain_node } else { &operator_node };
+                    let retained_range = if root { range_of(&chain_node) } else { range.clone() };
+                    self.set_at_range(
+                        index, source_node, retained_range, scope.clone(), named_group.clone(),
+                        LocalSourceForm::InfixOperator {
+                            operator_source,
+                            operator: operator.clone(),
+                            left: left_index.clone(),
+                            right: right_index.clone(),
+                        },
+                    )?;
+                    for (operand, child_index) in [(right, right_index), (left, left_index)] {
+                        match operand {
+                            crate::HirExpr::Apply { .. } => push(&mut pending, (operand, child_index, false))?,
+                            crate::HirExpr::Value { .. } => self.associated_value(
+                                operand, &chain_node, child_index, scope.clone(), named_group.clone(),
+                            )?,
+                            crate::HirExpr::Error { .. } => return Err(unsupported()),
+                        }
+                    }
+                }
+                crate::HirExpr::Value { .. } | crate::HirExpr::Error { .. } => {
+                    return Err(unsupported());
+                }
+            }
+        }
+        if expected_operator_uses == 0 || seen.len() != expected_operator_uses {
+            return Err(unsupported());
+        }
+        Ok(())
+    }
+    fn associated_value(
+        &mut self,
+        value: &crate::HirExpr,
+        container: &SyntaxNode,
+        index: LocalSourceIndex,
+        scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>,
+    ) -> Result<(), FormationError> {
+        let mut value = value;
+        let mut index = index;
+        loop {
+            let crate::HirExpr::Value { kind, range, children } = value else {
+                return Err(unsupported());
+            };
+            if *kind != SyntaxKind::FieldTail {
+                let mut nodes = container.descendants().filter(|node|
+                    node.kind() == *kind && range_of(node) == *range
+                );
+                let node = nodes.next().ok_or_else(unsupported)?;
+                if nodes.next().is_some() || node == *container {
+                    return Err(unsupported());
+                }
+                return push(&mut self.work, Work::Expression(node, index, scope, named_group));
+            }
+            let [receiver] = children.as_slice() else { return Err(unsupported()); };
+            let mut tails = container.descendants().filter(|node| {
+                node.kind() == SyntaxKind::FieldTail
+                    && range_of(node).end == range.end
+                    && range_of(node).start >= range.start
+            });
+            let tail = tails.next().ok_or_else(unsupported)?;
+            if tails.next().is_some() || has_recovery(&tail) {
+                return Err(unsupported());
+            }
+            let tokens: Vec<_> = tail.children_with_tokens().filter(|element| !matches!(
+                element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline
+                    | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+            )).collect();
+            let [dot, member] = tokens.as_slice() else { return Err(unsupported()); };
+            let dot = dot.as_token().ok_or_else(unsupported)?;
+            let member = member.as_token().ok_or_else(unsupported)?;
+            if dot.kind() != SyntaxKind::Dot || member.kind() != SyntaxKind::Identifier {
+                return Err(unsupported());
+            }
+            let receiver_index = self.slot()?;
+            self.set_at_range(
+                index, &tail, range.clone(), scope.clone(), named_group.clone(),
+                LocalSourceForm::FieldTail {
+                    receiver: receiver_index.clone(),
+                    member: member.text().into(),
+                    member_range: crate::range_of_token(&member),
+                },
+            )?;
+            value = receiver;
+            index = receiver_index;
+        }
     }
     fn expression(
         &mut self,
@@ -1224,46 +1383,12 @@ impl Builder<'_> {
                     .filter(|(_, tail)| tail.kind() == SyntaxKind::InfixOperatorUse)
                     .collect::<Vec<_>>();
                 if !operator_uses.is_empty() {
-                    let [(operator_index, operator_node)] = operator_uses.as_slice() else {
-                        return Err(unsupported());
-                    };
-                    if *operator_index + 2 != all_tails.len() {
-                        return Err(unsupported());
-                    }
-                    let range = crate::range_of(operator_node);
-                    let operator = self.counters.source_operator_uses.get(&range)
-                        .cloned().ok_or_else(unsupported)?;
-                    if operator.fixity() != crate::OperatorFixity::Infix {
-                        return Err(unsupported());
-                    }
-                    let operator_source = self.key(operator_node)?;
-                    let left = self.slot()?;
-                    let right = self.slot()?;
-                    self.set(index, &node, scope.clone(), named_group.clone(),
-                        LocalSourceForm::InfixOperator { operator_source, operator, left: left.clone(), right: right.clone() })?;
-                    let mut current = left;
-                    for tail in all_tails[..*operator_index].iter().rev() {
-                        if tail.kind() != SyntaxKind::FieldTail || has_recovery(tail) {
-                            return Err(unsupported());
-                        }
-                        let tokens: Vec<_> = tail.children_with_tokens().filter(|element| !matches!(
-                            element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment,
-                        )).collect();
-                        let [dot, member] = tokens.as_slice() else { return Err(unsupported()); };
-                        let dot = dot.as_token().ok_or_else(unsupported)?;
-                        let member = member.as_token().ok_or_else(unsupported)?;
-                        if dot.kind() != SyntaxKind::Dot || member.kind() != SyntaxKind::Identifier {
-                            return Err(unsupported());
-                        }
-                        let receiver = self.slot()?;
-                        self.set(current, tail, scope.clone(), named_group.clone(), LocalSourceForm::FieldTail {
-                            receiver: receiver.clone(), member: member.text().into(), member_range: crate::range_of_token(&member),
-                        })?;
-                        current = receiver;
-                    }
-                    push(&mut self.work, Work::Expression(head.clone(), current, scope.clone(), named_group.clone()))?;
-                    let right_node = all_tails.last().ok_or_else(unsupported)?;
-                    push(&mut self.work, Work::Expression(right_node.clone(), right, scope, named_group.clone()))?;
+                    let source_range = range_of(operator_uses[0].1);
+                    let associated = self.counters.source_associated_chains
+                        .get(&source_range).cloned().ok_or_else(unsupported)?;
+                    self.associated_operator_chain(
+                        node, associated, index, scope, named_group, operator_uses.len(),
+                    )?;
                     return Ok(());
                 }
                 let operation_tail = all_tails

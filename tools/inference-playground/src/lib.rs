@@ -1048,9 +1048,69 @@ mod tests {
         let tuple_show = tuple_display.body.as_ref().unwrap().entries[2].member.as_ref().unwrap();
         let show_root = carrier_hir.source_implementation_member_root(tuple_show).unwrap().unwrap();
         let show_carrier = carrier_hir.source_carrier_for(&show_root).unwrap().unwrap();
-        assert!(matches!(show_carrier, yu_hir::SourceCarrierOutcome::Unsupported(failure)
-            if failure.reason == yu_hir::SourceCarrierFailureReason::UnsupportedForm),
-            "the exact ordered-pair Display.show source member currently reaches its known tuple-pattern boundary");
+        let yu_hir::SourceCarrierOutcome::Supported(show_source) = show_carrier else {
+            panic!("the exact ordered-pair Display.show source member retains its parser-associated infix tree: {show_carrier:?}");
+        };
+        let yu_hir::LocalSourceForm::Case { arms, .. } = &show_source.expression(show_source.body()).unwrap().form else {
+            panic!("the pinned show body retains its tuple case");
+        };
+        let show_body_index = &arms[0].body;
+        let show_body = show_source.expression(show_body_index).unwrap();
+        let associated = yu_hir::associate_operator_chains(&inventory.parsed);
+        fn find_associated_range<'a>(
+            expression: &'a yu_hir::HirExpr,
+            target: &std::ops::Range<usize>,
+            found: &mut Vec<&'a yu_hir::HirExpr>,
+        ) {
+            if expression.range() == target { found.push(expression); }
+            match expression {
+                yu_hir::HirExpr::Apply { operands, .. } => {
+                    for operand in operands.iter() { find_associated_range(operand, target, found); }
+                }
+                yu_hir::HirExpr::Value { children, .. } | yu_hir::HirExpr::Error { children, .. } => {
+                    for child in children { find_associated_range(child, target, found); }
+                }
+            }
+        }
+        let mut associated_roots = Vec::new();
+        for chain in associated.chains() {
+            find_associated_range(chain.expression(), &show_body.range, &mut associated_roots);
+        }
+        let [associated_root] = associated_roots.as_slice() else {
+            panic!("one parser-associated node owns the pinned show body range: {:?}", associated_roots.len());
+        };
+        fn compare_association(
+            parsed: &yu_syntax::ParsedFile,
+            source: &yu_hir::LocalSource,
+            index: &yu_hir::LocalSourceIndex,
+            associated: &yu_hir::HirExpr,
+        ) -> usize {
+            let local = source.expression(index).expect("associated local expression");
+            assert_eq!(local.range, *associated.range());
+            assert!(parsed.owns_source_key(&local.source));
+            match (associated, &local.form) {
+                (
+                    yu_hir::HirExpr::Apply { operator, operands, .. },
+                    yu_hir::LocalSourceForm::InfixOperator {
+                        operator_source, operator: local_operator, left, right,
+                    },
+                ) => {
+                    assert_eq!(operator, local_operator);
+                    assert!(parsed.owns_source_key(operator_source));
+                    let [left_associated, right_associated] = operands.as_ref() else {
+                        panic!("pinned infix application is binary")
+                    };
+                    1 + compare_association(parsed, source, left, left_associated)
+                        + compare_association(parsed, source, right, right_associated)
+                }
+                (yu_hir::HirExpr::Value { .. }, _) => 0,
+                (yu_hir::HirExpr::Error { .. }, _) => panic!("pinned operator association has no recovery node"),
+                _ => panic!("local source operator tree disagrees with parser association: {associated:?} / {:?}", local.form),
+            }
+        }
+        assert_eq!(compare_association(
+            &inventory.parsed, show_source, show_body_index, associated_root,
+        ), 4, "all four parser-associated operators and ordered operands remain source-owned");
         assert!(matches!(say_root, SourceRootId::Member(ref root)
             if root.kind() == yu_hir::SourceMemberKind::Role));
         assert!(matches!(show_root, SourceRootId::Member(ref root)
