@@ -750,6 +750,7 @@ struct LambdaRecipe {
     root_component: usize,
     body_value_endpoint: LambdaValueEndpoint,
     body_effect_component: usize,
+    default_effect_components: Vec<usize>,
     lambda_effect_component: usize,
     after_collected_fact: usize,
 }
@@ -2022,6 +2023,7 @@ impl ConstraintBatch {
             root_component,
             body_value_endpoint,
             body_effect_component,
+            default_effect_components: Vec::new(),
             lambda_effect_component,
             after_collected_fact: self.occurrences.len(),
         });
@@ -2337,6 +2339,7 @@ impl ConstraintBatch {
                     self.lambda_recipes.capacity(),
                     "F5d Lambda recipes",
                 ),
+                checked_usize_sum(self.lambda_recipes.iter().map(|recipe| checked_capacity_bytes::<usize>(recipe.default_effect_components.capacity(), "Lambda default effects")), "Lambda default effect recipes"),
                 checked_capacity_bytes::<(Term, usize)>(
                     self.component_term_positions.capacity(),
                     "F5b collected component-term recipe index",
@@ -11651,6 +11654,16 @@ impl InferenceSession {
                 if slot == 3 && VALUE_ENTRY_FAIL_AFTER_FIRST_EDGE.with(|flag| flag.replace(false)) {
                     return Err(SolveAvailabilityError::IdentityExhausted);
                 }
+            }
+            for (index, component) in recipe.default_effect_components.iter().enumerate() {
+                let slot = u32::try_from(index).map_err(|_| SolveAvailabilityError::IdentityExhausted)?
+                    .checked_add(1 << 30).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                let lower = self.live_effect_term(Polarity::Positive, self.live_components[*component].ordinal)?;
+                let id = ConstraintOccurrenceId::new_wide(recipe.occurrence.clone(), slot);
+                let cause = CauseId::for_occurrence(id.clone());
+                self.store.admit_and_record_provenance(&ConstraintOccurrence { id: id.clone(), cause: cause.clone(), lower, upper: return_negative })
+                    .map_err(SolveAvailabilityError::from)?;
+                self.constrain_live_effect(self.effect_endpoint(lower, Polarity::Positive), self.effect_endpoint(return_negative, Polarity::Negative), &id, &cause)?;
             }
             (self.live_effect_term(Polarity::Negative, entry)?,
              self.live_effect_term(Polarity::Positive, returned)?)

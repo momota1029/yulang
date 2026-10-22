@@ -549,6 +549,8 @@ fn catch_pattern_bytes(pattern: &LocalSourceCatchValuePattern) -> usize {
 
 pub(super) enum SimpleBodyProjection {
     #[cfg(any(feature = "shadow", test))]
+    RecordPattern,
+    #[cfg(any(feature = "shadow", test))]
     Atom(crate::OwnedAtom),
     Unsupported,
 }
@@ -1269,7 +1271,12 @@ pub(super) fn form(
     // Successful formation establishes that this actual root chain has the
     // same simple result without constructing a discarded associated tree.
     #[cfg(any(feature = "shadow", test))]
-    let projection = if source.expressions().iter().any(|expr| {
+    let projection = if source.expressions().iter().any(|expr|
+        matches!(&expr.form, LocalSourceForm::Lambda { parameter, .. } if parameter.record_pattern.is_some())) {
+        // Ordinary HIR does not own these field binders. Its facade must not
+        // re-resolve their uses outside the complete LocalSource lexical scope.
+        SimpleBodyProjection::RecordPattern
+    } else if source.expressions().iter().any(|expr| {
         matches!(expr.form, LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) | LocalSourceForm::If { .. })
     }) {
         SimpleBodyProjection::Unsupported
@@ -1540,6 +1547,47 @@ impl Builder<'_> {
             let crate::HirExpr::Value { kind, range, children } = value else {
                 return Err(unsupported());
             };
+            if matches!(kind, SyntaxKind::MlArgument | SyntaxKind::CallTail) {
+                let (callee, arguments) = children.split_first().ok_or_else(unsupported)?;
+                let mut tails = container.descendants().filter(|node| {
+                    node.kind() == *kind
+                        && range_of(node).end == range.end
+                        && range_of(node).start >= callee.range().end
+                });
+                let tail = tails.next().ok_or_else(unsupported)?;
+                if tails.next().is_some() || has_recovery(&tail)
+                    || tail.children_with_tokens().any(|element| matches!(
+                        element.kind(), SyntaxKind::Comma | SyntaxKind::ExpressionDelimitedSeparator,
+                    ))
+                {
+                    return Err(unsupported());
+                }
+                let argument_node = match arguments {
+                    [] if *kind == SyntaxKind::CallTail && tail.children().next().is_none() => None,
+                    [argument] => {
+                        let node = only_child(&tail)?;
+                        if range_of(&node) != *argument.range() { return Err(unsupported()); }
+                        Some(node)
+                    }
+                    _ => return Err(unsupported()),
+                };
+                let callee_index = self.slot()?;
+                let argument_index = self.slot()?;
+                self.set_at_range(
+                    index, &tail, range.clone(), scope.clone(), named_group.clone(),
+                    LocalSourceForm::Apply {
+                        callee: callee_index.clone(), argument: argument_index.clone(), source_form: *kind,
+                    },
+                )?;
+                if let Some(node) = argument_node {
+                    push(&mut self.work, Work::Expression(node, argument_index, scope.clone(), named_group.clone()))?;
+                } else {
+                    self.set(argument_index, &tail, scope.clone(), named_group.clone(), LocalSourceForm::Unit)?;
+                }
+                value = callee;
+                index = callee_index;
+                continue;
+            }
             if *kind != SyntaxKind::FieldTail {
                 let mut nodes = container.descendants().filter(|node|
                     node.kind() == *kind && range_of(node) == *range

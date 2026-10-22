@@ -580,6 +580,11 @@ pub(crate) fn tail_normalized(
     if is_active_stop(i.rb(), &item, stops) || is_line_stop(&item, stops) {
         return complete(handoff(item), line_entry);
     }
+    // The nested ML argument ends at the first nonempty tail-leading run.
+    // Hand the same Item (including its trivia) back to the enclosing chain.
+    if matches!(ml_mode, MlMode::None) && !item.leading_view().is_grammar_empty() {
+        return complete(handoff(item), line_entry);
+    }
     let assignment = token_kind(&item) == Some(TokenKind::Equals);
     let annotation = is_contextual_word(i.rb(), &item, "as");
     if assignment || annotation {

@@ -68,6 +68,34 @@ fn assert_integer(source: &str, expected: &str) {
 }
 
 #[test]
+fn record_parameter_defaults_follow_original_scope_and_actual_presence() {
+    assert_integer("my choose {width = 1, height = width} = height\nmy main = choose {}", "1");
+    assert_integer("my choose {width = 1, height = width} = height\nmy main = choose {width: 3}", "3");
+    assert_integer("my choose {width = 1, height = width} = height\nmy main = choose {width: 3, height: 4}", "4");
+    assert_integer("my choose {width} = width\nmy main = choose {width: 3, width: 4}", "3");
+    assert_integer("my choose {} = 42\nmy main = choose {extra: 1}", "42");
+    assert_integer("my main = { my width = 7; my choose {width = width} = width; choose {} }", "7");
+}
+
+#[test]
+fn record_parameter_default_suspension_retains_prior_fields_and_skips_supplied_defaults() {
+    let source = format!("{IO}my choose {{first = io::tick 1, second = first}} = second\nmy main = choose {{first: 42}}");
+    assert_integer(&source, "42");
+    let source = format!("{IO}my choose {{first = io::tick 1, second = first}} = second\nmy handle (thunk:[io] int) = catch thunk {{ io::tick(p), k -> k 17 }}\nmy main = handle {{choose {{}}}}");
+    let (mut machine, _) = machine(&source);
+    let mut result = None;
+    for _ in 0..30_000 {
+        match machine.run(1) {
+            RuntimeOutcome::ResourceExhausted { .. } | RuntimeOutcome::Running => {},
+            RuntimeOutcome::Completed(value) => { result = Some(value); break; },
+            other => panic!("default resumption: {other:?}"),
+        }
+    }
+    assert!(matches!(&machine.value(result.expect("default completion")).unwrap().kind,
+        RuntimeValueKind::Integer(value) if value.as_ref() == "17"));
+}
+
+#[test]
 fn record_prefix_survives_requests_and_single_step_resumption() {
     let source = format!(
         "{IO}my ticked (thunk:[io] int) = catch thunk {{ io::tick(p), k -> k 10 }}\nmy other (thunk:[io] int) = catch thunk {{ io::other(p), k -> k 20 }}\nmy main = {{ first: 42, second: ticked {{ io::tick 1 }}, third: other {{ io::other 2 }} }}"

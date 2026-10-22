@@ -3702,6 +3702,12 @@ fn lower_body(
             None,
         ));
     }
+    #[cfg(any(feature = "shadow", test))]
+    if matches!(simple_body_projection, Some(local_source::SimpleBodyProjection::RecordPattern)) {
+        causal_errors.push(sink.lowering(HirErrorKind::UnsupportedExpression,
+            HirErrorAttachment::Value(id.clone()), range_of(&body))?);
+        return Ok((ResolvedExpr::Error { occurrence, errors: causal_errors.into_boxed_slice(), range: range_of(&body) }, None));
+    }
     let [chain] = children.as_slice() else {
         causal_errors.push(sink.lowering(
             HirErrorKind::UnsupportedExpression,
@@ -3770,7 +3776,7 @@ fn lower_body(
         Some(local_source::SimpleBodyProjection::Atom(atom)) => {
             lower_leaf(atom, namespace, counters, occurrence.clone(), scope)?
         }
-        Some(local_source::SimpleBodyProjection::Unsupported) => {
+        Some(local_source::SimpleBodyProjection::Unsupported | local_source::SimpleBodyProjection::RecordPattern) => {
             SimpleChainLowering::Unsupported {
                 range: range_of(chain),
             }

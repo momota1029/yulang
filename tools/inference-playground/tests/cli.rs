@@ -398,6 +398,22 @@ fn polymorphic_member_results_flow_through_later_uses() {
 }
 
 #[test]
+fn fixed_calls_in_operator_operands_keep_their_original_source_grouping() {
+    for (source, expected) in [
+        ("my square x = x * x\nmy main = square 3 + 1\n", "10\n"),
+        ("my square x = x * x\nmy main = square(3) + 1\n", "10\n"),
+        ("my square x = x * x\nmy main = square (1 + 2) + 1\n", "10\n"),
+        ("my first x y = x\nmy main = first 3 4 + 1\n", "4\n"),
+        ("my seven() = 7\nmy main = seven() + 1\n", "8\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(output.status.success(), "{source}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "{source}");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
 fn annotation_holes_infer_independently_and_preserve_checked_results() {
     for (source, expected) in [
         ("my pick (x:_) (y:_) = x\nmy main = (pick 3 true, pick \"a\" 9)\n", "(3, \"a\")\n"),
@@ -1193,4 +1209,15 @@ fn directional_introductions_show_exact_uses_and_provider_exclusion() {
     );
     let repeated = infer_with_intrusion("my apply f = f (f 1)", "repeated.yu", true).unwrap();
     assert_eq!(repeated.matches("  introduction ").count(), 2);
+}
+
+#[test]
+fn unchanged_yulang2_named_defaults_sample_runs_through_the_cli() {
+    let source = include_str!("../../../web/playground/examples/yulang2-named-defaults.yu");
+    let output = cli_with_args(source, &["--run-module"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"1\n9\n12\n");
+    assert!(output.stderr.is_empty());
+    let report = execute_module_report(source, "named-defaults.yu", 100_000, false).unwrap();
+    assert_eq!(report.events, ["1\n", "9\n", "12\n"]);
 }

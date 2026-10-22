@@ -2491,3 +2491,105 @@ its own derivation exists. These premises are bounded construction evidence,
 not a general handler/receiving theorem or production promotion.
 
 Local Record comparison checkpoint: resource-feature solver Record tests **11/11** pass, including concrete nontransitivity, required absence diagnostics, first duplicate matching, late child bounds, paired source indexes, rollback and one-step continuation. Direct witness replay now publishes the dedicated missing-field diagnostic. No original assertion changed. Source/default and runtime work below remains in progress; no all-source/receiving/A-B closure or independent review.
+
+Source integration exposed the ordinary HIR facade re-resolving a Record field
+Name without its LocalSource binder environment. LocalSource now marks that
+root projection as RecordPattern; the facade retains its own explicit
+UnsupportedExpression while candidate preflight consumes the complete original
+carrier. It does not ignore unresolved source names or invent ordinary binders.
+The initial direct `catch (choose {})` default probe reaches the existing
+HandlerEvidence gate (no RootComp receiving certificate). This remains an OPEN
+handler source case. The default-continuation regression is constructed with an
+original annotated `[io] int` formal, whose actual receiving certificate is
+already supported; it preserves the expected resumed value 17. No original Y2
+sample, committed fixture or expected assertion is rewritten by this test setup.
+
+The original Named Defaults readback refines the obstruction: Mul already selects
+Int with complete positive evidence for every use. The unresolved `say` was
+attached to the Record argument itself. The actual LocalSource for `box {} .say`
+is Apply(box, FieldTail(Record{}, say)); `(box {}).say` and an intervening ordinary
+binding both execute correctly. This is a parser ownership bug. The Authoritative
+2026-08-20 architecture, August 22 fixed-tail addendum, ML whitespace table states
+that any nonempty tail-leading trivia ends the nested ML argument. Pinned Y2
+parser expr/tail.rs:21-29 enforces the same guard before scanning another tail.
+The current tail_normalized lacked that guard. Return the already-scanned Item
+unchanged through normalized handoff before claiming its whitespace/field/path/
+operator, so the outer loop consumes it once. Adjacent `x.field` stays in the
+argument. No role-frontier rule needs weakening and no source rewrite is needed.
+
+#### Connected source/default and fixed-tail construction
+
+`candidate_source` now registers the original record field binders as Value rows,
+without adding Call registrations. `candidate_record_parameter` realizes ai/bi
+and default inequalities above, journals the exact negative formal domain, and
+uses disjoint wide source slots for each field. `admit_lambda_fact` joins every
+default effect into the same fresh returned-effect row used by the body. Thus
+static constraints retain both possible field origins even when the actual
+argument supplies the field; runtime presence selects evaluation, not inference.
+The new action vector, labels and Lambda effect vector are counted in retained
+source storage; rollback restores the new terms, relations and domain entry.
+
+The runtime induction is over the ordered pattern cursor. Initially no field
+binder is installed. A present field takes the first matching actual child and
+installs exactly the original binder; an absent default evaluates under the
+current prefix environment. Its RecordDefault frame retains that environment,
+argument and cursor until Return installs the binder and advances once. The
+body is entered only after every required/defaulted field is installed. Existing
+continuation capture transports that frame unchanged, so suspension neither
+restarts preceding defaults nor exposes later binders. Empty patterns still
+check actual Record shape. Child receiving/dispatch is retained under the
+explicit no-positive-parent-image premise above; general structural receiving
+and the direct unannotated catch counterexample remain OPEN.
+
+Correct ML whitespace ownership exposes another source bridge omission:
+`id 7 + 1` previously grouped as `id (7 + 1)`; now its left operand is the
+associated fixed call. Its HIR range spans callee plus tail, while the actual CST
+MlArgument/CallTail starts after the callee. Exact whole-range CST lookup cannot
+find that node. `associated_value` now locates the unique actual same-kind tail
+ending at the associated range, starting after the actual callee; validates the
+argument range/arity; retains that source key and combined range; schedules the
+actual argument node; and iterates through the callee. Empty CallTail creates
+Unit at its own authentic source key. Multiple/recovered candidates still fail
+formation. The existing dynamic operator owner keeps its exact receipt and
+operand indexes. No regrouping, fake syntax node or operator constraint is added.
+
+The supplied design/proof Markdown was reread at unified §3.3 and companion
+§2.1: concrete optional adaptation is local, and optional records are outside
+the companion's completed typed small core. This construction supplies concrete
+source/default/native owners for the original parent; it does not silently
+extend that small-core theorem, establish principality, close A/B or count as
+independent review.
+
+Verification so far: full native playground **272/272** passes; focused resource-
+feature record-formal tests **2/2** pass (exact return-effect provenance and
+source-domain rollback). HIR unit tests **181/181** pass. The broader default HIR
+integration run reaches two unchanged simple_module_resolution failures that
+expect ordinary applications to remain Error values. A detached checkout of
+parent `872341754` reproduces exactly those two failures with 20/22 passing;
+no assertion was edited (`target/r332-hir-parent872.log`). The temporary baseline
+worktree was removed after obtaining that receipt. This is not a green full HIR
+integration claim.
+
+Full syntax tests: **1440 pass, 1 failure, 1 ignored**. The failure expects
+PatternFieldTail ordinal 287, but the unchanged enum has LambdaExpression 287,
+PatternFieldTail 288 and WhereClause 289. syntax_kind.rs is byte-identical to
+parent 872341754 (SHA-256 0d327bd487208ee817a18bfc81d363361105597fb29d9a8c3f681ffb05cd7145).
+A standalone rustc --test reproduction extracts that parent's exact enum and
+original five numeric assertions and fails with the same 288-vs-287 difference
+(`target/r332-parent-kind-repro.log`); it is not a full parent Cargo syntax run.
+The focused new ML-trivia test passes. No persisted ordinal or original expected
+value was changed. These inherited failures remain explicit.
+
+Checkpoint: fresh `npm --prefix web/playground run check` passes (54 execution
+examples plus module/diagnostic checks, now including unchanged Named Defaults);
+TypeScript passes. CLI and combined report both publish `1\n9\n12\n` for the
+176-byte original Named Defaults fixture (SHA-256
+`da1c3fd5623491de3955322974e4b954be8ce38d5ee1e8a208d3a8f17355b2a3`).
+All 19 original catalog source hashes were checked again; expected behavior
+advances to **7/19**: Named Defaults, Types, Console, Effects and the three
+intended diagnostics. Other 12 cases retain their explicit unavailable/syntax
+outcomes in `target/r332-catalog-cooked/results-after-defaults.json`.
+No original sample/assertion changed; direct primary only, UNREVIEWED. Next
+inspect original case-pattern/struct source constructors for the remaining
+catalog. General receiving, initialization, source adequacy, A/B, principality
+and production gates remain OPEN.

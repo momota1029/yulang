@@ -1,0 +1,8 @@
+// Record patterns make named options lightweight.
+
+my box {width = 1, height = width} =
+    width * height
+
+box {} .say
+box { width: 3 } .say
+box { width: 3, height: 4 } .say

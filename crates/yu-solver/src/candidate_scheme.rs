@@ -4283,7 +4283,10 @@ impl InferenceSession {
         Ok(())
     }
     pub(super) fn admit_candidate_value_link(&mut self, source: &HirOccurrenceId, slot: u8, lower: Term, upper: Term) -> Result<(), SolveAvailabilityError> {
-        let id = ConstraintOccurrenceId::new(source.clone(), slot);
+        self.admit_candidate_value_link_wide(source, u32::from(slot), lower, upper)
+    }
+    pub(super) fn admit_candidate_value_link_wide(&mut self, source: &HirOccurrenceId, slot: u32, lower: Term, upper: Term) -> Result<(), SolveAvailabilityError> {
+        let id = ConstraintOccurrenceId::new_wide(source.clone(), slot);
         let cause = CauseId::for_occurrence(id.clone());
         self.store.admit_and_record_provenance(&ConstraintOccurrence { id: id.clone(), cause: cause.clone(), lower, upper })
             .map_err(SolveAvailabilityError::from)?;

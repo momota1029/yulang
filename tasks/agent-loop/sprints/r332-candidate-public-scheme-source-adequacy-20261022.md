@@ -431,3 +431,23 @@ original bound/source parents and context; no Tuple encoding or transitive
 composition of successful concrete comparisons.
 
 Local Record comparison checkpoint: resource-feature solver 11/11 pass, including original nontransitivity discriminator and resumable indexed dependencies. Source/default runtime remains next; no independent review or parent closure.
+
+The unchanged Named Defaults reaches a source grouping counterexample, not a
+new role inference premise: `box {} .say` was formed as `box ({}.say)` while
+`(box {}).say` succeeds. Exact parser owner lease: expression/operator_chain.rs
+and tests/expression_structural_tails.rs under crates/yu-syntax/src. Restore the
+Authoritative August 22 ML whitespace scope: a nonempty tail-leading run ends
+the nested ML argument and remains with the enclosing chain. Existing normalized
+Item handoff owns the unchanged token/trivia; no second scanner or recovery rule.
+Add exact web/playground/examples/yulang2-named-defaults.yu lease for original
+catalog bytes and existing CLI/WASM test paths. No new semantics or parent closure.
+
+Named Defaults checkpoint: ordered default constraints/effects and resumable
+record binding are connected. Correct ML trivia ownership and associated fixed
+call source identities preserve the original grouping. Native 272, HIR unit
+181, focused resource solver 2, fresh WASM 54 plus module/diagnostic checks and
+TS pass. Full HIR integration has two parent-reproduced failures; full syntax
+has one unchanged ordinal failure, detailed in the proof note. Original catalog
+7/19 with all source hashes checked. Next inspect remaining case-pattern/struct
+source owners within the existing envelope. Direct primary only, UNREVIEWED;
+original parent proof/source/production gates remain OPEN.

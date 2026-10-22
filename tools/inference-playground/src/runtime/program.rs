@@ -190,6 +190,12 @@ pub enum RuntimeUnavailable {
     UnsupportedInfixOperator(SourceSite),
     ModuleInitializationOrder,
 }
+#[derive(Clone)]
+pub(super) struct RecordParameterField {
+    pub label: Box<str>,
+    pub binder: HirParameterId,
+    pub default: Option<Label>,
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ParameterRole {
     Value,
@@ -267,6 +273,7 @@ pub(super) enum Instruction {
     Lambda {
         parameter: HirParameterId,
         unit_pattern: bool,
+        record_pattern: Option<Arc<[RecordParameterField]>>,
         role: ParameterRole,
         root_schema: Option<Arc<super::receiving::RootCompSchema>>,
         body: Label,
@@ -635,8 +642,11 @@ impl RuntimeProgram {
                             | LocalSourceForm::Ascription { inner, .. } => {
                                 work.push(Walk::Expression(inner.clone()))
                             }
-                            LocalSourceForm::Lambda { body, .. } => {
-                                work.push(Walk::Expression(body.clone()))
+                            LocalSourceForm::Lambda { parameter, body } => {
+                                work.push(Walk::Expression(body.clone()));
+                                for field in parameter.record_pattern.iter().flatten().rev() {
+                                    if let Some(default) = &field.default { work.push(Walk::Expression(default.clone())); }
+                                }
                             }
                             LocalSourceForm::Apply {
                                 callee, argument, ..
@@ -721,6 +731,13 @@ impl RuntimeProgram {
                     ))
                 })
                 .collect::<HashMap<_, _>>());
+            for expression in source.expressions() {
+                if let LocalSourceForm::Lambda { parameter, .. } = &expression.form {
+                    for field in parameter.record_pattern.iter().flatten() {
+                        roles.insert(field.binder.clone(), NameConsumption::Observe);
+                    }
+                }
+            }
             let bindings = source
                 .bindings()
                 .iter()
@@ -740,9 +757,6 @@ impl RuntimeProgram {
                 .collect::<Result<Vec<_>, RuntimeUnavailable>>()?;
             let handler_arm_ranges = handler_arm_operation_ranges(source);
             for expression in source.expressions() {
-                if matches!(&expression.form, LocalSourceForm::Lambda { parameter, .. } if parameter.record_pattern.is_some()) {
-                    return Err(RuntimeUnavailable::UnsupportedRecordPattern(SourceSite { source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone() }));
-                }
                 let instruction = match &expression.form {
                     LocalSourceForm::Unit => Instruction::Unit,
                     LocalSourceForm::Primitive { operation } => Instruction::Primitive(operation.clone()),
@@ -792,6 +806,9 @@ impl RuntimeProgram {
                     LocalSourceForm::Lambda { parameter, body } => Instruction::Lambda {
                         parameter: parameter.id.clone(),
                         unit_pattern: parameter.unit_pattern,
+                        record_pattern: parameter.record_pattern.as_ref().map(|fields| fields.iter().map(|field|
+                            Ok(RecordParameterField { label: field.label.clone(), binder: field.binder.clone(), default: field.default.as_ref().map(&label).transpose()? })
+                        ).collect::<Result<Arc<[_]>, RuntimeUnavailable>>()).transpose()?,
                         role: if parameter
                             .annotation
                             .as_ref()
@@ -1005,6 +1022,7 @@ impl RuntimeProgram {
                 instruction: Instruction::Lambda {
                     parameter: receiver.id,
                     unit_pattern: receiver.unit_pattern,
+                    record_pattern: None,
                     role,
                     root_schema,
                     body,
@@ -1710,7 +1728,10 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
         let Some(expression) = code.get(label.0) else { continue; };
         match &expression.instruction {
             Instruction::Forward(inner) => stack.push(*inner),
-            Instruction::Lambda { body, .. } => stack.push(*body),
+            Instruction::Lambda { record_pattern, body, .. } => {
+                stack.push(*body);
+                stack.extend(record_pattern.iter().flat_map(|fields| fields.iter()).filter_map(|field| field.default));
+            },
             Instruction::Apply { callee, argument } => { stack.push(*argument); stack.push(*callee); }
             Instruction::Block { bindings, final_expression } => {
                 stack.push(*final_expression);
@@ -1836,7 +1857,10 @@ fn handler_arm_operation_ranges(
                 pending.extend(right.iter().cloned());
             }
             Form::Group { inner } | Form::Ascription { inner, .. } => pending.push(inner.clone()),
-            Form::Lambda { body, .. } => pending.push(body.clone()),
+            Form::Lambda { parameter, body } => {
+                pending.push(body.clone());
+                pending.extend(parameter.record_pattern.iter().flatten().filter_map(|field| field.default.clone()));
+            },
             Form::Block { bindings, final_expression } => {
                 pending.extend(bindings.iter().filter_map(|ordinal| {
                     source

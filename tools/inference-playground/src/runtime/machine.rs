@@ -1,4 +1,4 @@
-use super::program::BlockStatement;
+use super::program::{BlockStatement, RecordParameterField};
 use super::{
     dispatch,
     continuation::{ResumeTemplate, TemplateHandle, TemplateNode},
@@ -158,7 +158,7 @@ pub enum RuntimeOutcome {
 // receiver holds it. Later complete-view evidence belongs on ReceivedValue,
 // rather than mutating a shared closure or inferring protection from its tag.
 #[derive(Clone, Copy, Debug)]
-struct ReceivedValue {
+pub(super) struct ReceivedValue {
     value: ValueHandle,
     interface: ParameterRole,
     view: ViewHandle,
@@ -179,6 +179,7 @@ enum ExecutableValue {
     Closure {
         parameter: HirParameterId,
         unit_pattern: bool,
+        record_pattern: Option<Arc<[RecordParameterField]>>,
         role: ParameterRole,
         root_schema: Option<Arc<RootCompSchema>>,
         body: Label,
@@ -264,6 +265,14 @@ pub(super) enum Frame {
     ValueEntry {
         parameter: HirParameterId,
         unit_pattern: bool,
+        record_pattern: Option<Arc<[RecordParameterField]>>,
+        body: Label,
+        environment: usize,
+    },
+    RecordDefault {
+        fields: Arc<[RecordParameterField]>,
+        index: usize,
+        argument: ReceivedValue,
         body: Label,
         environment: usize,
     },
@@ -841,6 +850,7 @@ impl Machine {
             Instruction::Lambda {
                 parameter,
                 unit_pattern,
+                record_pattern,
                 role,
                 root_schema,
                 body,
@@ -851,6 +861,7 @@ impl Machine {
                     Some(ExecutableValue::Closure {
                         parameter: parameter.clone(),
                         unit_pattern: *unit_pattern,
+                        record_pattern: record_pattern.clone(),
                         role: *role,
                         root_schema: root_schema.clone(),
                         body: *body,
@@ -1181,6 +1192,7 @@ impl Machine {
                     Some(ExecutableValue::Closure {
                         parameter,
                         unit_pattern,
+                        record_pattern,
                         role,
                         root_schema,
                         body,
@@ -1242,6 +1254,7 @@ impl Machine {
                                 self.frames.push(Frame::ValueEntry {
                                     parameter,
                                     unit_pattern,
+                                    record_pattern,
                                     body,
                                     environment,
                                 });
@@ -1357,9 +1370,13 @@ impl Machine {
             Frame::ValueEntry {
                 parameter,
                 unit_pattern,
+                record_pattern,
                 body,
                 environment,
             } => {
+                if let Some(fields) = record_pattern {
+                    return self.bind_record_parameter(fields, 0, received, body, environment);
+                }
                 let environment = if unit_pattern {
                     if !self.value(received.value).is_some_and(|value| matches!(value.kind, RuntimeValueKind::Unit)) {
                         return Err(RuntimeUnavailable::InvalidSourceReference);
@@ -1379,6 +1396,13 @@ impl Machine {
                     code: body,
                     environment,
                 };
+            }
+            Frame::RecordDefault { fields, index, argument, body, environment } => {
+                let view = self.receiving.project_record(argument.view, received.view, received.value)
+                    .ok_or_else(|| RuntimeUnavailable::UnsupportedRecordPattern(self.values[argument.value.0].source.clone()))?;
+                let environment = self.bind(environment, Binder::Parameter(fields[index].binder.clone()),
+                    ReceivedValue { view, interface: ParameterRole::Value, ..received });
+                self.bind_record_parameter(fields, index + 1, argument, body, environment)?;
             }
             Frame::Local {
                 block,
@@ -2508,6 +2532,37 @@ impl Machine {
             interface: ParameterRole::Value,
             view,
         });
+    }
+    fn bind_record_parameter(&mut self, fields: Arc<[RecordParameterField]>, mut index: usize,
+        argument: ReceivedValue, body: Label, mut environment: usize) -> Result<(), RuntimeUnavailable> {
+        if !self.receiving.matches_value(argument.view, argument.value) {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        while index < fields.len() {
+            let RuntimeValueKind::Record(actual) = &self.values[argument.value.0].kind else {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            };
+            let field = &fields[index];
+            if let Some((_, actual)) = actual.iter().find(|(name, _)| name == &field.label) {
+                let mut received = actual.received;
+                received.view = self.receiving.project_record(argument.view, received.view, received.value)
+                    .ok_or_else(|| RuntimeUnavailable::UnsupportedRecordPattern(self.values[argument.value.0].source.clone()))?;
+                received.dispatch = self.dispatch.then(received.dispatch, argument.dispatch)?;
+                received.interface = ParameterRole::Value;
+                environment = self.bind(environment, Binder::Parameter(field.binder.clone()), received);
+                index += 1;
+            } else if let Some(default) = field.default {
+                self.frames.push(Frame::RecordDefault { fields, index, argument, body, environment });
+                self.state = State::Evaluate { code: default, environment };
+                return Ok(());
+            } else { return Err(RuntimeUnavailable::InvalidSourceReference); }
+        }
+        // Even an empty pattern requires an actual record.
+        if !matches!(self.values[argument.value.0].kind, RuntimeValueKind::Record(_)) {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        self.state = State::Evaluate { code: body, environment };
+        Ok(())
     }
     fn data(
         &mut self,

@@ -707,3 +707,30 @@ fn assignment_newline_eof_is_protected_before_and_after_error() {
         assert_eq!(pending.to_string(), &source[emitted.len()..]);
     }
 }
+
+#[test]
+fn ml_argument_whitespace_returns_fixed_tails_to_the_outer_chain() {
+    for (source, tail) in [
+        ("box {} .say", SyntaxKind::FieldTail),
+        ("f x /*gap*/ .field", SyntaxKind::FieldTail),
+        ("f x\n  .field", SyntaxKind::FieldTail),
+        ("f x ::name", SyntaxKind::PathTail),
+    ] {
+        let (green, _, _) = parse(source, None, MlMode::All, 0);
+        assert_eq!(green.to_string(), source);
+        assert!(structural_facts(&green).is_empty(), "{source}");
+        let root = SyntaxNode::new_root(green);
+        let chain = root.first_child().unwrap();
+        assert_eq!(chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+            [SyntaxKind::IdentifierExpression, SyntaxKind::MlArgument, tail], "{source}");
+        let argument = chain.children().find(|node| node.kind() == SyntaxKind::MlArgument).unwrap();
+        assert!(!argument.descendants().any(|node| node.kind() == tail), "{source}");
+    }
+    let (green, _, _) = parse("f x.field", None, MlMode::All, 0);
+    assert_eq!(green.to_string(), "f x.field");
+    let root = SyntaxNode::new_root(green);
+    let chain = root.first_child().unwrap();
+    assert_eq!(chain.children().map(|node| node.kind()).collect::<Vec<_>>(),
+        [SyntaxKind::IdentifierExpression, SyntaxKind::MlArgument]);
+    assert!(chain.last_child().unwrap().descendants().any(|node| node.kind() == SyntaxKind::FieldTail));
+}

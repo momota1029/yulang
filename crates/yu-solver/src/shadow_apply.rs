@@ -3374,6 +3374,7 @@ impl ConstraintBatch {
             root_component,
             body_value_endpoint: LambdaValueEndpoint::Component(body_value_component),
             body_effect_component,
+            default_effect_components: Vec::new(),
             lambda_effect_component,
             after_collected_fact: self.occurrences.len(),
         });
@@ -3531,6 +3532,7 @@ impl ConstraintBatch {
             root_component: value_component,
             body_value_endpoint: value,
             body_effect_component: effect,
+            default_effect_components: Vec::new(),
             lambda_effect_component,
             after_collected_fact: self.occurrences.len(),
         });

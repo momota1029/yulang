@@ -1560,6 +1560,45 @@ impl InferenceSession {
         Ok(())
     }
 
+    pub(super) fn candidate_record_parameter(&mut self, parameter: usize, fields: &[candidate_source::RecordParameterField], occurrence: &HirOccurrenceId) -> Result<(), SolveAvailabilityError> {
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+        if state.formal_domains.contains_key(&parameter) { return Err(exhausted()); }
+        state.formal_domains.try_reserve(1).map_err(|_| exhausted())?;
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) {
+            undo.effect_algebra.formal_domains.try_reserve(1).map_err(|_| exhausted())?;
+        }
+        let row = self.parameter_live_base.checked_add(u32::try_from(parameter).map_err(|_| exhausted())?).ok_or_else(exhausted)?;
+        let level = self.value_levels[row as usize];
+        let mut positive = Vec::new();
+        let mut negative = Vec::new();
+        positive.try_reserve_exact(fields.len()).map_err(|_| exhausted())?;
+        negative.try_reserve_exact(fields.len()).map_err(|_| exhausted())?;
+        for (index, field) in fields.iter().enumerate() {
+            let bound = self.parameter_live_base.checked_add(u32::try_from(field.parameter).map_err(|_| exhausted())?).ok_or_else(exhausted)?;
+            let incoming = if field.default.is_some() { self.fresh_value_at_level(level)? } else { bound };
+            let p = self.live_value_term(Polarity::Positive, incoming)?;
+            let n = self.live_value_term(Polarity::Negative, incoming)?;
+            if let Some(default) = field.default {
+                let upper = self.live_value_term(Polarity::Negative, bound)?;
+                let slot = u32::try_from(index).map_err(|_| exhausted())?.checked_mul(2).and_then(|n| n.checked_add(256)).filter(|slot| *slot < (1 << 30) - 1).ok_or_else(exhausted)?;
+                self.admit_candidate_value_link_wide(occurrence, slot, p, upper)?;
+                let lower = self.candidate_endpoint(default, Polarity::Positive)?;
+                self.admit_candidate_value_link_wide(occurrence, slot.checked_add(1).ok_or_else(exhausted)?, lower, upper)?;
+            }
+            positive.push(RecordField { name: field.label.clone(), optional: field.default.is_some(), value: p });
+            negative.push(RecordField { name: field.label.clone(), optional: field.default.is_some(), value: n });
+        }
+        let positive = self.with_term_events(|arena| arena.positive_record(&positive))?;
+        let negative = self.with_term_events(|arena| arena.negative_record(&negative))?;
+        let upper = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Negative)?;
+        self.admit_candidate_value_link(occurrence, 43, positive, upper)?;
+        let lower = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Positive)?;
+        self.admit_candidate_value_link(occurrence, 44, lower, negative)?;
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.formal_domains.insert(parameter, negative);
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) { undo.effect_algebra.formal_domains.push(parameter); }
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+    }
+
     pub(super) fn candidate_unit_parameter(&mut self, parameter: usize, occurrence: &HirOccurrenceId) -> Result<(), SolveAvailabilityError> {
         let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
         if state.formal_domains.contains_key(&parameter) { return Err(exhausted()); }
@@ -2705,6 +2744,52 @@ mod tests {
         assert!(graph.intrusion.effect_algebra.formal_permissions.is_empty());
         session.with_route_transaction(|session| session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)).unwrap();
         assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, scratch);
+    }
+
+    #[test]
+    fn record_formal_defaults_join_the_lambda_return_effect() {
+        let text = "act io:\n    our tick: int -> int\nmy choose {x = io::tick 1} = x\nmy answer = choose {x: 42}";
+        let mut session = make_session(text);
+        let owner = root(&session, "choose");
+        session.execute_candidate_source_root(&owner).unwrap();
+        let recipe = session.batch.lambda_recipes.iter().find(|recipe| !recipe.default_effect_components.is_empty()).unwrap().clone();
+        let body_occurrence = ConstraintOccurrenceId::new(recipe.occurrence.clone(), 4);
+        let occurrence = ConstraintOccurrenceId::new_wide(recipe.occurrence, 1 << 30);
+        let default_effect = session.live_components[recipe.default_effect_components[0]].ordinal;
+        let fact_at = |occurrence: &ConstraintOccurrenceId| {
+            let edge = session.store.provenance().iter().find(|edge| edge.cause().occurrence() == occurrence).unwrap();
+            session.store.facts().iter().find(|fact| fact.id() == edge.fact()).unwrap()
+        };
+        let fact = fact_at(&occurrence);
+        assert_eq!(session.effect_endpoint(fact.lower(), Polarity::Positive), EffectEndpointKey::EffectRow(default_effect));
+        assert_eq!(fact.upper(), fact_at(&body_occurrence).upper());
+        assert!(session.batch.candidate_calls.formals.iter().all(|formal| formal.role == candidate_call::FormalRole::Value));
+    }
+
+    #[test]
+    fn record_formal_source_constraints_retain_distinct_default_rows_and_rollback() {
+        let mut session = make_session("my f {required, fallback = required} = fallback");
+        let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
+            .find(|action| matches!(action, candidate_source::Action::RecordParameter { .. })).unwrap().clone();
+        let candidate_source::Action::RecordParameter { parameter, fields, occurrence } = action else { unreachable!() };
+        assert!(!session.batch.candidate_source.omitted_formals.contains_key(&occurrence));
+        let mut checkpoint = None;
+        assert_eq!(session.with_route_transaction(|session| {
+            checkpoint = Some(RouteCheckpoint::capture(session));
+            session.candidate_record_parameter(parameter, &fields, &occurrence)?;
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        checkpoint.unwrap().assert_restored(&session);
+        assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_domains.is_empty());
+        session.with_route_transaction(|session| session.candidate_record_parameter(parameter, &fields, &occurrence)).unwrap();
+        let negative = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_domains[&parameter];
+        let TermView::NegativeRecord { fields: terms } = session.store.term_view(negative).unwrap() else { panic!("record domain"); };
+        assert_eq!(terms.iter().map(|field| (field.name.as_ref(), field.optional)).collect::<Vec<_>>(), [("required", false), ("fallback", true)]);
+        let required = session.parameter_live_base + fields[0].parameter as u32;
+        let fallback = session.parameter_live_base + fields[1].parameter as u32;
+        assert_eq!(session.value_endpoint(terms[0].value, Polarity::Negative), ValueEndpointKey::ValueRow(required));
+        assert_ne!(session.value_endpoint(terms[1].value, Polarity::Negative), ValueEndpointKey::ValueRow(fallback));
+        assert_eq!(session.store.facts().len(), 4);
     }
 
     #[test]

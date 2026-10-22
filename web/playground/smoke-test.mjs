@@ -140,6 +140,7 @@ if (JSON.stringify(consoleReport.events) !== JSON.stringify(consoleEvents)) {
 }
 for (const [source, expected] of [
   [fs.readFileSync("./examples/yulang2-effects.yu", "utf8"), ["42\n"]],
+  [fs.readFileSync("./examples/yulang2-named-defaults.yu", "utf8"), ["1\n", "9\n", "12\n"]],
   ['println "standalone"\n', ["standalone\n"]],
   ['use std::int::mul', []],
   ['println "before"\nuse std::int::mul\nsay: mul 3 4\nprintln "after"', ["before\n", "12\n", "after\n"]],

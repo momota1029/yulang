@@ -200,6 +200,18 @@ impl Receiving {
         });
         receipt
     }
+    /// The current structural constructors have no positive parent image.
+    /// Keep the child's exact image and all unknown inherited coverage.
+    pub fn project_record(&mut self, parent: ViewHandle, child: ViewHandle, value: ValueHandle) -> Option<ViewHandle> {
+        let parent = self.views.get(parent.0)?;
+        let child_view = self.views.get(child.0)?;
+        if parent.image.is_some() || child_view.value != value { return None; }
+        if !parent.unknown || child_view.unknown { return Some(child); }
+        let view = View { value, image: child_view.image, unknown: true };
+        let handle = ViewHandle(self.views.len());
+        self.views.push(view);
+        Some(handle)
+    }
     pub fn matches_value(&self, view: ViewHandle, value: ValueHandle) -> bool {
         self.views[view.0].value == value
     }

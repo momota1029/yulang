@@ -368,11 +368,18 @@ pub(super) struct OmittedFormal {
     pub scope: candidate_effect::AnnotationScope,
 }
 #[derive(Clone, Debug)]
+pub(super) struct RecordParameterField {
+    pub label: Box<str>,
+    pub parameter: usize,
+    pub default: Option<CandidateEndpoint>,
+}
+#[derive(Clone, Debug)]
 pub(super) enum Action {
     Ascription { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, scope: candidate_effect::AnnotationScope },
     LocalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, slot: usize, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, boundary: u32 },
     FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
     UnitParameter { parameter: usize, occurrence: HirOccurrenceId },
+    RecordParameter { parameter: usize, fields: Vec<RecordParameterField>, occurrence: HirOccurrenceId },
     FormalEntry { registration: usize, annotation: Arc<yu_hir::shadow::SourceAnnotation>, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
     FormalNameEffect { registration: usize, occurrence: HirOccurrenceId, effect: usize },
     Fact(usize),
@@ -498,7 +505,10 @@ impl Plan {
             }), "member header source text"),
             checked_capacity_bytes::<(HirOccurrenceId, SourceRootId)>(self.source_owners.capacity(), "source occurrence owners"),
             checked_usize_sum(self.schedules.values().flat_map(|actions| actions.iter()).chain(self.loose.iter()).chain(self.expressions.iter().flat_map(|schedule| schedule.actions.iter())).chain(self.members.iter().flat_map(|schedule| schedule.actions.iter())).map(|action| {
-                if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::WhereClause { source, .. } = action { std::mem::size_of::<yu_hir::shadow::LocalSourceWhereClause>() + source.text.len() + source.subject.text.len() + source.role.text.len() } else if let Action::FieldBoundV1 { declaration, h_arg } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + h_arg.response_annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else if let Action::CatchOperation { declaration, h_arg, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + h_arg.as_ref().map_or(0, |link| std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + link.response_annotation.retained_arena_bytes()) } else { 0 }
+                if let Action::RecordParameter { fields, .. } = action {
+                    checked_capacity_bytes::<RecordParameterField>(fields.capacity(), "record parameter fields")
+                        + checked_usize_sum(fields.iter().map(|field| field.label.len()), "record parameter labels")
+                } else if let Action::Ascription { annotation, .. } | Action::LocalAnnotation { annotation, .. } | Action::Annotation { annotation, .. } | Action::FormalAnnotation { annotation, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + annotation.retained_arena_bytes() } else if let Action::WhereClause { source, .. } = action { std::mem::size_of::<yu_hir::shadow::LocalSourceWhereClause>() + source.text.len() + source.subject.text.len() + source.role.text.len() } else if let Action::FieldBoundV1 { declaration, h_arg } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + h_arg.response_annotation.retained_arena_bytes() } else if let Action::Operation { declaration, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() } else if let Action::CatchOperation { declaration, h_arg, .. } = action { std::mem::size_of::<yu_hir::shadow::SourceOperationDeclaration>() + declaration.retained_arena_bytes() + h_arg.as_ref().map_or(0, |link| std::mem::size_of::<yu_hir::shadow::SourceAnnotation>() + link.response_annotation.retained_arena_bytes()) } else { 0 }
             }), "source annotation storage"),
             checked_capacity_bytes::<(usize, u32)>(self.component_levels.capacity(), "source component levels"),
             checked_capacity_bytes::<(usize, u32)>(self.parameter_levels.capacity(), "source parameter levels"),
@@ -596,8 +606,7 @@ pub(super) fn preflight_with_imports_and_roles(
     for expr in source.expressions() {
         if matches!(
             &expr.form,
-            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) }
-                | LocalSourceForm::Lambda { parameter: yu_hir::shadow::LocalSourceParameter { record_pattern: Some(_), .. }, .. },
+            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) },
         ) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
@@ -1095,6 +1104,12 @@ impl ConstraintBatch {
                 })?;
                 formal_registrations.try_reserve(1).map_err(|_| unavailable())?;
                 formal_registrations.insert(parameter.id.clone(), registration);
+                for field in parameter.record_pattern.iter().flatten() {
+                    let position = self.parameter_recipes.len();
+                    push(&mut self.parameter_recipes, field.binder.clone())?;
+                    parameters.try_reserve(1).map_err(|_| unavailable())?;
+                    if parameters.insert(field.binder.clone(), position).is_some() { return Err(invalid()); }
+                }
             }
         }
         for binding in source.bindings() {
@@ -1249,13 +1264,29 @@ impl ConstraintBatch {
                             self.candidate_source.parameter_levels.insert(position, level);
                             lambdas.try_reserve(1).map_err(|_| unavailable())?;
                             lambdas.insert(index, position);
-                            if parameter.annotation.is_none() && !parameter.unit_pattern {
+                            if parameter.annotation.is_none() && !parameter.unit_pattern && parameter.record_pattern.is_none() {
                                 self.candidate_source.omitted_formals.try_reserve(1).map_err(|_| unavailable())?;
                                 self.candidate_source.omitted_formals.insert(expr.occurrence.clone(), Arc::new(OmittedFormal {
                                     owner: owner.clone(), lambda: expr.occurrence.clone(),
                                     formal: parameter.id.clone(), position: parameter.source.clone(),
                                     scope: self.candidate_calls.formals[*formal_registrations.get(&parameter.id).ok_or_else(invalid)?].scope.clone(),
                                 }));
+                            }
+                            if let Some(fields) = &parameter.record_pattern {
+                                let mut recipe_fields = Vec::new();
+                                recipe_fields.try_reserve_exact(fields.len()).map_err(|_| unavailable())?;
+                                self.candidate_source.parameter_levels.try_reserve(fields.len()).map_err(|_| unavailable())?;
+                                let mut count = 2usize;
+                                for field in fields {
+                                    let field_position = *parameters.get(&field.binder).ok_or_else(invalid)?;
+                                    self.candidate_source.parameter_levels.insert(field_position, level);
+                                    if field.default.is_some() { count = count.checked_add(2).ok_or_else(unavailable)?; }
+                                    recipe_fields.push(RecordParameterField { label: field.label.clone(), parameter: field_position,
+                                        default: field.default.as_ref().map(|default| endpoints[default.ordinal() as usize]) });
+                                }
+                                push(&mut actions, Action::RecordParameter { parameter: position, fields: recipe_fields, occurrence: expr.occurrence.clone() })?;
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                             }
                             if parameter.unit_pattern {
                                 if parameter.annotation.is_some() { return Err(unavailable()); }
@@ -1292,6 +1323,11 @@ impl ConstraintBatch {
                                     source.expressions()[body.ordinal() as usize].occurrence.clone(), body_region));
                             }
                             push(&mut work, Work::Visit(body.ordinal() as usize, level, body_region))?;
+                            for field in parameter.record_pattern.iter().flatten().rev() {
+                                if let Some(default) = &field.default {
+                                    push(&mut work, Work::Visit(default.ordinal() as usize, level, body_region))?;
+                                }
+                            }
                         }
                         LocalSourceForm::StatementBlock { statements, final_expression } => {
                             push(&mut work, Work::Visit(final_expression.ordinal() as usize, level, region))?;
@@ -1944,9 +1980,12 @@ impl ConstraintBatch {
                                 occurrence: occurrence.clone(), parameter_position: lambdas[&index],
                                 formal_registration: Some(*formal_registrations.get(&parameter.id).ok_or_else(invalid)?),
                                 root_component: pos.value, body_value_endpoint: endpoints[body_index], body_effect_component: body.effect, lambda_effect_component: pos.effect,
+                                default_effect_components: parameter.record_pattern.iter().flatten().filter_map(|field|
+                                    field.default.as_ref().map(|default| positions[default.ordinal() as usize].effect)).collect(),
                                 after_collected_fact: self.occurrences.len(),
                             });
-                            let count = if self.candidate_calls.formals[*formal_registrations.get(&parameter.id).ok_or_else(invalid)?].role == candidate_call::FormalRole::Value { 3 } else { 2 };
+                            let count = (if self.candidate_calls.formals[*formal_registrations.get(&parameter.id).ok_or_else(invalid)?].role == candidate_call::FormalRole::Value { 3usize } else { 2 })
+                                .checked_add(self.lambda_recipes[recipe].default_effect_components.len()).ok_or_else(unavailable)?;
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                             push(&mut actions, Action::Lambda(recipe))?;
@@ -2300,6 +2339,7 @@ impl InferenceSession {
                 Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } => self.candidate_expression_ascription(annotation, *endpoint, occurrence, *level, *computation_effect, scope)?,
                 Action::FormalAnnotation { annotation, parameter, occurrence, scope } => self.candidate_formal_annotation(annotation, *parameter, occurrence, scope)?,
                 Action::UnitParameter { parameter, occurrence } => self.candidate_unit_parameter(*parameter, occurrence)?,
+                Action::RecordParameter { parameter, fields, occurrence } => self.candidate_record_parameter(*parameter, fields, occurrence)?,
                 Action::FormalEntry { registration, annotation, occurrence, scope } => self.candidate_formal_entry_annotation(*registration, annotation, occurrence, scope)?,
                 Action::FormalNameEffect { registration, occurrence, effect } => {
                     let entry = self.batch.candidate_calls.formals[*registration].entry_effect.ok_or(SolveAvailabilityError::IdentityExhausted)?;
