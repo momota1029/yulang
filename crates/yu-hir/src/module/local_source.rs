@@ -217,7 +217,7 @@ impl LocalSource {
                 .expressions
                 .iter()
                 .map(|expr| match &expr.form {
-                    LocalSourceForm::Integer(text) | LocalSourceForm::String(text) => text.len(),
+                    LocalSourceForm::Integer(text) | LocalSourceForm::String(text) | LocalSourceForm::DecodedString(text) => text.len(),
                     LocalSourceForm::InterpolatedString { spelling, parts, pieces, .. } => spelling.len()
                         + parts.capacity() * std::mem::size_of::<LocalSourceInterpolation>()
                         + parts.iter().map(|part| part.format.len()).sum::<usize>()
@@ -263,7 +263,10 @@ impl LocalSource {
                     LocalSourceForm::OperatorApplication { operator, .. } => operator.spelling().len()
                         + std::mem::size_of::<SourceNodeKey>()
                         + std::mem::size_of::<crate::HirOperator>(),
-                    LocalSourceForm::Name { spelling, .. } => spelling.len(),
+                    LocalSourceForm::Name { spelling, resolution } => spelling.len() + match resolution {
+                        LocalSourceResolution::Imported(export) => export.module.len() + export.name.len(),
+                        _ => 0,
+                    },
                     LocalSourceForm::Lambda { parameter, .. } => {
                         parameter.spelling.len() + parameter.pattern_bytes()
                             + parameter
@@ -308,12 +311,23 @@ impl LocalSource {
 }
 #[derive(Clone, Debug)]
 pub struct LocalSourceExpr {
+    /// Explicit derivation from a string source rule; all source keys remain
+    /// actual parsed nodes, and each generated expression has its own occurrence.
+    pub generated_string: Option<LocalSourceStringOperation>,
     pub named_group: Option<LocalSourceNamedGroupId>,
     pub occurrence: HirOccurrenceId,
     pub source: SourceNodeKey,
     pub range: Range<usize>,
     pub scope: LocalSourceScope,
     pub form: LocalSourceForm,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LocalSourceStringOperation {
+    FormatSelection { piece: u32 },
+    Text { piece: u32 },
+    ConcatReference { piece: u32 },
+    ConcatFirstArgument { piece: u32 },
+    ConcatSecondArgument { piece: u32 },
 }
 /// One original statement in a block prefix, in source order. Expression
 /// statements are not represented as invented local bindings.
@@ -340,6 +354,8 @@ pub enum LocalSourceForm {
     Integer(Box<str>),
     Boolean(bool),
     String(Box<str>),
+    /// Already decoded text from an authentic interpolation text piece.
+    DecodedString(Box<str>),
     /// Original literal plus source-owned formatting requests, not written
     /// FieldTail nodes or an already admitted runtime stringification.
     InterpolatedString {
@@ -1523,6 +1539,7 @@ impl Builder<'_> {
             .ok_or_else(invalid)?
             .record_occurrence(occurrence.clone(), source.clone());
         self.expressions[index.ordinal as usize] = Some(LocalSourceExpr {
+            generated_string: None,
             occurrence,
             source,
             named_group,
@@ -1531,6 +1548,15 @@ impl Builder<'_> {
             form,
         });
         Ok(())
+    }
+    fn generated_string(
+        &mut self, node: &SyntaxNode, range: Range<usize>, scope: LocalSourceScope,
+        named_group: Option<LocalSourceNamedGroupId>, operation: LocalSourceStringOperation, form: LocalSourceForm,
+    ) -> Result<LocalSourceIndex, FormationError> {
+        let index = self.slot()?;
+        self.set_at_range(index.clone(), node, range, scope, named_group, form)?;
+        self.expressions[index.ordinal as usize].as_mut().ok_or_else(invalid)?.generated_string = Some(operation);
+        Ok(index)
     }
     fn associated_operator_chain(
         &mut self,
@@ -1802,23 +1828,55 @@ impl Builder<'_> {
         }
         if parts.is_empty() { return Err(unsupported()); }
         let pieces = string::pieces(&node, &parts)?;
-        let lowered = if matches!(pieces.as_slice(), [LocalSourceStringPiece::Interpolation(0)]) {
-            match parts[0].format_spec.operation() {
-                LocalSourceFormatOperation::Member(member) => {
-                    let part = node.children().find(|child| child.kind() == SyntaxKind::StringInterpolation).ok_or_else(invalid)?;
-                    let selection = self.slot()?;
-                    self.set_at_range(selection.clone(), &part, parts[0].range.clone(), scope.clone(), named_group.clone(),
-                        LocalSourceForm::GeneratedFormatSelection { receiver: parts[0].body.clone(), member: member.into() })?;
-                    Some(selection)
-                }
-                LocalSourceFormatOperation::StandardFunction(_) => None,
-            }
-        } else { None };
+        let lowered = self.lower_string_plan(&node, &literal_range, &parts, &pieces, &scope, &named_group)?;
         self.set(index, &node, scope.clone(), named_group.clone(), LocalSourceForm::InterpolatedString { spelling, literal_range, parts, pieces, lowered })?;
         for (body, index) in work.into_iter().rev() {
             push(&mut self.work, Work::Expression(body, index, scope.clone(), named_group.clone()))?;
         }
         Ok(())
+    }
+    fn lower_string_plan(
+        &mut self, node: &SyntaxNode, literal_range: &Range<usize>, parts: &[LocalSourceInterpolation],
+        pieces: &[LocalSourceStringPiece], scope: &LocalSourceScope, named_group: &Option<LocalSourceNamedGroupId>,
+    ) -> Result<Option<LocalSourceIndex>, FormationError> {
+        if parts.iter().any(|part| part.format_spec.has_layout()) { return Ok(None); }
+        let concat = self.counters.string_concat.clone();
+        if pieces.len() > 1 && concat.is_none() { return Ok(None); }
+        let mut interpolation_nodes = node.children().filter(|child| child.kind() == SyntaxKind::StringInterpolation);
+        let mut result = None;
+        for (ordinal, piece) in pieces.iter().enumerate() {
+            let ordinal = u32::try_from(ordinal).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+            let value = match piece {
+                LocalSourceStringPiece::Text { range, value } => self.generated_string(
+                    node, range.clone(), scope.clone(), named_group.clone(),
+                    LocalSourceStringOperation::Text { piece: ordinal }, LocalSourceForm::DecodedString(value.clone()),
+                )?,
+                LocalSourceStringPiece::Interpolation(part) => {
+                    let part = parts.get(*part as usize).ok_or_else(invalid)?;
+                    let part_node = interpolation_nodes.next().ok_or_else(invalid)?;
+                    if self.key(&part_node)? != part.source { return Err(invalid()); }
+                    let LocalSourceFormatOperation::Member(member) = part.format_spec.operation() else { return Err(invalid()); };
+                    self.generated_string(&part_node, part.range.clone(), scope.clone(), named_group.clone(),
+                        LocalSourceStringOperation::FormatSelection { piece: ordinal },
+                        LocalSourceForm::GeneratedFormatSelection { receiver: part.body.clone(), member: member.into() })?
+                }
+            };
+            result = Some(if let Some(left) = result {
+                let provider = concat.as_ref().ok_or_else(invalid)?;
+                let reference = self.generated_string(node, literal_range.clone(), scope.clone(), named_group.clone(),
+                    LocalSourceStringOperation::ConcatReference { piece: ordinal },
+                    LocalSourceForm::Name { spelling: "std::text::str::concat".into(),
+                        resolution: LocalSourceResolution::Imported(provider.clone()) })?;
+                let partial = self.generated_string(node, literal_range.clone(), scope.clone(), named_group.clone(),
+                    LocalSourceStringOperation::ConcatFirstArgument { piece: ordinal },
+                    LocalSourceForm::Apply { callee: reference, argument: left, source_form: SyntaxKind::StringLiteral })?;
+                self.generated_string(node, literal_range.clone(), scope.clone(), named_group.clone(),
+                    LocalSourceStringOperation::ConcatSecondArgument { piece: ordinal },
+                    LocalSourceForm::Apply { callee: partial, argument: value, source_form: SyntaxKind::StringLiteral })?
+            } else { value });
+        }
+        if interpolation_nodes.next().is_some() { return Err(invalid()); }
+        Ok(result)
     }
     fn expression(
         &mut self,
@@ -2793,6 +2851,7 @@ mod tests {
             assert_eq!(selection.source, parts[0].source);
             assert_eq!(selection.range, parts[0].range);
             assert_ne!(selection.occurrence, literal.occurrence);
+            assert_eq!(selection.generated_string, Some(LocalSourceStringOperation::FormatSelection { piece: 0 }));
             let LocalSourceForm::GeneratedFormatSelection { receiver, member: actual } = &selection.form else { panic!("generated selection"); };
             assert_eq!(actual.as_ref(), member);
             assert_eq!(receiver, &parts[0].body);

@@ -770,6 +770,7 @@ fn source_import_environment(
         names,
     );
     environment.retain_syntax_operator_sources(parsed, indexes)?;
+    environment.retain_string_concat(parsed, indexes);
     Ok(environment)
 }
 
@@ -2364,6 +2365,8 @@ fn lower_module_with_counters(
             return Err(HirAvailabilityError::ForeignSourceImport);
         }
     }
+    counters.string_concat = imports.source_imports.as_ref().and_then(|imports| imports.string_concat())
+        .map(source_exports::SourceExportResolution::identity);
     let recoveries = validated_recoveries(parsed)?;
     let root = SyntaxNode::new_root(parsed.green().clone());
     if counters.ordinary_source_carriers || counters.local_source || counters.member_sources {
@@ -2758,6 +2761,7 @@ fn next_occurrence(
 
 #[derive(Default)]
 struct LoweringCounters {
+    string_concat: Option<source_exports::SourceExportId>,
     ordinary_source_carriers: bool,
     local_source: bool,
     member_sources: bool,

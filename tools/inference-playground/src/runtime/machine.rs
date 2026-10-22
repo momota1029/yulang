@@ -703,6 +703,7 @@ impl Machine {
                 ),
                 None,
             ),
+            Instruction::DecodedString(text) => self.ground_data(site, RuntimeValueKind::String(text.clone()), None),
             Instruction::Primitive(operation) => self.data(
                 site,
                 RuntimeValueKind::Primitive(operation.clone()),

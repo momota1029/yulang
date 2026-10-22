@@ -331,8 +331,9 @@ fn candidate_imported_definitions(
     let mut definitions = HashMap::new();
     for hir in hirs {
         let Some(imports) = hir.source_imports() else { continue; };
-        for binding in imports.names().values() {
-            let yu_hir::SourceImportBinding::Resolved(resolution) = binding else { continue; };
+        for resolution in imports.names().values().filter_map(|binding| match binding {
+            yu_hir::SourceImportBinding::Resolved(resolution) => Some(resolution), _ => None,
+        }).chain(imports.string_concat()) {
             let Ok(owner) = yu_hir::shadow::resolve_source_export_owner(hirs, &[], resolution) else { continue; };
             let (module, provider_binding) = match owner {
                 yu_hir::shadow::SourceExportOwner::Binding { module, binding } => (module, binding),

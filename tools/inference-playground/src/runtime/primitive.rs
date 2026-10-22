@@ -152,7 +152,7 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
             Instruction::Unit
             | Instruction::Integer(_)
             | Instruction::Boolean(_)
-            | Instruction::String(_) => {}
+            | Instruction::String(_) | Instruction::DecodedString(_) => {}
             Instruction::Forward(inner) => work.push(Visit::Enter(*inner, Role::Ground)),
             Instruction::Name {
                 resolution,

@@ -559,3 +559,15 @@ catalog7/19 unchanged. Next connect exact std::text::str::concat export through
 source-generated Name/Call records, retaining operation origins at actual literal
 keys. Existing source_exports/module/shadow_apply/runtime leases cover this
 bridge. No runtime intrinsic shortcut or whole-language proof claim.
+
+Generated concat checkpoint: HIR192, native278 pass plus one preserved new
+failing argument-effect acceptance regression. Fresh WASM build passes; full
+smoke fails the corresponding ordered effect case, selective59 passes.
+Catalog7/19 unchanged. UNREVIEWED/OPEN. Next establish strict Value argument
+effect passthrough at its actual primitive/signature/context owners.
+
+Direct-fifteen continuation preserves 30605 charged seconds and discards
+202 unused seconds from direct-fourteen. Grant 3600 fresh primary
+seconds (cap 34205) under the ongoing unlimited user goal. No subagents;
+one heavy verification at a time. Existing solver/context/runtime leases cover
+owner investigation and a justified construction; no new type-core lease yet.

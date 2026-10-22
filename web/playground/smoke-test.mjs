@@ -4,6 +4,9 @@ import init, { infer, infer_types, run, run_module, run_module_report } from "./
 await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") });
 
 const examples = {
+  generatedStringConcat: ['my main = "a%{7}b%{8}c"', '"a7b8c"\n'],
+  genericStringConcat: ['my f text = "<%{text}>"; my main = (f 7, f "a")', '("<7>", "<a>")\n'],
+  orderedStringConcat: ['my main = say: "a%{say: 1; 7}b%{say: 2; 8}c"', '1\n2\na7b8c\n'],
   generatedInterpolation: ['my main = "%{7}"', '"7"\n'],
   polymorphicInterpolation: ['my f text = "%{text}"; my main = (f 7, f "a")', '("7", "a")\n'],
   effectfulInterpolation: ['my main = say: "%{say: 3; 7}"', '3\n7\n'],

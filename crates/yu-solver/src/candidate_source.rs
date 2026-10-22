@@ -539,7 +539,7 @@ fn scoped_result_callee(source: &LocalSource, root: usize, plan: &mut Plan) -> R
             LocalSourceForm::Block { bindings, final_expression } if bindings.is_empty() => { work.try_reserve(1).map_err(|_| unavailable())?; plan.note_guard_stack(work.capacity())?; work.push(final_expression.ordinal() as usize); }
             LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_), .. }
             | LocalSourceForm::Operation { .. } | LocalSourceForm::Integer(_) | LocalSourceForm::Unit
-            | LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) => {}
+            | LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) | LocalSourceForm::DecodedString(_) => {}
             _ => return Err(unavailable()),
         }
     }
@@ -1504,11 +1504,11 @@ impl ConstraintBatch {
                     let occurrence = &expr.occurrence;
                     let start = self.occurrences.len();
                     match &expr.form {
-                        LocalSourceForm::Integer(_) | LocalSourceForm::Unit | LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) => {
+                        LocalSourceForm::Integer(_) | LocalSourceForm::Unit | LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) | LocalSourceForm::DecodedString(_) => {
                             let (positive_leaf, negative_leaf) = match &expr.form {
                                 LocalSourceForm::Unit => (Leaf::UnitPositive, Leaf::UnitNegative),
                                 LocalSourceForm::Boolean(_) => (Leaf::BoolPositive, Leaf::BoolNegative),
-                                LocalSourceForm::String(_) => (Leaf::StrPositive, Leaf::StrNegative),
+                                LocalSourceForm::String(_) | LocalSourceForm::DecodedString(_) => (Leaf::StrPositive, Leaf::StrNegative),
                                 _ => (Leaf::IntPositive, Leaf::IntNegative),
                             };
                             let positive = self.term_for_leaf(positive_leaf)?;

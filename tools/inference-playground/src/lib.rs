@@ -2091,6 +2091,66 @@ mod tests {
     }
 
     #[test]
+    fn generated_concat_calls_keep_the_exact_export_and_literal_derivation() {
+        use yu_hir::shadow::{LocalSourceForm, LocalSourceStringOperation as Origin};
+        let (hir, _, _, _) = super::prepare_with_world(
+            r#"my main = "a%{7}b%{8}c""#, "generated-concat-origin.yu", false,
+        ).unwrap();
+        let expected = hir.source_imports().unwrap().string_concat().unwrap().identity();
+        assert_eq!(expected.module.as_ref(), "std::text::str");
+        assert_eq!(expected.name.as_ref(), "concat");
+        assert!(hir.source_imports().unwrap().resolve("concat").is_none(), "generated export does not introduce a lexical alias");
+        let HirItem::Binding(binding) = &hir.items()[0] else { panic!("main"); };
+        let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+        let literal = source.expression(source.body()).unwrap();
+        let LocalSourceForm::InterpolatedString { lowered: Some(_), parts, pieces, .. } = &literal.form else { panic!("lowered interpolation"); };
+        assert_eq!((parts.len(), pieces.len()), (2, 5));
+        let mut references = 0;
+        let mut applications = 0;
+        let mut seen = std::collections::HashSet::new();
+        for expr in source.expressions() {
+            assert!(seen.insert(expr.occurrence.clone()));
+            match expr.generated_string {
+                Some(Origin::ConcatReference { piece }) => {
+                    assert!((1..5).contains(&piece));
+                    assert_eq!(expr.source, literal.source);
+                    assert!(matches!(&expr.form, LocalSourceForm::Name {
+                        resolution: yu_hir::LocalSourceResolution::Imported(id), .. } if id == &expected));
+                    references += 1;
+                }
+                Some(Origin::ConcatFirstArgument { piece } | Origin::ConcatSecondArgument { piece }) => {
+                    assert!((1..5).contains(&piece));
+                    assert_eq!(expr.source, literal.source);
+                    assert!(matches!(expr.form, LocalSourceForm::Apply { source_form: yu_syntax::SyntaxKind::StringLiteral, .. }));
+                    applications += 1;
+                }
+                _ => {}
+            }
+        }
+        assert_eq!((references, applications), (4, 8));
+    }
+
+    #[test]
+    fn generated_interpolation_concat_uses_the_original_source_provider() {
+        for (source, expected) in [
+            (r#"say: "before %{7} after""#, "before 7 after\n"),
+            (r#"say: "%{7}%{"a"}%{8}""#, "7a8\n"),
+            (r#"say: "前\n%{"中%{7}"}\u{732b}""#, "前\n中7猫\n"),
+            ("my f text = \"<%{text}>\"\nsay: f 7\nsay: f \"a\"", "<7>\n<a>\n"),
+            (r#"my concat a b = "wrong"; say: "<%{7}>""#, "<7>\n"),
+            (r#"say: "%{my loop b = if b: loop false else: 7; loop true}""#, "7\n"),
+        ] {
+            assert_eq!(super::execute_module(source, "generated-concat.yu", 100_000, false).unwrap(), expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn generated_interpolation_concat_preserves_argument_effects() {
+        assert_eq!(super::execute_module(r#"say: "a%{say: 1; 7}b%{say: 2; 8}c""#,
+            "generated-concat-effects.yu", 100_000, false).unwrap(), "1\n2\na7b8c\n");
+    }
+
+    #[test]
     fn generated_interpolation_selection_uses_actual_member_dispatch() {
         for (source, expected) in [
             (r#"say: "%{7}""#, "7\n"),

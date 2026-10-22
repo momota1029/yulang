@@ -3061,3 +3061,83 @@ The single-piece path now executes through original selected members; Button
 still needs concat and typed Variant/native. Only the documented staging
 preflight assertion changed; original expectations remain intact. No independent
 review or original parent/production closure.
+
+### Authentic concat calls and the exposed primitive argument-effect gate
+
+Multi-piece kind-only interpolation now resolves the exact public
+std::text::str::concat export into a separate parse-bound import slot. It never
+adds a lexical alias, so a user's concat binding cannot replace it. Missing or
+ambiguous source exports leave the retained plan unavailable for lowering. Only
+actual generated Name references cause provider projection; an unused resolver
+slot does not select a module body. Candidate imported-definition authentication
+includes this exact export, and runtime independently resolves its source owner.
+
+The source builder constructs the original left fold: decoded Text values and
+source-owned formatting selections, then one authentic concat Name and two
+canonical Apply nodes per join. Each expression retains an explicit
+LocalSourceStringOperation derivation (piece ordinal and operation stage), an
+actual literal/interpolation key and its own branded occurrence. Generated Apply
+source_form is the actual StringLiteral, not a forged written application tail.
+There are O(k) generated expressions for k pieces; text is copied once into the
+execution carrier. Origin metadata is inline and counted by LocalSourceExpr's
+capacity; imported-name module/name bytes are now counted as well. Import demand
+detection performs one syntax census per import environment and at most one
+qualified lookup. Full raw literal spelling remains the prior carrier cost
+O(sum of retained literal spans), not a claim of linear space in nested input.
+
+The native recursive-initializer walk now follows lowered interpolation and
+generated selection ownership, so recursive local functions inside interpolation
+retain their real knot. Focused evidence also covers exact export identity,
+separate call occurrences and stages, lexical concat shadowing, generic fresh
+uses, adjacent/nested interpolation and Unicode/escape decoding.
+
+A new effectful-concat regression exposes an existing deeper gate:
+`say: "a%{say: 1; 7}b%{say: 2; 8}c"` reaches IncompatibleEffect at the two actual
+interpolation ranges. The previous-checkpoint CLI independently reproduces the
+same issue with `say: std::int::mul { say: 1; 7 } 2`, before concat expansion code
+was built into that CLI (target/r332-existing-primitive-argument-effects.log).
+The failing acceptance expectation is preserved as its own test
+`generated_interpolation_concat_preserves_argument_effects`; it is not changed
+to an expected rejection or ignored. The original samples are untouched.
+
+The exact original rule is now located: pinned
+crates/infer/src/lowering/builtin_op.rs::curried_pos_fun_with_ret and
+curried_poly_pos use never_neg() for a value argument-effect port;
+expr/constraints.rs::never_neg constructs Neg::Bot. Crucially this is a special
+Function marker, not an empty-effect upper bound. In constraints/machine/
+propagate.rs:234, that marker redirects upper_arg_eff to the caller's
+upper_ret_eff with weights.both_from_right() and pure_passthrough=true. The
+helper at line401 removes stacked return filters before forwarding. Otherwise
+AE uses the usual swapped comparison. Current candidate_signature_effect
+(candidate_effect.rs:2115, Primitive/Operation omitted row) instead emits
+EmptyEffectNegative; lib.rs Function decomposition always compares upper AE
+against lower AE with Swap. This loses the distinction and explains the conflict.
+No broadening of an empty effect allowance or suppression of the effect is valid.
+
+This finding qualifies the earlier conditional Call handoff: the concat type's
+value ports alone did not establish its argument-effect passthrough premise.
+The original implementation provides that distinct source rule. Its replacement
+must retain a strict/value-argument marker (distinct from explicit empty
+computation effects), the actual Call tuple and scope/right-context ownership
+through Capture/FreshUse and extrusion. Current ContextExpr::BothFromRight
+requires EntryCertificateId; context_payloads deliberately rejects it without
+an authentic retained certificate. candidate_function_port_admit currently
+supports only Swap/Preserve and stamps/protects the ordinary demand fields.
+Do not enable this dormant context constructor, invent a certificate, or
+normalize away the source effect to make the regression green. The next core
+proof/implementation gate is this exact primitive Value-argument passthrough,
+including all copies and the real runtime Value-force path. It remains OPEN,
+UNREVIEWED, as do original all-source/A-B and production.
+
+Concat checkpoint verification (direct primary, UNREVIEWED): HIR 192 pass;
+native 278 pass with the single new, preserved acceptance regression
+`generated_interpolation_concat_preserves_argument_effects` separately failing.
+Fresh WASM build passes; full smoke fails at `orderedStringConcat` with the
+same IncompatibleEffect. A temporary selective smoke excluding exactly that
+one case passes all other 59 execution examples plus unchanged module/type/
+diagnostic checks; temporary file removed. This is NOT a green full suite.
+All 19 original source hashes and observables equal the generated-format
+checkpoint, catalog 7/19. Logs: target/r332-generated-concat-{hir,native-rest,
+effect-gate,wasm,wasm-selective}.log. No original assertion was changed.
+The new red regression is deliberately retained at this incomplete research
+checkpoint; strict Value argument-effect construction/comparison is next.

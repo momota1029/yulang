@@ -294,6 +294,9 @@ pub struct SourceImportEnvironment {
     parse_root: SourceNodeKey,
     identity: ModuleIdentity,
     names: std::collections::HashMap<Box<str>, SourceImportBinding>,
+    /// Generated interpolation references use the exact standard export,
+    /// independently of user names and aliases in the lexical namespace.
+    string_concat: Option<SourceExportResolution>,
     #[cfg(any(feature = "shadow", test))]
     operation_paths: std::collections::HashMap<Box<str>, SourceOperationPathImport>,
     operator_sources: Vec<SourceOperatorDeclaration>,
@@ -315,6 +318,7 @@ impl SourceImportEnvironment {
             parse_root,
             identity,
             names,
+            string_concat: None,
             #[cfg(any(feature = "shadow", test))]
             operation_paths: std::collections::HashMap::new(),
             operator_sources: Vec::new(),
@@ -355,6 +359,23 @@ impl SourceImportEnvironment {
 
     pub fn names(&self) -> &std::collections::HashMap<Box<str>, SourceImportBinding> {
         &self.names
+    }
+
+    pub fn string_concat(&self) -> Option<&SourceExportResolution> { self.string_concat.as_ref() }
+
+    pub(super) fn retain_string_concat(&mut self, parsed: &ParsedFile, indexes: &[SourceExportIndex]) {
+        let root = SyntaxNode::new_root(parsed.green().clone());
+        let needed = root.descendants().filter(|node| node.kind() == SyntaxKind::StringLiteral).any(|node| {
+            let count = node.children().filter(|child| child.kind() == SyntaxKind::StringInterpolation).count();
+            count > 1 || (count == 1 && node.children_with_tokens().any(|piece|
+                matches!(piece.kind(), SyntaxKind::StringText | SyntaxKind::StringEscape)))
+        });
+        if needed {
+            // Missing/ambiguous/recovered exports supply no lowering authority.
+            // Only a source carrier that actually uses this export projects it.
+            self.string_concat = resolve_public_export(indexes, "std::text::str", "concat").ok()
+                .filter(|export| export.declaration.kind == SyntaxKind::BindingStatement);
+        }
     }
 
     pub fn resolve(&self, name: &str) -> Option<&SourceImportBinding> {

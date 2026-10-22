@@ -255,6 +255,7 @@ pub(super) enum Instruction {
     Integer(Box<str>),
     Boolean(bool),
     String(Box<str>),
+    DecodedString(Box<str>),
     Primitive(yu_hir::shadow::PinnedPrimitiveOp),
     Tuple { elements: Vec<Label> },
     Record { fields: Vec<(Box<str>, Label)> },
@@ -641,7 +642,9 @@ impl RuntimeProgram {
                                 recursive.insert(id.clone());
                             }
                             LocalSourceForm::Group { inner }
-                            | LocalSourceForm::Ascription { inner, .. } => {
+                            | LocalSourceForm::Ascription { inner, .. }
+                            | LocalSourceForm::InterpolatedString { lowered: Some(inner), .. }
+                            | LocalSourceForm::GeneratedFormatSelection { receiver: inner, .. } => {
                                 work.push(Walk::Expression(inner.clone()))
                             }
                             LocalSourceForm::Lambda { parameter, body } => {
@@ -765,6 +768,7 @@ impl RuntimeProgram {
                     LocalSourceForm::Integer(text) => Instruction::Integer(text.clone()),
                     LocalSourceForm::Boolean(value) => Instruction::Boolean(*value),
                     LocalSourceForm::String(text) => Instruction::String(text.clone()),
+                    LocalSourceForm::DecodedString(text) => Instruction::DecodedString(text.clone()),
                     LocalSourceForm::InterpolatedString { lowered: Some(inner), .. } => Instruction::Forward(label(inner)?),
                     LocalSourceForm::InterpolatedString { lowered: None, .. } => return Err(RuntimeUnavailable::UnsupportedInterpolation(SourceSite {
                         source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
@@ -1266,7 +1270,7 @@ fn source_computation(code: &[Arc<Code>], root: Label) -> Result<bool, RuntimeUn
             | Instruction::FieldTail { .. } => return Ok(true),
             Instruction::Name { consumption: NameConsumption::Execute, .. } => return Ok(true),
             Instruction::Name { .. } | Instruction::Lambda { .. } | Instruction::Unit
-            | Instruction::Integer(_) | Instruction::Boolean(_) | Instruction::String(_)
+            | Instruction::Integer(_) | Instruction::Boolean(_) | Instruction::String(_) | Instruction::DecodedString(_)
             | Instruction::Primitive(_) | Instruction::Operation(_) => {},
         }
     }
@@ -1777,7 +1781,7 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
                 stack.extend(arms.iter().map(|arm| arm.body));
             }
             Instruction::Unit | Instruction::Integer(_) | Instruction::Boolean(_)
-            | Instruction::String(_) | Instruction::Primitive(_) | Instruction::Name { .. }
+            | Instruction::String(_) | Instruction::DecodedString(_) | Instruction::Primitive(_) | Instruction::Name { .. }
             | Instruction::Operation(_) => {}
         }
     }
@@ -1889,6 +1893,7 @@ fn handler_arm_operation_ranges(
             | Form::Integer(_)
             | Form::Boolean(_)
             | Form::String(_)
+            | Form::DecodedString(_)
             | Form::Name { .. } => {}
         }
     }
