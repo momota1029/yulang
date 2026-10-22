@@ -67,7 +67,12 @@ fn unchanged_yulang2_samples_preserve_ordered_module_write_events() {
 fn unchanged_yulang2_types_sample_exposes_candidate_public_types() {
     let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
     let output = infer_types(source, "types.yu").unwrap();
-    assert!(output.contains("id: ∀"), "{output}");
+    let id = output.lines().find(|line| line.starts_with("id: ")).expect("id type entry");
+    assert!(id.starts_with("id: ∀"), "{output}");
+    let id_body = id.split_once(". ").expect("id type quantifier body").1;
+    let argument = id_body.split_once("argument=").expect("id argument").1.split(',').next().unwrap();
+    let result = id_body.rsplit_once("result=").expect("id result").1.trim_end_matches(')');
+    assert_eq!(argument, result, "identity must preserve its shared value row: {id}");
     assert!(output.contains("answer: int"), "{output}");
     assert!(!output.contains("answer: ∀"), "ground exports do not quantify internal candidate rows: {output}");
     assert!(output.contains("name: str"), "{output}");
@@ -77,6 +82,19 @@ fn unchanged_yulang2_types_sample_exposes_candidate_public_types() {
     assert!(output.contains("argument-effect="), "effect ports must remain visible: {output}");
     assert!(output.contains("retained Effect bound"), "effect-row relationships must remain visible: {output}");
     assert!(output.contains("retained Value bound"), "value-row relationships must remain visible: {output}");
+    assert!(!output.contains("effect-operand"), "unsupported internal nodes must never be printed as types: {output}");
+}
+
+#[test]
+fn candidate_playground_accepts_state_callback_under_open_io_permission() {
+    let source = "act io:\n    our tick: int -> ()\nact state:\n    our tick: int -> ()\nmy bridge (callback: int -> [io] ()) = callback\nmy state_callback value = state::tick value\nmy answer = bridge state_callback\n";
+    let output = infer_types(source, "open-io-state-callback.yu").unwrap();
+    assert!(output.contains("open formal effect permission result"), "{output}");
+    assert!(output.contains(" (open)"), "the permission keeps an open effect tail: {output}");
+    assert!(output.contains("state_callback:"), "{output}");
+    assert!(output.contains("support-view"), "the performed state effect remains in the callback's residual effect view: {output}");
+    assert!(output.contains("retained Effect bound"), "the callback effect must remain in the open residual view: {output}");
+    assert!(!output.contains("candidate type conflicts"), "[io] is an open permission, so [state] must remain admissible: {output}");
 }
 
 #[test]

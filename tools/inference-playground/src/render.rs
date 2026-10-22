@@ -189,6 +189,67 @@ fn render_effect_tail<'a>(
     Ok(())
 }
 
+fn render_effect_operand<'a>(
+    output: &mut Output,
+    rows: &[(CandidateGraphRow<'a>, String)],
+    free_rows: &mut std::collections::HashSet<CandidateGraphRow<'a>>,
+    operand: CandidateGraphEffectOperand<'a>,
+) -> Result<(), String> {
+    match operand {
+        CandidateGraphEffectOperand::Contribution { effect, route, instance } => {
+            write!(output, "effect({effect:?}, route={route:?}, instance={instance})").map_err(cap)
+        }
+        CandidateGraphEffectOperand::AnnotationMember {
+            position, member, effect, permitted, tail, ..
+        } => {
+            write!(output, "annotation-effect({effect:?}, position={position:?}, member={member}, permits=[")
+                .map_err(cap)?;
+            render_permitted(output, permitted)?;
+            output.write_str("], ").map_err(cap)?;
+            render_operand_tail(output, rows, free_rows, tail)
+        }
+        CandidateGraphEffectOperand::OperationInterfaceMember {
+            occurrence, member, effect, permitted, tail, ..
+        } => {
+            write!(output, "operation-effect({effect:?}, occurrence={occurrence:?}, member={member}, permits=[")
+                .map_err(cap)?;
+            render_permitted(output, permitted)?;
+            output.write_str("], ").map_err(cap)?;
+            render_operand_tail(output, rows, free_rows, tail)
+        }
+        CandidateGraphEffectOperand::PermissionView { position, permitted, tail, .. } => {
+            write!(output, "permission-view(position={position:?}, permits=[").map_err(cap)?;
+            render_permitted(output, permitted)?;
+            output.write_str("], ").map_err(cap)?;
+            render_operand_tail(output, rows, free_rows, tail)
+        }
+        CandidateGraphEffectOperand::SupportView { position, permitted, tail, .. } => {
+            write!(output, "support-view(position={position:?}, permits=[").map_err(cap)?;
+            render_permitted(output, permitted)?;
+            output.write_str("], ").map_err(cap)?;
+            render_operand_tail(output, rows, free_rows, tail)
+        }
+    }
+}
+
+fn render_operand_tail<'a>(
+    output: &mut Output,
+    rows: &[(CandidateGraphRow<'a>, String)],
+    free_rows: &mut std::collections::HashSet<CandidateGraphRow<'a>>,
+    tail: Option<CandidateGraphNode<'a>>,
+) -> Result<(), String> {
+    if let Some(tail) = tail {
+        let row = tail.row().ok_or_else(|| "effect operand tail is not an effect row".to_owned())?;
+        if !row.is_effect() {
+            return Err("effect operand tail has Value row kind".to_owned());
+        }
+        free_rows.insert(row);
+        write!(output, "open-tail={}", row_name(rows, row)?).map_err(cap)
+    } else {
+        output.write_str("closed-view").map_err(cap)
+    }
+}
+
 fn render_constraint_node<'a>(
     node: CandidateGraphNode<'a>,
     rows: &[(CandidateGraphRow<'a>, String)],
@@ -223,6 +284,8 @@ fn render_constraint_node<'a>(
         output.write_char(')').map_err(cap)?;
     } else if let Some(leaf) = node.leaf() {
         write!(output, "{leaf:?}").map_err(cap)?;
+    } else if let Some(operand) = node.effect_operand() {
+        render_effect_operand(output, rows, free_rows, operand)?;
     } else {
         return Err("candidate scheme contains an unsupported bound operand".to_owned());
     }
@@ -313,8 +376,7 @@ fn render_type_node<'a>(
         output.write_char(')').map_err(cap)?;
         return Ok(());
     }
-    output.write_str("effect-operand").map_err(cap)?;
-    Ok(())
+    Err("candidate scheme contains an unsupported type node".to_owned())
 }
 
 pub(crate) fn graph_into(
