@@ -391,3 +391,14 @@ records retain labels, values, effects, source order and continuation prefixes.
 The actual aggregate initializer omission is repaired compositionally. Required/
 optional parameter patterns and local adaptation remain next. Direct primary
 only, UNREVIEWED; original proof/source/production parents remain OPEN.
+
+Continue from 9cc289c74 within the remaining direct-twelve allowance: retain
+ordered record formals/default source expressions under existing HIR/source/
+value-graph/runtime leases. Publication stays withheld until native constraints
+and evaluation connect. Source scope/ownership argument is in the proof note.
+
+Record-formal source checkpoint: ordered anonymous formals, original field
+binders/default expressions and local reference ownership are retained. HIR
+record 4, solver reference 1 and full native 268 pass. Full HIR 180/181 retains
+the selected-method implicit-prelude failure, reproduced at parent 9cc289c74;
+no assertion changed. Pattern type/default runtime remain explicitly withheld.

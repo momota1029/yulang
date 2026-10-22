@@ -1359,6 +1359,7 @@ pub struct HirParameter {
     name: HirName,
     range: Range<usize>,
     unit_pattern: bool,
+    record_pattern: bool,
 }
 
 impl HirParameter {
@@ -1377,7 +1378,7 @@ impl HirParameter {
 
 impl PartialEq for HirParameter {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.range == other.range && self.unit_pattern == other.unit_pattern
+        self.name == other.name && self.range == other.range && self.unit_pattern == other.unit_pattern && self.record_pattern == other.record_pattern
     }
 }
 
@@ -3255,6 +3256,7 @@ struct AdmittedParameter {
     source: Option<yu_syntax::SourceNodeKey>,
     annotation: Option<SyntaxNode>,
     unit_pattern: bool,
+    record_pattern: Option<SyntaxNode>,
 }
 
 impl RootPlan {
@@ -3454,6 +3456,7 @@ fn lower_plan(
             name: admitted.name.clone(),
             range: admitted.name.range.clone(),
             unit_pattern: admitted.unit_pattern,
+            record_pattern: admitted.record_pattern.is_some(),
         };
         if let (Some(source), Some(key)) = (&mut counters.source_identity, &admitted.source) {
             source.record_parameter(parameter.id.clone(), key.clone());
@@ -3505,7 +3508,7 @@ fn lower_plan(
     };
     let guard = scope.root_guard();
     for parameter in &parameters {
-        if !parameter.unit_pattern { scope.push_parameter(parameter.clone()); }
+        if !parameter.unit_pattern && !parameter.record_pattern { scope.push_parameter(parameter.clone()); }
     }
     let owner_item_index = usize::try_from(plan.ordinal)
         .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
@@ -4367,11 +4370,16 @@ fn plain_binding_header(
                     }
                     _ => return None,
                 };
+                if _counters.local_source && identifier.kind() == SyntaxKind::RecordPattern && annotation.is_none() {
+                    parameters.push(record_pattern_parameter(identifier, _counters)?);
+                    continue;
+                }
                 parameters.push(AdmittedParameter {
                     name: identifier_pattern_name(identifier)?,
                     source: _counters.source_nodes.get(identifier).cloned(),
                     annotation,
                     unit_pattern: false,
+                    record_pattern: None,
                 });
             }
             continue;
@@ -4390,6 +4398,10 @@ fn plain_binding_header(
         let [argument] = argument_children.as_slice() else {
             return None;
         };
+        if _counters.local_source && argument.kind() == SyntaxKind::RecordPattern {
+            parameters.push(record_pattern_parameter(argument, _counters)?);
+            continue;
+        }
         if _counters.local_source && argument.kind() == SyntaxKind::ParenthesizedPattern
             && argument.children().next().is_none()
         {
@@ -4438,9 +4450,20 @@ fn plain_binding_header(
             source: _counters.source_nodes.get(&argument).cloned(),
             annotation,
             unit_pattern: false,
+            record_pattern: None,
         });
     }
     Some((visibility, head, parameters))
+}
+
+fn record_pattern_parameter(node: &SyntaxNode, counters: &LoweringCounters) -> Option<AdmittedParameter> {
+    Some(AdmittedParameter {
+        name: HirName { spelling: String::new(), range: range_of(node) },
+        source: Some(counters.source_nodes.get(node)?.clone()),
+        annotation: None,
+        unit_pattern: false,
+        record_pattern: Some(node.clone()),
+    })
 }
 
 fn unit_pattern_parameter(node: &SyntaxNode, counters: &LoweringCounters) -> Option<AdmittedParameter> {
@@ -4456,6 +4479,7 @@ fn unit_pattern_parameter(node: &SyntaxNode, counters: &LoweringCounters) -> Opt
         source: Some(counters.source_nodes.get(node)?.clone()),
         annotation: None,
         unit_pattern: true,
+        record_pattern: None,
     })
 }
 

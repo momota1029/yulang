@@ -186,6 +186,7 @@ pub enum RuntimeUnavailable {
     NonExhaustiveCase(SourceSite),
     ExpectedComputation(SourceSite),
     UnsupportedFieldTail(SourceSite),
+    UnsupportedRecordPattern(SourceSite),
     UnsupportedInfixOperator(SourceSite),
     ModuleInitializationOrder,
 }
@@ -739,6 +740,9 @@ impl RuntimeProgram {
                 .collect::<Result<Vec<_>, RuntimeUnavailable>>()?;
             let handler_arm_ranges = handler_arm_operation_ranges(source);
             for expression in source.expressions() {
+                if matches!(&expression.form, LocalSourceForm::Lambda { parameter, .. } if parameter.record_pattern.is_some()) {
+                    return Err(RuntimeUnavailable::UnsupportedRecordPattern(SourceSite { source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone() }));
+                }
                 let instruction = match &expression.form {
                     LocalSourceForm::Unit => Instruction::Unit,
                     LocalSourceForm::Primitive { operation } => Instruction::Primitive(operation.clone()),

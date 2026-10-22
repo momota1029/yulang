@@ -2322,3 +2322,42 @@ must see preceding fields, exclude their own binder, and execute only on absence
 Final resource-feature Tuple/Record tests: **2 pass**, including the actual
 Record event-sink rollback and release totals. Existing resource assertions and
 output expectations remain unchanged.
+
+### Ordered record formal source constructor
+
+Pin Y2 `pattern.rs::lower_record_pattern_field`: form each default before its
+own binder and after earlier fields. The source-only extension retains an
+anonymous record formal, each field's source node and genuine binder identity,
+and each default as an ordinary source expression. Sequential work items form
+one default then install its binder; they never preinstall later fields or
+copy the lexical environment per field. The body follows all formal work. A
+nested default expression restores its own locals before the field is bound.
+The same constructor is used for module and local named functions. Empty record
+patterns remain anonymous and distinct from Unit. Nested patterns and spreads
+remain explicit formation gaps for this bounded slice, never silently ignored.
+Candidate publication must remain unavailable until both polarities, optional
+constraints, effect joins and actual default evaluation are connected. Source
+reference traversal must visit defaults under the same initializer owner.
+
+Constructor induction: before field i the lexical stack is the original
+function environment extended by exactly the preceding formals/fields. Forming
+the default uses that stack and its actual parse node. Expression-local work
+restores its additions; then BindParameter installs only field i's genuine
+identity. The invariant advances by one; after the final field the original
+body sees every field. Later function parameters are installed only afterward.
+The local initializer uses the same work sequence between its existing self
+binding and publication/restore frame. Thus neither forward field visibility
+nor a hidden environment copy is introduced. Temporary default-node storage and
+work are linear in fields/defaults, excluding existing child formation cost.
+Retained source accounting includes field vectors and label bytes at each owner.
+
+Validation: focused HIR record tests **4 pass**, including module/local default
+scope, original source ownership, empty/required/duplicate fields and later
+parameter exclusion. Solver default-reference test **1 passes**, preserving
+module/local initializer owners. Full native playground **268 passes**. Full
+HIR library is **180 pass / 1 fail**: the pre-existing selected-method implicit
+prelude import failure is reproduced unchanged at parent **9cc289c74** in an
+isolated checkout, with its existing assertion unchanged. That checkout was
+removed after the run. Browser rebuild is deferred to the next executable
+pattern slice; current pattern inference/runtime publication remains withheld.
+Original catalog count stays 6/19, and original all-source/proof gates stay OPEN.

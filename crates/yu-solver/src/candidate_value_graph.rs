@@ -175,7 +175,12 @@ impl Graph {
                     work.push((callee.ordinal() as usize, owner)); work.push((argument.ordinal() as usize, owner));
                 },
                 LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => { work.try_reserve(1).map_err(|_| unavailable())?; work.push((inner.ordinal() as usize, owner)); },
-                LocalSourceForm::Lambda { body, .. } => { work.try_reserve(1).map_err(|_| unavailable())?; work.push((body.ordinal() as usize, owner)); },
+                LocalSourceForm::Lambda { parameter, body } => {
+                    let defaults = parameter.record_pattern.iter().flatten().filter_map(|field| field.default.as_ref());
+                    work.try_reserve(1 + defaults.clone().count()).map_err(|_| unavailable())?;
+                    work.push((body.ordinal() as usize, owner));
+                    for default in defaults { work.push((default.ordinal() as usize, owner)); }
+                },
                 LocalSourceForm::StatementBlock { statements, final_expression } => {
                     work.try_reserve(statements.len() + 1).map_err(|_| unavailable())?;
                     work.push((final_expression.ordinal() as usize, owner));
@@ -556,6 +561,18 @@ mod conditional_reference_tests {
             let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
             assert!(references(&graph, &root).contains(&named(&source, "f")));
         }
+    }
+
+    #[test]
+    fn record_defaults_keep_parameter_and_local_initializer_reference_owners() {
+        let (graph, source) = fixture("my choose external {x = external, y = x} = y");
+        let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
+        assert_eq!(references(&graph, &root), expected(&source, &["external", "x", "y"]));
+        let (graph, source) = fixture("my choose external = { my local {x = external, y = x} = y; local }");
+        let local = Value::Local(source.bindings()[0].id.clone());
+        assert_eq!(references(&graph, &local), expected(&source, &["external", "x", "y"]));
+        let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
+        assert_eq!(references(&graph, &root), [local].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]

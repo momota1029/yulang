@@ -194,7 +194,7 @@ impl LocalSource {
             + self.expressions.capacity() * std::mem::size_of::<LocalSourceExpr>()
             + self.root_parameters.capacity() * std::mem::size_of::<LocalSourceParameter>()
             + self.root_parameters.iter().map(|parameter| {
-                parameter.spelling.len()
+                parameter.spelling.len() + parameter.pattern_bytes()
                     + parameter.annotation.as_ref().map_or(0, |annotation| annotation.retained_arena_bytes())
             }).sum::<usize>()
             + self.member_header.as_ref().map_or(0, |header| {
@@ -252,7 +252,7 @@ impl LocalSource {
                         + std::mem::size_of::<crate::HirOperator>(),
                     LocalSourceForm::Name { spelling, .. } => spelling.len(),
                     LocalSourceForm::Lambda { parameter, .. } => {
-                        parameter.spelling.len()
+                        parameter.spelling.len() + parameter.pattern_bytes()
                             + parameter
                                 .annotation
                                 .as_ref()
@@ -282,7 +282,7 @@ impl LocalSource {
                             .parameters
                             .iter()
                             .map(|parameter| {
-                                parameter.spelling.len()
+                                parameter.spelling.len() + parameter.pattern_bytes()
                                     + parameter
                                         .annotation
                                         .as_ref()
@@ -509,6 +509,24 @@ pub struct LocalSourceParameter {
     /// The original empty pattern introduces an anonymous Unit-matching slot.
     /// Its spelling is empty and never enters lexical name lookup.
     pub unit_pattern: bool,
+    /// None for a name/Unit formal; Some(empty) is the original empty record pattern.
+    pub record_pattern: Option<Vec<LocalSourceRecordPatternField>>,
+}
+/// One original record formal field. Defaults precede their own binder.
+#[derive(Clone, Debug)]
+pub struct LocalSourceRecordPatternField {
+    pub label: Box<str>,
+    pub source: SourceNodeKey,
+    pub range: Range<usize>,
+    pub binder: HirParameterId,
+    pub default: Option<LocalSourceIndex>,
+}
+impl LocalSourceParameter {
+    fn pattern_bytes(&self) -> usize {
+        self.record_pattern.as_ref().map_or(0, |fields|
+            fields.capacity() * std::mem::size_of::<LocalSourceRecordPatternField>()
+                + fields.iter().map(|field| field.label.len()).sum::<usize>())
+    }
 }
 #[derive(Clone, Debug)]
 pub struct LocalSourceBinding {
@@ -540,6 +558,7 @@ enum Work {
     Initializer(u32, SyntaxNode, Option<LocalSourceNamedGroupId>),
     Publish(u32, usize),
     Restore(usize),
+    BindParameter(HirParameterId, Box<str>),
     CatchArm(SyntaxNode, LocalSourceIndex, LocalSourceScope, Vec<LocalSourceCatchBinder>, Option<LocalSourceNamedGroupId>),
     CaseArm(SyntaxNode, LocalSourceIndex, LocalSourceScope, Vec<LocalSourceCatchBinder>, Option<LocalSourceNamedGroupId>),
 }
@@ -555,6 +574,7 @@ struct Builder<'a> {
     artifact: &'a Arc<HirArtifactToken>,
     next_occurrence: &'a mut u32,
     next_parameter: u32,
+    default_nodes: HashMap<LocalSourceIndex, SyntaxNode>,
     expressions: Vec<Option<LocalSourceExpr>>,
     named_groups: Vec<LocalSourceNamedGroup>,
     bindings: Vec<LocalSourceBinding>,
@@ -889,6 +909,7 @@ pub(super) fn form_member(
         scope: LocalSourceScope::SourceMember(root.clone()),
         annotation: None,
         unit_pattern: false,
+        record_pattern: None,
     };
     let mut parameters = Vec::new();
     parameters.try_reserve_exact(header.parameters.len())
@@ -905,6 +926,7 @@ pub(super) fn form_member(
             },
             range: parameter.range.clone(),
             unit_pattern: false,
+            record_pattern: false,
         });
     }
     form_ordinary_with_root_parameters(
@@ -1003,6 +1025,7 @@ pub(super) fn form(
         next_parameter: u32::try_from(parameters.len().checked_add(root_parameters.len())
             .ok_or(HirAvailabilityError::IdentityExhausted)?)
             .map_err(|_| HirAvailabilityError::IdentityExhausted)?,
+        default_nodes: HashMap::new(),
         expressions: Vec::new(),
         named_groups: Vec::new(),
         bindings: Vec::new(),
@@ -1031,6 +1054,7 @@ pub(super) fn form(
     });
     let named_group = if parameters.is_empty() { None } else { Some(builder.next_named_group()?) };
     let mut named_formals = Vec::new();
+    let mut parameter_work = Vec::new();
     for (index, parameter) in parameters.iter().enumerate() {
         let (parameter_source, parameter_annotation) = if let Some(admitted) = admitted_parameters.get(index) {
             (admitted.source.clone().ok_or_else(invalid)?, admitted.annotation.as_ref())
@@ -1041,23 +1065,21 @@ pub(super) fn form(
         } else {
             return Err(invalid());
         };
+        let record_pattern = admitted_parameters.get(index).and_then(|parameter| parameter.record_pattern.as_ref())
+            .map(|node| builder.record_parameter_pattern(node, None)).transpose()?;
         let parameter = LocalSourceParameter {
             id: parameter.id.clone(),
             source: parameter_source,
             range: parameter.range.clone(),
             spelling: parameter.name.spelling.clone().into_boxed_str(),
             unit_pattern: parameter.unit_pattern,
+            record_pattern,
             scope: scope.clone(),
             annotation: parameter_annotation
                 .map(|node| source_annotation::parse_annotation(node, owner, builder.counters))
                 .transpose()?,
         };
-        if !parameter.unit_pattern {
-            builder.push_binding(
-                parameter.spelling.clone(),
-                LocalSourceResolution::Parameter(parameter.id.clone()),
-            )?;
-        }
+        builder.parameter_work(&parameter, named_group.clone(), &mut parameter_work)?;
         let next = builder.slot()?;
         push(&mut named_formals, LocalSourceNamedFormal { parameter: parameter.id.clone(), lambda: current.clone() })?;
         builder.set(
@@ -1145,12 +1167,14 @@ pub(super) fn form(
         &mut builder.work,
         Work::Expression(body_chain.clone(), current, scope, named_group.clone()),
     )?;
+    for work in parameter_work.into_iter().rev() { push(&mut builder.work, work)?; }
     while let Some(work) = builder.work.pop() {
         match work {
             Work::Expression(node, index, scope, named_group) => {
                 builder.expression(node, index, scope, named_group)?
             }
             Work::Restore(depth) => builder.restore(depth),
+            Work::BindParameter(id, spelling) => builder.push_binding(spelling, LocalSourceResolution::Parameter(id))?,
             Work::CatchArm(node, index, scope, binders, named_group) => {
                 push(&mut builder.work, Work::Restore(builder.lexical.len()))?;
                 for binder in binders {
@@ -1174,6 +1198,7 @@ pub(super) fn form(
                 let group_owner = data.id.clone();
                 let named_group = if count == 0 { enclosing_named_group.clone() } else { Some(builder.next_named_group()?) };
                 let mut named_formals = Vec::new();
+                let mut parameter_work = Vec::new();
                 let self_binding = (count != 0).then(|| (data.spelling.clone(), data.id.clone()));
                 // The temporary self identity belongs to the initializer scope;
                 // parameters may shadow it, and Publish restores then installs it.
@@ -1183,12 +1208,7 @@ pub(super) fn form(
                 push(&mut builder.work, Work::Publish(binding, guard))?;
                 for ordinal in 0..count {
                     let parameter = builder.bindings[binding as usize].parameters[ordinal].clone();
-                    if !parameter.unit_pattern {
-                        builder.push_binding(
-                            parameter.spelling.clone(),
-                            LocalSourceResolution::Parameter(parameter.id.clone()),
-                        )?;
-                    }
+                    builder.parameter_work(&parameter, named_group.clone(), &mut parameter_work)?;
                     let next = builder.slot()?;
                     push(&mut named_formals, LocalSourceNamedFormal { parameter: parameter.id.clone(), lambda: index.clone() })?;
                     builder.set(
@@ -1212,6 +1232,7 @@ pub(super) fn form(
                     &mut builder.work,
                     Work::Expression(body(&node, HirVisibility::Private)?, index, scope, named_group.clone()),
                 )?;
+                for work in parameter_work.into_iter().rev() { push(&mut builder.work, work)?; }
             }
             Work::Publish(binding, guard) => {
                 builder.restore(guard);
@@ -1261,6 +1282,61 @@ pub(super) fn form(
     Ok((source, projection))
 }
 impl Builder<'_> {
+    fn record_parameter_pattern(&mut self, node: &SyntaxNode, local: Option<&HirLocalId>)
+        -> Result<Vec<LocalSourceRecordPatternField>, FormationError>
+    {
+        let mut fields = Vec::new();
+        for field in node.children() {
+            if field.kind() == SyntaxKind::RecordPatternSeparator { continue; }
+            if field.kind() != SyntaxKind::RecordPatternField || has_recovery(&field) { return Err(unsupported()); }
+            let mut parts = field.children_with_tokens().filter(|part| !matches!(part.kind(),
+                SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment));
+            let label = parts.next().and_then(|part| part.into_token())
+                .filter(|token| token.kind() == SyntaxKind::Identifier).ok_or_else(unsupported)?;
+            let default = match parts.next() {
+                None => None,
+                Some(equals) if equals.kind() == SyntaxKind::Equals => {
+                    let value = parts.next().and_then(|part| part.into_node())
+                        .filter(|node| node.kind() == SyntaxKind::OperatorChain).ok_or_else(unsupported)?;
+                    let slot = self.slot()?;
+                    self.default_nodes.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                    self.default_nodes.insert(slot.clone(), value);
+                    Some(slot)
+                }
+                _ => return Err(unsupported()),
+            };
+            if parts.next().is_some() { return Err(unsupported()); }
+            let binder = self.parameter_id()?;
+            let source = self.key(&field)?;
+            let identity = self.counters.source_identity.as_mut().ok_or_else(invalid)?;
+            identity.record_parameter(binder.clone(), source.clone());
+            if let Some(local) = local { identity.local_parameter_owners.insert(binder.clone(), local.clone()); }
+            let range = label.text_range();
+            push(&mut fields, LocalSourceRecordPatternField {
+                label: label.text().into(), source,
+                range: usize::from(range.start())..usize::from(range.end()), binder, default,
+            })?;
+        }
+        Ok(fields)
+    }
+
+    fn parameter_work(&mut self, parameter: &LocalSourceParameter, group: Option<LocalSourceNamedGroupId>, work: &mut Vec<Work>)
+        -> Result<(), FormationError>
+    {
+        if let Some(fields) = &parameter.record_pattern {
+            for field in fields {
+                if let Some(default) = &field.default {
+                    let node = self.default_nodes.remove(default).ok_or_else(invalid)?;
+                    push(work, Work::Expression(node, default.clone(), LocalSourceScope::Parameter(parameter.id.clone()), group.clone()))?;
+                }
+                push(work, Work::BindParameter(field.binder.clone(), field.label.clone()))?;
+            }
+        } else if !parameter.unit_pattern {
+            push(work, Work::BindParameter(parameter.id.clone(), parameter.spelling.clone()))?;
+        }
+        Ok(())
+    }
+
     fn parameter_id(&mut self) -> Result<HirParameterId, FormationError> {
         let ordinal = self.next_parameter;
         self.next_parameter = ordinal.checked_add(1).ok_or(HirAvailabilityError::IdentityExhausted)?;
@@ -1734,6 +1810,7 @@ impl Builder<'_> {
                     id: id.clone(), source, range, spelling: binder.text().into(),
                     scope: scope.clone(), annotation: None,
                     unit_pattern: false,
+                    record_pattern: None,
                 };
                 let body = self.slot()?;
                 push(&mut self.work, Work::Restore(self.lexical.len()))?;
@@ -2344,6 +2421,8 @@ impl Builder<'_> {
             let mut parameter_scope = LocalSourceScope::LocalInitializer(id.clone());
             for parameter in parameters {
                 let parameter_id = self.parameter_id()?;
+                let record_pattern = parameter.record_pattern.as_ref()
+                    .map(|node| self.record_parameter_pattern(node, Some(&id))).transpose()?;
                 let source = parameter.source.ok_or_else(invalid)?;
                 let source_identity = self.counters.source_identity.as_mut().ok_or_else(invalid)?;
                 source_identity.record_parameter(parameter_id.clone(), source.clone());
@@ -2358,6 +2437,7 @@ impl Builder<'_> {
                         range: parameter.name.range,
                         spelling: parameter.name.spelling.into_boxed_str(),
                         unit_pattern: parameter.unit_pattern,
+                        record_pattern,
                         annotation: parameter
                             .annotation
                             .as_ref()
@@ -2419,6 +2499,81 @@ impl Builder<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn record_formals_keep_default_scope_binders_and_original_source() {
+        for text in [
+            "my width = 7; my height = 8; my box {width = width, height = width} = (width, height)",
+            "my width = 7; my outer z = { my box {width = width, height = width} = (width, height); box }",
+        ] {
+            let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+            let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+                Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+            let module = lower_module_with_local_source(
+                ModuleIdentity::source_root(FileId::new(FileKey::new("test", "record-pattern.yu"))),
+                &parsed, SemanticImports::empty()).unwrap();
+            let HirItem::Binding(binding) = module.items().last().unwrap() else { panic!("binding"); };
+            let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+            let (parameter, body) = source.expressions().iter().find_map(|expression| match &expression.form {
+                LocalSourceForm::Lambda { parameter, body } if parameter.record_pattern.is_some() => Some((parameter, body)),
+                _ => None,
+            }).expect("record formal");
+            assert!(parameter.spelling.is_empty());
+            assert!(!parameter.unit_pattern);
+            assert!(parsed.owns_source_key(&parameter.source));
+            let fields = parameter.record_pattern.as_ref().unwrap();
+            assert_eq!(fields.iter().map(|field| field.label.as_ref()).collect::<Vec<_>>(), ["width", "height"]);
+            assert_ne!(fields[0].binder, fields[1].binder);
+            assert_ne!(fields[0].binder, parameter.id);
+            for field in fields {
+                assert!(parsed.owns_source_key(&field.source));
+                assert_eq!(&text[field.range.clone()], field.label.as_ref());
+                let default = source.expression(field.default.as_ref().unwrap()).unwrap();
+                assert!(parsed.owns_source_key(&default.source));
+                assert!(module.owns_occurrence(&default.occurrence));
+                assert!(matches!(&default.scope, LocalSourceScope::Parameter(id) if *id == parameter.id));
+            }
+            assert!(matches!(&source.expression(fields[0].default.as_ref().unwrap()).unwrap().form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_), .. }));
+            assert!(matches!(&source.expression(fields[1].default.as_ref().unwrap()).unwrap().form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(id), .. } if *id == fields[0].binder));
+            let LocalSourceForm::Tuple { elements } = &source.expression(body).unwrap().form else { panic!("body"); };
+            for (field, element) in fields.iter().zip(elements) {
+                assert!(matches!(&source.expression(element).unwrap().form,
+                    LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(id), .. } if *id == field.binder));
+            }
+        }
+    }
+
+    #[test]
+    fn record_formals_retain_empty_required_duplicate_fields_and_later_parameter_boundary() {
+        let text = "my later = 4; my f before {x = later, x = x, required} later = (before, x, required, later); my empty {} = 1";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+            let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+                Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+            let module = lower_module_with_local_source(
+                ModuleIdentity::source_root(FileId::new(FileKey::new("test", "record-pattern.yu"))),
+                &parsed, SemanticImports::empty()).unwrap();
+        let HirItem::Binding(binding) = &module.items()[1] else { panic!("f {:#?}", SyntaxNode::new_root(parsed.green().clone())); };
+        let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+        let parameter = source.expressions().iter().find_map(|expression| match &expression.form {
+            LocalSourceForm::Lambda { parameter, .. } if parameter.record_pattern.is_some() => Some(parameter), _ => None,
+        }).unwrap();
+        let fields = parameter.record_pattern.as_ref().unwrap();
+        assert_eq!(fields.len(), 3);
+        assert!(fields[2].default.is_none());
+        assert_ne!(fields[0].binder, fields[1].binder);
+        assert!(matches!(&source.expression(fields[0].default.as_ref().unwrap()).unwrap().form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_), .. }));
+        assert!(matches!(&source.expression(fields[1].default.as_ref().unwrap()).unwrap().form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(id), .. } if *id == fields[0].binder));
+        assert!(fields.iter().all(|field| parsed.owns_source_key(&field.source)));
+        let HirItem::Binding(binding) = &module.items()[2] else { panic!("empty"); };
+        let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+        let LocalSourceForm::Lambda { parameter, .. } = &source.expression(source.body()).unwrap().form else { panic!("empty formal"); };
+        assert!(parameter.record_pattern.as_ref().unwrap().is_empty());
+        assert!(parameter.spelling.is_empty() && !parameter.unit_pattern);
+    }
 
     #[test]
     fn record_source_preserves_labels_values_order_and_empty_constructor() {

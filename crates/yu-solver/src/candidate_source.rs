@@ -596,7 +596,8 @@ pub(super) fn preflight_with_imports_and_roles(
     for expr in source.expressions() {
         if matches!(
             &expr.form,
-            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) },
+            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) }
+                | LocalSourceForm::Lambda { parameter: yu_hir::shadow::LocalSourceParameter { record_pattern: Some(_), .. }, .. },
         ) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }

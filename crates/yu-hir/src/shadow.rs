@@ -874,7 +874,7 @@ pub fn index_source_effects(
 
 pub use crate::module::local_source::{
     LocalSource, LocalSourceBinding, LocalSourceExpr, LocalSourceForm, LocalSourceIndex, LocalSourceStatement,
-    LocalSourceParameter, LocalSourceResolution, LocalSourceScope,
+    LocalSourceParameter, LocalSourceRecordPatternField, LocalSourceResolution, LocalSourceScope,
     LocalSourceNamedGroupId, LocalSourceNamedGroupOwner, LocalSourceNamedFormal, LocalSourceNamedGroup,
     LocalSourceCatchArm, LocalSourceCatchBinder, LocalSourceCatchBinderId, LocalSourceCatchValuePattern, LocalSourceCatchPattern, LocalSourceCatchPayloadPattern,
     LocalSourceCaseArm, LocalSourceCasePattern, LocalSourceCasePatternElement,
