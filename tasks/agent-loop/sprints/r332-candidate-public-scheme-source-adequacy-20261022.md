@@ -1,6 +1,6 @@
 # Sprint R332 — candidate public scheme and source adequacy
 
-Status: ACTIVE; primary-only continuation under the user's explicit no-subagent direction. This continues the unchanged parent goal: ordinary Yulang2 playground samples, implementation, proof, frequent commits/pushes, and a clean worktree. It does not narrow the catalog to R149 or treat a candidate view as an accepted principal scheme.
+Status: OPEN_CONTINUATION; primary-only continuation under the user's explicit no-subagent direction. This continues the unchanged parent goal: ordinary Yulang2 playground samples, implementation, proof, frequent commits/pushes, and a clean worktree. It does not narrow the catalog to R149 or treat a candidate view as an accepted principal scheme.
 
 Branch / baseline: `research/simple-sub-intrusion`, `a7013f534`.
 Authority: R149 `notes/design/2026-10-20-r149-types-console.md`; inference principles `notes/design/2026-10-11-yulang-inference-top-level-principles.md`; legacy withdrawal `notes/design/2026-10-10-simple-sub-legacy-withdrawal.md`; user correction that negative `[io]` means `[io,'e]` and admits `[state]` while retaining its performed effect.
@@ -87,3 +87,20 @@ instances still withhold publication. Recapture affected definition exports
 once after propagation, preserving operator/member graphs and FreshUse indexes.
 Existing exact leases and remaining resource charge apply; this is neither a
 new source restriction nor accepted generalization/production promotion.
+
+Direct continuation from `f4957f94a`: retain authentic role prerequisites and
+FieldTail descriptors through enclosing source captures, including local
+schemes where the existing source protocol supplies the required ownership.
+The prior envelope spent 3702 seconds; discard its unused 198 seconds. Grant
+3600 additional direct-primary seconds (cumulative cap 7302), preserving spent
+charges and exact existing leases. No child or independent reviewer is launched.
+Thaw the primary's exact `crates/yu-solver/src/lib.rs` lease for the observed
+tuple-role frontier: recognize only existing closed primitive upper bounds
+matching each row's complete positive shape; preserve the authenticated sole
+role-subject edge and final shape/representative stability checks.
+
+Checkpoint from the fourth direct continuation: module FreshUse/capture now
+retains exact role prerequisites and matching closed primitive frontier bounds.
+Native 219/219, fresh WASM and TypeScript pass; the solver filter is 14 pass with
+the same six baseline failures. Local initializer descriptor ownership and
+operator/member role FreshUse transport remain next steps; review is UNREVIEWED.

@@ -1797,6 +1797,33 @@ mod tests {
     }
 
     #[test]
+    fn tuple_role_frontier_keeps_compatible_primitive_upper_bounds() {
+        let (sources, indexes, role_indexes) = pinned_source_world().unwrap();
+        let text: Arc<SourceText> = Arc::from("say (3, \"text\")\n");
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)),
+            Arc::new(playground_syntax_environment().unwrap()));
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", "tuple-role.yu")));
+        let imports = SemanticImports::with_source_imports_and_role_indexes(
+            &parsed, &identity, &indexes, &role_indexes).unwrap();
+        let hir = Arc::new(lower_module_with_local_source(identity, &parsed, imports).unwrap());
+        let modules = pinned_candidate_world(&hir, &sources, &indexes, &role_indexes).unwrap();
+        let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
+            modules, &indexes, &role_indexes).unwrap();
+        use yu_solver::shadow_apply::CandidateReceiverShape as Shape;
+        let selected = readbacks.selected_receivers.iter().find(|item|
+            item.member.as_ref() == "show"
+                && item.positive_shape == Some(Shape::Tuple(vec![Shape::Int, Shape::Str])))
+            .expect("the authenticated tuple receiver selects its Display member");
+        assert!(selected.positive_frontier_complete);
+        assert!(!selected.negative_frontier_empty);
+        assert!(selected.negative_frontier_source_qualified);
+        assert_eq!(selected.reachable_negative_row_edges, 1);
+        assert_eq!(selected.reachable_negative_bounds, 2,
+            "matching primitive uppers remain present, not erased for dispatch");
+        assert_eq!(selected.target_matches.len(), 1);
+    }
+
+    #[test]
     fn uncalled_library_wrapper_keeps_a_dormant_candidate_obligation() {
         let (_, candidate, _, _) = super::prepare_with_world(
             "my emit message = println message\n", "uncalled-library.yu", false,

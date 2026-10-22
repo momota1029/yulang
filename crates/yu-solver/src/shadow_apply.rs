@@ -128,8 +128,9 @@ pub struct CandidateFieldTailReceiverReadback {
     pub negative_frontier_empty: bool,
     /// A nonempty frontier is accepted only when its sole negative row edge
     /// is the reciprocal same-FreshUse edge to the exact authenticated role
-    /// subject, both rows have the same positive shape, and neither has any
-    /// other negative bound. The rows remain distinct.
+    /// subject, both rows have the same positive shape, and every other
+    /// negative bound is a closed primitive upper matching its row's complete
+    /// positive primitive shape. The role rows remain distinct.
     pub negative_frontier_source_qualified: bool,
 }
 /// Same-session inventory of nested Member FieldTails retained by captured

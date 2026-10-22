@@ -4177,6 +4177,7 @@ struct CandidateReceiverFrontierCounts {
     negative_row_edges: usize,
     positive_bounds: usize,
     negative_bounds: usize,
+    compatible_terminal_negative_bounds: usize,
 }
 #[cfg(feature = "shadow-apply-candidate")]
 const CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT: usize = 16_384;
@@ -11931,6 +11932,22 @@ impl InferenceSession {
             add(&mut counts.negative_row_edges, bounds.direct_upper_rows.len())?;
             add(&mut counts.positive_bounds, bounds.exact_non_variable_lowers.len())?;
             add(&mut counts.negative_bounds, bounds.exact_non_variable_uppers.len())?;
+            // An already-known primitive shape can satisfy its identical
+            // closed upper bound. Uppers never supply the positive shape.
+            if !bounds.exact_non_variable_uppers.is_empty() {
+                use shadow_apply::CandidateReceiverShape as Shape;
+                let shape = session.candidate_receiver_positive_shape(row);
+                for upper in &bounds.exact_non_variable_uppers {
+                    if matches!((shape.as_ref(), session.canonical_value(*upper)),
+                        (Some(Shape::Unit), ValueEndpointKey::UnitNegative)
+                        | (Some(Shape::Int), ValueEndpointKey::IntNegative)
+                        | (Some(Shape::Bool), ValueEndpointKey::BoolNegative)
+                        | (Some(Shape::Str), ValueEndpointKey::StrNegative))
+                    {
+                        add(&mut counts.compatible_terminal_negative_bounds, 1)?;
+                    }
+                }
+            }
             for lower in &bounds.direct_lower_rows {
                 visit_row(session, *lower, visited, active, counts, work, depth + 1)?;
             }
@@ -12014,7 +12031,7 @@ impl InferenceSession {
                 let positive_shape = self.candidate_receiver_positive_shape(row);
                 let negative_frontier_source_qualified = frontier_complete
                     && frontier.negative_row_edges == 1
-                    && frontier.negative_bounds == 0
+                    && frontier.negative_bounds == frontier.compatible_terminal_negative_bounds
                     && self.candidate_field_tail_role_frontier_subject(obligation, row).is_some();
                 let mut target_matches = Vec::new();
                 // This flag covers the source implementation inventory for

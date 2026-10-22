@@ -100,6 +100,7 @@ if (JSON.stringify(consoleReport.events) !== JSON.stringify(consoleEvents)) {
 for (const [source, expected] of [
   ['println "standalone"\n', ["standalone\n"]],
   ['my forward message = emit message\nmy emit message = println message\nforward "wrapped"\n', ["wrapped\n"]],
+  ['my forward value = emit value\nmy emit value = say value\nforward (3, "text")\n', ["(3, text)\n"]],
 ]) {
   const report = JSON.parse(run_module_report(source, 100_000));
   if (JSON.stringify(report.events) !== JSON.stringify(expected)) {

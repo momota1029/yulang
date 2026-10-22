@@ -66,6 +66,22 @@ fn library_operator_dependencies_do_not_require_an_operator_in_the_caller() {
 }
 
 #[test]
+fn role_prerequisites_survive_enclosing_function_capture() {
+    for (source, expected) in [
+        ("my emit value = say value\nemit 3\n", "3\n"),
+        ("my emit value = say value\nemit \"wrapped\"\n", "wrapped\n"),
+        ("my forward value = emit value\nmy emit value = say value\nforward (3, \"text\")\n", "(3, text)\n"),
+        ("my emit value = (say value, say value)\nemit 3\n", "3\n3\n"),
+        ("my left(value: 'a) =\n    where 'a: Display\n    println value.show\nmy right(value: 'b) =\n    where 'b: Display\n    println value.show\nmy both x y = (left x, right y)\nboth 3 \"text\"\n", "3\ntext\n"),
+    ] {
+        let output = cli_with_args(source, &["--run-module", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "source={source:?}");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
 fn captured_initializers_resolve_members_without_a_later_name_use() {
     for (source, expected_value, expected_type) in [
         ("pub answer = 1 + 2\n", "3\n", "int"),

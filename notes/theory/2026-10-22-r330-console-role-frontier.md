@@ -531,3 +531,76 @@ captured-initializer case, unchanged Types/Console outputs and the prior wrapper
 regressions. Generated bindings and build outputs remain ignored. No deployment
 or independent review occurred. Only the direct primary worked; no child or
 background primary process remains after this checkpoint.
+
+### Enclosing role-prerequisite transport
+
+The source identity of a where-clause provider and the graph that currently
+captures its instantiated constraint are different owners. Preserve the
+provider, exact clause/subject/role keys and role identity. Map its subject row
+through the same FreshUse as the associated FieldTail receiver, then retain it
+under the receiving source root until that graph is captured. A graph can retain
+prerequisites from several authentic providers. A repeated clause at different
+fresh subject rows is distinct work; duplicate same-row metadata is redundant.
+The existing bidirectional role/FieldTail checks remain required. This is the
+construction invariant for the repair, not a new role-selection rule or proof
+of unrestricted generalization.
+
+A sibling obstruction is already present in direct `say (3, "text")`: its
+receiver shape is the complete tuple (int, str), with one reciprocal role edge
+and two negative non-row bounds in the tuple-element frontier. The old gate
+rejects every such bound. A closed primitive upper bound equal to the row's
+complete positive primitive head adds no alternative member target: int <: int,
+str <: str (likewise unit/bool) are satisfied, and any later incompatible lower
+bound conflicts instead of licensing a different shape. Extend only the
+existing authenticated role-edge case to admit these matching terminal bounds.
+Count all other upper bounds as unresolved; do not infer a shape from uppers.
+Keep exact role receipt checks and the final whole-shape/representative snapshot
+check. This elementary compatibility argument does not certify the broader
+source-role frontier or original A/B theorem.
+
+
+For the module-capture step, write a prerequisite as `(p, w, s, q, R, r)`,
+where the first five coordinates are the immutable provider, exact source keys
+and authenticated role identity, and `r` is its subject row. If a captured
+FieldTail requires `R`, the existing bidirectional check establishes its
+same-graph receiver/subject witness. For one retained FreshUse map `f`, the
+transported prerequisite is exactly `(p, w, s, q, R, f(r))`; the associated four
+FieldTail ports use that same `f`. Enclosing capture normalizes both with the
+same current representative map and retains their actual graph bounds. Thus a
+second FreshUse `g` receives the composition through that captured graph;
+neither the original provider nor a row from another invocation is substituted.
+Induction over a finite chain of successful module captures preserves the
+source coordinates and this same-use correlation, conditional on the existing
+capture/restoration correspondence. Distinct provider prerequisites coexist;
+deduplication removes only the same source clause at the same canonical subject.
+This addresses the missing metadata transport premise in the wrapper path of
+the original source-to-constraint bridge. It does not establish capture
+completeness, principal schemes or unrestricted member dispatch.
+
+Validation: all 219 native playground tests pass (53 library, 32 CLI, 134 other
+integration tests). New source coverage includes integer/string wrappers,
+two nested wrappers around tuple display, repeated use of one provider, and two
+distinct where-clause providers captured by one function. The tuple readback
+retains its two actual negative primitive bounds and sole authenticated role
+edge. The new solver test rejects classifying a mismatched primitive upper as
+compatible and confirms that an upper alone supplies no positive shape. Its
+first harness attempt omitted interning the primitive leaves; authentic typed
+source declarations supply those leaves in the corrected harness. The focused
+solver filter now passes 14 tests and retains the same six baseline failures
+listed above; no existing expected assertion changed. Fresh WASM smoke passes
+all 14 execution examples plus the new tuple-wrapper module-report case and
+unchanged Types/Console outputs. TypeScript checking passes. Logs:
+`/tmp/yulang-r332-role-native.log`, `/tmp/yulang-r332-role-solver2.log`,
+`/tmp/yulang-r332-role-web.log`.
+
+The remaining local seam is concrete: `LocalScheme` stores only its root,
+boundary and optional scope region, and `route_candidate_local_run` captures
+with empty role/FieldTail descriptor lists. Source initializer ownership must
+select the exact descriptors before local FreshUse can map them; a result-shape
+filter or all obligations from the containing definition is insufficient.
+Operator/member provider capture now retains any received role descriptors,
+but their subsequent FreshUse paths and the role-frontier receipt scanner still
+need the corresponding transport extension. Uncalled generic runtime bodies
+also remain open. Only the direct primary authored this checkpoint; independent
+review is UNREVIEWED. Original source/native and A/B obligations, accepted public
+schemes, the full unchanged Yulang2 catalog, and production remain OPEN.

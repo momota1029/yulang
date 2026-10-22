@@ -31,8 +31,9 @@ pub(super) struct GraphState {
     #[cfg(test)]
     pub local_use_census: Option<LocalUseCensus>,
     pub source: Option<candidate_source::Frame>,
-    /// Declaration prerequisites indexed by the exact source provider root.
-    pub source_role_obligations: HashMap<DefinitionRootId, Vec<SourceRoleObligation>>,
+    /// Declaration prerequisites indexed by their current capture owner;
+    /// each descriptor preserves its original source provider.
+    pub source_role_obligations: HashMap<SourceRootId, Vec<SourceRoleObligation>>,
     /// Deferred source method lookups indexed by the exact local source root.
     pub source_field_tail_obligations: HashMap<SourceRootId, Vec<SourceFieldTailObligation>>,
     pub retained_bytes: usize,
@@ -1064,24 +1065,33 @@ impl GraphState {
         &mut self,
         obligation: SourceRoleObligation,
     ) -> Result<(), SolveAvailabilityError> {
-        if self.source_role_obligations.get(&obligation.provider).is_some_and(|items| items.iter().any(|old|
-            old.where_source == obligation.where_source
+        let owner = SourceRootId::Definition(obligation.provider.clone());
+        self.retain_source_role_obligation_for(owner, obligation)
+    }
+
+    fn retain_source_role_obligation_for(
+        &mut self, owner: SourceRootId, obligation: SourceRoleObligation,
+    ) -> Result<(), SolveAvailabilityError> {
+        if self.source_role_obligations.get(&owner).is_some_and(|items| items.iter().any(|old|
+            old.provider == obligation.provider
+                && old.where_source == obligation.where_source
                 && old.subject_source == obligation.subject_source
                 && old.role_source == obligation.role_source
+                && self.intrusion.rep(old.subject_row) == self.intrusion.rep(obligation.subject_row)
         )) {
             return Err(SolveAvailabilityError::ReceiptMismatch);
         }
         let old_map_capacity = self.source_role_obligations.capacity();
-        if !self.source_role_obligations.contains_key(&obligation.provider) {
+        if !self.source_role_obligations.contains_key(&owner) {
             self.source_role_obligations.try_reserve(1).map_err(|_| exhausted())?;
         }
         let map_growth = self.source_role_obligations.capacity() - old_map_capacity;
-        let obligations = self.source_role_obligations.entry(obligation.provider.clone()).or_default();
+        let obligations = self.source_role_obligations.entry(owner).or_default();
         let old_items_capacity = obligations.capacity();
         obligations.try_reserve(1).map_err(|_| exhausted())?;
         let items_growth = obligations.capacity() - old_items_capacity;
         let added = sum(&[
-            bytes::<(DefinitionRootId, Vec<SourceRoleObligation>)>(map_growth)?,
+            bytes::<(SourceRootId, Vec<SourceRoleObligation>)>(map_growth)?,
             bytes::<SourceRoleObligation>(items_growth)?,
             bytes::<u8>(obligation.role_spelling.len())?,
         ])?;
@@ -1166,7 +1176,7 @@ impl GraphState {
             bytes::<LocalFreshRoute>(self.local_routes.capacity())?,
             bytes::<(HirOccurrenceId, usize)>(self.local_route_by_occurrence.capacity())?,
             bytes::<LocalUse>(self.local_use.capacity())?,
-            bytes::<(DefinitionRootId, Vec<SourceRoleObligation>)>(self.source_role_obligations.capacity())?,
+            bytes::<(SourceRootId, Vec<SourceRoleObligation>)>(self.source_role_obligations.capacity())?,
             bytes::<(SourceRootId, Vec<SourceFieldTailObligation>)>(self.source_field_tail_obligations.capacity())?,
         ])?;
         for obligations in self.source_role_obligations.values() {
@@ -1984,13 +1994,9 @@ impl InferenceSession {
         result
     }
     fn capture_candidate_graph_inner(&mut self, row: u32, boundary: u32, evidence_charge: &CaptureEvidenceMeter, frontier: &[candidate_source::SourceRegionId], obligations: &[SourceRoleObligation], field_tails: &[SourceFieldTailObligation], extra_roots: &[RowKey]) -> Result<Graph, SolveAvailabilityError> {
-        if let Some(first) = obligations.first() {
-            if obligations.iter().any(|obligation| {
-                obligation.provider != first.provider
-                    || obligation.role_spelling.is_empty()
-            }) {
-                return Err(SolveAvailabilityError::ReceiptMismatch);
-            }
+        if obligations.iter().any(|obligation| obligation.role_spelling.is_empty()
+            || !self.batch.root_definition_positions.contains_key(&obligation.provider)) {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
         }
         let mut retained_obligations = clone_role_obligations(obligations)?;
         if field_tails.iter().any(|obligation|
@@ -2318,7 +2324,7 @@ impl InferenceSession {
                     position,
                     {
                         let obligations = self.candidate_graph.as_ref().ok_or_else(exhausted)?
-                            .source_role_obligations.get(&root).map_or(Ok(Vec::new()), |items| clone_role_obligations(items))?;
+                            .source_role_obligations.get(&SourceRootId::Definition(root.clone())).map_or(Ok(Vec::new()), |items| clone_role_obligations(items))?;
                         let field_tails = self.candidate_graph.as_ref().ok_or_else(exhausted)?
                             .source_field_tail_obligations.get(&SourceRootId::Definition(root.clone()))
                             .map_or(Ok(Vec::new()), |items| clone_field_tail_obligations(items))?;
@@ -2333,7 +2339,7 @@ impl InferenceSession {
             })?;
             let released = members.iter().try_fold(0usize, |total, member| {
                 let root = &self.batch.definitions[member.ordinal() as usize].root;
-                let Some(obligations) = state.source_role_obligations.get(root) else { return Ok(total); };
+                let Some(obligations) = state.source_role_obligations.get(&SourceRootId::Definition(root.clone())) else { return Ok(total); };
                 let strings = obligations.iter().try_fold(0usize, |bytes, obligation| {
                     bytes.checked_add(obligation.role_spelling.len()).ok_or_else(exhausted)
                 })?;
@@ -2345,7 +2351,7 @@ impl InferenceSession {
                 .and_then(|bytes| bytes.checked_add(addition)).ok_or_else(exhausted)?;
             for member in &members {
                 let root = &self.batch.definitions[member.ordinal() as usize].root;
-                state.source_role_obligations.remove(root);
+                state.source_role_obligations.remove(&SourceRootId::Definition(root.clone()));
             }
             for (position, graph) in staged {
                 let definition = self.batch.definitions.get(position)
@@ -2411,10 +2417,13 @@ impl InferenceSession {
                 let obligations = self.candidate_graph.as_ref().ok_or_else(exhausted)?
                     .source_field_tail_obligations.get(&owner)
                     .map_or(Ok(Vec::new()), |items| clone_field_tail_obligations(items))?;
+                let roles = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                    .source_role_obligations.get(&owner)
+                    .map_or(Ok(Vec::new()), |items| clone_role_obligations(items))?;
                 let roots = [receiver, result_effect];
                 let graph = self.capture_candidate_graph_owned_with_roots(
                     match result { RowKey::Value(row) => row, _ => return Err(SolveAvailabilityError::ReceiptMismatch) },
-                    0, &[], &[], &obligations, &roots,
+                    0, &[], &roles, &obligations, &roots,
                 )?;
                 let interface = [receiver, result, result_effect];
                 let indexes = interface.map(|key| graph.rows.iter().position(|row| row.key == key)
@@ -2433,6 +2442,7 @@ impl InferenceSession {
                 state.member_graphs.try_reserve(1).map_err(|_| exhausted())?;
                 state.member_graphs.insert(schedule.root, member_graph);
                 state.source_field_tail_obligations.remove(&owner);
+                state.source_role_obligations.remove(&owner);
                 state.refresh_bytes()?;
                 self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
             }
@@ -2562,11 +2572,15 @@ impl InferenceSession {
         let field_tails = self.candidate_graph.as_ref().ok_or_else(exhausted)?
             .source_field_tail_obligations.get(&owner)
             .map_or(Ok(Vec::new()), |items| clone_field_tail_obligations(items))?;
-        let graph = self.capture_candidate_graph_owned(row, 0, &[], &[], &field_tails)?;
+        let roles = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+            .source_role_obligations.get(&owner)
+            .map_or(Ok(Vec::new()), |items| clone_role_obligations(items))?;
+        let graph = self.capture_candidate_graph_owned(row, 0, &[], &roles, &field_tails)?;
         let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
         state.operator_graphs.try_reserve(1).map_err(|_| exhausted())?;
         state.operator_graphs.insert(provider.root, Arc::new(graph));
         state.source_field_tail_obligations.remove(&owner);
+        state.source_role_obligations.remove(&owner);
         state.refresh_bytes()?;
         self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
         Ok(())
@@ -3695,6 +3709,13 @@ impl InferenceSession {
         let occurrence = ConstraintOccurrenceId::new(record.occurrence.clone(), 0);
         let cause = CauseId::for_occurrence(occurrence.clone());
         let (lower, fresh) = self.freshen_candidate_graph_retained(&graph, record.use_level, &occurrence, &cause)?;
+        let receiving_owner = match &record.parent {
+            SourceReceiver::Definition(definition) => SourceRootId::Definition(
+                self.batch.definitions.get(definition.ordinal() as usize)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?.root.clone()),
+            SourceReceiver::Expression(root) => SourceRootId::Expression(root.clone()),
+            SourceReceiver::Member(root) => SourceRootId::Member(root.clone()),
+        };
         let mut activated_field_tails = Vec::new();
         activated_field_tails.try_reserve_exact(fresh.source_field_tail_obligation_rows.len())
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -3704,13 +3725,7 @@ impl InferenceSession {
             let [receiver, receiver_effect, result, result_effect] = row_indexes.map(|index|
                 fresh.rows.get(index).copied().ok_or(SolveAvailabilityError::ReceiptMismatch));
             let mut active = source.clone();
-            active.owner = match &record.parent {
-                SourceReceiver::Definition(definition) => SourceRootId::Definition(
-                    self.batch.definitions.get(definition.ordinal() as usize)
-                        .ok_or(SolveAvailabilityError::ReceiptMismatch)?.root.clone()),
-                SourceReceiver::Expression(root) => SourceRootId::Expression(root.clone()),
-                SourceReceiver::Member(root) => SourceRootId::Member(root.clone()),
-            };
+            active.owner = receiving_owner.clone();
             active.receiver_row = receiver?;
             active.receiver_effect = receiver_effect?;
             active.result_row = result?;
@@ -3734,6 +3749,8 @@ impl InferenceSession {
             }
             activated_field_tails.push(active);
         }
+        let mut activated_roles = Vec::new();
+        activated_roles.try_reserve_exact(fresh.source_role_obligation_rows.len()).map_err(|_| exhausted())?;
         for (role_index, role_row) in &fresh.source_role_obligation_rows {
             let prerequisite = graph.source_role_obligations.get(*role_index)
                 .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
@@ -3749,9 +3766,11 @@ impl InferenceSession {
                         && graph_role_subject_matches_receiver(&graph, *role_row, rows[0]))
             });
             if !has_same_row_consumer {
-
                 return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
             }
+            let mut active = prerequisite.clone();
+            active.subject_row = *fresh.rows.get(*role_row).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            activated_roles.push(active);
         }
         let (rows, retained_maps) = fresh.into_retained_parts();
         let remap_bytes = sum(&[bytes::<RowKey>(rows.capacity())?, retained_maps.bytes()?])?;
@@ -3795,6 +3814,15 @@ impl InferenceSession {
             rows,
             retained: retained_maps,
         });
+        for obligation in activated_roles {
+            let duplicate = state.source_role_obligations.get(&receiving_owner).is_some_and(|items|
+                items.iter().any(|old| old.provider == obligation.provider
+                    && old.where_source == obligation.where_source
+                    && old.subject_source == obligation.subject_source
+                    && old.role_source == obligation.role_source
+                    && state.intrusion.rep(old.subject_row) == state.intrusion.rep(obligation.subject_row)));
+            if !duplicate { state.retain_source_role_obligation_for(receiving_owner.clone(), obligation)?; }
+        }
         for obligation in activated_field_tails {
             let duplicate = state.source_field_tail_obligations.get(&obligation.owner).is_some_and(|items|
                 items.iter().any(|old| old.source_owner == obligation.source_owner
@@ -4410,6 +4438,40 @@ mod authentic_demand_capture_tests {
     }
 
     #[test]
+    fn closed_upper_frontier_requires_the_same_positive_primitive() {
+        let hir = lower("my value = 1\nmy typed(x: int) = x\nmy flag(x: bool) = x\n");
+        let HirItem::Binding(binding) = &hir.items()[0] else { panic!("binding"); };
+        let root = binding.definition_root().clone();
+        let occurrence = binding.value().occurrence().clone();
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+        let component = session.batch.root_component_positions[&root].component;
+        let row = session.live_components[component].ordinal;
+        let lower = session.live_value_term(Polarity::Positive, row).unwrap();
+        let int = session.batch.collected_leaf_term(Leaf::IntNegative);
+        session.admit_candidate_value_link(&occurrence, 200, lower, int).unwrap();
+        let counts = session.candidate_receiver_frontier_counts(row).unwrap();
+        assert_eq!(counts.negative_bounds, 1);
+        assert_eq!(counts.compatible_terminal_negative_bounds, 1);
+
+        let boolean = session.batch.collected_leaf_term(Leaf::BoolNegative);
+        session.admit_candidate_value_link(&occurrence, 201, lower, boolean).unwrap();
+        let counts = session.candidate_receiver_frontier_counts(row).unwrap();
+        assert_eq!(counts.negative_bounds, 2);
+        assert_eq!(counts.compatible_terminal_negative_bounds, 1);
+
+        let unknown = session.fresh_value_at_level(1).unwrap();
+        let lower = session.live_value_term(Polarity::Positive, unknown).unwrap();
+        session.admit_candidate_value_link(&occurrence, 202, lower, int).unwrap();
+        let counts = session.candidate_receiver_frontier_counts(unknown).unwrap();
+        assert_eq!(counts.negative_bounds, 1);
+        assert_eq!(counts.compatible_terminal_negative_bounds, 0,
+            "an upper bound must never invent positive receiver evidence");
+    }
+
+    #[test]
     fn declaration_where_subject_uses_provider_row_and_same_freshuse_image() {
         const SOURCE: &str = "my display(value: 'a) =\n    where 'a: Display\n    value.show";
         let text: Arc<yu_syntax::SourceText> = Arc::from(SOURCE);
@@ -4434,7 +4496,7 @@ mod authentic_demand_capture_tests {
         assert_eq!(session.candidate_graph.as_ref().unwrap().retained_bytes, retained,
             "source prerequisite storage is included in incremental accounting");
 
-        let obligations = session.candidate_graph.as_ref().unwrap().source_role_obligations[&root].clone();
+        let obligations = session.candidate_graph.as_ref().unwrap().source_role_obligations[&SourceRootId::Definition(root.clone())].clone();
         assert_eq!(obligations.len(), 1);
         let obligation = &obligations[0];
         assert_eq!(obligation.provider, root);
@@ -4552,13 +4614,13 @@ mod authentic_demand_capture_tests {
             .unwrap();
         assert_eq!(
             imported_session.candidate_graph.as_ref().unwrap().source_role_obligations
-                [&imported_root][0]
+                [&SourceRootId::Definition(imported_root.clone())][0]
                 .role_identity,
             Some(authenticated_id.clone()),
             "the exact imported role identity reaches the retained declaration obligation",
         );
         let role_obligations = imported_session.candidate_graph.as_ref().unwrap()
-            .source_role_obligations[&imported_root].clone();
+            .source_role_obligations[&SourceRootId::Definition(imported_root.clone())].clone();
         let field_tails = imported_session.candidate_graph.as_ref().unwrap()
             .source_field_tail_obligations[&SourceRootId::Definition(imported_root.clone())].clone();
         assert_eq!(field_tails.len(), 1);
