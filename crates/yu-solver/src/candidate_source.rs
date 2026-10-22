@@ -2439,7 +2439,9 @@ mod member_source_tests {
         assert_eq!(ambiguous.unique_role_member_schedule(role_member), None);
         let roots: Vec<_> = batch.candidate_source.members.iter().map(|schedule| schedule.root.clone()).collect();
         let mut session = InferenceSession::try_new_candidate(batch).unwrap();
-        session.execute_candidate_graph_plan().unwrap();
+        assert!(matches!(session.execute_candidate_graph_plan(),
+            Err(SolveAvailabilityError::DeferredSelectionUnavailable)),
+            "captured nested FieldTail remains pending without a stable selection consumer");
         let state = session.candidate_graph.as_ref().unwrap();
         assert_eq!(state.member_graphs.len(), 2, "member templates have source-rooted candidate graphs");
         for root in roots {

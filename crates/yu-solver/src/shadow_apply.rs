@@ -2930,9 +2930,12 @@ impl InferenceSession {
         let _ = transitions;
         if self.batch.candidate_graph_effects {
             match &recipe.relation {
-                CandidateRelation::DeferredFieldTail { .. } => {
-                    return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
-                }
+                // The source obligation and its exact four rows were retained
+                // during value-fact admission. Leave the effect ports pending
+                // until the graph lifecycle has captured the owning member
+                // templates; the session then fails closed if no stable
+                // selection consumer discharges them.
+                CandidateRelation::DeferredFieldTail { .. } => {}
                 CandidateRelation::Group {
                     child_effect,
                     result_effect,

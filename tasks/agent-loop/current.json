@@ -9,20 +9,20 @@
     "contract": "tasks/agent-loop/sprints/r310-member-graph-freshuse-20261022.md",
     "resources": {
       "cap_seconds": 1800,
-      "charged_seconds": 480,
+      "charged_seconds": 660,
       "reserved_seconds": 0,
       "no_carryover": true
     },
     "proof": "Establish authentic Member graph capture and per-use FreshUse for four-row FieldTail bundles; identify exact source-to-record and stability premises.",
     "implementation": "Extend definition-indexed graph lifecycle with exact Member roots and nested Member-owned FieldTail, retaining a separate same-use FreshUse route per obligation.",
     "review_receipt": "Solo primary; unreviewed under user no-subagent instruction. Tests are implementation evidence only.",
-    "next_action": "Add the per-FieldTail FreshUse route and tests proving sibling uses have disjoint local rows and preserve all four ports; then connect only when receiver bounds provide an authenticated stable candidate.",
-    "closure": "Member candidate graphs are now keyed by exact SourceMemberRootId. Template schedule, explicit receiver/result/body-effect roots, same-owner nested Member FieldTail capture and resource accounting pass focused evidence. Per-use FreshUse consumer, stable selection and unchanged Types execution remain OPEN.",
+    "next_action": "Finish per-use Member FreshUse route after authenticated stable candidate; separately authorize HIR source-formation work for pinned generic say, required by Console.",
+    "closure": "Same-session graph plan now captures Member templates and nested FieldTail before failing closed on unresolved selection; exact receiver/result/effect graph rows are retained. Focused member test passes. Types still stops at DeferredSelectionUnavailable. Full playground suite has an outstanding pinned say LocalSource UnsupportedForm failure; next source seam needs HIR lease. No theorem closure.",
     "dispatch": "Luna primary selected degraded serial continuation because user explicitly prohibits subagents. Exact leases granted; no worker launched.",
     "note": "notes/theory/2026-10-22-r310-member-graph-freshuse.md",
     "contract_sha256": "d79e6435e75e2624baf3df899e6dca64d64dcb2cebfd7309147478ef0644516b",
-    "note_sha256": "5f698965110c39707a5078a55646b69eb1c278a6eae0615b322e3941e79c2263",
-    "charged_seconds": 480,
+    "note_sha256": "b1cec917826942e2191477c2bd8758c3e19c76f15c4c2b49d67a98a2914e9320",
+    "charged_seconds": 660,
     "session": "current-conversation-20261022-r310-member-graph-1"
   },
   "workers": [
@@ -109,7 +109,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R310 focused graph-capture milestone checked; no Cargo process running; solo lease retained."
+      "receipt": "R310 same-session pending-selection checkpoint verified; playground full suite has one reproducible pinned say carrier failure; no Cargo process running."
     }
   ],
   "leases": [
@@ -409,5 +409,5 @@
       "outcome": "OPEN_CONTINUATION; retained authentic Member body/header/receiver candidate schedule and exact role key; isolated member roots do not yet have graph capture, nested FieldTail owner support, or per-use FreshUse. Cap exhausted at the explicit graph lifecycle boundary; R149 OPEN."
     }
   ],
-  "charged_seconds": 480
+  "charged_seconds": 660
 }

@@ -544,6 +544,15 @@ fn typed_port_pair(
 }
 
 impl GraphState {
+    fn has_pending_field_tail_selection(&self) -> bool {
+        self.source_field_tail_obligations.values().any(|items| !items.is_empty())
+            || self.graphs.iter().flatten().any(|graph| !graph.source_field_tail_obligations.is_empty())
+            || self.member_graphs.values().any(|member| !member.graph.source_field_tail_obligations.is_empty())
+            || self.routes.iter().any(|route| !route.graph.source_field_tail_obligations.is_empty())
+            || self.local_routes.iter().any(|route| !route.graph.source_field_tail_obligations.is_empty())
+            || self.local_use.iter().any(|frame| !frame.graph.source_field_tail_obligations.is_empty())
+    }
+
     #[cfg(test)]
     pub(super) fn test_positive_function_census(&self, lower_root: Term) -> Vec<String> {
         let mut census = Vec::new();
@@ -2085,6 +2094,9 @@ impl InferenceSession {
             .as_mut()
             .ok_or_else(exhausted)?
             .orchestration_bytes = 0;
+        if self.candidate_graph.as_ref().ok_or_else(exhausted)?.has_pending_field_tail_selection() {
+            return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+        }
         Ok(())
     }
     pub(super) fn route_candidate_open_use(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {

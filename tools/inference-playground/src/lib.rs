@@ -1344,7 +1344,10 @@ mod tests {
         let carrier = module
             .local_source(binding.definition_root())
             .unwrap_or_else(|error| panic!("say carrier: {error:?}"))
-            .expect("LocalSource-aware provider must retain say's source carrier");
+            .unwrap_or_else(|| panic!(
+                "LocalSource-aware provider must retain say's source carrier; outcome: {:?}",
+                module.source_carrier(binding.definition_root()).unwrap(),
+            ));
         assert_eq!(carrier.definition_root(), Some(binding.definition_root()));
         assert_eq!(carrier.where_clauses().len(), 1);
         let where_clause = &carrier.where_clauses()[0];
