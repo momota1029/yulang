@@ -2438,3 +2438,56 @@ RecordAdaptationUnavailable until local presence/child witnesses are connected;
 pattern preflight/runtime admission remains withheld. This avoids silently
 accepting the new constructor as an opaque atom. Catalog remains 6/19 and all
 original parent proof/source/production gates remain OPEN, UNREVIEWED.
+
+### Local Record comparison construction (in progress)
+
+For one immutable positive/negative Record endpoint pair, inspect each upper
+field in original order and choose the first same-named lower field, as pinned
+Y2 does. An absent optional upper field needs no child; an absent required field
+is a presence conflict. A present required lower field, or an optional lower
+field with optional upper, emits the exact child inequality under the original
+parent context and both source indexes. Lower-optional/upper-required remains
+an explicit unresolved presence gate until its specialization/native premise is
+connected; skipping its source propagation is not an acceptance certificate.
+
+Within that supported local grammar, metadata immutability makes presence and
+label correspondence stable. Later bounds on a child are checked by its already
+retained relation. A later distinct Record lower bound creates a fresh endpoint
+pair; it cannot reuse another pair's acceptance. The retained pair plus its
+indexed child dependencies constitute a local derivation, including the zero-
+child optional-absence case. This establishes no concrete transitivity: optional
+Str -> empty and empty -> optional Int may both succeed while optional Str ->
+optional Int reaches a fresh Str/Int conflict. The source-to-row replay and
+native field/default realization remain separate original obligations.
+
+#### Source/default construction to be connected
+
+The original field binder identity already exists in LocalSource. Register that
+identity as an ordinary Value parameter row bi, without fabricating a formal
+Call or source occurrence. A required field uses ai = bi. A defaulted field
+allocates a fresh ai at the same level and emits ai <: bi and di <: bi under
+the enclosing original Lambda, with distinct wide local slots. Both polarized
+record endpoints retain the same labels/optional bits and ai rows. The anonymous
+formal is linked in both directions and retains the negative Record domain.
+Visit defaults in source order before the body and inside its Lambda region;
+source resolution has already excluded the current/later binder from each
+initializer's scope. Join default effects into the fresh Lambda return-effect
+row, not into the body's own possibly pure effect row. This gives the pinned
+source constraints without assuming that a supplied field erases a default's
+static constraints/effects. General source adequacy remains OPEN.
+
+Runtime binding visits fields in original pattern order, selects the first
+same-named actual field, and evaluates a default only for an absent field. Its
+continuation stores the current environment, original record, pattern cursor
+and body. Each completed field extends that environment exactly once, and a
+suspended default resumes before advancing the cursor. Present fields retain
+the original child's dispatch plus the record's transported dispatch. An absent
+default executes under the current invocation/environment. Record constructors
+start with no positive receiving image; current positive entry operates on the
+argument Delay and completion retains the actual result view. Structural
+projection must preserve the child's image and conservatively combine unknown
+coverage; a positive parent image is an explicit unsupported projection until
+its own derivation exists. These premises are bounded construction evidence,
+not a general handler/receiving theorem or production promotion.
+
+Local Record comparison checkpoint: resource-feature solver Record tests **11/11** pass, including concrete nontransitivity, required absence diagnostics, first duplicate matching, late child bounds, paired source indexes, rollback and one-step continuation. Direct witness replay now publishes the dedicated missing-field diagnostic. No original assertion changed. Source/default and runtime work below remains in progress; no all-source/receiving/A-B closure or independent review.

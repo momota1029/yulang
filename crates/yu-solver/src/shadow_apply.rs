@@ -812,6 +812,7 @@ pub enum CandidateSourceDependency {
     Derived { child: u32, parent: u32 },
     FunctionPort { child: u32, parent: u32 },
     TuplePort { child: u32, parent: u32, index: usize },
+    RecordPort { child: u32, parent: u32, lower_index: usize, upper_index: usize },
     Replay { child: u32, lower: u32, upper: u32 },
     Transport { child: u32, parent: u32 },
 }
@@ -1257,6 +1258,7 @@ impl CandidateInference {
                         crate::candidate_context::Dependency::Derived { child, .. }
                         | crate::candidate_context::Dependency::FunctionPort { child, .. }
                         | crate::candidate_context::Dependency::TuplePort { child, .. }
+                        | crate::candidate_context::Dependency::RecordPort { child, .. }
                         | crate::candidate_context::Dependency::Replay { child, .. }
                         | crate::candidate_context::Dependency::Transport { child, .. } => child,
                     };
@@ -2022,6 +2024,7 @@ impl CandidateInference {
                         Dependency::Derived { child, parent }
                         | Dependency::FunctionPort { child, parent, .. }
                         | Dependency::TuplePort { child, parent, .. }
+                        | Dependency::RecordPort { child, parent, .. }
                         | Dependency::Transport { child, parent, .. } => ([Some(parent), None], child),
                         Dependency::Replay { child, lower, upper, .. } => ([Some(lower), Some(upper)], child),
                     };
@@ -2040,6 +2043,10 @@ impl CandidateInference {
                                 Dependency::TuplePort { child, parent, index } => (
                                     CandidateSourceDependency::TuplePort { child: child.0, parent: parent.0, index },
                                     None, None, Some(index), None,
+                                ),
+                                Dependency::RecordPort { child, parent, lower_index, upper_index } => (
+                                    CandidateSourceDependency::RecordPort { child: child.0, parent: parent.0, lower_index, upper_index },
+                                    None, None, None, None,
                                 ),
                                 Dependency::Replay { child, lower, upper, lower_input, upper_input } => (
                                     CandidateSourceDependency::Replay { child: child.0, lower: lower.0, upper: upper.0 },

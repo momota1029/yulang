@@ -4103,6 +4103,7 @@ impl SolvedProjection {
 }
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SolverErrorKind {
+    RecordMissingField { index: usize },
     #[cfg(feature = "shadow-apply-candidate")]
     IncompatibleEffect { operand: EffectOperandHandle, annotation: Option<EffectAnnotationHandle> },
     CrossKind {
@@ -13248,7 +13249,7 @@ impl InferenceSession {
                 self.dispatch_live_item(item, Some(index), consumed.ok_or(SolveAvailabilityError::IdentityExhausted)?, &mut transitions)?;
                 let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
                 frame.transitions = transitions;
-                if frame.function.is_none() && frame.tuple.is_none() {
+                if frame.function.is_none() && frame.tuple.is_none() && frame.record.is_none() {
                     frame.current = None;
                     frame.context_consumed = None;
                     frame.stage = Stage::Transport;
@@ -13268,6 +13269,15 @@ impl InferenceSession {
                     let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
                     frame.current = None;
                     frame.tuple = None;
+                    frame.context_consumed = None;
+                    frame.stage = Stage::Transport;
+                }
+            }
+            Stage::RecordAdmission | Stage::RecordEnqueue => {
+                if !self.candidate_step_record_dispatch(index)? {
+                    let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                    frame.current = None;
+                    frame.record = None;
                     frame.context_consumed = None;
                     frame.stage = Stage::Transport;
                 }
@@ -13396,8 +13406,67 @@ impl InferenceSession {
                         )?;
                         return Ok(());
                     }
-                    if matches!((key.lower, key.upper), (ValueEndpointKey::PositiveRecord(_), ValueEndpointKey::NegativeRecord(_))) {
-                        return Err(SolveAvailabilityError::RecordAdaptationUnavailable);
+                    if let (ValueEndpointKey::PositiveRecord(lower_term), ValueEndpointKey::NegativeRecord(upper_term)) = (key.lower, key.upper) {
+                        let (TermView::PositiveRecord { fields: lower }, TermView::NegativeRecord { fields: upper }) = (
+                            self.store.term_view(lower_term).map_err(|_| SolveAvailabilityError::ReceiptMismatch)?,
+                            self.store.term_view(upper_term).map_err(|_| SolveAvailabilityError::ReceiptMismatch)?,
+                        ) else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                        let mut first_lower = HashMap::new();
+                        first_lower.try_reserve(lower.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        for (index, field) in lower.iter().enumerate() { first_lower.entry(field.name.as_ref()).or_insert(index); }
+                        let mut children = Vec::new();
+                        children.try_reserve_exact(upper.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        let mut missing = None;
+                        for (upper_index, expected) in upper.iter().enumerate() {
+                            let Some(&lower_index) = first_lower.get(expected.name.as_ref()) else {
+                                if expected.optional { continue; }
+                                missing = Some(upper_index);
+                                break;
+                            };
+                            let actual = &lower[lower_index];
+                            if actual.optional && !expected.optional {
+                                // Pinned propagation skips this child; its concrete
+                                // presence/realization premise is not acceptance.
+                                return Err(SolveAvailabilityError::RecordAdaptationUnavailable);
+                            }
+                            children.push((lower_index, upper_index, TypedPairKey::Value(CanonicalValuePairKey {
+                                lower: self.value_endpoint(actual.value, Polarity::Positive),
+                                upper: self.value_endpoint(expected.value, Polarity::Negative),
+                            })));
+                        }
+                        self.record_typed_pair_admission(memo_key, TypedPairMemo::Value {
+                            #[cfg(feature = "shadow-apply-candidate")]
+                            retained_extrusion_rewrite: None,
+                            children: DiagnosticChildren::new(),
+                            direct_witness: missing.map(|index| DiagnosticWitness {
+                                terminal: key, kind: SolverErrorKind::RecordMissingField { index },
+                                distance: 0, first_field: None, first_tuple_index: None,
+                            }),
+                            completion: DiagnosticCompletion::Pending,
+                        })?;
+                        if missing.is_some() { return Ok(()); }
+                        for (_, _, child) in &children {
+                            let TypedPairKey::Value(child) = child else { unreachable!() };
+                            self.record_diagnostic_edge(key, *child, None)?;
+                        }
+                        #[cfg(feature = "shadow-apply-candidate")]
+                        if let Some(index) = drain {
+                            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[index];
+                            frame.record = Some(candidate_context::RecordDispatch { children, next: 0, pending: None });
+                            frame.stage = candidate_context::TypedDrainStage::RecordAdmission;
+                            return Ok(());
+                        }
+                        for (_, _, child) in children.into_iter().rev() {
+                            let TypedPairKey::Value(task) = child else { unreachable!() };
+                            self.enqueue_item(TypedWorkItem {
+                                task: LiveConstraintTask::Value(task),
+                                #[cfg(feature = "shadow-apply-candidate")]
+                                relation: None,
+                                #[cfg(feature = "shadow-apply-candidate")]
+                                replay_ack: None,
+                            }, true)?;
+                        }
+                        return Ok(());
                     }
                     if let (
                         ValueEndpointKey::PositiveTuple(lower_term, lower_arity),
@@ -13746,6 +13815,31 @@ impl InferenceSession {
             let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
             frame.tuple.as_mut().unwrap().pending = Some(TypedWorkItem { task, relation, replay_ack: None });
             frame.stage = candidate_context::TypedDrainStage::TupleEnqueue;
+        }
+        Ok(true)
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_step_record_dispatch(&mut self, drain: usize) -> Result<bool, SolveAvailabilityError> {
+        self.prepare_nonterminal_drain(drain)?;
+        let frame = &self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+        let dispatch = frame.record.as_ref().unwrap();
+        if dispatch.next == dispatch.children.len() { return Ok(false); }
+        if let Some(item) = dispatch.pending {
+            self.enqueue_item(item, true)?;
+            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+            let dispatch = frame.record.as_mut().unwrap();
+            dispatch.pending = None;
+            dispatch.next += 1;
+            frame.stage = candidate_context::TypedDrainStage::RecordAdmission;
+        } else {
+            let (lower_index, upper_index, child) = dispatch.children[dispatch.children.len() - 1 - dispatch.next];
+            let TypedPairKey::Value(pair) = child else { return Err(SolveAvailabilityError::IdentityExhausted); };
+            let task = LiveConstraintTask::Value(pair);
+            let relation = self.candidate_record_port_admit(task, lower_index, upper_index)?;
+            let frame = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.typed_drains[drain];
+            frame.record.as_mut().unwrap().pending = Some(TypedWorkItem { task, relation, replay_ack: None });
+            frame.stage = candidate_context::TypedDrainStage::RecordEnqueue;
         }
         Ok(true)
     }
@@ -14818,6 +14912,9 @@ impl InferenceSession {
     }
 
     fn error_rank(kind: SolverErrorKind) -> (u8, u8) {
+        if matches!(kind, SolverErrorKind::RecordMissingField { .. }) {
+            return (Self::shape_rank(ValueShape::Record), Self::shape_rank(ValueShape::Record));
+        }
         let SolverErrorKind::IncompatibleValue { lower, upper } = kind else {
             return (u8::MAX, u8::MAX);
         };
@@ -14874,6 +14971,8 @@ impl InferenceSession {
         }) = witness
         {
             self.report_incompatible(occurrence, cause, *lower, *upper)?;
+        } else if let Some(DiagnosticWitness { kind: kind @ SolverErrorKind::RecordMissingField { .. }, .. }) = witness {
+            self.report_solver_kind(occurrence, cause, *kind)?;
         }
         Ok(())
     }
@@ -25267,6 +25366,52 @@ mod tests {
     }
 
     #[test]
+    fn f5b_record_comparison_is_local_and_retains_late_child_bounds() {
+        let batch = ConstraintBatch::collect(module("1", "f5b-record-comparison")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let pstr = session.store.terms.intern(TermNode::Leaf(Leaf::StrPositive)).unwrap();
+        let pint = session.store.terms.intern(TermNode::Leaf(Leaf::IntPositive)).unwrap();
+        let nint = session.store.terms.intern(TermNode::Leaf(Leaf::IntNegative)).unwrap();
+        let field = |value, optional| RecordField { name: "foo".into(), optional, value };
+        let a = session.store.terms.intern(TermNode::PositiveRecord { fields: Arc::from([field(pstr, true)]) }).unwrap();
+        let empty_p = session.store.terms.intern(TermNode::PositiveRecord { fields: Arc::from([]) }).unwrap();
+        let empty_n = session.store.terms.intern(TermNode::NegativeRecord { fields: Arc::from([]) }).unwrap();
+        let c = session.store.terms.intern(TermNode::NegativeRecord { fields: Arc::from([field(nint, true)]) }).unwrap();
+        let required = session.store.terms.intern(TermNode::NegativeRecord { fields: Arc::from([field(nint, false)]) }).unwrap();
+        let source = session.batch.projection_order[0].clone();
+        let mut slot = 92;
+        let mut constrain = |session: &mut InferenceSession, pair| {
+            slot += 1;
+            let occurrence = ConstraintOccurrenceId::new(source.clone(), slot);
+            let cause = CauseId::for_occurrence(occurrence.clone());
+            session.constrain_live_value(pair, &occurrence, &cause)
+        };
+        let pair = |lower, upper| CanonicalValuePairKey { lower: ValueEndpointKey::PositiveRecord(lower), upper: ValueEndpointKey::NegativeRecord(upper) };
+        constrain(&mut session, pair(a, empty_n)).unwrap();
+        constrain(&mut session, pair(empty_p, c)).unwrap();
+        assert!(session.errors.is_empty());
+        constrain(&mut session, pair(a, c)).unwrap();
+        assert!(matches!(session.errors.last().map(SolverError::kind), Some(SolverErrorKind::IncompatibleValue { lower: ValueShape::Str, upper: ValueShape::Int })));
+        constrain(&mut session, pair(empty_p, required)).unwrap();
+        assert_eq!(session.errors.last().map(SolverError::kind), Some(SolverErrorKind::RecordMissingField { index: 0 }));
+        assert_eq!(constrain(&mut session, pair(a, required)), Err(SolveAvailabilityError::RecordAdaptationUnavailable));
+        // Duplicate names select the first actual field, even when a later one fits.
+        let duplicate = session.store.terms.intern(TermNode::PositiveRecord { fields: Arc::from([field(pstr, false), field(pint, false)]) }).unwrap();
+        constrain(&mut session, pair(duplicate, required)).unwrap();
+        assert!(matches!(session.errors.last().map(SolverError::kind), Some(SolverErrorKind::IncompatibleValue { lower: ValueShape::Str, upper: ValueShape::Int })));
+        // Admission with an unconstrained child must retain the relation for later bounds.
+        let row = session.fresh_value_at_level(1).unwrap();
+        let child = session.live_value_term(Polarity::Positive, row).unwrap();
+        let deferred = session.store.terms.intern(TermNode::PositiveRecord { fields: Arc::from([field(child, false)]) }).unwrap();
+        let count = session.errors.len();
+        constrain(&mut session, pair(deferred, required)).unwrap();
+        assert_eq!(session.errors.len(), count);
+        constrain(&mut session, CanonicalValuePairKey { lower: ValueEndpointKey::StrPositive, upper: ValueEndpointKey::ValueRow(row) }).unwrap();
+        assert!(session.errors.len() > count);
+        assert!(matches!(session.errors.last().map(SolverError::kind), Some(SolverErrorKind::IncompatibleValue { lower: ValueShape::Str, upper: ValueShape::Int })));
+    }
+
+    #[test]
     fn f5b_structured_variable_extrusion_lowers_value_and_effect_children_in_both_directions() {
         let batch = ConstraintBatch::collect(module("1", "f5b-structured-extrusion")).unwrap();
         let mut session = InferenceSession::try_new(batch).unwrap();
@@ -34891,6 +35036,56 @@ mod retained_drain_workspace_tests {
         let mut tuple_ports = tuple_ports;
         tuple_ports.sort_unstable();
         assert_eq!(tuple_ports, [0, 1, 2]);
+    }
+
+    #[test]
+    fn record_dispatch_retains_named_indexes_through_rollback_and_one_step_resumption() {
+        let source: Arc<yu_syntax::SourceText> = Arc::from("my seed = 1");
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)), Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("record-dispatch", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap());
+        let mut session = InferenceSession::try_new_candidate(ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap()).unwrap();
+        let p = session.store.terms.intern(TermNode::Leaf(Leaf::IntPositive)).unwrap();
+        let n = session.store.terms.intern(TermNode::Leaf(Leaf::IntNegative)).unwrap();
+        let lower = session.store.terms.intern(TermNode::PositiveRecord { fields: Arc::from([RecordField::required("second", p), RecordField::required("first", p), RecordField::required("extra", p)]) }).unwrap();
+        let upper = session.store.terms.intern(TermNode::NegativeRecord { fields: Arc::from([RecordField::required("first", n), RecordField { name: "absent".into(), optional: true, value: n }, RecordField::required("second", n)]) }).unwrap();
+        let binding = session.batch.hir.items().iter().find_map(|item| match item { HirItem::Binding(binding) => Some(binding), _ => None }).unwrap();
+        let occurrence = ConstraintOccurrenceId::new(binding.value().occurrence().clone(), 93);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        let pair = CanonicalValuePairKey {
+            lower: ValueEndpointKey::PositiveRecord(lower),
+            upper: ValueEndpointKey::NegativeRecord(upper),
+        };
+        let index = session.with_route_transaction(|session| {
+            session.start_typed_drain(item(pair), &occurrence, &cause, None, None)
+        }).unwrap();
+        let frame_before = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].clone();
+        let worklist_before = session.typed_worklist.clone();
+        let dependencies_before = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.observed_dependencies().count();
+        assert_eq!(session.resume_typed_drain_route(index, |session, index| {
+            loop {
+                session.step_typed_drain(index)?;
+                if session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index].record.is_some() {
+                    return Err::<(), _>(SolveAvailabilityError::IdentityExhausted);
+                }
+            }
+        }), Err(SolveAvailabilityError::IdentityExhausted));
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.typed_drains[index], frame_before);
+        assert_eq!(session.typed_worklist, worklist_before);
+        assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context.observed_dependencies().count(), dependencies_before);
+        loop {
+            let step = session.resume_typed_drain_route(index, |session, index| session.step_typed_drain(index)).unwrap();
+            if matches!(step, DrainStep::Complete(_)) { break; }
+        }
+        let record_ports: Vec<_> = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context
+            .observed_dependencies().filter_map(|dependency| match dependency {
+                candidate_context::Dependency::RecordPort { lower_index, upper_index, .. } => Some((*lower_index, *upper_index)),
+                _ => None,
+            }).collect();
+        let mut record_ports = record_ports;
+        record_ports.sort_unstable();
+        assert_eq!(record_ports, [(0, 2), (1, 0)]);
     }
 
 }

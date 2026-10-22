@@ -6327,6 +6327,7 @@ mod native_selected_use_census {
                 Dependency::Derived { child, parent } => (child, vec![(parent, "Derived")]),
                 Dependency::FunctionPort { child, parent, .. } => (child, vec![(parent, "FunctionPort")]),
                 Dependency::TuplePort { child, parent, .. } => (child, vec![(parent, "TuplePort")]),
+                Dependency::RecordPort { child, parent, .. } => (child, vec![(parent, "RecordPort")]),
                 Dependency::Transport { child, parent, .. } => (child, vec![(parent, "Transport")]),
                 Dependency::Replay { child, lower, upper, .. } =>
                     (child, vec![(lower, "Replay.lower"), (upper, "Replay.upper")]),

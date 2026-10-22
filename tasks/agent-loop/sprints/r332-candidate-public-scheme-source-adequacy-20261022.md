@@ -422,3 +422,12 @@ observation. Solver 9, resource 9, native 268, fresh WASM 54 and TS pass.
 Concrete adaptation and record-formal publication remain explicitly withheld;
 no parent closure or production promotion. Next: local presence/child witnesses
 and original default constraints/evaluation under the same active envelope.
+
+Local-comparison slice adds exact candidate_context.rs ownership for named
+Record child dependencies and resumable admission frames; the existing
+candidate_context_tests.rs lease covers its exhaustive dependency observer.
+Other held solver/source/runtime paths apply. Preserve separate Record indexes,
+original bound/source parents and context; no Tuple encoding or transitive
+composition of successful concrete comparisons.
+
+Local Record comparison checkpoint: resource-feature solver 11/11 pass, including original nontransitivity discriminator and resumable indexed dependencies. Source/default runtime remains next; no independent review or parent closure.
