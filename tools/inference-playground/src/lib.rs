@@ -732,10 +732,10 @@ mod tests {
         let mut modules = pinned_provider_projection(&hir, &provider_sources, &indexes, &role_indexes).unwrap();
         modules.push(hir);
 
-        let readbacks = CandidateInference::inspect_deferred_field_tails_with_role_sources(
+        let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
             modules, &indexes, &role_indexes,
         ).unwrap();
-        let matching_say = readbacks.iter().filter(|item| item.member.as_ref() == "say")
+        let matching_say = readbacks.receivers.iter().filter(|item| item.member.as_ref() == "say")
             .collect::<Vec<_>>();
         let [say] = matching_say.as_slice() else {
             panic!("the unchanged sample has exactly one deferred say receiver")
@@ -782,6 +782,10 @@ mod tests {
             assert_eq!(clause.matching_implementations[0].module.file().key()
                 .normalized_workspace_relative_path(), "lib/std/core/fmt.yu");
         }
+        assert_eq!(readbacks.captured_member_graph_count, 0,
+            "the binding-only provider projection has no imported implementation member graphs");
+        assert!(readbacks.captured_member_field_tails.is_empty(),
+            "source role inventory does not imply that implementation body HIR entered the session");
     }
 
     #[test]

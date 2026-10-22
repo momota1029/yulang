@@ -12115,6 +12115,31 @@ impl InferenceSession {
         }
         Ok(readbacks)
     }
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_captured_member_field_tail_readbacks(
+        &self,
+    ) -> Result<(usize, Vec<shadow_apply::CandidateCapturedMemberFieldTailReadback>), SolveAvailabilityError> {
+        let state = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let graph_count = state.member_graphs.len();
+        let layouts = state.captured_member_field_tail_layouts()?;
+        let mut readbacks = Vec::new();
+        readbacks.try_reserve_exact(layouts.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        for layout in layouts {
+            let obligation = layout.obligation;
+            readbacks.push(shadow_apply::CandidateCapturedMemberFieldTailReadback {
+                member_root: layout.member,
+                owner: obligation.owner,
+                occurrence: obligation.occurrence,
+                source: obligation.source,
+                member: obligation.member,
+                role_member_candidates: obligation.role_member_candidates,
+                freshuse_row_indexes: layout.freshuse_row_indexes,
+                graph_row_count: layout.graph_row_count,
+                freshuse_row_local: layout.freshuse_row_local,
+            });
+        }
+        Ok((graph_count, readbacks))
+    }
     fn canonical_effect(&self, endpoint: EffectEndpointKey) -> EffectEndpointKey {
         #[cfg(feature = "shadow-apply-candidate")]
         if let Some(state) = &self.candidate_graph {

@@ -1718,6 +1718,24 @@ pub(crate) fn lower_module_with_member_sources(
 }
 
 #[cfg(any(feature = "shadow", test))]
+pub(crate) fn lower_module_with_selected_member_sources(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+    selected_members: std::collections::HashSet<yu_syntax::SourceNodeKey>,
+) -> Result<HirModule, HirAvailabilityError> {
+    if selected_members.iter().any(|member| !parsed.owns_source_key(member)) {
+        return Err(HirAvailabilityError::ForeignSourceImport);
+    }
+    let mut counters = LoweringCounters::default();
+    counters.source_identity = Some(crate::source_identity::HirSourceIdentity::new(parsed));
+    counters.source_nodes = crate::source_identity::source_keys(parsed);
+    counters.member_sources = true;
+    counters.selected_member_sources = Some(selected_members);
+    lower_module_with_counters(identity, parsed, imports, &mut counters)
+}
+
+#[cfg(any(feature = "shadow", test))]
 pub(crate) fn lower_module_with_selected_local_source(
     identity: ModuleIdentity,
     parsed: &ParsedFile,
@@ -1988,6 +2006,11 @@ fn lower_module_with_counters(
     #[cfg(any(feature = "shadow", test))]
     let source_member_carriers = if counters.local_source || counters.member_sources {
         let mut carriers = Vec::new();
+        let mut selected_member_found = std::collections::HashSet::new();
+        if let Some(selected) = &counters.selected_member_sources {
+            selected_member_found.try_reserve(selected.len())
+                .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        }
         // Carrier construction mutates lowering counters, so walk owned
         // declaration snapshots rather than aliasing the declaration tables.
         let role_declarations = counters.role_declarations.clone();
@@ -1996,6 +2019,9 @@ fn lower_module_with_counters(
             let Some(body) = declaration.body.as_ref() else { continue; };
             for member in &body.members {
                 if member.recovered { continue; }
+                let selected_member = counters.selected_member_sources.as_ref().is_some_and(|selected|
+                    selected.contains(&member.id.declaration));
+                if counters.selected_member_sources.is_some() && !selected_member { continue; }
                 let Some(header) = member.header.as_ref() else { continue; };
                 let syntax = crate::source_identity::syntax_node_at_path(parsed, &member.source_path)?;
                 if syntax.kind() != member.kind
@@ -2003,7 +2029,10 @@ fn lower_module_with_counters(
                     || syntax.text().to_string() != member.text.as_ref()
                     || counters.source_nodes.get(&syntax) != Some(&member.id.declaration)
                 { return Err(HirAvailabilityError::StructuralProjection); }
-                let Some(expression) = local_source::member_body_expression(&syntax)? else { continue; };
+                let Some(expression) = local_source::member_body_expression(&syntax)? else {
+                    if selected_member { return Err(HirAvailabilityError::StructuralProjection); }
+                    continue;
+                };
                 let owner = SourceRootId::Member(SourceMemberRootId::new(
                     artifact.clone(), identity.module().clone(),
                     declaration.id.declaration.clone(), member.id.declaration.clone(),
@@ -2015,12 +2044,18 @@ fn lower_module_with_counters(
                 )?;
                 carriers.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
                 carriers.push((owner, outcome));
+                if selected_member && !selected_member_found.insert(member.id.declaration.clone()) {
+                    return Err(HirAvailabilityError::StructuralProjection);
+                }
             }
         }
         for declaration in &implementation_declarations {
             let Some(body) = declaration.body.as_ref() else { continue; };
             for member in body.entries.iter().filter(|entry| entry.member.is_some()) {
                 if member.recovered { continue; }
+                let selected_member = counters.selected_member_sources.as_ref().is_some_and(|selected|
+                    selected.contains(&member.source));
+                if counters.selected_member_sources.is_some() && !selected_member { continue; }
                 let Some(header) = member.header.as_ref() else { continue; };
                 let path = member.source_path.as_deref().ok_or(HirAvailabilityError::StructuralProjection)?;
                 let syntax = crate::source_identity::syntax_node_at_path(parsed, path)?;
@@ -2029,7 +2064,10 @@ fn lower_module_with_counters(
                     || syntax.text().to_string() != member.text.as_ref()
                     || counters.source_nodes.get(&syntax) != Some(&member.source)
                 { return Err(HirAvailabilityError::StructuralProjection); }
-                let Some(expression) = local_source::member_body_expression(&syntax)? else { continue; };
+                let Some(expression) = local_source::member_body_expression(&syntax)? else {
+                    if selected_member { return Err(HirAvailabilityError::StructuralProjection); }
+                    continue;
+                };
                 let owner = SourceRootId::Member(SourceMemberRootId::new(
                     artifact.clone(), identity.module().clone(),
                     declaration.id.declaration.clone(), member.source.clone(),
@@ -2041,7 +2079,14 @@ fn lower_module_with_counters(
                 )?;
                 carriers.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
                 carriers.push((owner, outcome));
+                if selected_member && !selected_member_found.insert(member.source.clone()) {
+                    return Err(HirAvailabilityError::StructuralProjection);
+                }
             }
+        }
+        if counters.selected_member_sources.as_ref().is_some_and(|selected|
+            selected_member_found.len() != selected.len()) {
+            return Err(HirAvailabilityError::StructuralProjection);
         }
         carriers
     } else { Vec::new() };
@@ -2148,6 +2193,7 @@ struct LoweringCounters {
     ordinary_source_carriers: bool,
     local_source: bool,
     member_sources: bool,
+    selected_member_sources: Option<std::collections::HashSet<yu_syntax::SourceNodeKey>>,
     selected_local_source_roots: Option<std::collections::HashSet<yu_syntax::SourceNodeKey>>,
     local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]

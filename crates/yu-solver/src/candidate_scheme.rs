@@ -109,6 +109,74 @@ pub(super) struct Graph {
     #[cfg(test)]
     pub capture_forest: candidate_intrusion::ForestSnapshot,
 }
+
+#[derive(Clone, Debug)]
+pub(super) struct CapturedMemberFieldTailLayout {
+    pub member: yu_hir::SourceMemberRootId,
+    pub obligation: SourceFieldTailObligation,
+    /// Graph row positions consumed by FreshUse's one shared row vector.
+    pub freshuse_row_indexes: [usize; 4],
+    pub graph_row_count: usize,
+    pub freshuse_row_local: [bool; 4],
+}
+
+fn field_tail_freshuse_row_indexes(
+    graph: &Graph,
+) -> Result<Vec<(usize, [usize; 4])>, SolveAvailabilityError> {
+    let mut result = Vec::new();
+    result.try_reserve_exact(graph.source_field_tail_obligations.len()).map_err(|_| exhausted())?;
+    for (obligation_index, obligation) in graph.source_field_tail_obligations.iter().enumerate() {
+        let keys = [obligation.receiver_row, obligation.receiver_effect,
+            obligation.result_row, obligation.result_effect];
+        let mut indexes = [0usize; 4];
+        for (slot, key) in keys.into_iter().enumerate() {
+            indexes[slot] = graph.rows.iter().position(|row| row.key == key)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        }
+        result.push((obligation_index, indexes));
+    }
+    Ok(result)
+}
+
+impl GraphState {
+    pub(super) fn captured_member_field_tail_layouts(
+        &self,
+    ) -> Result<Vec<CapturedMemberFieldTailLayout>, SolveAvailabilityError> {
+        let count = self.member_graphs.values().try_fold(0usize, |total, member|
+            total.checked_add(member.graph.source_field_tail_obligations.len())
+        ).ok_or_else(exhausted)?;
+        let mut result = Vec::new();
+        result.try_reserve_exact(count).map_err(|_| exhausted())?;
+        for (member_root, member_graph) in &self.member_graphs {
+            let graph = &member_graph.graph;
+            let indexes = field_tail_freshuse_row_indexes(graph)?;
+            if indexes.len() != graph.source_field_tail_obligations.len() {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
+            for (obligation_index, freshuse_row_indexes) in indexes {
+                let obligation = graph.source_field_tail_obligations.get(obligation_index)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                if obligation.owner != SourceRootId::Member(member_root.clone()) {
+                    return Err(SolveAvailabilityError::ReceiptMismatch);
+                }
+                let freshuse_row_local = freshuse_row_indexes.map(|index|
+                    graph.rows.get(index).is_some_and(|row| row.local));
+                if freshuse_row_indexes.iter().any(|index| graph.rows.get(*index).is_none()) {
+                    return Err(SolveAvailabilityError::ReceiptMismatch);
+                }
+                result.push(CapturedMemberFieldTailLayout {
+                    member: member_root.clone(),
+                    obligation: obligation.clone(),
+                    freshuse_row_indexes,
+                    graph_row_count: graph.rows.len(),
+                    freshuse_row_local,
+                });
+            }
+        }
+        Ok(result)
+    }
+}
+
 #[cfg(test)]
 #[derive(Clone, Copy, Debug)]
 pub(super) struct CapturedRowObservation {
@@ -2208,16 +2276,7 @@ impl InferenceSession {
                 .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
             source_role_obligation_rows.push((obligation_index, row_index));
         }
-        let mut source_field_tail_obligation_rows = Vec::new();
-        source_field_tail_obligation_rows.try_reserve_exact(graph.source_field_tail_obligations.len()).map_err(|_| exhausted())?;
-        for (obligation_index, obligation) in graph.source_field_tail_obligations.iter().enumerate() {
-            let keys = [obligation.receiver_row, obligation.receiver_effect, obligation.result_row, obligation.result_effect];
-            let mut indexes = [0usize; 4];
-            for (slot, key) in keys.into_iter().enumerate() {
-                indexes[slot] = graph.rows.iter().position(|row| row.key == key).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            }
-            source_field_tail_obligation_rows.push((obligation_index, indexes));
-        }
+        let source_field_tail_obligation_rows = field_tail_freshuse_row_indexes(graph)?;
         #[cfg(test)]
         let mut row_observations = {
             let mut observations = Vec::new();

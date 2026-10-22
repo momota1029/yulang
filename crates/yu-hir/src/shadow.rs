@@ -908,6 +908,19 @@ pub fn lower_module_with_member_sources(
     crate::module::lower_module_with_member_sources(identity, parsed, imports)
 }
 
+/// Lowers HIR and forms member source carriers only for the exact parse-owned
+/// member declaration keys supplied by an authenticated source index.
+pub fn lower_module_with_selected_member_sources(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    imports: SemanticImports,
+    selected_members: std::collections::HashSet<yu_syntax::SourceNodeKey>,
+) -> Result<HirModule, HirAvailabilityError> {
+    crate::module::lower_module_with_selected_member_sources(
+        identity, parsed, imports, selected_members,
+    )
+}
+
 /// Forms local source carriers only for selected direct roots while retaining
 /// their original parse and module identity.
 pub fn lower_module_with_selected_local_source(
@@ -4244,6 +4257,48 @@ mod tests {
             ).unwrap_err(),
             SourceRoleImplementationMemberError::StaleRoleMember,
         );
+    }
+
+    #[test]
+    fn selected_member_source_projection_keeps_one_exact_implementation_body() {
+        let parsed = parsed(
+            "role Display 'a:\n    pub a.show: str\nimpl int: Display:\n    our value.show = \"int\"\nimpl str: Display:\n    our value.show = \"str\"",
+        );
+        let identity = ModuleIdentity::source_root(crate::FileId::new(crate::FileKey::new(
+            "selected-member-source", "lib/fmt.yu",
+        )));
+        let role_index = index_role_impl_sources(identity.clone(), &parsed).unwrap();
+        let role = role_index.roles().first().unwrap();
+        let source_index = index_source_exports(identity.clone(), &parsed).unwrap();
+        let role_indexes = [role_index.clone()];
+        let resolved = resolve_source_role_implementation_candidates(
+            &role.id,
+            &[source_index],
+            &role_indexes,
+        ).unwrap();
+        let role_member = role.body.as_ref().unwrap().members[0].id.clone();
+        let implementations = resolve_source_role_implementation_members(
+            &role_member, &resolved, &role_indexes,
+        ).unwrap();
+        let selected = implementations.implementations.iter().find_map(|candidate|
+            candidate.member.as_ref().map(|member| member.declaration.clone())
+        ).unwrap();
+        let imports = SemanticImports::empty();
+        let hir = lower_module_with_selected_member_sources(
+            identity.clone(), &parsed, imports, std::collections::HashSet::from([selected.clone()]),
+        ).unwrap();
+        let [(owner, _carrier)] = hir.source_member_carrier_outcomes() else {
+            panic!("selected member projection yields exactly one member carrier")
+        };
+        let SourceRootId::Member(root) = owner else {
+            panic!("selected source carrier keeps a Member owner")
+        };
+        assert_eq!(root.module(), identity.module());
+        assert_eq!(root.declaration_source_key(), &implementations.implementations.iter()
+            .find(|candidate| candidate.member.as_ref().is_some_and(|member| member.declaration == selected))
+            .unwrap().implementation.declaration);
+        assert_eq!(root.member_source_key(), &selected);
+        assert_eq!(root.kind(), crate::SourceMemberKind::Implementation);
     }
 
     #[test]

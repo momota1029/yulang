@@ -120,6 +120,28 @@ pub struct CandidateFieldTailReceiverReadback {
     /// lower-shape and tuple-element frontier.
     pub negative_frontier_empty: bool,
 }
+/// Same-session inventory of nested Member FieldTails retained by captured
+/// member graphs. The four graph row positions are the positions consumed by
+/// FreshUse's single shared row map; this is transport-layout evidence, not an
+/// instantiated use, selected implementation, or receiver-type judgment.
+#[derive(Clone, Debug)]
+pub struct CandidateCapturedMemberFieldTailReadback {
+    pub member_root: yu_hir::SourceMemberRootId,
+    pub owner: SourceRootId,
+    pub occurrence: HirOccurrenceId,
+    pub source: yu_hir::shadow::SourceNodeKey,
+    pub member: Box<str>,
+    pub role_member_candidates: Vec<yu_hir::shadow::SourceRoleMemberId>,
+    pub freshuse_row_indexes: [usize; 4],
+    pub graph_row_count: usize,
+    pub freshuse_row_local: [bool; 4],
+}
+#[derive(Clone, Debug, Default)]
+pub struct CandidateDeferredFieldTailReadbacks {
+    pub receivers: Vec<CandidateFieldTailReceiverReadback>,
+    pub captured_member_graph_count: usize,
+    pub captured_member_field_tails: Vec<CandidateCapturedMemberFieldTailReadback>,
+}
 /// Owns a private solver result which cannot be published as a SolvedModule.
 /// Invocation/evaluation effects are intentionally absent from this API.
 pub struct CandidateValueObservation {
@@ -1033,13 +1055,26 @@ impl CandidateInference {
         source_indexes: &[yu_hir::SourceExportIndex],
         role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
     ) -> Result<Vec<CandidateFieldTailReceiverReadback>, CandidateError> {
-        let mut readbacks = Vec::new();
+        Ok(Self::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
+            hirs, source_indexes, role_indexes,
+        )?.receivers)
+    }
+    /// Read root receiver bounds and captured nested Member FieldTail row
+    /// layouts from the same deferred solver session. Nested rows are reported
+    /// through the exact graph positions later consumed by one FreshUse map;
+    /// no member is instantiated or selected here.
+    pub fn inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
+        hirs: Vec<Arc<HirModule>>,
+        source_indexes: &[yu_hir::SourceExportIndex],
+        role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+    ) -> Result<CandidateDeferredFieldTailReadbacks, CandidateError> {
+        let mut readbacks = CandidateDeferredFieldTailReadbacks::default();
         match Self::solve_hirs_mode_with_role_sources(
             hirs, false, false, Some((source_indexes, role_indexes)), Some(&mut readbacks),
         ) {
             Ok(_) => Ok(readbacks),
             Err(CandidateError::Solve(SolveAvailabilityError::DeferredSelectionUnavailable))
-                if !readbacks.is_empty() => Ok(readbacks),
+                if !readbacks.receivers.is_empty() || !readbacks.captured_member_field_tails.is_empty() => Ok(readbacks),
             Err(error) => Err(error),
         }
     }
@@ -1166,7 +1201,7 @@ impl CandidateInference {
         scoped: bool,
         operation_v1: bool,
         role_sources: Option<(&[yu_hir::SourceExportIndex], &[yu_hir::shadow::SourceRoleImplIndex])>,
-        mut deferred_readbacks: Option<&mut Vec<CandidateFieldTailReceiverReadback>>,
+        mut deferred_readbacks: Option<&mut CandidateDeferredFieldTailReadbacks>,
     ) -> Result<Self, CandidateError> {
         if hirs.is_empty() { return Err(CandidateError::Unsupported); }
         let imported_definitions = candidate_imported_definitions(&hirs)?;
@@ -1222,8 +1257,12 @@ impl CandidateInference {
             match session.execute() {
                 Ok(()) => session.finish_candidate().map_err(CandidateError::Solve)?,
                 Err(SolveAvailabilityError::DeferredSelectionUnavailable) => {
-                    *readbacks = session.candidate_field_tail_receiver_readbacks()
+                    readbacks.receivers = session.candidate_field_tail_receiver_readbacks()
                         .map_err(CandidateError::Solve)?;
+                    let (member_graph_count, member_field_tails) = session.candidate_captured_member_field_tail_readbacks()
+                        .map_err(CandidateError::Solve)?;
+                    readbacks.captured_member_graph_count = member_graph_count;
+                    readbacks.captured_member_field_tails = member_field_tails;
                     return Err(CandidateError::Solve(SolveAvailabilityError::DeferredSelectionUnavailable));
                 }
                 Err(error) => return Err(CandidateError::Solve(error)),

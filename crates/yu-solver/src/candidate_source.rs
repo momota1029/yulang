@@ -2532,6 +2532,25 @@ mod member_source_tests {
             assert_eq!(member.graph.source_field_tail_obligations[0].owner,
                 yu_hir::SourceRootId::Member(root.clone()));
         }
+        let layouts = state.captured_member_field_tail_layouts().unwrap();
+        assert_eq!(layouts.len(), 2,
+            "each captured member FieldTail has one row layout consumed by FreshUse");
+        for layout in layouts {
+            let member = state.member_graphs.get(&layout.member).expect("layout keeps its exact member graph root");
+            let obligation = member.graph.source_field_tail_obligations.iter()
+                .find(|obligation| obligation.occurrence == layout.obligation.occurrence)
+                .expect("layout occurrence remains in its exact graph");
+            assert_eq!(layout.obligation.source, obligation.source);
+            assert_eq!(layout.obligation.owner, yu_hir::SourceRootId::Member(layout.member.clone()));
+            let keys = [obligation.receiver_row, obligation.receiver_effect,
+                obligation.result_row, obligation.result_effect];
+            let indexes = keys.map(|key| member.graph.rows.iter().position(|row| row.key == key).unwrap());
+            assert_eq!(layout.freshuse_row_indexes, indexes,
+                "the readback and prepare_candidate_fresh_use share one row-index constructor");
+            assert!(indexes.iter().all(|index| *index < layout.graph_row_count));
+            assert_eq!(layout.freshuse_row_local,
+                indexes.map(|index| member.graph.rows[index].local));
+        }
     }
 
     #[test]
