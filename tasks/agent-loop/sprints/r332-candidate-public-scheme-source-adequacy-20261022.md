@@ -402,3 +402,16 @@ binders/default expressions and local reference ownership are retained. HIR
 record 4, solver reference 1 and full native 268 pass. Full HIR 180/181 retains
 the selected-method implicit-prelude failure, reproduced at parent 9cc289c74;
 no assertion changed. Pattern type/default runtime remain explicitly withheld.
+
+Existing module.rs lease covers the parent-reproduced selected-member optional
+prelude inventory repair: absent provider adds no identities; present providers
+keep their existing authentication. Full source import admission is unchanged.
+
+Selected-prelude checkpoint: full HIR 181 and native 268 pass, with the existing
+assertion unchanged. Direct-thirteen continuation preserves 24013 charged
+seconds, discards the unused direct-twelve allowance and grants 3600 fresh
+direct-primary seconds (cap 27613). Existing term/solver/scheme/source/
+runtime leases cover polarized optional Record metadata and its complete
+transport. Derive child/presence witnesses before pattern publication. The
+note pins the original propagation/boundary distinction and default markers.
+Primary only, UNREVIEWED; original all-source and A/B parents remain OPEN.

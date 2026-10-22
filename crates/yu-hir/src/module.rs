@@ -863,6 +863,13 @@ fn retain_implicit_prelude_role_ids(
     selected_members: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
 ) -> Result<(), HirAvailabilityError> {
     use source_exports::SourceImportBinding;
+    // Selected member environments may contain only their explicit providers.
+    // With no prelude index there is no implicit role source to authenticate;
+    // retain the already authenticated explicit environment as-is.
+    if !indexes.iter().any(|index| source_exports::module_label(&index.module).as_deref() == Some("std::prelude")) {
+        return Ok(());
+    }
+
     let selected_names = selected_source_names(parsed, selected_members)?;
     let (parse_root, names) = resolve_implicit_prelude_imports_selected(
         parsed, identity, indexes, Some(&selected_names),

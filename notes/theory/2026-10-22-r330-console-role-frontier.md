@@ -2361,3 +2361,49 @@ isolated checkout, with its existing assertion unchanged. That checkout was
 removed after the run. Browser rebuild is deferred to the next executable
 pattern slice; current pattern inference/runtime publication remains withheld.
 Original catalog count stays 6/19, and original all-source/proof gates stay OPEN.
+
+### Selected member environment without a prelude provider
+
+The parent-reproduced HIR failure occurs before source lowering. The existing
+selected-member API receives only the explicit num/impl module indexes; its
+optional implicit-role discovery nevertheless queried absent `std::prelude`
+for method parameter y and returned SourceImportResolutionUnavailable. A selected
+provider environment may have no prelude source. When that index is absent,
+there are zero implicit role identities to add: retain the authenticated explicit
+environment unchanged. When it is present, preserve all existing public-route,
+recovery and ambiguity checks. This grants no import identity, complete-use
+receipt or unresolved-name fallback. Full source import constructors keep their
+existing contracts. The exact pre-existing HIR assertion is the regression.
+
+### Next polarized record construction and its remaining consumer premise
+
+Represent a field as (original label, optional bit, polarized child), retaining
+order and duplicates. Under a simultaneous row map alpha, only the child changes:
+alpha(Record_p[(li,oi,ti)]) = Record_p[(li,oi,alpha_p(ti))]. This is a syntactic
+constructor law for either polarity, proved componentwise including the empty
+list. It assumes no transitivity or value-set inclusion interpretation for
+concrete Record adaptation. Capture/FreshUse and extrusion must transport the
+optional bit with the name and preserve shared child aliases with their existing
+single row map; constructors themselves acquire no level. A literal sets every
+bit false. Negative and positive pattern records retain the same optional list.
+
+For a defaulted field i the pinned source construction uses distinct incoming
+field row ai and bound row bi, adding ai <: bi and default_i.value <: bi; for a
+required field ai = bi. Default effects join the enclosing function effect.
+Neither supplied-argument syntax nor runtime presence may erase those source
+constraints. The next native term/transport slice can establish the constructor
+law without yet publishing record-formal inference or claiming local adaptation.
+
+The consumer remains a distinct original obligation. Y2 propagation compares
+matching fields using the first same-named lower field and the original upper
+index; it skips lower-optional/upper-required child propagation. Its mono boundary
+checks required presence and rejects that optional-to-required boundary. Thus a
+skip is not acceptance, and neither branch alone is a complete source/native
+witness. Field/default runtime binding also preserves the original record's
+markers on the chosen actual field or default result. General inherited
+receiving views cannot be discarded when adding field extraction. Retain these
+premises explicitly through the upcoming source/native integration.
+
+Selected-prelude repair validation: full HIR **181/181** and full native
+playground **268/268** pass. The old failing assertion is unchanged. No sample
+completion or independent proof review is inferred from this inventory repair.
