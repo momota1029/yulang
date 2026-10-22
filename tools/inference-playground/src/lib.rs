@@ -395,9 +395,7 @@ fn prepare(
     let solved = if scoped {
         CandidateInference::solve_scoped_experiment(hir.clone())
     } else {
-        let providers = pinned_provider_projection(&hir, &provider_sources, &indexes, &role_indexes)?;
-        let mut modules = providers;
-        modules.push(hir.clone());
+        let modules = pinned_candidate_world(&hir, &provider_sources, &indexes, &role_indexes)?;
         CandidateInference::solve_modules_with_role_sources(modules, &indexes, &role_indexes)
     };
     let candidate = solved.map_err(|error| match error {
@@ -405,6 +403,8 @@ fn prepare(
             "unsupported source: current candidate lowering/inference cannot observe this program"
                 .to_owned()
         }
+        CandidateError::MissingMemberSource(member) =>
+            bounded_message(format_args!("exact implementation member source unavailable: {member:?}")),
         other => bounded_message(format_args!("candidate inference unavailable: {other:?}")),
     })?;
     if !candidate.candidate_conflicts().is_empty() {
@@ -439,6 +439,54 @@ fn prepare(
 }
 
 type PinnedProviderSource = (ModuleIdentity, yu_syntax::ParsedFile);
+
+fn projection_signature(hir: &HirModule) -> Vec<Box<str>> {
+    let mut signature = Vec::new();
+    for item in hir.items() {
+        match item {
+            HirItem::Binding(binding) => signature.push(format!("binding:{}", binding.name().spelling()).into_boxed_str()),
+            HirItem::Expression(expression) => signature.push(format!("expression:{}", expression.occurrence().ordinal()).into_boxed_str()),
+            HirItem::Error { errors, .. } => signature.push(format!("error:{errors:?}").into_boxed_str()),
+        }
+    }
+    for (root, _) in hir.source_member_carrier_outcomes() {
+        if let SourceRootId::Member(root) = root {
+            signature.push(format!("member:{:?}:{:?}", root.kind(), root.member_source_key()).into_boxed_str());
+        }
+    }
+    signature.sort();
+    signature
+}
+
+fn same_projected_member_roots(left: &HirModule, right: &HirModule) -> bool {
+    let left_roots = left.source_member_carrier_outcomes().iter()
+        .filter_map(|(owner, _)| owner.member_root())
+        .collect::<Vec<_>>();
+    let right_roots = right.source_member_carrier_outcomes().iter()
+        .filter_map(|(owner, _)| owner.member_root())
+        .collect::<Vec<_>>();
+    left_roots.len() == right_roots.len() && left_roots.iter().all(|root|
+        right_roots.iter().any(|other|
+            root.kind() == other.kind()
+                && root.module() == other.module()
+                && root.declaration_source_key() == other.declaration_source_key()
+                && root.member_source_key() == other.member_source_key()
+        )
+    )
+}
+
+fn append_unique_projection(
+    modules: &mut Vec<Arc<HirModule>>,
+    candidate: Arc<HirModule>,
+) {
+    let signature = projection_signature(&candidate);
+    if modules.iter().any(|existing|
+        existing.identity().module() == candidate.identity().module()
+            && projection_signature(existing) == signature
+            && same_projected_member_roots(existing, &candidate)
+    ) { return; }
+    modules.push(candidate);
+}
 
 fn pinned_source_world() -> Result<(Vec<PinnedProviderSource>, Vec<yu_hir::SourceExportIndex>, Vec<yu_hir::shadow::SourceRoleImplIndex>), String> {
     use yu_syntax::{SourceText, parse_file, scan_header};
@@ -475,21 +523,27 @@ fn pinned_source_world() -> Result<(Vec<PinnedProviderSource>, Vec<yu_hir::Sourc
 /// Project only exact exported binding roots reached from imported Names,
 /// then recursively follow their SourceExportId dependencies.
 fn pinned_provider_projection(
-    consumer: &HirModule,
+    consumer: &Arc<HirModule>,
     sources: &[PinnedProviderSource],
     indexes: &[yu_hir::SourceExportIndex],
     role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+) -> Result<Vec<Arc<HirModule>>, String> {
+    pinned_provider_projection_inner(consumer, sources, indexes, role_indexes, true)
+}
+
+fn pinned_provider_projection_inner(
+    consumer: &Arc<HirModule>,
+    sources: &[PinnedProviderSource],
+    indexes: &[yu_hir::SourceExportIndex],
+    role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+    include_member_sources: bool,
 ) -> Result<Vec<Arc<HirModule>>, String> {
     use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
     use std::collections::HashSet;
 
     fn imported_exports(hir: &HirModule) -> Result<Vec<yu_hir::shadow::SourceExportId>, String> {
         let mut exports = Vec::new();
-        for item in hir.items() {
-            let HirItem::Binding(binding) = item else { continue };
-            let Some(source) = hir.local_source(binding.definition_root())
-                .map_err(|error| format!("provider source lookup unavailable: {error:?}"))?
-            else { continue };
+        let mut retain = |source: &yu_hir::shadow::LocalSource| -> Result<(), String> {
             for expression in source.expressions() {
                 if let LocalSourceForm::Name {
                     resolution: LocalSourceResolution::Imported(export), ..
@@ -500,6 +554,19 @@ fn pinned_provider_projection(
                         exports.push(export.clone());
                     }
                 }
+            }
+            Ok(())
+        };
+        for item in hir.items() {
+            let HirItem::Binding(binding) = item else { continue };
+            let Some(source) = hir.local_source(binding.definition_root())
+                .map_err(|error| format!("provider source lookup unavailable: {error:?}"))?
+            else { continue };
+            retain(source)?;
+        }
+        for (_, outcome) in hir.source_member_carrier_outcomes() {
+            if let yu_hir::SourceCarrierOutcome::Supported(source) = outcome {
+                retain(source)?;
             }
         }
         Ok(exports)
@@ -653,7 +720,443 @@ fn pinned_provider_projection(
     providers.try_reserve(built.iter().filter(|module| module.is_some()).count())
         .map_err(|_| "pinned provider allocation unavailable".to_owned())?;
     providers.extend(built.into_iter().flatten());
+    if include_member_sources {
+        let mut seed_hirs = vec![consumer.clone()];
+        seed_hirs.extend(providers.iter().cloned());
+        let members = pinned_member_projection(&seed_hirs, sources, indexes, role_indexes)?;
+        for member in &members {
+            // Member bodies can use imported operators and values of their
+            // own. Project those exact roots through the same source-owner
+            // route, while leaving recursive role-member expansion to the
+            // queue that owns the complete member closure.
+            for dependency in pinned_provider_projection_inner(
+                member, sources, indexes, role_indexes, false,
+            )? {
+                append_unique_projection(&mut providers, dependency);
+            }
+        }
+        for member in members { append_unique_projection(&mut providers, member); }
+    }
     Ok(providers)
+}
+
+/// Project source-authenticated role defaults and their exact implementation
+/// override candidates reachable from FieldTail names in the supplied world.
+/// Each provider contributes selected member carriers, never unrelated direct
+/// module roots. The resulting HIRs are templates; Solver still decides which
+/// implementation applies to each receiver.
+fn pinned_member_projection(
+    seeds: &[Arc<HirModule>],
+    sources: &[PinnedProviderSource],
+    indexes: &[yu_hir::SourceExportIndex],
+    role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+) -> Result<Vec<Arc<HirModule>>, String> {
+    use yu_hir::shadow::{LocalSource, LocalSourceForm, SourceRoleMemberId};
+    use std::collections::{HashMap, HashSet};
+
+    #[derive(Clone, Debug, Eq, Hash, PartialEq)]
+    struct MemberKey {
+        module: yu_hir::ModuleId,
+        declaration: yu_syntax::SourceNodeKey,
+    }
+
+    fn field_tail_names(hir: &HirModule) -> Result<Vec<Box<str>>, String> {
+        fn retain(source: &LocalSource, names: &mut Vec<Box<str>>) {
+            for expression in source.expressions() {
+                let LocalSourceForm::FieldTail { member, .. } = &expression.form else { continue; };
+                if !names.contains(member) { names.push(member.clone()); }
+            }
+        }
+        let mut names = Vec::new();
+        let mut roots = HashSet::new();
+        for item in hir.items() {
+            let root = match item {
+                HirItem::Binding(binding) => Some(SourceRootId::Definition(binding.definition_root().clone())),
+                HirItem::Expression(expression) => hir.expression_root(expression.occurrence())
+                    .map_err(|error| format!("member projection expression root unavailable: {error:?}"))?
+                    .cloned().map(SourceRootId::Expression),
+                HirItem::Error { .. } => None,
+            };
+            let Some(root) = root else { continue; };
+            if !roots.insert(root.clone()) { continue; }
+            if let Some(source) = hir.local_source_for(&root)
+                .map_err(|error| format!("member projection LocalSource unavailable: {error:?}"))?
+            { retain(source, &mut names); }
+        }
+        for (root, outcome) in hir.source_member_carrier_outcomes() {
+            if !roots.insert(root.clone()) { continue; }
+            if let yu_hir::SourceCarrierOutcome::Supported(source) = outcome { retain(source, &mut names); }
+        }
+        Ok(names)
+    }
+
+    fn exact_role_member(
+        requested: &SourceRoleMemberId,
+        role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+    ) -> Result<(), String> {
+        let mut role_count = 0usize;
+        let mut member_count = 0usize;
+        for index in role_indexes {
+            if index.module() != requested.role.module.as_ref() { continue; }
+            for role in index.roles().iter().filter(|role| role.id == requested.role) {
+                role_count += 1;
+                for _ in role.body.iter().flat_map(|body| body.members.iter())
+                    .filter(|member| member.id == *requested)
+                { member_count += 1; }
+            }
+        }
+        if role_count == 1 && member_count == 1 { Ok(()) }
+        else { Err(format!("exact source role member is missing or ambiguous: {requested:?}")) }
+    }
+
+    fn role_member_has_body(
+        requested: &SourceRoleMemberId,
+        role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+    ) -> bool {
+        role_indexes.iter().filter(|index| index.module() == requested.role.module.as_ref())
+            .flat_map(|index| index.roles())
+            .filter(|role| role.id == requested.role)
+            .flat_map(|role| role.body.iter())
+            .flat_map(|body| body.members.iter())
+            .any(|member| member.id == *requested
+                && member.header.as_ref().is_some_and(|header| header.annotation.is_none()))
+    }
+
+    let mut effects = Vec::new();
+    for (identity, parsed) in sources {
+        let Some(index) = indexes.iter().find(|index| index.module == *identity.module()) else { continue; };
+        for declaration in index.declarations.iter().filter(|declaration|
+            declaration.kind == yu_syntax::SyntaxKind::ActDeclaration
+                && parsed.owns_source_key(&declaration.source)
+        ) {
+            let selected = HashSet::from([declaration.source.clone()]);
+            // An unrelated unsupported family must not prevent projection of
+            // other exact members. A member that actually names such a family
+            // still fails closed in with_selected_member_operations below.
+            if let Ok(indexed) = yu_hir::shadow::index_source_effects(identity.clone(), parsed, &selected) {
+                effects.extend(indexed);
+            }
+        }
+    }
+
+    let mut pending = Vec::<Arc<HirModule>>::new();
+    pending.try_reserve(seeds.len()).map_err(|_| "member projection queue unavailable".to_owned())?;
+    pending.extend(seeds.iter().cloned());
+    let mut processed_modules = HashSet::<MemberKey>::new();
+    let mut projected = Vec::new();
+    while let Some(hir) = pending.pop() {
+        let hir = hir.as_ref();
+        let Some(imports) = hir.source_imports() else { continue; };
+        let mut selected_by_source = HashMap::<usize, HashSet<yu_syntax::SourceNodeKey>>::new();
+        for member_name in field_tail_names(hir)? {
+            let mut role_members = Vec::<yu_hir::shadow::SourceRoleMemberId>::new();
+            for role_name in imports.names().keys() {
+                let Some(role_member) = imports.role_member_id(role_name, &member_name) else { continue; };
+                if !role_members.contains(role_member) { role_members.push(role_member.clone()); }
+            }
+            // Mirror candidate collection's authenticated implicit-prelude
+            // route for members in a selected source body. The method spelling
+            // finds a source member candidate; its exact role/member keys own
+            // all later projection and matching.
+            for index in role_indexes {
+                for role in index.roles() {
+                    let resolution = match yu_hir::resolve_public_export(
+                        indexes, "std::prelude", &role.head.spelling,
+                    ) {
+                        Ok(resolution) => resolution,
+                        Err(yu_hir::SourceExportResolveError::MissingExport { .. }) => continue,
+                        Err(yu_hir::SourceExportResolveError::Ambiguous { .. }) => continue,
+                        Err(_) => continue,
+                    };
+                    let path = role.id.module.file().key().normalized_workspace_relative_path();
+                    let Some(path) = path.strip_prefix("lib/").and_then(|path| path.strip_suffix(".yu")) else { continue; };
+                    if path.replace('/', "::") != resolution.module.as_ref()
+                        || resolution.declaration.source != role.id.declaration
+                        || resolution.name.as_ref() != role.head.spelling.as_ref()
+                    { continue; }
+                    let Ok(yu_hir::shadow::SourceExportOwner::Role { declaration: exported, .. }) =
+                        yu_hir::shadow::resolve_source_export_owner(&[], role_indexes, &resolution)
+                    else { continue; };
+                    if exported.id != role.id { continue; }
+                    let Ok(inventory) = yu_hir::shadow::source_role_member_inventory(&role.id, role_indexes) else { continue; };
+                    for (name, member) in inventory {
+                        if name == member_name && !role_members.contains(&member) {
+                            role_members.push(member);
+                        }
+                    }
+                }
+            }
+            for role_member in role_members {
+                exact_role_member(&role_member, role_indexes)?;
+                let role_key = MemberKey {
+                    module: role_member.role.module.as_ref().clone(),
+                    declaration: role_member.declaration.clone(),
+                };
+                if processed_modules.contains(&role_key) { continue; }
+                processed_modules.insert(role_key.clone());
+                if role_member_has_body(&role_member, role_indexes) {
+                    let source_index = sources.iter().position(|(identity, parsed)|
+                        identity.module() == &role_key.module && parsed.owns_source_key(&role_key.declaration)
+                    ).ok_or_else(|| format!("parse owner for exact role member missing: {role_key:?}"))?;
+                    selected_by_source.entry(source_index).or_default().insert(role_key.declaration.clone());
+                }
+
+                // Overrides are projected only after receiver and prerequisite
+                // evidence identifies an exact applicable implementation.
+            }
+        }
+        for (source_index, selected_members) in selected_by_source {
+            let (identity, parsed) = sources.get(source_index)
+                .ok_or_else(|| "selected member source index disappeared".to_owned())?;
+            let imports = match SemanticImports::with_selected_member_operations(
+                parsed, identity, indexes, &selected_members, role_indexes, &effects,
+            ) {
+                Ok(imports) => imports,
+                Err(yu_hir::HirAvailabilityError::StructuralProjection
+                    | yu_hir::HirAvailabilityError::ExactOperatorEnvironment
+                    | yu_hir::HirAvailabilityError::SourceImportResolutionUnavailable) => continue,
+                Err(error) => return Err(format!("selected member imports unavailable for {}: {error:?}",
+                    identity.file().key().normalized_workspace_relative_path())),
+            };
+            let module = match yu_hir::shadow::lower_module_with_selected_member_sources(
+                identity.clone(), parsed, imports, selected_members,
+            ) {
+                Ok(module) => Arc::new(module),
+                Err(yu_hir::HirAvailabilityError::StructuralProjection
+                    | yu_hir::HirAvailabilityError::ExactOperatorEnvironment
+                    | yu_hir::HirAvailabilityError::SourceImportResolutionUnavailable) => continue,
+                Err(error) => return Err(format!("selected member projection unavailable for {}: {error:?}",
+                    identity.file().key().normalized_workspace_relative_path())),
+            };
+            pending.push(module.clone());
+            projected.push(module);
+        }
+    }
+    Ok(projected)
+}
+
+fn pinned_candidate_world(
+    hir: &Arc<HirModule>,
+    sources: &[PinnedProviderSource],
+    indexes: &[yu_hir::SourceExportIndex],
+    role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+) -> Result<Vec<Arc<HirModule>>, String> {
+    let mut modules = pinned_provider_projection(hir, sources, indexes, role_indexes)?;
+    append_unique_projection(&mut modules, hir.clone());
+    if let Ok(readbacks) = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
+        modules.clone(), indexes, role_indexes,
+    ) {
+        for member in pinned_applicable_member_projection(&readbacks, sources, indexes, role_indexes)? {
+            for dependency in pinned_provider_projection_inner(
+                &member, sources, indexes, role_indexes, false,
+            )? {
+                append_unique_projection(&mut modules, dependency);
+            }
+            append_unique_projection(&mut modules, member);
+        }
+    }
+    let mut requested = std::collections::HashSet::new();
+    loop {
+        match CandidateInference::solve_modules_with_role_sources(
+            modules.clone(), indexes, role_indexes,
+        ) {
+            Err(CandidateError::MissingMemberSource(member)) if requested.insert(member.clone()) => {
+                let Some(projected) = pinned_exact_implementation_member_projection(
+                    &member, sources, indexes, role_indexes,
+                )? else { break; };
+                for dependency in pinned_provider_projection_inner(
+                    &projected, sources, indexes, role_indexes, false,
+                )? {
+                    append_unique_projection(&mut modules, dependency);
+                }
+                append_unique_projection(&mut modules, projected);
+            }
+            _ => break,
+        }
+    }
+    Ok(modules)
+}
+
+fn pinned_exact_implementation_member_projection(
+    member: &yu_hir::shadow::SourceImplementationMemberId,
+    sources: &[PinnedProviderSource],
+    indexes: &[yu_hir::SourceExportIndex],
+    role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+) -> Result<Option<Arc<HirModule>>, String> {
+    use std::collections::HashSet;
+    let Some((identity, parsed)) = sources.iter().find(|(identity, parsed)|
+        identity.module() == member.implementation.module.as_ref()
+            && parsed.owns_source_key(&member.declaration)
+    ) else { return Err(format!("no ParsedFile owns exact member {member:?}")); };
+    let selected = HashSet::from([member.declaration.clone()]);
+    let mut effects = Vec::new();
+    for (effect_identity, effect_parsed) in sources {
+        let Some(index) = indexes.iter().find(|index| index.module == *effect_identity.module()) else { continue; };
+        for declaration in index.declarations.iter().filter(|declaration|
+            declaration.kind == yu_syntax::SyntaxKind::ActDeclaration
+                && effect_parsed.owns_source_key(&declaration.source)
+        ) {
+            if let Ok(indexed) = yu_hir::shadow::index_source_effects(
+                effect_identity.clone(), effect_parsed, &HashSet::from([declaration.source.clone()]),
+            ) { effects.extend(indexed); }
+        }
+    }
+    let imports = match SemanticImports::with_selected_member_operations(
+        parsed, identity, indexes, &selected, role_indexes, &effects,
+    ) {
+        Ok(imports) => imports,
+        Err(yu_hir::HirAvailabilityError::StructuralProjection
+            | yu_hir::HirAvailabilityError::ExactOperatorEnvironment
+            | yu_hir::HirAvailabilityError::SourceImportResolutionUnavailable) => return Ok(None),
+        Err(error) => return Err(format!("exact member imports unavailable: {error:?}")),
+    };
+    let hir = match yu_hir::shadow::lower_module_with_selected_member_sources(
+        identity.clone(), parsed, imports, selected,
+    ) {
+        Ok(hir) => Arc::new(hir),
+        Err(yu_hir::HirAvailabilityError::StructuralProjection
+            | yu_hir::HirAvailabilityError::ExactOperatorEnvironment
+            | yu_hir::HirAvailabilityError::SourceImportResolutionUnavailable) => return Ok(None),
+        Err(error) => return Err(format!("exact member HIR unavailable: {error:?}")),
+    };
+    let outcomes = hir.source_member_carrier_outcomes();
+    let supported = outcomes.iter().any(|(root, outcome)|
+        matches!(root, SourceRootId::Member(root)
+            if root.kind() == yu_hir::SourceMemberKind::Implementation
+                && root.member_source_key() == &member.declaration)
+            && matches!(outcome, yu_hir::SourceCarrierOutcome::Supported(_))
+    );
+    if !supported {
+        let body_text = role_indexes.iter()
+            .flat_map(|index| index.implementations())
+            .find(|implementation| implementation.id == member.implementation)
+            .and_then(|implementation| implementation.body.as_ref())
+            .and_then(|body| body.entries.iter().find(|entry|
+                entry.member.as_ref().is_some_and(|candidate| candidate == member)
+            ))
+            .map(|entry| entry.text.as_ref());
+        return Err(format!("exact implementation member carrier is unsupported: {member:?}; body={body_text:?}; outcomes={outcomes:?}; errors={:?}",
+            hir.errors()));
+    }
+    Ok(Some(hir))
+}
+
+fn pinned_applicable_member_projection(
+    readbacks: &yu_solver::shadow_apply::CandidateDeferredFieldTailReadbacks,
+    sources: &[PinnedProviderSource],
+    indexes: &[yu_hir::SourceExportIndex],
+    role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+) -> Result<Vec<Arc<HirModule>>, String> {
+    use std::collections::{HashMap, HashSet};
+    use yu_hir::shadow::SourceImplementationTypeShape as Shape;
+    use yu_solver::shadow_apply::CandidateReceiverShape as Receiver;
+
+    fn shape(receiver: &Receiver) -> Shape {
+        match receiver {
+            Receiver::Unit => Shape::Name("unit".into()),
+            Receiver::Int => Shape::Name("int".into()),
+            Receiver::Bool => Shape::Name("bool".into()),
+            Receiver::Str => Shape::Name("str".into()),
+            Receiver::Tuple(items) => Shape::Tuple(items.iter().map(shape).collect()),
+        }
+    }
+    fn prerequisites_are_exact(target: &yu_solver::shadow_apply::CandidateFieldTailTargetMatch) -> bool {
+        target.where_clause_readbacks.len() == target.where_clause_count
+            && target.where_role_identities.len() == target.where_clause_count
+            && target.where_clause_readbacks.iter().enumerate().all(|(index, clause)|
+                clause.subject_source.is_some()
+                    && clause.substituted_subject.is_some()
+                    && clause.role_identity.as_ref() == Some(&target.role_member.role)
+                    && target.where_role_identities.get(index).and_then(Option::as_ref)
+                        == Some(&target.role_member.role)
+                    && clause.implementation_inventory_complete
+                    && clause.unsupported_target_count == 0
+                    && clause.matching_implementations.len() == 1
+                    && clause.matching_implementations_without_prerequisites
+                        == clause.matching_implementations
+            )
+    }
+
+    let mut selected = HashMap::<usize, HashSet<yu_syntax::SourceNodeKey>>::new();
+    for nested in readbacks.captured_member_field_tails.iter().filter(|item| item.member.as_ref() == "show") {
+        for role_member in &nested.role_member_candidates {
+            let Some(receiver) = readbacks.receivers.iter().find(|receiver|
+                receiver.role_member_candidates.iter().any(|candidate|
+                    candidate.role == role_member.role
+                )
+                    && receiver.implementation_inventory_complete
+                    && receiver.unsupported_target_count == 0
+                    && receiver.positive_frontier_complete
+                    && receiver.negative_frontier_empty
+                    && receiver.positive_shape.is_some()
+            ) else { continue; };
+            let actual = shape(receiver.positive_shape.as_ref().unwrap());
+            let applicable = receiver.target_matches.iter().filter(|target|
+                target.target.match_target(&actual).is_some()
+                    && prerequisites_are_exact(target)
+            ).collect::<Vec<_>>();
+            let [target] = applicable.as_slice() else { continue; };
+            let inventory = yu_hir::shadow::resolve_source_role_implementation_candidates(
+                &role_member.role, indexes, role_indexes,
+            ).map_err(|error| format!("selected member inventory unavailable: {error:?}"))?;
+            let members = yu_hir::shadow::resolve_source_role_implementation_members(
+                role_member, &inventory, role_indexes,
+            ).map_err(|error| format!("selected override inventory unavailable: {error:?}"))?;
+            let mut retain_exact_member = |member: &yu_hir::shadow::SourceImplementationMemberId| -> Result<(), String> {
+                let source_index = sources.iter().position(|(identity, parsed)|
+                    identity.module() == member.implementation.module.as_ref()
+                        && parsed.owns_source_key(&member.declaration)
+                ).ok_or_else(|| format!("exact implementation member has no owning ParsedFile: {member:?}"))?;
+                selected.entry(source_index).or_default().insert(member.declaration.clone());
+                Ok(())
+            };
+            let Some(selected_member) = members.implementations.iter()
+                .find(|candidate| candidate.implementation == target.implementation)
+            else { continue; };
+            if let Some(member) = selected_member.member.as_ref() {
+                retain_exact_member(member)?;
+            }
+            // A selected generic implementation is usable only with its exact
+            // where-clause evidence. Project the corresponding override bodies
+            // by the authenticated implementation IDs carried by that same
+            // readback; names and target spellings never choose these members.
+            for clause in &target.where_clause_readbacks {
+                let Some(implementation) = clause.matching_implementations.first() else { continue; };
+                let Some(prerequisite) = members.implementations.iter()
+                    .find(|candidate| &candidate.implementation == implementation)
+                else { continue; };
+                if let Some(member) = prerequisite.member.as_ref() {
+                    retain_exact_member(member)?;
+                }
+            }
+        }
+    }
+
+    let mut effects = Vec::new();
+    for (identity, parsed) in sources {
+        let Some(index) = indexes.iter().find(|index| index.module == *identity.module()) else { continue; };
+        for declaration in index.declarations.iter().filter(|declaration|
+            declaration.kind == yu_syntax::SyntaxKind::ActDeclaration
+                && parsed.owns_source_key(&declaration.source)
+        ) {
+            if let Ok(indexed) = yu_hir::shadow::index_source_effects(
+                identity.clone(), parsed, &HashSet::from([declaration.source.clone()]),
+            ) { effects.extend(indexed); }
+        }
+    }
+    let mut projected = Vec::new();
+    for (source_index, members) in selected {
+        let (identity, parsed) = sources.get(source_index)
+            .ok_or_else(|| "selected override source disappeared".to_owned())?;
+        let imports = SemanticImports::with_selected_member_operations(
+            parsed, identity, indexes, &members, role_indexes, &effects,
+        ).map_err(|error| format!("selected override imports unavailable: {error:?}"))?;
+        let module = yu_hir::shadow::lower_module_with_selected_member_sources(
+            identity.clone(), parsed, imports, members,
+        ).map_err(|error| format!("selected override projection unavailable: {error:?}"))?;
+        projected.push(Arc::new(module));
+    }
+    Ok(projected)
 }
 
 fn playground_syntax_environment() -> Result<SyntaxEnvironment, String> {
@@ -742,7 +1245,7 @@ fn bounded_message(arguments: std::fmt::Arguments<'_>) -> String {
 mod tests {
     use super::playground_syntax_environment;
     use super::pinned_stdlib;
-    use super::{conflict_ranges_for, execute, pinned_provider_projection, pinned_source_world, prepare};
+    use super::{conflict_ranges_for, execute, pinned_candidate_world, pinned_provider_projection, pinned_source_world, prepare};
     use super::output;
     use yu_hir::shadow::{
         LocalSourceForm, index_role_impl_sources, index_source_exports,
@@ -830,15 +1333,14 @@ mod tests {
     }
 
     #[test]
-    fn unchanged_types_sample_reaches_deferred_field_tail_boundary() {
+    fn unchanged_types_sample_stays_deferred_when_generic_operator_template_is_unshaped() {
         let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
         assert_eq!(source.len(), 142);
         let error = match prepare(source, "samples/Types.yu", false) {
             Err(error) => error,
-            Ok(_) => panic!("pair.say remains behind deferred role selection"),
+            Ok(_) => panic!("a generic operator template's FieldTail must retain its receiver constraint"),
         };
         assert!(error.contains("candidate inference unavailable: Solve(DeferredSelectionUnavailable)"), "{error}");
-        assert!(!error.contains("source imports unavailable"), "provider projection reaches candidate collection: {error}");
     }
 
     #[test]
@@ -878,8 +1380,20 @@ mod tests {
             .filter(|candidate| candidate.implementation.target.shape.is_none())
             .map(|candidate| candidate.implementation.target.text.as_ref())
             .collect::<Vec<_>>();
-        assert_eq!(unsupported_targets, ["(list 'a)", "(opt 'a)", "(result 'ok 'err)"],
-            "unsupported target syntax stays source-visible and cannot match the primitive where subjects");
+        assert!(unsupported_targets.is_empty(),
+            "all pinned Display target forms have bounded structural shapes: {unsupported_targets:?}");
+        for target in ["(list 'a)", "(opt 'a)", "(result 'ok 'err)"] {
+            let [candidate] = global_inventory.implementations.iter().filter(|candidate|
+                candidate.implementation.target.text.trim() == target
+            ).collect::<Vec<_>>()[..] else { panic!("one exact source target {target}") };
+            assert!(matches!(candidate.implementation.target.shape,
+                Some(yu_hir::shadow::SourceImplementationTypeShape::Apply(_))));
+            assert!(candidate.implementation.target.shape.as_ref().unwrap()
+                .match_target(&yu_hir::shadow::SourceImplementationTypeShape::Tuple(vec![
+                    yu_hir::shadow::SourceImplementationTypeShape::Name("int".into()),
+                    yu_hir::shadow::SourceImplementationTypeShape::Name("str".into()),
+                ])).is_none(), "constructor applications do not match ordered tuples: {target}");
+        }
         for target_name in ["int", "str"] {
             let matches = global_inventory.implementations.iter().filter(|candidate|
                 candidate.implementation.target.shape.as_ref()
@@ -892,8 +1406,93 @@ mod tests {
                 .all(|entry| entry.kind != yu_syntax::SyntaxKind::WhereClause),
                 "the concrete {target_name} implementation has no source prerequisites");
         }
-        let mut modules = pinned_provider_projection(&hir, &provider_sources, &indexes, &role_indexes).unwrap();
-        modules.push(hir);
+        let modules = pinned_candidate_world(&hir, &provider_sources, &indexes, &role_indexes).unwrap();
+
+        let fmt_role_index = role_indexes.iter().find(|index| index.module() == expected_display_id.module.as_ref())
+            .expect("the exact Display role index is present");
+        let fmt_role = fmt_role_index.roles().iter().find(|role| role.id == expected_display_id)
+            .expect("the exact Display role declaration is present");
+        let say_member = fmt_role.body.as_ref().unwrap().members.iter().find(|member|
+            member.header.as_ref().is_some_and(|header| header.method.spelling.as_ref() == "say")
+        ).expect("Display's exact role-default say member is present");
+        let (console_identity, console_parsed) = provider_sources.iter().find(|(identity, _)|
+            identity.module().file().key().normalized_workspace_relative_path() == "lib/std/io/console.yu"
+        ).expect("the exact host operation source is in the pinned world");
+        let out_export = yu_hir::resolve_public_export(&indexes, "std::io", "out")
+            .expect("std::io re-exports the exact public out family");
+        let out_family = std::collections::HashSet::from([out_export.declaration.source.clone()]);
+        let operation_sources = yu_hir::shadow::index_source_effects(
+            console_identity.clone(), console_parsed, &out_family,
+        ).expect("the pinned host operation keeps exact parse identities");
+        assert_eq!(operation_sources.len(), 1, "exact public out family: {operation_sources:?}");
+        assert_eq!(operation_sources[0].operations.iter().map(|operation| operation.spelling.as_ref()).collect::<Vec<_>>(), ["write"]);
+        let (fmt_identity, fmt_parsed) = provider_sources.iter().find(|(identity, _)|
+            identity.module() == expected_display_id.module.as_ref()
+        ).expect("the pinned fmt source parse is present");
+        let selected_member = std::collections::HashSet::from([say_member.id.declaration.clone()]);
+        let selected_imports = SemanticImports::with_selected_member_operations(
+            fmt_parsed, fmt_identity, &indexes, &selected_member, &role_indexes, &operation_sources,
+        ).expect("the exact host operation family and member route resolve");
+        let selected_member_hir = Arc::new(yu_hir::shadow::lower_module_with_selected_member_sources(
+            fmt_identity.clone(), fmt_parsed, selected_imports, selected_member,
+        ).expect("the exact role-default member HIR projection is available"));
+        let selected_carriers = selected_member_hir.source_member_carrier_outcomes();
+        assert_eq!(selected_carriers.len(), 1, "the projection retains only exact Display.say");
+        let (SourceRootId::Member(selected_root), carrier) = &selected_carriers[0] else {
+            panic!("the projection retains the exact source member owner: {selected_carriers:?}")
+        };
+        assert_eq!(selected_root.member_source_key(), &say_member.id.declaration);
+        let yu_hir::SourceCarrierOutcome::Supported(source) = carrier else {
+            panic!("the exact host operation route should lower: {carrier:?}")
+        };
+        assert!(source.expressions().iter().any(|expression| matches!(
+            &expression.form,
+            LocalSourceForm::Operation {
+                resolution: yu_hir::SourceOperationResolution::Resolved(operation),
+            } if operation.spelling.as_ref() == "write"
+                && operation.id.family.module.file().key().normalized_workspace_relative_path() == "lib/std/io/console.yu"
+                && operation.id.declaration == operation_sources[0].operations[0].id.declaration
+        )), "qualified operation keeps its exact source declaration key: {source:?}");
+        assert_eq!(say_member.text.as_ref(), "pub a.say = std::io::out::write: a.show + \"\\n\"");
+        let selected_errors = selected_member_hir.errors().iter()
+            .map(|error| (error.kind(), error.attachment().clone()))
+            .collect::<Vec<_>>();
+        let projected_root = modules.iter().flat_map(|module| module.source_member_carrier_outcomes())
+            .find_map(|(owner, _)| match owner {
+                SourceRootId::Member(root) if root.member_source_key() == &say_member.id.declaration => Some(root.clone()),
+                _ => None,
+            }).expect("provider projection includes the exact role-default source key in its own HIR artifact");
+        let [tuple_impl] = global_inventory.implementations.iter().filter(|candidate|
+            candidate.implementation.target.text.trim() == "('a, 'b)"
+        ).collect::<Vec<_>>()[..] else { panic!("one ordered-pair Display implementation") };
+        let tuple_show_member = tuple_impl.implementation.body.as_ref().unwrap().entries.iter()
+            .find_map(|entry| entry.header.as_ref().filter(|header| header.method.spelling.as_ref() == "show")
+                .and_then(|_| entry.member.as_ref()))
+            .expect("tuple implementation has an exact show member override");
+        let member_readbacks = match CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
+            modules.clone(), &indexes, &role_indexes,
+        ) {
+            Ok(readbacks) => readbacks,
+            Err(yu_solver::shadow_apply::CandidateError::Collection(error)) => panic!("member collection failed: {error:?}; HIR errors={selected_errors:?}"),
+            Err(yu_solver::shadow_apply::CandidateError::Solve(error)) => panic!("member solve failed: {error:?}; HIR errors={selected_errors:?}"),
+            Err(yu_solver::shadow_apply::CandidateError::Unsupported) => panic!("member candidate unsupported before deferred selection; member items={}; HIR errors={selected_errors:?}", selected_member_hir.items().len()),
+            Err(yu_solver::shadow_apply::CandidateError::MissingMemberSource(member)) => panic!("unexpected missing exact member source: {member:?}"),
+        };
+        assert_eq!(member_readbacks.captured_member_graph_count, 4,
+            "the same session captures Display.say, the tuple Display.show template, and exact int/str show overrides; nested layouts={:?}",
+            member_readbacks.captured_member_field_tails);
+        assert!(member_readbacks.receivers.iter().any(|item|
+            item.owner != SourceRootId::Member(projected_root.clone()) && item.member.as_ref() == "say"),
+            "the unchanged consumer FieldTail remains in the candidate session: {:?}", member_readbacks.receivers);
+        assert!(member_readbacks.captured_member_field_tails.iter().any(|tail|
+            tail.member_root == projected_root && tail.member.as_ref() == "show"
+                && tail.owner == SourceRootId::Member(projected_root.clone())),
+            "the member FieldTail rows occupy the graph's FreshUse layout");
+        assert!(modules.iter().flat_map(|module| module.source_member_carrier_outcomes()).any(|(owner, _)|
+            matches!(owner, SourceRootId::Member(root)
+                if root.kind() == yu_hir::SourceMemberKind::Implementation
+                    && root.member_source_key() == &tuple_show_member.declaration)
+        ), "receiver and where readbacks project only the exact tuple Display.show source key");
 
         let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
             modules, &indexes, &role_indexes,
@@ -914,7 +1513,7 @@ mod tests {
         assert_eq!(say.reachable_negative_row_edges, 0, "{say:?}");
         assert_eq!(say.reachable_negative_bounds, 0, "{say:?}");
         assert!(say.implementation_inventory_complete, "all source-owned implementations for the exact retained Display.say identity are inventoried: {say:?}");
-        assert_eq!(say.unsupported_target_count, 3, "the local Display inventory exposes three additional unsupported targets, so selection remains unavailable: {say:?}");
+        assert_eq!(say.unsupported_target_count, 0, "all exact Display target source forms are structurally indexed: {say:?}");
         let [tuple_match] = say.target_matches.as_slice() else {
             panic!("the exact ordered pair has one structural target match: {say:?}")
         };
@@ -945,10 +1544,11 @@ mod tests {
             assert_eq!(clause.matching_implementations[0].module.file().key()
                 .normalized_workspace_relative_path(), "lib/std/core/fmt.yu");
         }
-        assert_eq!(readbacks.captured_member_graph_count, 0,
-            "the binding-only provider projection has no imported implementation member graphs");
-        assert!(readbacks.captured_member_field_tails.is_empty(),
-            "source role inventory does not imply that implementation body HIR entered the session");
+        assert_eq!(readbacks.captured_member_graph_count, 4,
+            "the exact Display.say role default, tuple Display.show override, and its int/str prerequisites enter the candidate session");
+        assert!(readbacks.captured_member_field_tails.iter().any(|tail|
+            tail.member.as_ref() == "show" && tail.owner == SourceRootId::Member(tail.member_root.clone())),
+            "the projected role-default graph retains its nested show FieldTail rows");
     }
 
     #[test]

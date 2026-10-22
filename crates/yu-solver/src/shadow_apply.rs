@@ -65,6 +65,7 @@ pub enum CandidateError {
     Unsupported,
     Collection(CollectionAvailabilityError),
     Solve(SolveAvailabilityError),
+    MissingMemberSource(yu_hir::shadow::SourceImplementationMemberId),
 }
 /// Ordered source receiver shape recovered at the end of one candidate
 /// session. This is evidence for deferred FieldTail resolution, not a method
@@ -79,6 +80,7 @@ pub enum CandidateReceiverShape {
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CandidateFieldTailTargetMatch {
+    pub role_member: yu_hir::shadow::SourceRoleMemberId,
     pub implementation: yu_hir::shadow::SourceImplementationId,
     pub target: yu_hir::shadow::SourceImplementationTypeShape,
     pub type_substitution: Vec<(Box<str>, yu_hir::shadow::SourceImplementationTypeShape)>,
@@ -95,6 +97,8 @@ pub struct CandidateFieldTailWhereReadback {
     pub role_identity: Option<yu_hir::shadow::SourceRoleId>,
     pub matching_implementations: Vec<yu_hir::shadow::SourceImplementationId>,
     pub matching_implementations_without_prerequisites: Vec<yu_hir::shadow::SourceImplementationId>,
+    pub implementation_inventory_complete: bool,
+    pub unsupported_target_count: usize,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CandidateFieldTailReceiverReadback {
@@ -192,19 +196,6 @@ fn candidate_operator_provider_root(
     hirs: &[Arc<HirModule>],
     source_indexes: &[yu_hir::SourceExportIndex],
 ) -> Result<(Arc<HirModule>, yu_hir::ExpressionRootId), CandidateError> {
-    let mut provider = None;
-    for hir in hirs {
-        if hir.identity().module() != owner.module()
-            || hir.source_revision() != owner.revision()
-        {
-            continue;
-        }
-        if provider.replace(hir).is_some() {
-            return Err(CandidateError::Unsupported);
-        }
-    }
-    let provider = provider.ok_or(CandidateError::Unsupported)?;
-
     let mut index = None;
     for candidate in source_indexes {
         if &candidate.module != owner.module() || candidate.revision != owner.revision() {
@@ -215,20 +206,27 @@ fn candidate_operator_provider_root(
         }
     }
     let index = index.ok_or(CandidateError::Unsupported)?;
-    let root = provider
-        .source_operator_root_for(owner, index)
-        .map_err(|_| CandidateError::Unsupported)?;
-    let Some(yu_hir::SourceRootId::Expression(root)) = root else {
-        return Err(CandidateError::Unsupported);
-    };
-    if provider
-        .local_source_for(&yu_hir::SourceRootId::Expression(root.clone()))
-        .map_err(|_| CandidateError::Unsupported)?
-        .is_none()
-    {
-        return Err(CandidateError::Unsupported);
+    let mut provider_root = None;
+    for provider in hirs.iter().filter(|hir| hir.identity().module() == owner.module()) {
+        // The export index authenticates the source revision. The exact
+        // parse-owned declaration/body keys then identify its HIR carrier;
+        // a HIR's syntax-environment revision can be independently untracked.
+        let root = provider
+            .source_operator_root_for(owner, index)
+            .map_err(|_| CandidateError::Unsupported)?;
+        let Some(yu_hir::SourceRootId::Expression(root)) = root else { continue; };
+        if provider
+            .local_source_for(&yu_hir::SourceRootId::Expression(root.clone()))
+            .map_err(|_| CandidateError::Unsupported)?
+            .is_none()
+        {
+            continue;
+        }
+        if provider_root.replace((provider.clone(), root)).is_some() {
+            return Err(CandidateError::Unsupported);
+        }
     }
-    Ok((provider.clone(), root))
+    provider_root.ok_or(CandidateError::Unsupported)
 }
 
 fn candidate_imported_operator_provider_roots(
@@ -1319,7 +1317,10 @@ impl CandidateInference {
         if hirs.is_empty() { return Err(CandidateError::Unsupported); }
         let imported_definitions = candidate_imported_definitions(&hirs)?;
         let operator_provider_roots = match role_sources {
-            Some((source_indexes, _)) => candidate_imported_operator_provider_roots(&hirs, source_indexes)?,
+            Some((source_indexes, _)) => match candidate_imported_operator_provider_roots(&hirs, source_indexes) {
+                Ok(roots) => roots,
+                Err(error) => return Err(error),
+            },
             None => Vec::new(),
         };
         let mut permitted_errors = HashSet::new();
@@ -1372,6 +1373,17 @@ impl CandidateInference {
         let mut session = InferenceSession::try_new_candidate(batch).map_err(CandidateError::Solve)?;
         let solved = if let Some(readbacks) = deferred_readbacks.as_deref_mut() {
             match session.execute() {
+                Ok(()) if session.candidate_graph.as_ref().is_some_and(
+                    crate::candidate_scheme::GraphState::has_pending_field_tail_selection,
+                ) => {
+                    readbacks.receivers = session.candidate_field_tail_receiver_readbacks()
+                        .map_err(CandidateError::Solve)?;
+                    let (member_graph_count, member_field_tails) = session.candidate_captured_member_field_tail_readbacks()
+                        .map_err(CandidateError::Solve)?;
+                    readbacks.captured_member_graph_count = member_graph_count;
+                    readbacks.captured_member_field_tails = member_field_tails;
+                    return Err(CandidateError::Solve(SolveAvailabilityError::DeferredSelectionUnavailable));
+                }
                 Ok(()) => session.finish_candidate().map_err(CandidateError::Solve)?,
                 Err(SolveAvailabilityError::DeferredSelectionUnavailable) => {
                     readbacks.receivers = session.candidate_field_tail_receiver_readbacks()
@@ -1385,7 +1397,16 @@ impl CandidateInference {
                 Err(error) => return Err(CandidateError::Solve(error)),
             }
         } else {
-            session.run_candidate().map_err(CandidateError::Solve)?
+            session.execute().map_err(CandidateError::Solve)?;
+            if let Err(error) = session.execute_candidate_field_tails() {
+                if error == SolveAvailabilityError::DeferredSelectionUnavailable {
+                    if let Some(member) = session.missing_candidate_member_source() {
+                        return Err(CandidateError::MissingMemberSource(member));
+                    }
+                }
+                return Err(CandidateError::Solve(error));
+            }
+            session.finish_candidate().map_err(CandidateError::Solve)?
         };
         #[cfg(test)]
         if scoped && std::env::var_os("YU_CALL_REPLAY_OBSERVER").is_some() {

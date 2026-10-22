@@ -699,21 +699,28 @@ pub(super) fn member_header(
     let mut headers = member.children().filter(|node| node.kind() == SyntaxKind::BindingHeader);
     let Some(header) = headers.next() else { return Err(HirAvailabilityError::StructuralProjection); };
     if headers.next().is_some() { return Err(HirAvailabilityError::StructuralProjection); }
-    let mut patterns = header.children().filter(|node| node.kind() == SyntaxKind::Pattern);
-    let Some(pattern) = patterns.next() else { return Err(HirAvailabilityError::StructuralProjection); };
-    if patterns.next().is_some() { return Err(HirAvailabilityError::StructuralProjection); }
-    let children = pattern.children().collect::<Vec<_>>();
-    if children.iter().any(|node| has_recovery(node)) { return Ok(None); }
-    let identifiers = children.iter().filter(|node| node.kind() == SyntaxKind::IdentifierPattern).collect::<Vec<_>>();
-    let fields = children.iter().filter(|node| node.kind() == SyntaxKind::PatternFieldTail).collect::<Vec<_>>();
-    let annotations = children.iter().filter(|node| node.kind() == SyntaxKind::PatternTypeAnnotation).collect::<Vec<_>>();
-    if identifiers.len() != 1 || fields.len() != 1 || annotations.len() > 1
-        || children.len() != identifiers.len() + fields.len() + annotations.len()
-    { return Ok(None); }
-    let receiver = identifiers[0];
-    let receiver_spelling = identifier_spelling(receiver)
+    // Implementation methods can bind their receiver and ordinary arguments
+    // in the same header (`our x.add y = ...`). Find the exact dotted field
+    // pattern in that header and keep its receiver/method source nodes; the
+    // other patterns remain ordinary named formals for the body projection.
+    let mut fields = header.descendants().filter(|node| node.kind() == SyntaxKind::PatternFieldTail);
+    let Some(field) = fields.next() else { return Ok(None); };
+    if fields.next().is_some() || has_recovery(&field) { return Ok(None); }
+    let Some(pattern) = field.parent().filter(|node| node.kind() == SyntaxKind::Pattern) else {
+        return Ok(None);
+    };
+    let field_start = crate::range_of(&field).start;
+    let mut receivers = pattern.descendants().filter(|node|
+        node.kind() == SyntaxKind::IdentifierPattern && crate::range_of(node).end <= field_start
+    );
+    let Some(receiver) = receivers.next() else { return Ok(None); };
+    if receivers.next().is_some() || has_recovery(&receiver) { return Ok(None); }
+    let mut annotations = pattern.children().filter(|node| node.kind() == SyntaxKind::PatternTypeAnnotation);
+    let annotation = annotations.next();
+    if annotations.next().is_some() { return Ok(None); }
+    let receiver_spelling = identifier_spelling(&receiver)
         .map_err(|_| HirAvailabilityError::StructuralProjection)?;
-    let mut field_tokens = fields[0].children_with_tokens().filter(|element| !matches!(
+    let mut field_tokens = field.children_with_tokens().filter(|element| !matches!(
         element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment,
     ));
     let dot = field_tokens.next().and_then(|element| element.into_token());
@@ -725,9 +732,9 @@ pub(super) fn member_header(
     let receiver_token = receiver.children_with_tokens().filter_map(|element| element.into_token())
         .find(|token| token.kind() == SyntaxKind::Identifier)
         .ok_or(HirAvailabilityError::StructuralProjection)?;
-    let receiver_source = counters.source_nodes.get(receiver).cloned().ok_or(HirAvailabilityError::StructuralProjection)?;
-    let method_source = counters.source_nodes.get(fields[0]).cloned().ok_or(HirAvailabilityError::StructuralProjection)?;
-    let annotation = if let Some(annotation) = annotations.first() {
+    let receiver_source = counters.source_nodes.get(&receiver).cloned().ok_or(HirAvailabilityError::StructuralProjection)?;
+    let method_source = counters.source_nodes.get(&field).cloned().ok_or(HirAvailabilityError::StructuralProjection)?;
+    let annotation = if let Some(annotation) = annotation {
         let mut types = annotation.children().filter(|node| node.kind() == SyntaxKind::TypeExpression);
         let ty = types.next().ok_or(HirAvailabilityError::StructuralProjection)?;
         if types.next().is_some() || has_recovery(&ty) { return Ok(None); }
@@ -1391,14 +1398,12 @@ impl Builder<'_> {
                     )?;
                     return Ok(());
                 }
-                let operation_tail = all_tails
-                    .first()
-                    .filter(|tail| tail.kind() == SyntaxKind::PathTail);
-                let tails = if operation_tail.is_some() {
-                    &all_tails[1..]
-                } else {
-                    all_tails
-                };
+                let path_tail_count = all_tails
+                    .iter()
+                    .take_while(|tail| tail.kind() == SyntaxKind::PathTail)
+                    .count();
+                let path_tails = &all_tails[..path_tail_count];
+                let tails = &all_tails[path_tail_count..];
                 let mut current = index;
                 for tail in tails.iter().rev() {
                     if tail.kind() == SyntaxKind::TypeAnnotationTail {
@@ -1512,33 +1517,48 @@ impl Builder<'_> {
                     }
                     current = callee;
                 }
-                if let Some(tail) = operation_tail {
-                    if head.kind() != SyntaxKind::IdentifierExpression || has_recovery(tail) {
+                if !path_tails.is_empty() {
+                    if head.kind() != SyntaxKind::IdentifierExpression {
                         return Err(unsupported());
                     }
-                    let tokens: Vec<_> = tail
-                        .children_with_tokens()
-                        .filter(|e| {
-                            !matches!(e.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline)
-                        })
-                        .collect();
-                    let [separator, member] = tokens.as_slice() else {
-                        return Err(unsupported());
-                    };
-                    if separator.kind() != SyntaxKind::ColonColon
-                        || member.kind() != SyntaxKind::Identifier
-                    {
+                    let mut path = vec![identifier_spelling(head)?];
+                    for tail in path_tails {
+                        if has_recovery(tail) { return Err(unsupported()); }
+                        let tokens = tail.children_with_tokens().filter(|element| !matches!(
+                            element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline
+                                | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+                        )).collect::<Vec<_>>();
+                        let [separator, segment] = tokens.as_slice() else { return Err(unsupported()); };
+                        let separator = separator.as_token().ok_or_else(unsupported)?;
+                        let segment = segment.as_token().ok_or_else(unsupported)?;
+                        if separator.kind() != SyntaxKind::ColonColon || segment.kind() != SyntaxKind::Identifier {
+                            return Err(unsupported());
+                        }
+                        path.push(segment.text().into());
+                    }
+                    let qualified = path.iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::");
+                    if let Some(super::ModuleNameResolution::ImportedOperation(operation)) = self.namespace.get(&qualified) {
+                        self.set(current, &node, scope, named_group.clone(), LocalSourceForm::Operation {
+                            resolution: source_annotation::SourceOperationResolution::Resolved(
+                                operation.operation.clone(),
+                            ),
+                        })?;
+                    } else if let Some(super::ModuleNameResolution::Imported(id)) = self.namespace.get(&qualified) {
+                        self.set(current, &node, scope, named_group.clone(), LocalSourceForm::Name {
+                            spelling: qualified.into(),
+                            resolution: LocalSourceResolution::Imported(id.clone()),
+                        })?;
+                    } else if path_tails.len() == 1 {
+                        let form = match source_annotation::pinned_primitive_op(path[0].as_ref(), &path[1]) {
+                            Some(operation) => LocalSourceForm::Primitive { operation },
+                            None => LocalSourceForm::Operation {
+                                resolution: self.resolve_operation(path[0].as_ref(), path[1].clone()),
+                            },
+                        };
+                        self.set(current, &path_tails[0], scope, named_group.clone(), form)?;
+                    } else {
                         return Err(unsupported());
                     }
-                    let family = identifier_spelling(head)?;
-                    let member: Box<str> = member.to_string().into_boxed_str();
-                    let form = match source_annotation::pinned_primitive_op(family.as_ref(), &member) {
-                        Some(operation) => LocalSourceForm::Primitive { operation },
-                        None => LocalSourceForm::Operation {
-                            resolution: self.resolve_operation(family.as_ref(), member),
-                        },
-                    };
-                    self.set(current, tail, scope, named_group.clone(), form)?;
                 } else {
                     push(
                         &mut self.work,
@@ -1600,6 +1620,8 @@ impl Builder<'_> {
                         Some(super::ModuleNameResolution::Imported(id)) => {
                             LocalSourceResolution::Imported(id.clone())
                         }
+                        #[cfg(any(feature = "shadow", test))]
+                        Some(super::ModuleNameResolution::ImportedOperation(_)) => LocalSourceResolution::Unresolved,
                         Some(super::ModuleNameResolution::Ambiguous) => LocalSourceResolution::Ambiguous,
                         None => LocalSourceResolution::Unresolved,
                     });

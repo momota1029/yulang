@@ -878,6 +878,16 @@ pub fn index_role_impl_sources(
     })
 }
 
+/// Index selected parse-owned effect families and operations without lowering
+/// their bodies. `selected` must contain exact declaration keys from `parsed`.
+pub fn index_source_effects(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    selected: &HashSet<SourceNodeKey>,
+) -> Result<Vec<SourceEffectDeclaration>, HirAvailabilityError> {
+    crate::module::index_source_effects(identity, parsed, selected)
+}
+
 pub use crate::module::local_source::{
     LocalSource, LocalSourceBinding, LocalSourceExpr, LocalSourceForm, LocalSourceIndex,
     LocalSourceParameter, LocalSourceResolution, LocalSourceScope,
@@ -4257,6 +4267,46 @@ mod tests {
             ).unwrap_err(),
             SourceRoleImplementationMemberError::StaleRoleMember,
         );
+    }
+
+    #[test]
+    fn implementation_member_header_retains_receiver_with_method_arguments() {
+        let role_parsed = parsed("pub role Add 'a:\n    pub a.add: 'a -> 'a");
+        let role_identity = ModuleIdentity::source_root(crate::FileId::new(crate::FileKey::new(
+            "method-arguments", "lib/num.yu",
+        )));
+        let role_exports = index_source_exports(role_identity.clone(), &role_parsed).unwrap();
+        let role_index = index_role_impl_sources(role_identity.clone(), &role_parsed).unwrap();
+        let role_id = role_index.roles()[0].id.clone();
+        let role_member = role_index.roles()[0].body.as_ref().unwrap().members[0].id.clone();
+
+        let impl_parsed = parsed(
+            "use num::Add\nimpl int: Add:\n    our x.add y = x",
+        );
+        let impl_identity = ModuleIdentity::source_root(crate::FileId::new(crate::FileKey::new(
+            "method-arguments", "lib/impls.yu",
+        )));
+        let impl_exports = index_source_exports(impl_identity.clone(), &impl_parsed).unwrap();
+        let impl_index = index_role_impl_sources(impl_identity, &impl_parsed).unwrap();
+        let source_indexes = [role_exports, impl_exports];
+        let role_indexes = [role_index.clone(), impl_index.clone()];
+
+        let candidates = resolve_source_role_implementation_candidates(
+            &role_id, &source_indexes, &role_indexes,
+        ).unwrap();
+        let inventory = resolve_source_role_implementation_members(
+            &role_member, &candidates, &role_indexes,
+        ).unwrap();
+        let [candidate] = inventory.implementations.as_slice() else {
+            panic!("one exact implementation candidate is retained: {inventory:?}")
+        };
+        let member = candidate.member.as_ref().expect("the implementation overrides Add.add");
+        let entry = impl_index.implementations()[0].body.as_ref().unwrap().entries.iter()
+            .find(|entry| entry.member.as_ref() == Some(member)).unwrap();
+        let header = entry.header.as_ref().expect("the source-owned method header retains its dotted target");
+        assert_eq!(header.receiver.spelling.as_ref(), "x");
+        assert_eq!(header.method.spelling.as_ref(), "add");
+        assert_eq!(impl_parsed.source().get(header.method.range.clone()), Some("add"));
     }
 
     #[test]

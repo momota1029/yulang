@@ -172,12 +172,22 @@ pub(super) fn declarations(
     module: &ModuleId,
     counters: &mut LoweringCounters,
 ) -> Result<Vec<SourceEffectDeclaration>, FormationError> {
+    declarations_selected(root, module, counters, None)
+}
+
+pub(super) fn declarations_selected(
+    root: &SyntaxNode,
+    module: &ModuleId,
+    counters: &mut LoweringCounters,
+    selected: Option<&std::collections::HashSet<SourceNodeKey>>,
+) -> Result<Vec<SourceEffectDeclaration>, FormationError> {
     let mut result = Vec::new();
     let mut bodies = Vec::new();
-    for node in root
-        .children()
-        .filter(|node| node.kind() == SyntaxKind::ActDeclaration)
-    {
+    let nodes = if selected.is_some() { root.descendants().collect::<Vec<_>>() }
+        else { root.children().collect::<Vec<_>>() };
+    for node in nodes.into_iter().filter(|node| node.kind() == SyntaxKind::ActDeclaration) {
+        let source = counters.source_nodes.get(&node).ok_or(HirAvailabilityError::StructuralProjection)?;
+        if selected.is_some_and(|selected| !selected.contains(source)) { continue; }
         if has_recovery(&node) {
             return Err(unavailable());
         }
@@ -198,6 +208,11 @@ pub(super) fn declarations(
             }
             _ => HirVisibility::Our,
         };
+        if children.first().is_some_and(|element|
+            element.kind() == SyntaxKind::Identifier && element.to_string() == "host"
+        ) {
+            children.remove(0);
+        }
         if children.len() < 2
             || children[0].kind() != SyntaxKind::ActKw
             || children[1].kind() != SyntaxKind::TypeExpression
@@ -278,15 +293,26 @@ pub(super) fn declarations(
             {
                 return Err(unavailable());
             }
-            let (visibility, name, parameters) =
-                plain_binding_header(&member, counters).ok_or_else(unavailable)?;
-            if !parameters.is_empty() {
-                return Err(unavailable());
-            }
-            let annotation = member
-                .descendants()
-                .find(|n| n.kind() == SyntaxKind::PatternTypeAnnotation)
+            let header = member.children().find(|node| node.kind() == SyntaxKind::BindingHeader)
                 .ok_or_else(unavailable)?;
+            let visibility = header.children_with_tokens().find_map(|element| {
+                let token = element.into_token()?;
+                match token.kind() {
+                    SyntaxKind::MyKw => Some(HirVisibility::Private),
+                    SyntaxKind::OurKw => Some(HirVisibility::Our),
+                    SyntaxKind::PubKw => Some(HirVisibility::Public),
+                    _ => None,
+                }
+            }).ok_or_else(unavailable)?;
+            let pattern = header.children().find(|node| node.kind() == SyntaxKind::Pattern)
+                .ok_or_else(unavailable)?;
+            let pattern_children = pattern.children().collect::<Vec<_>>();
+            let [name_node, annotation] = pattern_children.as_slice() else { return Err(unavailable()); };
+            if name_node.kind() != SyntaxKind::IdentifierPattern
+                || annotation.kind() != SyntaxKind::PatternTypeAnnotation
+            { return Err(unavailable()); }
+            let name = identifier_pattern_name(name_node).ok_or_else(unavailable)?;
+            let annotation = annotation.clone();
             let parts = elements(&annotation);
             let [colon, ty] = parts.as_slice() else {
                 return Err(unavailable());

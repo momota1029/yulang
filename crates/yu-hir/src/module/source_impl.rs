@@ -24,6 +24,9 @@ pub struct SourceImplementationType {
 pub enum SourceImplementationTypeShape {
     Name(Box<str>),
     Tuple(Vec<SourceImplementationTypeShape>),
+    /// Prefix type application such as `list 'a` or `result 'ok 'err`.
+    /// The first element is the constructor and the rest are arguments.
+    Apply(Vec<SourceImplementationTypeShape>),
 }
 
 impl SourceImplementationTypeShape {
@@ -35,6 +38,11 @@ impl SourceImplementationTypeShape {
                 .and_then(|bytes| items.iter().try_fold(bytes, |total, item|
                     total.checked_add(item.retained_bytes())))
                 .expect("implementation type shape accounting fits usize"),
+            Self::Apply(items) => items.capacity()
+                .checked_mul(std::mem::size_of::<Self>())
+                .and_then(|bytes| items.iter().try_fold(bytes, |total, item|
+                    total.checked_add(item.retained_bytes())))
+                .expect("implementation type application accounting fits usize"),
         }
     }
 
@@ -64,6 +72,11 @@ impl SourceImplementationTypeShape {
                 }
                 (SourceImplementationTypeShape::Tuple(left), SourceImplementationTypeShape::Tuple(right))
                     if left.len() == right.len() => {
+                    for (left, right) in left.iter().zip(right) { go(left, right, variables)?; }
+                    Some(())
+                }
+                (SourceImplementationTypeShape::Apply(left), SourceImplementationTypeShape::Apply(right))
+                    if left.len() == right.len() && left.len() >= 2 => {
                     for (left, right) in left.iter().zip(right) { go(left, right, variables)?; }
                     Some(())
                 }
@@ -187,6 +200,36 @@ fn implementation_type_shape(text: &str, depth: usize) -> Option<SourceImplement
             return Some(SourceImplementationTypeShape::Tuple(parts));
         }
         return implementation_type_shape(inner, depth + 1);
+    }
+    let mut ranges = Vec::new();
+    let mut nesting = 0usize;
+    let mut start = None;
+    for (offset, character) in text.char_indices() {
+        match character {
+            '(' => {
+                if nesting == 0 && start.is_none() { start = Some(offset); }
+                nesting = nesting.checked_add(1)?;
+            }
+            ')' => nesting = nesting.checked_sub(1)?,
+            character if character.is_whitespace() && nesting == 0 => {
+                if let Some(part_start) = start.take() {
+                    ranges.try_reserve(1).ok()?;
+                    ranges.push(part_start..offset);
+                }
+            }
+            _ => if start.is_none() { start = Some(offset); },
+        }
+    }
+    if nesting != 0 { return None; }
+    if let Some(part_start) = start {
+        ranges.try_reserve(1).ok()?;
+        ranges.push(part_start..text.len());
+    }
+    if ranges.len() > 1 {
+        let mut parts = Vec::new();
+        parts.try_reserve_exact(ranges.len()).ok()?;
+        for range in ranges { parts.push(implementation_type_shape(&text[range], depth + 1)?); }
+        return Some(SourceImplementationTypeShape::Apply(parts));
     }
     implementation_type_name(text)
         .then(|| SourceImplementationTypeShape::Name(text.to_owned().into_boxed_str()))
@@ -474,5 +517,47 @@ mod tests {
         assert!(target.match_target(&SourceImplementationTypeShape::Tuple(vec![
             SourceImplementationTypeShape::Name("str".into()),
         ])).is_none(), "tuple arity is part of applicability");
+    }
+
+    #[test]
+    fn implementation_target_retains_prefix_type_applications() {
+        let text = "impl (result 'ok (list 'item)): Display:\n    our value.show = value";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let hir = super::super::lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("impl-application-shape", "impls.yu"))),
+            &parsed,
+            SemanticImports::empty(),
+        ).unwrap();
+        let [implementation] = hir.source_implementation_declarations() else {
+            panic!("one implementation declaration")
+        };
+        let expected = SourceImplementationTypeShape::Apply(vec![
+            SourceImplementationTypeShape::Name("result".into()),
+            SourceImplementationTypeShape::Name("'ok".into()),
+            SourceImplementationTypeShape::Apply(vec![
+                SourceImplementationTypeShape::Name("list".into()),
+                SourceImplementationTypeShape::Name("'item".into()),
+            ]),
+        ]);
+        assert_eq!(implementation.target.shape, Some(expected.clone()));
+        let actual = SourceImplementationTypeShape::Apply(vec![
+            SourceImplementationTypeShape::Name("result".into()),
+            SourceImplementationTypeShape::Name("int".into()),
+            SourceImplementationTypeShape::Apply(vec![
+                SourceImplementationTypeShape::Name("list".into()),
+                SourceImplementationTypeShape::Name("str".into()),
+            ]),
+        ]);
+        let mut substitution = expected.match_target(&actual).unwrap();
+        assert_eq!(substitution.remove("'ok"), Some(SourceImplementationTypeShape::Name("int".into())));
+        assert_eq!(substitution.remove("'item"), Some(SourceImplementationTypeShape::Name("str".into())));
+        assert!(expected.match_target(&SourceImplementationTypeShape::Tuple(vec![
+            SourceImplementationTypeShape::Name("int".into()),
+        ])).is_none(), "an applied constructor cannot match a tuple receiver");
     }
 }

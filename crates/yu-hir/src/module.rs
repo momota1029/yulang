@@ -337,11 +337,28 @@ fn selected_direct_root_names(
         };
         if !selected_roots.contains(key) { continue; }
         found.insert(key.clone());
-        for element in node.descendants_with_tokens() {
-            if element.kind() == SyntaxKind::Identifier {
-                if let Some(token) = element.into_token() {
-                    names.insert(token.text().into());
-                }
+        for occurrence in node.descendants().filter(|child| child.kind() == SyntaxKind::IdentifierExpression) {
+            if let Some(name) = occurrence.children_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::Identifier)
+            {
+                names.insert(name.text().into());
+            }
+        }
+        for clause in node.descendants().filter(|child| child.kind() == SyntaxKind::WhereClause) {
+            let mut parts = clause.children_with_tokens().filter(|element| !matches!(
+                element.kind(),
+                SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+            ));
+            let _keyword = parts.next();
+            let _subject = parts.next();
+            let _colon = parts.next();
+            let Some(role) = parts.next().and_then(|element| element.into_node()) else { continue; };
+            if let Some(name) = role.descendants_with_tokens()
+                .filter_map(|element| element.into_token())
+                .find(|token| token.kind() == SyntaxKind::Identifier)
+            {
+                names.insert(name.text().into());
             }
         }
     }
@@ -349,6 +366,159 @@ fn selected_direct_root_names(
         return Err(HirAvailabilityError::StructuralProjection);
     }
     Ok(names)
+}
+
+#[cfg(any(feature = "shadow", test))]
+fn selected_member_operation_paths(
+    parsed: &ParsedFile,
+    indexes: &[source_exports::SourceExportIndex],
+    selected_members: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
+    effects: &[source_annotation::SourceEffectDeclaration],
+) -> Result<HashMap<Box<str>, source_exports::SourceOperationPathImport>, HirAvailabilityError> {
+    use source_exports::{SourceExportResolveError, SourceOperationPathImport};
+    if selected_members.iter().any(|key| !parsed.owns_source_key(key)) {
+        return Err(HirAvailabilityError::ForeignSourceImport);
+    }
+    let keys = crate::source_identity::try_source_keys(parsed)?;
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    let selected = root.descendants().filter(|node|
+        keys.get(node).is_some_and(|key| selected_members.contains(key))
+    ).collect::<Vec<_>>();
+    let found = selected.iter().filter_map(|node| keys.get(node).cloned()).collect::<std::collections::HashSet<_>>();
+    if found.len() != selected_members.len() { return Err(HirAvailabilityError::StructuralProjection); }
+
+    let mut paths = HashMap::new();
+    for member in selected {
+        for expression in member.descendants().filter(|node| node.kind() == SyntaxKind::OperatorChain) {
+            let mut children = expression.children();
+            let Some(head) = children.next() else { continue; };
+            if head.kind() != SyntaxKind::IdentifierExpression { continue; }
+            let mut segments = vec![head.to_string().into_boxed_str()];
+            for tail in children.take_while(|tail| tail.kind() == SyntaxKind::PathTail) {
+                if has_recovery(&tail) { return Err(HirAvailabilityError::SourceImportResolutionUnavailable); }
+                let tokens = tail.children_with_tokens().filter(|element| !matches!(
+                    element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline
+                        | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+                )).collect::<Vec<_>>();
+                let [separator, segment] = tokens.as_slice() else {
+                    return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+                };
+                let separator = separator.as_token().ok_or(HirAvailabilityError::SourceImportResolutionUnavailable)?;
+                let segment = segment.as_token().ok_or(HirAvailabilityError::SourceImportResolutionUnavailable)?;
+                if separator.kind() != SyntaxKind::ColonColon || segment.kind() != SyntaxKind::Identifier {
+                    return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+                }
+                segments.push(segment.text().into());
+            }
+            if segments.len() < 3 { continue; }
+            let path: Box<str> = segments.iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::").into_boxed_str();
+            let mut matches = Vec::new();
+            for family_index in 1..segments.len() - 1 {
+                let module = segments[..family_index].iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::");
+                let family_name = &segments[family_index];
+                let export = match source_exports::resolve_public_export(indexes, &module, family_name) {
+                    Ok(export) if export.declaration.kind == SyntaxKind::ActDeclaration => export,
+                    Ok(_) | Err(SourceExportResolveError::MissingModule(_))
+                        | Err(SourceExportResolveError::MissingExport { .. }) => continue,
+                    Err(SourceExportResolveError::Ambiguous { .. }) => {
+                        return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+                    }
+                    Err(_) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
+                };
+                let Some(effect) = effects.iter().find(|effect|
+                    effect.id.declaration == export.declaration.source
+                        && effect.visibility == HirVisibility::Public
+                ) else { continue; };
+                for operation in effect.operations.iter().filter(|operation|
+                    operation.spelling.as_ref() == segments.last().expect("nonempty path").as_ref()
+                        && operation.visibility == HirVisibility::Public
+                ) {
+                    matches.push((export.clone(), operation.clone()));
+                }
+            }
+            matches.dedup_by(|left, right| left.1.id == right.1.id);
+            match matches.as_slice() {
+                [(export, operation)] => {
+                    paths.insert(path, SourceOperationPathImport { export: export.clone(), operation: operation.clone() });
+                }
+                [] => {}
+                _ => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
+            }
+        }
+    }
+    Ok(paths)
+}
+
+#[cfg(any(feature = "shadow", test))]
+fn selected_member_value_paths(
+    parsed: &ParsedFile,
+    indexes: &[source_exports::SourceExportIndex],
+    selected_members: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
+) -> Result<HashMap<Box<str>, source_exports::SourceImportBinding>, HirAvailabilityError> {
+    use source_exports::{SourceExportResolveError, SourceImportBinding};
+    if selected_members.iter().any(|key| !parsed.owns_source_key(key)) {
+        return Err(HirAvailabilityError::ForeignSourceImport);
+    }
+    let keys = crate::source_identity::try_source_keys(parsed)?;
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    let selected = root.descendants().filter(|node|
+        keys.get(node).is_some_and(|key| selected_members.contains(key))
+    ).collect::<Vec<_>>();
+    let found = selected.iter().filter_map(|node| keys.get(node).cloned()).collect::<std::collections::HashSet<_>>();
+    if found.len() != selected_members.len() { return Err(HirAvailabilityError::StructuralProjection); }
+
+    let mut paths = HashMap::new();
+    for member in selected {
+        for expression in member.descendants().filter(|node| node.kind() == SyntaxKind::OperatorChain) {
+            let mut children = expression.children();
+            let Some(head) = children.next() else { continue; };
+            if head.kind() != SyntaxKind::IdentifierExpression { continue; }
+            let mut segments = vec![head.to_string().into_boxed_str()];
+            for tail in children.take_while(|tail| tail.kind() == SyntaxKind::PathTail) {
+                if has_recovery(&tail) { return Err(HirAvailabilityError::SourceImportResolutionUnavailable); }
+                let tokens = tail.children_with_tokens().filter(|element| !matches!(
+                    element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline
+                        | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+                )).collect::<Vec<_>>();
+                let [separator, segment] = tokens.as_slice() else {
+                    return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+                };
+                let separator = separator.as_token().ok_or(HirAvailabilityError::SourceImportResolutionUnavailable)?;
+                let segment = segment.as_token().ok_or(HirAvailabilityError::SourceImportResolutionUnavailable)?;
+                if separator.kind() != SyntaxKind::ColonColon || segment.kind() != SyntaxKind::Identifier {
+                    return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+                }
+                segments.push(segment.text().into());
+            }
+            if segments.len() < 2 { continue; }
+            let path: Box<str> = segments.iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::").into_boxed_str();
+            let module = segments[..segments.len() - 1].iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::");
+            let name = segments.last().expect("nonempty qualified path");
+            let export = match source_exports::resolve_public_export(indexes, &module, name) {
+                Ok(export) if export.declaration.kind == SyntaxKind::BindingStatement && !export.declaration.recovered => export,
+                Ok(export) if export.declaration.kind == SyntaxKind::BindingStatement => {
+                    return Err(HirAvailabilityError::SourceImportResolutionUnavailable);
+                }
+                Ok(_) | Err(SourceExportResolveError::MissingModule(_))
+                    | Err(SourceExportResolveError::MissingExport { .. }) => continue,
+                Err(SourceExportResolveError::Ambiguous { .. }) => {
+                    paths.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                    paths.insert(path, SourceImportBinding::Ambiguous);
+                    continue;
+                }
+                Err(_) => return Err(HirAvailabilityError::SourceImportResolutionUnavailable),
+            };
+            match paths.get(path.as_ref()) {
+                Some(SourceImportBinding::Resolved(previous)) if previous.identity() == export.identity() => {}
+                Some(_) => { paths.insert(path, SourceImportBinding::Ambiguous); }
+                None => {
+                    paths.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                    paths.insert(path, SourceImportBinding::Resolved(export));
+                }
+            }
+        }
+    }
+    Ok(paths)
 }
 
 fn source_import_environment(
@@ -448,6 +618,30 @@ impl SemanticImports {
         let mut source_imports = source_import_environment(parsed, identity, parse_root, names, indexes)?;
         retain_authenticated_role_imports(&mut source_imports, role_indexes)?;
         Ok(Self { caller_evidence: None, source_imports: Some(source_imports) })
+    }
+
+    /// Resolve qualified host-operation paths used by these exact member
+    /// roots. Family exports and operation members retain separate source IDs.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn with_selected_member_operations(
+        parsed: &ParsedFile,
+        identity: &ModuleIdentity,
+        indexes: &[source_exports::SourceExportIndex],
+        selected_members: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
+        role_indexes: &[crate::shadow::SourceRoleImplIndex],
+        effects: &[source_annotation::SourceEffectDeclaration],
+    ) -> Result<Self, HirAvailabilityError> {
+        if identity.file != *identity.module.file() {
+            return Err(HirAvailabilityError::InconsistentIdentity);
+        }
+        let operation_paths = selected_member_operation_paths(parsed, indexes, selected_members, effects)?;
+        let value_paths = selected_member_value_paths(parsed, indexes, selected_members)?;
+        let mut imports = source_import_environment(
+            parsed, identity, parsed.source_root().key(), value_paths, indexes,
+        )?;
+        imports.retain_operation_paths(operation_paths);
+        retain_authenticated_role_imports(&mut imports, role_indexes)?;
+        Ok(Self { caller_evidence: None, source_imports: Some(imports) })
     }
 
     /// Retain exact identities for imported public role declarations when
@@ -1768,6 +1962,9 @@ pub(crate) fn lower_module_with_selected_member_sources(
     counters.source_nodes = crate::source_identity::source_keys(parsed);
     counters.member_sources = true;
     counters.selected_member_sources = Some(selected_members);
+    // A member-only provider contributes its exact member carrier, not the
+    // unrelated direct module roots from the file that happened to contain it.
+    counters.selected_local_source_roots = Some(std::collections::HashSet::new());
     lower_module_with_counters(identity, parsed, imports, &mut counters)
 }
 
@@ -1806,6 +2003,22 @@ pub(crate) fn index_role_impl_sources(
     let roles = source_role::declarations(&root, identity.module(), &counters)?;
     let implementations = source_impl::declarations(&root, identity.module(), &counters)?;
     Ok((roles, implementations))
+}
+
+#[cfg(any(feature = "shadow", test))]
+pub(crate) fn index_source_effects(
+    identity: ModuleIdentity,
+    parsed: &ParsedFile,
+    selected: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
+) -> Result<Vec<source_annotation::SourceEffectDeclaration>, HirAvailabilityError> {
+    if identity.file != *identity.module.file() {
+        return Err(HirAvailabilityError::InconsistentIdentity);
+    }
+    let mut counters = LoweringCounters::default();
+    counters.source_nodes = crate::source_identity::try_source_keys(parsed)?;
+    let root = SyntaxNode::new_root(parsed.green().clone());
+    source_annotation::declarations_selected(&root, identity.module(), &mut counters, Some(selected))
+        .map_err(Into::into)
 }
 
 pub fn index_source_exports(
@@ -2925,6 +3138,8 @@ fn plan_root(
 pub(super) enum ModuleNameResolution {
     Local(DefId),
     Imported(source_exports::SourceExportId),
+    #[cfg(any(feature = "shadow", test))]
+    ImportedOperation(source_exports::SourceOperationPathImport),
     Ambiguous,
 }
 
@@ -2976,6 +3191,10 @@ fn namespace(
                 source_exports::SourceImportBinding::Ambiguous => ModuleNameResolution::Ambiguous,
             };
             namespace.insert(name.to_string(), resolution);
+        }
+        #[cfg(any(feature = "shadow", test))]
+        for (path, operation) in imports.operation_paths() {
+            namespace.insert(path.to_string(), ModuleNameResolution::ImportedOperation(operation.clone()));
         }
     }
     Ok(namespace)
@@ -3855,6 +4074,11 @@ fn lower_leaf_with_identity(
                     Some(ModuleNameResolution::Imported(identity)) => {
                         (NameResolution::Imported(identity.clone()), None)
                     }
+                    #[cfg(any(feature = "shadow", test))]
+                    Some(ModuleNameResolution::ImportedOperation(_)) => (
+                        NameResolution::Unresolved,
+                        Some(HirErrorKind::UnresolvedName),
+                    ),
                     Some(ModuleNameResolution::Ambiguous) => (NameResolution::Ambiguous, Some(HirErrorKind::AmbiguousName)),
                     None => (
                         NameResolution::Unresolved,

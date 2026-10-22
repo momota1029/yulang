@@ -268,6 +268,23 @@ pub enum SourceImportBinding {
     Ambiguous,
 }
 
+#[cfg(any(feature = "shadow", test))]
+#[derive(Clone, Debug)]
+pub struct SourceOperationPathImport {
+    pub export: SourceExportResolution,
+    pub operation: std::sync::Arc<super::source_annotation::SourceOperationDeclaration>,
+}
+
+#[cfg(any(feature = "shadow", test))]
+impl PartialEq for SourceOperationPathImport {
+    fn eq(&self, other: &Self) -> bool {
+        self.export == other.export && self.operation.id == other.operation.id
+    }
+}
+
+#[cfg(any(feature = "shadow", test))]
+impl Eq for SourceOperationPathImport {}
+
 /// Parse-bound names supplied by one or more authenticated source modules.
 /// The exact public routes are retained beside the exposed-name lookup.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -275,6 +292,8 @@ pub struct SourceImportEnvironment {
     parse_root: SourceNodeKey,
     identity: ModuleIdentity,
     names: std::collections::HashMap<Box<str>, SourceImportBinding>,
+    #[cfg(any(feature = "shadow", test))]
+    operation_paths: std::collections::HashMap<Box<str>, SourceOperationPathImport>,
     operator_sources: Vec<SourceOperatorDeclaration>,
     #[cfg(any(feature = "shadow", test))]
     role_ids: std::collections::HashMap<Box<str>, super::source_role::SourceRoleId>,
@@ -293,6 +312,8 @@ impl SourceImportEnvironment {
             parse_root,
             identity,
             names,
+            #[cfg(any(feature = "shadow", test))]
+            operation_paths: std::collections::HashMap::new(),
             operator_sources: Vec::new(),
             #[cfg(any(feature = "shadow", test))]
             role_ids: std::collections::HashMap::new(),
@@ -335,6 +356,24 @@ impl SourceImportEnvironment {
 
     pub fn resolve(&self, name: &str) -> Option<&SourceImportBinding> {
         self.names.get(name)
+    }
+
+    #[cfg(any(feature = "shadow", test))]
+    pub fn operation_path(&self, path: &str) -> Option<&SourceOperationPathImport> {
+        self.operation_paths.get(path)
+    }
+
+    #[cfg(any(feature = "shadow", test))]
+    pub(super) fn retain_operation_paths(
+        &mut self,
+        paths: std::collections::HashMap<Box<str>, SourceOperationPathImport>,
+    ) {
+        self.operation_paths = paths;
+    }
+
+    #[cfg(any(feature = "shadow", test))]
+    pub(super) fn operation_paths(&self) -> &std::collections::HashMap<Box<str>, SourceOperationPathImport> {
+        &self.operation_paths
     }
 
     /// Returns the original body for a selected imported operator use only

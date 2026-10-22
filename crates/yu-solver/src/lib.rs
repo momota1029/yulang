@@ -10615,12 +10615,15 @@ impl InferenceSession {
             {
                 self.execute_candidate_loose()?;
                 for index in 0..self.batch.candidate_source.expressions.len() {
+                    let schedule = &self.batch.candidate_source.expressions[index];
+                    if self.batch.candidate_source.operator_provider_roots.iter().any(|provider|
+                        provider.root == schedule.root
+                            && self.candidate_graph.as_ref().is_some_and(|graph|
+                                graph.operator_graphs.contains_key(&provider.root))
+                    ) {
+                        continue;
+                    }
                     self.execute_candidate_expression(index)?;
-                }
-                if self.candidate_graph.as_ref().is_some_and(
-                    candidate_scheme::GraphState::has_pending_field_tail_selection,
-                ) {
-                    return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
                 }
             }
         }
@@ -10639,14 +10642,16 @@ impl InferenceSession {
     fn run_candidate(mut self) -> Result<CandidateSolvedResult, SolveAvailabilityError> {
         assert!(self.candidate_graph.is_some() && self.finalization.is_none());
         self.execute()?;
+        self.execute_candidate_field_tails()?;
         self.finish_candidate()
     }
 
     #[cfg(feature = "shadow-apply-candidate")]
     fn finish_candidate(self) -> Result<CandidateSolvedResult, SolveAvailabilityError> {
         assert!(self.candidate_graph.is_some() && self.finalization.is_none());
-        if self.candidate_graph.as_ref().is_some_and(|state|
-            state.source_field_tail_obligations.values().any(|obligations| !obligations.is_empty())) {
+        if self.candidate_graph.as_ref().is_some_and(
+            candidate_scheme::GraphState::has_pending_field_tail_selection,
+        ) {
             return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
         }
         let finished = self.finish_observations()?;
@@ -11944,7 +11949,7 @@ impl InferenceSession {
         Some(counts)
     }
     #[cfg(feature = "shadow-apply-candidate")]
-    fn candidate_field_tail_receiver_readbacks(
+    pub(crate) fn candidate_field_tail_receiver_readbacks(
         &self,
     ) -> Result<Vec<shadow_apply::CandidateFieldTailReceiverReadback>, SolveAvailabilityError> {
         fn substitute_source_shape(
@@ -11961,6 +11966,12 @@ impl InferenceSession {
                     output.try_reserve_exact(items.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     for item in items { output.push(substitute_source_shape(item, substitution)?); }
                     Shape::Tuple(output)
+                }
+                Shape::Apply(items) => {
+                    let mut output = Vec::new();
+                    output.try_reserve_exact(items.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    for item in items { output.push(substitute_source_shape(item, substitution)?); }
+                    Shape::Apply(output)
                 }
             })
         }
@@ -12021,7 +12032,8 @@ impl InferenceSession {
                             };
                             let Some(substitution) = target.match_target(&actual) else { continue; };
                             if target_matches.iter().any(|matched: &shadow_apply::CandidateFieldTailTargetMatch|
-                                matched.implementation == candidate.implementation) {
+                                matched.role_member == *role_member
+                                    && matched.implementation == candidate.implementation) {
                                 continue;
                             }
                             let mut type_substitution = Vec::new();
@@ -12043,6 +12055,8 @@ impl InferenceSession {
                                         role_identity,
                                         matching_implementations: Vec::new(),
                                         matching_implementations_without_prerequisites: Vec::new(),
+                                        implementation_inventory_complete: false,
+                                        unsupported_target_count: 0,
                                     });
                                     continue;
                                 };
@@ -12051,13 +12065,19 @@ impl InferenceSession {
                                     substitute_source_shape(shape, &substitution)).transpose()?;
                                 let mut matching_implementations = Vec::new();
                                 let mut matching_implementations_without_prerequisites = Vec::new();
+                                let mut implementation_inventory_complete = false;
+                                let mut unsupported_target_count = 0usize;
                                 if role_identity.as_ref() == Some(&role_member.role) {
                                     if let (Some(subject), Some(candidates)) = (
                                         substituted_subject.as_ref(),
                                         self.batch.candidate_source.role_implementation_members.get(role_member),
                                     ) {
+                                        implementation_inventory_complete = true;
                                         for prerequisite in candidates {
-                                            let Some(target) = prerequisite.target.shape.as_ref() else { continue; };
+                                            let Some(target) = prerequisite.target.shape.as_ref() else {
+                                                increment(&mut unsupported_target_count)?;
+                                                continue;
+                                            };
                                             if target.match_target(subject).is_none() { continue; }
                                             matching_implementations.try_reserve(1)
                                                 .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -12077,10 +12097,13 @@ impl InferenceSession {
                                     role_identity,
                                     matching_implementations,
                                     matching_implementations_without_prerequisites,
+                                    implementation_inventory_complete,
+                                    unsupported_target_count,
                                 });
                             }
                             target_matches.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                             target_matches.push(shadow_apply::CandidateFieldTailTargetMatch {
+                                role_member: role_member.clone(),
                                 implementation: candidate.implementation.clone(),
                                 target: target.clone(),
                                 type_substitution,

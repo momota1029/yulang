@@ -1,5 +1,25 @@
 use crate::tests::support::*;
 
+#[test]
+fn public_host_act_parses_its_operation_members_as_source_nodes() {
+    use SyntaxKind::*;
+    let source = "pub host act out:\n    pub write: str -> ()";
+    let (green, _, remainder) = run_act_declaration(source, 0, 0, LineEntry::InLine, None);
+    assert_eq!(green.to_string(), source);
+    assert_eq!(remainder, "");
+    let node = declaration(&green);
+    assert_eq!(node.kind(), ActDeclaration);
+    assert!(node.children_with_tokens().any(|element|
+        element.kind() == Identifier && element.to_string() == "host"));
+    assert!(node.children().any(|child| child.kind() == IndentedStatementBlock));
+    let operation = node.descendants().find(|child|
+        child.kind() == BindingStatement && child.text().to_string().trim_start().starts_with("pub write")
+    ).expect("host operation has a source-owned binding declaration");
+    assert!(operation.descendants().any(|child| child.kind() == PatternTypeAnnotation));
+    assert!(operation.descendants().any(|child| child.kind() == TypeExpression
+        && child.text().to_string() == "str -> ()"));
+}
+
 fn assert_act_body_schema(source: &str, expected: &[(SyntaxKind, usize)]) -> SyntaxNode {
     let (green, _, remainder) = run_act_declaration(source, 0, 0, LineEntry::InLine, None);
     assert_eq!(green.to_string(), source);

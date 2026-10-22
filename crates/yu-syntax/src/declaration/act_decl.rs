@@ -200,17 +200,27 @@ fn prefixed_act_candidate_normalized(
     let Some((word, after_keyword)) = source_identifier(observed.source) else {
         return false;
     };
-    if word != "act" {
+    let (after_act, act_end) = if word == "host" {
+        let host_end = item_origin + (source.len() - observed.source.len()) + word.len();
+        let TriviaObservation::Visible(act) =
+            observe_fenced_trivia(after_keyword, host_end, LineEntry::InLine, fence)
+        else { return false; };
+        let Some((act_word, after_act)) = source_identifier(act.source) else { return false; };
+        if act_word != "act" { return false; }
+        let act_end = host_end + (after_keyword.len() - act.source.len()) + act_word.len();
+        (after_act, act_end)
+    } else if word == "act" {
+        let leading_len = source.len() - observed.source.len();
+        (after_keyword, item_origin + leading_len + word.len())
+    } else {
         return false;
-    }
+    };
     if !require_head {
         return true;
     }
 
-    let leading_len = source.len() - observed.source.len();
-    let keyword_end = item_origin + leading_len + word.len();
     let TriviaObservation::Visible(head) =
-        observe_fenced_trivia(after_keyword, keyword_end, LineEntry::InLine, fence)
+        observe_fenced_trivia(after_act, act_end, LineEntry::InLine, fence)
     else {
         return false;
     };
@@ -250,6 +260,16 @@ pub(crate) fn act_declaration_normalized(
         item_origin = next_origin;
         line_entry = next_entry;
         debug_assert!(act_gap_allowed(&keyword, baseline));
+        if item_word(&keyword) == Some("host") {
+            keyword.emit_all_remaining_leading(&mut *i.state);
+            emit_item_as(&mut i, keyword, SyntaxKind::Identifier);
+            let (next, next_origin, next_entry) = act_item_normalized(
+                i.rb(), item_origin, line_entry, fence, baseline, stops, true, false,
+            );
+            keyword = next;
+            item_origin = next_origin;
+            line_entry = next_entry;
+        }
         debug_assert_eq!(item_word(&keyword), Some("act"));
         keyword.emit_all_remaining_leading(&mut *i.state);
         emit_item_as(&mut i, keyword, SyntaxKind::ActKw);

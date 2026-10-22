@@ -9,9 +9,19 @@ pub(super) struct GraphState {
     /// Source-owned member templates have their own roots and are never
     /// assigned ordinary definition positions.
     pub member_graphs: HashMap<yu_hir::SourceMemberRootId, MemberGraph>,
+    /// Selected member instances retain their one shared FreshUse map for the
+    /// lifetime of the admitted receiver/result/effect relations.
+    pub member_uses: Vec<MemberFreshUse>,
+    /// Exact parse-owned override requested by a dynamic FreshUse but not yet
+    /// present in the source-world candidate schedules.
+    pub missing_member_source: Option<yu_hir::shadow::SourceImplementationMemberId>,
     /// Imported operator RHS templates retain their exact expression roots;
     /// they have no binding definition identity or ordinal.
-    pub operator_graphs: HashMap<yu_hir::ExpressionRootId, Graph>,
+    pub operator_graphs: HashMap<yu_hir::ExpressionRootId, Arc<Graph>>,
+    /// One independently reconstructed provider instance per imported
+    /// operator occurrence. Keeping the FreshUse maps alive is required for
+    /// the lifetime of the admitted Apply facts and their source evidence.
+    pub operator_uses: Vec<OperatorFreshUse>,
     pub routes: Vec<FreshRoute>,
     pub locals: Vec<Option<LocalScheme>>,
     pub local_routes: Vec<LocalFreshRoute>,
@@ -44,6 +54,15 @@ pub(super) struct GraphState {
     pub capture_evidence_peak_capacity: usize,
     #[cfg(test)]
     pub import_evidence_peak_capacity: usize,
+}
+
+#[derive(Debug)]
+pub(super) struct OperatorFreshUse {
+    pub occurrence: HirOccurrenceId,
+    pub owner: yu_hir::SourceOperatorOwner,
+    pub provider: yu_hir::ExpressionRootId,
+    pub root: Term,
+    pub fresh: FreshUse,
 }
 
 /// A retained where prerequisite whose subject is joined to the provider's
@@ -82,7 +101,20 @@ pub(super) struct MemberGraph {
     pub receiver: RowKey,
     pub result: RowKey,
     pub result_effect: RowKey,
-    pub graph: Graph,
+    pub graph: Arc<Graph>,
+}
+
+#[derive(Debug)]
+pub(super) struct MemberFreshUse {
+    pub member: yu_hir::SourceMemberRootId,
+    pub occurrence: HirOccurrenceId,
+    pub fresh: FreshUse,
+}
+
+enum FieldTailMemberSelection {
+    Selected(usize),
+    MissingSource(yu_hir::shadow::SourceImplementationMemberId),
+    Unavailable,
 }
 
 #[derive(Debug)]
@@ -618,8 +650,6 @@ impl GraphState {
     pub(super) fn has_pending_field_tail_selection(&self) -> bool {
         self.source_field_tail_obligations.values().any(|items| !items.is_empty())
             || self.graphs.iter().flatten().any(|graph| !graph.source_field_tail_obligations.is_empty())
-            || self.member_graphs.values().any(|member| !member.graph.source_field_tail_obligations.is_empty())
-            || self.operator_graphs.values().any(|graph| !graph.source_field_tail_obligations.is_empty())
             || self.routes.iter().any(|route| !route.graph.source_field_tail_obligations.is_empty())
             || self.local_routes.iter().any(|route| !route.graph.source_field_tail_obligations.is_empty())
             || self.local_use.iter().any(|frame| !frame.graph.source_field_tail_obligations.is_empty())
@@ -1036,7 +1066,9 @@ impl GraphState {
         let mut total = sum(&[
             bytes::<Option<Graph>>(self.graphs.capacity())?,
             bytes::<(yu_hir::SourceMemberRootId, MemberGraph)>(self.member_graphs.capacity())?,
-            bytes::<(yu_hir::ExpressionRootId, Graph)>(self.operator_graphs.capacity())?,
+            bytes::<MemberFreshUse>(self.member_uses.capacity())?,
+            bytes::<(yu_hir::ExpressionRootId, Arc<Graph>)>(self.operator_graphs.capacity())?,
+            bytes::<OperatorFreshUse>(self.operator_uses.capacity())?,
             bytes::<FreshRoute>(self.routes.capacity())?,
             bytes::<Option<LocalScheme>>(self.locals.capacity())?,
             bytes::<LocalFreshRoute>(self.local_routes.capacity())?,
@@ -1071,8 +1103,14 @@ impl GraphState {
         for member in self.member_graphs.values() {
             total = sum(&[total, member.graph.bytes()?])?;
         }
+        for use_ in &self.member_uses {
+            total = sum(&[total, use_.fresh.bytes()?])?;
+        }
         for graph in self.operator_graphs.values() {
             total = sum(&[total, graph.bytes()?])?;
+        }
+        for use_ in &self.operator_uses {
+            total = sum(&[total, use_.fresh.bytes()?])?;
         }
         for route in &self.routes {
             total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?, route.retained.bytes()?])?;
@@ -2116,12 +2154,7 @@ impl InferenceSession {
         }
         if self.batch.candidate_source.active {
             self.execute_candidate_operator_providers()?;
-            // Provider graphs are now captured before their retained uses.
-            // Keep the solve private until the per-use FreshUse and ordered
-            // two-Apply consumer is installed below this boundary.
-            if !self.batch.candidate_source.operator_uses.is_empty() {
-                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
-            }
+            self.execute_candidate_operator_uses()?;
             let member_count = self.batch.candidate_source.members.len();
             for index in 0..member_count {
                 self.execute_candidate_member(index)?;
@@ -2160,7 +2193,7 @@ impl InferenceSession {
                     receiver: graph.rows[receiver_index?].key,
                     result: graph.rows[result_index?].key,
                     result_effect: graph.rows[effect_index?].key,
-                    graph,
+                    graph: Arc::new(graph),
                 };
                 let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
                 if state.member_graphs.contains_key(&schedule.root) {
@@ -2186,14 +2219,10 @@ impl InferenceSession {
         {
             return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
         }
-        for index in 0..self.batch.candidate_source.operator_provider_roots.len() {
+        let order = self.candidate_operator_provider_order()?;
+        for index in order {
             let provider = self.batch.candidate_source.operator_provider_roots[index].clone();
             let owner = SourceRootId::Expression(provider.root.clone());
-            if self.batch.candidate_source.operator_uses.iter().any(|use_| use_.owner == owner) {
-                // A provider body that itself uses an operator needs its
-                // dependency's graph first; do not capture an incomplete body.
-                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
-            }
             if self.candidate_graph.as_ref().ok_or_else(exhausted)?
                 .operator_graphs.contains_key(&provider.root)
             {
@@ -2204,6 +2233,10 @@ impl InferenceSession {
             ).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
             let value = self.batch.candidate_source.expressions[schedule_index].value;
             self.execute_candidate_expression(schedule_index)?;
+            // Any imported operator used inside this RHS now has its provider
+            // graph available because the provider-owner DAG was traversed in
+            // dependency order.
+            self.execute_candidate_operator_uses_for(Some(&owner))?;
             let root_term = self.candidate_endpoint(value, Polarity::Positive)?;
             let row = match self.value_endpoint(root_term, Polarity::Positive) {
                 ValueEndpointKey::ValueRow(row) => match self.candidate_graph.as_ref()
@@ -2219,11 +2252,474 @@ impl InferenceSession {
             let graph = self.capture_candidate_graph_owned(row, 0, &[], &[], &field_tails)?;
             let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
             state.operator_graphs.try_reserve(1).map_err(|_| exhausted())?;
-            state.operator_graphs.insert(provider.root, graph);
+            state.operator_graphs.insert(provider.root, Arc::new(graph));
             state.source_field_tail_obligations.remove(&owner);
             state.refresh_bytes()?;
             self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
         }
+        Ok(())
+    }
+
+    fn candidate_operator_provider_order(&self) -> Result<Vec<usize>, SolveAvailabilityError> {
+        let providers = &self.batch.candidate_source.operator_provider_roots;
+        let mut dependencies: Vec<Vec<usize>> = Vec::new();
+        dependencies.try_reserve_exact(providers.len()).map_err(|_| exhausted())?;
+        dependencies.resize_with(providers.len(), Vec::new);
+        for use_ in &self.batch.candidate_source.operator_uses {
+            let SourceRootId::Expression(owner_root) = &use_.owner else { continue; };
+            let Some(owner_index) = providers.iter().position(|provider| &provider.root == owner_root) else {
+                continue;
+            };
+            if use_.provider >= providers.len() { return Err(SolveAvailabilityError::ReceiptMismatch); }
+            if !dependencies[owner_index].contains(&use_.provider) {
+                dependencies[owner_index].try_reserve(1).map_err(|_| exhausted())?;
+                dependencies[owner_index].push(use_.provider);
+            }
+        }
+        let mut states = Vec::new();
+        states.try_reserve_exact(providers.len()).map_err(|_| exhausted())?;
+        states.resize(providers.len(), 0u8);
+        let mut order = Vec::new();
+        order.try_reserve_exact(providers.len()).map_err(|_| exhausted())?;
+        let mut stack = Vec::new();
+        stack.try_reserve_exact(providers.len()).map_err(|_| exhausted())?;
+        for start in 0..providers.len() {
+            if states[start] != 0 { continue; }
+            states[start] = 1;
+            stack.push((start, 0usize));
+            while let Some((node, child_index)) = stack.last_mut() {
+                if *child_index < dependencies[*node].len() {
+                    let dependency = dependencies[*node][*child_index];
+                    *child_index += 1;
+                    if dependency >= providers.len() { return Err(SolveAvailabilityError::ReceiptMismatch); }
+                    match states[dependency] {
+                        1 => return Err(SolveAvailabilityError::DeferredSelectionUnavailable),
+                        2 => continue,
+                        _ => {
+                            states[dependency] = 1;
+                            stack.try_reserve(1).map_err(|_| exhausted())?;
+                            stack.push((dependency, 0));
+                        }
+                    }
+                } else {
+                    let (finished, _) = stack.pop().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                    states[finished] = 2;
+                    order.push(finished);
+                }
+            }
+        }
+        Ok(order)
+    }
+
+    fn execute_candidate_operator_uses(&mut self) -> Result<(), SolveAvailabilityError> {
+        self.execute_candidate_operator_uses_for(None)
+    }
+
+    fn execute_candidate_operator_uses_for(&mut self, owner_filter: Option<&SourceRootId>) -> Result<(), SolveAvailabilityError> {
+        for use_index in 0..self.batch.candidate_source.operator_uses.len() {
+            let use_ = self.batch.candidate_source.operator_uses[use_index].clone();
+            if let Some(owner) = owner_filter {
+                if &use_.owner != owner { continue; }
+            } else if let SourceRootId::Expression(root) = &use_.owner {
+                if self.batch.candidate_source.operator_provider_roots.iter().any(|provider| &provider.root == root) {
+                    continue;
+                }
+            }
+            let provider = self.batch.candidate_source.operator_provider_roots
+                .get(use_.provider).cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            if provider.owner != use_.operator_owner {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
+            if self.batch.candidate_source.source_owners.get(&use_.occurrence) != Some(&use_.owner) {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
+            let graph = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                .operator_graphs.get(&provider.root).cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let level = *self.batch.candidate_source.component_levels.get(&use_.result)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            // Slots 0..=7 belong to the two Apply value/effect facts; the
+            // independent FreshUse restoration lane starts after them.
+            let occurrence = ConstraintOccurrenceId::new_wide(use_.occurrence.clone(), 8);
+            let cause = CauseId::for_occurrence(occurrence.clone());
+            let (operator, fresh) = self.freshen_candidate_graph_retained(
+                &graph, level, &occurrence, &cause,
+            )?;
+            let left_effect_row = self.live_components.get(use_.left_effect)
+                .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let right_effect_row = self.live_components.get(use_.right_effect)
+                .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let result_row = self.live_components.get(use_.result)
+                .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let final_effect_row = self.live_components.get(use_.result_effect)
+                .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let left = self.candidate_endpoint(use_.left, Polarity::Positive)?;
+            let right = self.candidate_endpoint(use_.right, Polarity::Positive)?;
+
+            let (callee_effect_row, left_invocation_row, first_effect_row,
+                right_invocation_row) = if self.batch.candidate_graph_effects {
+                let effect_level = self.effect_levels.get(final_effect_row as usize).copied()
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                (Some(self.fresh_effect_at_level(effect_level)?),
+                    Some(self.fresh_effect_at_level(effect_level)?),
+                    Some(self.fresh_effect_at_level(effect_level)?),
+                    Some(self.fresh_effect_at_level(effect_level)?))
+            } else { (None, None, None, None) };
+            let first_value_row = self.fresh_value_at_level(level)?;
+            let first_result = self.live_value_term(Polarity::Negative, first_value_row)?;
+            let left_effect = if self.batch.candidate_graph_effects {
+                self.live_effect_term(Polarity::Positive, left_effect_row)?
+            } else { self.batch.collected_leaf_term(Leaf::EffectBottomPositive) };
+            let left_invocation = if let Some(row) = left_invocation_row {
+                self.live_effect_term(Polarity::Negative, row)?
+            } else { self.batch.collected_leaf_term(Leaf::EmptyEffectNegative) };
+            let first_demand = self.negative_function_term(left, left_effect, left_invocation, first_result)?;
+            self.admit_operator_value(&use_.occurrence, 0, operator, first_demand)?;
+
+            let final_result = self.live_value_term(Polarity::Negative, result_row)?;
+            let second_callee = self.live_value_term(Polarity::Positive, first_value_row)?;
+            let right_effect = if self.batch.candidate_graph_effects {
+                self.live_effect_term(Polarity::Positive, right_effect_row)?
+            } else { self.batch.collected_leaf_term(Leaf::EffectBottomPositive) };
+            let right_invocation = if let Some(row) = right_invocation_row {
+                self.live_effect_term(Polarity::Negative, row)?
+            } else { self.batch.collected_leaf_term(Leaf::EmptyEffectNegative) };
+            let second_demand = self.negative_function_term(right, right_effect, right_invocation, final_result)?;
+            self.admit_operator_value(&use_.occurrence, 1, second_callee, second_demand)?;
+
+            if let (Some(callee_effect), Some(left_invocation), Some(first_effect), Some(right_invocation)) =
+                (callee_effect_row, left_invocation_row, first_effect_row, right_invocation_row)
+            {
+                self.admit_operator_effect(&use_.occurrence, 2, callee_effect, first_effect)?;
+                self.admit_operator_effect(&use_.occurrence, 3, left_invocation, first_effect)?;
+                self.admit_operator_effect(&use_.occurrence, 4, first_effect, final_effect_row)?;
+                self.admit_operator_effect(&use_.occurrence, 5, right_invocation, final_effect_row)?;
+                // Evaluating the imported operator value is pure. This is the
+                // same empty computation effect used for a source Lambda.
+                let callee_effect_positive = self.live_effect_term(Polarity::Positive, callee_effect)?;
+                let callee_effect_negative = self.live_effect_term(Polarity::Negative, callee_effect)?;
+                self.admit_operator_effect_terms(&use_.occurrence, 6,
+                    self.batch.collected_leaf_term(Leaf::EffectBottomPositive), callee_effect_negative)?;
+                self.admit_operator_effect_terms(&use_.occurrence, 7,
+                    callee_effect_positive, self.batch.collected_leaf_term(Leaf::EmptyEffectNegative))?;
+            }
+            let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+            let fresh_bytes = fresh.bytes()?;
+            state.scratch_bytes = state.scratch_bytes.checked_sub(fresh_bytes)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            state.operator_uses.try_reserve(1).map_err(|_| exhausted())?;
+            state.operator_uses.push(OperatorFreshUse {
+                occurrence: use_.occurrence,
+                owner: use_.operator_owner,
+                provider: provider.root,
+                root: operator,
+                fresh,
+            });
+            state.refresh_bytes()?;
+            self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
+        }
+        Ok(())
+    }
+
+    /// Resolve active FieldTail obligations only after source schedules have
+    /// contributed their receiver bounds. Every selected body is instantiated
+    /// once, and its nested obligations reuse the same FreshUse row map.
+    pub(super) fn execute_candidate_field_tails(&mut self) -> Result<(), SolveAvailabilityError> {
+        #[derive(Clone)]
+        struct Pending {
+            obligation: SourceFieldTailObligation,
+            ancestry: Vec<yu_hir::SourceMemberRootId>,
+        }
+
+        let mut pending = Vec::<Pending>::new();
+        {
+            let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+            let count = state.source_field_tail_obligations.values().try_fold(0usize, |total, items|
+                total.checked_add(items.len()).ok_or_else(exhausted)
+            )?;
+            pending.try_reserve_exact(count).map_err(|_| exhausted())?;
+            for obligations in state.source_field_tail_obligations.values() {
+                for obligation in clone_field_tail_obligations(obligations)? {
+                    pending.push(Pending { obligation, ancestry: Vec::new() });
+                }
+            }
+            // Operator provider graphs are reusable templates. Their source
+            // FieldTails become active obligations only after a particular
+            // operator FreshUse maps the four interface rows. Keep one item
+            // per use, even when several uses share the same source occurrence.
+            for operator_use in &state.operator_uses {
+                let graph = state.operator_graphs.get(&operator_use.provider)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                for (obligation_index, row_indexes) in &operator_use.fresh.source_field_tail_obligation_rows {
+                    let source = graph.source_field_tail_obligations.get(*obligation_index)
+                        .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                    let mapped = row_indexes.map(|index| operator_use.fresh.rows.get(index).copied()
+                        .ok_or(SolveAvailabilityError::ReceiptMismatch));
+                    let [receiver_row, receiver_effect, result_row, result_effect] = mapped;
+                    let mut obligation = source.clone();
+                    obligation.receiver_row = state.intrusion.rep(receiver_row?);
+                    obligation.receiver_effect = state.intrusion.rep(receiver_effect?);
+                    obligation.result_row = state.intrusion.rep(result_row?);
+                    obligation.result_effect = state.intrusion.rep(result_effect?);
+                    pending.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    pending.push(Pending { obligation, ancestry: Vec::new() });
+                }
+            }
+            state.source_field_tail_obligations.clear();
+            state.refresh_bytes()?;
+        }
+
+        let mut cursor = 0usize;
+        while cursor < pending.len() {
+            let item = pending[cursor].clone();
+            cursor = cursor.checked_add(1).ok_or_else(exhausted)?;
+
+            // Reuse the authenticated receiver and where-clause readback for
+            // this active instance. Nested rows have already been transported
+            // through their parent's FreshUse before reaching this boundary.
+            {
+                let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                state.retain_source_field_tail_obligation(item.obligation.clone())?;
+                state.refresh_bytes()?;
+            }
+            let readback_result = self.candidate_field_tail_receiver_readbacks();
+            let readback = readback_result?
+                .into_iter()
+                .find(|readback| readback.owner == item.obligation.owner
+                    && readback.occurrence == item.obligation.occurrence)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            {
+                let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                let Some(items) = state.source_field_tail_obligations.get_mut(&item.obligation.owner) else {
+                    return Err(SolveAvailabilityError::ReceiptMismatch);
+                };
+                let before = items.len();
+                items.retain(|old| old.occurrence != item.obligation.occurrence);
+                if items.len() + 1 != before {
+                    return Err(SolveAvailabilityError::ReceiptMismatch);
+                }
+                if items.is_empty() {
+                    state.source_field_tail_obligations.remove(&item.obligation.owner);
+                }
+                state.refresh_bytes()?;
+            }
+
+            let member_index = match self.unique_candidate_field_tail_member(&readback) {
+                FieldTailMemberSelection::Selected(index) => index,
+                FieldTailMemberSelection::MissingSource(member) => {
+                    self.candidate_graph.as_mut().ok_or_else(exhausted)?
+                        .missing_member_source = Some(member);
+                    return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                }
+                FieldTailMemberSelection::Unavailable => {
+                    return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                }
+            };
+            let schedule = self.batch.candidate_source.members.get(member_index)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let member_root = schedule.root.clone();
+            if item.ancestry.contains(&member_root) {
+                // Recursive member dispatch needs a recursive candidate scheme;
+                // this path stays deferred until that construction is present.
+                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+            }
+            let member_graph = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                .member_graphs.get(&member_root).ok_or(SolveAvailabilityError::DeferredSelectionUnavailable)?;
+            let graph = member_graph.graph.clone();
+            let receiver_key = member_graph.receiver;
+            let result_key = member_graph.result;
+            let result_effect_key = member_graph.result_effect;
+
+            let use_level = match item.obligation.result_row {
+                RowKey::Value(row) => self.value_levels.get(row as usize).copied(),
+                RowKey::Effect(_) => None,
+            }.ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let occurrence = item.obligation.occurrence.clone();
+            let provisional = ConstraintOccurrenceId::new_wide(occurrence.clone(), 0);
+            let cause = CauseId::for_occurrence(provisional.clone());
+            let (_, fresh) = self.freshen_candidate_graph_retained(&graph, use_level, &provisional, &cause)?;
+
+            let interface_index = |key: RowKey| graph.rows.iter().position(|row| row.key == key)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch);
+            let receiver = *fresh.rows.get(interface_index(receiver_key)?)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let result = *fresh.rows.get(interface_index(result_key)?)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let result_effect = *fresh.rows.get(interface_index(result_effect_key)?)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let context_use = u32::try_from(fresh.context_use)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let slot_base = context_use.checked_mul(4)
+                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+
+            let actual_receiver = match item.obligation.receiver_row {
+                RowKey::Value(row) => self.live_value_term(Polarity::Positive, row)?,
+                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+            };
+            let member_receiver = match receiver {
+                RowKey::Value(row) => self.live_value_term(Polarity::Negative, row)?,
+                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+            };
+            self.admit_operator_value(&occurrence, slot_base, actual_receiver, member_receiver)?;
+
+            let member_result = match result {
+                RowKey::Value(row) => self.live_value_term(Polarity::Positive, row)?,
+                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+            };
+            let actual_result = match item.obligation.result_row {
+                RowKey::Value(row) => self.live_value_term(Polarity::Negative, row)?,
+                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+            };
+            self.admit_operator_value(&occurrence, slot_base + 1, member_result, actual_result)?;
+
+            if self.batch.candidate_graph_effects {
+                let actual_receiver_effect = match item.obligation.receiver_effect {
+                    RowKey::Effect(row) => row,
+                    RowKey::Value(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                };
+                let actual_result_effect = match item.obligation.result_effect {
+                    RowKey::Effect(row) => row,
+                    RowKey::Value(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                };
+                let member_result_effect = match result_effect {
+                    RowKey::Effect(row) => row,
+                    RowKey::Value(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                };
+                self.admit_operator_effect(&occurrence, slot_base + 2,
+                    actual_receiver_effect, actual_result_effect)?;
+                self.admit_operator_effect(&occurrence, slot_base + 3,
+                    member_result_effect, actual_result_effect)?;
+            }
+
+            let mut next_ancestry = item.ancestry;
+            next_ancestry.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            next_ancestry.push(member_root.clone());
+            let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+            for (obligation_index, row_indexes) in &fresh.source_field_tail_obligation_rows {
+                let nested = graph.source_field_tail_obligations.get(*obligation_index)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let mapped = row_indexes.map(|index| fresh.rows.get(index).copied()
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch));
+                let [receiver_row, receiver_effect, result_row, result_effect] = mapped;
+                let mut nested = nested.clone();
+                nested.receiver_row = state.intrusion.rep(receiver_row?);
+                nested.receiver_effect = state.intrusion.rep(receiver_effect?);
+                nested.result_row = state.intrusion.rep(result_row?);
+                nested.result_effect = state.intrusion.rep(result_effect?);
+                pending.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                pending.push(Pending { obligation: nested, ancestry: next_ancestry.clone() });
+            }
+            let fresh_bytes = fresh.bytes()?;
+            state.scratch_bytes = state.scratch_bytes.checked_sub(fresh_bytes)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            state.member_uses.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            state.member_uses.push(MemberFreshUse {
+                member: member_root,
+                occurrence,
+                fresh,
+            });
+            state.refresh_bytes()?;
+            self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
+        }
+        Ok(())
+    }
+
+    fn unique_candidate_field_tail_member(
+        &self,
+        readback: &crate::shadow_apply::CandidateFieldTailReceiverReadback,
+    ) -> FieldTailMemberSelection {
+        if readback.positive_shape.is_none()
+            || !readback.implementation_inventory_complete
+            || readback.unsupported_target_count != 0
+            || !readback.positive_frontier_complete
+            || !readback.negative_frontier_empty
+            || readback.target_matches.len() != 1
+        {
+            return FieldTailMemberSelection::Unavailable;
+        }
+        let Some(target) = readback.target_matches.first() else {
+            return FieldTailMemberSelection::Unavailable;
+        };
+        if target.where_clause_count != target.where_clause_readbacks.len()
+            || target.where_clause_count != target.where_role_identities.len()
+        {
+            return FieldTailMemberSelection::Unavailable;
+        }
+        for (index, clause) in target.where_clause_readbacks.iter().enumerate() {
+            if clause.subject_source.is_none()
+                || clause.substituted_subject.is_none()
+                || clause.role_identity.as_ref() != Some(&target.role_member.role)
+                || target.where_role_identities.get(index).and_then(Option::as_ref)
+                    != Some(&target.role_member.role)
+                || !clause.implementation_inventory_complete
+                || clause.unsupported_target_count != 0
+                || clause.matching_implementations.len() != 1
+                || clause.matching_implementations_without_prerequisites.len() != 1
+                || clause.matching_implementations.first()
+                    != clause.matching_implementations_without_prerequisites.first()
+            {
+                return FieldTailMemberSelection::Unavailable;
+            }
+        }
+        let Some(candidates) = self.batch.candidate_source.role_implementation_members
+            .get(&target.role_member) else { return FieldTailMemberSelection::Unavailable; };
+        let mut matching = candidates.iter().filter(|candidate|
+            candidate.implementation == target.implementation
+        );
+        let Some(candidate) = matching.next() else { return FieldTailMemberSelection::Unavailable; };
+        if matching.next().is_some() { return FieldTailMemberSelection::Unavailable; }
+        let plan = &self.batch.candidate_source;
+        match &candidate.member {
+            Some(member) => match plan.unique_implementation_member_schedule(member) {
+                Some(index) => FieldTailMemberSelection::Selected(index),
+                None if !plan.members.iter().any(|schedule|
+                    schedule.implementation_member.as_ref() == Some(member)
+                ) => FieldTailMemberSelection::MissingSource(member.clone()),
+                None => FieldTailMemberSelection::Unavailable,
+            },
+            None => plan.unique_role_member_schedule(&target.role_member)
+                .map_or(FieldTailMemberSelection::Unavailable, FieldTailMemberSelection::Selected),
+        }
+    }
+
+    pub(super) fn missing_candidate_member_source(
+        &self,
+    ) -> Option<yu_hir::shadow::SourceImplementationMemberId> {
+        self.candidate_graph.as_ref()?.missing_member_source.clone()
+    }
+
+    fn admit_operator_value(&mut self, source: &HirOccurrenceId, slot: u32,
+        lower: Term, upper: Term) -> Result<(), SolveAvailabilityError> {
+        let id = ConstraintOccurrenceId::new_wide(source.clone(), slot);
+        let cause = CauseId::for_occurrence(id.clone());
+        self.store.admit_and_record_provenance(&ConstraintOccurrence {
+            id: id.clone(), cause: cause.clone(), lower, upper,
+        }).map_err(SolveAvailabilityError::from)?;
+        let key = CanonicalValuePairKey {
+            lower: self.value_endpoint(lower, Polarity::Positive),
+            upper: self.value_endpoint(upper, Polarity::Negative),
+        };
+        self.constrain_live_value(key, &id, &cause)?;
+        Ok(())
+    }
+
+    fn admit_operator_effect(&mut self, source: &HirOccurrenceId, slot: u32,
+        lower: u32, upper: u32) -> Result<(), SolveAvailabilityError> {
+        let lower_term = self.live_effect_term(Polarity::Positive, lower)?;
+        let upper_term = self.live_effect_term(Polarity::Negative, upper)?;
+        self.admit_operator_effect_terms(source, slot, lower_term, upper_term)?;
+        Ok(())
+    }
+
+    fn admit_operator_effect_terms(&mut self, source: &HirOccurrenceId, slot: u32,
+        lower: Term, upper: Term) -> Result<(), SolveAvailabilityError> {
+        let id = ConstraintOccurrenceId::new_wide(source.clone(), slot);
+        let cause = CauseId::for_occurrence(id.clone());
+        self.store.admit_and_record_provenance(&ConstraintOccurrence {
+            id: id.clone(), cause: cause.clone(), lower, upper,
+        }).map_err(SolveAvailabilityError::from)?;
+        let lower = self.effect_endpoint(lower, Polarity::Positive);
+        let upper = self.effect_endpoint(upper, Polarity::Negative);
+        self.constrain_live_effect(lower, upper, &id, &cause)?;
         Ok(())
     }
     pub(super) fn route_candidate_open_use(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
@@ -3019,6 +3515,125 @@ mod authentic_demand_capture_tests {
     use super::*;
 
     #[test]
+    fn nested_operator_provider_rhs_uses_dependency_before_capture() {
+        let parse = |text: &str, environment: Arc<yu_syntax::SyntaxEnvironment>| {
+            let text: Arc<yu_syntax::SourceText> = Arc::from(text);
+            yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)), environment)
+        };
+        let base_parsed = parse(
+            r"pub infix (+) 5.0.0 5.0.1 = \x -> \y -> x.add y",
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let base_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("nested-operator-providers", "lib/base.yu"),
+        ));
+        let base_index = yu_hir::shadow::index_source_exports(base_identity.clone(), &base_parsed).unwrap();
+        let base = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            base_identity.clone(), &base_parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let base_decl = &base_parsed.header().operators()[0];
+        let base_owner = base_index.operator_owner_for_receipt(
+            base_identity.module(), base_parsed.revision(), base_decl.range(), "+",
+            yu_syntax::OperatorFixity::Infix,
+        ).unwrap();
+        let base_root = match base.source_operator_root_for(&base_owner, &base_index).unwrap().unwrap() {
+            SourceRootId::Expression(root) => root,
+            _ => panic!("base operator has expression root"),
+        };
+
+        let prelude_parsed = parse("pub id value = value\n", Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let prelude_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("nested-operator-providers", "lib/std/prelude.yu"),
+        ));
+        let prelude_index = yu_hir::shadow::index_source_exports(prelude_identity.clone(), &prelude_parsed).unwrap();
+        let prelude = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            prelude_identity, &prelude_parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let std_parsed = parse("pub mod prelude;\n", Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let std_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("nested-operator-providers", "lib/std.yu"),
+        ));
+        let std_index = yu_hir::shadow::index_source_exports(std_identity.clone(), &std_parsed).unwrap();
+        let std = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            std_identity, &std_parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+
+        let derived_environment = yu_syntax::SyntaxEnvironment::from_imported_headers(
+            yu_syntax::SyntaxEnvironmentKey::from_fingerprint(2),
+            [(yu_syntax::SyntaxDependencySlot::from_index(0).unwrap(), base_parsed.header())],
+            Arc::from([yu_syntax::SyntaxDependencyProvenance::new(
+                Arc::from("lib/base.yu"), base_parsed.revision(),
+            )]),
+        ).unwrap();
+        let derived_parsed = parse(
+            r"pub infix (*) 6.0.0 6.0.1 = \x -> \y -> x + y",
+            Arc::new(derived_environment),
+        );
+        let derived_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("nested-operator-providers", "lib/derived.yu"),
+        ));
+        let derived_indexes = [std_index.clone(), prelude_index.clone(), base_index.clone()];
+        let derived_imports = yu_hir::SemanticImports::with_source_imports(
+            &derived_parsed, &derived_identity, &derived_indexes,
+        ).unwrap();
+        let derived = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            derived_identity.clone(), &derived_parsed, derived_imports,
+        ).unwrap());
+        let derived_index = yu_hir::shadow::index_source_exports(derived_identity.clone(), &derived_parsed).unwrap();
+        let derived_decl = &derived_parsed.header().operators()[0];
+        let derived_owner = derived_index.operator_owner_for_receipt(
+            derived_identity.module(), derived_parsed.revision(), derived_decl.range(), "*",
+            yu_syntax::OperatorFixity::Infix,
+        ).unwrap();
+        let derived_root = match derived.source_operator_root_for(&derived_owner, &derived_index).unwrap().unwrap() {
+            SourceRootId::Expression(root) => root,
+            _ => panic!("derived operator has expression root"),
+        };
+
+        let consumer_environment = yu_syntax::SyntaxEnvironment::from_imported_headers(
+            yu_syntax::SyntaxEnvironmentKey::from_fingerprint(3),
+            [(yu_syntax::SyntaxDependencySlot::from_index(0).unwrap(), base_parsed.header()),
+             (yu_syntax::SyntaxDependencySlot::from_index(1).unwrap(), derived_parsed.header())],
+            Arc::from([
+                yu_syntax::SyntaxDependencyProvenance::new(Arc::from("lib/base.yu"), base_parsed.revision()),
+                yu_syntax::SyntaxDependencyProvenance::new(Arc::from("lib/derived.yu"), derived_parsed.revision()),
+            ]),
+        ).unwrap();
+        let consumer_parsed = parse("pub answer = 1 * 2\n", Arc::new(consumer_environment));
+        let consumer_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("nested-operator-providers", "consumer.yu"),
+        ));
+        let consumer_indexes = [std_index, prelude_index, base_index, derived_index];
+        let consumer_imports = yu_hir::SemanticImports::with_source_imports(
+            &consumer_parsed, &consumer_identity, &consumer_indexes,
+        ).unwrap();
+        let consumer = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            consumer_identity, &consumer_parsed, consumer_imports,
+        ).unwrap());
+
+        let providers = [
+            crate::candidate_source::OperatorProviderRoot { owner: derived_owner.clone(), root: derived_root.clone() },
+            crate::candidate_source::OperatorProviderRoot { owner: base_owner.clone(), root: base_root.clone() },
+        ];
+        let batch = ConstraintBatch::collect_candidate_world_scoped_v1(
+            vec![consumer, derived, base, std, prelude], true, true, false, false,
+            &HashMap::new(), &providers,
+        ).unwrap();
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        assert_eq!(session.execute_scc_plan(), Ok(()));
+        let state = session.candidate_graph.as_ref().unwrap();
+        assert!(state.operator_graphs.contains_key(&base_root));
+        assert!(state.operator_graphs.contains_key(&derived_root));
+        let dependency_use = state.operator_uses.iter().find(|use_| use_.owner == base_owner)
+            .expect("derived RHS consumes base operator");
+        assert_eq!(dependency_use.provider, base_root);
+        let consumer_use = state.operator_uses.iter().find(|use_| use_.owner == derived_owner)
+            .expect("consumer uses derived operator");
+        assert_eq!(consumer_use.provider, derived_root);
+        assert_ne!(dependency_use.fresh.context_use, consumer_use.fresh.context_use);
+    }
+
+    #[test]
     fn imported_operator_expression_is_captured_before_consumer_admission() {
         let provider_text: Arc<yu_syntax::SourceText> = Arc::from(
             r"pub infix (+) 5.0.0 5.0.1 = \x -> \y -> x.add y",
@@ -3055,7 +3670,7 @@ mod authentic_demand_capture_tests {
                 Arc::from("lib/ops.yu"), provider_parsed.revision(),
             )]),
         ).unwrap();
-        let consumer_text: Arc<yu_syntax::SourceText> = Arc::from("my sum = 1 + 2");
+        let consumer_text: Arc<yu_syntax::SourceText> = Arc::from("my sum = 1 + 2\nmy other = 3 + 4");
         let consumer_parsed = yu_syntax::parse_file(
             consumer_text.clone(), Arc::new(yu_syntax::scan_header(consumer_text)),
             Arc::new(syntax_environment),
@@ -3082,15 +3697,20 @@ mod authentic_demand_capture_tests {
             yu_syntax::OperatorFixity::Infix,
         ).unwrap();
         assert_eq!(resolved_owner, owner);
+        let use_occurrences: Vec<_> = source.expressions().iter().filter(|expression|
+            matches!(&expression.form, yu_hir::shadow::LocalSourceForm::InfixOperator { .. })
+        ).map(|expression| expression.occurrence.clone()).collect();
+        assert_eq!(use_occurrences.len(), 1);
+        let expected_operator_owner = owner.clone();
 
         let roots = [crate::candidate_source::OperatorProviderRoot { owner, root: provider_root.clone() }];
         let batch = ConstraintBatch::collect_candidate_world_scoped_v1(
             vec![consumer, provider], true, true, false, false,
             &HashMap::new(), &roots,
         ).unwrap();
-        assert_eq!(batch.candidate_source.operator_uses.len(), 1);
+        assert_eq!(batch.candidate_source.operator_uses.len(), 2);
         let mut session = InferenceSession::try_new_candidate(batch).unwrap();
-        assert_eq!(session.execute_scc_plan(), Err(SolveAvailabilityError::DeferredSelectionUnavailable));
+        assert_eq!(session.execute_scc_plan(), Ok(()));
         let graph = session.candidate_graph.as_ref().unwrap().operator_graphs.get(&provider_root)
             .expect("exact operator expression root has a captured candidate graph before consumers");
         assert!(!graph.rows.is_empty());
@@ -3098,6 +3718,11 @@ mod authentic_demand_capture_tests {
         assert!(graph.source_field_tail_obligations.iter().all(|obligation|
             obligation.owner == SourceRootId::Expression(provider_root.clone())
         ));
+        let uses = &session.candidate_graph.as_ref().unwrap().operator_uses;
+        assert_eq!(uses.len(), 2);
+        assert!(uses.iter().any(|use_| use_.occurrence == use_occurrences[0]));
+        assert!(uses.iter().all(|use_| use_.owner == expected_operator_owner && use_.provider == provider_root));
+        assert_ne!(uses[0].fresh.context_use, uses[1].fresh.context_use);
     }
 
     #[test]

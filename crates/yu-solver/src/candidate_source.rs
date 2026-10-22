@@ -1197,6 +1197,10 @@ impl ConstraintBatch {
                             push(&mut work, Work::Visit(argument.ordinal() as usize, level, region))?;
                             push(&mut work, Work::Visit(callee.ordinal() as usize, level, region))?;
                         }
+                        LocalSourceForm::InfixOperator { left, right, .. } => {
+                            push(&mut work, Work::Visit(right.ordinal() as usize, level, region))?;
+                            push(&mut work, Work::Visit(left.ordinal() as usize, level, region))?;
+                        }
                         LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => push(&mut work, Work::Visit(inner.ordinal() as usize, level, region))?,
                         LocalSourceForm::Lambda { parameter, body } => {
                             let position = *parameters.get(&parameter.id).ok_or_else(invalid)?;

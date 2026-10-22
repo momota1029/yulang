@@ -29,7 +29,7 @@ pub use module::source_annotation::{
     SourceOperationResolution,
 };
 pub use module::source_exports::{
-    SourceExportId, SourceExportIndex, SourceExportResolution, SourceImportBinding,
+    resolve_public_export, SourceExportId, SourceExportIndex, SourceExportResolution, SourceImportBinding,
     SourceImportEnvironment, SourceExportResolveError, SourceOperatorOwner,
 };
 

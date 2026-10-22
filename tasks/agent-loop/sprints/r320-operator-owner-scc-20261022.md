@@ -1,6 +1,6 @@
 # Sprint R320 — operator owners in candidate dependency order
 
-Status: ACTIVE; unchanged Yulang2 samples, R149 and parent proof gates remain OPEN.
+Status: RESULT; bounded candidate correspondence complete. Unchanged Yulang2 samples, R149 and parent proof gates remain OPEN.
 Branch baseline: `a4127f9eb` on `research/simple-sub-intrusion`.
 Authority: unchanged-sample user goal; R149; inference top-level principles; converted unified design and proof companion. Solo serial execution; dispatcher/prover callable tools are absent and user prohibits subagents.
 

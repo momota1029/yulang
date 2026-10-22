@@ -61,3 +61,61 @@ FieldTail before execution returns `DeferredSelectionUnavailable` at the still
 missing FreshUse/Apply consumer. The focused solver regression passes. This is
 construction evidence only; the unchanged samples still do not pass through
 the candidate inference path.
+
+## Per-occurrence FreshUse and curried Apply checkpoint
+
+Candidate execution now freshens the retained exact provider graph for every
+operator occurrence after provider expression schedules finish. Each route uses
+a dedicated occurrence slot and keeps its `FreshUse` maps in `GraphState`,
+accounted as retained memory; provider graphs are shared by `Arc` and charged
+once. The root scheme is consumed as a curried function: first Apply receives
+the left operand and its effect, then the resulting function receives the right
+operand and its effect. The intermediate result and effect are fresh rows. The
+second Apply publishes the original infix result and final effect. The imported
+operator value lookup has an explicit empty computation effect.
+
+The focused imported-owner regression now reaches `execute_scc_plan == Ok(())`
+and checks exact provider/owner/occurrence retention plus retained provider
+FieldTail evidence. `cargo test -p yu-solver --features shadow-apply-candidate
+imported_operator_expression_is_captured_before_consumer_admission` passes, and
+`cargo test -p yu-playground --lib` passes 42/42. `python3 tools/agent_sprint.py
+check` and `git diff --check` pass. This checkpoint proves only candidate
+construction for strict infix uses. A two-binding fixture verifies two uses of
+one imported provider retain distinct FreshUse contexts. Nested provider
+dependency ordering is covered in the later checkpoint below; source/native
+proof, the unchanged sample command path, R149 and production/cutover remain
+open. The unchanged Types test still stops at deferred FieldTail/role selection
+after operator candidate execution.
+
+## Nested-provider fixture probe
+
+A direct fixture was attempted with provider `(*)` whose RHS contains imported
+`(+)`, while the supplied provider roots were intentionally ordered dependent
+first. The source-owner roots themselves were available, but the assembled
+candidate batch returned `ComponentIdentityExhausted` before `execute_scc_plan`
+ran. A first HIR setup using `SemanticImports::with_source_imports` returned
+`SourceImportResolutionUnavailable`; retrying with empty value imports got
+past lowering but still failed candidate collection. Neither attempt tests the
+provider-order executor, so no nested-ordering claim follows. The temporary
+failing regression was removed. The next useful step is to isolate which
+candidate source collection invariant rejects the nested operator-use carrier,
+then rerun the exact provider-before-dependent execution fixture.
+
+## Nested dependency execution checkpoint
+
+The earlier nested fixture failure was caused by omitting the pinned
+`std::prelude` indexes required by `SemanticImports::with_source_imports` for
+identifier-bearing source modules. The fixture now builds the base and derived
+operator providers plus the prelude indexes, while deliberately listing the
+derived provider before its base dependency. `execute_scc_plan` succeeds; both
+provider graphs are captured, the derived RHS retains a use of the exact base
+owner/root, and the consumer retains a separate use of the exact derived
+owner/root. Their `FreshUse` context IDs differ. The focused regression
+`nested_operator_provider_rhs_uses_dependency_before_capture` passes.
+
+The strict-infix and nested-provider regressions pass, and `cargo test -p
+yu-playground --lib` passes 42/42. `python3 tools/agent_sprint.py check`,
+`python3 -m unittest discover -s tools -p 'test_agent_sprint.py'` (57/57), and
+`git diff --check` pass. This closes R320's bounded candidate correspondence.
+Runtime/source-native correspondence, the unchanged Types candidate success,
+Console, R149, independent review, parent proofs, and production remain open.
