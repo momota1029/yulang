@@ -255,7 +255,7 @@ fn assert_candidate_mode_hir_error_owners(hir: &yu_hir::HirModule, source: &str)
         .collect::<Vec<_>>();
     eprintln!("candidate-mode HIR errors (bounded): {observed:?}");
 
-    let mut expected_ids = declaration_placeholders
+    let expected_ids = declaration_placeholders
         .keys()
         .copied()
         .chain(source_placeholders.keys().copied())
