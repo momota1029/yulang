@@ -3433,3 +3433,58 @@ from a guard can justify an inactive branch only at stable publication; an empty
 or unknown payload frontier is not that proof. No dictionary was fabricated,
 no unresolved active FieldTail was ignored, and runtime negative-visibility
 certification was not widened.
+
+### Case guards: actual Button evidence and transport premise
+
+The exact original Button readback has three instances of the generated `show`
+occurrence: context 3 / receiver 81 has Str and one target; context 6 / receiver
+97 has no positive shape or target; the dormant template (receiver 23) is also
+abstract. All three retain complete observed frontiers and empty negative
+frontiers. The active unknown instance, rather than an incompatible Str
+receiver, is the remaining obstruction (target/r332-button-member-instances2.log).
+These ordinals are observations from that run, not construction identities.
+
+Attach a lexical guard to a FieldTail only while visiting the body of its actual
+Variant Case arm. The guard records the actual Case occurrence, arm ordinal,
+(tag, arity) and scrutinee endpoint. Nested bodies retain the conjunction of
+these guards; a work-stack restoration ends each arm's guard scope. This is
+source traversal, not a test of the scrutinee's current type. The deferred
+obligation adds each guard's Value row to its Capture dependencies, and FreshUse
+renames that row with the same graph row vector as the four member interface
+rows. The tag/arity/source identities stay fixed. Thus the supplied design's
+Capture dependency and equivariance argument applies to this added dependency,
+subject to its already explicit generalization/anchor premises.
+
+No inactive-branch discharge is implied by transport alone. That later step
+requires a nonempty closed actual tag frontier, source/native matching, and a
+final recheck after every member-induced constraint has drained. Empty or
+unknown frontiers cannot establish exclusion. Dormant polymorphic templates
+must keep their guard for future uses. No field implementation may be invented
+from an unexecuted branch's missing receiver information.
+
+Transport implementation retains the lexical conjunction in source recipes,
+canonicalizes every guard row at Capture, seeds those rows as dependencies and
+uses the existing FreshUse row vector for module/local/operator/member routes.
+Original-instance authentication checks guard metadata and every mapped input;
+deduplication and dormant recapture retain the guard conjunction. All retained
+recipe/graph/local/active storage counts include guard arrays and tag strings.
+Mapping costs O(g*r) for g guards and r captured rows, with O(g) output; the
+source-instance audit has the existing checked visit budget. Identity comparisons
+avoid cloning tags. No guard frontier or discharge rule is enabled in this slice.
+
+Evidence: new nested/sibling lexical-scope and independent-use transport test
+passes (target/r332-case-guard-tests2.log); native package291 passes
+(target/r332-case-guard-native.log). The first solver command omitted the required
+shadow-apply-candidate feature and did not run tests; the feature-enabled command
+is the result reported here. The original Button occurrence test retains actual
+source identity without locking in its current deferred rejection. Fresh WASM
+and catalog were not rerun for this metadata-only slice. Original all-source,
+A/B, principality and production gates remain OPEN; direct-primary UNREVIEWED.
+
+Final transport delta: original-instance audit also passes guarded module and
+local uses (target/r332-case-guard-instance-tests2.log,1/1); nested guard test
+passes again after identity-comparison cleanup (target/r332-case-guard-tests3.log,
+1/1). The new local fixture initially put a Case RHS and its caller on one
+semicolon line, which HIR rejected; use a properly indented local block. No
+existing expectation or original catalog source was changed. Static sprint
+check passes; it is not independent review.

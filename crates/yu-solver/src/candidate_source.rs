@@ -1020,6 +1020,8 @@ enum Work {
     Initializer(usize, u32, SourceRegionId),
     CatchArms(usize, u32, SourceRegionId),
     CaseArms(usize, u32, SourceRegionId),
+    CaseArmBody(usize, usize, u32, SourceRegionId),
+    RestoreCaseGuards(usize),
 }
 impl ConstraintBatch {
     fn prepare_source_annotation_primitives(&mut self, ty: &yu_hir::shadow::SourceAnnotationType) -> Result<(), CollectionAvailabilityError> {
@@ -1184,6 +1186,7 @@ impl ConstraintBatch {
         }
         let mut catch_binders = HashMap::new();
         let mut case_binders = HashMap::new();
+        let mut case_guards = Vec::new();
         let mut actions = Vec::new();
         let mut field_bound_v1 = Vec::new();
         let mut work = Vec::new();
@@ -1488,12 +1491,26 @@ impl ConstraintBatch {
                         })?;
                         push(&mut actions, Action::Candidate(recipe))?;
                     }
-                    for arm in arms.iter().rev() {
-                        push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?;
+                    for (arm_index, arm) in arms.iter().enumerate().rev() {
+                        push(&mut work, Work::CaseArmBody(index, arm_index, level, region))?;
                         if let yu_hir::shadow::LocalSourceCasePattern::Integer(pattern) = &arm.pattern {
                             push(&mut work, Work::Visit(pattern.ordinal() as usize, level, region))?;
                         }
                     }
+                }
+                Work::RestoreCaseGuards(length) => { case_guards.truncate(length); }
+                Work::CaseArmBody(index, arm_index, level, region) => {
+                    let expr = &source.expressions()[index];
+                    let LocalSourceForm::Case { scrutinee, arms } = &expr.form else { return Err(invalid()); };
+                    let arm = arms.get(arm_index).ok_or_else(invalid)?;
+                    if let yu_hir::shadow::LocalSourceCasePattern::Variant { tag, elements, .. } = &arm.pattern {
+                        push(&mut work, Work::RestoreCaseGuards(case_guards.len()))?;
+                        push(&mut case_guards, candidate_scheme::SourceCaseGuard {
+                            case: expr.occurrence.clone(), arm: arm_index, tag: tag.clone(), arity: elements.len(),
+                            input: endpoints[scrutinee.ordinal() as usize],
+                        })?;
+                    }
+                    push(&mut work, Work::Visit(arm.body.ordinal() as usize, level, region))?;
                 }
                 Work::Initializer(binding, level, parent_region) => {
                     let region = self.candidate_source.region(Some(parent_region))?;
@@ -1971,6 +1988,7 @@ impl ConstraintBatch {
                             let recipe = self.candidate_recipes.len();
                             self.retain_candidate_relation(occurrence, CandidateRelation::DeferredFieldTail {
                                 source: expr.source.clone(),
+                                case_guards: case_guards.clone(),
                                 member: member.clone(),
                                 role_member_candidates,
                                 receiver: endpoints[receiver_index],

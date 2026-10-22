@@ -3536,6 +3536,31 @@ mod tests {
 
 
     #[test]
+    fn original_button_member_instances_retain_the_actual_source_occurrence() {
+        let (sources, indexes, role_indexes) = pinned_source_world().unwrap();
+        let text: Arc<SourceText> = Arc::from(include_str!("../../../web/playground/examples/yulang2-button.yu"));
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)), Arc::new(playground_syntax_environment().unwrap()));
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", "button-guard.yu")));
+        let imports = SemanticImports::with_source_imports_and_role_indexes(&parsed, &identity, &indexes, &role_indexes).unwrap();
+        let hir = Arc::new(lower_module_with_local_source(identity, &parsed, imports).unwrap());
+        let owner = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "button" => Some(SourceRootId::Definition(binding.definition_root().clone())),
+            _ => None,
+        }).unwrap();
+        let source = hir.local_source_for(&owner).unwrap().unwrap();
+        let sites: Vec<_> = source.expressions().iter().filter(|expr|
+            matches!(&expr.form, LocalSourceForm::GeneratedFormatSelection { member, .. } if member.as_ref() == "show"))
+            .map(|expr| expr.occurrence.clone()).collect();
+        let modules = pinned_candidate_world(&hir, &sources, &indexes, &role_indexes).unwrap();
+        let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(modules, &indexes, &role_indexes).unwrap();
+        let actual: Vec<_> = readbacks.selected_receivers.iter().chain(readbacks.receivers.iter())
+            .filter(|item| sites.contains(&item.occurrence) && item.member.as_ref() == "show").collect();
+        assert!(!actual.is_empty(), "original interpolation retains its Button source owner");
+        assert!(actual.iter().any(|item| item.instantiation_context_ordinal.is_some()),
+            "the actual interpolation occurrence survives a caller's FreshUse");
+    }
+
+    #[test]
     fn typed_variant_cases_keep_full_domains_payloads_and_fresh_uses() {
         for (source, expected) in [
             ("my main = :none", ":none\n"),

@@ -90,6 +90,27 @@ pub(super) struct SourceRoleObligation {
     pub subject_row: RowKey,
 }
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(super) struct SourceCaseGuard<T> {
+    pub case: HirOccurrenceId,
+    pub arm: usize,
+    pub tag: Box<str>,
+    pub arity: usize,
+    pub input: T,
+}
+impl<T> SourceCaseGuard<T> {
+    fn same_source<U>(&self, other: &SourceCaseGuard<U>) -> bool {
+        self.case == other.case && self.arm == other.arm && self.tag == other.tag && self.arity == other.arity
+    }
+    pub(super) fn map<U>(&self, input: U) -> SourceCaseGuard<U> {
+        SourceCaseGuard { case: self.case.clone(), arm: self.arm, tag: self.tag.clone(), arity: self.arity, input }
+    }
+}
+fn case_guard_bytes<T>(guards: &Vec<SourceCaseGuard<T>>) -> Result<usize, SolveAvailabilityError> {
+    guards.iter().try_fold(bytes::<SourceCaseGuard<T>>(guards.capacity())?, |n, guard|
+        n.checked_add(guard.tag.len()).ok_or_else(exhausted))
+}
+
 #[derive(Clone, Debug)]
 pub(super) struct SourceFieldTailObligation {
     pub owner: SourceRootId,
@@ -106,6 +127,7 @@ pub(super) struct SourceFieldTailObligation {
     /// These travel with the same FreshUse row as the receiver and are
     /// discharged only by selecting a unique member of that role.
     pub required_roles: Vec<yu_hir::shadow::SourceRoleId>,
+    pub case_guards: Vec<SourceCaseGuard<RowKey>>,
     pub receiver_row: RowKey,
     pub receiver_effect: RowKey,
     pub result_row: RowKey,
@@ -403,7 +425,8 @@ impl LocalCapture {
         for field in &self.fields {
             total = sum(&[total, field.member.len(),
                 bytes::<yu_hir::shadow::SourceRoleMemberId>(field.role_member_candidates.capacity())?,
-                bytes::<yu_hir::shadow::SourceRoleId>(field.required_roles.capacity())?])?;
+                bytes::<yu_hir::shadow::SourceRoleId>(field.required_roles.capacity())?,
+                case_guard_bytes(&field.case_guards)?])?;
         }
         Ok(total)
     }
@@ -804,8 +827,10 @@ impl GraphState {
                 // dormant obligation. All four rows must survive together;
                 // source spelling or a matching receiver alone is insufficient.
                 let mapped = row_indexes.map(|index| rows.get(index).map(|row| self.intrusion.rep(*row)));
+                let Ok(mapped_guards) = fresh_case_guards(graph, rows, &obligation.case_guards) else { return true; };
                 let captured = |template: &SourceFieldTailObligation|
-                    template.source_owner == obligation.source_owner
+                    self.same_case_guards(&template.case_guards, &mapped_guards)
+                        && template.source_owner == obligation.source_owner
                         && template.occurrence == obligation.occurrence
                         && template.dispatch_context == Some(context)
                         && [template.receiver_row, template.receiver_effect,
@@ -1137,6 +1162,7 @@ impl Graph {
                 total,
                 bytes::<u8>(obligation.member.len())?,
                 bytes::<yu_hir::shadow::SourceRoleMemberId>(obligation.role_member_candidates.capacity())?,
+                case_guard_bytes(&obligation.case_guards)?,
                 bytes::<yu_hir::shadow::SourceRoleId>(obligation.required_roles.capacity())?,
             ]))?,
             #[cfg(test)]
@@ -1175,6 +1201,21 @@ pub(super) fn graph_role_subject_matches_receiver(graph: &Graph, role_row: usize
     [Polarity::Positive, Polarity::Negative].into_iter().any(|side|
         has_bound(role, side, receiver) && has_bound(receiver, side, role))
 }
+fn fresh_case_guards(
+    graph: &Graph, rows: &[RowKey], guards: &[SourceCaseGuard<RowKey>],
+) -> Result<Vec<SourceCaseGuard<RowKey>>, SolveAvailabilityError> {
+    let mut mapped = Vec::new();
+    mapped.try_reserve_exact(guards.len()).map_err(|_| exhausted())?;
+    for guard in guards {
+        if !matches!(guard.input, RowKey::Value(_)) { return Err(SolveAvailabilityError::ReceiptMismatch); }
+        let index = graph.rows.iter().position(|row| row.key == guard.input).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let input = rows.get(index).copied().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        if !matches!(input, RowKey::Value(_)) { return Err(SolveAvailabilityError::ReceiptMismatch); }
+        mapped.push(guard.map(input));
+    }
+    Ok(mapped)
+}
+
 fn activate_source_obligations(
     graph: &Graph, rows: &[RowKey], role_rows: &[(usize, usize)],
     field_rows: &[(usize, [usize; 4])], receiving_owner: &SourceRootId,
@@ -1188,6 +1229,7 @@ fn activate_source_obligations(
         let [receiver, receiver_effect, result, result_effect] = row_indexes.map(|index|
             rows.get(index).copied().ok_or(SolveAvailabilityError::ReceiptMismatch));
         let mut active = source.clone();
+        active.case_guards = fresh_case_guards(graph, rows, &source.case_guards)?;
         active.owner = receiving_owner.clone();
         active.receiver_row = receiver?;
         active.receiver_effect = receiver_effect?;
@@ -1237,6 +1279,10 @@ fn activate_source_obligations(
 }
 
 impl GraphState {
+    fn same_case_guards(&self, left: &[SourceCaseGuard<RowKey>], right: &[SourceCaseGuard<RowKey>]) -> bool {
+        left.len() == right.len() && left.iter().zip(right).all(|(a, b)|
+            a.same_source(b) && self.intrusion.rep(a.input) == self.intrusion.rep(b.input))
+    }
     fn active_local_capture(&self, owner: &SourceRootId) -> Option<usize> {
         self.local_capture_stack.last().copied().filter(|slot|
             self.local_captures.get(*slot).is_some_and(|capture| &capture.owner == owner))
@@ -1260,6 +1306,7 @@ impl GraphState {
             && old.operator_origin == obligation.operator_origin
             && old.dispatch_context == obligation.dispatch_context
             && old.occurrence == obligation.occurrence
+            && self.same_case_guards(&old.case_guards, &obligation.case_guards)
             && [old.receiver_row, old.receiver_effect, old.result_row, old.result_effect].map(|r| self.intrusion.rep(r))
                 == [obligation.receiver_row, obligation.receiver_effect, obligation.result_row, obligation.result_effect].map(|r| self.intrusion.rep(r))))
     }
@@ -1326,6 +1373,7 @@ impl GraphState {
             }
             let payload = sum(&[obligation.member.len(),
                 bytes::<yu_hir::shadow::SourceRoleMemberId>(obligation.role_member_candidates.capacity())?,
+                case_guard_bytes(&obligation.case_guards)?,
                 bytes::<yu_hir::shadow::SourceRoleId>(obligation.required_roles.capacity())?])?;
             push(&mut capture.fields, obligation)?;
             self.retained_bytes = sum(&[self.retained_bytes, payload,
@@ -1346,6 +1394,7 @@ impl GraphState {
             bytes::<SourceFieldTailObligation>(items.capacity() - old_items_capacity)?,
             bytes::<u8>(obligation.member.len())?,
             bytes::<yu_hir::shadow::SourceRoleMemberId>(obligation.role_member_candidates.capacity())?,
+            case_guard_bytes(&obligation.case_guards)?,
             bytes::<yu_hir::shadow::SourceRoleId>(obligation.required_roles.capacity())?,
         ])?;
         self.retained_bytes = self.retained_bytes.checked_add(added).ok_or_else(exhausted)?;
@@ -1420,6 +1469,7 @@ impl GraphState {
                 obligations.iter().try_fold(0usize, |accumulated, obligation| sum(&[
                     accumulated, bytes::<u8>(obligation.member.len())?,
                     bytes::<yu_hir::shadow::SourceRoleMemberId>(obligation.role_member_candidates.capacity())?,
+                    case_guard_bytes(&obligation.case_guards)?,
                     bytes::<yu_hir::shadow::SourceRoleId>(obligation.required_roles.capacity())?,
                 ]))?,
             ])?;
@@ -2259,16 +2309,27 @@ impl InferenceSession {
             if !spend(&mut work) { return false; }
             if recipe.occurrence != obligation.occurrence { continue; }
             let shadow_apply::CandidateRelation::DeferredFieldTail {
-                source, member, role_member_candidates, receiver, receiver_effect, result, result_effect,
+                source, member, role_member_candidates, case_guards, receiver, receiver_effect, result, result_effect,
             } = &recipe.relation else { continue; };
             if original.is_some() || source != &obligation.source || member != &obligation.member
                 || role_member_candidates != &obligation.role_member_candidates { return false; }
-            original = Some((*receiver, *receiver_effect, *result, *result_effect));
+            original = Some((*receiver, *receiver_effect, *result, *result_effect, case_guards));
         }
-        let Some((receiver, receiver_effect, result, result_effect)) = original else { return false; };
+        let Some((receiver, receiver_effect, result, result_effect, original_guards)) = original else { return false; };
         let actual = [obligation.receiver_row, obligation.receiver_effect,
             obligation.result_row, obligation.result_effect].map(|row| state.intrusion.rep(row));
+        let endpoint_row = |endpoint: shadow_apply::CandidateEndpoint| match endpoint {
+            shadow_apply::CandidateEndpoint::Component(position) => self.live_components.get(position).map(|c| RowKey::Value(c.ordinal)),
+            shadow_apply::CandidateEndpoint::Parameter(position) => u32::try_from(position).ok()
+                .and_then(|position| self.parameter_live_base.checked_add(position)).map(RowKey::Value),
+        };
         let Some(context) = obligation.dispatch_context else {
+            if original_guards.len() != obligation.case_guards.len() { return false; }
+            for (original, actual) in original_guards.iter().zip(&obligation.case_guards) {
+                if !spend(&mut work) { return false; }
+                let Some(row) = endpoint_row(original.input) else { return false; };
+                if !original.same_source(actual) || state.intrusion.rep(row) != state.intrusion.rep(actual.input) { return false; }
+            }
             let receiver = match receiver {
                 shadow_apply::CandidateEndpoint::Component(position) => self.live_components.get(position).map(|c| c.ordinal),
                 shadow_apply::CandidateEndpoint::Parameter(position) => u32::try_from(position).ok()
@@ -2315,6 +2376,16 @@ impl InferenceSession {
                 || field.source != obligation.source || field.member != obligation.member
                 || field.role_member_candidates != obligation.role_member_candidates
                 || field.required_roles != obligation.required_roles || field.dispatch_context != node.inner { continue; }
+            if field.case_guards.len() != obligation.case_guards.len() { continue; }
+            for (original, actual) in field.case_guards.iter().zip(&obligation.case_guards) {
+                let mut mapped = None;
+                for (index, row) in graph.rows.iter().enumerate() {
+                    if !spend(&mut work) { return false; }
+                    if row.key == original.input { mapped = rows.get(index).copied(); break; }
+                }
+                let Some(mapped) = mapped else { return false; };
+                if !original.same_source(actual) || state.intrusion.rep(mapped) != state.intrusion.rep(actual.input) { continue 'field; }
+            }
             for identity in &field.required_roles {
                 let mut found = false;
                 for (role_index, row) in role_rows {
@@ -2409,6 +2480,7 @@ impl InferenceSession {
             obligation.subject_row = intrusion.rep(obligation.subject_row);
         }
         for obligation in &mut retained_field_tails {
+            for guard in &mut obligation.case_guards { guard.input = intrusion.rep(guard.input); }
             obligation.receiver_row = intrusion.rep(obligation.receiver_row);
             obligation.receiver_effect = intrusion.rep(obligation.receiver_effect);
             obligation.result_row = intrusion.rep(obligation.result_row);
@@ -2474,6 +2546,12 @@ impl InferenceSession {
                 ([obligation.receiver_row, obligation.result_row],
                     [obligation.receiver_effect, obligation.result_effect])
             };
+            for guard_index in 0..capture.graph.source_field_tail_obligations[index].case_guards.len() {
+                let RowKey::Value(value) = capture.graph.source_field_tail_obligations[index].case_guards[guard_index].input else {
+                    return Err(SolveAvailabilityError::ReceiptMismatch);
+                };
+                capture.intern_shape(Endpoint::Value(ValueEndpointKey::ValueRow(value), Polarity::Positive))?;
+            }
             for key in value_keys {
                 let RowKey::Value(value) = key else { return Err(SolveAvailabilityError::ReceiptMismatch); };
                 capture.intern_shape(Endpoint::Value(ValueEndpointKey::ValueRow(value), Polarity::Positive))?;
@@ -2765,6 +2843,7 @@ impl InferenceSession {
                     items.retain(|active| !graph.source_field_tail_obligations.iter().any(|template|
                         template.source_owner == active.source_owner
                             && template.occurrence == active.occurrence
+                            && template.case_guards == active.case_guards
                             && template.receiver_row == active.receiver_row
                             && template.receiver_effect == active.receiver_effect
                             && template.result_row == active.result_row
@@ -3094,6 +3173,7 @@ impl InferenceSession {
                     owner: use_.owner.clone(), occurrence: use_.occurrence.clone(),
                 });
             }
+            obligation.case_guards = fresh_case_guards(&graph, &fresh.rows, &obligation.case_guards)?;
             obligation.receiver_row = state.intrusion.rep(receiver?);
             obligation.receiver_effect = state.intrusion.rep(receiver_effect?);
             obligation.result_row = state.intrusion.rep(result?);
@@ -3154,6 +3234,7 @@ impl InferenceSession {
             // select a member even if the definition has no later Name use.
             let key = |obligation: &SourceFieldTailObligation| (
                 obligation.source_owner.clone(), obligation.occurrence.clone(), obligation.operator_origin.clone(), obligation.dispatch_context,
+                obligation.case_guards.iter().map(|guard| guard.map(state.intrusion.rep(guard.input))).collect::<Vec<_>>(),
                 [obligation.receiver_row, obligation.receiver_effect,
                     obligation.result_row, obligation.result_effect]
                     .map(|row| state.intrusion.rep(row)),
@@ -3312,6 +3393,7 @@ impl InferenceSession {
                         || old.operator_origin != item.obligation.operator_origin
                         || old.dispatch_context != item.obligation.dispatch_context
                         || old.occurrence != item.obligation.occurrence
+                        || old.case_guards != item.obligation.case_guards
                         || old.receiver_row != item.obligation.receiver_row
                         || old.receiver_effect != item.obligation.receiver_effect
                         || old.result_row != item.obligation.result_row
@@ -3398,6 +3480,7 @@ impl InferenceSession {
                         .ok_or(SolveAvailabilityError::ReceiptMismatch));
                     let [receiver_row, receiver_effect, result_row, result_effect] = mapped;
                     let mut nested = nested.clone();
+                    nested.case_guards = fresh_case_guards(&graph, &fresh.rows, &nested.case_guards)?;
                     if !item.template_owners.is_empty() { nested.owner = item.obligation.owner.clone(); }
                     nested.receiver_row = state.intrusion.rep(receiver_row?);
                     nested.receiver_effect = state.intrusion.rep(receiver_effect?);
@@ -3485,6 +3568,7 @@ impl InferenceSession {
                         || old.operator_origin != item.obligation.operator_origin
                         || old.dispatch_context != item.obligation.dispatch_context
                         || old.occurrence != item.obligation.occurrence
+                        || old.case_guards != item.obligation.case_guards
                         || old.receiver_row != item.obligation.receiver_row
                         || old.receiver_effect != item.obligation.receiver_effect
                         || old.result_row != item.obligation.result_row
@@ -3524,6 +3608,7 @@ impl InferenceSession {
                     old.source_owner == residual.source_owner && old.occurrence == residual.occurrence
                         && old.operator_origin == residual.operator_origin
                         && old.dispatch_context == residual.dispatch_context
+                        && state.same_case_guards(&old.case_guards, &residual.case_guards)
                         && [old.receiver_row, old.receiver_effect, old.result_row, old.result_effect]
                             .map(|row| state.intrusion.rep(row))
                         == [residual.receiver_row, residual.receiver_effect, residual.result_row, residual.result_effect]
@@ -3551,6 +3636,7 @@ impl InferenceSession {
                     && old.operator_origin == residual.operator_origin
                         && old.dispatch_context == residual.dispatch_context
                     && old.occurrence == residual.occurrence
+                    && old.case_guards == residual.case_guards
                     && [old.receiver_row, old.receiver_effect, old.result_row, old.result_effect].map(|r| state.intrusion.rep(r))
                         == [residual.receiver_row, residual.receiver_effect, residual.result_row, residual.result_effect].map(|r| state.intrusion.rep(r));
                 if !capture.fields.iter().any(same) { push(&mut capture.fields, residual.clone())?; }
@@ -3564,6 +3650,7 @@ impl InferenceSession {
             items.retain(|old| old.source_owner != residual.source_owner || old.occurrence != residual.occurrence
                 || old.operator_origin != residual.operator_origin
                 || old.dispatch_context != residual.dispatch_context
+                || old.case_guards != residual.case_guards
                 || old.receiver_row != residual.receiver_row || old.receiver_effect != residual.receiver_effect
                 || old.result_row != residual.result_row || old.result_effect != residual.result_effect);
             if items.len() + 1 != before { return Err(SolveAvailabilityError::ReceiptMismatch); }
@@ -5166,6 +5253,8 @@ mod authentic_demand_capture_tests {
         for text in [
             "my show x = x.show\nmy main = (show 3, show 4)\n",
             "my main = { my show x = x.show; (show 3, show 4) }\n",
+            "my show option = case option: :some x -> x.show\nmy main = (show (:some 3), show (:some 4))\n",
+            "my main =\n    my show option = case option:\n        :some x -> x.show\n    (show (:some 3), show (:some 4))\n",
         ] {
             let mut session = InferenceSession::try_new_candidate(
                 ConstraintBatch::collect_candidate_mode(lower(text), true, true).unwrap(),
@@ -5520,6 +5609,63 @@ mod authentic_demand_capture_tests {
         let (rows, retained) = fresh.into_retained_parts();
         assert_eq!(retained.source_field_tail_obligation_rows, [(0, indexes)]);
         for index in indexes { let _same_use_image = rows[index]; }
+    }
+
+    #[test]
+    fn case_guards_preserve_lexical_conjunction_and_same_freshuse_rows() {
+        let hir = lower("my select option = case option:\n    :some x -> case x:\n        :inner y -> y.show\n        :other z -> z.show\n    :none n -> n.show\n");
+        let root = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "select" => Some(binding.definition_root().clone()),
+            _ => None,
+        }).unwrap();
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap(),
+        ).unwrap();
+        session.start_candidate_graph().unwrap();
+        session.execute_candidate_source_root(&root).unwrap();
+        let owner = SourceRootId::Definition(root.clone());
+        let fields = session.candidate_graph.as_ref().unwrap().source_field_tail_obligations[&owner].clone();
+        assert_eq!(fields.len(), 3);
+        let mut paths = fields.iter().map(|field| field.case_guards.iter()
+            .map(|guard| guard.tag.as_ref()).collect::<Vec<_>>()).collect::<Vec<_>>();
+        paths.sort();
+        assert_eq!(paths, [vec!["none"], vec!["some", "inner"], vec!["some", "other"]]);
+        for field in &fields {
+            assert!(session.candidate_field_tail_has_source_instance(field));
+            let mut wrong = field.clone();
+            wrong.case_guards[0].arm += 1;
+            assert!(!session.candidate_field_tail_has_source_instance(&wrong));
+            wrong = field.clone();
+            wrong.case_guards[0].input = RowKey::Value(session.fresh_value_at_level(1).unwrap());
+            assert!(!session.candidate_field_tail_has_source_instance(&wrong));
+        }
+        let component = session.batch.root_component_positions[&root].component;
+        let graph = session.capture_candidate_graph_owned(
+            session.live_components[component].ordinal, 0, &[], &[], &fields,
+        ).unwrap();
+        let first = session.prepare_candidate_fresh_use(&graph, 1, None).unwrap();
+        let second = session.prepare_candidate_fresh_use(&graph, 1, None).unwrap();
+        let mut local_count = 0;
+        for field in &graph.source_field_tail_obligations {
+            let a = fresh_case_guards(&graph, &first.rows, &field.case_guards).unwrap();
+            let b = fresh_case_guards(&graph, &second.rows, &field.case_guards).unwrap();
+            for ((original, a), b) in field.case_guards.iter().zip(a).zip(b) {
+                let index = graph.rows.iter().position(|row| row.key == original.input).unwrap();
+                assert_eq!(a, original.map(first.rows[index]));
+                assert_eq!(b, original.map(second.rows[index]));
+                assert_eq!(original.arity, 1);
+                if graph.rows[index].local {
+                    local_count += 1;
+                    assert_ne!(a.input, b.input);
+                    assert_ne!(a.input, original.input);
+                } else {
+                    assert_eq!(a.input, original.input);
+                    assert_eq!(b.input, original.input);
+                }
+            }
+        }
+        assert!(local_count > 0);
+        assert!(fresh_case_guards(&graph, &[], &fields[0].case_guards).is_err());
     }
 
     #[test]

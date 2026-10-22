@@ -605,3 +605,10 @@ alternative indexes. Mixed fallback, conditional members, A/B/principality and
 receiving/production OPEN; direct-primary UNREVIEWED. Next inspect Button's
 actual deferred instances and transport source Case guards through the same
 Capture/FreshUse row maps, with stable publication evidence.
+
+Case guard transport checkpoint: nested/sibling scope and shared FreshUse mapping
+pass; native291 passes. Original Button instances retain their actual generated
+source occurrence. No inactive discharge enabled. Existing exact scheme/source/
+lib/shadow/playground leases cover the next finite Variant-key exclusion and
+publication revalidation. Unknown frontiers never establish unreachability;
+dormant templates remain. Direct-primary UNREVIEWED; original parent gates OPEN.

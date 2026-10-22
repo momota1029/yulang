@@ -2305,9 +2305,11 @@ impl ConstraintBatch {
                 ),
                 #[cfg(feature = "shadow-apply-candidate")]
                 checked_usize_sum(self.candidate_recipes.iter().map(|recipe| match &recipe.relation {
-                    shadow_apply::CandidateRelation::DeferredFieldTail { member, role_member_candidates, .. } =>
+                    shadow_apply::CandidateRelation::DeferredFieldTail { member, role_member_candidates, case_guards, .. } =>
                         checked_usize_sum([
                             member.len(),
+                            checked_capacity_bytes::<candidate_scheme::SourceCaseGuard<shadow_apply::CandidateEndpoint>>(case_guards.capacity(), "case guards"),
+                            checked_usize_sum(case_guards.iter().map(|guard| guard.tag.len()), "case guard tags"),
                             checked_capacity_bytes::<yu_hir::shadow::SourceRoleMemberId>(role_member_candidates.capacity(), "deferred FieldTail role-member candidates"),
                         ], "deferred FieldTail recipe payload"),
                     shadow_apply::CandidateRelation::Variant { tag, payloads, element_effects, .. } => checked_usize_sum([

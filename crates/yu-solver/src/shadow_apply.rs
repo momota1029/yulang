@@ -3217,6 +3217,7 @@ pub(super) enum CandidateRelation {
     #[allow(dead_code, reason = "type-directed role selection consumes this record in the next inference stage")]
     DeferredFieldTail {
         source: yu_hir::shadow::SourceNodeKey,
+        case_guards: Vec<crate::candidate_scheme::SourceCaseGuard<CandidateEndpoint>>,
         member: Box<str>,
         role_member_candidates: Vec<yu_hir::shadow::SourceRoleMemberId>,
         receiver: CandidateEndpoint,
@@ -3739,7 +3740,7 @@ impl InferenceSession {
         let mut invocation_effect = None;
         let (lower, upper) = match &recipe.relation {
             CandidateRelation::DeferredFieldTail { .. } => {
-                let CandidateRelation::DeferredFieldTail { source, member, role_member_candidates, receiver, receiver_effect, result, result_effect } = &recipe.relation else { unreachable!() };
+                let CandidateRelation::DeferredFieldTail { source, case_guards, member, role_member_candidates, receiver, receiver_effect, result, result_effect } = &recipe.relation else { unreachable!() };
                 let owner = self.batch.candidate_source.source_owners.get(&recipe.occurrence)
                     .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 let source_owner = owner.clone();
@@ -3752,6 +3753,9 @@ impl InferenceSession {
                             .ok_or(SolveAvailabilityError::IdentityExhausted),
                     }
                 };
+                let mut guards = Vec::new();
+                guards.try_reserve_exact(case_guards.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                for guard in case_guards { guards.push(guard.map(crate::candidate_scheme::RowKey::Value(value_row(guard.input)?))); }
                 let obligation = crate::candidate_scheme::SourceFieldTailObligation {
                     owner,
                     source_owner,
@@ -3762,6 +3766,7 @@ impl InferenceSession {
                     member: member.clone(),
                     role_member_candidates: role_member_candidates.clone(),
                     required_roles: Vec::new(),
+                    case_guards: guards,
                     receiver_row: crate::candidate_scheme::RowKey::Value(value_row(*receiver)?),
                     receiver_effect: crate::candidate_scheme::RowKey::Effect(self.live_components.get(*receiver_effect).ok_or(SolveAvailabilityError::ReceiptMismatch)?.ordinal),
                     result_row: crate::candidate_scheme::RowKey::Value(self.live_components.get(*result).ok_or(SolveAvailabilityError::ReceiptMismatch)?.ordinal),
