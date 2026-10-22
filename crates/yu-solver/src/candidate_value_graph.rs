@@ -133,7 +133,7 @@ impl Graph {
                             yu_hir::shadow::LocalSourceCasePattern::Binder(binder) => {
                                 self.intern(Value::CatchBinder(binder.id.clone()))?;
                             }
-                            yu_hir::shadow::LocalSourceCasePattern::Tuple { elements, .. } => {
+                            yu_hir::shadow::LocalSourceCasePattern::Tuple { elements, .. } | yu_hir::shadow::LocalSourceCasePattern::Variant { elements, .. } => {
                                 for element in elements {
                                     if let yu_hir::shadow::LocalSourceCasePatternElement::Binder(binder) = element {
                                         self.intern(Value::CatchBinder(binder.id.clone()))?;
@@ -164,7 +164,7 @@ impl Graph {
                     work.try_reserve(fields.len()).map_err(|_| unavailable())?;
                     for field in fields.iter().rev() { work.push((field.value.ordinal() as usize, owner)); }
                 },
-                LocalSourceForm::Tuple { elements } => {
+                LocalSourceForm::Tuple { elements } | LocalSourceForm::Variant { payloads: elements, .. } => {
                     work.try_reserve(elements.len()).map_err(|_| unavailable())?;
                     for element in elements.iter().rev() {
                         work.push((element.ordinal() as usize, owner));
@@ -213,7 +213,7 @@ impl Graph {
         let mut fragments = Vec::new();
         fragments.try_reserve_exact(source.expressions().len()).map_err(|_| unavailable())?;
         for expr in source.expressions() {
-            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::StatementBlock { .. } | LocalSourceForm::Tuple { .. } | LocalSourceForm::Record { .. }) {
+            if matches!(expr.form, LocalSourceForm::Name { .. } | LocalSourceForm::Apply { .. } | LocalSourceForm::If { .. } | LocalSourceForm::Sequence { .. } | LocalSourceForm::StatementBlock { .. } | LocalSourceForm::Tuple { .. } | LocalSourceForm::Record { .. } | LocalSourceForm::Variant { .. }) {
                 self.edges.try_reserve(1).map_err(|_| unavailable())?;
                 self.reverse.try_reserve(1).map_err(|_| unavailable())?;
                 fragments.push(Some(self.edges.len()));
@@ -268,7 +268,7 @@ impl Graph {
                     }
                 }
             }
-            if let LocalSourceForm::Tuple { elements } = &expr.form {
+            if let LocalSourceForm::Tuple { elements } | LocalSourceForm::Variant { payloads: elements, .. } = &expr.form {
                 let result = self.intern(Value::Expression(expr.occurrence.clone()))?;
                 let fragment = fragments[index].unwrap();
                 self.edge(result, fragment)?;
@@ -590,6 +590,50 @@ mod conditional_reference_tests {
         let (graph, source) = fixture("my choose x = { my local = { field: x }; local }");
         let local = Value::Local(source.bindings()[0].id.clone());
         assert_eq!(references(&graph, &local), expected(&source, &["x"]));
+    }
+
+    #[test]
+    fn variant_fragments_retain_payload_references_without_enabling_inference() {
+        let (graph, source) = fixture("my choose a b = :pair a (:some b)");
+        let variants: Vec<_> = source.expressions().iter().filter_map(|expr| match &expr.form {
+            LocalSourceForm::Variant { tag, .. } => Some((tag.as_ref(), Value::Expression(expr.occurrence.clone()))),
+            _ => None,
+        }).collect();
+        assert_eq!(variants.len(), 2);
+        for (tag, variant) in variants {
+            // Result fragments retain the existing Group/Ascription boundary.
+            // The declaration-owner walk separately visits every payload.
+            let names: &[&str] = if tag == "pair" { &["a"] } else { &["b"] };
+            assert_eq!(references(&graph, &variant), expected(&source, names));
+        }
+        let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
+        assert_eq!(references(&graph, &root), expected(&source, &["a", "b"]));
+        assert!(matches!(crate::candidate_source::preflight(&source, false),
+            Err(crate::shadow_apply::CandidateError::Unsupported)));
+
+        let (graph, source) = fixture("my choose x = { my local = :some x; local }");
+        let local = Value::Local(source.bindings()[0].id.clone());
+        assert_eq!(references(&graph, &local), expected(&source, &["x"]));
+    }
+
+    #[test]
+    fn variant_case_binder_references_keep_the_actual_arm_identity() {
+        let (graph, source) = fixture("my text = 9; my choose x = case x:\n  :label text -> text\n  :disabled -> text\n");
+        let case = source.expressions().iter().find(|expr| matches!(expr.form, LocalSourceForm::Case { .. })).unwrap();
+        let LocalSourceForm::Case { arms, .. } = &case.form else { unreachable!(); };
+        let yu_hir::shadow::LocalSourceCasePattern::Variant { elements, .. } = &arms[0].pattern else { panic!("variant arm"); };
+        let yu_hir::shadow::LocalSourceCasePatternElement::Binder(binder) = &elements[0] else { panic!("binder"); };
+        let body = source.expression(&arms[0].body).unwrap();
+        let LocalSourceForm::Name { resolution, .. } = &body.form else { panic!("binder use"); };
+        assert_eq!(Graph::resolved(resolution), Some(Value::CatchBinder(binder.id.clone())));
+        let other = source.expression(&arms[1].body).unwrap();
+        let LocalSourceForm::Name { resolution, .. } = &other.form else { panic!("outer name"); };
+        let Some(outer @ Value::Module(_)) = Graph::resolved(resolution) else { panic!("outer module definition"); };
+        let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
+        assert_eq!(references(&graph, &root),
+            [named(&source, "x"), Value::CatchBinder(binder.id.clone()), outer].into_iter().collect::<HashSet<_>>());
+        assert!(matches!(crate::candidate_source::preflight(&source, false),
+            Err(crate::shadow_apply::CandidateError::Unsupported)));
     }
 
     #[test]

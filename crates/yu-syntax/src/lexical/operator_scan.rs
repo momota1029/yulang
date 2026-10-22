@@ -193,6 +193,7 @@ fn raw_value_start(
 
     match source.chars().next() {
         Some('"' | '(' | '[' | '{' | '$' | '\\' | '%' | '_' | '\'') => true,
+        Some(':') if source[1..].chars().next().is_some_and(|ch| ch == '_' || is_xid_start(ch)) => true,
         Some(character)
             if is_xid_start(character) || character.is_ascii_digit() || character == '.' =>
         {

@@ -2702,3 +2702,96 @@ the required original constructor/case boundary construction. Next retain the
 authentic source constructor/binder data and derive the actual whole-boundary
 variant view before enabling its publication. These source inspections are not
 claimed as a fresh execution of the pinned Oracle tests.
+
+### Variant source carrier construction
+
+Retain a new Variant source form with its original tag, tag range and ordered
+payload expression indexes. For a Symbol-headed operator chain without dynamic
+operators, consume only its initial consecutive ML/Call tails as constructor
+payloads; empty Call contributes original Unit, and a nonempty Call retains all
+actual argument children in order. Remaining ordinary tails wrap the completed
+constructor. A bare Symbol has zero payloads. For an associated dynamic operand, follow only its ML/Call callee spine to the
+actual Symbol head. Match each retained tail by kind, end and preceding callee
+range, require unique real CST ownership and equal argument ranges, then reverse
+the spine and reuse the same prefix constructor. Group and non-call tails end
+the prefix. This retains constructor meaning without reparsing source text or
+encoding its payload prefix as Function applications.
+
+For case patterns retain the original complete Pattern source key, tag and
+ordered existing Binder/Wildcard payload descriptors. Their binders are actual
+CatchBinder identities of this CaseArm, scoped only over its body. Existing
+parenthesized/group/tuple patterns keep their own representation; do not turn
+tagged payloads into Tuple patterns. The reference graph visits every actual
+payload and retains those binder Name incidences. Induction over the consumed
+source prefix proves ordered child correspondence; the existing Work restore
+stack proves arm-local lexical ownership. Account for tag/vector storage.
+
+Candidate preflight and runtime construction explicitly reject Variant until
+its distinct typed constructor and boundary/native matching are connected.
+This allows source identity/coverage evidence without inventing Value terms,
+using another constructor's acceptance or asserting a whole-source proof.
+
+The associated RHS regression exposed a predecessor lexical gap: the dynamic
+operator's raw successor probe did not recognize `:identifier`, so
+`2 + :pair(3, 4)` rejected `+` before NUD scanning. The operator scanner now
+recognizes exactly colon plus adjacent Unicode identifier start, under its
+existing indentation/fence/trivia and operator-table priority. Negative colon,
+spaced name, path separator, numeric and dedented cases retain their old result.
+This is an original Symbol start correspondence repair, not a new operator rule.
+
+The reference graph distinguishes full declaration-owner references from result
+fragments. The owner traversal visits every constructor payload, including under
+Group, and every CaseArm's body; payload binders remain actual arm identities.
+Result fragments use the existing Group/Ascription cuts. An initial experiment
+connecting those wrappers failed two explicit established boundary tests and
+was discarded; no established expectations changed. The new tests distinguish
+outer `:pair a (:some b)` fragment `{a}`, inner fragment `{b}`, and declaration
+owner `{a,b}`. A Name occurrence resolves directly to its semantic Value, not a
+new Expression vertex. No change to SCC qualification or wrapper meaning occurs.
+
+For a constructor prefix of k tails in an associated container of N nodes, the
+current exact source matching costs O(k*N), as in the existing fixed-tail owner;
+the retained prefix scratch is O(k). Direct source formation, payload traversal
+and new graph edges are linear in the actual children. Variant tags/vectors are
+included in retained source storage. No new solver graph traversal or speculative
+typed Variant term is admitted by this source-only checkpoint.
+
+A further pinned owner explains why eager singleton tag rejection is wrong:
+`compact/merge/entries.rs:354` (`merge_variants_with_sink`) unions the keys
+(tag, payload arity) for both polarities; only equal-key payloads are merged
+using the selected child polarity. Thus a negative accumulated view containing
+`:label` and `:disabled` retains both tags. For finite families, induction on
+this merge loop proves domain(merge(families)) is the union of their domains:
+an existing key changes only its payload vector, and a fresh key is appended.
+Each input payload contributes exactly once to the corresponding ordered
+pointwise child merge. Associativity of the child algebra is a separate premise,
+not proved by this domain lemma. The source domain lemma is UNREVIEWED.
+
+Applied to the original variant obstruction, the missing implementation premise
+is now specific: retain an actual whole-boundary family view with original
+PatternInput/Call ownership, and prove its keys/payloads come from that boundary's
+constraint family through Capture/FreshUse. Mere pairwise propagation skips or
+all currently reachable row bounds do not provide that ownership. The pinned
+`lowering/control.rs:357` registers the exact newly introduced upper-bound roots
+for each PatternInput occurrence. The mono boundary's source-key inclusion must
+consume the correct directional views, including payload obligations; globally
+unioning every row in a connected component would not establish this premise.
+No typed Variant constructor or runtime support is claimed from this finding.
+
+Variant source checkpoint: HIR library **184/184**, source Value graph **18/18**
+with resource-feature observation, and native playground **272/272** pass.
+Full syntax is **1445 pass / the inherited ordinal failure / 1 ignored**.
+Fresh WASM passes **54 execution examples plus module/diagnostic checks**.
+All 19 original catalog hashes and all observed outcomes are unchanged, **7/19**.
+Logs are target/r332-variant-{hir-final,graph-final,native,syntax,wasm}.log;
+the exact catalog receipt is target/r332-catalog-variant-source.log.
+No existing expectation or original fixture changed. Primary only, UNREVIEWED;
+original all-source/A-B, principality, receiving and production remain OPEN.
+
+Next owning-source counterexample: `my f text = text` reports
+SourceImportResolutionUnavailable while `my f payload = payload` succeeds.
+A CaseArm payload named text reproduces the same error. The implicit-prelude
+resolver collects IdentifierExpression names before distinguishing lexical
+binders; a bound spelling can therefore trigger an unrelated prelude export
+resolution failure. Keep genuine free-name imports, arm boundaries and source
+identities; next repair lexical ownership at the source-import owner.

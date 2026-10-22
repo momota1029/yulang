@@ -606,8 +606,13 @@ pub(super) fn preflight_with_imports_and_roles(
     for expr in source.expressions() {
         if matches!(
             &expr.form,
-            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) },
+            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) }
+                | LocalSourceForm::Variant { .. },
         ) {
+            return Err(shadow_apply::CandidateError::Unsupported);
+        }
+        if matches!(&expr.form, LocalSourceForm::Case { arms, .. }
+            if arms.iter().any(|arm| matches!(arm.pattern, yu_hir::shadow::LocalSourceCasePattern::Variant { .. }))) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
         if let LocalSourceForm::Ascription { annotation, .. } = &expr.form {
@@ -1237,6 +1242,7 @@ impl ConstraintBatch {
                                 push(&mut work, Work::Visit(item.ordinal() as usize, level, region))?;
                             }
                         }
+                        LocalSourceForm::Variant { .. } => return Err(unavailable()),
                         LocalSourceForm::Record { fields } => {
                             for field in fields.iter().rev() { push(&mut work, Work::Visit(field.value.ordinal() as usize, level, region))?; }
                         }
@@ -1443,6 +1449,7 @@ impl ConstraintBatch {
                                 })?;
                                 push(&mut actions, Action::Candidate(recipe))?;
                             }
+                            yu_hir::shadow::LocalSourceCasePattern::Variant { .. } => return Err(unavailable()),
                             yu_hir::shadow::LocalSourceCasePattern::Integer(_) | yu_hir::shadow::LocalSourceCasePattern::Wildcard => {}
                         }
                     }
@@ -1557,6 +1564,7 @@ impl ConstraintBatch {
                                     yu_hir::shadow::LocalSourceCasePattern::Binder(_) => {}
                                     yu_hir::shadow::LocalSourceCasePattern::Wildcard => {}
                                     yu_hir::shadow::LocalSourceCasePattern::Tuple { .. } => {}
+                                    yu_hir::shadow::LocalSourceCasePattern::Variant { .. } => return Err(unavailable()),
                                 }
                                 let body_index = arm.body.ordinal() as usize;
                                 let body_occurrence = &source.expressions()[body_index].occurrence;
@@ -1857,6 +1865,7 @@ impl ConstraintBatch {
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                         }
+                        LocalSourceForm::Variant { .. } => return Err(unavailable()),
                         LocalSourceForm::Record { fields } => {
                             let mut values = Vec::new();
                             let mut effects = Vec::new();

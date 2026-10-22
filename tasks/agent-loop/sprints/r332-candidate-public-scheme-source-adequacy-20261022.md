@@ -500,3 +500,22 @@ primary seconds (cap 30807). Existing exact HIR/solver/runtime leases
 cover source carrier work. Keep variant publication withheld until propagation
 and boundary/native rules are connected; no parent closure or independent
 review. One heavy build/test at a time and no subagents.
+
+Within direct-fourteen, existing local_source/module, candidate_value_graph,
+candidate_source and runtime/program leases cover the authentic Variant source
+carrier and Case binder graph. Retain original constructor payload prefixes and
+arm-local identities; explicitly withhold candidate/runtime publication while
+variant boundary/native proofs are open. See the single proof note.
+
+The associated constructor test exposes the raw dynamic-operator successor
+probe missing Symbol starts: `2 + :pair(3, 4)` drops the infix operator before
+expression NUD admission. Lease lexical/operator_scan.rs and tests/operators.rs
+under crates/yu-syntax/src for the exact colon-plus-adjacent-identifier fact.
+Retain original operator priority, trivia/fence checks and input ownership.
+
+Variant source checkpoint: HIR 184, Value graph 18, native 272 and fresh
+WASM 54 plus module/diagnostic checks pass. Syntax 1445 with the same inherited
+ordinal failure. Catalog 7/19, all original hashes/outcomes unchanged. Typed
+Variant/native matching remain withheld. Next: scoped implicit-prelude name
+collection; bound `text` reproduces the import failure. Existing HIR/module and
+playground test leases cover the owner repair; primary only, UNREVIEWED.

@@ -246,6 +246,8 @@ impl LocalSource {
                         fields.capacity() * std::mem::size_of::<LocalSourceRecordField>()
                             + fields.iter().map(|field| field.label.len()).sum::<usize>()
                     }
+                    LocalSourceForm::Variant { tag, payloads, .. } => tag.len()
+                        + payloads.capacity() * std::mem::size_of::<LocalSourceIndex>(),
                     LocalSourceForm::FieldTail { member, .. } => member.len(),
                     LocalSourceForm::OperatorApplication { operator, .. } => operator.spelling().len()
                         + std::mem::size_of::<SourceNodeKey>()
@@ -350,6 +352,8 @@ pub enum LocalSourceForm {
     Tuple { elements: Vec<LocalSourceIndex> },
     /// Original brace/colon fields, in source order, including an empty record.
     Record { fields: Vec<LocalSourceRecordField> },
+    /// A Symbol-headed constructor and its actual ML/Call payload prefix.
+    Variant { tag: Box<str>, tag_range: Range<usize>, payloads: Vec<LocalSourceIndex> },
     /// A parse-owned member tail. `receiver` is the full preceding expression;
     /// method or field meaning remains for a later resolver to determine.
     FieldTail {
@@ -474,6 +478,12 @@ pub enum LocalSourceCasePattern {
     Integer(LocalSourceIndex),
     Binder(LocalSourceCatchBinder),
     Wildcard,
+    Variant {
+        tag: Box<str>,
+        source: SourceNodeKey,
+        range: Range<usize>,
+        elements: Vec<LocalSourceCasePatternElement>,
+    },
     Tuple {
         source: SourceNodeKey,
         range: Range<usize>,
@@ -489,6 +499,12 @@ pub enum LocalSourceCasePatternElement {
 
 fn case_pattern_bytes(pattern: &LocalSourceCasePattern) -> usize {
     match pattern {
+        LocalSourceCasePattern::Variant { tag, elements, .. } => tag.len()
+            + elements.capacity() * std::mem::size_of::<LocalSourceCasePatternElement>()
+            + elements.iter().map(|element| match element {
+                LocalSourceCasePatternElement::Binder(binder) => binder.spelling.len(),
+                LocalSourceCasePatternElement::Wildcard => 0,
+            }).sum::<usize>(),
         LocalSourceCasePattern::Binder(binder) => binder.spelling.len(),
         LocalSourceCasePattern::Tuple { elements, .. } => elements.iter().map(|element| match element {
             LocalSourceCasePatternElement::Binder(binder) => binder.spelling.len(),
@@ -610,6 +626,18 @@ fn integer_spelling(node: &SyntaxNode) -> Result<Box<str>, FormationError> {
     let token = tokens.next().and_then(|element| element.into_token()).ok_or_else(invalid)?;
     if token.kind() != SyntaxKind::Integer || tokens.next().is_some() { return Err(invalid()); }
     Ok(token.text().into())
+}
+fn symbol_tag(node: &SyntaxNode) -> Result<(Box<str>, Range<usize>), FormationError> {
+    if !matches!(node.kind(), SyntaxKind::SymbolExpression | SyntaxKind::SymbolPattern)
+        || has_recovery(node) { return Err(unsupported()); }
+    let mut parts = node.children_with_tokens().filter(|element| !matches!(element.kind(),
+        SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment));
+    let colon = parts.next().and_then(|element| element.into_token()).ok_or_else(unsupported)?;
+    let name = parts.next().and_then(|element| element.into_token()).ok_or_else(unsupported)?;
+    if colon.kind() != SyntaxKind::Colon || name.kind() != SyntaxKind::Identifier
+        || colon.text_range().end() != name.text_range().start() || parts.next().is_some()
+    { return Err(unsupported()); }
+    Ok((name.text().into(), crate::range_of_token(&name)))
 }
 fn string_spelling(node: &SyntaxNode) -> Result<Box<str>, FormationError> {
     let mut delimiters = node.children_with_tokens().filter_map(|element| element.into_token())
@@ -1549,6 +1577,35 @@ impl Builder<'_> {
             };
             if matches!(kind, SyntaxKind::MlArgument | SyntaxKind::CallTail) {
                 let (callee, arguments) = children.split_first().ok_or_else(unsupported)?;
+                let mut head = callee;
+                while let crate::HirExpr::Value { kind: SyntaxKind::MlArgument | SyntaxKind::CallTail, children, .. } = head {
+                    head = children.first().ok_or_else(unsupported)?;
+                }
+                if let crate::HirExpr::Value { kind: SyntaxKind::SymbolExpression, range: head_range, .. } = head {
+                    // Recover only the fixed tails proven by this associated
+                    // operand. Their arguments remain owned by the original
+                    // chain; no source text is parsed a second time.
+                    let mut nodes = container.descendants().filter(|node|
+                        node.kind() == SyntaxKind::SymbolExpression && range_of(node) == *head_range);
+                    let head_node = nodes.next().ok_or_else(unsupported)?;
+                    if nodes.next().is_some() { return Err(unsupported()); }
+                    let mut cursor = value;
+                    let mut prefix = Vec::new();
+                    while let crate::HirExpr::Value { kind: kind @ (SyntaxKind::MlArgument | SyntaxKind::CallTail), range, children } = cursor {
+                        let (callee, arguments) = children.split_first().ok_or_else(unsupported)?;
+                        let mut tails = container.descendants().filter(|node|
+                            node.kind() == *kind
+                                && range_of(node).end == range.end && range_of(node).start >= callee.range().end);
+                        let tail = tails.next().ok_or_else(unsupported)?;
+                        if tails.next().is_some() || tail.children().count() != arguments.len()
+                            || tail.children().zip(arguments).any(|(node, arg)| range_of(&node) != *arg.range())
+                        { return Err(unsupported()); }
+                        push(&mut prefix, tail)?;
+                        cursor = callee;
+                    }
+                    prefix.reverse();
+                    return self.variant(&head_node, &prefix, index, scope, named_group);
+                }
                 let mut tails = container.descendants().filter(|node| {
                     node.kind() == *kind
                         && range_of(node).end == range.end
@@ -1631,6 +1688,39 @@ impl Builder<'_> {
             index = receiver_index;
         }
     }
+    fn variant(
+        &mut self, head: &SyntaxNode, tails: &[SyntaxNode], index: LocalSourceIndex,
+        scope: LocalSourceScope, named_group: Option<LocalSourceNamedGroupId>,
+    ) -> Result<(), FormationError> {
+        let (tag, tag_range) = symbol_tag(head)?;
+        let mut payloads = Vec::new();
+        let mut children = Vec::new();
+        for tail in tails {
+            if has_recovery(tail) { return Err(unsupported()); }
+            let arguments: Vec<_> = tail.children().collect();
+            if arguments.iter().any(|node| node.kind() != SyntaxKind::OperatorChain)
+                || (tail.kind() == SyntaxKind::MlArgument && arguments.len() != 1)
+                || !matches!(tail.kind(), SyntaxKind::MlArgument | SyntaxKind::CallTail)
+            { return Err(unsupported()); }
+            if arguments.is_empty() {
+                let unit = self.slot()?;
+                self.set(unit.clone(), tail, scope.clone(), named_group.clone(), LocalSourceForm::Unit)?;
+                push(&mut payloads, unit)?;
+            }
+            for argument in arguments {
+                let slot = self.slot()?;
+                push(&mut payloads, slot.clone())?;
+                push(&mut children, (argument, slot))?;
+            }
+        }
+        let range = range_of(head).start..tails.last().map_or(range_of(head).end, |tail| range_of(tail).end);
+        self.set_at_range(index, head, range, scope.clone(), named_group.clone(),
+            LocalSourceForm::Variant { tag, tag_range, payloads })?;
+        for (node, index) in children.into_iter().rev() {
+            push(&mut self.work, Work::Expression(node, index, scope.clone(), named_group.clone()))?;
+        }
+        Ok(())
+    }
     fn expression(
         &mut self,
         node: SyntaxNode,
@@ -1657,6 +1747,10 @@ impl Builder<'_> {
                     )?;
                     return Ok(());
                 }
+                let variant_count = if head.kind() == SyntaxKind::SymbolExpression {
+                    all_tails.iter().take_while(|tail| matches!(tail.kind(), SyntaxKind::MlArgument | SyntaxKind::CallTail)).count()
+                } else { 0 };
+                let (variant_tails, all_tails) = all_tails.split_at(variant_count);
                 let path_tail_count = all_tails
                     .iter()
                     .take_while(|tail| tail.kind() == SyntaxKind::PathTail)
@@ -1776,7 +1870,10 @@ impl Builder<'_> {
                     }
                     current = callee;
                 }
-                if !path_tails.is_empty() {
+                if head.kind() == SyntaxKind::SymbolExpression {
+                    if !path_tails.is_empty() { return Err(unsupported()); }
+                    self.variant(head, variant_tails, current, scope, named_group)?;
+                } else if !path_tails.is_empty() {
                     if head.kind() != SyntaxKind::IdentifierExpression {
                         return Err(unsupported());
                     }
@@ -1834,6 +1931,7 @@ impl Builder<'_> {
                     )?;
                 }
             }
+            SyntaxKind::SymbolExpression => self.variant(&node, &[], index, scope, named_group)?,
             SyntaxKind::LambdaExpression => {
                 let mut elements = node.children_with_tokens().filter(|element| !matches!(
                     element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline
@@ -2157,6 +2255,38 @@ impl Builder<'_> {
     ) -> Result<LocalSourceCasePattern, FormationError> {
         if has_recovery(pattern) { return Err(unsupported()); }
         match pattern.kind() {
+            SyntaxKind::Pattern => {
+                let children: Vec<_> = pattern.children().collect();
+                if children.first().is_some_and(|head| head.kind() == SyntaxKind::SymbolPattern) {
+                    let (head, tails) = children.split_first().ok_or_else(unsupported)?;
+                    let (tag, _) = symbol_tag(head)?;
+                    let mut elements = Vec::new();
+                    let mut names = std::collections::HashSet::new();
+                    for tail in tails {
+                        if !matches!(tail.kind(), SyntaxKind::PatternMlApplicationTail | SyntaxKind::PatternCallTail)
+                            || has_recovery(tail) { return Err(unsupported()); }
+                        let payloads: Vec<_> = tail.children().collect();
+                        if payloads.is_empty() || (tail.kind() == SyntaxKind::PatternMlApplicationTail && payloads.len() != 1) {
+                            return Err(unsupported());
+                        }
+                        for payload in payloads {
+                            if payload.kind() != SyntaxKind::Pattern { return Err(unsupported()); }
+                            let payload = only_child(&payload)?;
+                            let element = self.case_pattern_element(&payload, arm_source, next_binder, binders)?;
+                            if let LocalSourceCasePatternElement::Binder(binder) = &element {
+                                names.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                                if !names.insert(binder.spelling.clone()) { return Err(unsupported()); }
+                            }
+                            push(&mut elements, element)?;
+                        }
+                    }
+                    Ok(LocalSourceCasePattern::Variant {
+                        tag, source: self.key(pattern)?, range: range_of(pattern), elements,
+                    })
+                } else {
+                    self.case_pattern(&only_child(pattern)?, arm_source, scope, named_group, next_binder, binders)
+                }
+            }
             SyntaxKind::IntegerPattern => {
                 let pattern_index = self.slot()?;
                 self.set(
@@ -2192,7 +2322,7 @@ impl Builder<'_> {
                         | SyntaxKind::LParen | SyntaxKind::RParen => {}
                         SyntaxKind::Pattern => {
                             let Some(child) = element.into_node() else { return Err(unsupported()); };
-                            push(&mut children, only_child(&child)?)?;
+                            push(&mut children, child)?;
                         }
                         _ => return Err(unsupported()),
                     }
@@ -2207,7 +2337,7 @@ impl Builder<'_> {
                 let mut binder_names = std::collections::HashSet::<Box<str>>::new();
                 binder_names.try_reserve(children.len()).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
                 for child in &children {
-                    let element = self.case_pattern_element(child, arm_source, next_binder, binders)?;
+                    let element = self.case_pattern_element(&only_child(child)?, arm_source, next_binder, binders)?;
                     if let LocalSourceCasePatternElement::Binder(binder) = &element
                         && !binder_names.insert(binder.spelling.clone())
                     {
@@ -2252,10 +2382,10 @@ impl Builder<'_> {
             }
             let arm_source = self.key(&arm)?;
             let mut binders = Vec::new();
-            let pattern = only_child(&patterns[0])?;
+            let pattern = &patterns[0];
             let mut next_binder = 0;
             let pattern = self.case_pattern(
-                &pattern, &arm_source, &scope, named_group.clone(), &mut next_binder, &mut binders,
+                pattern, &arm_source, &scope, named_group.clone(), &mut next_binder, &mut binders,
             )?;
             let body_index = self.slot()?;
             push(&mut arms, LocalSourceCaseArm {
@@ -2547,6 +2677,121 @@ impl Builder<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn variant_source_retains_constructor_prefix_and_real_payload_owners() {
+        for (value, tag, count) in [
+            (":none", "none", 0),
+            (":pair outer 4", "pair", 2),
+            (":pair(outer, 4)", "pair", 2),
+            (":pair(outer) 4", "pair", 2),
+            (":unit()", "unit", 1),
+            (":pair outer 4 .field", "pair", 2),
+        ] {
+            let text = format!("my outer = 3; my value = {value}");
+            let (parsed, _, module) = ordinary_fixture(&text);
+            let HirItem::Binding(binding) = &module.items()[1] else { panic!("value binding"); };
+            let source = module.local_source(binding.definition_root()).unwrap().expect(value);
+            let root = source.expression(source.body()).unwrap();
+            let expression = if value.ends_with(".field") {
+                let LocalSourceForm::FieldTail { receiver, member, .. } = &root.form else { panic!("outer field tail"); };
+                assert_eq!(member.as_ref(), "field");
+                source.expression(receiver).unwrap()
+            } else { root };
+            let LocalSourceForm::Variant { tag: actual, tag_range, payloads } = &expression.form else {
+                panic!("constructor {value}: {expression:?}");
+            };
+            assert_eq!(actual.as_ref(), tag);
+            assert_eq!(&text[tag_range.clone()], tag);
+            assert_eq!(payloads.len(), count);
+            assert_eq!(&text[expression.range.clone()], value.strip_suffix(" .field").unwrap_or(value));
+            assert!(parsed.owns_source_key(&expression.source));
+            assert!(!source.expressions().iter().any(|e| matches!(e.form, LocalSourceForm::Apply { .. })));
+            for payload in payloads {
+                let child = source.expression(payload).unwrap();
+                assert!(parsed.owns_source_key(&child.source));
+                assert!(module.owns_occurrence(&child.occurrence));
+                assert!(expression.range.start < child.range.start && child.range.end <= expression.range.end);
+            }
+            if count == 2 {
+                assert!(matches!(&source.expression(&payloads[0]).unwrap().form,
+                    LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_), .. }));
+                assert!(matches!(&source.expression(&payloads[1]).unwrap().form,
+                    LocalSourceForm::Integer(n) if n.as_ref() == "4"));
+            } else if count == 1 {
+                let unit = source.expression(&payloads[0]).unwrap();
+                assert!(matches!(unit.form, LocalSourceForm::Unit));
+                assert_eq!(&text[unit.range.clone()], "()");
+            }
+        }
+    }
+
+    #[test]
+    fn variant_case_payload_binders_keep_arm_scope_and_source_identity() {
+        for pattern in [":label text", ":label(text)", "(:label text)"] {
+            let text = format!("my text = 9; my f option = case option:\n  {pattern} -> text\n  :disabled -> text\n");
+            let (parsed, _, module) = ordinary_fixture(&text);
+            let HirItem::Binding(binding) = &module.items()[1] else { panic!("f binding"); };
+            let source = module.local_source(binding.definition_root()).unwrap().expect(pattern);
+            let case = source.expressions().iter().find(|e| matches!(e.form, LocalSourceForm::Case { .. })).unwrap();
+            let LocalSourceForm::Case { arms, .. } = &case.form else { unreachable!(); };
+            assert_eq!(arms.len(), 2);
+            let LocalSourceCasePattern::Variant { tag, source: key, range, elements } = &arms[0].pattern else { panic!("label pattern"); };
+            assert_eq!(tag.as_ref(), "label");
+            let written = pattern.strip_prefix('(').and_then(|p| p.strip_suffix(')')).unwrap_or(pattern);
+            assert_eq!(text[range.clone()].trim(), written);
+            assert!(parsed.owns_source_key(key));
+            let [LocalSourceCasePatternElement::Binder(binder)] = elements.as_slice() else { panic!("payload binder"); };
+            assert_eq!(binder.id.arm_source(), &arms[0].source);
+            assert_eq!(&text[binder.range.clone()], "text");
+            assert!(matches!(&source.expression(&arms[0].body).unwrap().form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::CaseBinder(id), .. } if id == &binder.id));
+            assert!(matches!(&source.expression(&arms[1].body).unwrap().form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_), .. }));
+            assert!(matches!(&arms[1].pattern, LocalSourceCasePattern::Variant { tag, elements, .. }
+                if tag.as_ref() == "disabled" && elements.is_empty()));
+        }
+        assert!(lower("my f x = case x: :pair same same -> same").is_err());
+    }
+
+    #[test]
+    fn variant_dynamic_operands_retain_the_associated_constructor_prefix() {
+        let provider: Arc<yu_syntax::SourceText> = Arc::from("pub infix (+) 5.0.0 5.0.1 = f");
+        let dependency = yu_syntax::SyntaxDependencySlot::from_index(0).unwrap();
+        let environment = yu_syntax::SyntaxEnvironment::from_imported_headers(
+            yu_syntax::SyntaxEnvironmentKey::from_fingerprint(23),
+            [(dependency, &yu_syntax::scan_header(provider))],
+            Arc::from([yu_syntax::SyntaxDependencyProvenance::new(
+                Arc::from("operators.yu"), yu_syntax::SourceRevision::from_fingerprint(83),
+            )]),
+        ).unwrap();
+        for (body, count) in [(":some 1 + 2", 1), ("2 + :pair(3, 4)", 2),
+            (":pair 1 2 + 3", 2), (":unit() + 3", 1), (":pair(1) 2 .field + 3", 2)] {
+            let text = format!("my value = {body}");
+            let input: Arc<yu_syntax::SourceText> = Arc::from(text.as_str());
+            let parsed = yu_syntax::parse_file(input.clone(), Arc::new(yu_syntax::scan_header(input)), Arc::new(environment.clone()));
+            assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{body}: {:?}\n{:#?}", parsed.syntax_diagnostics().unwrap(), SyntaxNode::new_root(parsed.green().clone()));
+            let module = lower_module(ModuleIdentity::source_root(FileId::new(FileKey::new("test", "variant-operator.yu"))),
+                &parsed, SemanticImports::empty()).unwrap();
+            let SourceCarrierOutcome::Supported(source) = &module.source_carrier_outcomes()[0].1 else { panic!("{body}"); };
+            assert!(matches!(source.expression(source.body()).unwrap().form, LocalSourceForm::OperatorApplication { .. }));
+            let variants: Vec<_> = source.expressions().iter().filter(|e| matches!(e.form, LocalSourceForm::Variant { .. })).collect();
+            assert_eq!(variants.len(), 1, "{body}");
+            let LocalSourceForm::Variant { payloads, .. } = &variants[0].form else { unreachable!(); };
+            assert_eq!(payloads.len(), count, "{body}");
+            assert!(parsed.owns_source_key(&variants[0].source));
+            assert!(!source.expressions().iter().any(|e| matches!(e.form, LocalSourceForm::Apply { .. })), "{body}");
+            for payload in payloads {
+                let child = source.expression(payload).unwrap();
+                assert!(parsed.owns_source_key(&child.source));
+                assert!(variants[0].range.start < child.range.start && child.range.end <= variants[0].range.end);
+            }
+        }
+        let module = lower("my f = (:some) 1").unwrap();
+        let source = module.local_sources.values().next().unwrap();
+        assert!(matches!(source.expression(source.body()).unwrap().form, LocalSourceForm::Apply { .. }),
+            "a group ends the original constructor prefix");
+    }
 
     #[test]
     fn record_formals_keep_default_scope_binders_and_original_source() {

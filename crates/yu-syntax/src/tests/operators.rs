@@ -153,6 +153,23 @@ fn dynamic_operator_raw_successor_probe_covers_value_starts_and_trivia() {
 }
 
 #[test]
+fn dynamic_operator_raw_successor_recognizes_only_adjacent_symbol_names() {
+    let operators = OperatorTable::from_declarations([
+        OperatorDeclaration::new("?", OperatorFixities::new().with_prefix(BindingPower::scalar(70)).with_nullfix()),
+    ]).unwrap();
+    for source in ["? :tag", "? :_tag", "? :名前", "? /* gap */ :tag", "?\n  :tag"] {
+        let (use_, remaining) = scan_dynamic_operator(source, &operators, OperatorSite::Nud);
+        assert!(matches!(use_, Some(OperatorUse::Prefix(_))), "{source}");
+        assert_eq!(remaining, source.strip_prefix('?').unwrap());
+    }
+    for source in ["? :", "? : tag", "? ::tag", "? :1", "?\n:tag"] {
+        let (use_, remaining) = scan_dynamic_operator(source, &operators, OperatorSite::Nud);
+        assert_eq!(use_, Some(OperatorUse::Nullfix), "{source}");
+        assert_eq!(remaining, source.strip_prefix('?').unwrap());
+    }
+}
+
+#[test]
 fn dynamic_operator_raw_rejection_keeps_outer_input_and_builder_unchanged() {
     let operators = OperatorTable::from_declarations([
         OperatorDeclaration::new(

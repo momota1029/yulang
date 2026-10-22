@@ -187,6 +187,7 @@ pub enum RuntimeUnavailable {
     ExpectedComputation(SourceSite),
     UnsupportedFieldTail(SourceSite),
     UnsupportedRecordPattern(SourceSite),
+    UnsupportedVariant(SourceSite),
     UnsupportedInfixOperator(SourceSite),
     ModuleInitializationOrder,
 }
@@ -867,6 +868,9 @@ impl RuntimeProgram {
                     LocalSourceForm::Sequence { items } => Instruction::Sequence {
                         items: items.iter().map(label).collect::<Result<_, _>>()?,
                     },
+                    LocalSourceForm::Variant { .. } => return Err(RuntimeUnavailable::UnsupportedVariant(SourceSite {
+                        source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
+                    })),
                     LocalSourceForm::Record { fields } => Instruction::Record {
                         fields: fields.iter().map(|field| Ok((field.label.clone(), label(&field.value)?))).collect::<Result<_, RuntimeUnavailable>>()?,
                     },
@@ -916,6 +920,9 @@ impl RuntimeProgram {
                                         yu_hir::shadow::LocalSourceCasePatternElement::Wildcard => None,
                                     }).collect())
                                 }
+                                yu_hir::shadow::LocalSourceCasePattern::Variant { .. } => return Err(RuntimeUnavailable::UnsupportedVariant(SourceSite {
+                                    source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
+                                })),
                                 yu_hir::shadow::LocalSourceCasePattern::Wildcard => CasePattern::Wildcard,
                             };
                             Ok(CaseArm { pattern, body: label(&arm.body)? })
@@ -1849,7 +1856,7 @@ fn handler_arm_operation_ranges(
                         .map(|binding| binding.initializer.clone()),
                 }));
             }
-            Form::Tuple { elements } => pending.extend(elements.iter().cloned()),
+            Form::Tuple { elements } | Form::Variant { payloads: elements, .. } => pending.extend(elements.iter().cloned()),
             Form::Record { fields } => pending.extend(fields.iter().map(|field| field.value.clone())),
             Form::FieldTail { receiver, .. } => pending.push(receiver.clone()),
             Form::OperatorApplication { left, right, .. } => {
