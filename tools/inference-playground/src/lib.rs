@@ -178,10 +178,11 @@ pub fn execute(
     step_budget: usize,
     scoped: bool,
 ) -> Result<String, String> {
-    use runtime::{RuntimeEvidence, RuntimeOutcome, RuntimeProgram};
-    let (hir, _candidate) = prepare(source, name, scoped)?;
+    use runtime::{RuntimeOutcome, RuntimeProgram};
+    let (hir, candidate, world, indexes) = prepare_with_world(source, name, scoped)?;
     let unavailable = |error| bounded_message(format_args!("runtime unavailable: {error:?}"));
-    let program = RuntimeProgram::from_hir(hir, RuntimeEvidence::default()).map_err(unavailable)?;
+    let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate)
+        .map_err(unavailable)?;
     let selected = program.definition_named(definition).map_err(unavailable)?;
     let mut machine = program.start_source_schedule(selected).map_err(unavailable)?;
     let value = match machine.run(step_budget) {
@@ -331,6 +332,15 @@ fn prepare(
     name: &str,
     scoped: bool,
 ) -> Result<(Arc<HirModule>, CandidateInference), String> {
+    let (hir, candidate, _, _) = prepare_with_world(source, name, scoped)?;
+    Ok((hir, candidate))
+}
+
+fn prepare_with_world(
+    source: &str,
+    name: &str,
+    scoped: bool,
+) -> Result<(Arc<HirModule>, CandidateInference, Vec<Arc<HirModule>>, Vec<yu_hir::SourceExportIndex>), String> {
     let name = if name == "-" { "stdin.yu" } else { name };
     if source.len() > INPUT_CAP {
         return Err(format!(
@@ -392,11 +402,17 @@ fn prepare(
             bounded_message(format_args!("candidate lowering unavailable: {error:?}"))
         })?,
     );
+    let modules = if scoped {
+        vec![hir.clone()]
+    } else {
+        pinned_candidate_world(&hir, &provider_sources, &indexes, &role_indexes)?
+    };
     let solved = if scoped {
         CandidateInference::solve_scoped_experiment(hir.clone())
     } else {
-        let modules = pinned_candidate_world(&hir, &provider_sources, &indexes, &role_indexes)?;
-        CandidateInference::solve_modules_with_role_sources(modules, &indexes, &role_indexes)
+        CandidateInference::solve_modules_with_role_sources(
+            modules.clone(), &indexes, &role_indexes,
+        )
     };
     let candidate = solved.map_err(|error| match error {
         CandidateError::Unsupported => {
@@ -435,7 +451,7 @@ fn prepare(
         }
         return Err(output.finish()?);
     }
-    Ok((hir, candidate))
+    Ok((hir, candidate, modules, indexes))
 }
 
 type PinnedProviderSource = (ModuleIdentity, yu_syntax::ParsedFile);
@@ -1343,6 +1359,15 @@ mod tests {
     }
 
     #[test]
+    fn unchanged_types_runtime_reaches_the_exact_host_operation_boundary() {
+        let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
+        let error = execute(source, "samples/Types.yu", "pair", 100_000, false)
+            .expect_err("the current host has not yet resumed imported write operations");
+        assert!(error.starts_with("unhandled runtime request at "),
+            "selected member bodies and imported source definitions execute through the host boundary: {error}");
+    }
+
+    #[test]
     fn unchanged_types_sample_uses_exact_pinned_member_and_implementation_sources() {
         let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
         assert_eq!(source.len(), 142);
@@ -1467,10 +1492,34 @@ mod tests {
         ), "receiver and where readbacks project only the exact tuple Display.show source key");
 
         let candidate = CandidateInference::solve_modules_with_role_sources(
-            modules, &indexes, &role_indexes,
+            modules.clone(), &indexes, &role_indexes,
         ).expect("exact pinned member and implementation sources solve together");
         assert!(candidate.candidate_conflicts().is_empty(),
             "tuple prerequisites and the generic operator FieldTails resolve without conflicts");
+        let selected_uses = candidate.selected_field_tail_uses().unwrap().collect::<Vec<_>>();
+        assert!(!selected_uses.is_empty(),
+            "successful FieldTail dispatch retains exact member roots for runtime consumers");
+        assert!(selected_uses.iter().all(|use_|
+            modules.iter().any(|hir| hir.local_source_for(use_.source_owner)
+                .is_ok_and(|source| source.is_some()))
+                && modules.iter().any(|hir| hir.local_source_for(&SourceRootId::Member(
+                    use_.member_root.clone(),
+                )).is_ok_and(|source| source.is_some()))),
+            "each selected member use joins back to its exact source HIR roots: {selected_uses:?}");
+        let operator_uses = candidate.operator_fresh_uses().unwrap().collect::<Vec<_>>();
+        let transported_add_uses = selected_uses.iter().filter(|use_|
+            use_.source_owner != use_.owner
+        ).collect::<Vec<_>>();
+        assert!(!transported_add_uses.is_empty(),
+            "the generic operator's nested Add dispatch retains its enclosing FreshUse owner");
+        for use_ in transported_add_uses {
+            let SourceRootId::Expression(provider) = use_.source_owner else {
+                panic!("transported provider root remains an exact expression: {use_:?}")
+            };
+            assert!(operator_uses.iter().any(|operator_use|
+                operator_use.use_owner == use_.owner && operator_use.provider == provider),
+                "the active Add selection joins to its exact enclosing operator use: {use_:?}; operators={operator_uses:?}");
+        }
     }
 
     #[test]

@@ -144,6 +144,25 @@ pub struct CandidateCapturedMemberFieldTailReadback {
     pub graph_row_count: usize,
     pub freshuse_row_local: [bool; 4],
 }
+/// Exact successful dispatch product retained by one candidate FieldTail
+/// FreshUse. `owner` identifies the active graph; `source_owner` identifies
+/// the original syntax when that syntax was transported from a provider.
+#[derive(Clone, Debug)]
+pub struct CandidateSelectedFieldTailUse<'a> {
+    pub owner: &'a SourceRootId,
+    pub source_owner: &'a SourceRootId,
+    pub occurrence: &'a HirOccurrenceId,
+    pub member_root: &'a yu_hir::SourceMemberRootId,
+}
+/// Exact imported operator use captured by the same candidate session. The
+/// use owner and occurrence identify the source call site that specializes
+/// the provider expression.
+#[derive(Clone, Debug)]
+pub struct CandidateOperatorFreshUse<'a> {
+    pub use_owner: &'a SourceRootId,
+    pub occurrence: &'a HirOccurrenceId,
+    pub provider: &'a yu_hir::ExpressionRootId,
+}
 #[derive(Clone, Debug, Default)]
 pub struct CandidateDeferredFieldTailReadbacks {
     pub receivers: Vec<CandidateFieldTailReceiverReadback>,
@@ -973,6 +992,38 @@ impl CandidateScopedObservation<'_> {
     pub fn protection_scopes(&self) -> impl Iterator<Item = u32> + '_ { self.state.protections.iter().map(|id| id.0) }
 }
 impl CandidateInference {
+    /// Read only exact member selections from a successful candidate. This
+    /// does not reconstruct selections from receiver shapes or spellings.
+    pub fn selected_field_tail_uses(
+        &self,
+    ) -> Result<impl Iterator<Item = CandidateSelectedFieldTailUse<'_>> + '_, ArtifactMismatch> {
+        if !self.solved.data.errors.is_empty() {
+            return Err(ArtifactMismatch);
+        }
+        let graph = self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?;
+        Ok(graph.member_uses.iter().map(|use_| CandidateSelectedFieldTailUse {
+            owner: &use_.owner,
+            source_owner: &use_.source_owner,
+            occurrence: &use_.occurrence,
+            member_root: &use_.member,
+        }))
+    }
+    /// Read exact imported operator providers and their source use sites from
+    /// this successful candidate. Runtime consumers can specialize a shared
+    /// provider by its authentic call site rather than guessing by spelling.
+    pub fn operator_fresh_uses(
+        &self,
+    ) -> Result<impl Iterator<Item = CandidateOperatorFreshUse<'_>> + '_, ArtifactMismatch> {
+        if !self.solved.data.errors.is_empty() {
+            return Err(ArtifactMismatch);
+        }
+        let graph = self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?;
+        Ok(graph.operator_uses.iter().map(|use_| CandidateOperatorFreshUse {
+            use_owner: &use_.use_owner,
+            occurrence: &use_.occurrence,
+            provider: &use_.provider,
+        }))
+    }
     pub fn intrusion_observation(&self) -> Result<CandidateIntrusionObservation<'_>, ArtifactMismatch> {
         if !self.solved.data.errors.is_empty() { return Err(ArtifactMismatch); }
         let state = &self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?.intrusion;

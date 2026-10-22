@@ -609,6 +609,9 @@ impl Machine {
                     self.data(site, RuntimeValueKind::Tuple(Vec::new()), None);
                 }
             }
+            Instruction::FieldTail { .. } | Instruction::InfixOperator { .. } => {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
             Instruction::Forward(inner) => {
                 self.state = State::Evaluate {
                     code: *inner,

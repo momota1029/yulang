@@ -201,6 +201,7 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                     work.push(Visit::Enter(*element, Role::Ground));
                 }
             }
+            Instruction::FieldTail { .. } | Instruction::InfixOperator { .. } => return false,
             Instruction::Catch { scrutinee, arms } => {
                 work.push(Visit::Enter(*scrutinee, Role::Ground));
                 for arm in arms {

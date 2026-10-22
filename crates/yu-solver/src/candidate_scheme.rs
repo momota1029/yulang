@@ -108,8 +108,13 @@ pub(super) struct MemberGraph {
 
 #[derive(Debug)]
 pub(super) struct MemberFreshUse {
-    pub member: yu_hir::SourceMemberRootId,
+    /// Active graph whose row map received the exact selected member.
+    pub owner: SourceRootId,
+    /// Original source owner of the FieldTail, preserved across provider and
+    /// member transport so a later consumer can join it back to source code.
+    pub source_owner: SourceRootId,
     pub occurrence: HirOccurrenceId,
+    pub member: yu_hir::SourceMemberRootId,
     pub fresh: FreshUse,
 }
 
@@ -2680,8 +2685,10 @@ impl InferenceSession {
                     .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 state.member_uses.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                 state.member_uses.push(MemberFreshUse {
-                    member: member_root,
+                    owner: item.obligation.owner.clone(),
+                    source_owner: item.obligation.source_owner.clone(),
                     occurrence,
+                    member: member_root,
                     fresh,
                 });
                 made_progress = true;

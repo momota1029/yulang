@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     ops::Range,
     sync::Arc,
 };
@@ -25,6 +25,33 @@ pub struct RuntimeProgram {
     // Valid only for fresh ModuleRun entry into this complete constructed universe.
     pub(super) closed_primitive: bool,
     pub(super) operation_v1: Option<OperationV1Plan>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub(super) struct RuntimeFieldTailKey {
+    active_owner: SourceRootId,
+    source_owner: SourceRootId,
+    occurrence: HirOccurrenceId,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub(super) struct RuntimeOperatorUseKey {
+    use_owner: SourceRootId,
+    occurrence: HirOccurrenceId,
+}
+#[derive(Clone)]
+enum RuntimeRootKind {
+    Binding(DefId),
+    LinkedBinding(DefId),
+    Expression(ExpressionRootId),
+    Member(yu_hir::SourceMemberRootId),
+    Operator(ExpressionRootId),
+}
+#[derive(Clone)]
+struct RuntimeSourceRoot {
+    hir: Arc<HirModule>,
+    source_root: SourceRootId,
+    active_owner: SourceRootId,
+    kind: RuntimeRootKind,
 }
 
 /// Source-ordered module demand. Expression labels are accepted only when
@@ -56,6 +83,9 @@ pub enum NameConsumption {
 #[derive(Clone, Debug, Default)]
 pub struct RuntimeEvidence {
     pub name_consumption: HashMap<HirOccurrenceId, NameConsumption>,
+    field_tail_members: HashMap<RuntimeFieldTailKey, yu_hir::SourceMemberRootId>,
+    operator_providers: HashMap<RuntimeOperatorUseKey, ExpressionRootId>,
+    imported_bindings: HashMap<yu_hir::SourceExportId, DefId>,
     operation_v1: Option<OperationV1Link>,
 }
 #[derive(Clone, Debug)]
@@ -155,22 +185,26 @@ pub(super) struct LocalBinding {
     pub initializer: Label,
     pub recursive: bool,
 }
+#[derive(Clone)]
 pub(super) struct CatchArm {
     pub pattern: LocalSourceCatchPattern,
     pub body: Label,
     pub source: yu_syntax::SourceNodeKey,
     pub range: Range<usize>,
 }
+#[derive(Clone)]
 pub(super) struct CaseArm {
     pub pattern: CasePattern,
     pub body: Label,
 }
+#[derive(Clone)]
 pub(super) enum CasePattern {
     Integer(Box<str>),
     Binder(yu_hir::shadow::LocalSourceCatchBinderId),
     Tuple(Vec<Option<yu_hir::shadow::LocalSourceCatchBinderId>>),
     Wildcard,
 }
+#[derive(Clone)]
 pub(super) enum Instruction {
     Unit,
     Integer(Box<str>),
@@ -178,6 +212,15 @@ pub(super) enum Instruction {
     String(Box<str>),
     Primitive(yu_hir::shadow::PinnedPrimitiveOp),
     Tuple { elements: Vec<Label> },
+    FieldTail {
+        receiver: Label,
+        key: RuntimeFieldTailKey,
+    },
+    InfixOperator {
+        left: Label,
+        right: Label,
+        key: RuntimeOperatorUseKey,
+    },
     Name {
         resolution: LocalSourceResolution,
         consumption: NameConsumption,
@@ -215,6 +258,89 @@ pub(super) enum Instruction {
 }
 
 impl RuntimeProgram {
+    /// Build runtime member/operator roots from the same successful candidate
+    /// world that selected their source identities. Runtime value shapes and
+    /// member spellings are never implementation-selection inputs.
+    pub fn from_candidate_world(
+        hir: Arc<HirModule>,
+        hirs: Vec<Arc<HirModule>>,
+        indexes: &[yu_hir::SourceExportIndex],
+        candidate: &CandidateInference,
+    ) -> Result<Arc<Self>, RuntimeUnavailable> {
+        if !candidate.observes_hir(&hir) || !candidate.candidate_conflicts().is_empty()
+            || hirs.iter().any(|module| !candidate.observes_hir(module))
+        {
+            return Err(RuntimeUnavailable::InvalidSourceReference);
+        }
+        let mut evidence = RuntimeEvidence::default();
+        for use_ in candidate.selected_field_tail_uses()
+            .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+        {
+            let key = RuntimeFieldTailKey {
+                active_owner: use_.owner.clone(),
+                source_owner: use_.source_owner.clone(),
+                occurrence: use_.occurrence.clone(),
+            };
+            let source_module = unique_source_module(&hirs, &key.source_owner)?;
+            let source = source_module.local_source_for(&key.source_owner)
+                .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+                .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            if !source.expressions().iter().any(|expression|
+                expression.occurrence == key.occurrence
+                    && matches!(expression.form, LocalSourceForm::FieldTail { .. }))
+            {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            let member_root = use_.member_root.clone();
+            let member_source_root = SourceRootId::Member(member_root.clone());
+            let member_module = unique_source_module(&hirs, &member_source_root)?;
+            let member_source = member_module.local_source_for(&member_source_root)
+                .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+                .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            let Some(header) = member_source.member_header() else {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            };
+            if member_source.root_parameters().len() != 1
+                || member_source.root_parameters()[0].spelling != header.receiver.spelling
+            {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            if evidence.field_tail_members.insert(key.clone(), member_root.clone())
+                .is_some_and(|previous| previous != member_root)
+            {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+        }
+        for use_ in candidate.operator_fresh_uses()
+            .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+        {
+            let key = RuntimeOperatorUseKey {
+                use_owner: use_.use_owner.clone(),
+                occurrence: use_.occurrence.clone(),
+            };
+            let owner_module = unique_source_module(&hirs, &key.use_owner)?;
+            let owner_source = owner_module.local_source_for(&key.use_owner)
+                .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+                .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            if !owner_source.expressions().iter().any(|expression|
+                expression.occurrence == key.occurrence
+                    && matches!(expression.form, LocalSourceForm::InfixOperator { .. }))
+            {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            let provider = use_.provider.clone();
+            let provider_root = SourceRootId::Expression(provider.clone());
+            unique_source_module(&hirs, &provider_root)?;
+            if evidence.operator_providers.insert(key.clone(), provider.clone())
+                .is_some_and(|previous| previous != provider)
+            {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+        }
+        let extra_roots = reachable_runtime_roots(&hir, &hirs, indexes, &mut evidence)?;
+        Self::from_hir_with_roots(hir, evidence, extra_roots)
+    }
+
     /// Carries one successful v1 candidate from this exact HIR into the
     /// research-only runtime. The ordinary inference and execution entries do
     /// not construct this evidence.
@@ -232,6 +358,9 @@ impl RuntimeProgram {
         }
         Ok(RuntimeEvidence {
             name_consumption: HashMap::new(),
+            field_tail_members: HashMap::new(),
+            operator_providers: HashMap::new(),
+            imported_bindings: HashMap::new(),
             operation_v1: Some(OperationV1Link {
                 hir_identity: hir as *const HirModule as usize,
                 field_bound_id: receipt.id,
@@ -269,6 +398,14 @@ impl RuntimeProgram {
         hir: Arc<HirModule>,
         evidence: RuntimeEvidence,
     ) -> Result<Arc<Self>, RuntimeUnavailable> {
+        Self::from_hir_with_roots(hir, evidence, Vec::new())
+    }
+
+    fn from_hir_with_roots(
+        hir: Arc<HirModule>,
+        evidence: RuntimeEvidence,
+        extra_roots: Vec<RuntimeSourceRoot>,
+    ) -> Result<Arc<Self>, RuntimeUnavailable> {
         if evidence.operation_v1.as_ref().is_some_and(|link| {
             link.hir_identity != Arc::as_ptr(&hir) as usize
         }) {
@@ -282,43 +419,20 @@ impl RuntimeProgram {
         let mut source_labels = evidence.operation_v1.as_ref().map(|_| HashMap::new());
         let mut local_initializers = evidence.operation_v1.as_ref().map(|_| HashMap::new());
         let mut local_names_and_applies = evidence.operation_v1.as_ref().map(|_| Vec::new());
-        let declaration_errors = hir
-            .source_effect_declarations()
-            .iter()
-            .flat_map(|declaration| declaration.placeholder_errors.iter().copied())
-            .collect::<HashSet<_>>();
-        let error_kinds = hir
-            .errors()
-            .iter()
-            .map(|error| (error.id(), error.kind()))
-            .collect::<HashMap<_, _>>();
-        for item in hir.items() {
-            let source_root = match item {
-                HirItem::Binding(binding) => {
-                    SourceRootId::Definition(binding.definition_root().clone())
-                }
-                HirItem::Expression(expression) => SourceRootId::Expression(
-                    hir.expression_root(expression.occurrence())
-                        .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
-                        .ok_or(RuntimeUnavailable::MissingSource)?
-                        .clone(),
-                ),
-                HirItem::Error { errors, .. }
-                    if !errors.is_empty()
-                        && errors.iter().all(|error| {
-                            declaration_errors.contains(error)
-                                && error_kinds.get(error) == Some(&HirErrorKind::UnsupportedItem)
-                        }) =>
-                {
-                    continue;
-                }
-                _ => return Err(RuntimeUnavailable::MissingSource),
-            };
-            let source = hir
+        let mut roots = main_runtime_roots(&hir)?;
+        roots.extend(extra_roots);
+        let mut member_bodies = Vec::new();
+        let mut operator_provider_labels = HashMap::new();
+        for root_input in roots {
+            let RuntimeSourceRoot { hir: source_hir, source_root, active_owner, kind } = root_input;
+            let is_main_root = matches!(&kind,
+                RuntimeRootKind::Binding(_) | RuntimeRootKind::Expression(_));
+            let source = source_hir
                 .local_source_for(&source_root)
                 .map_err(|_| RuntimeUnavailable::MissingSource)?
                 .ok_or(RuntimeUnavailable::MissingSource)?;
-            if let Some(local_names_and_applies) = &mut local_names_and_applies {
+            if is_main_root {
+              if let Some(local_names_and_applies) = &mut local_names_and_applies {
                 for expression in source.expressions() {
                     if let LocalSourceForm::Apply { callee, .. } = &expression.form {
                         let Some(callee_expression) = source.expression(callee) else {
@@ -338,6 +452,7 @@ impl RuntimeProgram {
                         }
                     }
                 }
+              }
             }
             let offset = code.len();
             let label = |index: &LocalSourceIndex| -> Result<Label, RuntimeUnavailable> {
@@ -442,7 +557,10 @@ impl RuntimeProgram {
                     }
                 }
             }
-            let roles = source
+            let mut roles = source.root_parameters().iter()
+                .map(|parameter| (parameter.id.clone(), NameConsumption::Observe))
+                .collect::<HashMap<_, _>>();
+            roles.extend(source
                 .expressions()
                 .iter()
                 .filter_map(|expression| {
@@ -462,14 +580,16 @@ impl RuntimeProgram {
                         },
                     ))
                 })
-                .collect::<HashMap<_, _>>();
+                .collect::<HashMap<_, _>>());
             let bindings = source
                 .bindings()
                 .iter()
                 .map(|local| {
                     let initializer = label(&local.initializer)?;
-                    if let Some(local_initializers) = &mut local_initializers {
+                    if is_main_root {
+                      if let Some(local_initializers) = &mut local_initializers {
                         local_initializers.insert(local.id.clone(), initializer);
+                      }
                     }
                     Ok(Arc::new(LocalBinding {
                         id: local.id.clone(),
@@ -487,7 +607,15 @@ impl RuntimeProgram {
                     LocalSourceForm::Boolean(value) => Instruction::Boolean(*value),
                     LocalSourceForm::String(text) => Instruction::String(text.clone()),
                     LocalSourceForm::Name { resolution, .. } => {
-                        let consumption = match resolution {
+                        let resolution = match resolution {
+                            LocalSourceResolution::Imported(export) => {
+                                let id = evidence.imported_bindings.get(export)
+                                    .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                                LocalSourceResolution::ModuleDef(id.clone())
+                            }
+                            other => other.clone(),
+                        };
+                        let consumption = match &resolution {
                             LocalSourceResolution::Parameter(id) => *roles
                                 .get(id)
                                 .ok_or(RuntimeUnavailable::InvalidSourceReference)?,
@@ -501,7 +629,7 @@ impl RuntimeProgram {
                             return Err(RuntimeUnavailable::InvalidSourceReference);
                         }
                         Instruction::Name {
-                            resolution: resolution.clone(),
+                            resolution,
                             consumption,
                         }
                     }
@@ -576,20 +704,22 @@ impl RuntimeProgram {
                             .map(label)
                             .collect::<Result<_, _>>()?,
                     },
-                    LocalSourceForm::FieldTail { .. } => {
-                        return Err(RuntimeUnavailable::UnsupportedFieldTail(SourceSite {
-                            source_root: source_root.clone(),
+                    LocalSourceForm::FieldTail { receiver, .. } => Instruction::FieldTail {
+                        receiver: label(receiver)?,
+                        key: RuntimeFieldTailKey {
+                            active_owner: active_owner.clone(),
+                            source_owner: source_root.clone(),
                             occurrence: expression.occurrence.clone(),
-                            range: expression.range.clone(),
-                        }));
-                    }
-                    LocalSourceForm::InfixOperator { .. } => {
-                        return Err(RuntimeUnavailable::UnsupportedInfixOperator(SourceSite {
-                            source_root: source_root.clone(),
+                        },
+                    },
+                    LocalSourceForm::InfixOperator { left, right, .. } => Instruction::InfixOperator {
+                        left: label(left)?,
+                        right: label(right)?,
+                        key: RuntimeOperatorUseKey {
+                            use_owner: active_owner.clone(),
                             occurrence: expression.occurrence.clone(),
-                            range: expression.range.clone(),
-                        }));
-                    }
+                        },
+                    },
                     LocalSourceForm::Case { scrutinee, arms } => Instruction::Case {
                         scrutinee: label(scrutinee)?,
                         arms: arms.iter().map(|arm| {
@@ -644,8 +774,10 @@ impl RuntimeProgram {
                             .cloned()
                             .unwrap_or_else(|| expression.range.clone()),
                     };
-                if let Some(source_labels) = &mut source_labels {
+                if is_main_root {
+                  if let Some(source_labels) = &mut source_labels {
                     source_labels.insert(expression.occurrence.clone(), Label(code.len()));
+                  }
                 }
                 code.push(Arc::new(Code {
                     site,
@@ -653,12 +785,12 @@ impl RuntimeProgram {
                 }));
             }
             let body = label(source.body())?;
-            match item {
-                HirItem::Binding(binding) => {
+            match kind {
+                RuntimeRootKind::Binding(id) => {
                     let index = definitions.len();
-                    definition_indices.insert(binding.id().clone(), index);
+                    definition_indices.insert(id.clone(), index);
                     definitions.push(Definition {
-                        id: binding.id().clone(),
+                        id: id.clone(),
                         body,
                     });
                     // Preserve the existing source fetch classifier. Expression
@@ -683,20 +815,107 @@ impl RuntimeProgram {
                         }
                     };
                     if computation {
-                        source_schedule.push(ExecutionRoot::Definition(binding.id().clone()));
+                        source_schedule.push(ExecutionRoot::Definition(id));
                     }
                 }
-                HirItem::Expression(_) => {
-                    let SourceRootId::Expression(root) = source_root else {
-                        unreachable!()
-                    };
+                RuntimeRootKind::LinkedBinding(id) => {
+                    let index = definitions.len();
+                    definition_indices.insert(id.clone(), index);
+                    definitions.push(Definition { id, body });
+                }
+                RuntimeRootKind::Expression(root) => {
                     expression_roots.insert(root.clone(), body);
                     source_schedule.push(ExecutionRoot::Expression(ExpressionExecutionRoot {
                         root,
                         code: body.0,
                     }));
                 }
-                HirItem::Error { .. } => unreachable!(),
+                RuntimeRootKind::Member(member_root) => {
+                    let [receiver] = source.root_parameters() else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    member_bodies.try_reserve(1)
+                        .map_err(|_| RuntimeUnavailable::IdentityExhausted)?;
+                    member_bodies.push((
+                        member_root,
+                        receiver.clone(),
+                        body,
+                        code.get(body.0).ok_or(RuntimeUnavailable::InvalidSourceReference)?.site.clone(),
+                    ));
+                }
+                RuntimeRootKind::Operator(provider) => {
+                    let key = (active_owner, provider);
+                    if operator_provider_labels.insert(key, body).is_some() {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
+                }
+            }
+        }
+        let mut member_templates = HashMap::new();
+        for (member_root, receiver, body, site) in member_bodies {
+            let label = Label(code.len());
+            let role = if receiver.annotation.as_ref()
+                .is_some_and(|annotation| annotation.ty.effects.is_some())
+            {
+                ParameterRole::Computation
+            } else {
+                ParameterRole::Value
+            };
+            let root_schema = super::receiving::RootCompSchema::from_parameter(&site, &receiver);
+            code.push(Arc::new(Code {
+                site,
+                instruction: Instruction::Lambda {
+                    parameter: receiver.id,
+                    role,
+                    root_schema,
+                    body,
+                },
+            }));
+            if member_templates.insert(member_root, label).is_some() {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+        }
+        let original_code_len = code.len();
+        for index in 0..original_code_len {
+            let site = code[index].site.clone();
+            match code[index].instruction.clone() {
+                Instruction::FieldTail { receiver, key } => {
+                    let Some(member_root) = evidence.field_tail_members.get(&key) else {
+                        return Err(RuntimeUnavailable::UnsupportedFieldTail(site));
+                    };
+                    let Some(callee) = member_templates.get(member_root).copied() else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    let argument = receiver;
+                    let call = Label(code.len());
+                    code.push(Arc::new(Code {
+                        site: site.clone(),
+                        instruction: Instruction::Apply { callee, argument },
+                    }));
+                    code[index] = Arc::new(Code { site, instruction: Instruction::Forward(call) });
+                }
+                Instruction::InfixOperator { left, right, key } => {
+                    let Some(provider) = evidence.operator_providers.get(&key) else {
+                        return Err(RuntimeUnavailable::UnsupportedInfixOperator(site));
+                    };
+                    let Some(callee) = operator_provider_labels
+                        .get(&(key.use_owner.clone(), provider.clone())).copied()
+                    else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    let first = Label(code.len());
+                    code.push(Arc::new(Code {
+                        site: site.clone(),
+                        instruction: Instruction::Apply { callee, argument: left },
+                    }));
+                    let second = Label(code.len());
+                    code.push(Arc::new(Code {
+                        site: site.clone(),
+                        instruction: Instruction::Apply { callee: first, argument: right },
+                    }));
+                    code[index] = Arc::new(Code { site, instruction: Instruction::Forward(second) });
+                }
+                _ => {}
             }
         }
         let operation_v1 = evidence.operation_v1.map(|link| {
@@ -834,6 +1053,204 @@ impl RuntimeProgram {
         program.closed_primitive = super::primitive::closed_primitive(&program);
         Ok(Arc::new(program))
     }
+}
+
+fn unique_source_module(
+    hirs: &[Arc<HirModule>],
+    root: &SourceRootId,
+) -> Result<Arc<HirModule>, RuntimeUnavailable> {
+    let mut matches = hirs.iter().filter(|hir|
+        hir.local_source_for(root).is_ok_and(|source| source.is_some())
+    );
+    let module = matches.next().cloned().ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+    if matches.next().is_some() {
+        return Err(RuntimeUnavailable::InvalidSourceReference);
+    }
+    Ok(module)
+}
+
+fn main_runtime_roots(hir: &Arc<HirModule>) -> Result<Vec<RuntimeSourceRoot>, RuntimeUnavailable> {
+    let declaration_errors = hir.source_effect_declarations().iter()
+        .flat_map(|declaration| declaration.placeholder_errors.iter().copied())
+        .collect::<HashSet<_>>();
+    let error_kinds = hir.errors().iter()
+        .map(|error| (error.id(), error.kind()))
+        .collect::<HashMap<_, _>>();
+    let mut roots = Vec::new();
+    for item in hir.items() {
+        let (source_root, kind) = match item {
+            HirItem::Binding(binding) => (
+                SourceRootId::Definition(binding.definition_root().clone()),
+                RuntimeRootKind::Binding(binding.id().clone()),
+            ),
+            HirItem::Expression(expression) => {
+                let root = hir.expression_root(expression.occurrence())
+                    .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+                    .ok_or(RuntimeUnavailable::MissingSource)?.clone();
+                (SourceRootId::Expression(root.clone()), RuntimeRootKind::Expression(root))
+            }
+            HirItem::Error { errors, .. }
+                if !errors.is_empty() && errors.iter().all(|error|
+                    declaration_errors.contains(error)
+                        && error_kinds.get(error) == Some(&HirErrorKind::UnsupportedItem)
+                ) => continue,
+            _ => return Err(RuntimeUnavailable::MissingSource),
+        };
+        roots.try_reserve(1).map_err(|_| RuntimeUnavailable::IdentityExhausted)?;
+        roots.push(RuntimeSourceRoot {
+            hir: hir.clone(),
+            active_owner: source_root.clone(),
+            source_root,
+            kind,
+        });
+    }
+    Ok(roots)
+}
+
+fn reachable_runtime_roots(
+    hir: &Arc<HirModule>,
+    hirs: &[Arc<HirModule>],
+    indexes: &[yu_hir::SourceExportIndex],
+    evidence: &mut RuntimeEvidence,
+) -> Result<Vec<RuntimeSourceRoot>, RuntimeUnavailable> {
+    let mut pending = VecDeque::from(main_runtime_roots(hir)?);
+    let mut seen = HashSet::<(SourceRootId, SourceRootId, u8)>::new();
+    let mut extras = Vec::new();
+    while let Some(root) = pending.pop_front() {
+        let kind_tag = match &root.kind {
+            RuntimeRootKind::Binding(_) | RuntimeRootKind::Expression(_) => 0,
+            RuntimeRootKind::Member(_) => 1,
+            RuntimeRootKind::Operator(_) => 2,
+            RuntimeRootKind::LinkedBinding(_) => 3,
+        };
+        if !seen.insert((root.source_root.clone(), root.active_owner.clone(), kind_tag)) {
+            continue;
+        }
+        let is_main = kind_tag == 0;
+        let source = root.hir.local_source_for(&root.source_root)
+            .map_err(|_| RuntimeUnavailable::MissingSource)?
+            .ok_or(RuntimeUnavailable::MissingSource)?;
+        if !is_main {
+            extras.try_reserve(1).map_err(|_| RuntimeUnavailable::IdentityExhausted)?;
+            extras.push(root.clone());
+        }
+        for expression in source.expressions() {
+            match &expression.form {
+                LocalSourceForm::FieldTail { member, .. } => {
+                    let key = RuntimeFieldTailKey {
+                        active_owner: root.active_owner.clone(),
+                        source_owner: root.source_root.clone(),
+                        occurrence: expression.occurrence.clone(),
+                    };
+                    let Some(member_root) = evidence.field_tail_members.get(&key) else {
+                        return Err(RuntimeUnavailable::UnsupportedFieldTail(SourceSite {
+                            source_root: root.source_root.clone(),
+                            occurrence: expression.occurrence.clone(),
+                            range: expression.range.clone(),
+                        }));
+                    };
+                    let member_source_root = SourceRootId::Member(member_root.clone());
+                    let member_module = unique_source_module(hirs, &member_source_root)?;
+                    let member_source = member_module.local_source_for(&member_source_root)
+                        .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    let Some(header) = member_source.member_header() else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    if header.method.spelling.as_ref() != member.as_ref()
+                        || member_source.root_parameters().len() != 1
+                    {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
+                    pending.push_back(RuntimeSourceRoot {
+                        hir: member_module,
+                        source_root: member_source_root.clone(),
+                        active_owner: member_source_root,
+                        kind: RuntimeRootKind::Member(member_root.clone()),
+                    });
+                }
+                LocalSourceForm::InfixOperator { .. } => {
+                    let key = RuntimeOperatorUseKey {
+                        use_owner: root.active_owner.clone(),
+                        occurrence: expression.occurrence.clone(),
+                    };
+                    let Some(provider) = evidence.operator_providers.get(&key) else {
+                        return Err(RuntimeUnavailable::UnsupportedInfixOperator(SourceSite {
+                            source_root: root.source_root.clone(),
+                            occurrence: expression.occurrence.clone(),
+                            range: expression.range.clone(),
+                        }));
+                    };
+                    let provider_root = SourceRootId::Expression(provider.clone());
+                    let provider_module = unique_source_module(hirs, &provider_root)?;
+                    pending.push_back(RuntimeSourceRoot {
+                        hir: provider_module,
+                        source_root: provider_root,
+                        active_owner: root.active_owner.clone(),
+                        kind: RuntimeRootKind::Operator(provider.clone()),
+                    });
+                }
+                LocalSourceForm::Name {
+                    resolution: LocalSourceResolution::Imported(export),
+                    ..
+                } => {
+                    let resolution = yu_hir::resolve_public_export(
+                        indexes,
+                        &export.module,
+                        &export.name,
+                    ).map_err(|_| RuntimeUnavailable::InvalidSourceReference)?;
+                    if resolution.identity() != *export {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
+                    let yu_hir::shadow::SourceExportOwner::Binding { module, binding } =
+                        yu_hir::shadow::resolve_source_export_owner(hirs, &[], &resolution)
+                            .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+                    else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    let source_root = SourceRootId::Definition(binding.definition_root().clone());
+                    if evidence.imported_bindings.insert(export.clone(), binding.id().clone())
+                        .is_some_and(|previous| previous != *binding.id())
+                    {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
+                    pending.push_back(RuntimeSourceRoot {
+                        hir: Arc::new(module.clone()),
+                        source_root: source_root.clone(),
+                        active_owner: source_root,
+                        kind: RuntimeRootKind::LinkedBinding(binding.id().clone()),
+                    });
+                }
+                LocalSourceForm::Name {
+                    resolution: LocalSourceResolution::ModuleDef(definition),
+                    ..
+                } => {
+                    let mut found = None;
+                    for module in hirs {
+                        for item in module.items() {
+                            let HirItem::Binding(binding) = item else { continue };
+                            if binding.id() != definition { continue }
+                            if found.replace((module.clone(), binding)).is_some() {
+                                return Err(RuntimeUnavailable::InvalidSourceReference);
+                            }
+                        }
+                    }
+                    let Some((module, binding)) = found else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    let source_root = SourceRootId::Definition(binding.definition_root().clone());
+                    pending.push_back(RuntimeSourceRoot {
+                        hir: module,
+                        source_root: source_root.clone(),
+                        active_owner: source_root,
+                        kind: RuntimeRootKind::LinkedBinding(binding.id().clone()),
+                    });
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(extras)
 }
 
 fn operation_v1_local_lineage(
@@ -1052,6 +1469,11 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
             }
             Instruction::Sequence { items } => stack.extend(items.iter().rev().copied()),
             Instruction::Tuple { elements } => stack.extend(elements.iter().rev().copied()),
+            Instruction::FieldTail { receiver, .. } => stack.push(*receiver),
+            Instruction::InfixOperator { left, right, .. } => {
+                stack.push(*right);
+                stack.push(*left);
+            }
             Instruction::Catch { scrutinee, arms } => {
                 stack.push(*scrutinee);
                 stack.extend(arms.iter().map(|arm| arm.body));
