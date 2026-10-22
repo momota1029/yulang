@@ -1019,7 +1019,10 @@ fn pinned_candidate_world(
     if let Ok(readbacks) = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
         modules.clone(), indexes, role_indexes,
     ) {
-        for member in pinned_applicable_member_projection(&readbacks, sources, indexes, role_indexes)? {
+        let consumer_uses_plus = source_uses_plus(hir)?;
+        for member in pinned_applicable_member_projection(
+            &readbacks, sources, indexes, role_indexes, consumer_uses_plus,
+        )? {
             for dependency in pinned_provider_projection_inner(
                 &member, sources, indexes, role_indexes, false,
             )? {
@@ -1048,6 +1051,29 @@ fn pinned_candidate_world(
         }
     }
     Ok(modules)
+}
+
+fn source_uses_plus(hir: &HirModule) -> Result<bool, String> {
+    use yu_hir::shadow::LocalSourceForm;
+    for item in hir.items() {
+        let source = match item {
+            HirItem::Binding(binding) => hir.local_source(binding.definition_root())
+                .map_err(|error| format!("operator source lookup unavailable: {error:?}"))?,
+            HirItem::Expression(expression) => hir.expression_root(expression.occurrence())
+                .map_err(|error| format!("operator expression root unavailable: {error:?}"))?
+                .cloned()
+                .map(|root| hir.local_source_for(&SourceRootId::Expression(root)))
+                .transpose()
+                .map_err(|error| format!("operator expression source unavailable: {error:?}"))?
+                .flatten(),
+            HirItem::Error { .. } => None,
+        };
+        if source.is_some_and(|source| source.expressions().iter().any(|expression|
+            matches!(&expression.form, LocalSourceForm::InfixOperator { operator, .. }
+                if operator.spelling() == "+")
+        )) { return Ok(true); }
+    }
+    Ok(false)
 }
 
 fn pinned_exact_implementation_member_projection(
@@ -1119,6 +1145,7 @@ fn pinned_applicable_member_projection(
     sources: &[PinnedProviderSource],
     indexes: &[yu_hir::SourceExportIndex],
     role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+    include_direct_add: bool,
 ) -> Result<Vec<Arc<HirModule>>, String> {
     use std::collections::{HashMap, HashSet};
     use yu_hir::shadow::SourceImplementationTypeShape as Shape;
@@ -1200,6 +1227,58 @@ fn pinned_applicable_member_projection(
                 else { continue; };
                 if let Some(member) = prerequisite.member.as_ref() {
                     retain_exact_member(member)?;
+                }
+            }
+        }
+    }
+
+    // Operator implementations can be selected before solving when the
+    // receiver shape, complete inventory, and prerequisite readbacks identify
+    // one exact implementation. This projects the Add member that determines
+    // the operator result shape consumed by the caller's FreshUse.
+    for receiver in readbacks.receivers.iter().filter(|receiver|
+        include_direct_add && receiver.member.as_ref() == "add"
+    ) {
+        if !receiver.implementation_inventory_complete
+            || receiver.unsupported_target_count != 0
+            || !receiver.positive_frontier_complete
+            || !receiver.negative_frontier_empty
+        { continue; }
+        let Some(positive_shape) = receiver.positive_shape.as_ref() else { continue; };
+        let actual = shape(positive_shape);
+        let applicable = receiver.target_matches.iter().filter(|target|
+            target.target.match_target(&actual).is_some()
+                && prerequisites_are_exact(target)
+        ).collect::<Vec<_>>();
+        let [target] = applicable.as_slice() else { continue; };
+        for role_member in &receiver.role_member_candidates {
+            let inventory = yu_hir::shadow::resolve_source_role_implementation_candidates(
+                &role_member.role, indexes, role_indexes,
+            ).map_err(|error| format!("selected Add inventory unavailable: {error:?}"))?;
+            let members = yu_hir::shadow::resolve_source_role_implementation_members(
+                role_member, &inventory, role_indexes,
+            ).map_err(|error| format!("selected Add member inventory unavailable: {error:?}"))?;
+            let Some(selected_member) = members.implementations.iter()
+                .find(|candidate| candidate.implementation == target.implementation)
+            else { continue; };
+            if let Some(member) = selected_member.member.as_ref() {
+                let source_index = sources.iter().position(|(identity, parsed)|
+                    identity.module() == member.implementation.module.as_ref()
+                        && parsed.owns_source_key(&member.declaration)
+                ).ok_or_else(|| format!("exact Add member has no owning ParsedFile: {member:?}"))?;
+                selected.entry(source_index).or_default().insert(member.declaration.clone());
+            }
+            for clause in &target.where_clause_readbacks {
+                let Some(implementation) = clause.matching_implementations.first() else { continue; };
+                let Some(prerequisite) = members.implementations.iter()
+                    .find(|candidate| &candidate.implementation == implementation)
+                else { continue; };
+                if let Some(member) = prerequisite.member.as_ref() {
+                    let source_index = sources.iter().position(|(identity, parsed)|
+                        identity.module() == member.implementation.module.as_ref()
+                            && parsed.owns_source_key(&member.declaration)
+                    ).ok_or_else(|| format!("exact Add prerequisite has no owning ParsedFile: {member:?}"))?;
+                    selected.entry(source_index).or_default().insert(member.declaration.clone());
                 }
             }
         }
@@ -1600,12 +1679,34 @@ mod tests {
     }
 
     #[test]
-    fn unchanged_console_sample_resolves_sources_and_reaches_fieldtail_selection() {
+    fn unchanged_console_sample_projects_add_but_keeps_display_selection_deferred() {
         let source = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
         assert_eq!(source.len(), 92);
+        let (sources, indexes, role_indexes) = pinned_source_world().unwrap();
+        let text: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)),
+            Arc::new(playground_syntax_environment().unwrap()));
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "inference-playground", "samples/Console.yu",
+        )));
+        let imports = SemanticImports::with_source_imports_and_role_indexes(
+            &parsed, &identity, &indexes, &role_indexes,
+        ).unwrap();
+        let hir = Arc::new(lower_module_with_local_source(identity, &parsed, imports).unwrap());
+        let modules = pinned_candidate_world(&hir, &sources, &indexes, &role_indexes).unwrap();
+        let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
+            modules.clone(), &indexes, &role_indexes,
+        ).unwrap();
+        assert!(!readbacks.receivers.iter().any(|receiver|
+            receiver.member.as_ref() == "add"
+                && receiver.positive_shape == Some(yu_solver::shadow_apply::CandidateReceiverShape::Int)
+        ), "the exact int:Add FieldTail must be discharged after its member projection");
+        assert!(readbacks.receivers.iter().any(|receiver|
+            receiver.member.as_ref() == "show" && receiver.positive_shape.is_none()
+        ), "the consumer Display receiver remains unshaped after Add selection");
         let error = match prepare(source, "samples/Console.yu", false) {
             Err(error) => error,
-            Ok(_) => panic!("Console still requires selected Display and Add implementations"),
+            Ok(_) => panic!("Console remains deferred until the Display receiver is shaped"),
         };
         assert_eq!(error, "candidate inference unavailable: Solve(DeferredSelectionUnavailable)");
     }

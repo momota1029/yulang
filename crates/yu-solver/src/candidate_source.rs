@@ -2663,4 +2663,32 @@ mod member_source_tests {
             ]),
         ), "all source schedules drain before ordered receiver bounds are read back");
     }
+
+    #[test]
+    fn generic_definition_fieldtail_receives_concrete_apply_argument() {
+        let source: Arc<yu_syntax::SourceText> = Arc::from(
+            "role Echo:\n    our receiver.echo = receiver\nimpl int: Echo:\n    our value.echo = value\nmy apply x = x.echo\napply 1",
+        );
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
+                "generic-fieldtail-apply", "generic.yu",
+            ))),
+            &parsed,
+            yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let batch = ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap();
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        let result = session.execute();
+        let readbacks = session.candidate_field_tail_receiver_readbacks().unwrap();
+        assert!(result.is_ok(), "generic application should finish after FieldTail dispatch: {result:?}");
+        assert!(readbacks.iter().any(|readback|
+            readback.member.as_ref() == "echo"
+                && readback.positive_shape == Some(crate::shadow_apply::CandidateReceiverShape::Int)
+        ), "the concrete actual argument must reach the generic definition's FieldTail receiver");
+    }
 }

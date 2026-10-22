@@ -466,6 +466,7 @@ impl RetainedFreshUseMaps {
             bytes::<(candidate_context::ContextId, candidate_context::ContextId)>(self.context_remap.capacity())?,
             bytes::<candidate_context::EvidenceSnapshotId>(self.evidence_remap.capacity())?,
             bytes::<(usize, usize)>(self.source_role_obligation_rows.capacity())?,
+            bytes::<(usize, [usize; 4])>(self.source_field_tail_obligation_rows.capacity())?,
             #[cfg(test)]
             bytes::<ReconstructedRowObservation>(self.row_observations.capacity())?,
         ])
@@ -2558,12 +2559,11 @@ impl InferenceSession {
             operator_uses.try_reserve_exact(state.operator_uses.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
             for operator_use in &state.operator_uses {
                 if !matches!(operator_use.use_owner, SourceRootId::Expression(_)) { continue; }
-                operator_uses.push((operator_use.use_owner.clone(), operator_use.occurrence.clone(),
-                    operator_use.provider.clone(),
+                operator_uses.push((operator_use.provider.clone(),
                     operator_use.fresh.source_field_tail_obligation_rows.clone(),
                     operator_use.fresh.rows.clone()));
             }
-            for (use_owner, use_occurrence, provider, obligations, rows) in operator_uses {
+            for (provider, obligations, rows) in operator_uses {
                 let graph = state.operator_graphs.get(&provider)
                     .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 for (obligation_index, row_indexes) in obligations {
@@ -2584,18 +2584,6 @@ impl InferenceSession {
             }
             state.source_field_tail_obligations.clear();
             state.refresh_bytes()?;
-        }
-
-        #[cfg(debug_assertions)]
-        for item in &pending {
-            let (shape, frontier) = match item.obligation.receiver_row {
-                RowKey::Value(row) => (self.candidate_receiver_positive_shape(row),
-                    self.bounds.get(row as usize).map(|bounds|
-                        (&bounds.direct_lower_rows, &bounds.exact_non_variable_lowers,
-                            &bounds.direct_upper_rows, &bounds.exact_non_variable_uppers))),
-                RowKey::Effect(_) => (None, None),
-            };
-
         }
 
         loop {
@@ -2932,7 +2920,7 @@ impl InferenceSession {
     ) -> Result<usize, SolveAvailabilityError> {
         let target = record.target.ordinal() as usize;
 
-        let (root, boundary, mut source_frontier, obligations, mut field_tails) = {
+        let (root, boundary, source_frontier, obligations, mut field_tails) = {
             let stored = self.candidate_graph.as_ref()
                 .and_then(|state| state.graphs.get(target)).and_then(Option::as_ref)
                 .ok_or_else(exhausted)?;

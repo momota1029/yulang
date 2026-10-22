@@ -328,7 +328,7 @@ fn resolve_source_imports_selected(
 }
 
 #[cfg(any(feature = "shadow", test))]
-fn selected_direct_root_names(
+fn selected_source_names(
     parsed: &ParsedFile,
     selected_roots: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
 ) -> Result<std::collections::BTreeSet<Box<str>>, HirAvailabilityError> {
@@ -339,10 +339,8 @@ fn selected_direct_root_names(
     let root = SyntaxNode::new_root(parsed.green().clone());
     let mut found = std::collections::HashSet::new();
     let mut names = std::collections::BTreeSet::new();
-    for node in root.children() {
-        let Some(key) = source_nodes.get(&node) else {
-            return Err(HirAvailabilityError::StructuralProjection);
-        };
+    for node in root.descendants() {
+        let Some(key) = source_nodes.get(&node) else { continue; };
         if !selected_roots.contains(key) { continue; }
         found.insert(key.clone());
         for occurrence in node.descendants().filter(|child| child.kind() == SyntaxKind::IdentifierExpression) {
@@ -473,7 +471,7 @@ fn selected_member_operation_paths(
                     continue;
                 }
                 if imported_names.is_none() {
-                    let selected_names = selected_direct_root_names(parsed, selected_members)?;
+                    let selected_names = selected_source_names(parsed, selected_members)?;
                     let (_, names) = resolve_source_imports_selected(
                         parsed, identity, indexes, Some(&selected_names),
                     )?;
@@ -698,7 +696,7 @@ impl SemanticImports {
         indexes: &[source_exports::SourceExportIndex],
         selected_roots: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
     ) -> Result<Self, HirAvailabilityError> {
-        let selected_names = selected_direct_root_names(parsed, selected_roots)?;
+        let selected_names = selected_source_names(parsed, selected_roots)?;
         let (parse_root, names) = resolve_source_imports_selected(parsed, identity, indexes, Some(&selected_names))?;
         Ok(Self { caller_evidence: None, source_imports: Some(source_import_environment(
             parsed, identity, parse_root, names, indexes,
@@ -714,7 +712,7 @@ impl SemanticImports {
         selected_roots: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
         role_indexes: &[crate::shadow::SourceRoleImplIndex],
     ) -> Result<Self, HirAvailabilityError> {
-        let selected_names = selected_direct_root_names(parsed, selected_roots)?;
+        let selected_names = selected_source_names(parsed, selected_roots)?;
         let (parse_root, names) = resolve_source_imports_selected(parsed, identity, indexes, Some(&selected_names))?;
         let mut source_imports = source_import_environment(parsed, identity, parse_root, names, indexes)?;
         retain_authenticated_role_imports(&mut source_imports, role_indexes)?;
@@ -742,7 +740,9 @@ impl SemanticImports {
         )?;
         imports.retain_operation_paths(operation_paths);
         retain_authenticated_role_imports(&mut imports, role_indexes)?;
-        retain_implicit_prelude_role_ids(&mut imports, parsed, identity, indexes, role_indexes)?;
+        retain_implicit_prelude_role_ids(
+            &mut imports, parsed, identity, indexes, role_indexes, selected_members,
+        )?;
         Ok(Self { caller_evidence: None, source_imports: Some(imports) })
     }
 
@@ -840,9 +840,13 @@ fn retain_implicit_prelude_role_ids(
     identity: &ModuleIdentity,
     indexes: &[source_exports::SourceExportIndex],
     role_indexes: &[crate::shadow::SourceRoleImplIndex],
+    selected_members: &std::collections::HashSet<yu_syntax::SourceNodeKey>,
 ) -> Result<(), HirAvailabilityError> {
     use source_exports::SourceImportBinding;
-    let (parse_root, names) = resolve_implicit_prelude_imports(parsed, identity, indexes)?;
+    let selected_names = selected_source_names(parsed, selected_members)?;
+    let (parse_root, names) = resolve_implicit_prelude_imports_selected(
+        parsed, identity, indexes, Some(&selected_names),
+    )?;
     let mut implicit = source_import_environment(parsed, identity, parse_root, names, indexes)?;
     retain_authenticated_role_imports(&mut implicit, role_indexes)?;
 

@@ -1,6 +1,7 @@
 use std::{
     fs::File,
     io::{self, IsTerminal},
+    path::{Component, Path},
     process::ExitCode,
 };
 
@@ -74,21 +75,57 @@ fn run() -> Result<(), String> {
         None | Some("-") => yu_playground::read_source(stdin.lock())?,
         Some(path) => yu_playground::read_source(
             File::open(path).map_err(|error| format!("cannot open {path}: {error}"))?,
-        )?,
+    )?,
     };
     let name = match path.as_deref() {
-        None | Some("-") => "stdin.yu",
-        Some(path) => path,
+        None | Some("-") => "stdin.yu".to_owned(),
+        Some(path) => source_identity_name(path)?,
     };
     let output = if let Some(definition) = definition {
-        yu_playground::execute(&source, name, &definition, steps.unwrap_or(100_000), scoped)?
+        yu_playground::execute(&source, &name, &definition, steps.unwrap_or(100_000), scoped)?
     } else if run_module {
-        yu_playground::execute_module(&source, name, steps.unwrap_or(100_000), scoped)?
+        yu_playground::execute_module(&source, &name, steps.unwrap_or(100_000), scoped)?
     } else {
-        yu_playground::infer_with_scoped_experiment(&source, name, intrusion, scoped)?
+        yu_playground::infer_with_scoped_experiment(&source, &name, intrusion, scoped)?
     };
     print!("{output}");
     Ok(())
+}
+
+fn source_identity_name(path: &str) -> Result<String, String> {
+    let absolute = Path::new(path).canonicalize()
+        .map_err(|error| format!("cannot normalize source path {path}: {error}"))?;
+    let mut roots = Vec::new();
+    if let Ok(root) = std::env::current_dir().and_then(|root| root.canonicalize()) {
+        roots.push(root);
+    }
+    if let Ok(root) = Path::new(env!("CARGO_MANIFEST_DIR")).canonicalize() {
+        if !roots.contains(&root) { roots.push(root); }
+    }
+    for root in roots {
+        if let Ok(relative) = absolute.strip_prefix(root) {
+            return Ok(normalize_components(relative)?);
+        }
+    }
+    let external = absolute.strip_prefix(Path::new("/")).unwrap_or(&absolute);
+    Ok(format!("external/{}", normalize_components(external)?))
+}
+
+fn normalize_components(path: &Path) -> Result<String, String> {
+    let mut parts = Vec::new();
+    for component in path.components() {
+        match component {
+            Component::Normal(part) => parts.push(part.to_string_lossy().into_owned()),
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err(format!("source identity path is not normalized: {}", path.display()));
+            }
+        }
+    }
+    if parts.is_empty() {
+        return Err("source identity path is empty".to_owned());
+    }
+    Ok(parts.join("/"))
 }
 
 fn main() -> ExitCode {

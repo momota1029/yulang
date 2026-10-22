@@ -169,7 +169,7 @@ fn conditional_conflicts_withhold_all_cli_observations() {
     assert!(!result.status.success());
     assert!(result.stdout.is_empty());
     let error = String::from_utf8(result.stderr).unwrap();
-    assert!(error.contains("candidate type conflicts"));
+    assert!(error.contains("candidate type conflicts"), "unexpected --intrusion stderr: {error}");
     assert!(!error.contains("Retained intrusion state"));
 }
 
