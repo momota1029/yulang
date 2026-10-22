@@ -2686,9 +2686,9 @@ impl InferenceSession {
         Ok(())
     }
 
-    /// Resolve active FieldTail obligations only after source schedules have
-    /// contributed their receiver bounds. Every selected body is instantiated
-    /// once, and its nested obligations reuse the same FreshUse row map.
+    /// Propagate active and captured-definition FieldTail constraints after
+    /// source schedules contribute receiver bounds. Every selected body uses
+    /// one FreshUse map; unresolved templates remain in their definition graph.
     pub(super) fn execute_candidate_field_tails(
         &mut self,
         mut selected_readbacks: Option<&mut Vec<crate::shadow_apply::CandidateFieldTailReceiverReadback>>,
@@ -2697,6 +2697,9 @@ impl InferenceSession {
         struct Pending {
             obligation: SourceFieldTailObligation,
             ancestry: Vec<yu_hir::SourceMemberRootId>,
+            /// Every definition graph sharing this exact template descriptor.
+            /// Empty means an active instance must discharge before publication.
+            template_owners: Vec<usize>,
         }
         let mut role_frontier_snapshots = Vec::<(
             u32, u32, shadow_apply::CandidateReceiverShape,
@@ -2712,7 +2715,41 @@ impl InferenceSession {
             pending.try_reserve_exact(count).map_err(|_| exhausted())?;
             for obligations in state.source_field_tail_obligations.values() {
                 for obligation in clone_field_tail_obligations(obligations)? {
-                    pending.push(Pending { obligation, ancestry: Vec::new() });
+                    pending.push(Pending { obligation, ancestry: Vec::new(), template_owners: Vec::new() });
+                }
+            }
+            // Capturing a reusable definition does not stop constraint
+            // propagation. Concrete receiver evidence in that graph can
+            // select a member even if the definition has no later Name use.
+            let key = |obligation: &SourceFieldTailObligation| (
+                obligation.source_owner.clone(), obligation.occurrence.clone(),
+                [obligation.receiver_row, obligation.receiver_effect,
+                    obligation.result_row, obligation.result_effect]
+                    .map(|row| state.intrusion.rep(row)),
+            );
+            let template_count = state.graphs.iter().flatten().try_fold(count, |total, graph|
+                total.checked_add(graph.source_field_tail_obligations.len()).ok_or_else(exhausted))?;
+            let mut seen = HashMap::new();
+            seen.try_reserve(template_count).map_err(|_| exhausted())?;
+            for (index, item) in pending.iter().enumerate() { seen.insert(key(&item.obligation), index); }
+            for (position, graph) in state.graphs.iter().enumerate() {
+                let Some(graph) = graph else { continue; };
+                let owner = SourceRootId::Definition(self.batch.definitions.get(position)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?.root.clone());
+                for mut obligation in clone_field_tail_obligations(&graph.source_field_tail_obligations)? {
+                    let identity = key(&obligation);
+                    if let Some(&index) = seen.get(&identity) {
+                        let owners = &mut pending[index].template_owners;
+                        // Active work takes precedence. A dormant shared row
+                        // must retain every definition that captures it.
+                        if !owners.is_empty() && !owners.contains(&position) { push(owners, position)?; }
+                        continue;
+                    }
+                    seen.insert(identity, pending.len());
+                    obligation.owner = owner.clone();
+                    let mut template_owners = Vec::new();
+                    push(&mut template_owners, position)?;
+                    push(&mut pending, Pending { obligation, ancestry: Vec::new(), template_owners })?;
                 }
             }
             state.source_field_tail_obligations.clear();
@@ -2803,7 +2840,10 @@ impl InferenceSession {
                     .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 let member_root = schedule.root.clone();
                 if item.ancestry.contains(&member_root) {
-
+                    if !item.template_owners.is_empty() {
+                        push(&mut deferred, item)?;
+                        continue;
+                    }
                     // Recursive member dispatch needs a recursive candidate scheme;
                     // this path stays deferred until that construction is present.
                     return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
@@ -2907,12 +2947,13 @@ impl InferenceSession {
                         .ok_or(SolveAvailabilityError::ReceiptMismatch));
                     let [receiver_row, receiver_effect, result_row, result_effect] = mapped;
                     let mut nested = nested.clone();
+                    if !item.template_owners.is_empty() { nested.owner = item.obligation.owner.clone(); }
                     nested.receiver_row = state.intrusion.rep(receiver_row?);
                     nested.receiver_effect = state.intrusion.rep(receiver_effect?);
                     nested.result_row = state.intrusion.rep(result_row?);
                     nested.result_effect = state.intrusion.rep(result_effect?);
                     pending.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                    pending.push(Pending { obligation: nested, ancestry: next_ancestry.clone() });
+                    pending.push(Pending { obligation: nested, ancestry: next_ancestry.clone(), template_owners: item.template_owners.clone() });
                 }
                 let fresh_bytes = fresh.bytes()?;
                 state.scratch_bytes = state.scratch_bytes.checked_sub(fresh_bytes)
@@ -2930,7 +2971,7 @@ impl InferenceSession {
                 state.refresh_bytes()?;
                 self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
             }
-            if deferred.is_empty() {
+            if deferred.is_empty() || (!made_progress && deferred.iter().all(|item| !item.template_owners.is_empty())) {
                 // Selection under the provisional role-frontier exception is
                 // retained only if the complete nested dispatch fixed point
                 // leaves both the exact receiver and role-subject representatives
@@ -2951,6 +2992,21 @@ impl InferenceSession {
                         return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
                     }
                 }
+                // Unselected template descriptors stay with the enclosing
+                // definition, including nested descriptors introduced above.
+                // No concrete active instance may take this route.
+                let mut residuals = Vec::new();
+                residuals.try_reserve_exact(deferred.len()).map_err(|_| exhausted())?;
+                for item in deferred {
+                    let SourceRootId::Definition(root) = &item.obligation.owner else {
+                        return Err(SolveAvailabilityError::ReceiptMismatch);
+                    };
+                    let position = *self.batch.root_definition_positions.get(root)
+                        .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                    if !item.template_owners.contains(&position) { return Err(SolveAvailabilityError::ReceiptMismatch); }
+                    residuals.push((item.template_owners, item.obligation));
+                }
+                self.refresh_candidate_definition_field_tail_graphs(&residuals)?;
                 return Ok(());
             }
                 if !made_progress {
@@ -2983,6 +3039,61 @@ impl InferenceSession {
             }
             pending = deferred;
         }
+    }
+
+    /// Refresh only definition exports whose deferred member constraints can
+    /// have acquired new bounds. Other provider graphs and retained route
+    /// snapshots keep their original row-index identities.
+    fn refresh_candidate_definition_field_tail_graphs(
+        &mut self, residuals: &[(Vec<usize>, SourceFieldTailObligation)],
+    ) -> Result<(), SolveAvailabilityError> {
+        for position in 0..self.batch.definitions.len() {
+            let state = self.candidate_graph.as_ref().ok_or_else(exhausted)?;
+            let Some(stored) = state.graphs.get(position).and_then(Option::as_ref) else {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            };
+            if stored.source_field_tail_obligations.is_empty()
+                && !residuals.iter().any(|(owners, _)| owners.contains(&position)) { continue; }
+            let root = stored.live_root;
+            let boundary = stored.boundary;
+            let frontier = stored.source_frontier.clone();
+            let roles = clone_role_obligations(&stored.source_role_obligations)?;
+            let mut fields = clone_field_tail_obligations(&stored.source_field_tail_obligations)?;
+            for (_, residual) in residuals.iter().filter(|(owners, _)| owners.contains(&position)) {
+                let same = |old: &SourceFieldTailObligation|
+                    old.source_owner == residual.source_owner && old.occurrence == residual.occurrence
+                        && [old.receiver_row, old.receiver_effect, old.result_row, old.result_effect]
+                            .map(|row| state.intrusion.rep(row))
+                        == [residual.receiver_row, residual.receiver_effect, residual.result_row, residual.result_effect]
+                            .map(|row| state.intrusion.rep(row));
+                if !fields.iter().any(same) {
+                    let mut retained = residual.clone();
+                    retained.owner = SourceRootId::Definition(self.batch.definitions[position].root.clone());
+                    push(&mut fields, retained)?;
+                }
+            }
+            let entry_scratch = state.scratch_bytes;
+            let graph = self.capture_candidate_graph_owned(root, boundary, &frontier, &roles, &fields)?;
+            let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+            state.graphs[position] = Some(graph);
+            state.scratch_bytes = entry_scratch;
+            state.refresh_bytes()?;
+            self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
+        }
+        let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+        for (_, residual) in residuals {
+            let Some(items) = state.source_field_tail_obligations.get_mut(&residual.owner) else {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            };
+            let before = items.len();
+            items.retain(|old| old.source_owner != residual.source_owner || old.occurrence != residual.occurrence
+                || old.receiver_row != residual.receiver_row || old.receiver_effect != residual.receiver_effect
+                || old.result_row != residual.result_row || old.result_effect != residual.result_effect);
+            if items.len() + 1 != before { return Err(SolveAvailabilityError::ReceiptMismatch); }
+            if items.is_empty() { state.source_field_tail_obligations.remove(&residual.owner); }
+        }
+        state.refresh_bytes()?;
+        Ok(())
     }
 
     fn unique_candidate_field_tail_member(

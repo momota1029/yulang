@@ -79,3 +79,11 @@ This is a construction-order repair under existing inference authority.
 The same slice leases `tools/inference-playground/src/runtime/program.rs` for
 the exact source-owner evidence join after enclosing capture ownership changes;
 no runtime shape dispatch or member-choice fallback is authorized.
+
+Continuation from `7ee476cf6`: apply the existing exact member-selection rule
+to constraints retained in definition templates as well as concrete instances.
+Unresolved templates must remain in their owning graph; unresolved active
+instances still withhold publication. Recapture affected definition exports
+once after propagation, preserving operator/member graphs and FreshUse indexes.
+Existing exact leases and remaining resource charge apply; this is neither a
+new source restriction nor accepted generalization/production promotion.

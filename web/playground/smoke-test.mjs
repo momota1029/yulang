@@ -5,6 +5,7 @@ await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") }
 
 const examples = {
   ordinary: ["my identity x = x\nmy main = identity 7", "7\n"],
+  capturedInitializer: ["my main = 1 + 2\n", "3\n"],
   closure: ["my make x = \\y -> x\nmy main = make 12 7", "12\n"],
   recursion: ["my loop condition = if condition: loop false else: 11\nmy main = loop true", "11\n"],
   moduleExpression: ["99\nmy main = 7", "7\n"],

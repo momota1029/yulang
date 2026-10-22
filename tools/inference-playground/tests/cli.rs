@@ -66,6 +66,31 @@ fn library_operator_dependencies_do_not_require_an_operator_in_the_caller() {
 }
 
 #[test]
+fn captured_initializers_resolve_members_without_a_later_name_use() {
+    for (source, expected_value, expected_type) in [
+        ("pub answer = 1 + 2\n", "3\n", "int"),
+        ("pub answer = \"a\" + \"b\"\n", "\"ab\"\n", "str"),
+        ("pub answer = if true: 1 + 2 else: 3 + 4\n", "3\n", "int"),
+        ("my constant ignored = 1 + 2\npub answer = constant false\n", "3\n", "int"),
+    ] {
+        let output = cli_with_args(source, &["--run", "answer", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected_value.as_bytes(), "source={source:?}");
+        let report = execute_module_report(source, "captured-initializer.yu", 100_000, false).unwrap();
+        assert!(report.events.is_empty());
+        let declaration = report.types.lines().find_map(|line| line.strip_prefix("answer: ")).unwrap();
+        // Retained effect-bound variables can remain quantified even when
+        // the result value has this concrete head.
+        assert!(declaration == expected_type
+            || (declaration.starts_with('∀') && declaration.ends_with(&format!(". {expected_type}"))),
+            "source={source:?}: {}", report.types);
+    }
+    let bad_branch = "pub answer = if true: 1 + 2 else: 1 + false\n";
+    let error = infer_types(bad_branch, "captured-bad-branch.yu").unwrap_err();
+    assert!(error.to_string().contains("candidate type conflicts"), "{error}");
+}
+
+#[test]
 fn unchanged_yulang2_samples_preserve_ordered_module_write_events() {
     let types = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
     let console = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";

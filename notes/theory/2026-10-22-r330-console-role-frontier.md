@@ -438,3 +438,96 @@ with the pinned wasm-bindgen 0.2.125. The smoke includes unchanged Types/Console
 and added standalone/wrapped-library reports. TypeScript `typecheck` passed.
 Generated bindings and build outputs remain ignored and unstaged; no deployment
 occurred. The direct-primary slice is ready as an UNREVIEWED research checkpoint.
+
+### Captured definition constraint saturation (current continuation)
+
+Construction invariant for the next repair: an instantiated obligation must
+resolve before publication; an obligation retained in an authenticated reusable
+definition graph may remain as a template. Both are ordinary source constraints
+and use the same evidence-gated member rule. A selected template contributes its
+member constraints to its original live rows; nested unresolved obligations must
+remain in that same enclosing definition graph. No execution/constant-folding
+judgment chooses a member. After this finite dispatch phase, recapture affected
+definition exports from the updated live graph so public types include the new
+constraints. Operator/member provider graphs and already retained FreshUse maps
+must keep their original row-index contracts. This is a proposed constructive
+repair under existing source inference authority, not an accepted A/B theorem.
+
+The implemented worklist seeds both active obligations and captured definition
+obligations. Seeds are deduplicated by immutable source owner/occurrence and
+all four canonical interface rows; an active seed takes precedence. Selection
+uses the unchanged complete-inventory, positive-frontier, negative-frontier and
+exact-role checks. Unknown template receivers are retained rather than guessed.
+Nested obligations from a selected template inherit its enclosing definition
+owner and the selected body's single FreshUse row map. A repeated member in
+template ancestry stays deferred; a concrete instance still cannot publish it.
+
+At the fixed point, every unresolved item must be a template before completion
+is allowed. Its exact descriptor is retained in the enclosing definition graph;
+only then is it removed from the active-obligation table. Existing role-frontier
+stability checks still cover the entire dispatch phase. This supplies the
+preservation step that was missing when a definition was captured but never
+used by a later Name occurrence. Selection in a function's constant body also
+works without assuming that the function executes during inference.
+
+Affected definition graphs are recaptured once from their original live root,
+boundary, source frontier and source-role obligations, together with the old
+FieldTail descriptors and newly retained nested residuals. Thus a successful
+public snapshot contains the bounds added by selected member bodies. Stored
+operator/member provider graphs and per-route graph snapshots are not replaced;
+their retained FreshUse row indexes retain the same referents. The recapture
+also samples the updated retained graph accounting. This remains a conditional
+source-to-graph preservation argument, not a proof of principal generalization,
+whole-source completeness, local-binding capture or original A/B closure.
+
+The worklist extends a finite source inventory without enumerating typings.
+Each successful dispatch adds one exact member instance; ancestry bounds each
+nested chain by the finite member inventory. Deferred items are revisited only
+after some dispatch adds constraints. Seeding uses a checked hash set; final
+recapture occurs once per affected definition. The existing receiver-readback
+and deferred-round scans remain a potential cost to optimize after correctness
+coverage; this increment does not assert a linear bound for the whole solver.
+
+Shared-anchor correction in the implementation: deduplicated template work
+retains a vector of *all* definition positions containing the same exact
+source/occurrence/four-row descriptor. Nested residuals inherit that vector and
+are attached to every such graph during final recapture. The active work table
+contains the one processed descriptor, which is removed once after all owner
+captures succeed. A concrete active seed takes precedence over template seeds.
+This prevents deduplication from dropping a residual from one of two graphs
+that share anchors. The owner-vector inventory is bounded by the original
+captured-descriptor inventory; nested ownership follows the actual selected
+instance, not a new source identity or guessed environment.
+
+The regression now runs `pub answer = 1 + 2`, string concatenation, both branches
+of an ordinary conditional, and a constant expression inside a function. Each
+runs without needing an extra source Name occurrence and publishes the correct
+concrete result head. The displayed graph still retains quantified effect-bound
+variables; the check accepts that existing explicit binder syntax rather than
+erasing the constraints. An invalid `1 + false` in the unchosen branch of
+`if true` still produces candidate type conflicts. An uncalled generic wrapper
+still retains an unresolved template without a fabricated selection.
+
+Native validation after the shared-owner repair: `cargo test -q -p yu-playground`
+passed all 217 tests (52 library, 31 CLI, 134 other integration tests). The
+solver authentic-capture filter again passed 13 and failed the same six baseline
+tests named above; no expected assertion was changed. TypeScript `typecheck`
+passed. Current logs are `/tmp/yulang-r332-template-native3.log` and
+`/tmp/yulang-r332-template-solver2.log`. The initializer failure recorded in the
+previous subsection is now repaired for the tested ordinary source forms.
+
+The uncalled `println` wrapper, wrapped `say`, and local `add` counterexamples
+were re-run and still fail at their previously recorded boundaries. The next
+source-owner step is the `instantiate_candidate_graph` role-prerequisite
+transport: a first FreshUse retains the role/receiver correlation, but enclosing
+definition capture does not yet carry the role prerequisite forward to the next
+wrapper use. Local scheme capture likewise needs its own FieldTail descriptor
+transport. Neither is reclassified as a source restriction. Shared-anchor and
+full capture/source completeness, independent review, original A/B and
+production remain OPEN; this continuation remains UNREVIEWED.
+
+The final fresh WASM check passed with 14 execution examples, including the new
+captured-initializer case, unchanged Types/Console outputs and the prior wrapper
+regressions. Generated bindings and build outputs remain ignored. No deployment
+or independent review occurred. Only the direct primary worked; no child or
+background primary process remains after this checkpoint.
