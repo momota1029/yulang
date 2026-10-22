@@ -1489,6 +1489,42 @@ impl HirModule {
         Ok(self.source_carrier_indices.get(root).map(|index| &self.source_carriers[*index].1)
             .or_else(|| self.source_member_carrier_indices.get(root).map(|index| &self.source_member_carriers[*index].1)))
     }
+    /// Joins an authenticated imported operator body receipt to its existing
+    /// direct-expression source root in this exact provider HIR artifact.
+    #[cfg(any(feature = "shadow", test))]
+    pub fn source_operator_root_for(
+        &self,
+        owner: &source_exports::SourceOperatorOwner,
+        provider_index: &source_exports::SourceExportIndex,
+    ) -> Result<Option<SourceRootId>, HirAvailabilityError> {
+        if self.identity.module() != owner.module()
+            || provider_index.module != *owner.module()
+            || provider_index.revision != owner.revision()
+        {
+            return Ok(None);
+        }
+        let Some(indexed_owner) = provider_index.operator_owner_for_receipt(
+            owner.module(), owner.revision(), owner.declaration_range(), owner.spelling(), owner.fixity(),
+        ) else { return Ok(None); };
+        if &indexed_owner != owner { return Ok(None); }
+        let Some(parsed) = &self.source_parsed else { return Ok(None); };
+        if !parsed.owns_source_key(owner.declaration()) || !parsed.owns_source_key(owner.body()) {
+            return Ok(None);
+        }
+        let mut found = None;
+        for (root, outcome) in &self.source_carriers {
+            let SourceRootId::Expression(expression_root) = root else { continue; };
+            if self.expression_source_key(expression_root)? != Some(owner.body()) { continue; }
+            let local_source::SourceCarrierOutcome::Supported(source) = outcome else { continue; };
+            if source.source_root() != root
+                || source.expression(source.body()).is_none_or(|body| body.range != *owner.body_range())
+                || found.replace(root.clone()).is_some()
+            {
+                return Ok(None);
+            }
+        }
+        Ok(found)
+    }
     pub fn source_carrier(&self, root: &DefinitionRootId)
         -> Result<Option<&local_source::SourceCarrierOutcome>, HirAvailabilityError>
     {
@@ -4200,6 +4236,46 @@ mod tests {
         assert_eq!(binding.parameters()[0].name().spelling(), "left");
         assert_eq!(binding.parameters()[1].name().spelling(), "right");
         assert!(hir.local_source(binding.definition_root()).unwrap().is_some());
+    }
+
+    #[test]
+    fn operator_rhs_uses_its_existing_expression_source_carrier() {
+        let parsed_file = parsed(r"pub infix (+) 5.0.0 5.0.1 = \x -> \y -> x.add y");
+        assert!(parsed_file.syntax_diagnostics().unwrap().is_empty());
+        let module = identity();
+        let hir = lower_module_with_local_source(module.clone(), &parsed_file, SemanticImports::empty()).unwrap();
+        assert!(hir.items().iter().all(|item| !matches!(item, HirItem::Binding(_))));
+        assert!(hir.source_member_carrier_outcomes().is_empty());
+        let provider_index = index_source_exports(module.clone(), &parsed_file).unwrap();
+        let operator = &parsed_file.header().operators()[0];
+        let operator_owner = provider_index.operator_owner_for_receipt(
+            module.module(), parsed_file.revision(), operator.range(), "+", yu_syntax::OperatorFixity::Infix,
+        ).unwrap();
+        let expression = hir.items().iter().find_map(|item| match item {
+            HirItem::Expression(expression) => Some(expression),
+            _ => None,
+        }).expect("the operator RHS is retained as its ordinary expression item");
+        let root = hir.expression_root(expression.occurrence()).unwrap().unwrap();
+        let owner = SourceRootId::Expression(root.clone());
+        assert_eq!(hir.expression_source_key(root).unwrap(), Some(operator_owner.body()));
+        assert!(parsed_file.owns_source_key(operator_owner.declaration()));
+        assert!(parsed_file.owns_source_key(operator_owner.body()));
+        assert_eq!(hir.source_operator_root_for(&operator_owner, &provider_index).unwrap(), Some(owner.clone()));
+        let source = hir.local_source_for(&owner).unwrap().expect("operator RHS has a source carrier");
+        let body = source.expression(source.body()).unwrap();
+        assert_eq!(body.range, operator_owner.body_range().clone());
+        assert_eq!(parsed_file.source().get(body.range.clone()), Some(r"\x -> \y -> x.add y"));
+        assert!(source.expressions().iter().any(|expression| matches!(
+            expression.form,
+            local_source::LocalSourceForm::Lambda { .. }
+        )));
+        assert!(matches!(hir.source_carrier_for(&owner).unwrap(), Some(local_source::SourceCarrierOutcome::Supported(_))));
+        let foreign_parsed = parsed(r"pub infix (+) 5.0.0 5.0.1 = \x -> \y -> x.add y");
+        let foreign_hir = lower_module_with_local_source(
+            module, &foreign_parsed, SemanticImports::empty(),
+        ).unwrap();
+        assert!(foreign_hir.source_operator_root_for(&operator_owner, &provider_index).unwrap().is_none(),
+            "identical bytes in a separate parse cannot reuse provider source keys");
     }
 
     #[test]

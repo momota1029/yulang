@@ -1609,7 +1609,7 @@ mod tests {
         use std::collections::HashSet;
 
         let sources = pinned_stdlib::resolve_implicit_stdlib().unwrap();
-        let (_, operator_source_indexes, _) = pinned_source_world().unwrap();
+        let (operator_provider_sources, operator_source_indexes, _) = pinned_source_world().unwrap();
         assert_eq!(sources.len(), 40);
         let mut modules = HashSet::new();
         let mut roles = HashSet::new();
@@ -1804,6 +1804,21 @@ mod tests {
                 assert_eq!(operator_owner, indexed_owner);
                 assert!(!parsed.owns_source_key(operator_owner.declaration()));
                 assert!(!parsed.owns_source_key(operator_owner.body()));
+                let (provider_identity, provider_parsed) = operator_provider_sources.iter().find(|(identity, _)|
+                    identity.module().file().key().normalized_workspace_relative_path() == operator_module.path
+                ).expect("the pinned operator index and provider parse share the same source artifact");
+                let provider_hir = yu_hir::shadow::lower_module_with_local_source(
+                    provider_identity.clone(), provider_parsed, yu_hir::SemanticImports::empty(),
+                ).expect("the pinned operator provider retains its ordinary HIR source roots");
+                let provider_root = provider_hir.source_operator_root_for(&operator_owner, indexed_provider)
+                    .expect("provider root lookup is available")
+                    .expect("owner receipt resolves to the exact provider expression root");
+                let provider_source = provider_hir.local_source_for(&provider_root)
+                    .expect("provider root belongs to this HIR artifact")
+                    .expect("operator RHS source carrier is retained");
+                let provider_body = provider_source.expression(provider_source.body()).unwrap();
+                assert_eq!(provider_body.range, operator_owner.body_range().clone());
+                assert_eq!(provider_parsed.source().get(provider_body.range.clone()), Some("\\x -> \\y -> x.add y"));
                 assert_eq!(
                     operator_module.text.get(operator_owner.declaration_range().clone()),
                     Some("pub infix (+) 5.0.0 5.0.1 ="),
