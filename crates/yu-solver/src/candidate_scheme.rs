@@ -1857,31 +1857,31 @@ impl InferenceSession {
     /// subject. This does not collapse the rows; it only certifies that both
     /// live rows currently expose the same positive shape and have no other
     /// negative frontier.
-    pub(super) fn candidate_field_tail_role_frontier_is_closed(
+    pub(super) fn candidate_field_tail_role_frontier_subject(
         &self,
         obligation: &SourceFieldTailObligation,
         receiver_row: u32,
-    ) -> bool {
-        let Some(state) = self.candidate_graph.as_ref() else { return false; };
+    ) -> Option<u32> {
+        let Some(state) = self.candidate_graph.as_ref() else { return None; };
         let receiver = state.intrusion.value_rep(receiver_row);
-        let Some(receiver_bounds) = self.bounds.get(receiver as usize) else { return false; };
+        let Some(receiver_bounds) = self.bounds.get(receiver as usize) else { return None; };
         if receiver_bounds.direct_upper_rows.len() != 1
             || !receiver_bounds.exact_non_variable_uppers.is_empty()
         {
-            return false;
+            return None;
         }
         let subject = state.intrusion.value_rep(receiver_bounds.direct_upper_rows[0]);
-        if subject == receiver { return false; }
-        let Some(subject_bounds) = self.bounds.get(subject as usize) else { return false; };
+        if subject == receiver { return None; }
+        let Some(subject_bounds) = self.bounds.get(subject as usize) else { return None; };
         if subject_bounds.direct_upper_rows.len() != 1
             || subject_bounds.exact_non_variable_uppers.len() != 0
             || state.intrusion.value_rep(subject_bounds.direct_upper_rows[0]) != receiver
         {
-            return false;
+            return None;
         }
-        let Some(receiver_shape) = self.candidate_receiver_positive_shape(receiver) else { return false; };
+        let Some(receiver_shape) = self.candidate_receiver_positive_shape(receiver) else { return None; };
         if self.candidate_receiver_positive_shape(subject).as_ref() != Some(&receiver_shape) {
-            return false;
+            return None;
         }
 
         let mut authenticated_pairs = 0usize;
@@ -1925,12 +1925,12 @@ impl InferenceSession {
                     }
                     authenticated_pairs = match authenticated_pairs.checked_add(1) {
                         Some(count) => count,
-                        None => return false,
+                        None => return None,
                     };
                 }
             }
         }
-        authenticated_pairs == 1
+        (authenticated_pairs == 1).then_some(subject)
     }
 
     pub(super) fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
@@ -2675,6 +2675,10 @@ impl InferenceSession {
             obligation: SourceFieldTailObligation,
             ancestry: Vec<yu_hir::SourceMemberRootId>,
         }
+        let mut role_frontier_snapshots = Vec::<(
+            u32, u32, shadow_apply::CandidateReceiverShape,
+            u32, u32, shadow_apply::CandidateReceiverShape,
+        )>::new();
 
         let mut pending = Vec::<Pending>::new();
         {
@@ -2752,6 +2756,32 @@ impl InferenceSession {
                     .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 let member_index = match self.unique_candidate_field_tail_member(&readback, &item.obligation.required_roles) {
                     FieldTailMemberSelection::Selected(index) => {
+                        if readback.negative_frontier_source_qualified {
+                            let representative = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                                .intrusion.value_rep(receiver_row);
+                            let Some(shape) = self.candidate_receiver_positive_shape(representative) else {
+                                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                            };
+                            if readback.positive_shape.as_ref() != Some(&shape) {
+                                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                            }
+                            let subject = self.candidate_field_tail_role_frontier_subject(
+                                &item.obligation, receiver_row,
+                            ).ok_or(SolveAvailabilityError::DeferredSelectionUnavailable)?;
+                            let Some(subject_shape) = self.candidate_receiver_positive_shape(subject) else {
+                                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                            };
+                            if subject_shape != shape {
+                                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                            }
+                            let subject_representative = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                                .intrusion.value_rep(subject);
+                            role_frontier_snapshots.try_reserve(1).map_err(|_| exhausted())?;
+                            role_frontier_snapshots.push((
+                                receiver_row, representative, shape,
+                                subject, subject_representative, subject_shape,
+                            ));
+                        }
                         if let Some(readbacks) = selected_readbacks.as_deref_mut() {
                             readbacks.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                             readbacks.push(readback.clone());
@@ -2907,7 +2937,29 @@ impl InferenceSession {
                 state.refresh_bytes()?;
                 self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
             }
-            if deferred.is_empty() { return Ok(()); }
+            if deferred.is_empty() {
+                // Selection under the provisional role-frontier exception is
+                // retained only if the complete nested dispatch fixed point
+                // leaves both the exact receiver and role-subject representatives
+                // and positive shapes unchanged. Monotone bound insertion then
+                // rules out later positive refinement in this field-tail phase.
+                for (row, representative, shape, subject, subject_representative, subject_shape)
+                    in &role_frontier_snapshots
+                {
+                    let current = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                        .intrusion.value_rep(*row);
+                    let current_subject = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                        .intrusion.value_rep(*subject);
+                    if current != *representative
+                        || self.candidate_receiver_positive_shape(current).as_ref() != Some(shape)
+                        || current_subject != *subject_representative
+                        || self.candidate_receiver_positive_shape(current_subject).as_ref() != Some(subject_shape)
+                    {
+                        return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                    }
+                }
+                return Ok(());
+            }
                 if !made_progress {
                     // All unresolved obligations remain in GraphState for readback and
                     // the candidate result stays unpublished.

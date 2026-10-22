@@ -10,7 +10,9 @@ R329 established the Add result reaches the imported `std::io::console.say` Fres
 
 R330 adds a narrow provisional readback gate for that exact isolated reciprocal role-subject edge. The selected `show` readback is one exact `Int` implementation. The source owner resolver accepts distinct authenticated HIR projections of one module and continues to reject repeated identical artifacts. Runtime carries exact operator use-site identity for shared providers, falls back to a template FieldTail selection only when all matching source-owned templates choose the same exact member, and resolves both pinned host-write import spellings against the same export identity.
 
-The unchanged Console test now executes through the ordinary module schedule and returns exactly `hello from Yulang\n3\n`. The unchanged Types host-write capture and one-shot continuation tests pass. The complete `cargo test -p yu-playground` package suite passed: 45 library tests plus all listed integration groups. This does not close the stability or source/native proof.
+The unchanged Console test now executes through the ordinary module schedule and returns exactly `hello from Yulang\n3\n`. The unchanged Types host-write capture and one-shot continuation tests pass. Exact-source CLI tests cover the 142-byte Types and 92-byte Console templates and their required output. The complete `cargo test -p yu-playground` package suite passed after adding those CLI assertions: 45 library tests, 25 CLI tests, and all package integration groups. This does not close the stability or source/native proof.
+
+The selector now snapshots both the receiver and authenticated role-subject rows before provisional selection. Successful publication checks their representatives and positive shapes again after all nested FieldTail dispatch reaches its fixed point; any change defers the candidate. This is an executable guard for this accepted path, while the universal stability lemma and source/native correspondence remain open.
 
 ## Goal and falsifiers
 

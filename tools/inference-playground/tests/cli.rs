@@ -27,6 +27,26 @@ fn cli_with_args(source: &str, args: &[&str]) -> std::process::Output {
 }
 
 #[test]
+fn unchanged_yulang2_types_sample_runs_through_the_cli() {
+    let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
+    assert_eq!(source.len(), 142);
+    let output = cli_with_args(source, &["--run", "pair", "--steps", "100000"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"(42, Yulang)\n");
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn unchanged_yulang2_console_sample_runs_through_the_cli() {
+    let source = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
+    assert_eq!(source.len(), 92);
+    let output = cli_with_args(source, &["--run-module", "--steps", "100000"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"hello from Yulang\n3\n");
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
 fn reads_utf8_and_distinguishes_tool_caps() {
     assert_eq!(read_source("é".as_bytes()).unwrap(), "é");
     assert!(read_source(&[0xff][..]).unwrap_err().contains("UTF-8"));

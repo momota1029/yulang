@@ -12015,7 +12015,7 @@ impl InferenceSession {
                 let negative_frontier_source_qualified = frontier_complete
                     && frontier.negative_row_edges == 1
                     && frontier.negative_bounds == 0
-                    && self.candidate_field_tail_role_frontier_is_closed(obligation, row);
+                    && self.candidate_field_tail_role_frontier_subject(obligation, row).is_some();
                 let mut target_matches = Vec::new();
                 // This flag covers the source implementation inventory for
                 // each retained exact role-member identity. Unsupported target
