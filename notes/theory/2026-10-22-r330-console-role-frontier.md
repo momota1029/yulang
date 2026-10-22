@@ -90,3 +90,12 @@ Verification: fresh `cargo test -q -p yu-playground` passed, including the 45 li
 
 
 The exact `[io]`/`[state]` input is candidate-path evidence only. The resulting view still says source typing and principality remain open; it does not close the original source/native bridge or the full inference A/B obligations.
+
+
+## R331 continuation and R332 handoff
+
+R331 reached its 900-second serial envelope as an open continuation. Its final renderer adjustment collects unresolved Value rows that occur in displayed bounds into the same quantifier/anchor set, while rows with direct concrete lower heads remain internal graph coordinates so exact ground entries stay unquantified. Focused Types and `[io]`/`[state]` tests pass after this adjustment, and the full `cargo test -q -p yu-playground` suite passes in R332: 45 library tests, 28 CLI tests and every package integration target.
+
+The exact source-level `[io]` regression reaches candidate inference, retains the formal open permission, and shows the `answer` support bound connected to an open residual row. The separate solver regression establishes that the callback's state label differs from `io` and remains in the residual. This is candidate-path evidence, not a proof of production source typing, runtime Grant, principal schemes, or parent A/B closure. `npm run typecheck` still fails because generated bindings lack `infer_types` and `run_module`; fetching `wasm-bindgen-cli` still fails DNS resolution.
+
+R332 continues the unchanged parent goal by constructing a candidate-owned scheme representation and proving its mapping from the exact source graph. The six checked-in browser fixtures each have sample-specific CLI coverage; the larger original Yulang2 playground catalog remains unverified.

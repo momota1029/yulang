@@ -130,9 +130,9 @@ pub fn public_scheme(graph: &CandidateGraphExport<'_>, name: &str) -> Result<Str
     for bound in graph.bounds() {
         details.observe(1)?;
         write!(details, "  retained {:?} bound ", bound.kind()).map_err(cap)?;
-        render_constraint_node(bound.lower(), &rows, &mut free_rows, &mut details)?;
+        render_constraint_node(graph, bound.lower(), &rows, &mut free_rows, &mut details)?;
         details.write_str(" ⊆ ").map_err(cap)?;
-        render_constraint_node(bound.upper(), &rows, &mut free_rows, &mut details)?;
+        render_constraint_node(graph, bound.upper(), &rows, &mut free_rows, &mut details)?;
         details.write_char('\n').map_err(cap)?;
     }
     let details = details.finish()?;
@@ -251,6 +251,7 @@ fn render_operand_tail<'a>(
 }
 
 fn render_constraint_node<'a>(
+    graph: &CandidateGraphExport<'a>,
     node: CandidateGraphNode<'a>,
     rows: &[(CandidateGraphRow<'a>, String)],
     free_rows: &mut std::collections::HashSet<CandidateGraphRow<'a>>,
@@ -263,7 +264,23 @@ fn render_constraint_node<'a>(
         } else {
             let index = rows.iter().position(|(candidate, _)| *candidate == row)
                 .ok_or_else(|| "candidate scheme row identity unavailable".to_owned())?;
-            write!(output, "r{index}").map_err(cap)?;
+            let mut concrete_head = None;
+            for bound in graph.bounds().filter(|bound|
+                bound.is_effect() == row.is_effect()
+                    && bound.upper().row().is_some_and(|upper| upper == row)
+                    && bound.lower().row().is_none()
+            ) {
+                if concrete_head.is_some_and(|first: CandidateGraphNode<'a>| !first.same_identity(bound.lower())) {
+                    return Err("candidate scheme has multiple concrete Value shapes for one row".to_owned());
+                }
+                concrete_head = Some(bound.lower());
+            }
+            if concrete_head.is_none() {
+                free_rows.insert(row);
+                output.write_str(row_name(rows, row)?).map_err(cap)?;
+            } else {
+                write!(output, "r{index}").map_err(cap)?;
+            }
         }
     } else if let Some(children) = node.children() {
         output.write_str("Function(").map_err(cap)?;
@@ -272,14 +289,14 @@ fn render_constraint_node<'a>(
         {
             if index != 0 { output.write_str(", ").map_err(cap)?; }
             output.write_str(label).map_err(cap)?;
-            render_constraint_node(child, rows, free_rows, output)?;
+            render_constraint_node(graph, child, rows, free_rows, output)?;
         }
         output.write_char(')').map_err(cap)?;
     } else if let Some(children) = node.tuple_children() {
         output.write_char('(').map_err(cap)?;
         for (index, child) in children.enumerate() {
             if index != 0 { output.write_str(", ").map_err(cap)?; }
-            render_constraint_node(child, rows, free_rows, output)?;
+            render_constraint_node(graph, child, rows, free_rows, output)?;
         }
         output.write_char(')').map_err(cap)?;
     } else if let Some(leaf) = node.leaf() {
