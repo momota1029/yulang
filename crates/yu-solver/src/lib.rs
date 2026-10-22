@@ -12257,6 +12257,7 @@ impl InferenceSession {
                     }
                 }
                 readbacks.push(shadow_apply::CandidateFieldTailReceiverReadback {
+                    instantiation_context_ordinal: obligation.dispatch_context,
                     owner: owner.clone(),
                     occurrence: obligation.occurrence.clone(),
                     receiver_row: row,

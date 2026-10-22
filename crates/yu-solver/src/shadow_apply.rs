@@ -107,6 +107,8 @@ pub struct CandidateFieldTailReceiverReadback {
     /// Canonical receiver row distinguishes repeated template uses that share
     /// one source occurrence but have different FreshUse substitutions.
     pub receiver_row: u32,
+    /// Session-local instantiation DAG node, for exact readback joins only.
+    pub instantiation_context_ordinal: Option<usize>,
     pub member: Box<str>,
     pub role_member_candidates: Vec<yu_hir::shadow::SourceRoleMemberId>,
     pub positive_shape: Option<CandidateReceiverShape>,
@@ -163,6 +165,7 @@ pub struct CandidateSelectedFieldTailUse<'a> {
     /// FieldTail, when the member selection belongs to an operator FreshUse.
     pub operator_use_owner: Option<&'a SourceRootId>,
     pub operator_use_occurrence: Option<&'a HirOccurrenceId>,
+    pub instantiation: CandidateInstantiationContext<'a>,
 }
 /// Exact retained abstract constraint. This supplies no implementation choice
 /// and makes no claim that execution cannot reach the corresponding body.
@@ -172,6 +175,114 @@ pub struct CandidateRetainedFieldTailTemplate<'a> {
     pub occurrence: &'a HirOccurrenceId,
     pub operator_use_owner: Option<&'a SourceRootId>,
     pub operator_use_occurrence: Option<&'a HirOccurrenceId>,
+    pub instantiation: CandidateInstantiationContext<'a>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateInstantiationProvider<'a> {
+    Definition(&'a DefinitionRootId),
+    Local(&'a yu_hir::HirLocalId),
+    Operator(&'a yu_hir::ExpressionRootId),
+    Member(&'a yu_hir::SourceMemberRootId),
+}
+#[derive(Clone, Copy, Debug)]
+pub struct CandidateInstantiationStep<'a> {
+    pub owner: &'a SourceRootId,
+    pub occurrence: &'a HirOccurrenceId,
+    pub provider: CandidateInstantiationProvider<'a>,
+    /// The actual FreshUse origin owning the retained simultaneous row map.
+    pub use_instance: usize,
+}
+/// Borrowed, session-owned instantiation history. It is source evidence for
+/// dictionary construction, not an execution trace or runtime authority.
+#[derive(Clone, Copy)]
+pub struct CandidateInstantiationContext<'a> {
+    graph: &'a crate::candidate_scheme::GraphState,
+    head: Option<usize>,
+}
+impl std::fmt::Debug for CandidateInstantiationContext<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_struct("CandidateInstantiationContext").field("head", &self.head).finish_non_exhaustive()
+    }
+}
+impl<'a> CandidateInstantiationContext<'a> {
+    /// Flatten outer-to-inner with a hard work bound. Shared DAGs need not be
+    /// trees, so their expanded word can exceed their retained node count.
+    pub fn steps(&self) -> Result<Vec<CandidateInstantiationStep<'a>>, ArtifactMismatch> {
+        use crate::candidate_scheme::DispatchRoute;
+        let mut steps = Vec::new();
+        let mut work = Vec::new();
+        work.try_reserve(1).map_err(|_| ArtifactMismatch)?;
+        if let Some(head) = self.head { work.push((head, false)); }
+        let mut visits = 0usize;
+        while let Some((index, emit)) = work.pop() {
+            visits = visits.checked_add(1).filter(|n| *n <= CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT)
+                .ok_or(ArtifactMismatch)?;
+            let node = self.graph.dispatch_contexts.get(index).ok_or(ArtifactMismatch)?;
+            if [node.outer, node.inner].into_iter().flatten().any(|parent| parent >= index) {
+                return Err(ArtifactMismatch);
+            }
+            if !emit {
+                work.try_reserve(3).map_err(|_| ArtifactMismatch)?;
+                if let Some(inner) = node.inner { work.push((inner, false)); }
+                work.push((index, true));
+                if let Some(outer) = node.outer { work.push((outer, false)); }
+                continue;
+            }
+            let step = match node.route {
+                DispatchRoute::Module(index) => {
+                    let route = self.graph.routes.get(index).ok_or(ArtifactMismatch)?;
+                    CandidateInstantiationStep { owner: &route.source_owner,
+                        occurrence: route.use_id.occurrence(),
+                        provider: CandidateInstantiationProvider::Definition(&route.provider),
+                        use_instance: route.retained.observed_context_use() }
+                }
+                DispatchRoute::Local(index) => {
+                    let route = self.graph.local_routes.get(index).ok_or(ArtifactMismatch)?;
+                    if !route.authentic_use_instance() { return Err(ArtifactMismatch); }
+                    CandidateInstantiationStep { owner: route.local.source_root(), occurrence: &route.occurrence,
+                        provider: CandidateInstantiationProvider::Local(&route.local),
+                        use_instance: route.use_instance }
+                }
+                DispatchRoute::Operator(index) => {
+                    let route = self.graph.operator_uses.get(index).ok_or(ArtifactMismatch)?;
+                    CandidateInstantiationStep { owner: &route.use_owner, occurrence: &route.occurrence,
+                        provider: CandidateInstantiationProvider::Operator(&route.provider),
+                        use_instance: route.fresh.observed_context_use() }
+                }
+                DispatchRoute::Member(index) => {
+                    let route = self.graph.member_uses.get(index).ok_or(ArtifactMismatch)?;
+                    CandidateInstantiationStep { owner: &route.source_owner, occurrence: &route.occurrence,
+                        provider: CandidateInstantiationProvider::Member(&route.member),
+                        use_instance: route.fresh.observed_context_use() }
+                }
+            };
+            steps.try_reserve(1).map_err(|_| ArtifactMismatch)?;
+            steps.push(step);
+        }
+        Ok(steps)
+    }
+}
+
+#[cfg(test)]
+mod instantiation_context_tests {
+    use super::*;
+    use crate::candidate_scheme::{DispatchContextNode, DispatchRoute, GraphState};
+
+    #[test]
+    fn context_readback_rejects_missing_routes_and_nonprior_parents() {
+        let mut graph = GraphState::default();
+        assert!(CandidateInstantiationContext { graph: &graph, head: None }.steps().unwrap().is_empty());
+        graph.dispatch_contexts.push(DispatchContextNode {
+            outer: None, route: DispatchRoute::Module(0), inner: None,
+        });
+        assert!(CandidateInstantiationContext { graph: &graph, head: Some(0) }.steps().is_err());
+        graph.dispatch_contexts[0].outer = Some(0);
+        assert!(CandidateInstantiationContext { graph: &graph, head: Some(0) }.steps().is_err());
+        graph.dispatch_contexts[0].outer = Some(1);
+        assert!(CandidateInstantiationContext { graph: &graph, head: Some(0) }.steps().is_err());
+        assert!(CandidateInstantiationContext { graph: &graph, head: Some(99) }.steps().is_err());
+    }
 }
 /// Exact imported operator use captured by the same candidate session. The
 /// use owner and occurrence identify the source call site that specializes
@@ -1042,6 +1153,7 @@ impl CandidateInference {
                 occurrence: &field.occurrence,
                 operator_use_owner: field.operator_origin.as_ref().map(|origin| &origin.owner),
                 operator_use_occurrence: field.operator_origin.as_ref().map(|origin| &origin.occurrence),
+                instantiation: CandidateInstantiationContext { graph, head: field.dispatch_context },
             });
         }
         Ok(templates.into_iter())
@@ -1078,6 +1190,7 @@ impl CandidateInference {
                 member_root: &use_.member,
                 operator_use_owner: operator_context.map(|(owner, _)| owner),
                 operator_use_occurrence: operator_context.map(|(_, occurrence)| occurrence),
+                instantiation: CandidateInstantiationContext { graph, head: use_.dispatch_context },
             });
         }
         Ok(selected.into_iter())
@@ -3572,6 +3685,7 @@ impl InferenceSession {
                     owner,
                     source_owner,
                     operator_origin: None,
+                    dispatch_context: None,
                     occurrence: recipe.occurrence.clone(),
                     source: source.clone(),
                     member: member.clone(),

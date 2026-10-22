@@ -909,3 +909,211 @@ for `outer 3; outer "text"` at one generic `say` site. Operator/member FreshUse
 role transport, general bare-expression block projection, the six solver
 baseline failures, all unchanged Yulang2 examples, accepted principal schemes,
 source/native correspondence, original A/B and independent review remain OPEN.
+
+### Exact instantiation contexts for member dictionaries
+
+The next construction retains the actual successful FreshUse route at each
+descriptor transport. A source owner/occurrence identifies a written method
+site; it does not identify its polymorphic instantiation. For a local `add`
+used at int and str, the distinct local Name routes and their simultaneous
+four-port maps must remain distinguishable after enclosing capture.
+
+Before implementation, define a context word by the constructors Empty and
+Compose(outer, route, inner), interpreted as word(outer) ++ [route] ++ word(inner).
+Each route is a typed index into the retained module, local, operator or member
+FreshUse inventory, not a type shape or a reconstructed source guess. Module,
+local and operator transport prepend their actual route to the captured inner
+word. A selected member's nested constraints compose the caller's word, that
+member FreshUse, and the nested graph's word. Capture copies the context handle
+unchanged. Selected member records retain the exact originating context.
+
+Induction on these constructors proves that every exported step has its actual
+retained row map and source identity, and that order survives arbitrarily nested
+capture and re-instantiation. A context DAG interns fixed-size nodes whose outer
+and inner references point to earlier nodes. Thus context formation needs O(1)
+expected hash work per transported descriptor and O(distinct compositions)
+retained space, with no cloning of complete histories. Bounded flattening must
+reject exhaustion, dangling routes and malformed DAG references. A stored word
+is inference-instantiation evidence, not a chronological execution trace: eager
+initializer effects must not be replayed when their values are later read.
+
+Runtime application must preserve this distinction for aliases, returned
+closures and captured parameters. Re-evaluating an initializer to obtain a
+specialized closure would repeat effects. Selecting by a runtime value tag would
+replace the established static choice. The needed next bridge is dictionary
+substitution through the existing value/closure environment, preserving its
+one-shot initialization and receiving evidence. Context transport establishes
+the missing source discrimination premise; it alone does not prove that bridge
+or complete polymorphic execution, principality or original A/B.
+
+Runtime construction to attempt from this evidence: each actual binding
+initializer gets a fresh dictionary-scope variable (its existing machine cell),
+whose default context is its enclosing initializer context. A closure retains
+that symbolic context with its lexical environment. A source Name with an
+actual FreshUse substitutes the read binding's scope by the caller context plus
+that exact Name step. Substitution composes in order through aliases and is
+carried alongside ReceivedValue, preserving its value handle and receiving view.
+Captured parameters therefore receive the same substitution when read. At a
+member instruction, only remaining uninstantiated scopes use their initializer
+defaults; this executes eager effects in their enclosing context exactly once.
+
+For contexts (scope, word), substitution of scope a by (b, prefix) gives
+(b, prefix ++ word). Functional composition applies the old value substitution,
+the current binding substitution, then the caller substitution; it is not a
+union of mutable maps. The elementary substitution identity proves that an
+alias `f = add` and a later `f` use retain the inner `add` occurrence below the
+outer `f` occurrence. Source Name inventories exclude uninstantiated recursive
+references. Operator evaluation appends its actual operator step, and selected
+member entry appends the actual member step before evaluating that body. Argument
+evaluation keeps the caller's original context. No initializer is re-evaluated.
+
+Dictionary construction indexes the complete context word and original FieldTail
+site. Each entry must have one statically selected member; disagreeing entries
+for the same word withhold construction. A uniform source site may keep its
+existing erased static dictionary because all of its actual selections agree.
+The context engine is needed only when this uniformity fails. Missing dictionary
+entries stop the private attempt. Context words and substitutions are immutable,
+bounded data; none inspect a runtime value shape or grant effect authority.
+Full source/runtime substitution correspondence remains an explicit research
+gate even after the concrete alias/closure cases execute.
+
+#### Dictionary quotient and substitution invariants
+
+The retained context handle now travels through every FieldTail capture,
+activation, pending-selection identity and successful member record. The
+source-qualified role-frontier join also requires this exact context; equal
+receiver rows or equal source sites cannot merge two instantiations. Module,
+local and operator active-use publication checks require their exact composed
+context. Readback rejects missing routes and nonprior context parents.
+
+Runtime construction projects a retained route to (route kind, original source
+owner, original occurrence). It drops the solver's session-local use-instance
+ordinal only after checking the following finite quotient condition: for each
+complete projected word and original FieldTail site, all retained selections
+have the same member root. A disagreement rejects the whole program. Nested
+member constraints are included in this check at their extended words. Thus
+lookup in the resulting finite map returns the already selected member; the
+lookup supplies no new shape judgment. If every existing source key has a
+single member choice, the previous static lowering remains applicable.
+
+For the immutable runtime algebra, write a context as `(a,w)` where `a` is an
+optional initializer cell and `w` is an ordered word. An assignment
+`a := (b,p)` maps `(a,w)` to `(b,pw)` and leaves other bases unchanged. `Then`
+means ordered function composition, with the first substitution applied first.
+Consequently a binding read carries `S_value; [cell := C_caller.name]; S_caller`.
+`C_caller` is stored symbolically: preapplying `S_caller` here would apply it
+twice. Initializer defaults likewise store the raw parent context while the
+initializer inherits its parent's substitution. The new non-idempotent unit
+probe uses `[b := empty; a := b]` and distinguishes one application from two;
+this is an algebra test, not a claim that arbitrary synthetic substitutions
+are generated by source programs.
+
+Induction on `Assign` and `Then` gives the stated substitution action. Induction
+on `Step` and `Join` gives ordered word concatenation. Both traversals verify
+strictly earlier child indices. Remaining unassigned initializer scopes unfold
+their stored defaults under the current substitution; defaults, substitution
+expansion and word expansion share one 32768-work budget per lookup. Missing
+entries, invalid indices and exhausted budgets return unavailable. The solver
+context readback separately retains its existing 16384-visit limit.
+
+Environment overlays contain no binder and therefore preserve lexical name
+lookup after erasing dictionary metadata. A Name read modifies only the
+ReceivedValue substitution: its value handle, interface and receiving-view
+handle are preserved, and its cached cell is unchanged. Closure and delay entry
+compose the substitution with the captured environment; tuple destructuring
+transports it to the received child. Request execution carries it into the
+existing payload without changing the payload's receiving view. The original
+initializer code and publication frames still run once at their original cells.
+Host continuation frames retain immutable environment indices, so resumption
+does not clone initializer publication or restart source initialization.
+
+These are local algebra/representation invariants and an explicit finite-map
+selection argument. Full source correspondence still requires proving that all
+source evaluations generate exactly the retained words, including recursion,
+all effect/continuation interactions and higher-order escaped values. No
+universal saturation/idempotence property of source-generated substitutions is
+assumed proved. Existing source/native, principal scheme and original A/B gates
+remain unchanged and OPEN; passing executions do not close them.
+
+Costs: forming a context, word join or composition stores a constant-size arena
+node (source context interning has expected constant hash cost). Reading a word
+costs its expanded substitution/default/word traversal, up to the shared work
+limit, not merely the retained DAG size. Runtime dictionary construction and
+lookup also materialize/hash expanded source words. Repeated substitutions can
+share storage while still costing repeated expansion. This checkpoint makes no
+whole-program linear-time claim; aggregate runtime resource adequacy remains
+part of the open correspondence/performance work.
+
+#### Direct-seven checkpoint evidence and remaining obligations
+
+The original same-site int/str counterexamples now execute. Source regressions
+cover local and module functions, alias chains, nested functions, escaped local
+closures, captured function parameters, tuple storage/destructuring, and both
+module and local recursion. A generic `show` selects int/str bodies, while one
+`outer`/`say` site prints int, str and tuple values in order. Private source runs
+check one host initializer write for both global and local polymorphic bindings,
+correct final tuple values, unchanged value/view/interface on dictionary reads,
+unchanged cache metadata, and empty publication frames/markers at completion.
+Removing contextual dictionaries rejects execution without inspecting value
+shapes. Algebra/storage tests cover order, non-idempotence, interning/capacity,
+invalid DAG edges, missing routes and bounded expanded work.
+
+Actual validation receipts for the current implementation:
+
+- `cargo test -q -p yu-playground -- --test-threads=1`: **236 passed** (62 library,
+  40 CLI and 134 other integration tests). Afterward one additional CLI regression
+  was added and run exactly: `polymorphic_member_dictionaries_coexist_with_handler_resumption`,
+  **1 passed**. It returns `(6, "aa", 11)` with contextual dictionaries and an
+  ordinary resumed handler in the same program. Thus 237 current native tests
+  have passing receipts; the last addition was a focused run, not a second full run.
+- `cargo test -q -p yu-solver --features shadow-apply-candidate authentic_demand_capture_tests -- --test-threads=1`:
+  **19 passed, the same 6 baseline failures**. The errors remain IdentityExhausted,
+  the unchanged 1032-vs-744 test-only capacity assertion, three ReceiptMismatch
+  failures, and the unchanged old “method selection not implemented” assertion.
+  No prior expected output was weakened. The separate `instantiation_context_tests`
+  filter passes its missing-route/nonprior-parent test. An initial invocation
+  without the required candidate feature failed compilation; its corrected
+  feature-enabled run is the receipt above.
+- Fresh pinned-toolchain `npm --prefix web/playground run check`: **23 execution
+  examples passed**, with the unchanged Types/Console bytes, module reports,
+  diagnostics and added polymorphic initializer-output probes. TypeScript passes.
+
+Logs are `/tmp/yulang-r332-dictionary-native-final.log`,
+`/tmp/yulang-r332-dictionary-handler.log`,
+`/tmp/yulang-r332-dictionary-solver2.log`,
+`/tmp/yulang-r332-dictionary-context-readback.log`,
+`/tmp/yulang-r332-dictionary-web.log`, and
+`/tmp/yulang-r332-dictionary-typescript.log`. Build artifacts remain ignored.
+
+The next source/runtime obstructions are still concrete. General standalone
+blocks containing expression statements before their final expression reach
+StructuralProjection: `module/local_source.rs::block` currently accepts only
+BindingStatement predecessors, while the existing expression-only `sequence`
+formation is selected specially for conditional bodies. A general repair must
+preserve lexical scope, statement order and source identities, including mixed
+binding/expression blocks. This observation does not narrow the parent source
+quantifiers or authorize manufactured binding sources.
+
+For effects, `act io: our tick: int -> int` with
+`my compute x = { my before = io::tick 7; x + x }` and
+`my relay (thunk:[io] 'a) = catch thunk { io::tick(value), k -> k 11 }`
+still reaches HandlerEvidence at runtime construction. Both
+`my main = relay(compute 3)` and the int/str pair have this failure; it also
+occurs with repeated continuation use. The monomorphic result annotation `[io]
+int` coexistence test passes. These are current source probes, not evidence
+that the general handler obligation is solved or that the failing feature is
+outside the original task.
+
+Operator/member role transport, complete dictionary/source correspondence,
+general effect/continuation execution, six baseline solver failures, all
+unchanged Yulang2 examples, accepted principal schemes, original source/native
+correspondence and A/B, independent review and production promotion remain OPEN.
+This is a direct-primary UNREVIEWED research checkpoint; no child, reviewer,
+background service or deployment was launched.
+
+Tooling also passes: `python3 -B tools/agent_sprint.py check` and all 57
+`test_agent_sprint.py` tests. These are static/simulation receipts, not live
+workers or independent review. All current-primary process handles are terminal.
+A fresh runtime list contains only /root. Foreign PIDs 95124/95134 still exist
+(12h48m at observation, solver RSS about 1.95 GB); their ownership stays UNKNOWN
+and neither they nor the three quarantined historical identities were reclaimed.

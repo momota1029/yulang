@@ -39,6 +39,8 @@ pub(super) struct GraphState {
     pub local_captures: Vec<LocalCapture>,
     pub local_capture_stack: Vec<usize>,
     pub source_lambda_depth: usize,
+    pub dispatch_contexts: Vec<DispatchContextNode>,
+    dispatch_context_index: HashMap<DispatchContextNode, usize>,
     pub retained_bytes: usize,
     pub scratch_bytes: usize,
     pub orchestration_bytes: usize,
@@ -95,6 +97,7 @@ pub(super) struct SourceFieldTailObligation {
     /// The exact source operator use that introduced this body constraint.
     /// Capture and FreshUse preserve it independently of copied row identities.
     pub operator_origin: Option<OperatorFieldTailOrigin>,
+    pub dispatch_context: Option<usize>,
     pub occurrence: HirOccurrenceId,
     pub source: yu_hir::shadow::SourceNodeKey,
     pub member: Box<str>,
@@ -115,6 +118,18 @@ pub(super) struct OperatorFieldTailOrigin {
     pub occurrence: HirOccurrenceId,
 }
 
+/// Typed references to actual retained FreshUse records. These are never
+/// inferred from receiver equality or from an implementation spelling.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) enum DispatchRoute { Module(usize), Local(usize), Operator(usize), Member(usize) }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(super) struct DispatchContextNode {
+    pub outer: Option<usize>,
+    pub route: DispatchRoute,
+    pub inner: Option<usize>,
+}
+
 #[derive(Debug)]
 pub(super) struct MemberGraph {
     pub receiver: RowKey,
@@ -131,6 +146,7 @@ pub(super) struct MemberFreshUse {
     /// member transport so a later consumer can join it back to source code.
     pub source_owner: SourceRootId,
     pub operator_origin: Option<OperatorFieldTailOrigin>,
+    pub dispatch_context: Option<usize>,
     pub occurrence: HirOccurrenceId,
     /// Canonical receiver row whose readback authorized this exact body use.
     pub receiver_row: RowKey,
@@ -351,6 +367,8 @@ pub(super) struct Bound {
 #[derive(Debug)]
 pub(super) struct FreshRoute {
     pub use_id: DefinitionUseId,
+    pub source_owner: SourceRootId,
+    pub provider: DefinitionRootId,
     pub graph: Graph,
     pub rows: Vec<RowKey>,
     pub(super) retained: RetainedFreshUseMaps,
@@ -560,6 +578,8 @@ pub(super) struct FreshUse {
     row_observations: Vec<ReconstructedRowObservation>,
 }
 impl FreshUse {
+    pub(super) fn observed_context_use(&self) -> usize { self.context_use }
+
     fn bytes(&self) -> Result<usize, SolveAvailabilityError> {
         sum(&[self.scope_remap.bytes()?, bytes::<(candidate_context::RelationId, candidate_context::ScopedFlow)>(self.scoped_relations.capacity())?, bytes::<RowKey>(self.rows.capacity())?, bytes::<Option<Term>>(self.terms.capacity())?,
             bytes::<(usize, usize)>(self.source_role_obligation_rows.capacity())?,
@@ -702,6 +722,26 @@ fn typed_port_pair(
 }
 
 impl GraphState {
+    fn compose_dispatch_context(&mut self, outer: Option<usize>, route: DispatchRoute,
+        inner: Option<usize>) -> Result<usize, SolveAvailabilityError> {
+        let node = DispatchContextNode { outer, route, inner };
+        if [outer, inner].into_iter().flatten().any(|index| index >= self.dispatch_contexts.len()) {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
+        }
+        if let Some(index) = self.dispatch_context_index.get(&node) { return Ok(*index); }
+        let old_nodes = self.dispatch_contexts.capacity();
+        let old_index = self.dispatch_context_index.capacity();
+        self.dispatch_contexts.try_reserve(1).map_err(|_| exhausted())?;
+        self.dispatch_context_index.try_reserve(1).map_err(|_| exhausted())?;
+        let index = self.dispatch_contexts.len();
+        self.dispatch_contexts.push(node);
+        self.dispatch_context_index.insert(node, index);
+        self.retained_bytes = sum(&[self.retained_bytes,
+            bytes::<DispatchContextNode>(self.dispatch_contexts.capacity() - old_nodes)?,
+            bytes::<(DispatchContextNode, usize)>(self.dispatch_context_index.capacity() - old_index)?])?;
+        Ok(index)
+    }
+
     pub(super) fn retained_field_tail_templates(&self) -> impl Iterator<Item = &SourceFieldTailObligation> {
         self.graphs.iter().flatten().flat_map(|graph| &graph.source_field_tail_obligations)
             .chain(self.local_captures.iter().flat_map(|capture| &capture.fields))
@@ -726,18 +766,22 @@ impl GraphState {
         if self.source_field_tail_obligations.values().any(|items| !items.is_empty()) {
             return true;
         }
-        let selected = |obligation: &SourceFieldTailObligation, receiver_row: RowKey| {
+        let selected = |obligation: &SourceFieldTailObligation, receiver_row: RowKey, context: Option<usize>| {
             self.member_uses.iter().any(|use_|
                 use_.source_owner == obligation.source_owner
                     && use_.occurrence == obligation.occurrence
+                    && use_.dispatch_context == context
                     && self.intrusion.rep(use_.receiver_row) == self.intrusion.rep(receiver_row)
             )
         };
-        let route_unresolved = |graph: &Graph, rows: &[RowKey], mappings: &[(usize, [usize; 4])]| {
+        let route_unresolved = |graph: &Graph, rows: &[RowKey], mappings: &[(usize, [usize; 4])], route: DispatchRoute| {
             mappings.iter().any(|(index, row_indexes)| {
                 let Some(obligation) = graph.source_field_tail_obligations.get(*index) else { return true; };
                 let Some(receiver_row) = rows.get(row_indexes[0]).copied() else { return true; };
-                if selected(obligation, receiver_row) { return false; }
+                let Some(context) = self.dispatch_context_index.get(&DispatchContextNode {
+                    outer: None, route, inner: obligation.dispatch_context,
+                }).copied() else { return true; };
+                if selected(obligation, receiver_row, Some(context)) { return false; }
                 // A use inside another captured body becomes that body's
                 // dormant obligation. All four rows must survive together;
                 // source spelling or a matching receiver alone is insufficient.
@@ -745,6 +789,7 @@ impl GraphState {
                 let captured = |template: &SourceFieldTailObligation|
                     template.source_owner == obligation.source_owner
                         && template.occurrence == obligation.occurrence
+                        && template.dispatch_context == Some(context)
                         && [template.receiver_row, template.receiver_effect,
                             template.result_row, template.result_effect]
                             .map(|row| Some(self.intrusion.rep(row))) == mapped;
@@ -755,23 +800,20 @@ impl GraphState {
                     .any(captured)
             })
         };
-        self.routes.iter().any(|route| {
-            let unresolved = route_unresolved(&route.graph, &route.rows, &route.retained.source_field_tail_obligation_rows);
+        self.routes.iter().enumerate().any(|(index, route)| {
+            let unresolved = route_unresolved(&route.graph, &route.rows, &route.retained.source_field_tail_obligation_rows, DispatchRoute::Module(index));
             unresolved
         })
-            || self.local_routes.iter().any(|route| {
-                let unresolved = route_unresolved(&route.graph, &route.rows, &route.retained.source_field_tail_obligation_rows);
+            || self.local_routes.iter().enumerate().any(|(index, route)| {
+                let unresolved = route_unresolved(&route.graph, &route.rows, &route.retained.source_field_tail_obligation_rows, DispatchRoute::Local(index));
                 unresolved
             })
-            || self.local_use.iter().any(|frame| {
-                let unresolved = route_unresolved(&frame.graph, &frame.fresh.rows, &frame.fresh.source_field_tail_obligation_rows);
-                unresolved
-            })
-            || self.operator_uses.iter()
-                .filter(|use_| matches!(use_.use_owner, SourceRootId::Expression(_)))
-                .any(|use_| {
+            || !self.local_use.is_empty()
+            || self.operator_uses.iter().enumerate()
+                .filter(|(_, use_)| matches!(use_.use_owner, SourceRootId::Expression(_)))
+                .any(|(index, use_)| {
                 let unresolved = self.operator_graphs.get(&use_.provider)
-                    .map_or(true, |graph| route_unresolved(graph, &use_.fresh.rows, &use_.fresh.source_field_tail_obligation_rows));
+                    .map_or(true, |graph| route_unresolved(graph, &use_.fresh.rows, &use_.fresh.source_field_tail_obligation_rows, DispatchRoute::Operator(index)));
                 unresolved
             })
     }
@@ -1192,6 +1234,7 @@ impl GraphState {
         };
         items.is_some_and(|items| items.iter().any(|old| old.source_owner == obligation.source_owner
             && old.operator_origin == obligation.operator_origin
+            && old.dispatch_context == obligation.dispatch_context
             && old.occurrence == obligation.occurrence
             && [old.receiver_row, old.receiver_effect, old.result_row, old.result_effect].map(|r| self.intrusion.rep(r))
                 == [obligation.receiver_row, obligation.receiver_effect, obligation.result_row, obligation.result_effect].map(|r| self.intrusion.rep(r))))
@@ -1328,6 +1371,8 @@ impl GraphState {
             bytes::<Option<LocalScheme>>(self.locals.capacity())?,
             bytes::<LocalCapture>(self.local_captures.capacity())?,
             bytes::<usize>(self.local_capture_stack.capacity())?,
+            bytes::<DispatchContextNode>(self.dispatch_contexts.capacity())?,
+            bytes::<(DispatchContextNode, usize)>(self.dispatch_context_index.capacity())?,
             bytes::<LocalFreshRoute>(self.local_routes.capacity())?,
             bytes::<(HirOccurrenceId, usize)>(self.local_route_by_occurrence.capacity())?,
             bytes::<LocalUse>(self.local_use.capacity())?,
@@ -2066,14 +2111,19 @@ impl InferenceSession {
         self.candidate_receiver_closed_frontier(&[receiver, subject], &receiver_shape)?;
 
         let mut authenticated_pairs = 0usize;
-        for (graph, rows) in state.routes.iter().map(|route| (&route.graph, &route.rows))
-            .chain(state.local_routes.iter().map(|route| (&route.graph, &route.rows))) {
+        for (graph, rows, route) in state.routes.iter().enumerate()
+            .map(|(index, route)| (&route.graph, &route.rows, DispatchRoute::Module(index)))
+            .chain(state.local_routes.iter().enumerate()
+                .map(|(index, route)| (&route.graph, &route.rows, DispatchRoute::Local(index)))) {
             for field in &graph.source_field_tail_obligations {
                 if field.source_owner != obligation.source_owner
                     || field.occurrence != obligation.occurrence
                     || field.source != obligation.source
                     || field.member != obligation.member
                     || field.required_roles != obligation.required_roles
+                    || state.dispatch_context_index.get(&DispatchContextNode {
+                        outer: None, route, inner: field.dispatch_context,
+                    }).copied() != obligation.dispatch_context
                 {
                     continue;
                 }
@@ -2833,6 +2883,7 @@ impl InferenceSession {
         let fresh_bytes = fresh.bytes()?;
         state.scratch_bytes = state.scratch_bytes.checked_sub(fresh_bytes)
             .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let dispatch_route = DispatchRoute::Operator(state.operator_uses.len());
         for (obligation_index, row_indexes) in &fresh.source_field_tail_obligation_rows {
             let mut obligation = graph.source_field_tail_obligations.get(*obligation_index)
                 .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
@@ -2848,6 +2899,8 @@ impl InferenceSession {
             obligation.receiver_effect = state.intrusion.rep(receiver_effect?);
             obligation.result_row = state.intrusion.rep(result?);
             obligation.result_effect = state.intrusion.rep(result_effect?);
+            obligation.dispatch_context = Some(state.compose_dispatch_context(
+                None, dispatch_route, obligation.dispatch_context)?);
             state.retain_source_field_tail_obligation(obligation)?;
         }
         state.operator_uses.try_reserve(1).map_err(|_| exhausted())?;
@@ -2900,7 +2953,7 @@ impl InferenceSession {
             // propagation. Concrete receiver evidence in that graph can
             // select a member even if the definition has no later Name use.
             let key = |obligation: &SourceFieldTailObligation| (
-                obligation.source_owner.clone(), obligation.occurrence.clone(), obligation.operator_origin.clone(),
+                obligation.source_owner.clone(), obligation.occurrence.clone(), obligation.operator_origin.clone(), obligation.dispatch_context,
                 [obligation.receiver_row, obligation.receiver_effect,
                     obligation.result_row, obligation.result_effect]
                     .map(|row| state.intrusion.rep(row)),
@@ -2965,6 +3018,7 @@ impl InferenceSession {
                     .into_iter()
                     .find(|readback| readback.owner == item.obligation.owner
                         && readback.occurrence == item.obligation.occurrence
+                        && readback.instantiation_context_ordinal == item.obligation.dispatch_context
                         && readback.receiver_row == receiver_row)
                     .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 let member_index = match self.unique_candidate_field_tail_member(&readback, &item.obligation.required_roles) {
@@ -3045,6 +3099,7 @@ impl InferenceSession {
                     let before = items.len();
                     items.retain(|old| old.source_owner != item.obligation.source_owner
                         || old.operator_origin != item.obligation.operator_origin
+                        || old.dispatch_context != item.obligation.dispatch_context
                         || old.occurrence != item.obligation.occurrence
                         || old.receiver_row != item.obligation.receiver_row
                         || old.receiver_effect != item.obligation.receiver_effect
@@ -3124,6 +3179,7 @@ impl InferenceSession {
                 next_ancestry.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                 next_ancestry.push(member_root.clone());
                 let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                let dispatch_route = DispatchRoute::Member(state.member_uses.len());
                 for (obligation_index, row_indexes) in &fresh.source_field_tail_obligation_rows {
                     let nested = graph.source_field_tail_obligations.get(*obligation_index)
                         .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
@@ -3136,6 +3192,8 @@ impl InferenceSession {
                     nested.receiver_effect = state.intrusion.rep(receiver_effect?);
                     nested.result_row = state.intrusion.rep(result_row?);
                     nested.result_effect = state.intrusion.rep(result_effect?);
+                    nested.dispatch_context = Some(state.compose_dispatch_context(
+                        item.obligation.dispatch_context, dispatch_route, nested.dispatch_context)?);
                     pending.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     pending.push(Pending { obligation: nested, ancestry: next_ancestry.clone(), template_owners: item.template_owners.clone() });
                 }
@@ -3147,6 +3205,7 @@ impl InferenceSession {
                     owner: item.obligation.owner.clone(),
                     source_owner: item.obligation.source_owner.clone(),
                     operator_origin: item.obligation.operator_origin.clone(),
+                    dispatch_context: item.obligation.dispatch_context,
                     occurrence,
                     receiver_row: item.obligation.receiver_row,
                     member: member_root,
@@ -3204,6 +3263,7 @@ impl InferenceSession {
                     let before = items.len();
                     items.retain(|old| old.source_owner != item.obligation.source_owner
                         || old.operator_origin != item.obligation.operator_origin
+                        || old.dispatch_context != item.obligation.dispatch_context
                         || old.occurrence != item.obligation.occurrence
                         || old.receiver_row != item.obligation.receiver_row
                         || old.receiver_effect != item.obligation.receiver_effect
@@ -3243,6 +3303,7 @@ impl InferenceSession {
                 let same = |old: &SourceFieldTailObligation|
                     old.source_owner == residual.source_owner && old.occurrence == residual.occurrence
                         && old.operator_origin == residual.operator_origin
+                        && old.dispatch_context == residual.dispatch_context
                         && [old.receiver_row, old.receiver_effect, old.result_row, old.result_effect]
                             .map(|row| state.intrusion.rep(row))
                         == [residual.receiver_row, residual.receiver_effect, residual.result_row, residual.result_effect]
@@ -3268,6 +3329,7 @@ impl InferenceSession {
                 let capture = state.local_captures.get_mut(*slot).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 let same = |old: &SourceFieldTailObligation| old.source_owner == residual.source_owner
                     && old.operator_origin == residual.operator_origin
+                        && old.dispatch_context == residual.dispatch_context
                     && old.occurrence == residual.occurrence
                     && [old.receiver_row, old.receiver_effect, old.result_row, old.result_effect].map(|r| state.intrusion.rep(r))
                         == [residual.receiver_row, residual.receiver_effect, residual.result_row, residual.result_effect].map(|r| state.intrusion.rep(r));
@@ -3281,6 +3343,7 @@ impl InferenceSession {
             let before = items.len();
             items.retain(|old| old.source_owner != residual.source_owner || old.occurrence != residual.occurrence
                 || old.operator_origin != residual.operator_origin
+                || old.dispatch_context != residual.dispatch_context
                 || old.receiver_row != residual.receiver_row || old.receiver_effect != residual.receiver_effect
                 || old.result_row != residual.result_row || old.result_effect != residual.result_effect);
             if items.len() + 1 != before { return Err(SolveAvailabilityError::ReceiptMismatch); }
@@ -3936,8 +3999,12 @@ impl InferenceSession {
             RoutedUseKind::IncomingStructured,
         )?;
         let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+        let dispatch_route = DispatchRoute::Module(state.routes.len());
         state.routes.push(FreshRoute {
             use_id: id.clone(),
+            source_owner: receiving_owner.clone(),
+            provider: self.batch.definitions.get(record.target.ordinal() as usize)
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?.root.clone(),
             graph,
             rows,
             retained: retained_maps,
@@ -3947,7 +4014,9 @@ impl InferenceSession {
                 state.retain_source_role_obligation_for(receiving_owner.clone(), obligation)?;
             }
         }
-        for obligation in activated_field_tails {
+        for mut obligation in activated_field_tails {
+            obligation.dispatch_context = Some(state.compose_dispatch_context(
+                None, dispatch_route, obligation.dispatch_context)?);
             if !state.has_source_field_tail_obligation(&obligation) {
                 state.retain_source_field_tail_obligation(obligation)?;
             }
@@ -4040,12 +4109,15 @@ impl InferenceSession {
                     &route.retained.source_field_tail_obligation_rows, &owner,
                 )?;
                 let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                let dispatch_route = DispatchRoute::Local(state.local_routes.len() - 1);
                 for role in roles {
                     if !state.has_source_role_obligation(&owner, &role) {
                         state.retain_source_role_obligation_for(owner.clone(), role)?;
                     }
                 }
-                for field in fields {
+                for mut field in fields {
+                    field.dispatch_context = Some(state.compose_dispatch_context(
+                        None, dispatch_route, field.dispatch_context)?);
                     if !state.has_source_field_tail_obligation(&field) {
                         state.retain_source_field_tail_obligation(field)?;
                     }
@@ -4281,6 +4353,26 @@ impl InferenceSession {
 #[cfg(test)]
 mod authentic_demand_capture_tests {
     use super::*;
+
+    #[test]
+    fn dispatch_context_dag_interns_composition_and_accounts_capacity() {
+        // Algebra/storage probe: the synthetic route ordinals here grant no
+        // source authority; public readback separately requires actual routes.
+        let mut state = GraphState::default();
+        let first = state.compose_dispatch_context(None, DispatchRoute::Local(0), None).unwrap();
+        let retained = state.retained_bytes;
+        assert_eq!(state.compose_dispatch_context(None, DispatchRoute::Local(0), None).unwrap(), first);
+        assert_eq!(state.retained_bytes, retained);
+        let second = state.compose_dispatch_context(Some(first), DispatchRoute::Member(0), Some(first)).unwrap();
+        assert!(first < second);
+        assert_eq!(state.dispatch_contexts.len(), 2);
+        assert_eq!(state.retained_bytes,
+            bytes::<DispatchContextNode>(state.dispatch_contexts.capacity()).unwrap()
+            + bytes::<(DispatchContextNode, usize)>(state.dispatch_context_index.capacity()).unwrap());
+        assert!(matches!(state.compose_dispatch_context(Some(2), DispatchRoute::Operator(0), None),
+            Err(SolveAvailabilityError::ReceiptMismatch)));
+        assert_eq!(state.dispatch_contexts.len(), 2);
+    }
 
     #[test]
     fn nested_operator_provider_rhs_uses_dependency_before_capture() {

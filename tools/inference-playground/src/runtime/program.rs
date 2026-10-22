@@ -12,6 +12,7 @@ use yu_hir::{
     HirParameterId, SourceRootId,
 };
 use yu_solver::shadow_apply::CandidateInference;
+use super::dispatch;
 
 /// One immutable source-qualified code arena. Lowering visits each retained
 /// expression and reference once; recursive references remain binder references.
@@ -26,6 +27,9 @@ pub struct RuntimeProgram {
     pub(super) closed_primitive: bool,
     host_write_operation: Option<yu_hir::SourceOperationId>,
     pub(super) operation_v1: Option<OperationV1Plan>,
+    pub(super) dictionaries: Option<HashMap<(Vec<dispatch::Step>, dispatch::Site), Label>>,
+    pub(super) dictionary_names: HashSet<dispatch::Site>,
+    pub(super) operator_bodies: HashMap<RuntimeOperatorUseKey, Label>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
@@ -90,6 +94,10 @@ pub struct RuntimeEvidence {
     // Authentic abstract constraints may remain in uncalled closure bodies.
     // Reaching one without a selected body still stops execution.
     field_tail_templates: HashSet<RuntimeFieldTailKey>,
+    contextual_dispatch: bool,
+    ambiguous_fields: HashSet<RuntimeFieldTailKey>,
+    member_candidates: HashMap<dispatch::Site, HashSet<yu_hir::SourceMemberRootId>>,
+    field_tail_contexts: HashMap<(Vec<dispatch::Step>, dispatch::Site), yu_hir::SourceMemberRootId>,
     operator_providers: HashMap<RuntimeOperatorUseKey, ExpressionRootId>,
     imported_bindings: HashMap<yu_hir::SourceExportId, DefId>,
     host_write_operation: Option<yu_hir::SourceOperationId>,
@@ -355,10 +363,29 @@ impl RuntimeProgram {
             {
                 return Err(RuntimeUnavailable::InvalidSourceReference);
             }
-            if evidence.field_tail_members.insert(key.clone(), member_root.clone())
-                .is_some_and(|previous| previous != member_root)
-            {
+            let site = dispatch::Site { owner: use_.source_owner.clone(), occurrence: use_.occurrence.clone() };
+            let word: Vec<_> = use_.instantiation.steps().map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+                .into_iter().map(|step| dispatch::Step {
+                    kind: match step.provider {
+                        yu_solver::shadow_apply::CandidateInstantiationProvider::Definition(_)
+                        | yu_solver::shadow_apply::CandidateInstantiationProvider::Local(_) => dispatch::Kind::Name,
+                        yu_solver::shadow_apply::CandidateInstantiationProvider::Operator(_) => dispatch::Kind::Operator,
+                        yu_solver::shadow_apply::CandidateInstantiationProvider::Member(_) => dispatch::Kind::Member,
+                    },
+                    site: dispatch::Site { owner: step.owner.clone(), occurrence: step.occurrence.clone() },
+                }).collect();
+            if evidence.field_tail_contexts.insert((word, site.clone()), member_root.clone())
+                .is_some_and(|previous| previous != member_root) {
                 return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            evidence.member_candidates.entry(site).or_default().insert(member_root.clone());
+            if !evidence.ambiguous_fields.contains(&key) {
+                if evidence.field_tail_members.insert(key.clone(), member_root.clone())
+                    .is_some_and(|previous| previous != member_root) {
+                    evidence.field_tail_members.remove(&key);
+                    evidence.ambiguous_fields.insert(key);
+                    evidence.contextual_dispatch = true;
+                }
             }
         }
         for use_ in candidate.operator_fresh_uses()
@@ -410,6 +437,10 @@ impl RuntimeProgram {
             name_consumption: HashMap::new(),
             field_tail_members: HashMap::new(),
             field_tail_templates: HashSet::new(),
+            contextual_dispatch: false,
+            ambiguous_fields: HashSet::new(),
+            member_candidates: HashMap::new(),
+            field_tail_contexts: HashMap::new(),
             operator_providers: HashMap::new(),
             imported_bindings: HashMap::new(),
             host_write_operation: None,
@@ -962,10 +993,12 @@ impl RuntimeProgram {
             }
         }
         let original_code_len = code.len();
+        let mut operator_bodies = HashMap::new();
         for index in 0..original_code_len {
             let site = code[index].site.clone();
             match code[index].instruction.clone() {
                 Instruction::FieldTail { receiver, key } => {
+                    if evidence.contextual_dispatch { continue; }
                     let Some(member_root) = evidence.field_tail_member(&key) else {
                         if evidence.field_tail_templates.contains(&key) { continue; }
                         return Err(RuntimeUnavailable::UnsupportedFieldTail(site));
@@ -990,6 +1023,10 @@ impl RuntimeProgram {
                     else {
                         return Err(RuntimeUnavailable::InvalidSourceReference);
                     };
+                    if evidence.contextual_dispatch {
+                        operator_bodies.insert(key, callee);
+                        continue;
+                    }
                     let first = Label(code.len());
                     code.push(Arc::new(Code {
                         site: site.clone(),
@@ -1127,6 +1164,17 @@ impl RuntimeProgram {
                 local_lineage,
             })
         }).transpose()?;
+        let mut dictionary_names = HashSet::new();
+        let dictionaries = if evidence.contextual_dispatch {
+            let mut dictionaries = HashMap::new();
+            for ((word, site), member) in &evidence.field_tail_contexts {
+                let body = *member_templates.get(member).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                dictionary_names.extend(word.iter().filter(|step| step.kind == dispatch::Kind::Name)
+                    .map(|step| step.site.clone()));
+                dictionaries.insert((word.clone(), site.clone()), body);
+            }
+            Some(dictionaries)
+        } else { None };
         let mut program = Self {
             _hir: hir,
             code,
@@ -1137,6 +1185,9 @@ impl RuntimeProgram {
             closed_primitive: false,
             host_write_operation: evidence.host_write_operation.clone(),
             operation_v1,
+            dictionaries,
+            dictionary_names,
+            operator_bodies,
         };
         program.closed_primitive = super::primitive::closed_primitive(&program);
         Ok(Arc::new(program))
@@ -1282,14 +1333,20 @@ fn reachable_runtime_roots(
                         occurrence: expression.occurrence.clone(),
                         use_occurrence: root.active_use_occurrence.clone(),
                     };
-                    let Some(member_root) = evidence.field_tail_member(&key) else {
+                    let members: Vec<_> = if evidence.contextual_dispatch {
+                        evidence.member_candidates.get(&dispatch::Site {
+                            owner: key.source_owner.clone(), occurrence: key.occurrence.clone(),
+                        }).into_iter().flat_map(|members| members.iter()).cloned().collect()
+                    } else { evidence.field_tail_member(&key).cloned().into_iter().collect() };
+                    if members.is_empty() {
                         if evidence.field_tail_templates.contains(&key) { continue; }
                         return Err(RuntimeUnavailable::UnsupportedFieldTail(SourceSite {
                             source_root: root.source_root.clone(),
                             occurrence: expression.occurrence.clone(),
                             range: expression.range.clone(),
                         }));
-                    };
+                    }
+                    for member_root in members {
                     let member_source_root = SourceRootId::Member(member_root.clone());
                     let member_module = unique_source_module(hirs, &member_source_root)?;
                     let member_source = member_module.local_source_for(&member_source_root)
@@ -1310,6 +1367,7 @@ fn reachable_runtime_roots(
                         active_use_occurrence: None,
                         kind: RuntimeRootKind::Member(member_root.clone()),
                     });
+                    }
                 }
                 LocalSourceForm::InfixOperator { .. } => {
                     let key = RuntimeOperatorUseKey {

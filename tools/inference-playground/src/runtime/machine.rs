@@ -1,4 +1,5 @@
 use super::{
+    dispatch,
     continuation::{ResumeTemplate, TemplateHandle, TemplateNode},
     literal,
     program::{
@@ -45,6 +46,7 @@ pub struct Machine {
     executing_views: Vec<ExecutionView>,
     operation_v1_trace: Option<OperationV1Trace>,
     tuple_prefixes: Vec<TuplePrefix>,
+    dispatch: dispatch::Machine,
 }
 #[derive(Default)]
 struct OperationV1Trace {
@@ -155,6 +157,7 @@ struct ReceivedValue {
     value: ValueHandle,
     interface: ParameterRole,
     view: ViewHandle,
+    dispatch: Option<usize>,
 }
 struct TuplePrefix {
     previous: Option<usize>,
@@ -163,6 +166,7 @@ struct TuplePrefix {
 struct Environment {
     parent: Option<usize>,
     binder: Option<(Binder, usize)>,
+    dispatch: dispatch::State,
 }
 #[derive(Clone)]
 enum ExecutableValue {
@@ -291,6 +295,7 @@ pub(super) enum Frame {
         cell: usize,
         consumption: NameConsumption,
         site: SourceSite,
+        environment: usize,
     },
 }
 
@@ -402,6 +407,7 @@ impl RuntimeProgram {
             environments: vec![Environment {
                 parent: None,
                 binder: None,
+                dispatch: dispatch::State::default(),
             }],
             cells: vec![None; self.definitions.len()],
             execution_roots: roots,
@@ -420,6 +426,7 @@ impl RuntimeProgram {
             executing_views: Vec::new(),
             operation_v1_trace: self.operation_v1.as_ref().map(|_| OperationV1Trace::default()),
             tuple_prefixes: Vec::new(),
+            dispatch: dispatch::Machine::default(),
         };
         machine.begin_root(0);
         Ok(machine)
@@ -593,6 +600,7 @@ impl Machine {
         self.continuations[continuation.0].resumed = true;
         let response_value = self.allocate(&source, RuntimeValueKind::Unit, None);
         let response = ReceivedValue {
+            dispatch: None,
             value: response_value,
             interface: ParameterRole::Value,
             view: self.receiving.ground(response_value),
@@ -681,11 +689,30 @@ impl Machine {
                     self.data(site, RuntimeValueKind::Tuple(Vec::new()), None);
                 }
             }
+            Instruction::FieldTail { receiver, .. } if self.program.dictionaries.is_some() => {
+                let word = self.dispatch.word(self.environments[environment].dispatch)?;
+                let key = dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() };
+                let callee = *self.program.dictionaries.as_ref().unwrap().get(&(word, key.clone()))
+                    .ok_or_else(|| RuntimeUnavailable::UnsupportedFieldTail(site.clone()))?;
+                let entered = self.dispatch_environment(environment, dispatch::Step { kind: dispatch::Kind::Member, site: key })?;
+                self.frames.push(Frame::Callee { argument: *receiver, environment, site: site.clone() });
+                self.state = State::Evaluate { code: callee, environment: entered };
+            }
             Instruction::FieldTail { .. } => {
                 // Only exact candidate-retained abstract constraints survive
                 // construction. Execution requires a concrete selection; no
                 // runtime value tag supplies a missing dictionary.
                 return Err(RuntimeUnavailable::UnsupportedFieldTail(site.clone()));
+            }
+            Instruction::InfixOperator { left, right, key } if self.program.dictionaries.is_some() => {
+                let callee = *self.program.operator_bodies.get(key).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                let entered = self.dispatch_environment(environment, dispatch::Step {
+                    kind: dispatch::Kind::Operator,
+                    site: dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() },
+                })?;
+                self.frames.push(Frame::Callee { argument: *right, environment, site: site.clone() });
+                self.frames.push(Frame::Callee { argument: *left, environment, site: site.clone() });
+                self.state = State::Evaluate { code: callee, environment: entered };
             }
             Instruction::InfixOperator { .. } => {
                 return Err(RuntimeUnavailable::InvalidSourceReference);
@@ -756,6 +783,7 @@ impl Machine {
                                 Some((received.value, environment, site.clone()));
                         }
                     }
+                    let received = self.dispatch_name(received, cell, environment, site)?;
                     self.consume(received, *consumption, site)?;
                 } else if matches!(resolution, LocalSourceResolution::ModuleDef(_)) {
                     if !self.initializing_globals.insert(cell) {
@@ -767,10 +795,12 @@ impl Machine {
                         cell,
                         consumption: *consumption,
                         site: site.clone(),
+                        environment,
                     });
+                    let environment = self.initializer_environment(cell, 0)?;
                     self.state = State::Evaluate {
                         code: self.program.definitions[cell].body,
-                        environment: 0,
+                        environment,
                     };
                 } else {
                     return Err(RuntimeUnavailable::UninitializedBinding(site.clone()));
@@ -1020,6 +1050,7 @@ impl Machine {
                             environment,
                             Binder::Catch(binder.id.clone()),
                             ReceivedValue {
+                                dispatch: received.dispatch,
                                 value: received.value,
                                 interface: ParameterRole::Value,
                                 view: received.view,
@@ -1040,7 +1071,7 @@ impl Machine {
                 declaration,
                 source,
             } => self.make_request_carrier(declaration, received, &source),
-            Frame::OperationResultConsumer { source } => self.execute(received.value, &source)?,
+            Frame::OperationResultConsumer { source } => self.execute_with_substitution(received.value, &source, received.dispatch)?,
             Frame::DiscardToUnit { site } => self.ground_data(&site, RuntimeValueKind::Unit, None),
             Frame::PrimitiveArgument { operation, mut arguments, site } => {
                 arguments.try_reserve(1).map_err(|_| RuntimeUnavailable::InvalidSourceReference)?;
@@ -1149,6 +1180,7 @@ impl Machine {
                                 ));
                             }
                         }
+                        let environment = self.substitute_environment(environment, received.dispatch)?;
                         self.frames.push(Frame::ReceiverReturn {
                             activation,
                             previous,
@@ -1184,6 +1216,7 @@ impl Machine {
                                     environment,
                                     Binder::Parameter(parameter),
                                     ReceivedValue {
+                                        dispatch: None,
                                         value: delay,
                                         interface: ParameterRole::Computation,
                                         view,
@@ -1244,6 +1277,7 @@ impl Machine {
                             ParameterRole::Computation => self.make_request_carrier(
                                 declaration,
                                 ReceivedValue {
+                                    dispatch: None,
                                     value: delay,
                                     interface: ParameterRole::Computation,
                                     view: delay_view,
@@ -1261,6 +1295,7 @@ impl Machine {
             } => {
                 self.leave_owner(ExecutionOwner::Invocation(activation), true, previous)?;
                 self.state = State::Return(ReceivedValue {
+                    dispatch: received.dispatch,
                     value: received.value,
                     interface: ParameterRole::Value,
                     view: received.view,
@@ -1275,6 +1310,7 @@ impl Machine {
                     environment,
                     Binder::Parameter(parameter),
                     ReceivedValue {
+                        dispatch: received.dispatch,
                         value: received.value,
                         interface: ParameterRole::Value,
                         view: received.view,
@@ -1327,6 +1363,7 @@ impl Machine {
                     }
                 }
                 self.cells[cell] = Some(ReceivedValue {
+                    dispatch: received.dispatch,
                     value: received.value,
                     interface: ParameterRole::Value,
                     view: received.view,
@@ -1452,7 +1489,7 @@ impl Machine {
                         CasePattern::Binder(id) => self.bind(
                             environment,
                             Binder::Catch(id.clone()),
-                            ReceivedValue { value: received.value, interface: ParameterRole::Value, view: received.view },
+                            ReceivedValue { dispatch: received.dispatch, value: received.value, interface: ParameterRole::Value, view: received.view },
                         ),
                         CasePattern::Tuple(patterns) => {
                             let bindings = {
@@ -1463,9 +1500,12 @@ impl Machine {
                                     pattern.as_ref().map(|id| (id.clone(), element.received))
                                 }).collect::<Vec<_>>()
                             };
-                            bindings.into_iter().fold(environment, |environment, (id, value)| {
-                                self.bind(environment, Binder::Catch(id), value)
-                            })
+                            let mut environment = environment;
+                            for (id, mut value) in bindings {
+                                value.dispatch = self.dispatch.then(value.dispatch, received.dispatch)?;
+                                environment = self.bind(environment, Binder::Catch(id), value);
+                            }
+                            environment
                         }
                         CasePattern::Integer(_) => environment,
                         CasePattern::Wildcard => environment,
@@ -1486,6 +1526,7 @@ impl Machine {
             }
             Frame::Root { next, cell } => {
                 self.cells[cell] = Some(ReceivedValue {
+                    dispatch: received.dispatch,
                     value: received.value,
                     interface: ParameterRole::Value,
                     view: received.view,
@@ -1497,14 +1538,17 @@ impl Machine {
                 cell,
                 consumption,
                 site,
+                environment,
             } => {
                 let received = ReceivedValue {
+                    dispatch: received.dispatch,
                     value: received.value,
                     interface: ParameterRole::Value,
                     view: received.view,
                 };
                 self.cells[cell] = Some(received);
                 self.initializing_globals.remove(&cell);
+                let received = self.dispatch_name(received, cell, environment, &site)?;
                 self.consume(received, consumption, &site)?;
             }
         }
@@ -1944,6 +1988,7 @@ impl Machine {
                             environment,
                             Binder::Catch(binder.id.clone()),
                             ReceivedValue {
+                                dispatch: None,
                                 value,
                                 interface: ParameterRole::Value,
                                 view,
@@ -2113,6 +2158,7 @@ impl Machine {
         // cache, while expression values have no publication cell or marker.
         while let Some(root) = self.execution_roots.get(ordinal).cloned() {
             ordinal += 1;
+            let mut environment = 0;
             let code = match root {
                 ScheduledRoot::Definition(index) => {
                     if self.cells[index].is_some() {
@@ -2123,6 +2169,10 @@ impl Machine {
                         next: ordinal,
                         cell: index,
                     });
+                    environment = match self.initializer_environment(index, 0) {
+                        Ok(environment) => environment,
+                        Err(error) => { self.state = State::Stopped(RuntimeOutcome::Unavailable(error)); return; }
+                    };
                     self.program.definitions[index].body
                 }
                 ScheduledRoot::Expression { root, code } => {
@@ -2135,7 +2185,7 @@ impl Machine {
             };
             self.state = State::Evaluate {
                 code,
-                environment: 0,
+                environment,
             };
             return;
         }
@@ -2156,9 +2206,13 @@ impl Machine {
                 next: next_ordinal,
                 cell: selected,
             });
+            let environment = match self.initializer_environment(selected, 0) {
+                Ok(environment) => environment,
+                Err(error) => { self.state = State::Stopped(RuntimeOutcome::Unavailable(error)); return; }
+            };
             self.state = State::Evaluate {
                 code: self.program.definitions[selected].body,
-                environment: 0,
+                environment,
             };
         }
     }
@@ -2205,7 +2259,7 @@ impl Machine {
                     self.executing_views.push(execution);
                     self.frames.push(Frame::RootCompReturn { execution });
                 }
-                self.execute(received.value, site)?;
+                self.execute_with_substitution(received.value, site, received.dispatch)?;
             }
         }
         Ok(())
@@ -2238,6 +2292,7 @@ impl Machine {
                 cell,
                 recursive,
             });
+            let environment = self.initializer_environment(cell, environment)?;
             self.state = State::Evaluate {
                 code: initializer,
                 environment,
@@ -2251,16 +2306,22 @@ impl Machine {
         Ok(())
     }
     fn execute(&mut self, value: ValueHandle, site: &SourceSite) -> Result<(), RuntimeUnavailable> {
+        self.execute_with_substitution(value, site, None)
+    }
+    fn execute_with_substitution(&mut self, value: ValueHandle, site: &SourceSite,
+        substitution: Option<usize>) -> Result<(), RuntimeUnavailable> {
         match self.executables.get(&value.0).cloned() {
             Some(ExecutableValue::Delay { code, environment }) => {
+                let environment = self.substitute_environment(environment, substitution)?;
                 self.state = State::Evaluate { code, environment };
                 Ok(())
             }
             Some(ExecutableValue::Request {
                 declaration,
-                payload,
+                mut payload,
                 source,
             }) => {
+                payload.dispatch = self.dispatch.then(payload.dispatch, substitution)?;
                 let event = self.next_request;
                 self.next_request = event
                     .checked_add(1)
@@ -2292,11 +2353,42 @@ impl Machine {
             environment = frame.parent?;
         }
     }
+    fn with_dispatch(&mut self, parent: usize, dispatch: dispatch::State) -> usize {
+        let environment = self.environments.len();
+        self.environments.push(Environment { parent: Some(parent), binder: None, dispatch });
+        environment
+    }
+    fn initializer_environment(&mut self, cell: usize, parent: usize) -> Result<usize, RuntimeUnavailable> {
+        if self.program.dictionaries.is_none() { return Ok(parent); }
+        let dispatch = self.dispatch.initializer(cell, self.environments[parent].dispatch)?;
+        Ok(self.with_dispatch(parent, dispatch))
+    }
+    fn substitute_environment(&mut self, environment: usize, substitution: Option<usize>) -> Result<usize, RuntimeUnavailable> {
+        if self.program.dictionaries.is_none() || substitution.is_none() { return Ok(environment); }
+        let mut dispatch = self.environments[environment].dispatch;
+        dispatch.substitution = self.dispatch.then(dispatch.substitution, substitution)?;
+        Ok(self.with_dispatch(environment, dispatch))
+    }
+    fn dispatch_environment(&mut self, environment: usize, step: dispatch::Step) -> Result<usize, RuntimeUnavailable> {
+        let mut dispatch = self.environments[environment].dispatch;
+        dispatch.context = self.dispatch.append(dispatch.context, step)?;
+        Ok(self.with_dispatch(environment, dispatch))
+    }
+    fn dispatch_name(&mut self, mut value: ReceivedValue, cell: usize, environment: usize,
+        site: &SourceSite) -> Result<ReceivedValue, RuntimeUnavailable> {
+        if self.program.dictionaries.is_none() { return Ok(value); }
+        let key = dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() };
+        let instantiate = self.program.dictionary_names.contains(&key)
+            .then_some(dispatch::Step { kind: dispatch::Kind::Name, site: key });
+        value.dispatch = self.dispatch.name(value.dispatch, self.environments[environment].dispatch, cell, instantiate)?;
+        Ok(value)
+    }
     fn extend(&mut self, parent: usize, binder: Binder, cell: usize) -> usize {
         let index = self.environments.len();
         self.environments.push(Environment {
             parent: Some(parent),
             binder: Some((binder, cell)),
+            dispatch: self.environments[parent].dispatch,
         });
         index
     }
@@ -2314,6 +2406,7 @@ impl Machine {
         let value = self.allocate(site, kind, executable);
         let view = self.receiving.ground(value);
         self.state = State::Return(ReceivedValue {
+            dispatch: None,
             value,
             interface: ParameterRole::Value,
             view,
@@ -2328,6 +2421,7 @@ impl Machine {
         let value = self.allocate(site, kind, executable);
         let view = self.receiving.opaque(value);
         self.state = State::Return(ReceivedValue {
+            dispatch: None,
             value,
             interface: ParameterRole::Value,
             view,
@@ -2826,6 +2920,87 @@ mod module_expression_tests {
         assert_eq!(integer_count(&machine, "7"), 1);
         assert!(machine.initializing_globals.is_empty());
         assert!(machine.frames.is_empty());
+    }
+
+    #[test]
+    fn polymorphic_dictionary_reads_preserve_identity_and_initialize_once() {
+        for source in [
+            "my add = { my once = println \"init\"; \\x -> x + x }\nmy main = (add 3, add \"a\")\n",
+            "my main = { my add = { my once = println \"init\"; \\x -> x + x }; (add 3, add \"a\") }\n",
+        ] {
+            let (hir, candidate, world, indexes) = crate::prepare_with_world(
+                source, "dictionary-initializer.yu", false,
+            ).unwrap();
+            let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+            assert!(program.dictionaries.is_some());
+            let definition = program.definition_named("main").unwrap();
+            let mut machine = program.start_source_schedule(definition).unwrap();
+            let mut writes = 0;
+            let mut identity_checks = 0;
+            let mut steps = 0;
+            let result = loop {
+                steps += 1;
+                assert!(steps <= 100_000, "source run must stay within its step budget");
+                // Observe actual source Name transitions at already published
+                // polymorphic cells, including their receiving view identity.
+                if let State::Evaluate { code, environment } = &machine.state {
+                    let code = &program.code[code.0];
+                    let site = &code.site;
+                    let key = dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() };
+                    if program.dictionary_names.contains(&key) {
+                        if let Instruction::Name { resolution, consumption: NameConsumption::Observe } = &code.instruction {
+                            let cell = match resolution {
+                                LocalSourceResolution::ModuleDef(id) => program.definition_indices.get(id).copied(),
+                                LocalSourceResolution::Local(id) => machine.lookup(*environment, |binder|
+                                    matches!(binder, Binder::Local(candidate) if candidate == id)),
+                                _ => panic!("dictionary Name must refer to an initialized binding"),
+                            }.unwrap();
+                            if let Some(before) = machine.cells[cell] {
+                                assert!(matches!(machine.step(), RuntimeOutcome::Running));
+                                let State::Return(after) = machine.state else { panic!("Name must return its cached value"); };
+                                assert_eq!(before.value, after.value);
+                                assert_eq!(before.view, after.view);
+                                assert_eq!(before.interface, after.interface);
+                                assert_eq!(machine.cells[cell].unwrap().dispatch, before.dispatch);
+                                assert!(after.dispatch.is_some());
+                                identity_checks += 1;
+                                continue;
+                            }
+                        }
+                    }
+                }
+                match machine.step() {
+                    RuntimeOutcome::Running => {}
+                    RuntimeOutcome::UnhandledRequest { operation, continuation, .. } => {
+                        writes += 1;
+                        assert_eq!(program.host_write_operation(), Some(&operation));
+                        assert_eq!(machine.resume_host_write(continuation, &operation).unwrap().as_ref(), "init\n");
+                    }
+                    RuntimeOutcome::Completed(result) => break result,
+                    other => panic!("source={source:?}: {other:?}"),
+                }
+            };
+            assert_eq!(writes, 1, "initializer is never repeated by dictionary instantiation");
+            assert!(identity_checks >= 2);
+            let RuntimeValueKind::Tuple(elements) = &machine.value(result).unwrap().kind else { panic!("tuple result"); };
+            assert!(matches!(&machine.value(elements[0].received.value).unwrap().kind, RuntimeValueKind::Integer(n) if n.as_ref() == "6"));
+            assert!(matches!(&machine.value(elements[1].received.value).unwrap().kind, RuntimeValueKind::String(s) if s.as_ref() == "aa"));
+            assert!(machine.frames.is_empty());
+            assert!(machine.initializing_globals.is_empty());
+        }
+    }
+
+    #[test]
+    fn missing_contextual_dictionary_never_uses_runtime_value_shapes() {
+        let source = "my add x = x + x\nmy main = (add 3, add \"a\")\n";
+        let (hir, candidate, world, indexes) = crate::prepare_with_world(
+            source, "missing-dictionary.yu", false,
+        ).unwrap();
+        let mut program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+        Arc::get_mut(&mut program).unwrap().dictionaries.as_mut().unwrap().clear();
+        let definition = program.definition_named("main").unwrap();
+        let mut machine = program.start_source_schedule(definition).unwrap();
+        assert!(matches!(machine.run(100_000), RuntimeOutcome::Unavailable(RuntimeUnavailable::UnsupportedFieldTail(_))));
     }
 
     #[test]

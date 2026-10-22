@@ -1824,6 +1824,43 @@ mod tests {
     }
 
     #[test]
+    fn polymorphic_member_contexts_preserve_names_aliases_and_returned_closures() {
+        use yu_solver::shadow_apply::CandidateInstantiationProvider as Provider;
+        for (source, expected_kinds) in [
+            ("my main = { my add x = x + x; (add 3, add \"a\") }\n", vec!["local", "operator"]),
+            ("my main = { my add x = x + x; my alias = add; (alias 3, alias \"a\") }\n", vec!["local", "local", "operator"]),
+            ("my wrap x = { my add y = y + y; add x }\nmy main = (wrap 3, wrap \"a\")\n", vec!["definition", "local", "operator"]),
+            ("my make ignored = { my add x = x + x; add }\nmy main = (make () 3, make () \"a\")\n", vec!["definition", "local", "operator"]),
+        ] {
+            let (hir, candidate, _, _) = super::prepare_with_world(source, "dispatch-context.yu", false).unwrap();
+            let selections: Vec<_> = candidate.selected_field_tail_uses().unwrap()
+                .filter(|use_| use_.operator_use_occurrence.is_some()).collect();
+            assert_eq!(selections.len(), 2, "source={source:?}");
+            assert_ne!(selections[0].member_root, selections[1].member_root);
+            assert_eq!(selections[0].source_owner, selections[1].source_owner);
+            assert_eq!(selections[0].occurrence, selections[1].occurrence);
+            let paths: Vec<_> = selections.iter().map(|selection| selection.instantiation.steps().unwrap()).collect();
+            for path in &paths {
+                let kinds: Vec<_> = path.iter().map(|step| match step.provider {
+                    Provider::Definition(_) => "definition", Provider::Local(_) => "local",
+                    Provider::Operator(_) => "operator", Provider::Member(_) => "member",
+                }).collect();
+                assert_eq!(kinds, expected_kinds, "source={source:?}; path={path:?}");
+                for step in path {
+                    let local = hir.local_source_for(step.owner).unwrap().unwrap();
+                    assert!(local.expressions().iter().any(|expression| expression.occurrence == *step.occurrence),
+                        "every context step keeps its actual source occurrence");
+                }
+            }
+            assert_ne!(paths[0][0].occurrence, paths[1][0].occurrence);
+            assert_ne!(paths[0][0].use_instance, paths[1][0].use_instance);
+            assert_eq!(paths[0].last().unwrap().occurrence, paths[1].last().unwrap().occurrence);
+            assert_eq!(paths[0].last().unwrap().use_instance, paths[1].last().unwrap().use_instance,
+                "both paths retain the same original operator FreshUse below distinct Name instantiations");
+        }
+    }
+
+    #[test]
     fn eager_initializer_role_frontier_keeps_internal_forwarding_edges() {
         let (sources, indexes, role_indexes) = pinned_source_world().unwrap();
         let text: Arc<SourceText> = Arc::from("my outer x = { my unused = say x; 1 }\nouter 3\n");

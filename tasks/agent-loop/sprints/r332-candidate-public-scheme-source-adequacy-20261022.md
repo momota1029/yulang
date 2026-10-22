@@ -149,3 +149,28 @@ Preserve the prior 6592-second charge, discard 710 unused seconds, and grant
 3600 fresh direct-primary seconds (cumulative cap 10192). Existing exact leases
 apply. Provisional implementation may follow an explicit conditional argument;
 original A/B, independent review and production remain OPEN.
+
+Direct-seven continuation from `f9626a04c`: preserve the 8050-second sprint
+charge, discard 2142 unused seconds, and grant 3600 new direct-primary seconds
+(cumulative cap 11650). Construct exact source FreshUse contexts/member
+dictionaries through the existing solver/source/runtime leases. Preserve
+closure environments, one-shot initializer effects, receiving authority and
+all source identities; no runtime value-shape selection. Previous turn was
+PROGRESS. Only /root is live; unknown legacy identities/resources are retained.
+The current model/effort remain UNKNOWN, and independent review stays open.
+
+The direct primary additionally leases `tools/inference-playground/src/runtime/dispatch.rs`
+and `tools/inference-playground/src/runtime/mod.rs` for the explicit dictionary
+context/substitution algebra and its module declaration. Other held runtime
+leases include its environment/value integration. No foreign writer is present.
+
+Direct-seven checkpoint: exact retained FreshUse context DAGs now distinguish
+polymorphic FieldTail selections. Runtime static dictionaries and immutable
+initializer-scope substitutions preserve original values, views and one-shot
+initialization through aliases, closures, tuples and tested recursion. Native
+236 whole-package tests plus one later focused handler coexistence test pass;
+fresh WASM 23 examples and TypeScript pass. Solver focus is 19 pass with the same
+six baseline failures, plus one passing context-readback test. The note records
+local algebra/finite-map arguments and concrete remaining block/handler gates.
+Full source correspondence, parent A/B, independent review and production stay
+OPEN; this is UNREVIEWED direct-primary progress with minimal sprint records.

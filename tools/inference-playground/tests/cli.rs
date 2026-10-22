@@ -86,6 +86,51 @@ fn local_functions_retain_their_member_constraints() {
 }
 
 #[test]
+fn polymorphic_members_follow_aliases_and_captured_closures() {
+    for source in [
+        "my main = { my add x = x + x; (add 3, add \"a\") }\n",
+        "my main = { my add x = x + x; my alias = add; (alias 3, alias \"a\") }\n",
+        "my wrap x = { my add y = y + y; add x }\nmy main = (wrap 3, wrap \"a\")\n",
+        "my make ignored = { my add x = x + x; add }\nmy main = (make () 3, make () \"a\")\n",
+        "my add x = x + x\nmy main = (add 3, add \"a\")\n",
+        "my make f = \\x -> f x\nmy add x = x + x\nmy wrapper = make add\nmy main = (wrapper 3, wrapper \"a\")\n",
+        "my make f = \\x -> f x\nmy add x = x + x\nmy first = make add\nmy wrapper = make first\nmy main = (wrapper 3, wrapper \"a\")\n",
+        "my box f = (f, 0)\nmy add x = x + x\nmy unwrap pair = case pair:\n    (f, _) -> f\nmy wrapped = unwrap (box add)\nmy main = (wrapped 3, wrapped \"a\")\n",
+        "my unused x = x.show\nmy add x = x + x\nmy main = (add 3, add \"a\")\n",
+        "my add x = x + x\nmy loop b x = if b: loop false x else: add x\nmy main = (loop true 3, loop true \"a\")\n",
+        "my main = { my add x = x + x; my loop b x = if b: loop false x else: add x; (loop true 3, loop true \"a\") }\n",
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, b"(6, \"aa\")\n", "source={source:?}");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
+fn polymorphic_member_dictionaries_coexist_with_handler_resumption() {
+    let source = "act io:\n    our tick: int -> int\nmy add x = x + x\nmy relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 11 }\nmy main = (add 3, add \"a\", relay(io::tick 7))\n";
+    let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"(6, \"aa\", 11)\n");
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn polymorphic_role_calls_keep_exact_static_member_dictionaries() {
+    let source = "my outer x = { my unused = say x; 1 }\nouter 3\nouter \"text\"\nouter (3, \"text\")\n";
+    let output = cli_with_args(source, &["--run-module", "--steps", "100000"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"3\ntext\n(3, text)\n");
+    assert!(output.stderr.is_empty());
+    let source = "my show x = x.show\nmy main = (show 3, show \"a\")\n";
+    let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"(\"3\", \"a\")\n");
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
 fn uncalled_generic_bodies_retain_their_abstract_member_constraints() {
     for (source, expected) in [
         ("my outer x = { my unused y = y + y; x }\nmy main = outer 3\n", "3\n"),
