@@ -50,6 +50,22 @@ fn unchanged_yulang2_console_sample_runs_through_the_cli() {
 }
 
 #[test]
+fn library_operator_dependencies_do_not_require_an_operator_in_the_caller() {
+    for (source, expected) in [
+        ("println \"one\"\n", "one\n"),
+        ("println \"first\"\nprintln \"second\"\n", "first\nsecond\n"),
+        ("my emit message = println message\nemit \"wrapped\"\n", "wrapped\n"),
+        ("my message = \"a\" + \"b\"\nprintln message\n", "ab\n"),
+        ("my forward message = emit message\nmy emit message = println message\nforward \"twice wrapped\"\n", "twice wrapped\n"),
+    ] {
+        let output = cli_with_args(source, &["--run-module", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "source={source:?}");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
 fn unchanged_yulang2_samples_preserve_ordered_module_write_events() {
     let types = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
     let console = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";

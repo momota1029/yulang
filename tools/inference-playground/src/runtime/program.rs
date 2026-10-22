@@ -298,7 +298,10 @@ impl RuntimeProgram {
         })?;
         for use_ in selected_fields {
             let key = RuntimeFieldTailKey {
-                active_owner: use_.operator_use_owner.unwrap_or(use_.owner).clone(),
+                // Inference capture ownership can move through wrapper
+                // definitions. Runtime enters the authentic source body;
+                // only an exact operator-use receipt specializes that entry.
+                active_owner: use_.operator_use_owner.unwrap_or(use_.source_owner).clone(),
                 source_owner: use_.source_owner.clone(),
                 occurrence: use_.occurrence.clone(),
                 use_occurrence: use_.operator_use_occurrence.cloned(),

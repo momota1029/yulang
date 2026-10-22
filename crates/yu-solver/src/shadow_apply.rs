@@ -1021,7 +1021,9 @@ impl CandidateInference {
         selected.try_reserve_exact(graph.member_uses.len()).map_err(|_| ArtifactMismatch)?;
         for use_ in &graph.member_uses {
             let mut operator_context = None;
-            if let SourceRootId::Expression(provider) = &use_.owner {
+            // Active ownership follows enclosing captures. The immutable
+            // source owner still identifies the original operator RHS.
+            if let SourceRootId::Expression(provider) = &use_.source_owner {
                 if let Some(provider_graph) = graph.operator_graphs.get(provider) {
                     for operator_use in graph.operator_uses.iter().filter(|operator_use|
                         operator_use.provider == *provider

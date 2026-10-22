@@ -688,8 +688,21 @@ impl GraphState {
             mappings.iter().any(|(index, row_indexes)| {
                 let Some(obligation) = graph.source_field_tail_obligations.get(*index) else { return true; };
                 let Some(receiver_row) = rows.get(row_indexes[0]).copied() else { return true; };
-                let unresolved = !selected(obligation, receiver_row);
-                unresolved
+                if selected(obligation, receiver_row) { return false; }
+                // A use inside another captured body becomes that body's
+                // dormant obligation. All four rows must survive together;
+                // source spelling or a matching receiver alone is insufficient.
+                let mapped = row_indexes.map(|index| rows.get(index).map(|row| self.intrusion.rep(*row)));
+                let captured = |template: &SourceFieldTailObligation|
+                    template.source_owner == obligation.source_owner
+                        && template.occurrence == obligation.occurrence
+                        && [template.receiver_row, template.receiver_effect,
+                            template.result_row, template.result_effect]
+                            .map(|row| Some(self.intrusion.rep(row))) == mapped;
+                !self.graphs.iter().flatten().flat_map(|graph| &graph.source_field_tail_obligations)
+                    .chain(self.operator_graphs.values().flat_map(|graph| &graph.source_field_tail_obligations))
+                    .chain(self.member_graphs.values().flat_map(|member| &member.graph.source_field_tail_obligations))
+                    .any(captured)
             })
         };
         self.routes.iter().any(|route| {
@@ -2241,8 +2254,14 @@ impl InferenceSession {
         for component in self.batch.scc_plan().components_in_dependency_first_order() {
             push(&mut components, component.clone())?;
         }
-        let component_bytes = vec_bytes(&components)?;
-        for component in &components {
+        let order = self.candidate_capture_order(&components, vec_bytes(&components)?)?;
+        let component_bytes = sum(&[vec_bytes(&components)?, vec_bytes(&order)?])?;
+        for node in order.iter().copied() {
+            if node >= components.len() {
+                self.execute_candidate_operator_provider(node - components.len())?;
+                continue;
+            }
+            let component = &components[node];
             let mut members = Vec::new();
             for member in self
                 .batch
@@ -2367,9 +2386,6 @@ impl InferenceSession {
             }
         }
         if self.batch.candidate_source.active {
-            self.execute_candidate_operator_providers()?;
-            self.execute_candidate_operator_uses()?;
-            self.transport_member_operator_field_tails()?;
             let member_count = self.batch.candidate_source.members.len();
             for index in 0..member_count {
                 self.execute_candidate_member(index)?;
@@ -2428,93 +2444,86 @@ impl InferenceSession {
         Ok(())
     }
 
-    fn execute_candidate_operator_providers(&mut self) -> Result<(), SolveAvailabilityError> {
-        if self.batch.candidate_source.scoped_experiment
-            && !self.batch.candidate_source.operator_provider_roots.is_empty()
-        {
+    /// Topologically order existing definition SCCs together with exact
+    /// operator providers. Definition SCC membership is unchanged. An edge
+    /// records a source dependency, never a guessed type or runtime shape.
+    fn candidate_capture_order(&mut self, components: &[SccComponentId], component_bytes: usize) -> Result<Vec<usize>, SolveAvailabilityError> {
+        let providers = &self.batch.candidate_source.operator_provider_roots;
+        if self.batch.candidate_source.scoped_experiment && !providers.is_empty() {
             return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
         }
-        let order = self.candidate_operator_provider_order()?;
-        for index in order {
-            let provider = self.batch.candidate_source.operator_provider_roots[index].clone();
-            let owner = SourceRootId::Expression(provider.root.clone());
-            if self.candidate_graph.as_ref().ok_or_else(exhausted)?
-                .operator_graphs.contains_key(&provider.root)
-            {
+        let count = components.len().checked_add(providers.len()).ok_or_else(exhausted)?;
+        let mut definition_nodes = Vec::new();
+        definition_nodes.try_reserve_exact(self.batch.definitions.len()).map_err(|_| exhausted())?;
+        definition_nodes.resize(self.batch.definitions.len(), usize::MAX);
+        for (node, component) in components.iter().enumerate() {
+            for definition in self.batch.scc_plan().members(component).map_err(|_| exhausted())? {
+                *definition_nodes.get_mut(definition.ordinal() as usize)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)? = node;
+            }
+        }
+        let definition_node = |index: usize| definition_nodes.get(index).copied()
+            .filter(|node| *node < components.len()).ok_or(SolveAvailabilityError::ReceiptMismatch);
+        let mut provider_nodes = HashMap::new();
+        provider_nodes.try_reserve(providers.len()).map_err(|_| exhausted())?;
+        for (index, provider) in providers.iter().enumerate() {
+            if provider_nodes.insert(provider.root.clone(), components.len() + index).is_some() {
                 return Err(SolveAvailabilityError::ReceiptMismatch);
             }
-            let schedule_index = self.batch.candidate_source.expressions.iter().position(|schedule|
-                schedule.root == provider.root
-            ).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let value = self.batch.candidate_source.expressions[schedule_index].value;
-            self.execute_candidate_expression(schedule_index)?;
-            // Any imported operator used inside this RHS now has its provider
-            // graph available because the provider-owner DAG was traversed in
-            // dependency order.
-            self.execute_candidate_operator_uses_for(Some(&owner))?;
-            let root_term = self.candidate_endpoint(value, Polarity::Positive)?;
-            let row = match self.value_endpoint(root_term, Polarity::Positive) {
-                ValueEndpointKey::ValueRow(row) => match self.candidate_graph.as_ref()
-                    .ok_or_else(exhausted)?.intrusion.rep(RowKey::Value(row)) {
-                        RowKey::Value(row) => row,
-                        _ => return Err(SolveAvailabilityError::ReceiptMismatch),
-                    },
-                _ => return Err(SolveAvailabilityError::ReceiptMismatch),
-            };
-            let field_tails = self.candidate_graph.as_ref().ok_or_else(exhausted)?
-                .source_field_tail_obligations.get(&owner)
-                .map_or(Ok(Vec::new()), |items| clone_field_tail_obligations(items))?;
-            let graph = self.capture_candidate_graph_owned(row, 0, &[], &[], &field_tails)?;
-            let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
-            state.operator_graphs.try_reserve(1).map_err(|_| exhausted())?;
-            state.operator_graphs.insert(provider.root, Arc::new(graph));
-            state.source_field_tail_obligations.remove(&owner);
-            state.refresh_bytes()?;
-            self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
         }
-        Ok(())
-    }
-
-    fn candidate_operator_provider_order(&self) -> Result<Vec<usize>, SolveAvailabilityError> {
-        let providers = &self.batch.candidate_source.operator_provider_roots;
         let mut dependencies: Vec<Vec<usize>> = Vec::new();
-        dependencies.try_reserve_exact(providers.len()).map_err(|_| exhausted())?;
-        dependencies.resize_with(providers.len(), Vec::new);
-        for use_ in &self.batch.candidate_source.operator_uses {
-            let SourceRootId::Expression(owner_root) = &use_.owner else { continue; };
-            let Some(owner_index) = providers.iter().position(|provider| &provider.root == owner_root) else {
-                continue;
+        dependencies.try_reserve_exact(count).map_err(|_| exhausted())?;
+        dependencies.resize_with(count, Vec::new);
+        for use_ in &self.batch.definition_uses {
+            let parent = match &use_.parent {
+                SourceReceiver::Definition(definition) => Some(definition_node(definition.ordinal() as usize)?),
+                SourceReceiver::Expression(root) => provider_nodes.get(root).copied(),
+                SourceReceiver::Member(_) => None,
             };
-            if use_.provider >= providers.len() { return Err(SolveAvailabilityError::ReceiptMismatch); }
-            if !dependencies[owner_index].contains(&use_.provider) {
-                dependencies[owner_index].try_reserve(1).map_err(|_| exhausted())?;
-                dependencies[owner_index].push(use_.provider);
+            if let Some(parent) = parent {
+                let target = definition_node(use_.target.ordinal() as usize)?;
+                if parent != target { push(&mut dependencies[parent], target)?; }
             }
         }
+        for use_ in &self.batch.candidate_source.operator_uses {
+            let parent = match &use_.owner {
+                SourceRootId::Definition(root) => Some(definition_node(*self.batch.root_definition_positions
+                    .get(root).ok_or(SolveAvailabilityError::ReceiptMismatch)?)?),
+                SourceRootId::Expression(root) => provider_nodes.get(root).copied(),
+                SourceRootId::Member(_) => None,
+            };
+            if use_.provider >= providers.len() { return Err(SolveAvailabilityError::ReceiptMismatch); }
+            if let Some(parent) = parent { push(&mut dependencies[parent], components.len() + use_.provider)?; }
+        }
         let mut states = Vec::new();
-        states.try_reserve_exact(providers.len()).map_err(|_| exhausted())?;
-        states.resize(providers.len(), 0u8);
+        states.try_reserve_exact(count).map_err(|_| exhausted())?;
+        states.resize(count, 0u8);
         let mut order = Vec::new();
-        order.try_reserve_exact(providers.len()).map_err(|_| exhausted())?;
+        order.try_reserve_exact(count).map_err(|_| exhausted())?;
         let mut stack = Vec::new();
-        stack.try_reserve_exact(providers.len()).map_err(|_| exhausted())?;
-        for start in 0..providers.len() {
+        stack.try_reserve_exact(count).map_err(|_| exhausted())?;
+        let edges = dependencies.iter().try_fold(0usize, |total, children|
+            total.checked_add(vec_bytes(children)?).ok_or_else(exhausted))?;
+        self.candidate_graph.as_mut().ok_or_else(exhausted)?.orchestration_bytes = sum(&[
+            component_bytes, vec_bytes(&definition_nodes)?,
+            bytes::<(ExpressionRootId, usize)>(provider_nodes.capacity())?,
+            vec_bytes(&dependencies)?, edges, vec_bytes(&states)?, vec_bytes(&order)?, vec_bytes(&stack)?,
+        ])?;
+        self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
+        for start in 0..count {
             if states[start] != 0 { continue; }
             states[start] = 1;
             stack.push((start, 0usize));
-            while let Some((node, child_index)) = stack.last_mut() {
-                if *child_index < dependencies[*node].len() {
-                    let dependency = dependencies[*node][*child_index];
-                    *child_index += 1;
-                    if dependency >= providers.len() { return Err(SolveAvailabilityError::ReceiptMismatch); }
-                    match states[dependency] {
-                        1 => {  return Err(SolveAvailabilityError::DeferredSelectionUnavailable); },
+            while let Some((node, next)) = stack.last_mut() {
+                if *next < dependencies[*node].len() {
+                    let child = dependencies[*node][*next];
+                    *next += 1;
+                    match states[child] {
+                        // A cycle through an operator provider has no accepted
+                        // recursive-provider capture protocol yet.
+                        1 => return Err(SolveAvailabilityError::DeferredSelectionUnavailable),
                         2 => continue,
-                        _ => {
-                            states[dependency] = 1;
-                            stack.try_reserve(1).map_err(|_| exhausted())?;
-                            stack.push((dependency, 0));
-                        }
+                        _ => { states[child] = 1; stack.push((child, 0)); }
                     }
                 } else {
                     let (finished, _) = stack.pop().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
@@ -2523,148 +2532,157 @@ impl InferenceSession {
                 }
             }
         }
+        self.candidate_graph.as_mut().ok_or_else(exhausted)?.orchestration_bytes =
+            sum(&[component_bytes, vec_bytes(&order)?])?;
         Ok(order)
     }
 
-    fn execute_candidate_operator_uses(&mut self) -> Result<(), SolveAvailabilityError> {
-        self.execute_candidate_operator_uses_for(None)
-    }
-
-    fn transport_member_operator_field_tails(&mut self) -> Result<(), SolveAvailabilityError> {
+    fn execute_candidate_operator_provider(&mut self, index: usize) -> Result<(), SolveAvailabilityError> {
+        let provider = self.batch.candidate_source.operator_provider_roots[index].clone();
+        let owner = SourceRootId::Expression(provider.root.clone());
+        if self.candidate_graph.as_ref().ok_or_else(exhausted)?
+            .operator_graphs.contains_key(&provider.root)
+        {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
+        }
+        let schedule_index = self.batch.candidate_source.expressions.iter().position(|schedule|
+            schedule.root == provider.root
+        ).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let value = self.batch.candidate_source.expressions[schedule_index].value;
+        self.execute_candidate_expression(schedule_index)?;
+        let root_term = self.candidate_endpoint(value, Polarity::Positive)?;
+        let row = match self.value_endpoint(root_term, Polarity::Positive) {
+            ValueEndpointKey::ValueRow(row) => match self.candidate_graph.as_ref()
+                .ok_or_else(exhausted)?.intrusion.rep(RowKey::Value(row)) {
+                    RowKey::Value(row) => row,
+                    _ => return Err(SolveAvailabilityError::ReceiptMismatch),
+                },
+            _ => return Err(SolveAvailabilityError::ReceiptMismatch),
+        };
+        let field_tails = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+            .source_field_tail_obligations.get(&owner)
+            .map_or(Ok(Vec::new()), |items| clone_field_tail_obligations(items))?;
+        let graph = self.capture_candidate_graph_owned(row, 0, &[], &[], &field_tails)?;
         let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
-        let mut uses = Vec::new();
-        uses.try_reserve_exact(state.operator_uses.len()).map_err(|_| exhausted())?;
-        for operator_use in &state.operator_uses {
-            let SourceRootId::Member(member_root) = &operator_use.use_owner else { continue; };
-            uses.push((member_root.clone(), operator_use.provider.clone(),
-                operator_use.fresh.source_field_tail_obligation_rows.clone(),
-                operator_use.fresh.rows.clone()));
-        }
-        for (member_root, provider, obligations, rows) in uses {
-            let graph = state.operator_graphs.get(&provider)
-                .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            for (obligation_index, row_indexes) in obligations {
-                let source = graph.source_field_tail_obligations.get(obligation_index)
-                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-                let mapped = row_indexes.map(|index| rows.get(index).copied()
-                    .ok_or(SolveAvailabilityError::ReceiptMismatch));
-                let [receiver_row, receiver_effect, result_row, result_effect] = mapped;
-                let mut obligation = source.clone();
-                obligation.owner = SourceRootId::Member(member_root.clone());
-                obligation.receiver_row = state.intrusion.rep(receiver_row?);
-                obligation.receiver_effect = state.intrusion.rep(receiver_effect?);
-                obligation.result_row = state.intrusion.rep(result_row?);
-                obligation.result_effect = state.intrusion.rep(result_effect?);
-                state.retain_source_field_tail_obligation(obligation)?;
-                state.refresh_bytes()?;
-            }
-        }
+        state.operator_graphs.try_reserve(1).map_err(|_| exhausted())?;
+        state.operator_graphs.insert(provider.root, Arc::new(graph));
+        state.source_field_tail_obligations.remove(&owner);
+        state.refresh_bytes()?;
+        self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
         Ok(())
     }
 
-    fn execute_candidate_operator_uses_for(&mut self, owner_filter: Option<&SourceRootId>) -> Result<(), SolveAvailabilityError> {
-        for use_index in 0..self.batch.candidate_source.operator_uses.len() {
-            let use_ = self.batch.candidate_source.operator_uses[use_index].clone();
-            if let Some(owner) = owner_filter {
-                if &use_.owner != owner { continue; }
-            } else if let SourceRootId::Expression(root) = &use_.owner {
-                if self.batch.candidate_source.operator_provider_roots.iter().any(|provider| &provider.root == root) {
-                    continue;
-                }
-            }
-            let provider = self.batch.candidate_source.operator_provider_roots
-                .get(use_.provider).cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            if provider.owner != use_.operator_owner {
-                return Err(SolveAvailabilityError::ReceiptMismatch);
-            }
-            if self.batch.candidate_source.source_owners.get(&use_.occurrence) != Some(&use_.owner) {
-                return Err(SolveAvailabilityError::ReceiptMismatch);
-            }
-            let graph = self.candidate_graph.as_ref().ok_or_else(exhausted)?
-                .operator_graphs.get(&provider.root).cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let level = *self.batch.candidate_source.component_levels.get(&use_.result)
-                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            // Slots 0..=7 belong to the two Apply value/effect facts; the
-            // independent FreshUse restoration lane starts after them.
-            let occurrence = ConstraintOccurrenceId::new_wide(use_.occurrence.clone(), 8);
-            let cause = CauseId::for_occurrence(occurrence.clone());
-            let (operator, fresh) = self.freshen_candidate_graph_retained(
-                &graph, level, &occurrence, &cause,
-            )?;
-            let left_effect_row = self.live_components.get(use_.left_effect)
-                .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let right_effect_row = self.live_components.get(use_.right_effect)
-                .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let result_row = self.live_components.get(use_.result)
-                .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let final_effect_row = self.live_components.get(use_.result_effect)
-                .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let left = self.candidate_endpoint(use_.left, Polarity::Positive)?;
-            let right = self.candidate_endpoint(use_.right, Polarity::Positive)?;
-
-            let (callee_effect_row, left_invocation_row, first_effect_row,
-                right_invocation_row) = if self.batch.candidate_graph_effects {
-                let effect_level = self.effect_levels.get(final_effect_row as usize).copied()
-                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-                (Some(self.fresh_effect_at_level(effect_level)?),
-                    Some(self.fresh_effect_at_level(effect_level)?),
-                    Some(self.fresh_effect_at_level(effect_level)?),
-                    Some(self.fresh_effect_at_level(effect_level)?))
-            } else { (None, None, None, None) };
-            let first_value_row = self.fresh_value_at_level(level)?;
-            let first_result = self.live_value_term(Polarity::Negative, first_value_row)?;
-            let left_effect = if self.batch.candidate_graph_effects {
-                self.live_effect_term(Polarity::Positive, left_effect_row)?
-            } else { self.batch.collected_leaf_term(Leaf::EffectBottomPositive) };
-            let left_invocation = if let Some(row) = left_invocation_row {
-                self.live_effect_term(Polarity::Negative, row)?
-            } else { self.batch.collected_leaf_term(Leaf::EmptyEffectNegative) };
-            let first_demand = self.negative_function_term(left, left_effect, left_invocation, first_result)?;
-            self.admit_operator_value(&use_.occurrence, 0, operator, first_demand)?;
-
-            let final_result = self.live_value_term(Polarity::Negative, result_row)?;
-            let second_callee = self.live_value_term(Polarity::Positive, first_value_row)?;
-            let right_effect = if self.batch.candidate_graph_effects {
-                self.live_effect_term(Polarity::Positive, right_effect_row)?
-            } else { self.batch.collected_leaf_term(Leaf::EffectBottomPositive) };
-            let right_invocation = if let Some(row) = right_invocation_row {
-                self.live_effect_term(Polarity::Negative, row)?
-            } else { self.batch.collected_leaf_term(Leaf::EmptyEffectNegative) };
-            let second_demand = self.negative_function_term(right, right_effect, right_invocation, final_result)?;
-            self.admit_operator_value(&use_.occurrence, 1, second_callee, second_demand)?;
-
-            if let (Some(callee_effect), Some(left_invocation), Some(first_effect), Some(right_invocation)) =
-                (callee_effect_row, left_invocation_row, first_effect_row, right_invocation_row)
-            {
-                self.admit_operator_effect(&use_.occurrence, 2, callee_effect, first_effect)?;
-                self.admit_operator_effect(&use_.occurrence, 3, left_invocation, first_effect)?;
-                self.admit_operator_effect(&use_.occurrence, 4, first_effect, final_effect_row)?;
-                self.admit_operator_effect(&use_.occurrence, 5, right_invocation, final_effect_row)?;
-                // Evaluating the imported operator value is pure. This is the
-                // same empty computation effect used for a source Lambda.
-                let callee_effect_positive = self.live_effect_term(Polarity::Positive, callee_effect)?;
-                let callee_effect_negative = self.live_effect_term(Polarity::Negative, callee_effect)?;
-                self.admit_operator_effect_terms(&use_.occurrence, 6,
-                    self.batch.collected_leaf_term(Leaf::EffectBottomPositive), callee_effect_negative)?;
-                self.admit_operator_effect_terms(&use_.occurrence, 7,
-                    callee_effect_positive, self.batch.collected_leaf_term(Leaf::EmptyEffectNegative))?;
-            }
-            let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
-            let fresh_bytes = fresh.bytes()?;
-            state.scratch_bytes = state.scratch_bytes.checked_sub(fresh_bytes)
-                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            state.operator_uses.try_reserve(1).map_err(|_| exhausted())?;
-            state.operator_uses.push(OperatorFreshUse {
-                occurrence: use_.occurrence,
-                owner: use_.operator_owner,
-                use_owner: use_.owner,
-                provider: provider.root,
-                root: operator,
-                fresh,
-            });
-            state.refresh_bytes()?;
-            self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
+    pub(super) fn execute_candidate_operator_use(&mut self, use_index: usize) -> Result<(), SolveAvailabilityError> {
+        let use_ = self.batch.candidate_source.operator_uses.get(use_index)
+            .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        if self.candidate_graph.as_ref().ok_or_else(exhausted)?.operator_uses.iter()
+            .any(|old| old.occurrence == use_.occurrence) {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
         }
+        let provider = self.batch.candidate_source.operator_provider_roots
+            .get(use_.provider).cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        if provider.owner != use_.operator_owner {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
+        }
+        if self.batch.candidate_source.source_owners.get(&use_.occurrence) != Some(&use_.owner) {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
+        }
+        let graph = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+            .operator_graphs.get(&provider.root).cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let level = *self.batch.candidate_source.component_levels.get(&use_.result)
+            .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        // Slots 0..=7 belong to the two Apply value/effect facts; the
+        // independent FreshUse restoration lane starts after them.
+        let occurrence = ConstraintOccurrenceId::new_wide(use_.occurrence.clone(), 8);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        let (operator, fresh) = self.freshen_candidate_graph_retained(
+            &graph, level, &occurrence, &cause,
+        )?;
+        let left_effect_row = self.live_components.get(use_.left_effect)
+            .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let right_effect_row = self.live_components.get(use_.right_effect)
+            .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let result_row = self.live_components.get(use_.result)
+            .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let final_effect_row = self.live_components.get(use_.result_effect)
+            .map(|entry| entry.ordinal).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let left = self.candidate_endpoint(use_.left, Polarity::Positive)?;
+        let right = self.candidate_endpoint(use_.right, Polarity::Positive)?;
+
+        let (callee_effect_row, left_invocation_row, first_effect_row,
+            right_invocation_row) = if self.batch.candidate_graph_effects {
+            let effect_level = self.effect_levels.get(final_effect_row as usize).copied()
+                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            (Some(self.fresh_effect_at_level(effect_level)?),
+                Some(self.fresh_effect_at_level(effect_level)?),
+                Some(self.fresh_effect_at_level(effect_level)?),
+                Some(self.fresh_effect_at_level(effect_level)?))
+        } else { (None, None, None, None) };
+        let first_value_row = self.fresh_value_at_level(level)?;
+        let first_result = self.live_value_term(Polarity::Negative, first_value_row)?;
+        let left_effect = if self.batch.candidate_graph_effects {
+            self.live_effect_term(Polarity::Positive, left_effect_row)?
+        } else { self.batch.collected_leaf_term(Leaf::EffectBottomPositive) };
+        let left_invocation = if let Some(row) = left_invocation_row {
+            self.live_effect_term(Polarity::Negative, row)?
+        } else { self.batch.collected_leaf_term(Leaf::EmptyEffectNegative) };
+        let first_demand = self.negative_function_term(left, left_effect, left_invocation, first_result)?;
+        self.admit_operator_value(&use_.occurrence, 0, operator, first_demand)?;
+
+        let final_result = self.live_value_term(Polarity::Negative, result_row)?;
+        let second_callee = self.live_value_term(Polarity::Positive, first_value_row)?;
+        let right_effect = if self.batch.candidate_graph_effects {
+            self.live_effect_term(Polarity::Positive, right_effect_row)?
+        } else { self.batch.collected_leaf_term(Leaf::EffectBottomPositive) };
+        let right_invocation = if let Some(row) = right_invocation_row {
+            self.live_effect_term(Polarity::Negative, row)?
+        } else { self.batch.collected_leaf_term(Leaf::EmptyEffectNegative) };
+        let second_demand = self.negative_function_term(right, right_effect, right_invocation, final_result)?;
+        self.admit_operator_value(&use_.occurrence, 1, second_callee, second_demand)?;
+
+        if let (Some(callee_effect), Some(left_invocation), Some(first_effect), Some(right_invocation)) =
+            (callee_effect_row, left_invocation_row, first_effect_row, right_invocation_row)
+        {
+            self.admit_operator_effect(&use_.occurrence, 2, callee_effect, first_effect)?;
+            self.admit_operator_effect(&use_.occurrence, 3, left_invocation, first_effect)?;
+            self.admit_operator_effect(&use_.occurrence, 4, first_effect, final_effect_row)?;
+            self.admit_operator_effect(&use_.occurrence, 5, right_invocation, final_effect_row)?;
+            // Evaluating the imported operator value is pure. This is the
+            // same empty computation effect used for a source Lambda.
+            let callee_effect_positive = self.live_effect_term(Polarity::Positive, callee_effect)?;
+            let callee_effect_negative = self.live_effect_term(Polarity::Negative, callee_effect)?;
+            self.admit_operator_effect_terms(&use_.occurrence, 6,
+                self.batch.collected_leaf_term(Leaf::EffectBottomPositive), callee_effect_negative)?;
+            self.admit_operator_effect_terms(&use_.occurrence, 7,
+                callee_effect_positive, self.batch.collected_leaf_term(Leaf::EmptyEffectNegative))?;
+        }
+        let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+        let fresh_bytes = fresh.bytes()?;
+        state.scratch_bytes = state.scratch_bytes.checked_sub(fresh_bytes)
+            .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        for (obligation_index, row_indexes) in &fresh.source_field_tail_obligation_rows {
+            let mut obligation = graph.source_field_tail_obligations.get(*obligation_index)
+                .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let [receiver, receiver_effect, result, result_effect] = row_indexes.map(|index|
+                fresh.rows.get(index).copied().ok_or(SolveAvailabilityError::ReceiptMismatch));
+            obligation.owner = use_.owner.clone();
+            obligation.receiver_row = state.intrusion.rep(receiver?);
+            obligation.receiver_effect = state.intrusion.rep(receiver_effect?);
+            obligation.result_row = state.intrusion.rep(result?);
+            obligation.result_effect = state.intrusion.rep(result_effect?);
+            state.retain_source_field_tail_obligation(obligation)?;
+        }
+        state.operator_uses.try_reserve(1).map_err(|_| exhausted())?;
+        state.operator_uses.push(OperatorFreshUse {
+            occurrence: use_.occurrence,
+            owner: use_.operator_owner,
+            use_owner: use_.owner,
+            provider: provider.root,
+            root: operator,
+            fresh,
+        });
+        state.refresh_bytes()?;
+        self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
         Ok(())
     }
 
@@ -2694,36 +2712,6 @@ impl InferenceSession {
             pending.try_reserve_exact(count).map_err(|_| exhausted())?;
             for obligations in state.source_field_tail_obligations.values() {
                 for obligation in clone_field_tail_obligations(obligations)? {
-                    pending.push(Pending { obligation, ancestry: Vec::new() });
-                }
-            }
-            // Expression-owned operator uses activate immediately. Nested
-            // uses owned by a definition are captured with that definition
-            // and activated on its concrete FreshUse instead.
-            let mut operator_uses = Vec::new();
-            operator_uses.try_reserve_exact(state.operator_uses.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-            for operator_use in &state.operator_uses {
-                if !matches!(operator_use.use_owner, SourceRootId::Expression(_)) { continue; }
-                operator_uses.push((operator_use.provider.clone(),
-                    operator_use.fresh.source_field_tail_obligation_rows.clone(),
-                    operator_use.fresh.rows.clone()));
-            }
-            for (provider, obligations, rows) in operator_uses {
-                let graph = state.operator_graphs.get(&provider)
-                    .cloned().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-                for (obligation_index, row_indexes) in obligations {
-                    let source = graph.source_field_tail_obligations.get(obligation_index)
-                        .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-                    let mapped = row_indexes.map(|index| rows.get(index).copied()
-                        .ok_or(SolveAvailabilityError::ReceiptMismatch));
-                    let [receiver_row, receiver_effect, result_row, result_effect] = mapped;
-                    let mut obligation = source.clone();
-                    obligation.receiver_row = state.intrusion.rep(receiver_row?);
-                    obligation.receiver_effect = state.intrusion.rep(receiver_effect?);
-                    obligation.result_row = state.intrusion.rep(result_row?);
-                    obligation.result_effect = state.intrusion.rep(result_effect?);
-
-                    pending.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                     pending.push(Pending { obligation, ancestry: Vec::new() });
                 }
             }
@@ -3120,7 +3108,7 @@ impl InferenceSession {
     ) -> Result<usize, SolveAvailabilityError> {
         let target = record.target.ordinal() as usize;
 
-        let (root, boundary, source_frontier, obligations, mut field_tails) = {
+        let (root, boundary, source_frontier, obligations, field_tails) = {
             let stored = self.candidate_graph.as_ref()
                 .and_then(|state| state.graphs.get(target)).and_then(Option::as_ref)
                 .ok_or_else(exhausted)?;
@@ -3128,39 +3116,12 @@ impl InferenceSession {
                 clone_role_obligations(&stored.source_role_obligations)?,
                 clone_field_tail_obligations(&stored.source_field_tail_obligations)?)
         };
-        let mut extra_roots = Vec::new();
-        {
-            let state = self.candidate_graph.as_ref().ok_or_else(exhausted)?;
-            let owner = SourceRootId::Definition(self.batch.definitions.get(target)
-                .ok_or(SolveAvailabilityError::ReceiptMismatch)?.root.clone());
-            for operator_use in &state.operator_uses {
-                if operator_use.use_owner != owner { continue; }
-                let provider = state.operator_graphs.get(&operator_use.provider)
-                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-                for (obligation_index, row_indexes) in &operator_use.fresh.source_field_tail_obligation_rows {
-                    let source = provider.source_field_tail_obligations.get(*obligation_index)
-                        .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-                    let [receiver, receiver_effect, result, result_effect] = row_indexes.map(|index|
-                        operator_use.fresh.rows.get(index).copied().ok_or(SolveAvailabilityError::ReceiptMismatch));
-                    let mut obligation = source.clone();
-                    obligation.receiver_row = state.intrusion.rep(receiver?);
-                    obligation.receiver_effect = state.intrusion.rep(receiver_effect?);
-                    obligation.result_row = state.intrusion.rep(result?);
-                    obligation.result_effect = state.intrusion.rep(result_effect?);
-                    extra_roots.try_reserve(4).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                    extra_roots.extend([obligation.receiver_row, obligation.receiver_effect,
-                        obligation.result_row, obligation.result_effect]);
-                    field_tails.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                    field_tails.push(obligation);
-                }
-            }
-        }
         let frontier_scratch = bytes::<candidate_source::SourceRegionId>(source_frontier.capacity())?;
         self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.scope_inventory.note_scratch(frontier_scratch);
         let entry_scratch = self.candidate_graph.as_ref().unwrap().scratch_bytes;
         let result = (|| {
             let graph = self.capture_candidate_graph_owned_with_roots(
-                root, boundary, &source_frontier, &obligations, &field_tails, &extra_roots,
+                root, boundary, &source_frontier, &obligations, &field_tails, &[],
             ).map_err(|error| {  error })?;
             self.instantiate_candidate_graph(id, &record, graph, entry_scratch)
                 .map_err(|error| {  error })
@@ -3632,6 +3593,13 @@ impl InferenceSession {
             let [receiver, receiver_effect, result, result_effect] = row_indexes.map(|index|
                 fresh.rows.get(index).copied().ok_or(SolveAvailabilityError::ReceiptMismatch));
             let mut active = source.clone();
+            active.owner = match &record.parent {
+                SourceReceiver::Definition(definition) => SourceRootId::Definition(
+                    self.batch.definitions.get(definition.ordinal() as usize)
+                        .ok_or(SolveAvailabilityError::ReceiptMismatch)?.root.clone()),
+                SourceReceiver::Expression(root) => SourceRootId::Expression(root.clone()),
+                SourceReceiver::Member(root) => SourceRootId::Member(root.clone()),
+            };
             active.receiver_row = receiver?;
             active.receiver_effect = receiver_effect?;
             active.result_row = result?;
@@ -3992,6 +3960,15 @@ mod authentic_demand_capture_tests {
 
     #[test]
     fn nested_operator_provider_rhs_uses_dependency_before_capture() {
+        assert_nested_operator_capture(r"pub infix (*) 6.0.0 6.0.1 = \x -> \y -> x + y");
+    }
+
+    #[test]
+    fn operator_provider_definition_dependency_is_captured_before_its_rhs() {
+        assert_nested_operator_capture(r"pub infix (*) 6.0.0 6.0.1 = \x -> \y -> id x + y");
+    }
+
+    fn assert_nested_operator_capture(derived_body: &str) {
         let parse = |text: &str, environment: Arc<yu_syntax::SyntaxEnvironment>| {
             let text: Arc<yu_syntax::SourceText> = Arc::from(text);
             yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)), environment)
@@ -4042,7 +4019,7 @@ mod authentic_demand_capture_tests {
             )]),
         ).unwrap();
         let derived_parsed = parse(
-            r"pub infix (*) 6.0.0 6.0.1 = \x -> \y -> x + y",
+            derived_body,
             Arc::new(derived_environment),
         );
         let derived_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
@@ -4091,9 +4068,19 @@ mod authentic_demand_capture_tests {
             crate::candidate_source::OperatorProviderRoot { owner: derived_owner.clone(), root: derived_root.clone() },
             crate::candidate_source::OperatorProviderRoot { owner: base_owner.clone(), root: base_root.clone() },
         ];
+        let mut imported_definitions = HashMap::new();
+        if let Some(yu_hir::SourceImportBinding::Resolved(resolution)) =
+            derived.source_imports().unwrap().names().get("id")
+        {
+            let provider_modules = [prelude.clone()];
+            let yu_hir::shadow::SourceExportOwner::Binding { binding, .. } =
+                yu_hir::shadow::resolve_source_export_owner(&provider_modules, &[], resolution).unwrap()
+            else { panic!("authentic imported definition"); };
+            imported_definitions.insert(resolution.identity(), binding.id().clone());
+        }
         let batch = ConstraintBatch::collect_candidate_world_scoped_v1(
             vec![consumer, derived, base, std, prelude], true, true, false, false,
-            &HashMap::new(), &providers,
+            &imported_definitions, &providers,
         ).unwrap();
         let mut session = InferenceSession::try_new_candidate(batch).unwrap();
         assert_eq!(session.execute_scc_plan(), Ok(()));

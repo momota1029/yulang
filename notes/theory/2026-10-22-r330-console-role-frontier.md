@@ -312,3 +312,129 @@ shared-anchor constraints and the standalone-println admission obstruction,
 then the broader unchanged Yulang2 catalog. R332 is an OPEN continuation, not
 a completed accepted-scheme or parent-theorem gate. The next session can work
 directly from this state without routine dispatcher/producer agents.
+
+### Transitive provider closure and source-position operator construction
+
+The standalone `println` counterexample has two distinct causes. First,
+`pinned_provider_projection_inner` followed imported binding names from selected
+library bodies but scanned imported operators only in the original consumer.
+Consequently `println "one"` lacked the library's `+` provider, while appending
+an unrelated consumer `1 + 2` supplied it accidentally. The projection now
+processes both dependency kinds on every newly selected module projection.
+Export joins authenticate declaration identity, namespace, name, range and
+kind; operator joins authenticate module, parse revision, declaration and RHS.
+Missing, duplicate or stale owner receipts remain unavailable.
+
+For a finite pinned parse universe, let S be the vector of selected source-root
+sets. Every enqueue after the initial consumer follows at least one strict
+insertion into S. No root is removed, and every newly projected body is scanned
+for both kinds of dependency. Thus the worklist terminates after finitely many
+strict increases. At termination every binding/operator dependency discovered
+in a selected projection has its authentic provider in S. This is a constructive
+closure argument for these two source forms, conditional on the existing
+projection/import enumerators; it is not completeness for every source form.
+
+Second, the solver formerly captured *all* definition SCCs before constructing
+operator provider graphs and operator uses. A direct call could recapture late
+operator constraints, but `my emit message = println message; emit "wrapped"`
+had already copied the incomplete library graph into `emit`. It admitted a
+candidate with no selected FieldTail for the nested `+`; runtime then correctly
+reported `UnsupportedFieldTail`. Late recapture at the first library boundary
+could not recover the constraints missing from the earlier fresh copy.
+
+`candidate_capture_order` now orders existing definition SCCs and exact operator
+provider roots together. Definition-use edges and operator-use edges both point
+to the provider required before capture. Definition SCC membership and its
+open internal-use routing remain unchanged. Iterative DFS visits each node and
+edge; a gray dependency through a provider returns unavailable because a
+recursive mixed provider/SCC capture protocol is still open. Ordinary operator
+RHS dependencies on definitions, and nested provider dependencies, participate
+in the same order. Checked allocations and orchestration accounting cover the
+finite node/edge inventory, stack, states and output order.
+
+Each infix occurrence now emits `Action::Operator` at its source position.
+Executing it reconstructs exactly one provider FreshUse and admits the existing
+two Apply value/effect relations. Duplicate source-use execution is rejected.
+Every retained provider FieldTail is transported through that same FreshUse's
+four rows (receiver value/effect and result value/effect). Its active owner is
+the enclosing source root; its original source owner and occurrence remain
+unchanged. Definition FreshUse performs the same ownership transport. Therefore
+an enclosing definition capture includes the obligation before its graph is
+made visible to a later definition or expression use. The old late per-owner
+operator scan and recapture augmentation are removed.
+
+The acyclic capture-path invariant is constructive: assuming dependency graphs
+faithfully retain their constraints, source actions first construct the
+provider instance and its obligation; capture retains all four rows; a later
+FreshUse transports all four with one row map. Induction over the new order,
+and then over wrapper uses, preserves that descriptor and the ordinary Apply
+constraints. Final availability accepts an unselected route only when the exact
+source owner, occurrence and *all four canonical rows* remain in a captured
+dormant template. Any still-active obligation continues to block completion.
+This does not prove local-binding capture completeness, mutual-SCC obligation
+closure, accepted generalization, principal schemes or the original A/B claims.
+
+Selected-member export now finds an operator RHS by immutable source owner,
+while runtime attaches an unspecialized member receipt to the actual source
+body rather than its enclosing inference capture owner. Exact operator-use
+receipts still carry their source call-site context. Conflicting selections
+still fail; no receiver-shape runtime dispatch was introduced. Existing Console
+`str` addition and `int` addition remain distinct.
+
+New coverage includes the exact transitive operator-provider join, selected
+nested-library evidence, single and repeated `println`, one and two wrapper
+levels, a forward definition, and an ordinary consumer string addition. An
+uncalled wrapper also has a successful candidate with a dormant obligation and
+no fabricated selection. Its *runtime* path still reports `UnsupportedFieldTail`:
+`reachable_runtime_roots` currently requires a selected method even inside an
+uncalled lambda. That separate source-to-runtime generalization boundary is
+explicitly open; the candidate-only regression does not claim executable
+support. The nested-provider solver case also includes a provider RHS using an
+imported `id`, so moving all providers blindly ahead of definitions cannot pass.
+
+These arguments and implementations remain UNREVIEWED direct-primary research
+work. No independent reviewer or child ran, and no production gate is promoted.
+
+Validation of this slice: the complete `yu-playground` package passed all 216
+tests (52 library, 30 CLI, 134 other integration tests). The solver's
+`candidate_scheme::authentic_demand_capture_tests` filter passed 13 tests and
+failed 6. A separate clean detached worktree at baseline `8d495d3fd` passed 12
+and failed the same six with the same errors/assertion values; the new imported
+provider-definition case accounts for the added success. The baseline worktree
+was removed cleanly afterwards, without altering the current working tree.
+The still-failing baseline tests are:
+
+- `active_outer_root_two_helper_uses`: `IdentityExhausted`;
+- `module_fresh_route_retains_full_remap_crosswalk_and_capacity_accounting`:
+  retained-map byte assertion, 1032 versus 744;
+- `replay_constructor_lineage_observes_rejected_cross_route_authentication`:
+  `ReceiptMismatch`;
+- `retained_demand_transport_authenticates_distinct_uses_and_rejects_wrong_use_or_root`:
+  `ReceiptMismatch`;
+- `structural_bound_scoped_payload_authentic_capture_uses_shared_reconstruction`:
+  `ReceiptMismatch`;
+- `types_sample_fieldtail_receiver_bounds_expose_ordered_pair_shape`:
+  the old assertion requiring a still-unselected method.
+
+No expected output or assertion in those six tests was changed. This is a
+comparison against the parent commit, not a green solver suite or evidence
+that their underlying obligations are resolved. Logs for this execution are
+`/tmp/yulang-r332-all-native4.log`, `/tmp/yulang-r332-baseline-authentic.log`,
+and `/tmp/yulang-r332-authentic-capture3.log` (ephemeral execution artifacts).
+
+Three further probes locate the next generalization/source-runtime work:
+`my main = 1 + 2` and `my main = { my add x = x + x; add 3 }` still reach
+`UnsupportedFieldTail` under `--run-module`, while
+`my emit value = say value; emit 3` stops with
+`Solve(DeferredSelectionUnavailable)`. The first case shows that module
+initializer evaluation must also be distinguished from latent function bodies;
+merely permitting uncalled lambdas at runtime would not solve that obligation.
+The role-prerequisite transport through wrappers and local-binding obligation
+capture remain separate open owners. These are recorded counterexamples, not
+new source-language restrictions or altered sample expectations.
+
+Fresh WASM build and smoke passed via `npm --prefix web/playground run check`
+with the pinned wasm-bindgen 0.2.125. The smoke includes unchanged Types/Console
+and added standalone/wrapped-library reports. TypeScript `typecheck` passed.
+Generated bindings and build outputs remain ignored and unstaged; no deployment
+occurred. The direct-primary slice is ready as an UNREVIEWED research checkpoint.

@@ -96,6 +96,15 @@ if (typesReport.types !== types || JSON.stringify(typesReport.events) !== JSON.s
 if (JSON.stringify(consoleReport.events) !== JSON.stringify(consoleEvents)) {
   throw new Error("combined Console report must preserve ordered writes");
 }
+for (const [source, expected] of [
+  ['println "standalone"\n', ["standalone\n"]],
+  ['my forward message = emit message\nmy emit message = println message\nforward "wrapped"\n', ["wrapped\n"]],
+]) {
+  const report = JSON.parse(run_module_report(source, 100_000));
+  if (JSON.stringify(report.events) !== JSON.stringify(expected)) {
+    throw new Error("library operator dependencies must survive enclosing function capture");
+  }
+}
 for (const [source, budget, reason] of [
   [yulang2TypesSource, 0, "runtime step budget exhausted"],
   [yulang2DiagnosticExamples.typeMismatch, 100_000, "candidate type conflicts"],

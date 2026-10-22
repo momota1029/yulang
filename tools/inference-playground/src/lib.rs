@@ -664,8 +664,8 @@ fn pinned_source_world() -> Result<(Vec<PinnedProviderSource>, Vec<yu_hir::Sourc
     Ok((parsed_sources, indexes, role_indexes))
 }
 
-/// Project only exact exported binding roots reached from imported Names,
-/// then recursively follow their SourceExportId dependencies.
+/// Project the transitive closure of exact imported binding and operator roots.
+/// Every projected provider contributes both kinds of dependency in turn.
 fn pinned_provider_projection(
     consumer: &Arc<HirModule>,
     sources: &[PinnedProviderSource],
@@ -826,57 +826,71 @@ fn pinned_provider_projection_inner(
 
     let mut selected = (0..sources.len()).map(|_| HashSet::new()).collect::<Vec<_>>();
     let mut built = (0..sources.len()).map(|_| None).collect::<Vec<Option<Arc<HirModule>>>>();
-    for owner in imported_operator_owners(consumer)? {
-        let matching_indexes = indexes.iter().enumerate().filter(|(_, index)| {
-            index.module == *owner.module()
-                && index.revision == owner.revision()
-                && index.operator_owner_for_receipt(
-                    owner.module(), owner.revision(), owner.declaration_range(), owner.spelling(), owner.fixity(),
-                ).as_ref() == Some(&owner)
-        }).map(|(index, _)| index).collect::<Vec<_>>();
-        let [source_index] = matching_indexes.as_slice() else {
-            return Err(format!(
-                "pinned operator provider index is missing or ambiguous for {}",
-                owner.spelling(),
-            ));
-        };
-        let source_index = *source_index;
-        let (identity, parsed) = sources.get(source_index)
-            .ok_or_else(|| "pinned operator provider source is missing".to_owned())?;
-        if identity.module() != owner.module()
-            || !parsed.owns_source_key(owner.declaration())
-            || !parsed.owns_source_key(owner.body())
-        {
-            return Err(format!("pinned operator provider parse mismatch for {}", owner.spelling()));
+    let mut pending = vec![consumer.clone()];
+    while let Some(dependent) = pending.pop() {
+        let mut changed = vec![false; sources.len()];
+        for export in imported_exports(&dependent)? {
+            let mut owners = indexes.iter().enumerate().filter_map(|(index, source_index)| {
+                source_index.declarations.iter().find(|declaration|
+                    declaration.source == export.source
+                        && declaration.name.as_deref() == Some(export.name.as_ref())
+                        && declaration.namespace.as_ref() == export.module.as_ref()
+                        && declaration.range == export.range
+                        && declaration.kind == export.kind
+                ).map(|declaration| (index, declaration))
+            });
+            let Some((source_index, declaration)) = owners.next() else {
+                return Err(format!("pinned provider owner missing for {}::{}", export.module, export.name));
+            };
+            if owners.next().is_some() {
+                return Err(format!("pinned provider owner ambiguous for {}::{}", export.module, export.name));
+            }
+            if declaration.kind != yu_syntax::SyntaxKind::BindingStatement { continue; }
+            let (identity, parsed) = sources.get(source_index)
+                .ok_or_else(|| "selected pinned binding source is missing".to_owned())?;
+            if identity.module() != &indexes[source_index].module || !parsed.owns_source_key(&export.source) {
+                return Err(format!("pinned binding provider parse mismatch for {}::{}", export.module, export.name));
+            }
+            if selected[source_index].insert(export.source.clone()) {
+                changed[source_index] = true;
+            }
         }
-        selected[source_index].insert(owner.body().clone());
-    }
-    let mut pending = imported_exports(consumer)?;
-    let mut seen = HashSet::new();
-    while let Some(export) = pending.pop() {
-        if !seen.insert(export.clone()) { continue; }
-        let owner = indexes.iter().enumerate().find_map(|(index, source_index)| {
-            source_index.declarations.iter().find(|declaration|
-                declaration.source == export.source
-                    && declaration.name.as_deref() == Some(export.name.as_ref())
-                    && declaration.namespace.as_ref() == export.module.as_ref()
-            ).map(|declaration| (index, declaration))
-        });
-        let Some((source_index, declaration)) = owner else {
-            return Err(format!("pinned provider owner missing for {}::{}", export.module, export.name));
-        };
-        if declaration.kind != yu_syntax::SyntaxKind::BindingStatement { continue; }
-        if !selected[source_index].insert(export.source.clone()) { continue; }
-        let projected = project_selected(source_index, &selected, sources, indexes, role_indexes)?;
-        let dependencies = imported_exports(&projected)?;
-        pending.try_reserve(dependencies.len()).map_err(|_| "provider dependency allocation unavailable".to_owned())?;
-        pending.extend(dependencies);
-        built[source_index] = Some(projected);
-    }
-
-    for source_index in 0..selected.len() {
-        if built[source_index].is_none() && !selected[source_index].is_empty() {
-            built[source_index] = Some(project_selected(source_index, &selected, sources, indexes, role_indexes)?);
+        for owner in imported_operator_owners(&dependent)? {
+            let matching_indexes = indexes.iter().enumerate().filter(|(_, index)| {
+                index.module == *owner.module()
+                    && index.revision == owner.revision()
+                    && index.operator_owner_for_receipt(
+                        owner.module(), owner.revision(), owner.declaration_range(), owner.spelling(), owner.fixity(),
+                    ).as_ref() == Some(&owner)
+            }).map(|(index, _)| index).collect::<Vec<_>>();
+            let [source_index] = matching_indexes.as_slice() else {
+                return Err(format!(
+                    "pinned operator provider index is missing or ambiguous for {}",
+                    owner.spelling(),
+                ));
+            };
+            let source_index = *source_index;
+            let (identity, parsed) = sources.get(source_index)
+                .ok_or_else(|| "pinned operator provider source is missing".to_owned())?;
+            if identity.module() != owner.module()
+                || !parsed.owns_source_key(owner.declaration())
+                || !parsed.owns_source_key(owner.body())
+            {
+                return Err(format!("pinned operator provider parse mismatch for {}", owner.spelling()));
+            }
+            if selected[source_index].insert(owner.body().clone()) {
+                changed[source_index] = true;
+            }
+        }
+        // Each enqueue follows a strict increase of selected parse-owned roots.
+        // Process both dependency kinds on every new projection, including
+        // operator bodies and library bindings that the consumer never names.
+        for (source_index, changed) in changed.into_iter().enumerate() {
+            if !changed { continue; }
+            let projected = project_selected(source_index, &selected, sources, indexes, role_indexes)?;
+            pending.try_reserve(1).map_err(|_| "provider dependency allocation unavailable".to_owned())?;
+            pending.push(projected.clone());
+            built[source_index] = Some(projected);
         }
     }
 
@@ -1768,6 +1782,75 @@ mod tests {
                 operator_use.use_owner == use_.owner && operator_use.provider == provider),
                 "the active Add selection joins to its exact enclosing operator use: {use_:?}; operators={operator_uses:?}");
         }
+    }
+
+    #[test]
+    fn wrapped_library_selection_is_retained_in_the_candidate() {
+        let source = "my emit message = println message\nemit \"wrapped\"\n";
+        let (_, candidate, _, _) = super::prepare_with_world(source, "wrapped-library.yu", false).unwrap();
+        let operators: Vec<_> = candidate.operator_fresh_uses().unwrap().collect();
+        assert_eq!(operators.len(), 1);
+        let selected: Vec<_> = candidate.selected_field_tail_uses().unwrap().collect();
+        assert!(!selected.is_empty(), "the nested library operator must select its member");
+        assert!(selected.iter().any(|field|
+            field.source_owner == &yu_hir::SourceRootId::Expression(operators[0].provider.clone())));
+    }
+
+    #[test]
+    fn uncalled_library_wrapper_keeps_a_dormant_candidate_obligation() {
+        let (_, candidate, _, _) = super::prepare_with_world(
+            "my emit message = println message\n", "uncalled-library.yu", false,
+        ).unwrap();
+        assert_eq!(candidate.operator_fresh_uses().unwrap().count(), 1);
+        assert_eq!(candidate.selected_field_tail_uses().unwrap().count(), 0);
+    }
+
+    #[test]
+    fn imported_binding_operator_dependency_keeps_its_exact_provider_root() {
+        use yu_hir::shadow::LocalSourceForm;
+        let (sources, indexes, role_indexes) = pinned_source_world().unwrap();
+        let text: Arc<SourceText> = Arc::from("println \"only the library uses an operator\"\n");
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)),
+            Arc::new(playground_syntax_environment().unwrap()));
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "inference-playground", "transitive-operator.yu",
+        )));
+        let imports = SemanticImports::with_source_imports_and_role_indexes(
+            &parsed, &identity, &indexes, &role_indexes,
+        ).unwrap();
+        let hir = Arc::new(lower_module_with_local_source(identity, &parsed, imports).unwrap());
+        let modules = pinned_provider_projection(&hir, &sources, &indexes, &role_indexes).unwrap();
+        let mut checked = 0;
+        for module in &modules {
+            for item in module.items() {
+                let HirItem::Binding(binding) = item else { continue; };
+                let Some(source) = module.local_source(binding.definition_root()).unwrap() else { continue; };
+                for expression in source.expressions() {
+                    let LocalSourceForm::InfixOperator { operator, .. } = &expression.form else { continue; };
+                    if !matches!(operator.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Imported(_)) { continue; }
+                    let fixity = match operator.fixity() {
+                        yu_hir::OperatorFixity::Prefix => yu_syntax::OperatorFixity::Prefix,
+                        yu_hir::OperatorFixity::Infix => yu_syntax::OperatorFixity::Infix,
+                        yu_hir::OperatorFixity::Suffix => yu_syntax::OperatorFixity::Suffix,
+                    };
+                    let owner = module.source_imports().unwrap().operator_owner_for_use(
+                        operator.provenance(), operator.provenance().declaration().range(),
+                        operator.spelling(), fixity,
+                    ).unwrap();
+                    let index = indexes.iter().find(|index|
+                        &index.module == owner.module() && index.revision == owner.revision()
+                    ).unwrap();
+                    let roots = modules.iter().filter(|module| module.identity().module() == owner.module())
+                        .filter_map(|module| module.source_operator_root_for(&owner, index).unwrap())
+                        .collect::<Vec<_>>();
+                    assert_eq!(roots.len(), 1,
+                        "every imported operator in a projected binding has one exact source body: {}",
+                        operator.spelling());
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked > 0, "the source-qualified test must reach the library operator dependency");
     }
 
     #[test]

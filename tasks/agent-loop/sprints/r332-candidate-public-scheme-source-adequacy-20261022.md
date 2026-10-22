@@ -68,3 +68,14 @@ The same continuation also leases
 `mut` warning only. It is a separate mechanical checkpoint; assertions and
 expected outputs are unchanged. The public types/module-events join remains
 inside R149's existing same-inference-result publication requirement.
+
+The direct continuation additionally leases `crates/yu-solver/src/candidate_source.rs`.
+The transitive library dependency counterexample requires exact provider closure
+and operator constraints at their source positions before enclosing capture.
+Extend the source dependency schedule across existing definition SCCs and
+operator provider roots; preserve authentic receipts, same-FreshUse maps,
+and unavailable results for unsupported cyclic provider dependencies.
+This is a construction-order repair under existing inference authority.
+The same slice leases `tools/inference-playground/src/runtime/program.rs` for
+the exact source-owner evidence join after enclosing capture ownership changes;
+no runtime shape dispatch or member-choice fallback is authorized.

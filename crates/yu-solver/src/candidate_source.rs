@@ -26,7 +26,7 @@ pub(super) struct Plan {
     /// Imported operator owners joined to their exact provider expression
     /// roots. These are source identities, not binding/DefId substitutes.
     pub operator_provider_roots: Vec<OperatorProviderRoot>,
-    /// Ordered infix occurrences retained for the later two-Apply consumer.
+    /// Infix occurrences consumed by source-position two-Apply actions.
     pub operator_uses: Vec<OperatorUse>,
     /// Authenticated implementation targets and exact member overrides for
     /// imported role members used by this source world.
@@ -379,6 +379,7 @@ pub(super) enum Action {
     Link { occurrence: HirOccurrenceId, endpoint: CandidateEndpoint, target: usize },
     ValueConstraint { occurrence: HirOccurrenceId, slot: u8, endpoint: CandidateEndpoint, upper: Term },
     Candidate(usize),
+    Operator(usize),
     Lambda(usize),
     Module(HirOccurrenceId),
     Local { slot: usize, occurrence: HirOccurrenceId, value: usize, level: u32 },
@@ -1836,6 +1837,7 @@ impl ConstraintBatch {
                             let provider = provider.ok_or_else(unavailable)?;
                             let left = left.ordinal() as usize;
                             let right = right.ordinal() as usize;
+                            let use_index = self.candidate_source.operator_uses.len();
                             push(&mut self.candidate_source.operator_uses, OperatorUse {
                                 owner: owner.clone(),
                                 operator_owner,
@@ -1849,6 +1851,7 @@ impl ConstraintBatch {
                                 result: pos.value,
                                 result_effect: pos.effect,
                             })?;
+                            push(&mut actions, Action::Operator(use_index))?;
                         }
                         LocalSourceForm::Group { inner } => {
                             if self.candidate_source.scoped_experiment {
@@ -2226,6 +2229,7 @@ impl InferenceSession {
                     self.admit_candidate_value_link(occurrence, *slot, lower, *upper)?;
                 }
                 Action::Candidate(index) => { let recipe = self.batch.candidate_recipes[*index].clone(); self.admit_candidate_fact(&recipe)?; }
+                Action::Operator(index) => self.execute_candidate_operator_use(*index)?,
                 Action::Lambda(index) => { let recipe = self.batch.lambda_recipes[*index].clone(); self.admit_lambda_fact(&recipe)?; }
                 Action::Module(occurrence) => {
                     let id = DefinitionUseId::new(self.batch.collection_artifact.clone(), occurrence.clone());
