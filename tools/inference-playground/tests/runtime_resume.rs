@@ -68,6 +68,17 @@ fn assert_integer(source: &str, expected: &str) {
 }
 
 #[test]
+fn primitive_argument_suspension_reenters_the_same_value_invocation() {
+    for (body, expected) in [
+        ("builtin_op::int_add { io::tick 0 } 2", "25"),
+        ("builtin_op::int_mul 2 { io::tick 0 }", "46"),
+    ] {
+        let source = format!("{IO}my handle (thunk:[io] int) = catch thunk {{ io::tick(p), k -> {{ k 11; k 23 }} }}\nmy main = handle {{ {body} }}");
+        assert_integer(&source, expected);
+    }
+}
+
+#[test]
 fn record_parameter_defaults_follow_original_scope_and_actual_presence() {
     assert_integer("my choose {width = 1, height = width} = height\nmy main = choose {}", "1");
     assert_integer("my choose {width = 1, height = width} = height\nmy main = choose {width: 3}", "3");

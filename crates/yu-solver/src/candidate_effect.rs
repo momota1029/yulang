@@ -1713,7 +1713,12 @@ impl InferenceSession {
     ) -> Result<Term, SolveAvailabilityError> {
         if !candidate_source::preflight_local_annotation(&annotation.ty) { return Err(exhausted()); }
         let scope = AnnotationScope::Local(self.batch.candidate_source.locals.get(slot).ok_or_else(exhausted)?.clone());
-        let context = SignatureContext::Annotation(annotation, scope);
+        let context = SignatureContext::Annotation(annotation, scope.clone());
+        let primitive_source = self.candidate_primitive_annotation_source(annotation, occurrence)?;
+        let exposure_context = match &primitive_source {
+            Some(position) => SignatureContext::Primitive { owner: &annotation.owner, position },
+            None => SignatureContext::Annotation(annotation, scope),
+        };
         let mut value_variables = HashMap::new();
         let mut effect_variables = HashMap::new();
         let mut views = HashMap::new();
@@ -1736,7 +1741,7 @@ impl InferenceSession {
                 &mut value_variables, &mut effect_variables, &mut views,
             )?;
             let positive = self.candidate_signature_value(
-                &context, &annotation.ty,
+                &exposure_context, &annotation.ty,
                 Polarity::Positive, Polarity::Positive, level,
                 &mut value_variables, &mut effect_variables, &mut views,
             )?;
@@ -1815,11 +1820,42 @@ impl InferenceSession {
         self.candidate_annotation_pair(annotation, endpoint, endpoint, occurrence, level, computation_effect, scope, [45, 46, 47])
     }
 
+    /// A ground annotation on the actual primitive constructor may expose a
+    /// fresh instance of that same Value-entry callable after ordinary checking.
+    /// This is not inferred from a name, a compatible type, or an arbitrary
+    /// function's result: the original source occurrence must own the primitive.
+    fn candidate_primitive_annotation_source(
+        &self, annotation: &SourceAnnotation, occurrence: &HirOccurrenceId,
+    ) -> Result<Option<SourceNodeKey>, SolveAvailabilityError> {
+        use yu_hir::shadow::{LocalSourceForm, PinnedPrimitiveOp};
+        let Some(hir) = self.batch.hir_for_source_root(&annotation.owner) else { return Ok(None); };
+        let Some(source) = hir.local_source_for(&annotation.owner).map_err(|_| exhausted())? else { return Ok(None); };
+        let Some(expr) = source.expressions().iter().find(|expr| &expr.occurrence == occurrence) else { return Ok(None); };
+        let LocalSourceForm::Primitive { operation } = &expr.form else { return Ok(None); };
+        let (argument, result, arity) = match operation {
+            PinnedPrimitiveOp::IntAdd | PinnedPrimitiveOp::IntSub | PinnedPrimitiveOp::IntMul => (SourceAnnotationValue::Int, SourceAnnotationValue::Int, 2),
+            PinnedPrimitiveOp::IntToString => (SourceAnnotationValue::Int, SourceAnnotationValue::Str, 1),
+            PinnedPrimitiveOp::StringConcat => (SourceAnnotationValue::Str, SourceAnnotationValue::Str, 2),
+            PinnedPrimitiveOp::Unsupported(_) => return Ok(None),
+        };
+        let same_atom = |a: &SourceAnnotationValue, b: &SourceAnnotationValue| matches!((a, b),
+            (SourceAnnotationValue::Int, SourceAnnotationValue::Int) | (SourceAnnotationValue::Str, SourceAnnotationValue::Str));
+        let mut ty = &annotation.ty;
+        for _ in 0..arity {
+            if ty.effects.is_some() { return Ok(None); }
+            let SourceAnnotationValue::Function { argument: a, result: r } = &ty.value else { return Ok(None); };
+            if a.effects.is_some() || !same_atom(&a.value, &argument) { return Ok(None); }
+            ty = r;
+        }
+        Ok((ty.effects.is_none() && same_atom(&ty.value, &result)).then(|| expr.source.clone()))
+    }
+
     fn candidate_annotation_pair(
         &mut self, annotation: &SourceAnnotation, endpoint: shadow_apply::CandidateEndpoint,
         target: shadow_apply::CandidateEndpoint, occurrence: &HirOccurrenceId,
         level: u32, computation_effect: usize, scope: &AnnotationScope, slots: [u8; 3],
     ) -> Result<(), SolveAvailabilityError> {
+        let primitive_source = self.candidate_primitive_annotation_source(annotation, occurrence)?;
         let mut value_variables = HashMap::new();
         let mut effect_variables = HashMap::new();
         let mut views = HashMap::new();
@@ -1864,8 +1900,12 @@ impl InferenceSession {
                 &mut effect_variables,
                 &mut views,
             )?;
+            let exposure_context = match &primitive_source {
+                Some(position) => SignatureContext::Primitive { owner: &annotation.owner, position },
+                None => SignatureContext::Annotation(annotation, scope.clone()),
+            };
             let exposed = self.candidate_signature_value(
-                &SignatureContext::Annotation(annotation, scope.clone()),
+                &exposure_context,
                 &annotation.ty,
                 Polarity::Positive,
                 Polarity::Positive,
@@ -2084,6 +2124,15 @@ impl InferenceSession {
                     views,
                 )?;
                 if polarity == Polarity::Positive {
+                    let (ae, re) = if matches!(context, SignatureContext::Primitive { .. }) {
+                        // Each curried primitive stage is Value entry with a
+                        // pure body: forall e. F_Value(A, e; B, e). The same row
+                        // is shared by both ports and freshened with the whole
+                        // callable; an empty upper would reject effectful input.
+                        let entry = self.fresh_effect_at_level(level)?;
+                        (self.live_effect_term(Polarity::Negative, entry)?,
+                         self.live_effect_term(Polarity::Positive, entry)?)
+                    } else { (ae, re) };
                     self.positive_function_term(a, ae, re, r)
                 } else {
                     self.negative_function_term(a, ae, re, r)
@@ -2494,6 +2543,41 @@ mod tests {
         session.start_candidate_graph().unwrap();
         session
     }
+    #[test]
+    fn primitive_annotation_exposure_retains_fresh_correlated_entry_ports() {
+        let mut session = make_session("my mul: int -> int -> int = builtin_op::int_mul");
+        let owner = root(&session, "mul");
+        let actions = session.batch.candidate_source.schedules[&owner].clone();
+        let occurrence = actions.iter().find_map(|action| match action {
+            candidate_source::Action::Primitive { occurrence, .. } => Some(occurrence.clone()), _ => None,
+        }).unwrap();
+        session.execute_candidate_source_root(&owner).unwrap();
+        assert!(session.errors.is_empty());
+        let ports = |slot| {
+            let edge = session.store.provenance().iter().find(|edge|
+                edge.cause().occurrence().occurrence() == &occurrence
+                    && edge.cause().occurrence().local_slot() == slot).unwrap();
+            let fact = session.store.facts().iter().find(|fact| fact.id() == edge.fact()).unwrap();
+            let mut value = fact.lower();
+            let mut entries = Vec::new();
+            for _ in 0..2 {
+                let TermView::PositiveFunction { argument_effect, result_effect, result, .. } = session.store.term_view(value).unwrap() else { panic!("curried primitive"); };
+                let TermView::LiveVariable(ae) = session.store.term_view(argument_effect).unwrap() else { panic!("entry row"); };
+                let TermView::LiveVariable(re) = session.store.term_view(result_effect).unwrap() else { panic!("result row"); };
+                assert_eq!((ae.kind(), re.kind()), (ComponentKind::Effect, ComponentKind::Effect));
+                assert_eq!((ae.polarity(), re.polarity()), (Polarity::Negative, Polarity::Positive));
+                assert_eq!(ae.ordinal(), re.ordinal(), "each stage shares its whole entry effect");
+                entries.push(ae.ordinal());
+                value = result;
+            }
+            assert_ne!(entries[0], entries[1], "curried invocations have distinct entry variables");
+            entries
+        };
+        let checking = ports(42);
+        let exposed = ports(41);
+        assert!(checking.iter().all(|row| !exposed.contains(row)), "checking under pure inputs cannot freeze the public entry instance");
+    }
+
     #[test]
     fn source_tuple_annotations_reach_native_tuple_extrusion() {
         let fixtures = [

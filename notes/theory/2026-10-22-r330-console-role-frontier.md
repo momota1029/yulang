@@ -3141,3 +3141,90 @@ checkpoint, catalog 7/19. Logs: target/r332-generated-concat-{hir,native-rest,
 effect-gate,wasm,wasm-selective}.log. No original assertion was changed.
 The new red regression is deliberately retained at this incomplete research
 checkpoint; strict Value argument-effect construction/comparison is next.
+
+### Value-entry row construction: bounded derivation and exposure seam
+
+Proof companion 2.1.3 and 2.3 permit the usual quantified four-port encoding
+forall z. F_Value(A,z;B,z union b). For an authenticated pure primitive stage,
+b is empty. Choose one fresh row z for its negative AE and positive RE ports.
+An ordinary call contributes actual argument support e <= z and z <= output;
+therefore e <= output. Conversely choose z=e for a ground effect assignment,
+so this encoding adds no extra ground effect beyond entry. Curried stages use
+distinct z, and whole callable Capture/FreshUse must rename both occurrences
+with the same row map. This uses existing Function and effect row constructors;
+it does not activate BothFromRight or pretend EmptyEffectNegative is a marker.
+The preceding note's requirement for a new marker was too specific: it named
+one implementation route, while the supplied design explicitly allows changed
+internal representations. General context-aware equivalence is still OPEN;
+this ground derivation is not that theorem.
+
+Runtime machine Frame::Callee authenticates ExecutableValue::Primitive, creates
+an inert Delay, then Frame::PrimitiveArgument executes that exact delay before
+returning the partial primitive or computing the ground result. There is no
+primitive handler or primitive-specific permission removal. This is the actual
+Value-entry source/native owner for the bounded stage rule.
+
+The annotation seam is separate: pinned annotation/constraints.rs
+pure_effect_bounds uses Neg::Row([], Top), not the primitive Neg::Bot marker.
+propagate::enqueue_row_item_to_upper_row forwards unmatched members to Top;
+body/methods::connect_binding_annotation also retains the actual body through
+finish_binding/commit_provisional_binding. Current candidate annotation_pair
+exposes a separately constructed positive arrow whose omitted AE is a closed
+empty upper and whose effect does not contain entry. Thus changing only the
+primitive constructor may correctly leave annotated standard exports failing.
+Do not infer full annotation equivalence from the primitive ground derivation.
+
+Bounded exposure construction (not a general callable adaptation theorem):
+if the actual annotated initializer occurrence is a supported pure primitive,
+and the written annotation is exactly its ground curried value signature with
+no effect rows, ordinary negative annotation checking still runs. Its exposed
+positive value is a fresh instance of the same authenticated Value-entry
+primitive signature. This preserves the declared ground value ports and the
+primitive's universally quantified entry effects. Sharing the checking instance
+would incorrectly fix its entry row to empty; the exposed instance must be
+fresh before ordinary capture. No type or runtime-value shape proves a general
+callable is Value entry. Nonprimitive annotations, explicit computation rows,
+variables/holes and mismatched signatures retain their existing route. The
+source census costs O(expressions in that initializer owner) per annotation;
+primitive signature agreement is bounded by its fixed arity. This is an
+explicit bounded bridge, leaving general annotation exposure and role-preserving
+adaptation OPEN. Local direct primitive annotations use the same construction.
+
+The native owner audit found an additional concrete omission: Primitive's
+Frame::Callee branch executed its Delay without new_invocation/ReceiverReturn.
+The row fix makes effectful entry reachable, so this omission must be repaired
+with the existing ordinary owner lifecycle. The branch now obtains the actual
+primitive value's source, creates a fresh invocation before execute(delay), and
+pushes ReceiverReturn beneath PrimitiveArgument. Existing raw-suffix capture
+and replay transport that ReceiverReturn; no new permission or receipt is
+created. Partial and final primitive stages both leave their own invocation.
+This corrects the earlier native-owner description: force ordering was present,
+but receiver activation was missing. Tests inspect activation before argument
+evaluation, separate curried owners, normal departure, and repeated resume in
+either argument position. Primitive generation still creates no invocation.
+
+Primitive entry checkpoint: full native 282/282 pass, including the preserved
+ordered concat regression. Solver Value-entry 8/8, authentic primitive port
+construction 1/1, contravariant [io]/[state] control 1/1 and unchanged nested
+operation polarity defaults 1/1 pass. Fresh WASM build plus the final uniquely
+captured smoke pass all 62 execution examples and prior module/type/diagnostic
+checks. Logs: target/r332-primitive-entry-native-final.log,
+r332-primitive-value-entry-solver.log, r332-primitive-port-source.log,
+r332-primitive-{contravariant,operation}-control.log and
+r332-primitive-entry-wasm-verified.log. The two new WASM sources explicitly
+say their result; run() returns captured writes when present, so expecting an
+implicit final value in those new fixtures was incorrect. Their expected
+ordered output is preserved. An overlapping preliminary smoke log is not used
+as verification evidence; the final uniquely named run completed alone.
+
+All 19 unchanged catalog hashes/observables match the concat checkpoint, still
+7/19 (results-after-primitive-entry.json). An additional [io]-formal/[state]
+argument probe passes candidate typing but stops at outer HandlerEvidence; the
+ordinary identity-lambda control stops at the same boundary. This is an open
+receiving/negative-visibility bridge, not a type violation, and no permission
+was broadened to make it run. Probe/control logs are
+target/r332-{primitive-state-residual,lambda-state-residual-control}.log.
+The exact-source primitive bridge is provisional/UNREVIEWED; general function
+annotation adaptation, context-aware source equivalence and original A/B remain
+OPEN. Next: Variant native payload/match construction, then its typed whole
+boundary and conditional member-obligation transport for original Button.

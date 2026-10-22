@@ -4,6 +4,8 @@ import init, { infer, infer_types, run, run_module, run_module_report } from "./
 await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") });
 
 const examples = {
+  strictPrimitiveEntry: ['my main = say: std::int::mul { say: 1; 7 } { say: 2; 3 }', '1\n2\n21\n'],
+  strictLocalPrimitiveEntry: ['my main = say: { my mul: int -> int -> int = builtin_op::int_mul; mul { say: 1; 7 } 3 }', '1\n21\n'],
   generatedStringConcat: ['my main = "a%{7}b%{8}c"', '"a7b8c"\n'],
   genericStringConcat: ['my f text = "<%{text}>"; my main = (f 7, f "a")', '("<7>", "<a>")\n'],
   orderedStringConcat: ['my main = say: "a%{say: 1; 7}b%{say: 2; 8}c"', '1\n2\na7b8c\n'],

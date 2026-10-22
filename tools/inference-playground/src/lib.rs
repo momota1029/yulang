@@ -2145,6 +2145,31 @@ mod tests {
     }
 
     #[test]
+    fn primitive_value_entry_preserves_effects_across_source_exposure_and_fresh_uses() {
+        for (source, expected) in [
+            ("my mul = builtin_op::int_mul; say: mul { say: 1; 7 } { say: 2; 3 }", "1\n2\n21\n"),
+            ("say: std::int::mul { say: 1; 7 } { say: 2; 3 }", "1\n2\n21\n"),
+            ("my mul: int -> int -> int = builtin_op::int_mul; say: mul { say: 1; 7 } 3", "1\n21\n"),
+            ("say: { my mul: int -> int -> int = builtin_op::int_mul; mul { say: 1; 7 } 3 }", "1\n21\n"),
+            ("my mul = std::int::mul; my alias = mul; say: alias { say: 1; 7 } 3; say: alias 4 5", "1\n21\n20\n"),
+            ("my times = std::int::mul { say: 1; 7 }; say: times { say: 2; 3 }; say: times 4", "1\n2\n21\n28\n"),
+            ("my alias = std::int::mul; my first = alias { say: 1; 7 } 3; my second: [] int = alias 4 5; say: second", "1\n20\n"),
+            ("say: std::int::to_string { say: 1; 7 }", "1\n7\n"),
+            ("my apply f x = f x; say: apply std::int::to_string { say: 1; 7 }", "1\n7\n"),
+        ] {
+            assert_eq!(super::execute_module(source, "primitive-entry.yu", 100_000, false).unwrap(), expected, "{source}");
+        }
+        for source in [
+            "my answer: [] int = builtin_op::int_add { say: 1; 7 } 2",
+            "my answer: [] int = std::int::add { say: 1; 7 } 2",
+            "my answer: [] str = std::int::to_string { say: 1; 7 }",
+        ] {
+            let error = super::execute_module(source, "primitive-entry-residual.yu", 100_000, false).unwrap_err();
+            assert!(error.contains("IncompatibleEffect"), "argument effects must survive to the closed output: {source}: {error}");
+        }
+    }
+
+    #[test]
     fn generated_interpolation_concat_preserves_argument_effects() {
         assert_eq!(super::execute_module(r#"say: "a%{say: 1; 7}b%{say: 2; 8}c""#,
             "generated-concat-effects.yu", 100_000, false).unwrap(), "1\n2\na7b8c\n");

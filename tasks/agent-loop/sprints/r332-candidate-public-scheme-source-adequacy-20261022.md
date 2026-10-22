@@ -571,3 +571,12 @@ Direct-fifteen continuation preserves 30605 charged seconds and discards
 seconds (cap 34205) under the ongoing unlimited user goal. No subagents;
 one heavy verification at a time. Existing solver/context/runtime leases cover
 owner investigation and a justified construction; no new type-core lease yet.
+
+Primitive entry checkpoint: native282, fresh WASM62, Value-entry solver8,
+primitive source ports1 and two polarity controls pass. The concat failure is
+resolved by authentic Value-entry rows, narrowly checked direct primitive
+exposure and actual invocation-before-force runtime ownership. Catalog7/19
+unchanged. General annotation/receiving/A-B remain OPEN and UNREVIEWED. Next
+use existing runtime/program/machine/primitive and playground leases for Variant
+payload/match construction; candidate admission remains withheld until the
+whole-boundary/conditional member-obligation rules are established.

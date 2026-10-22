@@ -1174,6 +1174,12 @@ impl Machine {
                 let executable = self.executables.get(&received.value.0).cloned();
                 match executable {
                     Some(ExecutableValue::Primitive { operation, arguments }) => {
+                        // This actual primitive receives a Value argument. Its
+                        // invocation owns the force, including a suspended raw
+                        // suffix, just like an ordinary Value-entry closure.
+                        let provider = self.values[received.value.0].source.clone();
+                        let (activation, previous) = self.new_invocation(site.clone(), provider)?;
+                        self.frames.push(Frame::ReceiverReturn { activation, previous });
                         self.frames.push(Frame::PrimitiveArgument { operation, arguments, site: site.clone() });
                         self.execute(delay, &site)?;
                     }
@@ -2794,6 +2800,39 @@ mod module_expression_tests {
                 )
             })
             .count()
+    }
+
+    #[test]
+    fn primitive_value_entry_creates_each_invocation_before_forcing_the_argument() {
+        let mut machine = machine("my main = builtin_op::int_add 1 2", true);
+        let mut entries = Vec::new();
+        let mut completed = None;
+        for _ in 0..200 {
+            if let Some(Frame::PrimitiveArgument { site, .. }) = machine.frames.last() {
+                let Frame::ReceiverReturn { activation, previous } = &machine.frames[machine.frames.len() - 2] else { panic!("primitive invocation return"); };
+                assert_eq!(machine.current_owner, ExecutionOwner::Invocation(*activation));
+                assert_eq!(*previous, ExecutionOwner::ModuleRun);
+                let invocation = &machine.invocations[*activation];
+                assert!(invocation.active);
+                assert_eq!(invocation.call.source_root, site.source_root);
+                assert_eq!(invocation.call.occurrence, site.occurrence);
+                if !entries.contains(activation) {
+                    assert!(matches!(machine.state, State::Evaluate { .. }), "whole argument enters only after the receiver is live");
+                    entries.push(*activation);
+                }
+            }
+            match machine.run(1) {
+                RuntimeOutcome::Running | RuntimeOutcome::ResourceExhausted { .. } => {},
+                RuntimeOutcome::Completed(value) => { completed = Some(value); break; },
+                other => panic!("primitive entry: {other:?}"),
+            }
+        }
+        assert_eq!(entries, [0, 1], "curried calls have separate actual owners");
+        assert!(machine.invocations.iter().all(|invocation| !invocation.active));
+        assert!(machine.active_receivers.is_empty());
+        assert_eq!(machine.current_owner, ExecutionOwner::ModuleRun);
+        assert!(matches!(&machine.value(completed.expect("completion")).unwrap().kind,
+            RuntimeValueKind::Integer(value) if value.as_ref() == "3"));
     }
 
     #[test]
