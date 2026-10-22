@@ -120,6 +120,7 @@ pub(super) struct State {
     pub(super) formal_permissions: Vec<FormalPermission>,
     formal_permission_bytes: usize,
     pub(super) annotation_values: HashMap<(AnnotationScope, Box<str>), u32>,
+    annotation_holes: HashMap<(AnnotationScope, SourceNodeKey), u32>,
     // Effect names share binding scope while remaining separate from value names.
     annotation_effects: HashMap<(AnnotationScope, Box<str>), u32>,
     pub contributions: Vec<Contribution>,
@@ -261,6 +262,7 @@ pub(super) struct Checkpoint {
     formal_permissions: usize,
     formal_permission_bytes: usize,
     annotation_values: Vec<(AnnotationScope, Box<str>)>,
+    annotation_holes: Vec<(AnnotationScope, SourceNodeKey)>,
     annotation_effects: Vec<(AnnotationScope, Box<str>)>,
     annotation_value_bytes: usize,
 }
@@ -284,6 +286,7 @@ impl Checkpoint {
             .and_then(|n| n.checked_add(bytes::<TypedPairKey>(self.conflicts.capacity()).ok()?))
             .and_then(|n| n.checked_add(bytes::<usize>(self.formal_domains.capacity()).ok()?))
             .and_then(|n| n.checked_add(bytes::<(AnnotationScope, Box<str>)>(self.annotation_values.capacity()).ok()?))
+            .and_then(|n| n.checked_add(bytes::<(AnnotationScope, SourceNodeKey)>(self.annotation_holes.capacity()).ok()?))
             .and_then(|n| n.checked_add(bytes::<(AnnotationScope, Box<str>)>(self.annotation_effects.capacity()).ok()?))
             .and_then(|n| n.checked_add(self.annotation_value_bytes))
             .ok_or_else(exhausted)
@@ -327,6 +330,7 @@ impl State {
             formal_permissions: self.formal_permissions.len(),
             formal_permission_bytes: self.formal_permission_bytes,
             annotation_values: Vec::new(),
+            annotation_holes: Vec::new(),
             annotation_effects: Vec::new(),
             annotation_value_bytes: 0,
         }
@@ -337,6 +341,7 @@ impl State {
         self.formal_permissions.truncate(checkpoint.formal_permissions);
         self.formal_permission_bytes = checkpoint.formal_permission_bytes;
         for key in checkpoint.annotation_values { self.annotation_values.remove(&key); }
+        for key in checkpoint.annotation_holes { self.annotation_holes.remove(&key); }
         for key in checkpoint.annotation_effects { self.annotation_effects.remove(&key); }
         for key in checkpoint.conflicts {
             self.conflicts.remove(&key);
@@ -396,6 +401,7 @@ impl State {
             bytes::<(usize, Term)>(self.formal_domains.capacity())?,
             bytes::<FormalPermission>(self.formal_permissions.capacity())?,
             bytes::<((AnnotationScope, Box<str>), u32)>(self.annotation_values.capacity())?,
+            bytes::<((AnnotationScope, SourceNodeKey), u32)>(self.annotation_holes.capacity())?,
             bytes::<((AnnotationScope, Box<str>), u32)>(self.annotation_effects.capacity())?,
             self.nested_bytes,
             self.formal_permission_bytes,
@@ -435,6 +441,7 @@ impl State {
             + state.formal_domains.capacity() * std::mem::size_of::<(usize, Term)>()
             + state.formal_permissions.capacity() * std::mem::size_of::<FormalPermission>()
             + state.annotation_values.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
+            + state.annotation_holes.capacity() * std::mem::size_of::<((AnnotationScope, SourceNodeKey), u32)>()
             + state.annotation_effects.capacity() * std::mem::size_of::<((AnnotationScope, Box<str>), u32)>()
             + retained_names + retained_views + evidence_bytes + retained_permissions
     }
@@ -1306,6 +1313,22 @@ impl InferenceSession {
         Ok(row)
     }
 
+    fn candidate_annotation_hole(&mut self, scope: &AnnotationScope, position: &SourceNodeKey, level: u32) -> Result<u32, SolveAvailabilityError> {
+        let key = (scope.clone(), position.clone());
+        if let Some(&row) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_holes.get(&key) { return Ok(row); }
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.annotation_holes.try_reserve(1).map_err(|_| exhausted())?;
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) {
+            undo.effect_algebra.annotation_holes.try_reserve(1).map_err(|_| exhausted())?;
+        }
+        let row = self.fresh_value_at_level(level)?;
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) {
+            undo.effect_algebra.annotation_holes.push(key.clone());
+        }
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.annotation_holes.insert(key, row);
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+        Ok(row)
+    }
+
     fn candidate_formal_effect_variable(&mut self, scope: &AnnotationScope, name: &str, level: u32) -> Result<u32, SolveAvailabilityError> {
         let key = (scope.clone(), Box::<str>::from(name));
         if let Some(&row) = self.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_effects.get(&key) { return Ok(row); }
@@ -1336,6 +1359,7 @@ impl InferenceSession {
                 .map(|undo| &undo.effect_algebra) else { return Ok(()); };
             assert_eq!(undo.annotation_values.iter().chain(undo.annotation_effects.iter()).map(|(_, name)| name.len()).sum::<usize>(), undo.annotation_value_bytes);
             assert!(undo.annotation_values.iter().all(|key| state.annotation_values.contains_key(key)));
+            assert!(undo.annotation_holes.iter().all(|key| state.annotation_holes.contains_key(key)));
             assert!(undo.annotation_effects.iter().all(|key| state.annotation_effects.contains_key(key)));
             if stage == 2 {
                 assert!(!undo.formal_domains.is_empty());
@@ -1349,6 +1373,7 @@ impl InferenceSession {
                 + undo.conflicts.capacity() * std::mem::size_of::<TypedPairKey>()
                 + undo.formal_domains.capacity() * std::mem::size_of::<usize>()
                 + undo.annotation_values.capacity() * std::mem::size_of::<(AnnotationScope, Box<str>)>()
+                + undo.annotation_holes.capacity() * std::mem::size_of::<(AnnotationScope, SourceNodeKey)>()
                 + undo.annotation_effects.capacity() * std::mem::size_of::<(AnnotationScope, Box<str>)>()
                 + undo.annotation_values.iter().chain(undo.annotation_effects.iter()).map(|(_, name)| name.len()).sum::<usize>();
             assert_eq!(state.bytes()?, owned);
@@ -1387,6 +1412,10 @@ impl InferenceSession {
             SourceAnnotationValue::Unit => Ok((self.batch.collected_leaf_term(Leaf::UnitPositive), self.batch.collected_leaf_term(Leaf::UnitNegative))),
             SourceAnnotationValue::Variable(name) => {
                 let row = self.candidate_annotation_variable(scope, name, level)?;
+                Ok((self.live_value_term(Polarity::Positive, row)?, self.live_value_term(Polarity::Negative, row)?))
+            }
+            SourceAnnotationValue::Hole(position) => {
+                let row = self.candidate_annotation_hole(scope, position, level)?;
                 Ok((self.live_value_term(Polarity::Positive, row)?, self.live_value_term(Polarity::Negative, row)?))
             }
             SourceAnnotationValue::Function { argument, result } => {
@@ -1896,6 +1925,11 @@ impl InferenceSession {
                 };
                 self.live_value_term(polarity, row)
             }
+            SourceAnnotationValue::Hole(position) => {
+                let SignatureContext::Annotation(_, scope) = context else { return Err(exhausted()); };
+                let row = self.candidate_annotation_hole(scope, position, level)?;
+                self.live_value_term(polarity, row)
+            }
             SourceAnnotationValue::Function { argument, result } => {
                 let opposite = if polarity == Polarity::Positive {
                     Polarity::Negative
@@ -2362,6 +2396,39 @@ mod tests {
             assert!(state.conflicts.is_empty());
             assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, 0);
         }
+    }
+
+    #[test]
+    fn annotation_holes_keep_source_scopes_rows_and_failed_attempts_separate() {
+        let mut session = make_session("my first (x:_) (y:_) = x\nmy second (x:_) = x\n");
+        let mut actions = Vec::new();
+        for name in ["first", "second"] {
+            actions.extend(session.batch.candidate_source.schedules[&root(&session, name)].iter()
+                .filter(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).cloned());
+        }
+        assert_eq!(actions.len(), 3);
+        let mut rows = Vec::new();
+        for action in actions {
+            let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+            let SourceAnnotationValue::Hole(position) = &annotation.ty.value else { panic!("source hole"); };
+            let before = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_holes.clone();
+            assert_eq!(session.with_route_transaction(|session| {
+                session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)?;
+                Err::<(), _>(exhausted())
+            }), Err(exhausted()));
+            assert_eq!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_holes, before);
+            session.with_route_transaction(|session|
+                session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)).unwrap();
+            let row = session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.annotation_holes[&(scope.clone(), position.clone())];
+            let level = session.value_levels[row as usize];
+            assert_eq!(session.candidate_annotation_hole(&scope, position, level).unwrap(), row);
+            rows.push(row);
+            let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+            assert_eq!(state.annotation_holes.len(), rows.len());
+            assert!(state.annotation_values.is_empty(), "holes introduce no named-variable aliases");
+            assert_eq!(state.bytes().unwrap(), state.formal_owned_bytes());
+        }
+        assert_eq!(rows.iter().collect::<HashSet<_>>().len(), 3);
     }
 
     #[test]

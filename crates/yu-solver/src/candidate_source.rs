@@ -612,7 +612,7 @@ pub(super) fn preflight_with_imports_and_roles(
         }
         if let LocalSourceForm::Operation { resolution } = &expr.form {
             match resolution {
-                yu_hir::shadow::SourceOperationResolution::Resolved(declaration) if declaration.signature.effects.is_none() && matches!(declaration.signature.value, yu_hir::shadow::SourceAnnotationValue::Function { .. }) && preflight_annotation(&declaration.signature, true) => {},
+                yu_hir::shadow::SourceOperationResolution::Resolved(declaration) if declaration.signature.effects.is_none() && matches!(declaration.signature.value, yu_hir::shadow::SourceAnnotationValue::Function { .. }) && !annotation_contains_hole(&declaration.signature) && preflight_annotation(&declaration.signature, true) => {},
                 _ => return Err(shadow_apply::CandidateError::Unsupported),
             }
         }
@@ -940,6 +940,7 @@ fn same_source_annotation_type(a: &yu_hir::shadow::SourceAnnotationType, b: &yu_
         (SourceAnnotationValue::Unit, SourceAnnotationValue::Unit) | (SourceAnnotationValue::Int, SourceAnnotationValue::Int)
         | (SourceAnnotationValue::Bool, SourceAnnotationValue::Bool) | (SourceAnnotationValue::Str, SourceAnnotationValue::Str) => true,
         (SourceAnnotationValue::Variable(a), SourceAnnotationValue::Variable(b)) => a == b,
+        (SourceAnnotationValue::Hole(a), SourceAnnotationValue::Hole(b)) => a == b,
         (SourceAnnotationValue::Function { argument: aa, result: ar }, SourceAnnotationValue::Function { argument: ba, result: br }) =>
             same_source_annotation_type(aa, ba) && same_source_annotation_type(ar, br),
         _ => false,
@@ -948,7 +949,7 @@ fn same_source_annotation_type(a: &yu_hir::shadow::SourceAnnotationType, b: &yu_
 // Generic arms require rigid existential opening (charter §§19–20).
 fn monomorphic_signature(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
     ty.effects.as_ref().is_none_or(|row| row.variables.is_empty()) && match &ty.value {
-        yu_hir::shadow::SourceAnnotationValue::Variable(_) => false,
+        yu_hir::shadow::SourceAnnotationValue::Variable(_) | yu_hir::shadow::SourceAnnotationValue::Hole(_) => false,
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => monomorphic_signature(argument) && monomorphic_signature(result),
         _ => true,
     }
@@ -958,6 +959,14 @@ fn annotation_contains_unit(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
         yu_hir::shadow::SourceAnnotationValue::Unit => true,
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
             annotation_contains_unit(argument) || annotation_contains_unit(result),
+        _ => false,
+    }
+}
+fn annotation_contains_hole(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
+    match &ty.value {
+        yu_hir::shadow::SourceAnnotationValue::Hole(_) => true,
+        yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
+            annotation_contains_hole(argument) || annotation_contains_hole(result),
         _ => false,
     }
 }

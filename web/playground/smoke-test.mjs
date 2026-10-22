@@ -5,10 +5,16 @@ await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") }
 
 const examples = {
   ordinary: ["my identity x = x\nmy main = identity 7", "7\n"],
+  inferredAnnotationHoles: ['my identity: _ -> _ = \\x -> x\nmy main = (identity 7, identity "a")\n', '(7, "a")\n'],
+  computationResultHole: ["act io:\n    our tick: int -> int\nmy relay (thunk:[io] _) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay { my x = io::tick 7; (x, true) }\n", "(11, true)\n"],
   capturedInitializer: ["my main = 1 + 2\n", "3\n"],
   interleavedStatements: ["my main = { 1; my x = 2; 3; x }\n", "2\n"],
   connectedMemberResults: ['my f x = { my first = x.show; my y = x + x; my second = y.show; (first, second, y) }\nmy main = (f 3, f "a")\n', '(("3", "6", 6), ("a", "aa", "aa"))\n'],
   connectedMemberWrites: ['my f x = { say x; my y = x + x; say y; y }\nmy main = (f 3, f "a")\n', '3\n6\na\naa\n'],
+  genericComputationMembers: ['act io:\n    our tick: int -> int\nmy compute x = { my before = io::tick 7; x + x }\nmy relay (thunk:[io] \'a) = catch thunk { io::tick(p), k -> k 11 }\nmy main = (relay(compute 3), relay(compute "a"))\n', '(6, "aa")\n'],
+  genericComputationTuple: ['act io:\n    our tick: int -> int\nmy relay (thunk:[io] \'a) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay { my ignored = io::tick 0; (7, true) }\n', '(7, true)\n'],
+  computationFunctionResult: ['act io:\n    our tick: int -> int\nmy relay (thunk:[io] (int -> int)) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay { my ignored = io::tick 0; \\x -> x } 7\n', '7\n'],
+  genericRepeatedContinuation: ['act io:\n    our tick: int -> int\nmy relay (thunk:[io] \'a) = catch thunk { io::tick(p), k -> { my first = k 11; k 23 } }\nmy main = relay { my x = io::tick 0; (x, true) }\n', '(23, true)\n'],
   statementBranchScopes: ["my main = { my x = 3; { my x = 9; 0; x }; x }\n", "3\n"],
   statementPolymorphicClosure: ['my main = { my add x = x + x; 0; my alias = add; 1; (alias 3, alias "a") }\n', '(6, "aa")\n'],
   statementRepeatedResumption: ["act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(p), k -> { k 11; k 23 } }\nmy main = relay { 99; io::tick 0; my x = 7; x }\n", "7\n"],
@@ -135,6 +141,11 @@ for (const [source, expected] of [
 for (const [source, budget, reason] of [
   [yulang2TypesSource, 0, "runtime step budget exhausted"],
   [yulang2DiagnosticExamples.typeMismatch, 100_000, "candidate type conflicts"],
+  ["my identity: _ -> _ = \\x -> x\nmy main:int = identity true\n", 100_000, "candidate type conflicts"],
+  ["act io:\n    our tick: int -> int\nmy relay (thunk:[] _) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay(io::tick 7)\n", 100_000, "HandlerEvidence"],
+  ['act io:\n    our tick: int -> int\nmy relay (thunk:[] \'a) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay(io::tick 7)\n', 100_000, "HandlerEvidence"],
+  ['act io:\n    our tick: int -> int\nmy outer (thunk:[io] \'a) = \\u -> thunk\nmy saved = outer(io::tick 7)\nmy main = catch saved () { io::tick(p), k -> k 11 }\n', 100_000, "HandlerEvidence"],
+  ['act io:\n    our tick: int -> int\nmy receive (thunk:[io] \'a) = thunk\nmy saved = receive(\\u -> io::tick 7)\nmy main = catch saved () { io::tick(p), k -> k 11 }\n', 100_000, "HandlerEvidence"],
   ['act io:\n    our tick: int -> ()\nprintln "prefix"\nsay: 1 + 2\nio::tick 1', 100_000, "unhandled runtime request"],
 ]) {
   let rejected = false;

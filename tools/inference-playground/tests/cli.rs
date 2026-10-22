@@ -179,6 +179,107 @@ fn polymorphic_member_results_flow_through_later_uses() {
 }
 
 #[test]
+fn annotation_holes_infer_independently_and_preserve_checked_results() {
+    for (source, expected) in [
+        ("my pick (x:_) (y:_) = x\nmy main = (pick 3 true, pick \"a\" 9)\n", "(3, \"a\")\n"),
+        ("my main = { my f: _ -> _ = \\x -> x; (f 3, f \"a\") }\n", "(3, \"a\")\n"),
+        ("my id (x:_) = x\nmy main = id 7 + 1\n", "8\n"),
+        ("act io:\n    our tick: int -> int\nmy relay (action:[io] _) = catch action { io::tick(p), k -> k 42 }\nmy main = relay { my x = io::tick 0; (x, true) }\n", "(42, true)\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(output.status.success(), "{source}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "{source}");
+        assert!(output.stderr.is_empty());
+    }
+    let output = cli_with_args("my id (x:_) = x\nmy main: int = id true\n", &["--run", "main"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("candidate type conflicts"));
+    assert!(output.stdout.is_empty());
+}
+
+#[test]
+fn generic_computation_results_preserve_values_and_continuations() {
+    let operation = "act io:\n    our tick: int -> int\n";
+    for (body, expected) in [
+        ("my compute x = { my before = io::tick 7; x + x }\nmy relay (thunk:[io] 'a) = catch thunk { io::tick(value), k -> k 11 }\nmy main = (relay(compute 3), relay(compute \"a\"))\n", "(6, \"aa\")\n"),
+        ("my relay (thunk:[io] 'a) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay { my ignored = io::tick 0; (7, true) }\n", "(7, true)\n"),
+        ("my relay (thunk:[io] 'a) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay { my ignored = io::tick 0; \\x -> x } 7\n", "7\n"),
+        ("my relay (thunk:[io] (int -> int)) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay { my ignored = io::tick 0; \\x -> x } 7\n", "7\n"),
+        ("my helper (input:[] 'a) = input\nmy relay (thunk:[io] 'b) = catch helper thunk { io::tick(p), k -> k 11 }\nmy main = relay { my ignored = io::tick 0; (7, true) }\n", "(7, true)\n"),
+        ("my relay (thunk:[io] 'a) = catch thunk { io::tick(p), k -> { my first = k 11; k 23 } }\nmy main = relay { my x = io::tick 0; (x, true) }\n", "(23, true)\n"),
+        ("my outer (thunk:[io] 'a) = { my helper (pending:[io] 'b) = catch pending { io::tick(p), k -> k 11 }; helper thunk }\nmy main = outer { my x = io::tick 0; (x, true) }\n", "(11, true)\n"),
+        ("my ignore (thunk:[io] 'a) = 7\nmy main = ignore(io::tick 0)\n", "7\n"),
+        ("my relay (thunk:[io] 'a) = catch thunk { io::tick(p), k -> k 11 }\nmy add x = x + x\nmy main = (relay { my ignored = io::tick 0; add } 3, relay { my ignored = io::tick 0; add } \"a\")\n", "(6, \"aa\")\n"),
+        ("my relay (thunk:[io] 'a) = catch thunk { io::tick(p), k -> k 11 }\nmy make x = relay { my ignored = io::tick 0; (\\u -> x + x, 7) }\nmy main = case make \"a\": (f, n) -> f n\n", "\"aa\"\n"),
+        ("my outer (input:[io] 'a) = catch ({ my make (thunk:[] 'b) = thunk; my callback = make(\\u -> input); callback () }) { io::tick(p), k -> k 11 }\nmy main = outer(io::tick 7)\n", "11\n"),
+    ] {
+        let source = format!("{operation}{body}");
+        let output = cli_with_args(&source, &["--run", "main", "--steps", "100000"]);
+        assert!(output.status.success(), "{source}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "{source}");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
+fn annotation_holes_preserve_inferred_values_and_independent_positions() {
+    for (source, expected) in [
+        ("my identity (x:_) = x\nmy main = (identity 7, identity \"a\")\n", "(7, \"a\")\n"),
+        ("my identity: _ -> _ = \\x -> x\nmy main = (identity 7, identity \"a\")\n", "(7, \"a\")\n"),
+        ("my main = { my identity: _ -> _ = \\x -> x; (identity 7, identity \"a\") }\n", "(7, \"a\")\n"),
+        ("my choose (x:_) (y:_) = (x, y)\nmy main = choose 7 true\n", "(7, true)\n"),
+        ("my choose (x:_) (y:_) = if x: y else: y\nmy main = choose true 7\n", "7\n"),
+        ("my constant: _ -> _ = \\x -> true\nmy main = constant 7\n", "true\n"),
+        ("my identity: int -> _ = \\x -> x\nmy main = identity 7\n", "7\n"),
+        ("my x:_ = 7\nmy main = x\n", "7\n"),
+        ("my identity x = x\nmy alias:_ = identity\nmy main = (alias 7, alias \"a\")\n", "(7, \"a\")\n"),
+        ("act io:\n    our tick: int -> int\nmy relay (thunk:[io] _) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay { my x = io::tick 7; (x, true) }\n", "(11, true)\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(output.status.success(), "{source}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "{source}");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
+fn annotation_holes_retain_body_constraints_and_permission_requirements() {
+    for (source, expected_error) in [
+        ("my identity: int -> _ = \\x -> x\nmy main = identity true\n", "candidate type conflicts"),
+        ("my choose (x:_) = if x: 1 else: 0\nmy main = choose 7\n", "candidate type conflicts"),
+        ("my identity: _ -> _ = \\x -> x\nmy main:int = identity true\n", "candidate type conflicts"),
+        ("act io:\n    our tick: int -> int\nmy relay (thunk:[] _) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay(io::tick 7)\n", "HandlerEvidence"),
+        ("act io:\n    our tick: _ -> int\nmy main = io::tick 7\n", "unsupported source"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(!output.status.success(), "{source}");
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr).contains(expected_error),
+            "{source}: {}", String::from_utf8_lossy(&output.stderr));
+    }
+}
+
+#[test]
+fn generic_computation_grants_keep_the_original_receiver_and_permission() {
+    let operation = "act io:\n    our tick: int -> int\n";
+    for (body, expected_error) in [
+        ("my relay (thunk:[] 'a) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay(io::tick 7)\n", "HandlerEvidence"),
+        ("my relay (thunk:['e] 'a) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay(io::tick 7)\n", "HandlerEvidence"),
+        ("my outer (thunk:[io] 'a) = { my helper ignored = catch thunk { io::tick(p), k -> k 11 }; helper () }\nmy main = outer(io::tick 7)\n", "HandlerEvidence"),
+        ("my outer (thunk:[io] 'a) = \\u -> thunk\nmy saved = outer(io::tick 7)\nmy main = catch saved () { io::tick(p), k -> k 11 }\n", "HandlerEvidence"),
+        ("my receive (thunk:[io] 'a) = thunk\nmy saved = receive(\\u -> io::tick 7)\nmy main = catch saved () { io::tick(p), k -> k 11 }\n", "HandlerEvidence"),
+        ("act other:\n    our ping: int -> int\nmy relay (thunk:[io] 'a) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay { io::tick 0; other::ping 9 }\n", "unhandled runtime request"),
+    ] {
+        let source = format!("{operation}{body}");
+        let output = cli_with_args(&source, &["--run", "main", "--steps", "100000"]);
+        assert!(!output.status.success(), "{source}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains(expected_error),
+            "{source}: {}", String::from_utf8_lossy(&output.stderr));
+        assert!(output.stdout.is_empty());
+    }
+}
+
+#[test]
 fn polymorphic_members_follow_aliases_and_captured_closures() {
     for source in [
         "my main = { my add x = x + x; (add 3, add \"a\") }\n",

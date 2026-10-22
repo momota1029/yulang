@@ -1029,9 +1029,14 @@ impl Machine {
                 self.state = State::Return(received);
             }
             Frame::RootCompReturn { execution } => {
+                if !self.receiving.matches_value(received.view, received.value) {
+                    return Err(RuntimeUnavailable::InvalidSourceReference);
+                }
                 self.end_execution_view(execution)?;
-                let view = self.receiving.ground(received.value);
-                self.state = State::Return(ReceivedValue { view, ..received });
+                // The consumed computation root has no result-path image.
+                // Its actual result retains its own view, unknown coverage,
+                // private captures and dictionary; no groundness is assumed.
+                self.state = State::Return(received);
             }
             Frame::CatchReturn {
                 handler,
@@ -2655,6 +2660,49 @@ mod module_expression_tests {
                 element.received.view,
                 element.received.value
             ));
+        }
+    }
+
+    #[test]
+    fn computation_completion_preserves_the_actual_result_record() {
+        for (source, minimum_returns) in [
+            ("my relay (thunk:[] 'a) = thunk\nmy main = relay (7, \\x -> x)\n", 1),
+            ("my relay (thunk:[] (int -> int)) = thunk\nmy main = relay (\\x -> x)\n", 1),
+            ("my relay (thunk:[] 'a) = thunk\nmy forward (input:[] 'b) = relay input\nmy main = forward (\\x -> x)\n", 2),
+            ("act io:\n    our tick: int -> int\nmy relay (thunk:[io] 'a) = catch thunk { io::tick(p), k -> { my first = k 11; k 23 } }\nmy main = relay { my x = io::tick 0; (x, \\u -> u) }\n", 2),
+        ] {
+            let mut machine = machine(source, true);
+            let mut returns = 0;
+            let mut executions = HashSet::new();
+            let mut completed = false;
+            for _ in 0..2000 {
+                let before = match (&machine.state, machine.frames.last()) {
+                    (State::Return(value), Some(Frame::RootCompReturn { execution })) =>
+                        Some((*value, *execution, machine.executing_views.len())),
+                    _ => None,
+                };
+                let outcome = machine.step();
+                if let Some((before, execution, depth)) = before {
+                    assert!(matches!(outcome, RuntimeOutcome::Running), "{source}: {outcome:?}");
+                    let State::Return(after) = machine.state else { panic!("completion returns the actual record"); };
+                    assert_eq!((after.value, after.interface, after.view, after.dispatch),
+                        (before.value, before.interface, before.view, before.dispatch),
+                        "completion cannot replace unknown/result evidence with a ground view");
+                    assert!(machine.receiving.matches_value(after.view, after.value));
+                    assert_eq!(machine.executing_views.len() + 1, depth);
+                    assert!(executions.insert(execution.occurrence), "each execution closes once");
+                    returns += 1;
+                }
+                match outcome {
+                    RuntimeOutcome::Running => {},
+                    RuntimeOutcome::Completed(_) => { completed = true; break; },
+                    other => panic!("{source}: {other:?}"),
+                }
+            }
+            assert!(completed, "{source}");
+            assert!(returns >= minimum_returns, "{source}: {returns}");
+            assert!(machine.executing_views.is_empty());
+            assert!(machine.initializing_globals.is_empty());
         }
     }
 

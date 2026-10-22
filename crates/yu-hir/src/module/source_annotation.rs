@@ -123,6 +123,9 @@ pub enum SourceAnnotationValue {
     Bool,
     Str,
     Variable(Box<str>),
+    /// An inference hole at its original type-expression position. Distinct
+    /// occurrences never acquire equality merely from the spelling `_`.
+    Hole(SourceNodeKey),
     Function {
         argument: Box<SourceAnnotationType>,
         result: Box<SourceAnnotationType>,
@@ -499,6 +502,10 @@ fn parse_type_source(
         [variable] if variable.kind() == SyntaxKind::SigilIdentifier => {
             SourceAnnotationValue::Variable(variable.to_string().trim().to_owned().into_boxed_str())
         }
+        [hole] if hole.kind() == SyntaxKind::Identifier && hole.to_string() == "_" => {
+            SourceAnnotationValue::Hole(counters.source_nodes.get(node)
+                .ok_or(HirAvailabilityError::StructuralProjection)?.clone())
+        }
         [group] if group.kind() == SyntaxKind::ParenthesizedTypeGroup => {
             let group = group.as_node().ok_or_else(unavailable)?;
             let nested = parse_group(group, counters)?;
@@ -529,6 +536,11 @@ fn parse_type_source(
                     value: SourceAnnotationValue::Variable(
                         head.to_string().trim().to_owned().into_boxed_str(),
                     ),
+                },
+                SyntaxKind::Identifier if head.to_string() == "_" => SourceAnnotationType {
+                    effects,
+                    value: SourceAnnotationValue::Hole(counters.source_nodes.get(node)
+                        .ok_or(HirAvailabilityError::StructuralProjection)?.clone()),
                 },
                 SyntaxKind::ParenthesizedTypeGroup => {
                     let node = head.as_node().ok_or_else(unavailable)?;
@@ -699,6 +711,45 @@ fn annotation_depth_preflight(root: &SyntaxNode) -> Result<usize, HirAvailabilit
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn annotation_holes_retain_distinct_original_type_positions() {
+        let text: Arc<yu_syntax::SourceText> = Arc::from(
+            "my outer (x:_) (y:_) = { my local: _ -> _ = \\z -> z; local x }");
+        let parsed = yu_syntax::parse_file(text.clone(), Arc::new(yu_syntax::scan_header(text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        assert!(parsed.structural_recoveries().is_empty());
+        let hir = crate::shadow::lower_module_with_local_source(
+            ModuleIdentity::source_root(FileId::new(FileKey::new("annotation-holes", "source.yu"))),
+            &parsed, SemanticImports::empty()).unwrap();
+        let HirItem::Binding(binding) = &hir.items()[0] else { panic!("binding"); };
+        let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+        let mut holes = Vec::new();
+        for expression in source.expressions() {
+            if let super::super::local_source::LocalSourceForm::Lambda { parameter, .. } = &expression.form {
+                if let Some(annotation) = &parameter.annotation {
+                    assert_eq!(annotation.definition_root(), Some(binding.definition_root()));
+                    let SourceAnnotationValue::Hole(position) = &annotation.ty.value else { panic!("formal hole"); };
+                    holes.push(position.clone());
+                }
+            }
+        }
+        let annotation = source.bindings()[0].annotation.as_ref().unwrap();
+        let SourceAnnotationValue::Function { argument, result } = &annotation.ty.value else { panic!("function"); };
+        for ty in [argument, result] {
+            let SourceAnnotationValue::Hole(position) = &ty.value else { panic!("function hole"); };
+            holes.push(position.clone());
+        }
+        assert_eq!(holes.len(), 4);
+        assert_eq!(holes.iter().collect::<std::collections::HashSet<_>>().len(), 4);
+        let keys = crate::shadow::source_keys(&parsed);
+        for hole in &holes {
+            let node = keys.iter().find(|(_, key)| *key == hole).unwrap().0;
+            assert_eq!(node.kind(), SyntaxKind::TypeExpression);
+            assert!(node.to_string().trim().starts_with('_'));
+        }
+        assert_eq!(annotation.ty.node_count(), 3);
+    }
+
     fn annotation_type(text: &str) -> SyntaxNode {
         let source: Arc<yu_syntax::SourceText> = Arc::from(text);
         let parsed = yu_syntax::parse_file(

@@ -221,3 +221,34 @@ passes. The note preserves the unforced whole-module Tuple observation and
 generic RootComp result-view obligations. Existing expectations are unchanged.
 Direct primary only, UNREVIEWED; original A/B and the whole unchanged Y2 parent
 remain OPEN_CONTINUATION. No production or independent-review gate is promoted.
+
+Direct-ten continuation from `f040ea8e2`: previous turn PROGRESS; clean checkout,
+upstream 0/0, only /root live. Preserve 14926 charged seconds, discard 1541 unused
+seconds, grant 3600 fresh seconds (cap 18526). Add the exact primary lease
+`tools/inference-playground/src/runtime/receiving.rs`; existing program/machine,
+CLI/Web and proof-note leases cover the corresponding result-view construction.
+Derive general RootComp result projection before changing its consumers; retain
+the primitive matcher contract, original source ownership, unknown inherited
+coverage, current invocation/continuation identities and existing expectations.
+No new handler eligibility policy or production promotion. Foreign 95124/95134
+and legacy UNKNOWN writers stay untouched. Direct primary, no child/reviewer;
+effective model/effort UNKNOWN. The unchanged all-Y2/source-native/A-B parent
+and its independent review requirements remain active.
+
+Direct-ten source continuation additionally leases exactly
+`crates/yu-hir/src/module/source_annotation.rs`. The original Effects sample
+exposes the existing `_` annotation-hole meaning documented by pinned Y2
+`web/docs/reference/types.md`; preserve separate source positions and infer each
+hole with ordinary fresh rows in its actual annotation scope. Retain those rows
+across the paired annotation checks/exposure and ordinary generalization.
+Existing solver/effect/source/runtime/CLI/Web leases apply; no new semantics,
+effect wildcard interpretation, generic operation-arm opening or review claim.
+The separate empty Unit formal gate stays explicit; the sample is not rewritten.
+
+Handoff checkpoint (2026-10-23): the resumed primary adopts the unfinished
+RootComp/hole slice; 251 native tests, 35 fresh WASM examples, TS and focused
+HIR/solver hole checks pass. Existing expectations and original parent remain.
+Next: original Unit parameter patterns -> their actual source constraints ->
+Value entry -> exact unchanged Effects sample. Add primary ownership of
+`crates/yu-hir/src/module.rs`; existing local_source/solver/runtime/test paths
+apply. No subagent or independent-review claim. Retain spent resource accounting.

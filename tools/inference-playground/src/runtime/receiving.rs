@@ -19,18 +19,34 @@ pub(super) struct RootCompSchema {
     pub formal: LocalSourceParameter,
 }
 impl RootCompSchema {
+    /// Primitive completion permits the ground-result projection used by the
+    /// original narrow protocol. This constructor retains that contract.
     pub fn from_parameter(lambda: &SourceSite, formal: &LocalSourceParameter) -> Option<Arc<Self>> {
+        let annotation = formal.annotation.as_ref()?;
+        if !matches!(annotation.ty.value, SourceAnnotationValue::Unit | SourceAnnotationValue::Int
+            | SourceAnnotationValue::Bool | SourceAnnotationValue::Str)
+        {
+            return None;
+        }
+        Self::original_parameter(lambda, formal)
+    }
+    /// General RootComp entry requires completion to preserve the actual
+    /// result view. The outer permission never supplies a future-result grant.
+    pub fn from_parameter_with_result_view(
+        lambda: &SourceSite,
+        formal: &LocalSourceParameter,
+    ) -> Option<Arc<Self>> {
+        match formal.annotation.as_ref()?.ty.value {
+            SourceAnnotationValue::Variable(_) | SourceAnnotationValue::Hole(_) | SourceAnnotationValue::Function { .. } =>
+                Self::original_parameter(lambda, formal),
+            _ => Self::from_parameter(lambda, formal),
+        }
+    }
+    fn original_parameter(lambda: &SourceSite, formal: &LocalSourceParameter) -> Option<Arc<Self>> {
         let annotation = formal.annotation.as_ref()?;
         if annotation.owner != lambda.source_root
             || formal.id.source_root() != &lambda.source_root
             || annotation.ty.effects.is_none()
-            || !matches!(
-                annotation.ty.value,
-                SourceAnnotationValue::Unit
-                    | SourceAnnotationValue::Int
-                    | SourceAnnotationValue::Bool
-                    | SourceAnnotationValue::Str
-            )
         {
             return None;
         }
@@ -434,6 +450,45 @@ mod tests {
         let mut formal = schema.formal.clone();
         formal.annotation = None;
         assert!(RootCompSchema::from_parameter(&schema.lambda, &formal).is_none());
+    }
+
+    #[test]
+    fn actual_result_view_schema_keeps_source_guards_for_symbolic_and_function_results() {
+        let (schema, different, _, _) = source_operands();
+        let ty = schema.formal.annotation.as_ref().unwrap().ty.clone();
+        for value in [
+            SourceAnnotationValue::Variable("a".into()),
+            SourceAnnotationValue::Hole(schema.formal.annotation.as_ref().unwrap().position.clone()),
+            SourceAnnotationValue::Function { argument: Box::new(ty.clone()), result: Box::new(ty.clone()) },
+        ] {
+            let mut formal = schema.formal.clone();
+            formal.annotation.as_mut().unwrap().ty.value = value;
+            assert!(RootCompSchema::from_parameter(&schema.lambda, &formal).is_none(),
+                "the original ground-completion constructor retains its own contract");
+            let retained = RootCompSchema::from_parameter_with_result_view(&schema.lambda, &formal).unwrap();
+            assert_eq!(retained.formal.id, formal.id);
+            assert_eq!(retained.formal.source, formal.source);
+            assert_eq!(retained.lambda.occurrence, schema.lambda.occurrence);
+            let original = formal.annotation.as_ref().unwrap();
+            let actual = retained.formal.annotation.as_ref().unwrap();
+            assert_eq!(actual.owner, original.owner);
+            assert_eq!(actual.position, original.position);
+            assert_eq!(actual.ty.effects.as_ref().unwrap().position, original.ty.effects.as_ref().unwrap().position);
+            assert_eq!(actual.ty.effects.as_ref().unwrap().concrete, original.ty.effects.as_ref().unwrap().concrete);
+            assert_eq!(actual.ty.effects.as_ref().unwrap().variables, original.ty.effects.as_ref().unwrap().variables);
+            assert!(RootCompSchema::from_parameter_with_result_view(&different.lambda, &formal).is_none());
+            let mut wrong = formal.clone();
+            wrong.annotation.as_mut().unwrap().owner = different.lambda.source_root.clone();
+            assert!(RootCompSchema::from_parameter_with_result_view(&schema.lambda, &wrong).is_none());
+            let mut wrong = formal.clone();
+            wrong.annotation.as_mut().unwrap().ty.effects = None;
+            assert!(RootCompSchema::from_parameter_with_result_view(&schema.lambda, &wrong).is_none());
+            let mut wrong = different.formal.clone();
+            wrong.annotation = formal.annotation.clone();
+            assert!(RootCompSchema::from_parameter_with_result_view(&schema.lambda, &wrong).is_none());
+            formal.annotation = None;
+            assert!(RootCompSchema::from_parameter_with_result_view(&schema.lambda, &formal).is_none());
+        }
     }
 
     fn assert_constructor_order(receiving: &Receiving) {

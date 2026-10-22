@@ -792,7 +792,7 @@ impl RuntimeProgram {
                         } else {
                             ParameterRole::Value
                         },
-                        root_schema: super::receiving::RootCompSchema::from_parameter(
+                        root_schema: super::receiving::RootCompSchema::from_parameter_with_result_view(
                             &SourceSite {
                                 source_root: source_root.clone(),
                                 occurrence: expression.occurrence.clone(),
@@ -1006,7 +1006,7 @@ impl RuntimeProgram {
             } else {
                 ParameterRole::Value
             };
-            let root_schema = super::receiving::RootCompSchema::from_parameter(&site, &receiver);
+            let root_schema = super::receiving::RootCompSchema::from_parameter_with_result_view(&site, &receiver);
             code.push(Arc::new(Code {
                 site,
                 instruction: Instruction::Lambda {

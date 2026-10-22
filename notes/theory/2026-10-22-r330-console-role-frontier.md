@@ -1516,3 +1516,148 @@ all temporary compiler instrumentation is removed. Existing expected outputs
 are unchanged. No child or independent reviewer ran. The conditional proof
 and implementation remain UNREVIEWED, with original A/B, all-source adequacy,
 principality, general receiving, source initialization and production OPEN.
+
+### Direct-ten: result-parametric RootComp construction
+
+The unchanged source counterexample is reproduced at `f040ea8e2`:
+`compute x = { my before = io::tick 7; x + x }`,
+`relay (thunk:[io] 'a) = catch thunk { io::tick(value), k -> k 11 }`,
+and `main = (relay(compute 3), relay(compute "a"))` fail with HandlerEvidence.
+The exact command/source receipt is `/tmp/yulang-r332-root10-baseline.log`.
+
+Fix the original formal, Lambda, outer annotation/effect-row positions and
+one shared source assignment, with actual interface Comp(E,A). Keep the ordinary
+compatible source typing, operation/response contracts and the existing
+receiving/continuation transition premises. A is the actual result interface,
+including symbolic, function and structural results; it is not chosen again
+after an event. The outer annotation exposes exactly the consumed RootComp
+position. The receiving default and concrete-permission rule at this position
+depend on its original row, formal and receiver, not on A's tag. Thus the local
+RootComp boundary/receipt and positive Grant derivation of the reviewed primitive
+theorem extends to A without declaring any nested/future profile complete.
+Unknown inherited coverage stays unknown; a symbolic family alone grants none.
+
+At whole-computation completion the typed matching-path map has no image for
+the consumed RootComp position. It removes the result prefix of each actual
+result path and preserves that path's original evidence, ledger references and
+lineage. Disjointness of RootComp and result paths proves that an outer grant
+does not become a returned function's future-call grant. Unlike the primitive
+case, the result can have unknown or nonempty paths; replacing its view with a
+ground view is not justified. The source rule preserves the same actual result
+packet, with only the consumed computation's execution delimiter ended.
+
+The current runtime separates these inputs constructively. `consume(Execute)`
+opens the received carrier view and stores its exact execution in RootCompReturn;
+`execute_with_substitution` evaluates the carrier's original code. Every normal
+result is a complete ReceivedValue of that code, not a view synthesized from
+the ambient execution stack. Literals/primitive results construct ground views;
+closures/operations/tuples construct opaque views; tuple elements and private
+closure environments retain their own whole records. Name/Bind/Return/Case and
+dictionary substitution preserve the actual result record and its private
+dependencies. None unions the ambient root image into the result's public view.
+Therefore RootCompReturn can end only its matching execution and return the
+same actual result record. This is the native representation of the matching
+result map, under those original constructor premises; it supplies no complete
+Function-view inference or new adapter semantics.
+
+An induction on the actual result constructors establishes unchanged value,
+interface, view and dictionary coordinates. An induction on nested execution
+delimiters establishes that inner completion removes only that inner execution;
+outer executions remain live until their own completion. Request crossing and
+template View re-entry already retain the original view/receipt and create only
+a new execution occurrence. Applying the same completion case after each actual
+reuse preserves this invariant for every finite legal reuse history. Captured
+computation bindings stay in private environments and can later be consumed at
+their real Name; returning a closure neither executes them nor changes their
+original receiver activity. Expired receiver and exact-operation checks remain.
+
+Implementation packet: retain the existing primitive-only schema constructor's
+contract and tests. Add a source-guarded constructor for the actual-result-view
+completion protocol and use it at the original Lambda/member parameter producer.
+Replace RootCompReturn's unconditional ground-view construction with identity
+return of the authenticated actual result view. No eligibility, force schedule,
+operation payload/response rule, receipt creation or boundary identity changes.
+Test original source execution, exact tuple/closure view preservation, nested
+and repeated continuations, missing permission and expired/captured receivers.
+This is a conditional direct-primary construction, UNREVIEWED; unrestricted
+source/native adequacy, profiles, principal schemes and original A/B remain OPEN.
+
+#### Source-owned annotation holes: construction before implementation
+
+The pinned Y2 reference (`a58eefc31e22141574b6f20c6a5748151c6d79f1`,
+`web/docs/reference/types.md:192`) defines `_` as an inference placeholder, not
+an additional type constructor. Its annotation builder allocates a distinct
+wildcard identity at every occurrence (`annotation/builder.rs:185–189,399–406`).
+Its bounds implementation uses Bottom/Top for a wildcard (`constraints.rs:324`),
+so no equality between two different holes follows from their common spelling.
+This is source evidence for the existing meaning, not adoption of F5 inference.
+
+The candidate paired annotation route checks a negative projection and exposes
+a positive projection. Replacing a hole by Bottom/Top there would discard the
+actual inferred result at exposure. Construct instead one fresh ordinary Value
+row h for each pair (actual annotation scope, original hole SourceNodeKey).
+Both polar projections of this same hole use h. Different holes and named type
+variables have disjoint identities. No row is identified merely because two
+hole occurrences spell `_`, share a formal owner or have equal inferred shapes.
+
+For a formal hole at existing row a, the two generated bounds are h <: a and
+a <: h. Projecting away the new h leaves exactly the old assignments to a:
+any old assignment extends with h=a, and the new constraints impose no condition
+on a beyond that equality. The two directions still carry their original
+constraint occurrences. For a structural annotation, perform this construction
+at each original hole position and use the existing Function variance rule;
+every hole is filled once in the shared annotation assignment used by checking
+and exposure. This preserves the inferred information carried from the checked
+value to the exposed value. It does not claim that an unconstrained positive
+Bottom alone could expose an actual type. Soundness of the enclosing annotation
+route and its source-typing correspondence remain the previously open premises.
+
+The native representation retains the original type-expression key for each
+hole; an arrow's head and result have different original nodes. Parentheses
+forward the inner hole key. A source-scoped hole-to-row table is separate from
+the existing named-variable table so ordinary named annotations incur no larger
+key or extra per-entry payload. The original source owns the table entry; a
+FreshUse copies the resulting graph by the existing simultaneous row map,
+without querying or recreating a source hole. Repeated visits within one paired
+construction reuse exactly the same row. Local annotations retain their actual
+Local scope; inherited levels and generalization boundaries are unchanged.
+
+Expected table cost is O(H) storage and O(1) lookup per hole occurrence for H
+retained source holes, plus the existing graph work. The source parser's depth
+limit and resource accounting apply. Failure either removes journaled entries
+with their attempted graph or withholds the attempt. A hole does not certify a
+monomorphic operation signature; generic operation/arm opening stays unavailable.
+The RootComp actual-result protocol can accept a hole result because its local
+permission proof never inspects the result's shape. Effect-row wildcard syntax
+and complete Function-path profiles are separate obligations, not inferred here.
+This is provisional, conditional and UNREVIEWED; it is not principal-type or
+all-source closure.
+
+#### Handoff verification, 2026-10-23
+
+The resumed primary inspected HEAD `f040ea8e2` and adopted the unfinished
+RootComp result-view and source-hole changes. The HIR hole test initially did
+not compile because its iterator compared an extra reference; the corrected
+comparison retains the original identity assertions. The source-node and solver
+hole tests each pass, including rollback and distinct hole/scoped rows. CLI
+coverage exercises independent holes, local polymorphic use, later member
+constraints, rejected incompatible results, and the original effect permission.
+All native playground tests pass: **251** (67 library, 50 CLI, 134 other
+integration tests). Fresh `npm --prefix web/playground run check` passes with
+**35** execution examples and unchanged Types/Console outputs; TypeScript passes.
+Logs for this verification are repository-local `target/r332-handoff-native.log`,
+`target/r332-handoff-web.log`, `target/r332-holes-hir.log`, and
+`target/r332-holes-solver.log`. No existing expectation was weakened.
+
+The complete pinned Y2 catalog contains **19** samples, including three intended
+diagnostic examples. The exact Effects source still fails candidate lowering:
+its `our ask()` empty formal is rejected by `plain_binding_header`. A diagnostic
+probe replacing only that formal with `(unused:())` produces the intended
+`42\n`, identifying the next owning construction; this probe is not the original
+sample regression or completion evidence. Preserve the exact source in the next
+regression and implement the Unit formal at its original pattern position.
+
+These are direct-primary construction and execution receipts, UNREVIEWED.
+The prior document-reading turn supplied guidance, not compiler-goal completion.
+Source adequacy, principal schemes, all remaining Y2 samples, original A/B,
+independent review and production remain OPEN. The whole goal is unchanged.
