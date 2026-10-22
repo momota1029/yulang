@@ -1679,7 +1679,7 @@ mod tests {
     }
 
     #[test]
-    fn unchanged_console_sample_projects_add_but_keeps_display_selection_deferred() {
+    fn unchanged_console_sample_projects_add_and_shapes_display_receiver_before_dispatch() {
         let source = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
         assert_eq!(source.len(), 92);
         let (sources, indexes, role_indexes) = pinned_source_world().unwrap();
@@ -1701,12 +1701,20 @@ mod tests {
             receiver.member.as_ref() == "add"
                 && receiver.positive_shape == Some(yu_solver::shadow_apply::CandidateReceiverShape::Int)
         ), "the exact int:Add FieldTail must be discharged after its member projection");
-        assert!(readbacks.receivers.iter().any(|receiver|
-            receiver.member.as_ref() == "show" && receiver.positive_shape.is_none()
-        ), "the consumer Display receiver remains unshaped after Add selection");
+        let show_receiver = readbacks.receivers.iter().find(|receiver|
+            receiver.member.as_ref() == "show"
+        ).expect("the imported say graph retains its source value.show FieldTail");
+        assert_eq!(show_receiver.positive_shape, Some(yu_solver::shadow_apply::CandidateReceiverShape::Int),
+            "the imported say argument port carries the selected Add result into the Display receiver");
+        assert_eq!(show_receiver.target_matches.len(), 1,
+            "the exact Int receiver has one source-matched show implementation");
+        assert_eq!(show_receiver.reachable_negative_row_edges, 1,
+            "the exact Display subject relation remains visible in the receiver frontier");
+        assert!(!show_receiver.negative_frontier_empty,
+            "member selection remains pending until the negative row edge is source-qualified");
         let error = match prepare(source, "samples/Console.yu", false) {
             Err(error) => error,
-            Ok(_) => panic!("Console remains deferred until the Display receiver is shaped"),
+            Ok(_) => panic!("Console still waits for the Display member selection route"),
         };
         assert_eq!(error, "candidate inference unavailable: Solve(DeferredSelectionUnavailable)");
     }

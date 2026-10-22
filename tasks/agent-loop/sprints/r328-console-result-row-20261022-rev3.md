@@ -30,4 +30,4 @@ The unchanged Console CLI must still reach `hello from Yulang\n3\n` through ordi
 
 ## Resource receipt
 
-R328 cap: 2400 seconds, no carryover. Charged at revision: 1368 seconds. Current worker is the solo primary; prior CLI test failure diagnosis and repair are included in this sprint, not a separate worker lane.
+R328 cap: 2400 seconds, no carryover. Charged at revision: 1516 seconds. Current worker is the solo primary; prior CLI test failure diagnosis and repair are included in this sprint, not a separate worker lane.

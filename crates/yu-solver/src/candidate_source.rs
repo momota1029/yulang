@@ -1916,9 +1916,49 @@ impl ConstraintBatch {
                     self.term_for_leaf(Leaf::UnitPositive)?;
                     self.term_for_leaf(Leaf::UnitNegative)?;
                 }
-                push(&mut actions, Action::Annotation { annotation: Arc::new(annotation.clone()), endpoint: endpoints[body], computation_effect: positions[body].effect, target: root, occurrence: source.expressions()[body].occurrence.clone(), level: self.candidate_source.component_levels[&positions[body].value] })?;
-                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
-                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+                let named_group = source.named_groups().iter().find(|group|
+                    group.owner == yu_hir::shadow::LocalSourceNamedGroupOwner::Definition(definition.clone())
+                );
+                if source.named_groups().iter().filter(|group|
+                    group.owner == yu_hir::shadow::LocalSourceNamedGroupOwner::Definition(definition.clone())
+                ).count() > 1 {
+                    return Err(invalid());
+                }
+                if let Some(group) = named_group.filter(|group| !group.formals.is_empty()) {
+                    let outer = source.expressions().get(body).ok_or_else(invalid)?;
+                    let outer_is_group_lambda = matches!(
+                        &outer.form,
+                        LocalSourceForm::Lambda { .. }
+                    ) && group.formals.first().is_some_and(|formal| formal.lambda.ordinal() as usize == body);
+                    if !outer_is_group_lambda { return Err(invalid()); }
+                    let result = group.terminal_body.ordinal() as usize;
+                    if result >= positions.len() { return Err(invalid()); }
+                    let result_position = positions[result];
+                    // A named header's binding annotation is the result
+                    // annotation of its curried function. Apply it to the
+                    // terminal body, then retain the outer Lambda constructor
+                    // as the definition's function value.
+                    push(&mut actions, Action::Annotation {
+                        annotation: Arc::new(annotation.clone()),
+                        endpoint: endpoints[result],
+                        computation_effect: result_position.effect,
+                        target: result_position.value,
+                        occurrence: outer.occurrence.clone(),
+                        level: self.candidate_source.component_levels[&result_position.value],
+                    })?;
+                    push(&mut actions, Action::Link {
+                        occurrence: outer.occurrence.clone(),
+                        endpoint: endpoints[body],
+                        target: root,
+                    })?;
+                    let additional = 3 + usize::from(annotation.ty.effects.is_some());
+                    self.counters.emitted_facts = self.counters.emitted_facts.checked_add(additional).ok_or_else(unavailable)?;
+                    self.counters.generated_work_items = self.counters.generated_work_items.checked_add(additional).ok_or_else(unavailable)?;
+                } else {
+                    push(&mut actions, Action::Annotation { annotation: Arc::new(annotation.clone()), endpoint: endpoints[body], computation_effect: positions[body].effect, target: root, occurrence: source.expressions()[body].occurrence.clone(), level: self.candidate_source.component_levels[&positions[body].value] })?;
+                    self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+                    self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2 + usize::from(annotation.ty.effects.is_some())).ok_or_else(unavailable)?;
+                }
             } else {
                 push(&mut actions, Action::Link { occurrence: source.expressions()[body].occurrence.clone(), endpoint: endpoints[body], target: root })?;
                 self.counters.emitted_facts = self.counters.emitted_facts.checked_add(1).ok_or_else(unavailable)?;

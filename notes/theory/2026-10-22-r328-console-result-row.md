@@ -41,4 +41,16 @@ The minimal regression initially hit the checked module-route scratch assertion.
 
 The two CLI integration failures recorded in rev2 are repaired. Absolute source paths now normalize to the same stable workspace-relative identity used by relative inputs. The error assertion continues to require a candidate-type conflict, preserving the all-observations-withheld check. `cargo test -q -p yu-playground` passes all groups: 45 library tests, 23 CLI integration tests, and every remaining package integration group.
 
-The full Console output gate remains open with `DeferredSelectionUnavailable`. Current R328 contract is revision 3. R328 cap is 2400 seconds with 1368 charged at the time of this receipt; no carryover.
+At revision 3, the full Console output gate remained open with `DeferredSelectionUnavailable`; the resource receipt then recorded 1516 charged seconds.
+
+## R328 revision 4 — imported Display route gate passes
+
+The unverified return-annotation endpoint experiment was reverted after the unchanged Console CLI still returned `DeferredSelectionUnavailable`. It did not establish a source rule, so no annotation change remains in the solver.
+
+An exact candidate-route trace shows the imported `std::io::console.say` FieldTail `value.show` and its `where 'a: Display` obligation are carried together by one FreshUse. The route has the exact `std::core::fmt::Display` identity; receiver and subject are linked by reciprocal negative-side bounds, and both the same-FreshUse discharge check and matching-consumer check pass. Thus the route admission gate is not the current obstruction.
+
+After the Console `1 + 2` operator selection, the Apply argument has positive Int evidence. The corresponding imported `say` receiver readback still has no positive shape. The remaining question is the exact Apply-demand/function-port path from that argument into the captured imported scheme's FreshUse receiver row. No row equality follows from the two observations, and no propagation change is justified yet.
+
+Temporary `R328_` diagnostics were removed. The focused Console boundary test passes and still asserts fail-closed deferral; the unchanged `--run-module` command still returns `DeferredSelectionUnavailable`.
+
+R328 ended open at its 2400-second cap. No carryover. Continue this exact Apply-to-FreshUse port trace under R329.
