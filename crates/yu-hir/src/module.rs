@@ -129,6 +129,119 @@ fn resolve_implicit_prelude_imports(
     resolve_implicit_prelude_imports_selected(parsed, identity, indexes, None)
 }
 
+/// Positive lexical ownership facts used only to avoid importing a bound use.
+/// An unrecognized header/pattern contributes no fact; it never licenses a name.
+#[derive(Default)]
+struct SourceImportScopes(HashMap<Box<str>, Vec<Range<usize>>>);
+
+impl SourceImportScopes {
+    fn insert(&mut self, name: &str, body: &SyntaxNode) {
+        if !name.is_empty() { self.0.entry(name.into()).or_default().push(range_of(body)); }
+    }
+
+    fn collect(root: &SyntaxNode, counters: &LoweringCounters) -> Self {
+        let mut scopes = Self::default();
+        for node in root.descendants() {
+            match node.kind() {
+                SyntaxKind::BindingStatement => {
+                    let Some((_, name, parameters)) = plain_binding_header(&node, counters) else { continue; };
+                    let Some(body) = node.children().find(|n| n.kind() == SyntaxKind::BindingBody) else { continue; };
+                    if !parameters.is_empty() { scopes.insert(&name.spelling, &body); }
+                    for parameter in parameters {
+                        // Record field/default scope is a separate source owner;
+                        // do not infer field binders from arbitrary descendants.
+                        if !parameter.unit_pattern && parameter.record_pattern.is_none() {
+                            scopes.insert(&parameter.name.spelling, &body);
+                        }
+                    }
+                }
+                SyntaxKind::LambdaExpression => {
+                    let parts: Vec<_> = node.children_with_tokens().filter(|part| !matches!(part.kind(),
+                        SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment)).collect();
+                    if let [slash, binder, arrow, body] = parts.as_slice()
+                        && slash.kind() == SyntaxKind::Backslash && binder.kind() == SyntaxKind::Identifier
+                        && arrow.kind() == SyntaxKind::Arrow && body.kind() == SyntaxKind::OperatorChain
+                        && let (Some(binder), Some(body)) = (binder.as_token(), body.as_node())
+                    { scopes.insert(binder.text(), body); }
+                }
+                SyntaxKind::CaseArm => {
+                    let parts: Vec<_> = node.children().collect();
+                    if let [pattern, body] = parts.as_slice()
+                        && matches!(body.kind(), SyntaxKind::OperatorChain | SyntaxKind::IndentedStatementBlock)
+                        && let Some(names) = source_case_binder_names(pattern)
+                    {
+                        for name in names { scopes.insert(&name, body); }
+                    }
+                }
+                _ => {}
+            }
+        }
+        // Union intervals per spelling, so each use needs one binary search.
+        for ranges in scopes.0.values_mut() {
+            ranges.sort_unstable_by_key(|range| (range.start, range.end));
+            let mut written = 0;
+            for index in 0..ranges.len() {
+                let next = ranges[index].clone();
+                if written != 0 && ranges[written - 1].end >= next.start {
+                    ranges[written - 1].end = ranges[written - 1].end.max(next.end);
+                } else {
+                    ranges[written] = next;
+                    written += 1;
+                }
+            }
+            ranges.truncate(written);
+        }
+        scopes
+    }
+
+    fn owns(&self, name: &str, occurrence: &SyntaxNode) -> bool {
+        // Qualified paths have their own import/module namespace owner.
+        if occurrence.next_sibling().is_some_and(|tail| tail.kind() == SyntaxKind::PathTail) { return false; }
+        let Some(ranges) = self.0.get(name) else { return false; };
+        let range = range_of(occurrence);
+        let index = ranges.partition_point(|scope| scope.start <= range.start);
+        index != 0 && range.end <= ranges[index - 1].end
+    }
+}
+
+fn source_case_binder_names(pattern: &SyntaxNode) -> Option<Vec<Box<str>>> {
+    if pattern.kind() != SyntaxKind::Pattern || has_recovery(pattern) { return None; }
+    let mut work = vec![pattern.clone()];
+    let mut names = Vec::new();
+    while let Some(node) = work.pop() {
+        match node.kind() {
+            SyntaxKind::Pattern => {
+                let parts: Vec<_> = node.children().collect();
+                match parts.as_slice() {
+                    [head] => work.push(head.clone()),
+                    [head, tails @ ..] if head.kind() == SyntaxKind::SymbolPattern => {
+                        for tail in tails {
+                            if !matches!(tail.kind(), SyntaxKind::PatternMlApplicationTail | SyntaxKind::PatternCallTail) { return None; }
+                            let arguments: Vec<_> = tail.children().collect();
+                            if arguments.is_empty() || arguments.iter().any(|arg| arg.kind() != SyntaxKind::Pattern) { return None; }
+                            work.extend(arguments);
+                        }
+                    }
+                    _ => return None,
+                }
+            }
+            SyntaxKind::IdentifierPattern => {
+                let name = identifier_pattern_name(&node)?;
+                if name.spelling != "_" { names.push(name.spelling.into_boxed_str()); }
+            }
+            SyntaxKind::ParenthesizedPattern => {
+                for child in node.children() {
+                    if child.kind() != SyntaxKind::Pattern { return None; }
+                    work.push(child);
+                }
+            }
+            SyntaxKind::SymbolPattern | SyntaxKind::IntegerPattern => {}
+            _ => return None,
+        }
+    }
+    Some(names)
+}
+
 fn resolve_implicit_prelude_imports_selected(
     parsed: &ParsedFile,
     identity: &ModuleIdentity,
@@ -149,6 +262,9 @@ fn resolve_implicit_prelude_imports_selected(
     if let Some(selected) = selected_names {
         requested.extend(selected.iter().cloned());
     } else {
+        let counters = LoweringCounters { local_source: true,
+            source_nodes: crate::source_identity::try_source_keys(parsed)?, ..LoweringCounters::default() };
+        let lexical = SourceImportScopes::collect(&root, &counters);
         for node in root
             .descendants()
             .filter(|node| node.kind() == SyntaxKind::IdentifierExpression)
@@ -159,7 +275,7 @@ fn resolve_implicit_prelude_imports_selected(
                 .filter_map(|element| element.into_token())
                 .find(|token| token.kind() == SyntaxKind::Identifier)
             {
-                requested.insert(name.text().into());
+                if !lexical.owns(name.text(), &node) { requested.insert(name.text().into()); }
             }
         }
         for clause in root
@@ -349,13 +465,15 @@ fn selected_source_names(
     if selected_roots.iter().any(|root| !parsed.owns_source_key(root)) {
         return Err(HirAvailabilityError::ForeignSourceImport);
     }
-    let source_nodes = crate::source_identity::try_source_keys(parsed)?;
+    let counters = LoweringCounters { local_source: true,
+        source_nodes: crate::source_identity::try_source_keys(parsed)?, ..LoweringCounters::default() };
     let root = SyntaxNode::new_root(parsed.green().clone());
+    let lexical = SourceImportScopes::collect(&root, &counters);
     let record_labels = local_source::record_label_nodes(&root);
     let mut found = std::collections::HashSet::new();
     let mut names = std::collections::BTreeSet::new();
     for node in root.descendants() {
-        let Some(key) = source_nodes.get(&node) else { continue; };
+        let Some(key) = counters.source_nodes.get(&node) else { continue; };
         if !selected_roots.contains(key) { continue; }
         found.insert(key.clone());
         for occurrence in node.descendants().filter(|child| child.kind() == SyntaxKind::IdentifierExpression) {
@@ -364,7 +482,7 @@ fn selected_source_names(
                 .filter_map(|element| element.into_token())
                 .find(|token| token.kind() == SyntaxKind::Identifier)
             {
-                names.insert(name.text().into());
+                if !lexical.owns(name.text(), &occurrence) { names.insert(name.text().into()); }
             }
         }
         for clause in node.descendants().filter(|child| child.kind() == SyntaxKind::WhereClause) {
@@ -4644,6 +4762,51 @@ mod tests {
         let parsed = parsed(source);
         let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("test", path)));
         index_source_exports(identity, &parsed).unwrap()
+    }
+
+    #[test]
+    fn source_import_names_keep_lexical_body_and_arm_boundaries() {
+        for (source, text_is_free) in [
+            ("my f text = text", false),
+            ("my f(text) = text", false),
+            ("my f text = { my g x = text; g }; my other = 0", false),
+            ("my f text = text; text", true),
+            ("my f = \\text -> text", false),
+            ("my f = \\text -> text; text", true),
+            ("my f x = case x: :label text -> text", false),
+            ("my f x = case x: (:label text) -> text", false),
+            ("my f x = case x: (text, other) -> text", false),
+            ("my f x = case x:\n  :label text -> text\n  :disabled -> text\n", true),
+            ("my f = case text: :label text -> text", true),
+            ("my f text = text::value", true),
+            ("my f before {field = text} text = text", true),
+        ] {
+            let parsed = parsed(source);
+            assert!(parsed.syntax_diagnostics().unwrap().is_empty(), "{source}");
+            let root = SyntaxNode::new_root(parsed.green().clone());
+            let keys = crate::source_identity::try_source_keys(&parsed).unwrap();
+            let selected = root.children().filter_map(|node| keys.get(&node).cloned()).collect();
+            let names = selected_source_names(&parsed, &selected).unwrap();
+            assert_eq!(names.contains("text"), text_is_free, "{source}");
+        }
+    }
+
+    #[test]
+    fn source_imports_preserve_free_uses_alongside_bound_uses_of_the_same_name() {
+        let indexes = vec![
+            indexed("lib/std.yu", "pub mod prelude;"),
+            indexed("lib/std/prelude.yu", "pub text = 7"),
+        ];
+        for source in ["my f text = text", "my f = \\text -> text", "my f x = case x: :label text -> text"] {
+            let consumer = parsed(source);
+            let imports = SemanticImports::with_implicit_prelude(&consumer, &identity(), &indexes).unwrap();
+            assert!(imports.source_imports.as_ref().unwrap().resolve("text").is_none(), "{source}");
+            let with_free = parsed(&format!("{source}\ntext"));
+            assert!(with_free.syntax_diagnostics().unwrap().is_empty());
+            let imports = SemanticImports::with_implicit_prelude(&with_free, &identity(), &indexes).unwrap();
+            assert!(matches!(imports.source_imports.as_ref().unwrap().resolve("text"),
+                Some(source_exports::SourceImportBinding::Resolved(_))), "{source}");
+        }
     }
 
     #[test]

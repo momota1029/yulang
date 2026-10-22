@@ -2044,6 +2044,27 @@ mod tests {
     }
 
     #[test]
+    fn pinned_prelude_lookup_excludes_actual_lexical_parameters_and_case_payloads() {
+        let (_, indexes, roles) = pinned_source_world().unwrap();
+        let button = include_str!("../../../web/playground/examples/yulang2-button.yu");
+        for source in ["my f text = text", "my f = \\text -> text",
+            "my f option = case option: :label text -> text", button] {
+            let text: Arc<SourceText> = Arc::from(source);
+            let parsed = parse_file(text.clone(), Arc::new(scan_header(text)), Arc::new(playground_syntax_environment().unwrap()));
+            assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+            let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("playground", "lexical-imports.yu")));
+            let imports = SemanticImports::with_source_imports_and_role_indexes(&parsed, &identity, &indexes, &roles)
+                .unwrap_or_else(|error| panic!("lexically bound text must not resolve through the prelude: {error:?}"));
+            assert!(imports.source_imports().unwrap().resolve("text").is_none());
+            if source == button {
+                assert!(matches!(imports.source_imports().unwrap().resolve("say"),
+                    Some(yu_hir::SourceImportBinding::Resolved(_))));
+            }
+        }
+        assert_eq!(super::execute_module("my f text = text\nsay: f 7", "lexical-import.yu", 100_000, false).unwrap(), "7\n");
+    }
+
+    #[test]
     fn authenticated_implicit_prelude_names_keep_source_identity_and_local_shadowing() {
         let sources = pinned_stdlib::resolve_implicit_stdlib().unwrap();
         let mut indexes = Vec::new();

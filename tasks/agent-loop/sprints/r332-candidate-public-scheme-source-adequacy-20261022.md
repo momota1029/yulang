@@ -519,3 +519,15 @@ ordinal failure. Catalog 7/19, all original hashes/outcomes unchanged. Typed
 Variant/native matching remain withheld. Next: scoped implicit-prelude name
 collection; bound `text` reproduces the import failure. Existing HIR/module and
 playground test leases cover the owner repair; primary only, UNREVIEWED.
+
+Scoped import continuation uses existing module.rs and playground lib/test
+leases. Build positive lexical-scope facts from the existing named-header owner,
+inline Lambda syntax and supported Case patterns; filter only IdentifierExpression
+occurrences inside those exact bodies before collapsing free names into a set.
+Unproven patterns remain requested, genuine outside uses and role names remain
+import requests. This removes eager lookup of bound names, without weakening
+actual free-name resolution or changing binder semantics.
+
+Scoped import checkpoint: HIR186/native273/fresh WASM54 pass. Original Button
+imports now form; next is its interpolation source and typed Variant boundary.
+Catalog remains7/19 with all hashes checked. No independent review or closure.

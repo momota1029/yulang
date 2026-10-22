@@ -2801,3 +2801,77 @@ existing cfg(test) optional NUD scanner, so it now has the same cfg(test)
 boundary. Production uses scan_expression_payload_with_symbols unchanged.
 `cargo check -q -p yu-syntax` passes with no warnings; prior syntax tests cover
 the unchanged test helper. No grammar, expectation or inference changes.
+
+### Scoped implicit-prelude requests
+
+The actual counterexample is bound `text`: both a named function parameter and
+a Symbol CaseArm payload triggered SourceImportResolutionUnavailable before
+lowering, because requested prelude names were collected from every identifier
+expression. Renaming that binder to `payload` made the simple function succeed;
+this was only a diagnostic probe, not a replacement for an original sample.
+
+`SourceImportScopes` now retains positive lexical ownership intervals from the
+existing `plain_binding_header` parameter admission, exact inline Lambda syntax,
+and plain/group/tuple/Symbol Case patterns. It records only the respective body,
+not the scrutinee, sibling arm or later outer statement. Named recursive function
+self references use their body interval. Record fields/defaults, guarded arms,
+Catch patterns and sequential local definitions still need their separate full
+scope owners; unrecognized shapes supply no exclusion fact. Qualified PathTail
+heads and where-role names keep their namespace requests. This is an incremental
+source resolution repair, not a complete lexical name resolution theorem.
+
+For a fixed parse, every inserted interval is the body node of an actual binder
+owner. Tree containment proves that a Name expression inside that interval is
+lexically bound even if a nearer binder shadows it: either resolution remains
+lexical, never implicit-prelude resolution. Per-spelling interval union retains
+exact containment of such atomic CST uses. Filter each occurrence before set
+formation, so any outside use of the same spelling still requests the import.
+The normal lowering owner still selects the actual binder identity; this index
+does not issue semantic identities or repair an already-resolved use. Apply the
+same occurrence filter to whole-module and selected-root prelude discovery.
+The argument is UNREVIEWED and applies only to the explicitly enumerated forms.
+
+The temporary census has O(B) intervals for B admitted binder/body pairs and
+per-name sort/merge cost O(B log B); each IdentifierExpression query takes one
+hash lookup and O(log B) interval search. Source keys are computed once at each
+owning discovery entrypoint; selected requests are not recollected by the
+implicit-prelude resolver. No new retained inference graph or runtime lookup.
+
+Focused evidence: four HIR source-import tests pass, including genuine free
+same-name uses, sibling CaseArm and scrutinee boundaries, qualified paths and
+a default preceding a later parameter. A pinned-world test confirms the exact
+unchanged Button imports and executes `my f text = text; say: f 7` as `7`.
+The original sample itself remains dependent on Variant typing/native matching
+and interpolation; passing its imports is not execution success.
+
+Pinned interpolation source (`lowering/string_lit.rs`) lowers each plain part to
+String, each default interpolation to synthetic Display.show selection, and
+concatenates through the actual std::text::str::concat definition. Its test
+`case_02.rs:1239` explicitly expects that generated selection to have no written
+source span. A later bridge must retain that generated operation's ownership
+from StringInterpolation; it cannot forge a written FieldTail or use runtime
+stringification to bypass the source-selected Display implementation.
+
+Further original-owner inspection qualifies the Variant boundary premise:
+`specialize2/task_solver/control.rs:439` builds a materialized singleton
+PatternRequirement with fresh payloads and constrains **requirement <: input**,
+then binds payloads. Unlike Tuple/List in the same function, it does not add the
+reverse materialized edge. `case_type` uses the original scrutinee computation
+shape for every arm and joins every body effect/result. This phase is distinct
+from inference lowering's bidirectional variable links. The PatternInput roots
+mentioned above are real occurrence provenance; their presence alone is not a
+proof that they choose the actual materialized directional view. The replacement
+must establish this correspondence within Simple-sub, not reintroduce the old
+specializer as a second inference algorithm. `mono-runtime/runtime/bind.rs:46`
+then matches actual Variant tag **and arity** before binding ordered payloads,
+retaining actual value markers on each child. Full boundary-to-runtime
+correspondence remains OPEN; these are source observations, not Oracle runs.
+
+Scoped import checkpoint: HIR **186/186**, native playground **273/273** and
+fresh WASM **54 execution examples plus module/diagnostic checks** pass. All
+19 original source hashes match. Catalog behavior remains **7/19**; Button now
+reaches candidate StructuralProjection instead of SourceImportResolutionUnavailable.
+Every other catalog observable is unchanged. Logs: target/r332-scoped-import-
+{hir-all,native,wasm}.log and target/r332-catalog-scoped-imports.log. No syntax
+code changed in this slice, so its prior inherited ordinal failure is retained
+without rerunning that suite. No independent review; original parents stay OPEN.
