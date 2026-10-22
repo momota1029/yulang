@@ -2019,9 +2019,14 @@ impl InferenceSession {
                 let identity = role.role_identity.clone()
                     .ok_or_else(|| {  SolveAvailabilityError::DeferredSelectionUnavailable })?;
                 let field = &mut capture.graph.source_field_tail_obligations[field_index];
-                field.required_roles.try_reserve(1)
-                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                field.required_roles.push(identity);
+                // A recaptured field may already carry this role identity.
+                // The individual where-clause records remain in the graph;
+                // this vector is the field's role-selection set.
+                if !field.required_roles.contains(&identity) {
+                    field.required_roles.try_reserve(1)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    field.required_roles.push(identity);
+                }
             }
         }
         if extra_roots.iter().any(|key| !capture.graph.rows.iter().any(|row| row.key == *key)) {
