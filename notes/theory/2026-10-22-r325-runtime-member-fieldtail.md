@@ -22,8 +22,8 @@ This construction must not guess from spelling, choose by runtime value shape, o
 
 A focused test can falsify these joins but cannot prove the universal claim. The no-subagent user instruction means no independent prover or reviewer runs in this sprint; theorem and R149 remain OPEN.
 
-## Current result and next boundary
+## Result and remaining parent work
 
-Unchanged Types now passes candidate inference, compiles selected member and infix provider roots, follows `std::int::to_string` and other exact imports, and enters the machine. Execution reaches an actual unhandled imported host operation (`out::write`) after evaluating the selected `Display` source. The focused `unchanged_types_runtime_reaches_the_exact_host_operation_boundary` test passes and asserts this boundary; all 43 playground library tests pass.
+Unchanged Types now passes candidate inference, compiles selected member and infix provider roots, follows `std::int::to_string` and other exact imports, and enters the machine. The host-write adapter is derived from the exact `std::io::out::write` operation-path import and its resolved public export identity. It accepts only the matching `SourceOperationId`, a string payload, and the checked `str -> ()` declaration, captures the payload once, supplies unit, and resumes the saved continuation template once.
 
-Captured `(42, Yulang)\n` output remains unimplemented. The runtime currently has no one-shot external response path for the actual `out::write` declaration. R149 requires checking that declaration's identity, string payload and unit response, capturing it once, then resuming its exact saved continuation. This boundary is not closed by the focused test; Console, R149, the broader examples goal, source/native adequacy, and the parent proof remain open.
+The exact 142-byte Types source runs through the CLI and returns `(42, Yulang)\n`. Two focused tests cover this output and reject a second use of the same continuation; all 44 playground library tests pass, and `cargo check` succeeds. This closes the bounded R325 implementation outcome only. Console's whole-module entrypoint, all unchanged samples, source/native adequacy, and the parent proof remain open.

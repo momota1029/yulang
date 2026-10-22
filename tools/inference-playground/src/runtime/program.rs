@@ -24,6 +24,7 @@ pub struct RuntimeProgram {
     pub(super) source_schedule: Vec<ExecutionRoot>,
     // Valid only for fresh ModuleRun entry into this complete constructed universe.
     pub(super) closed_primitive: bool,
+    host_write_operation: Option<yu_hir::SourceOperationId>,
     pub(super) operation_v1: Option<OperationV1Plan>,
 }
 
@@ -86,6 +87,7 @@ pub struct RuntimeEvidence {
     field_tail_members: HashMap<RuntimeFieldTailKey, yu_hir::SourceMemberRootId>,
     operator_providers: HashMap<RuntimeOperatorUseKey, ExpressionRootId>,
     imported_bindings: HashMap<yu_hir::SourceExportId, DefId>,
+    host_write_operation: Option<yu_hir::SourceOperationId>,
     operation_v1: Option<OperationV1Link>,
 }
 #[derive(Clone, Debug)]
@@ -148,6 +150,8 @@ pub enum RuntimeUnavailable {
     LiteralDecoding(SourceSite),
     OperationConsumer(SourceSite),
     UnresolvedOperation(SourceSite),
+    HostWriteCapability(Box<str>),
+    HostWriteResponse(SourceSite),
     HandlerEvidence(SourceSite),
     ContinuationMaterialization(SourceSite),
     ContinuationResponse(SourceSite),
@@ -273,6 +277,7 @@ impl RuntimeProgram {
             return Err(RuntimeUnavailable::InvalidSourceReference);
         }
         let mut evidence = RuntimeEvidence::default();
+        evidence.host_write_operation = exact_host_write_operation(&hirs, indexes)?;
         for use_ in candidate.selected_field_tail_uses()
             .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
         {
@@ -361,6 +366,7 @@ impl RuntimeProgram {
             field_tail_members: HashMap::new(),
             operator_providers: HashMap::new(),
             imported_bindings: HashMap::new(),
+            host_write_operation: None,
             operation_v1: Some(OperationV1Link {
                 hir_identity: hir as *const HirModule as usize,
                 field_bound_id: receipt.id,
@@ -393,6 +399,18 @@ impl RuntimeProgram {
     /// support, SCC order, or a referenced definition's fetch classification.
     pub fn execution_roots(&self) -> Result<Vec<ExecutionRoot>, RuntimeUnavailable> {
         Ok(self.source_schedule.clone())
+    }
+
+    pub fn host_write_operation(&self) -> Option<&yu_hir::SourceOperationId> {
+        self.host_write_operation.as_ref()
+    }
+
+    pub(super) fn host_write_declaration_matches(
+        &self,
+        declaration: &yu_hir::shadow::SourceOperationDeclaration,
+    ) -> bool {
+        self.host_write_operation() == Some(&declaration.id)
+            && is_host_write_signature(&declaration.signature)
     }
     pub fn from_hir(
         hir: Arc<HirModule>,
@@ -1048,6 +1066,7 @@ impl RuntimeProgram {
             expression_roots,
             source_schedule,
             closed_primitive: false,
+            host_write_operation: evidence.host_write_operation.clone(),
             operation_v1,
         };
         program.closed_primitive = super::primitive::closed_primitive(&program);
@@ -1067,6 +1086,53 @@ fn unique_source_module(
         return Err(RuntimeUnavailable::InvalidSourceReference);
     }
     Ok(module)
+}
+
+fn exact_host_write_operation(
+    hirs: &[Arc<HirModule>],
+    indexes: &[yu_hir::SourceExportIndex],
+) -> Result<Option<yu_hir::SourceOperationId>, RuntimeUnavailable> {
+    const WRITE_PATH: &str = "std::io::out::write";
+    let mut selected = None;
+    for hir in hirs {
+        let Some(imports) = hir.source_imports() else { continue };
+        let Some(path) = imports.operation_path(WRITE_PATH) else { continue };
+        if path.export.name.as_ref() != "out" {
+            return Err(RuntimeUnavailable::HostWriteCapability(
+                format!("unexpected export route {}::{}", path.export.module, path.export.name).into_boxed_str(),
+            ));
+        }
+        if path.export.declaration.kind != yu_syntax::SyntaxKind::ActDeclaration
+            || path.operation.id.family.declaration != path.export.declaration.source
+            || path.operation.visibility != yu_hir::HirVisibility::Public
+        {
+            return Err(RuntimeUnavailable::HostWriteCapability("exported family or operation identity mismatch".into()));
+        }
+        if !is_host_write_signature(&path.operation.signature) {
+            return Err(RuntimeUnavailable::HostWriteCapability("operation type is not str -> unit".into()));
+        }
+        let resolved = yu_hir::resolve_public_export(indexes, "std::io", "out")
+            .map_err(|_| RuntimeUnavailable::HostWriteCapability("source export no longer resolves".into()))?;
+        if resolved.identity() != path.export.identity() {
+            return Err(RuntimeUnavailable::HostWriteCapability("source export identity mismatch".into()));
+        }
+        if selected.as_ref().is_some_and(|previous| previous != &path.operation.id) {
+            return Err(RuntimeUnavailable::HostWriteCapability("multiple operation identities claim host write".into()));
+        }
+        selected = Some(path.operation.id.clone());
+    }
+    Ok(selected)
+}
+
+fn is_host_write_signature(signature: &yu_hir::shadow::SourceAnnotationType) -> bool {
+    if signature.effects.is_some() { return false; }
+    let yu_hir::shadow::SourceAnnotationValue::Function { argument, result } = &signature.value else {
+        return false;
+    };
+    argument.effects.is_none()
+        && matches!(argument.value, yu_hir::shadow::SourceAnnotationValue::Str)
+        && result.effects.is_none()
+        && matches!(result.value, yu_hir::shadow::SourceAnnotationValue::Unit)
 }
 
 fn main_runtime_roots(hir: &Arc<HirModule>) -> Result<Vec<RuntimeSourceRoot>, RuntimeUnavailable> {

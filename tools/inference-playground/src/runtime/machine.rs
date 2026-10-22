@@ -304,6 +304,8 @@ struct PendingRequest {
 }
 struct SavedContinuation {
     frames: Vec<SavedFrame>,
+    template: Option<TemplateHandle>,
+    resumed: bool,
     #[allow(
         dead_code,
         reason = "unhandled request observations retained for a future external response consumer"
@@ -533,6 +535,64 @@ impl Machine {
             State::Stopped(outcome) => outcome.clone(),
             _ => RuntimeOutcome::ResourceExhausted { steps: self.steps },
         }
+    }
+
+    pub(crate) fn resume_host_write(
+        &mut self,
+        continuation: ContinuationHandle,
+        operation: &SourceOperationId,
+    ) -> Result<Box<str>, RuntimeUnavailable> {
+        let (current_continuation, current_operation, payload, source) = match &self.state {
+            State::Stopped(RuntimeOutcome::UnhandledRequest {
+                source,
+                operation,
+                payload,
+                continuation,
+                ..
+            }) => (*continuation, operation, *payload, source.clone()),
+            _ => return Err(RuntimeUnavailable::InvalidSourceReference),
+        };
+        if current_continuation != continuation
+            || current_operation != operation
+            || self.program.host_write_operation() != Some(operation)
+        {
+            return Err(RuntimeUnavailable::HostWriteResponse(source));
+        }
+        let saved = self.continuations.get(continuation.0)
+            .ok_or(RuntimeUnavailable::HostWriteResponse(source.clone()))?;
+        if saved.resumed {
+            return Err(RuntimeUnavailable::HostWriteResponse(source));
+        }
+        let template = saved.template
+            .ok_or(RuntimeUnavailable::HostWriteResponse(source.clone()))?;
+        let resume = self.resume_templates.get(template.0)
+            .ok_or(RuntimeUnavailable::HostWriteResponse(source.clone()))?;
+        if !self.program.host_write_declaration_matches(&resume.declaration)
+            || !matches!(self.values.get(payload.0).map(|value| &value.kind),
+                Some(RuntimeValueKind::String(_)))
+        {
+            return Err(RuntimeUnavailable::HostWriteResponse(source));
+        }
+        let captured = match &self.values[payload.0].kind {
+            RuntimeValueKind::String(text) => text.clone(),
+            _ => unreachable!("the payload kind was checked above"),
+        };
+        let template_root = resume.root;
+        self.continuations[continuation.0].resumed = true;
+        let response_value = self.allocate(&source, RuntimeValueKind::Unit, None);
+        let response = ReceivedValue {
+            value: response_value,
+            interface: ParameterRole::Value,
+            view: self.receiving.ground(response_value),
+        };
+        self.frames.push(Frame::ResumeReturn);
+        self.state = State::EnterTemplate {
+            template,
+            node: template_root,
+            control: HashMap::new(),
+            response,
+        };
+        Ok(captured)
     }
 
     pub fn step(&mut self) -> RuntimeOutcome {
@@ -1908,11 +1968,11 @@ impl Machine {
         // around the Name that demanded its value. Keep the cache-write frame
         // and caller prefix live; only the already unwound suffix is saved.
         if matches!(self.frames.last(), Some(Frame::GlobalRead { .. })) {
-            self.stop_unhandled_request(request);
+            self.stop_unhandled_request(request, request_owner)?;
             return Ok(());
         }
         let Some(frame) = self.frames.pop() else {
-            self.stop_unhandled_request(request);
+            self.stop_unhandled_request(request, request_owner)?;
             return Ok(());
         };
         let template = match frame {
@@ -1959,10 +2019,23 @@ impl Machine {
         self.state = State::Request(request);
         Ok(())
     }
-    fn stop_unhandled_request(&mut self, request: PendingRequest) {
+    fn stop_unhandled_request(
+        &mut self,
+        request: PendingRequest,
+        containing: ExecutionOwner,
+    ) -> Result<(), RuntimeUnavailable> {
+        let template = if self.program.host_write_operation()
+            .is_some_and(|operation| operation == &request.declaration.id)
+        {
+            Some(self.capture_template(&request, containing)?)
+        } else {
+            None
+        };
         let continuation = ContinuationHandle(self.continuations.len());
         self.continuations.push(SavedContinuation {
             frames: request.suffix,
+            template,
+            resumed: false,
             observations: request.observations,
         });
         self.state = State::Stopped(RuntimeOutcome::UnhandledRequest {
@@ -1972,6 +2045,7 @@ impl Machine {
             event: request.event,
             continuation,
         });
+        Ok(())
     }
     fn abandon_suffix(&mut self, suffix: &[SavedFrame]) {
         // These writes will never run: release only their pending materialization

@@ -185,23 +185,36 @@ pub fn execute(
         .map_err(unavailable)?;
     let selected = program.definition_named(definition).map_err(unavailable)?;
     let mut machine = program.start_source_schedule(selected).map_err(unavailable)?;
-    let value = match machine.run(step_budget) {
-        RuntimeOutcome::Completed(handle) => handle,
-        RuntimeOutcome::Unavailable(error) => return Err(unavailable(error)),
-        RuntimeOutcome::ResourceExhausted { steps } => return Err(format!(
-            "runtime step budget exhausted after {steps} steps; no completed result")),
-        RuntimeOutcome::UnhandledRequest { source, payload, .. } => {
-            let range = machine
-                .value(payload)
-                .map(|value| value.source.range.clone())
-                .unwrap_or_else(|| source.range.clone());
-            return Err(bounded_message(format_args!(
-                "unhandled runtime request at {range:?}"
-            )));
-        }
-        RuntimeOutcome::Running => return Err("runtime has no completed result".to_owned()),
-    };
     let mut output = Output::new();
+    let mut captured_host_write = false;
+    let value = loop {
+        let remaining = step_budget.saturating_sub(machine.steps());
+        match machine.run(remaining) {
+            RuntimeOutcome::Completed(handle) => break handle,
+            RuntimeOutcome::Unavailable(error) => return Err(unavailable(error)),
+            RuntimeOutcome::ResourceExhausted { steps } => return Err(format!(
+                "runtime step budget exhausted after {steps} steps; no completed result")),
+            RuntimeOutcome::UnhandledRequest { source, operation, payload, continuation, .. } => {
+                if program.host_write_operation() != Some(&operation) {
+                    let range = machine
+                        .value(payload)
+                        .map(|value| value.source.range.clone())
+                        .unwrap_or_else(|| source.range.clone());
+                    return Err(bounded_message(format_args!(
+                        "unhandled runtime request at {range:?}"
+                    )));
+                }
+                let captured = machine.resume_host_write(continuation, &operation)
+                    .map_err(unavailable)?;
+                output.write_str(&captured).map_err(cap)?;
+                captured_host_write = true;
+            }
+            RuntimeOutcome::Running => return Err("runtime has no completed result".to_owned()),
+        }
+    };
+    if captured_host_write {
+        return output.finish();
+    }
     render_runtime_value(&machine, value, &mut output).map_err(cap)?;
     output.write_char('\n').map_err(cap)?;
     output.finish()
@@ -1359,12 +1372,32 @@ mod tests {
     }
 
     #[test]
-    fn unchanged_types_runtime_reaches_the_exact_host_operation_boundary() {
+    fn unchanged_types_captures_the_exact_host_write_result() {
         let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
-        let error = execute(source, "samples/Types.yu", "pair", 100_000, false)
-            .expect_err("the current host has not yet resumed imported write operations");
-        assert!(error.starts_with("unhandled runtime request at "),
-            "selected member bodies and imported source definitions execute through the host boundary: {error}");
+        assert_eq!(execute(source, "samples/Types.yu", "pair", 100_000, false).unwrap(),
+            "(42, Yulang)\n");
+    }
+
+    #[test]
+    fn host_write_response_resumes_its_exact_continuation_once() {
+        let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
+        let (hir, candidate, world, indexes) = super::prepare_with_world(
+            source, "samples/Types.yu", false,
+        ).unwrap();
+        let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+        let operation = program.host_write_operation().cloned().unwrap();
+        let selected = program.definition_named("pair").unwrap();
+        let mut machine = program.start_source_schedule(selected).unwrap();
+        let RuntimeOutcome::UnhandledRequest { operation: requested, continuation, .. } =
+            machine.run(100_000)
+        else {
+            panic!("the source reaches its exact host write before completion");
+        };
+        assert_eq!(requested, operation);
+        assert_eq!(machine.resume_host_write(continuation, &requested).unwrap().as_ref(), "(42, Yulang)\n");
+        assert!(machine.resume_host_write(continuation, &requested).is_err(),
+            "the same saved continuation cannot be resumed twice");
+        assert!(matches!(machine.run(100_000 - machine.steps()), RuntimeOutcome::Completed(_)));
     }
 
     #[test]
