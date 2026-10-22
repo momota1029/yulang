@@ -326,3 +326,28 @@ Post-arithmetic owning-dependency repair: default HIR feature guards now compile
 default check and unary test plus shadow Effects regression pass. Exact current
 HIR leases apply, semantics unchanged. See the proof note for the six-error
 cause and retained optional-source-owner invariant.
+
+Direct-twelve continuation after pushed 799d861f8: preserve 20734 charged
+seconds, discard unused direct-eleven allowance, grant 3600 fresh seconds (cap
+24334). Next source constructor is an explicitly resolved import item.
+Add exact primary lease `crates/yu-hir/src/module/source_exports.rs`; existing
+HIR/solver/playground/render/runtime/CLI/Web leases apply. The full source-import
+resolver certifies the same parse root after all explicit leaves resolve;
+implicit-prelude/selected/syntax-only environments must not acquire that receipt.
+A certified use item has no runtime computation, while its name uses still
+follow the original exact Imported export -> provider definition -> FreshUse
+route. Malformed/missing/private routes remain failures. Primary only, no child
+or independent-review claim; original parent scope unchanged.
+
+Add exact primary test leases `crates/yu-hir/tests/direct_root_expression.rs` and
+`crates/yu-solver/tests/shadow_f5_differential.rs` only for the new Import enum's
+exhaustive matches; no assertions or source fixtures change. Import-only source
+adds the machine's empty-module completion case, described in the proof note;
+no fictitious expression/site/value is used as a static import computation.
+
+Direct-twelve import checkpoint: native 263, default HIR import 7, solver import
+3, differential integration compilation, fresh WASM 49 plus original outputs/
+diagnostics, and TS pass. Original catalog remains 6/19 expected behavior.
+Direct-primary source construction is UNREVIEWED; unchanged original parents
+remain OPEN. Next inspect the original record/default-pattern constructor and
+its source/native obligations rather than rewriting the remaining samples.

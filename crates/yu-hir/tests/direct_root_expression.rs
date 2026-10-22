@@ -236,7 +236,7 @@ fn every_lowered_expression_has_a_distinct_artifact_branded_occurrence() {
         .filter_map(|item| match item {
             HirItem::Expression(expression) => Some(expression.occurrence()),
             HirItem::Binding(binding) => Some(binding.value().occurrence()),
-            HirItem::Error { .. } => None,
+            HirItem::Import { .. } | HirItem::Error { .. } => None,
         })
         .collect::<Vec<_>>();
     assert_eq!(occurrences.len(), 4);

@@ -136,6 +136,9 @@ impl TupleElement {
 }
 #[derive(Clone, Debug)]
 pub enum RuntimeOutcome {
+    /// A whole-module schedule with no executable source completes without
+    /// manufacturing a value or a source occurrence for an import statement.
+    EmptyModuleCompleted,
     Running,
     Completed(ValueHandle),
     UnhandledRequest {
@@ -2269,7 +2272,11 @@ impl Machine {
             return;
         }
         let site = match self.program.module_completion_site() {
-            Ok(site) => site,
+            Ok(Some(site)) => site,
+            Ok(None) => {
+                self.state = State::Stopped(RuntimeOutcome::EmptyModuleCompleted);
+                return;
+            }
             Err(error) => {
                 self.state = State::Stopped(RuntimeOutcome::Unavailable(error));
                 return;

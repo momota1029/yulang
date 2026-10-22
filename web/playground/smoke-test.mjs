@@ -4,6 +4,9 @@ import init, { infer, infer_types, run, run_module, run_module_report } from "./
 await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") });
 
 const examples = {
+  importedSubtraction: ['use std::int::sub\nmy main = sub 7 10', '-3\n'],
+  importedAliasProduct: ['use std::int::mul as product\nmy main = product 12 34', '408\n'],
+  importedGlobProduct: ['use std::int::*\nmy main = mul 12 34', '408\n'],
   integerSubtraction: ['my main = std::int::sub 7 10', '-3\n'],
   integerMultiplication: ['my main = 2 + 3 * 4', '14\n'],
   integerNegation: ['my main = (-12) * (-34)', '408\n'],
@@ -133,6 +136,8 @@ if (JSON.stringify(consoleReport.events) !== JSON.stringify(consoleEvents)) {
 for (const [source, expected] of [
   [fs.readFileSync("./examples/yulang2-effects.yu", "utf8"), ["42\n"]],
   ['println "standalone"\n', ["standalone\n"]],
+  ['use std::int::mul', []],
+  ['println "before"\nuse std::int::mul\nsay: mul 3 4\nprintln "after"', ["before\n", "12\n", "after\n"]],
   ['say: ({ println "left"; 3 } * { println "right"; 4 })\n', ["left\n", "right\n", "12\n"]],
   ['my f x = { say x; my y = x + x; say y; y }\n(f 3, f "a")\n', ["3\n", "6\n", "a\n", "aa\n"]],
   ['my f x = { say x; my y = x + x; say y; y }\nmy main = (f 3, f "a")\nmain\n', ["3\n", "6\n", "a\n", "aa\n"]],
@@ -153,6 +158,8 @@ for (const [source, expected] of [
   }
 }
 for (const [source, budget, reason] of [
+  ['use std::missing::*\nmy main = 7', 100_000, 'source imports unavailable'],
+  ['use std::int::sub\nmy main = sub true 1', 100_000, 'candidate type conflicts'],
   ['my main = builtin_op::int_mul 12345678901234567890 12345678901234567890', 30, 'runtime step budget exhausted'],
   ['my main = std::int::sub 1 "x"', 100_000, 'candidate type conflicts'],
   ['my main = -true', 100_000, 'candidate type conflicts'],

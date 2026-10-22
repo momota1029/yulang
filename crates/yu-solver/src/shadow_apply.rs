@@ -435,7 +435,7 @@ fn candidate_imported_operator_provider_roots(
                 HirItem::Binding(binding) => Some(SourceRootId::Definition(binding.definition_root().clone())),
                 HirItem::Expression(expression) => hir.expression_root(expression.occurrence())
                     .map_err(|_| CandidateError::Unsupported)?.cloned().map(SourceRootId::Expression),
-                HirItem::Error { .. } => None,
+                HirItem::Import { .. } | HirItem::Error { .. } => None,
             };
             if let Some(root) = source_root {
                 if let Some(source) = hir.local_source_for(&root).map_err(|_| CandidateError::Unsupported)? {
@@ -1578,6 +1578,7 @@ impl CandidateInference {
             declaration_errors.extend(declaration.placeholder_errors.iter().copied());
         }
         for item in hir.items() {
+            if matches!(item, HirItem::Import { .. }) { continue; }
             if let HirItem::Error { errors, .. } = item {
                 if !errors.is_empty() && errors.iter().all(|error| declaration_errors.contains(error)) { continue; }
             }

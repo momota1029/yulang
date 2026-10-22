@@ -2101,3 +2101,67 @@ shadow-enabled unchanged original Effects CLI test 1 passes. Logs are
 reported above, not the open default/candidate semantic or theorem obligations.
 Existing dead-code warnings remain with their source-carrier/research owners;
 no blanket suppression or removal of proof evidence was added.
+
+### Explicit import item construction (direct-twelve, provisional)
+
+The current resolver already imports exact named/alias/glob source bindings,
+but ordinary HIR emits UnsupportedItem for the parse-owned use statement. The
+source rule is static: after every use leaf resolves against the original public
+module/export indexes, the statement contributes no value or immediate effect;
+its names retain their exact export identities at actual uses. Retain the full
+resolver's successful completion in the parse-bound import environment; only
+then can lowering admit an Import item at that source statement. Prelude-only,
+syntax-only and selected-name environments cannot certify whole use statements.
+Preserve root ordinals/recovery attachment, and represent Import explicitly so
+candidate collection, runtime scheduling and reporting skip only that validated
+static item, never arbitrary HIR errors. Missing/private glob modules must be
+validated even when there are no available exported names to iterate. The parent
+source/native proof gains this zero-computation constructor case; source-name
+constraints, provider capture and import-cycle completeness remain their own
+unchanged obligations. This construction is provisional and UNREVIEWED.
+
+Construction details: `complete_source_uses` is initialized false in every
+parse-bound environment and set only by the two complete source-import APIs
+after successful leaf/public-module resolution. Lowering first authenticates
+that environment's module and exact parse root, preserves every direct root
+ordinal, and admits only unrecovered UseDeclaration plans. Any attached syntax
+errors still form an Error item. The public Import item retains its original
+range; the resolver's source environment retains the underlying export routes.
+Candidate collection and runtime scheduling skip this explicit static item,
+while global HIR-error validation is unchanged. Selected provider projection
+continues to omit unrelated imports and never gains whole-use certification.
+
+The source-only import probe exposes the zero-executable-root base case: module
+completion previously demanded an expression's SourceSite even when no source
+expression exists. `EmptyModuleCompleted` now represents that machine outcome
+without inventing a Unit value/source occurrence. Nonempty module and selected
+value completion retain their old outcomes. The frontend accepts this outcome
+only for whole-module execution; value/research receipt paths reject it. This
+also handles other valid declaration-only modules, without accepting unresolved
+imports or suppressing source errors. Module/provider initialization beyond the
+existing admitted schedule remains its original open obligation.
+
+### Explicit import checkpoint (direct primary, UNREVIEWED)
+
+Named, alias and glob imports now survive ordinary HIR and execute their exact
+pinned provider values. The full resolver's parse-bound receipt distinguishes
+these items from implicit-only, syntax-only, selected-name and foreign-parse
+environments. Empty/missing/private glob targets are checked by the same public
+module-path validator used by export lookup. Import-only module completion has
+an explicit value-free machine outcome; statement ordering and atomic output
+publication are preserved. Original fixture assertions and sample source bytes
+remain unchanged; two integration match arms only cover the new static item.
+
+Checks: native yu-playground 263 pass (70 library, 59 main CLI, 134 other);
+default HIR import filter 7 pass, including foreign/partial receipt and empty
+private/missing glob falsifiers; solver candidate imported-provider/capture 3
+pass; changed solver differential integration target compiles (`--no-run`, not a
+claimed execution); fresh WASM 49 execution examples plus original module
+outputs, three identity definitions and three diagnostic samples; TS passes.
+Logs `target/r332-import-{native,hir,solver,solver-integration-build,web,
+typescript}.log`. Rechecked original cooked catalog remains 6/19 expected
+behaviors: `target/r332-catalog-cooked/results-after-imports.json`. Record/default
+patterns, struct fields, lists, ranges, search/control and parser patterns remain
+source dependencies, not resolved by this import constructor. Original A/B,
+source adequacy, principality, general receiving, provider initialization and
+independent review stay OPEN. No historical failure was relabeled as a success.

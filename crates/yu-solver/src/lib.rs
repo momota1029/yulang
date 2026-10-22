@@ -1200,7 +1200,7 @@ impl ConstraintBatch {
                             Some(definition),
                         )
                     }
-                    HirItem::Error { .. } => continue,
+                    HirItem::Import { .. } | HirItem::Error { .. } => continue,
                 };
                 batch.projection_order.push(expression.occurrence().clone());
                 if batch.occurrence_hir_positions.insert(expression.occurrence().clone(), hir_index).is_some() {
@@ -19874,7 +19874,7 @@ mod tests {
                         if matches!(body.as_ref(), ResolvedExpr::Apply { .. })
                 ),
                 HirItem::Expression(ResolvedExpr::Apply { .. }) => true,
-                HirItem::Expression(_) | HirItem::Error { .. } => false,
+                HirItem::Import { .. } | HirItem::Expression(_) | HirItem::Error { .. } => false,
             });
             assert!(retains_apply, "shadow lowering must retain Apply: {text}");
             let batch = collect(hir.clone());
@@ -19884,7 +19884,7 @@ mod tests {
                     _ => panic!("expected lambda"),
                 },
                 HirItem::Expression(expression) => expression,
-                HirItem::Error { .. } => panic!("expected retained application"),
+                HirItem::Import { .. } | HirItem::Error { .. } => panic!("expected retained application"),
             };
             let ResolvedExpr::Apply {
                 occurrence,
@@ -22840,7 +22840,7 @@ mod tests {
             .map(|item| match item {
                 HirItem::Binding(binding) => binding.value().occurrence().clone(),
                 HirItem::Expression(expression) => expression.occurrence().clone(),
-                HirItem::Error { .. } => panic!("synthetic source has no HIR error"),
+                HirItem::Import { .. } | HirItem::Error { .. } => panic!("synthetic source has no HIR error"),
             })
             .collect::<Vec<_>>();
         assert!(occurrences.len() >= edges.len());

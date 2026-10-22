@@ -19,7 +19,7 @@ fn local_source_for_item<'hir>(hir: &'hir HirModule, item: &HirItem) -> Option<&
         HirItem::Expression(expression) => SourceRootId::Expression(
             hir.expression_root(expression.occurrence()).ok().flatten()?.clone(),
         ),
-        HirItem::Error { .. } => return None,
+        HirItem::Import { .. } | HirItem::Error { .. } => return None,
     };
     hir.local_source_for(&root).ok().flatten()
 }

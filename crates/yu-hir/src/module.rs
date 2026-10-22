@@ -294,6 +294,10 @@ fn resolve_source_imports_selected(
                     if leaf.path.is_empty() { return Err(HirAvailabilityError::SourceImportResolutionUnavailable); }
                     let excluded = exclusions.into_iter().collect::<std::collections::BTreeSet<_>>();
                     let target = leaf.path.iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::");
+                    if selected_names.is_none() {
+                        source_exports::validate_public_source_module(indexes, &target)
+                            .map_err(|_| HirAvailabilityError::SourceImportResolutionUnavailable)?;
+                    }
                     // Resolve only names observed in pinned declaration indexes. A name with
                     // more than one source route remains explicitly ambiguous.
                     for candidate in &available {
@@ -676,9 +680,9 @@ impl SemanticImports {
         indexes: &[source_exports::SourceExportIndex],
     ) -> Result<Self, HirAvailabilityError> {
         let (parse_root, names) = resolve_source_imports(parsed, identity, indexes)?;
-        Ok(Self { caller_evidence: None, source_imports: Some(source_import_environment(
-            parsed, identity, parse_root, names, indexes,
-        )?) })
+        let mut source_imports = source_import_environment(parsed, identity, parse_root, names, indexes)?;
+        source_imports.complete_source_uses = true;
+        Ok(Self { caller_evidence: None, source_imports: Some(source_imports) })
     }
 
     /// As `with_source_imports`, while also retaining exact imported role and
@@ -693,6 +697,7 @@ impl SemanticImports {
         let (parse_root, names) = resolve_source_imports(parsed, identity, indexes)?;
         let mut source_imports = source_import_environment(parsed, identity, parse_root, names, indexes)?;
         retain_authenticated_role_imports(&mut source_imports, role_indexes)?;
+        source_imports.complete_source_uses = true;
         Ok(Self { caller_evidence: None, source_imports: Some(source_imports) })
     }
 
@@ -1668,6 +1673,9 @@ impl Eq for HirBinding {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HirItem {
+    /// A static use statement admitted by the complete, parse-bound source
+    /// import resolver. Actual names still carry their exact export identities.
+    Import { range: Range<usize> },
     Binding(HirBinding),
     Expression(ResolvedExpr),
     Error {
@@ -2265,7 +2273,14 @@ fn lower_module_with_counters(
     let mut plans = Vec::new();
     for (index, node) in root.children().enumerate() {
         let ordinal = u32::try_from(index).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
-        plans.push(plan_root(node, ordinal, &identity, counters)?);
+        let mut plan = plan_root(node, ordinal, &identity, counters)?;
+        if plan.node.kind() == SyntaxKind::UseDeclaration
+            && !has_recovery(&plan.node)
+            && imports.source_imports.as_ref().is_some_and(|environment| environment.complete_source_uses)
+        {
+            plan.kind = RootPlanKind::Import;
+        }
+        plans.push(plan);
     }
     let selected_ordinals = if let Some(selected) = counters.selected_local_source_roots.as_ref() {
         let mut ordinals = std::collections::HashSet::new();
@@ -2344,7 +2359,7 @@ fn lower_module_with_counters(
             RootPlanKind::Binding(admitted) => {
                 Some(DefinitionRootId::new(artifact.clone(), admitted.id.clone()))
             }
-            RootPlanKind::DirectExpression | RootPlanKind::Unsupported(_) => None,
+            RootPlanKind::Import | RootPlanKind::DirectExpression | RootPlanKind::Unsupported(_) => None,
         };
         if let (Some(source), Some(definition)) = (&mut counters.source_identity, &definition_root)
         {
@@ -3216,6 +3231,7 @@ struct RootPlan {
 
 #[derive(Clone)]
 enum RootPlanKind {
+    Import,
     Binding(Admitted),
     DirectExpression,
     Unsupported(HirErrorKind),
@@ -3247,7 +3263,7 @@ impl RootPlan {
                     HirErrorAttachment::Definition((*admitted.id).clone())
                 }
             }
-            RootPlanKind::DirectExpression | RootPlanKind::Unsupported(_) => {
+            RootPlanKind::Import | RootPlanKind::DirectExpression | RootPlanKind::Unsupported(_) => {
                 HirErrorAttachment::DirectRootItem(self.ordinal)
             }
         }
@@ -3387,6 +3403,13 @@ fn lower_plan(
 ) -> Result<HirItem, HirAvailabilityError> {
     let RootPlanKind::Binding(admitted) = &plan.kind else {
         return match &plan.kind {
+            RootPlanKind::Import if item_errors.is_empty() && value_errors.is_empty() => {
+                Ok(HirItem::Import { range: plan.range.clone() })
+            }
+            RootPlanKind::Import => {
+                item_errors.extend(value_errors);
+                Ok(HirItem::Error { errors: item_errors.into_boxed_slice(), range: plan.range.clone() })
+            }
             RootPlanKind::DirectExpression => lower_direct_root_expression(
                 plan,
                 parsed,
@@ -4605,6 +4628,51 @@ mod tests {
     }
 
     #[test]
+    fn explicit_import_items_require_the_complete_parse_bound_resolver() {
+        let indexes = vec![
+            indexed("lib/std.yu", "pub mod core;\npub mod prelude;"),
+            indexed("lib/std/core.yu", "pub id x = x"),
+            indexed("lib/std/prelude.yu", "pub use std::core::*"),
+        ];
+        let text = "use std::core::id as identity\nmy main = identity 7";
+        let consumer = parsed(text);
+        let identity = identity();
+        let complete = SemanticImports::with_source_imports(&consumer, &identity, &indexes).unwrap();
+        let hir = lower_module(identity.clone(), &consumer, complete).unwrap();
+        assert!(matches!(&hir.items()[0], HirItem::Import { range } if text[range.clone()].trim() == "use std::core::id as identity"));
+        assert!(!hir.errors().iter().any(|error| error.kind() == HirErrorKind::UnsupportedItem));
+        let implicit = SemanticImports::with_implicit_prelude(&consumer, &identity, &indexes).unwrap();
+        let unverified = lower_module(identity.clone(), &consumer, implicit).unwrap();
+        assert!(matches!(&unverified.items()[0], HirItem::Error { .. }));
+        let syntax = source_exports::SourceImportEnvironment::for_syntax_operators(&consumer, &identity, &indexes).unwrap();
+        assert!(!syntax.complete_source_uses);
+        let selected = std::collections::HashSet::from([consumer.source_root().children().nth(1).unwrap().key()]);
+        let partial = SemanticImports::with_selected_source_imports(&consumer, &identity, &indexes, &selected).unwrap();
+        assert!(!partial.source_imports().unwrap().complete_source_uses);
+        let other = parsed(text);
+        let foreign = SemanticImports::with_source_imports(&consumer, &identity, &indexes).unwrap();
+        assert!(matches!(lower_module(identity, &other, foreign), Err(HirAvailabilityError::ForeignSourceImport)));
+    }
+
+    #[test]
+    fn empty_glob_imports_still_validate_module_existence_and_visibility() {
+        let indexes = vec![
+            indexed("lib/std.yu", "pub mod empty;\nmod hidden;\npub mod prelude;"),
+            indexed("lib/std/empty.yu", ""),
+            indexed("lib/std/hidden.yu", ""),
+            indexed("lib/std/prelude.yu", ""),
+        ];
+        for path in ["std::missing", "std::hidden"] {
+            let consumer = parsed(&format!("use {path}::*\nmy main = 7"));
+            assert!(matches!(SemanticImports::with_source_imports(&consumer, &identity(), &indexes), Err(HirAvailabilityError::SourceImportResolutionUnavailable)), "{path}");
+        }
+        let consumer = parsed("use std::empty::*\nmy main = 7");
+        let imports = SemanticImports::with_source_imports(&consumer, &identity(), &indexes).unwrap();
+        let hir = lower_module(identity(), &consumer, imports).unwrap();
+        assert!(matches!(hir.items()[0], HirItem::Import { .. }));
+    }
+
+    #[test]
     fn selected_local_source_lowers_only_parse_owned_direct_roots() {
         let parsed = parsed("pub wanted = 1\npub unused = missing.field");
         let roots = parsed.source_root().children().collect::<Vec<_>>();
@@ -4988,7 +5056,7 @@ pub(crate) fn retain_shadow_local_binding(
         match item {
             HirItem::Binding(binding) => pending.push(&binding.value),
             HirItem::Expression(expression) => pending.push(expression),
-            HirItem::Error { .. } => {}
+            HirItem::Import { .. } | HirItem::Error { .. } => {}
         }
     }
     let mut maximum = None;

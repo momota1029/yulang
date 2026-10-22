@@ -289,6 +289,8 @@ impl Eq for SourceOperationPathImport {}
 /// The exact public routes are retained beside the exposed-name lookup.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceImportEnvironment {
+    // Only the complete source-use resolver may set this parse-bound receipt.
+    pub(super) complete_source_uses: bool,
     parse_root: SourceNodeKey,
     identity: ModuleIdentity,
     names: std::collections::HashMap<Box<str>, SourceImportBinding>,
@@ -309,6 +311,7 @@ impl SourceImportEnvironment {
         names: std::collections::HashMap<Box<str>, SourceImportBinding>,
     ) -> Self {
         Self {
+            complete_source_uses: false,
             parse_root,
             identity,
             names,
@@ -1239,14 +1242,9 @@ fn resolve_walk(
     Ok(())
 }
 
-/// Resolves a public name to one unique parse-owned declaration over a finite
-/// set of module indexes. Cycles terminate, and distinct source declarations
-/// remain ambiguous even when their spelling is identical.
-pub fn resolve_public_export(
-    indexes: &[SourceExportIndex],
-    module: &str,
-    name: &str,
-) -> Result<SourceExportResolution, SourceExportResolveError> {
+fn public_source_modules<'a>(
+    indexes: &'a [SourceExportIndex], module: &str,
+) -> Result<std::collections::HashMap<Box<str>, &'a SourceExportIndex>, SourceExportResolveError> {
     let mut modules = std::collections::HashMap::new();
     modules
         .try_reserve(indexes.len())
@@ -1262,6 +1260,26 @@ pub fn resolve_public_export(
         return Err(SourceExportResolveError::MissingModule(module.into()));
     }
     validate_public_module_path(&modules, module)?;
+    Ok(modules)
+}
+
+/// Validate even an empty glob's target with the same module visibility rules
+/// as ordinary public export lookup.
+pub(super) fn validate_public_source_module(
+    indexes: &[SourceExportIndex], module: &str,
+) -> Result<(), SourceExportResolveError> {
+    public_source_modules(indexes, module).map(|_| ())
+}
+
+/// Resolves a public name to one unique parse-owned declaration over a finite
+/// set of module indexes. Cycles terminate, and distinct source declarations
+/// remain ambiguous even when their spelling is identical.
+pub fn resolve_public_export(
+    indexes: &[SourceExportIndex],
+    module: &str,
+    name: &str,
+) -> Result<SourceExportResolution, SourceExportResolveError> {
+    let modules = public_source_modules(indexes, module)?;
     let mut visited = std::collections::HashSet::new();
     let mut matches = Vec::new();
     resolve_walk(&modules, module, name, &[], &mut visited, &mut matches)?;

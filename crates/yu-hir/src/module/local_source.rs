@@ -943,7 +943,7 @@ pub(super) fn form(
     let admitted = match &plan.kind {
         RootPlanKind::Binding(admitted) => Some(admitted),
         RootPlanKind::DirectExpression => None,
-        RootPlanKind::Unsupported(_) => return Err(invalid()),
+        RootPlanKind::Import | RootPlanKind::Unsupported(_) => return Err(invalid()),
     };
     let admitted_parameters = admitted.map_or(&[][..], |admitted| admitted.parameters.as_slice());
     let mut builder = Builder {
@@ -2445,7 +2445,7 @@ mod tests {
             match item {
                 HirItem::Binding(binding) => work.push(binding.value()),
                 HirItem::Expression(expression) => work.push(expression),
-                HirItem::Error { .. } => {}
+                HirItem::Import { .. } | HirItem::Error { .. } => {}
             }
         }
         let mut ordinals = Vec::new();
@@ -2479,7 +2479,7 @@ mod tests {
             let expected_roots: Vec<_> = ordinary.items().iter().filter_map(|item| match item {
                 HirItem::Binding(binding) => Some(SourceRootId::Definition(binding.definition_root().clone())),
                 HirItem::Expression(expression) => Some(SourceRootId::Expression(ordinary.expression_root(expression.occurrence()).unwrap().unwrap().clone())),
-                HirItem::Error { .. } => None,
+                HirItem::Import { .. } | HirItem::Error { .. } => None,
             }).collect();
             assert_eq!(ordinary.source_carrier_outcomes().iter().map(|(root, _)| root).collect::<Vec<_>>(), expected_roots.iter().collect::<Vec<_>>(), "{text}");
             for (old, new) in old_bindings.iter().zip(new_bindings) {

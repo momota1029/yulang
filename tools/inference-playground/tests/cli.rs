@@ -61,6 +61,32 @@ fn unchanged_yulang2_effects_sample_runs_through_the_cli() {
 }
 
 #[test]
+fn explicit_imports_preserve_exact_provider_values_and_module_order() {
+    for (source, expected) in [
+        ("use std::int::sub\nmy main = sub 7 10", "-3\n"),
+        ("use std::int::mul as product\nmy main = product 12 34", "408\n"),
+        ("use std::int::*\nmy main = mul 12 34", "408\n"),
+        ("use std::int::mul\nmy twice = mul 2\nmy main = (twice 3, twice 4)", "(6, 8)\n"),
+        ("use std::int::sub as minus\nmy f x = minus x 1\nmy main = f 10", "9\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(output.status.success(), "{source}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "{source}");
+    }
+    let output = cli_with_args("println \"before\"\nuse std::int::mul\nsay: mul 3 4\nprintln \"after\"", &["--run-module"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"before\n12\nafter\n");
+    let output = cli_with_args("use std::int::mul", &["--run-module"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert!(output.stdout.is_empty());
+    for source in ["use std::missing::*\nmy main = 7", "use std::int::absent\nmy main = 7", "use std::int::sub\nmy main = sub true 1"] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(!output.status.success(), "{source}");
+        assert!(output.stdout.is_empty());
+    }
+}
+
+#[test]
 fn pinned_integer_subtraction_and_multiplication_use_the_ordinary_source_path() {
     for (source, expected) in [
         ("my main = builtin_op::int_sub 7 10", "-3\n"),

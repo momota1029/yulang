@@ -297,6 +297,8 @@ fn execute_program(
         let remaining = step_budget.saturating_sub(machine.steps());
         match machine.run(remaining) {
             RuntimeOutcome::Completed(handle) => break handle,
+            RuntimeOutcome::EmptyModuleCompleted if definition.is_none() => return Ok((output.finish()?, events)),
+            RuntimeOutcome::EmptyModuleCompleted => return Err("selected definition has no runtime value".to_owned()),
             RuntimeOutcome::Unavailable(error) => return Err(unavailable(error)),
             RuntimeOutcome::ResourceExhausted { steps } => return Err(format!(
                 "runtime step budget exhausted after {steps} steps; no completed result")),
@@ -422,7 +424,7 @@ pub fn execute_operation_v1_runtime_research(
                 "unhandled runtime request at {range:?}; no completed receipt"
             )));
         }
-        RuntimeOutcome::Running => return Err("runtime did not complete; no completed receipt".to_owned()),
+        RuntimeOutcome::Running | RuntimeOutcome::EmptyModuleCompleted => return Err("runtime did not complete; no completed receipt".to_owned()),
     };
     if !matches!(machine.value(completed).map(|value| &value.kind), Some(RuntimeValueKind::Integer(value)) if value.as_ref() == "42") {
         return Err("runtime result is not integer 42; no completed receipt".to_owned());
@@ -590,6 +592,7 @@ fn projection_signature(hir: &HirModule) -> Vec<Box<str>> {
         match item {
             HirItem::Binding(binding) => signature.push(format!("binding:{}", binding.name().spelling()).into_boxed_str()),
             HirItem::Expression(expression) => signature.push(format!("expression:{}", expression.occurrence().ordinal()).into_boxed_str()),
+            HirItem::Import { range } => signature.push(format!("import:{range:?}").into_boxed_str()),
             HirItem::Error { errors, .. } => signature.push(format!("error:{errors:?}").into_boxed_str()),
         }
     }
@@ -712,7 +715,7 @@ fn pinned_provider_projection_inner(
                     .transpose()
                     .map_err(|error| format!("provider expression source unavailable: {error:?}"))?
                     .flatten(),
-                HirItem::Error { .. } => None,
+                HirItem::Import { .. } | HirItem::Error { .. } => None,
             };
             if let Some(source) = source { retain(source)?; }
         }
@@ -769,7 +772,7 @@ fn pinned_provider_projection_inner(
                 HirItem::Expression(expression) => hir.expression_root(expression.occurrence())
                     .map_err(|error| format!("operator source expression root unavailable: {error:?}"))?
                     .cloned().map(SourceRootId::Expression),
-                HirItem::Error { .. } => None,
+                HirItem::Import { .. } | HirItem::Error { .. } => None,
             };
             let Some(root) = root else { continue; };
             if !roots.insert(root.clone()) { continue; }
@@ -953,7 +956,7 @@ fn pinned_member_projection(
                 HirItem::Expression(expression) => hir.expression_root(expression.occurrence())
                     .map_err(|error| format!("member projection expression root unavailable: {error:?}"))?
                     .cloned().map(SourceRootId::Expression),
-                HirItem::Error { .. } => None,
+                HirItem::Import { .. } | HirItem::Error { .. } => None,
             };
             let Some(root) = root else { continue; };
             if !roots.insert(root.clone()) { continue; }
@@ -1172,7 +1175,7 @@ fn source_uses_plus(hir: &HirModule) -> Result<bool, String> {
                 .transpose()
                 .map_err(|error| format!("operator expression source unavailable: {error:?}"))?
                 .flatten(),
-            HirItem::Error { .. } => None,
+            HirItem::Import { .. } | HirItem::Error { .. } => None,
         };
         if source.is_some_and(|source| source.expressions().iter().any(|expression|
             matches!(&expression.form, LocalSourceForm::OperatorApplication { operator, .. }
@@ -1471,7 +1474,7 @@ fn conflict_ranges_for<'requested, 'hir>(
                 };
                 SourceRootId::Expression(root.clone())
             }
-            HirItem::Error { .. } => continue,
+            HirItem::Import { .. } | HirItem::Error { .. } => continue,
         };
         let Some(local) = hir.local_source_for(&source_root).ok().flatten() else {
             continue;
@@ -2063,7 +2066,7 @@ mod tests {
                 HirItem::Binding(binding) => hir.local_source(binding.definition_root()).ok().flatten(),
                 HirItem::Expression(expression) => hir.expression_root(expression.occurrence()).ok().flatten()
                     .and_then(|root| hir.local_source_for(&SourceRootId::Expression(root.clone())).ok().flatten()),
-                HirItem::Error { .. } => None,
+                HirItem::Import { .. } | HirItem::Error { .. } => None,
             }).flat_map(|source| source.expressions()).any(|expression| matches!(
                 (&expression.form, name),
                 (LocalSourceForm::Name { spelling, resolution: yu_hir::LocalSourceResolution::Imported(id) }, expected)

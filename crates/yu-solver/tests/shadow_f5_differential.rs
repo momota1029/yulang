@@ -842,7 +842,7 @@ fn pending_application_direct_names_preserve_positions_and_resolution_variants()
                 assert!(uses[0].enclosing_root().is_none());
                 assert!(matches!(uses[0].resolution(), NameResolution::Unresolved));
             }
-            HirItem::Error { .. } => panic!("existing fixture retains an application"),
+            HirItem::Import { .. } | HirItem::Error { .. } => panic!("existing fixture retains an application"),
         }
     }
 }

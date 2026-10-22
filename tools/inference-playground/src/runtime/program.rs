@@ -489,7 +489,7 @@ impl RuntimeProgram {
         Ok(self.source_schedule.clone())
     }
 
-    pub(super) fn module_completion_site(&self) -> Result<SourceSite, RuntimeUnavailable> {
+    pub(super) fn module_completion_site(&self) -> Result<Option<SourceSite>, RuntimeUnavailable> {
         if let Some(root) = self.source_schedule.last() {
             let code = match root {
                 ExecutionRoot::Definition(id) => {
@@ -503,11 +503,10 @@ impl RuntimeProgram {
                     .ok_or(RuntimeUnavailable::InvalidSourceReference)?,
             };
             return self.code.get(code.0)
-                .map(|code| code.site.clone())
+                .map(|code| Some(code.site.clone()))
                 .ok_or(RuntimeUnavailable::InvalidSourceReference);
         }
-        self.code.first().map(|code| code.site.clone())
-            .ok_or(RuntimeUnavailable::MissingSource)
+        Ok(self.code.first().map(|code| code.site.clone()))
     }
 
     pub fn host_write_operation(&self) -> Option<&yu_hir::SourceOperationId> {
@@ -1302,6 +1301,7 @@ fn main_runtime_roots(hir: &Arc<HirModule>) -> Result<Vec<RuntimeSourceRoot>, Ru
     let mut roots = Vec::new();
     for item in hir.items() {
         let (source_root, kind) = match item {
+            HirItem::Import { .. } => continue,
             HirItem::Binding(binding) => (
                 SourceRootId::Definition(binding.definition_root().clone()),
                 RuntimeRootKind::Binding(binding.id().clone()),
