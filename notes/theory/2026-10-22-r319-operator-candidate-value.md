@@ -1,6 +1,6 @@
 # R319 — operator RHS as a candidate value
 
-Status: OPEN. No source/operator inference theorem or production gate is discharged here.
+Status: OPEN_CONTINUATION. Source-owned candidate typing remains open; no parent proof or production gate is discharged here.
 
 ## Parent and direct evidence
 
