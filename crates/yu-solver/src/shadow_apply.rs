@@ -66,6 +66,60 @@ pub enum CandidateError {
     Collection(CollectionAvailabilityError),
     Solve(SolveAvailabilityError),
 }
+/// Ordered source receiver shape recovered at the end of one candidate
+/// session. This is evidence for deferred FieldTail resolution, not a method
+/// selection or proof that future constraints cannot change applicability.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CandidateReceiverShape {
+    Unit,
+    Int,
+    Bool,
+    Str,
+    Tuple(Vec<CandidateReceiverShape>),
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateFieldTailTargetMatch {
+    pub implementation: yu_hir::shadow::SourceImplementationId,
+    pub target: yu_hir::shadow::SourceImplementationTypeShape,
+    pub type_substitution: Vec<(Box<str>, yu_hir::shadow::SourceImplementationTypeShape)>,
+    pub where_clause_count: usize,
+    pub where_role_identities: Vec<Option<yu_hir::shadow::SourceRoleId>>,
+    pub where_clause_readbacks: Vec<CandidateFieldTailWhereReadback>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateFieldTailWhereReadback {
+    /// Source identity of the subject type expression inside the where clause.
+    pub subject_source: Option<yu_hir::shadow::SourceNodeKey>,
+    pub subject: Option<yu_hir::shadow::SourceImplementationTypeShape>,
+    pub substituted_subject: Option<yu_hir::shadow::SourceImplementationTypeShape>,
+    pub role_identity: Option<yu_hir::shadow::SourceRoleId>,
+    pub matching_implementations: Vec<yu_hir::shadow::SourceImplementationId>,
+    pub matching_implementations_without_prerequisites: Vec<yu_hir::shadow::SourceImplementationId>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateFieldTailReceiverReadback {
+    pub owner: SourceRootId,
+    pub occurrence: HirOccurrenceId,
+    pub member: Box<str>,
+    pub role_member_candidates: Vec<yu_hir::shadow::SourceRoleMemberId>,
+    pub positive_shape: Option<CandidateReceiverShape>,
+    /// Structural target matches only. `where` prerequisites and stability are
+    /// reported separately and are never discharged by this list.
+    pub target_matches: Vec<CandidateFieldTailTargetMatch>,
+    /// Completeness of the implementation inventory for the retained exact
+    /// role-member identities. Unsupported target shapes remain separately
+    /// counted and still block applicability conclusions.
+    pub implementation_inventory_complete: bool,
+    pub unsupported_target_count: usize,
+    pub reachable_positive_row_edges: usize,
+    pub reachable_negative_row_edges: usize,
+    pub reachable_positive_bounds: usize,
+    pub reachable_negative_bounds: usize,
+    pub positive_frontier_complete: bool,
+    /// True only when no negative bound was found anywhere in the reachable
+    /// lower-shape and tuple-element frontier.
+    pub negative_frontier_empty: bool,
+}
 /// Owns a private solver result which cannot be published as a SolvedModule.
 /// Invocation/evaluation effects are intentionally absent from this API.
 pub struct CandidateValueObservation {
@@ -112,6 +166,68 @@ fn retain_role_implementation_members(
     source_indexes: &[yu_hir::SourceExportIndex],
     role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
 ) -> Result<(), CandidateError> {
+    // A FieldTail such as `pair.say` names a member, not its role. Include
+    // source-authenticated members made implicitly visible by the language's
+    // prelude, while retaining every role as a candidate. Receiver targets
+    // and prerequisites are inspected later; this does not select a role.
+    let mut prelude_members = HashMap::<Box<str>, Vec<yu_hir::shadow::SourceRoleMemberId>>::new();
+    for index in role_indexes {
+        for declaration in index.roles() {
+            let resolution = match yu_hir::shadow::resolve_public_export(
+                source_indexes, "std::prelude", &declaration.head.spelling,
+            ) {
+                Ok(resolution) => resolution,
+                Err(yu_hir::shadow::SourceExportResolveError::MissingExport { .. }) => continue,
+                Err(yu_hir::shadow::SourceExportResolveError::Ambiguous { .. }) => continue,
+                // Other prelude entries can have unrelated unsupported or
+                // recovered source routes. They remain unavailable candidates;
+                // this readback cannot infer anything from their spelling.
+                Err(_) => continue,
+            };
+            let path = declaration.id.module.file().key().normalized_workspace_relative_path();
+            let path = path.strip_prefix("lib/").unwrap_or(path);
+            let Some(path) = path.strip_suffix(".yu") else { continue; };
+            if path.replace('/', "::") != resolution.module.as_ref()
+                || resolution.declaration.source != declaration.id.declaration
+                || resolution.name.as_ref() != declaration.head.spelling.as_ref()
+            {
+                continue;
+            }
+            let Ok(owner) = yu_hir::shadow::resolve_source_export_owner(&[], role_indexes, &resolution) else {
+                continue;
+            };
+            let yu_hir::shadow::SourceExportOwner::Role { declaration: exported, .. } = owner else {
+                return Err(CandidateError::Unsupported);
+            };
+            if exported.id != declaration.id { continue; }
+            let Ok(inventory) = yu_hir::shadow::source_role_member_inventory(&declaration.id, role_indexes) else {
+                continue;
+            };
+            for (name, member) in inventory {
+                if !prelude_members.contains_key(&name) {
+                    prelude_members.try_reserve(1).map_err(|_| CandidateError::Unsupported)?;
+                }
+                let members = prelude_members.entry(name).or_default();
+                if members.contains(&member) { continue; }
+                members.try_reserve(1).map_err(|_| CandidateError::Unsupported)?;
+                members.push(member);
+            }
+        }
+    }
+    for recipe in &mut batch.candidate_recipes {
+        let crate::shadow_apply::CandidateRelation::DeferredFieldTail {
+            member, role_member_candidates, ..
+        } = &mut recipe.relation else { continue; };
+        if let Some(implicit) = prelude_members.get(member) {
+            role_member_candidates.try_reserve(implicit.len()).map_err(|_| CandidateError::Unsupported)?;
+            for candidate in implicit {
+                if !role_member_candidates.contains(candidate) {
+                    role_member_candidates.push(candidate.clone());
+                }
+            }
+        }
+    }
+
     let mut requested_by_role: HashMap<
         yu_hir::shadow::SourceRoleId,
         Vec<yu_hir::shadow::SourceRoleMemberId>,
@@ -906,8 +1022,26 @@ impl CandidateInference {
         role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
     ) -> Result<Self, CandidateError> {
         Self::solve_hirs_mode_with_role_sources(
-            hirs, false, false, Some((source_indexes, role_indexes)),
+            hirs, false, false, Some((source_indexes, role_indexes)), None,
         )
+    }
+    /// Inspect source FieldTail receiver bounds from the exact session that
+    /// reaches the deferred-selection gate. This returns readback evidence
+    /// only; it never selects a role implementation or types a member body.
+    pub fn inspect_deferred_field_tails_with_role_sources(
+        hirs: Vec<Arc<HirModule>>,
+        source_indexes: &[yu_hir::SourceExportIndex],
+        role_indexes: &[yu_hir::shadow::SourceRoleImplIndex],
+    ) -> Result<Vec<CandidateFieldTailReceiverReadback>, CandidateError> {
+        let mut readbacks = Vec::new();
+        match Self::solve_hirs_mode_with_role_sources(
+            hirs, false, false, Some((source_indexes, role_indexes)), Some(&mut readbacks),
+        ) {
+            Ok(_) => Ok(readbacks),
+            Err(CandidateError::Solve(SolveAvailabilityError::DeferredSelectionUnavailable))
+                if !readbacks.is_empty() => Ok(readbacks),
+            Err(error) => Err(error),
+        }
     }
     /// Explicit, research-only entry for the statically linked operation field candidate.
     pub fn solve_operation_v1_research(hir: Arc<HirModule>) -> Result<Self, CandidateError> {
@@ -1025,13 +1159,14 @@ impl CandidateInference {
         Self::solve_hirs_mode(vec![hir], scoped, operation_v1)
     }
     fn solve_hirs_mode(hirs: Vec<Arc<HirModule>>, scoped: bool, operation_v1: bool) -> Result<Self, CandidateError> {
-        Self::solve_hirs_mode_with_role_sources(hirs, scoped, operation_v1, None)
+        Self::solve_hirs_mode_with_role_sources(hirs, scoped, operation_v1, None, None)
     }
     fn solve_hirs_mode_with_role_sources(
         hirs: Vec<Arc<HirModule>>,
         scoped: bool,
         operation_v1: bool,
         role_sources: Option<(&[yu_hir::SourceExportIndex], &[yu_hir::shadow::SourceRoleImplIndex])>,
+        mut deferred_readbacks: Option<&mut Vec<CandidateFieldTailReceiverReadback>>,
     ) -> Result<Self, CandidateError> {
         if hirs.is_empty() { return Err(CandidateError::Unsupported); }
         let imported_definitions = candidate_imported_definitions(&hirs)?;
@@ -1082,8 +1217,20 @@ impl CandidateInference {
             batch.scc_plan().internal_uses(component).is_ok_and(|uses| !uses.is_empty())) {
             return Err(CandidateError::Unsupported);
         }
-        let session = InferenceSession::try_new_candidate(batch).map_err(CandidateError::Solve)?;
-        let solved = session.run_candidate().map_err(CandidateError::Solve)?;
+        let mut session = InferenceSession::try_new_candidate(batch).map_err(CandidateError::Solve)?;
+        let solved = if let Some(readbacks) = deferred_readbacks.as_deref_mut() {
+            match session.execute() {
+                Ok(()) => session.finish_candidate().map_err(CandidateError::Solve)?,
+                Err(SolveAvailabilityError::DeferredSelectionUnavailable) => {
+                    *readbacks = session.candidate_field_tail_receiver_readbacks()
+                        .map_err(CandidateError::Solve)?;
+                    return Err(CandidateError::Solve(SolveAvailabilityError::DeferredSelectionUnavailable));
+                }
+                Err(error) => return Err(CandidateError::Solve(error)),
+            }
+        } else {
+            session.run_candidate().map_err(CandidateError::Solve)?
+        };
         #[cfg(test)]
         if scoped && std::env::var_os("YU_CALL_REPLAY_OBSERVER").is_some() {
             if let Some(graph) = &solved.data.candidate_graph {

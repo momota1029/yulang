@@ -779,16 +779,6 @@ enum ValueEndpointKey {
     NegativeTuple(Term, usize),
 }
 
-#[cfg(test)]
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum CandidateReceiverShape {
-    Unit,
-    Int,
-    Bool,
-    Str,
-    Tuple(Vec<CandidateReceiverShape>),
-}
-
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct CanonicalValuePairKey {
     lower: ValueEndpointKey,
@@ -4174,6 +4164,17 @@ struct VariableBounds {
     has_int_positive_lower: bool,
     has_unit_positive_lower: bool,
 }
+
+#[cfg(feature = "shadow-apply-candidate")]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct CandidateReceiverFrontierCounts {
+    positive_row_edges: usize,
+    negative_row_edges: usize,
+    positive_bounds: usize,
+    negative_bounds: usize,
+}
+#[cfg(feature = "shadow-apply-candidate")]
+const CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT: usize = 16_384;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 struct EffectBounds {
@@ -11775,11 +11776,12 @@ impl InferenceSession {
         }
         endpoint
     }
-    #[cfg(all(test, feature = "shadow-apply-candidate"))]
-    fn candidate_receiver_positive_shape(&self, row: u32) -> Option<CandidateReceiverShape> {
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_receiver_positive_shape(&self, row: u32) -> Option<shadow_apply::CandidateReceiverShape> {
+        use shadow_apply::CandidateReceiverShape as Shape;
         fn merge(
-            current: &mut Option<CandidateReceiverShape>,
-            next: Option<CandidateReceiverShape>,
+            current: &mut Option<Shape>,
+            next: Option<Shape>,
         ) -> Option<()> {
             let Some(next) = next else { return Some(()); };
             match current {
@@ -11788,25 +11790,32 @@ impl InferenceSession {
                 None => { *current = Some(next); Some(()) }
             }
         }
+        fn spend(work: &mut usize) -> Option<()> {
+            *work = (*work).checked_add(1)?;
+            (*work <= CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT).then_some(())
+        }
         fn row_shape(
             session: &InferenceSession,
             row: u32,
             active: &mut HashSet<u32>,
+            work: &mut usize,
             depth: usize,
-        ) -> Option<CandidateReceiverShape> {
+        ) -> Option<Shape> {
             if depth >= 128 { return None; }
+            spend(work)?;
             let ValueEndpointKey::ValueRow(row) = session.canonical_value(ValueEndpointKey::ValueRow(row)) else { unreachable!() };
+            active.try_reserve(1).ok()?;
             if !active.insert(row) { return None; }
             let bounds = session.bounds.get(row as usize)?;
             let mut shape = None;
             for lower in &bounds.direct_lower_rows {
-                merge(&mut shape, Some(row_shape(session, *lower, active, depth + 1)?))?;
+                merge(&mut shape, Some(row_shape(session, *lower, active, work, depth + 1)?))?;
             }
             for lower in &bounds.exact_non_variable_lowers {
                 if matches!(session.canonical_value(*lower), ValueEndpointKey::BottomPositive) {
                     continue;
                 }
-                merge(&mut shape, Some(endpoint_shape(session, *lower, active, depth + 1)?))?;
+                merge(&mut shape, Some(endpoint_shape(session, *lower, active, work, depth + 1)?))?;
             }
             active.remove(&row);
             shape
@@ -11815,15 +11824,17 @@ impl InferenceSession {
             session: &InferenceSession,
             endpoint: ValueEndpointKey,
             active: &mut HashSet<u32>,
+            work: &mut usize,
             depth: usize,
-        ) -> Option<CandidateReceiverShape> {
+        ) -> Option<Shape> {
             if depth >= 128 { return None; }
+            spend(work)?;
             match session.canonical_value(endpoint) {
-                ValueEndpointKey::UnitPositive => Some(CandidateReceiverShape::Unit),
-                ValueEndpointKey::IntPositive => Some(CandidateReceiverShape::Int),
-                ValueEndpointKey::BoolPositive => Some(CandidateReceiverShape::Bool),
-                ValueEndpointKey::StrPositive => Some(CandidateReceiverShape::Str),
-                ValueEndpointKey::ValueRow(row) => row_shape(session, row, active, depth + 1),
+                ValueEndpointKey::UnitPositive => Some(Shape::Unit),
+                ValueEndpointKey::IntPositive => Some(Shape::Int),
+                ValueEndpointKey::BoolPositive => Some(Shape::Bool),
+                ValueEndpointKey::StrPositive => Some(Shape::Str),
+                ValueEndpointKey::ValueRow(row) => row_shape(session, row, active, work, depth + 1),
                 ValueEndpointKey::PositiveTuple(term, arity) => {
                     let TermView::PositiveTuple { elements } = session.store.term_view(term).ok()? else { return None; };
                     if elements.len() != arity { return None; }
@@ -11831,9 +11842,9 @@ impl InferenceSession {
                     tuple.try_reserve_exact(arity).ok()?;
                     for element in elements {
                         let endpoint = session.value_endpoint(*element, Polarity::Positive);
-                        tuple.push(endpoint_shape(session, endpoint, active, depth + 1)?);
+                        tuple.push(endpoint_shape(session, endpoint, active, work, depth + 1)?);
                     }
-                    Some(CandidateReceiverShape::Tuple(tuple))
+                    Some(Shape::Tuple(tuple))
                 }
                 // Bottom contributes no concrete receiver shape. Functions,
                 // upper bounds and unsupported constructors fail closed.
@@ -11843,7 +11854,266 @@ impl InferenceSession {
         }
 
         let mut active = HashSet::new();
-        row_shape(self, row, &mut active, 0)
+        let mut work = 0;
+        row_shape(self, row, &mut active, &mut work, 0)
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_receiver_frontier_counts(&self, row: u32) -> Option<CandidateReceiverFrontierCounts> {
+        fn add(slot: &mut usize, amount: usize) -> Option<()> {
+            *slot = slot.checked_add(amount)?;
+            Some(())
+        }
+        fn spend(work: &mut usize) -> Option<()> {
+            *work = (*work).checked_add(1)?;
+            (*work <= CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT).then_some(())
+        }
+        fn visit_endpoint(
+            session: &InferenceSession,
+            bound: ValueEndpointKey,
+            visited: &mut HashSet<u32>,
+            active: &mut HashSet<u32>,
+            counts: &mut CandidateReceiverFrontierCounts,
+            work: &mut usize,
+            depth: usize,
+        ) -> Option<()> {
+            if depth >= 128 { return None; }
+            spend(work)?;
+            match session.canonical_value(bound) {
+                ValueEndpointKey::ValueRow(row_id) => visit_row(session, row_id, visited, active, counts, work, depth + 1),
+                ValueEndpointKey::PositiveTuple(term, arity) => {
+                    let TermView::PositiveTuple { elements } = session.store.term_view(term).ok()? else {
+                        return None;
+                    };
+                    if elements.len() != arity { return None; }
+                    for element in elements {
+                        visit_endpoint(session, session.value_endpoint(*element, Polarity::Positive),
+                            visited, active, counts, work, depth + 1)?;
+                    }
+                    Some(())
+                }
+                ValueEndpointKey::UnitPositive | ValueEndpointKey::IntPositive
+                | ValueEndpointKey::BoolPositive | ValueEndpointKey::StrPositive
+                | ValueEndpointKey::BottomPositive => Some(()),
+                _ => None,
+            }
+        }
+        fn visit_row(
+            session: &InferenceSession,
+            row_id: u32,
+            visited: &mut HashSet<u32>,
+            active: &mut HashSet<u32>,
+            counts: &mut CandidateReceiverFrontierCounts,
+            work: &mut usize,
+            depth: usize,
+        ) -> Option<()> {
+            if depth >= 128 { return None; }
+            spend(work)?;
+            let ValueEndpointKey::ValueRow(row) = session.canonical_value(ValueEndpointKey::ValueRow(row_id)) else {
+                unreachable!()
+            };
+            if active.contains(&row) { return None; }
+            visited.try_reserve(1).ok()?;
+            if !visited.insert(row) { return Some(()); }
+            active.try_reserve(1).ok()?;
+            active.insert(row);
+            let bounds = session.bounds.get(row as usize)?;
+            add(&mut counts.positive_row_edges, bounds.direct_lower_rows.len())?;
+            add(&mut counts.negative_row_edges, bounds.direct_upper_rows.len())?;
+            add(&mut counts.positive_bounds, bounds.exact_non_variable_lowers.len())?;
+            add(&mut counts.negative_bounds, bounds.exact_non_variable_uppers.len())?;
+            for lower in &bounds.direct_lower_rows {
+                visit_row(session, *lower, visited, active, counts, work, depth + 1)?;
+            }
+            for lower in &bounds.exact_non_variable_lowers {
+                visit_endpoint(session, *lower, visited, active, counts, work, depth + 1)?;
+            }
+            active.remove(&row);
+            Some(())
+        }
+
+        let mut counts = CandidateReceiverFrontierCounts::default();
+        let mut visited = HashSet::new();
+        let mut active = HashSet::new();
+        let mut work = 0;
+        visit_row(self, row, &mut visited, &mut active, &mut counts, &mut work, 0)?;
+        Some(counts)
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_field_tail_receiver_readbacks(
+        &self,
+    ) -> Result<Vec<shadow_apply::CandidateFieldTailReceiverReadback>, SolveAvailabilityError> {
+        fn substitute_source_shape(
+            shape: &yu_hir::shadow::SourceImplementationTypeShape,
+            substitution: &std::collections::HashMap<Box<str>, yu_hir::shadow::SourceImplementationTypeShape>,
+        ) -> Result<yu_hir::shadow::SourceImplementationTypeShape, SolveAvailabilityError> {
+            use yu_hir::shadow::SourceImplementationTypeShape as Shape;
+            Ok(match shape {
+                Shape::Name(name) if name.starts_with('\'') => substitution
+                    .get(name.as_ref()).cloned().unwrap_or_else(|| Shape::Name(name.clone())),
+                Shape::Name(name) => Shape::Name(name.clone()),
+                Shape::Tuple(items) => {
+                    let mut output = Vec::new();
+                    output.try_reserve_exact(items.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    for item in items { output.push(substitute_source_shape(item, substitution)?); }
+                    Shape::Tuple(output)
+                }
+            })
+        }
+        fn source_shape(
+            shape: &shadow_apply::CandidateReceiverShape,
+        ) -> Result<yu_hir::shadow::SourceImplementationTypeShape, SolveAvailabilityError> {
+            use yu_hir::shadow::SourceImplementationTypeShape as SourceShape;
+            Ok(match shape {
+                shadow_apply::CandidateReceiverShape::Unit => SourceShape::Name("unit".into()),
+                shadow_apply::CandidateReceiverShape::Int => SourceShape::Name("int".into()),
+                shadow_apply::CandidateReceiverShape::Bool => SourceShape::Name("bool".into()),
+                shadow_apply::CandidateReceiverShape::Str => SourceShape::Name("str".into()),
+                shadow_apply::CandidateReceiverShape::Tuple(items) => {
+                    let mut tuple = Vec::new();
+                    tuple.try_reserve_exact(items.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    for item in items { tuple.push(source_shape(item)?); }
+                    SourceShape::Tuple(tuple)
+                }
+            })
+        }
+        fn increment(value: &mut usize) -> Result<(), SolveAvailabilityError> {
+            *value = (*value).checked_add(1).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            Ok(())
+        }
+        let state = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let count = state.source_field_tail_obligations.values().try_fold(0usize, |total, items|
+            total.checked_add(items.len())
+        ).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+        let mut readbacks = Vec::new();
+        readbacks.try_reserve_exact(count).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        for (owner, obligations) in &state.source_field_tail_obligations {
+            for obligation in obligations {
+                let candidate_scheme::RowKey::Value(row) = obligation.receiver_row else {
+                    return Err(SolveAvailabilityError::ReceiptMismatch);
+                };
+                let row = state.intrusion.value_rep(row);
+                let frontier = self.candidate_receiver_frontier_counts(row);
+                let frontier_complete = frontier.is_some();
+                let frontier = frontier.unwrap_or_default();
+                let positive_shape = self.candidate_receiver_positive_shape(row);
+                let mut target_matches = Vec::new();
+                // This flag covers the source implementation inventory for
+                // each retained exact role-member identity. Unsupported target
+                // shapes stay visible in their own counter below.
+                let mut implementation_inventory_complete = !obligation.role_member_candidates.is_empty();
+                let mut unsupported_target_count = 0usize;
+                if let Some(shape) = positive_shape.as_ref() {
+                    let actual = source_shape(shape)?;
+                    for role_member in &obligation.role_member_candidates {
+                        let Some(candidates) = self.batch.candidate_source.role_implementation_members.get(role_member) else {
+                            implementation_inventory_complete = false;
+                            continue;
+                        };
+                        for candidate in candidates {
+                            let Some(target) = candidate.target.shape.as_ref() else {
+                                increment(&mut unsupported_target_count)?;
+                                continue;
+                            };
+                            let Some(substitution) = target.match_target(&actual) else { continue; };
+                            if target_matches.iter().any(|matched: &shadow_apply::CandidateFieldTailTargetMatch|
+                                matched.implementation == candidate.implementation) {
+                                continue;
+                            }
+                            let mut type_substitution = Vec::new();
+                            type_substitution.try_reserve_exact(substitution.len())
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            type_substitution.extend(substitution.iter().map(|(name, shape)|
+                                (name.clone(), shape.clone())));
+                            type_substitution.sort_by(|left, right| left.0.cmp(&right.0));
+                            let mut where_clause_readbacks = Vec::new();
+                            where_clause_readbacks.try_reserve_exact(candidate.where_clauses.len())
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            for (index, clause) in candidate.where_clauses.iter().enumerate() {
+                                let role_identity = candidate.where_roles.get(index).cloned().flatten();
+                                let Some(clause) = clause else {
+                                    where_clause_readbacks.push(shadow_apply::CandidateFieldTailWhereReadback {
+                                        subject_source: None,
+                                        subject: None,
+                                        substituted_subject: None,
+                                        role_identity,
+                                        matching_implementations: Vec::new(),
+                                        matching_implementations_without_prerequisites: Vec::new(),
+                                    });
+                                    continue;
+                                };
+                                let subject = clause.subject.shape.clone();
+                                let substituted_subject = subject.as_ref().map(|shape|
+                                    substitute_source_shape(shape, &substitution)).transpose()?;
+                                let mut matching_implementations = Vec::new();
+                                let mut matching_implementations_without_prerequisites = Vec::new();
+                                if role_identity.as_ref() == Some(&role_member.role) {
+                                    if let (Some(subject), Some(candidates)) = (
+                                        substituted_subject.as_ref(),
+                                        self.batch.candidate_source.role_implementation_members.get(role_member),
+                                    ) {
+                                        for prerequisite in candidates {
+                                            let Some(target) = prerequisite.target.shape.as_ref() else { continue; };
+                                            if target.match_target(subject).is_none() { continue; }
+                                            matching_implementations.try_reserve(1)
+                                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                                            matching_implementations.push(prerequisite.implementation.clone());
+                                            if prerequisite.where_clauses.is_empty() {
+                                                matching_implementations_without_prerequisites.try_reserve(1)
+                                                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                                                matching_implementations_without_prerequisites.push(prerequisite.implementation.clone());
+                                            }
+                                        }
+                                    }
+                                }
+                                where_clause_readbacks.push(shadow_apply::CandidateFieldTailWhereReadback {
+                                    subject_source: Some(clause.subject.source.clone()),
+                                    subject,
+                                    substituted_subject,
+                                    role_identity,
+                                    matching_implementations,
+                                    matching_implementations_without_prerequisites,
+                                });
+                            }
+                            target_matches.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            target_matches.push(shadow_apply::CandidateFieldTailTargetMatch {
+                                implementation: candidate.implementation.clone(),
+                                target: target.clone(),
+                                type_substitution,
+                                where_clause_count: candidate.where_clauses.len(),
+                                where_role_identities: candidate.where_roles.clone(),
+                                where_clause_readbacks,
+                            });
+                        }
+                    }
+                } else {
+                    for role_member in &obligation.role_member_candidates {
+                        match self.batch.candidate_source.role_implementation_members.get(role_member) {
+                            Some(candidates) => unsupported_target_count = unsupported_target_count
+                                .checked_add(candidates.len()).ok_or(SolveAvailabilityError::IdentityExhausted)?,
+                            None => implementation_inventory_complete = false,
+                        }
+                    }
+                }
+                readbacks.push(shadow_apply::CandidateFieldTailReceiverReadback {
+                    owner: owner.clone(),
+                    occurrence: obligation.occurrence.clone(),
+                    member: obligation.member.clone(),
+                    role_member_candidates: obligation.role_member_candidates.clone(),
+                    positive_shape,
+                    target_matches,
+                    implementation_inventory_complete,
+                    unsupported_target_count,
+                    reachable_positive_row_edges: frontier.positive_row_edges,
+                    reachable_negative_row_edges: frontier.negative_row_edges,
+                    reachable_positive_bounds: frontier.positive_bounds,
+                    reachable_negative_bounds: frontier.negative_bounds,
+                    positive_frontier_complete: frontier_complete,
+                    negative_frontier_empty: frontier_complete
+                        && frontier.negative_row_edges == 0 && frontier.negative_bounds == 0,
+                });
+            }
+        }
+        Ok(readbacks)
     }
     fn canonical_effect(&self, endpoint: EffectEndpointKey) -> EffectEndpointKey {
         #[cfg(feature = "shadow-apply-candidate")]

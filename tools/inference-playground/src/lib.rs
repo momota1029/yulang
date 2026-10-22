@@ -679,6 +679,112 @@ mod tests {
     }
 
     #[test]
+    fn unchanged_types_sample_reads_receiver_bounds_from_its_pinned_module_session() {
+        let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
+        assert_eq!(source.len(), 142);
+        let text: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(
+            text.clone(), Arc::new(scan_header(text)),
+            Arc::new(playground_syntax_environment().unwrap()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new(
+            "inference-playground", "samples/Types.yu",
+        )));
+        let (provider_sources, indexes, role_indexes) = pinned_source_world().unwrap();
+        let imports = SemanticImports::with_source_imports_and_role_indexes(
+            &parsed, &identity, &indexes, &role_indexes,
+        ).unwrap();
+        let hir = Arc::new(lower_module_with_local_source(identity, &parsed, imports).unwrap());
+        let expected_display_id = role_indexes.iter().flat_map(|index| index.roles())
+            .find(|role| role.head.spelling.as_ref() == "Display"
+                && role.id.module.file().key().normalized_workspace_relative_path() == "lib/std/core/fmt.yu")
+            .expect("the pinned fmt module owns Display").id.clone();
+        let global_inventory = yu_hir::shadow::resolve_source_role_implementation_candidates(
+            &expected_display_id, &indexes, &role_indexes,
+        ).expect("relative imports in the complete pinned world resolve from their owning module");
+        assert!(global_inventory.implementations.iter().any(|candidate|
+            candidate.implementation.id.module.file().key().normalized_workspace_relative_path()
+                == "lib/std/text/path.yu"));
+        assert!(global_inventory.implementations.iter().any(|candidate|
+            candidate.implementation.id.module.file().key().normalized_workspace_relative_path()
+                == "lib/std/time.yu"));
+        assert_eq!(global_inventory.implementations.len(), 16,
+            "the pinned source census retains all Display implementations across fmt, path, and time");
+        let unsupported_targets = global_inventory.implementations.iter()
+            .filter(|candidate| candidate.implementation.target.shape.is_none())
+            .map(|candidate| candidate.implementation.target.text.as_ref())
+            .collect::<Vec<_>>();
+        assert_eq!(unsupported_targets, ["(list 'a)", "(opt 'a)", "(result 'ok 'err)"],
+            "unsupported target syntax stays source-visible and cannot match the primitive where subjects");
+        for target_name in ["int", "str"] {
+            let matches = global_inventory.implementations.iter().filter(|candidate|
+                candidate.implementation.target.shape.as_ref()
+                    == Some(&yu_hir::shadow::SourceImplementationTypeShape::Name(target_name.into()))
+            ).collect::<Vec<_>>();
+            let [matched] = matches.as_slice() else {
+                panic!("the exact pinned Display inventory has one {target_name} implementation")
+            };
+            assert!(matched.implementation.body.as_ref().unwrap().entries.iter()
+                .all(|entry| entry.kind != yu_syntax::SyntaxKind::WhereClause),
+                "the concrete {target_name} implementation has no source prerequisites");
+        }
+        let mut modules = pinned_provider_projection(&hir, &provider_sources, &indexes, &role_indexes).unwrap();
+        modules.push(hir);
+
+        let readbacks = CandidateInference::inspect_deferred_field_tails_with_role_sources(
+            modules, &indexes, &role_indexes,
+        ).unwrap();
+        let matching_say = readbacks.iter().filter(|item| item.member.as_ref() == "say")
+            .collect::<Vec<_>>();
+        let [say] = matching_say.as_slice() else {
+            panic!("the unchanged sample has exactly one deferred say receiver")
+        };
+        assert_eq!(say.positive_shape.as_ref(), Some(&
+            yu_solver::shadow_apply::CandidateReceiverShape::Tuple(vec![
+                yu_solver::shadow_apply::CandidateReceiverShape::Int,
+                yu_solver::shadow_apply::CandidateReceiverShape::Str,
+            ]),
+        ), "pinned imports and ordinary source schedules preserve tuple element order: {say:?}");
+        assert!(say.positive_frontier_complete, "all positive lower rows and tuple children were visited: {say:?}");
+        assert!(say.negative_frontier_empty, "no reachable receiver upper row or endpoint is present: {say:?}");
+        assert_eq!(say.reachable_negative_row_edges, 0, "{say:?}");
+        assert_eq!(say.reachable_negative_bounds, 0, "{say:?}");
+        assert!(say.implementation_inventory_complete, "all source-owned implementations for the exact retained Display.say identity are inventoried: {say:?}");
+        assert_eq!(say.unsupported_target_count, 3, "the local Display inventory exposes three additional unsupported targets, so selection remains unavailable: {say:?}");
+        let [tuple_match] = say.target_matches.as_slice() else {
+            panic!("the exact ordered pair has one structural target match: {say:?}")
+        };
+        assert_eq!(tuple_match.target, yu_hir::shadow::SourceImplementationTypeShape::Tuple(vec![
+            yu_hir::shadow::SourceImplementationTypeShape::Name("'a".into()),
+            yu_hir::shadow::SourceImplementationTypeShape::Name("'b".into()),
+        ]));
+        assert_eq!(tuple_match.type_substitution, [
+            ("'a".into(), yu_hir::shadow::SourceImplementationTypeShape::Name("int".into())),
+            ("'b".into(), yu_hir::shadow::SourceImplementationTypeShape::Name("str".into())),
+        ]);
+        assert_eq!(tuple_match.where_clause_count, 2);
+        assert_eq!(tuple_match.where_role_identities,
+            [Some(expected_display_id.clone()), Some(expected_display_id.clone())]);
+        assert_eq!(tuple_match.where_clause_readbacks.len(), 2);
+        for (clause, (subject, concrete)) in tuple_match.where_clause_readbacks.iter().zip([
+            ("'a", "int"), ("'b", "str"),
+        ]) {
+            assert!(clause.subject_source.is_some(), "where subject keeps source identity: {clause:?}");
+            assert_eq!(clause.subject.as_ref(), Some(&
+                yu_hir::shadow::SourceImplementationTypeShape::Name(subject.into())));
+            assert_eq!(clause.substituted_subject.as_ref(), Some(&
+                yu_hir::shadow::SourceImplementationTypeShape::Name(concrete.into())));
+            assert_eq!(clause.role_identity, Some(expected_display_id.clone()));
+            assert_eq!(clause.matching_implementations.len(), 1, "{clause:?}");
+            assert_eq!(clause.matching_implementations_without_prerequisites,
+                clause.matching_implementations, "{clause:?}");
+            assert_eq!(clause.matching_implementations[0].module.file().key()
+                .normalized_workspace_relative_path(), "lib/std/core/fmt.yu");
+        }
+    }
+
+    #[test]
     fn unchanged_console_sample_reaches_imported_name_candidate_boundary() {
         let source = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
         assert_eq!(source.len(), 92);

@@ -2563,7 +2563,10 @@ mod member_source_tests {
             panic!("FieldTail receiver is a Value row");
         };
         assert_eq!(session.candidate_receiver_positive_shape(receiver), Some(
-            CandidateReceiverShape::Tuple(vec![CandidateReceiverShape::Int, CandidateReceiverShape::Str]),
+            crate::shadow_apply::CandidateReceiverShape::Tuple(vec![
+                crate::shadow_apply::CandidateReceiverShape::Int,
+                crate::shadow_apply::CandidateReceiverShape::Str,
+            ]),
         ), "all source schedules drain before ordered receiver bounds are read back");
     }
 }

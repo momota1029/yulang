@@ -795,11 +795,20 @@ fn resolve_role_name_in_module(
                 }
             };
             if target.is_empty() { return Err(SourceRoleImplementationError::UnsupportedRoleImport); }
+            let target_is_local_nonmodule_namespace = !target.contains("::")
+                && source_index.declarations.iter().any(|declaration|
+                    declaration.namespace.as_ref() == importer.as_ref()
+                        && declaration.name.as_deref() == Some(target.as_str())
+                        && declaration.kind != SyntaxKind::ModDeclaration
+                );
             let resolution = match resolve_public_export(source_indexes, &target, name) {
                 Ok(resolution) if resolution.declaration.kind == SyntaxKind::RoleDeclaration => resolution,
                 Ok(_) => return Err(SourceRoleImplementationError::UnsupportedRoleImport),
                 Err(SourceExportResolveError::MissingExport { .. })
                     if matches!(leaf.selection, SourceUseSelection::Glob { .. }) => continue,
+                Err(SourceExportResolveError::MissingModule(_))
+                    if matches!(leaf.selection, SourceUseSelection::Glob { .. })
+                        && target_is_local_nonmodule_namespace => continue,
                 Err(SourceExportResolveError::Recovered { .. }) =>
                     return Err(SourceRoleImplementationError::RecoveredRoleImport),
                 Err(SourceExportResolveError::Ambiguous { .. }) =>
