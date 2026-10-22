@@ -220,16 +220,18 @@ impl InferenceSession {
                             }
                             continue;
                         }
-                        if let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(term)) = endpoint {
-                            if p != Polarity::Positive { return Err(SolveAvailabilityError::ReceiptMismatch); }
-                            let TermView::PositiveRecord { fields } = self.store.term_view(term)
-                                .map_err(|_| SolveAvailabilityError::ReceiptMismatch)? else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                        if let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(term) | ValueEndpointKey::NegativeRecord(term)) = endpoint {
+                            let fields = match (p, self.store.term_view(term).map_err(|_| SolveAvailabilityError::ReceiptMismatch)?) {
+                                (Polarity::Positive, TermView::PositiveRecord { fields })
+                                | (Polarity::Negative, TermView::NegativeRecord { fields }) => fields,
+                                _ => return Err(SolveAvailabilityError::ReceiptMismatch),
+                            };
                             let start = tuple_ports.len();
                             let len = fields.len();
                             let old = tuple_ports.capacity();
                             tuple_ports.try_reserve_exact(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                            for (_, element) in fields {
-                                tuple_ports.push((Key(ExtrusionEndpoint::Value(self.value_endpoint(*element, p)), p, target), *element));
+                            for field in fields {
+                                tuple_ports.push((Key(ExtrusionEndpoint::Value(self.value_endpoint(field.value, p)), p, target), field.value));
                             }
                             self.candidate_scratch_growth(&mut charge, (tuple_ports.capacity() - old)
                                 .checked_mul(std::mem::size_of::<(Key, Term)>()).ok_or(SolveAvailabilityError::IdentityExhausted)?)?;
@@ -396,22 +398,31 @@ impl InferenceSession {
                             .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                         let changed = children.iter().any(|(child, _)| rows.get(child).or_else(|| structure.get(child)).copied() != Some(child.0));
                         let result = if !changed { original } else {
-                            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(term)) = original else { return Err(SolveAvailabilityError::ReceiptMismatch); };
-                            let TermView::PositiveRecord { fields } = self.store.term_view(term).map_err(|_| SolveAvailabilityError::ReceiptMismatch)?
-                                else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(term) | ValueEndpointKey::NegativeRecord(term)) = original else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                            let fields = match (p, self.store.term_view(term).map_err(|_| SolveAvailabilityError::ReceiptMismatch)?) {
+                                (Polarity::Positive, TermView::PositiveRecord { fields })
+                                | (Polarity::Negative, TermView::NegativeRecord { fields }) => fields,
+                                _ => return Err(SolveAvailabilityError::ReceiptMismatch),
+                            };
                             let mut mapped = Vec::new();
                             mapped.try_reserve_exact(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                            for (label, term) in fields { mapped.push((label.clone(), *term)); }
-                            let temporary = mapped.iter().try_fold(mapped.capacity().checked_mul(std::mem::size_of::<(Box<str>, Term)>())
-                                .ok_or(SolveAvailabilityError::IdentityExhausted)?, |n, (label, _)| n.checked_add(label.len()).ok_or(SolveAvailabilityError::IdentityExhausted))?;
+                            mapped.extend(fields.iter().cloned());
+                            let temporary = mapped.iter().try_fold(mapped.capacity().checked_mul(std::mem::size_of::<RecordField<Term>>())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?, |n, field| n.checked_add(field.name.len()).ok_or(SolveAvailabilityError::IdentityExhausted))?;
                             self.candidate_scratch_growth(&mut charge, temporary)?;
                             let rebuilt = (|| {
-                                for ((_, mapped_term), (child, original_term)) in mapped.iter_mut().zip(children) {
+                                for (field, (child, original_term)) in mapped.iter_mut().zip(children) {
                                     let copied = rows.get(child).or_else(|| structure.get(child)).copied().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-                                    *mapped_term = if copied == child.0 { *original_term } else { self.candidate_endpoint_term(copied, p)? };
+                                    field.value = if copied == child.0 { *original_term } else { self.candidate_endpoint_term(copied, p)? };
                                 }
-                                let term = self.with_term_events(|arena| arena.positive_record(&mapped))?;
-                                Ok::<_, SolveAvailabilityError>(ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(term)))
+                                let term = self.with_term_events(|arena| match p {
+                                    Polarity::Positive => arena.positive_record(&mapped),
+                                    Polarity::Negative => arena.negative_record(&mapped),
+                                })?;
+                                Ok::<_, SolveAvailabilityError>(ExtrusionEndpoint::Value(match p {
+                                    Polarity::Positive => ValueEndpointKey::PositiveRecord(term),
+                                    Polarity::Negative => ValueEndpointKey::NegativeRecord(term),
+                                }))
                             })();
                             drop(mapped);
                             self.candidate_graph.as_mut().unwrap().scratch_bytes -= temporary;
@@ -525,7 +536,7 @@ impl InferenceSession {
             }
             ExtrusionEndpoint::Value(
                 ValueEndpointKey::PositiveFunction(t) | ValueEndpointKey::NegativeFunction(t)
-                | ValueEndpointKey::PositiveTuple(t, _) | ValueEndpointKey::NegativeTuple(t, _) | ValueEndpointKey::PositiveRecord(t),
+                | ValueEndpointKey::PositiveTuple(t, _) | ValueEndpointKey::NegativeTuple(t, _) | ValueEndpointKey::PositiveRecord(t) | ValueEndpointKey::NegativeRecord(t),
             ) => t,
             _ => return Err(SolveAvailabilityError::IdentityExhausted),
         })

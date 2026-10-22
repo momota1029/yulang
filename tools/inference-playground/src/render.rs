@@ -141,10 +141,10 @@ pub(crate) fn graph_into(
         } else if let Some(fields) = node.record_fields() {
             output.observe(fields.len())?;
             output.write_str("Record({").map_err(cap)?;
-            for (index, (label, child)) in fields.enumerate() {
+            for (index, (label, optional, child)) in fields.enumerate() {
                 if index != 0 { output.write_str(", ").map_err(cap)?; }
                 let child = node_indices.get(&child).copied().ok_or_else(|| "missing record child identity".to_owned())?;
-                write!(output, "{label}: n{child}").map_err(cap)?;
+                write!(output, "{label}{}: n{child}", if optional { "?" } else { "" }).map_err(cap)?;
             }
             output.write_str("})").map_err(cap)?;
         } else if let Some(children) = node.tuple_children() {

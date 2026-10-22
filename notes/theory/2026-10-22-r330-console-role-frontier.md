@@ -2407,3 +2407,34 @@ premises explicitly through the upcoming source/native integration.
 Selected-prelude repair validation: full HIR **181/181** and full native
 playground **268/268** pass. The old failing assertion is unchanged. No sample
 completion or independent proof review is inferred from this inventory repair.
+
+### Polarized presence metadata through complete structural transport
+
+The term, capture graph, FreshUse, extrusion, public scheme and research graph
+observer now retain RecordField(name, optional, value) in both polarities.
+Term construction checks every child's kind/polarity before publication; names,
+presence and order participate in interning. Payload ownership counts the real
+field descriptor and label bytes. The common field map copies only its child
+coordinate while preserving metadata. Capture stores the same-polarity child;
+FreshUse rebuilds all fields using its existing single row map; extrusion does
+the same at the target level, sharing aliases and preserving older anchors.
+Public/debug rendering prints optional markers from that retained bit.
+
+The constructor lemma above now has these concrete owners. New tests inspect
+required/optional interning distinction, wrong-polarity refusal, empty polarized
+records, both-polarity nested extrusion, and genuine Capture followed by two
+FreshUses of a Function containing positive/negative records with the same
+child rows. The fresh local aliases remain shared within each use, differ across
+uses, and retain the original older anchor. Positive record source reachability
+remains covered by the prior ordinary source extrusion test. Negative optional
+records are native construction evidence at this checkpoint, not source-formal
+admission or a concrete-adaptation theorem.
+
+Focused solver Record **9**, the same tests with resource probing **9**, full
+native playground **268**, fresh WASM **54** execution examples and original
+output/identity/diagnostic fixtures, and TypeScript pass. Existing expectations
+are preserved. The concrete Record/Record consumer explicitly returns
+RecordAdaptationUnavailable until local presence/child witnesses are connected;
+pattern preflight/runtime admission remains withheld. This avoids silently
+accepting the new constructor as an opaque atom. Catalog remains 6/19 and all
+original parent proof/source/production gates remain OPEN, UNREVIEWED.

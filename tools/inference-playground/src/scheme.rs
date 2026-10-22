@@ -30,7 +30,7 @@ enum NodeKind<'a> {
     Row(RowId),
     Function([NodeId; 4]),
     Tuple(Vec<NodeId>),
-    Record(Vec<(Box<str>, NodeId)>),
+    Record(Vec<(Box<str>, bool, NodeId)>),
     Effect(Effect<'a>),
 }
 struct Effect<'a> {
@@ -124,7 +124,7 @@ impl<'a> CandidatePublicScheme<'a> {
             } else if let Some(fields) = source.record_fields() {
                 budget.observe(fields.len())?;
                 bounded(fields.len(), "record fields")?;
-                NodeKind::Record(fields.map(|(label, child)| Ok((label.into(), node_id(child)?))).collect::<Result<_, String>>()?)
+                NodeKind::Record(fields.map(|(label, optional, child)| Ok((label.into(), optional, node_id(child)?))).collect::<Result<_, String>>()?)
             } else if let Some(children) = source.tuple_children() {
                 budget.observe(children.len())?;
                 bounded(children.len(), "tuple elements")?;
@@ -434,9 +434,10 @@ impl<'a> CandidatePublicScheme<'a> {
                         output.observe(fields.len())?;
                         output.write_char('{').map_err(cap)?;
                         stack.push(Step::Text("}"));
-                        for (index, (label, child)) in fields.iter().enumerate().rev() {
+                        for (index, (label, optional, child)) in fields.iter().enumerate().rev() {
                             stack.push(Step::Node(*child));
                             stack.push(Step::Text(": "));
+                            if *optional { stack.push(Step::Text("?")); }
                             stack.push(Step::Text(label));
                             if index != 0 { stack.push(Step::Text(", ")); }
                         }
@@ -598,8 +599,9 @@ mod tests {
                 NodeKind::Record(fields) => {
                     let sources = source.record_fields().unwrap();
                     assert_eq!(sources.len(), fields.len());
-                    for ((source_label, source), (label, child)) in sources.zip(fields) {
+                    for ((source_label, source_optional, source), (label, optional, child)) in sources.zip(fields) {
                         assert_eq!(source_label, label.as_ref());
+                        assert_eq!(source_optional, *optional);
                         assert!(source.same_identity(scheme.nodes[child.0].source));
                     }
                 }

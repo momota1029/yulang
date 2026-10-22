@@ -168,7 +168,7 @@ pub(super) struct Graph {
     pub nodes: Vec<Node>,
     /// Ordered child node indexes for tuple nodes; ranges live in `Node::Tuple`.
     pub tuple_children: Vec<usize>,
-    pub record_fields: Vec<(Box<str>, usize)>,
+    pub record_fields: Vec<RecordField<usize>>,
     pub rows: Vec<Row>,
     /// Each prerequisite points at a row already present in this provider graph.
     pub source_role_obligations: Vec<SourceRoleObligation>,
@@ -330,7 +330,7 @@ pub(super) enum Node {
         polarity: Polarity,
         children: [usize; 4],
     },
-    Record { start: usize, len: usize },
+    Record { polarity: Polarity, start: usize, len: usize },
     Tuple {
         polarity: Polarity,
         start: usize,
@@ -677,8 +677,13 @@ fn mapped_endpoint_at(
                 Polarity::Negative => ValueEndpointKey::NegativeFunction(term),
             })
         }
-        Node::Record { .. } => ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(
-            retained.terms.get(node).copied().flatten()?)),
+        Node::Record { polarity, .. } => {
+            let term = retained.terms.get(node).copied().flatten()?;
+            ExtrusionEndpoint::Value(match polarity {
+                Polarity::Positive => ValueEndpointKey::PositiveRecord(term),
+                Polarity::Negative => ValueEndpointKey::NegativeRecord(term),
+            })
+        }
         Node::Tuple { polarity: tuple_polarity, len, .. } => {
             let term = retained.terms.get(node).copied().flatten()?;
             ExtrusionEndpoint::Value(match tuple_polarity {
@@ -1106,8 +1111,8 @@ impl Graph {
             bytes::<(Term, usize)>(self.negative_formal_roots.capacity())?,
             bytes::<Node>(self.nodes.capacity())?,
             bytes::<usize>(self.tuple_children.capacity())?,
-            bytes::<(Box<str>, usize)>(self.record_fields.capacity())?,
-            self.record_fields.iter().try_fold(0usize, |n, (label, _)| n.checked_add(label.len()).ok_or_else(exhausted))?,
+            bytes::<RecordField<usize>>(self.record_fields.capacity())?,
+            self.record_fields.iter().try_fold(0usize, |n, field| n.checked_add(field.name.len()).ok_or_else(exhausted))?,
             bytes::<Row>(self.rows.capacity())?,
             bytes::<SourceRoleObligation>(self.source_role_obligations.capacity())?,
             bytes::<SourceFieldTailObligation>(self.source_field_tail_obligations.capacity())?,
@@ -1692,6 +1697,9 @@ impl<'a> Capture<'a> {
             TermView::PositiveRecord { .. } if kind == ComponentKind::Value && polarity == Polarity::Positive => {
                 Endpoint::Value(ValueEndpointKey::PositiveRecord(term), polarity)
             }
+            TermView::NegativeRecord { .. } if kind == ComponentKind::Value && polarity == Polarity::Negative => {
+                Endpoint::Value(ValueEndpointKey::NegativeRecord(term), polarity)
+            }
             TermView::PositiveTuple { elements }
                 if kind == ComponentKind::Value && polarity == Polarity::Positive =>
             {
@@ -1870,17 +1878,21 @@ impl<'a> Capture<'a> {
                     children,
                 }
             }
-            Endpoint::Value(V::PositiveRecord(term), Polarity::Positive) => {
-                let TermView::PositiveRecord { fields } = self.session.store.term_view(term).map_err(|_| exhausted())?
-                    else { return Err(exhausted()); };
+            Endpoint::Value(V::PositiveRecord(term), Polarity::Positive)
+            | Endpoint::Value(V::NegativeRecord(term), Polarity::Negative) => {
+                let (polarity, fields) = match self.session.store.term_view(term).map_err(|_| exhausted())? {
+                    TermView::PositiveRecord { fields } => (Polarity::Positive, fields),
+                    TermView::NegativeRecord { fields } => (Polarity::Negative, fields),
+                    _ => return Err(exhausted()),
+                };
                 let start = self.graph.record_fields.len();
                 self.graph.record_fields.try_reserve_exact(fields.len()).map_err(|_| exhausted())?;
-                for (label, _) in fields { self.graph.record_fields.push((label.clone(), usize::MAX)); }
-                for (offset, (_, element)) in fields.iter().enumerate() {
-                    let child = self.intern_shape(self.term_endpoint(*element, ComponentKind::Value, Polarity::Positive)?)?;
-                    self.graph.record_fields[start + offset].1 = child;
+                for field in fields { self.graph.record_fields.push(field.map(usize::MAX)); }
+                for (offset, field) in fields.iter().enumerate() {
+                    let child = self.intern_shape(self.term_endpoint(field.value, ComponentKind::Value, polarity)?)?;
+                    self.graph.record_fields[start + offset].value = child;
                 }
-                Node::Record { start, len: fields.len() }
+                Node::Record { polarity, start, len: fields.len() }
             }
             Endpoint::Value(V::PositiveTuple(term, arity), Polarity::Positive)
             | Endpoint::Value(V::NegativeTuple(term, arity), Polarity::Negative) => {
@@ -3948,22 +3960,23 @@ impl InferenceSession {
                             self.negative_function_term(a, ae, re, r)?
                         }
                     }
-                    Node::Record { start, len } => {
+                    Node::Record { polarity, start, len } => {
                         let fields = graph.record_fields.get(start..start.checked_add(len).ok_or_else(exhausted)?)
                             .ok_or_else(exhausted)?;
                         if !finish {
                             push(&mut work, (index, true))?;
-                            for (_, child) in fields.iter().rev() {
-                                if terms[*child].is_none() { push(&mut work, (*child, false))?; }
+                            for field in fields.iter().rev() {
+                                if terms[field.value].is_none() { push(&mut work, (field.value, false))?; }
                             }
                             continue;
                         }
                         let mut mapped = Vec::new();
                         mapped.try_reserve_exact(len).map_err(|_| exhausted())?;
-                        for (label, child) in fields {
-                            mapped.push((label.clone(), terms[*child].ok_or_else(exhausted)?));
-                        }
-                        self.with_term_events(|arena| arena.positive_record(&mapped))?
+                        for field in fields { mapped.push(field.map(terms[field.value].ok_or_else(exhausted)?)); }
+                        self.with_term_events(|arena| match polarity {
+                            Polarity::Positive => arena.positive_record(&mapped),
+                            Polarity::Negative => arena.negative_record(&mapped),
+                        })?
                     }
                     Node::Tuple { polarity, start, len } => {
                         let end = start.checked_add(len).ok_or_else(exhausted)?;
@@ -5565,6 +5578,71 @@ mod authentic_demand_capture_tests {
             }
             assert!(observed_expected_leaf, "pair element row retains its corresponding source lower bound");
         }
+    }
+
+    #[test]
+    fn record_capture_and_freshuse_preserve_presence_polarity_and_aliases() {
+        let source: Arc<yu_syntax::SourceText> = Arc::from("my seed (x:int) = x");
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("record-capture", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap());
+        let mut session = InferenceSession::try_new_candidate(ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap()).unwrap();
+        session.execute().unwrap();
+        let young = session.fresh_value_at_level(3).unwrap();
+        let anchor = session.fresh_value_at_level(0).unwrap();
+        let root = session.fresh_value_at_level(3).unwrap();
+        let mut records = Vec::new();
+        for polarity in [Polarity::Negative, Polarity::Positive] {
+            let child = session.live_value_term(polarity, young).unwrap();
+            let old = session.live_value_term(polarity, anchor).unwrap();
+            let fields = [RecordField { name: "x".into(), optional: true, value: child },
+                RecordField::required("again", child), RecordField::required("old", old)];
+            records.push(session.with_term_events(|arena| match polarity {
+                Polarity::Positive => arena.positive_record(&fields),
+                Polarity::Negative => arena.negative_record(&fields),
+            }).unwrap());
+        }
+        let function = session.positive_function_term(records[0],
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session.batch.collected_leaf_term(Leaf::EffectBottomPositive), records[1]).unwrap();
+        session.candidate_insert_bound(ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(root)),
+            Polarity::Positive, ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(function))).unwrap();
+        let graph = session.capture_candidate_graph(root, 0).unwrap();
+        let first = session.prepare_candidate_fresh_use(&graph, 1, None).unwrap();
+        let second = session.prepare_candidate_fresh_use(&graph, 1, None).unwrap();
+        let young_index = graph.rows.iter().position(|row| row.key == RowKey::Value(young)).unwrap();
+        let anchor_index = graph.rows.iter().position(|row| row.key == RowKey::Value(anchor)).unwrap();
+        assert_ne!(first.rows[young_index], second.rows[young_index]);
+        let mut polarities = Vec::new();
+        for (index, node) in graph.nodes.iter().enumerate() {
+            let Node::Record { polarity, start, len } = *node else { continue; };
+            polarities.push(polarity);
+            let original = &graph.record_fields[start..start + len];
+            assert_eq!(original.iter().map(|field| (field.name.as_ref(), field.optional)).collect::<Vec<_>>(),
+                [("x", true), ("again", false), ("old", false)]);
+            for fresh in [&first, &second] {
+                assert_eq!(fresh.rows[anchor_index], RowKey::Value(anchor));
+                let term = fresh.terms[index].unwrap();
+                let fields = match session.store.term_view(term).unwrap() {
+                    TermView::PositiveRecord { fields } if polarity == Polarity::Positive => fields,
+                    TermView::NegativeRecord { fields } if polarity == Polarity::Negative => fields,
+                    other => panic!("changed record polarity: {other:?}"),
+                };
+                assert_eq!(fields.len(), len);
+                for (field, original) in fields.iter().zip(original) {
+                    assert_eq!(field.name, original.name);
+                    assert_eq!(field.optional, original.optional);
+                    assert_eq!(Some(field.value), fresh.terms[original.value]);
+                }
+                assert_eq!(fields[0].value, fields[1].value);
+                let ValueEndpointKey::ValueRow(row) = session.value_endpoint(fields[0].value, polarity) else { panic!("row child"); };
+                assert_eq!(RowKey::Value(row), fresh.rows[young_index]);
+            }
+        }
+        assert_eq!(polarities.len(), 2);
+        assert!(polarities.contains(&Polarity::Positive) && polarities.contains(&Polarity::Negative));
     }
 
     #[test]

@@ -308,7 +308,7 @@ use term::{
 };
 #[cfg(test)]
 use term::{BranchTermCheckpoint, TERM_PAGE_SLOTS};
-pub use term::{LiveVariableView, Polarity, Term, TermLookupError, TermView};
+pub use term::{RecordField, LiveVariableView, Polarity, Term, TermLookupError, TermView};
 
 /// Resource counters use the documented logical `capacity * size_of::<slot>()`
 /// model.  Overflow is an invariant violation, never a wrapped measurement.
@@ -776,6 +776,7 @@ enum ValueEndpointKey {
     PositiveFunction(Term),
     NegativeFunction(Term),
     PositiveRecord(Term),
+    NegativeRecord(Term),
     PositiveTuple(Term, usize),
     NegativeTuple(Term, usize),
 }
@@ -4144,6 +4145,7 @@ impl SolverError {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SolveAvailabilityError {
+    RecordAdaptationUnavailable,
     ArtifactMismatch,
     CauseMismatch,
     ReceiptMismatch,
@@ -11756,6 +11758,10 @@ impl InferenceSession {
                 assert_eq!(polarity, Polarity::Positive);
                 ValueEndpointKey::PositiveRecord(term)
             }
+            TermView::NegativeRecord { .. } => {
+                assert_eq!(polarity, Polarity::Negative);
+                ValueEndpointKey::NegativeRecord(term)
+            }
             TermView::PositiveTuple { elements } => {
                 assert_eq!(polarity, Polarity::Positive);
                 ValueEndpointKey::PositiveTuple(term, elements.len())
@@ -13389,6 +13395,9 @@ impl InferenceSession {
                             },
                         )?;
                         return Ok(());
+                    }
+                    if matches!((key.lower, key.upper), (ValueEndpointKey::PositiveRecord(_), ValueEndpointKey::NegativeRecord(_))) {
+                        return Err(SolveAvailabilityError::RecordAdaptationUnavailable);
                     }
                     if let (
                         ValueEndpointKey::PositiveTuple(lower_term, lower_arity),
@@ -15189,6 +15198,7 @@ impl InferenceSession {
             ValueEndpointKey::BoolNegative => ValueShape::Bool,
             ValueEndpointKey::StrNegative => ValueShape::Str,
             ValueEndpointKey::NegativeFunction(_) => ValueShape::Function,
+            ValueEndpointKey::NegativeRecord(_) => ValueShape::Record,
             ValueEndpointKey::NegativeTuple(_, arity) => ValueShape::Tuple(arity),
             ValueEndpointKey::BottomNegative => ValueShape::Bottom,
             _ => return None,

@@ -739,6 +739,7 @@ pub enum CandidateSourceValueEndpoint {
     PositiveFunction(Term),
     NegativeFunction(Term),
     PositiveRecord(Term),
+    NegativeRecord(Term),
     PositiveTuple(Term, usize),
     NegativeTuple(Term, usize),
 }
@@ -925,6 +926,7 @@ fn source_value_endpoint(endpoint: ValueEndpointKey) -> CandidateSourceValueEndp
         ValueEndpointKey::PositiveFunction(term) => E::PositiveFunction(term),
         ValueEndpointKey::NegativeFunction(term) => E::NegativeFunction(term),
         ValueEndpointKey::PositiveRecord(term) => E::PositiveRecord(term),
+        ValueEndpointKey::NegativeRecord(term) => E::NegativeRecord(term),
         ValueEndpointKey::PositiveTuple(term, arity) => E::PositiveTuple(term, arity),
         ValueEndpointKey::NegativeTuple(term, arity) => E::NegativeTuple(term, arity),
     }
@@ -2481,7 +2483,7 @@ impl<'a> CandidateGraphNode<'a> {
         match self.graph.nodes[self.index] {
             Node::Row { polarity, .. } | Node::Function { polarity, .. } | Node::Tuple { polarity, .. } | Node::EffectOperand { polarity, .. } => polarity,
             Node::Leaf(Atom::Bottom | Atom::IntPositive | Atom::UnitPositive | Atom::BoolPositive | Atom::StrPositive | Atom::EffectBottom) => Polarity::Positive,
-            Node::Record { .. } => Polarity::Positive,
+            Node::Record { polarity, .. } => polarity,
             Node::Leaf(_) => Polarity::Negative,
         }
     }
@@ -2497,10 +2499,10 @@ impl<'a> CandidateGraphNode<'a> {
             _ => None,
         }
     }
-    pub fn record_fields(self) -> Option<impl ExactSizeIterator<Item = (&'a str, Self)> + 'a> {
-        let crate::candidate_scheme::Node::Record { start, len } = self.graph.nodes[self.index] else { return None; };
+    pub fn record_fields(self) -> Option<impl ExactSizeIterator<Item = (&'a str, bool, Self)> + 'a> {
+        let crate::candidate_scheme::Node::Record { start, len, .. } = self.graph.nodes[self.index] else { return None; };
         let fields = self.graph.record_fields.get(start..start.checked_add(len)?)?;
-        Some(fields.iter().map(move |(label, index)| (label.as_ref(), Self { state: self.state, graph: self.graph, index: *index })))
+        Some(fields.iter().map(move |field| (field.name.as_ref(), field.optional, Self { state: self.state, graph: self.graph, index: field.value })))
     }
     pub fn tuple_children(self) -> Option<impl ExactSizeIterator<Item = Self> + 'a> {
         let crate::candidate_scheme::Node::Tuple { start, len, .. } = self.graph.nodes[self.index] else {
@@ -3737,7 +3739,7 @@ impl InferenceSession {
                 let mut mapped = Vec::new();
                 mapped.try_reserve_exact(fields.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
                 for (label, field) in fields {
-                    mapped.push((label.clone(), self.candidate_endpoint(*field, Polarity::Positive)?));
+                    mapped.push(RecordField::required(label.clone(), self.candidate_endpoint(*field, Polarity::Positive)?));
                 }
                 let record = self.with_term_events(|arena| arena.positive_record(&mapped))?;
                 let upper = self.candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?;

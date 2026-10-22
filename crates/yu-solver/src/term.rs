@@ -152,6 +152,22 @@ pub enum Polarity {
     Negative,
 }
 
+/// One named structural child. Presence is retained through every row map.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct RecordField<T> {
+    pub name: Box<str>,
+    pub optional: bool,
+    pub value: T,
+}
+impl<T> RecordField<T> {
+    pub(crate) fn required(name: impl Into<Box<str>>, value: T) -> Self {
+        Self { name: name.into(), optional: false, value }
+    }
+    pub(crate) fn map<U>(&self, value: U) -> RecordField<U> {
+        RecordField { name: self.name.clone(), optional: self.optional, value }
+    }
+}
+
 /// Borrowed term observation remains exhaustively matchable without exposing a
 /// constructor or interner for its opaque child handles.
 ///
@@ -164,7 +180,7 @@ pub enum Polarity {
 ///         TermView::PositiveBottom | TermView::NegativeTop | TermView::NegativeBottom => {}
 ///         TermView::PositiveFunction { .. } | TermView::NegativeFunction { .. } => {}
 ///         TermView::PositiveTuple { .. } | TermView::NegativeTuple { .. } => {}
-///         TermView::PositiveRecord { .. } => {}
+///         TermView::PositiveRecord { .. } | TermView::NegativeRecord { .. } => {}
 ///     }
 /// }
 /// ```
@@ -188,7 +204,8 @@ pub enum TermView<'a> {
         result_effect: Term,
         result: Term,
     },
-    PositiveRecord { fields: &'a [(Box<str>, Term)] },
+    PositiveRecord { fields: &'a [RecordField<Term>] },
+    NegativeRecord { fields: &'a [RecordField<Term>] },
     PositiveTuple { elements: &'a [Term] },
     NegativeTuple { elements: &'a [Term] },
 }
@@ -217,7 +234,8 @@ pub(crate) enum TermNode {
         result_effect: Term,
         result: Term,
     },
-    PositiveRecord { fields: Arc<[(Box<str>, Term)]> },
+    PositiveRecord { fields: Arc<[RecordField<Term>]> },
+    NegativeRecord { fields: Arc<[RecordField<Term>]> },
     PositiveTuple { elements: Arc<[Term]> },
     NegativeTuple { elements: Arc<[Term]> },
 }
@@ -232,7 +250,7 @@ impl TermNode {
             // solely because the approved observation algebra already names
             // them; no F5b path constructs one.
             Self::PositiveFunction { .. } | Self::NegativeFunction { .. }
-            | Self::PositiveTuple { .. } | Self::NegativeTuple { .. } | Self::PositiveRecord { .. } => ComponentKind::Value,
+            | Self::PositiveTuple { .. } | Self::NegativeTuple { .. } | Self::PositiveRecord { .. } | Self::NegativeRecord { .. } => ComponentKind::Value,
         }
     }
     pub(crate) fn view(&self) -> TermView<'_> {
@@ -266,6 +284,7 @@ impl TermNode {
                 result: *result,
             },
             Self::PositiveRecord { fields } => TermView::PositiveRecord { fields },
+            Self::NegativeRecord { fields } => TermView::NegativeRecord { fields },
             Self::PositiveTuple { elements } => TermView::PositiveTuple { elements },
             Self::NegativeTuple { elements } => TermView::NegativeTuple { elements },
         }
@@ -426,15 +445,15 @@ fn align_up(length: u32) -> Result<u32, crate::CollectionAvailabilityError> {
 #[derive(Debug)]
 enum StructuralBacking {
     Tuple(Arc<[Term]>),
-    Record(Arc<[(Box<str>, Term)]>),
+    Record(Arc<[RecordField<Term>]>),
 }
 impl StructuralBacking {
     fn payload_bytes(&self) -> Option<usize> {
         match self {
             Self::Tuple(elements) => elements.len().checked_mul(std::mem::size_of::<Term>()),
             Self::Record(fields) => fields.iter().try_fold(
-                fields.len().checked_mul(std::mem::size_of::<(Box<str>, Term)>())?,
-                |bytes, (label, _)| bytes.checked_add(label.len())),
+                fields.len().checked_mul(std::mem::size_of::<RecordField<Term>>())?,
+                |bytes, field| bytes.checked_add(field.name.len())),
         }
     }
 }
@@ -1261,18 +1280,28 @@ impl BranchTermArena {
         self.intern_structure(node, StructuralBacking::Tuple(backing))
     }
 
-    pub(crate) fn positive_record(&mut self, fields: &[(Box<str>, Term)]) -> Result<Term, crate::ConstraintError> {
-        for (_, term) in fields {
-            let node = self.lookup(*term).map_err(|_| crate::ConstraintError::ArtifactMismatch)?;
-            if !matches_endpoint(node, ComponentKind::Value, Polarity::Positive) {
+    pub(crate) fn positive_record(&mut self, fields: &[RecordField<Term>]) -> Result<Term, crate::ConstraintError> {
+        self.record(fields, Polarity::Positive)
+    }
+    pub(crate) fn negative_record(&mut self, fields: &[RecordField<Term>]) -> Result<Term, crate::ConstraintError> {
+        self.record(fields, Polarity::Negative)
+    }
+    fn record(&mut self, fields: &[RecordField<Term>], polarity: Polarity) -> Result<Term, crate::ConstraintError> {
+        for field in fields {
+            let node = self.lookup(field.value).map_err(|_| crate::ConstraintError::ArtifactMismatch)?;
+            if !matches_endpoint(node, ComponentKind::Value, polarity) {
                 return Err(crate::ConstraintError::ArtifactMismatch);
             }
         }
         let mut owned = Vec::new();
         owned.try_reserve_exact(fields.len()).map_err(|_| crate::ConstraintError::IdentityExhausted)?;
         owned.extend(fields.iter().cloned());
-        let fields: Arc<[(Box<str>, Term)]> = Arc::from(owned);
-        self.intern_structure(TermNode::PositiveRecord { fields: fields.clone() }, StructuralBacking::Record(fields))
+        let fields: Arc<[RecordField<Term>]> = Arc::from(owned);
+        let node = match polarity {
+            Polarity::Positive => TermNode::PositiveRecord { fields: fields.clone() },
+            Polarity::Negative => TermNode::NegativeRecord { fields: fields.clone() },
+        };
+        self.intern_structure(node, StructuralBacking::Record(fields))
     }
 
     fn intern_structure(&mut self, node: TermNode, backing: StructuralBacking) -> Result<Term, crate::ConstraintError> {
@@ -1374,6 +1403,7 @@ fn matches_endpoint(node: &TermNode, kind: ComponentKind, polarity: Polarity) ->
         | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveBottom)
         | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveTuple { .. })
         | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveRecord { .. })
+        | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeRecord { .. })
         | (ComponentKind::Value, Polarity::Negative, TermNode::Leaf(Leaf::IntNegative | Leaf::UnitNegative | Leaf::BoolNegative | Leaf::StrNegative))
         | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeTop)
         | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeBottom)
@@ -1726,7 +1756,7 @@ mod tests {
         branch.take_capacity_events().count();
         let negative = branch.live_variable(ComponentKind::Value, Polarity::Negative, 0).unwrap();
         branch.take_capacity_events().count();
-        let fields = vec![("x".into(), child), ("alias".into(), child)];
+        let fields = vec![RecordField::required("x", child), RecordField::required("alias", child)];
         let record = branch.positive_record(&fields).unwrap();
         branch.take_capacity_events().count();
         assert_eq!(branch.term_view(record).unwrap(), TermView::PositiveRecord { fields: &fields });
@@ -1735,19 +1765,19 @@ mod tests {
         branch.take_capacity_events().count();
         assert_ne!(record, empty);
         assert_eq!(branch.term_view(empty).unwrap(), TermView::PositiveRecord { fields: &[] });
-        let swapped = branch.positive_record(&[("alias".into(), child), ("x".into(), child)]).unwrap();
+        let swapped = branch.positive_record(&[RecordField::required("alias", child), RecordField::required("x", child)]).unwrap();
         branch.take_capacity_events().count();
         assert_ne!(record, swapped);
         let before = branch.observations().committed_nodes;
-        assert_eq!(branch.positive_record(&[("bad".into(), negative)]), Err(crate::ConstraintError::ArtifactMismatch));
+        assert_eq!(branch.positive_record(&[RecordField::required("bad", negative)]), Err(crate::ConstraintError::ArtifactMismatch));
         let foreign = BranchTermArena::new(TermBuilder::new().unwrap().seal().unwrap())
             .live_variable(ComponentKind::Value, Polarity::Positive, 0).unwrap();
-        assert_eq!(branch.positive_record(&[("foreign".into(), foreign)]), Err(crate::ConstraintError::ArtifactMismatch));
+        assert_eq!(branch.positive_record(&[RecordField::required("foreign", foreign)]), Err(crate::ConstraintError::ArtifactMismatch));
         assert_eq!(branch.observations().committed_nodes, before);
         assert_eq!(branch.checked_retained_bytes(), branch.checked_independent_retained_bytes());
         assert_eq!(branch.independent_owner_lanes().unwrap().bytes.into_iter().sum::<usize>(), branch.checked_retained_bytes().unwrap());
         branch.begin_route();
-        let rolled_back = branch.positive_record(&[("nested".into(), record)]).unwrap();
+        let rolled_back = branch.positive_record(&[RecordField::required("nested", record)]).unwrap();
         branch.rollback_route();
         assert!(branch.term_view(record).is_ok());
         assert_eq!(branch.term_view(rolled_back), Err(TermLookupError::InvalidHandle));
@@ -1760,6 +1790,41 @@ mod tests {
             crate::f5c_draft_heap::close_f5c_resource_events().unwrap();
             std::fs::remove_file(event_path).unwrap();
         }
+    }
+
+    #[test]
+    fn record_presence_and_negative_children_remain_distinct_interned_payloads() {
+        let mut branch = BranchTermArena::new(TermBuilder::new().unwrap().seal().unwrap());
+        let positive = branch.live_variable(ComponentKind::Value, Polarity::Positive, 0).unwrap();
+        branch.take_capacity_events().count();
+        let negative = branch.live_variable(ComponentKind::Value, Polarity::Negative, 0).unwrap();
+        branch.take_capacity_events().count();
+        for polarity in [Polarity::Positive, Polarity::Negative] {
+            let child = if polarity == Polarity::Positive { positive } else { negative };
+            let required = vec![RecordField::required("x", child), RecordField::required("again", child)];
+            let mut optional = required.clone();
+            optional[0].optional = true;
+            let first = branch.record(&required, polarity).unwrap();
+            branch.take_capacity_events().count();
+            let second = branch.record(&optional, polarity).unwrap();
+            branch.take_capacity_events().count();
+            assert_ne!(first, second);
+            assert_eq!(branch.record(&optional, polarity).unwrap(), second);
+            let retained = match branch.term_view(second).unwrap() {
+                TermView::PositiveRecord { fields } if polarity == Polarity::Positive => fields,
+                TermView::NegativeRecord { fields } if polarity == Polarity::Negative => fields,
+                other => panic!("record polarity changed: {other:?}"),
+            };
+            assert_eq!(retained, optional);
+            let opposite = if polarity == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+            assert_eq!(branch.record(&optional, opposite), Err(crate::ConstraintError::ArtifactMismatch));
+        }
+        let positive_empty = branch.positive_record(&[]).unwrap();
+        branch.take_capacity_events().count();
+        let negative_empty = branch.negative_record(&[]).unwrap();
+        branch.take_capacity_events().count();
+        assert_ne!(positive_empty, negative_empty);
+        assert_eq!(branch.checked_retained_bytes(), branch.checked_independent_retained_bytes());
     }
 
     #[test]

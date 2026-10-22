@@ -415,3 +415,10 @@ runtime leases cover polarized optional Record metadata and its complete
 transport. Derive child/presence witnesses before pattern publication. The
 note pins the original propagation/boundary distinction and default markers.
 Primary only, UNREVIEWED; original all-source and A/B parents remain OPEN.
+
+Polarized Record checkpoint: names/optional bits/children traverse both
+polarities, Capture, FreshUse, extrusion, public/debug schemes and graph
+observation. Solver 9, resource 9, native 268, fresh WASM 54 and TS pass.
+Concrete adaptation and record-formal publication remain explicitly withheld;
+no parent closure or production promotion. Next: local presence/child witnesses
+and original default constraints/evaluation under the same active envelope.

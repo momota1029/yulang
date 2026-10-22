@@ -2504,8 +2504,8 @@ mod tests {
         let anchor = session.fresh_value_at_level(0).unwrap();
         let p = session.live_value_term(Polarity::Positive, young).unwrap();
         let ap = session.live_value_term(Polarity::Positive, anchor).unwrap();
-        let inner = session.with_term_events(|arena| arena.positive_record(&[("x".into(), p), ("anchor".into(), ap)])).unwrap();
-        let outer = session.with_term_events(|arena| arena.positive_record(&[("inner".into(), inner), ("again".into(), p)])).unwrap();
+        let inner = session.with_term_events(|arena| arena.positive_record(&[RecordField::required("x", p), RecordField::required("anchor", ap)])).unwrap();
+        let outer = session.with_term_events(|arena| arena.positive_record(&[RecordField::required("inner", inner), RecordField::required("again", p)])).unwrap();
         let checking = session.batch.candidate_source.references.checking.keys().next().unwrap().clone();
         let relation = session.candidate_context_seed(LiveConstraintTask::Value(CanonicalValuePairKey {
             lower: ValueEndpointKey::ValueRow(young), upper: ValueEndpointKey::ValueRow(young),
@@ -2515,13 +2515,56 @@ mod tests {
         let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(term)) = copied else { panic!("record copy"); };
         assert_ne!(term, outer);
         let TermView::PositiveRecord { fields } = session.store.term_view(term).unwrap() else { panic!("outer"); };
-        assert_eq!(fields.iter().map(|(label, _)| label.as_ref()).collect::<Vec<_>>(), ["inner", "again"]);
-        let TermView::PositiveRecord { fields: inner } = session.store.term_view(fields[0].1).unwrap() else { panic!("inner"); };
-        assert_eq!(inner[0].1, fields[1].1);
-        assert_eq!(session.value_endpoint(inner[1].1, Polarity::Positive), ValueEndpointKey::ValueRow(anchor));
-        let ValueEndpointKey::ValueRow(copy) = session.value_endpoint(fields[1].1, Polarity::Positive) else { panic!("row copy"); };
+        assert_eq!(fields.iter().map(|field| field.name.as_ref()).collect::<Vec<_>>(), ["inner", "again"]);
+        let TermView::PositiveRecord { fields: inner } = session.store.term_view(fields[0].value).unwrap() else { panic!("inner"); };
+        assert_eq!(inner[0].value, fields[1].value);
+        assert_eq!(session.value_endpoint(inner[1].value, Polarity::Positive), ValueEndpointKey::ValueRow(anchor));
+        let ValueEndpointKey::ValueRow(copy) = session.value_endpoint(fields[1].value, Polarity::Positive) else { panic!("row copy"); };
         assert_ne!(copy, young);
         assert_eq!(session.value_levels[copy as usize], 0);
+    }
+
+    #[test]
+    fn record_optional_extrusion_preserves_both_polarities_and_shared_rows() {
+        for polarity in [Polarity::Positive, Polarity::Negative] {
+            let mut session = make_session("my seed x = seed x");
+            let young = session.fresh_value_at_level(3).unwrap();
+            let anchor = session.fresh_value_at_level(0).unwrap();
+            let child = session.live_value_term(polarity, young).unwrap();
+            let old = session.live_value_term(polarity, anchor).unwrap();
+            let inner_fields = [RecordField { name: "x".into(), optional: true, value: child }, RecordField::required("old", old)];
+            let inner = session.with_term_events(|arena| match polarity {
+                Polarity::Positive => arena.positive_record(&inner_fields),
+                Polarity::Negative => arena.negative_record(&inner_fields),
+            }).unwrap();
+            let fields = [RecordField::required("nested", inner), RecordField { name: "again".into(), optional: true, value: child }];
+            let outer = session.with_term_events(|arena| match polarity {
+                Polarity::Positive => arena.positive_record(&fields),
+                Polarity::Negative => arena.negative_record(&fields),
+            }).unwrap();
+            let checking = session.batch.candidate_source.references.checking.keys().next().unwrap().clone();
+            let relation = session.candidate_context_seed(LiveConstraintTask::Value(CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(young), upper: ValueEndpointKey::ValueRow(young),
+            }), &checking, None).unwrap().unwrap();
+            session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
+            let endpoint = match polarity { Polarity::Positive => ValueEndpointKey::PositiveRecord(outer), Polarity::Negative => ValueEndpointKey::NegativeRecord(outer) };
+            let copied = session.candidate_extrude(ExtrusionEndpoint::Value(endpoint), polarity, 0).unwrap();
+            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(copied) | ValueEndpointKey::NegativeRecord(copied)) = copied else { panic!("record copy"); };
+            assert_ne!(copied, outer);
+            let view = |term| match session.store.term_view(term).unwrap() {
+                TermView::PositiveRecord { fields } if polarity == Polarity::Positive => fields,
+                TermView::NegativeRecord { fields } if polarity == Polarity::Negative => fields,
+                other => panic!("wrong polarity: {other:?}"),
+            };
+            let fields = view(copied);
+            let inner = view(fields[0].value);
+            assert!(!fields[0].optional && fields[1].optional && inner[0].optional && !inner[1].optional);
+            assert_eq!(fields[1].value, inner[0].value);
+            assert_eq!(inner[1].value, old);
+            let ValueEndpointKey::ValueRow(fresh) = session.value_endpoint(fields[1].value, polarity) else { panic!("row"); };
+            assert_ne!(fresh, young);
+            assert_eq!(session.value_levels[fresh as usize], 0);
+        }
     }
 
     #[test]
