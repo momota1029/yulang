@@ -37,7 +37,7 @@ impl RootCompSchema {
         formal: &LocalSourceParameter,
     ) -> Option<Arc<Self>> {
         match formal.annotation.as_ref()?.ty.value {
-            SourceAnnotationValue::Variable(_) | SourceAnnotationValue::Hole(_) | SourceAnnotationValue::Function { .. } =>
+            SourceAnnotationValue::Variable(_) | SourceAnnotationValue::Hole(_) | SourceAnnotationValue::Function { .. } | SourceAnnotationValue::Tuple(_) =>
                 Self::original_parameter(lambda, formal),
             _ => Self::from_parameter(lambda, formal),
         }

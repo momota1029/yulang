@@ -1792,3 +1792,170 @@ catalog entries using JavaScript's cooked template values: raw template extracti
 left escape sequences in Tour and Callback Hygiene, so those two earlier rows
 are not reliable receipts for original editor contents. Effects, Types and Console
 have no such decoding difference; their byte identity remains established.
+
+### Ordered product annotation construction
+
+The cooked original catalog was re-run after `0144862ce`; its 19 sources and
+results are in `target/r332-catalog-cooked/{manifest,results}.json`. Template
+escaping affects Tour and Callback Hygiene; their first remaining categories
+are still syntax and source imports respectively. Types/Console/Effects succeed;
+Type Mismatch and Parameter Provenance produce their intended candidate conflicts.
+Tuple Arity needs its written `(int, int)` product retained before the existing
+ordered-product constraint can compare it with the three-component argument.
+
+For a written product `(T0, ..., Tn)` retain all components in order. Unit `()`
+and grouping `(T)` stay distinct; trailing punctuation `(T,)` is a one-element
+product under `syntax-reference/en/src/types/type-expression-core.md` §6. No
+arity-specific sample shortcut is permitted. Positive/negative products contain
+the corresponding child polarities without reversal; Function reverses only
+its argument. Existing ordered Tuple term, Capture and FreshUse constructors enumerate all
+children. Direct inspection found the extrusion case missing; construct it as
+described below before claiming full product transport. Annotation producers use
+the same terms, retaining repeated variables and distinct source holes.
+
+Formal effect permissions nested inside tuple-valued arguments need an explicit
+Element(index) path before any Function argument/result step. Product traversal
+does not manufacture an effect port; the final permission step still names a
+real Function effect port. Captured formal-root lookup must include negative
+products when such paths start at a product. Every index and original negative
+root must be checked; no shape-based permission is invented. This extends the
+source-to-product constructor cases conditional on existing graph transforms.
+
+Tuple component-root computation annotations are retained by HIR but stay
+unsupported in candidate preflight until a component computation contract exists;
+ignoring them would silently erase effects. Effects inside Function components
+retain their normal four-port meaning. Monomorphic operation matchers retain
+their existing scalar boundary. RootComp results that are tuple values preserve
+the actual ReceivedValue and its view as other general results do. These are
+UNREVIEWED construction obligations, not full-source/parent proof closure.
+
+The old HIR rejection probe for `(int,)` is superseded by the syntax authority
+above: add positive single-component preservation and use genuinely malformed
+`(int,,)` for recovery rejection. Record this causal expectation change before
+writing it; no language type-error or output expectation is weakened.
+The empty-type-group test also froze `(int, int)` as unsupported. Replace that
+part with a separate ordered-product preservation test (including both one and
+two components); keep all Unit/grouping assertions intact. The original Tuple
+Arity program already reaches the existing Tuple(3)-to-Tuple(2) conflict at its
+unaltered argument span after the constructor connection.
+
+#### Product propagation and receiving boundaries
+
+The actual source constructor now produces ordered positive/negative Tuple
+terms through `with_term_events`; recursive temporary child buffers are charged
+while live and released on both successful and failing routes. Each child keeps
+its original polarity; the existing Function constructor supplies variance
+reversal. Capture uses the same Tuple child indexes already reconstructed by
+FreshUse. Its retained formal-domain map is generalized from Function roots to
+composite roots, preserving original terms and demand root identity. Export walks
+Element indices and checks that the final permission port is a Function effect
+row; Tuple has no synthetic effect port.
+
+The new native source test exercises two different nested permission paths,
+`element[0]/result` and `element[1]/element[1]/result`, with the same io family but
+distinct source rows/tails. A state callback passes through that annotated tuple
+and the invoked callback's state support remains connected to the answer
+Function's effect row. This applies the user's negative `[io] = [io,'e]`
+correction inside the product constructor. The same annotation constructor is
+rolled back after publication and retried; domain, permission and scratch state
+are checked with the owning route checkpoint.
+
+A tuple RootComp result containing a polymorphic Add closure and an effectful
+integer retains the closure's dispatch dictionary; after resumption and tuple
+matching, the original body returns 14. Ordinary tuple components, grouping,
+singletons, nested products, local annotations, expression ascriptions and
+independent hole/variable uses are covered separately.
+
+The general callback-receiving premise remains OPEN: a probe that catches a
+callback invocation directly through a tuple field still reports HandlerEvidence,
+as does the corresponding existing Function-value receiving boundary. No
+handler grant is invented to pass that probe. This does not block the original
+Tuple Arity diagnostic or RootComp tuple-result construction, and is not
+misreported as general higher-order runtime closure.
+
+#### Missing native extrusion case and its construction
+
+Direct owner inspection found `candidate_extrusion::Work::Visit` treats Tuple as
+an unchanged terminal: only Function and EffectView have structural continuations.
+The earlier assumption that all existing transforms already traversed products
+is corrected above. This is not established by green example tests. Implement
+Work::Tuple with an operation-local arena of (child Key, original Term), retaining
+order/arity and scheduling children at the SAME polarity and target level. Rows
+use the existing shared operation memo, so repeated coordinates share one copy;
+Function children still reverse argument polarity through their own constructor.
+Rebuild only when a child endpoint changes. Changed child Tuple endpoints must be
+convertible back to terms, including when nested inside a Function. Pending row
+bounds are still visited after structural reconstruction; no alternate copy link,
+new permission or different scope rule is introduced. Charge the arena and the
+reconstruction buffer while live, drop both on every error/success path, and use
+with_term_events for new product terms. Existing begin/finish extrusion owns all
+new row parents, origin transfer and later intrusion qualification.
+
+The added constructor lemma is conditional on each child transport: for n>0,
+map((t0,...,tn-1))=(map(t0),...,map(tn-1)); the same joint map is used for every
+child, hence aliases across children and outside fixed anchors remain identical.
+Every target child has the required scope by the child premise, so the product
+does too. Value inclusion is checked componentwise at equal arity; unequal arity
+has no product rule. This composes with the existing Function/effect cases; it
+does not establish their open source premises or the whole A/B theorem.
+
+Native evidence for the added extrusion constructor now checks both polarities:
+ordered nested products, repeated same-polarity coordinates shared across a
+Tuple/Function boundary, unchanged level-zero anchors, Function argument reversal,
+Function effect-row copies, complete route rollback, and identity on a second
+already-scoped extrusion. Opposite-polarity copies remain distinct until the
+existing intrusion rule qualifies them; the test does not equate them merely
+because their parent is the same. Three actual source schedules reach the new
+Work::Tuple constructor (4, 8 and 5 observed completions respectively), including
+`my outer x = { my local (pair:('a,'a)) = pair; local (x,x) }`.
+The trace is observation only and has no role in production admission.
+
+The final native package run after this repair passes 257 tests. Source annotation
+HIR checks pass 4 tests, with a separate malformed-ascription regression passing.
+The tuple FreshUse reconstruction test passes. An additional authentic-demand
+filter still fails with ReceiptMismatch at
+`structural_bound_scoped_payload_authentic_capture_uses_shared_reconstruction`;
+this is the exact failure independently baseline-reproduced earlier in this
+note, not a newly certified green solver suite. The broader Tuple filter yields
+14 pass / 1 fail at the older deferred-selection readback expectation; comparison
+against the immediate parent is recorded at the checkpoint below.
+
+#### Product checkpoint (2026-10-23)
+
+Exact original Tuple Arity source SHA-256:
+`a7fca5148dd1af2a5ff6a32095b76e41984fc51b04b12fe790b1cfe86610829d`.
+It now reports Tuple(3) against Tuple(2) at the unchanged argument bytes 97..106
+(line 3, column 6), through native CLI and Web whole-module reporting. The UI
+includes the original fixture. All 19 cooked original sources were re-run;
+`target/r332-catalog-cooked/results-after-products.json` preserves complete
+stdout/stderr. Three ordinary examples and all three intended diagnostic examples
+now meet their checks. The other 13 examples remain blocked by the previously
+identified syntax/source/import gates. This does not claim all-sample completion.
+
+Final evidence: native package **257 pass**; source annotation HIR **4 pass**;
+malformed-ascription HIR **1 pass**; Tuple solver filter **14 pass / 1 fail**;
+fresh WASM **40** execution examples plus unchanged Types/Console/Effects module
+outputs and **3** original diagnostic examples; TypeScript and diff checks pass.
+The three added solver tests cover actual source-to-native Tuple extrusion,
+both polarities/alias/anchor/Function scope transport with rollback, and nested
+permission paths with state residual preservation. `tuple_fresh_use_reconstructs_each_captured_child_in_order`
+also passes separately. Logs: `target/r332-tuple-native-final.log`,
+`target/r332-tuple-hir-all.log`, `target/r332-tuple-hir-recovery.log`,
+`target/r332-tuple-solver-all.log`, `target/r332-tuple-web.log`.
+
+An isolated clean worktree at the immediate parent `0144862ce` reproduces
+`post_schedule_readback_recovers_receiver_tuple_shape` with the same failed
+DeferredSelectionUnavailable expectation (baseline Tuple filter **11 pass / 1
+fail**). It also reproduces the exact ReceiptMismatch in
+`structural_bound_scoped_payload_authentic_capture_uses_shared_reconstruction`.
+Logs: `target/r332-tuple-baseline.log` and
+`target/r332-tuple-baseline-demand.log`. The temporary worktree was removed;
+its tracked files were unchanged. Neither expectation was altered. These open
+baseline gates are retained as obligations, not hidden by a green suite claim.
+
+Primary only, no subagent or independent review. All derivations remain
+UNREVIEWED and conditional where stated. The original A/B/source adequacy,
+principality, remaining 13 original samples, general callback receiving and
+operation/component computation gates remain open. The next shared source path
+is ordinary pinned arithmetic used by the record/range/search samples, followed
+by their remaining constructor/iteration gates; no sample rewrite is authorized.

@@ -229,7 +229,7 @@ fn same_handler_argument_v1(
         && Arc::ptr_eq(&left.callback_operation, &right.callback_operation)
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum FormalPortStep { Argument, Result }
+pub(super) enum FormalPortStep { Argument, Result, Element(usize) }
 // This retained record describes local source permission only. It is not an
 // arrival, provider, contribution or consumer witness.
 #[allow(dead_code, reason = "the approved producer retains source permission; authentic arrival consumption remains open")]
@@ -1418,6 +1418,34 @@ impl InferenceSession {
                 let row = self.candidate_annotation_hole(scope, position, level)?;
                 Ok((self.live_value_term(Polarity::Positive, row)?, self.live_value_term(Polarity::Negative, row)?))
             }
+            SourceAnnotationValue::Tuple(elements) => {
+                if elements.is_empty() || elements.iter().any(|element| element.effects.is_some()) { return Err(exhausted()); }
+                let mut positives = Vec::new();
+                let mut negatives = Vec::new();
+                positives.try_reserve_exact(elements.len()).map_err(|_| exhausted())?;
+                negatives.try_reserve_exact(elements.len()).map_err(|_| exhausted())?;
+                let temporary = bytes::<Term>(positives.capacity())?.checked_add(bytes::<Term>(negatives.capacity())?).ok_or_else(exhausted)?;
+                let graph = self.candidate_graph.as_mut().unwrap();
+                graph.scratch_bytes = graph.scratch_bytes.checked_add(temporary).ok_or_else(exhausted)?;
+                let result = (|| {
+                    self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+                    for (index, element) in elements.iter().enumerate() {
+                        let base = path.len();
+                        path.push(FormalPortStep::Element(index));
+                        let pair = self.candidate_formal_value_pair(annotation, element, scope, parameter, occurrence,
+                            variance, level, views, path, permissions, permission_nested_bytes, scratch_bytes);
+                        path.truncate(base);
+                        let (positive, negative) = pair?;
+                        positives.push(positive);
+                        negatives.push(negative);
+                    }
+                    Ok((self.with_term_events(|terms| terms.positive_tuple(&positives))?,
+                        self.with_term_events(|terms| terms.negative_tuple(&negatives))?))
+                })();
+                drop((positives, negatives));
+                self.candidate_graph.as_mut().unwrap().scratch_bytes -= temporary;
+                result
+            }
             SourceAnnotationValue::Function { argument, result } => {
                 let reversed = if variance == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
                 let base = path.len();
@@ -1842,6 +1870,9 @@ impl InferenceSession {
                     }
                 }
             }
+            if let SourceAnnotationValue::Tuple(elements) = &ty.value {
+                for element in elements { collect(element, variance, annotation, scope, sets)?; }
+            }
             if let SourceAnnotationValue::Function { argument, result } = &ty.value {
                 let opposite = if variance == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
                 collect(argument, opposite, annotation, scope, sets)?;
@@ -1949,6 +1980,27 @@ impl InferenceSession {
                 let SignatureContext::Annotation(_, scope) = context else { return Err(exhausted()); };
                 let row = self.candidate_annotation_hole(scope, position, level)?;
                 self.live_value_term(polarity, row)
+            }
+            SourceAnnotationValue::Tuple(elements) => {
+                if elements.is_empty() || elements.iter().any(|element| element.effects.is_some()) { return Err(exhausted()); }
+                let mut children = Vec::new();
+                children.try_reserve_exact(elements.len()).map_err(|_| exhausted())?;
+                let temporary = bytes::<Term>(children.capacity())?;
+                let graph = self.candidate_graph.as_mut().unwrap();
+                graph.scratch_bytes = graph.scratch_bytes.checked_add(temporary).ok_or_else(exhausted)?;
+                let result = (|| {
+                    self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
+                    for element in elements {
+                        children.push(self.candidate_signature_value(context, element, polarity, variance, level, values, effects, views)?);
+                    }
+                    self.with_term_events(|terms| match polarity {
+                        Polarity::Positive => terms.positive_tuple(&children),
+                        Polarity::Negative => terms.negative_tuple(&children),
+                    })
+                })();
+                drop(children);
+                self.candidate_graph.as_mut().unwrap().scratch_bytes -= temporary;
+                result
             }
             SourceAnnotationValue::Function { argument, result } => {
                 let opposite = if polarity == Polarity::Positive {
@@ -2402,6 +2454,172 @@ mod tests {
         session.start_candidate_graph().unwrap();
         session
     }
+    #[test]
+    fn source_tuple_annotations_reach_native_tuple_extrusion() {
+        let fixtures = [
+            "my outer x = { my local y = y; local (x,x) }",
+            "my outer x = { my local (pair:('a,'a)) = pair; local (x,x) }",
+            "my apply f x = f x\nmy outer x = apply (\\y -> (x,y)) x",
+        ];
+        for text in fixtures {
+            let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+            let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+                Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+            assert!(parsed.structural_recoveries().is_empty());
+            let hir = yu_hir::shadow::lower_module_with_local_source(
+                yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("tuple-source", "source.yu"))),
+                &parsed, yu_hir::SemanticImports::empty()).unwrap();
+            candidate_context::r148_trace_begin();
+            let result = crate::shadow_apply::CandidateInference::solve(Arc::new(hir));
+            let trace = candidate_context::r148_trace_finish();
+            let candidate = result.unwrap();
+            assert!(candidate.candidate_conflicts().is_empty());
+            let tuples = trace.iter().filter(|event| event.starts_with("work-pop ") && event.contains("task=Tuple(")).count();
+            eprintln!("source Tuple extrusion: {text:?}: {tuples}");
+            assert!(tuples > 0, "this actual source schedule must reach native Tuple extrusion: {text}");
+        }
+    }
+
+    #[test]
+    fn tuple_extrusion_transports_nested_children_aliases_and_function_polarities() {
+        fn elements(session: &InferenceSession, term: Term) -> Vec<Term> {
+            match session.store.term_view(term).unwrap() {
+                TermView::PositiveTuple { elements } | TermView::NegativeTuple { elements } => elements.to_vec(),
+                _ => panic!("tuple"),
+            }
+        }
+        // Internal constructor evidence. The separate source annotation and
+        // runtime tests establish source reachability; this fixture seeds a
+        // retained source context explicitly to inspect the native copy map.
+        for polarity in [Polarity::Positive, Polarity::Negative] {
+            let mut session = make_session("my seed x = seed x");
+            let young = session.fresh_value_at_level(3).unwrap();
+            let anchor = session.fresh_value_at_level(0).unwrap();
+            let effects = session.fresh_effect_at_level(3).unwrap();
+            let p = session.live_value_term(Polarity::Positive, young).unwrap();
+            let n = session.live_value_term(Polarity::Negative, young).unwrap();
+            let ap = session.live_value_term(Polarity::Positive, anchor).unwrap();
+            let an = session.live_value_term(Polarity::Negative, anchor).unwrap();
+            let ep = session.live_effect_term(Polarity::Positive, effects).unwrap();
+            let en = session.live_effect_term(Polarity::Negative, effects).unwrap();
+            let positive = session.with_term_events(|terms| terms.positive_tuple(&[p, ap, p])).unwrap();
+            let negative = session.with_term_events(|terms| terms.negative_tuple(&[n, an, n])).unwrap();
+            let function = match polarity {
+                Polarity::Positive => session.positive_function_term(negative, en, ep, positive).unwrap(),
+                Polarity::Negative => session.negative_function_term(positive, ep, en, negative).unwrap(),
+            };
+            let outer = session.with_term_events(|terms| match polarity {
+                Polarity::Positive => terms.positive_tuple(&[positive, function, p]),
+                Polarity::Negative => terms.negative_tuple(&[negative, function, n]),
+            }).unwrap();
+            let initial = ExtrusionEndpoint::Value(session.value_endpoint(outer, polarity));
+            let checking = session.batch.candidate_source.references.checking.keys().next().unwrap().clone();
+            let relation = session.candidate_context_seed(LiveConstraintTask::Value(CanonicalValuePairKey {
+                lower: ValueEndpointKey::ValueRow(young), upper: ValueEndpointKey::ValueRow(young),
+            }), &checking, None).unwrap().unwrap();
+            session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
+            let scratch = session.candidate_graph.as_ref().unwrap().scratch_bytes;
+            let mut checkpoint = None;
+            assert_eq!(session.with_route_transaction(|session| {
+                checkpoint = Some(RouteCheckpoint::capture(session));
+                session.candidate_extrude(initial, polarity, 0)?;
+                Err::<(), _>(exhausted())
+            }), Err(exhausted()));
+            checkpoint.unwrap().assert_restored(&session);
+            assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, scratch);
+            let copied = session.candidate_extrude(initial, polarity, 0).unwrap();
+            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveTuple(copied_term, 3)
+                | ValueEndpointKey::NegativeTuple(copied_term, 3)) = copied else { panic!("copied product"); };
+            assert_ne!(copied, initial, "a product with younger children cannot remain an opaque leaf");
+            let outer = elements(&session, copied_term);
+            let inner = elements(&session, outer[0]);
+            assert_eq!(inner[0], inner[2]);
+            assert_eq!(inner[0], outer[2], "one operation map preserves cross-constructor aliases");
+            assert_eq!(session.value_endpoint(inner[1], polarity), ValueEndpointKey::ValueRow(anchor));
+            let ValueEndpointKey::ValueRow(copy) = session.value_endpoint(inner[0], polarity) else { panic!("value copy"); };
+            assert_ne!(copy, young);
+            assert_eq!(session.value_levels[copy as usize], 0);
+            let (argument, argument_effect, result_effect, result) = match session.store.term_view(outer[1]).unwrap() {
+                TermView::PositiveFunction { argument, argument_effect, result_effect, result }
+                | TermView::NegativeFunction { argument, argument_effect, result_effect, result } => (argument, argument_effect, result_effect, result),
+                _ => panic!("function child"),
+            };
+            assert_eq!(result, outer[0]);
+            let opposite = if polarity == Polarity::Positive { Polarity::Negative } else { Polarity::Positive };
+            let argument = elements(&session, argument);
+            let ValueEndpointKey::ValueRow(argument_copy) = session.value_endpoint(argument[0], opposite) else { panic!("argument copy"); };
+            assert_eq!(session.value_levels[argument_copy as usize], 0);
+            assert_ne!(argument_copy, copy, "opposite polarities retain their separate copy keys");
+            for (term, polarity) in [(argument_effect, opposite), (result_effect, polarity)] {
+                let EffectEndpointKey::EffectRow(row) = session.effect_endpoint(term, polarity) else { panic!("effect copy"); };
+                assert_eq!(session.effect_levels[row as usize], 0);
+            }
+            assert_eq!(session.candidate_extrude(copied, polarity, 0).unwrap(), copied,
+                "already scoped products preserve structural identity");
+            assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, scratch);
+        }
+    }
+
+    #[test]
+    fn tuple_formal_permissions_keep_element_paths_and_transaction_ownership() {
+        use crate::shadow_apply::CandidateGraphFormalPortStep::{Element, Result as ResultPort};
+        let text = "act io:\n    our tick: int -> ()\nmy f(pair:((int -> [io] ()), (int, int -> [io] ()))) = pair";
+        let complete = format!("act state:\n    our tick: int -> ()\n{text}\nmy callback n = state::tick n\nmy answer ignored = case f (callback,(0,callback)):\n    (left,_) -> left 0");
+        let source: Arc<yu_syntax::SourceText> = Arc::from(complete);
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        assert!(parsed.structural_recoveries().is_empty());
+        let hir = yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("tuple-formal", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap();
+        let owner = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) => Some(binding.definition_root().clone()), _ => None,
+        }).unwrap();
+        let answer = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "answer" => Some(binding.definition_root().clone()), _ => None,
+        }).unwrap();
+        let candidate = crate::shadow_apply::CandidateInference::solve(Arc::new(hir)).unwrap();
+        assert!(candidate.candidate_conflicts().is_empty());
+        let graph = candidate.export(&owner).unwrap();
+        let permissions = graph.formal_effect_permissions().unwrap();
+        assert_eq!(permissions.len(), 2);
+        assert_eq!(permissions[0].path(), &[Element(0), ResultPort]);
+        assert_eq!(permissions[1].path(), &[Element(1), Element(1), ResultPort]);
+        assert_ne!(permissions[0].source_row(), permissions[1].source_row());
+        assert_eq!(permissions[0].permitted(), permissions[1].permitted());
+        assert!(!permissions[0].open_tail().same_identity(permissions[1].open_tail()));
+        assert!(permissions.iter().all(|permission| permission.open_tail().row()
+            .is_some_and(|row| row.kind() == ComponentKind::Effect)));
+        let io = &permissions[0].permitted()[0];
+        let answer = candidate.export(&answer).unwrap();
+        let state_node = answer.nodes().find(|node| matches!(node.effect_operand(),
+            Some(crate::shadow_apply::CandidateGraphEffectOperand::SupportView { permitted, .. })
+                if permitted.iter().any(|effect| effect != io))).expect("state remains in the returned computation");
+        assert!(answer.bounds().any(|bound| bound.kind() == ComponentKind::Effect
+            && bound.lower().same_identity(state_node)
+            && bound.upper().row().is_some_and(|row| row.kind() == ComponentKind::Effect)),
+            "negative io inside a product accepts state and keeps its residual");
+
+        let mut session = make_session(text);
+        let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
+            .find(|action| matches!(action, candidate_source::Action::FormalAnnotation { .. })).unwrap().clone();
+        let candidate_source::Action::FormalAnnotation { annotation, parameter, occurrence, scope } = action else { unreachable!() };
+        let scratch = session.candidate_graph.as_ref().unwrap().scratch_bytes;
+        let mut checkpoint = None;
+        assert_eq!(session.with_route_transaction(|session| {
+            checkpoint = Some(RouteCheckpoint::capture(session));
+            session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)?;
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        checkpoint.unwrap().assert_restored(&session);
+        let graph = session.candidate_graph.as_ref().unwrap();
+        assert_eq!(graph.scratch_bytes, scratch);
+        assert!(graph.intrusion.effect_algebra.formal_domains.is_empty());
+        assert!(graph.intrusion.effect_algebra.formal_permissions.is_empty());
+        session.with_route_transaction(|session| session.candidate_formal_annotation(&annotation, parameter, &occurrence, &scope)).unwrap();
+        assert_eq!(session.candidate_graph.as_ref().unwrap().scratch_bytes, scratch);
+    }
+
     #[test]
     fn unit_formal_source_constraints_retain_domain_and_rollback() {
         let mut session = make_session("my f() = 7");
@@ -2965,6 +3183,7 @@ mod tests {
                 let (child, child_effect) = match step {
                     FormalPortStep::Argument => (argument, argument_effect),
                     FormalPortStep::Result => (result, result_effect),
+                    FormalPortStep::Element(_) => panic!("function-only fixture"),
                 };
                 effect = Some(child_effect);
                 if index + 1 != path.len() { value = child; }

@@ -164,7 +164,7 @@ enum FieldTailMemberSelection {
 pub(super) struct Graph {
     pub source_frontier: Vec<candidate_source::SourceRegionId>,
     pub owned_regions: Vec<candidate_source::SourceRegionId>,
-    pub negative_functions: HashMap<Term, usize>,
+    pub negative_formal_roots: HashMap<Term, usize>,
     pub nodes: Vec<Node>,
     /// Ordered child node indexes for tuple nodes; ranges live in `Node::Tuple`.
     pub tuple_children: Vec<usize>,
@@ -878,7 +878,7 @@ impl GraphState {
                 continue;
             }
             observe(route_owner, route_index, DemandTransportStage::MatchingRoute);
-            let Some(&node_index) = graph.negative_functions.get(&original_root) else {
+            let Some(&node_index) = graph.negative_formal_roots.get(&original_root) else {
                 observe(route_owner, route_index, DemandTransportStage::Rejected("original-root-absent"));
                 continue;
             };
@@ -1099,7 +1099,7 @@ impl Graph {
             bytes::<(candidate_context::LocalWeightId, u32, Option<usize>)>(self.context_views.capacity())?,
             bytes::<candidate_source::SourceRegionId>(self.source_frontier.capacity())?,
             bytes::<candidate_source::SourceRegionId>(self.owned_regions.capacity())?,
-            bytes::<(Term, usize)>(self.negative_functions.capacity())?,
+            bytes::<(Term, usize)>(self.negative_formal_roots.capacity())?,
             bytes::<Node>(self.nodes.capacity())?,
             bytes::<usize>(self.tuple_children.capacity())?,
             bytes::<Row>(self.rows.capacity())?,
@@ -2349,7 +2349,7 @@ impl InferenceSession {
             evidence_charge,
             session: self,
             graph: Graph {
-                source_frontier, owned_regions, negative_functions: HashMap::new(),
+                source_frontier, owned_regions, negative_formal_roots: HashMap::new(),
                 nodes: Vec::new(), tuple_children: Vec::new(),
                 rows: Vec::new(),
                 source_role_obligations: retained_obligations,
@@ -2536,17 +2536,22 @@ impl InferenceSession {
             bytes::<u32>(capture.shape_effect_rows.capacity())?,
             bytes::<candidate_context::RelationId>(capture.completed_lambda_effect_origins.capacity())?,
         ])?;
-        // Retain only negative Function roots needed to connect source-owned
-        // formal permissions. Keeping every negative Function here made the
+        // Retain only negative composite roots needed to connect source-owned
+        // formal permissions. Keeping every negative constructor here made the
         // public graph's memory scale with all captured endpoints even when
         // no formal effect annotation used them.
         let formal_domains = &capture.session.candidate_graph.as_ref()
             .ok_or_else(exhausted)?.intrusion.effect_algebra.formal_domains;
-        capture.graph.negative_functions.try_reserve(formal_domains.len()).map_err(|_| exhausted())?;
+        capture.graph.negative_formal_roots.try_reserve(formal_domains.len()).map_err(|_| exhausted())?;
         for &term in formal_domains.values() {
-            let endpoint = Endpoint::Value(ValueEndpointKey::NegativeFunction(term), Polarity::Negative);
+            let value = match capture.session.store.term_view(term).map_err(|_| exhausted())? {
+                TermView::NegativeFunction { .. } => ValueEndpointKey::NegativeFunction(term),
+                TermView::NegativeTuple { elements } => ValueEndpointKey::NegativeTuple(term, elements.len()),
+                _ => continue,
+            };
+            let endpoint = Endpoint::Value(value, Polarity::Negative);
             if let Some(&index) = capture.endpoints.get(&endpoint) {
-                capture.graph.negative_functions.insert(term, index);
+                capture.graph.negative_formal_roots.insert(term, index);
             }
         }
         let graph_bytes = capture.graph.bytes()?;
@@ -3962,7 +3967,7 @@ impl InferenceSession {
                     let local = scope_remap.inputs.contains_key(&demand.input);
                     demand.output_scope = scope_remap.scopes.get(&demand.output_scope).copied().unwrap_or(demand.output_scope);
                     demand.input = scope_remap.inputs.get(&demand.input).copied().unwrap_or(demand.input);
-                    let index = graph.negative_functions.get(&demand.root).copied().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                    let index = graph.negative_formal_roots.get(&demand.root).copied().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                     demand.root = terms[index].ok_or_else(exhausted)?;
                     if local { demand.use_instance = context_use; }
                 }
@@ -6405,12 +6410,12 @@ my outer (q:[io] int) = {
             if demand.original_call != original_call { return None; }
             assert!(matches!(bound.source_bound, candidate_effect::BoundKey(_, Polarity::Negative,
                 ExtrusionEndpoint::Value(ValueEndpointKey::NegativeFunction(root))) if root == demand.root));
-            assert_eq!(bound.upper, graph.negative_functions[&demand.root]);
+            assert_eq!(bound.upper, graph.negative_formal_roots[&demand.root]);
             Some((relation, demand))
         }).collect();
         assert!(!demands.is_empty());
         assert_eq!(graph.nodes.iter().filter(|node| matches!(node,
-            Node::Function { polarity: Polarity::Negative, .. })).count(), graph.negative_functions.len(),
+            Node::Function { polarity: Polarity::Negative, .. })).count(), graph.negative_formal_roots.len(),
             "structural and latent discovery share the same interned Function nodes");
         for row in &graph.rows {
             let ordinal = row.key.ordinal() as usize;
@@ -6430,7 +6435,7 @@ my outer (q:[io] int) = {
                 if !row.local { assert_eq!(fresh.rows[index], row.key, "borrowed coordinates stay shared with later constraints"); }
             }
             for (relation, demand) in &demands {
-                let index = graph.negative_functions[&demand.root];
+                let index = graph.negative_formal_roots[&demand.root];
                 let Node::Function { polarity: Polarity::Negative, children } = graph.nodes[index] else { panic!("negative demand root"); };
                 let term = fresh.terms[index].unwrap();
                 let TermView::NegativeFunction { argument, argument_effect, result_effect, result } = session.store.term_view(term).unwrap() else { panic!("reconstructed demand"); };

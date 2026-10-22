@@ -126,6 +126,8 @@ pub enum SourceAnnotationValue {
     /// An inference hole at its original type-expression position. Distinct
     /// occurrences never acquire equality merely from the spelling `_`.
     Hole(SourceNodeKey),
+    /// Ordered nonempty product; Unit and grouping have separate constructors.
+    Tuple(Vec<SourceAnnotationType>),
     Function {
         argument: Box<SourceAnnotationType>,
         result: Box<SourceAnnotationType>,
@@ -580,23 +582,28 @@ fn parse_group(
     counters: &LoweringCounters,
 ) -> Result<SourceAnnotationType, FormationError> {
     let children = elements(node);
-    match children.as_slice() {
-        [open, close]
-            if open.kind() == SyntaxKind::LParen && close.kind() == SyntaxKind::RParen =>
-        {
-            Ok(SourceAnnotationType {
-                effects: None,
-                value: SourceAnnotationValue::Unit,
-            })
+    if children.first().is_none_or(|child| child.kind() != SyntaxKind::LParen)
+        || children.last().is_none_or(|child| child.kind() != SyntaxKind::RParen)
+    { return Err(unavailable()); }
+    let mut items = Vec::new();
+    let mut separated = false;
+    for child in &children[1..children.len() - 1] {
+        match child.kind() {
+            SyntaxKind::TypeExpression => {
+                items.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+                items.push(parse_type_source(child.as_node().ok_or_else(unavailable)?, counters)?);
+            }
+            SyntaxKind::Comma | SyntaxKind::Semicolon => separated = true,
+            _ => return Err(unavailable()),
         }
-        [open, inner, close]
-            if open.kind() == SyntaxKind::LParen
-                && inner.kind() == SyntaxKind::TypeExpression
-                && close.kind() == SyntaxKind::RParen =>
-        {
-            parse_type_source(inner.as_node().ok_or_else(unavailable)?, counters)
-        }
-        _ => Err(unavailable()),
+    }
+    if items.is_empty() {
+        if separated { return Err(unavailable()); }
+        Ok(SourceAnnotationType { effects: None, value: SourceAnnotationValue::Unit })
+    } else if items.len() == 1 && !separated {
+        Ok(items.pop().unwrap())
+    } else {
+        Ok(SourceAnnotationType { effects: None, value: SourceAnnotationValue::Tuple(items) })
     }
 }
 fn parse_row(
@@ -678,6 +685,7 @@ impl SourceAnnotationType {
             SourceAnnotationValue::Function { argument, result } => {
                 argument.node_count() + result.node_count()
             }
+            SourceAnnotationValue::Tuple(elements) => elements.iter().map(Self::node_count).sum(),
             _ => 0,
         }
     }
@@ -690,6 +698,8 @@ impl SourceAnnotationType {
         effects
             + match &self.value {
                 SourceAnnotationValue::Variable(name) => name.len(),
+                SourceAnnotationValue::Tuple(elements) => elements.capacity() * std::mem::size_of::<Self>()
+                    + elements.iter().map(Self::retained_arena_bytes).sum::<usize>(),
                 SourceAnnotationValue::Function { argument, result } => {
                     2 * std::mem::size_of::<SourceAnnotationType>()
                         + argument.retained_arena_bytes()
@@ -786,13 +796,28 @@ mod tests {
         };
         assert!(matches!(argument.value, SourceAnnotationValue::Unit));
         assert!(matches!(result.value, SourceAnnotationValue::Unit));
-        for text in ["my value: (int,) = 1", "my value: (int, int) = 1"] {
-            let node = annotation_type(text);
-            assert!(matches!(
-                parse_type(&node, &counters),
-                Err(HirAvailabilityError::StructuralProjection)
-            ));
+    }
+    #[test]
+    fn tuple_annotations_preserve_order_arity_grouping_and_recursive_children() {
+        let counters = LoweringCounters::default();
+        for (text, count) in [("my value: (int,) = 1", 1), ("my value: (int;) = 1", 1),
+            ("my value: (int, int) = 1", 2), ("my value: (int; int;) = 1", 2)] {
+            let ty = parse_type(&annotation_type(text), &counters).unwrap();
+            assert_eq!(ty.node_count(), count + 1);
+            let SourceAnnotationValue::Tuple(elements) = &ty.value else { panic!("ordered product"); };
+            assert_eq!(elements.len(), count);
+            assert!(elements.iter().all(|element| matches!(element.value, SourceAnnotationValue::Int)));
+            assert!(ty.retained_arena_bytes() >= elements.capacity() * std::mem::size_of::<SourceAnnotationType>());
         }
+        let ty = parse_type(&annotation_type("my value: (int, (str, bool), () -> int) = 1"), &counters).unwrap();
+        assert_eq!(ty.node_count(), 8);
+        let SourceAnnotationValue::Tuple(elements) = ty.value else { panic!("outer product"); };
+        assert!(matches!(elements[0].value, SourceAnnotationValue::Int));
+        let SourceAnnotationValue::Tuple(inner) = &elements[1].value else { panic!("nested product"); };
+        assert!(matches!(inner[0].value, SourceAnnotationValue::Str));
+        assert!(matches!(inner[1].value, SourceAnnotationValue::Bool));
+        assert!(matches!(elements[2].value, SourceAnnotationValue::Function { .. }));
+        assert!(matches!(parse_type(&annotation_type("my value: (int) = 1"), &counters).unwrap().value, SourceAnnotationValue::Int));
     }
     #[test]
     fn annotation_preflight_visits_once_and_bounds_group_and_arrow_transitions() {

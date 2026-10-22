@@ -61,6 +61,61 @@ fn unchanged_yulang2_effects_sample_runs_through_the_cli() {
 }
 
 #[test]
+fn unchanged_yulang2_tuple_arity_reports_the_original_argument() {
+    let source = include_str!("../../../web/playground/examples/yulang2-tuple-arity.yu");
+    let output = cli_with_args(source, &["--run-module"]);
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert_eq!(output.stderr, b"candidate type conflicts (experimental; graph export withheld):\n  IncompatibleValue { lower: Tuple(3), upper: Tuple(2) } at 3:6 (bytes 97..106)\n  pair (1, 2, 3)\n\n");
+}
+
+#[test]
+fn tuple_annotations_preserve_order_polymorphism_functions_and_result_views() {
+    for (source, expected) in [
+        ("my pair(value:(int,int)) = value\nmy main = pair (1,2)", "(1, 2)\n"),
+        ("my f(x:(int,)) = x\nmy main = f (7,)", "(7,)\n"),
+        ("my f(x:((int,str),bool)) = x\nmy main = f ((1,\"a\"),true)", "((1, \"a\"), true)\n"),
+        ("my pair(value:('a,'a)) = value\nmy main = (pair (1,2), pair (true,false))", "((1, 2), (true, false))\n"),
+        ("my f(x:(_, _)) = x\nmy main = (f (1,true),f (\"a\",2))", "((1, true), (\"a\", 2))\n"),
+        ("my main = (1,true) as (int,bool)", "(1, true)\n"),
+        ("my main = { my pair:(int,str) = (7,\"a\"); pair }", "(7, \"a\")\n"),
+        ("my f(x:((int -> int),int)) = case x:\n    (g,n) -> g n\nmy id x = x\nmy main = f (id,7)", "7\n"),
+        ("act io:\n    our tick: int -> int\nmy relay (thunk:[io] (int,int)) = catch thunk { io::tick(p), k -> { k p; k p } }\nmy main = relay (io::tick 3,4)", "(3, 4)\n"),
+        ("act io:\n    our tick: int -> int\nmy relay(thunk:[io] ((int -> int),int)) = catch thunk { io::tick(p), k -> k p }\nmy add x = x + x\nmy saved = relay (add,io::tick 7)\nmy main = case saved:\n    (f,n) -> f n", "14\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(output.status.success(), "{source}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "{source}");
+        assert!(output.stderr.is_empty());
+    }
+    for source in [
+        "my f(x:(int,bool)) = x\nmy main = f (true,1)",
+        "my f(x:(int,)) = x\nmy main = f 7",
+        "my f(x:(int,int)) = x\nmy main = f (1,)",
+        "my main = (1,true) as (int,int)",
+    ] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("candidate type conflicts"));
+    }
+}
+
+#[test]
+fn tuple_annotation_component_computations_are_not_silently_erased() {
+    for source in [
+        "act io\nmy f(x:([io] int,int)) = x\nmy main = f (1,2)",
+        "act io\nmy main = (1,2) as ([io] int,int)",
+        "act io:\n    our read: () -> (int,int)\nmy main = io::read()",
+    ] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(!output.status.success());
+        assert!(output.stdout.is_empty());
+        assert_eq!(output.stderr, b"unsupported source: current candidate lowering/inference cannot observe this program\n", "{source}");
+    }
+}
+
+#[test]
 fn unit_formals_preserve_currying_local_scope_and_argument_effects() {
     for (source, expected) in [
         ("my f() = 7\nmy main = f()\n", "7\n"),

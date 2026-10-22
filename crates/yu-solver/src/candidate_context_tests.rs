@@ -3182,7 +3182,7 @@ fn captured_bundle_spans_are_sparse_and_shared_across_reconstruction() {
     assert_eq!(graph.bytes().unwrap(), graph.context_views.capacity() * std::mem::size_of::<(LocalWeightId, u32, Option<usize>)>()
         + graph.source_frontier.capacity() * std::mem::size_of::<candidate_source::SourceRegionId>()
         + graph.owned_regions.capacity() * std::mem::size_of::<candidate_source::SourceRegionId>()
-        + graph.negative_functions.capacity() * std::mem::size_of::<(Term, usize)>()
+        + graph.negative_formal_roots.capacity() * std::mem::size_of::<(Term, usize)>()
         + graph.nodes.capacity() * std::mem::size_of::<candidate_scheme::Node>()
         + graph.rows.capacity() * std::mem::size_of::<candidate_scheme::Row>()
         + graph.capture_rows.capacity() * std::mem::size_of::<candidate_scheme::CapturedRowObservation>()

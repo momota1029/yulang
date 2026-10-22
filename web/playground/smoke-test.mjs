@@ -4,6 +4,11 @@ import init, { infer, infer_types, run, run_module, run_module_report } from "./
 await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") });
 
 const examples = {
+  annotatedPair: ['my pair(value:(int,int)) = value\nmy main = pair (1,2)', '(1, 2)\n'],
+  annotatedSingleton: ['my f(x:(int,)) = x\nmy main = f (7,)', '(7,)\n'],
+  annotatedFunctionProduct: ['my f(x:((int -> int),int)) = case x:\n    (g,n) -> g n\nmy id x = x\nmy main = f (id,7)', '7\n'],
+  annotatedRootProduct: ['act io:\n    our tick: int -> int\nmy relay (thunk:[io] (int,int)) = catch thunk { io::tick(p), k -> k p }\nmy main = relay (io::tick 3,4)', '(3, 4)\n'],
+  annotatedRootProductDictionary: ['act io:\n    our tick: int -> int\nmy relay(thunk:[io] ((int -> int),int)) = catch thunk { io::tick(p), k -> k p }\nmy add x = x + x\nmy saved = relay (add,io::tick 7)\nmy main = case saved:\n    (f,n) -> f n', '14\n'],
   ordinary: ["my identity x = x\nmy main = identity 7", "7\n"],
   inferredAnnotationHoles: ['my identity: _ -> _ = \\x -> x\nmy main = (identity 7, identity "a")\n', '(7, "a")\n'],
   computationResultHole: ["act io:\n    our tick: int -> int\nmy relay (thunk:[io] _) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay { my x = io::tick 7; (x, true) }\n", "(11, true)\n"],
@@ -76,6 +81,7 @@ assertRun(polymorphicEscapingClosureSource, "bool_result", "true\n");
 assertRun(polymorphicEscapingClosureSource, "string_result", '"ok"\n');
 const yulang2Source = fs.readFileSync("./examples/yulang2-identity-island.yu", "utf8");
 const yulang2DiagnosticExamples = {
+  tupleArity: fs.readFileSync("./examples/yulang2-tuple-arity.yu", "utf8"),
   typeMismatch: fs.readFileSync("./examples/yulang2-type-mismatch.yu", "utf8"),
   parameterProvenance: fs.readFileSync("./examples/yulang2-parameter-provenance.yu", "utf8"),
 };
@@ -142,6 +148,7 @@ for (const [source, expected] of [
 for (const [source, budget, reason] of [
   [yulang2TypesSource, 0, "runtime step budget exhausted"],
   [yulang2DiagnosticExamples.typeMismatch, 100_000, "candidate type conflicts"],
+  [yulang2DiagnosticExamples.tupleArity, 100_000, "lower: Tuple(3), upper: Tuple(2)"],
   ["my identity: _ -> _ = \\x -> x\nmy main:int = identity true\n", 100_000, "candidate type conflicts"],
   ["act io:\n    our tick: int -> int\nmy relay (thunk:[] _) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay(io::tick 7)\n", 100_000, "HandlerEvidence"],
   ['act io:\n    our tick: int -> int\nmy relay (thunk:[] \'a) = catch thunk { io::tick(p), k -> k 11 }\nmy main = relay(io::tick 7)\n', 100_000, "HandlerEvidence"],
@@ -213,4 +220,4 @@ if (!shallowHandlerAbsent) {
   throw new Error("the resumed Case arm must leave its shallow tick handler absent");
 }
 
-console.log(`WASM smoke passed: inference, ${Object.keys(examples).length} execution examples, Types/Console/Effects module outputs, three Yulang2 identity definitions, and two Yulang2 diagnostic examples.`);
+console.log(`WASM smoke passed: inference, ${Object.keys(examples).length} execution examples, Types/Console/Effects module outputs, three Yulang2 identity definitions, and three Yulang2 diagnostic examples.`);

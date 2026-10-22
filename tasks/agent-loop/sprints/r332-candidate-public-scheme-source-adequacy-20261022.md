@@ -266,3 +266,34 @@ inventory assertion is strengthened to that documented representation contract.
 All language output expectations remain. Direct-primary UNREVIEWED; the full
 19-entry catalog and original proof parents remain OPEN. Next revalidate all
 catalog entries with JavaScript template escaping interpreted exactly.
+
+Direct-eleven continuation from `0144862ce`: checkpoint pushed, clean tree.
+Preserve 17633 charged seconds; discard the prior unused allowance and grant
+3600 fresh direct-primary seconds (cap 21233). Original cooked catalog
+recheck confirms Types/Console/Effects outputs and two intended conflicts;
+Tuple Arity still stops before its product annotation is formed. Construct
+ordered product annotation carriers, polarized children, full structural
+transport and permission paths, and runtime result views using existing exact
+leases. Add `web/playground/examples/yulang2-tuple-arity.yu` for original bytes.
+No child, independent review or parent closure. Component-root computation
+annotations and operation tuple signatures stay explicit unsupported gates until
+their distinct computation/matching contracts are connected; do not erase effects.
+
+Additional exact lease: `crates/yu-solver/src/candidate_context_tests.rs`,
+only the retained formal-domain map field rename in resource accounting.
+
+Source inspection found the existing Tuple extrusion case missing. Add exact
+primary ownership of `crates/yu-solver/src/candidate_extrusion.rs` to construct
+its ordered same-polarity children and original-parent copy lifecycle before
+claiming product transport. Preserve context, row memoization and scoped evidence.
+
+Direct-eleven product checkpoint: source product annotations, original Tuple
+Arity diagnostic, nested permission paths, RootComp tuple result views, and the
+previously missing Tuple extrusion constructor are connected. Actual source
+schedules reach Tuple extrusion; native 257, HIR 4+1, fresh WASM 40 and three
+original diagnostic examples, and TS pass. Solver Tuple 14/15; the sole old
+selection-boundary failure and the separate authentic-demand ReceiptMismatch
+are both reproduced at immediate parent 0144862ce. No expectations changed for
+those failures. Primary only, UNREVIEWED, all-source/original proof scope OPEN.
+Next shared slice: pinned arithmetic source/primitive execution and proofs;
+remaining source record/range/search constructors remain explicit dependencies.

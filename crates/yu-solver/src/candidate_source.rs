@@ -613,7 +613,7 @@ pub(super) fn preflight_with_imports_and_roles(
         }
         if let LocalSourceForm::Operation { resolution } = &expr.form {
             match resolution {
-                yu_hir::shadow::SourceOperationResolution::Resolved(declaration) if declaration.signature.effects.is_none() && matches!(declaration.signature.value, yu_hir::shadow::SourceAnnotationValue::Function { .. }) && !annotation_contains_hole(&declaration.signature) && preflight_annotation(&declaration.signature, true) => {},
+                yu_hir::shadow::SourceOperationResolution::Resolved(declaration) if declaration.signature.effects.is_none() && matches!(declaration.signature.value, yu_hir::shadow::SourceAnnotationValue::Function { .. }) && operation_signature_values_supported(&declaration.signature) && preflight_annotation(&declaration.signature, true) => {},
                 _ => return Err(shadow_apply::CandidateError::Unsupported),
             }
         }
@@ -694,6 +694,8 @@ fn preflight_formal(ty: &yu_hir::shadow::SourceAnnotationType, positive: bool) -
 fn preflight_formal_value(value: &yu_hir::shadow::SourceAnnotationValue, positive: bool) -> bool {
     match value {
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => preflight_formal(argument, !positive) && preflight_formal(result, positive),
+        yu_hir::shadow::SourceAnnotationValue::Tuple(elements) => !elements.is_empty() && elements.iter()
+            .all(|element| element.effects.is_none() && preflight_formal_value(&element.value, positive)),
         _ => true,
     }
 }
@@ -789,6 +791,8 @@ fn preflight_value(value: &yu_hir::shadow::SourceAnnotationValue, positive: bool
     match value {
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
             preflight_annotation(argument, !positive) && preflight_annotation(result, positive),
+        yu_hir::shadow::SourceAnnotationValue::Tuple(elements) => !elements.is_empty() && elements.iter()
+            .all(|element| element.effects.is_none() && preflight_value(&element.value, positive)),
         _ => true,
     }
 }
@@ -942,6 +946,8 @@ fn same_source_annotation_type(a: &yu_hir::shadow::SourceAnnotationType, b: &yu_
         | (SourceAnnotationValue::Bool, SourceAnnotationValue::Bool) | (SourceAnnotationValue::Str, SourceAnnotationValue::Str) => true,
         (SourceAnnotationValue::Variable(a), SourceAnnotationValue::Variable(b)) => a == b,
         (SourceAnnotationValue::Hole(a), SourceAnnotationValue::Hole(b)) => a == b,
+        (SourceAnnotationValue::Tuple(a), SourceAnnotationValue::Tuple(b)) => a.len() == b.len()
+            && a.iter().zip(b).all(|(a, b)| same_source_annotation_type(a, b)),
         (SourceAnnotationValue::Function { argument: aa, result: ar }, SourceAnnotationValue::Function { argument: ba, result: br }) =>
             same_source_annotation_type(aa, ba) && same_source_annotation_type(ar, br),
         _ => false,
@@ -950,7 +956,8 @@ fn same_source_annotation_type(a: &yu_hir::shadow::SourceAnnotationType, b: &yu_
 // Generic arms require rigid existential opening (charter §§19–20).
 fn monomorphic_signature(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
     ty.effects.as_ref().is_none_or(|row| row.variables.is_empty()) && match &ty.value {
-        yu_hir::shadow::SourceAnnotationValue::Variable(_) | yu_hir::shadow::SourceAnnotationValue::Hole(_) => false,
+        yu_hir::shadow::SourceAnnotationValue::Variable(_) | yu_hir::shadow::SourceAnnotationValue::Hole(_)
+            | yu_hir::shadow::SourceAnnotationValue::Tuple(_) => false,
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => monomorphic_signature(argument) && monomorphic_signature(result),
         _ => true,
     }
@@ -958,17 +965,18 @@ fn monomorphic_signature(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
 fn annotation_contains_unit(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
     match &ty.value {
         yu_hir::shadow::SourceAnnotationValue::Unit => true,
+        yu_hir::shadow::SourceAnnotationValue::Tuple(elements) => elements.iter().any(annotation_contains_unit),
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
             annotation_contains_unit(argument) || annotation_contains_unit(result),
         _ => false,
     }
 }
-fn annotation_contains_hole(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
+fn operation_signature_values_supported(ty: &yu_hir::shadow::SourceAnnotationType) -> bool {
     match &ty.value {
-        yu_hir::shadow::SourceAnnotationValue::Hole(_) => true,
+        yu_hir::shadow::SourceAnnotationValue::Hole(_) | yu_hir::shadow::SourceAnnotationValue::Tuple(_) => false,
         yu_hir::shadow::SourceAnnotationValue::Function { argument, result } =>
-            annotation_contains_hole(argument) || annotation_contains_hole(result),
-        _ => false,
+            operation_signature_values_supported(argument) && operation_signature_values_supported(result),
+        _ => true,
     }
 }
 
@@ -1001,6 +1009,9 @@ enum Work {
 impl ConstraintBatch {
     fn prepare_source_annotation_primitives(&mut self, ty: &yu_hir::shadow::SourceAnnotationType) -> Result<(), CollectionAvailabilityError> {
         match &ty.value {
+            yu_hir::shadow::SourceAnnotationValue::Tuple(elements) => {
+                for element in elements { self.prepare_source_annotation_primitives(element)?; }
+            }
             yu_hir::shadow::SourceAnnotationValue::Bool => { self.term_for_leaf(Leaf::BoolPositive)?; self.term_for_leaf(Leaf::BoolNegative)?; }
             yu_hir::shadow::SourceAnnotationValue::Str => { self.term_for_leaf(Leaf::StrPositive)?; self.term_for_leaf(Leaf::StrNegative)?; }
             yu_hir::shadow::SourceAnnotationValue::Function { argument, result } => {

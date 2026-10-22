@@ -2818,7 +2818,7 @@ mod tests {
 
     #[test]
     fn ascriptions_reject_malformed_and_recovery_types() {
-        for text in ["my value = 1 as", "my value = 1 as (", "my value = 1 as (int,)",
+        for text in ["my value = 1 as", "my value = 1 as (", "my value = 1 as (int,,)",
             "my value = 1 as int as"] {
             assert!(matches!(lower(text), Err(HirAvailabilityError::StructuralProjection)), "{text}");
         }

@@ -241,12 +241,11 @@ impl<'a> CandidatePublicScheme<'a> {
                 if index != 0 {
                     details.write_char('/').map_err(cap)?;
                 }
-                details
-                    .write_str(match step {
-                        CandidateGraphFormalPortStep::Argument => "argument",
-                        CandidateGraphFormalPortStep::Result => "result",
-                    })
-                    .map_err(cap)?;
+                match step {
+                    CandidateGraphFormalPortStep::Argument => details.write_str("argument").map_err(cap)?,
+                    CandidateGraphFormalPortStep::Result => details.write_str("result").map_err(cap)?,
+                    CandidateGraphFormalPortStep::Element(element) => write!(details, "element[{element}]").map_err(cap)?,
+                }
             }
             details.write_str(" permits [").map_err(cap)?;
             permitted(&mut details, permission.source.permitted())?;

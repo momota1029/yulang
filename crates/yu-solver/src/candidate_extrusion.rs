@@ -7,6 +7,7 @@ struct Key(ExtrusionEndpoint, Polarity, u32);
 enum Work {
     Visit(Key),
     Function(Key, [Key; 4], [Term; 4]),
+    Tuple(Key, usize, usize),
     EffectView(Key, u32, Key),
     Bound(ExtrusionEndpoint, Polarity, Key, crate::candidate_effect::BoundKey),
     IncomingAllowance(u32, u32, Key, crate::candidate_effect::BoundKey),
@@ -40,6 +41,7 @@ impl InferenceSession {
         let mut pending_bounds = Vec::new();
         let mut view_remap = HashMap::new();
         let mut initialized_allowances = Vec::new();
+        let mut tuple_ports: Vec<(Key, Term)> = Vec::new();
         let mut charge = 0usize;
         let result = (|| {
             // Account each capacity delta before nested constructors can sample it.
@@ -217,6 +219,29 @@ impl InferenceSession {
                             }
                             continue;
                         }
+                        if let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveTuple(term, arity)
+                            | ValueEndpointKey::NegativeTuple(term, arity)) = endpoint
+                        {
+                            let elements = match self.store.term_view(term).map_err(|_| SolveAvailabilityError::IdentityExhausted)? {
+                                TermView::PositiveTuple { elements } if p == Polarity::Positive => elements,
+                                TermView::NegativeTuple { elements } if p == Polarity::Negative => elements,
+                                _ => return Err(SolveAvailabilityError::IdentityExhausted),
+                            };
+                            if elements.len() != arity || arity == 0 { return Err(SolveAvailabilityError::IdentityExhausted); }
+                            let start = tuple_ports.len();
+                            let old = tuple_ports.capacity();
+                            tuple_ports.try_reserve_exact(arity).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            for &element in elements {
+                                tuple_ports.push((Key(ExtrusionEndpoint::Value(self.value_endpoint(element, p)), p, target), element));
+                            }
+                            self.candidate_scratch_growth(&mut charge, (tuple_ports.capacity() - old)
+                                .checked_mul(std::mem::size_of::<(Key, Term)>()).ok_or(SolveAvailabilityError::IdentityExhausted)?)?;
+                            work_push!(work, Work::Tuple(key, start, arity))?;
+                            for index in (start..start + arity).rev() {
+                                work_push!(work, Work::Visit(tuple_ports[index].0))?;
+                            }
+                            continue;
+                        }
                         let ports = match endpoint {
                             ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(t)) => {
                                 Self::positive_function_children(
@@ -348,6 +373,45 @@ impl InferenceSession {
                             candidate_context::TransportReason::Extrusion { operation: initial, polarity, target_level: level },
                         )?;
                     }
+                    Work::Tuple(key @ Key(original, p, _), start, len) => {
+                        let children = tuple_ports.get(start..start.checked_add(len).ok_or(SolveAvailabilityError::IdentityExhausted)?)
+                            .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                        let mut changed = false;
+                        for &(child, _) in children {
+                            let copied = rows.get(&child).or_else(|| structure.get(&child))
+                                .copied().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            changed |= copied != child.0;
+                        }
+                        let result = if !changed {
+                            original
+                        } else {
+                            let mut elements = Vec::new();
+                            elements.try_reserve_exact(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            let temporary = elements.capacity().checked_mul(std::mem::size_of::<Term>())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                            self.candidate_scratch_growth(&mut charge, temporary)?;
+                            let rebuilt = (|| {
+                                for &(child, original_term) in children {
+                                    let copied = rows.get(&child).or_else(|| structure.get(&child))
+                                        .copied().ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                                    elements.push(if copied == child.0 { original_term } else { self.candidate_endpoint_term(copied, p)? });
+                                }
+                                let term = self.with_term_events(|terms| match p {
+                                    Polarity::Positive => terms.positive_tuple(&elements),
+                                    Polarity::Negative => terms.negative_tuple(&elements),
+                                })?;
+                                Ok::<_, SolveAvailabilityError>(ExtrusionEndpoint::Value(match p {
+                                    Polarity::Positive => ValueEndpointKey::PositiveTuple(term, len),
+                                    Polarity::Negative => ValueEndpointKey::NegativeTuple(term, len),
+                                }))
+                            })();
+                            drop(elements);
+                            self.candidate_graph.as_mut().unwrap().scratch_bytes -= temporary;
+                            charge -= temporary;
+                            rebuilt?
+                        };
+                        map_insert!(structure, key, result)?;
+                    }
                     Work::Function(key @ Key(original, p, _), children, originals) => {
                         let mut terms = originals;
                         let mut changed = false;
@@ -396,7 +460,7 @@ impl InferenceSession {
             self.sample_f4_resources(ResourceBoundary::IncomingRoute)?;
             Ok(result)
         })();
-        drop((rows, structure, work, pending_bounds, view_remap, initialized_allowances));
+        drop((rows, structure, work, pending_bounds, view_remap, initialized_allowances, tuple_ports));
         self.candidate_graph.as_mut().unwrap().scratch_bytes -= charge;
         result
     }
@@ -413,7 +477,8 @@ impl InferenceSession {
                 self.live_effect_term(p, i)?
             }
             ExtrusionEndpoint::Value(
-                ValueEndpointKey::PositiveFunction(t) | ValueEndpointKey::NegativeFunction(t),
+                ValueEndpointKey::PositiveFunction(t) | ValueEndpointKey::NegativeFunction(t)
+                | ValueEndpointKey::PositiveTuple(t, _) | ValueEndpointKey::NegativeTuple(t, _),
             ) => t,
             _ => return Err(SolveAvailabilityError::IdentityExhausted),
         })

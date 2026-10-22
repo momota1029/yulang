@@ -2302,6 +2302,7 @@ pub struct CandidateGraphExport<'a> {
 pub enum CandidateGraphFormalPortStep {
     Argument,
     Result,
+    Element(usize),
 }
 
 #[derive(Clone, Copy)]
@@ -2394,19 +2395,26 @@ impl<'a> CandidateGraphExport<'a> {
         ) {
             if permission.path.is_empty() { return Err(ArtifactMismatch); }
             let domain = *algebra.formal_domains.get(&permission.parameter).ok_or(ArtifactMismatch)?;
-            let mut current = *self.graph.negative_functions.get(&domain).ok_or(ArtifactMismatch)?;
+            let mut current = *self.graph.negative_formal_roots.get(&domain).ok_or(ArtifactMismatch)?;
             let mut path = Vec::new();
             path.try_reserve_exact(permission.path.len()).map_err(|_| ArtifactMismatch)?;
             let mut port_index = None;
             for (index, step) in permission.path.iter().enumerate() {
-                let crate::candidate_scheme::Node::Function { children, .. } = *self.graph.nodes.get(current).ok_or(ArtifactMismatch)? else {
-                    return Err(ArtifactMismatch);
-                };
+                let node = *self.graph.nodes.get(current).ok_or(ArtifactMismatch)?;
+                if let crate::candidate_effect::FormalPortStep::Element(element) = step {
+                    let crate::candidate_scheme::Node::Tuple { start, len, .. } = node else { return Err(ArtifactMismatch); };
+                    if *element >= len || index + 1 == permission.path.len() { return Err(ArtifactMismatch); }
+                    current = *self.graph.tuple_children.get(start.checked_add(*element).ok_or(ArtifactMismatch)?).ok_or(ArtifactMismatch)?;
+                    path.push(CandidateGraphFormalPortStep::Element(*element));
+                    continue;
+                }
+                let crate::candidate_scheme::Node::Function { children, .. } = node else { return Err(ArtifactMismatch); };
                 let (child, effect, public_step) = match step {
                     crate::candidate_effect::FormalPortStep::Argument =>
                         (children[0], children[1], CandidateGraphFormalPortStep::Argument),
                     crate::candidate_effect::FormalPortStep::Result =>
                         (children[3], children[2], CandidateGraphFormalPortStep::Result),
+                    crate::candidate_effect::FormalPortStep::Element(_) => unreachable!(),
                 };
                 path.push(public_step);
                 if index + 1 == permission.path.len() {
@@ -4596,7 +4604,7 @@ mod tests {
         let graph = Graph {
             source_frontier: Vec::new(),
             owned_regions: Vec::new(),
-            negative_functions: HashMap::new(),
+            negative_formal_roots: HashMap::new(),
             nodes: Vec::new(),
             tuple_children: Vec::new(),
             rows: vec![
@@ -4707,7 +4715,7 @@ mod tests {
         let graph = Graph {
             source_frontier: Vec::new(),
             owned_regions: Vec::new(),
-            negative_functions: HashMap::new(),
+            negative_formal_roots: HashMap::new(),
             nodes: Vec::new(),
             tuple_children: Vec::new(),
             rows: vec![
