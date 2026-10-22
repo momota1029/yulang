@@ -259,7 +259,7 @@ impl LocalSource {
                     }
                     LocalSourceForm::Variant { tag, payloads, .. } => tag.len()
                         + payloads.capacity() * std::mem::size_of::<LocalSourceIndex>(),
-                    LocalSourceForm::FieldTail { member, .. } => member.len(),
+                    LocalSourceForm::FieldTail { member, .. } | LocalSourceForm::GeneratedFormatSelection { member, .. } => member.len(),
                     LocalSourceForm::OperatorApplication { operator, .. } => operator.spelling().len()
                         + std::mem::size_of::<SourceNodeKey>()
                         + std::mem::size_of::<crate::HirOperator>(),
@@ -347,6 +347,9 @@ pub enum LocalSourceForm {
         literal_range: Range<usize>,
         parts: Vec<LocalSourceInterpolation>,
         pieces: Vec<LocalSourceStringPiece>,
+        /// Authentic generated expression when the current lowering bridge is
+        /// complete. None retains the plan without claiming it is executable.
+        lowered: Option<LocalSourceIndex>,
     },
     Catch {
         scrutinee: LocalSourceIndex,
@@ -379,6 +382,12 @@ pub enum LocalSourceForm {
         receiver: LocalSourceIndex,
         member: Box<str>,
         member_range: Range<usize>,
+    },
+    /// A kind-only interpolation generates a selection at the actual
+    /// StringInterpolation source key. There is no written member-name span.
+    GeneratedFormatSelection {
+        receiver: LocalSourceIndex,
+        member: Box<str>,
     },
     Name {
         spelling: Box<str>,
@@ -1793,7 +1802,19 @@ impl Builder<'_> {
         }
         if parts.is_empty() { return Err(unsupported()); }
         let pieces = string::pieces(&node, &parts)?;
-        self.set(index, &node, scope.clone(), named_group.clone(), LocalSourceForm::InterpolatedString { spelling, literal_range, parts, pieces })?;
+        let lowered = if matches!(pieces.as_slice(), [LocalSourceStringPiece::Interpolation(0)]) {
+            match parts[0].format_spec.operation() {
+                LocalSourceFormatOperation::Member(member) => {
+                    let part = node.children().find(|child| child.kind() == SyntaxKind::StringInterpolation).ok_or_else(invalid)?;
+                    let selection = self.slot()?;
+                    self.set_at_range(selection.clone(), &part, parts[0].range.clone(), scope.clone(), named_group.clone(),
+                        LocalSourceForm::GeneratedFormatSelection { receiver: parts[0].body.clone(), member: member.into() })?;
+                    Some(selection)
+                }
+                LocalSourceFormatOperation::StandardFunction(_) => None,
+            }
+        } else { None };
+        self.set(index, &node, scope.clone(), named_group.clone(), LocalSourceForm::InterpolatedString { spelling, literal_range, parts, pieces, lowered })?;
         for (body, index) in work.into_iter().rev() {
             push(&mut self.work, Work::Expression(body, index, scope.clone(), named_group.clone()))?;
         }
@@ -2757,6 +2778,35 @@ impl Builder<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generated_format_selection_has_the_actual_interpolation_owner() {
+        for (literal, member) in [(r#""%{7}""#, "show"), (r#""%?{7}""#, "debug"),
+            (r#""%x{7}""#, "lower_hex"), (r#""%X{7}""#, "upper_hex")]
+        {
+            let (_, _, module) = ordinary_fixture(&format!("my value = {literal}"));
+            let HirItem::Binding(binding) = &module.items()[0] else { panic!("value"); };
+            let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+            let literal = source.expression(source.body()).unwrap();
+            let LocalSourceForm::InterpolatedString { parts, lowered: Some(selection), .. } = &literal.form else { panic!("single selection"); };
+            let selection = source.expression(selection).unwrap();
+            assert_eq!(selection.source, parts[0].source);
+            assert_eq!(selection.range, parts[0].range);
+            assert_ne!(selection.occurrence, literal.occurrence);
+            let LocalSourceForm::GeneratedFormatSelection { receiver, member: actual } = &selection.form else { panic!("generated selection"); };
+            assert_eq!(actual.as_ref(), member);
+            assert_eq!(receiver, &parts[0].body);
+            assert_ne!(selection.occurrence, source.expression(receiver).unwrap().occurrence);
+            assert!(!source.expressions().iter().any(|expr| matches!(expr.form, LocalSourceForm::FieldTail { .. })));
+        }
+        for literal in [r#""a%{7}""#, r#""%{7}%{8}""#, r#""%08x{7}""#] {
+            let (_, _, module) = ordinary_fixture(&format!("my value = {literal}"));
+            let HirItem::Binding(binding) = &module.items()[0] else { panic!("value"); };
+            let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+            assert!(matches!(source.expression(source.body()).unwrap().form,
+                LocalSourceForm::InterpolatedString { lowered: None, .. }));
+        }
+    }
 
     #[test]
     fn interpolation_plan_preserves_decoded_text_and_exact_part_order() {

@@ -2999,3 +2999,65 @@ StringInterpolation source key to the existing four-row selection obligation,
 Capture/FreshUse and member runtime evidence. The one-piece/no-layout source
 case needs no concat operation; multi-piece and layout cases retain their open
 provider/Call premises. This staged implementation does not narrow the parent.
+
+### Generated selection at the actual interpolation occurrence
+
+The single kind-only interpolation case now owns an explicit
+GeneratedFormatSelection, anchored to the actual StringInterpolation key/range
+with a distinct branded HIR occurrence and no written member-name span. Its
+receiver is the same retained virtual statement body. The literal retains its
+format/text plan and points to that generated result; multi-piece and layout
+plans still have no executable lowering. Existing DeferredFieldTail generation,
+four-row source-instance authentication, Capture/FreshUse transport, exact
+member projection and runtime dictionary construction consume this explicit
+source form. No fake FieldTail node, invented Show implementation or runtime
+stringification has been introduced. The literal uses the existing Group/
+Forward value/effect handoff. Value-owner traversal follows the generated node
+and real body exactly once, retaining local initialization ownership and the
+prior result-fragment cuts.
+
+Expected-output update rationale before editing: the graph test
+interpolation_owner_references_retain_actual_body_values added in 1705e2ce0
+explicitly asserted preflight Unsupported for the then source-only `%{x}` carrier.
+That staging assertion is now obsolete: pinned string_lit.rs lowers precisely
+this source to the generated show selection, and the current user authorizes
+connecting unchanged original semantics. The new four-row/dictionary bridge
+admits its source recipe, while the focused runtime test separately verifies
+that source spelling without candidate selection evidence is still rejected.
+Change this one staging assertion to successful preflight; preserve its actual
+Name/Value graph expectations and every original Y2 sample/diagnostic expectation.
+This is causal source correspondence, not matching an unexplained output.
+Role orchestration is inactive by the user's explicit no-subagent instruction;
+there is no spec_auditor or independent review receipt, and parent gates stay OPEN.
+
+Source/consumer handoff for this case (UNREVIEWED): original
+lower_string_lit_parts receives exactly one Interp and returns its generated
+selection without a concat call. Here the source builder emits that same
+receiver/member request at the Interp key; the wrapper contributes only the
+existing result/effect forwarding relation. Candidate collection records its
+four endpoints at the distinct generated occurrence. Existing source-instance
+validation compares original owner/key/member/candidate set and all four mapped
+rows through the retained instantiation; generated selection changes no transport
+rule. Runtime accepts only that immutable HIR occurrence as a selected-member
+site, and reuses its existing dictionary-backed FieldTail instruction and actual
+member body. Forwarding neither evaluates the body twice nor supplies a missing
+dictionary. Thus the new correspondence reduces to the existing selected-member
+and Group/Forward obligations, including their still-open global premises; this
+is not a new proof of all-view transport or production soundness.
+
+Focused native evidence executes integer/string receivers, nested interpolation,
+two fresh uses of one generic function and ordered effectful interpolation.
+A separate test finds the exact selected occurrence without a surrounding say
+call, rejects construction with empty runtime evidence, and retains an uncalled
+generic selection as a dormant template without a concrete dictionary. A function
+receiver with no applicable pinned Display implementation remains unavailable.
+
+Generated selection checkpoint: HIR192/graph19/native276 pass; fresh WASM
+passes 57 execution examples (three added interpolation examples) and existing
+module/diagnostic checks. All 19 original source hashes and non-timing catalog
+observables remain unchanged, catalog7/19. Logs target/r332-generated-format-
+{hir,graph-final,native,wasm}.log and target/r332-catalog-generated-format.log.
+The single-piece path now executes through original selected members; Button
+still needs concat and typed Variant/native. Only the documented staging
+preflight assertion changed; original expectations remain intact. No independent
+review or original parent/production closure.

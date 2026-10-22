@@ -160,7 +160,12 @@ impl Graph {
                     work.try_reserve(items.len()).map_err(|_| unavailable())?;
                     for item in items { work.push((item.ordinal() as usize, owner)); }
                 },
-                LocalSourceForm::InterpolatedString { parts, .. } => {
+                LocalSourceForm::InterpolatedString { lowered: Some(inner), .. }
+                | LocalSourceForm::GeneratedFormatSelection { receiver: inner, .. } => {
+                    work.try_reserve(1).map_err(|_| unavailable())?;
+                    work.push((inner.ordinal() as usize, owner));
+                },
+                LocalSourceForm::InterpolatedString { parts, lowered: None, .. } => {
                     work.try_reserve(parts.len()).map_err(|_| unavailable())?;
                     for part in parts.iter().rev() { work.push((part.body.ordinal() as usize, owner)); }
                 },
@@ -601,8 +606,8 @@ mod conditional_reference_tests {
         let (graph, source) = fixture("my f x = \"%{x}\"");
         let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
         assert_eq!(references(&graph, &root), expected(&source, &["x"]));
-        assert!(matches!(crate::candidate_source::preflight(&source, false),
-            Err(crate::shadow_apply::CandidateError::Unsupported)));
+        assert!(crate::candidate_source::preflight(&source, false).is_ok(),
+            "generated selection retains an obligation; runtime still needs exact member evidence");
         let (graph, source) = fixture("my f x = \"%{my y = x; y}\"");
         let local = Value::Local(source.bindings()[0].id.clone());
         assert_eq!(references(&graph, &local), expected(&source, &["x"]));

@@ -954,7 +954,7 @@ fn pinned_member_projection(
     fn field_tail_names(hir: &HirModule) -> Result<Vec<Box<str>>, String> {
         fn retain(source: &LocalSource, names: &mut Vec<Box<str>>) {
             for expression in source.expressions() {
-                let LocalSourceForm::FieldTail { member, .. } = &expression.form else { continue; };
+                let (LocalSourceForm::FieldTail { member, .. } | LocalSourceForm::GeneratedFormatSelection { member, .. }) = &expression.form else { continue; };
                 if !names.contains(member) { names.push(member.clone()); }
             }
         }
@@ -2088,6 +2088,52 @@ mod tests {
             }
         }
         assert_eq!(super::execute_module("my f text = text\nsay: f 7", "lexical-import.yu", 100_000, false).unwrap(), "7\n");
+    }
+
+    #[test]
+    fn generated_interpolation_selection_uses_actual_member_dispatch() {
+        for (source, expected) in [
+            (r#"say: "%{7}""#, "7\n"),
+            (r#"say: "%{"hello"}""#, "hello\n"),
+            (r#"say: "%{"%{7}"}""#, "7\n"),
+            ("my f text = \"%{text}\"\nsay: f 7\nsay: f \"hello\"", "7\nhello\n"),
+            (r#"say: "%{say: 3; 7}""#, "3\n7\n"),
+        ] {
+            assert_eq!(super::execute_module(source, "generated-format.yu", 100_000, false).unwrap(), expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn generated_interpolation_requires_authentic_selection_evidence() {
+        use yu_hir::shadow::LocalSourceForm;
+        let (hir, candidate, world, indexes) = super::prepare_with_world(
+            r#"my main = "%{7}""#, "generated-format-evidence.yu", false,
+        ).unwrap();
+        let HirItem::Binding(binding) = &hir.items()[0] else { panic!("main"); };
+        let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+        let selection = source.expressions().iter().find(|expr|
+            matches!(expr.form, LocalSourceForm::GeneratedFormatSelection { .. })).unwrap();
+        assert!(candidate.selected_field_tail_uses().unwrap().any(|selected|
+            selected.source_owner == source.source_root() && selected.occurrence == &selection.occurrence));
+        assert!(matches!(super::runtime::RuntimeProgram::from_hir(hir.clone(), super::runtime::RuntimeEvidence::default()),
+            Err(super::runtime::RuntimeUnavailable::UnsupportedFieldTail(_))),
+            "source format spelling alone cannot create a runtime dictionary");
+        super::runtime::RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+        let (hir, candidate, _, _) = super::prepare_with_world(
+            r#"my f x = "%{x}""#, "generated-format-dormant.yu", false,
+        ).unwrap();
+        let HirItem::Binding(binding) = &hir.items()[0] else { panic!("f"); };
+        let source = hir.local_source(binding.definition_root()).unwrap().unwrap();
+        let selection = source.expressions().iter().find(|expr|
+            matches!(expr.form, LocalSourceForm::GeneratedFormatSelection { .. })).unwrap();
+        assert!(candidate.retained_field_tail_templates().unwrap().any(|template|
+            template.source_owner == source.source_root() && template.occurrence == &selection.occurrence));
+        assert!(!candidate.selected_field_tail_uses().unwrap().any(|selected|
+            selected.source_owner == source.source_root() && selected.occurrence == &selection.occurrence));
+        for source in [r#"say: "%{\x -> x}""#] {
+            assert!(super::execute_module(source, "generated-format-withheld.yu", 100_000, false).is_err(),
+                "a receiver without an applicable source implementation cannot use fallback stringification: {source}");
+        }
     }
 
     #[test]

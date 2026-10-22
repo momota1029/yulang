@@ -553,3 +553,9 @@ all original observables/hashes unchanged. Next use existing HIR/solver/runtime
 leases for authentic generated formatting selection and its single-piece
 forwarding case. Keep explicit generated source form and unchanged selection
 transport/receiver obligations; multi-piece concat/layout and parent gates OPEN.
+
+Generated selection checkpoint: HIR192/graph19/native276/fresh WASM57 pass;
+catalog7/19 unchanged. Next connect exact std::text::str::concat export through
+source-generated Name/Call records, retaining operation origins at actual literal
+keys. Existing source_exports/module/shadow_apply/runtime leases cover this
+bridge. No runtime intrinsic shortcut or whole-language proof claim.

@@ -4,6 +4,9 @@ import init, { infer, infer_types, run, run_module, run_module_report } from "./
 await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") });
 
 const examples = {
+  generatedInterpolation: ['my main = "%{7}"', '"7"\n'],
+  polymorphicInterpolation: ['my f text = "%{text}"; my main = (f 7, f "a")', '("7", "a")\n'],
+  effectfulInterpolation: ['my main = say: "%{say: 3; 7}"', '3\n7\n'],
   resumedRecord: ["act io:\n    our tick: int -> int\nmy relay(thunk:[io] 'a) = catch thunk { io::tick(p), k -> { my first = k 11; k 23 } }\nmy main = relay { first: io::tick 0, second: true }", '{first: 23, second: true}\n'],
   emptyRecord: ['my main = {}', '{}\n'],
   namedRecord: ['my main = { width: 3, height: 4 }', '{width: 3, height: 4}\n'],

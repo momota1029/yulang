@@ -341,7 +341,7 @@ impl RuntimeProgram {
                 .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
             if !source.expressions().iter().any(|expression|
                 expression.occurrence == key.occurrence
-                    && matches!(expression.form, LocalSourceForm::FieldTail { .. })) {
+                    && matches!(expression.form, LocalSourceForm::FieldTail { .. } | LocalSourceForm::GeneratedFormatSelection { .. })) {
                 return Err(RuntimeUnavailable::InvalidSourceReference);
             }
             evidence.field_tail_templates.try_reserve(1)
@@ -367,7 +367,7 @@ impl RuntimeProgram {
                 .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
             if !source.expressions().iter().any(|expression|
                 expression.occurrence == key.occurrence
-                    && matches!(expression.form, LocalSourceForm::FieldTail { .. }))
+                    && matches!(expression.form, LocalSourceForm::FieldTail { .. } | LocalSourceForm::GeneratedFormatSelection { .. }))
             {
                 return Err(RuntimeUnavailable::InvalidSourceReference);
             }
@@ -765,7 +765,8 @@ impl RuntimeProgram {
                     LocalSourceForm::Integer(text) => Instruction::Integer(text.clone()),
                     LocalSourceForm::Boolean(value) => Instruction::Boolean(*value),
                     LocalSourceForm::String(text) => Instruction::String(text.clone()),
-                    LocalSourceForm::InterpolatedString { .. } => return Err(RuntimeUnavailable::UnsupportedInterpolation(SourceSite {
+                    LocalSourceForm::InterpolatedString { lowered: Some(inner), .. } => Instruction::Forward(label(inner)?),
+                    LocalSourceForm::InterpolatedString { lowered: None, .. } => return Err(RuntimeUnavailable::UnsupportedInterpolation(SourceSite {
                         source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
                     })),
                     LocalSourceForm::Name { resolution, .. } => {
@@ -884,7 +885,7 @@ impl RuntimeProgram {
                             .map(label)
                             .collect::<Result<_, _>>()?,
                     },
-                    LocalSourceForm::FieldTail { receiver, .. } => Instruction::FieldTail {
+                    LocalSourceForm::FieldTail { receiver, .. } | LocalSourceForm::GeneratedFormatSelection { receiver, .. } => Instruction::FieldTail {
                         receiver: label(receiver)?,
                         key: RuntimeFieldTailKey {
                             active_owner: active_owner.clone(),
@@ -1405,7 +1406,7 @@ fn reachable_runtime_roots(
         }
         for expression in source.expressions() {
             match &expression.form {
-                LocalSourceForm::FieldTail { member, .. } => {
+                LocalSourceForm::FieldTail { member, .. } | LocalSourceForm::GeneratedFormatSelection { member, .. } => {
                     let key = RuntimeFieldTailKey {
                         active_owner: root.active_owner.clone(),
                         source_owner: root.source_root.clone(),
@@ -1863,7 +1864,7 @@ fn handler_arm_operation_ranges(
             Form::Tuple { elements } | Form::Variant { payloads: elements, .. } => pending.extend(elements.iter().cloned()),
             Form::Record { fields } => pending.extend(fields.iter().map(|field| field.value.clone())),
             Form::InterpolatedString { parts, .. } => pending.extend(parts.iter().map(|part| part.body.clone())),
-            Form::FieldTail { receiver, .. } => pending.push(receiver.clone()),
+            Form::FieldTail { receiver, .. } | Form::GeneratedFormatSelection { receiver, .. } => pending.push(receiver.clone()),
             Form::OperatorApplication { left, right, .. } => {
                 pending.push(left.clone());
                 pending.extend(right.iter().cloned());

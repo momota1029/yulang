@@ -607,7 +607,7 @@ pub(super) fn preflight_with_imports_and_roles(
         if matches!(
             &expr.form,
             LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) }
-                | LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { .. },
+                | LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { lowered: None, .. },
         ) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
@@ -1242,7 +1242,7 @@ impl ConstraintBatch {
                                 push(&mut work, Work::Visit(item.ordinal() as usize, level, region))?;
                             }
                         }
-                        LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { .. } => return Err(unavailable()),
+                        LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { lowered: None, .. } => return Err(unavailable()),
                         LocalSourceForm::Record { fields } => {
                             for field in fields.iter().rev() { push(&mut work, Work::Visit(field.value.ordinal() as usize, level, region))?; }
                         }
@@ -1251,7 +1251,7 @@ impl ConstraintBatch {
                                 push(&mut work, Work::Visit(element.ordinal() as usize, level, region))?;
                             }
                         }
-                        LocalSourceForm::FieldTail { receiver, .. } => {
+                        LocalSourceForm::FieldTail { receiver, .. } | LocalSourceForm::GeneratedFormatSelection { receiver, .. } => {
                             push(&mut work, Work::Visit(receiver.ordinal() as usize, level, region))?;
                         }
                         LocalSourceForm::Apply { callee, argument, .. } => {
@@ -1262,7 +1262,8 @@ impl ConstraintBatch {
                             if let Some(right) = right { push(&mut work, Work::Visit(right.ordinal() as usize, level, region))?; }
                             push(&mut work, Work::Visit(left.ordinal() as usize, level, region))?;
                         }
-                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => push(&mut work, Work::Visit(inner.ordinal() as usize, level, region))?,
+                        LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. }
+                        | LocalSourceForm::InterpolatedString { lowered: Some(inner), .. } => push(&mut work, Work::Visit(inner.ordinal() as usize, level, region))?,
                         LocalSourceForm::Lambda { parameter, body } => {
                             push(&mut actions, Action::BeginLambda)?;
                             let position = *parameters.get(&parameter.id).ok_or_else(invalid)?;
@@ -1865,7 +1866,7 @@ impl ConstraintBatch {
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                         }
-                        LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { .. } => return Err(unavailable()),
+                        LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { lowered: None, .. } => return Err(unavailable()),
                         LocalSourceForm::Record { fields } => {
                             let mut values = Vec::new();
                             let mut effects = Vec::new();
@@ -1904,7 +1905,7 @@ impl ConstraintBatch {
                         // Retain the source-owned lookup obligation. Admission
                         // stays deferred until an exact role/member and a
                         // receiver implementation are available.
-                        LocalSourceForm::FieldTail { receiver, member, .. } => {
+                        LocalSourceForm::FieldTail { receiver, member, .. } | LocalSourceForm::GeneratedFormatSelection { receiver, member } => {
                             let receiver_index = receiver.ordinal() as usize;
                             let mut role_member_candidates = Vec::new();
                             if let Some(imports) = hir.source_imports() {
@@ -1966,7 +1967,7 @@ impl ConstraintBatch {
                             })?;
                             push(&mut actions, Action::Operator(use_index))?;
                         }
-                        LocalSourceForm::Group { inner } => {
+                        LocalSourceForm::Group { inner } | LocalSourceForm::InterpolatedString { lowered: Some(inner), .. } => {
                             if self.candidate_source.scoped_experiment {
                                 let child_occurrence = &source.expressions()[inner.ordinal() as usize].occurrence;
                                 let child_scope = self.candidate_source.computation_scopes[child_occurrence];
