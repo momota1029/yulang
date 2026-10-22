@@ -168,6 +168,7 @@ pub(super) struct Graph {
     pub nodes: Vec<Node>,
     /// Ordered child node indexes for tuple nodes; ranges live in `Node::Tuple`.
     pub tuple_children: Vec<usize>,
+    pub record_fields: Vec<(Box<str>, usize)>,
     pub rows: Vec<Row>,
     /// Each prerequisite points at a row already present in this provider graph.
     pub source_role_obligations: Vec<SourceRoleObligation>,
@@ -329,6 +330,7 @@ pub(super) enum Node {
         polarity: Polarity,
         children: [usize; 4],
     },
+    Record { start: usize, len: usize },
     Tuple {
         polarity: Polarity,
         start: usize,
@@ -675,6 +677,8 @@ fn mapped_endpoint_at(
                 Polarity::Negative => ValueEndpointKey::NegativeFunction(term),
             })
         }
+        Node::Record { .. } => ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(
+            retained.terms.get(node).copied().flatten()?)),
         Node::Tuple { polarity: tuple_polarity, len, .. } => {
             let term = retained.terms.get(node).copied().flatten()?;
             ExtrusionEndpoint::Value(match tuple_polarity {
@@ -1102,6 +1106,8 @@ impl Graph {
             bytes::<(Term, usize)>(self.negative_formal_roots.capacity())?,
             bytes::<Node>(self.nodes.capacity())?,
             bytes::<usize>(self.tuple_children.capacity())?,
+            bytes::<(Box<str>, usize)>(self.record_fields.capacity())?,
+            self.record_fields.iter().try_fold(0usize, |n, (label, _)| n.checked_add(label.len()).ok_or_else(exhausted))?,
             bytes::<Row>(self.rows.capacity())?,
             bytes::<SourceRoleObligation>(self.source_role_obligations.capacity())?,
             bytes::<SourceFieldTailObligation>(self.source_field_tail_obligations.capacity())?,
@@ -1683,6 +1689,9 @@ impl<'a> Capture<'a> {
             {
                 Endpoint::Value(ValueEndpointKey::NegativeFunction(term), polarity)
             }
+            TermView::PositiveRecord { .. } if kind == ComponentKind::Value && polarity == Polarity::Positive => {
+                Endpoint::Value(ValueEndpointKey::PositiveRecord(term), polarity)
+            }
             TermView::PositiveTuple { elements }
                 if kind == ComponentKind::Value && polarity == Polarity::Positive =>
             {
@@ -1860,6 +1869,18 @@ impl<'a> Capture<'a> {
                     polarity: p,
                     children,
                 }
+            }
+            Endpoint::Value(V::PositiveRecord(term), Polarity::Positive) => {
+                let TermView::PositiveRecord { fields } = self.session.store.term_view(term).map_err(|_| exhausted())?
+                    else { return Err(exhausted()); };
+                let start = self.graph.record_fields.len();
+                self.graph.record_fields.try_reserve_exact(fields.len()).map_err(|_| exhausted())?;
+                for (label, _) in fields { self.graph.record_fields.push((label.clone(), usize::MAX)); }
+                for (offset, (_, element)) in fields.iter().enumerate() {
+                    let child = self.intern_shape(self.term_endpoint(*element, ComponentKind::Value, Polarity::Positive)?)?;
+                    self.graph.record_fields[start + offset].1 = child;
+                }
+                Node::Record { start, len: fields.len() }
             }
             Endpoint::Value(V::PositiveTuple(term, arity), Polarity::Positive)
             | Endpoint::Value(V::NegativeTuple(term, arity), Polarity::Negative) => {
@@ -2350,7 +2371,7 @@ impl InferenceSession {
             session: self,
             graph: Graph {
                 source_frontier, owned_regions, negative_formal_roots: HashMap::new(),
-                nodes: Vec::new(), tuple_children: Vec::new(),
+                nodes: Vec::new(), tuple_children: Vec::new(), record_fields: Vec::new(),
                 rows: Vec::new(),
                 source_role_obligations: retained_obligations,
                 source_field_tail_obligations: retained_field_tails,
@@ -3926,6 +3947,23 @@ impl InferenceSession {
                         } else {
                             self.negative_function_term(a, ae, re, r)?
                         }
+                    }
+                    Node::Record { start, len } => {
+                        let fields = graph.record_fields.get(start..start.checked_add(len).ok_or_else(exhausted)?)
+                            .ok_or_else(exhausted)?;
+                        if !finish {
+                            push(&mut work, (index, true))?;
+                            for (_, child) in fields.iter().rev() {
+                                if terms[*child].is_none() { push(&mut work, (*child, false))?; }
+                            }
+                            continue;
+                        }
+                        let mut mapped = Vec::new();
+                        mapped.try_reserve_exact(len).map_err(|_| exhausted())?;
+                        for (label, child) in fields {
+                            mapped.push((label.clone(), terms[*child].ok_or_else(exhausted)?));
+                        }
+                        self.with_term_events(|arena| arena.positive_record(&mapped))?
                     }
                     Node::Tuple { polarity, start, len } => {
                         let end = start.checked_add(len).ok_or_else(exhausted)?;

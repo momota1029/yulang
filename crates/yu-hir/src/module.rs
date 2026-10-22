@@ -140,6 +140,7 @@ fn resolve_implicit_prelude_imports_selected(
     }
     let parse_root = parsed.source_root().key();
     let root = SyntaxNode::new_root(parsed.green().clone());
+    let record_labels = local_source::record_label_nodes(&root);
     let own = index_source_exports(identity.clone(), parsed)?;
     let mut locally_declared = std::collections::BTreeSet::<Box<str>>::new();
     locally_declared.extend(own.declarations.iter().filter_map(|declaration|
@@ -152,6 +153,7 @@ fn resolve_implicit_prelude_imports_selected(
             .descendants()
             .filter(|node| node.kind() == SyntaxKind::IdentifierExpression)
         {
+            if record_labels.contains(&node) { continue; }
             if let Some(name) = node
                 .children_with_tokens()
                 .filter_map(|element| element.into_token())
@@ -349,6 +351,7 @@ fn selected_source_names(
     }
     let source_nodes = crate::source_identity::try_source_keys(parsed)?;
     let root = SyntaxNode::new_root(parsed.green().clone());
+    let record_labels = local_source::record_label_nodes(&root);
     let mut found = std::collections::HashSet::new();
     let mut names = std::collections::BTreeSet::new();
     for node in root.descendants() {
@@ -356,6 +359,7 @@ fn selected_source_names(
         if !selected_roots.contains(key) { continue; }
         found.insert(key.clone());
         for occurrence in node.descendants().filter(|child| child.kind() == SyntaxKind::IdentifierExpression) {
+            if record_labels.contains(&occurrence) { continue; }
             if let Some(name) = occurrence.children_with_tokens()
                 .filter_map(|element| element.into_token())
                 .find(|token| token.kind() == SyntaxKind::Identifier)

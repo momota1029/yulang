@@ -4,6 +4,11 @@ import init, { infer, infer_types, run, run_module, run_module_report } from "./
 await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") });
 
 const examples = {
+  resumedRecord: ["act io:\n    our tick: int -> int\nmy relay(thunk:[io] 'a) = catch thunk { io::tick(p), k -> { my first = k 11; k 23 } }\nmy main = relay { first: io::tick 0, second: true }", '{first: 23, second: true}\n'],
+  emptyRecord: ['my main = {}', '{}\n'],
+  namedRecord: ['my main = { width: 3, height: 4 }', '{width: 3, height: 4}\n'],
+  polymorphicRecord: ['my make x = { value: x }; my main = (make 7, make "s")', '({value: 7}, {value: "s"})\n'],
+  nestedRecord: ['my id x = x; my main = id { nested: { x: 3 }, empty: {} }', '{nested: {x: 3}, empty: {}}\n'],
   importedSubtraction: ['use std::int::sub\nmy main = sub 7 10', '-3\n'],
   importedAliasProduct: ['use std::int::mul as product\nmy main = product 12 34', '408\n'],
   importedGlobProduct: ['use std::int::*\nmy main = mul 12 34', '408\n'],

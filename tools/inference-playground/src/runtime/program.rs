@@ -186,7 +186,6 @@ pub enum RuntimeUnavailable {
     NonExhaustiveCase(SourceSite),
     ExpectedComputation(SourceSite),
     UnsupportedFieldTail(SourceSite),
-    UnsupportedRecord(SourceSite),
     UnsupportedInfixOperator(SourceSite),
     ModuleInitializationOrder,
 }
@@ -249,6 +248,7 @@ pub(super) enum Instruction {
     String(Box<str>),
     Primitive(yu_hir::shadow::PinnedPrimitiveOp),
     Tuple { elements: Vec<Label> },
+    Record { fields: Vec<(Box<str>, Label)> },
     FieldTail {
         receiver: Label,
         key: RuntimeFieldTailKey,
@@ -846,9 +846,9 @@ impl RuntimeProgram {
                     LocalSourceForm::Sequence { items } => Instruction::Sequence {
                         items: items.iter().map(label).collect::<Result<_, _>>()?,
                     },
-                    LocalSourceForm::Record { .. } => return Err(RuntimeUnavailable::UnsupportedRecord(SourceSite {
-                        source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
-                    })),
+                    LocalSourceForm::Record { fields } => Instruction::Record {
+                        fields: fields.iter().map(|field| Ok((field.label.clone(), label(&field.value)?))).collect::<Result<_, RuntimeUnavailable>>()?,
+                    },
                     LocalSourceForm::Tuple { elements } => Instruction::Tuple {
                         elements: elements
                             .iter()
@@ -945,28 +945,9 @@ impl RuntimeProgram {
                         id: id.clone(),
                         body,
                     });
-                    // Preserve the existing source fetch classifier. Expression
-                    // demands below are unconditional, including bare values.
-                    let mut current = body;
-                    let computation = loop {
-                        match &code
-                            .get(current.0)
-                            .ok_or(RuntimeUnavailable::InvalidSourceReference)?
-                            .instruction
-                        {
-                            Instruction::Forward(inner) => current = *inner,
-                            Instruction::Block {
-                                bindings,
-                                final_expression,
-                            } if bindings.is_empty() => current = *final_expression,
-                            Instruction::Apply { .. }
-                            | Instruction::If { .. }
-                            | Instruction::Catch { .. }
-                            | Instruction::Block { .. }
-                            | Instruction::StatementBlock { .. } => break true,
-                            _ => break false,
-                        }
-                    };
+                    // Computation classification composes through strict aggregate
+                    // children and stops at closures and observed Name boundaries.
+                    let computation = source_computation(&code, body)?;
                     if computation {
                         source_schedule.push(ExecutionRoot::Definition(id));
                     }
@@ -1232,6 +1213,30 @@ impl RuntimeProgram {
         program.closed_primitive = super::primitive::closed_primitive(&program);
         Ok(Arc::new(program))
     }
+}
+
+fn source_computation(code: &[Arc<Code>], root: Label) -> Result<bool, RuntimeUnavailable> {
+    let mut pending = vec![root];
+    let mut seen = HashSet::new();
+    while let Some(label) = pending.pop() {
+        if !seen.insert(label.0) { continue; }
+        let instruction = &code.get(label.0).ok_or(RuntimeUnavailable::InvalidSourceReference)?.instruction;
+        match instruction {
+            Instruction::Forward(inner) => pending.push(*inner),
+            Instruction::Block { bindings, final_expression } if bindings.is_empty() => pending.push(*final_expression),
+            Instruction::Tuple { elements } => pending.extend(elements.iter().rev().copied()),
+            Instruction::Record { fields } => pending.extend(fields.iter().rev().map(|(_, value)| *value)),
+            Instruction::Apply { .. } | Instruction::If { .. } | Instruction::Catch { .. }
+            | Instruction::Case { .. } | Instruction::Sequence { .. } | Instruction::Block { .. }
+            | Instruction::StatementBlock { .. } | Instruction::OperatorApplication { .. }
+            | Instruction::FieldTail { .. } => return Ok(true),
+            Instruction::Name { consumption: NameConsumption::Execute, .. } => return Ok(true),
+            Instruction::Name { .. } | Instruction::Lambda { .. } | Instruction::Unit
+            | Instruction::Integer(_) | Instruction::Boolean(_) | Instruction::String(_)
+            | Instruction::Primitive(_) | Instruction::Operation(_) => {},
+        }
+    }
+    Ok(false)
 }
 
 fn unique_source_module(
@@ -1720,6 +1725,7 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
             }
             Instruction::Sequence { items } => stack.extend(items.iter().rev().copied()),
             Instruction::Tuple { elements } => stack.extend(elements.iter().rev().copied()),
+            Instruction::Record { fields } => stack.extend(fields.iter().rev().map(|(_, child)| *child)),
             Instruction::FieldTail { receiver, .. } => stack.push(*receiver),
             Instruction::OperatorApplication { left, right, .. } => {
                 if let Some(right) = right { stack.push(*right); }

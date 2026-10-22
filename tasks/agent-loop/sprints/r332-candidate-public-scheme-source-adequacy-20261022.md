@@ -365,3 +365,29 @@ Record-source checkpoint: exact ordered field/child carrier and Name-reference
 edges are retained; empty records remain distinct. Native 263, HIR 2 and solver
 reference 1 pass. No original source or expectations changed. Typed record
 transport/default adaptation/runtime remain OPEN, with publication withheld.
+
+Next bounded record slice leases `crates/yu-solver/src/term.rs` for immutable
+named positive record payloads and branch accounting. Existing solver/capture/
+extrusion/public-scheme/runtime leases cover transport of these literal values.
+Required/optional negative record comparisons and field/default selection remain
+separate obligations; no record is encoded as a Tuple or erased to Unit. Admit
+source inference only after the positive constructor traverses every owning path.
+
+Add `crates/yu-solver/src/tests/kind_qualified_graph.rs` solely to preserve Record
+children/labels in the existing graph observer and simultaneous remapping model;
+existing assertions remain intact. Shared source classification also excludes
+actual record labels from prelude discovery (existing module/local_source leases),
+while field-value names remain ordinary imported/lexical uses.
+
+Resource-feature validation exposes released structural payloads in Term lane 5.
+Lease `crates/yu-solver/src/f5c_draft_heap.rs` for exact decrease events on that
+byte lane; all actual vector capacity monotonicity checks remain intact. Existing
+value-graph tests need explicit HashSet collection types under the probe feature.
+
+Positive Record checkpoint: full native 268, HIR 2, solver record 5, resource
+Tuple/Record 2 (including actual sink rollback totals), fresh WASM 54 and TS pass.
+All 19 original catalog byte hashes verified; behavior remains 6/19. Native
+records retain labels, values, effects, source order and continuation prefixes.
+The actual aggregate initializer omission is repaired compositionally. Required/
+optional parameter patterns and local adaptation remain next. Direct primary
+only, UNREVIEWED; original proof/source/production parents remain OPEN.

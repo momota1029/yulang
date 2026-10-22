@@ -653,12 +653,22 @@ pub(super) fn new_term_owner(lane: usize, requested: usize, capacity: usize, siz
 pub(super) fn update_term_owner(id: usize, lane: usize, requested: usize, old_requested: usize,
     capacity: usize, old_capacity: usize, size: usize) {
     if capacity == old_capacity && requested == old_requested { return; }
-    let op = if capacity > old_capacity { event_sink::GROW } else { event_sink::SHAPE };
-    assert!(capacity >= old_capacity);
+    // Lane 5 counts retained bytes, including separately owned structural
+    // payloads. Rollback drops those payloads while vector capacities stay put.
+    assert!(capacity >= old_capacity || (lane == 5 && size == 1));
+    let op = if capacity > old_capacity { event_sink::GROW }
+        else if capacity < old_capacity { event_sink::DECREASE }
+        else { event_sink::SHAPE };
     event_sink::term_event(id, op, lane, requested, capacity, size);
-    if id != 0 && capacity > old_capacity {
-        let delta = capacity - old_capacity;
-        event_sink::adjust_term(delta as isize, (delta * size) as isize);
+    if id != 0 && capacity != old_capacity {
+        let delta = if capacity >= old_capacity {
+            isize::try_from(capacity - old_capacity).expect("term capacity delta")
+        } else {
+            -isize::try_from(old_capacity - capacity).expect("term capacity delta")
+        };
+        let bytes = delta.checked_mul(isize::try_from(size).expect("term slot size"))
+            .expect("term bytes delta");
+        event_sink::adjust_term(delta, bytes);
         event_sink::adjust_term_shadow(lane, old_capacity, capacity, size);
     }
 }

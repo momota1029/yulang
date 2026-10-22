@@ -639,7 +639,6 @@ fn only_child(node: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
 // Y2 classifies whole brace groups before lowering any field. Never turn a
 // mixed statement block into a partial record or resolve its labels as values.
 fn record_fields(node: &SyntaxNode) -> Result<Option<Vec<(SyntaxNode, SyntaxNode)>>, FormationError> {
-    if has_recovery(node) { return Err(unsupported()); }
     let mut fields = Vec::new();
     for statement in node.children() {
         if statement.kind() == SyntaxKind::BlockStatementSeparator { continue; }
@@ -658,6 +657,18 @@ fn record_fields(node: &SyntaxNode) -> Result<Option<Vec<(SyntaxNode, SyntaxNode
     }
     if fields.is_empty() && node.children().next().is_some() { return Ok(None); }
     Ok(Some(fields))
+}
+/// Reuse the exact whole-brace classification for prelude name discovery.
+/// Nested value identifiers remain ordinary uses. Recovery still belongs to
+/// source formation; this inventory cannot authenticate a recovered carrier.
+pub(super) fn record_label_nodes(root: &SyntaxNode) -> std::collections::HashSet<SyntaxNode> {
+    let mut labels = std::collections::HashSet::new();
+    for node in root.descendants().filter(|node| node.kind() == SyntaxKind::BracedStatementBlockExpression) {
+        if let Ok(Some(fields)) = record_fields(&node) {
+            labels.extend(fields.into_iter().map(|(label, _)| label));
+        }
+    }
+    labels
 }
 pub(crate) fn inline_colon_argument(node: &SyntaxNode) -> Result<SyntaxNode, FormationError> {
     let child = only_child(node)?;
@@ -2198,6 +2209,7 @@ impl Builder<'_> {
         for (child, child_index) in children.into_iter().rev() {
             push(&mut self.work, Work::Restore(depth))?;
             if child.kind() == SyntaxKind::BracedStatementBlockExpression
+                && record_fields(&child)?.is_none()
                 && child.children().filter(|node| node.kind() == SyntaxKind::Statement)
                     .all(|statement| statement.children().next().is_some_and(|node| node.kind() == SyntaxKind::OperatorChain)) {
                 self.sequence(child, child_index, conditional_scope.clone(), named_group.clone())?;

@@ -2210,3 +2210,115 @@ recovery rejection, and local-initializer ownership. Existing expectations are
 unchanged. Browser regeneration is deferred to the next executable record slice;
 this source-only constructor remains explicitly unavailable at candidate/native
 publication. Original catalog stays 6/19; no new sample completion is claimed.
+
+### Positive record payload and transport construction
+
+A literal record is the ordered immutable list of its original labels and
+positive value children; evaluation sequences those actual children. Empty lists
+are a distinct Record constructor. Its meaning under a row assignment is the
+record whose corresponding fields have the child meanings. Simultaneous row
+renaming therefore commutes with this constructor by componentwise induction,
+including the zero-child case. Capture and FreshUse must preserve the complete
+label list and reuse the same row map for all children. Positive extrusion must
+copy each child at the same polarity/target using the ordinary memo and record
+its genuine row parent/copy pairs; the literal itself acquires no level.
+
+This bounded slice introduces positive literal records first. It does not
+construct negative optional record requirements or claim default adaptation.
+Existing primitive/Function/Tuple consumers must report a constructor conflict
+for a Record, never silently flatten or discard its fields. Publication remains
+withheld until this positive constructor reaches public schemes and runtime.
+
+The new field-effect regression exposed the previously recorded unforced Tuple
+initializer gap in the same Record path: whole-module execution returned no
+writes for a binding containing two explicit `println` field computations.
+Pinned Y2 `record_lit.rs` and `expr/block_local.rs::synthetic_tuple_value` both
+set Evaluation::Computation iff an actual child is expansive. Extend the source
+instruction classifier compositionally through Record and Tuple, without reading
+solved effect support or following Name references to other definitions. Literal,
+operation and Lambda values stop the walk; a Lambda body is not evaluated by
+constructing a closure. Existing immediate computation heads remain computations;
+Case, Sequence, operator calls and method calls also execute their source-owned
+continuation and must not be hidden inside an aggregate. A forced source Name is
+a computation; an observed Name keeps the existing initialization boundary.
+
+Induction on this finite source instruction tree establishes the aggregate
+classification: it is marked exactly when a retained child computation head is
+reached outside a value boundary. The source root cursor then schedules the
+original binding once at its original position, and the existing publication
+frame/cache preserves one-shot initialization. This closes the observed missing
+aggregate schedule constructor, not all forward-demand/global-handler proofs.
+The user's October16 relative effect-order rule and R149 require retaining these
+source-marked computation initializers. No dynamic effect detector is inferred.
+
+Direct If-arm braces previously forced the Sequence carrier even when the whole
+body was a record. Pinned Y2 `control.rs::lower_if_arm_body` lowers its body as an
+ordinary expression, reaching the same brace classification. Preserve Sequence
+for statement bodies and route whole-record bodies through the Record carrier;
+the import-name inventory and source constructor now use the same classification.
+
+The positive constructor now connects through real source recipes, Term storage,
+value endpoints, Capture, FreshUse, extrusion, public graph/scheme projection,
+and native instructions/values. A Record is distinct from primitives, Function,
+and Tuple in compatibility diagnostics. No negative Record requirement, field
+selection, spread or default pattern is admitted by this positive-only slice.
+
+For each source field i, constraint generation retains its label and actual
+endpoint vi, adds Record[(li,vi)] <: result, and joins its effect ei into the
+record computation effect. Thus, assuming the existing child generation
+judgments, the constructor preserves the original field values and every child
+effect; it cannot erase a performed effect by making the result an aggregate.
+Capture stores label/child pairs and FreshUse reconstructs them with one shared
+row substitution. Extrusion reuses the same operation-local row map across
+nested Record/Function/Tuple children and leaves older anchors unchanged. The
+source-backed extrusion test reaches Work::Record from two ordinary definitions;
+the internal test independently inspects the copied nested aliases/levels.
+
+Immutable Record payloads share one backing between the term/interner nodes.
+The old Tuple-only payload owner becomes one structural-backing journal, counting
+field descriptors and boxed label bytes once, retaining genuine capacity growth,
+and discarding rolled-back payloads with their terms. Record constructors reject
+foreign, absent and wrong-polarity children before publication. Per-record
+construction/copy/readback and payload storage are linear in field count plus
+label bytes, in addition to existing graph/row work. The retained graph observer
+also keeps named children in its simultaneous mapping; it does not label records
+as tuples. No independent performance or proof review is claimed.
+
+Runtime evaluates each source child left-to-right in the same lexical environment.
+A saved Record frame retains its immutable source code, next child, environment
+and persistent received-value prefix. Induction on next proves that the prefix
+contains exactly the already evaluated fields and their original receiving views.
+A request captures this same frame; resumption extends a fresh prefix suffix and
+cannot re-evaluate earlier fields or mutate another use of the continuation.
+Completion zips the complete ordered received list with the original labels;
+empty records construct an empty Record directly. This adds no receiving grant,
+handler eligibility or field-selection shortcut. Generic RootComp return keeps
+the actual record value via the existing result view; later field access still
+requires its own consumer/projection evidence.
+
+Validation: full native playground **268** tests, HIR record **2**, solver
+record **5**, fresh WASM **54** execution examples plus the original output,
+identity and diagnostic fixtures, and TypeScript pass. Original cooked catalog
+bytes were checked against every manifest SHA-256 and all 19 were executed;
+expected behavior remains **6/19**. Named Defaults still stops at its record
+parameter pattern. No original samples or existing expected outputs changed.
+
+The resource-feature build additionally exposed ambiguous HashSet `collect`s in
+the two prior reference-graph tests; explicit destination types preserve their
+assertions. Its Tuple/Record rollback tests then exposed a real accounting
+mismatch: Term lane 5 combines retained vector bytes and individually released
+structural payload bytes, so its byte count can decrease without any vector
+shrinking. Emit the existing DECREASE event on this lane only, adjust both event
+ledgers by the exact released bytes, and retain monotonic checks for other
+lanes. The Record test also opens an actual event sink and compares retained
+bytes after rollback, then zero bytes after arena destruction. This is resource
+instrumentation evidence, not an independent review or a parent proof.
+
+All original A/B, principality, complete source/native correspondence, general
+receiving, default adaptation and production gates remain OPEN. The next source
+owner is the ordered record parameter pattern and its default scopes; defaults
+must see preceding fields, exclude their own binder, and execute only on absence.
+
+Final resource-feature Tuple/Record tests: **2 pass**, including the actual
+Record event-sink rollback and release totals. Existing resource assertions and
+output expectations remain unchanged.

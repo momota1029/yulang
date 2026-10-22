@@ -8,6 +8,7 @@ enum Work {
     Visit(Key),
     Function(Key, [Key; 4], [Term; 4]),
     Tuple(Key, usize, usize),
+    Record(Key, usize, usize),
     EffectView(Key, u32, Key),
     Bound(ExtrusionEndpoint, Polarity, Key, crate::candidate_effect::BoundKey),
     IncomingAllowance(u32, u32, Key, crate::candidate_effect::BoundKey),
@@ -219,6 +220,23 @@ impl InferenceSession {
                             }
                             continue;
                         }
+                        if let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(term)) = endpoint {
+                            if p != Polarity::Positive { return Err(SolveAvailabilityError::ReceiptMismatch); }
+                            let TermView::PositiveRecord { fields } = self.store.term_view(term)
+                                .map_err(|_| SolveAvailabilityError::ReceiptMismatch)? else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                            let start = tuple_ports.len();
+                            let len = fields.len();
+                            let old = tuple_ports.capacity();
+                            tuple_ports.try_reserve_exact(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            for (_, element) in fields {
+                                tuple_ports.push((Key(ExtrusionEndpoint::Value(self.value_endpoint(*element, p)), p, target), *element));
+                            }
+                            self.candidate_scratch_growth(&mut charge, (tuple_ports.capacity() - old)
+                                .checked_mul(std::mem::size_of::<(Key, Term)>()).ok_or(SolveAvailabilityError::IdentityExhausted)?)?;
+                            work_push!(work, Work::Record(key, start, len))?;
+                            for index in (start..start + len).rev() { work_push!(work, Work::Visit(tuple_ports[index].0))?; }
+                            continue;
+                        }
                         if let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveTuple(term, arity)
                             | ValueEndpointKey::NegativeTuple(term, arity)) = endpoint
                         {
@@ -373,6 +391,35 @@ impl InferenceSession {
                             candidate_context::TransportReason::Extrusion { operation: initial, polarity, target_level: level },
                         )?;
                     }
+                    Work::Record(key @ Key(original, p, _), start, len) => {
+                        let children = tuple_ports.get(start..start.checked_add(len).ok_or(SolveAvailabilityError::IdentityExhausted)?)
+                            .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                        let changed = children.iter().any(|(child, _)| rows.get(child).or_else(|| structure.get(child)).copied() != Some(child.0));
+                        let result = if !changed { original } else {
+                            let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(term)) = original else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                            let TermView::PositiveRecord { fields } = self.store.term_view(term).map_err(|_| SolveAvailabilityError::ReceiptMismatch)?
+                                else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+                            let mut mapped = Vec::new();
+                            mapped.try_reserve_exact(len).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            for (label, term) in fields { mapped.push((label.clone(), *term)); }
+                            let temporary = mapped.iter().try_fold(mapped.capacity().checked_mul(std::mem::size_of::<(Box<str>, Term)>())
+                                .ok_or(SolveAvailabilityError::IdentityExhausted)?, |n, (label, _)| n.checked_add(label.len()).ok_or(SolveAvailabilityError::IdentityExhausted))?;
+                            self.candidate_scratch_growth(&mut charge, temporary)?;
+                            let rebuilt = (|| {
+                                for ((_, mapped_term), (child, original_term)) in mapped.iter_mut().zip(children) {
+                                    let copied = rows.get(child).or_else(|| structure.get(child)).copied().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                                    *mapped_term = if copied == child.0 { *original_term } else { self.candidate_endpoint_term(copied, p)? };
+                                }
+                                let term = self.with_term_events(|arena| arena.positive_record(&mapped))?;
+                                Ok::<_, SolveAvailabilityError>(ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(term)))
+                            })();
+                            drop(mapped);
+                            self.candidate_graph.as_mut().unwrap().scratch_bytes -= temporary;
+                            charge -= temporary;
+                            rebuilt?
+                        };
+                        map_insert!(structure, key, result)?;
+                    }
                     Work::Tuple(key @ Key(original, p, _), start, len) => {
                         let children = tuple_ports.get(start..start.checked_add(len).ok_or(SolveAvailabilityError::IdentityExhausted)?)
                             .ok_or(SolveAvailabilityError::IdentityExhausted)?;
@@ -478,7 +525,7 @@ impl InferenceSession {
             }
             ExtrusionEndpoint::Value(
                 ValueEndpointKey::PositiveFunction(t) | ValueEndpointKey::NegativeFunction(t)
-                | ValueEndpointKey::PositiveTuple(t, _) | ValueEndpointKey::NegativeTuple(t, _),
+                | ValueEndpointKey::PositiveTuple(t, _) | ValueEndpointKey::NegativeTuple(t, _) | ValueEndpointKey::PositiveRecord(t),
             ) => t,
             _ => return Err(SolveAvailabilityError::IdentityExhausted),
         })

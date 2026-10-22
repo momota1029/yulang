@@ -596,7 +596,7 @@ mod conditional_reference_tests {
             .find(|binding| binding.spelling.as_ref() == "local").unwrap().id.clone());
         assert_eq!(references(&graph, &local), expected(&source, &["x"]));
         let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
-        assert_eq!(references(&graph, &root), [local].into_iter().collect());
+        assert_eq!(references(&graph, &root), [local].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]
@@ -641,7 +641,7 @@ mod conditional_reference_tests {
         assert_eq!(references(&graph, &inner), names);
         assert_eq!(references(&graph, &conditional(&source)), names);
         let root = Value::Module(graph.modules[source.definition_root().unwrap()].clone());
-        assert_eq!(references(&graph, &root), [inner].into_iter().collect());
+        assert_eq!(references(&graph, &root), [inner].into_iter().collect::<HashSet<_>>());
     }
 
     #[test]

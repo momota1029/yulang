@@ -775,6 +775,7 @@ enum ValueEndpointKey {
     ValueRow(u32),
     PositiveFunction(Term),
     NegativeFunction(Term),
+    PositiveRecord(Term),
     PositiveTuple(Term, usize),
     NegativeTuple(Term, usize),
 }
@@ -2304,6 +2305,11 @@ impl ConstraintBatch {
                             member.len(),
                             checked_capacity_bytes::<yu_hir::shadow::SourceRoleMemberId>(role_member_candidates.capacity(), "deferred FieldTail role-member candidates"),
                         ], "deferred FieldTail recipe payload"),
+                    shadow_apply::CandidateRelation::Record { fields, element_effects, .. } => checked_usize_sum([
+                        checked_capacity_bytes::<(Box<str>, shadow_apply::CandidateEndpoint)>(fields.capacity(), "record fields"),
+                        checked_capacity_bytes::<usize>(element_effects.capacity(), "record effects"),
+                        checked_usize_sum(fields.iter().map(|(label, _)| label.len()), "record labels"),
+                    ], "record recipe"),
                     shadow_apply::CandidateRelation::Tuple { elements, element_effects, .. } =>
                         checked_usize_sum([
                             checked_capacity_bytes::<shadow_apply::CandidateEndpoint>(elements.capacity(), "candidate tuple elements"),
@@ -4117,6 +4123,7 @@ pub enum ValueShape {
     Str,
     Function,
     Tuple(usize),
+    Record,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SolverError {
@@ -6790,7 +6797,7 @@ impl IndependentResourceLedger {
                         |event| event.2,
                     );
                     assert_eq!(&owner.capacities[..5], &snapshot.0[..5], "Term lane capacities");
-                    assert_eq!(owner.capacities[5], snapshot.0[5] * std::mem::size_of::<u32>() + snapshot.tuple_storage_bytes(), "Term tuple storage accounting");
+                    assert_eq!(owner.capacities[5], snapshot.0[5] * std::mem::size_of::<u32>() + snapshot.structural_storage_bytes(), "Term tuple storage accounting");
                     assert_eq!(owner.lengths, snapshot.1.lengths, "Term lane lengths");
                     assert_eq!(owner.requests, snapshot.1.requests, "Term lane requests");
                     assert_eq!(owner.growths, snapshot.1.growths, "Term lane growths");
@@ -11076,7 +11083,7 @@ impl InferenceSession {
                     || store.checked_inference_term_retained_bytes(),
                     |snapshot| {
                         BranchTermArena::checked_capacity_bytes(snapshot.0)
-                            .and_then(|bytes| bytes.checked_add(snapshot.tuple_storage_bytes()))
+                            .and_then(|bytes| bytes.checked_add(snapshot.structural_storage_bytes()))
                             .ok_or(SolveAvailabilityError::IdentityExhausted)
                     },
                 )?
@@ -11087,7 +11094,7 @@ impl InferenceSession {
             || store.checked_inference_term_retained_bytes(),
             |snapshot| {
                 BranchTermArena::checked_capacity_bytes(snapshot.0)
-                    .and_then(|bytes| bytes.checked_add(snapshot.tuple_storage_bytes()))
+                    .and_then(|bytes| bytes.checked_add(snapshot.structural_storage_bytes()))
                     .ok_or(SolveAvailabilityError::IdentityExhausted)
             },
         )?;
@@ -11744,6 +11751,10 @@ impl InferenceSession {
             TermView::NegativeFunction { .. } => {
                 assert_eq!(polarity, Polarity::Negative);
                 ValueEndpointKey::NegativeFunction(term)
+            }
+            TermView::PositiveRecord { .. } => {
+                assert_eq!(polarity, Polarity::Positive);
+                ValueEndpointKey::PositiveRecord(term)
             }
             TermView::PositiveTuple { elements } => {
                 assert_eq!(polarity, Polarity::Positive);
@@ -14813,6 +14824,7 @@ impl InferenceSession {
             ValueShape::Bool => 4,
             ValueShape::Str => 5,
             ValueShape::Tuple(_) => 6,
+            ValueShape::Record => 7,
         }
     }
 
@@ -15165,6 +15177,7 @@ impl InferenceSession {
             ValueEndpointKey::BoolPositive => ValueShape::Bool,
             ValueEndpointKey::StrPositive => ValueShape::Str,
             ValueEndpointKey::PositiveFunction(_) => ValueShape::Function,
+            ValueEndpointKey::PositiveRecord(_) => ValueShape::Record,
             ValueEndpointKey::PositiveTuple(_, arity) => ValueShape::Tuple(arity),
             ValueEndpointKey::BottomPositive => ValueShape::Bottom,
             _ => return None,

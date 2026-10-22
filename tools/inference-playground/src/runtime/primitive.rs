@@ -213,6 +213,9 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
             Instruction::Sequence { items } => {
                 for item in items { work.push(Visit::Enter(*item, Role::Ground)); }
             }
+            Instruction::Record { fields } => {
+                for (_, element) in fields.iter().rev() { work.push(Visit::Enter(*element, Role::Ground)); }
+            }
             Instruction::Tuple { elements } => {
                 for element in elements.iter().rev() {
                     work.push(Visit::Enter(*element, Role::Ground));

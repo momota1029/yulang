@@ -596,8 +596,7 @@ pub(super) fn preflight_with_imports_and_roles(
     for expr in source.expressions() {
         if matches!(
             &expr.form,
-            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) }
-                | LocalSourceForm::Record { .. },
+            LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) },
         ) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
@@ -1222,6 +1221,9 @@ impl ConstraintBatch {
                                 push(&mut work, Work::Visit(item.ordinal() as usize, level, region))?;
                             }
                         }
+                        LocalSourceForm::Record { fields } => {
+                            for field in fields.iter().rev() { push(&mut work, Work::Visit(field.value.ordinal() as usize, level, region))?; }
+                        }
                         LocalSourceForm::Tuple { elements } => {
                             for element in elements.iter().rev() {
                                 push(&mut work, Work::Visit(element.ordinal() as usize, level, region))?;
@@ -1457,7 +1459,6 @@ impl ConstraintBatch {
                     let occurrence = &expr.occurrence;
                     let start = self.occurrences.len();
                     match &expr.form {
-                        LocalSourceForm::Record { .. } => return Err(unavailable()),
                         LocalSourceForm::Integer(_) | LocalSourceForm::Unit | LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) => {
                             let (positive_leaf, negative_leaf) = match &expr.form {
                                 LocalSourceForm::Unit => (Leaf::UnitPositive, Leaf::UnitNegative),
@@ -1818,6 +1819,22 @@ impl ConstraintBatch {
                             let count = 2 + usize::from(annotation.ty.effects.is_some());
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
+                        }
+                        LocalSourceForm::Record { fields } => {
+                            let mut values = Vec::new();
+                            let mut effects = Vec::new();
+                            values.try_reserve_exact(fields.len()).map_err(|_| unavailable())?;
+                            effects.try_reserve_exact(fields.len()).map_err(|_| unavailable())?;
+                            for field in fields {
+                                let i = field.value.ordinal() as usize;
+                                values.push((field.label.clone(), endpoints[i]));
+                                effects.push(positions[i].effect);
+                            }
+                            let recipe = self.candidate_recipes.len();
+                            self.retain_candidate_relation(occurrence, CandidateRelation::Record {
+                                fields: values, element_effects: effects, result: pos.value, result_effect: pos.effect,
+                            })?;
+                            push(&mut actions, Action::Candidate(recipe))?;
                         }
                         LocalSourceForm::Tuple { elements } => {
                             let mut tuple_elements = Vec::new();

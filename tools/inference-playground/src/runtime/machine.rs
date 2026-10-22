@@ -119,11 +119,12 @@ pub enum RuntimeValueKind {
     String(Box<str>),
     Primitive(yu_hir::shadow::PinnedPrimitiveOp),
     Tuple(Vec<TupleElement>),
+    Record(Vec<(Box<str>, TupleElement)>),
     Closure,
     Computation,
     Operation(SourceOperationResolution),
 }
-/// One evaluated tuple element, including the exact source receiving view.
+/// One evaluated structural element, including the exact source receiving view.
 /// The view remains private so callers cannot forge runtime evidence.
 #[derive(Clone, Copy, Debug)]
 pub struct TupleElement {
@@ -287,6 +288,12 @@ pub(super) enum Frame {
         sequence: Arc<Code>,
         next: usize,
         environment: usize,
+    },
+    Record {
+        record: Arc<Code>,
+        next: usize,
+        environment: usize,
+        prefix: Option<usize>,
     },
     Tuple {
         tuple: Arc<Code>,
@@ -692,6 +699,15 @@ impl Machine {
                 RuntimeValueKind::Primitive(operation.clone()),
                 Some(ExecutableValue::Primitive { operation: operation.clone(), arguments: Vec::new() }),
             ),
+            Instruction::Record { fields } => {
+                if let Some((_, first)) = fields.first() {
+                    let first = *first;
+                    self.frames.push(Frame::Record { record: code, next: 1, environment, prefix: None });
+                    self.state = State::Evaluate { code: first, environment };
+                } else {
+                    self.data(site, RuntimeValueKind::Record(Vec::new()), None);
+                }
+            }
             Instruction::Tuple { elements } => {
                 if let Some(first) = elements.first().copied() {
                     self.frames.push(Frame::Tuple {
@@ -1483,6 +1499,28 @@ impl Machine {
                     self.state = State::Evaluate { code: item, environment };
                 } else {
                     self.state = State::Return(received);
+                }
+            }
+            Frame::Record { record, next, environment, prefix: previous } => {
+                let prefix = self.tuple_prefixes.len();
+                self.tuple_prefixes.push(TuplePrefix { previous, received });
+                let Instruction::Record { fields } = &record.instruction else { unreachable!() };
+                if let Some((_, element)) = fields.get(next) {
+                    let element = *element;
+                    self.frames.push(Frame::Record { record, next: next + 1, environment, prefix: Some(prefix) });
+                    self.state = State::Evaluate { code: element, environment };
+                } else {
+                    let mut reversed = Vec::with_capacity(fields.len());
+                    let mut cursor = Some(prefix);
+                    while let Some(index) = cursor {
+                        let node = self.tuple_prefixes.get(index).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                        reversed.push(TupleElement { received: node.received });
+                        cursor = node.previous;
+                    }
+                    if reversed.len() != fields.len() { return Err(RuntimeUnavailable::InvalidSourceReference); }
+                    reversed.reverse();
+                    let value = fields.iter().map(|(label, _)| label.clone()).zip(reversed).collect();
+                    self.data(&record.site, RuntimeValueKind::Record(value), None);
                 }
             }
             Frame::Tuple { tuple, next, environment, prefix: previous } => {

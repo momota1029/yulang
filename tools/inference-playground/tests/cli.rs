@@ -30,6 +30,53 @@ fn cli_with_args(source: &str, args: &[&str]) -> std::process::Output {
 }
 
 #[test]
+fn record_literals_preserve_names_order_polymorphic_values_and_runtime_identity() {
+    for (source, expected) in [
+        ("my main = {}", "{}\n"),
+        ("my main = if true { width: 3 } else { width: 4 }", "{width: 3}\n"),
+        ("my main = { width: 3, height: 4 }", "{width: 3, height: 4}\n"),
+        ("my make x = { field: x }; my main = (make 7, make \"str\")", "({field: 7}, {field: \"str\"})\n"),
+        ("my id x = x; my main = id { nested: { x: 3 }, empty: {} }", "{nested: {x: 3}, empty: {}}\n"),
+        ("my main = { my make x = { field: x }; (make 3, make true) }", "({field: 3}, {field: true})\n"),
+        ("my main = { same: 1, same: 2 }", "{same: 1, same: 2}\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(output.status.success(), "{source}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "{source}");
+    }
+    let types = infer_types("pub record = { width: 3, height: 4 }; pub empty = {}", "record.yu").unwrap();
+    assert!(types.contains("{width: int, height: int}"), "{types}");
+    assert!(types.contains("empty: {}"), "{types}");
+    for source in ["my main = { a: 1 } as int", "my main = { a: 1 } as (int,)"] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("lower: Record"));
+    }
+}
+
+#[test]
+fn record_field_effects_follow_source_order_and_preserve_generic_result_views() {
+    let events = execute_module_events("my record = { first: { println \"first\"; 1 }, second: { println \"second\"; 2 } }", "record-effects.yu", 100_000, false).unwrap();
+    assert_eq!(events, ["first\n", "second\n"]);
+    let source = "act io:\n    our tick: int -> int\nmy relay(thunk:[io] 'a) = catch thunk { io::tick(p), k -> { my first = k 11; k 23 } }\nmy main = relay { first: io::tick 0, second: true }";
+    let output = cli_with_args(source, &["--run", "main"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"{first: 23, second: true}\n");
+}
+
+#[test]
+fn aggregate_initializers_retain_module_effect_order_and_lazy_closure_values() {
+    for aggregate in ["({ println \"first\"; 1 }, { println \"second\"; 2 })",
+                      "{ a: { println \"first\"; 1 }, b: { println \"second\"; 2 } }"] {
+        let source = format!("println \"before\"\nmy data = {aggregate}\nprintln \"after\"\ndata\ndata");
+        assert_eq!(execute_module_events(&source, "aggregate-order.yu", 100_000, false).unwrap(),
+            ["before\n", "first\n", "second\n", "after\n"]);
+    }
+    let source = "my data = { value: 1, closure: \\x -> println x }\nprintln \"only\"";
+    assert_eq!(execute_module_events(source, "record-value.yu", 100_000, false).unwrap(), ["only\n"]);
+}
+
+#[test]
 fn unchanged_yulang2_types_sample_runs_through_the_cli() {
     let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
     assert_eq!(source.len(), 142);

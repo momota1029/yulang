@@ -68,6 +68,28 @@ fn assert_integer(source: &str, expected: &str) {
 }
 
 #[test]
+fn record_prefix_survives_requests_and_single_step_resumption() {
+    let source = format!(
+        "{IO}my ticked (thunk:[io] int) = catch thunk {{ io::tick(p), k -> k 10 }}\nmy other (thunk:[io] int) = catch thunk {{ io::other(p), k -> k 20 }}\nmy main = {{ first: 42, second: ticked {{ io::tick 1 }}, third: other {{ io::other 2 }} }}"
+    );
+    let (mut machine, _) = machine(&source);
+    let mut completed = None;
+    for _ in 0..30_000 {
+        match machine.run(1) {
+            RuntimeOutcome::ResourceExhausted { .. } | RuntimeOutcome::Running => {},
+            RuntimeOutcome::Completed(value) => { completed = Some(value); break; }
+            other => panic!("record execution: {other:?}"),
+        }
+    }
+    let RuntimeValueKind::Record(fields) = &machine.value(completed.expect("record completion")).unwrap().kind else { panic!("record value"); };
+    assert_eq!(fields.iter().map(|(label, _)| label.as_ref()).collect::<Vec<_>>(), ["first", "second", "third"]);
+    let values = fields.iter().map(|(_, field)| match &machine.value(field.value()).unwrap().kind {
+        RuntimeValueKind::Integer(value) => value.as_ref(), other => panic!("{other:?}"),
+    }).collect::<Vec<_>>();
+    assert_eq!(values, ["42", "10", "20"]);
+}
+
+#[test]
 fn ordered_tuple_prefix_survives_resumes_without_replaying_prior_children() {
     let source = format!(
         "{IO}my ticked (thunk:[io] int) = catch thunk {{ io::tick(p), k -> k 10 }}\nmy other (thunk:[io] int) = catch thunk {{ io::other(p), k -> k 20 }}\nmy main = (42, ticked {{ io::tick 1 }}, other {{ io::other 2 }})"

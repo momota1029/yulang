@@ -2482,6 +2482,49 @@ mod tests {
     }
 
     #[test]
+    fn record_extrusion_is_reached_by_source_and_preserves_shared_children() {
+        for text in [
+            "my outer x = { my local y = y; local { first: x, again: x } }",
+            "my apply f x = f x; my outer x = apply (\\y -> { captured: x, argument: y }) x",
+        ] {
+            let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+            let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+                Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+            let hir = yu_hir::shadow::lower_module_with_local_source(
+                yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("record-source", "source.yu"))),
+                &parsed, yu_hir::SemanticImports::empty()).unwrap();
+            candidate_context::r148_trace_begin();
+            let result = crate::shadow_apply::CandidateInference::solve(Arc::new(hir));
+            let trace = candidate_context::r148_trace_finish();
+            assert!(result.unwrap().candidate_conflicts().is_empty());
+            assert!(trace.iter().any(|event| event.starts_with("work-pop ") && event.contains("task=Record(")), "record source extrusion: {text}");
+        }
+        let mut session = make_session("my seed x = seed x");
+        let young = session.fresh_value_at_level(3).unwrap();
+        let anchor = session.fresh_value_at_level(0).unwrap();
+        let p = session.live_value_term(Polarity::Positive, young).unwrap();
+        let ap = session.live_value_term(Polarity::Positive, anchor).unwrap();
+        let inner = session.with_term_events(|arena| arena.positive_record(&[("x".into(), p), ("anchor".into(), ap)])).unwrap();
+        let outer = session.with_term_events(|arena| arena.positive_record(&[("inner".into(), inner), ("again".into(), p)])).unwrap();
+        let checking = session.batch.candidate_source.references.checking.keys().next().unwrap().clone();
+        let relation = session.candidate_context_seed(LiveConstraintTask::Value(CanonicalValuePairKey {
+            lower: ValueEndpointKey::ValueRow(young), upper: ValueEndpointKey::ValueRow(young),
+        }), &checking, None).unwrap().unwrap();
+        session.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.context.processing = Some(relation);
+        let copied = session.candidate_extrude(ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(outer)), Polarity::Positive, 0).unwrap();
+        let ExtrusionEndpoint::Value(ValueEndpointKey::PositiveRecord(term)) = copied else { panic!("record copy"); };
+        assert_ne!(term, outer);
+        let TermView::PositiveRecord { fields } = session.store.term_view(term).unwrap() else { panic!("outer"); };
+        assert_eq!(fields.iter().map(|(label, _)| label.as_ref()).collect::<Vec<_>>(), ["inner", "again"]);
+        let TermView::PositiveRecord { fields: inner } = session.store.term_view(fields[0].1).unwrap() else { panic!("inner"); };
+        assert_eq!(inner[0].1, fields[1].1);
+        assert_eq!(session.value_endpoint(inner[1].1, Polarity::Positive), ValueEndpointKey::ValueRow(anchor));
+        let ValueEndpointKey::ValueRow(copy) = session.value_endpoint(fields[1].1, Polarity::Positive) else { panic!("row copy"); };
+        assert_ne!(copy, young);
+        assert_eq!(session.value_levels[copy as usize], 0);
+    }
+
+    #[test]
     fn tuple_extrusion_transports_nested_children_aliases_and_function_polarities() {
         fn elements(session: &InferenceSession, term: Term) -> Vec<Term> {
             match session.store.term_view(term).unwrap() {

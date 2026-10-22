@@ -342,9 +342,9 @@ fn render_runtime_value(
     root: runtime::ValueHandle,
     output: &mut Output,
 ) -> Result<(), std::fmt::Error> {
-    enum Item {
+    enum Item<'a> {
         Value(runtime::ValueHandle),
-        Text(&'static str),
+        Text(&'a str),
     }
     let mut pending = vec![Item::Value(root)];
     while let Some(item) = pending.pop() {
@@ -360,6 +360,16 @@ fn render_runtime_value(
                     runtime::RuntimeValueKind::Boolean(value) => write!(output, "{value}")?,
                     runtime::RuntimeValueKind::String(value) => write!(output, "{value:?}")?,
                     runtime::RuntimeValueKind::Primitive(operation) => write!(output, "<primitive {operation:?}>")?,
+                    runtime::RuntimeValueKind::Record(fields) => {
+                        output.write_char('{')?;
+                        pending.push(Item::Text("}"));
+                        for (index, (label, element)) in fields.iter().enumerate().rev() {
+                            pending.push(Item::Value(element.value()));
+                            pending.push(Item::Text(": "));
+                            pending.push(Item::Text(label));
+                            if index > 0 { pending.push(Item::Text(", ")); }
+                        }
+                    }
                     runtime::RuntimeValueKind::Tuple(elements) => {
                         output.write_char('(')?;
                         if elements.is_empty() {

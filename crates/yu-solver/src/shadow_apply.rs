@@ -738,6 +738,7 @@ pub enum CandidateSourceValueEndpoint {
     ValueRow(u32),
     PositiveFunction(Term),
     NegativeFunction(Term),
+    PositiveRecord(Term),
     PositiveTuple(Term, usize),
     NegativeTuple(Term, usize),
 }
@@ -923,6 +924,7 @@ fn source_value_endpoint(endpoint: ValueEndpointKey) -> CandidateSourceValueEndp
         ValueEndpointKey::ValueRow(row) => E::ValueRow(row),
         ValueEndpointKey::PositiveFunction(term) => E::PositiveFunction(term),
         ValueEndpointKey::NegativeFunction(term) => E::NegativeFunction(term),
+        ValueEndpointKey::PositiveRecord(term) => E::PositiveRecord(term),
         ValueEndpointKey::PositiveTuple(term, arity) => E::PositiveTuple(term, arity),
         ValueEndpointKey::NegativeTuple(term, arity) => E::NegativeTuple(term, arity),
     }
@@ -2479,6 +2481,7 @@ impl<'a> CandidateGraphNode<'a> {
         match self.graph.nodes[self.index] {
             Node::Row { polarity, .. } | Node::Function { polarity, .. } | Node::Tuple { polarity, .. } | Node::EffectOperand { polarity, .. } => polarity,
             Node::Leaf(Atom::Bottom | Atom::IntPositive | Atom::UnitPositive | Atom::BoolPositive | Atom::StrPositive | Atom::EffectBottom) => Polarity::Positive,
+            Node::Record { .. } => Polarity::Positive,
             Node::Leaf(_) => Polarity::Negative,
         }
     }
@@ -2493,6 +2496,11 @@ impl<'a> CandidateGraphNode<'a> {
             }
             _ => None,
         }
+    }
+    pub fn record_fields(self) -> Option<impl ExactSizeIterator<Item = (&'a str, Self)> + 'a> {
+        let crate::candidate_scheme::Node::Record { start, len } = self.graph.nodes[self.index] else { return None; };
+        let fields = self.graph.record_fields.get(start..start.checked_add(len)?)?;
+        Some(fields.iter().map(move |(label, index)| (label.as_ref(), Self { state: self.state, graph: self.graph, index: *index })))
     }
     pub fn tuple_children(self) -> Option<impl ExactSizeIterator<Item = Self> + 'a> {
         let crate::candidate_scheme::Node::Tuple { start, len, .. } = self.graph.nodes[self.index] else {
@@ -3202,6 +3210,12 @@ pub(super) enum CandidateRelation {
         result: usize,
         result_effect: usize,
     },
+    Record {
+        fields: Vec<(Box<str>, CandidateEndpoint)>,
+        element_effects: Vec<usize>,
+        result: usize,
+        result_effect: usize,
+    },
     Tuple {
         elements: Vec<CandidateEndpoint>,
         element_effects: Vec<usize>,
@@ -3408,7 +3422,7 @@ impl ConstraintBatch {
                 CandidateRelation::DeferredFieldTail { .. } => 0,
                 CandidateRelation::Group { .. } => 2,
                 CandidateRelation::Apply { .. } => 3,
-                CandidateRelation::Tuple { element_effects, .. } => 1usize.checked_add(element_effects.len()).ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?,
+                CandidateRelation::Tuple { element_effects, .. } | CandidateRelation::Record { element_effects, .. } => 1usize.checked_add(element_effects.len()).ok_or(CollectionAvailabilityError::ComponentIdentityExhausted)?,
                 CandidateRelation::TuplePattern { .. } => 1,
             }
         } else {
@@ -3719,6 +3733,16 @@ impl InferenceSession {
                 self.candidate_endpoint(*child, Polarity::Positive)?,
                 self.candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?,
             ),
+            CandidateRelation::Record { fields, result, .. } => {
+                let mut mapped = Vec::new();
+                mapped.try_reserve_exact(fields.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                for (label, field) in fields {
+                    mapped.push((label.clone(), self.candidate_endpoint(*field, Polarity::Positive)?));
+                }
+                let record = self.with_term_events(|arena| arena.positive_record(&mapped))?;
+                let upper = self.candidate_endpoint(CandidateEndpoint::Component(*result), Polarity::Negative)?;
+                (record, upper)
+            }
             CandidateRelation::Tuple { elements, result, .. } => {
                 let mut element_terms = Vec::new();
                 element_terms.try_reserve_exact(elements.len()).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
@@ -3894,7 +3918,8 @@ impl InferenceSession {
                         result,
                     )?;
                 }
-                CandidateRelation::Tuple { element_effects, result_effect, .. } => {
+                CandidateRelation::Tuple { element_effects, result_effect, .. }
+                | CandidateRelation::Record { element_effects, result_effect, .. } => {
                     for (index, &element_effect) in element_effects.iter().enumerate() {
                         let slot = u32::try_from(index).ok()
                             .and_then(|index| index.checked_add(1))
@@ -4608,6 +4633,7 @@ mod tests {
             negative_formal_roots: HashMap::new(),
             nodes: Vec::new(),
             tuple_children: Vec::new(),
+            record_fields: Vec::new(),
             rows: vec![
                 Row { key: RowKey::Value(7), local: false },
                 Row { key: RowKey::Value(7), local: true },
@@ -4719,6 +4745,7 @@ mod tests {
             negative_formal_roots: HashMap::new(),
             nodes: Vec::new(),
             tuple_children: Vec::new(),
+            record_fields: Vec::new(),
             rows: vec![
                 Row { key: copy_key, local: false },
                 Row { key: parent_key, local: true },

@@ -30,6 +30,7 @@ enum NodeKind<'a> {
     Row(RowId),
     Function([NodeId; 4]),
     Tuple(Vec<NodeId>),
+    Record(Vec<(Box<str>, NodeId)>),
     Effect(Effect<'a>),
 }
 struct Effect<'a> {
@@ -120,6 +121,10 @@ impl<'a> CandidatePublicScheme<'a> {
                 budget.observe(4)?;
                 let [a, ae, re, r] = children;
                 NodeKind::Function([node_id(a)?, node_id(ae)?, node_id(re)?, node_id(r)?])
+            } else if let Some(fields) = source.record_fields() {
+                budget.observe(fields.len())?;
+                bounded(fields.len(), "record fields")?;
+                NodeKind::Record(fields.map(|(label, child)| Ok((label.into(), node_id(child)?))).collect::<Result<_, String>>()?)
             } else if let Some(children) = source.tuple_children() {
                 budget.observe(children.len())?;
                 bounded(children.len(), "tuple elements")?;
@@ -369,9 +374,9 @@ impl<'a> CandidatePublicScheme<'a> {
         free: &mut HashSet<RowId>,
         output: &mut Output,
     ) -> Result<(), String> {
-        enum Step {
+        enum Step<'a> {
             Node(NodeId),
-            Text(&'static str),
+            Text(&'a str),
             Leave(RowId),
         }
         let mut stack = vec![Step::Node(root)];
@@ -423,6 +428,17 @@ impl<'a> CandidatePublicScheme<'a> {
                         {
                             stack.push(Step::Node(*child));
                             stack.push(Step::Text(label));
+                        }
+                    }
+                    NodeKind::Record(fields) => {
+                        output.observe(fields.len())?;
+                        output.write_char('{').map_err(cap)?;
+                        stack.push(Step::Text("}"));
+                        for (index, (label, child)) in fields.iter().enumerate().rev() {
+                            stack.push(Step::Node(*child));
+                            stack.push(Step::Text(": "));
+                            stack.push(Step::Text(label));
+                            if index != 0 { stack.push(Step::Text(", ")); }
                         }
                     }
                     NodeKind::Tuple(children) => {
@@ -579,6 +595,14 @@ mod tests {
                         assert!(source.same_identity(scheme.nodes[child.0].source));
                     }
                 }
+                NodeKind::Record(fields) => {
+                    let sources = source.record_fields().unwrap();
+                    assert_eq!(sources.len(), fields.len());
+                    for ((source_label, source), (label, child)) in sources.zip(fields) {
+                        assert_eq!(source_label, label.as_ref());
+                        assert!(source.same_identity(scheme.nodes[child.0].source));
+                    }
+                }
                 NodeKind::Tuple(children) => {
                     let sources = source.tuple_children().unwrap();
                     assert_eq!(sources.len(), children.len());
@@ -674,6 +698,17 @@ mod tests {
         assert_eq!(exported.len(), scheme.rows.len());
         for row in &scheme.rows {
             assert!(exported.contains(&row.source));
+        }
+    }
+
+    #[test]
+    fn record_projection_preserves_every_label_child_and_shared_row() {
+        let (hir, candidate) = crate::prepare("pub make x = { first: x, nested: { again: x }, empty: {} }; pub main = make 3", "record-types.yu", false).unwrap();
+        for name in ["make", "main"] {
+            let graph = candidate.export(&root(&hir, name)).unwrap();
+            let scheme = CandidatePublicScheme::project(&graph).unwrap();
+            assert_correspondence(&graph, &scheme);
+            assert!(scheme.nodes.iter().any(|node| matches!(&node.kind, NodeKind::Record(fields) if fields.is_empty())));
         }
     }
 
