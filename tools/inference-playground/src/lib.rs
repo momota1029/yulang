@@ -1,6 +1,7 @@
 //! Local experimental observations, not production admission or principal types.
 mod output;
 mod pinned_stdlib;
+mod scheme;
 pub mod render;
 pub mod runtime;
 use output::{Output, cap};

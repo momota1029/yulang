@@ -106,3 +106,148 @@ R332 continues the unchanged parent goal by constructing a candidate-owned schem
 The playground projection now first constructs a typed `CandidatePublicScheme`: the value body is a `SchemeType` tree (`Leaf`, typed `Row`, `Function`, or ordered `Tuple`), binders retain Value/Effect row kind, and shared anchors are typed by row kind. The existing display is rendered from that structure, preserving the same shared quantified row in `id` and tuple order in `pair`. Effect operands, permissions, and retained bounds are still held in a textual observation section; this is not yet the solver-owned accepted scheme required by R149.
 
 After this refactor, `cargo test -q -p yu-playground` passed: 45 library tests, 28 CLI tests, and every package integration target. The exact `[io]` open-permission / `[state]` residual tests and the unchanged Types/Console source tests remain included. Browser typecheck still fails on stale generated bindings, and Web smoke remains unavailable without wasm-bindgen-cli.
+
+## R332 direct-primary: typed graph image and constructive correspondence
+
+Status: UNREVIEWED candidate lemma and implementation evidence. The user's
+2026-10-22 continuation selects direct primary proof/code work with minimal
+sprint bookkeeping. No child or independent reviewer ran. This section replaces
+only the preceding description of text-only constraints; the parent A/B,
+source/native, generalization and production gates remain OPEN.
+
+### Construction and claim
+
+`tools/inference-playground/src/scheme.rs::CandidatePublicScheme::project`
+constructs a finite typed image of `CandidateGraphExport`, before formatting.
+It owns node/row/constraint tables and borrows immutable candidate provenance;
+it is not a detached, solver-accepted generalized scheme. Nodes retain their
+original graph identity and polarity. Effect operands retain the complete
+`CandidateGraphEffectOperand` variant, including source owner, origin,
+position, operation declaration/use, member index, labels, route/instance and
+original tail node. Formal permissions retain their original typed object.
+No source identity is reconstructed from printed names.
+
+For every successfully projected exported graph G, let N map its enumerated
+node identities to `NodeId`, and let R map its canonical row identities
+(`CandidateGraphRow::same_identity`) to `RowId`. The claimed image laws are:
+
+1. N is a bijection onto the image's node table, and its root is N(G.root).
+   Distinct nodes remain distinct even when their leaves or row identities agree.
+2. R preserves and reflects canonical row equality. Each image row retains
+   Value/Effect kind and locality. Aliased rows with conflicting locality/kind
+   cause failure, rather than silently generalizing an outer anchor.
+3. Every constructor and ordered child edge is retained. A function retains
+   its four ordered ports; tuples retain all elements. Leaf polarity and exact
+   effect variant/provenance remain available through their source objects.
+4. The complete ordered list of exported bounds is mapped pointwise to
+   `(kind, N(lower), N(upper))`. Neither rows with concrete heads nor bounds
+   outside the displayed body are deleted from this carrier.
+5. Every exported formal permission retains its occurrence, source row, path
+   and explicit labels, with its tail mapped through the same R as all other
+   Value/Effect references. Every effect-operand tail is checked for graph
+   membership and Effect kind before its R-reference is stored.
+
+These quantify over successful finite exported graphs, not all source programs
+or arbitrary native solver states. They establish absence of additional loss
+at this projection seam, not adequacy of the earlier capture/export.
+
+### Constructive argument
+
+`CandidateGraphExport::nodes` enumerates each index of one fixed graph exactly
+once. `CandidateGraphNode` equality and hashing use the graph pointer and that
+index. The immutable borrow prevents the indexed graph from changing during
+projection. Inserting all indices into N before mapping any edges therefore
+establishes law 1 and handles forward references/cycles without recursive copying.
+An unresolved root or child lookup returns an error before a scheme is returned.
+
+`CandidateGraphRow` equality and hashing both use the immutable state pointer
+and `intrusion.rep(RowKey)`. The row loop inserts only a previously absent key,
+retains the first source coordinate, and checks subsequent aliases for equal
+kind/locality. Thus equal canonical keys have the same R-image and unequal
+keys cannot obtain the same image slot, establishing law 2. Opposite polar
+nodes can reference this one row without equating their node identities.
+
+The node loop has exhaustive cases for the currently exported leaf, row,
+function, tuple and effect constructors. It copies a leaf, applies R to a row,
+applies N pointwise to structural children, or retains the original effect
+variant while validating and translating its tail. It returns an error for
+an unrecognized node. This is a finite case analysis proving law 3; no
+induction on potentially cyclic graph reachability is needed. The bounds loop
+pushes exactly one image bound per source bound, in iteration order, with both
+N-lookups required. This proves law 4. The permission loop similarly stores
+the whole returned permission plus its checked R-tail, proving law 5.
+
+Concrete-head expansion happens only in rendering. Its single bounds scan
+replaces the previous scan of every bound at every row occurrence. The typed
+carrier retains the original constraints even when the printed heading uses
+`int`, `str` or a function abbreviation. Multiple distinct concrete heads still
+withhold the display. The renderer uses an explicit work stack; active row
+expansion returns the same row reference on recurrence. The existing output
+byte/work limits and finite node/row/bound/stack limits reject the whole result;
+there is no recursive Rust tree traversal or recursively owned type tree.
+
+Projection performs one row pass, two node passes, one bound pass and one
+permission pass. Its expected hash-table work is linear in those entries and
+child/label/path incidences, plus the actual cost of canonical representative
+queries in row hashing. The formal-permission exporter has its own pre-existing
+scan/allocation cost. Rendering is bounded by the emitted work/bytes and may
+repeat shared substructure; no linear-size pretty-printing theorem is claimed.
+Native allocation failure is not converted into a recoverable Rust error.
+
+### Apply to source owners and the original obligation
+
+The source chain is `prepare_with_world` -> candidate inference ->
+`CandidateInference::export(definition_root)` -> this typed projection ->
+`render::public_scheme` -> `infer_types`. Export checks conflict freedom and
+exact definition-root ownership. `Capture::row` canonicalizes row keys and
+sets locality from `level > boundary && !non_generic`; `Capture::expand_node`
+constructs polar function/tuple/effect nodes; `Capture::expand_row` intentionally
+leaves nonlocal bounds in the owning context. This image preserves that
+boundary and cannot prove a shared anchor's omitted owner constraints.
+
+For the exact negative `[io]` source, `candidate_formal_effect_port` creates an
+open fresh effect port and records the explicit labels, occurrence, owner,
+source row and formal path. `formal_effect_permissions` follows that retained
+path through the captured negative function, checks Effect kind and returns
+that exact port. The new permission table retains its source object and maps
+its tail through R. Thus this step does not manufacture an `io` contribution,
+close the open tail, or provide runtime Grant evidence. In the exact source
+regression the answer's distinct `state` support is an Effect lower bound into
+an Effect row; law 4 transports that same bound into the typed carrier.
+
+New source-driven regressions check all nodes, constraints and permissions for
+the unchanged Types graph and the `[io]`/`[state]` graph. They additionally check
+that `id`'s negative argument and positive result share one RowId, and that the
+state support remains connected to a typed residual row. A separate synthetic
+deep-display test checks bounded iterative rejection; it is not source evidence.
+The existing CLI expectations and exact sample bytes are unchanged.
+
+The remaining parent premises are concrete: capture/source-rule completeness
+and shared-anchor ownership (`candidate_scheme`/`candidate_source`), authentic
+permission and invocation/Grant correspondence (`candidate_effect`/
+`candidate_context`/runtime), correct generalized binders and FreshUse semantics
+(`candidate_scheme`), and public types/execution from one accepted inference
+result (playground/WASM publication). In particular, `infer_types` and
+`run_module` still perform separate candidate preparations; matching results
+and successful smoke tests do not discharge the same-accepted-result contract.
+This candidate lemma removes the renderer's text-only reconstruction seam; it
+does not close any of those premises, principality or the original A/B theorem.
+
+Validation for this frozen projection slice: `cargo test -q -p yu-playground`
+passed (48 library tests, 28 CLI tests and all package integration targets).
+`npm --prefix web/playground run check` passed after downloading the official
+wasm-bindgen 0.2.125 Linux executable into a unique temporary tool directory;
+the pinned release matches Cargo.lock. This freshly rebuilt WASM, regenerated
+the ignored bindings and passed the existing smoke, including exact Types and
+Console events. `npm --prefix web/playground run typecheck` also passed. No
+generated WASM/build artifacts are staged. The previous CLI/DNS blocker is
+resolved for this session. No browser deployment or independent review occurred.
+
+Resource observation: an unrelated pre-existing solver test (PIDs 95124/95134,
+about ten hours old) remains live with unknown owner, approximately 1.6 GiB RSS
+and one CPU. It was not stopped or reclaimed. The machine had 20 CPUs and over
+26 GiB available RAM; this primary used one Cargo process at a time, and the
+WASM build used one Cargo job with a 300-second timeout. Legacy UNKNOWN workers
+remain quarantined. Existing dependency warnings concern retained HIR/source
+provenance and solver observation APIs; changing those contracts or removing
+proof evidence requires their owner-specific follow-up, not erasure here.

@@ -44,3 +44,21 @@ Only the primary writes these paths. No subagent, reviewer, or parallel writer i
 ## Resources and continuation
 
 Primary-only serial envelope: 900 additional active seconds, no carryover; at most one heavy Cargo process. Review stays UNREVIEWED; no self-review claim. Commit coherent verified checkpoints, push non-forced when network allows, and preserve a clean worktree after each checkpoint. At the sprint boundary, keep the parent goal active and record the exact remaining source/proof/tooling premises.
+
+## Direct-primary continuation, 2026-10-22
+
+The current user explicitly selects direct primary proof/code work with minimal
+sprint records and no routine subagent dispatch. This overrides the historical
+Luna-primary and Astra-child routing for this continuation, without changing
+semantic authority or independent-review requirements. No child is launched.
+The fresh runtime listing contains only `/root`; the three legacy UNKNOWN
+identities remain quarantined and are not reclaimed.
+
+Continue the same outcome with a typed finite graph projection (including
+constraints and exact effect provenance) and a constructive correspondence
+argument. Add the exact primary lease `tools/inference-playground/src/scheme.rs`
+for this representation; existing renderer/lib/test/receipt leases remain.
+Use a 3600-second direct-primary envelope from this resumption, retaining the
+previous 300-second charge separately. One heavy build/test process at a time.
+The current primary's effective model/effort is not asserted from the user's
+model label. Research checkpoints remain explicitly UNREVIEWED.
