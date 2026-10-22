@@ -18,4 +18,6 @@ The pinned integration compares the imported-use receipt with the receipt from t
 
 Verification: `cargo test -p yu-hir --lib` — 165 passed; `cargo test -p yu-playground --lib` — 41 passed; focused private-operator receipt rejection and `pinned_stdlib_role_impl_sources_keep_distinct_module_identities` passed. The ordinary Types sample remains deferred at candidate FieldTail/infix admission. Candidate collection still rejects `InfixOperator`; owner resolution does not assign a type scheme, admit or type the body, select a method, execute the sample, or close R149/source-native/A-B/principality/termination/review/production.
 
+Git checkpoint: the R316 source-owner result was committed as `33cb23d79` (`Track authenticated operator source owners`) and pushed to `research/simple-sub-intrusion`.
+
 The next gate is to connect the exact LocalSource operator occurrence to its provider owner and value body within candidate construction, preserving the consumer occurrence and not inventing a top-level definition. Parent R149 and all overall proof/production gates remain OPEN.
