@@ -1,5 +1,23 @@
 # Sprint R332 — candidate public scheme and source adequacy
 
+Direct-six checkpoint: closed internal role frontiers preserve all constraints;
+authenticated host writes retain the unique initializer publication/module
+cursor outside reusable continuations; exact abstract member templates survive
+runtime construction when uncalled. Native 228 tests, fresh WASM 19 examples
+and TypeScript pass. Focused solver: 18 pass / same six baseline failures.
+Tooling: 57 simulation tests pass. Direct primary only, UNREVIEWED. The original
+parent remains OPEN; same-site polymorphic runtime dictionaries/call contexts
+are the next concrete construction. See the single theory-note receipt.
+
+Direct-six continuation lease addendum: the primary leases exactly
+`tools/inference-playground/src/runtime/machine.rs` for the scheduled Root
+initializer boundary, exact retained abstract member instruction handling,
+their local construction proofs and in-file state tests.
+The approved initialization/global-effect decision of 2026-10-16 and R149's
+authenticated host-write path govern this repair. Preserve the live cache-write
+frame outside reusable templates; no early-entry scheduler or new consumer is
+introduced. Existing resource grant applies; no other writer is live.
+
 Status: OPEN_CONTINUATION; primary-only continuation under the user's explicit no-subagent direction. This continues the unchanged parent goal: ordinary Yulang2 playground samples, implementation, proof, frequent commits/pushes, and a clean worktree. It does not narrow the catalog to R149 or treat a candidate view as an accepted principal scheme.
 
 Branch / baseline: `research/simple-sub-intrusion`, `a7013f534`.
@@ -124,3 +142,10 @@ computation, and transport exact operator origins. Local/nested/escaping member
 functions execute. Native 222 tests, fresh WASM 17 examples, TypeScript and 57
 static tooling tests pass; solver focus is 17 pass with six baseline failures.
 The five-edge role-frontier and runtime counterexamples in the note remain OPEN.
+
+Direct continuation from `261de3984`: investigate the five-edge role frontier
+and establish the relevant source/graph invariant before extending its gate.
+Preserve the prior 6592-second charge, discard 710 unused seconds, and grant
+3600 fresh direct-primary seconds (cumulative cap 10192). Existing exact leases
+apply. Provisional implementation may follow an explicit conditional argument;
+original A/B, independent review and production remain OPEN.

@@ -87,6 +87,9 @@ pub enum NameConsumption {
 pub struct RuntimeEvidence {
     pub name_consumption: HashMap<HirOccurrenceId, NameConsumption>,
     field_tail_members: HashMap<RuntimeFieldTailKey, yu_hir::SourceMemberRootId>,
+    // Authentic abstract constraints may remain in uncalled closure bodies.
+    // Reaching one without a selected body still stops execution.
+    field_tail_templates: HashSet<RuntimeFieldTailKey>,
     operator_providers: HashMap<RuntimeOperatorUseKey, ExpressionRootId>,
     imported_bindings: HashMap<yu_hir::SourceExportId, DefId>,
     host_write_operation: Option<yu_hir::SourceOperationId>,
@@ -293,6 +296,28 @@ impl RuntimeProgram {
         }
         let mut evidence = RuntimeEvidence::default();
         evidence.host_write_operation = exact_host_write_operation(&hirs, indexes)?;
+        for template in candidate.retained_field_tail_templates()
+            .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+        {
+            let key = RuntimeFieldTailKey {
+                active_owner: template.operator_use_owner.unwrap_or(template.source_owner).clone(),
+                source_owner: template.source_owner.clone(),
+                occurrence: template.occurrence.clone(),
+                use_occurrence: template.operator_use_occurrence.cloned(),
+            };
+            let module = unique_source_module(&hirs, &key.source_owner)?;
+            let source = module.local_source_for(&key.source_owner)
+                .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
+                .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+            if !source.expressions().iter().any(|expression|
+                expression.occurrence == key.occurrence
+                    && matches!(expression.form, LocalSourceForm::FieldTail { .. })) {
+                return Err(RuntimeUnavailable::InvalidSourceReference);
+            }
+            evidence.field_tail_templates.try_reserve(1)
+                .map_err(|_| RuntimeUnavailable::IdentityExhausted)?;
+            evidence.field_tail_templates.insert(key);
+        }
         let selected_fields = candidate.selected_field_tail_uses().map_err(|_| {
             RuntimeUnavailable::InvalidSourceReference
         })?;
@@ -384,6 +409,7 @@ impl RuntimeProgram {
         Ok(RuntimeEvidence {
             name_consumption: HashMap::new(),
             field_tail_members: HashMap::new(),
+            field_tail_templates: HashSet::new(),
             operator_providers: HashMap::new(),
             imported_bindings: HashMap::new(),
             host_write_operation: None,
@@ -941,6 +967,7 @@ impl RuntimeProgram {
             match code[index].instruction.clone() {
                 Instruction::FieldTail { receiver, key } => {
                     let Some(member_root) = evidence.field_tail_member(&key) else {
+                        if evidence.field_tail_templates.contains(&key) { continue; }
                         return Err(RuntimeUnavailable::UnsupportedFieldTail(site));
                     };
                     let Some(callee) = member_templates.get(member_root).copied() else {
@@ -1256,6 +1283,7 @@ fn reachable_runtime_roots(
                         use_occurrence: root.active_use_occurrence.clone(),
                     };
                     let Some(member_root) = evidence.field_tail_member(&key) else {
+                        if evidence.field_tail_templates.contains(&key) { continue; }
                         return Err(RuntimeUnavailable::UnsupportedFieldTail(SourceSite {
                             source_root: root.source_root.clone(),
                             occurrence: expression.occurrence.clone(),

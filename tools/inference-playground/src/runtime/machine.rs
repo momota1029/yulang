@@ -681,7 +681,13 @@ impl Machine {
                     self.data(site, RuntimeValueKind::Tuple(Vec::new()), None);
                 }
             }
-            Instruction::FieldTail { .. } | Instruction::InfixOperator { .. } => {
+            Instruction::FieldTail { .. } => {
+                // Only exact candidate-retained abstract constraints survive
+                // construction. Execution requires a concrete selection; no
+                // runtime value tag supplies a missing dictionary.
+                return Err(RuntimeUnavailable::UnsupportedFieldTail(site.clone()));
+            }
+            Instruction::InfixOperator { .. } => {
                 return Err(RuntimeUnavailable::InvalidSourceReference);
             }
             Instruction::Forward(inner) => {
@@ -1977,9 +1983,16 @@ impl Machine {
             }
         }
         // An initializer's escaping request cannot search handlers installed
-        // around the Name that demanded its value. Keep the cache-write frame
-        // and caller prefix live; only the already unwound suffix is saved.
-        if matches!(self.frames.last(), Some(Frame::GlobalRead { .. })) {
+        // around the Name that demanded its value. Scheduled initializers have
+        // the same cut for the authenticated resumable host consumer. Keep its
+        // cache write and module cursor live; resume must drain owner frames
+        // before another root starts. Other escaping operations remain terminal
+        // and retain their existing opaque suffix observation.
+        let resumable_host = self.program.host_write_operation()
+            .is_some_and(|operation| operation == &request.declaration.id);
+        if matches!(self.frames.last(), Some(Frame::GlobalRead { .. }))
+            || (resumable_host && matches!(self.frames.last(),
+                Some(Frame::Root { .. } | Frame::ExpressionReturn { .. }))) {
             self.stop_unhandled_request(request, request_owner)?;
             return Ok(());
         }
@@ -2767,6 +2780,79 @@ mod module_expression_tests {
                 .iter()
                 .any(|frame| matches!(frame, SavedFrame::Ordinary(Frame::GlobalRead { .. })))
         );
+    }
+
+    #[test]
+    fn scheduled_initializer_host_writes_keep_one_live_publication_frame() {
+        let source = "my main = { my emit x = say x; my first = emit (3, \"text\"); my second = println \"second\"; 7 }\nprintln \"after\"\n";
+        let (hir, candidate, world, indexes) = crate::prepare_with_world(
+            source, "scheduled-host-write.yu", false,
+        ).unwrap();
+        let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+        let definition = program.definition_named("main").unwrap();
+        let cell = program.definition_indices[definition];
+        let mut machine = program.start_source_schedule(definition).unwrap();
+        for (ordinal, expected) in ["(3, text)\n", "second\n", "after\n"].into_iter().enumerate() {
+            let outcome = machine.run(100_000);
+            let RuntimeOutcome::UnhandledRequest { operation, continuation, .. } = outcome else {
+                panic!("expected authenticated host write {ordinal}, got {outcome:?}");
+            };
+            assert_eq!(program.host_write_operation(), Some(&operation));
+            if ordinal < 2 {
+                assert!(machine.cells[cell].is_none());
+                assert!(machine.initializing_globals.contains(&cell));
+                assert_eq!(machine.frames.iter().filter(|frame|
+                    matches!(frame, Frame::Root { cell: actual, .. } if *actual == cell)).count(), 1);
+            } else {
+                assert!(machine.cells[cell].is_some());
+                assert!(!machine.initializing_globals.contains(&cell));
+            }
+            let saved = &machine.continuations[continuation.0];
+            assert!(!saved.frames.iter().any(|frame|
+                matches!(frame, SavedFrame::Ordinary(Frame::Root { .. } | Frame::GlobalRead { .. }
+                    | Frame::ExpressionReturn { .. }))));
+            let template = &machine.resume_templates[saved.template.unwrap().0];
+            assert!(!template.nodes.iter().any(|node| matches!(node,
+                TemplateNode::Bind { frame: Frame::Root { .. } | Frame::GlobalRead { .. }
+                    | Frame::ExpressionReturn { .. }, .. })));
+            assert_eq!(machine.resume_host_write(continuation, &operation).unwrap().as_ref(), expected);
+            assert!(machine.resume_host_write(continuation, &operation).is_err(),
+                "the external handle cannot publish a second response");
+        }
+        let outcome = machine.run(100_000);
+        assert_completed_integer(&machine, outcome, "7");
+        let cached = machine.cells[cell].unwrap().value;
+        assert!(matches!(machine.state_outcome(), Some(RuntimeOutcome::Completed(value)) if *value == cached));
+        assert_eq!(integer_count(&machine, "7"), 1);
+        assert!(machine.initializing_globals.is_empty());
+        assert!(machine.frames.is_empty());
+    }
+
+    #[test]
+    fn retained_abstract_member_instruction_cannot_dispatch_without_evidence() {
+        let source = "my main = { my unused x = x.show; 7 }\n";
+        let (hir, candidate, world, indexes) = crate::prepare_with_world(
+            source, "abstract-member.yu", false,
+        ).unwrap();
+        assert!(matches!(RuntimeProgram::from_hir(hir.clone(), super::super::RuntimeEvidence::default()),
+            Err(RuntimeUnavailable::UnsupportedFieldTail(_))),
+            "missing arbitrary evidence still rejects program construction");
+        let templates: Vec<_> = candidate.retained_field_tail_templates().unwrap().collect();
+        let program = RuntimeProgram::from_candidate_world(hir, world, &indexes, &candidate).unwrap();
+        let (label, instruction) = program.code.iter().enumerate().find(|(_, code)|
+            matches!(code.instruction, Instruction::FieldTail { .. })).unwrap();
+        let site = instruction.site.clone();
+        assert!(templates.iter().any(|template|
+            template.source_owner == &site.source_root && template.occurrence == &site.occurrence));
+        let definition = program.definition_named("main").unwrap();
+        let mut machine = program.start_source_schedule(definition).unwrap();
+        // Adversarial private-state probe, not a claimed source execution:
+        // force entry into the retained abstract body without a dictionary.
+        machine.state = State::Evaluate { code: Label(label), environment: 0 };
+        assert!(matches!(machine.step(), RuntimeOutcome::Unavailable(RuntimeUnavailable::UnsupportedFieldTail(actual))
+            if actual.source_root == site.source_root && actual.occurrence == site.occurrence));
+        assert!(machine.continuations.is_empty());
+        assert!(machine.values.is_empty());
     }
 
     #[test]

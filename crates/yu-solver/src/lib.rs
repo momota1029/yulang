@@ -11869,6 +11869,119 @@ impl InferenceSession {
         let mut work = 0;
         row_shape(self, row, &mut active, &mut work, 0)
     }
+    /// Certify that the negative frontier stays inside a fully known positive
+    /// closure. Upper bounds only validate existing evidence; they never add
+    /// rows or supply a shape. The source role witness is checked by the caller.
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_receiver_closed_frontier(
+        &self,
+        roots: &[u32],
+        shape: &shadow_apply::CandidateReceiverShape,
+    ) -> Option<()> {
+        use shadow_apply::CandidateReceiverShape as Shape;
+        struct Check<'a> {
+            complete: HashMap<u32, &'a Shape>,
+            active: HashSet<u32>,
+            work: usize,
+        }
+        impl<'a> Check<'a> {
+            fn spend(&mut self) -> Option<()> {
+                self.work = self.work.checked_add(1)?;
+                (self.work <= CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT).then_some(())
+            }
+            fn same_shape(&mut self, left: &Shape, right: &Shape, depth: usize) -> Option<()> {
+                if depth >= 128 { return None; }
+                self.spend()?;
+                if std::ptr::eq(left, right) { return Some(()); }
+                match (left, right) {
+                    (Shape::Unit, Shape::Unit) | (Shape::Int, Shape::Int)
+                    | (Shape::Bool, Shape::Bool) | (Shape::Str, Shape::Str) => Some(()),
+                    (Shape::Tuple(a), Shape::Tuple(b)) if a.len() == b.len() => {
+                        for (a, b) in a.iter().zip(b) { self.same_shape(a, b, depth + 1)?; }
+                        Some(())
+                    }
+                    _ => None,
+                }
+            }
+            fn row(&mut self, session: &InferenceSession, row: u32, shape: &'a Shape, depth: usize) -> Option<()> {
+                if depth >= 128 { return None; }
+                self.spend()?;
+                let ValueEndpointKey::ValueRow(row) = session.canonical_value(ValueEndpointKey::ValueRow(row)) else { unreachable!() };
+                if self.active.contains(&row) { return None; }
+                if let Some(previous) = self.complete.get(&row).copied() {
+                    return self.same_shape(previous, shape, 0);
+                }
+                self.active.try_reserve(1).ok()?;
+                self.active.insert(row);
+                let bounds = session.bounds.get(row as usize)?;
+                let mut evidence = false;
+                for lower in &bounds.direct_lower_rows {
+                    self.row(session, *lower, shape, depth + 1)?;
+                    evidence = true;
+                }
+                for lower in &bounds.exact_non_variable_lowers {
+                    self.spend()?;
+                    if matches!(session.canonical_value(*lower), ValueEndpointKey::BottomPositive) {
+                        continue;
+                    }
+                    self.endpoint(session, *lower, shape, depth + 1)?;
+                    evidence = true;
+                }
+                if !evidence { return None; }
+                self.active.remove(&row);
+                self.complete.try_reserve(1).ok()?;
+                self.complete.insert(row, shape);
+                Some(())
+            }
+            fn endpoint(&mut self, session: &InferenceSession, endpoint: ValueEndpointKey,
+                shape: &'a Shape, depth: usize) -> Option<()> {
+                if depth >= 128 { return None; }
+                self.spend()?;
+                match (session.canonical_value(endpoint), shape) {
+                    (ValueEndpointKey::UnitPositive, Shape::Unit)
+                    | (ValueEndpointKey::IntPositive, Shape::Int)
+                    | (ValueEndpointKey::BoolPositive, Shape::Bool)
+                    | (ValueEndpointKey::StrPositive, Shape::Str) => Some(()),
+                    (ValueEndpointKey::ValueRow(row), _) => self.row(session, row, shape, depth + 1),
+                    (ValueEndpointKey::PositiveTuple(term, arity), Shape::Tuple(items)) if items.len() == arity => {
+                        let TermView::PositiveTuple { elements } = session.store.term_view(term).ok()? else { return None; };
+                        if elements.len() != arity { return None; }
+                        for (element, item) in elements.iter().zip(items) {
+                            self.endpoint(session, session.value_endpoint(*element, Polarity::Positive), item, depth + 1)?;
+                        }
+                        Some(())
+                    }
+                    _ => None,
+                }
+            }
+        }
+        let mut check = Check { complete: HashMap::new(), active: HashSet::new(), work: 0 };
+        for root in roots { check.row(self, *root, shape, 0)?; }
+        // Take the completed map out so the remaining budget can be charged
+        // without cloning either row entries or their borrowed shape trees.
+        let complete = std::mem::take(&mut check.complete);
+        for (&row, &known) in &complete {
+            let bounds = self.bounds.get(row as usize)?;
+            check.spend()?;
+            for upper in &bounds.direct_upper_rows {
+                check.spend()?;
+                let ValueEndpointKey::ValueRow(upper) = self.canonical_value(ValueEndpointKey::ValueRow(*upper)) else { unreachable!() };
+                check.same_shape(known, complete.get(&upper)?, 0)?;
+            }
+            for upper in &bounds.exact_non_variable_uppers {
+                check.spend()?;
+                if !matches!((known, self.canonical_value(*upper)),
+                    (Shape::Unit, ValueEndpointKey::UnitNegative)
+                    | (Shape::Int, ValueEndpointKey::IntNegative)
+                    | (Shape::Bool, ValueEndpointKey::BoolNegative)
+                    | (Shape::Str, ValueEndpointKey::StrNegative))
+                {
+                    return None;
+                }
+            }
+        }
+        Some(())
+    }
     #[cfg(feature = "shadow-apply-candidate")]
     fn candidate_receiver_frontier_counts(&self, row: u32) -> Option<CandidateReceiverFrontierCounts> {
         fn add(slot: &mut usize, amount: usize) -> Option<()> {
@@ -12031,7 +12144,6 @@ impl InferenceSession {
                 let frontier = frontier.unwrap_or_default();
                 let positive_shape = self.candidate_receiver_positive_shape(row);
                 let negative_frontier_source_qualified = frontier_complete
-                    && frontier.negative_row_edges == 1
                     && frontier.negative_bounds == frontier.compatible_terminal_negative_bounds
                     && self.candidate_field_tail_role_frontier_subject(obligation, row).is_some();
                 let mut target_matches = Vec::new();

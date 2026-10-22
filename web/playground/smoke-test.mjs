@@ -9,6 +9,8 @@ const examples = {
   localMembers: ['my main = { my add x = x + x; my cat x = x + x; (add 3, cat "a") }\n', '(6, "aa")\n'],
   nestedLocalMember: ["my main = { my outer x = { my add y = y + y; add x }; outer 3 }\n", "6\n"],
   escapingLocalMember: ["my outer ignored = { my add x = x + x; add }\nmy main = outer () 3\n", "6\n"],
+  unusedLocalMember: ["my outer x = { my unused y = y + y; x }\nmy main = outer 3\n", "3\n"],
+  unusedDirectMember: ["my main = { my unused x = x.show; 7 }\n", "7\n"],
   closure: ["my make x = \\y -> x\nmy main = make 12 7", "12\n"],
   recursion: ["my loop condition = if condition: loop false else: 11\nmy main = loop true", "11\n"],
   moduleExpression: ["99\nmy main = 7", "7\n"],
@@ -105,6 +107,10 @@ for (const [source, expected] of [
   ['my forward message = emit message\nmy emit message = println message\nforward "wrapped"\n', ["wrapped\n"]],
   ['my forward value = emit value\nmy emit value = say value\nforward (3, "text")\n', ["(3, text)\n"]],
   ['{ my emit x = say x; emit (3, "text") }\n', ["(3, text)\n"]],
+  ['my outer x = { my unused = say x; 1 }\nouter 3\nouter 4\n', ["3\n", "4\n"]],
+  ['my outer x = { my unused = say x; 1 }\nouter (3, "text")\n', ["(3, text)\n"]],
+  ['my main = { my emit x = say x; emit (3, "text") }\n', ["(3, text)\n"]],
+  ['my first = { my output = println "first"; 1 }\nmy second = { my output = println "second"; 2 }\nprintln "after"\n', ["first\n", "second\n", "after\n"]],
 ]) {
   const report = JSON.parse(run_module_report(source, 100_000));
   if (JSON.stringify(report.events) !== JSON.stringify(expected)) {

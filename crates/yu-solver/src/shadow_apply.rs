@@ -126,11 +126,11 @@ pub struct CandidateFieldTailReceiverReadback {
     /// True only when no negative bound was found anywhere in the reachable
     /// lower-shape and tuple-element frontier.
     pub negative_frontier_empty: bool,
-    /// A nonempty frontier is accepted only when its sole negative row edge
-    /// is the reciprocal same-FreshUse edge to the exact authenticated role
-    /// subject, both rows have the same positive shape, and every other
-    /// negative bound is a closed primitive upper matching its row's complete
-    /// positive primitive shape. The role rows remain distinct.
+    /// A nonempty frontier requires the reciprocal same-FreshUse pair with
+    /// the exact authenticated role subject. Both positive closures must be
+    /// complete, with equal root shapes; negative row edges stay inside those
+    /// closures between equal shapes, and other negative bounds are matching
+    /// closed primitive uppers. The role rows and all edges remain distinct.
     pub negative_frontier_source_qualified: bool,
 }
 /// Same-session inventory of nested Member FieldTails retained by captured
@@ -161,6 +161,15 @@ pub struct CandidateSelectedFieldTailUse<'a> {
     pub member_root: &'a yu_hir::SourceMemberRootId,
     /// Exact source operator use that supplied this selected provider
     /// FieldTail, when the member selection belongs to an operator FreshUse.
+    pub operator_use_owner: Option<&'a SourceRootId>,
+    pub operator_use_occurrence: Option<&'a HirOccurrenceId>,
+}
+/// Exact retained abstract constraint. This supplies no implementation choice
+/// and makes no claim that execution cannot reach the corresponding body.
+#[derive(Clone, Debug)]
+pub struct CandidateRetainedFieldTailTemplate<'a> {
+    pub source_owner: &'a SourceRootId,
+    pub occurrence: &'a HirOccurrenceId,
     pub operator_use_owner: Option<&'a SourceRootId>,
     pub operator_use_occurrence: Option<&'a HirOccurrenceId>,
 }
@@ -1009,6 +1018,35 @@ impl CandidateScopedObservation<'_> {
     pub fn protection_scopes(&self) -> impl Iterator<Item = u32> + '_ { self.state.protections.iter().map(|id| id.0) }
 }
 impl CandidateInference {
+    pub fn retained_field_tail_templates(
+        &self,
+    ) -> Result<impl Iterator<Item = CandidateRetainedFieldTailTemplate<'_>> + '_, ArtifactMismatch> {
+        if !self.solved.data.errors.is_empty() { return Err(ArtifactMismatch); }
+        let graph = self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?;
+        let mut operator_origins = std::collections::HashSet::new();
+        operator_origins.try_reserve(graph.operator_uses.len()).map_err(|_| ArtifactMismatch)?;
+        for use_ in &graph.operator_uses {
+            operator_origins.insert((&use_.provider, &use_.use_owner, &use_.occurrence));
+        }
+        let mut templates = Vec::new();
+        for field in graph.retained_field_tail_templates() {
+            if let Some(origin) = &field.operator_origin {
+                let SourceRootId::Expression(provider) = &field.source_owner else { return Err(ArtifactMismatch); };
+                if !operator_origins.contains(&(provider, &origin.owner, &origin.occurrence)) {
+                    return Err(ArtifactMismatch);
+                }
+            }
+            templates.try_reserve(1).map_err(|_| ArtifactMismatch)?;
+            templates.push(CandidateRetainedFieldTailTemplate {
+                source_owner: &field.source_owner,
+                occurrence: &field.occurrence,
+                operator_use_owner: field.operator_origin.as_ref().map(|origin| &origin.owner),
+                operator_use_occurrence: field.operator_origin.as_ref().map(|origin| &origin.occurrence),
+            });
+        }
+        Ok(templates.into_iter())
+    }
+
     /// Read only exact member selections from a successful candidate. This
     /// does not reconstruct selections from receiver shapes or spellings.
     pub fn selected_field_tail_uses(

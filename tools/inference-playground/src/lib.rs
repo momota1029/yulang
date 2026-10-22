@@ -1824,6 +1824,31 @@ mod tests {
     }
 
     #[test]
+    fn eager_initializer_role_frontier_keeps_internal_forwarding_edges() {
+        let (sources, indexes, role_indexes) = pinned_source_world().unwrap();
+        let text: Arc<SourceText> = Arc::from("my outer x = { my unused = say x; 1 }\nouter 3\n");
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)),
+            Arc::new(playground_syntax_environment().unwrap()));
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", "eager-role.yu")));
+        let imports = SemanticImports::with_source_imports_and_role_indexes(
+            &parsed, &identity, &indexes, &role_indexes).unwrap();
+        let hir = Arc::new(lower_module_with_local_source(identity, &parsed, imports).unwrap());
+        let modules = pinned_candidate_world(&hir, &sources, &indexes, &role_indexes).unwrap();
+        let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
+            modules, &indexes, &role_indexes).unwrap();
+        let selected = readbacks.selected_receivers.iter().find(|item|
+            item.member.as_ref() == "show"
+                && item.positive_shape == Some(yu_solver::shadow_apply::CandidateReceiverShape::Int)
+                && item.reachable_negative_row_edges == 5)
+            .expect("the internal forwarding constraints remain visible at selection");
+        assert!(selected.positive_frontier_complete);
+        assert!(!selected.negative_frontier_empty);
+        assert!(selected.negative_frontier_source_qualified);
+        assert_eq!(selected.reachable_negative_bounds, 0);
+        assert_eq!(selected.target_matches.len(), 1);
+    }
+
+    #[test]
     fn uncalled_library_wrapper_keeps_a_dormant_candidate_obligation() {
         let (_, candidate, _, _) = super::prepare_with_world(
             "my emit message = println message\n", "uncalled-library.yu", false,

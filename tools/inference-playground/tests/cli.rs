@@ -86,6 +86,25 @@ fn local_functions_retain_their_member_constraints() {
 }
 
 #[test]
+fn uncalled_generic_bodies_retain_their_abstract_member_constraints() {
+    for (source, expected) in [
+        ("my outer x = { my unused y = y + y; x }\nmy main = outer 3\n", "3\n"),
+        ("my unused x = x + x\nmy main = 7\n", "7\n"),
+        ("my main = { my unused x = x.show; 7 }\n", "7\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "source={source:?}");
+        assert!(output.stderr.is_empty());
+    }
+    let output = cli_with_args("my main = { my unused x = 1 + false; 7 }\n",
+        &["--run", "main", "--steps", "100000"]);
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("candidate type conflicts"));
+}
+
+#[test]
 fn local_role_wrappers_execute_through_module_entry() {
     for source in [
         "my main ignored = { my emit x = say x; emit (3, \"text\") }\nmain ()\n",
@@ -94,6 +113,20 @@ fn local_role_wrappers_execute_through_module_entry() {
         let output = cli_with_args(source, &["--run-module", "--steps", "100000"]);
         assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
         assert_eq!(output.stdout, b"(3, text)\n");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
+fn scheduled_initializers_resume_output_in_source_order() {
+    for (source, expected) in [
+        ("my main = { my emit x = say x; emit (3, \"text\") }\n", "(3, text)\n"),
+        ("my first = { my output = println \"first\"; 1 }\nmy second = { my output = println \"second\"; 2 }\nprintln \"after\"\nmy main = (first, second)\n", "first\nsecond\nafter\n"),
+        ("my main = { my unused = say 3; my next = println \"next\"; 7 }\n", "3\nnext\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "source={source:?}");
         assert!(output.stderr.is_empty());
     }
 }
@@ -112,6 +145,22 @@ fn local_initializer_effects_and_unused_constraints_are_preserved() {
         assert!(!output.status.success(), "source={source:?}");
         assert!(output.stdout.is_empty());
         assert!(String::from_utf8_lossy(&output.stderr).contains("candidate type conflicts"));
+    }
+}
+
+#[test]
+fn eager_local_role_initializers_keep_internal_constraints_and_execute_once() {
+    for (source, expected) in [
+        ("my outer x = { my unused = say x; 1 }\nouter 3\n", "3\n"),
+        ("my outer x = { my unused = say x; 1 }\nouter \"text\"\n", "text\n"),
+        ("my outer x = { my unused = say x; 1 }\nouter (3, \"text\")\n", "(3, text)\n"),
+        ("my outer x = { my unused = { my inner = say x; 2 }; 1 }\nouter 3\n", "3\n"),
+        ("my outer x = { my unused = say x; 1 }\nouter 3\nouter 4\n", "3\n4\n"),
+    ] {
+        let output = cli_with_args(source, &["--run-module", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "source={source:?}");
+        assert!(output.stderr.is_empty());
     }
 }
 

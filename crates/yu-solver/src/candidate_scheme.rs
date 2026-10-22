@@ -702,6 +702,13 @@ fn typed_port_pair(
 }
 
 impl GraphState {
+    pub(super) fn retained_field_tail_templates(&self) -> impl Iterator<Item = &SourceFieldTailObligation> {
+        self.graphs.iter().flatten().flat_map(|graph| &graph.source_field_tail_obligations)
+            .chain(self.local_captures.iter().flat_map(|capture| &capture.fields))
+            .chain(self.operator_graphs.values().flat_map(|graph| &graph.source_field_tail_obligations))
+            .chain(self.member_graphs.values().flat_map(|member| &member.graph.source_field_tail_obligations))
+    }
+
     pub(super) fn has_pending_field_tail_selection(&self) -> bool {
         self.source_field_tail_obligations.values().any(|items| !items.is_empty())
             || self.graphs.iter().flatten().any(|graph| !graph.source_field_tail_obligations.is_empty())
@@ -2030,11 +2037,9 @@ impl InferenceSession {
         Ok(())
     }
 
-    /// Recognize the one negative edge that is only the authenticated two-way
-    /// relation between a FieldTail receiver and its same-FreshUse `where`
-    /// subject. This does not collapse the rows; it only certifies that both
-    /// live rows currently expose the same positive shape and have no other
-    /// negative frontier.
+    /// Authenticate the reciprocal FieldTail/where pair, then require its
+    /// entire positive closure to have only compatible internal negative edges
+    /// or matching primitive uppers. No rows or source constraints are erased.
     pub(super) fn candidate_field_tail_role_frontier_subject(
         &self,
         obligation: &SourceFieldTailObligation,
@@ -2058,9 +2063,7 @@ impl InferenceSession {
             return None;
         }
         let Some(receiver_shape) = self.candidate_receiver_positive_shape(receiver) else { return None; };
-        if self.candidate_receiver_positive_shape(subject).as_ref() != Some(&receiver_shape) {
-            return None;
-        }
+        self.candidate_receiver_closed_frontier(&[receiver, subject], &receiver_shape)?;
 
         let mut authenticated_pairs = 0usize;
         for (graph, rows) in state.routes.iter().map(|route| (&route.graph, &route.rows))
@@ -4739,6 +4742,55 @@ mod authentic_demand_capture_tests {
         assert_eq!(counts.negative_bounds, 1);
         assert_eq!(counts.compatible_terminal_negative_bounds, 0,
             "an upper bound must never invent positive receiver evidence");
+    }
+
+    #[test]
+    fn closed_internal_frontier_requires_positive_evidence_and_no_escape() {
+        use shadow_apply::CandidateReceiverShape as Shape;
+        let mut session = InferenceSession::try_new_candidate(
+            ConstraintBatch::collect_candidate_mode(lower("my value = 1\n"), true, true).unwrap(),
+        ).unwrap();
+        session.execute().unwrap();
+        // Synthetic topology exercises the checker only. Source/FreshUse
+        // authentication is a separate required gate, covered by source tests.
+        let receiver = session.fresh_value_at_level(1).unwrap();
+        let subject = session.fresh_value_at_level(1).unwrap();
+        let input = session.fresh_value_at_level(1).unwrap();
+        let external = session.fresh_value_at_level(1).unwrap();
+        session.bounds[receiver as usize].direct_lower_rows.push(input);
+        session.bounds[subject as usize].direct_lower_rows.push(input);
+        session.bounds[receiver as usize].direct_upper_rows.push(subject);
+        session.bounds[subject as usize].direct_upper_rows.push(receiver);
+        session.bounds[input as usize].direct_upper_rows.extend([subject, subject, receiver, receiver]);
+        session.bounds[input as usize].exact_non_variable_lowers.push(ValueEndpointKey::IntPositive);
+        let roots = [receiver, subject];
+        assert_eq!(session.candidate_receiver_closed_frontier(&roots, &Shape::Int), Some(()));
+        assert_eq!(session.candidate_receiver_frontier_counts(receiver).unwrap().negative_row_edges, 5);
+
+        session.bounds[external as usize].exact_non_variable_lowers.push(ValueEndpointKey::IntPositive);
+        session.bounds[input as usize].direct_upper_rows.push(external);
+        assert_eq!(session.candidate_receiver_closed_frontier(&roots, &Shape::Int), None,
+            "even a matching external head is not inside the positive closure");
+        session.bounds[input as usize].direct_upper_rows.pop();
+        session.bounds[input as usize].exact_non_variable_uppers.push(ValueEndpointKey::IntNegative);
+        assert_eq!(session.candidate_receiver_closed_frontier(&roots, &Shape::Int), Some(()));
+        session.bounds[input as usize].exact_non_variable_uppers.push(ValueEndpointKey::BoolNegative);
+        assert_eq!(session.candidate_receiver_closed_frontier(&roots, &Shape::Int), None);
+        session.bounds[input as usize].exact_non_variable_uppers.pop();
+        session.bounds[input as usize].exact_non_variable_lowers.clear();
+        assert_eq!(session.candidate_receiver_closed_frontier(&roots, &Shape::Int), None,
+            "a matching upper cannot invent a missing positive head");
+        session.bounds[input as usize].exact_non_variable_lowers.push(ValueEndpointKey::BottomPositive);
+        assert_eq!(session.candidate_receiver_closed_frontier(&roots, &Shape::Int), None);
+        session.bounds[input as usize].exact_non_variable_lowers.push(ValueEndpointKey::IntPositive);
+        assert_eq!(session.candidate_receiver_closed_frontier(&roots, &Shape::Int), Some(()));
+        session.bounds[input as usize].direct_lower_rows.push(receiver);
+        assert_eq!(session.candidate_receiver_closed_frontier(&roots, &Shape::Int), None,
+            "a positive cycle must not be accepted through the completed-row memo");
+        session.bounds[input as usize].direct_lower_rows.pop();
+        session.bounds[subject as usize].exact_non_variable_lowers.push(ValueEndpointKey::BoolPositive);
+        assert_eq!(session.candidate_receiver_closed_frontier(&roots, &Shape::Int), None,
+            "the subject's positive closure is checked independently too");
     }
 
     #[test]

@@ -732,3 +732,180 @@ source/proof seam is the five-edge role frontier above; same-site polymorphic
 runtime calls, uncalled generic bodies, initializer continuations,
 operator/member role transport, the complete unchanged Yulang2 catalog,
 source/native correspondence, principal schemes, and original A/B remain OPEN.
+
+### Closed internal role frontiers
+
+The eager-unused-initializer counterexample has three canonical rows: receiver
+50 and authenticated Display subject 51 each have lower row 55 and one upper
+edge to the other; row 55 has concrete Int evidence and upper edges to 50 and
+51 (including retained duplicates). Thus the five counted edges are not five
+unresolved external requirements. No edge or duplicate may be erased merely
+to satisfy the old edge-count gate.
+
+Construction invariant, before implementation: retain the existing unique
+same-FreshUse role/FieldTail witness and reciprocal receiver/subject pair.
+Let P be the positive closure of both roots, following all lower-row edges and
+positive tuple children. Each row in P must have a complete positive shape,
+obtained only from positive evidence; every lower branch must agree. Both roots
+must have the same shape. For every negative row edge u -> v from P, require
+v in P and equal positive shapes at u and v. Every non-row negative bound must
+be the matching closed primitive upper of its already-known positive shape.
+Unknown, cyclic, unsupported, external or incompatible frontiers remain open.
+
+Conditional target-stability argument: induction over the finite acyclic
+positive closure establishes each row's concrete shape independently of its
+uppers. Each permitted negative edge relates equal established shapes, and
+each permitted primitive upper is satisfied by that row's established head.
+These constraints therefore supply no alternative implementation head. The
+existing complete implementation inventory, unique target, exact role identity
+and where-witness checks still determine the same selection. Later propagation
+must preserve the receiver/subject representatives and complete positive shapes
+at the existing final snapshot check; otherwise the candidate is withheld.
+Conflicts still prevent publication. This extends the previous conditional
+selection lemma to internal forwarding edges; it does not establish general
+principal typing, source/native adequacy, or original A/B closure.
+
+The planned checker validates against one already-produced positive shape,
+borrowing its tuple subshapes. A completed-row map prevents repeated traversal
+of shared positive rows, while an active set rejects positive cycles. All visits
+and structural shape comparisons share a finite work budget. Negative-edge
+validation uses only the completed map, never adds roots or infers positive
+evidence from an upper. Work is O(visited positive and negative edges plus
+inspected shape-comparison nodes), with O(distinct positive rows + depth) scratch
+space; work/depth exhaustion withholds this sufficient witness. Existing
+positive-shape construction and source-receipt scans retain their prior bounds.
+
+### Scheduled initializer cut for host writes
+
+The actual failing initializer reaches a scheduled `Frame::Root`, not a
+`GlobalRead`. Request propagation already stops before a pending GlobalRead,
+leaving its sole cache-write frame live. It instead pops Root into the saved
+suffix; the correct cache-free template check then rejects that suffix.
+
+Construction before implementation: for the authenticated resumable host
+consumer, extend the same cut to Root. For a stack
+P ++ [Root(next, cell)] ++ K, ordinary request forwarding consumes only K;
+internal Catch frames in K remain eligible before reaching the cut. At the cut,
+retain P and Root, the empty cell and initializing marker, original request
+identity, current owner and live views. The authenticated host-write response
+enters a template containing K only, above the unchanged live Root, using the
+existing single-use external continuation handle. Its returned value reaches
+that one Root exactly once, publishes the same cell via the existing Return
+rule, clears the marker and advances the same next cursor. The global scheduler
+and cache write never become reusable template nodes. A second response to the
+same stopped handle is rejected by the existing state/consumed checks.
+
+This is the GlobalRead stack-cut argument applied to the scheduler's authentic
+initializer owner. Induction on successive host suspensions preserves one live
+publication frame; a later root starts only after the earlier one returns.
+The change itself never advances a cursor or initializes a demanded dependency,
+and introduces no new automatic consumer. Full forward-demand effect order and
+source materialization remain open under the approved 2026-10-16 initialization
+decision. The code change costs one additional tag alternative in the existing
+O(1) top-frame check and allocates nothing on that branch beyond the existing
+unhandled-request/template path. Review remains UNREVIEWED.
+
+The private machine-state regression additionally exposed a scheduler frame in
+the host template for a top-level expression: ExpressionReturn advanced to
+Completed before the enclosing template OwnerReturn/ResumeReturn could drain.
+The same cut must retain ExpressionReturn as well. Its return discards the
+expression value and advances the original cursor, with no cache publication.
+The identical stack decomposition proves that the scheduler cursor stays
+outside the saved suffix and runs only after the resumed expression's owner
+frames have returned. This is required for the claimed quiescent completion,
+not an assertion weakened to accept leftover frames.
+
+The cut is applied to scheduler frames only for that exact authenticated host
+operation. Other outward operations have no external resume protocol and keep
+their established opaque saved-suffix/depth observation. A full-suite control
+identified that boundary (`cli_native_payload_entry`); its assertions and
+expected output remain unchanged. The unconditional GlobalRead cut remains as
+before, excluding caller-only handlers for every initializer escape.
+
+### Retained abstract member bodies
+
+The uncalled generic-body obstruction arises because runtime construction walks
+every retained source expression, including Lambda bodies, and demands a
+selected implementation immediately. The candidate intentionally retains these
+unspecialized FieldTail constraints in definition/operator/member/local captures.
+Evaluating a Lambda constructs a closure; it does not evaluate its body.
+
+Construction before implementation: expose exact retained template descriptors
+from the successful conflict-free candidate, preserving source owner, occurrence
+and introducing operator origin. Runtime may retain an unresolved FieldTail
+instruction only for that exact authenticated template key. Selected members
+still lower through their existing exact evidence. Missing arbitrary evidence
+still rejects construction. Reaching a retained unresolved instruction during
+execution stops the private attempt with UnsupportedFieldTail; it cannot choose
+an implementation from a runtime tag or publish a completed result.
+
+For traces that never enter an unresolved instruction, every step is unchanged:
+closure creation retains its body label, source environments and receiving view;
+all actually executed member instructions use the same selected bodies. A simple
+induction on executed instructions therefore preserves these traces. No static
+unreachability claim is needed, and no body is deleted. If execution reaches a
+retained unresolved instruction, no member call occurs and the existing atomic
+run/report interface withholds the incomplete result and buffered output. This
+is a partial-runtime construction, not a proof that every candidate execution
+can discharge every stored constraint. Same-site polymorphic specialization
+still requires its own call-context/dictionary construction.
+
+The descriptor inventory uses O(captures + descriptors + operator uses)
+enumeration/hash work and O(descriptors + operator uses) scratch space, excluding
+source-identity hash lengths. Runtime indexes exact keys in a hash set; its
+existing per-key source validation still scans owning modules/expressions.
+Retaining an abstract instruction adds no runtime search. This slice does not
+change inference acceptance.
+
+An additional source probe, `my main = { println "first"; println "second";
+7 }`, fails before execution at StructuralProjection. The machine-state tests
+use authentic local initializers to reach the intended runtime boundary; no
+previous successful sample or expectation was rewritten. General bare-expression
+sequencing inside blocks remains a separate source-projection obligation.
+
+### Direct-six checkpoint
+
+The internal-frontier construction now executes the original eager-unused
+`say x` initializer for int, str and tuple inputs, nested local initializers,
+and repeated same-type calls. The readback still reports all five negative
+edges and one selected implementation. The checker controls reject an external
+upper even with the same head, incompatible primitive uppers, missing/bottom-only
+positive evidence, positive cycles, and disagreement in the role subject.
+
+The host cut keeps scheduled initializer publication and expression scheduling
+outside reusable templates. Actual-source state tests retain one unpublished
+cell through two writes, reject a duplicate host response, publish the original
+result once, execute the later expression write in order, and finish with no
+frames or initializing markers. Exact retained abstract constraints now permit
+uncalled local and top-level generic bodies. Missing arbitrary runtime evidence
+still rejects construction; an adversarial forced entry into an unresolved
+instruction produces UnsupportedFieldTail without allocating a result or
+request. Invalid unused bodies still produce candidate type conflicts.
+
+All 228 native playground tests pass (56 library, 38 CLI, 134 other integration
+tests), preserving existing assertions and expected outputs. Fresh WASM smoke
+passes 19 execution examples, unchanged Types/Console outputs and added eager
+initializer/module-write regressions. TypeScript checking passes. The focused
+solver filter has 18 passes and the same six baseline failures; no failing
+expectation was weakened. All 57 sprint-tool simulation tests pass; these are
+static/simulation receipts, not independent review or live-agent evidence.
+
+Logs: `/tmp/yulang-r332-frontier-native6.log`,
+`/tmp/yulang-r332-frontier-solver-final.log`,
+`/tmp/yulang-r332-frontier-web.log`,
+`/tmp/yulang-r332-frontier-typescript.log`, and
+`/tmp/yulang-r332-frontier-tooling.log`. Generated WASM/build outputs remain
+ignored. No deployment or subagent launch occurred. This checkpoint is
+UNREVIEWED; all three arguments are local/conditional applications to the
+unchanged parent, not original A/B closure or production admission.
+
+Next exact obstruction: `my main = { my add x = x + x; (add 3, add "a") }`
+still reaches InvalidSourceReference while building runtime evidence. Its two
+selected implementations share one original operator source site, so the
+current source-key-only map collides. The next construction must carry the
+actual FreshUse/call context or explicit member dictionaries into closures;
+runtime value-shape dispatch is not a substitute. The same obstruction occurs
+for `outer 3; outer "text"` at one generic `say` site. Operator/member FreshUse
+role transport, general bare-expression block projection, the six solver
+baseline failures, all unchanged Yulang2 examples, accepted principal schemes,
+source/native correspondence, original A/B and independent review remain OPEN.
