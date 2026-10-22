@@ -78,29 +78,6 @@ pub fn resolve_source_export_owner<'a>(
     role_indexes: &'a [SourceRoleImplIndex],
     resolution: &SourceExportResolution,
 ) -> Result<SourceExportOwner<'a>, SourceExportOwnerError> {
-    let mut provider = None;
-    for module in modules {
-        let module_identity = module.identity();
-        if module_identity.file() != module_identity.module().file() {
-            continue;
-        }
-        let path = module_identity
-            .module()
-            .file()
-            .key()
-            .normalized_workspace_relative_path();
-        let path = path.strip_prefix("lib/").unwrap_or(path);
-        let Some(path) = path.strip_suffix(".yu") else {
-            continue;
-        };
-        let label = path.replace('/', "::");
-        if label != resolution.module.as_ref() {
-            continue;
-        }
-        if provider.replace(module.as_ref()).is_some() {
-            return Err(SourceExportOwnerError::DuplicateModule);
-        }
-    }
     let declaration = &resolution.declaration;
     if !declaration.public
         || declaration.recovered
@@ -112,33 +89,40 @@ pub fn resolve_source_export_owner<'a>(
 
     match declaration.kind {
         SyntaxKind::BindingStatement => {
-            let provider = provider.ok_or(SourceExportOwnerError::MissingModule)?;
+            let mut saw_provider = false;
             let mut found = None;
-            for item in provider.items() {
-                let HirItem::Binding(binding) = item else {
-                    continue;
-                };
-                if binding.visibility() != crate::HirVisibility::Public
-                    || binding.name().spelling() != resolution.name.as_ref()
-                    || binding.range() != &declaration.range
-                    || provider
-                        .definition_source_key(binding.definition_root())
-                        .ok()
-                        .flatten()
-                        != Some(&declaration.source)
-                {
+            let mut artifacts = HashSet::new();
+            for provider in modules {
+                let module_identity = provider.identity();
+                if module_identity.file() != module_identity.module().file() {
                     continue;
                 }
-                if found.replace(binding).is_some() {
-                    return Err(SourceExportOwnerError::AmbiguousOwner);
+                let path = module_identity.module().file().key().normalized_workspace_relative_path();
+                let path = path.strip_prefix("lib/").unwrap_or(path);
+                let Some(path) = path.strip_suffix(".yu") else { continue; };
+                if path.replace('/', "::") != resolution.module.as_ref() { continue; }
+                if !artifacts.insert(Arc::as_ptr(provider)) {
+                    return Err(SourceExportOwnerError::DuplicateModule);
+                }
+                saw_provider = true;
+                for item in provider.items() {
+                    let HirItem::Binding(binding) = item else { continue; };
+                    if binding.visibility() != crate::HirVisibility::Public
+                        || binding.name().spelling() != resolution.name.as_ref()
+                        || binding.range() != &declaration.range
+                        || provider.definition_source_key(binding.definition_root()).ok().flatten()
+                            != Some(&declaration.source)
+                    {
+                        continue;
+                    }
+                    if found.replace((provider.as_ref(), binding)).is_some() {
+                        return Err(SourceExportOwnerError::AmbiguousOwner);
+                    }
                 }
             }
-            found
-                .map(|binding| SourceExportOwner::Binding {
-                    module: provider,
-                    binding,
-                })
-                .ok_or(SourceExportOwnerError::StaleDeclaration)
+            found.map(|(module, binding)| SourceExportOwner::Binding { module, binding })
+                .ok_or(if saw_provider { SourceExportOwnerError::StaleDeclaration }
+                    else { SourceExportOwnerError::MissingModule })
         }
         SyntaxKind::RoleDeclaration => {
             let mut provider_role_index = None;

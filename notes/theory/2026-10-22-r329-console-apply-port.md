@@ -34,6 +34,19 @@ The `[io]` effect annotation remains contravariant `[io,'e]`; a `[state]` argume
 
 Establish later-bound stability for the exact receiver/subject pair under the one authenticated `Display` prerequisite and every source-bound consumer. Keep the selector fail-closed until this relation is source-qualified. Then continue the unchanged Console path through `show`, host writes, and execution.
 
+## Stability audit — open obstruction
+
+The inspected owners do not justify removing the negative receiver-to-subject edge:
+
+- `graph_role_subject_matches_receiver` in `crates/yu-solver/src/candidate_scheme.rs` accepts distinct rows only when captured evidence contains reciprocal value bounds between them. `deferred_field_tail_rows_survive_capture_and_same_freshuse_map` confirms that the FreshUse preserves distinct row identities while transporting that relation. This establishes the retained relation's provenance and transport, not equality or a bound-free receiver.
+- `instantiate_candidate_graph` in the same file checks both directions of the same-FreshUse role/field pairing before publishing the route. That is a source-authenticated prerequisite for the obligation, not a proof that future consumers cannot add bounds to either endpoint.
+- `candidate_receiver_frontier_counts` and `candidate_field_tail_receiver_readbacks` in `crates/yu-solver/src/lib.rs` recompute the live positive lower frontier and count each reachable negative upper edge. The observed receiver-to-subject edge is therefore intentionally visible to the strict selector. Positive shape traversal does not establish that the upper row can never acquire further bounds.
+- `apply_value_task` in `crates/yu-solver/src/lib.rs` inserts direct row edges and replays exact bounds through the solver work queue. The inspected path has no frozen-frontier token or source-bound consumer closure receipt that would establish stability at the earlier capture point.
+
+No safe selector or propagation edit follows from this audit. Keep `negative_frontier_empty` strict. A later step needs either a source/native argument that closes all consumers of both rows before dispatch, or a source-derived representation that lets the solver validate the `Display` prerequisite against the exact substituted subject without treating the one-way live upper edge as equality. Console remains deferred; the expected output is not established.
+
+This stop condition follows the unified plan's late-bound and deferred-method stability gates (§6.6 and stage 4) and the proof companion's distinction between next-use recapture and already-created FreshUse updates (§§3.8.1–3.8.4, 7.3). In particular, captured relation transport alone does not establish later-consumer closure.
+
 ## Scope and resources
 
 Solo primary; no subagents. Exact held paths: `crates/yu-solver/src/candidate_scheme.rs`, `crates/yu-solver/src/candidate_source.rs`, `tools/inference-playground/src/lib.rs`, `tools/inference-playground/src/main.rs`, `tools/inference-playground/tests/cli.rs`, this contract, `notes/theory/2026-10-22-r329-console-apply-port.md`, `tasks/agent-loop/current.json`. `crates/yu-hir/src/module.rs` remains frozen as the completed R327 selected-root lookup fix.

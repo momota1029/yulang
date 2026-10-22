@@ -1020,9 +1020,10 @@ fn pinned_candidate_world(
         modules.clone(), indexes, role_indexes,
     ) {
         let consumer_uses_plus = source_uses_plus(hir)?;
-        for member in pinned_applicable_member_projection(
+        let selected = pinned_applicable_member_projection(
             &readbacks, sources, indexes, role_indexes, consumer_uses_plus,
-        )? {
+        )?;
+        for member in selected {
             for dependency in pinned_provider_projection_inner(
                 &member, sources, indexes, role_indexes, false,
             )? {
@@ -1187,7 +1188,7 @@ fn pinned_applicable_member_projection(
                     && receiver.implementation_inventory_complete
                     && receiver.unsupported_target_count == 0
                     && receiver.positive_frontier_complete
-                    && receiver.negative_frontier_empty
+                    && (receiver.negative_frontier_empty || receiver.negative_frontier_source_qualified)
                     && receiver.positive_shape.is_some()
             ) else { continue; };
             let actual = shape(receiver.positive_shape.as_ref().unwrap());
@@ -1697,13 +1698,21 @@ mod tests {
         let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
             modules.clone(), &indexes, &role_indexes,
         ).unwrap();
+        assert!(readbacks.selected_receivers.iter().any(|receiver|
+            receiver.member.as_ref() == "show"
+                && receiver.positive_shape == Some(yu_solver::shadow_apply::CandidateReceiverShape::Int)
+                && receiver.target_matches.len() == 1
+                && receiver.negative_frontier_source_qualified
+        ), "the exact same-FreshUse Display subject selects one Int member before its body is applied");
         assert!(!readbacks.receivers.iter().any(|receiver|
             receiver.member.as_ref() == "add"
                 && receiver.positive_shape == Some(yu_solver::shadow_apply::CandidateReceiverShape::Int)
         ), "the exact int:Add FieldTail must be discharged after its member projection");
-        let show_receiver = readbacks.receivers.iter().find(|receiver|
+        let show_receiver = readbacks.selected_receivers.iter().find(|receiver|
             receiver.member.as_ref() == "show"
-        ).expect("the imported say graph retains its source value.show FieldTail");
+        ).or_else(|| readbacks.pre_dispatch_receivers.iter().find(|receiver| receiver.member.as_ref() == "show"))
+            .or_else(|| readbacks.receivers.iter().find(|receiver| receiver.member.as_ref() == "show"))
+            .expect("the imported say graph retains its source value.show FieldTail");
         assert_eq!(show_receiver.positive_shape, Some(yu_solver::shadow_apply::CandidateReceiverShape::Int),
             "the imported say argument port carries the selected Add result into the Display receiver");
         assert_eq!(show_receiver.target_matches.len(), 1,
@@ -1712,11 +1721,9 @@ mod tests {
             "the exact Display subject relation remains visible in the receiver frontier");
         assert!(!show_receiver.negative_frontier_empty,
             "member selection remains pending until the negative row edge is source-qualified");
-        let error = match prepare(source, "samples/Console.yu", false) {
-            Err(error) => error,
-            Ok(_) => panic!("Console still waits for the Display member selection route"),
-        };
-        assert_eq!(error, "candidate inference unavailable: Solve(DeferredSelectionUnavailable)");
+        let output = super::execute_module(source, "samples/Console.yu", 100_000, false)
+            .unwrap_or_else(|error| panic!("unchanged Console sample failed: {error}"));
+        assert_eq!(output, "hello from Yulang\n3\n");
     }
 
     #[test]

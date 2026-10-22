@@ -126,6 +126,11 @@ pub struct CandidateFieldTailReceiverReadback {
     /// True only when no negative bound was found anywhere in the reachable
     /// lower-shape and tuple-element frontier.
     pub negative_frontier_empty: bool,
+    /// A nonempty frontier is accepted only when its sole negative row edge
+    /// is the reciprocal same-FreshUse edge to the exact authenticated role
+    /// subject, both rows have the same positive shape, and neither has any
+    /// other negative bound. The rows remain distinct.
+    pub negative_frontier_source_qualified: bool,
 }
 /// Same-session inventory of nested Member FieldTails retained by captured
 /// member graphs. The four graph row positions are the positions consumed by
@@ -153,6 +158,10 @@ pub struct CandidateSelectedFieldTailUse<'a> {
     pub source_owner: &'a SourceRootId,
     pub occurrence: &'a HirOccurrenceId,
     pub member_root: &'a yu_hir::SourceMemberRootId,
+    /// Exact source operator use that supplied this selected provider
+    /// FieldTail, when the member selection belongs to an operator FreshUse.
+    pub operator_use_owner: Option<&'a SourceRootId>,
+    pub operator_use_occurrence: Option<&'a HirOccurrenceId>,
 }
 /// Exact imported operator use captured by the same candidate session. The
 /// use owner and occurrence identify the source call site that specializes
@@ -165,6 +174,13 @@ pub struct CandidateOperatorFreshUse<'a> {
 }
 #[derive(Clone, Debug, Default)]
 pub struct CandidateDeferredFieldTailReadbacks {
+    /// Exact receiver frontier captured after source execution and before any
+    /// deferred member body is admitted in this session.
+    pub pre_dispatch_receivers: Vec<CandidateFieldTailReceiverReadback>,
+    /// Exact readbacks that passed the selector and whose source member body
+    /// was admitted during this candidate session.
+    pub selected_receivers: Vec<CandidateFieldTailReceiverReadback>,
+    /// Current unresolved receivers after the attempted member dispatch.
     pub receivers: Vec<CandidateFieldTailReceiverReadback>,
     pub captured_member_graph_count: usize,
     pub captured_member_field_tails: Vec<CandidateCapturedMemberFieldTailReadback>,
@@ -1001,12 +1017,50 @@ impl CandidateInference {
             return Err(ArtifactMismatch);
         }
         let graph = self.solved.data.candidate_graph.as_ref().ok_or(ArtifactMismatch)?;
-        Ok(graph.member_uses.iter().map(|use_| CandidateSelectedFieldTailUse {
-            owner: &use_.owner,
-            source_owner: &use_.source_owner,
-            occurrence: &use_.occurrence,
-            member_root: &use_.member,
-        }))
+        let mut selected = Vec::new();
+        selected.try_reserve_exact(graph.member_uses.len()).map_err(|_| ArtifactMismatch)?;
+        for use_ in &graph.member_uses {
+            let mut operator_context = None;
+            if let SourceRootId::Expression(provider) = &use_.owner {
+                if let Some(provider_graph) = graph.operator_graphs.get(provider) {
+                    for operator_use in graph.operator_uses.iter().filter(|operator_use|
+                        operator_use.provider == *provider
+                    ) {
+                        for (index, row_indexes) in &operator_use.fresh.source_field_tail_obligation_rows {
+                            let Some(obligation) = provider_graph.source_field_tail_obligations.get(*index) else {
+                                return Err(ArtifactMismatch);
+                            };
+                            if obligation.source_owner != use_.source_owner
+                                || obligation.occurrence != use_.occurrence
+                            {
+                                continue;
+                            }
+                            let Some(row) = operator_use.fresh.rows.get(row_indexes[0]).copied() else {
+                                return Err(ArtifactMismatch);
+                            };
+                            if graph.intrusion.rep(row) != graph.intrusion.rep(use_.receiver_row) {
+                                continue;
+                            }
+                            if operator_context.replace((
+                                &operator_use.use_owner,
+                                &operator_use.occurrence,
+                            )).is_some() {
+                                return Err(ArtifactMismatch);
+                            }
+                        }
+                    }
+                }
+            }
+            selected.push(CandidateSelectedFieldTailUse {
+                owner: &use_.owner,
+                source_owner: &use_.source_owner,
+                occurrence: &use_.occurrence,
+                member_root: &use_.member,
+                operator_use_owner: operator_context.map(|(owner, _)| owner),
+                operator_use_occurrence: operator_context.map(|(_, occurrence)| occurrence),
+            });
+        }
+        Ok(selected.into_iter())
     }
     /// Read exact imported operator providers and their source use sites from
     /// this successful candidate. Runtime consumers can specialize a shared
@@ -1238,7 +1292,10 @@ impl CandidateInference {
         ) {
             Ok(_) => Ok(readbacks),
             Err(CandidateError::Solve(SolveAvailabilityError::DeferredSelectionUnavailable))
-                if !readbacks.receivers.is_empty() || !readbacks.captured_member_field_tails.is_empty() => Ok(readbacks),
+                if !readbacks.pre_dispatch_receivers.is_empty()
+                    || !readbacks.selected_receivers.is_empty()
+                    || !readbacks.receivers.is_empty()
+                    || !readbacks.captured_member_field_tails.is_empty() => Ok(readbacks),
             Err(error) => Err(error),
         }
     }
@@ -1443,27 +1500,28 @@ impl CandidateInference {
                 Ok(()) => {
                     let selected_before_dispatch = session.candidate_field_tail_receiver_readbacks()
                         .map_err(CandidateError::Solve)?;
-                    if let Err(error) = session.execute_candidate_field_tails() {
+                    if let Err(error) = session.execute_candidate_field_tails(Some(&mut readbacks.selected_receivers)) {
                         if error != SolveAvailabilityError::DeferredSelectionUnavailable {
                             return Err(CandidateError::Solve(error));
                         }
-                        let mut current = session.candidate_field_tail_receiver_readbacks()
+                        readbacks.pre_dispatch_receivers = selected_before_dispatch;
+                        readbacks.receivers = session.candidate_field_tail_receiver_readbacks()
                             .map_err(CandidateError::Solve)?;
-                        current.try_reserve(selected_before_dispatch.len())
-                            .map_err(|_| CandidateError::Solve(SolveAvailabilityError::IdentityExhausted))?;
-                        for selected in selected_before_dispatch {
-                            if !current.iter().any(|item| item.owner == selected.owner
-                                && item.occurrence == selected.occurrence
-                                && item.receiver_row == selected.receiver_row) {
-                                current.push(selected);
-                            }
-                        }
-                        readbacks.receivers = current;
                         let (member_graph_count, member_field_tails) = session.candidate_captured_member_field_tail_readbacks()
                             .map_err(CandidateError::Solve)?;
                         readbacks.captured_member_graph_count = member_graph_count;
                         readbacks.captured_member_field_tails = member_field_tails;
                         return Err(CandidateError::Solve(error));
+                    }
+                    if session.candidate_has_pending_field_tail_selection() {
+                        readbacks.pre_dispatch_receivers = selected_before_dispatch;
+                        readbacks.receivers = session.candidate_field_tail_receiver_readbacks()
+                            .map_err(CandidateError::Solve)?;
+                        let (member_graph_count, member_field_tails) = session.candidate_captured_member_field_tail_readbacks()
+                            .map_err(CandidateError::Solve)?;
+                        readbacks.captured_member_graph_count = member_graph_count;
+                        readbacks.captured_member_field_tails = member_field_tails;
+                        return Err(CandidateError::Solve(SolveAvailabilityError::DeferredSelectionUnavailable));
                     }
                     session.finish_candidate().map_err(CandidateError::Solve)?
                 }
@@ -1480,7 +1538,7 @@ impl CandidateInference {
             }
         } else {
             session.execute().map_err(CandidateError::Solve)?;
-            if let Err(error) = session.execute_candidate_field_tails() {
+            if let Err(error) = session.execute_candidate_field_tails(None) {
                 if error == SolveAvailabilityError::DeferredSelectionUnavailable {
 
                     if let Some(member) = session.missing_candidate_member_source() {

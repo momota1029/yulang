@@ -118,6 +118,8 @@ pub(super) struct MemberFreshUse {
     /// member transport so a later consumer can join it back to source code.
     pub source_owner: SourceRootId,
     pub occurrence: HirOccurrenceId,
+    /// Canonical receiver row whose readback authorized this exact body use.
+    pub receiver_row: RowKey,
     pub member: yu_hir::SourceMemberRootId,
     pub fresh: FreshUse,
 }
@@ -502,12 +504,12 @@ pub(super) struct FreshUse {
     scope_remap: candidate_source::ScopeRemap,
     scoped_relations: HashMap<candidate_context::RelationId, candidate_context::ScopedFlow>,
     context_use: usize,
-    rows: Vec<RowKey>,
+    pub(super) rows: Vec<RowKey>,
     /// (obligation ordinal, provider graph row index), both transported by
     /// this same FreshUse row vector.
     source_role_obligation_rows: Vec<(usize, usize)>,
     /// (FieldTail obligation ordinal, receiver/value-effect and result/value-effect graph rows).
-    source_field_tail_obligation_rows: Vec<(usize, [usize; 4])>,
+    pub(super) source_field_tail_obligation_rows: Vec<(usize, [usize; 4])>,
     terms: Vec<Option<Term>>,
     effect_operands: HashMap<usize, EffectEndpointKey>,
     bundle_remap: HashMap<candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId>,
@@ -665,6 +667,50 @@ impl GraphState {
             || self.routes.iter().any(|route| !route.graph.source_field_tail_obligations.is_empty())
             || self.local_routes.iter().any(|route| !route.graph.source_field_tail_obligations.is_empty())
             || self.local_use.iter().any(|frame| !frame.graph.source_field_tail_obligations.is_empty())
+    }
+
+    /// Whether a currently instantiated source FieldTail still lacks a
+    /// selected body. Captured module and FreshUse graphs also retain dormant
+    /// polymorphic templates; those are not pending once each concrete route
+    /// has a matching selected member use.
+    pub(super) fn has_unresolved_active_field_tail_selection(&self) -> bool {
+        if self.source_field_tail_obligations.values().any(|items| !items.is_empty()) {
+            return true;
+        }
+        let selected = |obligation: &SourceFieldTailObligation, receiver_row: RowKey| {
+            self.member_uses.iter().any(|use_|
+                use_.source_owner == obligation.source_owner
+                    && use_.occurrence == obligation.occurrence
+                    && self.intrusion.rep(use_.receiver_row) == self.intrusion.rep(receiver_row)
+            )
+        };
+        let route_unresolved = |graph: &Graph, rows: &[RowKey], mappings: &[(usize, [usize; 4])]| {
+            mappings.iter().any(|(index, row_indexes)| {
+                let Some(obligation) = graph.source_field_tail_obligations.get(*index) else { return true; };
+                let Some(receiver_row) = rows.get(row_indexes[0]).copied() else { return true; };
+                let unresolved = !selected(obligation, receiver_row);
+                unresolved
+            })
+        };
+        self.routes.iter().any(|route| {
+            let unresolved = route_unresolved(&route.graph, &route.rows, &route.retained.source_field_tail_obligation_rows);
+            unresolved
+        })
+            || self.local_routes.iter().any(|route| {
+                let unresolved = route_unresolved(&route.graph, &route.rows, &route.retained.source_field_tail_obligation_rows);
+                unresolved
+            })
+            || self.local_use.iter().any(|frame| {
+                let unresolved = route_unresolved(&frame.graph, &frame.fresh.rows, &frame.fresh.source_field_tail_obligation_rows);
+                unresolved
+            })
+            || self.operator_uses.iter()
+                .filter(|use_| matches!(use_.use_owner, SourceRootId::Expression(_)))
+                .any(|use_| {
+                let unresolved = self.operator_graphs.get(&use_.provider)
+                    .map_or(true, |graph| route_unresolved(graph, &use_.fresh.rows, &use_.fresh.source_field_tail_obligation_rows));
+                unresolved
+            })
     }
 
     #[cfg(test)]
@@ -987,7 +1033,7 @@ impl Graph {
     }
 }
 
-fn graph_role_subject_matches_receiver(graph: &Graph, role_row: usize, receiver_row: usize) -> bool {
+pub(super) fn graph_role_subject_matches_receiver(graph: &Graph, role_row: usize, receiver_row: usize) -> bool {
     if role_row == receiver_row { return true; }
     let row_key = |index: usize| graph.rows.get(index).map(|row| row.key);
     let (Some(RowKey::Value(role)), Some(RowKey::Value(receiver))) =
@@ -1805,6 +1851,88 @@ impl InferenceSession {
         self.candidate_graph = Some(state);
         Ok(())
     }
+
+    /// Recognize the one negative edge that is only the authenticated two-way
+    /// relation between a FieldTail receiver and its same-FreshUse `where`
+    /// subject. This does not collapse the rows; it only certifies that both
+    /// live rows currently expose the same positive shape and have no other
+    /// negative frontier.
+    pub(super) fn candidate_field_tail_role_frontier_is_closed(
+        &self,
+        obligation: &SourceFieldTailObligation,
+        receiver_row: u32,
+    ) -> bool {
+        let Some(state) = self.candidate_graph.as_ref() else { return false; };
+        let receiver = state.intrusion.value_rep(receiver_row);
+        let Some(receiver_bounds) = self.bounds.get(receiver as usize) else { return false; };
+        if receiver_bounds.direct_upper_rows.len() != 1
+            || !receiver_bounds.exact_non_variable_uppers.is_empty()
+        {
+            return false;
+        }
+        let subject = state.intrusion.value_rep(receiver_bounds.direct_upper_rows[0]);
+        if subject == receiver { return false; }
+        let Some(subject_bounds) = self.bounds.get(subject as usize) else { return false; };
+        if subject_bounds.direct_upper_rows.len() != 1
+            || subject_bounds.exact_non_variable_uppers.len() != 0
+            || state.intrusion.value_rep(subject_bounds.direct_upper_rows[0]) != receiver
+        {
+            return false;
+        }
+        let Some(receiver_shape) = self.candidate_receiver_positive_shape(receiver) else { return false; };
+        if self.candidate_receiver_positive_shape(subject).as_ref() != Some(&receiver_shape) {
+            return false;
+        }
+
+        let mut authenticated_pairs = 0usize;
+        for route in &state.routes {
+            for field in &route.graph.source_field_tail_obligations {
+                if field.source_owner != obligation.source_owner
+                    || field.occurrence != obligation.occurrence
+                    || field.source != obligation.source
+                    || field.member != obligation.member
+                    || field.required_roles != obligation.required_roles
+                {
+                    continue;
+                }
+                let Some(field_row_index) = route.graph.rows.iter().position(|row| row.key == field.receiver_row) else {
+                    continue;
+                };
+                if !route.rows.get(field_row_index).is_some_and(|mapped|
+                    state.intrusion.rep(*mapped) == RowKey::Value(receiver))
+                {
+                    continue;
+                }
+                let SourceRootId::Definition(provider) = &field.source_owner else { continue; };
+                for role in &route.graph.source_role_obligations {
+                    let Some(identity) = role.role_identity.as_ref() else { continue; };
+                    if &role.provider != provider || !field.required_roles.contains(identity) {
+                        continue;
+                    }
+                    let Some(role_row_index) = route.graph.rows.iter().position(|row| row.key == role.subject_row) else {
+                        continue;
+                    };
+                    if !route.rows.get(role_row_index).is_some_and(|mapped|
+                        state.intrusion.rep(*mapped) == RowKey::Value(subject))
+                    {
+                        continue;
+                    }
+                    let Some(role_index) = route.graph.rows.iter().position(|row| row.key == role.subject_row) else {
+                        continue;
+                    };
+                    if !graph_role_subject_matches_receiver(&route.graph, role_index, field_row_index) {
+                        continue;
+                    }
+                    authenticated_pairs = match authenticated_pairs.checked_add(1) {
+                        Some(count) => count,
+                        None => return false,
+                    };
+                }
+            }
+        }
+        authenticated_pairs == 1
+    }
+
     pub(super) fn capture_candidate_graph(&mut self, row: u32, boundary: u32) -> Result<Graph, SolveAvailabilityError> {
         self.capture_candidate_graph_owned(row, boundary, &[], &[], &[])
     }
@@ -2538,7 +2666,10 @@ impl InferenceSession {
     /// Resolve active FieldTail obligations only after source schedules have
     /// contributed their receiver bounds. Every selected body is instantiated
     /// once, and its nested obligations reuse the same FreshUse row map.
-    pub(super) fn execute_candidate_field_tails(&mut self) -> Result<(), SolveAvailabilityError> {
+    pub(super) fn execute_candidate_field_tails(
+        &mut self,
+        mut selected_readbacks: Option<&mut Vec<crate::shadow_apply::CandidateFieldTailReceiverReadback>>,
+    ) -> Result<(), SolveAvailabilityError> {
         #[derive(Clone)]
         struct Pending {
             obligation: SourceFieldTailObligation,
@@ -2620,7 +2751,13 @@ impl InferenceSession {
                         && readback.receiver_row == receiver_row)
                     .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 let member_index = match self.unique_candidate_field_tail_member(&readback, &item.obligation.required_roles) {
-                    FieldTailMemberSelection::Selected(index) => index,
+                    FieldTailMemberSelection::Selected(index) => {
+                        if let Some(readbacks) = selected_readbacks.as_deref_mut() {
+                            readbacks.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            readbacks.push(readback.clone());
+                        }
+                        index
+                    }
                     FieldTailMemberSelection::MissingSource(member) => {
 
                         let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
@@ -2762,6 +2899,7 @@ impl InferenceSession {
                     owner: item.obligation.owner.clone(),
                     source_owner: item.obligation.source_owner.clone(),
                     occurrence,
+                    receiver_row: item.obligation.receiver_row,
                     member: member_root,
                     fresh,
                 });
@@ -2811,7 +2949,7 @@ impl InferenceSession {
             || !readback.implementation_inventory_complete
             || readback.unsupported_target_count != 0
             || !readback.positive_frontier_complete
-            || !readback.negative_frontier_empty
+            || !(readback.negative_frontier_empty || readback.negative_frontier_source_qualified)
             || readback.target_matches.len() != 1
         {
 

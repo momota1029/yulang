@@ -10642,7 +10642,7 @@ impl InferenceSession {
     fn run_candidate(mut self) -> Result<CandidateSolvedResult, SolveAvailabilityError> {
         assert!(self.candidate_graph.is_some() && self.finalization.is_none());
         self.execute()?;
-        self.execute_candidate_field_tails()?;
+        self.execute_candidate_field_tails(None)?;
         self.finish_candidate()
     }
 
@@ -10650,7 +10650,7 @@ impl InferenceSession {
     fn finish_candidate(self) -> Result<CandidateSolvedResult, SolveAvailabilityError> {
         assert!(self.candidate_graph.is_some() && self.finalization.is_none());
         if self.candidate_graph.as_ref().is_some_and(
-            candidate_scheme::GraphState::has_pending_field_tail_selection,
+            candidate_scheme::GraphState::has_unresolved_active_field_tail_selection,
         ) {
             return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
         }
@@ -12012,6 +12012,10 @@ impl InferenceSession {
                 let frontier_complete = frontier.is_some();
                 let frontier = frontier.unwrap_or_default();
                 let positive_shape = self.candidate_receiver_positive_shape(row);
+                let negative_frontier_source_qualified = frontier_complete
+                    && frontier.negative_row_edges == 1
+                    && frontier.negative_bounds == 0
+                    && self.candidate_field_tail_role_frontier_is_closed(obligation, row);
                 let mut target_matches = Vec::new();
                 // This flag covers the source implementation inventory for
                 // each retained exact role-member identity. Unsupported target
@@ -12139,10 +12143,16 @@ impl InferenceSession {
                     positive_frontier_complete: frontier_complete,
                     negative_frontier_empty: frontier_complete
                         && frontier.negative_row_edges == 0 && frontier.negative_bounds == 0,
+                    negative_frontier_source_qualified,
                 });
             }
         }
         Ok(readbacks)
+    }
+    pub(crate) fn candidate_has_pending_field_tail_selection(&self) -> bool {
+        self.candidate_graph.as_ref().is_some_and(
+            candidate_scheme::GraphState::has_unresolved_active_field_tail_selection,
+        )
     }
     #[cfg(feature = "shadow-apply-candidate")]
     fn candidate_captured_member_field_tail_readbacks(

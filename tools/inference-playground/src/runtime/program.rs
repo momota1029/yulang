@@ -33,6 +33,7 @@ pub(super) struct RuntimeFieldTailKey {
     active_owner: SourceRootId,
     source_owner: SourceRootId,
     occurrence: HirOccurrenceId,
+    use_occurrence: Option<HirOccurrenceId>,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(super) struct RuntimeOperatorUseKey {
@@ -52,6 +53,7 @@ struct RuntimeSourceRoot {
     hir: Arc<HirModule>,
     source_root: SourceRootId,
     active_owner: SourceRootId,
+    active_use_occurrence: Option<HirOccurrenceId>,
     kind: RuntimeRootKind,
 }
 
@@ -89,6 +91,19 @@ pub struct RuntimeEvidence {
     imported_bindings: HashMap<yu_hir::SourceExportId, DefId>,
     host_write_operation: Option<yu_hir::SourceOperationId>,
     operation_v1: Option<OperationV1Link>,
+}
+impl RuntimeEvidence {
+    fn field_tail_member(&self, key: &RuntimeFieldTailKey) -> Option<&yu_hir::SourceMemberRootId> {
+        if let Some(member) = self.field_tail_members.get(key) { return Some(member); }
+        if key.use_occurrence.is_none() { return None; }
+        let mut templates = self.field_tail_members.iter().filter(|(candidate, _)|
+            candidate.source_owner == key.source_owner
+                && candidate.occurrence == key.occurrence
+                && candidate.use_occurrence.is_none()
+        ).map(|(_, member)| member);
+        let member = templates.next()?;
+        templates.all(|other| other == member).then_some(member)
+    }
 }
 #[derive(Clone, Debug)]
 pub(super) struct OperationV1Link {
@@ -278,13 +293,15 @@ impl RuntimeProgram {
         }
         let mut evidence = RuntimeEvidence::default();
         evidence.host_write_operation = exact_host_write_operation(&hirs, indexes)?;
-        for use_ in candidate.selected_field_tail_uses()
-            .map_err(|_| RuntimeUnavailable::InvalidSourceReference)?
-        {
+        let selected_fields = candidate.selected_field_tail_uses().map_err(|_| {
+            RuntimeUnavailable::InvalidSourceReference
+        })?;
+        for use_ in selected_fields {
             let key = RuntimeFieldTailKey {
-                active_owner: use_.owner.clone(),
+                active_owner: use_.operator_use_owner.unwrap_or(use_.owner).clone(),
                 source_owner: use_.source_owner.clone(),
                 occurrence: use_.occurrence.clone(),
+                use_occurrence: use_.operator_use_occurrence.cloned(),
             };
             let source_module = unique_source_module(&hirs, &key.source_owner)?;
             let source = source_module.local_source_for(&key.source_owner)
@@ -463,7 +480,7 @@ impl RuntimeProgram {
         let mut member_bodies = Vec::new();
         let mut operator_provider_labels = HashMap::new();
         for root_input in roots {
-            let RuntimeSourceRoot { hir: source_hir, source_root, active_owner, kind } = root_input;
+            let RuntimeSourceRoot { hir: source_hir, source_root, active_owner, active_use_occurrence, kind } = root_input;
             let is_main_root = matches!(&kind,
                 RuntimeRootKind::Binding(_) | RuntimeRootKind::Expression(_));
             let source = source_hir
@@ -749,6 +766,7 @@ impl RuntimeProgram {
                             active_owner: active_owner.clone(),
                             source_owner: source_root.clone(),
                             occurrence: expression.occurrence.clone(),
+                            use_occurrence: active_use_occurrence.clone(),
                         },
                     },
                     LocalSourceForm::InfixOperator { left, right, .. } => Instruction::InfixOperator {
@@ -883,7 +901,7 @@ impl RuntimeProgram {
                     ));
                 }
                 RuntimeRootKind::Operator(provider) => {
-                    let key = (active_owner, provider);
+                    let key = (active_owner, active_use_occurrence, provider);
                     if operator_provider_labels.insert(key, body).is_some() {
                         return Err(RuntimeUnavailable::InvalidSourceReference);
                     }
@@ -919,7 +937,7 @@ impl RuntimeProgram {
             let site = code[index].site.clone();
             match code[index].instruction.clone() {
                 Instruction::FieldTail { receiver, key } => {
-                    let Some(member_root) = evidence.field_tail_members.get(&key) else {
+                    let Some(member_root) = evidence.field_tail_member(&key) else {
                         return Err(RuntimeUnavailable::UnsupportedFieldTail(site));
                     };
                     let Some(callee) = member_templates.get(member_root).copied() else {
@@ -938,7 +956,7 @@ impl RuntimeProgram {
                         return Err(RuntimeUnavailable::UnsupportedInfixOperator(site));
                     };
                     let Some(callee) = operator_provider_labels
-                        .get(&(key.use_owner.clone(), provider.clone())).copied()
+                        .get(&(key.use_owner.clone(), Some(key.occurrence.clone()), provider.clone())).copied()
                     else {
                         return Err(RuntimeUnavailable::InvalidSourceReference);
                     };
@@ -1117,8 +1135,11 @@ fn exact_host_write_operation(
     let mut selected = None;
     for hir in hirs {
         let Some(imports) = hir.source_imports() else { continue };
-        let Some(path) = imports.operation_path(WRITE_PATH) else { continue };
-        if path.export.name.as_ref() != "out" {
+        let Some(path) = imports.operation_path("out::write")
+            .or_else(|| imports.operation_path(WRITE_PATH)) else { continue };
+        if path.export.module.as_ref() != "std::io::console"
+            || path.export.name.as_ref() != "out"
+        {
             return Err(RuntimeUnavailable::HostWriteCapability(
                 format!("unexpected export route {}::{}", path.export.module, path.export.name).into_boxed_str(),
             ));
@@ -1132,7 +1153,7 @@ fn exact_host_write_operation(
         if !is_host_write_signature(&path.operation.signature) {
             return Err(RuntimeUnavailable::HostWriteCapability("operation type is not str -> unit".into()));
         }
-        let resolved = yu_hir::resolve_public_export(indexes, "std::io", "out")
+        let resolved = yu_hir::resolve_public_export(indexes, &path.export.module, "out")
             .map_err(|_| RuntimeUnavailable::HostWriteCapability("source export no longer resolves".into()))?;
         if resolved.identity() != path.export.identity() {
             return Err(RuntimeUnavailable::HostWriteCapability("source export identity mismatch".into()));
@@ -1187,6 +1208,7 @@ fn main_runtime_roots(hir: &Arc<HirModule>) -> Result<Vec<RuntimeSourceRoot>, Ru
         roots.push(RuntimeSourceRoot {
             hir: hir.clone(),
             active_owner: source_root.clone(),
+            active_use_occurrence: None,
             source_root,
             kind,
         });
@@ -1201,7 +1223,7 @@ fn reachable_runtime_roots(
     evidence: &mut RuntimeEvidence,
 ) -> Result<Vec<RuntimeSourceRoot>, RuntimeUnavailable> {
     let mut pending = VecDeque::from(main_runtime_roots(hir)?);
-    let mut seen = HashSet::<(SourceRootId, SourceRootId, u8)>::new();
+    let mut seen = HashSet::<(SourceRootId, SourceRootId, Option<HirOccurrenceId>, u8)>::new();
     let mut extras = Vec::new();
     while let Some(root) = pending.pop_front() {
         let kind_tag = match &root.kind {
@@ -1210,7 +1232,7 @@ fn reachable_runtime_roots(
             RuntimeRootKind::Operator(_) => 2,
             RuntimeRootKind::LinkedBinding(_) => 3,
         };
-        if !seen.insert((root.source_root.clone(), root.active_owner.clone(), kind_tag)) {
+        if !seen.insert((root.source_root.clone(), root.active_owner.clone(), root.active_use_occurrence.clone(), kind_tag)) {
             continue;
         }
         let is_main = kind_tag == 0;
@@ -1228,8 +1250,9 @@ fn reachable_runtime_roots(
                         active_owner: root.active_owner.clone(),
                         source_owner: root.source_root.clone(),
                         occurrence: expression.occurrence.clone(),
+                        use_occurrence: root.active_use_occurrence.clone(),
                     };
-                    let Some(member_root) = evidence.field_tail_members.get(&key) else {
+                    let Some(member_root) = evidence.field_tail_member(&key) else {
                         return Err(RuntimeUnavailable::UnsupportedFieldTail(SourceSite {
                             source_root: root.source_root.clone(),
                             occurrence: expression.occurrence.clone(),
@@ -1253,6 +1276,7 @@ fn reachable_runtime_roots(
                         hir: member_module,
                         source_root: member_source_root.clone(),
                         active_owner: member_source_root,
+                        active_use_occurrence: None,
                         kind: RuntimeRootKind::Member(member_root.clone()),
                     });
                 }
@@ -1274,6 +1298,7 @@ fn reachable_runtime_roots(
                         hir: provider_module,
                         source_root: provider_root,
                         active_owner: root.active_owner.clone(),
+                        active_use_occurrence: Some(expression.occurrence.clone()),
                         kind: RuntimeRootKind::Operator(provider.clone()),
                     });
                 }
@@ -1305,6 +1330,7 @@ fn reachable_runtime_roots(
                         hir: Arc::new(module.clone()),
                         source_root: source_root.clone(),
                         active_owner: source_root,
+                        active_use_occurrence: None,
                         kind: RuntimeRootKind::LinkedBinding(binding.id().clone()),
                     });
                 }
@@ -1330,6 +1356,7 @@ fn reachable_runtime_roots(
                         hir: module,
                         source_root: source_root.clone(),
                         active_owner: source_root,
+                        active_use_occurrence: None,
                         kind: RuntimeRootKind::LinkedBinding(binding.id().clone()),
                     });
                 }
