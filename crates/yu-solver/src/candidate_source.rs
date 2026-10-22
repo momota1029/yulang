@@ -1740,6 +1740,11 @@ impl ConstraintBatch {
                             })?;
                             push(&mut actions, Action::Candidate(recipe))?;
                         }
+                        // HIR has preserved the exact parser-selected operator
+                        // declaration receipt, but this candidate path still
+                        // lacks its authenticated value-owner bridge. Keep it
+                        // unavailable instead of resolving by spelling.
+                        LocalSourceForm::InfixOperator { .. } => return Err(unavailable()),
                         LocalSourceForm::Group { inner } => {
                             if self.candidate_source.scoped_experiment {
                                 let child_occurrence = &source.expressions()[inner.ordinal() as usize].occurrence;

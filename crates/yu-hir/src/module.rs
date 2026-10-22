@@ -1805,6 +1805,14 @@ fn lower_module_with_counters(
     }
     let recoveries = validated_recoveries(parsed)?;
     let root = SyntaxNode::new_root(parsed.green().clone());
+    if counters.ordinary_source_carriers || counters.local_source || counters.member_sources {
+        let associations = crate::associate_operator_chains(parsed);
+        let mut uses = HashMap::new();
+        for chain in associations.chains() {
+            retain_associated_operator_uses(chain.expression(), &mut uses)?;
+        }
+        counters.source_operator_uses = uses;
+    }
     #[cfg(any(feature = "shadow", test))]
     if counters.local_source {
         counters.effect_declarations =
@@ -2156,6 +2164,8 @@ struct LoweringCounters {
     shadow_applications: bool,
     source_identity: Option<crate::source_identity::HirSourceIdentity>,
     source_nodes: HashMap<SyntaxNode, yu_syntax::SourceNodeKey>,
+    /// Exact parser-associated dynamic operators retained for source carriers.
+    source_operator_uses: HashMap<Range<usize>, crate::HirOperator>,
     recovery_visits: usize,
     syntax_emissions: usize,
     copied_spelling_bytes: usize,
@@ -2165,6 +2175,25 @@ struct LoweringCounters {
     aggregate_error_references: usize,
     aggregate_error_reference_bytes: usize,
     ordinary_admission_item_visits: usize,
+}
+
+fn retain_associated_operator_uses(
+    expression: &HirExpr,
+    uses: &mut HashMap<Range<usize>, crate::HirOperator>,
+) -> Result<(), HirAvailabilityError> {
+    match expression {
+        HirExpr::Apply { operator, operands, .. } => {
+            uses.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+            if uses.insert(operator.range().clone(), operator.clone()).is_some() {
+                return Err(HirAvailabilityError::StructuralProjection);
+            }
+            for operand in operands.iter() { retain_associated_operator_uses(operand, uses)?; }
+        }
+        HirExpr::Value { children, .. } | HirExpr::Error { children, .. } => {
+            for child in children { retain_associated_operator_uses(child, uses)?; }
+        }
+    }
+    Ok(())
 }
 
 struct PendingOrdinaryAdmission {

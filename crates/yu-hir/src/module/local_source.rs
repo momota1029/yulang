@@ -242,6 +242,9 @@ impl LocalSource {
                         elements.capacity() * std::mem::size_of::<LocalSourceIndex>()
                     }
                     LocalSourceForm::FieldTail { member, .. } => member.len(),
+                    LocalSourceForm::InfixOperator { operator, .. } => operator.spelling().len()
+                        + std::mem::size_of::<SourceNodeKey>()
+                        + std::mem::size_of::<crate::HirOperator>(),
                     LocalSourceForm::Name { spelling, .. } => spelling.len(),
                     LocalSourceForm::Lambda { parameter, .. } => {
                         parameter.spelling.len()
@@ -333,6 +336,14 @@ pub enum LocalSourceForm {
         callee: LocalSourceIndex,
         argument: LocalSourceIndex,
         source_form: SyntaxKind,
+    },
+    /// One exact parser-associated infix use; operands retain their own source
+    /// occurrences and the operator keeps its selected declaration receipt.
+    InfixOperator {
+        operator_source: SourceNodeKey,
+        operator: crate::HirOperator,
+        left: LocalSourceIndex,
+        right: LocalSourceIndex,
     },
     Group {
         inner: LocalSourceIndex,
@@ -804,10 +815,11 @@ fn form_ordinary_with_root_parameters(
             *next_occurrence = staged_next;
             return Ok(SourceCarrierOutcome::Supported(carrier));
         }
-        Err(FormationError::Unsupported(reason)) =>
+        Err(FormationError::Unsupported(reason)) => {
             Ok(SourceCarrierOutcome::Unsupported(SourceCarrierFailure {
                 root: owner.clone(), source, reason,
-            })),
+            }))
+        }
         Err(FormationError::Availability(error)) => Err(error),
     };
     counters.source_identity = Some(identity);
@@ -1208,6 +1220,52 @@ impl Builder<'_> {
                     push(&mut children, child)?;
                 }
                 let (head, all_tails) = children.split_first().ok_or_else(unsupported)?;
+                let operator_uses = all_tails.iter().enumerate()
+                    .filter(|(_, tail)| tail.kind() == SyntaxKind::InfixOperatorUse)
+                    .collect::<Vec<_>>();
+                if !operator_uses.is_empty() {
+                    let [(operator_index, operator_node)] = operator_uses.as_slice() else {
+                        return Err(unsupported());
+                    };
+                    if *operator_index + 2 != all_tails.len() {
+                        return Err(unsupported());
+                    }
+                    let range = crate::range_of(operator_node);
+                    let operator = self.counters.source_operator_uses.get(&range)
+                        .cloned().ok_or_else(unsupported)?;
+                    if operator.fixity() != crate::OperatorFixity::Infix {
+                        return Err(unsupported());
+                    }
+                    let operator_source = self.key(operator_node)?;
+                    let left = self.slot()?;
+                    let right = self.slot()?;
+                    self.set(index, &node, scope.clone(), named_group.clone(),
+                        LocalSourceForm::InfixOperator { operator_source, operator, left: left.clone(), right: right.clone() })?;
+                    let mut current = left;
+                    for tail in all_tails[..*operator_index].iter().rev() {
+                        if tail.kind() != SyntaxKind::FieldTail || has_recovery(tail) {
+                            return Err(unsupported());
+                        }
+                        let tokens: Vec<_> = tail.children_with_tokens().filter(|element| !matches!(
+                            element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+                        )).collect();
+                        let [dot, member] = tokens.as_slice() else { return Err(unsupported()); };
+                        let dot = dot.as_token().ok_or_else(unsupported)?;
+                        let member = member.as_token().ok_or_else(unsupported)?;
+                        if dot.kind() != SyntaxKind::Dot || member.kind() != SyntaxKind::Identifier {
+                            return Err(unsupported());
+                        }
+                        let receiver = self.slot()?;
+                        self.set(current, tail, scope.clone(), named_group.clone(), LocalSourceForm::FieldTail {
+                            receiver: receiver.clone(), member: member.text().into(), member_range: crate::range_of_token(&member),
+                        })?;
+                        current = receiver;
+                    }
+                    push(&mut self.work, Work::Expression(head.clone(), current, scope.clone(), named_group.clone()))?;
+                    let right_node = all_tails.last().ok_or_else(unsupported)?;
+                    push(&mut self.work, Work::Expression(right_node.clone(), right, scope, named_group.clone()))?;
+                    return Ok(());
+                }
                 let operation_tail = all_tails
                     .first()
                     .filter(|tail| tail.kind() == SyntaxKind::PathTail);
@@ -2116,7 +2174,9 @@ mod tests {
     #[test]
     fn ordinary_carrier_reuses_branded_roots_parameters_and_namespace() {
         let (_, _, module) = ordinary_fixture("my f x = x; my use = f");
-        let HirItem::Binding(binding) = &module.items()[0] else { panic!("binding"); };
+        let binding = module.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) => Some(binding), _ => None,
+        }).expect("say binding");
         let source = module.local_source(binding.definition_root()).unwrap().unwrap();
         assert_eq!(source.definition_root(), Some(binding.definition_root()));
         let LocalSourceForm::Lambda { parameter, body } = &source.expression(source.body()).unwrap().form
@@ -2193,6 +2253,43 @@ mod tests {
             &source.expression(final_expression).unwrap().form,
             LocalSourceForm::Name { spelling, .. } if spelling.as_ref() == "value"
         ));
+    }
+
+    #[test]
+    fn pinned_generic_say_header_and_operator_body_form_a_source_carrier() {
+        let provider: Arc<yu_syntax::SourceText> = Arc::from("pub infix (+) 5.0.0 5.0.1 = f");
+        let dependency = yu_syntax::SyntaxDependencySlot::from_index(0).unwrap();
+        let environment = yu_syntax::SyntaxEnvironment::from_imported_headers(
+            yu_syntax::SyntaxEnvironmentKey::from_fingerprint(17),
+            [(dependency, &yu_syntax::scan_header(provider.clone()))],
+            Arc::from([yu_syntax::SyntaxDependencyProvenance::new(
+                Arc::from("lib/std/core/ops.yu"),
+                yu_syntax::SourceRevision::from_fingerprint(73),
+            )]),
+        ).unwrap();
+        let text = "pub say(value: 'a): () =\n    where 'a: Display\n    out::write: value.show + \"\\n\"";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(), Arc::new(yu_syntax::scan_header(source)), Arc::new(environment),
+        );
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("test", "pinned-say.yu")));
+        let module = lower_module(identity, &parsed, SemanticImports::empty()).unwrap();
+        let HirItem::Binding(binding) = &module.items()[0] else { panic!("binding"); };
+        let outcome = module.source_carrier(binding.definition_root()).unwrap();
+        let Some(SourceCarrierOutcome::Supported(source)) = outcome else {
+            panic!("pinned say source form must be retained: {outcome:?}");
+        };
+        assert_eq!(source.where_clauses().len(), 1);
+        assert_eq!(source.where_clauses()[0].subject.text.trim(), "'a");
+        assert_eq!(source.where_clauses()[0].role.text.trim(), "Display");
+        let operator = source.expressions().iter().find_map(|expression| match &expression.form {
+            LocalSourceForm::InfixOperator { operator_source, operator, .. } => Some((operator_source, operator)),
+            _ => None,
+        }).expect("operator constructor retained");
+        assert!(parsed.owns_source_key(operator.0));
+        assert_eq!(operator.1.spelling(), "+");
+        assert_eq!(operator.1.fixity(), crate::OperatorFixity::Infix);
+        assert_eq!(operator.1.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Imported(dependency));
     }
     #[test]
     fn ordinary_field_tails_preserve_receiver_chain_and_parse_member_identity() {

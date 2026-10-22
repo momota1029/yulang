@@ -126,6 +126,7 @@ pub enum RuntimeUnavailable {
     NonExhaustiveCase(SourceSite),
     ExpectedComputation(SourceSite),
     UnsupportedFieldTail(SourceSite),
+    UnsupportedInfixOperator(SourceSite),
     ModuleInitializationOrder,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -577,6 +578,13 @@ impl RuntimeProgram {
                     },
                     LocalSourceForm::FieldTail { .. } => {
                         return Err(RuntimeUnavailable::UnsupportedFieldTail(SourceSite {
+                            source_root: source_root.clone(),
+                            occurrence: expression.occurrence.clone(),
+                            range: expression.range.clone(),
+                        }));
+                    }
+                    LocalSourceForm::InfixOperator { .. } => {
+                        return Err(RuntimeUnavailable::UnsupportedInfixOperator(SourceSite {
                             source_root: source_root.clone(),
                             occurrence: expression.occurrence.clone(),
                             range: expression.range.clone(),
@@ -1131,6 +1139,10 @@ fn handler_arm_operation_ranges(
             Form::Sequence { items } => pending.extend(items.iter().cloned()),
             Form::Tuple { elements } => pending.extend(elements.iter().cloned()),
             Form::FieldTail { receiver, .. } => pending.push(receiver.clone()),
+            Form::InfixOperator { left, right, .. } => {
+                pending.push(left.clone());
+                pending.push(right.clone());
+            }
             Form::Group { inner } | Form::Ascription { inner, .. } => pending.push(inner.clone()),
             Form::Lambda { body, .. } => pending.push(body.clone()),
             Form::Block { bindings, final_expression } => {
