@@ -169,6 +169,7 @@ pub(super) struct Graph {
     /// Ordered child node indexes for tuple nodes; ranges live in `Node::Tuple`.
     pub tuple_children: Vec<usize>,
     pub record_fields: Vec<RecordField<usize>>,
+    pub variant_alternatives: Vec<VariantAlternative<usize>>,
     pub rows: Vec<Row>,
     /// Each prerequisite points at a row already present in this provider graph.
     pub source_role_obligations: Vec<SourceRoleObligation>,
@@ -331,6 +332,7 @@ pub(super) enum Node {
         children: [usize; 4],
     },
     Record { polarity: Polarity, start: usize, len: usize },
+    Variant { polarity: Polarity, start: usize, len: usize },
     Tuple {
         polarity: Polarity,
         start: usize,
@@ -675,6 +677,13 @@ fn mapped_endpoint_at(
             ExtrusionEndpoint::Value(match function_polarity {
                 Polarity::Positive => ValueEndpointKey::PositiveFunction(term),
                 Polarity::Negative => ValueEndpointKey::NegativeFunction(term),
+            })
+        }
+        Node::Variant { polarity, .. } => {
+            let term = retained.terms.get(node).copied().flatten()?;
+            ExtrusionEndpoint::Value(match polarity {
+                Polarity::Positive => ValueEndpointKey::PositiveVariant(term),
+                Polarity::Negative => ValueEndpointKey::NegativeVariant(term),
             })
         }
         Node::Record { polarity, .. } => {
@@ -1112,6 +1121,10 @@ impl Graph {
             bytes::<Node>(self.nodes.capacity())?,
             bytes::<usize>(self.tuple_children.capacity())?,
             bytes::<RecordField<usize>>(self.record_fields.capacity())?,
+            bytes::<VariantAlternative<usize>>(self.variant_alternatives.capacity())?,
+            self.variant_alternatives.iter().try_fold(0usize, |n, alternative|
+                n.checked_add(alternative.tag.len()).and_then(|n| n.checked_add(
+                    alternative.payloads.len().checked_mul(std::mem::size_of::<usize>())?)).ok_or_else(exhausted))?,
             self.record_fields.iter().try_fold(0usize, |n, field| n.checked_add(field.name.len()).ok_or_else(exhausted))?,
             bytes::<Row>(self.rows.capacity())?,
             bytes::<SourceRoleObligation>(self.source_role_obligations.capacity())?,
@@ -1694,6 +1707,12 @@ impl<'a> Capture<'a> {
             {
                 Endpoint::Value(ValueEndpointKey::NegativeFunction(term), polarity)
             }
+            TermView::PositiveVariant { .. } if kind == ComponentKind::Value && polarity == Polarity::Positive => {
+                Endpoint::Value(ValueEndpointKey::PositiveVariant(term), polarity)
+            }
+            TermView::NegativeVariant { .. } if kind == ComponentKind::Value && polarity == Polarity::Negative => {
+                Endpoint::Value(ValueEndpointKey::NegativeVariant(term), polarity)
+            }
             TermView::PositiveRecord { .. } if kind == ComponentKind::Value && polarity == Polarity::Positive => {
                 Endpoint::Value(ValueEndpointKey::PositiveRecord(term), polarity)
             }
@@ -1877,6 +1896,29 @@ impl<'a> Capture<'a> {
                     polarity: p,
                     children,
                 }
+            }
+            Endpoint::Value(V::PositiveVariant(term), Polarity::Positive)
+            | Endpoint::Value(V::NegativeVariant(term), Polarity::Negative) => {
+                let (polarity, alternatives) = match self.session.store.term_view(term).map_err(|_| exhausted())? {
+                    TermView::PositiveVariant { alternatives } => (Polarity::Positive, alternatives),
+                    TermView::NegativeVariant { alternatives } => (Polarity::Negative, alternatives),
+                    _ => return Err(exhausted()),
+                };
+                let start = self.graph.variant_alternatives.len();
+                self.graph.variant_alternatives.try_reserve_exact(alternatives.len()).map_err(|_| exhausted())?;
+                for alternative in alternatives {
+                    let mut payloads = Vec::new();
+                    payloads.try_reserve_exact(alternative.payloads.len()).map_err(|_| exhausted())?;
+                    payloads.resize(alternative.payloads.len(), usize::MAX);
+                    self.graph.variant_alternatives.push(VariantAlternative { tag: alternative.tag.clone(), payloads: payloads.into_boxed_slice() });
+                }
+                for (offset, alternative) in alternatives.iter().enumerate() {
+                    for (position, &payload) in alternative.payloads.iter().enumerate() {
+                        let child = self.intern_shape(self.term_endpoint(payload, ComponentKind::Value, polarity)?)?;
+                        self.graph.variant_alternatives[start + offset].payloads[position] = child;
+                    }
+                }
+                Node::Variant { polarity, start, len: alternatives.len() }
             }
             Endpoint::Value(V::PositiveRecord(term), Polarity::Positive)
             | Endpoint::Value(V::NegativeRecord(term), Polarity::Negative) => {
@@ -2383,7 +2425,7 @@ impl InferenceSession {
             session: self,
             graph: Graph {
                 source_frontier, owned_regions, negative_formal_roots: HashMap::new(),
-                nodes: Vec::new(), tuple_children: Vec::new(), record_fields: Vec::new(),
+                nodes: Vec::new(), tuple_children: Vec::new(), record_fields: Vec::new(), variant_alternatives: Vec::new(),
                 rows: Vec::new(),
                 source_role_obligations: retained_obligations,
                 source_field_tail_obligations: retained_field_tails,
@@ -3959,6 +4001,39 @@ impl InferenceSession {
                         } else {
                             self.negative_function_term(a, ae, re, r)?
                         }
+                    }
+                    Node::Variant { polarity, start, len } => {
+                        let alternatives = graph.variant_alternatives.get(start..start.checked_add(len).ok_or_else(exhausted)?)
+                            .ok_or_else(exhausted)?;
+                        if !finish {
+                            push(&mut work, (index, true))?;
+                            for alternative in alternatives.iter().rev() {
+                                for &child in alternative.payloads.iter().rev() {
+                                    if terms[child].is_none() { push(&mut work, (child, false))?; }
+                                }
+                            }
+                            continue;
+                        }
+                        let mut mapped = Vec::new();
+                        mapped.try_reserve_exact(len).map_err(|_| exhausted())?;
+                        for alternative in alternatives {
+                            let mut payloads = Vec::new();
+                            payloads.try_reserve_exact(alternative.payloads.len()).map_err(|_| exhausted())?;
+                            for &child in &alternative.payloads { payloads.push(terms[child].ok_or_else(exhausted)?); }
+                            mapped.push(VariantAlternative { tag: alternative.tag.clone(), payloads: payloads.into_boxed_slice() });
+                        }
+                        let temporary = mapped.iter().try_fold(bytes::<VariantAlternative<Term>>(mapped.capacity())?, |n, alternative|
+                            sum(&[n, alternative.tag.len(), bytes::<Term>(alternative.payloads.len())?]))?;
+                        let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                        state.scratch_bytes = state.scratch_bytes.checked_add(temporary).ok_or_else(exhausted)?;
+                        state.use_peak_bytes = state.use_peak_bytes.max(state.scratch_bytes);
+                        let rebuilt = self.with_term_events(|arena| match polarity {
+                            Polarity::Positive => arena.positive_variant(&mapped),
+                            Polarity::Negative => arena.negative_variant(&mapped),
+                        });
+                        drop(mapped);
+                        self.candidate_graph.as_mut().ok_or_else(exhausted)?.scratch_bytes -= temporary;
+                        rebuilt?
                     }
                     Node::Record { polarity, start, len } => {
                         let fields = graph.record_fields.get(start..start.checked_add(len).ok_or_else(exhausted)?)
@@ -5581,6 +5656,73 @@ mod authentic_demand_capture_tests {
             }
             assert!(observed_expected_leaf, "pair element row retains its corresponding source lower bound");
         }
+    }
+
+    #[test]
+    fn variant_capture_and_freshuse_preserve_tag_arity_polarity_and_aliases() {
+        let source: Arc<yu_syntax::SourceText> = Arc::from("my seed (x:int) = x");
+        let parsed = yu_syntax::parse_file(source.clone(), Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()));
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("variant-capture", "source.yu"))),
+            &parsed, yu_hir::SemanticImports::empty()).unwrap());
+        let mut session = InferenceSession::try_new_candidate(ConstraintBatch::collect_candidate_mode(hir, true, true).unwrap()).unwrap();
+        session.execute().unwrap();
+        let young = session.fresh_value_at_level(3).unwrap();
+        let anchor = session.fresh_value_at_level(0).unwrap();
+        let root = session.fresh_value_at_level(3).unwrap();
+        let mut records = Vec::new();
+        for polarity in [Polarity::Negative, Polarity::Positive] {
+            let child = session.live_value_term(polarity, young).unwrap();
+            let old = session.live_value_term(polarity, anchor).unwrap();
+            let fields = [VariantAlternative { tag: "none".into(), payloads: Box::new([]) },
+                VariantAlternative { tag: "some".into(), payloads: Box::new([child, child, old]) }];
+            records.push(session.with_term_events(|arena| match polarity {
+                Polarity::Positive => arena.positive_variant(&fields),
+                Polarity::Negative => arena.negative_variant(&fields),
+            }).unwrap());
+        }
+        let function = session.positive_function_term(records[0],
+            session.batch.collected_leaf_term(Leaf::EmptyEffectNegative),
+            session.batch.collected_leaf_term(Leaf::EffectBottomPositive), records[1]).unwrap();
+        session.candidate_insert_bound(ExtrusionEndpoint::Value(ValueEndpointKey::ValueRow(root)),
+            Polarity::Positive, ExtrusionEndpoint::Value(ValueEndpointKey::PositiveFunction(function))).unwrap();
+        let graph = session.capture_candidate_graph(root, 0).unwrap();
+        let first = session.prepare_candidate_fresh_use(&graph, 1, None).unwrap();
+        let second = session.prepare_candidate_fresh_use(&graph, 1, None).unwrap();
+        let young_index = graph.rows.iter().position(|row| row.key == RowKey::Value(young)).unwrap();
+        let anchor_index = graph.rows.iter().position(|row| row.key == RowKey::Value(anchor)).unwrap();
+        assert_ne!(first.rows[young_index], second.rows[young_index]);
+        let mut polarities = Vec::new();
+        for (index, node) in graph.nodes.iter().enumerate() {
+            let Node::Variant { polarity, start, len } = *node else { continue; };
+            polarities.push(polarity);
+            let original = &graph.variant_alternatives[start..start + len];
+            assert_eq!(original.iter().map(|alternative| (alternative.tag.as_ref(), alternative.payloads.len())).collect::<Vec<_>>(),
+                [("none", 0), ("some", 3)]);
+            for fresh in [&first, &second] {
+                assert_eq!(fresh.rows[anchor_index], RowKey::Value(anchor));
+                let term = fresh.terms[index].unwrap();
+                let fields = match session.store.term_view(term).unwrap() {
+                    TermView::PositiveVariant { alternatives: fields } if polarity == Polarity::Positive => fields,
+                    TermView::NegativeVariant { alternatives: fields } if polarity == Polarity::Negative => fields,
+                    other => panic!("changed record polarity: {other:?}"),
+                };
+                assert_eq!(fields.len(), len);
+                for (field, original) in fields.iter().zip(original) {
+                    assert_eq!(field.tag, original.tag);
+                    assert_eq!(field.payloads.len(), original.payloads.len());
+                    for (&child, &node) in field.payloads.iter().zip(original.payloads.iter()) {
+                        assert_eq!(Some(child), fresh.terms[node]);
+                    }
+                }
+                assert_eq!(fields[1].payloads[0], fields[1].payloads[1]);
+                let ValueEndpointKey::ValueRow(row) = session.value_endpoint(fields[1].payloads[0], polarity) else { panic!("row child"); };
+                assert_eq!(RowKey::Value(row), fresh.rows[young_index]);
+            }
+        }
+        assert_eq!(polarities.len(), 2);
+        assert!(polarities.contains(&Polarity::Positive) && polarities.contains(&Polarity::Negative));
     }
 
     #[test]

@@ -308,7 +308,7 @@ use term::{
 };
 #[cfg(test)]
 use term::{BranchTermCheckpoint, TERM_PAGE_SLOTS};
-pub use term::{RecordField, LiveVariableView, Polarity, Term, TermLookupError, TermView};
+pub use term::{RecordField, VariantAlternative, LiveVariableView, Polarity, Term, TermLookupError, TermView};
 
 /// Resource counters use the documented logical `capacity * size_of::<slot>()`
 /// model.  Overflow is an invariant violation, never a wrapped measurement.
@@ -776,6 +776,8 @@ enum ValueEndpointKey {
     ValueRow(u32),
     PositiveFunction(Term),
     NegativeFunction(Term),
+    PositiveVariant(Term),
+    NegativeVariant(Term),
     PositiveRecord(Term),
     NegativeRecord(Term),
     PositiveTuple(Term, usize),
@@ -4149,6 +4151,8 @@ impl SolverError {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SolveAvailabilityError {
+    /// Variant transport exists; whole-case domain checking is not connected.
+    VariantBoundaryUnavailable,
     RecordAdaptationUnavailable,
     ArtifactMismatch,
     CauseMismatch,
@@ -11768,6 +11772,14 @@ impl InferenceSession {
                 assert_eq!(polarity, Polarity::Negative);
                 ValueEndpointKey::NegativeFunction(term)
             }
+            TermView::PositiveVariant { .. } => {
+                assert_eq!(polarity, Polarity::Positive);
+                ValueEndpointKey::PositiveVariant(term)
+            }
+            TermView::NegativeVariant { .. } => {
+                assert_eq!(polarity, Polarity::Negative);
+                ValueEndpointKey::NegativeVariant(term)
+            }
             TermView::PositiveRecord { .. } => {
                 assert_eq!(polarity, Polarity::Positive);
                 ValueEndpointKey::PositiveRecord(term)
@@ -13418,6 +13430,16 @@ impl InferenceSession {
                             },
                         )?;
                         return Ok(());
+                    }
+                    // Transporting a family into a row does not establish
+                    // whole-case compatibility. Withhold concrete comparison
+                    // until both the payload rule and the boundary owner exist.
+                    if !matches!(key.lower, ValueEndpointKey::ValueRow(_))
+                        && !matches!(key.upper, ValueEndpointKey::ValueRow(_))
+                        && (matches!(key.lower, ValueEndpointKey::PositiveVariant(_))
+                            || matches!(key.upper, ValueEndpointKey::NegativeVariant(_)))
+                    {
+                        return Err(SolveAvailabilityError::VariantBoundaryUnavailable);
                     }
                     if let (ValueEndpointKey::PositiveRecord(lower_term), ValueEndpointKey::NegativeRecord(upper_term)) = (key.lower, key.upper) {
                         let (TermView::PositiveRecord { fields: lower }, TermView::NegativeRecord { fields: upper }) = (
@@ -25328,6 +25350,29 @@ mod tests {
                 upper: ValueShape::Bottom,
             })
         ));
+    }
+
+    #[test]
+    fn variant_concrete_boundary_stays_unavailable_during_transport_integration() {
+        let batch = ConstraintBatch::collect(module("1", "variant-boundary")).unwrap();
+        let mut session = InferenceSession::try_new(batch).unwrap();
+        let positive = session.store.terms.positive_variant(&[
+            VariantAlternative { tag: "some".into(), payloads: Box::new([]) },
+        ]).unwrap();
+        let negative = session.store.terms.negative_variant(&[
+            VariantAlternative { tag: "none".into(), payloads: Box::new([]) },
+        ]).unwrap();
+        let occurrence = ConstraintOccurrenceId::new(session.batch.projection_order[0].clone(), 93);
+        let cause = CauseId::for_occurrence(occurrence.clone());
+        for (lower, upper) in [
+            (ValueEndpointKey::PositiveVariant(positive), ValueEndpointKey::NegativeVariant(negative)),
+            (ValueEndpointKey::IntPositive, ValueEndpointKey::NegativeVariant(negative)),
+            (ValueEndpointKey::PositiveVariant(positive), ValueEndpointKey::IntNegative),
+        ] {
+            assert_eq!(session.constrain_live_value(CanonicalValuePairKey { lower, upper },
+                &occurrence, &cause), Err(SolveAvailabilityError::VariantBoundaryUnavailable));
+            assert!(session.errors.is_empty(), "unconnected comparison is not a type rejection");
+        }
     }
 
     #[test]

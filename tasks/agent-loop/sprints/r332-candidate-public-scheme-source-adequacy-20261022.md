@@ -588,3 +588,11 @@ extrusion/context/source/shadow/test leases cover the next polarized family
 carrier and its transports. Establish whole Case-domain compatibility and
 conditional member guards before source admission. Parent gates OPEN, direct
 primary only and UNREVIEWED.
+
+Polarized Variant transport checkpoint: native286, solver Variant9 and research
+graph4 pass. Term storage, same-polarity extrusion, Capture/FreshUse and graph
+observation preserve ordered tags/arity/payloads and shared/anchor coordinates.
+Source admission and concrete Variant comparison remain unavailable; no
+singleton mismatch is reclassified as acceptance. UNREVIEWED, original A/B and
+production OPEN. Next derive a source-owned whole Case family and payload
+constraints, then connect conditional member obligations for original Button.

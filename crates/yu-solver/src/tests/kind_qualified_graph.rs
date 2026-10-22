@@ -212,6 +212,7 @@ enum GraphEndpoint {
     Function(Polarity, ResearchTermId),
     Tuple(Polarity, ResearchTermId),
     Record(Polarity, ResearchTermId),
+    Variant(Polarity, ResearchTermId),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -239,6 +240,7 @@ enum TermRecord {
         children: [ResearchTermId; 4],
     },
     Record { polarity: Polarity, fields: Vec<RecordField<ResearchTermId>> },
+    Variant { polarity: Polarity, alternatives: Vec<VariantAlternative<ResearchTermId>> },
     Tuple {
         polarity: Polarity,
         children: Vec<ResearchTermId>,
@@ -288,6 +290,14 @@ fn value_graph_endpoint(
         ValueEndpointKey::NegativeFunction(t) => {
             assert_eq!(polarity, Polarity::Negative);
             GraphEndpoint::Function(polarity, ResearchTermId::Original(t))
+        }
+        ValueEndpointKey::PositiveVariant(t) => {
+            assert_eq!(polarity, Polarity::Positive);
+            GraphEndpoint::Variant(polarity, ResearchTermId::Original(t))
+        }
+        ValueEndpointKey::NegativeVariant(t) => {
+            assert_eq!(polarity, Polarity::Negative);
+            GraphEndpoint::Variant(polarity, ResearchTermId::Original(t))
         }
         ValueEndpointKey::PositiveRecord(t) => {
             assert_eq!(polarity, Polarity::Positive);
@@ -468,7 +478,7 @@ impl GraphRecord {
             if let GraphEndpoint::Function(_, ResearchTermId::Original(term)) = endpoint {
                 pending.push(*term);
             }
-            if let GraphEndpoint::Tuple(_, ResearchTermId::Original(term)) | GraphEndpoint::Record(_, ResearchTermId::Original(term)) = endpoint {
+            if let GraphEndpoint::Variant(_, ResearchTermId::Original(term)) | GraphEndpoint::Tuple(_, ResearchTermId::Original(term)) | GraphEndpoint::Record(_, ResearchTermId::Original(term)) = endpoint {
                 pending.push(*term);
             }
         }
@@ -531,6 +541,15 @@ impl GraphRecord {
                             .map(ResearchTermId::Original),
                     }
                 }
+                TermView::PositiveVariant { alternatives } | TermView::NegativeVariant { alternatives } => {
+                    let polarity = if matches!(session.store.term_view(term).unwrap(), TermView::PositiveVariant { .. }) {
+                        Polarity::Positive
+                    } else { Polarity::Negative };
+                    pending.extend(alternatives.iter().flat_map(|alternative| alternative.payloads.iter().copied()));
+                    TermRecord::Variant { polarity, alternatives: alternatives.iter().map(|alternative| VariantAlternative {
+                        tag: alternative.tag.clone(), payloads: alternative.payloads.iter().copied().map(ResearchTermId::Original).collect(),
+                    }).collect() }
+                }
                 TermView::PositiveRecord { fields } | TermView::NegativeRecord { fields } => {
                     let polarity = if matches!(session.store.term_view(term).unwrap(), TermView::PositiveRecord { .. }) {
                         Polarity::Positive
@@ -582,7 +601,7 @@ impl GraphRecord {
             }
             TermRecord::Function { polarity, .. } => (ComponentKind::Value, *polarity),
             TermRecord::Tuple { polarity, .. } => (ComponentKind::Value, *polarity),
-            TermRecord::Record { polarity, .. } => (ComponentKind::Value, *polarity),
+            TermRecord::Record { polarity, .. } | TermRecord::Variant { polarity, .. } => (ComponentKind::Value, *polarity),
             TermRecord::Component(..) => return None,
         })
     }
@@ -599,6 +618,11 @@ impl GraphRecord {
                 assert!(
                     matches!(self.terms.get(id), Some(TermRecord::Function { polarity: actual, .. }) if actual == p)
                 );
+            }
+            GraphEndpoint::Variant(p, id) => {
+                assert_eq!(kind, ComponentKind::Value);
+                assert_eq!(polarity, *p);
+                assert!(matches!(self.terms.get(id), Some(TermRecord::Variant { polarity, .. }) if polarity == p));
             }
             GraphEndpoint::Record(p, id) => {
                 assert_eq!(kind, ComponentKind::Value);
@@ -673,6 +697,12 @@ impl GraphRecord {
                         assert_eq!(self.term_sort(*child), Some(expected));
                     }
                 }
+                TermRecord::Variant { polarity, alternatives } => {
+                    assert!(!alternatives.is_empty());
+                    for alternative in alternatives {
+                        for &child in &alternative.payloads { assert_eq!(self.term_sort(child), Some((ComponentKind::Value, *polarity))); }
+                    }
+                }
                 TermRecord::Record { polarity, fields } => {
                     for field in fields { assert_eq!(self.term_sort(field.value), Some((ComponentKind::Value, *polarity))); }
                 }
@@ -703,6 +733,9 @@ impl GraphRecord {
                 if let TermRecord::Function { children, .. } = &self.terms[&term] {
                     stack.extend(children.iter().map(|&child| (child, false)));
                 }
+                if let TermRecord::Variant { alternatives, .. } = &self.terms[&term] {
+                    stack.extend(alternatives.iter().flat_map(|alternative| alternative.payloads.iter().map(|&child| (child, false))));
+                }
                 if let TermRecord::Record { fields, .. } = &self.terms[&term] {
                     stack.extend(fields.iter().map(|field| (field.value, false)));
                 }
@@ -726,6 +759,7 @@ impl GraphRecord {
             GraphEndpoint::Function(p, t) => GraphEndpoint::Function(*p, terms[t]),
             GraphEndpoint::Tuple(p, t) => GraphEndpoint::Tuple(*p, terms[t]),
             GraphEndpoint::Record(p, t) => GraphEndpoint::Record(*p, terms[t]),
+            GraphEndpoint::Variant(p, t) => GraphEndpoint::Variant(*p, terms[t]),
             atom => atom.clone(),
         };
         let result = Self {
@@ -762,6 +796,9 @@ impl GraphRecord {
                                 polarity: *polarity,
                                 children: children.map(|t| terms[&t]),
                             },
+                            TermRecord::Variant { polarity, alternatives } => TermRecord::Variant { polarity: *polarity,
+                                alternatives: alternatives.iter().map(|alternative| VariantAlternative { tag: alternative.tag.clone(),
+                                    payloads: alternative.payloads.iter().map(|child| terms[child]).collect() }).collect() },
                             TermRecord::Record { polarity, fields } => TermRecord::Record { polarity: *polarity, fields: fields.iter().map(|field| field.map(terms[&field.value])).collect() },
                             TermRecord::Tuple { polarity, children } => TermRecord::Tuple {
                                 polarity: *polarity,

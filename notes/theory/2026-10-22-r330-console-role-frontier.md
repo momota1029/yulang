@@ -3275,3 +3275,69 @@ For original Button, a later conditional member obligation must also retain
 the actual Case input and its tag/arity guard through FreshUse; an unreachable
 label arm in a disabled-only instance cannot obtain a fabricated dictionary.
 No independent review, all-source closure or production promotion is claimed.
+
+### Polarized Variant carrier and transport (provisional, UNREVIEWED)
+
+The next integration slice retains a Variant family as an ordered nonempty
+sequence of (tag, ordered payloads), at either polarity. The payload count is
+its arity: a zero-payload alternative and one Unit payload remain distinct.
+This is a carrier, not a rule for union/intersection of whole domains. It keeps
+duplicates and order verbatim; no missing tag pair is accepted or rejected by
+an invented singleton-bound rule. Source preflight is still withheld.
+
+Transport derivation: for a sort/polarity-preserving payload map m, define
+V_m([(t_i, [p_ij])]) = [(t_i, [m(p_ij)])]. Tags, family length, each arity and
+payload positions are invariant by this definition. V_identity is identity,
+and V_n(V_m(F)) = V_(n compose m)(F), by pointwise substitution. If m preserves
+aliases, repeated payload coordinates remain aliases; if m fixes external
+anchors, their payload references remain identical. An injective fresh map
+reflects equality of local coordinates and two disjoint maps separate local
+uses. These are transport claims, not claims that arbitrary extrusion maps
+are injective or that closed-family comparison is complete.
+
+Implementation correspondence: TermNode owns one shared Arc family with owned
+tag/payload buffers, validates every child kind, polarity and branch before
+publication, and includes those buffers in retained-byte accounting. Capture
+registers every payload as an ordinary same-polarity dependency in its endpoint
+map, so repeated coordinates and outer anchors use the existing shared map.
+FreshUse reconstructs all family children through that one map before interning
+the family. Structural recursion is iterative; row cycles remain row references.
+Extrusion visits every payload at the same polarity/target level, memoizes row
+copies with its existing occurrence map, and reconstructs only a changed family.
+The boundary-scoped row assumptions and original Value-SCC qualification remain
+owned by the existing extrusion/intrusion proofs; this slice does not close them.
+Public graph and research graph observations preserve the same alternative data.
+
+Each structural visit costs O(alternatives + payloads + copied tag bytes), plus
+existing row traversal. Shared TermNode clones share the Arc; reconstruction
+allocates one outer family and its tag/payload buffers. Captured buffers and
+transient reconstruction/extrusion buffers are included in graph/scratch byte
+accounting. No timing experiment was needed or run. Empty families remain
+unavailable internally until an owning construction gives them meaning; this
+is not a source-level restriction on an accepted program.
+
+Concrete comparisons involving Variant still return the explicit availability
+boundary VariantBoundaryUnavailable (ordinary row transport and the existing
+Top/Bottom rules remain usable). The regression naming this integration phase
+protects that provisional boundary; it is not a permanent language rejection
+contract. Replacing it requires the whole-family/payload rule and source owner,
+with the corresponding typed boundary regression. All-source A/B, principal
+schemes, whole-case admission, conditional member obligations, receiving and
+production remain OPEN. The next source construction must aggregate the case
+arms' accepted keys and retain their actual binder identities; it cannot reject
+each pair of disjoint singleton tags or infer a Display dictionary from a
+runtime value. Duplicate keys, wildcard fallback and conditional obligations
+must have an explicit rule before their source admission.
+
+Transport checkpoint verification: `cargo check -q -p yu-playground` passes;
+`cargo test -q -p yu-solver --features shadow-apply-candidate --lib variant_`
+passes 9/9, including the new carrier, both-polarity extrusion, Capture/FreshUse
+and provisional concrete-boundary regressions. The kind_qualified_graph filter
+passes 4/4. Full `cargo test -q -p yu-playground` passes 286/286. Logs are
+`target/r332-variant-core-{check,tests2,graph,native}.log`. The first focused
+compile exposed two test-only Graph constructors missing the new empty pool;
+those constructors were updated before the passing run. Existing expectations
+were not changed. No new WASM build/catalog run was needed for this source-
+inadmissible carrier slice; the prior fresh WASM62/catalog7-of-19 receipt remains
+historical evidence, not a verification of the current bytes. Direct primary
+only, no independent review or parent/production gate closure.

@@ -739,6 +739,8 @@ pub enum CandidateSourceValueEndpoint {
     ValueRow(u32),
     PositiveFunction(Term),
     NegativeFunction(Term),
+    PositiveVariant(Term),
+    NegativeVariant(Term),
     PositiveRecord(Term),
     NegativeRecord(Term),
     PositiveTuple(Term, usize),
@@ -927,6 +929,8 @@ fn source_value_endpoint(endpoint: ValueEndpointKey) -> CandidateSourceValueEndp
         ValueEndpointKey::ValueRow(row) => E::ValueRow(row),
         ValueEndpointKey::PositiveFunction(term) => E::PositiveFunction(term),
         ValueEndpointKey::NegativeFunction(term) => E::NegativeFunction(term),
+        ValueEndpointKey::PositiveVariant(term) => E::PositiveVariant(term),
+        ValueEndpointKey::NegativeVariant(term) => E::NegativeVariant(term),
         ValueEndpointKey::PositiveRecord(term) => E::PositiveRecord(term),
         ValueEndpointKey::NegativeRecord(term) => E::NegativeRecord(term),
         ValueEndpointKey::PositiveTuple(term, arity) => E::PositiveTuple(term, arity),
@@ -2491,7 +2495,7 @@ impl<'a> CandidateGraphNode<'a> {
         match self.graph.nodes[self.index] {
             Node::Row { polarity, .. } | Node::Function { polarity, .. } | Node::Tuple { polarity, .. } | Node::EffectOperand { polarity, .. } => polarity,
             Node::Leaf(Atom::Bottom | Atom::IntPositive | Atom::UnitPositive | Atom::BoolPositive | Atom::StrPositive | Atom::EffectBottom) => Polarity::Positive,
-            Node::Record { polarity, .. } => polarity,
+            Node::Record { polarity, .. } | Node::Variant { polarity, .. } => polarity,
             Node::Leaf(_) => Polarity::Negative,
         }
     }
@@ -2506,6 +2510,13 @@ impl<'a> CandidateGraphNode<'a> {
             }
             _ => None,
         }
+    }
+    /// Observe the exact family without treating missing tags as accepted.
+    pub fn variant_alternatives(self) -> Option<impl ExactSizeIterator<Item = (&'a str, impl ExactSizeIterator<Item = Self> + 'a)> + 'a> {
+        let crate::candidate_scheme::Node::Variant { start, len, .. } = self.graph.nodes[self.index] else { return None; };
+        let alternatives = self.graph.variant_alternatives.get(start..start.checked_add(len)?)?;
+        Some(alternatives.iter().map(move |alternative| (alternative.tag.as_ref(),
+            alternative.payloads.iter().map(move |&index| Self { state: self.state, graph: self.graph, index }))))
     }
     pub fn record_fields(self) -> Option<impl ExactSizeIterator<Item = (&'a str, bool, Self)> + 'a> {
         let crate::candidate_scheme::Node::Record { start, len, .. } = self.graph.nodes[self.index] else { return None; };
@@ -4646,6 +4657,7 @@ mod tests {
             nodes: Vec::new(),
             tuple_children: Vec::new(),
             record_fields: Vec::new(),
+            variant_alternatives: Vec::new(),
             rows: vec![
                 Row { key: RowKey::Value(7), local: false },
                 Row { key: RowKey::Value(7), local: true },
@@ -4758,6 +4770,7 @@ mod tests {
             nodes: Vec::new(),
             tuple_children: Vec::new(),
             record_fields: Vec::new(),
+            variant_alternatives: Vec::new(),
             rows: vec![
                 Row { key: copy_key, local: false },
                 Row { key: parent_key, local: true },

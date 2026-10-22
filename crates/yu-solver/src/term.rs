@@ -168,6 +168,15 @@ impl<T> RecordField<T> {
     }
 }
 
+/// An ordered tagged alternative. Arity is the payload count, including zero.
+/// This carrier preserves alternatives verbatim; it does not merge domains or
+/// certify that a whole case accepts a value.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct VariantAlternative<T> {
+    pub tag: Box<str>,
+    pub payloads: Box<[T]>,
+}
+
 /// Borrowed term observation remains exhaustively matchable without exposing a
 /// constructor or interner for its opaque child handles.
 ///
@@ -181,6 +190,7 @@ impl<T> RecordField<T> {
 ///         TermView::PositiveFunction { .. } | TermView::NegativeFunction { .. } => {}
 ///         TermView::PositiveTuple { .. } | TermView::NegativeTuple { .. } => {}
 ///         TermView::PositiveRecord { .. } | TermView::NegativeRecord { .. } => {}
+///         TermView::PositiveVariant { .. } | TermView::NegativeVariant { .. } => {}
 ///     }
 /// }
 /// ```
@@ -204,6 +214,8 @@ pub enum TermView<'a> {
         result_effect: Term,
         result: Term,
     },
+    PositiveVariant { alternatives: &'a [VariantAlternative<Term>] },
+    NegativeVariant { alternatives: &'a [VariantAlternative<Term>] },
     PositiveRecord { fields: &'a [RecordField<Term>] },
     NegativeRecord { fields: &'a [RecordField<Term>] },
     PositiveTuple { elements: &'a [Term] },
@@ -234,6 +246,8 @@ pub(crate) enum TermNode {
         result_effect: Term,
         result: Term,
     },
+    PositiveVariant { alternatives: Arc<[VariantAlternative<Term>]> },
+    NegativeVariant { alternatives: Arc<[VariantAlternative<Term>]> },
     PositiveRecord { fields: Arc<[RecordField<Term>]> },
     NegativeRecord { fields: Arc<[RecordField<Term>]> },
     PositiveTuple { elements: Arc<[Term]> },
@@ -250,6 +264,7 @@ impl TermNode {
             // solely because the approved observation algebra already names
             // them; no F5b path constructs one.
             Self::PositiveFunction { .. } | Self::NegativeFunction { .. }
+            | Self::PositiveVariant { .. } | Self::NegativeVariant { .. }
             | Self::PositiveTuple { .. } | Self::NegativeTuple { .. } | Self::PositiveRecord { .. } | Self::NegativeRecord { .. } => ComponentKind::Value,
         }
     }
@@ -283,6 +298,8 @@ impl TermNode {
                 result_effect: *result_effect,
                 result: *result,
             },
+            Self::PositiveVariant { alternatives } => TermView::PositiveVariant { alternatives },
+            Self::NegativeVariant { alternatives } => TermView::NegativeVariant { alternatives },
             Self::PositiveRecord { fields } => TermView::PositiveRecord { fields },
             Self::NegativeRecord { fields } => TermView::NegativeRecord { fields },
             Self::PositiveTuple { elements } => TermView::PositiveTuple { elements },
@@ -444,12 +461,17 @@ fn align_up(length: u32) -> Result<u32, crate::CollectionAvailabilityError> {
 
 #[derive(Debug)]
 enum StructuralBacking {
+    Variant(Arc<[VariantAlternative<Term>]>),
     Tuple(Arc<[Term]>),
     Record(Arc<[RecordField<Term>]>),
 }
 impl StructuralBacking {
     fn payload_bytes(&self) -> Option<usize> {
         match self {
+            Self::Variant(alternatives) => alternatives.iter().try_fold(
+                alternatives.len().checked_mul(std::mem::size_of::<VariantAlternative<Term>>())?,
+                |bytes, alternative| bytes.checked_add(alternative.tag.len())?
+                    .checked_add(alternative.payloads.len().checked_mul(std::mem::size_of::<Term>())?)),
             Self::Tuple(elements) => elements.len().checked_mul(std::mem::size_of::<Term>()),
             Self::Record(fields) => fields.iter().try_fold(
                 fields.len().checked_mul(std::mem::size_of::<RecordField<Term>>())?,
@@ -1280,6 +1302,35 @@ impl BranchTermArena {
         self.intern_structure(node, StructuralBacking::Tuple(backing))
     }
 
+    pub(crate) fn positive_variant(&mut self, alternatives: &[VariantAlternative<Term>]) -> Result<Term, crate::ConstraintError> {
+        self.variant(alternatives, Polarity::Positive)
+    }
+    pub(crate) fn negative_variant(&mut self, alternatives: &[VariantAlternative<Term>]) -> Result<Term, crate::ConstraintError> {
+        self.variant(alternatives, Polarity::Negative)
+    }
+    fn variant(&mut self, alternatives: &[VariantAlternative<Term>], polarity: Polarity) -> Result<Term, crate::ConstraintError> {
+        // Empty families have no construction owner yet; bare tags are instead
+        // nonempty families with one zero-payload alternative.
+        if alternatives.is_empty() { return Err(crate::ConstraintError::ArtifactMismatch); }
+        for alternative in alternatives {
+            for &child in &alternative.payloads {
+                let node = self.lookup(child).map_err(|_| crate::ConstraintError::ArtifactMismatch)?;
+                if !matches_endpoint(node, ComponentKind::Value, polarity) {
+                    return Err(crate::ConstraintError::ArtifactMismatch);
+                }
+            }
+        }
+        let mut owned = Vec::new();
+        owned.try_reserve_exact(alternatives.len()).map_err(|_| crate::ConstraintError::IdentityExhausted)?;
+        owned.extend(alternatives.iter().cloned());
+        let alternatives: Arc<[VariantAlternative<Term>]> = Arc::from(owned);
+        let node = match polarity {
+            Polarity::Positive => TermNode::PositiveVariant { alternatives: alternatives.clone() },
+            Polarity::Negative => TermNode::NegativeVariant { alternatives: alternatives.clone() },
+        };
+        self.intern_structure(node, StructuralBacking::Variant(alternatives))
+    }
+
     pub(crate) fn positive_record(&mut self, fields: &[RecordField<Term>]) -> Result<Term, crate::ConstraintError> {
         self.record(fields, Polarity::Positive)
     }
@@ -1402,6 +1453,8 @@ fn matches_endpoint(node: &TermNode, kind: ComponentKind, polarity: Polarity) ->
         (ComponentKind::Value, Polarity::Positive, TermNode::Leaf(Leaf::IntPositive | Leaf::UnitPositive | Leaf::BoolPositive | Leaf::StrPositive))
         | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveBottom)
         | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveTuple { .. })
+        | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveVariant { .. })
+        | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeVariant { .. })
         | (ComponentKind::Value, Polarity::Positive, TermNode::PositiveRecord { .. })
         | (ComponentKind::Value, Polarity::Negative, TermNode::NegativeRecord { .. })
         | (ComponentKind::Value, Polarity::Negative, TermNode::Leaf(Leaf::IntNegative | Leaf::UnitNegative | Leaf::BoolNegative | Leaf::StrNegative))
@@ -1740,6 +1793,51 @@ mod tests {
             branch.term_view(function),
             Ok(TermView::PositiveFunction { .. })
         ));
+    }
+
+    #[test]
+    fn variant_terms_preserve_tag_arity_aliases_polarity_and_storage() {
+        let lineage = TermBuilder::new().unwrap().seal().unwrap();
+        let mut branch = BranchTermArena::new(lineage.clone());
+        let child = branch.live_variable(ComponentKind::Value, Polarity::Positive, 0).unwrap();
+        branch.take_capacity_events().count();
+        let negative = branch.live_variable(ComponentKind::Value, Polarity::Negative, 0).unwrap();
+        branch.take_capacity_events().count();
+        let unit = branch.intern(TermNode::Leaf(Leaf::UnitPositive)).unwrap();
+        branch.take_capacity_events().count();
+        let alternatives = [
+            VariantAlternative { tag: "empty".into(), payloads: Box::new([]) },
+            VariantAlternative { tag: "empty".into(), payloads: Box::new([unit]) },
+            VariantAlternative { tag: "pair".into(), payloads: Box::new([child, child]) },
+        ];
+        let before_bytes = branch.structural_payload_bytes;
+        let term = branch.positive_variant(&alternatives).unwrap();
+        branch.take_capacity_events().count();
+        assert_eq!(branch.term_view(term).unwrap(), TermView::PositiveVariant { alternatives: &alternatives });
+        assert_eq!(branch.positive_variant(&alternatives).unwrap(), term);
+        assert_eq!(branch.structural_payload_bytes - before_bytes,
+            3 * std::mem::size_of::<VariantAlternative<Term>>() + 14 + 3 * std::mem::size_of::<Term>());
+        let negative_alternatives = [VariantAlternative { tag: "pair".into(), payloads: Box::new([negative, negative]) }];
+        let neg = branch.negative_variant(&negative_alternatives).unwrap();
+        branch.take_capacity_events().count();
+        assert_eq!(branch.term_view(neg).unwrap(), TermView::NegativeVariant { alternatives: &negative_alternatives });
+        let before = branch.observations().committed_nodes;
+        assert_eq!(branch.positive_variant(&negative_alternatives), Err(crate::ConstraintError::ArtifactMismatch));
+        assert_eq!(branch.negative_variant(&alternatives), Err(crate::ConstraintError::ArtifactMismatch));
+        assert_eq!(branch.positive_variant(&[]), Err(crate::ConstraintError::ArtifactMismatch));
+        let foreign = BranchTermArena::new(TermBuilder::new().unwrap().seal().unwrap())
+            .live_variable(ComponentKind::Value, Polarity::Positive, 0).unwrap();
+        assert_eq!(branch.positive_variant(&[VariantAlternative { tag: "foreign".into(), payloads: Box::new([foreign]) }]),
+            Err(crate::ConstraintError::ArtifactMismatch));
+        assert_eq!(branch.observations().committed_nodes, before);
+        assert_eq!(BranchTermArena::new(lineage).term_view(term), Err(TermLookupError::InvalidHandle));
+        assert_eq!(branch.checked_retained_bytes(), branch.checked_independent_retained_bytes());
+        branch.begin_route();
+        let nested = branch.positive_variant(&[VariantAlternative { tag: "nested".into(), payloads: Box::new([term]) }]).unwrap();
+        branch.rollback_route();
+        assert!(branch.term_view(term).is_ok());
+        assert_eq!(branch.term_view(nested), Err(TermLookupError::InvalidHandle));
+        assert_eq!(branch.checked_retained_bytes(), branch.checked_independent_retained_bytes());
     }
 
     #[test]
