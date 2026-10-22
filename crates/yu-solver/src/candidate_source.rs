@@ -2381,7 +2381,7 @@ mod member_source_tests {
     #[test]
     fn member_sources_form_separate_candidate_roots_with_receiver_inputs() {
         let source: Arc<yu_syntax::SourceText> = Arc::from(
-            "role Echo:\n    our receiver.echo: int = receiver\nimpl int: Echo:\n    our value.echo: int = value",
+            "role Echo:\n    our receiver.echo: int = receiver.other\nimpl int: Echo:\n    our value.echo: int = value.other",
         );
         let parsed = yu_syntax::parse_file(
             source.clone(),
@@ -2420,7 +2420,8 @@ mod member_source_tests {
             let parameter = &source.root_parameters()[0];
             let position = batch.parameter_recipes.iter().position(|id| id == &parameter.id).unwrap();
             assert!(matches!(schedule.receiver, CandidateEndpoint::Parameter(actual) if actual == position));
-            assert!(matches!(schedule.value, CandidateEndpoint::Parameter(actual) if actual == position));
+            assert!(matches!(schedule.value, CandidateEndpoint::Component(_)),
+                "member body FieldTail has its own result endpoint");
             assert_eq!(batch.candidate_source.parameter_levels.get(&position), Some(&1));
             assert!(batch.candidate_source.references.value_component(
                 &candidate_value_graph::Value::Parameter(parameter.id.clone()),
@@ -2436,7 +2437,23 @@ mod member_source_tests {
         let mut ambiguous = batch.candidate_source.clone();
         ambiguous.members.push(ambiguous.members[0].clone());
         assert_eq!(ambiguous.unique_role_member_schedule(role_member), None);
+        let roots: Vec<_> = batch.candidate_source.members.iter().map(|schedule| schedule.root.clone()).collect();
         let mut session = InferenceSession::try_new_candidate(batch).unwrap();
-        session.execute_candidate_member(0).unwrap();
+        session.execute_candidate_graph_plan().unwrap();
+        let state = session.candidate_graph.as_ref().unwrap();
+        assert_eq!(state.member_graphs.len(), 2, "member templates have source-rooted candidate graphs");
+        for root in roots {
+            let member = state.member_graphs.get(&root).expect("exact member graph");
+            assert!(member.graph.rows.iter().any(|row| row.key == member.receiver), "receiver input is explicitly retained");
+            assert!(member.graph.rows.iter().any(|row| row.key == member.result), "body result is retained");
+            assert!(member.graph.rows.iter().any(|row| row.key == member.result_effect), "body effect is retained");
+            assert!(matches!(member.receiver, crate::candidate_scheme::RowKey::Value(_)));
+            assert!(matches!(member.result, crate::candidate_scheme::RowKey::Value(_)));
+            assert!(matches!(member.result_effect, crate::candidate_scheme::RowKey::Effect(_)));
+            assert_eq!(member.graph.source_field_tail_obligations.len(), 1,
+                "nested member lookup remains in its member graph");
+            assert_eq!(member.graph.source_field_tail_obligations[0].owner,
+                yu_hir::SourceRootId::Member(root.clone()));
+        }
     }
 }

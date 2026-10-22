@@ -6,6 +6,9 @@ use crate::*;
 pub(super) struct GraphState {
     pub intrusion: candidate_intrusion::State,
     pub graphs: Vec<Option<Graph>>,
+    /// Source-owned member templates have their own roots and are never
+    /// assigned ordinary definition positions.
+    pub member_graphs: HashMap<yu_hir::SourceMemberRootId, MemberGraph>,
     pub routes: Vec<FreshRoute>,
     pub locals: Vec<Option<LocalScheme>>,
     pub local_routes: Vec<LocalFreshRoute>,
@@ -69,6 +72,14 @@ pub(super) struct SourceFieldTailObligation {
     pub receiver_effect: RowKey,
     pub result_row: RowKey,
     pub result_effect: RowKey,
+}
+
+#[derive(Debug)]
+pub(super) struct MemberGraph {
+    pub receiver: RowKey,
+    pub result: RowKey,
+    pub result_effect: RowKey,
+    pub graph: Graph,
 }
 
 #[derive(Debug)]
@@ -943,6 +954,7 @@ impl GraphState {
     pub fn refresh_bytes(&mut self) -> Result<(), SolveAvailabilityError> {
         let mut total = sum(&[
             bytes::<Option<Graph>>(self.graphs.capacity())?,
+            bytes::<(yu_hir::SourceMemberRootId, MemberGraph)>(self.member_graphs.capacity())?,
             bytes::<FreshRoute>(self.routes.capacity())?,
             bytes::<Option<LocalScheme>>(self.locals.capacity())?,
             bytes::<LocalFreshRoute>(self.local_routes.capacity())?,
@@ -973,6 +985,9 @@ impl GraphState {
         }
         for graph in self.graphs.iter().flatten() {
             total = total.checked_add(graph.bytes()?).ok_or_else(exhausted)?;
+        }
+        for member in self.member_graphs.values() {
+            total = sum(&[total, member.graph.bytes()?])?;
         }
         for route in &self.routes {
             total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?, route.retained.bytes()?])?;
@@ -1638,10 +1653,13 @@ impl InferenceSession {
         self.capture_candidate_graph_owned(row, boundary, &[], &[], &[])
     }
     fn capture_candidate_graph_owned(&mut self, row: u32, boundary: u32, frontier: &[candidate_source::SourceRegionId], obligations: &[SourceRoleObligation], field_tails: &[SourceFieldTailObligation]) -> Result<Graph, SolveAvailabilityError> {
+        self.capture_candidate_graph_owned_with_roots(row, boundary, frontier, obligations, field_tails, &[])
+    }
+    fn capture_candidate_graph_owned_with_roots(&mut self, row: u32, boundary: u32, frontier: &[candidate_source::SourceRegionId], obligations: &[SourceRoleObligation], field_tails: &[SourceFieldTailObligation], extra_roots: &[RowKey]) -> Result<Graph, SolveAvailabilityError> {
         if self.batch.candidate_source.scoped_experiment && frontier.is_empty() { return Err(SolveAvailabilityError::ReceiptMismatch); }
         let entry = self.candidate_graph.as_ref().ok_or_else(exhausted)?.scratch_bytes;
         let evidence_charge = CaptureEvidenceMeter::default();
-        let result = self.capture_candidate_graph_inner(row, boundary, &evidence_charge, frontier, obligations, field_tails);
+        let result = self.capture_candidate_graph_inner(row, boundary, &evidence_charge, frontier, obligations, field_tails, extra_roots);
         #[cfg(test)]
         {
             let state = self.candidate_graph.as_mut().unwrap();
@@ -1668,7 +1686,7 @@ impl InferenceSession {
         }
         result
     }
-    fn capture_candidate_graph_inner(&mut self, row: u32, boundary: u32, evidence_charge: &CaptureEvidenceMeter, frontier: &[candidate_source::SourceRegionId], obligations: &[SourceRoleObligation], field_tails: &[SourceFieldTailObligation]) -> Result<Graph, SolveAvailabilityError> {
+    fn capture_candidate_graph_inner(&mut self, row: u32, boundary: u32, evidence_charge: &CaptureEvidenceMeter, frontier: &[candidate_source::SourceRegionId], obligations: &[SourceRoleObligation], field_tails: &[SourceFieldTailObligation], extra_roots: &[RowKey]) -> Result<Graph, SolveAvailabilityError> {
         if let Some(first) = obligations.first() {
             if obligations.iter().any(|obligation| {
                 obligation.provider != first.provider
@@ -1679,7 +1697,7 @@ impl InferenceSession {
         }
         let retained_obligations = clone_role_obligations(obligations)?;
         if let Some(first) = field_tails.first() {
-            if first.owner.definition_root().is_none()
+            if !matches!(first.owner, SourceRootId::Definition(_) | SourceRootId::Member(_))
                 || field_tails.iter().any(|obligation| obligation.owner != first.owner) {
                 return Err(SolveAvailabilityError::ReceiptMismatch);
             }
@@ -1761,6 +1779,15 @@ impl InferenceSession {
                 capture.intern_shape(Endpoint::Effect(EffectEndpointKey::EffectRow(effect), Polarity::Positive))?;
             }
         }
+        // Member templates have several authenticated interface rows (receiver,
+        // result and body effect). Seed them explicitly; reachability from the
+        // result alone is not evidence that an unused receiver is in the graph.
+        for key in extra_roots {
+            match *key {
+                RowKey::Value(value) => { capture.intern_shape(Endpoint::Value(ValueEndpointKey::ValueRow(value), Polarity::Positive))?; }
+                RowKey::Effect(effect) => { capture.intern_shape(Endpoint::Effect(EffectEndpointKey::EffectRow(effect), Polarity::Positive))?; }
+            }
+        }
         let mut row_cursor = 0;
         let mut bound_cursor = 0;
         let mut context_seen = HashSet::new();
@@ -1812,6 +1839,9 @@ impl InferenceSession {
                 .iter().any(|key| !capture.graph.rows.iter().any(|row| row.key == *key)) {
                 return Err(SolveAvailabilityError::ReceiptMismatch);
             }
+        }
+        if extra_roots.iter().any(|key| !capture.graph.rows.iter().any(|row| row.key == *key)) {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
         }
         let context = &capture.session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.context;
         let mut attachment_resolved = HashSet::new();
@@ -1997,6 +2027,58 @@ impl InferenceSession {
                     .map_err(|_| exhausted())?[i]
                     .clone();
                 self.route_incoming(&id)?;
+            }
+        }
+        if self.batch.candidate_source.active {
+            let member_count = self.batch.candidate_source.members.len();
+            for index in 0..member_count {
+                self.execute_candidate_member(index)?;
+                let schedule = self.batch.candidate_source.members.get(index)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?.clone();
+                let owner = SourceRootId::Member(schedule.root.clone());
+                let receiver_term = self.candidate_endpoint(schedule.receiver, Polarity::Positive)?;
+                let receiver = match self.value_endpoint(receiver_term, Polarity::Positive) {
+                    ValueEndpointKey::ValueRow(row) => self.candidate_graph.as_ref()
+                        .ok_or_else(exhausted)?.intrusion.rep(RowKey::Value(row)),
+                    _ => return Err(SolveAvailabilityError::ReceiptMismatch),
+                };
+                let result_term = self.candidate_endpoint(schedule.value, Polarity::Positive)?;
+                let result = match self.value_endpoint(result_term, Polarity::Positive) {
+                    ValueEndpointKey::ValueRow(row) => self.candidate_graph.as_ref()
+                        .ok_or_else(exhausted)?.intrusion.rep(RowKey::Value(row)),
+                    _ => return Err(SolveAvailabilityError::ReceiptMismatch),
+                };
+                let result_effect = self.candidate_graph.as_ref()
+                    .and_then(|_| self.live_components.get(schedule.components.effect))
+                    .map(|component| self.candidate_graph.as_ref().unwrap().intrusion.rep(RowKey::Effect(component.ordinal)))
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let obligations = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                    .source_field_tail_obligations.get(&owner)
+                    .map_or(Ok(Vec::new()), |items| clone_field_tail_obligations(items))?;
+                let roots = [receiver, result_effect];
+                let graph = self.capture_candidate_graph_owned_with_roots(
+                    match result { RowKey::Value(row) => row, _ => return Err(SolveAvailabilityError::ReceiptMismatch) },
+                    0, &[], &[], &obligations, &roots,
+                )?;
+                let interface = [receiver, result, result_effect];
+                let indexes = interface.map(|key| graph.rows.iter().position(|row| row.key == key)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch));
+                let [receiver_index, result_index, effect_index] = indexes;
+                let member_graph = MemberGraph {
+                    receiver: graph.rows[receiver_index?].key,
+                    result: graph.rows[result_index?].key,
+                    result_effect: graph.rows[effect_index?].key,
+                    graph,
+                };
+                let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                if state.member_graphs.contains_key(&schedule.root) {
+                    return Err(SolveAvailabilityError::ReceiptMismatch);
+                }
+                state.member_graphs.try_reserve(1).map_err(|_| exhausted())?;
+                state.member_graphs.insert(schedule.root, member_graph);
+                state.source_field_tail_obligations.remove(&owner);
+                state.refresh_bytes()?;
+                self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
             }
         }
         self.candidate_graph
