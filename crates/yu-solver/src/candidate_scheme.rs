@@ -9,6 +9,9 @@ pub(super) struct GraphState {
     /// Source-owned member templates have their own roots and are never
     /// assigned ordinary definition positions.
     pub member_graphs: HashMap<yu_hir::SourceMemberRootId, MemberGraph>,
+    /// Imported operator RHS templates retain their exact expression roots;
+    /// they have no binding definition identity or ordinal.
+    pub operator_graphs: HashMap<yu_hir::ExpressionRootId, Graph>,
     pub routes: Vec<FreshRoute>,
     pub locals: Vec<Option<LocalScheme>>,
     pub local_routes: Vec<LocalFreshRoute>,
@@ -616,6 +619,7 @@ impl GraphState {
         self.source_field_tail_obligations.values().any(|items| !items.is_empty())
             || self.graphs.iter().flatten().any(|graph| !graph.source_field_tail_obligations.is_empty())
             || self.member_graphs.values().any(|member| !member.graph.source_field_tail_obligations.is_empty())
+            || self.operator_graphs.values().any(|graph| !graph.source_field_tail_obligations.is_empty())
             || self.routes.iter().any(|route| !route.graph.source_field_tail_obligations.is_empty())
             || self.local_routes.iter().any(|route| !route.graph.source_field_tail_obligations.is_empty())
             || self.local_use.iter().any(|frame| !frame.graph.source_field_tail_obligations.is_empty())
@@ -1032,6 +1036,7 @@ impl GraphState {
         let mut total = sum(&[
             bytes::<Option<Graph>>(self.graphs.capacity())?,
             bytes::<(yu_hir::SourceMemberRootId, MemberGraph)>(self.member_graphs.capacity())?,
+            bytes::<(yu_hir::ExpressionRootId, Graph)>(self.operator_graphs.capacity())?,
             bytes::<FreshRoute>(self.routes.capacity())?,
             bytes::<Option<LocalScheme>>(self.locals.capacity())?,
             bytes::<LocalFreshRoute>(self.local_routes.capacity())?,
@@ -1065,6 +1070,9 @@ impl GraphState {
         }
         for member in self.member_graphs.values() {
             total = sum(&[total, member.graph.bytes()?])?;
+        }
+        for graph in self.operator_graphs.values() {
+            total = sum(&[total, graph.bytes()?])?;
         }
         for route in &self.routes {
             total = sum(&[total, route.graph.bytes()?, bytes::<RowKey>(route.rows.capacity())?, route.retained.bytes()?])?;
@@ -1774,7 +1782,7 @@ impl InferenceSession {
         }
         let retained_obligations = clone_role_obligations(obligations)?;
         if let Some(first) = field_tails.first() {
-            if !matches!(first.owner, SourceRootId::Definition(_) | SourceRootId::Member(_))
+            if !matches!(first.owner, SourceRootId::Definition(_) | SourceRootId::Expression(_) | SourceRootId::Member(_))
                 || field_tails.iter().any(|obligation| obligation.owner != first.owner) {
                 return Err(SolveAvailabilityError::ReceiptMismatch);
             }
@@ -2107,6 +2115,13 @@ impl InferenceSession {
             }
         }
         if self.batch.candidate_source.active {
+            self.execute_candidate_operator_providers()?;
+            // Provider graphs are now captured before their retained uses.
+            // Keep the solve private until the per-use FreshUse and ordered
+            // two-Apply consumer is installed below this boundary.
+            if !self.batch.candidate_source.operator_uses.is_empty() {
+                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+            }
             let member_count = self.batch.candidate_source.members.len();
             for index in 0..member_count {
                 self.execute_candidate_member(index)?;
@@ -2162,6 +2177,53 @@ impl InferenceSession {
             .as_mut()
             .ok_or_else(exhausted)?
             .orchestration_bytes = 0;
+        Ok(())
+    }
+
+    fn execute_candidate_operator_providers(&mut self) -> Result<(), SolveAvailabilityError> {
+        if self.batch.candidate_source.scoped_experiment
+            && !self.batch.candidate_source.operator_provider_roots.is_empty()
+        {
+            return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+        }
+        for index in 0..self.batch.candidate_source.operator_provider_roots.len() {
+            let provider = self.batch.candidate_source.operator_provider_roots[index].clone();
+            let owner = SourceRootId::Expression(provider.root.clone());
+            if self.batch.candidate_source.operator_uses.iter().any(|use_| use_.owner == owner) {
+                // A provider body that itself uses an operator needs its
+                // dependency's graph first; do not capture an incomplete body.
+                return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+            }
+            if self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                .operator_graphs.contains_key(&provider.root)
+            {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
+            let schedule_index = self.batch.candidate_source.expressions.iter().position(|schedule|
+                schedule.root == provider.root
+            ).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+            let value = self.batch.candidate_source.expressions[schedule_index].value;
+            self.execute_candidate_expression(schedule_index)?;
+            let root_term = self.candidate_endpoint(value, Polarity::Positive)?;
+            let row = match self.value_endpoint(root_term, Polarity::Positive) {
+                ValueEndpointKey::ValueRow(row) => match self.candidate_graph.as_ref()
+                    .ok_or_else(exhausted)?.intrusion.rep(RowKey::Value(row)) {
+                        RowKey::Value(row) => row,
+                        _ => return Err(SolveAvailabilityError::ReceiptMismatch),
+                    },
+                _ => return Err(SolveAvailabilityError::ReceiptMismatch),
+            };
+            let field_tails = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                .source_field_tail_obligations.get(&owner)
+                .map_or(Ok(Vec::new()), |items| clone_field_tail_obligations(items))?;
+            let graph = self.capture_candidate_graph_owned(row, 0, &[], &[], &field_tails)?;
+            let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+            state.operator_graphs.try_reserve(1).map_err(|_| exhausted())?;
+            state.operator_graphs.insert(provider.root, graph);
+            state.source_field_tail_obligations.remove(&owner);
+            state.refresh_bytes()?;
+            self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
+        }
         Ok(())
     }
     pub(super) fn route_candidate_open_use(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {
@@ -2955,6 +3017,88 @@ impl InferenceSession {
 #[cfg(test)]
 mod authentic_demand_capture_tests {
     use super::*;
+
+    #[test]
+    fn imported_operator_expression_is_captured_before_consumer_admission() {
+        let provider_text: Arc<yu_syntax::SourceText> = Arc::from(
+            r"pub infix (+) 5.0.0 5.0.1 = \x -> \y -> x.add y",
+        );
+        let provider_parsed = yu_syntax::parse_file(
+            provider_text.clone(),
+            Arc::new(yu_syntax::scan_header(provider_text)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let provider_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("operator-candidate-capture", "lib/ops.yu"),
+        ));
+        let provider_index = yu_hir::shadow::index_source_exports(
+            provider_identity.clone(), &provider_parsed,
+        ).unwrap();
+        let provider = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            provider_identity.clone(), &provider_parsed, yu_hir::SemanticImports::empty(),
+        ).unwrap());
+        let declaration = &provider_parsed.header().operators()[0];
+        let owner = provider_index.operator_owner_for_receipt(
+            provider_identity.module(), provider_parsed.revision(), declaration.range(), "+",
+            yu_syntax::OperatorFixity::Infix,
+        ).unwrap();
+        let provider_root = match provider.source_operator_root_for(&owner, &provider_index).unwrap().unwrap() {
+            SourceRootId::Expression(root) => root,
+            _ => panic!("operator RHS has an expression root"),
+        };
+
+        let dependency = yu_syntax::SyntaxDependencySlot::from_index(0).unwrap();
+        let syntax_environment = yu_syntax::SyntaxEnvironment::from_imported_headers(
+            yu_syntax::SyntaxEnvironmentKey::from_fingerprint(1),
+            [(dependency, provider_parsed.header())],
+            Arc::from([yu_syntax::SyntaxDependencyProvenance::new(
+                Arc::from("lib/ops.yu"), provider_parsed.revision(),
+            )]),
+        ).unwrap();
+        let consumer_text: Arc<yu_syntax::SourceText> = Arc::from("my sum = 1 + 2");
+        let consumer_parsed = yu_syntax::parse_file(
+            consumer_text.clone(), Arc::new(yu_syntax::scan_header(consumer_text)),
+            Arc::new(syntax_environment),
+        );
+        let consumer_identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("operator-candidate-capture", "consumer.yu"),
+        ));
+        let imports = yu_hir::SemanticImports::with_source_imports(
+            &consumer_parsed, &consumer_identity, &[provider_index],
+        ).unwrap();
+        let consumer = Arc::new(yu_hir::shadow::lower_module_with_local_source(
+            consumer_identity, &consumer_parsed, imports,
+        ).unwrap());
+        let source = consumer.local_source(match &consumer.items()[0] {
+            HirItem::Binding(binding) => binding.definition_root(),
+            _ => panic!("consumer binding"),
+        }).unwrap().unwrap();
+        let operator = source.expressions().iter().find_map(|expression| match &expression.form {
+            yu_hir::shadow::LocalSourceForm::InfixOperator { operator, .. } => Some(operator),
+            _ => None,
+        }).unwrap();
+        let resolved_owner = consumer.source_imports().unwrap().operator_owner_for_use(
+            operator.provenance(), operator.provenance().declaration().range(), operator.spelling(),
+            yu_syntax::OperatorFixity::Infix,
+        ).unwrap();
+        assert_eq!(resolved_owner, owner);
+
+        let roots = [crate::candidate_source::OperatorProviderRoot { owner, root: provider_root.clone() }];
+        let batch = ConstraintBatch::collect_candidate_world_scoped_v1(
+            vec![consumer, provider], true, true, false, false,
+            &HashMap::new(), &roots,
+        ).unwrap();
+        assert_eq!(batch.candidate_source.operator_uses.len(), 1);
+        let mut session = InferenceSession::try_new_candidate(batch).unwrap();
+        assert_eq!(session.execute_scc_plan(), Err(SolveAvailabilityError::DeferredSelectionUnavailable));
+        let graph = session.candidate_graph.as_ref().unwrap().operator_graphs.get(&provider_root)
+            .expect("exact operator expression root has a captured candidate graph before consumers");
+        assert!(!graph.rows.is_empty());
+        assert!(!graph.source_field_tail_obligations.is_empty());
+        assert!(graph.source_field_tail_obligations.iter().all(|obligation|
+            obligation.owner == SourceRootId::Expression(provider_root.clone())
+        ));
+    }
 
     #[test]
     fn imported_binding_uses_keep_distinct_hir_artifacts_in_one_freshuse_world() {

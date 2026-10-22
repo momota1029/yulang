@@ -1362,12 +1362,6 @@ impl CandidateInference {
         let mut batch = ConstraintBatch::collect_candidate_world_scoped_v1(
             hirs, true, true, scoped, operation_v1, &imported_definitions, &operator_provider_roots,
         ).map_err(CandidateError::Collection)?;
-        // Owner/root and consumer-occurrence routes are now collected, but
-        // candidate graph capture and two-Apply FreshUse admission are still
-        // deferred. Do not run a batch that would omit those semantic facts.
-        if !batch.candidate_source.operator_uses.is_empty() {
-            return Err(CandidateError::Unsupported);
-        }
         if let Some((source_indexes, role_indexes)) = role_sources {
             retain_role_implementation_members(&mut batch, source_indexes, role_indexes)?;
         }

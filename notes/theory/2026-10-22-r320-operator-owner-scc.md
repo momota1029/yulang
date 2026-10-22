@@ -43,3 +43,21 @@ provider-root regression passes and `cargo test -p yu-playground --lib` passes
 42 tests. Collection still returns Unsupported when retained operator uses
 exist: candidate provider graph capture, dependency scheduling, per-use
 FreshUse, two Apply relations, and proof/runtime correspondence remain open.
+
+## Provider graph capture checkpoint
+
+After the binding SCCs have captured their graphs, candidate execution now
+executes each exact imported operator RHS expression schedule and captures its
+live candidate graph under that `ExpressionRootId` before member schedules can
+admit an operator use. The graph remains separate from binding and member
+graphs. Expression-owned FieldTail obligations are retained with the graph;
+scoped capture and provider bodies that themselves use infix operators remain
+fail-closed until their dependencies can be ordered.
+
+The new `imported_operator_expression_is_captured_before_consumer_admission`
+regression builds a provider and imported infix consumer from distinct parses,
+checks the exact owner/root, then observes the provider graph and its retained
+FieldTail before execution returns `DeferredSelectionUnavailable` at the still
+missing FreshUse/Apply consumer. The focused solver regression passes. This is
+construction evidence only; the unchanged samples still do not pass through
+the candidate inference path.
