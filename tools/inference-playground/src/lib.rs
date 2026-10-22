@@ -1689,6 +1689,19 @@ mod tests {
                     )
                     .expect("the imported use receipt joins to its one exact provider body");
                 assert_eq!(operator_body, "\\x -> \\y -> x.add y");
+                let operator_owner = source_owners.operator_owner_for_use(
+                    &provenance,
+                    provenance.declaration().range(),
+                    operator.spelling(),
+                    yu_syntax::OperatorFixity::Infix,
+                ).expect("the exact imported operator source use has a source owner receipt");
+                assert_eq!(operator_owner.module().file().key().normalized_workspace_relative_path(), operator_module.path);
+                assert_eq!(operator_owner.revision(), dependency.revision());
+                assert_eq!(operator_owner.declaration_range(), provenance.declaration().range());
+                assert_eq!(operator_owner.spelling(), "+");
+                assert_eq!(operator_owner.fixity(), yu_syntax::OperatorFixity::Infix);
+                assert_eq!(operator_owner.visibility(), yu_syntax::Visibility::Public);
+                assert!(!operator_owner.is_lazy());
                 let declaration_site = provenance.declaration().range();
                 let wrong_range = declaration_site.start + 1..declaration_site.end;
                 assert_eq!(
@@ -1700,6 +1713,9 @@ mod tests {
                     ),
                     None,
                 );
+                assert!(source_owners.operator_owner_for_use(
+                    &provenance, &wrong_range, operator.spelling(), yu_syntax::OperatorFixity::Infix,
+                ).is_none());
                 assert_eq!(
                     source_owners.operator_body_for_use(
                         &provenance,
@@ -1709,6 +1725,9 @@ mod tests {
                     ),
                     None,
                 );
+                assert!(source_owners.operator_owner_for_use(
+                    &provenance, provenance.declaration().range(), "*", yu_syntax::OperatorFixity::Infix,
+                ).is_none());
                 assert_eq!(
                     source_owners.operator_body_for_use(
                         &provenance,
@@ -1718,6 +1737,9 @@ mod tests {
                     ),
                     None,
                 );
+                assert!(source_owners.operator_owner_for_use(
+                    &provenance, provenance.declaration().range(), operator.spelling(), yu_syntax::OperatorFixity::Prefix,
+                ).is_none());
                 let mut wrong_revision_indexes = operator_source_indexes.clone();
                 let ops_index = wrong_revision_indexes.iter_mut().find(|index|
                     index.module.file().key().normalized_workspace_relative_path() == operator_module.path
@@ -1737,6 +1759,9 @@ mod tests {
                     ),
                     None,
                 );
+                assert!(wrong_revision_imports.operator_owner_for_use(
+                    &provenance, provenance.declaration().range(), operator.spelling(), yu_syntax::OperatorFixity::Infix,
+                ).is_none());
                 let mut wrong_module_indexes = operator_source_indexes.clone();
                 let ops_index = wrong_module_indexes.iter_mut().find(|index|
                     index.module.file().key().normalized_workspace_relative_path() == operator_module.path
@@ -1757,11 +1782,36 @@ mod tests {
                     ),
                     None,
                 );
+                assert!(wrong_module_imports.operator_owner_for_use(
+                    &provenance, provenance.declaration().range(), operator.spelling(), yu_syntax::OperatorFixity::Infix,
+                ).is_none());
                 let declaration = provenance.declaration().range();
                 let declaration_text = operator_module.text.get(declaration.clone())
                     .expect("provider declaration range belongs to exact pinned source");
                 assert!(declaration_text.starts_with("pub infix (+)"), "{declaration_text}");
                 let provider_text: Arc<SourceText> = Arc::from(operator_module.text);
+                let indexed_provider = operator_source_indexes.iter().find(|index|
+                    index.module.file().key().normalized_workspace_relative_path() == operator_module.path
+                        && index.revision == dependency.revision()
+                ).expect("the exact selected provider export index is retained");
+                let indexed_owner = indexed_provider.operator_owner_for_receipt(
+                    &indexed_provider.module,
+                    dependency.revision(),
+                    provenance.declaration().range(),
+                    operator.spelling(),
+                    yu_syntax::OperatorFixity::Infix,
+                ).expect("the provider index returns its parse-owned operator owner");
+                assert_eq!(operator_owner, indexed_owner);
+                assert!(!parsed.owns_source_key(operator_owner.declaration()));
+                assert!(!parsed.owns_source_key(operator_owner.body()));
+                assert_eq!(
+                    operator_module.text.get(operator_owner.declaration_range().clone()),
+                    Some("pub infix (+) 5.0.0 5.0.1 ="),
+                );
+                assert_eq!(
+                    operator_module.text.get(operator_owner.body_range().clone()),
+                    Some("\\x -> \\y -> x.add y"),
+                );
                 let provider_parsed = parse_file(
                     provider_text.clone(),
                     Arc::new(scan_header(provider_text)),

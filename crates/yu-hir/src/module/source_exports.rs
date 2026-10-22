@@ -51,6 +51,50 @@ pub struct SourceExportIndex {
     operators: Vec<SourceOperatorDeclaration>,
 }
 
+/// Exact source identity for one imported operator declaration and its value
+/// body. This is an ownership receipt; it carries no inferred value scheme.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceOperatorOwner {
+    module: ModuleId,
+    revision: SourceRevision,
+    declaration: SourceNodeKey,
+    body: SourceNodeKey,
+    declaration_range: Range<usize>,
+    body_range: Range<usize>,
+    spelling: Box<str>,
+    fixity: OperatorFixity,
+    visibility: Visibility,
+    lazy: bool,
+}
+
+impl SourceOperatorOwner {
+    pub fn module(&self) -> &ModuleId { &self.module }
+    pub fn revision(&self) -> SourceRevision { self.revision }
+    pub fn declaration(&self) -> &SourceNodeKey { &self.declaration }
+    pub fn body(&self) -> &SourceNodeKey { &self.body }
+    pub fn declaration_range(&self) -> &Range<usize> { &self.declaration_range }
+    pub fn body_range(&self) -> &Range<usize> { &self.body_range }
+    pub fn spelling(&self) -> &str { &self.spelling }
+    pub fn fixity(&self) -> OperatorFixity { self.fixity }
+    pub fn visibility(&self) -> Visibility { self.visibility }
+    pub fn is_lazy(&self) -> bool { self.lazy }
+}
+
+fn operator_owner(operator: &SourceOperatorDeclaration) -> SourceOperatorOwner {
+    SourceOperatorOwner {
+        module: operator.module.clone(),
+        revision: operator.revision,
+        declaration: operator.source.clone(),
+        body: operator.body_source.clone(),
+        declaration_range: operator.declaration_range.clone(),
+        body_range: operator.body_range.clone(),
+        spelling: operator.spelling.clone(),
+        fixity: operator.fixity,
+        visibility: operator.visibility,
+        lazy: operator.lazy,
+    }
+}
+
 /// Parse-owned operator declaration and its adjacent original value body.
 /// This records syntax ownership only; it does not resolve or type the value.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -200,6 +244,20 @@ impl SourceExportIndex {
             .ok()
             .map(|operator| operator.body_text.as_ref())
     }
+
+    /// Return the exact owner identity for a provider declaration receipt.
+    /// The keys remain branded by the parse used to build this index.
+    pub fn operator_owner_for_receipt(
+        &self,
+        module: &ModuleId,
+        revision: SourceRevision,
+        declaration_range: &Range<usize>,
+        spelling: &str,
+        fixity: OperatorFixity,
+    ) -> Option<SourceOperatorOwner> {
+        let operator = self.resolve_operator(module, revision, declaration_range, spelling, fixity).ok()?;
+        (operator.visibility == Visibility::Public).then(|| operator_owner(operator))
+    }
 }
 
 /// One name imported from source modules. Ambiguity is retained at the name
@@ -289,6 +347,31 @@ impl SourceImportEnvironment {
         spelling: &str,
         fixity: OperatorFixity,
     ) -> Option<&str> {
+        self.resolve_operator_for_use(provenance, declaration_range, spelling, fixity)
+            .map(|operator| operator.body_text.as_ref())
+    }
+
+    /// Resolve the selected imported syntax use to the exact provider
+    /// declaration and adjacent value-body source nodes. The provider receipt
+    /// stays distinct from the consumer operator-use occurrence.
+    pub fn operator_owner_for_use(
+        &self,
+        provenance: &yu_syntax::OperatorUseProvenance,
+        declaration_range: &Range<usize>,
+        spelling: &str,
+        fixity: OperatorFixity,
+    ) -> Option<SourceOperatorOwner> {
+        let operator = self.resolve_operator_for_use(provenance, declaration_range, spelling, fixity)?;
+        Some(operator_owner(operator))
+    }
+
+    fn resolve_operator_for_use(
+        &self,
+        provenance: &yu_syntax::OperatorUseProvenance,
+        declaration_range: &Range<usize>,
+        spelling: &str,
+        fixity: OperatorFixity,
+    ) -> Option<&SourceOperatorDeclaration> {
         if !matches!(provenance.declaration().origin(), yu_syntax::OperatorOrigin::Imported(_)) {
             return None;
         }
@@ -307,7 +390,7 @@ impl SourceImportEnvironment {
         if matches.next().is_some() || operator.recovered {
             return None;
         }
-        Some(operator.body_text.as_ref())
+        Some(operator)
     }
 
     pub(super) fn retain_syntax_operator_sources(
@@ -1289,6 +1372,16 @@ mod tests {
                 OperatorFixity::Infix,
             )
             .unwrap();
+        let owner = index.operator_owner_for_receipt(
+            identity.module(),
+            parsed.revision(),
+            &declaration_range,
+            "+",
+            OperatorFixity::Infix,
+        ).unwrap();
+        assert_eq!(owner.declaration, declaration.source);
+        assert_eq!(owner.body, declaration.body_source);
+        assert_eq!(owner.body_range, declaration.body_range);
         assert!(parsed.owns_source_key(&declaration.source));
         assert!(parsed.owns_source_key(&declaration.body_source));
         assert_eq!(declaration.visibility, Visibility::Public);
@@ -1382,6 +1475,26 @@ mod tests {
             ),
             Err(SourceOperatorLookupError::Recovered),
         );
+        assert!(index.operator_owner_for_receipt(
+            identity.module(), parsed.revision(), &declaration_range, "+", OperatorFixity::Infix,
+        ).is_none());
+    }
+
+    #[test]
+    fn operator_owner_receipt_is_not_exported_for_private_declaration() {
+        let text = "infix (+) 5.0.0 5.0.1 = \\x -> \\y -> x.add y";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("ops", "private.yu")));
+        let index = crate::index_source_exports(identity.clone(), &parsed).unwrap();
+        let declaration_range = parsed.header().operators()[0].range().clone();
+        assert!(index.operator_owner_for_receipt(
+            identity.module(), parsed.revision(), &declaration_range, "+", OperatorFixity::Infix,
+        ).is_none());
     }
 
     #[test]

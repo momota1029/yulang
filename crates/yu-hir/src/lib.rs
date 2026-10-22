@@ -30,7 +30,7 @@ pub use module::source_annotation::{
 };
 pub use module::source_exports::{
     SourceExportId, SourceExportIndex, SourceExportResolution, SourceImportBinding,
-    SourceImportEnvironment, SourceExportResolveError,
+    SourceImportEnvironment, SourceExportResolveError, SourceOperatorOwner,
 };
 
 /// Every top-level operator chain associated from one parsed file, in source order.
