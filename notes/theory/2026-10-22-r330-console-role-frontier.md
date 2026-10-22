@@ -3488,3 +3488,40 @@ passes again after identity-comparison cleanup (target/r332-case-guard-tests3.lo
 semicolon line, which HIR rejected; use a properly indented local block. No
 existing expectation or original catalog source was changed. Static sprint
 check passes; it is not independent review.
+
+### Direct-primary boundary: Variant-key exclusion is not yet evidenced
+
+The next inactive-branch step has no safe implementation slice from the current
+readbacks. The source owner in `candidate_source.rs` retains the lexical Case
+guard identity (Case occurrence, arm, tag/arity and scrutinee row), and
+`candidate_scheme.rs` transports that row through Capture/FreshUse. It does
+not retain a value-domain witness for the guard row. The solver readback in
+`lib.rs::candidate_receiver_frontier_counts` traverses lower rows and exact
+lower endpoints but reports only edge/bound counts; it does not return Variant
+keys or payload identities. `candidate_receiver_positive_shape` recognizes
+primitive and Tuple shapes, while Variant endpoints fall through as unknown.
+Consequently `unique_candidate_field_tail_member` in `candidate_scheme.rs`
+fails closed when an active receiver has no supported positive shape, and the
+fixed-point drain rejects any unresolved active instance. The exact Button
+readback (`target/r332-button-member-instances2.log`) still has an active
+unknown receiver with an empty negative frontier; the dormant template also
+remains abstract.
+
+The Case's own negative family cannot show that one of its arms is unreachable:
+the family contains that arm's key by construction. Positive lower Variant
+keys alone also do not establish an exhaustive runtime domain. A safe discharge
+therefore needs a source-qualified finite-domain certificate for the actual
+guard input, including payload correspondence and the same FreshUse identity
+map, followed by a recheck after nested member constraints drain. Empty,
+unsupported, or merely count-complete frontiers stay unknown. No branch is
+discharged and no runtime dictionary is fabricated here.
+
+Inspected owners and next evidence: (1) `candidate_source.rs` must connect
+actual constructor provenance to the guard input; (2) `lib.rs` must expose the
+complete finite Variant frontier without treating lower-bound samples as an
+exhaustive domain; (3) `candidate_scheme.rs` must authenticate that witness
+through active FreshUse and recheck it at stable publication. Until those
+premises exist, record `NO_SAFE_CODE_SLICE` for inactive discharge and keep
+the existing unknown rejection. This is an owner-specific obstruction, not a
+closed proof or production gate. The original A/B, source/native, principal
+scheme, independent review and full Yulang2 catalog requirements remain OPEN.
