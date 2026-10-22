@@ -102,6 +102,7 @@ impl LocalSourceNamedGroupId {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LocalSourceNamedGroupOwner {
     Definition(DefinitionRootId),
+    Member(super::SourceMemberRootId),
     Local(HirLocalId),
 }
 #[derive(Clone, Debug)]
@@ -720,6 +721,37 @@ pub(super) fn member_header(
     if annotations.next().is_some() { return Ok(None); }
     let receiver_spelling = identifier_spelling(&receiver)
         .map_err(|_| HirAvailabilityError::StructuralProjection)?;
+    let field_end = crate::range_of(&field).end;
+    let mut parameters = Vec::new();
+    for tail in pattern.children().filter(|node|
+        node.kind() == SyntaxKind::PatternMlApplicationTail
+            && crate::range_of(node).start >= field_end
+    ) {
+        if has_recovery(&tail) { return Ok(None); }
+        let mut argument_patterns = tail.children().filter(|node| node.kind() == SyntaxKind::Pattern);
+        let Some(argument) = argument_patterns.next() else { return Ok(None); };
+        if argument_patterns.next().is_some() { return Ok(None); }
+        let mut significant = argument.children_with_tokens().filter(|element| !matches!(
+            element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline
+                | SyntaxKind::LineComment | SyntaxKind::BlockComment,
+        ));
+        let Some(argument_node) = significant.next().and_then(|element| element.into_node())
+            .filter(|node| node.kind() == SyntaxKind::IdentifierPattern)
+        else { return Ok(None); };
+        if significant.next().is_some() || has_recovery(&argument_node) { return Ok(None); }
+        let spelling = identifier_spelling(&argument_node)
+            .map_err(|_| HirAvailabilityError::StructuralProjection)?;
+        let token = argument_node.children_with_tokens().filter_map(|element| element.into_token())
+            .find(|token| token.kind() == SyntaxKind::Identifier)
+            .ok_or(HirAvailabilityError::StructuralProjection)?;
+        parameters.try_reserve(1).map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        parameters.push(SourceMemberIdentifier {
+            source: counters.source_nodes.get(&argument_node).cloned()
+                .ok_or(HirAvailabilityError::StructuralProjection)?,
+            range: crate::range_of_token(&token),
+            spelling,
+        });
+    }
     let mut field_tokens = field.children_with_tokens().filter(|element| !matches!(
         element.kind(), SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment,
     ));
@@ -755,6 +787,7 @@ pub(super) fn member_header(
             range: crate::range_of_token(method.as_ref().unwrap()),
             spelling: method.unwrap().text().into(),
         },
+        parameters,
         annotation,
     }))
 }
@@ -791,8 +824,24 @@ pub(super) fn form_member(
         scope: LocalSourceScope::SourceMember(root.clone()),
         annotation: None,
     };
+    let mut parameters = Vec::new();
+    parameters.try_reserve_exact(header.parameters.len())
+        .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+    for (index, parameter) in header.parameters.iter().enumerate() {
+        let ordinal = u32::try_from(index.checked_add(1)
+            .ok_or(HirAvailabilityError::IdentityExhausted)?)
+            .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
+        parameters.push(HirParameter {
+            id: super::HirParameterId::new(owner.clone(), ordinal),
+            name: super::HirName {
+                spelling: parameter.spelling.to_string(),
+                range: parameter.range.clone(),
+            },
+            range: parameter.range.clone(),
+        });
+    }
     form_ordinary_with_root_parameters(
-        plan, owner, &[], &[receiver], Some(header), namespace, counters, artifact, next_occurrence,
+        plan, owner, &parameters, &[receiver], Some(header), namespace, counters, artifact, next_occurrence,
     )
 }
 
@@ -915,16 +964,23 @@ pub(super) fn form(
     });
     let named_group = if parameters.is_empty() { None } else { Some(builder.next_named_group()?) };
     let mut named_formals = Vec::new();
-    for (parameter, admitted) in parameters.iter().zip(admitted_parameters) {
+    for (index, parameter) in parameters.iter().enumerate() {
+        let (parameter_source, parameter_annotation) = if let Some(admitted) = admitted_parameters.get(index) {
+            (admitted.source.clone().ok_or_else(invalid)?, admitted.annotation.as_ref())
+        } else if let Some(source_parameter) = member_header.and_then(|header|
+            header.parameters.get(index)
+        ) {
+            (source_parameter.source.clone(), None)
+        } else {
+            return Err(invalid());
+        };
         let parameter = LocalSourceParameter {
             id: parameter.id.clone(),
-            source: admitted.source.clone().ok_or_else(invalid)?,
+            source: parameter_source,
             range: parameter.range.clone(),
             spelling: parameter.name.spelling.clone().into_boxed_str(),
             scope: scope.clone(),
-            annotation: admitted
-                .annotation
-                .as_ref()
+            annotation: parameter_annotation
                 .map(|node| source_annotation::parse_annotation(node, owner, builder.counters))
                 .transpose()?,
         };
@@ -948,7 +1004,12 @@ pub(super) fn form(
         scope = LocalSourceScope::Parameter(parameter.id);
     }
     if let Some(id) = &named_group {
-        builder.record_named_group(id.clone(), LocalSourceNamedGroupOwner::Definition(owner.definition_root().ok_or_else(invalid)?.clone()), &plan.node,
+        let group_owner = match owner {
+            SourceRootId::Definition(root) => LocalSourceNamedGroupOwner::Definition(root.clone()),
+            SourceRootId::Member(root) => LocalSourceNamedGroupOwner::Member(root.clone()),
+            SourceRootId::Expression(_) => return Err(invalid()),
+        };
+        builder.record_named_group(id.clone(), group_owner, &plan.node,
             None, named_formals, current.clone())?;
     }
     let body_chain = if let Some(admitted) = admitted {

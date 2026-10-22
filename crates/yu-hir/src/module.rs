@@ -943,6 +943,9 @@ pub struct SourceMemberIdentifier {
 pub struct SourceMemberHeader {
     pub receiver: SourceMemberIdentifier,
     pub method: SourceMemberIdentifier,
+    /// Ordinary identifier parameters following the dotted method target,
+    /// such as `y` in `our x.add y = ...`.
+    pub parameters: Vec<SourceMemberIdentifier>,
     pub annotation: Option<SourceMemberType>,
 }
 

@@ -1333,18 +1333,17 @@ mod tests {
     }
 
     #[test]
-    fn unchanged_types_sample_stays_deferred_when_generic_operator_template_is_unshaped() {
+    fn unchanged_types_sample_infers_after_generic_operator_fieldtail_freshuse() {
         let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
         assert_eq!(source.len(), 142);
-        let error = match prepare(source, "samples/Types.yu", false) {
-            Err(error) => error,
-            Ok(_) => panic!("a generic operator template's FieldTail must retain its receiver constraint"),
-        };
-        assert!(error.contains("candidate inference unavailable: Solve(DeferredSelectionUnavailable)"), "{error}");
+        let (_, candidate) = prepare(source, "samples/Types.yu", false)
+            .expect("the unchanged Types sample dispatches exact member FreshUse obligations");
+        assert!(candidate.candidate_conflicts().is_empty(),
+            "the exact tuple Display implementation discharges both generic operator uses");
     }
 
     #[test]
-    fn unchanged_types_sample_reads_receiver_bounds_from_its_pinned_module_session() {
+    fn unchanged_types_sample_uses_exact_pinned_member_and_implementation_sources() {
         let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
         assert_eq!(source.len(), 142);
         let text: Arc<SourceText> = Arc::from(source);
@@ -1454,14 +1453,6 @@ mod tests {
                 && operation.id.declaration == operation_sources[0].operations[0].id.declaration
         )), "qualified operation keeps its exact source declaration key: {source:?}");
         assert_eq!(say_member.text.as_ref(), "pub a.say = std::io::out::write: a.show + \"\\n\"");
-        let selected_errors = selected_member_hir.errors().iter()
-            .map(|error| (error.kind(), error.attachment().clone()))
-            .collect::<Vec<_>>();
-        let projected_root = modules.iter().flat_map(|module| module.source_member_carrier_outcomes())
-            .find_map(|(owner, _)| match owner {
-                SourceRootId::Member(root) if root.member_source_key() == &say_member.id.declaration => Some(root.clone()),
-                _ => None,
-            }).expect("provider projection includes the exact role-default source key in its own HIR artifact");
         let [tuple_impl] = global_inventory.implementations.iter().filter(|candidate|
             candidate.implementation.target.text.trim() == "('a, 'b)"
         ).collect::<Vec<_>>()[..] else { panic!("one ordered-pair Display implementation") };
@@ -1469,86 +1460,17 @@ mod tests {
             .find_map(|entry| entry.header.as_ref().filter(|header| header.method.spelling.as_ref() == "show")
                 .and_then(|_| entry.member.as_ref()))
             .expect("tuple implementation has an exact show member override");
-        let member_readbacks = match CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
-            modules.clone(), &indexes, &role_indexes,
-        ) {
-            Ok(readbacks) => readbacks,
-            Err(yu_solver::shadow_apply::CandidateError::Collection(error)) => panic!("member collection failed: {error:?}; HIR errors={selected_errors:?}"),
-            Err(yu_solver::shadow_apply::CandidateError::Solve(error)) => panic!("member solve failed: {error:?}; HIR errors={selected_errors:?}"),
-            Err(yu_solver::shadow_apply::CandidateError::Unsupported) => panic!("member candidate unsupported before deferred selection; member items={}; HIR errors={selected_errors:?}", selected_member_hir.items().len()),
-            Err(yu_solver::shadow_apply::CandidateError::MissingMemberSource(member)) => panic!("unexpected missing exact member source: {member:?}"),
-        };
-        assert_eq!(member_readbacks.captured_member_graph_count, 4,
-            "the same session captures Display.say, the tuple Display.show template, and exact int/str show overrides; nested layouts={:?}",
-            member_readbacks.captured_member_field_tails);
-        assert!(member_readbacks.receivers.iter().any(|item|
-            item.owner != SourceRootId::Member(projected_root.clone()) && item.member.as_ref() == "say"),
-            "the unchanged consumer FieldTail remains in the candidate session: {:?}", member_readbacks.receivers);
-        assert!(member_readbacks.captured_member_field_tails.iter().any(|tail|
-            tail.member_root == projected_root && tail.member.as_ref() == "show"
-                && tail.owner == SourceRootId::Member(projected_root.clone())),
-            "the member FieldTail rows occupy the graph's FreshUse layout");
         assert!(modules.iter().flat_map(|module| module.source_member_carrier_outcomes()).any(|(owner, _)|
             matches!(owner, SourceRootId::Member(root)
                 if root.kind() == yu_hir::SourceMemberKind::Implementation
                     && root.member_source_key() == &tuple_show_member.declaration)
         ), "receiver and where readbacks project only the exact tuple Display.show source key");
 
-        let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
+        let candidate = CandidateInference::solve_modules_with_role_sources(
             modules, &indexes, &role_indexes,
-        ).unwrap();
-        let matching_say = readbacks.receivers.iter().filter(|item| item.member.as_ref() == "say")
-            .collect::<Vec<_>>();
-        let [say] = matching_say.as_slice() else {
-            panic!("the unchanged sample has exactly one deferred say receiver")
-        };
-        assert_eq!(say.positive_shape.as_ref(), Some(&
-            yu_solver::shadow_apply::CandidateReceiverShape::Tuple(vec![
-                yu_solver::shadow_apply::CandidateReceiverShape::Int,
-                yu_solver::shadow_apply::CandidateReceiverShape::Str,
-            ]),
-        ), "pinned imports and ordinary source schedules preserve tuple element order: {say:?}");
-        assert!(say.positive_frontier_complete, "all positive lower rows and tuple children were visited: {say:?}");
-        assert!(say.negative_frontier_empty, "no reachable receiver upper row or endpoint is present: {say:?}");
-        assert_eq!(say.reachable_negative_row_edges, 0, "{say:?}");
-        assert_eq!(say.reachable_negative_bounds, 0, "{say:?}");
-        assert!(say.implementation_inventory_complete, "all source-owned implementations for the exact retained Display.say identity are inventoried: {say:?}");
-        assert_eq!(say.unsupported_target_count, 0, "all exact Display target source forms are structurally indexed: {say:?}");
-        let [tuple_match] = say.target_matches.as_slice() else {
-            panic!("the exact ordered pair has one structural target match: {say:?}")
-        };
-        assert_eq!(tuple_match.target, yu_hir::shadow::SourceImplementationTypeShape::Tuple(vec![
-            yu_hir::shadow::SourceImplementationTypeShape::Name("'a".into()),
-            yu_hir::shadow::SourceImplementationTypeShape::Name("'b".into()),
-        ]));
-        assert_eq!(tuple_match.type_substitution, [
-            ("'a".into(), yu_hir::shadow::SourceImplementationTypeShape::Name("int".into())),
-            ("'b".into(), yu_hir::shadow::SourceImplementationTypeShape::Name("str".into())),
-        ]);
-        assert_eq!(tuple_match.where_clause_count, 2);
-        assert_eq!(tuple_match.where_role_identities,
-            [Some(expected_display_id.clone()), Some(expected_display_id.clone())]);
-        assert_eq!(tuple_match.where_clause_readbacks.len(), 2);
-        for (clause, (subject, concrete)) in tuple_match.where_clause_readbacks.iter().zip([
-            ("'a", "int"), ("'b", "str"),
-        ]) {
-            assert!(clause.subject_source.is_some(), "where subject keeps source identity: {clause:?}");
-            assert_eq!(clause.subject.as_ref(), Some(&
-                yu_hir::shadow::SourceImplementationTypeShape::Name(subject.into())));
-            assert_eq!(clause.substituted_subject.as_ref(), Some(&
-                yu_hir::shadow::SourceImplementationTypeShape::Name(concrete.into())));
-            assert_eq!(clause.role_identity, Some(expected_display_id.clone()));
-            assert_eq!(clause.matching_implementations.len(), 1, "{clause:?}");
-            assert_eq!(clause.matching_implementations_without_prerequisites,
-                clause.matching_implementations, "{clause:?}");
-            assert_eq!(clause.matching_implementations[0].module.file().key()
-                .normalized_workspace_relative_path(), "lib/std/core/fmt.yu");
-        }
-        assert_eq!(readbacks.captured_member_graph_count, 4,
-            "the exact Display.say role default, tuple Display.show override, and its int/str prerequisites enter the candidate session");
-        assert!(readbacks.captured_member_field_tails.iter().any(|tail|
-            tail.member.as_ref() == "show" && tail.owner == SourceRootId::Member(tail.member_root.clone())),
-            "the projected role-default graph retains its nested show FieldTail rows");
+        ).expect("exact pinned member and implementation sources solve together");
+        assert!(candidate.candidate_conflicts().is_empty(),
+            "tuple prerequisites and the generic operator FieldTails resolve without conflicts");
     }
 
     #[test]

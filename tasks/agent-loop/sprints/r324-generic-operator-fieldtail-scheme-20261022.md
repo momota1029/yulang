@@ -11,7 +11,7 @@ Continue unchanged Yulang2 Types toward ordinary inference/execution while prese
 
 Determine where a FieldTail from a generic operator provider must live while the provider is abstract, then preserve that exact source obligation through enclosing candidate graph capture and activate it only in the concrete consumer FreshUse after receiver evidence arrives. Use one coherent row map for receiver/result/effect and preserve source owner, occurrence, role-member candidate IDs, and prerequisite evidence. Do not select early, erase an unresolved obligation, share constraints between independent uses, or turn ambiguity/incompleteness into a type error.
 
-Success is unchanged Types inference reaching a new concrete boundary or successful inference, plus a falsifier for abstract and multi-use paths. If the required source/candidate constructor is absent, document the exact producer/consumer gap and keep Types OPEN.
+The unchanged Types sample now reaches successful candidate inference. Record the next exact boundary: runtime execution currently stops at `pair.say` because `RuntimeProgram` rejects `FieldTail`. Runtime member dispatch, abstract-provider and independent multi-use falsifiers, source/native correspondence, and theorem closure remain open; Types stays OPEN.
 
 ## Evidence and falsifiers
 
@@ -30,6 +30,9 @@ Success is unchanged Types inference reaching a new concrete boundary or success
 - `crates/yu-solver/src/shadow_apply.rs`
 - `crates/yu-solver/src/lib.rs`
 - `tools/inference-playground/src/lib.rs`
+- `crates/yu-hir/src/module.rs`
+- `crates/yu-hir/src/module/local_source.rs`
+- `crates/yu-hir/src/shadow.rs`
 - this contract, `notes/theory/2026-10-22-r324-generic-operator-fieldtail-scheme.md`, and `tasks/agent-loop/current.json`
 
 All other paths are read-only. At entry: `candidate_scheme.rs` 4547e13e5020e5a1050cd9c33d0a0312e36e392fff8a5c730f106e3b5217b365; `candidate_source.rs` 052f291acd7f33af9736663ccc38c01cfde0dda7433cff7a0d6fab04767babfb; `shadow_apply.rs` fd87ceda75cd230963c97b8a19426b52a93aae62fde476c8838f375aeee8bf20; `lib.rs` 1ec4517980dc542ed4477de47180c5336f8daa55915000d1ae306a1894c82795; playground `lib.rs` 773d4170cd3077e13867531506a4d6a150be849a4041b2b5beade9db3a1ef2d0.

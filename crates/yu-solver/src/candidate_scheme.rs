@@ -2514,170 +2514,210 @@ impl InferenceSession {
             state.refresh_bytes()?;
         }
 
-        let mut cursor = 0usize;
-        while cursor < pending.len() {
-            let item = pending[cursor].clone();
-            cursor = cursor.checked_add(1).ok_or_else(exhausted)?;
+        loop {
+            let mut cursor = 0usize;
+            let mut deferred = Vec::new();
+            let mut made_progress = false;
+            while cursor < pending.len() {
+                let item = pending[cursor].clone();
+                cursor = cursor.checked_add(1).ok_or_else(exhausted)?;
 
-            // Reuse the authenticated receiver and where-clause readback for
-            // this active instance. Nested rows have already been transported
-            // through their parent's FreshUse before reaching this boundary.
-            {
-                let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
-                state.retain_source_field_tail_obligation(item.obligation.clone())?;
-                state.refresh_bytes()?;
-            }
-            let readback_result = self.candidate_field_tail_receiver_readbacks();
-            let receiver_row = match item.obligation.receiver_row {
-                RowKey::Value(row) => self.candidate_graph.as_ref().ok_or_else(exhausted)?
-                    .intrusion.value_rep(row),
-                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
-            };
-            let readback = readback_result?
-                .into_iter()
-                .find(|readback| readback.owner == item.obligation.owner
-                    && readback.occurrence == item.obligation.occurrence
-                    && readback.receiver_row == receiver_row)
-                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            {
-                let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
-                let Some(items) = state.source_field_tail_obligations.get_mut(&item.obligation.owner) else {
-                    return Err(SolveAvailabilityError::ReceiptMismatch);
+                // Reuse the authenticated receiver and where-clause readback for
+                // this active instance. Nested rows have already been transported
+                // through their parent's FreshUse before reaching this boundary.
+                {
+                    let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                    state.retain_source_field_tail_obligation(item.obligation.clone())?;
+                    state.refresh_bytes()?;
+                }
+                let readback_result = self.candidate_field_tail_receiver_readbacks();
+                let receiver_row = match item.obligation.receiver_row {
+                    RowKey::Value(row) => self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                        .intrusion.value_rep(row),
+                    RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
                 };
-                let before = items.len();
-                items.retain(|old| old.source_owner != item.obligation.source_owner
-                    || old.occurrence != item.obligation.occurrence
-                    || old.receiver_row != item.obligation.receiver_row
-                    || old.receiver_effect != item.obligation.receiver_effect
-                    || old.result_row != item.obligation.result_row
-                    || old.result_effect != item.obligation.result_effect);
-                if items.len() + 1 != before {
-                    return Err(SolveAvailabilityError::ReceiptMismatch);
+                let readback = readback_result?
+                    .into_iter()
+                    .find(|readback| readback.owner == item.obligation.owner
+                        && readback.occurrence == item.obligation.occurrence
+                        && readback.receiver_row == receiver_row)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let member_index = match self.unique_candidate_field_tail_member(&readback) {
+                    FieldTailMemberSelection::Selected(index) => index,
+                    FieldTailMemberSelection::MissingSource(member) => {
+                        let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                        state.missing_member_source = Some(member);
+                        for remaining in &pending[cursor..] {
+                            state.retain_source_field_tail_obligation(remaining.obligation.clone())?;
+                        }
+                        state.refresh_bytes()?;
+                        return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                    }
+                    FieldTailMemberSelection::Unavailable => {
+                        // Preserve this item and try the other exact obligations:
+                        // one of them may add receiver evidence for this row.
+                        deferred.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        deferred.push(item);
+                        continue;
+                    }
+                };
+                let schedule = self.batch.candidate_source.members.get(member_index)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let member_root = schedule.root.clone();
+                if item.ancestry.contains(&member_root) {
+                    // Recursive member dispatch needs a recursive candidate scheme;
+                    // this path stays deferred until that construction is present.
+                    return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
                 }
-                if items.is_empty() {
-                    state.source_field_tail_obligations.remove(&item.obligation.owner);
+                let member_graph = self.candidate_graph.as_ref().ok_or_else(exhausted)?
+                    .member_graphs.get(&member_root).ok_or(SolveAvailabilityError::DeferredSelectionUnavailable)?;
+                let graph = member_graph.graph.clone();
+                let receiver_key = member_graph.receiver;
+                let result_key = member_graph.result;
+                let result_effect_key = member_graph.result_effect;
+                {
+                    let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                    let Some(items) = state.source_field_tail_obligations.get_mut(&item.obligation.owner) else {
+                        return Err(SolveAvailabilityError::ReceiptMismatch);
+                    };
+                    let before = items.len();
+                    items.retain(|old| old.source_owner != item.obligation.source_owner
+                        || old.occurrence != item.obligation.occurrence
+                        || old.receiver_row != item.obligation.receiver_row
+                        || old.receiver_effect != item.obligation.receiver_effect
+                        || old.result_row != item.obligation.result_row
+                        || old.result_effect != item.obligation.result_effect);
+                    if items.len() + 1 != before {
+                        return Err(SolveAvailabilityError::ReceiptMismatch);
+                    }
+                    if items.is_empty() {
+                        state.source_field_tail_obligations.remove(&item.obligation.owner);
+                    }
+                    state.refresh_bytes()?;
                 }
-                state.refresh_bytes()?;
-            }
 
-            let member_index = match self.unique_candidate_field_tail_member(&readback) {
-                FieldTailMemberSelection::Selected(index) => index,
-                FieldTailMemberSelection::MissingSource(member) => {
-                    self.candidate_graph.as_mut().ok_or_else(exhausted)?
-                        .missing_member_source = Some(member);
-                    return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                let use_level = match item.obligation.result_row {
+                    RowKey::Value(row) => self.value_levels.get(row as usize).copied(),
+                    RowKey::Effect(_) => None,
+                }.ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let occurrence = item.obligation.occurrence.clone();
+                let provisional = ConstraintOccurrenceId::new_wide(occurrence.clone(), 0);
+                let cause = CauseId::for_occurrence(provisional.clone());
+                let (_, fresh) = self.freshen_candidate_graph_retained(&graph, use_level, &provisional, &cause)?;
+
+                let interface_index = |key: RowKey| graph.rows.iter().position(|row| row.key == key)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch);
+                let receiver = *fresh.rows.get(interface_index(receiver_key)?)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let result = *fresh.rows.get(interface_index(result_key)?)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let result_effect = *fresh.rows.get(interface_index(result_effect_key)?)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                let context_use = u32::try_from(fresh.context_use)
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                let slot_base = context_use.checked_mul(4)
+                    .ok_or(SolveAvailabilityError::IdentityExhausted)?;
+
+                let actual_receiver = match item.obligation.receiver_row {
+                    RowKey::Value(row) => self.live_value_term(Polarity::Positive, row)?,
+                    RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                };
+                let member_receiver = match receiver {
+                    RowKey::Value(row) => self.live_value_term(Polarity::Negative, row)?,
+                    RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                };
+                self.admit_operator_value(&occurrence, slot_base, actual_receiver, member_receiver)?;
+
+                let member_result = match result {
+                    RowKey::Value(row) => self.live_value_term(Polarity::Positive, row)?,
+                    RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                };
+                let actual_result = match item.obligation.result_row {
+                    RowKey::Value(row) => self.live_value_term(Polarity::Negative, row)?,
+                    RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                };
+                self.admit_operator_value(&occurrence, slot_base + 1, member_result, actual_result)?;
+
+                if self.batch.candidate_graph_effects {
+                    let actual_receiver_effect = match item.obligation.receiver_effect {
+                        RowKey::Effect(row) => row,
+                        RowKey::Value(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                    };
+                    let actual_result_effect = match item.obligation.result_effect {
+                        RowKey::Effect(row) => row,
+                        RowKey::Value(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                    };
+                    let member_result_effect = match result_effect {
+                        RowKey::Effect(row) => row,
+                        RowKey::Value(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                    };
+                    self.admit_operator_effect(&occurrence, slot_base + 2,
+                        actual_receiver_effect, actual_result_effect)?;
+                    self.admit_operator_effect(&occurrence, slot_base + 3,
+                        member_result_effect, actual_result_effect)?;
                 }
-                FieldTailMemberSelection::Unavailable => {
-                    return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+
+                let mut next_ancestry = item.ancestry;
+                next_ancestry.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                next_ancestry.push(member_root.clone());
+                let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                for (obligation_index, row_indexes) in &fresh.source_field_tail_obligation_rows {
+                    let nested = graph.source_field_tail_obligations.get(*obligation_index)
+                        .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                    let mapped = row_indexes.map(|index| fresh.rows.get(index).copied()
+                        .ok_or(SolveAvailabilityError::ReceiptMismatch));
+                    let [receiver_row, receiver_effect, result_row, result_effect] = mapped;
+                    let mut nested = nested.clone();
+                    nested.receiver_row = state.intrusion.rep(receiver_row?);
+                    nested.receiver_effect = state.intrusion.rep(receiver_effect?);
+                    nested.result_row = state.intrusion.rep(result_row?);
+                    nested.result_effect = state.intrusion.rep(result_effect?);
+                    pending.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    pending.push(Pending { obligation: nested, ancestry: next_ancestry.clone() });
                 }
-            };
-            let schedule = self.batch.candidate_source.members.get(member_index)
-                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let member_root = schedule.root.clone();
-            if item.ancestry.contains(&member_root) {
-                // Recursive member dispatch needs a recursive candidate scheme;
-                // this path stays deferred until that construction is present.
+                let fresh_bytes = fresh.bytes()?;
+                state.scratch_bytes = state.scratch_bytes.checked_sub(fresh_bytes)
+                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                state.member_uses.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                state.member_uses.push(MemberFreshUse {
+                    member: member_root,
+                    occurrence,
+                    fresh,
+                });
+                made_progress = true;
+                state.refresh_bytes()?;
+                self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
+            }
+            if deferred.is_empty() { return Ok(()); }
+            if !made_progress {
+                // All unresolved obligations remain in GraphState for readback and
+                // the candidate result stays unpublished.
                 return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
             }
-            let member_graph = self.candidate_graph.as_ref().ok_or_else(exhausted)?
-                .member_graphs.get(&member_root).ok_or(SolveAvailabilityError::DeferredSelectionUnavailable)?;
-            let graph = member_graph.graph.clone();
-            let receiver_key = member_graph.receiver;
-            let result_key = member_graph.result;
-            let result_effect_key = member_graph.result_effect;
-
-            let use_level = match item.obligation.result_row {
-                RowKey::Value(row) => self.value_levels.get(row as usize).copied(),
-                RowKey::Effect(_) => None,
-            }.ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let occurrence = item.obligation.occurrence.clone();
-            let provisional = ConstraintOccurrenceId::new_wide(occurrence.clone(), 0);
-            let cause = CauseId::for_occurrence(provisional.clone());
-            let (_, fresh) = self.freshen_candidate_graph_retained(&graph, use_level, &provisional, &cause)?;
-
-            let interface_index = |key: RowKey| graph.rows.iter().position(|row| row.key == key)
-                .ok_or(SolveAvailabilityError::ReceiptMismatch);
-            let receiver = *fresh.rows.get(interface_index(receiver_key)?)
-                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let result = *fresh.rows.get(interface_index(result_key)?)
-                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let result_effect = *fresh.rows.get(interface_index(result_effect_key)?)
-                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            let context_use = u32::try_from(fresh.context_use)
-                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-            let slot_base = context_use.checked_mul(4)
-                .ok_or(SolveAvailabilityError::IdentityExhausted)?;
-
-            let actual_receiver = match item.obligation.receiver_row {
-                RowKey::Value(row) => self.live_value_term(Polarity::Positive, row)?,
-                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
-            };
-            let member_receiver = match receiver {
-                RowKey::Value(row) => self.live_value_term(Polarity::Negative, row)?,
-                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
-            };
-            self.admit_operator_value(&occurrence, slot_base, actual_receiver, member_receiver)?;
-
-            let member_result = match result {
-                RowKey::Value(row) => self.live_value_term(Polarity::Positive, row)?,
-                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
-            };
-            let actual_result = match item.obligation.result_row {
-                RowKey::Value(row) => self.live_value_term(Polarity::Negative, row)?,
-                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
-            };
-            self.admit_operator_value(&occurrence, slot_base + 1, member_result, actual_result)?;
-
-            if self.batch.candidate_graph_effects {
-                let actual_receiver_effect = match item.obligation.receiver_effect {
-                    RowKey::Effect(row) => row,
-                    RowKey::Value(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
-                };
-                let actual_result_effect = match item.obligation.result_effect {
-                    RowKey::Effect(row) => row,
-                    RowKey::Value(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
-                };
-                let member_result_effect = match result_effect {
-                    RowKey::Effect(row) => row,
-                    RowKey::Value(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
-                };
-                self.admit_operator_effect(&occurrence, slot_base + 2,
-                    actual_receiver_effect, actual_result_effect)?;
-                self.admit_operator_effect(&occurrence, slot_base + 3,
-                    member_result_effect, actual_result_effect)?;
+            {
+                let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
+                for item in &deferred {
+                    let Some(items) = state.source_field_tail_obligations.get_mut(&item.obligation.owner) else {
+                        return Err(SolveAvailabilityError::ReceiptMismatch);
+                    };
+                    let before = items.len();
+                    items.retain(|old| old.source_owner != item.obligation.source_owner
+                        || old.occurrence != item.obligation.occurrence
+                        || old.receiver_row != item.obligation.receiver_row
+                        || old.receiver_effect != item.obligation.receiver_effect
+                        || old.result_row != item.obligation.result_row
+                        || old.result_effect != item.obligation.result_effect);
+                    if items.len() + 1 != before {
+                        return Err(SolveAvailabilityError::ReceiptMismatch);
+                    }
+                    if items.is_empty() {
+                        state.source_field_tail_obligations.remove(&item.obligation.owner);
+                    }
+                }
+                state.refresh_bytes()?;
             }
-
-            let mut next_ancestry = item.ancestry;
-            next_ancestry.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-            next_ancestry.push(member_root.clone());
-            let state = self.candidate_graph.as_mut().ok_or_else(exhausted)?;
-            for (obligation_index, row_indexes) in &fresh.source_field_tail_obligation_rows {
-                let nested = graph.source_field_tail_obligations.get(*obligation_index)
-                    .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-                let mapped = row_indexes.map(|index| fresh.rows.get(index).copied()
-                    .ok_or(SolveAvailabilityError::ReceiptMismatch));
-                let [receiver_row, receiver_effect, result_row, result_effect] = mapped;
-                let mut nested = nested.clone();
-                nested.receiver_row = state.intrusion.rep(receiver_row?);
-                nested.receiver_effect = state.intrusion.rep(receiver_effect?);
-                nested.result_row = state.intrusion.rep(result_row?);
-                nested.result_effect = state.intrusion.rep(result_effect?);
-                pending.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-                pending.push(Pending { obligation: nested, ancestry: next_ancestry.clone() });
-            }
-            let fresh_bytes = fresh.bytes()?;
-            state.scratch_bytes = state.scratch_bytes.checked_sub(fresh_bytes)
-                .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
-            state.member_uses.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
-            state.member_uses.push(MemberFreshUse {
-                member: member_root,
-                occurrence,
-                fresh,
-            });
-            state.refresh_bytes()?;
-            self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
+            pending = deferred;
         }
-        Ok(())
     }
 
     fn unique_candidate_field_tail_member(

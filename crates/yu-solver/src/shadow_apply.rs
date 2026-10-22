@@ -135,6 +135,7 @@ pub struct CandidateFieldTailReceiverReadback {
 pub struct CandidateCapturedMemberFieldTailReadback {
     pub member_root: yu_hir::SourceMemberRootId,
     pub owner: SourceRootId,
+    pub source_owner: SourceRootId,
     pub occurrence: HirOccurrenceId,
     pub source: yu_hir::shadow::SourceNodeKey,
     pub member: Box<str>,
@@ -1161,9 +1162,8 @@ impl CandidateInference {
             hirs, false, false, Some((source_indexes, role_indexes)), None,
         )
     }
-    /// Inspect source FieldTail receiver bounds from the exact session that
-    /// reaches the deferred-selection gate. This returns readback evidence
-    /// only; it never selects a role implementation or types a member body.
+    /// Run source FieldTail dispatch from the exact candidate session and
+    /// return readback evidence at the first deferred-selection gate.
     pub fn inspect_deferred_field_tails_with_role_sources(
         hirs: Vec<Arc<HirModule>>,
         source_indexes: &[yu_hir::SourceExportIndex],
@@ -1173,10 +1173,9 @@ impl CandidateInference {
             hirs, source_indexes, role_indexes,
         )?.receivers)
     }
-    /// Read root receiver bounds and captured nested Member FieldTail row
-    /// layouts from the same deferred solver session. Nested rows are reported
-    /// through the exact graph positions later consumed by one FreshUse map;
-    /// no member is instantiated or selected here.
+    /// Run exact member FreshUse dispatch and read root receiver bounds plus
+    /// nested FieldTail row layouts from the same solver session. If evidence
+    /// remains incomplete, return the retained obligations at that boundary.
     pub fn inspect_deferred_field_tails_and_member_freshuse_with_role_sources(
         hirs: Vec<Arc<HirModule>>,
         source_indexes: &[yu_hir::SourceExportIndex],
@@ -1376,18 +1375,33 @@ impl CandidateInference {
         let mut session = InferenceSession::try_new_candidate(batch).map_err(CandidateError::Solve)?;
         let solved = if let Some(readbacks) = deferred_readbacks.as_deref_mut() {
             match session.execute() {
-                Ok(()) if session.candidate_graph.as_ref().is_some_and(
-                    crate::candidate_scheme::GraphState::has_pending_field_tail_selection,
-                ) => {
-                    readbacks.receivers = session.candidate_field_tail_receiver_readbacks()
+                Ok(()) => {
+                    let selected_before_dispatch = session.candidate_field_tail_receiver_readbacks()
                         .map_err(CandidateError::Solve)?;
-                    let (member_graph_count, member_field_tails) = session.candidate_captured_member_field_tail_readbacks()
-                        .map_err(CandidateError::Solve)?;
-                    readbacks.captured_member_graph_count = member_graph_count;
-                    readbacks.captured_member_field_tails = member_field_tails;
-                    return Err(CandidateError::Solve(SolveAvailabilityError::DeferredSelectionUnavailable));
+                    if let Err(error) = session.execute_candidate_field_tails() {
+                        if error != SolveAvailabilityError::DeferredSelectionUnavailable {
+                            return Err(CandidateError::Solve(error));
+                        }
+                        let mut current = session.candidate_field_tail_receiver_readbacks()
+                            .map_err(CandidateError::Solve)?;
+                        current.try_reserve(selected_before_dispatch.len())
+                            .map_err(|_| CandidateError::Solve(SolveAvailabilityError::IdentityExhausted))?;
+                        for selected in selected_before_dispatch {
+                            if !current.iter().any(|item| item.owner == selected.owner
+                                && item.occurrence == selected.occurrence
+                                && item.receiver_row == selected.receiver_row) {
+                                current.push(selected);
+                            }
+                        }
+                        readbacks.receivers = current;
+                        let (member_graph_count, member_field_tails) = session.candidate_captured_member_field_tail_readbacks()
+                            .map_err(CandidateError::Solve)?;
+                        readbacks.captured_member_graph_count = member_graph_count;
+                        readbacks.captured_member_field_tails = member_field_tails;
+                        return Err(CandidateError::Solve(error));
+                    }
+                    session.finish_candidate().map_err(CandidateError::Solve)?
                 }
-                Ok(()) => session.finish_candidate().map_err(CandidateError::Solve)?,
                 Err(SolveAvailabilityError::DeferredSelectionUnavailable) => {
                     readbacks.receivers = session.candidate_field_tail_receiver_readbacks()
                         .map_err(CandidateError::Solve)?;

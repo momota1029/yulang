@@ -4281,13 +4281,13 @@ mod tests {
         let role_member = role_index.roles()[0].body.as_ref().unwrap().members[0].id.clone();
 
         let impl_parsed = parsed(
-            "use num::Add\nimpl int: Add:\n    our x.add y = x",
+            "use num::Add\nimpl int: Add:\n    our x.add y = y",
         );
         let impl_identity = ModuleIdentity::source_root(crate::FileId::new(crate::FileKey::new(
             "method-arguments", "lib/impls.yu",
         )));
         let impl_exports = index_source_exports(impl_identity.clone(), &impl_parsed).unwrap();
-        let impl_index = index_role_impl_sources(impl_identity, &impl_parsed).unwrap();
+        let impl_index = index_role_impl_sources(impl_identity.clone(), &impl_parsed).unwrap();
         let source_indexes = [role_exports, impl_exports];
         let role_indexes = [role_index.clone(), impl_index.clone()];
 
@@ -4306,7 +4306,36 @@ mod tests {
         let header = entry.header.as_ref().expect("the source-owned method header retains its dotted target");
         assert_eq!(header.receiver.spelling.as_ref(), "x");
         assert_eq!(header.method.spelling.as_ref(), "add");
+        assert_eq!(header.parameters.len(), 1);
+        assert_eq!(header.parameters[0].spelling.as_ref(), "y");
+        assert_eq!(impl_parsed.source().get(header.parameters[0].range.clone()), Some("y"));
         assert_eq!(impl_parsed.source().get(header.method.range.clone()), Some("add"));
+
+        let selected = std::collections::HashSet::from([member.declaration.clone()]);
+        let imports = SemanticImports::with_selected_member_operations(
+            &impl_parsed, &impl_identity, &source_indexes, &selected, &role_indexes, &[],
+        ).unwrap();
+        let hir = lower_module_with_selected_member_sources(
+            impl_identity, &impl_parsed, imports, selected,
+        ).unwrap();
+        let [(owner, crate::SourceCarrierOutcome::Supported(source))] = hir.source_member_carrier_outcomes() else {
+            panic!("the exact member with an ordinary argument has a supported source carrier")
+        };
+        let SourceRootId::Member(member_root) = owner else { panic!("member source owner") };
+        assert_eq!(source.root_parameters().len(), 1, "the receiver remains an enclosing source parameter");
+        let parameter = source.expressions().iter().find_map(|expression| match &expression.form {
+            LocalSourceForm::Lambda { parameter, .. } if parameter.spelling.as_ref() == "y" => Some(parameter),
+            _ => None,
+        }).expect("the explicit method argument remains an ordinary Lambda formal");
+        assert!(source.expressions().iter().any(|expression| matches!(
+            &expression.form,
+            LocalSourceForm::Name {
+                resolution: LocalSourceResolution::Parameter(id), ..
+            } if id == &parameter.id
+        )), "the method body name resolves to the exact generated parameter ID");
+        assert_eq!(source.named_groups().len(), 1);
+        assert_eq!(source.named_groups()[0].owner,
+            LocalSourceNamedGroupOwner::Member(member_root.clone()));
     }
 
     #[test]

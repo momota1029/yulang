@@ -12158,6 +12158,7 @@ impl InferenceSession {
             readbacks.push(shadow_apply::CandidateCapturedMemberFieldTailReadback {
                 member_root: layout.member,
                 owner: obligation.owner,
+                source_owner: obligation.source_owner,
                 occurrence: obligation.occurrence,
                 source: obligation.source,
                 member: obligation.member,
