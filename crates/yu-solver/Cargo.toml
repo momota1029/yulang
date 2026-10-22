@@ -12,8 +12,8 @@ shadow-scc-observer = ["yu-hir/shadow"]
 
 [dependencies]
 yu-hir = { path = "../yu-hir" }
+yu-syntax = { path = "../yu-syntax" }
 yu-types = { path = "../yu-types" }
 
 [dev-dependencies]
 yu-core = { path = "../yu-core", features = ["shadow"] }
-yu-syntax = { path = "../yu-syntax" }

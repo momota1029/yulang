@@ -25,6 +25,7 @@ This packet is a candidate implementation result only. Runtime/source-native cor
 | Path | SHA-256 |
 | --- | --- |
 | `crates/yu-solver/src/lib.rs` | `f34795ab6fd486355e41b987b1ef92887255f1b4814a29d9236704415598ea52` |
+| `crates/yu-solver/Cargo.toml` | `7a599e95800c67ca4688b0f91917609345a252aae6d2ea6cd0f413eb1c07893c` |
 | `crates/yu-solver/src/scc.rs` | `8f3709ec9d52dc79767b6822eb4f671118a3f83814d2e9a9c748dfeac51e1f72` |
 | `crates/yu-solver/src/candidate_source.rs` | `1127ade5b0c36758b262e27a3a4e8e060b5dacbd05162f240c1b0b21801972a8` |
 | `crates/yu-solver/src/candidate_value_graph.rs` | `7f1d0859a8c139064fd7744cea805ca44ef5e94c28ff9777db51faf1d4dcad23` |
@@ -33,6 +34,11 @@ This packet is a candidate implementation result only. Runtime/source-native cor
 | `crates/yu-solver/src/shadow_apply.rs` | `64885d9e38d2736fb605015d1a811fb4a72825e0dc1f9dac78dc80bde29ed4c8` |
 | `crates/yu-solver/src/tests/candidate_graph_call.rs` | `7ff60ecb30e3815ba703463c87f053d66bf2d0c1833784dc64f993203fcdf5ef` |
 | `tools/inference-playground/src/lib.rs` | `d35fba6e6db6b5529fc9107f81278a54776cc50fdece4370f2aa947e76c49cf2` |
+
+`Cargo.toml` is added because candidate-source production code now calls the
+existing public HIR import bridge with syntax's fixity type; the crate already
+used `yu-syntax` only as a dev dependency. No syntax semantics or public API
+changes.
 
 Write only these paths, this contract/note, and `tasks/agent-loop/current.json`.
 

@@ -17,3 +17,29 @@ The key invariant is that the provider declaration owner, its RHS expression roo
 ## Remaining proof boundary
 
 Tests can establish exact construction and solver routing only. Source-generation completeness, source/native A/B, runtime correspondence, principality, all operator fixities/laziness combinations, R149 and production remain OPEN. No independent review is available under the user's solo-work instruction.
+
+## Provider-root lookup seam
+
+By source inspection, candidate code can validate a root without adding a HIR identity: require the HIR module and revision to equal the imported owner, then find the direct expression whose `expression_source_key(root)` equals the owner's exact body `SourceNodeKey`, and require its original `LocalSource`. This is a construction route, not yet executable regression evidence; implement and test it before using the root as a dependency node.
+
+## Executed root-lookup evidence
+
+`candidate_operator_provider_root` now joins an imported `SourceOperatorOwner` to one unique provider HIR and `SourceExportIndex`, then calls `HirModule::source_operator_root_for` and requires its existing `LocalSource`. The focused regression passes for the exact parse and rejects a separately parsed artifact with identical bytes and revision. This verifies only owner-to-root lookup; no candidate scheme or infix Apply path is admitted yet.
+
+## Candidate-plan retention checkpoint
+
+The candidate source plan now carries imported operator provider receipts with
+their exact `ExpressionRootId`, plus a separate record for each retained infix
+occurrence. Each use records its consumer root and HIR occurrence, exact
+operator source key, provider slot, ordered left/right value endpoints and
+effects, and result value/effect endpoints. Provider roots are computed from
+the exact module/revision owner and parse-owned source index before batch
+collection. `yu-syntax` moved from a dev dependency to a normal dependency so
+the production planner can use the public fixity/provenance types it receives
+through HIR.
+
+`cargo check -p yu-solver --features shadow-apply-candidate` passes. The exact
+provider-root regression passes and `cargo test -p yu-playground --lib` passes
+42 tests. Collection still returns Unsupported when retained operator uses
+exist: candidate provider graph capture, dependency scheduling, per-use
+FreshUse, two Apply relations, and proof/runtime correspondence remain open.

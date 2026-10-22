@@ -961,6 +961,7 @@ impl ConstraintBatch {
         Self::collect_candidate_world_scoped_v1(
             vec![hir], candidate_values, candidate_graph_effects, scoped_experiment, operation_v1,
             &HashMap::new(),
+            &[],
         )
     }
 
@@ -968,6 +969,7 @@ impl ConstraintBatch {
         hirs: Vec<Arc<HirModule>>, candidate_values: bool, candidate_graph_effects: bool,
         scoped_experiment: bool, operation_v1: bool,
         imported_definitions: &HashMap<yu_hir::SourceExportId, DefId>,
+        operator_provider_roots: &[candidate_source::OperatorProviderRoot],
     ) -> Result<Self, CollectionAvailabilityError> {
         let hir = hirs.first().cloned().ok_or(CollectionAvailabilityError::NonTotalDefinitionMap)?;
         let hir_count = hirs.len();
@@ -1035,6 +1037,9 @@ impl ConstraintBatch {
                 ..ProductionCounters::default()
             },
         };
+        batch.candidate_source.operator_provider_roots.try_reserve_exact(operator_provider_roots.len())
+            .map_err(|_| CollectionAvailabilityError::ComponentIdentityExhausted)?;
+        batch.candidate_source.operator_provider_roots.extend_from_slice(operator_provider_roots);
         #[cfg(test)]
         for leaf in [
             Leaf::IntPositive,

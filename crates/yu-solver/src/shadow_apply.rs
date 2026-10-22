@@ -183,6 +183,119 @@ fn candidate_imported_definitions(
     Ok(definitions)
 }
 
+/// Resolve an authenticated imported operator receipt to its existing provider
+/// expression root. The source index validates the declaration receipt; the
+/// HIR validates that the exact body key belongs to this parsed artifact and
+/// already has a supported LocalSource carrier.
+fn candidate_operator_provider_root(
+    owner: &yu_hir::SourceOperatorOwner,
+    hirs: &[Arc<HirModule>],
+    source_indexes: &[yu_hir::SourceExportIndex],
+) -> Result<(Arc<HirModule>, yu_hir::ExpressionRootId), CandidateError> {
+    let mut provider = None;
+    for hir in hirs {
+        if hir.identity().module() != owner.module()
+            || hir.source_revision() != owner.revision()
+        {
+            continue;
+        }
+        if provider.replace(hir).is_some() {
+            return Err(CandidateError::Unsupported);
+        }
+    }
+    let provider = provider.ok_or(CandidateError::Unsupported)?;
+
+    let mut index = None;
+    for candidate in source_indexes {
+        if &candidate.module != owner.module() || candidate.revision != owner.revision() {
+            continue;
+        }
+        if index.replace(candidate).is_some() {
+            return Err(CandidateError::Unsupported);
+        }
+    }
+    let index = index.ok_or(CandidateError::Unsupported)?;
+    let root = provider
+        .source_operator_root_for(owner, index)
+        .map_err(|_| CandidateError::Unsupported)?;
+    let Some(yu_hir::SourceRootId::Expression(root)) = root else {
+        return Err(CandidateError::Unsupported);
+    };
+    if provider
+        .local_source_for(&yu_hir::SourceRootId::Expression(root.clone()))
+        .map_err(|_| CandidateError::Unsupported)?
+        .is_none()
+    {
+        return Err(CandidateError::Unsupported);
+    }
+    Ok((provider.clone(), root))
+}
+
+fn candidate_imported_operator_provider_roots(
+    hirs: &[Arc<HirModule>],
+    source_indexes: &[yu_hir::SourceExportIndex],
+) -> Result<Vec<crate::candidate_source::OperatorProviderRoot>, CandidateError> {
+    fn visit_source(
+        hir: &HirModule,
+        source: &yu_hir::shadow::LocalSource,
+        owners: &mut Vec<yu_hir::SourceOperatorOwner>,
+    ) -> Result<(), CandidateError> {
+        for expression in source.expressions() {
+            let yu_hir::shadow::LocalSourceForm::InfixOperator { operator, .. } = &expression.form else {
+                continue;
+            };
+            if !matches!(operator.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Imported(_)) {
+                continue;
+            }
+            let imports = hir.source_imports().ok_or(CandidateError::Unsupported)?;
+            let fixity = match operator.fixity() {
+                yu_hir::OperatorFixity::Prefix => yu_syntax::OperatorFixity::Prefix,
+                yu_hir::OperatorFixity::Infix => yu_syntax::OperatorFixity::Infix,
+                yu_hir::OperatorFixity::Suffix => yu_syntax::OperatorFixity::Suffix,
+            };
+            let owner = imports.operator_owner_for_use(
+                operator.provenance(), operator.provenance().declaration().range(),
+                operator.spelling(), fixity,
+            ).ok_or(CandidateError::Unsupported)?;
+            if !owners.contains(&owner) {
+                owners.try_reserve(1).map_err(|_| CandidateError::Unsupported)?;
+                owners.push(owner);
+            }
+        }
+        Ok(())
+    }
+
+    let mut owners = Vec::new();
+    for hir in hirs {
+        for item in hir.items() {
+            let source_root = match item {
+                HirItem::Binding(binding) => Some(SourceRootId::Definition(binding.definition_root().clone())),
+                HirItem::Expression(expression) => hir.expression_root(expression.occurrence())
+                    .map_err(|_| CandidateError::Unsupported)?.cloned().map(SourceRootId::Expression),
+                HirItem::Error { .. } => None,
+            };
+            if let Some(root) = source_root {
+                if let Some(source) = hir.local_source_for(&root).map_err(|_| CandidateError::Unsupported)? {
+                    visit_source(hir, source, &mut owners)?;
+                }
+            }
+        }
+        for (_, outcome) in hir.source_member_carrier_outcomes() {
+            if let yu_hir::SourceCarrierOutcome::Supported(source) = outcome {
+                visit_source(hir, source, &mut owners)?;
+            }
+        }
+    }
+
+    let mut providers = Vec::new();
+    providers.try_reserve_exact(owners.len()).map_err(|_| CandidateError::Unsupported)?;
+    for owner in owners {
+        let (_, root) = candidate_operator_provider_root(&owner, hirs, source_indexes)?;
+        providers.push(crate::candidate_source::OperatorProviderRoot { owner, root });
+    }
+    Ok(providers)
+}
+
 fn retain_role_implementation_members(
     batch: &mut ConstraintBatch,
     source_indexes: &[yu_hir::SourceExportIndex],
@@ -1205,6 +1318,10 @@ impl CandidateInference {
     ) -> Result<Self, CandidateError> {
         if hirs.is_empty() { return Err(CandidateError::Unsupported); }
         let imported_definitions = candidate_imported_definitions(&hirs)?;
+        let operator_provider_roots = match role_sources {
+            Some((source_indexes, _)) => candidate_imported_operator_provider_roots(&hirs, source_indexes)?,
+            None => Vec::new(),
+        };
         let mut permitted_errors = HashSet::new();
         for hir in &hirs {
         let mut declaration_errors = HashSet::new();
@@ -1243,8 +1360,14 @@ impl CandidateInference {
         }
         }
         let mut batch = ConstraintBatch::collect_candidate_world_scoped_v1(
-            hirs, true, true, scoped, operation_v1, &imported_definitions,
+            hirs, true, true, scoped, operation_v1, &imported_definitions, &operator_provider_roots,
         ).map_err(CandidateError::Collection)?;
+        // Owner/root and consumer-occurrence routes are now collected, but
+        // candidate graph capture and two-Apply FreshUse admission are still
+        // deferred. Do not run a batch that would omit those semantic facts.
+        if !batch.candidate_source.operator_uses.is_empty() {
+            return Err(CandidateError::Unsupported);
+        }
         if let Some((source_indexes, role_indexes)) = role_sources {
             retain_role_implementation_members(&mut batch, source_indexes, role_indexes)?;
         }
@@ -3298,6 +3421,72 @@ mod tests {
         Arc::new(yu_hir::shadow::lower_module_with_local_source(
             yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new("candidate-tuple-source", "tuple.yu"))),
             &parsed, yu_hir::SemanticImports::empty()).unwrap())
+    }
+    #[test]
+    fn imported_operator_provider_root_keeps_exact_parse_and_index_owner() {
+        let text = r"pub infix (+) 5.0.0 5.0.1 = \x -> \y -> x.add y";
+        let source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let parsed = yu_syntax::parse_file(
+            source.clone(),
+            Arc::new(yu_syntax::scan_header(source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        assert!(parsed.syntax_diagnostics().unwrap().is_empty());
+        let identity = yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(
+            yu_hir::FileKey::new("candidate-operator-root", "ops.yu"),
+        ));
+        let index = yu_hir::index_source_exports(identity.clone(), &parsed).unwrap();
+        let declaration = &parsed.header().operators()[0];
+        let owner = index
+            .operator_owner_for_receipt(
+                identity.module(),
+                parsed.revision(),
+                declaration.range(),
+                "+",
+                yu_syntax::OperatorFixity::Infix,
+            )
+            .unwrap();
+        let hir = Arc::new(
+            yu_hir::shadow::lower_module_with_local_source(
+                identity.clone(),
+                &parsed,
+                yu_hir::SemanticImports::empty(),
+            )
+            .unwrap(),
+        );
+        let (resolved_hir, root) =
+            candidate_operator_provider_root(&owner, &[hir.clone()], &[index.clone()]).unwrap();
+        assert!(Arc::ptr_eq(&hir, &resolved_hir));
+        assert_eq!(
+            hir.expression_source_key(&root).unwrap(),
+            Some(owner.body()),
+        );
+        assert!(hir
+            .local_source_for(&yu_hir::SourceRootId::Expression(root))
+            .unwrap()
+            .is_some());
+
+        // Same module and bytes still do not transfer a source key to a
+        // separately parsed HIR artifact.
+        let foreign_source: Arc<yu_syntax::SourceText> = Arc::from(text);
+        let foreign_parsed = yu_syntax::parse_file(
+            foreign_source.clone(),
+            Arc::new(yu_syntax::scan_header(foreign_source)),
+            Arc::new(yu_syntax::SyntaxEnvironment::empty()),
+        );
+        assert_eq!(foreign_parsed.revision(), parsed.revision());
+        let foreign_hir = Arc::new(
+            yu_hir::shadow::lower_module_with_local_source(
+                identity,
+                &foreign_parsed,
+                yu_hir::SemanticImports::empty(),
+            )
+            .unwrap(),
+        );
+        assert!(matches!(
+            candidate_operator_provider_root(&owner, &[foreign_hir], &[index]),
+            Err(CandidateError::Unsupported),
+        ));
     }
     #[test]
     fn source_tuple_is_retained_as_ordered_candidate_graph_node() {

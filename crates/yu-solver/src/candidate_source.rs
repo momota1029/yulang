@@ -23,6 +23,11 @@ pub(super) struct Plan {
     pub expressions: Vec<ExpressionSchedule>,
     /// Source-owned member bodies stay separate from ordinary module roots.
     pub members: Vec<MemberSchedule>,
+    /// Imported operator owners joined to their exact provider expression
+    /// roots. These are source identities, not binding/DefId substitutes.
+    pub operator_provider_roots: Vec<OperatorProviderRoot>,
+    /// Ordered infix occurrences retained for the later two-Apply consumer.
+    pub operator_uses: Vec<OperatorUse>,
     /// Authenticated implementation targets and exact member overrides for
     /// imported role members used by this source world.
     pub role_implementation_members: HashMap<
@@ -60,6 +65,25 @@ pub(super) struct MemberSchedule {
     pub components: ComponentPositions,
     pub value: CandidateEndpoint,
     pub actions: Vec<Action>,
+}
+#[derive(Clone, Debug)]
+pub(super) struct OperatorProviderRoot {
+    pub owner: yu_hir::SourceOperatorOwner,
+    pub root: yu_hir::ExpressionRootId,
+}
+#[derive(Clone, Debug)]
+pub(super) struct OperatorUse {
+    pub owner: SourceRootId,
+    pub operator_owner: yu_hir::SourceOperatorOwner,
+    pub occurrence: HirOccurrenceId,
+    pub operator_source: yu_hir::shadow::SourceNodeKey,
+    pub provider: usize,
+    pub left: CandidateEndpoint,
+    pub left_effect: usize,
+    pub right: CandidateEndpoint,
+    pub right_effect: usize,
+    pub result: usize,
+    pub result_effect: usize,
 }
 impl Plan {
     /// Resolve only an exact role-default source key. Missing and duplicate
@@ -452,6 +476,10 @@ impl Plan {
             checked_usize_sum(self.expressions.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "expression actions")), "expression action storage"),
             checked_capacity_bytes::<MemberSchedule>(self.members.capacity(), "member schedules"),
             checked_usize_sum(self.members.iter().map(|schedule| checked_capacity_bytes::<Action>(schedule.actions.capacity(), "member actions")), "member action storage"),
+            checked_capacity_bytes::<OperatorProviderRoot>(self.operator_provider_roots.capacity(), "operator provider roots"),
+            checked_usize_sum(self.operator_provider_roots.iter().map(|provider| provider.owner.spelling().len()), "operator provider owner spellings"),
+            checked_capacity_bytes::<OperatorUse>(self.operator_uses.capacity(), "operator use routes"),
+            checked_usize_sum(self.operator_uses.iter().map(|use_| use_.operator_owner.spelling().len()), "operator use owner spellings"),
             checked_capacity_bytes::<(yu_hir::shadow::SourceRoleMemberId, Vec<yu_hir::shadow::SourceRoleImplementationMemberCandidate>)>(self.role_implementation_members.capacity(), "role implementation member inventory"),
             checked_usize_sum(self.role_implementation_members.values().map(|candidates| checked_capacity_bytes::<yu_hir::shadow::SourceRoleImplementationMemberCandidate>(candidates.capacity(), "role implementation candidates")), "role implementation candidate storage"),
             checked_usize_sum(self.role_implementation_members.values().flat_map(|candidates| candidates.iter()).map(|candidate| candidate.target.text.len()), "implementation target source text"),
@@ -1770,11 +1798,42 @@ impl ConstraintBatch {
                             })?;
                             push(&mut actions, Action::Candidate(recipe))?;
                         }
-                        // HIR has preserved the exact parser-selected operator
-                        // declaration receipt, but this candidate path still
-                        // lacks its authenticated value-owner bridge. Keep it
-                        // unavailable instead of resolving by spelling.
-                        LocalSourceForm::InfixOperator { .. } => return Err(unavailable()),
+                        LocalSourceForm::InfixOperator { operator_source, operator, left, right } => {
+                            if !matches!(operator.provenance().declaration().origin(), yu_syntax::OperatorOrigin::Imported(_)) {
+                                return Err(unavailable());
+                            }
+                            let imports = hir.source_imports().ok_or_else(unavailable)?;
+                            let fixity = match operator.fixity() {
+                                yu_hir::OperatorFixity::Prefix => yu_syntax::OperatorFixity::Prefix,
+                                yu_hir::OperatorFixity::Infix => yu_syntax::OperatorFixity::Infix,
+                                yu_hir::OperatorFixity::Suffix => yu_syntax::OperatorFixity::Suffix,
+                            };
+                            let operator_owner = imports.operator_owner_for_use(
+                                operator.provenance(), operator.provenance().declaration().range(),
+                                operator.spelling(), fixity,
+                            ).ok_or_else(unavailable)?;
+                            let mut provider = None;
+                            for (provider_index, candidate) in self.candidate_source.operator_provider_roots.iter().enumerate() {
+                                if candidate.owner != operator_owner { continue; }
+                                if provider.replace(provider_index).is_some() { return Err(invalid()); }
+                            }
+                            let provider = provider.ok_or_else(unavailable)?;
+                            let left = left.ordinal() as usize;
+                            let right = right.ordinal() as usize;
+                            push(&mut self.candidate_source.operator_uses, OperatorUse {
+                                owner: owner.clone(),
+                                operator_owner,
+                                occurrence: occurrence.clone(),
+                                operator_source: operator_source.clone(),
+                                provider,
+                                left: endpoints[left],
+                                left_effect: positions[left].effect,
+                                right: endpoints[right],
+                                right_effect: positions[right].effect,
+                                result: pos.value,
+                                result_effect: pos.effect,
+                            })?;
+                        }
                         LocalSourceForm::Group { inner } => {
                             if self.candidate_source.scoped_experiment {
                                 let child_occurrence = &source.expressions()[inner.ordinal() as usize].occurrence;
