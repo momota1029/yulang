@@ -188,6 +188,7 @@ pub enum RuntimeUnavailable {
     UnsupportedFieldTail(SourceSite),
     UnsupportedRecordPattern(SourceSite),
     UnsupportedVariant(SourceSite),
+    UnsupportedInterpolation(SourceSite),
     UnsupportedInfixOperator(SourceSite),
     ModuleInitializationOrder,
 }
@@ -764,6 +765,9 @@ impl RuntimeProgram {
                     LocalSourceForm::Integer(text) => Instruction::Integer(text.clone()),
                     LocalSourceForm::Boolean(value) => Instruction::Boolean(*value),
                     LocalSourceForm::String(text) => Instruction::String(text.clone()),
+                    LocalSourceForm::InterpolatedString { .. } => return Err(RuntimeUnavailable::UnsupportedInterpolation(SourceSite {
+                        source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
+                    })),
                     LocalSourceForm::Name { resolution, .. } => {
                         let resolution = match resolution {
                             LocalSourceResolution::Imported(export) => {
@@ -1858,6 +1862,7 @@ fn handler_arm_operation_ranges(
             }
             Form::Tuple { elements } | Form::Variant { payloads: elements, .. } => pending.extend(elements.iter().cloned()),
             Form::Record { fields } => pending.extend(fields.iter().map(|field| field.value.clone())),
+            Form::InterpolatedString { parts, .. } => pending.extend(parts.iter().map(|part| part.body.clone())),
             Form::FieldTail { receiver, .. } => pending.push(receiver.clone()),
             Form::OperatorApplication { left, right, .. } => {
                 pending.push(left.clone());

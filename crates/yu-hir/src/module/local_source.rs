@@ -215,6 +215,9 @@ impl LocalSource {
                 .iter()
                 .map(|expr| match &expr.form {
                     LocalSourceForm::Integer(text) | LocalSourceForm::String(text) => text.len(),
+                    LocalSourceForm::InterpolatedString { spelling, parts, .. } => spelling.len()
+                        + parts.capacity() * std::mem::size_of::<LocalSourceInterpolation>()
+                        + parts.iter().map(|part| part.format.len()).sum::<usize>(),
                     LocalSourceForm::Primitive { operation: source_annotation::PinnedPrimitiveOp::Unsupported(name) } => name.len(),
                     LocalSourceForm::Catch { arms, .. } => {
                         arms.capacity() * std::mem::size_of::<LocalSourceCatchArm>()
@@ -329,6 +332,13 @@ pub enum LocalSourceForm {
     Integer(Box<str>),
     Boolean(bool),
     String(Box<str>),
+    /// Original literal plus source-owned formatting requests, not written
+    /// FieldTail nodes or an already admitted runtime stringification.
+    InterpolatedString {
+        spelling: Box<str>,
+        literal_range: Range<usize>,
+        parts: Vec<LocalSourceInterpolation>,
+    },
     Catch {
         scrutinee: LocalSourceIndex,
         arms: Vec<LocalSourceCatchArm>,
@@ -497,6 +507,15 @@ pub enum LocalSourceCasePatternElement {
     Wildcard,
 }
 
+#[derive(Clone, Debug)]
+pub struct LocalSourceInterpolation {
+    pub source: SourceNodeKey,
+    pub range: Range<usize>,
+    pub format: Box<str>,
+    pub format_range: Range<usize>,
+    pub body: LocalSourceIndex,
+}
+
 fn case_pattern_bytes(pattern: &LocalSourceCasePattern) -> usize {
     match pattern {
         LocalSourceCasePattern::Variant { tag, elements, .. } => tag.len()
@@ -640,6 +659,9 @@ fn symbol_tag(node: &SyntaxNode) -> Result<(Box<str>, Range<usize>), FormationEr
     Ok((name.text().into(), crate::range_of_token(&name)))
 }
 fn string_spelling(node: &SyntaxNode) -> Result<Box<str>, FormationError> {
+    string_literal_source(node).map(|(spelling, _)| spelling)
+}
+fn string_literal_source(node: &SyntaxNode) -> Result<(Box<str>, Range<usize>), FormationError> {
     let mut delimiters = node.children_with_tokens().filter_map(|element| element.into_token())
         .filter(|token| matches!(token.kind(), SyntaxKind::StringStart | SyntaxKind::StringEnd));
     let start = delimiters.next().ok_or_else(invalid)?;
@@ -652,9 +674,10 @@ fn string_spelling(node: &SyntaxNode) -> Result<Box<str>, FormationError> {
     // Literal nodes can own exterior trivia. Delimiter coordinates retain every
     // byte inside the string, including meaningful whitespace and heredoc text.
     let origin = node.text_range().start();
+    let range = usize::from(start.text_range().start())..usize::from(end.text_range().end());
     let start = usize::from(start.text_range().start() - origin);
     let end = usize::from(end.text_range().end() - origin);
-    node.text().to_string().get(start..end).map(Box::<str>::from).ok_or_else(invalid)
+    node.text().to_string().get(start..end).map(|text| (Box::<str>::from(text), range)).ok_or_else(invalid)
 }
 fn collect_associated_range<'a>(
     expression: &'a crate::HirExpr,
@@ -1305,7 +1328,7 @@ pub(super) fn form(
         // re-resolve their uses outside the complete LocalSource lexical scope.
         SimpleBodyProjection::RecordPattern
     } else if source.expressions().iter().any(|expr| {
-        matches!(expr.form, LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) | LocalSourceForm::If { .. })
+        matches!(expr.form, LocalSourceForm::Boolean(_) | LocalSourceForm::String(_) | LocalSourceForm::InterpolatedString { .. } | LocalSourceForm::If { .. })
     }) {
         SimpleBodyProjection::Unsupported
     } else {
@@ -1721,6 +1744,49 @@ impl Builder<'_> {
         }
         Ok(())
     }
+    fn interpolated_string(
+        &mut self, node: SyntaxNode, index: LocalSourceIndex,
+        scope: LocalSourceScope, named_group: Option<LocalSourceNamedGroupId>,
+    ) -> Result<(), FormationError> {
+        let (spelling, literal_range) = string_literal_source(&node)?;
+        let mut parts = Vec::new();
+        let mut work = Vec::new();
+        for part in node.children().filter(|child| child.kind() == SyntaxKind::StringInterpolation) {
+            if has_recovery(&part) { return Err(unsupported()); }
+            let mut body = part.children().filter(|child| child.kind() == SyntaxKind::StringInterpolationBody);
+            let body = body.next().filter(|_| body.next().is_none()).ok_or_else(unsupported)?;
+            let mut format = None;
+            let mut open = None;
+            let mut percent = None;
+            let mut close = None;
+            for token in part.children_with_tokens().filter_map(|element| element.into_token()) {
+                match token.kind() {
+                    SyntaxKind::StringInterpolationFormatText if format.is_none() => format = Some(token),
+                    SyntaxKind::StringInterpolationPercent if percent.is_none() => percent = Some(token),
+                    SyntaxKind::StringInterpolationOpenBrace if open.is_none() => open = Some(token),
+                    SyntaxKind::StringInterpolationCloseBrace if close.is_none() => close = Some(token),
+                    SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment => {},
+                    _ => return Err(unsupported()),
+                }
+            }
+            let (percent, open, close) = (percent.ok_or_else(unsupported)?, open.ok_or_else(unsupported)?, close.ok_or_else(unsupported)?);
+            let range = crate::range_of_token(&percent).start..crate::range_of_token(&close).end;
+            let format_range = crate::range_of_token(&percent).end..crate::range_of_token(&open).start;
+            let format = format.map_or_else(|| Box::<str>::from(""), |token| token.text().into());
+            if format.len() != format_range.len() || range.start < literal_range.start || range.end > literal_range.end {
+                return Err(unsupported());
+            }
+            let body_index = self.slot()?;
+            push(&mut parts, LocalSourceInterpolation { source: self.key(&part)?, range, format, format_range, body: body_index.clone() })?;
+            push(&mut work, (body, body_index))?;
+        }
+        if parts.is_empty() { return Err(unsupported()); }
+        self.set(index, &node, scope.clone(), named_group.clone(), LocalSourceForm::InterpolatedString { spelling, literal_range, parts })?;
+        for (body, index) in work.into_iter().rev() {
+            push(&mut self.work, Work::Expression(body, index, scope.clone(), named_group.clone()))?;
+        }
+        Ok(())
+    }
     fn expression(
         &mut self,
         node: SyntaxNode,
@@ -2012,11 +2078,13 @@ impl Builder<'_> {
                 LocalSourceForm::Integer(integer_spelling(&node)?),
             )?,
             SyntaxKind::StringLiteral => {
-                if node.descendants().any(|child| child.kind() == SyntaxKind::StringInterpolation) {
-                    return Err(unsupported());
+                if node.children().any(|child| child.kind() == SyntaxKind::StringInterpolation) {
+                    self.interpolated_string(node, index, scope, named_group)?;
+                } else {
+                    self.set(index, &node, scope, named_group.clone(), LocalSourceForm::String(string_spelling(&node)?))?;
                 }
-                self.set(index, &node, scope, named_group.clone(), LocalSourceForm::String(string_spelling(&node)?))?;
             }
+            SyntaxKind::StringInterpolationBody => self.block(node, index, scope, named_group)?,
             SyntaxKind::CatchExpression => self.catch(node, index, scope, named_group.clone())?,
             SyntaxKind::CaseExpression => self.case(node, index, scope, named_group.clone())?,
             SyntaxKind::IfExpression => self.conditional(node, index, scope, named_group.clone())?,
@@ -2677,6 +2745,63 @@ impl Builder<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interpolation_source_keeps_format_ranges_bodies_and_lexical_restore() {
+        for literal in [
+            "\"前%{my text = 1; text}後%08x{text}\"",
+            "\"\"\"前%{my text = 1; text}\n後%08x{text}\"\"\"",
+        ] {
+            let text = format!("my text = 7; my value = {literal}");
+            let (parsed, _, module) = ordinary_fixture(&text);
+            let HirItem::Binding(binding) = &module.items()[1] else { panic!("value"); };
+            let source = module.local_source(binding.definition_root()).unwrap().expect(literal);
+            let root = source.expression(source.body()).unwrap();
+            let LocalSourceForm::InterpolatedString { spelling, literal_range, parts } = &root.form else { panic!("interpolated string"); };
+            assert_eq!(spelling.as_ref(), literal);
+            assert_eq!(&text[literal_range.clone()], literal);
+            assert_eq!(parts.len(), 2);
+            assert_eq!(parts[0].format.as_ref(), "");
+            assert_eq!(parts[1].format.as_ref(), "08x");
+            assert!(parts[0].range.end < parts[1].range.start);
+            for part in parts {
+                assert!(parsed.owns_source_key(&part.source));
+                assert_eq!(&text[part.format_range.clone()], part.format.as_ref());
+                assert!(text[part.range.clone()].starts_with('%') && text[part.range.clone()].ends_with('}'));
+                let body = source.expression(&part.body).unwrap();
+                assert!(parsed.owns_source_key(&body.source));
+                assert!(module.owns_occurrence(&body.occurrence));
+                assert!(part.range.start < body.range.start && body.range.end < part.range.end);
+            }
+            let LocalSourceForm::Block { final_expression: first, .. } = &source.expression(&parts[0].body).unwrap().form else { panic!("first block"); };
+            let LocalSourceForm::Block { final_expression: second, .. } = &source.expression(&parts[1].body).unwrap().form else { panic!("second block"); };
+            assert!(matches!(&source.expression(first).unwrap().form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::Local(id), .. } if id == &source.bindings()[0].id));
+            assert!(matches!(&source.expression(second).unwrap().form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_), .. }));
+            assert!(!source.expressions().iter().any(|expr| matches!(expr.form,
+                LocalSourceForm::FieldTail { .. } | LocalSourceForm::Apply { .. })), "no forged Display/concat source nodes");
+            assert!(source.retained_arena_bytes() >= spelling.len() + parts.capacity() * std::mem::size_of::<LocalSourceInterpolation>());
+        }
+    }
+
+    #[test]
+    fn interpolation_source_retains_nested_literals_and_rejects_recovery() {
+        let text = "my text = 7; my value = \"outer %{\"inner %{text}\"}\"";
+        let (_, _, module) = ordinary_fixture(text);
+        let HirItem::Binding(binding) = &module.items()[1] else { panic!("value"); };
+        let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+        let literals: Vec<_> = source.expressions().iter().filter(|expr| matches!(expr.form,
+            LocalSourceForm::InterpolatedString { .. })).collect();
+        assert_eq!(literals.len(), 2);
+        for literal in literals {
+            let LocalSourceForm::InterpolatedString { parts, .. } = &literal.form else { unreachable!(); };
+            assert_eq!(parts.len(), 1, "each literal owns only its direct interpolation");
+        }
+        for bad in ["my text = 1; my value = \"%{text\"", "my text = 1; my value = \"%{my x = ; text}\""] {
+            assert!(lower(bad).is_err(), "{bad}");
+        }
+    }
 
     #[test]
     fn variant_source_retains_constructor_prefix_and_real_payload_owners() {

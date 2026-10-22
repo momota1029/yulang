@@ -607,7 +607,7 @@ pub(super) fn preflight_with_imports_and_roles(
         if matches!(
             &expr.form,
             LocalSourceForm::Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) }
-                | LocalSourceForm::Variant { .. },
+                | LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { .. },
         ) {
             return Err(shadow_apply::CandidateError::Unsupported);
         }
@@ -1242,7 +1242,7 @@ impl ConstraintBatch {
                                 push(&mut work, Work::Visit(item.ordinal() as usize, level, region))?;
                             }
                         }
-                        LocalSourceForm::Variant { .. } => return Err(unavailable()),
+                        LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { .. } => return Err(unavailable()),
                         LocalSourceForm::Record { fields } => {
                             for field in fields.iter().rev() { push(&mut work, Work::Visit(field.value.ordinal() as usize, level, region))?; }
                         }
@@ -1865,7 +1865,7 @@ impl ConstraintBatch {
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                         }
-                        LocalSourceForm::Variant { .. } => return Err(unavailable()),
+                        LocalSourceForm::Variant { .. } | LocalSourceForm::InterpolatedString { .. } => return Err(unavailable()),
                         LocalSourceForm::Record { fields } => {
                             let mut values = Vec::new();
                             let mut effects = Vec::new();

@@ -531,3 +531,14 @@ actual free-name resolution or changing binder semantics.
 Scoped import checkpoint: HIR186/native273/fresh WASM54 pass. Original Button
 imports now form; next is its interpolation source and typed Variant boundary.
 Catalog remains7/19 with all hashes checked. No independent review or closure.
+
+Existing source/graph/runtime leases cover the next interpolation carrier:
+retain complete literal spelling/range, ordered actual StringInterpolation keys,
+format bytes/ranges and virtual statement-body indexes. Reuse ordinary lexical
+block scope restoration. Explicitly withhold inference/runtime until generated
+Display selection and pinned concat dependencies have authentic ownership.
+
+Interpolation source checkpoint: HIR188/graph19/native274/fresh WASM54 pass.
+All 19 original hashes match; catalog7/19. Button source formation is complete,
+but generated formatting/concat and typed Variant/native remain OPEN. Next
+connect original formatting decomposition to actual source-selected operations.

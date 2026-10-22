@@ -2044,6 +2044,32 @@ mod tests {
     }
 
     #[test]
+    fn unchanged_button_retains_variant_and_interpolation_source_owners() {
+        let source = include_str!("../../../web/playground/examples/yulang2-button.yu");
+        let (_, indexes, roles) = pinned_source_world().unwrap();
+        let text: Arc<SourceText> = Arc::from(source);
+        let parsed = parse_file(text.clone(), Arc::new(scan_header(text)), Arc::new(playground_syntax_environment().unwrap()));
+        let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("playground", "button.yu")));
+        let imports = SemanticImports::with_source_imports_and_role_indexes(&parsed, &identity, &indexes, &roles).unwrap();
+        let hir = yu_hir::lower_module(identity, &parsed, imports).unwrap();
+        assert!(hir.source_carrier_outcomes().iter().all(|(_, outcome)| matches!(outcome,
+            yu_hir::SourceCarrierOutcome::Supported(_))), "all original Button roots retain their source");
+        let binding = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "button" => Some(binding), _ => None,
+        }).unwrap();
+        let carrier = hir.local_source(binding.definition_root()).unwrap().unwrap();
+        let parts = carrier.expressions().iter().find_map(|expr| match &expr.form {
+            LocalSourceForm::InterpolatedString { parts, .. } => Some(parts), _ => None,
+        }).unwrap();
+        assert_eq!(parts.len(), 1);
+        assert!(parsed.owns_source_key(&parts[0].source));
+        assert_eq!(&source[parts[0].range.clone()], "%{text}");
+        assert!(carrier.expressions().iter().any(|expr| matches!(&expr.form,
+            LocalSourceForm::Name { spelling, resolution: yu_hir::LocalSourceResolution::CaseBinder(_), .. }
+                if spelling.as_ref() == "text")));
+    }
+
+    #[test]
     fn pinned_prelude_lookup_excludes_actual_lexical_parameters_and_case_payloads() {
         let (_, indexes, roles) = pinned_source_world().unwrap();
         let button = include_str!("../../../web/playground/examples/yulang2-button.yu");

@@ -2875,3 +2875,66 @@ Every other catalog observable is unchanged. Logs: target/r332-scoped-import-
 {hir-all,native,wasm}.log and target/r332-catalog-scoped-imports.log. No syntax
 code changed in this slice, so its prior inherited ordinal failure is retained
 without rerunning that suite. No independent review; original parents stay OPEN.
+
+### Original interpolation source carrier
+
+Retain InterpolatedString as complete original literal spelling plus its absolute
+delimiter range and ordered LocalSourceInterpolation descriptors. Each descriptor
+owns the actual StringInterpolation key, percent-to-close range, raw format text
+and range, and the actual StringInterpolationBody expression index. Only direct
+interpolation children belong to this literal; a nested literal owns its own
+parts. No synthetic FieldTail, Apply, Display identity or concat identity is
+fabricated. Plain strings retain their original representation.
+
+The existing virtual statement parser emits Statement/BlockStatementSeparator
+children under StringInterpolationBody. Source formation now sends that actual
+node through the existing block owner, preserving sequential local initialization,
+parameter/CaseBinder resolution and lexical restoration between interpolation
+bodies. Empty or otherwise unsupported block bodies still remain unsupported;
+raw formatting text is retained without claiming format validation. The source
+Value graph owner walk visits each real body and retains nested local owners;
+existing result-fragment boundaries and SCC qualification remain unchanged.
+
+For a successful carrier, direct CST child order gives ordered, nonoverlapping
+interpolation spans inside the original literal range. Delimiter coordinates
+prove that retained spelling is exactly the original byte slice, including
+Unicode, escapes and heredoc text. Each format slice is exactly between its
+percent and open brace; length equality and the parse-owned token give the
+retained bytes. The existing block Work/Restore construction gives disjoint
+local scopes for consecutive parts. This is source correspondence only:
+preflight and RuntimeProgram explicitly reject InterpolatedString pending the
+original generated Display/format and pinned concat pipeline.
+
+Focused HIR evidence covers two-part literals, raw format bytes, multibyte text,
+heredoc delimiters, nested interpolation ownership, sequential local binders,
+restoration to a module value in the next part, real source keys/occurrences and
+malformed-source rejection. The unchanged original Button now retains every
+source root, its Variant patterns and the `%{text}` CaseBinder use. Source imports
+and source formation are therefore connected for that fixture; inference/native
+execution and original all-source/A-B remain OPEN, UNREVIEWED.
+
+Conditional execution handoff for the interpolation bridge: let each retained
+body c_i return V_i with effect E_i, and let its original source-selected format
+operation F_i accept V_i and return String with effect G_i. Assume the actual
+selected method/call evidence and the pinned concat source have been connected;
+concat has source type str -> str -> str and RHS builtin_op::string_concat
+(pinned lib/std/text/str.yu:11), already an existing primitive kind here. Expand
+the literal into ordered pure text parts and F_i(c_i), then left-associated
+calls of that exact concat provider. Repeated application of the companion's
+sequential let/Call rules gives result String and union of all E_i/G_i, retaining
+source order and each body's current environment. No per-body effect can be
+removed because a later literal part exists. This finite induction is conditional
+on genuine selected-method/Call evidence, decoding and imported-provider
+ownership; the new carrier establishes only the body/order/source premises.
+Do not replace those premises with a fake `.show` FieldTail or direct primitive
+text conversion. The exact next owner seam is generated formatting selection
+versus existing written-field-tail evidence, not StringConcat arithmetic.
+
+Interpolation carrier checkpoint: HIR **188/188**, Value graph **19/19**,
+native playground **274/274** and fresh WASM **54 execution examples plus
+module/diagnostic checks** pass. All 19 original source hashes match. Catalog
+remains **7/19**; Button moves from StructuralProjection to explicit unsupported
+candidate inference after complete source formation. All other observables stay
+unchanged. Logs: target/r332-interpolation-{hir-all,graph,native,wasm}.log and
+target/r332-catalog-interpolation-source.log. No compiler expectation or sample
+was weakened. This is direct-primary evidence, not independent review.
