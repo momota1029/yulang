@@ -321,3 +321,8 @@ constructor dependency, not full sample completion. One initial no-feature HIR
 invocation failed on feature-gated definitions; no such configuration success
 is claimed. Primary only, UNREVIEWED, parent scope unchanged. Retain accounting;
 next source admission slice starts from the pushed arithmetic checkpoint.
+
+Post-arithmetic owning-dependency repair: default HIR feature guards now compile;
+default check and unary test plus shadow Effects regression pass. Exact current
+HIR leases apply, semantics unchanged. See the proof note for the six-error
+cause and retained optional-source-owner invariant.

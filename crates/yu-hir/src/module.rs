@@ -1766,7 +1766,6 @@ pub struct HirModule {
     pub(crate) source_identity: Option<crate::source_identity::HirSourceIdentity>,
     #[cfg(any(feature = "shadow", test))]
     pub(crate) captured_source: Option<(DefinitionRootId, Arc<crate::shadow::ShadowArtifact>)>,
-    #[cfg(any(feature = "shadow", test))]
     pub(crate) source_parsed: Option<ParsedFile>,
     pub(crate) local_sources: HashMap<DefinitionRootId, local_source::LocalSource>,
     #[cfg(any(feature = "shadow", test))]
@@ -2583,7 +2582,6 @@ fn lower_module_with_counters(
         source_identity: counters.source_identity.take(),
         #[cfg(any(feature = "shadow", test))]
         captured_source: None,
-        #[cfg(any(feature = "shadow", test))]
         source_parsed: (counters.local_source || counters.member_sources).then(|| parsed.clone()),
         local_sources: std::mem::take(&mut counters.local_sources),
         #[cfg(any(feature = "shadow", test))]

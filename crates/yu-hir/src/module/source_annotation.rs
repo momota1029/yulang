@@ -184,6 +184,7 @@ pub(super) fn declarations(
     declarations_selected(root, module, counters, None)
 }
 
+#[cfg(any(feature = "shadow", test))]
 pub(super) fn declarations_selected(
     root: &SyntaxNode,
     module: &ModuleId,

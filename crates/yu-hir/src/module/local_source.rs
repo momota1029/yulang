@@ -1624,13 +1624,16 @@ impl Builder<'_> {
                         path.push(segment.text().into());
                     }
                     let qualified = path.iter().map(AsRef::as_ref).collect::<Vec<_>>().join("::");
+                    #[cfg(any(feature = "shadow", test))]
                     if let Some(super::ModuleNameResolution::ImportedOperation(operation)) = self.namespace.get(&qualified) {
                         self.set(current, &node, scope, named_group.clone(), LocalSourceForm::Operation {
                             resolution: source_annotation::SourceOperationResolution::Resolved(
                                 operation.operation.clone(),
                             ),
                         })?;
-                    } else if let Some(super::ModuleNameResolution::Imported(id)) = self.namespace.get(&qualified) {
+                        return Ok(());
+                    }
+                    if let Some(super::ModuleNameResolution::Imported(id)) = self.namespace.get(&qualified) {
                         self.set(current, &node, scope, named_group.clone(), LocalSourceForm::Name {
                             spelling: qualified.into(),
                             resolution: LocalSourceResolution::Imported(id.clone()),

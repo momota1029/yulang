@@ -2080,3 +2080,24 @@ all-source adequacy, general receiving, principals, A/B and independent review
 remain OPEN; those baseline tests were not reclassified or rerun in this slice.
 Next: explicit import item admission and the remaining record/range/pattern
 constructors through their actual source owners.
+
+### Default-feature HIR build repair
+
+After pushed arithmetic checkpoint 15ae53e0f, `cargo check -p yu-hir` reproduces
+six feature-configuration errors. Effect-declaration collection lacked its
+owners' shadow/test guard; qualified-operation formation referenced a guarded
+variant unconditionally; always-available source ownership queries referenced
+an absent `source_parsed` field. Align the two shadow-only consumers with their
+providers and keep the optional parsed-owner field present in both builds. Its
+initialization condition is unchanged, so ordinary lowering does not acquire
+extra parse retention or new admission authority. The qualified-operation case
+returns the same completed expression immediately; pending child work is
+unchanged. No source semantics or test expectation changes.
+
+Checks: default `cargo check -p yu-hir` passes; default unary source test 1 passes;
+shadow-enabled unchanged original Effects CLI test 1 passes. Logs are
+`target/r332-hir-default-{audit,repair,test}.log` and
+`target/r332-hir-feature-effects.log`. This closes the build-configuration defect
+reported above, not the open default/candidate semantic or theorem obligations.
+Existing dead-code warnings remain with their source-carrier/research owners;
+no blanket suppression or removal of proof evidence was added.
