@@ -10601,6 +10601,11 @@ impl InferenceSession {
                 for index in 0..self.batch.candidate_source.expressions.len() {
                     self.execute_candidate_expression(index)?;
                 }
+                if self.candidate_graph.as_ref().is_some_and(
+                    candidate_scheme::GraphState::has_pending_field_tail_selection,
+                ) {
+                    return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
+                }
             }
         }
         self.sample_f4_resources(ResourceBoundary::StoreAccounting)?;

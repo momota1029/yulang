@@ -544,7 +544,7 @@ fn typed_port_pair(
 }
 
 impl GraphState {
-    fn has_pending_field_tail_selection(&self) -> bool {
+    pub(super) fn has_pending_field_tail_selection(&self) -> bool {
         self.source_field_tail_obligations.values().any(|items| !items.is_empty())
             || self.graphs.iter().flatten().any(|graph| !graph.source_field_tail_obligations.is_empty())
             || self.member_graphs.values().any(|member| !member.graph.source_field_tail_obligations.is_empty())
@@ -2094,9 +2094,6 @@ impl InferenceSession {
             .as_mut()
             .ok_or_else(exhausted)?
             .orchestration_bytes = 0;
-        if self.candidate_graph.as_ref().ok_or_else(exhausted)?.has_pending_field_tail_selection() {
-            return Err(SolveAvailabilityError::DeferredSelectionUnavailable);
-        }
         Ok(())
     }
     pub(super) fn route_candidate_open_use(&mut self, id: &DefinitionUseId) -> Result<usize, SolveAvailabilityError> {

@@ -2386,14 +2386,14 @@ mod member_source_tests {
     #[test]
     fn member_sources_form_separate_candidate_roots_with_receiver_inputs() {
         let source: Arc<yu_syntax::SourceText> = Arc::from(
-            "role Echo:\n    our receiver.echo: int = receiver.other\nimpl int: Echo:\n    our value.echo: int = value.other",
+            "role Echo:\n    our receiver.echo: int = receiver.other\nimpl int: Echo:\n    our value.echo: int = value.other\n1",
         );
         let parsed = yu_syntax::parse_file(
             source.clone(),
             Arc::new(yu_syntax::scan_header(source)),
             Arc::new(yu_syntax::SyntaxEnvironment::empty()),
         );
-        let hir = Arc::new(yu_hir::shadow::lower_module_with_member_sources(
+        let hir = Arc::new(yu_hir::shadow::lower_module_with_local_source(
             yu_hir::ModuleIdentity::source_root(yu_hir::FileId::new(yu_hir::FileKey::new(
                 "candidate-member-root", "members.yu",
             ))),
@@ -2444,10 +2444,19 @@ mod member_source_tests {
         assert_eq!(ambiguous.unique_role_member_schedule(role_member), None);
         let roots: Vec<_> = batch.candidate_source.members.iter().map(|schedule| schedule.root.clone()).collect();
         let mut session = InferenceSession::try_new_candidate(batch).unwrap();
-        assert!(matches!(session.execute_candidate_graph_plan(),
-            Err(SolveAvailabilityError::DeferredSelectionUnavailable)),
-            "captured nested FieldTail remains pending without a stable selection consumer");
+        assert!(matches!(session.execute(), Err(SolveAvailabilityError::DeferredSelectionUnavailable)),
+            "the final deferred-selection gate runs after all source schedules");
+        let expression = &session.batch.candidate_source.expressions[0];
+        let value = session.candidate_endpoint(expression.value, Polarity::Positive).unwrap();
+        let TermView::LiveVariable(value) = session.store.term_view(value).unwrap() else {
+            panic!("the direct integer expression keeps its live Value endpoint");
+        };
+        assert!(session.bounds[value.ordinal() as usize].exact_non_variable_lowers
+            .contains(&ValueEndpointKey::IntPositive),
+            "the integer expression's candidate action ran before pending member FieldTails were reported");
         let state = session.candidate_graph.as_ref().unwrap();
+        assert!(state.has_pending_field_tail_selection(),
+            "captured nested FieldTail remains pending without a stable selection consumer");
         assert_eq!(state.member_graphs.len(), 2, "member templates have source-rooted candidate graphs");
         for root in roots {
             let member = state.member_graphs.get(&root).expect("exact member graph");
