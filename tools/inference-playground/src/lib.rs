@@ -2272,9 +2272,14 @@ mod tests {
             .unwrap();
         let say_root = carrier_hir.source_role_member_root(&say.id).unwrap().unwrap();
         let say_carrier = carrier_hir.source_carrier_for(&say_root).unwrap().unwrap();
-        assert!(matches!(say_carrier, yu_hir::SourceCarrierOutcome::Unsupported(failure)
-            if failure.reason == yu_hir::SourceCarrierFailureReason::UnsupportedForm),
-            "the exact Display.say source member currently reaches its known operator-form boundary");
+        let yu_hir::SourceCarrierOutcome::Supported(say_source) = say_carrier else {
+            panic!("the exact Display.say source retains its unresolved qualified path: {say_carrier:?}");
+        };
+        let unresolved_write = say_source.expressions().iter().find(|expression| matches!(&expression.form,
+            yu_hir::LocalSourceForm::Name { spelling, resolution: yu_hir::LocalSourceResolution::Unresolved }
+                if spelling.as_ref() == "std::io::out::write"))
+            .expect("empty imports cannot fabricate an out.write operation receipt");
+        assert!(inventory.source.text[unresolved_write.range.clone()].starts_with("std::io::out::write:"));
         let tuple_show = tuple_display.body.as_ref().unwrap().entries[2].member.as_ref().unwrap();
         let show_root = carrier_hir.source_implementation_member_root(tuple_show).unwrap().unwrap();
         let show_carrier = carrier_hir.source_carrier_for(&show_root).unwrap().unwrap();

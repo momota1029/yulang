@@ -119,6 +119,7 @@ if (JSON.stringify(consoleReport.events) !== JSON.stringify(consoleEvents)) {
   throw new Error("combined Console report must preserve ordered writes");
 }
 for (const [source, expected] of [
+  [fs.readFileSync("./examples/yulang2-effects.yu", "utf8"), ["42\n"]],
   ['println "standalone"\n', ["standalone\n"]],
   ['my f x = { say x; my y = x + x; say y; y }\n(f 3, f "a")\n', ["3\n", "6\n", "a\n", "aa\n"]],
   ['my f x = { say x; my y = x + x; say y; y }\nmy main = (f 3, f "a")\nmain\n', ["3\n", "6\n", "a\n", "aa\n"]],
@@ -212,4 +213,4 @@ if (!shallowHandlerAbsent) {
   throw new Error("the resumed Case arm must leave its shallow tick handler absent");
 }
 
-console.log(`WASM smoke passed: inference, ${Object.keys(examples).length} execution examples, Types/Console module outputs, three Yulang2 identity definitions, and two Yulang2 diagnostic examples.`);
+console.log(`WASM smoke passed: inference, ${Object.keys(examples).length} execution examples, Types/Console/Effects module outputs, three Yulang2 identity definitions, and two Yulang2 diagnostic examples.`);

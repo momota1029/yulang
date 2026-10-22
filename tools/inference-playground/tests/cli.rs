@@ -50,6 +50,54 @@ fn unchanged_yulang2_console_sample_runs_through_the_cli() {
 }
 
 #[test]
+fn unchanged_yulang2_effects_sample_runs_through_the_cli() {
+    let source = include_str!("../../../web/playground/examples/yulang2-effects.yu");
+    let output = cli_with_args(source, &["--run-module"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"42\n");
+    assert!(output.stderr.is_empty());
+    let report = execute_module_report(source, "effects.yu", 100_000, false).unwrap();
+    assert_eq!(report.events, ["42\n"]);
+}
+
+#[test]
+fn unit_formals_preserve_currying_local_scope_and_argument_effects() {
+    for (source, expected) in [
+        ("my f() = 7\nmy main = f()\n", "7\n"),
+        ("my f () = 7\nmy main = f ()\n", "7\n"),
+        ("my main = { my f() = 7; f() }\n", "7\n"),
+        ("my f() x = x\nmy main = (f() 3, f() \"a\")\n", "(3, \"a\")\n"),
+        ("my f x () = x\nmy main = (f 3 (), f \"a\" ())\n", "(3, \"a\")\n"),
+        ("my f()() = 7\nmy main = f()()\n", "7\n"),
+        ("act io:\n    our tick: int -> ()\nmy relay (thunk:[io] _) = catch thunk { io::tick(p), k -> { k (); k () } }\nmy f() = 7\nmy main = relay(f (io::tick 0))\n", "7\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(output.status.success(), "{source}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "{source}");
+        assert!(output.stderr.is_empty());
+    }
+    for source in [
+        "my f() = 7\nmy main = f true\n",
+        "my main = { my f() = 7; f 3 }\n",
+        "my f x () = x\nmy main = f 7 false\n",
+    ] {
+        let output = cli_with_args(source, &["--run", "main"]);
+        assert!(!output.status.success(), "{source}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("candidate type conflicts"));
+        assert!(output.stdout.is_empty());
+    }
+}
+
+#[test]
+fn unresolved_qualified_names_never_gain_execution_authority() {
+    let source = "my invoke() = missing::module::next()\ninvoke()\n";
+    let output = cli_with_args(source, &["--run-module"]);
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert_eq!(output.stderr, b"unsupported source: current candidate lowering/inference cannot observe this program\n");
+}
+
+#[test]
 fn library_operator_dependencies_do_not_require_an_operator_in_the_caller() {
     for (source, expected) in [
         ("println \"one\"\n", "one\n"),

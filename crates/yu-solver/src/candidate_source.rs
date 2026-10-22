@@ -373,6 +373,7 @@ pub(super) enum Action {
     Ascription { annotation: Arc<yu_hir::shadow::SourceAnnotation>, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, scope: candidate_effect::AnnotationScope },
     LocalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, slot: usize, endpoint: CandidateEndpoint, computation_effect: usize, occurrence: HirOccurrenceId, level: u32, boundary: u32 },
     FormalAnnotation { annotation: Arc<yu_hir::shadow::SourceAnnotation>, parameter: usize, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
+    UnitParameter { parameter: usize, occurrence: HirOccurrenceId },
     FormalEntry { registration: usize, annotation: Arc<yu_hir::shadow::SourceAnnotation>, occurrence: HirOccurrenceId, scope: candidate_effect::AnnotationScope },
     FormalNameEffect { registration: usize, occurrence: HirOccurrenceId, effect: usize },
     Fact(usize),
@@ -1234,13 +1235,21 @@ impl ConstraintBatch {
                             self.candidate_source.parameter_levels.insert(position, level);
                             lambdas.try_reserve(1).map_err(|_| unavailable())?;
                             lambdas.insert(index, position);
-                            if parameter.annotation.is_none() {
+                            if parameter.annotation.is_none() && !parameter.unit_pattern {
                                 self.candidate_source.omitted_formals.try_reserve(1).map_err(|_| unavailable())?;
                                 self.candidate_source.omitted_formals.insert(expr.occurrence.clone(), Arc::new(OmittedFormal {
                                     owner: owner.clone(), lambda: expr.occurrence.clone(),
                                     formal: parameter.id.clone(), position: parameter.source.clone(),
                                     scope: self.candidate_calls.formals[*formal_registrations.get(&parameter.id).ok_or_else(invalid)?].scope.clone(),
                                 }));
+                            }
+                            if parameter.unit_pattern {
+                                if parameter.annotation.is_some() { return Err(unavailable()); }
+                                self.term_for_leaf(Leaf::UnitPositive)?;
+                                self.term_for_leaf(Leaf::UnitNegative)?;
+                                push(&mut actions, Action::UnitParameter { parameter: position, occurrence: expr.occurrence.clone() })?;
+                                self.counters.emitted_facts = self.counters.emitted_facts.checked_add(2).ok_or_else(unavailable)?;
+                                self.counters.generated_work_items = self.counters.generated_work_items.checked_add(2).ok_or_else(unavailable)?;
                             }
                             if let Some(annotation) = &parameter.annotation {
                                 let annotation = Arc::new(annotation.clone());
@@ -2260,6 +2269,7 @@ impl InferenceSession {
             match action {
                 Action::Ascription { annotation, endpoint, computation_effect, occurrence, level, scope } => self.candidate_expression_ascription(annotation, *endpoint, occurrence, *level, *computation_effect, scope)?,
                 Action::FormalAnnotation { annotation, parameter, occurrence, scope } => self.candidate_formal_annotation(annotation, *parameter, occurrence, scope)?,
+                Action::UnitParameter { parameter, occurrence } => self.candidate_unit_parameter(*parameter, occurrence)?,
                 Action::FormalEntry { registration, annotation, occurrence, scope } => self.candidate_formal_entry_annotation(*registration, annotation, occurrence, scope)?,
                 Action::FormalNameEffect { registration, occurrence, effect } => {
                     let entry = self.batch.candidate_calls.formals[*registration].entry_effect.ok_or(SolveAvailabilityError::IdentityExhausted)?;

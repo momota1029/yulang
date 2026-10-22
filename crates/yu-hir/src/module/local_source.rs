@@ -492,6 +492,9 @@ pub struct LocalSourceParameter {
     pub spelling: Box<str>,
     pub scope: LocalSourceScope,
     pub annotation: Option<source_annotation::SourceAnnotation>,
+    /// The original empty pattern introduces an anonymous Unit-matching slot.
+    /// Its spelling is empty and never enters lexical name lookup.
+    pub unit_pattern: bool,
 }
 #[derive(Clone, Debug)]
 pub struct LocalSourceBinding {
@@ -837,6 +840,7 @@ pub(super) fn form_member(
         spelling: header.receiver.spelling.clone(),
         scope: LocalSourceScope::SourceMember(root.clone()),
         annotation: None,
+        unit_pattern: false,
     };
     let mut parameters = Vec::new();
     parameters.try_reserve_exact(header.parameters.len())
@@ -852,6 +856,7 @@ pub(super) fn form_member(
                 range: parameter.range.clone(),
             },
             range: parameter.range.clone(),
+            unit_pattern: false,
         });
     }
     form_ordinary_with_root_parameters(
@@ -993,15 +998,18 @@ pub(super) fn form(
             source: parameter_source,
             range: parameter.range.clone(),
             spelling: parameter.name.spelling.clone().into_boxed_str(),
+            unit_pattern: parameter.unit_pattern,
             scope: scope.clone(),
             annotation: parameter_annotation
                 .map(|node| source_annotation::parse_annotation(node, owner, builder.counters))
                 .transpose()?,
         };
-        builder.push_binding(
-            parameter.spelling.clone(),
-            LocalSourceResolution::Parameter(parameter.id.clone()),
-        )?;
+        if !parameter.unit_pattern {
+            builder.push_binding(
+                parameter.spelling.clone(),
+                LocalSourceResolution::Parameter(parameter.id.clone()),
+            )?;
+        }
         let next = builder.slot()?;
         push(&mut named_formals, LocalSourceNamedFormal { parameter: parameter.id.clone(), lambda: current.clone() })?;
         builder.set(
@@ -1127,10 +1135,12 @@ pub(super) fn form(
                 push(&mut builder.work, Work::Publish(binding, guard))?;
                 for ordinal in 0..count {
                     let parameter = builder.bindings[binding as usize].parameters[ordinal].clone();
-                    builder.push_binding(
-                        parameter.spelling.clone(),
-                        LocalSourceResolution::Parameter(parameter.id.clone()),
-                    )?;
+                    if !parameter.unit_pattern {
+                        builder.push_binding(
+                            parameter.spelling.clone(),
+                            LocalSourceResolution::Parameter(parameter.id.clone()),
+                        )?;
+                    }
                     let next = builder.slot()?;
                     push(&mut named_formals, LocalSourceNamedFormal { parameter: parameter.id.clone(), lambda: index.clone() })?;
                     builder.set(
@@ -1632,7 +1642,13 @@ impl Builder<'_> {
                         };
                         self.set(current, &path_tails[0], scope, named_group.clone(), form)?;
                     } else {
-                        return Err(unsupported());
+                        // Preserve a valid qualified name when this projection
+                        // has no import receipt. Candidate admission still
+                        // rejects Unresolved; no module/operation is invented.
+                        self.set(current, &node, scope, named_group.clone(), LocalSourceForm::Name {
+                            spelling: qualified.into(),
+                            resolution: LocalSourceResolution::Unresolved,
+                        })?;
                     }
                 } else {
                     push(
@@ -1664,6 +1680,7 @@ impl Builder<'_> {
                 let parameter = LocalSourceParameter {
                     id: id.clone(), source, range, spelling: binder.text().into(),
                     scope: scope.clone(), annotation: None,
+                    unit_pattern: false,
                 };
                 let body = self.slot()?;
                 push(&mut self.work, Work::Restore(self.lexical.len()))?;
@@ -2267,6 +2284,7 @@ impl Builder<'_> {
                         source,
                         range: parameter.name.range,
                         spelling: parameter.name.spelling.into_boxed_str(),
+                        unit_pattern: parameter.unit_pattern,
                         annotation: parameter
                             .annotation
                             .as_ref()
@@ -2867,6 +2885,47 @@ mod tests {
 
         assert!(lower("my repeated value = case value: (same, same) -> same").is_err(),
             "duplicate tuple binders must fail closed instead of silently shadowing one component");
+    }
+
+    #[test]
+    fn unit_formals_retain_original_patterns_without_lexical_names() {
+        let text = "my f() x () = { my g() = x; g() }";
+        let module = lower(text).unwrap();
+        let HirItem::Binding(binding) = &module.items()[0] else { panic!("binding"); };
+        let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+        let formals = source.expressions().iter().filter_map(|expression| match &expression.form {
+            LocalSourceForm::Lambda { parameter, .. } => Some(parameter),
+            _ => None,
+        }).collect::<Vec<_>>();
+        assert_eq!(formals.len(), 4);
+        let units = formals.iter().filter(|formal| formal.unit_pattern).collect::<Vec<_>>();
+        assert_eq!(units.len(), 3);
+        assert_eq!(units.iter().map(|p| &p.source).collect::<std::collections::HashSet<_>>().len(), 3);
+        for unit in units {
+            assert_eq!(&text[unit.range.clone()], "()");
+            assert!(unit.spelling.is_empty());
+            assert!(unit.annotation.is_none(), "patterns must not forge written annotations");
+            assert!(!source.expressions().iter().any(|e| matches!(&e.form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(id), .. } if id == &unit.id)));
+        }
+        let named = formals.iter().find(|p| !p.unit_pattern).unwrap();
+        assert_eq!(named.spelling.as_ref(), "x");
+        assert!(source.expressions().iter().any(|e| matches!(&e.form,
+            LocalSourceForm::Name { resolution: LocalSourceResolution::Parameter(id), .. } if id == &named.id)));
+    }
+
+    #[test]
+    fn unit_formals_retain_unresolved_qualified_body_names() {
+        let text = "my invoke() = std::control::flow::next()";
+        let module = lower(text).unwrap();
+        let HirItem::Binding(binding) = &module.items()[0] else { panic!("binding"); };
+        let source = module.local_source(binding.definition_root()).unwrap().unwrap();
+        let name = source.expressions().iter().find(|expression| matches!(&expression.form,
+            LocalSourceForm::Name { spelling, resolution: LocalSourceResolution::Unresolved }
+                if spelling.as_ref() == "std::control::flow::next")).expect("unresolved original path");
+        assert_eq!(&text[name.range.clone()], "std::control::flow::next()");
+        assert!(source.expressions().iter().any(|expression|
+            matches!(&expression.form, LocalSourceForm::Lambda { parameter, .. } if parameter.unit_pattern)));
     }
 
     #[test]

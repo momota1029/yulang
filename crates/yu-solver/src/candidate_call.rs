@@ -649,7 +649,7 @@ fn observe_inner<'a>(
                 .ok_or(ArtifactMismatch)?;
             let name_index = input.formal_name.ok_or(ArtifactMismatch)?;
             let name = state.names.get(name_index).ok_or(ArtifactMismatch)?;
-            if parameter.annotation.is_some()
+            if parameter.annotation.is_some() || parameter.unit_pattern
                 || record.registration != name.registration
                 || record.name != name_index
                 || record.omitted.owner != registration.owner

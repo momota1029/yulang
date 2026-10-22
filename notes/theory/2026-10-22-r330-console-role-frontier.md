@@ -1661,3 +1661,134 @@ These are direct-primary construction and execution receipts, UNREVIEWED.
 The prior document-reading turn supplied guidance, not compiler-goal completion.
 Source adequacy, principal schemes, all remaining Y2 samples, original A/B,
 independent review and production remain OPEN. The whole goal is unchanged.
+
+#### Original catalog correspondence and next source gate
+
+The parent is still the complete **19-entry** original catalog in pinned Y2
+`web/playground/src/main.ts`, commit `a58eefc31e22141574b6f20c6a5748151c6d79f1`,
+blob `e6bec9fe44d673ccbf98af078ef4562c9267ef6c`. The template-literal values were
+extracted without changing their source bytes; no selected definition or added
+entry expression was substituted for whole-module execution. Each was run with
+`yu-playground --run-module --steps 100000` against its own file. The initial
+source hashes and exact stdout/stderr are in
+`/tmp/yulang-r332-root10-catalog/{manifest,results}.json`.
+
+| Original entry | First observed gate before the hole implementation |
+| --- | --- |
+| Tour | Syntax diagnostics |
+| String Match | Syntax diagnostics |
+| Config | Syntax diagnostics |
+| Data & Methods | Candidate source unsupported |
+| Named Defaults | Candidate source unsupported |
+| Button | Syntax diagnostics |
+| Local Change | Syntax diagnostics |
+| List Update | Syntax diagnostics |
+| Sub Return | StructuralProjection |
+| Callback Hygiene | SourceImportResolutionUnavailable |
+| Nondet List | Syntax diagnostics |
+| Nondet Once | SourceImportResolutionUnavailable |
+| Junction | Syntax diagnostics |
+| Types | Exact `(42, Yulang)` write |
+| Console | Exact `hello from Yulang`, then `3` writes |
+| Effects | StructuralProjection at the `_` result annotation |
+| Type Mismatch | Expected Bool-to-Int candidate conflict |
+| Parameter Provenance | Expected Int-to-Bool candidate conflict |
+| Tuple Arity | StructuralProjection, not the required arity diagnostic |
+
+Effects has an additional independent gate: `module.rs::plain_binding_header`
+returns None for the empty PatternCallTail in `our ask() = ...`. Replacing only
+`_` with a named variable leaves candidate source unavailable; replacing only
+that empty formal with an unused identifier after the hole is resolved reaches
+`42`. Those changed sources are **isolating probes only**, not passing receipts
+for the original sample. Their exact sources/results are the three
+`/tmp/yulang-r332-root10-effects-probes*.json` files. The next source construction
+must retain the original empty Unit pattern, its argument position and ordinary
+Value entry/Unit constraint, without inventing an identifier or changing the
+sample. General formal patterns and the all-source parent remain obligations.
+
+The module startup classifier is a separate open source law. R167's
+`R167-CASE-FETCH-1`, the unapproved R168 tuple-extension proposal, and the ordered
+Tuple construction distinguish evaluation of a demanded Tuple from scheduling
+an otherwise unreferenced binding at module startup. HIR generalization
+eligibility does not establish that schedule. No Tuple/Case/effect-shape
+heuristic was added to the source schedule in this continuation.
+
+### Unit formal construction for the unchanged Effects sample
+
+An empty source formal `()` introduces one anonymous Value-entry slot, matching
+the Unit argument produced by the existing empty Call constructor. Preserve the
+original PatternCallTail/ParenthesizedPattern key and parameter identity; retain
+an explicit Unit-pattern flag and no lexical identifier. Empty display spelling
+is metadata for this anonymous slot, never a generated source binding. Ordinary
+identifier parameters keep their existing representation and lookup.
+
+For parameter row p, admit Unit+ <: p- and p+ <: Unit- at the same original
+Lambda occurrence. These are the ordinary formal-domain constraints, with the
+negative domain retained for Function construction; they introduce no permission
+or effect-row annotation. Any compatible invocation therefore supplies Unit.
+Conversely any Unit argument satisfies this pattern's added value constraint;
+the argument's effects follow the existing strict Value-entry rule unchanged.
+After evaluating the whole delayed argument, runtime checks its actual Unit
+constructor and enters the same body/environment without binding a name.
+For a request during argument evaluation, the ValueEntry frame (including the
+pattern discriminator) remains in the raw suffix, so resumption performs the
+same match before the same body. The existing receiver boundary is retained.
+
+This supplies the Unit-pattern cases of source construction and runtime
+preservation conditional on the existing Call/solver correspondence. It does
+not prove all-source adequacy or full principality. Tests must include original
+Effects bytes, top/local Unit formals, mixed currying, wrong argument rejection,
+and argument effects/resumption. No fallback or source rewriting is used.
+
+#### Qualified-name formation exposed by Unit admission
+
+Admitting the pinned ops module's `loop_last()`, `loop_next()` and `loop_redo()`
+exposes their original multi-segment paths under an import-free source projection.
+Retain those valid paths as Name/Unresolved, with their original source position,
+just as unqualified unresolved identifiers are retained. This creates neither an
+import receipt nor an operation identity. `candidate_source` rejects Unresolved
+before constraint construction. The source-adequacy plan requires retaining actual
+source constructors and imported ownership; a projection must not fabricate an
+import merely to become supported. This is a representation extension under the
+user's authorized source implementation, not permission to execute missing imports.
+
+The inherited fmt inventory test froze a *current unsupported boundary* for
+`Display.say` with empty imports. That expectation now becomes too restrictive:
+its `std::io::out::write` path can be retained without resolving it. Before
+changing the assertion, record the replacement contract: require Supported source,
+require the exact original qualified spelling and source span, require Unresolved,
+and retain candidate rejection for missing imports. All runtime outputs and all
+language diagnostic expectations remain unchanged. Primary-only reasoning is
+UNREVIEWED; no independent reviewer or theorem-closure claim is made.
+
+#### Unit-formal checkpoint evidence (2026-10-23)
+
+The unchanged Effects fixture has SHA-256
+`ec7f06dfe455bbffc258f1a665d915840177f6ae198671da03d2ec6b1efd2699`;
+it equals the original pinned template value byte-for-byte. Native CLI and
+fresh Web/WASM whole-module reports both produce exactly `42\n`. The UI now
+exposes that original sample. Empty and spaced Unit formals, local declarations,
+leading/trailing/multiple Unit slots, independent polymorphic uses, wrong
+arguments, and effectful arguments with repeated resume are covered. HIR keeps
+three distinct pattern keys and no anonymous lexical binding. Solver constraints
+retain the Unit domain, create no permission/contribution, and roll back together
+with the owning route. Source Unit is still one argument, not zero-arity execution.
+
+Final checks: `cargo test -q -p yu-playground` **254 pass** (67 library, 53 CLI,
+134 other); HIR `unit_formals` **2 pass**; solver
+`unit_formal_source_constraints` **1 pass**; fresh `npm --prefix web/playground
+run check` passes its **35** ordinary execution examples plus the separate
+Types/Console/Effects whole-module reports; TypeScript passes. Logs are
+`target/r332-unit-{native,hir,solver,web}.log`. The initial missing HashSet import
+was fixed. The full run exposed the qualified-name projection issue above;
+final runs pass after retaining unresolved paths and updating the documented
+internal boundary assertion. An additional CLI regression confirms missing
+qualified imports remain unsupported and produce no output.
+
+These are UNREVIEWED primary-only construction/check receipts. Source/native
+adequacy outside these constructors, all remaining original samples, original
+A/B, principality and independent review remain OPEN. Next, rerun all 19 original
+catalog entries using JavaScript's cooked template values: raw template extraction
+left escape sequences in Tour and Callback Hygiene, so those two earlier rows
+are not reliable receipts for original editor contents. Effects, Types and Console
+have no such decoding difference; their byte identity remains established.

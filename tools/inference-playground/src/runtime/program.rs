@@ -264,6 +264,7 @@ pub(super) enum Instruction {
     Forward(Label),
     Lambda {
         parameter: HirParameterId,
+        unit_pattern: bool,
         role: ParameterRole,
         root_schema: Option<Arc<super::receiving::RootCompSchema>>,
         body: Label,
@@ -783,6 +784,7 @@ impl RuntimeProgram {
                     }
                     LocalSourceForm::Lambda { parameter, body } => Instruction::Lambda {
                         parameter: parameter.id.clone(),
+                        unit_pattern: parameter.unit_pattern,
                         role: if parameter
                             .annotation
                             .as_ref()
@@ -1011,6 +1013,7 @@ impl RuntimeProgram {
                 site,
                 instruction: Instruction::Lambda {
                     parameter: receiver.id,
+                    unit_pattern: receiver.unit_pattern,
                     role,
                     root_schema,
                     body,

@@ -252,3 +252,17 @@ Next: original Unit parameter patterns -> their actual source constraints ->
 Value entry -> exact unchanged Effects sample. Add primary ownership of
 `crates/yu-hir/src/module.rs`; existing local_source/solver/runtime/test paths
 apply. No subagent or independent-review claim. Retain spent resource accounting.
+
+Unit-formal continuation additionally leases `web/playground/examples/yulang2-effects.yu`
+and reactivates `web/playground/index.html` for the original sample selector.
+The CLI lease is HELD by the primary: the current user explicitly establishes
+sole authorship and directs continuing inherited work without imagined writers.
+No unknown legacy worker lease is reclaimed; no child is launched.
+
+Unit-formal checkpoint: original Effects now runs unchanged through CLI and
+fresh WASM reports. Native 254, HIR 2, solver 1 and TypeScript pass. Qualified
+unresolved names retain source identity without importing authority; the fmt
+inventory assertion is strengthened to that documented representation contract.
+All language output expectations remain. Direct-primary UNREVIEWED; the full
+19-entry catalog and original proof parents remain OPEN. Next revalidate all
+catalog entries with JavaScript template escaping interpreted exactly.

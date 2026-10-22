@@ -1,5 +1,6 @@
 import init, { infer_types, run, run_module_report } from "./wasm/yulang_wasm.js";
 import "./style.css";
+import yulang2Effects from "../examples/yulang2-effects.yu?raw";
 import yulang2IdentityIsland from "../examples/yulang2-identity-island.yu?raw";
 import yulang2TypeMismatch from "../examples/yulang2-type-mismatch.yu?raw";
 import yulang2ParameterProvenance from "../examples/yulang2-parameter-provenance.yu?raw";
@@ -13,6 +14,7 @@ const yulang2Console = "// println is a library effect handled by the host.\n\np
 const examples: Record<string, string> = {
   yulang2_types: yulang2Types,
   yulang2_console: yulang2Console,
+  yulang2_effects: yulang2Effects,
   yulang2_identity_island: yulang2IdentityIsland,
   yulang2_type_mismatch: yulang2TypeMismatch,
   yulang2_parameter_provenance: yulang2ParameterProvenance,
@@ -75,7 +77,7 @@ async function withBusy(label: string, action: () => string): Promise<void> {
 document.querySelector<HTMLSelectElement>("#example")!.addEventListener("change", (event) => {
   const selected = (event.currentTarget as HTMLSelectElement).value;
   source.value = examples[selected] ?? examples.ordinary;
-  const wholeModule = selected === "yulang2_types" || selected === "yulang2_console";
+  const wholeModule = selected === "yulang2_types" || selected === "yulang2_console" || selected === "yulang2_effects";
   definitionLabel.hidden = wholeModule;
   definition.value = wholeModule ? "" : selected === "yulang2_identity_island"
     ? "int_identity"
@@ -90,7 +92,7 @@ inferButton.addEventListener("click", () => {
 
 runButton.addEventListener("click", () => {
   const selected = document.querySelector<HTMLSelectElement>("#example")!.value;
-  if (selected === "yulang2_types" || selected === "yulang2_console") {
+  if (selected === "yulang2_types" || selected === "yulang2_console" || selected === "yulang2_effects") {
     void withBusy("Module types and output", () => {
       const report = JSON.parse(run_module_report(source.value, 100_000)) as {
         types: string;

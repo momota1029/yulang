@@ -1531,6 +1531,26 @@ impl InferenceSession {
         Ok(())
     }
 
+    pub(super) fn candidate_unit_parameter(&mut self, parameter: usize, occurrence: &HirOccurrenceId) -> Result<(), SolveAvailabilityError> {
+        let state = &mut self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra;
+        if state.formal_domains.contains_key(&parameter) { return Err(exhausted()); }
+        state.formal_domains.try_reserve(1).map_err(|_| exhausted())?;
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) {
+            undo.effect_algebra.formal_domains.try_reserve(1).map_err(|_| exhausted())?;
+        }
+        let positive = self.batch.collected_leaf_term(Leaf::UnitPositive);
+        let negative = self.batch.collected_leaf_term(Leaf::UnitNegative);
+        let upper = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Negative)?;
+        self.admit_candidate_value_link(occurrence, 43, positive, upper)?;
+        let lower = self.candidate_endpoint(shadow_apply::CandidateEndpoint::Parameter(parameter), Polarity::Positive)?;
+        self.admit_candidate_value_link(occurrence, 44, lower, negative)?;
+        self.candidate_graph.as_mut().unwrap().intrusion.effect_algebra.formal_domains.insert(parameter, negative);
+        if let Some(undo) = self.route_journal.as_mut().and_then(|journal| journal.intrusion.as_mut()) {
+            undo.effect_algebra.formal_domains.push(parameter);
+        }
+        self.sample_f4_resources(ResourceBoundary::IncomingRoute)
+    }
+
     pub(super) fn candidate_formal_annotation(
         &mut self, annotation: &SourceAnnotation, parameter: usize, occurrence: &HirOccurrenceId, scope: &AnnotationScope,
     ) -> Result<(), SolveAvailabilityError> {
@@ -2382,6 +2402,32 @@ mod tests {
         session.start_candidate_graph().unwrap();
         session
     }
+    #[test]
+    fn unit_formal_source_constraints_retain_domain_and_rollback() {
+        let mut session = make_session("my f() = 7");
+        let action = session.batch.candidate_source.schedules.values().next().unwrap().iter()
+            .find(|action| matches!(action, candidate_source::Action::UnitParameter { .. })).unwrap().clone();
+        let candidate_source::Action::UnitParameter { parameter, occurrence } = action else { unreachable!() };
+        assert!(!session.batch.candidate_source.omitted_formals.contains_key(&occurrence));
+        let mut checkpoint = None;
+        assert_eq!(session.with_route_transaction(|session| {
+            checkpoint = Some(RouteCheckpoint::capture(session));
+            session.candidate_unit_parameter(parameter, &occurrence)?;
+            Err::<(), _>(exhausted())
+        }), Err(exhausted()));
+        checkpoint.unwrap().assert_restored(&session);
+        assert!(session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra.formal_domains.is_empty());
+        session.with_route_transaction(|session| session.candidate_unit_parameter(parameter, &occurrence)).unwrap();
+        let state = &session.candidate_graph.as_ref().unwrap().intrusion.effect_algebra;
+        let negative = session.batch.collected_leaf_term(Leaf::UnitNegative);
+        assert_eq!(state.formal_domains[&parameter], negative);
+        assert!(state.formal_permissions.is_empty());
+        assert!(state.contributions.is_empty());
+        let facts = session.store.facts();
+        assert_eq!(facts[facts.len() - 2].lower(), session.batch.collected_leaf_term(Leaf::UnitPositive));
+        assert_eq!(facts[facts.len() - 1].upper(), negative);
+    }
+
     #[test]
     fn root_computation_annotation_allowance_never_creates_contributions() {
         for text in [

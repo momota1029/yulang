@@ -1338,6 +1338,7 @@ pub struct HirParameter {
     id: HirParameterId,
     name: HirName,
     range: Range<usize>,
+    unit_pattern: bool,
 }
 
 impl HirParameter {
@@ -1356,7 +1357,7 @@ impl HirParameter {
 
 impl PartialEq for HirParameter {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.range == other.range
+        self.name == other.name && self.range == other.range && self.unit_pattern == other.unit_pattern
     }
 }
 
@@ -3224,6 +3225,7 @@ struct AdmittedParameter {
     name: HirName,
     source: Option<yu_syntax::SourceNodeKey>,
     annotation: Option<SyntaxNode>,
+    unit_pattern: bool,
 }
 
 impl RootPlan {
@@ -3415,6 +3417,7 @@ fn lower_plan(
             id: HirParameterId::new(definition_root.clone(), ordinal),
             name: admitted.name.clone(),
             range: admitted.name.range.clone(),
+            unit_pattern: admitted.unit_pattern,
         };
         if let (Some(source), Some(key)) = (&mut counters.source_identity, &admitted.source) {
             source.record_parameter(parameter.id.clone(), key.clone());
@@ -3466,7 +3469,7 @@ fn lower_plan(
     };
     let guard = scope.root_guard();
     for parameter in &parameters {
-        scope.push_parameter(parameter.clone());
+        if !parameter.unit_pattern { scope.push_parameter(parameter.clone()); }
     }
     let owner_item_index = usize::try_from(plan.ordinal)
         .map_err(|_| HirAvailabilityError::IdentityExhausted)?;
@@ -4311,7 +4314,8 @@ fn plain_binding_header(
             }
             let arguments = tail.children().collect::<Vec<_>>();
             if arguments.is_empty() {
-                return None;
+                parameters.push(unit_pattern_parameter(tail, _counters)?);
+                continue;
             }
             for argument in arguments {
                 if argument.kind() != SyntaxKind::Pattern || has_recovery(&argument) {
@@ -4331,6 +4335,7 @@ fn plain_binding_header(
                     name: identifier_pattern_name(identifier)?,
                     source: _counters.source_nodes.get(identifier).cloned(),
                     annotation,
+                    unit_pattern: false,
                 });
             }
             continue;
@@ -4349,6 +4354,12 @@ fn plain_binding_header(
         let [argument] = argument_children.as_slice() else {
             return None;
         };
+        if _counters.local_source && argument.kind() == SyntaxKind::ParenthesizedPattern
+            && argument.children().next().is_none()
+        {
+            parameters.push(unit_pattern_parameter(argument, _counters)?);
+            continue;
+        }
         let (argument, annotation) =
             if _counters.local_source && argument.kind() == SyntaxKind::ParenthesizedPattern {
                 if argument
@@ -4390,9 +4401,26 @@ fn plain_binding_header(
             name: identifier_pattern_name(&argument)?,
             source: _counters.source_nodes.get(&argument).cloned(),
             annotation,
+            unit_pattern: false,
         });
     }
     Some((visibility, head, parameters))
+}
+
+fn unit_pattern_parameter(node: &SyntaxNode, counters: &LoweringCounters) -> Option<AdmittedParameter> {
+    let tokens = node.children_with_tokens().filter(|element| !matches!(element.kind(),
+        SyntaxKind::Whitespace | SyntaxKind::Newline | SyntaxKind::LineComment | SyntaxKind::BlockComment))
+        .map(|element| element.kind()).collect::<Vec<_>>();
+    if tokens != [SyntaxKind::LParen, SyntaxKind::RParen] { return None; }
+    let range = node.text_range();
+    Some(AdmittedParameter {
+        // This anonymous slot has no lexical name. Its actual pattern key and
+        // discriminator, rather than this display spelling, own its meaning.
+        name: HirName { spelling: String::new(), range: usize::from(range.start())..usize::from(range.end()) },
+        source: Some(counters.source_nodes.get(node)?.clone()),
+        annotation: None,
+        unit_pattern: true,
+    })
 }
 
 fn identifier_pattern_name(pattern: &SyntaxNode) -> Option<HirName> {

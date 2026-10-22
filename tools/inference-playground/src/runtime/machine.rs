@@ -174,6 +174,7 @@ enum ExecutableValue {
     Continuation(TemplateHandle),
     Closure {
         parameter: HirParameterId,
+        unit_pattern: bool,
         role: ParameterRole,
         root_schema: Option<Arc<RootCompSchema>>,
         body: Label,
@@ -254,6 +255,7 @@ pub(super) enum Frame {
     },
     ValueEntry {
         parameter: HirParameterId,
+        unit_pattern: bool,
         body: Label,
         environment: usize,
     },
@@ -814,6 +816,7 @@ impl Machine {
             }
             Instruction::Lambda {
                 parameter,
+                unit_pattern,
                 role,
                 root_schema,
                 body,
@@ -823,6 +826,7 @@ impl Machine {
                     RuntimeValueKind::Closure,
                     Some(ExecutableValue::Closure {
                         parameter: parameter.clone(),
+                        unit_pattern: *unit_pattern,
                         role: *role,
                         root_schema: root_schema.clone(),
                         body: *body,
@@ -1140,6 +1144,7 @@ impl Machine {
                     }
                     Some(ExecutableValue::Closure {
                         parameter,
+                        unit_pattern,
                         role,
                         root_schema,
                         body,
@@ -1200,6 +1205,7 @@ impl Machine {
                             ParameterRole::Value => {
                                 self.frames.push(Frame::ValueEntry {
                                     parameter,
+                                    unit_pattern,
                                     body,
                                     environment,
                                 });
@@ -1314,10 +1320,16 @@ impl Machine {
             }
             Frame::ValueEntry {
                 parameter,
+                unit_pattern,
                 body,
                 environment,
             } => {
-                let environment = self.bind(
+                let environment = if unit_pattern {
+                    if !self.value(received.value).is_some_and(|value| matches!(value.kind, RuntimeValueKind::Unit)) {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
+                    environment
+                } else { self.bind(
                     environment,
                     Binder::Parameter(parameter),
                     ReceivedValue {
@@ -1326,7 +1338,7 @@ impl Machine {
                         interface: ParameterRole::Value,
                         view: received.view,
                     },
-                );
+                ) };
                 self.state = State::Evaluate {
                     code: body,
                     environment,
