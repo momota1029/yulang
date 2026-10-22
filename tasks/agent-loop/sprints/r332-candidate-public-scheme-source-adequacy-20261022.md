@@ -580,3 +580,11 @@ unchanged. General annotation/receiving/A-B remain OPEN and UNREVIEWED. Next
 use existing runtime/program/machine/primitive and playground leases for Variant
 payload/match construction; candidate admission remains withheld until the
 whole-boundary/conditional member-obligation rules are established.
+
+Variant native checkpoint: library83 plus final focused5, runtime_resume25 and
+fresh WASM62 pass. Fresh CLI catalog7/19 unchanged with all source hashes.
+Candidate preflight still withholds Variant. Existing exact term/lib/scheme/
+extrusion/context/source/shadow/test leases cover the next polarized family
+carrier and its transports. Establish whole Case-domain compatibility and
+conditional member guards before source admission. Parent gates OPEN, direct
+primary only and UNREVIEWED.

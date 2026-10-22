@@ -3228,3 +3228,50 @@ The exact-source primitive bridge is provisional/UNREVIEWED; general function
 annotation adaptation, context-aware source equivalence and original A/B remain
 OPEN. Next: Variant native payload/match construction, then its typed whole
 boundary and conditional member-obligation transport for original Button.
+
+### Variant native construction, separate from typed boundary admission
+
+For the authentic LocalSource Variant(tag, payloads) carrier, evaluate payloads
+left to right and retain each complete ReceivedValue in the same immutable
+prefix representation used by Tuple. Prefix extension allocates one node and
+never mutates an earlier node. A saved raw suffix therefore resumes from its
+retained prefix; it cannot replay already evaluated children. On completion
+reverse the collected prefix once and pair it with the source tag. Zero payloads
+produce the tagged value immediately. This is linear work/storage per completed
+construction (tag bytes included), excluding child evaluation and repeated
+resumptions, which produce their own completions.
+
+A source Case Variant arm matches iff tag and payload count both match. Bind
+ordered actual payload ReceivedValues to the original arm-local binder IDs;
+compose each payload's dispatch with the scrutinee dispatch exactly as Tuple
+projection does, retaining its value handle, view and interface. Select the
+first matching source arm. This construction implements pinned runtime/bind.rs
+tag/arity matching; it does not implement the missing whole-type boundary.
+The old closed-primitive negative-visibility classifier is deliberately not
+extended to Variant values or patterns without its own coverage argument.
+
+Candidate preflight remains withheld for Variant. Native source-machine tests
+can exercise this lower layer directly, but no original Button acceptance,
+Variant inference, conditional member discharge or production theorem follows.
+The public result formatter only displays the retained structural value; it is
+not a substitute for source-selected Display and cannot satisfy interpolation.
+
+Variant native verification: library 83/83 pass before adding one formatter
+regression; the final Variant-focused run passes 5/5 (including that additional
+regression), runtime_resume 25/25 and fresh WASM check 62 examples plus prior
+module/type/diagnostic checks pass. A fresh native CLI build and 19-source
+catalog run preserve every source hash and observable, still 7/19. Logs:
+target/r332-variant-native-{check,lib,focused-final,resume,wasm,cli-build}.log
+and target/r332-catalog-variant-native.log. Full package verification was last
+282/282 at the preceding primitive checkpoint; it was not repeated for this
+lower-layer-only slice. Original expectations were unchanged.
+
+Native Variant is now source-backed and executable through the explicit
+provisional machine API. The ordinary candidate path still rejects Variant at
+preflight. Next construct polarized Variant family terms and transport their
+payload rows before connecting a whole Case-domain boundary. Missing singleton
+tag pairs are not sufficient evidence of a closed-family mismatch or success.
+For original Button, a later conditional member obligation must also retain
+the actual Case input and its tag/arity guard through FreshUse; an unreachable
+label arm in a disabled-only instance cannot obtain a fabricated dictionary.
+No independent review, all-source closure or production promotion is claimed.

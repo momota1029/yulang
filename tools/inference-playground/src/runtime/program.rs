@@ -241,6 +241,7 @@ pub(super) enum CasePattern {
     Integer(Box<str>),
     Binder(yu_hir::shadow::LocalSourceCatchBinderId),
     Tuple(Vec<Option<yu_hir::shadow::LocalSourceCatchBinderId>>),
+    Variant { tag: Box<str>, payloads: Vec<Option<yu_hir::shadow::LocalSourceCatchBinderId>> },
     Wildcard,
 }
 #[derive(Clone)]
@@ -258,6 +259,7 @@ pub(super) enum Instruction {
     DecodedString(Box<str>),
     Primitive(yu_hir::shadow::PinnedPrimitiveOp),
     Tuple { elements: Vec<Label> },
+    Variant { tag: Box<str>, payloads: Vec<Label> },
     Record { fields: Vec<(Box<str>, Label)> },
     FieldTail {
         receiver: Label,
@@ -877,9 +879,9 @@ impl RuntimeProgram {
                     LocalSourceForm::Sequence { items } => Instruction::Sequence {
                         items: items.iter().map(label).collect::<Result<_, _>>()?,
                     },
-                    LocalSourceForm::Variant { .. } => return Err(RuntimeUnavailable::UnsupportedVariant(SourceSite {
-                        source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
-                    })),
+                    LocalSourceForm::Variant { tag, payloads, .. } => Instruction::Variant {
+                        tag: tag.clone(), payloads: payloads.iter().map(label).collect::<Result<_, _>>()?,
+                    },
                     LocalSourceForm::Record { fields } => Instruction::Record {
                         fields: fields.iter().map(|field| Ok((field.label.clone(), label(&field.value)?))).collect::<Result<_, RuntimeUnavailable>>()?,
                     },
@@ -929,9 +931,12 @@ impl RuntimeProgram {
                                         yu_hir::shadow::LocalSourceCasePatternElement::Wildcard => None,
                                     }).collect())
                                 }
-                                yu_hir::shadow::LocalSourceCasePattern::Variant { .. } => return Err(RuntimeUnavailable::UnsupportedVariant(SourceSite {
-                                    source_root: source_root.clone(), occurrence: expression.occurrence.clone(), range: expression.range.clone(),
-                                })),
+                                yu_hir::shadow::LocalSourceCasePattern::Variant { tag, elements, .. } => CasePattern::Variant {
+                                    tag: tag.clone(), payloads: elements.iter().map(|element| match element {
+                                        yu_hir::shadow::LocalSourceCasePatternElement::Binder(binder) => Some(binder.id.clone()),
+                                        yu_hir::shadow::LocalSourceCasePatternElement::Wildcard => None,
+                                    }).collect(),
+                                },
                                 yu_hir::shadow::LocalSourceCasePattern::Wildcard => CasePattern::Wildcard,
                             };
                             Ok(CaseArm { pattern, body: label(&arm.body)? })
@@ -1262,7 +1267,7 @@ fn source_computation(code: &[Arc<Code>], root: Label) -> Result<bool, RuntimeUn
         match instruction {
             Instruction::Forward(inner) => pending.push(*inner),
             Instruction::Block { bindings, final_expression } if bindings.is_empty() => pending.push(*final_expression),
-            Instruction::Tuple { elements } => pending.extend(elements.iter().rev().copied()),
+            Instruction::Tuple { elements } | Instruction::Variant { payloads: elements, .. } => pending.extend(elements.iter().rev().copied()),
             Instruction::Record { fields } => pending.extend(fields.iter().rev().map(|(_, value)| *value)),
             Instruction::Apply { .. } | Instruction::If { .. } | Instruction::Catch { .. }
             | Instruction::Case { .. } | Instruction::Sequence { .. } | Instruction::Block { .. }
@@ -1765,7 +1770,7 @@ fn code_subtree_contains(code: &[Arc<Code>], root: Label, target: Label) -> bool
                 for (test, body) in arms { stack.push(*body); stack.push(*test); }
             }
             Instruction::Sequence { items } => stack.extend(items.iter().rev().copied()),
-            Instruction::Tuple { elements } => stack.extend(elements.iter().rev().copied()),
+            Instruction::Tuple { elements } | Instruction::Variant { payloads: elements, .. } => stack.extend(elements.iter().rev().copied()),
             Instruction::Record { fields } => stack.extend(fields.iter().rev().map(|(_, child)| *child)),
             Instruction::FieldTail { receiver, .. } => stack.push(*receiver),
             Instruction::OperatorApplication { left, right, .. } => {

@@ -89,6 +89,8 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                 }
             }
             Instruction::Case { arms, .. } => {
+                // Variant negative-visibility coverage is a separate proof gate.
+                if arms.iter().any(|arm| matches!(arm.pattern, super::program::CasePattern::Variant { .. })) { return false; }
                 if arms.iter().any(|arm| matches!(arm.pattern, super::program::CasePattern::Wildcard | super::program::CasePattern::Binder(_))) {
                     // Integer tests and total binders are closed local primitive patterns.
                 } else {
@@ -234,7 +236,8 @@ pub(super) fn closed_primitive(program: &RuntimeProgram) -> bool {
                     work.push(Visit::Enter(arm.body, Role::Ground));
                 }
             }
-            Instruction::Lambda { .. } | Instruction::Primitive(_) | Instruction::Operation(_) => return false,
+            Instruction::Lambda { .. } | Instruction::Primitive(_) | Instruction::Operation(_)
+            | Instruction::Variant { .. } => return false,
         }
     }
     // Orphaned retained code cannot escape the whole-universe check.

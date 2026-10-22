@@ -360,6 +360,17 @@ fn render_runtime_value(
                     runtime::RuntimeValueKind::Boolean(value) => write!(output, "{value}")?,
                     runtime::RuntimeValueKind::String(value) => write!(output, "{value:?}")?,
                     runtime::RuntimeValueKind::Primitive(operation) => write!(output, "<primitive {operation:?}>")?,
+                    runtime::RuntimeValueKind::Variant { tag, payloads } => {
+                        write!(output, ":{tag}")?;
+                        if !payloads.is_empty() {
+                            output.write_char('(')?;
+                            pending.push(Item::Text(")"));
+                            for (index, element) in payloads.iter().enumerate().rev() {
+                                pending.push(Item::Value(element.value()));
+                                if index > 0 { pending.push(Item::Text(", ")); }
+                            }
+                        }
+                    }
                     runtime::RuntimeValueKind::Record(fields) => {
                         output.write_char('{')?;
                         pending.push(Item::Text("}"));

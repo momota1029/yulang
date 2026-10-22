@@ -119,6 +119,7 @@ pub enum RuntimeValueKind {
     String(Box<str>),
     Primitive(yu_hir::shadow::PinnedPrimitiveOp),
     Tuple(Vec<TupleElement>),
+    Variant { tag: Box<str>, payloads: Vec<TupleElement> },
     Record(Vec<(Box<str>, TupleElement)>),
     Closure,
     Computation,
@@ -718,7 +719,7 @@ impl Machine {
                     self.data(site, RuntimeValueKind::Record(Vec::new()), None);
                 }
             }
-            Instruction::Tuple { elements } => {
+            Instruction::Tuple { elements } | Instruction::Variant { payloads: elements, .. } => {
                 if let Some(first) = elements.first().copied() {
                     self.frames.push(Frame::Tuple {
                         tuple: code,
@@ -728,7 +729,11 @@ impl Machine {
                     });
                     self.state = State::Evaluate { code: first, environment };
                 } else {
-                    self.data(site, RuntimeValueKind::Tuple(Vec::new()), None);
+                    let value = match &code.instruction {
+                        Instruction::Variant { tag, .. } => RuntimeValueKind::Variant { tag: tag.clone(), payloads: Vec::new() },
+                        _ => RuntimeValueKind::Tuple(Vec::new()),
+                    };
+                    self.data(site, value, None);
                 }
             }
             Instruction::FieldTail { receiver, .. } if self.program.dictionaries.is_some() => {
@@ -1560,8 +1565,9 @@ impl Machine {
                     previous,
                     received,
                 });
-                let Instruction::Tuple { elements } = &tuple.instruction else {
-                    unreachable!()
+                let elements = match &tuple.instruction {
+                    Instruction::Tuple { elements } | Instruction::Variant { payloads: elements, .. } => elements,
+                    _ => unreachable!(),
                 };
                 if let Some(element) = elements.get(next).copied() {
                     self.frames.push(Frame::Tuple {
@@ -1580,8 +1586,13 @@ impl Machine {
                         reversed.push(TupleElement { received: node.received });
                         cursor = node.previous;
                     }
+                    if reversed.len() != elements.len() { return Err(RuntimeUnavailable::InvalidSourceReference); }
                     reversed.reverse();
-                    self.data(&tuple.site, RuntimeValueKind::Tuple(reversed), None);
+                    let value = match &tuple.instruction {
+                        Instruction::Variant { tag, .. } => RuntimeValueKind::Variant { tag: tag.clone(), payloads: reversed },
+                        _ => RuntimeValueKind::Tuple(reversed),
+                    };
+                    self.data(&tuple.site, value, None);
                 }
             }
             Frame::Case { case, environment } => {
@@ -1596,6 +1607,9 @@ impl Machine {
                         (CasePattern::Tuple(patterns), RuntimeValueKind::Tuple(elements)) => {
                             patterns.len() == elements.len()
                         }
+                        (CasePattern::Variant { tag, payloads }, RuntimeValueKind::Variant { tag: actual, payloads: elements }) => {
+                            tag == actual && payloads.len() == elements.len()
+                        }
                         (CasePattern::Wildcard, _) => true,
                         _ => false,
                     })
@@ -1608,10 +1622,11 @@ impl Machine {
                             Binder::Catch(id.clone()),
                             ReceivedValue { dispatch: received.dispatch, value: received.value, interface: ParameterRole::Value, view: received.view },
                         ),
-                        CasePattern::Tuple(patterns) => {
+                        CasePattern::Tuple(patterns) | CasePattern::Variant { payloads: patterns, .. } => {
                             let bindings = {
-                                let RuntimeValueKind::Tuple(elements) = &self.values[received.value.0].kind else {
-                                    unreachable!("the selected tuple pattern matched a tuple value")
+                                let elements = match &self.values[received.value.0].kind {
+                                    RuntimeValueKind::Tuple(elements) | RuntimeValueKind::Variant { payloads: elements, .. } => elements,
+                                    _ => unreachable!("the selected structural pattern matched its value"),
                                 };
                                 patterns.iter().zip(elements).filter_map(|(pattern, element)| {
                                     pattern.as_ref().map(|id| (id.clone(), element.received))
@@ -2800,6 +2815,85 @@ mod module_expression_tests {
                 )
             })
             .count()
+    }
+
+    #[test]
+    fn variant_native_matching_checks_tag_arity_order_and_original_binders() {
+        for (source, expected) in [
+            ("my main = case :disabled: :disabled -> 7, _ -> 0", "7"),
+            ("my main = case :pair(1,2): :other(x,y) -> 99, :pair(x) -> 98, :pair(left,right) -> right", "2"),
+            ("my main = case :pair(1,2): :pair(_,right) -> right, :pair(left,_) -> left", "2"),
+            ("my main = case :wrap (\\x -> x): :wrap f -> f 7", "7"),
+            ("my main = case :disabled(): :disabled -> 99, :disabled _ -> 7", "7"),
+            ("my main = case :other 3: :pair x -> x, _ -> 7", "7"),
+        ] {
+            let mut machine = machine(source, true);
+            assert!(!machine.program.closed_primitive, "new shapes confer no old negative-visibility certificate");
+            let RuntimeOutcome::Completed(value) = machine.run(10_000) else { panic!("variant native source: {source}"); };
+            assert!(matches!(&machine.value(value).unwrap().kind,
+                RuntimeValueKind::Integer(value) if value.as_ref() == expected), "{source}");
+        }
+        for source in [
+            "my main = case :some 1: :none -> 0",
+            "my main = case :pair(1,2): :pair x -> x",
+        ] {
+            assert!(matches!(machine(source, true).run(10_000),
+                RuntimeOutcome::Unavailable(RuntimeUnavailable::NonExhaustiveCase(_))), "{source}");
+        }
+    }
+
+    #[test]
+    fn variant_result_rendering_keeps_tag_and_payload_arity() {
+        for (expression, expected) in [
+            (":disabled", ":disabled"),
+            (":disabled()", ":disabled(())"),
+            (":pair(41,23)", ":pair(41, 23)"),
+        ] {
+            let mut machine = machine(&format!("my main = {expression}"), true);
+            let RuntimeOutcome::Completed(value) = machine.run(10_000) else { panic!("variant result"); };
+            let mut output = crate::Output::new();
+            crate::render_runtime_value(&machine, value, &mut output).unwrap();
+            assert_eq!(output.finish().unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn variant_payload_projection_preserves_the_received_values_and_views() {
+        let mut machine = machine("my main = case :pair(1,2): :pair(left,right) -> (right,left)", true);
+        let RuntimeOutcome::Completed(value) = machine.run(10_000) else { panic!("variant projection"); };
+        let RuntimeValueKind::Tuple(result) = &machine.value(value).unwrap().kind else { panic!("projected tuple"); };
+        let payloads = machine.values.iter().find_map(|value| match &value.kind {
+            RuntimeValueKind::Variant { tag, payloads } if tag.as_ref() == "pair" => Some(payloads), _ => None,
+        }).unwrap();
+        for (output, input) in result.iter().zip(payloads.iter().rev()) {
+            assert_eq!(output.received.value, input.received.value);
+            assert_eq!(output.received.view, input.received.view);
+            assert_eq!(output.received.interface, input.received.interface);
+            assert!(machine.receiving.matches_value(output.received.view, output.received.value));
+        }
+    }
+
+    #[test]
+    fn variant_prefix_survives_repeated_raw_resumption_without_replaying_children() {
+        let source = "act io:\n    our tick: int -> int\nmy relay (thunk:[io] 'a) = catch thunk { io::tick(p), k -> { k 11; k 23 } }\nmy main = relay (:pair(41, io::tick 0))";
+        let mut machine = machine(source, true);
+        let mut completed = None;
+        for _ in 0..10_000 {
+            match machine.run(1) {
+                RuntimeOutcome::Running | RuntimeOutcome::ResourceExhausted { .. } => {},
+                RuntimeOutcome::Completed(value) => { completed = Some(value); break; },
+                other => panic!("variant resume: {other:?}"),
+            }
+        }
+        let RuntimeValueKind::Variant { tag, payloads } = &machine.value(completed.expect("variant completion")).unwrap().kind else { panic!("tagged result"); };
+        assert_eq!(tag.as_ref(), "pair");
+        assert_eq!(payloads.len(), 2);
+        for (payload, expected) in payloads.iter().zip(["41", "23"]) {
+            assert!(matches!(&machine.value(payload.value()).unwrap().kind,
+                RuntimeValueKind::Integer(value) if value.as_ref() == expected));
+            assert!(machine.receiving.matches_value(payload.received.view, payload.received.value));
+        }
+        assert_eq!(integer_count(&machine, "41"), 1, "the captured prefix is reused by both resumes");
     }
 
     #[test]
