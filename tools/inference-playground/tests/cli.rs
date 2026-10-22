@@ -66,6 +66,56 @@ fn library_operator_dependencies_do_not_require_an_operator_in_the_caller() {
 }
 
 #[test]
+fn local_functions_retain_their_member_constraints() {
+    for (source, expected) in [
+        ("my main = { my add x = x + x; add 3 }\n", "6\n"),
+        ("my main = { my add x = x + x; add \"a\" }\n", "\"aa\"\n"),
+        ("my main = { my add x = x + x; my cat x = x + x; (add 3, cat \"a\") }\n", "(6, \"aa\")\n"),
+        ("my main = { my x = 1 + 2; x }\n", "3\n"),
+        ("my main = { my outer x = { my add y = y + y; add x }; outer 3 }\n", "6\n"),
+        ("my outer ignored = { my add x = x + x; add }\nmy main = outer () 3\n", "6\n"),
+        ("my main = { my show x = x.show; show 3 }\n", "\"3\"\n"),
+        ("my main = { my add x = x + x; (add 3, add 4) }\n", "(6, 8)\n"),
+        ("my outer x = { my unused = x.show; 1 }\nmy main = outer 3\n", "1\n"),
+    ] {
+        let output = cli_with_args(source, &["--run", "main", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, expected.as_bytes(), "source={source:?}");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
+fn local_role_wrappers_execute_through_module_entry() {
+    for source in [
+        "my main ignored = { my emit x = say x; emit (3, \"text\") }\nmain ()\n",
+        "{ my emit x = say x; emit (3, \"text\") }\n",
+    ] {
+        let output = cli_with_args(source, &["--run-module", "--steps", "100000"]);
+        assert!(output.status.success(), "source={source:?}: {}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, b"(3, text)\n");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
+fn local_initializer_effects_and_unused_constraints_are_preserved() {
+    let source = "my run ignored = { my unused = println \"init\"; say 1 }\nrun ()\n";
+    let output = cli_with_args(source, &["--run-module", "--steps", "100000"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    assert_eq!(output.stdout, b"init\n1\n");
+    for source in [
+        "my main = { my unused = 1 + false; 1 }\n",
+        "my main = { my local x = if true: 1 else: 1 + false; local () }\n",
+    ] {
+        let output = cli_with_args(source, &["--run-module", "--steps", "100000"]);
+        assert!(!output.status.success(), "source={source:?}");
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("candidate type conflicts"));
+    }
+}
+
+#[test]
 fn role_prerequisites_survive_enclosing_function_capture() {
     for (source, expected) in [
         ("my emit value = say value\nemit 3\n", "3\n"),

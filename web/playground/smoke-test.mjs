@@ -6,6 +6,9 @@ await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") }
 const examples = {
   ordinary: ["my identity x = x\nmy main = identity 7", "7\n"],
   capturedInitializer: ["my main = 1 + 2\n", "3\n"],
+  localMembers: ['my main = { my add x = x + x; my cat x = x + x; (add 3, cat "a") }\n', '(6, "aa")\n'],
+  nestedLocalMember: ["my main = { my outer x = { my add y = y + y; add x }; outer 3 }\n", "6\n"],
+  escapingLocalMember: ["my outer ignored = { my add x = x + x; add }\nmy main = outer () 3\n", "6\n"],
   closure: ["my make x = \\y -> x\nmy main = make 12 7", "12\n"],
   recursion: ["my loop condition = if condition: loop false else: 11\nmy main = loop true", "11\n"],
   moduleExpression: ["99\nmy main = 7", "7\n"],
@@ -101,6 +104,7 @@ for (const [source, expected] of [
   ['println "standalone"\n', ["standalone\n"]],
   ['my forward message = emit message\nmy emit message = println message\nforward "wrapped"\n', ["wrapped\n"]],
   ['my forward value = emit value\nmy emit value = say value\nforward (3, "text")\n', ["(3, text)\n"]],
+  ['{ my emit x = say x; emit (3, "text") }\n', ["(3, text)\n"]],
 ]) {
   const report = JSON.parse(run_module_report(source, 100_000));
   if (JSON.stringify(report.events) !== JSON.stringify(expected)) {

@@ -381,8 +381,11 @@ pub(super) enum Action {
     Candidate(usize),
     Operator(usize),
     Lambda(usize),
+    BeginLambda,
+    EndLambda,
     Module(HirOccurrenceId),
     Local { slot: usize, occurrence: HirOccurrenceId, value: usize, level: u32 },
+    BeginLocal { slot: usize },
     Install { slot: usize, initializer: CandidateEndpoint, boundary: u32 },
     Operation { declaration: Arc<yu_hir::shadow::SourceOperationDeclaration>, owner: SourceRootId, occurrence: HirOccurrenceId, target: usize, level: u32 },
     Primitive { operation: yu_hir::shadow::PinnedPrimitiveOp, owner: SourceRootId, position: yu_hir::shadow::SourceNodeKey, occurrence: HirOccurrenceId, target: usize, level: u32 },
@@ -1216,6 +1219,7 @@ impl ConstraintBatch {
                         }
                         LocalSourceForm::Group { inner } | LocalSourceForm::Ascription { inner, .. } => push(&mut work, Work::Visit(inner.ordinal() as usize, level, region))?,
                         LocalSourceForm::Lambda { parameter, body } => {
+                            push(&mut actions, Action::BeginLambda)?;
                             let position = *parameters.get(&parameter.id).ok_or_else(invalid)?;
                             self.candidate_source.parameter_levels.try_reserve(1).map_err(|_| unavailable())?;
                             self.candidate_source.parameter_levels.insert(position, level);
@@ -1373,6 +1377,7 @@ impl ConstraintBatch {
                         self.candidate_source.local_regions.insert(source.bindings()[binding].id.clone(), region);
                     }
                     let binding = &source.bindings()[binding];
+                    push(&mut actions, Action::BeginLocal { slot: local_slots[&binding.id] })?;
                     if !binding.parameters.is_empty() {
                         active_initializers.insert(binding.id.clone(), endpoints[binding.initializer.ordinal() as usize]);
                     }
@@ -1882,6 +1887,7 @@ impl ConstraintBatch {
                             self.counters.emitted_facts = self.counters.emitted_facts.checked_add(count).ok_or_else(unavailable)?;
                             self.counters.generated_work_items = self.counters.generated_work_items.checked_add(count).ok_or_else(unavailable)?;
                             push(&mut actions, Action::Lambda(recipe))?;
+                            push(&mut actions, Action::EndLambda)?;
                             continue;
                         }
                         LocalSourceForm::Block { final_expression, .. } => {
@@ -2128,7 +2134,9 @@ impl InferenceSession {
     }
     pub(super) fn begin_candidate_source(&mut self, schedule: Schedule) -> Result<(), SolveAvailabilityError> {
         let state = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?;
-        if state.source.is_some() { return Err(SolveAvailabilityError::IdentityExhausted); }
+        if state.source.is_some() || !state.local_capture_stack.is_empty() || state.source_lambda_depth != 0 {
+            return Err(SolveAvailabilityError::IdentityExhausted);
+        }
         state.source = Some(Frame { schedule, next: 0, stage: Stage::Execute, wait: None, registration: None });
         if let Err(error) = self.sample_f4_resources(ResourceBoundary::SourceDrafts) {
             self.candidate_graph.as_mut().unwrap().source = None;
@@ -2188,6 +2196,10 @@ impl InferenceSession {
             }
         };
         let Some(action) = actions.get(frame.next).cloned() else {
+            let state = self.candidate_graph.as_ref().unwrap();
+            if !state.local_capture_stack.is_empty() || state.source_lambda_depth != 0 {
+                return Err(SolveAvailabilityError::ReceiptMismatch);
+            }
             self.candidate_graph.as_mut().unwrap().source = None;
             return Ok(CandidateRun::Complete(true));
         };
@@ -2231,6 +2243,14 @@ impl InferenceSession {
                 Action::Candidate(index) => { let recipe = self.batch.candidate_recipes[*index].clone(); self.admit_candidate_fact(&recipe)?; }
                 Action::Operator(index) => self.execute_candidate_operator_use(*index)?,
                 Action::Lambda(index) => { let recipe = self.batch.lambda_recipes[*index].clone(); self.admit_lambda_fact(&recipe)?; }
+                Action::BeginLambda => {
+                    let state = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                    state.source_lambda_depth = state.source_lambda_depth.checked_add(1).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+                }
+                Action::EndLambda => {
+                    let state = self.candidate_graph.as_mut().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                    state.source_lambda_depth = state.source_lambda_depth.checked_sub(1).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+                }
                 Action::Module(occurrence) => {
                     let id = DefinitionUseId::new(self.batch.collection_artifact.clone(), occurrence.clone());
                     if self.batch.definition_use_positions.contains_key(&id) {
@@ -2240,6 +2260,7 @@ impl InferenceSession {
                 }
                 Action::LocalAnnotation { annotation, slot, endpoint, computation_effect, occurrence, level, boundary } => self.candidate_local_annotation(annotation, *slot, *endpoint, occurrence, *level, *boundary, *computation_effect)?,
                 Action::Local { slot, occurrence, value, level } => self.route_candidate_local(*slot, occurrence, *value, *level)?,
+                Action::BeginLocal { slot } => self.begin_candidate_local_capture(*slot)?,
                 Action::Install { slot, initializer, boundary } => self.install_candidate_local(*slot, *initializer, *boundary)?,
                 Action::CatchOperation { declaration, owner, occurrence, payload, continuation, original, effect, level, h_arg } => self.candidate_catch_operation(declaration, owner, occurrence, *payload, *continuation, *original, *effect, *level, h_arg.as_ref())?,
                 Action::FieldBoundV1 { declaration, h_arg } => self.candidate_field_bound_v1(declaration, h_arg)?,

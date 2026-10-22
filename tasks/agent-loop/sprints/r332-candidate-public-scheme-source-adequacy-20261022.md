@@ -104,3 +104,23 @@ retains exact role prerequisites and matching closed primitive frontier bounds.
 Native 219/219, fresh WASM and TypeScript pass; the solver filter is 14 pass with
 the same six baseline failures. Local initializer descriptor ownership and
 operator/member role FreshUse transport remain next steps; review is UNREVIEWED.
+
+Continuation from `767e5d83e`: use the remaining 2445 seconds for exact
+source-bracketed local initializer descriptor ownership, local FreshUse transport,
+and the same retained-template propagation rule. Existing primary leases apply,
+including candidate_source.rs, candidate_scheme.rs and the local/role publication
+checks in shadow_apply.rs. No new semantics, runtime shape dispatch or review
+claim is authorized.
+
+The same local lifecycle repair extends the held `crates/yu-solver/src/lib.rs`
+lease to journal whether local publication closed an initializer bracket, so a
+failed private publication restores that existing source marker. Operator
+FieldTail provenance is retained at its introducing source action and copied
+through schemes, avoiding reconstruction from fresh receiver-row equality.
+
+Fifth continuation checkpoint: source initializer/Lambda brackets retain local
+role and FieldTail descriptors, preserve initializer constraints in the enclosing
+computation, and transport exact operator origins. Local/nested/escaping member
+functions execute. Native 222 tests, fresh WASM 17 examples, TypeScript and 57
+static tooling tests pass; solver focus is 17 pass with six baseline failures.
+The five-edge role-frontier and runtime counterexamples in the note remain OPEN.

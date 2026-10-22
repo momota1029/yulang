@@ -8383,7 +8383,7 @@ struct RouteMutationJournal {
     candidate_local_routes_allocation: Option<Vec<candidate_scheme::LocalFreshRoute>>,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_local_use: Option<candidate_scheme::LocalUseCursor>,
-    candidate_local_slots: Vec<usize>,
+    candidate_local_slots: Vec<(usize, bool)>,
     #[cfg(feature = "shadow-apply-candidate")]
     candidate_source: Option<candidate_source::Frame>,
     #[cfg(feature = "shadow-apply-candidate")]
@@ -8433,7 +8433,7 @@ impl RouteMutationJournal {
             std::mem::size_of::<EffectRowUndo>(),
             std::mem::size_of::<u32>(),
             std::mem::size_of::<u32>(),
-            std::mem::size_of::<usize>(),
+            std::mem::size_of::<(usize, bool)>(),
             std::mem::size_of::<TypedPairKey>(),
             std::mem::size_of::<(ConstraintOccurrenceId, SolverErrorKind)>(),
         ]))
@@ -8478,7 +8478,7 @@ impl RouteMutationJournal {
             std::mem::size_of::<EffectRowUndo>(),
             std::mem::size_of::<u32>(),
             std::mem::size_of::<u32>(),
-            std::mem::size_of::<usize>(),
+            std::mem::size_of::<(usize, bool)>(),
             std::mem::size_of::<TypedPairKey>(),
             std::mem::size_of::<(ConstraintOccurrenceId, SolverErrorKind)>(),
         ];
@@ -9655,8 +9655,9 @@ impl InferenceSession {
                 state.local_use.last_mut().ok_or(SolveAvailabilityError::IdentityExhausted)?.cursor = cursor;
             } else { state.local_use.clear(); }
 
-            for slot in journal.candidate_local_slots.drain(..) {
+            for (slot, closed_capture) in journal.candidate_local_slots.drain(..).rev() {
                 state.locals[slot] = None;
+                if closed_capture { state.local_capture_stack.push(slot); }
             }
             for index in journal.candidate_local_routes_len..state.local_routes.len() {
                 let occurrence = state.local_routes[index].occurrence.clone();

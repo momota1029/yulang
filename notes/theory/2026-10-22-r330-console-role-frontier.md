@@ -604,3 +604,131 @@ need the corresponding transport extension. Uncalled generic runtime bodies
 also remain open. Only the direct primary authored this checkpoint; independent
 review is UNREVIEWED. Original source/native and A/B obligations, accepted public
 schemes, the full unchanged Yulang2 catalog, and production remain OPEN.
+
+
+### Local initializer ownership construction
+
+The current local repair uses source-scheduled initializer brackets. Collection
+emits `BeginLocal(slot)` before visiting the exact binding initializer, and its
+existing `Install(slot)` closes that bracket after all initializer actions.
+The source traversal is a stack, so induction on nested blocks gives properly
+nested brackets with the same authentic HirLocalId at both ends. While a
+bracket is active, descriptors received by that source root belong to its
+innermost initializer; descriptors owned by another source root remain there.
+Completed inner schemes keep their own descriptors. Only an actual inner local
+use transfers a fresh image into the enclosing initializer. Consequently an
+unused inner generic body's independent obligations are not accidentally made
+active by calling its enclosing function.
+
+Local capture must retain those exact descriptors with its live root and
+boundary, then use the same FreshUse row map for the root, all four FieldTail
+ports and each prerequisite subject. The pure existing module prerequisite
+check can be shared. Local templates, like definition templates, participate in
+member propagation, with unresolved latent templates retained at their actual
+capture owner and concrete active uses still required to discharge. This is a
+provisional source-ownership/transport construction under the existing capture
+premises, not a proof of general local generalization or original A/B closure.
+
+
+The implementation retains one descriptor bucket per authentic local slot and
+an initializer stack. `retain_source_role_obligation_for` and
+`retain_source_field_tail_obligation` select the innermost matching source owner
+at insertion; `Install` closes only its own bracket. Nested local use consumes
+the stored descriptors and activates their exact FreshUse images in the current
+caller bucket. The original module prerequisite validator is now a pure shared
+helper. The reciprocal role-frontier witness also reads retained LocalFreshRoute
+maps under the identical unique-source/same-row conditions. Local templates join
+the existing propagation queue; owner tags distinguish definition recapture
+from local descriptor retention. Ordinary active obligations remain mandatory.
+Initializer markers add O(depth) live stack space and O(1) amortized push/pop
+work; retained metadata adds O(locals + descriptors + role/member payloads)
+space; duplicate-marker validation scans at most the current nesting depth. Insertion accounting measures capacity deltas rather than rescanning
+all previous initializer descriptors. Existing descriptor-deduplication and
+bounded graph capture costs remain; this is not a new whole-solver complexity
+claim. Failed local publication records whether it closed a bracket in the
+existing route journal, restoring that marker on rollback without synthesizing
+a new source action.
+
+A second source correspondence defect became visible with two different local
+functions using `+`, one at int and one at str. Inference selected both exact
+members, but runtime export tried to recover each operator source occurrence by
+comparing the selected receiver with the original operator FreshUse row. Local
+FreshUse had correctly copied that row, so both selections lost their distinct
+call sites and collided. `OperatorFieldTailOrigin` now records the authentic
+introducing operator owner/occurrence at `execute_candidate_operator_use`, travels
+unchanged with the descriptor through capture and FreshUse, and reaches the
+selected MemberFreshUse. Export verifies it against the retained operator-use
+inventory and returns that exact source key. No type shape chooses the origin.
+The descriptor-work identity includes this origin so equal row constraints
+cannot discard distinct runtime source uses. This repairs the dropped-fact
+premise of the conditional source-to-runtime identity bridge; polymorphic
+specializations at one identical operator source site still need their own
+runtime call-context construction.
+
+Observed remaining counterexamples (not source restrictions):
+
+- `my main = { my emit x = say x; emit (3, "text") }` with `--run main`
+  reaches runtime `ContinuationMaterialization` because capture_template refuses
+  a GlobalRead/Root frame in the continuation suffix. The local role obligation
+  now solves. The same local body called from a top-level function or expression
+  executes with `(3, text)\n`; the runtime initializer case remains OPEN.
+- `my main = { my add x = x + x; (add 3, add "a") }` reaches runtime
+  `InvalidSourceReference`: two specializations of the *same* source operator
+  site require runtime call-context evidence. Distinct local operator source
+  sites now execute independently and correctly.
+- `my outer x = { my unused y = y + y; x }; outer 3` still fails eager
+  runtime construction with `UnsupportedFieldTail` in the uncalled generic
+  body. Source-level descriptor ownership no longer activates that unused
+  body's constraint in the caller. A general runtime body construction repair
+  remains necessary.
+
+
+A source-coverage check found that retaining all initializer descriptors only
+in the local scheme would drop an *executed* initializer when its value is
+unused. The final construction also brackets each source Lambda. Descriptor
+insertion records whether its lexical lambda depth equals the active
+initializer's entry depth; those initializer-computation descriptors are copied
+into the enclosing bucket when Install closes the local bracket. Descriptors
+beneath a Lambda remain with the local value. The original local descriptors
+are retained for local value FreshUse; one-shot effects still flow through the
+existing initializer-to-block effect constraint, and local Name effects remain
+pure. This follows the source evaluation/abstraction boundary without inspecting
+inferred shapes or constant-folding branches. The pure counterexample
+`my outer x = { my unused = x.show; 1 }; my main = outer 3` now executes, and
+constant output initializers execute once even when their values are unused.
+
+The related source `my outer x = { my unused = say x; 1 }; outer 3` remains
+OPEN at the existing role-frontier gate: its instantiated show receiver has
+complete positive Int evidence and one matching target, but five reachable
+negative row edges (zero negative primitive bounds), so the sole reciprocal
+edge exception does not apply. Temporary readback code was removed; the
+observation is `/tmp/yulang-r332-local-eager-trace.log`. No gate was weakened and
+no failing output was changed to an accepted expected error. This is a separate
+source-qualified premise for generalizing the role-frontier proof, alongside
+the runtime counterexamples above.
+
+
+Final validation for this local-capture checkpoint: all 222 native playground
+tests pass (53 library, 35 CLI, 134 other integration tests). The focused solver
+filter passes 17 and retains exactly the same six baseline failures, including
+the unchanged 1032-versus-744 accounting assertion. Three new solver tests check
+nested initializer ownership, retention of an eager unused initializer in its
+parent, exact descriptor row transport, incremental memory accounting, and
+restoration of the source bracket after a failed local publication. The existing
+`local_annotation_first_edge_failure_rolls_back_and_retries` test also passes.
+The final source Lambda markers and shared local transport passed the full
+native suite; only a subsequent private helper rename/comment cleanup preceded
+the fresh WASM build. Fresh WASM smoke passes 17 execution examples, the new
+local tuple-output report, and unchanged Types/Console outputs. TypeScript
+checking and all 57 sprint-tool simulation tests pass. Simulation checks do not
+constitute live workers or independent review.
+
+Logs: `/tmp/yulang-r332-local-native5.log`,
+`/tmp/yulang-r332-local-solver3.log`,
+`/tmp/yulang-r332-local-publication.log`, and
+`/tmp/yulang-r332-local-web.log`. Generated WASM/build products remain ignored;
+no deployment occurred. All work is direct-primary and UNREVIEWED. The next
+source/proof seam is the five-edge role frontier above; same-site polymorphic
+runtime calls, uncalled generic bodies, initializer continuations,
+operator/member role transport, the complete unchanged Yulang2 catalog,
+source/native correspondence, principal schemes, and original A/B remain OPEN.

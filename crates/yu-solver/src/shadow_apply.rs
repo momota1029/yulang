@@ -1021,39 +1021,18 @@ impl CandidateInference {
         let mut selected = Vec::new();
         selected.try_reserve_exact(graph.member_uses.len()).map_err(|_| ArtifactMismatch)?;
         for use_ in &graph.member_uses {
-            let mut operator_context = None;
-            // Active ownership follows enclosing captures. The immutable
-            // source owner still identifies the original operator RHS.
-            if let SourceRootId::Expression(provider) = &use_.source_owner {
-                if let Some(provider_graph) = graph.operator_graphs.get(provider) {
-                    for operator_use in graph.operator_uses.iter().filter(|operator_use|
-                        operator_use.provider == *provider
-                    ) {
-                        for (index, row_indexes) in &operator_use.fresh.source_field_tail_obligation_rows {
-                            let Some(obligation) = provider_graph.source_field_tail_obligations.get(*index) else {
-                                return Err(ArtifactMismatch);
-                            };
-                            if obligation.source_owner != use_.source_owner
-                                || obligation.occurrence != use_.occurrence
-                            {
-                                continue;
-                            }
-                            let Some(row) = operator_use.fresh.rows.get(row_indexes[0]).copied() else {
-                                return Err(ArtifactMismatch);
-                            };
-                            if graph.intrusion.rep(row) != graph.intrusion.rep(use_.receiver_row) {
-                                continue;
-                            }
-                            if operator_context.replace((
-                                &operator_use.use_owner,
-                                &operator_use.occurrence,
-                            )).is_some() {
-                                return Err(ArtifactMismatch);
-                            }
-                        }
-                    }
+            // The introducing operator action owns this source identity.
+            // Capture/FreshUse copy it together with the four FieldTail ports;
+            // copied row equality is not used to reconstruct a source call site.
+            let operator_context = if let Some(origin) = &use_.operator_origin {
+                let SourceRootId::Expression(provider) = &use_.source_owner else { return Err(ArtifactMismatch); };
+                if !graph.operator_uses.iter().any(|operator_use|
+                    operator_use.provider == *provider && operator_use.use_owner == origin.owner
+                        && operator_use.occurrence == origin.occurrence) {
+                    return Err(ArtifactMismatch);
                 }
-            }
+                Some((&origin.owner, &origin.occurrence))
+            } else { None };
             selected.push(CandidateSelectedFieldTailUse {
                 owner: &use_.owner,
                 source_owner: &use_.source_owner,
@@ -3554,6 +3533,7 @@ impl InferenceSession {
                 let obligation = crate::candidate_scheme::SourceFieldTailObligation {
                     owner,
                     source_owner,
+                    operator_origin: None,
                     occurrence: recipe.occurrence.clone(),
                     source: source.clone(),
                     member: member.clone(),
