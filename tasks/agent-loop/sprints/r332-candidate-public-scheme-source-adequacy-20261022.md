@@ -612,3 +612,33 @@ source occurrence. No inactive discharge enabled. Existing exact scheme/source/
 lib/shadow/playground leases cover the next finite Variant-key exclusion and
 publication revalidation. Unknown frontiers never establish unreachability;
 dormant templates remain. Direct-primary UNREVIEWED; original parent gates OPEN.
+
+Direct-sixteen continuation from `1b0ec8cdf`: the previous turn traced the
+missing source Call bridge and left the worktree clean/upstream-aligned. Preserve
+34042 charged seconds, discard the previous unused allowance at its boundary,
+and grant 3600 fresh direct-primary seconds (cumulative cap 37805; no carryover).
+The same source-to-graph outcome and exact leases remain in force. The immediate
+proof/code outcome is to connect an original Variant Apply argument through its
+retained CandidateEndpoint, ordinary argument reification and formal interface
+to the Case guard row under the same FreshUse map. Establish a finite closed
+domain only from that authenticated relation, then recheck after nested member
+dispatch. If ordinary Call construction cannot supply that bridge, identify its
+exact missing constructor/consumer and keep active unknown instances withheld.
+No narrowed source domain, new semantics, runtime shape dispatch, or production
+promotion is authorized. Primary only, one heavy verification at a time;
+independent review and all parent A/B/source-native/principality gates remain
+OPEN.
+
+
+Direct-sixteen experiment result: a readback-only source Call/Case-guard join was
+prototyped and rejected by its focused regression. The ordinary Apply recipe
+and native argument demand can be checked, but the original Button `:label` and
+`:disabled` calls still do not yield a matching guard witness after authenticating
+a local callee. The matcher assumed the relevant callee was a module Name; allowing
+a validated Local callee did not close the source-to-FreshUse row bridge. The
+prototype and failing expected-witness assertion were removed. This is negative
+evidence only: no Case exclusion, finite-domain conclusion, semantic change, or
+production result follows. Keep the exact source Call → local FreshRoute → formal
+argument image → Case guard row as the next open join, then test it before any
+conditional discharge. The focused test compiled but failed the new witness
+expectation; existing parent gates and sample expectations remain unchanged.
