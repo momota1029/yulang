@@ -3525,3 +3525,26 @@ premises exist, record `NO_SAFE_CODE_SLICE` for inactive discharge and keep
 the existing unknown rejection. This is an owner-specific obstruction, not a
 closed proof or production gate. The original A/B, source/native, principal
 scheme, independent review and full Yulang2 catalog requirements remain OPEN.
+
+### Source Call bridge is the next missing premise
+
+The actual Apply source owner retains both the argument `LocalSourceIndex` and
+its `CandidateEndpoint` in `candidate_source.rs` when it creates
+`ApplySourceInput`. `shadow_apply.rs` later attaches the generated native
+negative Function ports to that source record before admitting the constraint;
+its own comment says the join has no semantic consumer. `candidate_call.rs`
+authenticates the source Call and native port shape, but
+`PendingCallConstruction::suppliers` still lists `OriginalGenCall0`,
+`ArgumentReifyAndWholeCarrier`, and `ReceiverDispatchAndCompleteResultFutureInterfaces`
+as missing construction inputs. Therefore the retained source expression,
+candidate endpoint and native argument do not yet prove that a constructor's
+actual Variant is the instantiated formal row observed by a Case guard.
+
+The next proof/code packet is the exact source-call bridge: follow an original
+Variant argument from its source constructor through the generated Apply fact,
+the ordinary argument reification and callee/formal relation, and the same
+FreshUse image used by the Case guard. Only then can a finite domain be
+classified as actual and closed, and only after the nested member fixed point
+can an inactive branch be discharged. Until that bridge is established, the
+previous `NO_SAFE_CODE_SLICE` remains in force for branch discharge; the
+Candidate Call record is an observation request, not an accepted typing.
