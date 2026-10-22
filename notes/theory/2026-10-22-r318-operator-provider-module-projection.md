@@ -20,6 +20,8 @@ The regression uses a retained member-body infix operator and checks that projec
 
 Verification: focused operator projection test passed; `cargo test -p yu-playground --lib` passed 42/42; `python3 tools/agent_sprint.py check` and `git diff --check` passed. Existing `yu-hir` and `yu-solver` dependency warnings appeared during compilation and remain a separately owned audit item. No independent review was run; the result is solo and unreviewed.
 
+Git checkpoint: commit `49ea4006c` (`Project imported operator provider roots`). Push to `origin/research/simple-sub-intrusion` failed because `github.com` could not be resolved in this environment; the commit remains local.
+
 ## Proof correspondence
 
 For every projected operator root, retain the chain:
