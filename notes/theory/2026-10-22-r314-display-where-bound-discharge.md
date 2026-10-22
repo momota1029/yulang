@@ -47,6 +47,10 @@ HIR now has an exact-source-key member projection entry point. Its focused test 
 
 ## Evidence and open gates
 
+### Exact member-body admission boundary
+
+The exact pinned fmt HIR inventory distinguishes two related source-owned members. `Display.say` has a retained role-member identity, but its body carrier is `Unsupported(UnsupportedForm)` at the operator-form constructor. The ordered-pair implementation's `Display.show` member also has an exact retained implementation-member identity, but its body carrier is `Unsupported(UnsupportedForm)` at the tuple-pattern constructor. The regression at `tools/inference-playground/src/lib.rs` checks both outcomes against the exact indexed source ranges. Candidate collection schedules only `SourceCarrierOutcome::Supported`, so these two members cannot currently produce captured member graphs. This is the concrete reason the selected-member HIR cannot reach candidate FieldTail/FreshUse discharge; keep the original sample deferred until the source constructors are represented and admitted without changing source bytes or lookup semantics.
+
 - `cargo test -p yu-playground --lib unchanged_types_sample_reads_receiver_bounds_from_its_pinned_module_session -- --nocapture`: passed. The exact pinned module session finds ordered `(Int, Str)`, target `('a, 'b)`, substitutions `'a = int` and `'b = str`, and both exact `Display` where-role identities. Each where subject has one matching source implementation (`int` / `str`) with no further prerequisites. The complete exact-role inventory has 16 implementations across `fmt`, `text::path`, and `time`; three application targets remain unshaped, so `unsupported_target_count = 3`. Ordinary inference still returns `DeferredSelectionUnavailable`.
 - `cargo test -p yu-hir --lib`: 163 passed, including the existing cross-module role identity test.
 - `cargo test -p yu-playground --lib`: 41 passed.
