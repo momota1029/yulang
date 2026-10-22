@@ -2193,12 +2193,17 @@ impl InferenceSession {
             bytes::<u32>(capture.shape_effect_rows.capacity())?,
             bytes::<candidate_context::RelationId>(capture.completed_lambda_effect_origins.capacity())?,
         ])?;
-        if capture.session.batch.candidate_source.scoped_experiment {
-            capture.graph.negative_functions.try_reserve(capture.endpoints.len()).map_err(|_| exhausted())?;
-            for (&endpoint, &index) in &capture.endpoints {
-                if let Endpoint::Value(ValueEndpointKey::NegativeFunction(term), Polarity::Negative) = endpoint {
-                    capture.graph.negative_functions.insert(term, index);
-                }
+        // Retain only negative Function roots needed to connect source-owned
+        // formal permissions. Keeping every negative Function here made the
+        // public graph's memory scale with all captured endpoints even when
+        // no formal effect annotation used them.
+        let formal_domains = &capture.session.candidate_graph.as_ref()
+            .ok_or_else(exhausted)?.intrusion.effect_algebra.formal_domains;
+        capture.graph.negative_functions.try_reserve(formal_domains.len()).map_err(|_| exhausted())?;
+        for &term in formal_domains.values() {
+            let endpoint = Endpoint::Value(ValueEndpointKey::NegativeFunction(term), Polarity::Negative);
+            if let Some(&index) = capture.endpoints.get(&endpoint) {
+                capture.graph.negative_functions.insert(term, index);
             }
         }
         let graph_bytes = capture.graph.bytes()?;

@@ -1,4 +1,4 @@
-import init, { infer, run } from "./wasm/yulang_wasm.js";
+import init, { infer_types, run, run_module } from "./wasm/yulang_wasm.js";
 import "./style.css";
 import yulang2IdentityIsland from "../examples/yulang2-identity-island.yu?raw";
 import yulang2TypeMismatch from "../examples/yulang2-type-mismatch.yu?raw";
@@ -7,7 +7,12 @@ import yulang2OrdinaryIslands from "../examples/yulang2-ordinary-islands.yu?raw"
 import repeatedChoice from "../examples/repeated-choice.yu?raw";
 import polymorphicEscapingClosure from "../examples/polymorphic-escaping-closure.yu?raw";
 
+const yulang2Types = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
+const yulang2Console = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
+
 const examples: Record<string, string> = {
+  yulang2_types: yulang2Types,
+  yulang2_console: yulang2Console,
   yulang2_identity_island: yulang2IdentityIsland,
   yulang2_type_mismatch: yulang2TypeMismatch,
   yulang2_parameter_provenance: yulang2ParameterProvenance,
@@ -40,6 +45,7 @@ const title = document.querySelector<HTMLElement>("#output-title")!;
 const status = document.querySelector<HTMLElement>("#status")!;
 const inferButton = document.querySelector<HTMLButtonElement>("#infer")!;
 const runButton = document.querySelector<HTMLButtonElement>("#run")!;
+const definitionLabel = definition.closest("label")!;
 
 source.value = examples.yulang2_identity_island;
 
@@ -50,12 +56,12 @@ function showResult(label: string, value: string, failed = false): void {
   output.textContent = value;
 }
 
-async function withBusy(action: () => string): Promise<void> {
+async function withBusy(label: string, action: () => string): Promise<void> {
   inferButton.disabled = true;
   runButton.disabled = true;
   try {
     await init();
-    showResult("Result", action());
+    showResult(label, action());
   } catch (error) {
     showResult("Could not complete", String(error), true);
   } finally {
@@ -67,7 +73,9 @@ async function withBusy(action: () => string): Promise<void> {
 document.querySelector<HTMLSelectElement>("#example")!.addEventListener("change", (event) => {
   const selected = (event.currentTarget as HTMLSelectElement).value;
   source.value = examples[selected] ?? examples.ordinary;
-  definition.value = selected === "yulang2_identity_island"
+  const wholeModule = selected === "yulang2_types" || selected === "yulang2_console";
+  definitionLabel.hidden = wholeModule;
+  definition.value = wholeModule ? "" : selected === "yulang2_identity_island"
     ? "int_identity"
     : selected === "yulang2_ordinary_islands"
       ? "countdown_result"
@@ -75,9 +83,17 @@ document.querySelector<HTMLSelectElement>("#example")!.addEventListener("change"
 });
 
 inferButton.addEventListener("click", () => {
-  void withBusy(() => infer(source.value));
+  void withBusy("Candidate types and effects", () => infer_types(source.value));
 });
 
 runButton.addEventListener("click", () => {
-  void withBusy(() => run(source.value, definition.value.trim() || "main", 100_000));
+  const selected = document.querySelector<HTMLSelectElement>("#example")!.value;
+  if (selected === "yulang2_types" || selected === "yulang2_console") {
+    void withBusy("Module output events", () => {
+      const events = JSON.parse(run_module(source.value, 100_000)) as string[];
+      return events.map((payload, index) => `${index + 1}: ${JSON.stringify(payload)}`).join("\n");
+    });
+  } else {
+    void withBusy("Runtime result", () => run(source.value, definition.value.trim() || "main", 100_000));
+  }
 });

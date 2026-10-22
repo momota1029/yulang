@@ -2,7 +2,10 @@ use std::{
     io::Write,
     process::{Command, Stdio},
 };
-use yu_playground::{INPUT_CAP, infer, infer_with_intrusion, location, read_source};
+use yu_playground::{
+    INPUT_CAP, execute_module_events, infer, infer_types, infer_with_intrusion, location,
+    read_source,
+};
 
 fn cli(source: &str) -> std::process::Output {
     cli_with_args(source, &[])
@@ -44,6 +47,36 @@ fn unchanged_yulang2_console_sample_runs_through_the_cli() {
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.stdout, b"hello from Yulang\n3\n");
     assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn unchanged_yulang2_samples_preserve_ordered_module_write_events() {
+    let types = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
+    let console = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
+    assert_eq!(
+        execute_module_events(types, "types.yu", 100_000, false).unwrap(),
+        ["(42, Yulang)\n"]
+    );
+    assert_eq!(
+        execute_module_events(console, "console.yu", 100_000, false).unwrap(),
+        ["hello from Yulang\n", "3\n"]
+    );
+}
+
+#[test]
+fn unchanged_yulang2_types_sample_exposes_candidate_public_types() {
+    let source = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
+    let output = infer_types(source, "types.yu").unwrap();
+    assert!(output.contains("id: ∀"), "{output}");
+    assert!(output.contains("answer: int"), "{output}");
+    assert!(!output.contains("answer: ∀"), "ground exports do not quantify internal candidate rows: {output}");
+    assert!(output.contains("name: str"), "{output}");
+    assert!(!output.contains("name: ∀"), "ground exports do not quantify internal candidate rows: {output}");
+    assert!(output.contains("pair: (int, str)"), "{output}");
+    assert!(!output.contains("pair: ∀"), "ground tuple exports do not quantify internal candidate rows: {output}");
+    assert!(output.contains("argument-effect="), "effect ports must remain visible: {output}");
+    assert!(output.contains("retained Effect bound"), "effect-row relationships must remain visible: {output}");
+    assert!(output.contains("retained Value bound"), "value-row relationships must remain visible: {output}");
 }
 
 #[test]

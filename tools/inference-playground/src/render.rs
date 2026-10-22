@@ -2,7 +2,10 @@
 use std::collections::HashMap;
 use std::fmt::Write;
 use yu_hir::{DefId, HirItem, HirLocalId, HirModule, LocalSource, SourceRootId};
-use yu_solver::shadow_apply::{CandidateGraphExport, CandidateGraphNode, CandidateGraphRow};
+use yu_solver::shadow_apply::{
+    CandidateGraphEffectOperand, CandidateGraphExport, CandidateGraphFormalPortStep,
+    CandidateGraphNode, CandidateGraphRow,
+};
 use yu_solver::shadow_apply::{CandidateInference, CandidateSourceValueIdentity};
 
 use crate::output::{Output, cap};
@@ -47,6 +50,271 @@ pub fn graph(graph: &CandidateGraphExport<'_>) -> Result<String, String> {
     let mut output = Output::new();
     graph_into(graph, &mut output)?;
     output.finish()
+}
+
+/// Render a bounded type-facing view from the same candidate graph used by
+/// inference. Value constructors are summarized structurally; all quantified
+/// Value/Effect rows, bounds, explicit effect labels, and source permissions
+/// remain visible so this view never closes an effect tail by pretty-printing.
+pub fn public_scheme(graph: &CandidateGraphExport<'_>, name: &str) -> Result<String, String> {
+    let mut rows = Vec::new();
+    for (index, row) in graph.rows().enumerate() {
+        if rows.len() == OUTPUT_CAP {
+            return Err(format!("tool output cap exceeded: more than {OUTPUT_CAP} quantified rows"));
+        }
+        let prefix = match row.kind() {
+            _ if row.is_effect() => "ε",
+            _ => "α",
+        };
+        rows.push((row, format!("{prefix}{index}")));
+    }
+    let mut free_rows = std::collections::HashSet::new();
+    let mut active_rows = std::collections::HashSet::new();
+    let mut type_output = Output::new();
+    render_type_node(graph, graph.root(), &rows, &mut active_rows, &mut free_rows, &mut type_output)?;
+    let type_text = type_output.finish()?;
+    let mut details = Output::new();
+    for permission in graph.formal_effect_permissions()
+        .map_err(|_| "candidate scheme permission projection unavailable".to_owned())?
+    {
+        details.observe(1)?;
+        details.write_str("  open formal effect permission ").map_err(cap)?;
+        match permission.path().first() {
+            Some(CandidateGraphFormalPortStep::Argument) => details.write_str("argument").map_err(cap)?,
+            Some(CandidateGraphFormalPortStep::Result) => details.write_str("result").map_err(cap)?,
+            None => return Err("candidate scheme permission path is empty".to_owned()),
+        }
+        for step in &permission.path()[1..] {
+            details.write_char('/').map_err(cap)?;
+            match step {
+                CandidateGraphFormalPortStep::Argument => details.write_str("argument").map_err(cap)?,
+                CandidateGraphFormalPortStep::Result => details.write_str("result").map_err(cap)?,
+            }
+        }
+        details.write_str(" permits [").map_err(cap)?;
+        for (index, effect) in permission.permitted().iter().enumerate() {
+            details.observe(1)?;
+            if index != 0 { details.write_str(", ").map_err(cap)?; }
+            write!(details, "{effect:?}").map_err(cap)?;
+        }
+        let tail = permission.open_tail().row().ok_or_else(||
+            "candidate scheme permission tail is not an effect row".to_owned())?;
+        free_rows.insert(tail);
+        write!(details, ", {}] (open)\n", row_name(&rows, tail)?).map_err(cap)?;
+    }
+    for node in graph.nodes() {
+        let Some(operand) = node.effect_operand() else { continue; };
+        details.observe(1)?;
+        match operand {
+            CandidateGraphEffectOperand::Contribution { effect, route, instance } => {
+                writeln!(details, "  effect label {effect:?} from {route:?} instance {instance}").map_err(cap)?;
+            }
+            CandidateGraphEffectOperand::AnnotationMember { effect, position, permitted, tail, .. } => {
+                write!(details, "  effect label {effect:?} at annotation {position:?} permits [").map_err(cap)?;
+                render_permitted(&mut details, permitted)?;
+                render_effect_tail(&mut details, &rows, &mut free_rows, tail)?;
+            }
+            CandidateGraphEffectOperand::OperationInterfaceMember { effect, occurrence, permitted, tail, .. } => {
+                write!(details, "  effect label {effect:?} at operation use {occurrence:?} permits [").map_err(cap)?;
+                render_permitted(&mut details, permitted)?;
+                render_effect_tail(&mut details, &rows, &mut free_rows, tail)?;
+            }
+            CandidateGraphEffectOperand::PermissionView { permitted, tail, position, .. }
+            | CandidateGraphEffectOperand::SupportView { permitted, tail, position, .. } => {
+                write!(details, "  effect view at {position:?} permits [").map_err(cap)?;
+                render_permitted(&mut details, permitted)?;
+                render_effect_tail(&mut details, &rows, &mut free_rows, tail)?;
+            }
+        }
+    }
+    for bound in graph.bounds() {
+        details.observe(1)?;
+        write!(details, "  retained {:?} bound ", bound.kind()).map_err(cap)?;
+        render_constraint_node(bound.lower(), &rows, &mut free_rows, &mut details)?;
+        details.write_str(" ⊆ ").map_err(cap)?;
+        render_constraint_node(bound.upper(), &rows, &mut free_rows, &mut details)?;
+        details.write_char('\n').map_err(cap)?;
+    }
+    let details = details.finish()?;
+    let quantified: Vec<_> = rows.iter()
+        .filter(|(row, _)| row.is_local() && free_rows.contains(row))
+        .map(|(_, name)| name.as_str())
+        .collect();
+    let anchors: Vec<_> = rows.iter()
+        .filter(|(row, _)| !row.is_local() && free_rows.contains(row))
+        .map(|(_, name)| name.as_str())
+        .collect();
+    let mut output = Output::new();
+    write!(output, "{name}: ").map_err(cap)?;
+    if let Some((first, rest)) = quantified.split_first() {
+        output.write_str("∀ ").map_err(cap)?;
+        output.write_str(first).map_err(cap)?;
+        for row in rest {
+            output.write_char(' ').map_err(cap)?;
+            output.write_str(row).map_err(cap)?;
+        }
+        output.write_str(". ").map_err(cap)?;
+    }
+    output.write_str(&type_text).map_err(cap)?;
+    output.write_char('\n').map_err(cap)?;
+    for anchor in anchors {
+        writeln!(output, "  shared anchor {anchor} (bounds owned by outer context)").map_err(cap)?;
+    }
+    output.write_str(&details).map_err(cap)?;
+    output.finish()
+}
+
+fn render_permitted(output: &mut Output, permitted: &[yu_hir::shadow::SourceEffectId]) -> Result<(), String> {
+    for (index, effect) in permitted.iter().enumerate() {
+        output.observe(1)?;
+        if index != 0 { output.write_str(", ").map_err(cap)?; }
+        write!(output, "{effect:?}").map_err(cap)?;
+    }
+    Ok(())
+}
+
+fn render_effect_tail<'a>(
+    output: &mut Output,
+    rows: &[(CandidateGraphRow<'a>, String)],
+    free_rows: &mut std::collections::HashSet<CandidateGraphRow<'a>>,
+    tail: Option<CandidateGraphNode<'a>>,
+) -> Result<(), String> {
+    if let Some(tail) = tail {
+        let row = tail.row().ok_or_else(|| "effect view tail is not a row".to_owned())?;
+        free_rows.insert(row);
+        writeln!(output, ", {}] (open)", row_name(rows, row)?).map_err(cap)?;
+    } else {
+        output.write_str("] (closed view)\n").map_err(cap)?;
+    }
+    Ok(())
+}
+
+fn render_constraint_node<'a>(
+    node: CandidateGraphNode<'a>,
+    rows: &[(CandidateGraphRow<'a>, String)],
+    free_rows: &mut std::collections::HashSet<CandidateGraphRow<'a>>,
+    output: &mut Output,
+) -> Result<(), String> {
+    if let Some(row) = node.row() {
+        if row.is_effect() {
+            free_rows.insert(row);
+            output.write_str(row_name(rows, row)?).map_err(cap)?;
+        } else {
+            let index = rows.iter().position(|(candidate, _)| *candidate == row)
+                .ok_or_else(|| "candidate scheme row identity unavailable".to_owned())?;
+            write!(output, "r{index}").map_err(cap)?;
+        }
+    } else if let Some(children) = node.children() {
+        output.write_str("Function(").map_err(cap)?;
+        for (index, (label, child)) in ["argument=", "argument-effect=", "result-effect=", "result="]
+            .into_iter().zip(children).enumerate()
+        {
+            if index != 0 { output.write_str(", ").map_err(cap)?; }
+            output.write_str(label).map_err(cap)?;
+            render_constraint_node(child, rows, free_rows, output)?;
+        }
+        output.write_char(')').map_err(cap)?;
+    } else if let Some(children) = node.tuple_children() {
+        output.write_char('(').map_err(cap)?;
+        for (index, child) in children.enumerate() {
+            if index != 0 { output.write_str(", ").map_err(cap)?; }
+            render_constraint_node(child, rows, free_rows, output)?;
+        }
+        output.write_char(')').map_err(cap)?;
+    } else if let Some(leaf) = node.leaf() {
+        write!(output, "{leaf:?}").map_err(cap)?;
+    } else {
+        return Err("candidate scheme contains an unsupported bound operand".to_owned());
+    }
+    Ok(())
+}
+
+fn row_name<'a>(rows: &'a [(CandidateGraphRow<'_>, String)], row: CandidateGraphRow<'_>) -> Result<&'a str, String> {
+    rows.iter().find(|(candidate, _)| *candidate == row).map(|(_, name)| name.as_str())
+        .ok_or_else(|| "candidate scheme row identity unavailable".to_owned())
+}
+
+fn render_type_node<'a>(
+    graph: &CandidateGraphExport<'a>,
+    node: CandidateGraphNode<'a>,
+    rows: &[(CandidateGraphRow<'a>, String)],
+    active_rows: &mut std::collections::HashSet<CandidateGraphRow<'a>>,
+    free_rows: &mut std::collections::HashSet<CandidateGraphRow<'a>>,
+    output: &mut Output,
+) -> Result<(), String> {
+    if let Some(leaf) = node.leaf() {
+        let name = match leaf {
+            yu_solver::shadow_apply::CandidateGraphLeaf::IntPositive
+            | yu_solver::shadow_apply::CandidateGraphLeaf::IntNegative => "int",
+            yu_solver::shadow_apply::CandidateGraphLeaf::UnitPositive
+            | yu_solver::shadow_apply::CandidateGraphLeaf::UnitNegative => "unit",
+            yu_solver::shadow_apply::CandidateGraphLeaf::BoolPositive
+            | yu_solver::shadow_apply::CandidateGraphLeaf::BoolNegative => "bool",
+            yu_solver::shadow_apply::CandidateGraphLeaf::StrPositive
+            | yu_solver::shadow_apply::CandidateGraphLeaf::StrNegative => "str",
+            yu_solver::shadow_apply::CandidateGraphLeaf::Bottom
+            | yu_solver::shadow_apply::CandidateGraphLeaf::NegativeBottom => "⊥",
+            yu_solver::shadow_apply::CandidateGraphLeaf::Top => "⊤",
+            yu_solver::shadow_apply::CandidateGraphLeaf::EffectBottom => "∅+",
+            yu_solver::shadow_apply::CandidateGraphLeaf::EmptyEffect => "∅−",
+        };
+        output.write_str(name).map_err(cap)?;
+        return Ok(());
+    }
+    if let Some(row) = node.row() {
+        if row.is_effect() {
+            free_rows.insert(row);
+            output.write_str(row_name(rows, row)?).map_err(cap)?;
+            return Ok(());
+        }
+        if !active_rows.insert(row) {
+            free_rows.insert(row);
+            output.write_str(row_name(rows, row)?).map_err(cap)?;
+            return Ok(());
+        }
+        let mut heads = graph.bounds().filter(|bound|
+            bound.is_effect() == row.is_effect() && bound.upper().row().is_some_and(|upper| upper == row)
+                && bound.lower().row().is_none()
+        );
+        let Some(head) = heads.next() else {
+            free_rows.insert(row);
+            output.write_str(row_name(rows, row)?).map_err(cap)?;
+            active_rows.remove(&row);
+            return Ok(());
+        };
+        let first = head.lower();
+        let ambiguous = heads.any(|bound| !bound.lower().same_identity(first));
+        if ambiguous {
+            return Err("candidate scheme has multiple concrete Value shapes for one row".to_owned());
+        } else {
+            render_type_node(graph, first, rows, active_rows, free_rows, output)?;
+        }
+        active_rows.remove(&row);
+        return Ok(());
+    }
+    if let Some(children) = node.children() {
+        output.write_str("Function(").map_err(cap)?;
+        for (index, (label, child)) in ["argument=", "argument-effect=", "result-effect=", "result="]
+            .into_iter().zip(children).enumerate()
+        {
+            if index != 0 { output.write_str(", ").map_err(cap)?; }
+            output.write_str(label).map_err(cap)?;
+            render_type_node(graph, child, rows, active_rows, free_rows, output)?;
+        }
+        output.write_char(')').map_err(cap)?;
+        return Ok(());
+    }
+    if let Some(children) = node.tuple_children() {
+        output.write_char('(').map_err(cap)?;
+        for (index, child) in children.enumerate() {
+            if index != 0 { output.write_str(", ").map_err(cap)?; }
+            render_type_node(graph, child, rows, active_rows, free_rows, output)?;
+        }
+        output.write_char(')').map_err(cap)?;
+        return Ok(());
+    }
+    output.write_str("effect-operand").map_err(cap)?;
+    Ok(())
 }
 
 pub(crate) fn graph_into(

@@ -1668,7 +1668,7 @@ impl CandidateInference {
             .as_ref()
             .ok_or(ArtifactMismatch)?;
         let graph = state.graphs[*position].as_ref().ok_or(ArtifactMismatch)?;
-        Ok(CandidateGraphExport { state, graph })
+        Ok(CandidateGraphExport { state, graph, source_root: root.clone() })
     }
     pub fn fresh_use(&self, occurrence: &HirOccurrenceId) -> Option<CandidateGraphFreshUse<'_>> {
         // Conflicts remain available for diagnostics, but invalidate fresh-use graphs.
@@ -2106,9 +2106,104 @@ pub enum CandidateGraphLeaf {
     EffectBottom,
     EmptyEffect,
 }
+
+/// Source identity carried by one effect operand in a captured candidate
+/// scheme.  A contribution keeps its operation family together with the
+/// exact source route and instance; an annotation view keeps its permitted
+/// labels and open tail together.  This is a structural observation only and
+/// does not certify that a source typing rule admitted the operand.
+#[derive(Clone, Copy)]
+pub enum CandidateGraphEffectOperand<'a> {
+    Contribution {
+        effect: &'a yu_hir::shadow::SourceEffectId,
+        route: &'a yu_hir::shadow::SourceNodeKey,
+        instance: u32,
+    },
+    AnnotationMember {
+        origin: CandidateGraphEffectViewOrigin<'a>,
+        owner: &'a SourceRootId,
+        position: &'a yu_hir::shadow::SourceNodeKey,
+        member: usize,
+        effect: &'a yu_hir::shadow::SourceEffectId,
+        permitted: &'a [yu_hir::shadow::SourceEffectId],
+        tail: Option<CandidateGraphNode<'a>>,
+    },
+    OperationInterfaceMember {
+        declaration: &'a yu_hir::shadow::SourceOperationDeclaration,
+        owner: &'a SourceRootId,
+        position: &'a yu_hir::shadow::SourceNodeKey,
+        occurrence: &'a HirOccurrenceId,
+        member: usize,
+        effect: &'a yu_hir::shadow::SourceEffectId,
+        permitted: &'a [yu_hir::shadow::SourceEffectId],
+        tail: Option<CandidateGraphNode<'a>>,
+    },
+    PermissionView {
+        origin: CandidateGraphEffectViewOrigin<'a>,
+        owner: &'a SourceRootId,
+        position: &'a yu_hir::shadow::SourceNodeKey,
+        permitted: &'a [yu_hir::shadow::SourceEffectId],
+        tail: Option<CandidateGraphNode<'a>>,
+    },
+    SupportView {
+        origin: CandidateGraphEffectViewOrigin<'a>,
+        owner: &'a SourceRootId,
+        position: &'a yu_hir::shadow::SourceNodeKey,
+        permitted: &'a [yu_hir::shadow::SourceEffectId],
+        tail: Option<CandidateGraphNode<'a>>,
+    },
+}
+
 pub struct CandidateGraphExport<'a> {
     state: &'a crate::candidate_scheme::GraphState,
     graph: &'a crate::candidate_scheme::Graph,
+    source_root: DefinitionRootId,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CandidateGraphFormalPortStep {
+    Argument,
+    Result,
+}
+
+#[derive(Clone, Copy)]
+pub enum CandidateGraphEffectViewOrigin<'a> {
+    Annotation,
+    OperationInterface {
+        declaration: &'a yu_hir::shadow::SourceOperationDeclaration,
+        occurrence: &'a HirOccurrenceId,
+    },
+}
+
+fn candidate_graph_effect_view_origin<'a>(
+    view: &'a crate::candidate_effect::View,
+) -> CandidateGraphEffectViewOrigin<'a> {
+    match &view.provenance {
+        crate::candidate_effect::ViewOrigin::Annotation => CandidateGraphEffectViewOrigin::Annotation,
+        crate::candidate_effect::ViewOrigin::Operation(origin) =>
+            CandidateGraphEffectViewOrigin::OperationInterface {
+                declaration: &origin.declaration,
+                occurrence: &origin.occurrence,
+            },
+    }
+}
+
+/// A source-declared open effect permission joined to its exact captured
+/// function port. `permitted` is the explicit label prefix; `port` is the
+/// retained effect row that supplies the open remainder.
+pub struct CandidateGraphFormalEffectPermission<'a> {
+    occurrence: &'a HirOccurrenceId,
+    source_row: &'a yu_hir::shadow::SourceNodeKey,
+    path: Vec<CandidateGraphFormalPortStep>,
+    permitted: &'a [yu_hir::shadow::SourceEffectId],
+    port: CandidateGraphNode<'a>,
+}
+impl<'a> CandidateGraphFormalEffectPermission<'a> {
+    pub fn occurrence(&self) -> &'a HirOccurrenceId { self.occurrence }
+    pub fn source_row(&self) -> &'a yu_hir::shadow::SourceNodeKey { self.source_row }
+    pub fn path(&self) -> &[CandidateGraphFormalPortStep] { &self.path }
+    pub fn permitted(&self) -> &'a [yu_hir::shadow::SourceEffectId] { self.permitted }
+    pub fn open_tail(&self) -> CandidateGraphNode<'a> { self.port }
 }
 impl<'a> CandidateGraphExport<'a> {
     pub fn root(&self) -> CandidateGraphNode<'a> {
@@ -2120,6 +2215,11 @@ impl<'a> CandidateGraphExport<'a> {
     }
     pub fn node_count(&self) -> usize {
         self.graph.nodes.len()
+    }
+    pub fn nodes(&self) -> impl ExactSizeIterator<Item = CandidateGraphNode<'a>> + 'a {
+        let state = self.state;
+        let graph = self.graph;
+        (0..graph.nodes.len()).map(move |index| CandidateGraphNode { state, graph, index })
     }
     pub fn rows(&self) -> impl Iterator<Item = CandidateGraphRow<'a>> + 'a {
         let state = self.state;
@@ -2136,6 +2236,64 @@ impl<'a> CandidateGraphExport<'a> {
     }
     pub fn unresolved(&self) -> &'static [UnresolvedPremise] {
         UNRESOLVED
+    }
+
+    /// Return source-declared formal permissions owned by this definition,
+    /// each connected through the captured negative function shape to the
+    /// same effect port. Any missing route or shape invalidates the whole
+    /// projection rather than publishing a partial permission list.
+    pub fn formal_effect_permissions(
+        &self,
+    ) -> Result<Vec<CandidateGraphFormalEffectPermission<'a>>, ArtifactMismatch> {
+        let algebra = &self.state.intrusion.effect_algebra;
+        let mut permissions = Vec::new();
+        let count = algebra.formal_permissions.iter().filter(|permission|
+            matches!(&permission.source_owner, SourceRootId::Definition(root) if root == &self.source_root)
+        ).count();
+        permissions.try_reserve_exact(count).map_err(|_| ArtifactMismatch)?;
+        for permission in algebra.formal_permissions.iter().filter(|permission|
+            matches!(&permission.source_owner, SourceRootId::Definition(root) if root == &self.source_root)
+        ) {
+            if permission.path.is_empty() { return Err(ArtifactMismatch); }
+            let domain = *algebra.formal_domains.get(&permission.parameter).ok_or(ArtifactMismatch)?;
+            let mut current = *self.graph.negative_functions.get(&domain).ok_or(ArtifactMismatch)?;
+            let mut path = Vec::new();
+            path.try_reserve_exact(permission.path.len()).map_err(|_| ArtifactMismatch)?;
+            let mut port_index = None;
+            for (index, step) in permission.path.iter().enumerate() {
+                let crate::candidate_scheme::Node::Function { children, .. } = *self.graph.nodes.get(current).ok_or(ArtifactMismatch)? else {
+                    return Err(ArtifactMismatch);
+                };
+                let (child, effect, public_step) = match step {
+                    crate::candidate_effect::FormalPortStep::Argument =>
+                        (children[0], children[1], CandidateGraphFormalPortStep::Argument),
+                    crate::candidate_effect::FormalPortStep::Result =>
+                        (children[3], children[2], CandidateGraphFormalPortStep::Result),
+                };
+                path.push(public_step);
+                if index + 1 == permission.path.len() {
+                    port_index = Some(effect);
+                } else {
+                    current = child;
+                }
+            }
+            let port_index = port_index.ok_or(ArtifactMismatch)?;
+            let port = *self.graph.nodes.get(port_index).ok_or(ArtifactMismatch)?;
+            let crate::candidate_scheme::Node::Row { row, .. } = port else {
+                return Err(ArtifactMismatch);
+            };
+            if self.graph.rows.get(row).ok_or(ArtifactMismatch)?.key.kind() != ComponentKind::Effect {
+                return Err(ArtifactMismatch);
+            }
+            permissions.push(CandidateGraphFormalEffectPermission {
+                occurrence: &permission.occurrence,
+                source_row: &permission.source_row,
+                path,
+                permitted: &permission.concrete,
+                port: CandidateGraphNode { state: self.state, graph: self.graph, index: port_index },
+            });
+        }
+        Ok(permissions)
     }
 }
 #[derive(Clone, Copy)]
@@ -2207,6 +2365,83 @@ impl<'a> CandidateGraphNode<'a> {
             _ => None,
         }
     }
+
+    /// Returns the exact effect label or source view represented by this
+    /// graph node.  In particular, a negative permission such as `[io]`
+    /// retains its declared labels and open tail; it is not treated as a
+    /// closed singleton row.
+    pub fn effect_operand(self) -> Option<CandidateGraphEffectOperand<'a>> {
+        use crate::EffectEndpointKey as E;
+        let crate::candidate_scheme::Node::EffectOperand {
+            endpoint, tail, ..
+        } = self.graph.nodes[self.index] else {
+            return None;
+        };
+        let tail = tail.map(|index| Self {
+            state: self.state,
+            graph: self.graph,
+            index,
+        });
+        let algebra = &self.state.intrusion.effect_algebra;
+        match endpoint {
+            E::Contribution(index) => {
+                let contribution = algebra.contributions.get(index as usize)?;
+                Some(CandidateGraphEffectOperand::Contribution {
+                    effect: &contribution.effect,
+                    route: &contribution.origin,
+                    instance: contribution.instance,
+                })
+            }
+            E::AnnotationMember(index, member) => {
+                let view = algebra.views.get(index as usize)?;
+                let effect = view.allowed.get(member as usize)?;
+                match &view.provenance {
+                    crate::candidate_effect::ViewOrigin::Annotation =>
+                        Some(CandidateGraphEffectOperand::AnnotationMember {
+                            origin: candidate_graph_effect_view_origin(view),
+                            owner: &view.owner,
+                            position: &view.position,
+                            member: member as usize,
+                            effect,
+                            permitted: &view.allowed,
+                            tail,
+                        }),
+                    crate::candidate_effect::ViewOrigin::Operation(origin) =>
+                        Some(CandidateGraphEffectOperand::OperationInterfaceMember {
+                            declaration: &origin.declaration,
+                            owner: &view.owner,
+                            position: &view.position,
+                            occurrence: &origin.occurrence,
+                            member: member as usize,
+                            effect,
+                            permitted: &view.allowed,
+                            tail,
+                        }),
+                }
+            }
+            E::Allowance(index) => {
+                let view = algebra.views.get(index as usize)?;
+                Some(CandidateGraphEffectOperand::PermissionView {
+                    origin: candidate_graph_effect_view_origin(view),
+                    owner: &view.owner,
+                    position: &view.position,
+                    permitted: &view.allowed,
+                    tail,
+                })
+            }
+            E::Support(index) => {
+                let view = algebra.views.get(index as usize)?;
+                Some(CandidateGraphEffectOperand::SupportView {
+                    origin: candidate_graph_effect_view_origin(view),
+                    owner: &view.owner,
+                    position: &view.position,
+                    permitted: &view.allowed,
+                    tail,
+                })
+            }
+            E::BottomPositive | E::EmptyNegative | E::EffectRow(_) => None,
+        }
+    }
 }
 impl PartialEq for CandidateGraphNode<'_> {
     fn eq(&self, other: &Self) -> bool {
@@ -2229,6 +2464,9 @@ pub struct CandidateGraphRow<'a> {
 impl CandidateGraphRow<'_> {
     pub fn kind(self) -> ComponentKind {
         self.graph.rows[self.index].key.kind()
+    }
+    pub fn is_effect(self) -> bool {
+        self.kind() == ComponentKind::Effect
     }
     pub fn is_local(self) -> bool {
         self.graph.rows[self.index].local
@@ -2264,6 +2502,9 @@ pub struct CandidateGraphBound<'a> {
 impl<'a> CandidateGraphBound<'a> {
     pub fn kind(&self) -> ComponentKind {
         self.bound.kind
+    }
+    pub fn is_effect(&self) -> bool {
+        self.bound.kind == ComponentKind::Effect
     }
     pub fn lower(&self) -> CandidateGraphNode<'a> {
         CandidateGraphNode {

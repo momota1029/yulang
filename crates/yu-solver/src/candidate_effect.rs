@@ -117,7 +117,7 @@ struct CaptureProbe {
 pub(super) struct State {
     pub context: candidate_context::State,
     pub formal_domains: HashMap<usize, Term>,
-    formal_permissions: Vec<FormalPermission>,
+    pub(super) formal_permissions: Vec<FormalPermission>,
     formal_permission_bytes: usize,
     pub(super) annotation_values: HashMap<(AnnotationScope, Box<str>), u32>,
     // Effect names share binding scope while remaining separate from value names.
@@ -228,19 +228,19 @@ fn same_handler_argument_v1(
         && Arc::ptr_eq(&left.callback_operation, &right.callback_operation)
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum FormalPortStep { Argument, Result }
+pub(super) enum FormalPortStep { Argument, Result }
 // This retained record describes local source permission only. It is not an
 // arrival, provider, contribution or consumer witness.
 #[allow(dead_code, reason = "the approved producer retains source permission; authentic arrival consumption remains open")]
 #[derive(Debug)]
-struct FormalPermission {
-    parameter: usize,
-    occurrence: HirOccurrenceId,
-    source_owner: SourceRootId,
+pub(super) struct FormalPermission {
+    pub(super) parameter: usize,
+    pub(super) occurrence: HirOccurrenceId,
+    pub(super) source_owner: SourceRootId,
     scope: AnnotationScope,
-    path: Vec<FormalPortStep>,
-    source_row: SourceNodeKey,
-    concrete: Vec<SourceEffectId>,
+    pub(super) path: Vec<FormalPortStep>,
+    pub(super) source_row: SourceNodeKey,
+    pub(super) concrete: Vec<SourceEffectId>,
 }
 pub(super) struct Checkpoint {
     context: candidate_context::Checkpoint,
@@ -2099,8 +2099,45 @@ mod tests {
             &parsed,
             yu_hir::SemanticImports::empty(),
         ).unwrap();
+        let root = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "bridge" => {
+                Some(binding.definition_root().clone())
+            }
+            _ => None,
+        }).unwrap();
+        let answer_root = hir.items().iter().find_map(|item| match item {
+            yu_hir::HirItem::Binding(binding) if binding.name().spelling() == "answer" => {
+                Some(binding.definition_root().clone())
+            }
+            _ => None,
+        }).unwrap();
         let candidate = crate::shadow_apply::CandidateInference::solve(std::sync::Arc::new(hir)).unwrap();
         assert!(candidate.candidate_conflicts().is_empty(), "negative [io] denotes [io, 'e], so [state] remains in the open tail: {:?}", candidate.candidate_conflicts());
+
+        let graph = candidate.export(&root).unwrap();
+        let permissions = graph.formal_effect_permissions().unwrap();
+        assert!(permissions.iter().any(|permission|
+            permission.permitted().len() == 1
+                && permission.open_tail().row().is_some_and(|row|
+                    row.kind() == ComponentKind::Effect)
+        ), "the exported candidate scheme must keep the negative [io] permission joined to its open effect tail");
+
+        let io = permissions.iter().find_map(|permission| permission.permitted().first())
+            .expect("the source annotation retains the explicit io permission");
+        let answer = candidate.export(&answer_root).unwrap();
+        let contribution = answer.nodes().find_map(|node| match node.effect_operand()? {
+            crate::shadow_apply::CandidateGraphEffectOperand::Contribution { effect, .. }
+            | crate::shadow_apply::CandidateGraphEffectOperand::OperationInterfaceMember { effect, .. } => Some((node, effect)),
+            crate::shadow_apply::CandidateGraphEffectOperand::SupportView { permitted, .. } =>
+                permitted.iter().find(|effect| *effect != io).map(|effect| (node, effect)),
+            _ => None,
+        }).expect("the answer scheme retains the state effect label");
+        assert_ne!(contribution.1, io, "the state label remains distinct from the io permission");
+        assert!(answer.bounds().any(|bound|
+            bound.kind() == ComponentKind::Effect
+                && bound.lower().same_identity(contribution.0)
+                && bound.upper().row().is_some_and(|row| row.kind() == ComponentKind::Effect)
+        ), "the state contribution remains connected to an open effect residual row");
     }
 
     #[test]

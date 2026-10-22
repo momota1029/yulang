@@ -97,6 +97,31 @@ pub fn infer(source: &str, name: &str) -> Result<String, String> {
     infer_with_intrusion(source, name, false)
 }
 
+/// Render the candidate's bounded public-type view from the same solve result
+/// used by execution. Source typing, principality, and production admission
+/// remain separate proof obligations.
+pub fn infer_types(source: &str, name: &str) -> Result<String, String> {
+    let (hir, candidate) = prepare(source, name, false)?;
+    let mut output = Output::new();
+    output.write_str("Candidate public types and effects (source typing and principality remain open).\n")
+        .map_err(cap)?;
+    let mut count = 0;
+    for item in hir.items() {
+        let HirItem::Binding(binding) = item else { continue; };
+        output.observe(1)?;
+        count += 1;
+        if count > render::OUTPUT_CAP {
+            return Err("tool output cap exceeded: too many definitions".to_owned());
+        }
+        let graph = candidate.export(binding.definition_root())
+            .map_err(|_| "candidate type scheme unavailable".to_owned())?;
+        let scheme = render::public_scheme(&graph, binding.name().spelling())?;
+        output.write_str(&scheme).map_err(cap)?;
+    }
+    if count == 0 { output.write_str("No binding types in this source.\n").map_err(cap)?; }
+    output.finish()
+}
+
 pub fn infer_with_intrusion(source: &str, name: &str, intrusion: bool) -> Result<String, String> {
     infer_with_scoped_experiment(source, name, intrusion, false)
 }
@@ -178,7 +203,8 @@ pub fn execute(
     step_budget: usize,
     scoped: bool,
 ) -> Result<String, String> {
-    execute_runtime(source, name, Some(definition), step_budget, scoped)
+    execute_runtime(source, name, Some(definition), step_budget, scoped, false)
+        .map(|(rendered, _)| rendered)
 }
 
 /// Execute every source-scheduled root without choosing a binding definition.
@@ -188,7 +214,19 @@ pub fn execute_module(
     step_budget: usize,
     scoped: bool,
 ) -> Result<String, String> {
-    execute_runtime(source, name, None, step_budget, scoped)
+    execute_runtime(source, name, None, step_budget, scoped, false).map(|(rendered, _)| rendered)
+}
+
+/// Execute the whole module and retain each host write as a separate event in
+/// source order. The CLI can continue to use `execute_module`'s concatenated
+/// text view while browser clients consume this ordered event list.
+pub fn execute_module_events(
+    source: &str,
+    name: &str,
+    step_budget: usize,
+    scoped: bool,
+) -> Result<Vec<String>, String> {
+    execute_runtime(source, name, None, step_budget, scoped, true).map(|(_, events)| events)
 }
 
 fn execute_runtime(
@@ -197,7 +235,8 @@ fn execute_runtime(
     definition: Option<&str>,
     step_budget: usize,
     scoped: bool,
-) -> Result<String, String> {
+    retain_events: bool,
+) -> Result<(String, Vec<String>), String> {
     use runtime::{RuntimeOutcome, RuntimeProgram};
     let (hir, candidate, world, indexes) = prepare_with_world(source, name, scoped)?;
     let unavailable = |error| bounded_message(format_args!("runtime unavailable: {error:?}"));
@@ -210,6 +249,8 @@ fn execute_runtime(
         program.start_module_schedule().map_err(unavailable)?
     };
     let mut output = Output::new();
+    let mut events = Vec::new();
+    let mut event_bytes = 0usize;
     let mut captured_host_write = false;
     let value = loop {
         let remaining = step_budget.saturating_sub(machine.steps());
@@ -230,18 +271,27 @@ fn execute_runtime(
                 }
                 let captured = machine.resume_host_write(continuation, &operation)
                     .map_err(unavailable)?;
-                output.write_str(&captured).map_err(cap)?;
+                if retain_events {
+                    events.try_reserve(1).map_err(|_| "output event allocation unavailable".to_owned())?;
+                    output.observe(captured.len())?;
+                    event_bytes = event_bytes.checked_add(captured.len())
+                        .filter(|bytes| *bytes <= 1_048_576)
+                        .ok_or_else(|| "tool output cap exceeded: more than 1048576 bytes".to_owned())?;
+                    events.push(captured.into());
+                } else {
+                    output.write_str(&captured).map_err(cap)?;
+                }
                 captured_host_write = true;
             }
             RuntimeOutcome::Running => return Err("runtime has no completed result".to_owned()),
         }
     };
     if captured_host_write || definition.is_none() {
-        return output.finish();
+        return Ok((output.finish()?, events));
     }
     render_runtime_value(&machine, value, &mut output).map_err(cap)?;
     output.write_char('\n').map_err(cap)?;
-    output.finish()
+    Ok((output.finish()?, events))
 }
 
 fn render_runtime_value(

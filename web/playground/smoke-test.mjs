@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import init, { infer, run } from "./src/wasm/yulang_wasm.js";
+import init, { infer, infer_types, run, run_module } from "./src/wasm/yulang_wasm.js";
 
 await init({ module_or_path: fs.readFileSync("./src/wasm/yulang_wasm_bg.wasm") });
 
@@ -41,6 +41,8 @@ const polymorphicEscapingClosureSource = fs.readFileSync(
   "./examples/polymorphic-escaping-closure.yu",
   "utf8",
 );
+const yulang2TypesSource = "// our and pub bindings appear in the Types pane.\n\nour id x = x\npub answer = id 42\npub name = id \"Yulang\"\npub pair = (answer, name)\n\npair.say\n";
+const yulang2ConsoleSource = "// println is a library effect handled by the host.\n\nprintln \"hello from Yulang\"\nsay: 1 + 2\n";
 function assertRun(source, definition, expected) {
   const actual = run(source, definition, 100_000);
   if (actual !== expected) {
@@ -83,6 +85,9 @@ const yulang2Results = Object.fromEntries(
   ]),
 );
 const graph = infer("my identity x = x\nmy main = identity 7");
+const types = infer_types(yulang2TypesSource);
+const typesEvents = JSON.parse(run_module(yulang2TypesSource, 100_000));
+const consoleEvents = JSON.parse(run_module(yulang2ConsoleSource, 100_000));
 
 for (const [name, source] of Object.entries(yulang2DiagnosticExamples)) {
   let rejectedAtCandidateConflict = false;
@@ -114,6 +119,17 @@ for (const [definition, expected] of Object.entries(yulang2OrdinaryIslandsDefini
 if (!graph.startsWith("Experimental candidate inference graph")) {
   throw new Error(`unexpected inference output: ${graph.slice(0, 120)}`);
 }
+for (const expected of ["id: ∀", "answer: int", "name: str", "pair: (int, str)"]) {
+  if (!types.includes(expected)) {
+    throw new Error(`missing public type ${expected}: ${types}`);
+  }
+}
+if (JSON.stringify(typesEvents) !== JSON.stringify(["(42, Yulang)\n"])) {
+  throw new Error(`unexpected Types module writes: ${JSON.stringify(typesEvents)}`);
+}
+if (JSON.stringify(consoleEvents) !== JSON.stringify(["hello from Yulang\n", "3\n"])) {
+  throw new Error(`unexpected Console module writes: ${JSON.stringify(consoleEvents)}`);
+}
 
 const shallowNegative =
   "act io:\n    our tick: int -> int\nmy relay (thunk:[io] int) = catch thunk { io::tick(value), k -> k 9 }\nmy main = relay { case io::tick 0: 9 -> io::tick 8, _ -> 17 }";
@@ -132,4 +148,4 @@ if (!shallowHandlerAbsent) {
   throw new Error("the resumed Case arm must leave its shallow tick handler absent");
 }
 
-console.log(`WASM smoke passed: inference, ${Object.keys(examples).length} execution examples, three Yulang2 identity definitions, and two Yulang2 diagnostic examples.`);
+console.log(`WASM smoke passed: inference, ${Object.keys(examples).length} execution examples, Types/Console module outputs, three Yulang2 identity definitions, and two Yulang2 diagnostic examples.`);
