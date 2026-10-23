@@ -655,11 +655,25 @@ CandidateEndpoint, and confirms the argument row has a direct upper-row edge to
 the Case guard row mapped by the exact FreshRoute. These rows are distinct: the
 evidence is a directional subtype edge, not representative equality. The
 original Button source-occurrence regression passes for both `:label`/arity 1
-and `:disabled`/arity 0. The readback is observational only; it does not close
-the whole call domain, discharge an inactive branch, or promote the parent.
+and `:disabled`/arity 0. A source census across all binding and expression
+roots in the fixture confirms every direct module Name reference to `button` is
+one of those two guarded Apply callees. The test also scans every retained
+binding/expression root in `pinned_candidate_world` and matches `ModuleDef` by
+exact `DefId` and imported names by the definition's exact source key; every
+retained reference to that definition is one of the same two callees. Thus no
+direct alias initializer or escaping Name use occurs in this consumer plus its
+pinned provider closure, and the standalone sample's direct-call-site set has
+exactly two members: `:label` and `:disabled`. That world follows dependencies
+from the consumer and does not enumerate arbitrary reverse importers. This
+closes only the sample's source-use census. The readback is observational only;
+it does not close a general cross-module call domain, discharge an inactive
+branch, or promote the parent.
 
-Next, establish whether every lawful use of this Button definition remains in
-the authenticated finite Variant domain, including aliases and any escaping
-uses, then recheck the evidence after nested member dispatch. Unknown call
-routes remain open. Parent A/B, receiving, principality, independent review and
-production remain OPEN.
+Next, investigate whether the exact two-call source-use closure for the original
+standalone Button sample supports a useful sample-scoped parent lemma; keep that
+result separate from arbitrary cross-module reuse. The readback is taken after
+`pinned_candidate_world` has added selected member
+projections and completed its solve loop, so the guarded-call evidence already
+survives that nested-dispatch pass; an explicit branch discharge is still out of
+scope. Parent A/B, receiving, principality, independent review and production
+remain OPEN.

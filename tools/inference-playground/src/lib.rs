@@ -3543,22 +3543,79 @@ mod tests {
         let identity = ModuleIdentity::source_root(FileId::new(FileKey::new("inference-playground", "button-guard.yu")));
         let imports = SemanticImports::with_source_imports_and_role_indexes(&parsed, &identity, &indexes, &role_indexes).unwrap();
         let hir = Arc::new(lower_module_with_local_source(identity, &parsed, imports).unwrap());
-        let owner = hir.items().iter().find_map(|item| match item {
-            HirItem::Binding(binding) if binding.name().spelling() == "button" => Some(SourceRootId::Definition(binding.definition_root().clone())),
+        let button_binding = hir.items().iter().find_map(|item| match item {
+            HirItem::Binding(binding) if binding.name().spelling() == "button" => Some(binding),
             _ => None,
         }).unwrap();
+        let owner = SourceRootId::Definition(button_binding.definition_root().clone());
+        let button_definition = button_binding.id().clone();
+        let button_source = hir.definition_source_key(button_binding.definition_root()).unwrap()
+            .expect("Button definition keeps its exact source key").clone();
         let source = hir.local_source_for(&owner).unwrap().unwrap();
         let sites: Vec<_> = source.expressions().iter().filter(|expr|
             matches!(&expr.form, LocalSourceForm::GeneratedFormatSelection { member, .. } if member.as_ref() == "show"))
             .map(|expr| expr.occurrence.clone()).collect();
         let modules = pinned_candidate_world(&hir, &sources, &indexes, &role_indexes).unwrap();
-        let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(modules, &indexes, &role_indexes).unwrap();
+        let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(modules.clone(), &indexes, &role_indexes).unwrap();
         let actual: Vec<_> = readbacks.selected_receivers.iter().chain(readbacks.receivers.iter())
             .filter(|item| sites.contains(&item.occurrence) && item.member.as_ref() == "show").collect();
         assert!(!actual.is_empty(), "original interpolation retains its Button source owner");
         assert!(actual.iter().any(|item| item.instantiation_context_ordinal.is_some()),
             "the actual interpolation occurrence survives a caller's FreshUse");
         let guarded_calls: Vec<_> = actual.iter().flat_map(|item| &item.guarded_variant_calls).collect();
+        let mut source_roots = Vec::new();
+        for item in hir.items() {
+            let root = match item {
+                HirItem::Binding(binding) => yu_hir::SourceRootId::Definition(binding.definition_root().clone()),
+                HirItem::Expression(expression) => yu_hir::SourceRootId::Expression(
+                    hir.expression_root(expression.occurrence()).unwrap().unwrap().clone(),
+                ),
+                HirItem::Import { .. } | HirItem::Error { .. } => continue,
+            };
+            source_roots.push(hir.local_source_for(&root).unwrap().expect("Button fixture root keeps LocalSource"));
+        }
+        let mut source_button_uses: Vec<_> = source_roots.iter().flat_map(|source| source.expressions())
+            .filter_map(|expression| match &expression.form {
+                LocalSourceForm::Name { spelling, resolution: yu_hir::shadow::LocalSourceResolution::ModuleDef(_) | yu_hir::shadow::LocalSourceResolution::Imported(_) }
+                    if spelling.as_ref() == "button" => Some(expression.occurrence.ordinal()),
+                _ => None,
+            }).collect();
+        source_button_uses.sort_unstable();
+        let mut observed_button_uses: Vec<_> = guarded_calls.iter().map(|call| call.callee_use.ordinal()).collect();
+        observed_button_uses.sort_unstable();
+        observed_button_uses.dedup();
+        assert_eq!(observed_button_uses, source_button_uses,
+            "every direct module Name reference to Button in this fixture is one of the two guarded Apply callees");
+        let mut source_world_target_uses = std::collections::HashSet::new();
+        for module in &modules {
+            for item in module.items() {
+                let root = match item {
+                    HirItem::Binding(binding) => SourceRootId::Definition(binding.definition_root().clone()),
+                    HirItem::Expression(expression) => SourceRootId::Expression(
+                        module.expression_root(expression.occurrence()).unwrap().unwrap().clone(),
+                    ),
+                    HirItem::Import { .. } | HirItem::Error { .. } => continue,
+                };
+                let source = module.local_source_for(&root).unwrap()
+                    .expect("candidate-world binding and expression roots keep LocalSource");
+                for expression in source.expressions() {
+                    let resolves_to_button = match &expression.form {
+                        LocalSourceForm::Name { resolution: yu_hir::shadow::LocalSourceResolution::ModuleDef(id), .. } => id == &button_definition,
+                        LocalSourceForm::Name { resolution: yu_hir::shadow::LocalSourceResolution::Imported(id), .. } => id.source == button_source,
+                        _ => false,
+                    };
+                    if resolves_to_button {
+                        source_world_target_uses.insert(expression.occurrence.clone());
+                    }
+                }
+            }
+        }
+        let observed_target_uses: std::collections::HashSet<_> = guarded_calls.iter()
+            .map(|call| call.callee_use.clone()).collect();
+        assert_eq!(observed_target_uses, source_world_target_uses,
+            "every exact Button-definition Name in retained candidate-world sources is one of the guarded Apply callees");
+        assert_eq!(source_world_target_uses.len(), 2,
+            "the standalone Button sample has exactly two direct source call sites in this candidate world");
         assert!(guarded_calls.iter().any(|call|
             call.guard_tag.as_ref() == "label" && call.guard_arity == 1
                 && call.argument_tag.as_ref() == "label" && call.argument_arity == 1

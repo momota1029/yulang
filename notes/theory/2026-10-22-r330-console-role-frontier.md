@@ -3548,3 +3548,30 @@ classified as actual and closed, and only after the nested member fixed point
 can an inactive branch be discharged. Until that bridge is established, the
 previous `NO_SAFE_CODE_SLICE` remains in force for branch discharge; the
 Candidate Call record is an observation request, not an accepted typing.
+
+### Direct-primary continuation: Button source-use census
+
+The R332 readback now joins the exact source Apply and Variant argument
+recipes, native argument term, and the FreshUse-mapped Case guard row. The
+native argument row has a direct upper-row edge to the guard row; these rows
+remain distinct, so this is directional constraint evidence rather than row
+identity or a closed domain.
+
+The Button test censuses every binding/expression root in the standalone HIR
+and every retained root in `pinned_candidate_world`. It matches module
+definitions by exact `DefId` and imported references by the definition's exact
+source key. Exactly two references to this definition occur in that source
+world, and both are the guarded Apply callees for `:label`/arity 1 and
+`:disabled`/arity 0. No direct alias initializer or escaping Name use appears
+in this consumer plus its pinned provider closure. The candidate readback is
+collected after selected member projections and the solve loop, so these two
+call witnesses survive that nested-dispatch pass.
+
+This closes the direct source-use census for this standalone sample input and
+shrinks the original source-call bridge premise. `pinned_candidate_world`
+follows dependencies from the consumer; it does not enumerate arbitrary
+reverse importers. The upper-row edges still do not identify the argument and
+guard rows or certify a general finite Variant domain. No branch is discharged,
+and the prior `NO_SAFE_CODE_SLICE` for branch discharge remains. Original A/B,
+general source/native adequacy, principality, independent review and production
+remain OPEN.
