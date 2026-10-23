@@ -1,0 +1,1216 @@
+% Standalone research manuscript. Compile with XeLaTeX.
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=23mm]{geometry}
+\usepackage{fontspec}
+\IfFontExistsTF{Noto Sans CJK JP}{\setmainfont{Noto Sans CJK JP}}{%
+\setmainfont{IPAexMincho}[BoldFont=IPAexMincho,ItalicFont=IPAexMincho,
+BoldFeatures={FakeBold=2},ItalicFeatures={FakeSlant=.15}]}
+\setmonofont{DejaVu Sans Mono}[Scale=.8]
+\XeTeXlinebreaklocale "ja"
+\XeTeXlinebreakskip=0pt plus 1pt
+\usepackage{amsmath,amssymb,amsthm,mathtools,longtable,booktabs,array,enumitem,fancyvrb,xcolor,xurl}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.5em}
+\setlength{\emergencystretch}{3em}
+\setlist{nosep,leftmargin=1.7em}
+\newtheorem{definition}{定義}[section]
+\newtheorem{lemma}[definition]{補題}
+\newtheorem{theorem}[definition]{定理}
+\newtheorem{proposition}[definition]{命題}
+\renewcommand{\proofname}{証明}
+\renewcommand{\contentsname}{目次}
+\newcommand{\Ret}{\mathsf{return}}
+\newcommand{\Call}{\mathsf{call}}
+\newcommand{\Delay}{\mathsf{delay}}
+\newcommand{\Force}{\mathsf{force}}
+\newcommand{\Wrap}{\mathsf{wrap}}
+\newcommand{\Dict}{\mathsf{Dict}}
+\newcommand{\El}{\mathsf{El}}
+\newcommand{\fv}{\operatorname{fv}}
+\newcommand{\dom}{\operatorname{dom}}
+\newcommand{\Core}{\mathcal K}
+\newcommand{\Ctx}{\Delta;\Gamma;\mathcal P}
+\newcommand{\Inst}{\mathsf{Inst}}
+\newcommand{\Read}{\mathsf{Read}}
+\newcommand{\Ty}{\mathrel{\vdash_d}}
+\newcommand{\Dir}{\mathrel{\rightsquigarrow}}
+\newcommand{\bn}{\operatorname{bn}}
+\title{Yulang の dot selection：有限証拠から型付き実行への構成\\
+\large 全称的 impl 検査、共有 instance、直接境界、再帰と効果の保存}
+\author{単独構成・自己点検：このセッションの主エージェント}
+\date{2026年10月23日}
+\begin{document}
+\maketitle
+
+\section*{結論、依存関係、未完了部分}
+
+本稿は \nolinkurl{yulang-operational-type-safety-ja.tex} を基礎体系 \(\Core\) とし、
+そこで入力としていた「選択済みで型付きの member/dictionary/field code」を構成する。
+厳密には、固定稿を \(\Core_0\)、第\ref{sec:evidence-admin}節で dictionary application の
+管理構文を明示した保存的拡張を \(\Core\) とする。固定稿の本文は変更しない。
+元稿 \nolinkurl{yulang-whole-language-semantics-ja (1).tex} の
+695--720行の Select、647--693行の impl、2791--2829行の有限 certificate を具体化する。
+新しい runtime selection、候補の試行型推論、receiver 専用 role demand は導入しない。
+
+主結果は次の二段である。
+\begin{enumerate}
+\item 有限の宣言・選択・直接境界の\emph{構文的証拠}から、
+      \(e.m\) を含む計画の \(\Core\) 型付け導出を構成する。
+      完成した選択 code の型付けを前提として要求しない。
+\item その構成結果に \(\Core_0\) の定理9.7と管理構文の拡張補題を適用し、値、immediate/latent effect、
+      raw resumption、衛生性の実行健全性を得る。
+\end{enumerate}
+型付きの個々の body、明示境界、qualified 前提は通常の宣言的型付けの前提である。
+「探索が成功した」「solver が正しい」「必要な変換は安全である」という未定義の命題で代用しない。
+全称 conformance は、rigid binder の下の有限導出として本稿で規則を与える。
+
+\textbf{この閉じ方の範囲。}
+証拠から導出への橋と、その実行上の帰結を示す。
+未注釈 source から証拠を発見する算法の完全性、現在の compiler の全受理結果が証拠を持つこと、
+Oracle の全処理順との同値性、impl resolver の全候補中の一意性・head 対応、
+最終 graph からの再選択との一致は別の命題である。
+有限証拠の存在を全入力で決定する算法も主張しない。
+本稿の証拠書式をユーザーに書かせる新しい注釈規則は提案していない。
+
+\textbf{検証状態。}
+単独著者の紙上証明であり、独立査読・機械検証は未実施である。
+基礎体系も査読待ちの紙上証明である。
+従って、本稿の構文的翻訳定理と、基礎体系に依存する実行系の系、
+リポジトリの証明 gate の昇格を区別する。
+
+固定入力は次の通りである。
+\begin{itemize}
+\item \(\Core_0\)：commit \texttt{ea750612c}、SHA-256
+\nolinkurl{7d71399381509b97cc080406401dafc06506a1fec614bf1b0ce4a8f1c95a87b4}。
+\item 元稿：SHA-256
+\nolinkurl{28dc9b7fcb818e99a9513054d5847274ccce0d816a8c4a9644b802f0aa3fbd65}。
+\item source/spec の参照版：
+\nolinkurl{a58eefc31e22141574b6f20c6a5748151c6d79f1}。
+本稿の規則の由来を確認するために参照し、現在の実装との対応証明とは呼ばない。
+\end{itemize}
+
+\tableofcontents
+
+\section{何を固定し、何を証明するか}
+
+\subsection{四つの判断を分ける}
+
+\begin{longtable}{p{.23\textwidth}p{.69\textwidth}}
+\toprule 判断 & 意味 \\
+\midrule\endhead
+\(H,\omega\vdash s\Downarrow t\) & ある観測 snapshot と走査方針で選択先 identity が \(t\)。型安全性は含まない。\\
+\(\mathcal D\vdash\mathsf{DeclOK}\) & 全宣言の本体と全称的な member 契約に有限な導出がある。未使用宣言も対象。\\
+\(\Ctx\vdash_s e:A!\Phi\rightsquigarrow M\) & 本稿の構文証拠に従い \(e\) を実行計画 \(M\) にする。\\
+\(\Delta;\Gamma\Ty M:A!\Phi\) & 基礎体系の値型導出、decoration、有限 graph inclusion がある。\\
+\bottomrule
+\end{longtable}
+
+同じ型を持つ別メソッドを選ぶ誤りは、最後の判断だけからは検出できない。
+従って選択 identity とその政策上の由来を第一の判断へ残す。
+反対に、候補表に唯一現れることからその body の型付けは導けない。
+本稿の主定理は第二・第三の判断から第四を構成し、第三は第一も検査する。
+
+\subsection{環境、identity、証拠変数}
+
+\(\mathcal D=(L,V,M,R,I,B)\) は有限の宣言表である。
+\(L\) は読込 file 集合、\(V\) は可視性、\(M\) は kind ごとの member bucket、
+\(R\) は role signature、\(I\) は impl、\(B\) は有限の body/template 表。
+identity は宣言・source binder・use occurrence・boundary occurrence ごとに区別する。
+可視性は候補 membership の条件であり、同じ綴りを同じ値とみなす条件ではない。
+
+\(\Delta\) は型・row・family の binder とその sort、
+\(\Gamma\) は既存の値・共有 resource・capture の精密な型、
+\(\mathcal P\) は明示した証拠変数の telescope である。
+証拠の依存先は telescope の左側だけ、または別途検査する有限 template 表である。
+証拠変数には以下の種類を使う。
+\[
+ p::=\mathsf{eq}(A,B)\mid\mathsf{direct}_j(A,B;\Xi_b)
+      \mid\mathsf{incl}(G,\Phi)\mid R(\bar T;\bar A).
+\]
+\(\mathsf{eq}\) は同じ binder の置換・有限な型定義展開による等式の導出である。
+双方向の \(\mathsf{direct}\) を等式へ変える規則はない。
+\(\Xi_b\) は直接証拠の immediate/latent/profile 契約であり、
+端点が同じでも別の証拠の効果を同一視しない。
+以下で \(\mathsf{direct}_j(A,B)\) と略記するときも、この共有 graph 座標を省略して表示しているだけである。
+\(\mathsf{incl}\) は基礎体系の全共同入力に対する有限 relation/table inclusion。
+\(R(\bar T;\bar A)\) はその\emph{正確な} index の dictionary 契約である。
+
+\(\mathcal P\) の ordinary/effect 証拠は code または静的検査へ、
+role 証拠は \(\Gamma\) の型付き dictionary 値へ翻訳する。
+自由な証拠変数が残る定理は、その同じ telescope の実現を前提とする qualified 定理である。
+自由な前提のない closed root と同一視しない。
+
+\section{証拠適用を source Call から分離して定義する}
+\label{sec:evidence-admin}
+
+\subsection{基礎稿の略記を埋める最小の管理構文}
+
+基礎稿は type/dictionary application を同じ instance の使用として説明したが、
+値文法には型抽象だけを列挙していた。
+前提付きの多相 member field を完全に表すには、証拠値の抽象・適用も必要である。
+本稿ではこれを暗黙の macro のままにせず、次の内部構文を加える。
+source に新しい種類の関数や注釈を追加する提案ではない。
+\[
+ A::=\cdots\mid D\Rightarrow_{\!e}^{k}(A!E),\qquad
+ v::=\cdots\mid\mathsf{eabs}^{k}\ p.N,\qquad
+ M::=\cdots\mid\mathsf{eapp}(v,d).
+\]
+\(k\in\{g,a\}\) は一般 code と純粋な取得 code の内部 sort であり、省略時は \(g\) とする。
+\(D\) は前提の dictionary/adapter 引数型、\(D\Rightarrow_e(A!E)\) は\emph{管理上の}code 抽象であり、
+source Function \(C(D,A)\) とは異なる constructor である。
+複数の前提は固定順の tuple \(D\) にまとめる。
+ordinary の direct evidence は、下記の \(A\Rightarrow_e(B!E_b)\) の code 値と
+その直接規則の静的証拠を組にして渡す。effect/equality 証拠は静的導出として渡す。
+任意の型付き code を直接規則の証拠へ格上げすることはしない。
+
+一般の eabs は基礎の計算を本体に持ち、その効果を \(E\) に保持する。
+特に dictionary の\emph{取得}を行う本体 \(N\) は次の純粋な管理文法 \(\mathcal A\) に限る。
+\[
+ N::=\Ret v\mid\mathsf{let}\ x\leftarrow N\ \mathsf{in}\ N
+   \mid\mathsf{field}_m(v)\mid\mathsf{split}(v,\bar x.N)
+   \mid\mathsf{eapp}(v,d)\mid\mathsf{template}^{\mathcal A}_{\ell,\bar T}(\bar v).
+\]
+この文法の value には元の source lambda、delay、wrap、型抽象と新しい eabs を含めてよい。
+それらの\emph{値の構築}で body を実行しない。
+\(\mathcal A\) 内の eapp は \(k=a\) の証拠抽象だけを呼び、
+全 \(\mathsf{template}^{\mathcal A}\) body が \(\mathcal A\) に属することも有限表で検査する。
+従って administrative な retrieval は user cast や source Call を勝手に実行しない。
+source の computed member の初期化等は通常の計算で先に行い、その効果を保持する。
+
+型規則と新しい唯一の実行規則は
+\[
+ \frac{\Delta;\Gamma,p:D\Ty N:A!E\quad\mathsf{Mode}_k(N,E)}
+      {\Delta;\Gamma\Ty\mathsf{eabs}^{k}\ p.N:D\Rightarrow_e^{k}(A!E)},
+ \qquad
+ \frac{f:D\Rightarrow_e^{k}(A!E)\quad d:D}{\mathsf{eapp}(f,d):A!E},
+\]
+\[
+ \mathsf{eapp}(\mathsf{eabs}^{k}\ p.N,d)\longrightarrow N[d/p]
+ \tag{E$\beta$}
+\]
+である。\(\mathsf{Mode}_g\) は常に真、\(\mathsf{Mode}_a(N,E)\) は
+\(N\in\mathcal A\) かつ \(E=0\) である。
+型が0効果という理由だけで \(g\) を \(a\) に変える規則はない。
+上の \(E\) は表示上の immediate 上界であり、
+内部の精密な型は入力、結果、全 latent port の共同 graph も持つ。
+特に \(E=0\) でも \(A\) に入る callable/thunk の latent contract を空にしない。
+一般の adapter を eapp するときには、その \(E\) を呼出し元へ必ず接続する。
+原稿中の \(a(z)\) のような code 適用は、この eapp または同じ有限 template 展開で実装する。
+source の capture、型、row、family、全証拠は同じ代入で運ぶ。
+新しい scope、owner、receipt、grant は作らず、\(\Call\) の entry を経由しない。
+不正な raw operand に対しては \(\mathsf{Bad}\) とし、型付き計画では到達しないことを示す。
+(E\(\beta\)) は metadata を消去した code の規則である。
+精密な実行では、\(f=\mathsf{eabs}^k p.N\) の view に対して
+\[
+ \mathsf{eapp}(f,d)\longrightarrow
+ \mathsf{View}(f,\mathsf{admin.effect},N[d/p])
+\]
+と装飾し、正常結果は同じ view の \(\mathsf{admin.result}\) へ別に transport する。
+入力 \(d\) の既存 packet は同じ \(p\) の formal port へ渡す。
+これは基礎稿の Force と同じ View enter/body/leave の構造であり、source receipt は導入しない。
+証拠 code 自身の latent view に protection が運ばれている場合も、その観測を失わない。
+
+\subsection{精密な graph と拡張の証明}
+
+eabs は capture と formal evidence の値 diagram、管理 body の結果と全 latent port を保持する。
+eapp は同じ diagram の代入、上の View enter、body、View leave、結果 transport の graph 接続である。
+eapp 自身は operation seed を持たず、一般の body の全 event port をそのまま出力へ接続する。
+純粋な取得文法 \(\mathcal A\) では Ret、bind、構造 projection と純粋な適用/template だけなので、
+新しい operation seed を持たない。
+既存の value/profile/latent graph を identity または component の Flow で運び、
+型適用は基礎稿の全 port を含む構造的 instance 規則を用いる。
+本物の source lambda/Call の code を値の中に保持した場合、その graph は latent のままである。
+eabs の formal は source annotation の新しい受領箇所ではない。
+
+新しい内部型の管理入力・結果 path と、その結果の全 latent port も有限 signature に含める。
+型引数に抽象型が残る場合は基礎稿と同じ有限 template で保持する。
+eapp の graph は各前提からの relation image の合成であり、全入力を含む closure を検査する。
+ソースの Function 比較で、この内部 constructor を Function と同一視する規則はない。
+
+\begin{lemma}[管理構文の保存・進行と保守性]
+\(\Core_0\) に上の構文・規則だけを加えた \(\Core\) では、
+\(\Core_0\) の精密な置換、一段保存、進行、有限 prefix の定理9.7が成り立つ。
+新しい構文を含まない計画の実行規則と結果は変わらない。
+\end{lemma}
+\begin{proof}
+置換の追加 case は eabs と eapp である。
+eabs の binder を fresh にして body と capture に同じ代入を施す。
+eapp の二つの子には同じ代入を施す。
+管理文法は値の代入で閉じる。値構築時は子の latent body を実行しない。
+一般の code body の効果は代入後も同じ latent port の契約を保つ。
+精密な graph は formal port への同じ値 diagram の代入なので、
+基礎稿と同じ relation image の単調性で inclusion を保存する。
+\(\mathcal A\) の帰納により、即時の request を導入する case は存在しない。
+
+一段保存の新しい principal case は (E\(\beta\)) だけであり、
+拡張した項置換補題により \(N[d/p]:A!E\) と結果の全 latent 契約を得る。
+code の latent port と既存 metadata をそのまま置換し、scope/receipt の更新はない。
+精密な規則の既存 View/transport は基礎稿の frame 合成と graph 拡張の補題で型付けされる。
+構造 projection、template 展開、let は既存の一段保存に同じ帰納仮説を使える。
+新しい型の値を持つ frame も、元と同じ型変数でパラメータ化された frame 規則で扱える。
+eapp の operand は値なので、operand 待機用の新しい frame は生じない。
+本体は既存の View frame の穴へ入り、そこで起きる request の capture は既存の六種の frame だけを通る。
+従って基礎稿の cut-context grammar と reentry envelope に未列挙の frame は増えない。
+handler/raw continuation の操作は code を構造的に capture/rename するので、
+eabs/eapp の binder に capture-avoiding rename を延長すれば同じ証明になる。
+
+進行では \(D\Rightarrow_e^k(A!E)\) の closed 値の canonical form は同じ sort の eabs
+（または既存の view/型適用/値 graph の正規な参照）である。
+この型を導入する別 constructor はない。
+正規の参照解決後には (E\(\beta\)) が適用できる。
+source Function や arbitrary record を証拠関数として実行する規則はない。
+再帰する管理計算は発散してよいが、無進展な値 alias の cycle は従来どおり禁止する。
+
+以上が追加した全 case であり、基礎稿の有限 prefix 長への帰納を拡張する。
+新構文のない計画には新 reduction の左辺が現れないので、古い実行は一切変わらない。
+これは基礎稿の証明を依存に持つ拡張であり、その独立な機械検証ではない。
+\end{proof}
+
+\paragraph{qualified field の表現。}
+\(\forall\bar\beta.P\Rightarrow F\) は
+\(\forall\bar\beta.(\Dict(P)\Rightarrow_e^a(F!0))\) として表す。
+\(\Dict(P)\) には必要な ordinary adapter の code 値も含め、
+その全 latent 効果と直接規則の静的証拠を保存する。
+抽象 \(\Lambda\bar\beta.\mathsf{eabs}^{a}\ p.N\) は値である。
+\(\bar\beta\) に依存する \(p\) は\emph{抽象内部の binder}であり、
+外部の既存 dictionary 値を勝手に多相化することはない。
+型適用、証拠値の eapp、field projection で member を取得できる。
+前提なしの場合は eabs/eapp を省いてよい。
+この表現により、以下の whole-packet/dictionary 補題は実際の内部構文への導出になる。
+
+\section{直接境界を、単なる端点の関係にしない}
+\label{sec:boundary}
+
+\subsection{証拠の書式と検査}
+
+\(\Ctx\vdash b:A\Dir_j B\) の証拠は、境界 identity \(j\)、
+source/target の view、構造 constructor、子証拠、有限 code/template graph、
+およびその graph から生成した精密な inclusion 証明書を持つ。
+型が合う任意のプログラムを「直接比較」と認める規則ではない。
+直接の constructor 規則は元稿の境界規則であり、次の code 展開を持つ。
+
+\begin{longtable}{p{.20\textwidth}p{.72\textwidth}}
+\toprule 証拠 & code と検査 \\
+\midrule\endhead
+前提の使用 & 同じ $j,A,B$ の $\mathcal P$ の証拠変数。実現時にはその直接証拠を代入する。\\
+同一 view / top & \(\Ret z\) / \(\Ret(\mathsf{top}(z))\)。identity は同一 interface、top からの無検査除去はない。\\
+union / intersection & injection、全 branch の unioncase、選んだ interface の choose。同じ raw value への二導出だけが intersection introduction。\\
+tuple / variant & split または tag/arity switch、各子を規定順に bind し再構成。全入力 alternative を検査。\\
+record & target label 順に required field の取得、optional の lookup、present branch の子変換。target 外の field を出力しない。\\
+Function & 引数は逆向き、結果は順向きの子証拠を持つ \(\Ret(\Wrap(f,a,r))\)。whole argument を先に force しない。complete Call と全結果 latent port の共同 inclusion を検査。\\
+thunk & \(\Ret(\Delay(\mathsf{let}\ x\leftarrow\Force z\ \mathsf{in}\ b(x)))\)。子の effect は将来の force port へ入る。\\
+同一 nominal & 宣言 payload を使う正負 mapper template。引数位置ごとに同じ双方向証拠対を渡す。等式や逆元則は使わない。\\
+operation & 同じ証拠対の payload 順向き、response 逆向きから \(\mathsf{mapop}\)。family/member の identity を保存。両 code の効果を保持。\\
+宣言 cast / accessor & 直接の宣言 pair と選択 identity を記した、通常の型付き code の use。cast 内の Call は通常の receipt と効果を持つ。\\
+再帰 & 有限 template 参照。guard を持たない辺だけの cycle を拒否。型引数の全展開を要求しない。\\
+\bottomrule
+\end{longtable}
+
+record の required field は source required、またはその\emph{同じ branch}で得た存在証拠を必要とする。
+optional の present branch の payload 検査は省略しない。
+nominal-to-record は宣言された shape と各 accessor の証拠から組み立てる。
+private representation は所有 module の検査済み template を使い、未知の payload を仮定しない。
+宣言 code に dot があれば、本稿の選択判断でその body も検査する。
+
+各 node の型 constructor と端点、child ports を先に検査し、
+\(\Core\) の構文規則で value graph と effect graph を生成する。
+有限 table \(U\) は全 formal input seed を含み、
+\(F_G(U)\subseteq U\)、指定された全出力の \(U_E\subseteq\Phi\) を満たす。
+「変換 code がすでに安全である」は検査項目ではない。
+任意の型・row 代入については基礎体系の構造的 instantiation を使い、
+拡張 signature の必要な新しい port を保存する。
+
+\begin{lemma}[直接境界の導出構成]
+検査に通った \(b:A\Dir_j B\) から、
+\(z:A\) の下で \(\El(b,z):B!\Phi_b\) の \(\Core\) 導出を構成できる。
+Function 証拠の構築自体は値であり、子変換の効果はその complete-call graph に入る。
+\end{lemma}
+\begin{proof}
+有限 graph の非再帰 node に構造帰納し、再帰参照は同じ formal signature の template 規則を使う。
+前提 leaf は同じ境界の実現。identity/top と injection/projection は基礎規則の直接の適用。
+split/switch は全 payload の型を与え、子の帰納仮説と bind で target constructor を作る。
+record は target label 列への帰納で、required の存在と optional present の子導出を使う。
+出力 domain が target 内で全 required を含むので record introduction が適用できる。
+Function は逆向き引数と順向き結果の導出から wrap 規則、
+thunk は force、bind、delay の順に規則を適用する。
+nominal は有限の正負 descriptor の同時帰納。
+型変数 leaf は渡された証拠対、固定 leaf は identity、Function の負位置で対を交換する。
+nested nominal は既に確保した宣言 template を参照するので無限の型展開はない。
+operation の payload/response は同じ対で得られ、mapop の二つの前提を満たす。
+宣言 code は宣言環境の同じ signature と instance を用いる。
+全 node の effect 部分は生成規則そのものの \(G\) と検査済み \(U\) なので、
+各構文規則の精密な inclusion が揃う。実行の安全性をここで前提にしない。
+\end{proof}
+
+\subsection{raw interval と、残しておく直接義務}
+
+raw demand の \((\ell,u)\) は、元の配線と発行済み直接義務を伴う。
+二つの同じ引数位置を合流するときの
+\(\ell_1\Dir u_2\)、\(\ell_2\Dir u_1\) は独立の証拠項目である。
+通常引数・関連型の双方について、発行された全 occurrence を保存する。
+同じ端点であることだけを理由に、異なる境界を一つの変換にしてはならない。
+
+role dictionary の index \(T\) は、使用 scheme の同じ binder に対する instance である。
+raw demand の表示に使った中心を、その \(T\) として固定する規則はない。
+\(\ell\Dir T\) と \(T\Dir u\) が得られても、既存の \(\ell\Dir u\) 義務は残る。
+候補 head の照合で発生した義務も、同じ保持集合 \(\mathcal O\) へ加える。
+
+\begin{proposition}[直接義務の保存は必要である]
+\(A=\{foo?:string\}, B=\{\}, C=\{foo?:int\}\) とする。
+通常の structural record 境界だけでは、\(A\Dir B\) と \(B\Dir C\) は存在するが、
+\(A\Dir C\) は存在しない。
+従って二つの端点証拠で第三の直接義務を消す規則は不健全である。
+\end{proposition}
+\begin{proof}
+前者は field を隠し、後者は absence を保つ。
+直接 \(A\Dir C\) は present branch の \(string\Dir int\) を必要とするが、
+その cast がない宣言表にはその証拠がない。
+二段の code を bind で実行する型付けは存在しても、直接規則の証拠にはならない。
+\end{proof}
+
+\section{scheme を一つの packet として具体化する}
+\label{sec:scheme}
+
+\subsection{全 scheme と use occurrence}
+
+member の scheme は
+\[
+ \Sigma_m=\forall\bar\alpha.\ (\mathcal O_m,\mathcal Q_m)
+          \Rightarrow(F_m,\mathcal G_m,\mathcal B_m)
+\]
+と書く。\(\mathcal O_m\) は全 ordinary/effect 条件、\(\mathcal Q_m\) は role 前提、
+\(F_m\) は receiver を第一引数に持つ full Function、
+\(\mathcal G_m\) は immediate/latent/profile graph、\(\mathcal B_m\) は binder と capture の対応である。
+引数の二つの位置で同じ型変数を使う場合も、同じ row/family を使う場合も共有を保持する。
+
+use occurrence \(\nu\) に対し一つの capture-avoiding 写像 \(\rho_\nu\) を選び、
+\emph{packet 全体}へ同時適用する。
+\(\rho_\nu\) が fresh にするのは量化 binder だけであり、
+\(\Gamma\) の共有値・resource・外来 owner・固定 family を変えない。
+同じ use の receiver、後続引数、結果、関連型、前提に別々の写像を選ぶ規則はない。
+
+辞書の渡し方は、証拠変数の capture-avoiding な値置換である。
+前節の eabs/eapp または有限 template の formal evidence 引数を closure 環境へ渡す administrative 操作であり、
+新しい source lambda/call/receiver を作らない。
+一般化された値は \(\Core\) の type application とこの置換で実装できる。
+既に評価済みの monomorphic な computed root は \(\Gamma\) の同じ値を読む。
+
+\begin{lemma}[whole-packet instance]
+rigid \(\bar\alpha\) と広告前提の下で得た member の導出を取り、
+一つの well-sorted な instance \(\theta\) と、その\emph{全}前提の証拠を与える。
+このとき member の \(\theta F_m\) と全 graph を持つ \(\Core\) 導出を構成できる。
+\end{lemma}
+\begin{proof}
+全 binder を捕捉しないように一度改名し、型・row・family の全 occurrence へ \(\theta\) を施す。
+各 ordinary leaf を対応する直接証拠、各 role leaf を同じ index の dictionary で置換する。
+\(\Core\) の精密な型 instance 補題と項置換補題を用いる。
+新しい構造型に対しては必要な ports を展開し、古い truth table を単なる変数改名で再利用しない。
+既存の capture は \(\theta\) の自由支持として同じ値のままである。
+同じ binder の複数出現は全て同じ置換を受けるので、後続引数や返却 closure にも共有が残る。
+\end{proof}
+
+\subsection{抽象化と、再帰中の use}
+
+一般化する binder は \(\Gamma\)、capture、共有 resource、残余前提の依存 closure を確認し、
+外部環境を変えないものだけとする。値でない binding へ全称導入しない。
+未解決の dot は scheme に残さず、解決済みの target とその role 前提を残す。
+
+同じ値 SCC の use は、その SCC に宣言した\emph{同じ開いた interface}を使う。
+self-use も例外ではない。一般化した scheme を新しく作って自己参照を正当化しない。
+本稿の証拠検査は、source/value-use の全実際の辺を持つ有限 graph から SCC を計算し、
+外向き use だけに上記の一般化と fresh instance を認める。
+候補表にあるだけの宣言へ値参照辺を加えない。
+
+\section{impl の全称 conformance を導出にする}
+\label{sec:impl}
+
+\subsection{宣言規則}
+
+role の宣言を
+\[
+ R(\bar\alpha;\bar a):\quad
+ m:\forall\bar\beta_m.\ P^R_m\Rightarrow F^R_m(\bar\alpha,\bar a,\bar\beta_m)
+\]
+とする。\(P^R_m\) はその member 自身に宣言された追加前提を含んでよい。
+impl は
+\[
+ i=\forall\bar u.\ P_i\Rightarrow R(\bar H_i(\bar u);\bar A_i(\bar u))
+\]
+である。\(\bar u\) は rigid。明示関連型は宣言そのものであり変更不可、
+省略関連型は全 member から選んだ一つの有限 template \(\bar A_i\) として先に固定する。
+member-local \(\bar\beta_m\) は \(\bar A_i\) や head に自由出現できない。
+
+\(\mathsf{DeclOK}(i)\) の証明書は、各 member について次を持つ。
+\begin{enumerate}
+\item rigid \(\bar u,\bar\beta_m\) と \(P_i,P^R_m[\bar H_i,\bar A_i]\) の下で、
+      実装 body の本稿の型付け導出。
+\item body の局所存在座標だけへの明示置換。domain は rigid binder と素であり、
+      head、明示関連型、外部 \(\Gamma\) を書き換えない。
+\item 実装が要求する全 residual を、上の広告前提から作る有限証拠。
+      その規則は次節の Hyp/Impl/Assoc および ordinary の証拠規則だけ。
+\item 実装の full Function から \(F^R_m[\bar H_i,\bar A_i]\) への
+      \emph{一回の直接 Function 証拠}。全引数、結果の全 latent port、effect/profile を含む。
+\end{enumerate}
+存在座標の置換後に生じる全制約は上の前提から証明する。
+\(u=bool\) のような新しい仮定を広告前提へ追加して成功にする規則はない。
+\(P_i\) 自体に書かれた正当な条件は使えるが、使用時にはその証拠も必要になる。
+
+\subsection{dictionary の具体的表現}
+
+\(\Dict_R(\bar T;\bar A)\) は、role identity を持つ nominal record とし、
+field \(m\) は上の正確な member scheme を持つ。
+関連型は type index であり、runtime に型名から再推論しない。
+member の多相 field は値の全称導入で表す。
+宣言された追加前提はその field code の formal evidence 環境である。
+
+impl \(i\) の dictionary template \(D_i(\bar u;\bar p)\) は、
+各実装 member を上の直接 Function 証拠で包んだ closure/view を field に持つ。
+この構築では member body を実行しない。
+Function wrapper の引数・結果変換は将来の complete Call に置く。
+前提 \(\bar p\) の dictionary は field closure の capture に入り、同じ値を共有する。
+user cast 等の効果を伴う処理は、その処理の code と effect port に残す。
+効果を伴う初期化をゼロ効果の dictionary 構築に隠さない。
+
+\begin{lemma}[全称的 dictionary 導出]
+\(\mathsf{DeclOK}(i)\) の証拠と、全 body の帰納仮説から、
+\[
+ \bar u;\Gamma,\bar p:P_i\Ty
+ D_i(\bar u;\bar p):\Dict_R(\bar H_i(\bar u);\bar A_i(\bar u))
+\]
+を構成できる。\(\bar u\) のどの instance にも同じ構成が適用できる。
+\end{lemma}
+\begin{proof}
+各 field について局所存在置換を body の導出へ施し、
+広告前提から得た residual 証拠を代入する。
+直接 Function 証拠の補題により、所要 signature の wrap の導出が得られる。
+\(\bar\beta_m\) が他 field、head、関連型、capture に自由出現しないので、
+その field の追加前提を eabs で束縛してから全称導入する。同じ \(\bar u,\bar A_i,\bar p\) を全 field に使う。
+record/nominal introduction により dictionary の導出を得る。
+\(\bar u\) については証明中に定数へ置き換えず、追加条件も用いない。
+従って whole-packet instance 補題を任意の \(\theta\) へ適用できる。
+再帰的な body の仮説は後の有限 template/SCC 補題で同時に閉じる。
+\end{proof}
+
+\begin{proposition}[狭めた generic impl はこの規則を通らない]
+広告前提なしに、任意の \(u\) の payload を返す body を
+宣言結果 \(bool\) の実装とする場合、\(u\) を \(bool\) に解くことは conformance 証明にならない。
+\end{proposition}
+\begin{proof}
+body result は rigid \(u\)。直接結果証拠 \(u\Dir bool\) は、
+広告された証拠またはその source/target に適用できる宣言 cast を必要とする。
+どちらもない宣言表で \(u\) を解く規則は存在しない。
+局所存在置換の domain に \(u\) を入れた証明書は、body 検査の前に失敗する。
+使用 site が偶然 \(u=bool\) であっても、全称宣言のこの義務は変わらない。
+\end{proof}
+
+\section{role の有限証拠と、関連型の一貫性}
+\label{sec:role}
+
+\subsection{証拠規則}
+
+\(\mathcal P\vdash q:R(\bar T;\bar A)\) は、以下の有限木である。
+\begin{description}
+\item[Hyp] \(\mathcal P\) にある\emph{同じ共有座標}の前提を参照する。
+      必要な定義的等式は明示して transport する。
+\item[Impl] 読込・可視な宣言表の選択済み identity \(i\)、
+      一つの \(\theta\)、全 \(\theta P_i\) の child 証拠を持つ。
+      結論は正確に \(R(\theta\bar H_i;\theta\bar A_i)\)。
+      demand 側との接続で発行した全直接義務 \(\mathcal O\) も保持する。
+\item[Assoc] 上記の同じ Impl または Hyp の index から関連型の等式を読む。
+      別の impl の関連型を混ぜない。新しい role の成功をこの等式だけで作らない。
+\end{description}
+局所検査で Impl が参照するのは宣言表の有限 header とその前提リストである。
+参照先の conformance 証明をこの node 内で再帰的に展開しない。
+全 header の body/conformance は第\ref{sec:closing}節で別々に検査して同時に閉じる。
+child がないことと、child がまだ計算されていないことは異なる。
+Impl の子は宣言の前提リストと一対一に対応し、件数だけでなく identity、sort、置換後の式が一致する。
+DAG 共有は許すが、共有参照 graph は非循環でなければならない。
+body の再帰が call/delay で guarded であることは、role 証拠の循環を許す理由にならない。
+
+候補の選択は通常引数 head によって行い、関連型の期待結果や
+prerequisite が解けたかを理由に候補を選び直さない。
+親は一意の identity のまま、解けない子は qualified 前提として明示する。
+その子が closed root に残る場合、実行可能な closed 証明書は未完成である。
+
+\subsection{選んだ head の適用可能性を証明する}
+
+本稿の Impl node の安全性検査には、未定義の \texttt{HeadMatches} を置かない。
+与えられた \(i,\theta\) に対して、宣言 head \(\theta\bar H_i\)、関連型 \(\theta\bar A_i\) を
+構文置換で作り、次項の同じ packet index との等式と全直接証拠を検査する。
+これが\emph{選んだ候補を適用してよいこと}の証拠である。
+型付きでない impl や不適合な head を、「matcher が成功した」という理由で通さない。
+
+一方、\emph{全候補の中でこの impl が一意であること}はこれとは別である。
+固定版の \nolinkurl{role_solve/matchers.rs} は compact representation の構造照合を行い、
+通常引数の endpoint は polarity/taint を用いて選ぶ。
+その compact 化と照合が元の非推移的な raw 義務を正確に表すという対応は、本稿では証明しない。
+元稿900行の candidate/head 対応の義務はそのまま残す。
+第\ref{sec:policy}節で具体化する dot の member-name lookup と、この impl resolver を混同しない。
+
+型健全性の主定理は、選んだ一つの impl の上記の適用証拠から成立し、
+他の適用可能な impl がないことを必要としない。
+これは ambiguous source を成功として受理してよいという仕様変更ではない。
+元の成功契約には resolver の一意性・優先規則の証明が引き続き必要である。
+特に本稿は、同じ型の二つの dictionary の実行結果が同じであるという coherence を主張しない。
+
+\subsection{raw demand の実現}
+
+使用 scheme の binder と全 raw edge を含む packet を \(W\) とする。
+その一つの代入 \(\theta\) の下で、role occurrence の index を
+\(R(\bar T_W;\bar A_W)\theta\) と読む。
+raw interval から新しい中心を選んで既存 binder を上書きする操作ではない。
+ここで \(\bar T_W\) は member scheme の実際の共有 port の割当てであり、
+raw interval の lower/upper を dictionary index と同一視したものではない。
+Impl の head index とこの provider index を接続する定義的等式、
+全保持直接義務、関連型の等式、子証拠を一緒に検査する。
+receiver の値型は \(W\) の receiver 引数への直接境界として入るので、
+receiver が \(int\)、dictionary の入力が supertype \(T\) という場合も扱える。
+必要なのは \(int\Dir T\) 等の\emph{実際の}証拠であり、\(T=int\) の強制ではない。
+逆に、既存の exact dictionary index が異なる場合は、双方向適合だけで等式 transport しない。
+その使用には member の直接境界を含む raw packet 側の別の適用導出が必要である。
+この接続が source の全 head-matching 結果に対して作れることは、前項の未完了対応に含まれる。
+
+\begin{lemma}[有限 role 証拠の実現]
+\(\mathsf{DeclOK}\) と \(\mathcal P\) の実現があるとする。
+有限証拠 \(q:R(\bar T;\bar A)\) から、正確に
+\(\Dict_R(\bar T;\bar A)\) の型付き値を構成できる。
+全 raw direct obligation は同じ代入の下の証拠を持つ。
+\end{lemma}
+\begin{proof}
+証拠 DAG を child 先行の順に処理する。
+Hyp は対応する環境値。Impl では帰納仮説が全 \(\theta P_i\) を与え、
+全称的 dictionary 補題へ\emph{一つの} \(\theta\) と全 child 値を渡す。
+index 等式は同じ導出の型注記を transport するだけであり、異なる値を作らない。
+Assoc はその index の component を読むので全 member と一致する。
+各 direct obligation は境界補題で別々の code/導出へ移る。
+合成の推移性、子の成功を前提とした候補の再選択、循環に対する帰納仮説は使わない。
+\end{proof}
+
+\begin{lemma}[前提置換]
+\(\mathcal P,q:Q\) の下の有限証拠へ \(\mathcal P\vdash r:Q\) を代入すると、
+\(\mathcal P\) の下の有限証拠を得る。whole-packet 型置換とも可換する。
+\end{lemma}
+\begin{proof}
+有限木へ展開して Hyp leaf を \(r\) で置換する。
+\(r\) は自分自身 \(q\) に依存しないので有限性を保つ。
+DAG 共有は同じ木の圧縮として再導入できる。
+Impl は同じ \(\theta\) を head、associated、全 child に使い、
+Assoc はその親証拠を同時置換するため index が変わらない。
+型置換との可換性は capture を避けた構文置換の結合律による。
+\end{proof}
+
+\section{候補選択の観測と、有限な政策証拠}
+\label{sec:policy}
+
+\subsection{snapshot に相対的な選択}
+
+元稿の手順は \(\omega\) に指定された順で \texttt{firstSome} を行う。
+本稿では \(H\) を、有限な read-only graph と順序付き bucket を持つ観測入力とする。
+型変数、正負 constructor、effect path、可視宣言、owner blocker、work/frontier の観測結果には
+それぞれ identity を付ける。候補の発見経路だけを持つ正の証拠では、
+先行候補の不在や fallback の可否は証明できない。
+
+有限の政策証拠 \(\chi\) は、次の\emph{実際に読んだ入力}と判断木を保持する。
+\begin{enumerate}
+\item local/global bucket の全要素、scope、読込・可視 membership。
+\item 走査した upper/lower の順序付き列、constructor case、visit 集合。
+\item effect/ref payload の探索では、snapshot の該当部分 graph、
+      読み取った全辺、operation/family instance と weight/subtract の観測。
+\item role fallback では可視 member 名の全候補、Ready の blocker/未処理読取の観測、
+      一般化済みか、選択順、今回加える実際の use 辺。
+\item field fallback では、先行する concrete probe と role fallback がこの snapshot で
+      選択を返さなかったこと、対象 selection の一覧。
+\end{enumerate}
+これらは \(H\) の同じ時点の値と照合する。古い空 bucket と新しい lower を混ぜた証拠は認めない。
+検索に必要な負の事実も、有限 snapshot 全体との比較で検査する。
+将来増える辺がないことを、この有限検査から主張しない。
+
+\subsection{局所規則}
+
+\begin{longtable}{p{.24\textwidth}p{.68\textwidth}}
+\toprule 手順 & 証拠の検査 \\
+\midrule\endhead
+\texttt{unique(xs)} & 有効要素がちょうど一つの場合だけその identity。他の場合は None。local が一意でなければ global を試す。\\
+\texttt{firstSome} & 左から成功直前までの\emph{全} None と、その最初の Some の子判断。集合の一意性に置換しない。\\
+\texttt{Probe} & receiver effect、次に callable upper の順。既解決なら元 identity を保持。\\
+\texttt{MethodUpper/Upper} & 同じ visit 規則、保存された upper 順。Function は argument effect、argument value の順、intersection は左から、stack は inner。\\
+\texttt{Pos} & lower が一つでもあればその保存順を使う。upper-only 分岐は lower 列が空かつ raw upper が一つのときだけ。その upper の到達 target を重複除去し一意性を検査。\\
+\texttt{Ref} & direct Ref member を先に試し、次に payload の参照 member。payload の unique-common-bound 観測を保存。\\
+\texttt{Effect} & 下記の有限収集で得た family path と候補の宣言 path を比較し、local、次に global の一意性で選ぶ。runtime handler eligibility とは別。\\
+role fallback & Ready かつ一意の可視 role member 名。未一般化 target は選択順の最初の一件、一般化済み target は元稿の ready batch。\\
+field fallback & role fallback と再飽和の後、Ready で role target のない selection 全件の batch。\\
+\bottomrule
+\end{longtable}
+
+\subsection{effect/ref/Ready の有限観測を具体化する}
+
+\(H\) は ordered bounds、subtractability facts、constraint weight、candidate bucket、
+SCC 表、未 probe 集合までを含む。以下はその\emph{現在値}だけを読む有限関数である。
+型 constructor の子 graph は有限の構文 DAG とし、再帰する型変数辺は visit 集合で止める。
+固定版の \nolinkurl{analysis/mod.rs:784--850}、
+\nolinkurl{analysis/session/selection.rs:431--485,600--950} を展開した定義である。
+
+\paragraph{effect path。}
+\(\mathsf{Paths}(\mathsf{Set}(p,\bar A))=[p]\)、
+\(\mathsf{Paths}(\mathsf{SetMany}((p_i,\bar A_i)_i))=[p_i]_i\) とし、
+Empty/All/AllExcept/AllExceptMany は空列とする。
+stack weight は filter set、次に active stack items の Paths を順に加える。
+constraint weight は\emph{左側} weight の stack 表示を使う。
+追加は最初の出現順を保つ重複除去である。
+この lookup は family の path を収集し、型引数を使って grant を判定しない。
+
+正型 \(p\) の収集は次の再帰である。
+\begin{description}
+\item[Con] 宣言 path を追加する。
+\item[Row/Union] 子を記録順に走査する。
+\item[NonSubtract] inner を走査する。第二成分を候補増加に使わない。
+\item[Stack] weight の Paths、次に inner を走査する。
+\item[Var \(v\)] visit 済みなら終了。そうでなければ visit に加え、
+      \(v\) の subtractability facts、次に各 lower の weight と正型を記録順に走査する。
+\item[その他] 何も追加しない。
+\end{description}
+収集した列に候補の宣言 path が含まれるかで effect bucket を filter し、
+local の unique、失敗なら global の unique を使う。
+All から全 effect method を列挙する規則ではない。
+また、この成功は handler の処理権限の証拠ではない。
+
+\paragraph{receiver と reference payload。}
+receiver Var の lower は、各 weight の effect 候補、次に正型の候補を順に試す。
+lower が空のときだけ一つの raw upper を使う。
+その upper の Con、Intersection、Stack、Var を走査して target を集める。
+Var では同じ visited 集合で receiver probe を呼び、返った target 一つを加える。
+直接 Ref member が見つかった場合、その同じ branch の payload probe は行わない。
+その他の upper constructor は target を加えない。
+
+Ref の第二 neutral 引数が Bounds\((\ell,u)\) なら、
+\(\ell\) の最上位 Var/Union だけから得る変数集合と、
+\(u\) の最上位 Var/Intersection だけから得る変数集合の共通部分を取る。
+ちょうど一要素のときだけ common variable とする。
+constructor の引数、stack の内側まで勝手に変数を探さない。
+neutral が Bounds 以外なら、その constructor の正極性 projection を lower とし、common variable はなし。
+projection は Con を同じ Con、Function の引数を負、結果を正、
+record/variant/tuple を対応成分の正 projection にする有限な構造写像である。
+
+payload の正型を先に、失敗した場合だけ common variable の lower を試す。
+参照用 probe は Con なら Ref bucket、Union は左から、NonSubtract/Stack は inner、
+Var は visited 検査後に lower 列、その他は None とする。
+参照用 probe では weight による effect method を追加しない。
+同じ呼出し系内の visited を共有し、Function upper から始める effect/value probe は
+固定版どおりそれぞれ新しい visited 集合を使う。
+これで、同じ node を別経路で見たときの扱いも定まる。
+
+\paragraph{Ready。}
+固定版の \nolinkurl{scc.rs:222--230}、\nolinkurl{scc/graph.rs:518--534}、
+\nolinkurl{uses.rs:270--274} に従い、現在の snapshot について定義する。
+親が一般化済み、または親の component がない場合は SCC 側の判定を真とする。
+component がある場合は、外向き辺なし、method dependency 数が正、
+conformance-pending 集合が空、全 member が finished かつ root を持つことを要求する。
+component 表にその entry がなければ固定版の query は真を返す。
+さらに、その selection に属する receiver-upper-reprobe-pending の組がないことを要求する。
+これが \(\mathsf{Ready}_H(s)\) である。
+
+\begin{lemma}[snapshot 観測の有限性]
+上の well-formed な有限 \(H\) に対して effect/ref/Ready の観測は決定的に停止する。
+観測証拠の正・負の結果は、同じ \(H\) から再計算して検査できる。
+\end{lemma}
+\begin{proof}
+constructor 再帰は有限 DAG の子へ降り、型変数を経由する再帰は同じ visited 集合の
+未訪問変数を一つ減らす。新しい visited を使う effect/value probe は、
+有限の MethodUpper 走査の Function node からだけ始まり、その呼出しごとに有限である。
+各 weight と fact と bucket は有限列。common variable と Ready は有限集合演算である。
+順序と visited 更新を固定したので結果は一意である。
+\end{proof}
+
+これで、静止した snapshot における候補の観測を外部 oracle に委ねる必要はない。
+残る source 対応は、bucket/graph の構築、全読取依存の登録、再 probe の時点、
+SCC 状態の更新が正しくこの \(H\) を与えることである。
+Ready が将来の情報に対しても最終的な選択根拠となることは、この現在値の定義からは導けない。
+
+\begin{lemma}[有限政策証拠の replay と identity の一致]
+有限の観測 \(H\) と順序 \(\omega\) を固定する。
+上記の局所判断木が成功すれば、同じ観測を同じ順に読む局所手順は同じ target を返す。
+逆にその局所手順の有限終了 trace はその判断木を与える。
+\end{lemma}
+\begin{proof}
+判断木に帰納する。unique は有限列の cardinality、firstSome は先行する None の検査で決まる。
+constructor case は同じ tag の子へ進む。
+visit 済み辺を再探索しない規則では、判断木と手順の visit 集合を同時に更新する。
+bucket と upper/lower 列は \(H\) と照合済みなので、別の候補や順序を使えない。
+fallback は記録した Ready/一般化状態と選択順の有限比較で決まる。
+逆向きは実際の有限 trace の各 read/result を同じ規則の node にする。
+観測値は上の有限関数で生成できる。実際の driver の snapshot 更新、全 driver の停止、別 \(\omega\) との一致はこの帰納に含めない。
+\end{proof}
+
+\subsection{commit と後から増える情報}
+
+選択証拠には \((s,H,\omega,\chi,t,\nu)\) を残す。
+同じ \(s\) を commit し直す規則はない。
+後から \(H'\) が得られても、型付けは元の target の保持義務を再検査する。
+最終 graph で探索し直した結果と一致する必要は、実行の型保存にはない。
+後から矛盾が出れば、その閉じた成功証明書は作れない。
+
+この区別は順序独立性の証明ではない。
+たとえば lower が空の upper-only 観測と、その後に lower が加わった観測は別の分岐を使う。
+古い成功を「最終 graph でも同じ唯一候補」と読み替える証明は成立しない。
+元稿の一括処理案と Oracle の逐次 fallback の同値性も、別の未解決命題として残る。
+
+\section{Select の生成規則と、導出を作る算法}
+\label{sec:select}
+
+\subsection{構文的証拠の入力}
+
+式判断 \(\Ctx\vdash_s e:A!\Phi\rightsquigarrow M\) は有限な導出、
+または有限な body/template 表を持つ導出である。
+Select 以外の constructor は \(\Core\) の同じ構文規則を使い、子をこの判断で検査する。
+全11 pattern とその default/guard の子も同様である。
+従って後述の帰納には、body や pattern 内の dot も含まれる。
+
+\(e.m\) の node は、次を持つ。
+\begin{enumerate}
+\item receiver の子導出 \(e:A_e!\Phi_e\rightsquigarrow E\)。
+\item 前節の選択証拠 \((s,H,\omega,\chi,t,\nu)\)。
+\item 選択した宣言の full scheme packet の一つの instance、または SCC の同じ開いた interface。
+\item 全 ordinary/role 前提の有限証拠、各実行境界の直接証拠。
+\item 下記の\emph{構成から生成する} graph の有限 table \(U_s\) と、指定出力 \(B!\Phi_s\) の inclusion。
+\end{enumerate}
+5は完成 code の型付けを要求する前提ではない。
+code と graph は以下の規則で一意に構成し、その seed と局所 edge を有限検査する。
+特に \(U_s\) を空にして入力を無視することはできない。
+
+\subsection{通常・参照・effect member}
+
+\(t=\mathsf{Member}(i)\) の場合、\(\mathsf{Get}_{i,\nu}\) は同じ宣言の値を取得し、
+一つの instance を施し、必要な証拠変数を代入する計画である。
+Var/type application、既評価 root の lookup、有限 template の証拠引数置換で構成する。
+\(\mathsf{Get}\) の必要な値参照辺は \(owner(s)\to i\) の\emph{実際の}辺である。
+
+その Function の source 入力・結果を \(A_m,B_m\)、
+今回の use の入力・結果を \(A_e,B\) と書く。
+一回の Function 直接証拠に含まれる
+\(a:A_e\Dir A_m\)、\(r:B_m\Dir B\) を使い、
+\[
+ \El_s(e.m)=
+ \mathsf{let}\ f\leftarrow\mathsf{Get}_{i,\nu}\ \mathsf{in}\
+ \Call(\Wrap(f,a,r),\Delay E).
+ \tag{M}
+\]
+identity の場合も source/target port の対応を保持する。
+\(a\) は wrap 内の delayed argument adaptation、\(r\) は同じ complete Call の結果側に置く。
+receiver \(E\) を \(\Call\) の外で先に評価する let は作らない。
+
+通常・参照・effect の違いは選択 identity と full scheme にあり、実行規則は共通である。
+参照 method の lookup を理由に暗黙の dereference を加えず、その member の body が protocol を実行する。
+effect による lookup の成功から新しい source grant を作らない。
+必要な permission/profile は source annotation と既存の typed view からだけ得る。
+
+\subsection{role member}
+
+\(t=\mathsf{RoleMember}(R,m)\) では、\emph{その member の全 scheme}を一度 instantiate する。
+その結果の同じ role occurrence \(R(\bar T;\bar A)\) の証拠 \(q\) を使い、
+\[
+ \mathsf{Get}_{R,m,\nu}=
+ \mathsf{let}\ d\leftarrow\Ret\El(q)\ \mathsf{in}\
+ \mathsf{InstField}_{m,\nu}(d).
+ \tag{R}
+\]
+\(\mathsf{InstField}\) は required dictionary field の projection と、
+member-local の type/evidence application である。
+式全体は (M) の \(\mathsf{Get}\) を (R) に置き換える。
+
+たとえば \(Index(\alpha,\beta;out=\gamma)\) の member は、
+receiver、後続 key、返却値に同じ \(\alpha,\beta,\gamma\) を使う。
+\(e.m\) の時点で key がまだ渡されていればならない、という条件はない。
+返る callable に同じ packet が残り、後の App が key の直接義務を接続する。
+receiver だけから \(Index(A_e,\beta';out=\gamma')\) を追加する規則はない。
+
+\subsection{field fallback}
+
+\(t=\mathsf{Field}(m)\) では、現在の可視 record view から
+\(b:A_e\Dir\{m:B\}\) の直接証拠を要求し、
+\[
+ \El_s(e.m)=
+ \mathsf{let}\ x\leftarrow E\ \mathsf{in}\
+ \mathsf{let}\ y\leftarrow\El(b,x)\ \mathsf{in}\
+ \mathsf{field}_m(y).
+ \tag{F}
+\]
+required field の取得である。optional しか分からず存在証拠もない場合、
+この直接証拠は作れない。pattern default の規則を dot に流用しない。
+nominal struct の生成 accessor は、その宣言の member use または明示した shape/accessor 証拠を使う。
+構造的 field と nominal の backing payload を混同しない。
+
+(F) の effect graph は \(E\)、境界 \(b\)、projection を順に接続する。
+元稿の \(\epsilon_e<:\epsilon_s\) だけを検査して境界の effect を捨てない。
+境界が純粋な structural projection の場合、この接続は元の配線へ簡約する。
+(F) 自体には新しい source receiver がない。境界内の user cast の本物の Call は通常どおり数える。
+
+\subsection{complete Call の graph 検査}
+
+(M) の graph は、取得、source receipt、delayed argument adapter、
+実際の entry、body、宣言結果 consumer、結果 adapter を基礎体系の順で接続する。
+Value entry は carrier を force し、Computation entry は thunk として受け取る。
+argument に内包された callback、返却 closure、reference、raw reentry の ports も同時に接続する。
+
+\(U_s\) は同じ共同入力 \(\eta\) に対する全 port table である。
+各 local edge と mandatory seed に対し \(F_{G_s}(U_s)\subseteq U_s\)、
+各指定出力で \((U_s)_E\subseteq\Phi_s\) を検査する。
+Function 直接証拠は、同じ generic whole argument の下の全出力 inclusion を持つ。
+引数側の effect と結果側の effect を独立に選んだモデルで検査しない。
+取得段階に計算があればその immediate port も同じ外向き graph に入る。
+
+\begin{lemma}[Select の局所導出構成]
+上の三規則の証拠を与え、receiver、参照する body/template の導出を帰納仮説とする。
+\(\El_s(e.m)\) の \(B!\Phi_s\) の \(\Core\) 導出を有限に構成できる。
+\end{lemma}
+\begin{proof}
+(M) では Get を Var/type/evidence application で構成する。
+whole-packet instance 補題により \(f\) は同じ instance の Function 型を持つ。
+境界補題が \(a,r\) を与え、wrap 規則から receiver/result の型に合う callable を得る。
+receiver の帰納仮説に Delay を適用すると \(UA_e\) の carrier になる。
+Call、最後に Get の bind の規則を適用する。Get が元から値なら Ret の規則を用いる。
+通常・参照・effect の三種類は同じ規則を使い、lookup kind は型規則を変えない。
+
+(R) では role 実現補題が \(\El(q):\Dict_R(\bar T;\bar A)\) を与える。
+required field の規則で正確な member scheme を取得し、
+member-local instance と全前提置換を一度だけ施す。
+以後は (M) の導出である。別の receiver demand は生成しない。
+
+(F) では receiver の導出に bind、境界の導出に bind、required field の規則を順に適用する。
+存在証拠は同じ source view の branch に属するため、取得先の required 性が成立する。
+型導出だけでなく、これらの規則が作る graph は定義上 \(G_s\) である。
+検査済み \(U_s\) に全 seed、edge、出力 inclusion があるので精密な効果型付けの定義も満たす。
+従って \(\Phi_s\) は実行が安全だという仮定からではなく、有限の構文検査から得られる。
+\end{proof}
+
+\section{宣言の相互再帰と、公開までの閉包}
+\label{sec:closing}
+
+\subsection{signature を先に置くことと、証明を仮定することの違い}
+
+宣言を依存順に検査できるとは限らない。
+impl の member が同じ impl の別 member を呼び、method 選択が値 SCC を閉じる場合がある。
+そこで全 body/template の\emph{signature だけ}を有限表 \(\Xi\) に先に置く。
+各 body を \(\Xi\) の下で検査し、最後に全 body と全値構築の導出を揃える。
+未検査 body の「健全性」を使うのではなく、再帰関数の型を仮定してその本体を検査する標準の規則である。
+
+dictionary template は member body を無限に展開しない。
+field は元の callable またはその wrap view と、必要な型・証拠・capture 環境への参照を保持する。
+元の source lambda の code label/entry/profile は一つのまま保存する。
+単に dictionary field を作るための forwarding source lambda は追加しない。
+member body 内で再び同じ impl を使う場合は、有限 body 表の同じ label を参照する。
+一つの role 証拠木と、body 表の再帰辺は別の graph である。
+
+\(\mathsf{DeclOK}(\mathcal D)\) の完全な条件は、各 impl の局所 conformance に加え、
+次の有限な導出・構造検査を含む。
+\begin{enumerate}
+\item \(\Xi\) の全 body に、その formal 型・証拠・capture 環境下の本稿の導出がある。
+\item 構築する再帰値 graph の全 cycle が実際の value constructor、lambda、delay を通る。
+      alias、型適用、dictionary projection、wrap の参照だけの無進展 cycle は不可。
+      eabs を通る cycle は管理計算の一段を経るものとして扱う。
+\item computed root は型付きの順序付き初期化計画を持ち、取得時にその値が環境にある。
+      将来の未初期化 root の fetch を、候補表の存在だけから型付けしない。
+\item 全 loaded declaration を検査し、未使用の malformed impl を除外して成功扱いしない。
+\end{enumerate}
+この初期化条件を source/linker が生成することは、引き続き source 対応の義務である。
+
+\begin{lemma}[有限宣言表の同時閉包]
+\(\Xi\) の下の各 body の局所導出と上記の構築条件から、
+\(\Core\) の well-typed 有限 template 表、再帰値環境、root 初期化導出を構成できる。
+\end{lemma}
+\begin{proof}
+全 label の型を先に登録し、各 body を同じ formal 環境で翻訳する。
+template 参照は基礎体系の template 規則により有限の一 node になる。
+全 body を翻訳した時点で、その規則が要求する body 検査が全 label について揃う。
+この表の正しさは、実行時の template 展開一段で型・値引数を同時置換できることである。
+再帰参照の将来の実行が停止することは必要ない。
+
+値参照 graph の SCC ごとに同じ interface の変数 \(\bar x:\bar A\) を置く。
+全 \(v_i:A_i\) の導出を揃え、guard 検査により
+\(\mathsf{rec}\ \bar x=\bar v\ \mathsf{in}\ M\) の基礎規則を適用する。
+SCC 内の use に fresh scheme を用いなかったため、仮定と構築値の型が一致する。
+外側への一般化は環境から独立な binder の値導入だけに行う。
+computed root は与えられた順序付き導出へ let を適用して閉じる。
+未使用 declaration も有限表の body 検査に含まれる。
+従って宣言の参照による循環的な意味論の仮定は残らない。
+\end{proof}
+
+\subsection{保持した条件への追加と intrusion}
+
+有限条件集合 \(C\) の実現は、全 ordinary/effect/role occurrence に対する
+\emph{一つの}代入と各証拠である。
+\(C\cup C'\) の実現は、制限によって \(C\) の実現を与える。
+これは concrete subtype の推移性を使わない論理的な弱化である。
+既に選択した code は、その保持義務を満たすどの instance に対しても型付けされる。
+従って制約が後から増えても、その実現に制限すれば同じ code の安全性は残る。
+ただし選択の一意性が後からも成り立つとは結論しない。
+
+intrusion で使う多対一の型座標写像を \(q\) とする。
+実際の extrusion occurrence の parent/copy 対だけを同一化するという source 条件は別途必要である。
+本稿で使う論理的事実は、\(qC\) の実現 \(\theta\) から
+\(C\) の実現 \(\theta\circ q\) が得られることである。
+\(q\) は bound runtime owner を同一視する写像ではない。
+source Boundary と use/boundary occurrence の identity は保持し、
+同じ型座標になった二つの変換を削除したり一つの grant にしたりしない。
+
+\begin{lemma}[保持条件下の選択の安定性]
+固定選択 \(s\mapsto t\) の構文証拠から得た計画は、
+全条件を保持した追加と上記の型座標置換の後も、各実現の下で同じ target を持つ型付き計画になる。
+\end{lemma}
+\begin{proof}
+追加の場合は実現を元の条件へ制限して局所導出構成を使う。
+置換の場合は \(\theta\circ q\) を whole packet に施す。
+各直接義務は元の occurrence のまま置換され、role の全 child と関連型も同時に置換される。
+Function の graph は同じ共同代入の基礎 instantiation 補題で移る。
+target identity は型変数ではないので変わらない。
+矛盾する追加や置換には実現がなく、成功 certificate を得たとは結論しない。
+この補題は実際の solver が条件を落とさず transport することを仮定なしに証明するものではない。
+\end{proof}
+
+\section{主定理：選択の証拠から実行の健全性まで}
+\label{sec:main}
+
+\subsection{有限構成算法}
+
+入力は、本稿の有限な宣言・式・pattern・選択証拠と、その有限 template 表である。
+算法 \(\mathsf{BuildSelect}\) は次の通り。
+\begin{enumerate}
+\item binder、scope、宣言 identity、全 packet の依存関係と instance 写像を検査する。
+      source head の rigid binder と局所存在 binder を区別する。
+\item 全 declaration/body/boundary template の label と formal signature を先に確保する。
+\item 各 body の有限構文を辿る。通常 node は \(\Core\) の対応 constructor、
+      Select は (M)/(R)/(F) を出力する。参照 node では body を再展開せず label を出力する。
+\item direct evidence を第\ref{sec:boundary}節で code へ変換する。
+      role evidence は有限 DAG の child 先行で dictionary 構築へ変換する。
+\item 各 node の decoration と value/effect graph を構成する。
+      提出された table について mandatory seed、全 edge の closure、全出力 inclusion を検査する。
+\item 全 body の導出、再帰値の guard、root 初期化、closed root の全前提実現を検査して、
+      typed template 表、実行計画、\(\Core\) の型付け導出を返す。
+\end{enumerate}
+失敗した場合に別候補を試す処理はない。
+証拠なしの hole を runtime lookup へ渡す処理もない。
+これは証拠の検査・展開であり、未注釈 source から証拠を探索する推論器ではない。
+
+\begin{lemma}[有限構成の停止]
+与えられた有限証明書に対して \(\mathsf{BuildSelect}\) は停止する。
+\end{lemma}
+\begin{proof}
+表の登録と binder/guard/SCC 検査は有限 graph の走査である。
+body と直接証拠の処理は真の子構文へ降り、既登録 template 参照では停止する。
+role 証拠は有限 DAG であり、各 node を child の後に一度処理する。
+等式は与えられた有限等式導出を検査し、未知の型等式の決定手続きを呼ばない。
+効果検査は与えられた有限 signature の cell/table と有限な生成 relation を列挙する。
+構造的型 instance は有限 template と環境で保持し、全 ground type を列挙しない。
+各処理は有限であり、失敗もその位置で返る。
+この論証は証明書の探索の停止性を主張しない。
+\end{proof}
+
+\begin{theorem}[dot selection を含む elaboration の型保存]
+\label{thm:elaboration}
+有限の宣言表について \(\mathsf{DeclOK}(\mathcal D)\) の証明書があり、
+\[
+ \Delta;\Gamma;\mathcal P\vdash_s e:A!\Phi\rightsquigarrow M
+\]
+の有限な構文証拠を与える。
+このとき \(\mathsf{BuildSelect}\) は、\(\mathcal P\) の同じ実現を明示前提とする
+\(\Core\) の導出
+\[
+ \Delta;\Gamma,\El(\mathcal P)\Ty \El_s(e):A!\Phi
+\]
+と well-typed な宣言/template 表を構成する。
+ここで \(\El(\mathcal P)\) は role/adapter の値前提と ordinary/effect の静的導出前提を併記した略記である。
+厳密には任意の一つの実現 \(\zeta\) に対して、
+\(\El_s(e)[\zeta]\) の実際の \(\Core\) 導出を返す有限な導出 template を構成する。
+型・row・family を具体化する場合も同じ \(\zeta\) を結論全体へ施す。
+静的等式や inclusion を、\(\Core\) の通常の runtime 値とみなすという意味ではない。
+全 Select の target、whole-packet 共有、直接境界 occurrence、source entry/profile を保存する。
+完成した \(\El_s(e)\) の型付け、推論器の成功、全探索の停止は前提にない。
+\end{theorem}
+\begin{proof}
+先に有限 signature 表 \(\Xi\) を置く。
+その下で式・pattern・境界証拠の有限構文に同時帰納し、role 証拠には高さへの帰納を使う。
+宣言参照は \(\Xi\) の signature に対する use であり、参照先の証明を再帰展開しない。
+
+Lit/PrimitiveOp は基礎の literal/signature 規則。
+Var は同じ binder と whole-packet instance 補題。
+Lambda は body の帰納仮説を同じ entry/profile の値導入で包む。
+App は callee と delayed argument の導出を基礎の complete Call 規則で接続する。
+RefSet は基礎の protocol 計画の各子へ帰納仮説を入れる。
+Tuple/Record/PolyVariant は同じ source 順の bind と構造値導入。
+Case/Catch は全 pattern、default、guard、body の帰納仮説を順序付き計画へ入れ、
+基礎の pattern/handler 規則を使う。選ばれなかった guard の effect も同じ graph にある。
+Block は statement 順の bind と同じ binder 環境を使う。
+pattern の11形は、基礎の各計画の型付き穴へ子の導出を入れることにより保存される。
+Select は局所導出構成補題の三場合であり、通常・参照・effect member を全て含む。
+これは元稿の全13式を尽くす。
+
+境界の帰納は第\ref{sec:boundary}節、role の高さ帰納は第\ref{sec:role}節の構成で閉じる。
+impl の body の帰納仮説を全称的 dictionary 補題へ渡し、全 field の導出を得る。
+全 body の処理が終了すると \(\Xi\) の各 entry の検査義務が揃う。
+有限宣言表の同時閉包補題によって再帰仮定を閉じ、root を初期化する。
+従って「選択された実装は正しい」という未証明の意味論的前提は残らない。
+
+各 node の effect graph は基礎の構文規則から作った graph であり、
+その table は全 mandatory seed/edge/output inclusion を検査済みである。
+従って値型だけでなく \(A!\Phi\) の導出が得られる。
+\(\mathcal P\) の実現の使用は前提置換補題と精密な項置換により正当化される。
+保存事項は、全翻訳規則が同じ identity、instance map、source profile を使用することから従う。
+\end{proof}
+
+\begin{theorem}[dot selection の実行健全性]
+\label{thm:safety}
+前定理の closed root について全 qualified 前提を有限証拠で実現する。
+その実行を \(\Core\) の機械で行い、外部応答は宣言された型付き protocol を守るものとする。
+任意の有限実行 prefix において、内部の \(\mathsf{Bad}\) に到達せず、
+正常結果は \(A\)、外向き request は対応 port の \(\Phi\) に属する。
+返却値・継続の全 latent 契約と、source receipt に由来する衛生性も保存する。
+発散と基礎体系に明記した言語 failure は許される。
+\end{theorem}
+\begin{proof}
+前定理で \(\Core\) の closed な型付け導出を構成し、
+基礎体系の定理9.7の管理構文への拡張補題を適用する。
+選択された member の型付けはこの適用の外から仮定したものではなく、前定理の出力である。
+callee 取得、field 境界、argument/result adapter の effect はその出力導出に既に含まれる。
+同じ snapshot で別の member-name lookup 結果を選ぶことは構文証拠の政策判断で排除する。
+role impl の全候補中の一意性は上記の別義務であり、
+実行健全性だけから名前選択の正しさを結論するのではない。
+\end{proof}
+
+\subsection{有限な選択履歴への適用}
+
+一つの driver の有限履歴が選択証拠 \(\chi_1,\ldots,\chi_n\) を残し、
+各 commit が対応する full packet と全義務を保持したとする。
+最後に一つの実現と全宣言の導出を得た場合、前定理を全 selection に同時適用できる。
+証明は commit 数に帰納する。各 step で対応する Select の code/証拠を付加し、
+後の追加は保持条件の安定性補題で扱う。
+SCC の閉包は最終的な実際の use graph に同時閉包補題を適用する。
+
+この適用は、driver が有限終了した\emph{成功結果の健全性}を与える。
+全入力で有限終了する、必要な証拠を必ず発見する、途中の一般化で情報を落とさない、
+という compiler の命題はこの有限履歴仮定からは得られない。
+正確な証拠を残す compiler を実装する場合の義務は、この入力を構成することである。
+
+\section{構成例と、誤った証明書を排除する箇所}
+\label{sec:examples}
+
+\subsection{二引数 role と関連結果を一つに保つ例}
+
+純粋な Value entry を持つ role
+\[
+ Index(X,K;Y):\quad get:C(X,C(K,Y))
+\]
+と、payload が \(u\) の nominal \(Box(u)\) を考える。
+impl は
+\[
+ i=\forall u.\ Index(Box(u),1;u),\qquad
+ get=\lambda b.\lambda k.\mathsf{switch}(b,Box(x).\Ret x).
+\]
+rigid \(u\) の下で switch の payload は \(u\)、従って body は \(u\)。
+二回の lambda introduction で \(C(Box(u),C(1,u))\) を得る。
+実装と requirement の境界は identity、全 immediate/latent effect は空である。
+これが \(u\) を具体型へ狭めない conformance 導出である。
+
+\(e=Box(7)\) に対する \(e.get\) は一つの use instance
+\(X=Box(int),K=1,Y=int\) を持つ。
+Impl の有限証拠は child なしの一 node であり、
+\(D_i[int]\) から get を取得し、(M) の Call で \(e\) を渡す。
+結果は \(C(1,int)\)。その後 \(()\) を適用すると同じ \(Y=int\) の結果を得る。
+receiver-only demand を加える箇所はなく、後の key と結果の共有は残った callable に保存される。
+
+\subsection{順序と遅延を保存する例}
+
+Computation entry の member が receiver の carrier を一度も force せず定数を返す場合、
+(M) は receiver の effect を実際には実行しない。
+\(\mathsf{let}\ x\leftarrow E\ \mathsf{in}\Call(f,\Delay(\Ret x))\)
+へ置き換えると、その effect を強制してしまう。
+本稿の構成はその置換を行わず、source receipt の前に receiver を評価する証明書も作らない。
+効果上界が保守的であることと、実際の評価順を変更してよいことは異なる。
+
+field fallback の (F) では receiver を評価して view を得てから field を読む。
+method と field の二経路に同じ eager/lazy の短縮規則を課さない。
+
+\subsection{証拠適用で効果を消してしまわない例}
+
+\(b:string\Dir int\) が宣言された user cast を使い、その code の効果が \(Tick\) とする。
+対応する証拠値は
+\(c_b:string\Rightarrow_e^g(int!Tick)\) であり、
+\(\mathsf{eapp}(c_b,x)\) の効果は \(Tick\)。
+管理適用自身が source receiver を作らないことから、body の効果が0だとは結論しない。
+
+純粋な source callable \(f:C(1,string)\) の結果をこの証拠で変換する場合、
+\(\Wrap(f,id,c_b)\) の構築と、それを dictionary field に収める取得計算は純粋である。
+しかし将来の complete Call の結果 adapter に \(Tick\) が接続される。
+その callable を \(C(1,int)\) の\emph{純粋な}契約へ渡す証明書は、
+complete-call inclusion で失敗する。
+この例は immediate の取得効果と、返却する callable の latent 効果を分ける必要を示す。
+
+\subsection{失敗を隠せない証拠の検査点}
+
+\begin{longtable}{p{.39\textwidth}p{.53\textwidth}}
+\toprule 誤った証明書 & 拒否する条件 \\
+\midrule\endhead
+未使用 impl の \(u\) を \(bool\) へ解いた & rigid binder を局所存在置換の domain に入れられない。全宣言を検査する。\\
+同じ impl の二 member に別の省略関連型を使った & \(\bar A_i\) は候補全体の一つの template。field の requirement と index が一致しない。\\
+関連結果が合う別候補へ乗り換えた & 親 target identity は固定。関連型は選択根拠ではなく同じ候補の結果。\\
+receiver 専用の role demand を追加して既存 demand を捨てた & member 全 scheme の packet と一致しない。元の occurrence の証拠が欠ける。\\
+prerequisite が未計算なので空の子リストにした & Impl の子は宣言前提リストと正確に対応する。\\
+role の循環を call guard で成功扱いした & role 証拠は帰納的有限木。body/template の guard は代用にならない。\\
+optional field を presence なしで取得した & \(A_e\Dir\{m:B\}\) の required 証拠を作れない。\\
+二段の record 変換を一回の比較とした & direct 証拠に推移規則がない。境界 identity と途中 view を保持。\\
+引数と結果で別の effect/family 代入を選んだ & 一つの use 写像と共同 \(\eta\) の検査に失敗する。\\
+後の graph で同じ型の別 member を選んだ & commit 済み \(s\mapsto t\) と政策証拠に一致しない。\\
+wrap/dictionary 用の新しい source receiver を作った & (M)/(R) の展開と decoration の一致検査に失敗する。\\
+型座標の合流で外来 owner も現在 owner にした & 型 instance と runtime owner の fresh renaming は別。identity/source receipt の検査に失敗する。\\
+\bottomrule
+\end{longtable}
+
+以上は有限な手計算と規則の適用箇所であり、実行した compiler regression ではない。
+また、未検査の実装がこれらを既に排除しているという主張でもない。
+
+\section{元の義務へ戻す：閉じた橋と残る対応}
+\label{sec:remaining}
+
+\subsection{今回埋めた前提}
+
+基礎体系の Select の記述は「確定した member/dictionary の取得と receiver-first call、または field code」であった。
+本稿はその\emph{型付き部品の存在}を、宣言的な有限証拠から構成した。
+特に impl の全称 binder、関連型の candidate-wide 共有、全 prerequisite、
+直接境界、whole instance、complete Call、再帰表を一つの導出へ接続した。
+「選択された code が型付きなら安全」という基礎定理の前提を、同じ言葉で再要求してはいない。
+
+ただし、基礎体系の実行定理自体はその査読状態を引き継ぐ。
+本稿の翻訳定理の紙上導出だけで、基礎体系や現 compiler の正しさを独立に認証したことにはならない。
+
+\subsection{source の各所有箇所との接続}
+
+以下は固定 Oracle の参照箇所を読み、必要な対応を特定したものである。
+本文の数学的規則と、実装がそれを全経路で生成するという命題を区別する。
+
+\begin{longtable}{p{.30\textwidth}p{.62\textwidth}}
+\toprule source owner & 本稿へ渡す必要のあるもの／未完了の対応 \\
+\midrule\endhead
+\nolinkurl{spec/2026-06-04-method-selection.md} & 読込・可視候補、receiver-only demand を作らないこと、role/field fallback の意味。本文はその方針を保持した。\\
+\nolinkurl{analysis/session/selection.rs} & 観測 snapshot と全読取依存、effect/ref の authentic path、Ready の生成、field の全 Call 上界からの直接義務。静止 snapshot の観測関数を本文で具体化した。snapshot の構築・更新と watcher の全経路対応は未証明。\\
+\nolinkurl{analysis/session/lifecycle.rs} & 選択の一度だけの適用、実際の use 辺、recursive self の同じ interface。参照した1089--1147行には対応する分岐があるが、全 lifecycle 保存は未証明。\\
+\nolinkurl{role_solve/mod.rs} & head の副作用なし照合、一つの親候補、全 prerequisite と関連型の保持、raw graph からの再試行。有限証拠を発見する局所構成の完全性は未証明。\\
+\nolinkurl{notes/design/2026-07-12-generic-role-impl-conformance-spec.md} & rigid head、candidate-wide の省略関連型、residual の含意、全未使用 impl の検査。本文は証拠規則を与えた。compiler の全称 checker との対応は未証明。\\
+generalization / intrusion / linker & 全 packet の保持と正しい量化、実際の extrusion 対、初期化済み環境。本文の条件保存補題を適用する source 証明が必要。\\
+\bottomrule
+\end{longtable}
+
+\subsection{主張しない強い命題}
+
+\begin{enumerate}
+\item 最終 graph だけから再選択しても同じ target になること。
+\item Oracle の first-success/逐次 fallback と一括処理案の同値性。
+\item role impl resolver の compact/head 対応と一意性。異なる overload 選択を横断する主型性、観測同値性、実装 body の意味的 coherence。
+\item 全 source からの有限証拠探索の停止・完全性、一般の role 前提の全停止決定。
+\item 現在の compiler の受理集合、VM/native の実行が本稿の導出と機械に一致すること。
+\end{enumerate}
+これらを必要な元の義務から外したのではない。
+ユーザーが先に求めた推論器独立の型健全性に対して、
+選択の\emph{宣言的導出から実行への橋}を先に埋めた位置を示している。
+次の独立査読では、eabs/eapp の管理拡張、直接証拠の構成、rigid conformance と dictionary の閉包、
+whole-packet の共有、snapshot の source 対応、そして基礎体系への依存を個別に点検する必要がある。
+
+\end{document}
