@@ -12387,12 +12387,729 @@ impl InferenceSession {
         Ok(readbacks)
     }
     #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_case_domain_alternatives(
+        &self,
+        route: &candidate_scheme::FreshRoute,
+        guard: &candidate_scheme::SourceCaseGuard<candidate_scheme::RowKey>,
+        guard_input_row: u32,
+        work: &mut usize,
+    ) -> Result<Option<Vec<shadow_apply::CandidateGuardedVariantCaseAlternativeReadback>>, SolveAvailabilityError> {
+        use candidate_scheme::{Node, RowKey};
+        use shadow_apply::{CandidateEndpoint, CandidateGuardedVariantCaseAlternativeReadback,
+            CandidateGuardedVariantCasePayloadReadback, CandidateRelation};
+        use yu_hir::shadow::{LocalSourceCasePattern, LocalSourceCasePatternElement, LocalSourceForm};
+
+        fn spend(work: &mut usize) -> bool {
+            *work = match work.checked_add(1) {
+                Some(work) => work,
+                None => return false,
+            };
+            *work <= CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT
+        }
+
+        let Some(state) = self.candidate_graph.as_ref() else { return Ok(None); };
+        let provider_root = SourceRootId::Definition(route.provider.clone());
+        if self.batch.candidate_source.source_owners.get(&guard.case) != Some(&provider_root) {
+            return Ok(None);
+        }
+        let Some(provider_hir) = self.batch.hir_for_source_root(&provider_root) else { return Ok(None); };
+        let Ok(Some(provider_source)) = provider_hir.local_source_for(&provider_root) else { return Ok(None); };
+        let Some(case_expression) = provider_source.expressions().iter().find(|expression| {
+            spend(work) && expression.occurrence == guard.case
+        }) else { return Ok(None); };
+        let LocalSourceForm::Case { arms, .. } = &case_expression.form else { return Ok(None); };
+
+        let mut matching_recipe = None;
+        for recipe in &self.batch.candidate_recipes {
+            if !spend(work) { return Ok(None); }
+            if recipe.occurrence != guard.case { continue; }
+            let CandidateRelation::VariantCase { scrutinee, alternatives, .. } = &recipe.relation else {
+                continue;
+            };
+            if matching_recipe.is_some() { return Ok(None); }
+            matching_recipe = Some((*scrutinee, alternatives.as_slice()));
+        }
+        let Some((scrutinee, source_alternatives)) = matching_recipe else { return Ok(None); };
+        if arms.len() != source_alternatives.len() { return Ok(None); }
+
+        let endpoint_row = |endpoint: CandidateEndpoint| -> Option<u32> {
+            match endpoint {
+                CandidateEndpoint::Component(position) => self.live_components.get(position).map(|row| row.ordinal),
+                CandidateEndpoint::Parameter(position) => self.parameter_live_base.checked_add(
+                    u32::try_from(position).ok()?,
+                ),
+            }
+        };
+        let Some(scrutinee_row) = endpoint_row(scrutinee) else { return Ok(None); };
+        if state.intrusion.rep(RowKey::Value(scrutinee_row)) != state.intrusion.rep(guard.input) {
+            return Ok(None);
+        }
+
+        let mut source_payload_rows = Vec::new();
+        source_payload_rows.try_reserve_exact(arms.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        for (arm, alternative) in arms.iter().zip(source_alternatives) {
+            if !spend(work) { return Ok(None); }
+            let LocalSourceCasePattern::Variant { tag, elements, .. } = &arm.pattern else {
+                return Ok(None);
+            };
+            if tag != &alternative.tag || elements.len() != alternative.payloads.len() {
+                return Ok(None);
+            }
+            let mut payload_rows = Vec::new();
+            payload_rows.try_reserve_exact(elements.len())
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            for (element, endpoint) in elements.iter().zip(&alternative.payloads) {
+                if !spend(work) { return Ok(None); }
+                match (element, endpoint) {
+                    (LocalSourceCasePatternElement::Binder(_), Some(endpoint)) => {
+                        let Some(row) = endpoint_row(*endpoint) else { return Ok(None); };
+                        payload_rows.push(Some(row));
+                    }
+                    (LocalSourceCasePatternElement::Wildcard, None) => payload_rows.push(None),
+                    _ => return Ok(None),
+                }
+            }
+            source_payload_rows.push(payload_rows);
+        }
+
+        let mut input_graph_row = None;
+        for (index, row) in route.graph.rows.iter().enumerate() {
+            if !spend(work) { return Ok(None); }
+            if row.key == guard.input {
+                if input_graph_row.replace(index).is_some() { return Ok(None); }
+            }
+        }
+        let Some(input_graph_row) = input_graph_row else { return Ok(None); };
+
+        let freshuse_row = |source_row: u32, work: &mut usize| -> Option<u32> {
+            let source_key = state.intrusion.rep(RowKey::Value(source_row));
+            let mut graph_row = None;
+            for (index, row) in route.graph.rows.iter().enumerate() {
+                if !spend(work) { return None; }
+                if row.key == source_key {
+                    if graph_row.replace(index).is_some() { return None; }
+                }
+            }
+            let graph_row = graph_row?;
+            let RowKey::Value(active) = route.rows.get(graph_row).copied()? else { return None; };
+            let RowKey::Value(active) = state.intrusion.rep(RowKey::Value(active)) else { return None; };
+            Some(active)
+        };
+        let guard_bounds = self.bounds.get(guard_input_row as usize).ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let mut matched_domain = None;
+        let mut ambiguous_domain = false;
+        for bound in &route.graph.bounds {
+            if !spend(work) { return Ok(None); }
+            if bound.kind != ComponentKind::Value { continue; }
+            let Some(Node::Row { row, polarity: Polarity::Positive }) = route.graph.nodes.get(bound.lower).copied() else {
+                continue;
+            };
+            if row != input_graph_row { continue; }
+            let Some(Node::Variant { polarity: Polarity::Negative, .. }) = route.graph.nodes.get(bound.upper).copied() else {
+                continue;
+            };
+            let Some(term) = route.retained.terms.get(bound.upper).copied().flatten() else { continue; };
+            let mut native_upper_present = false;
+            for upper in &guard_bounds.exact_non_variable_uppers {
+                if !spend(work) { return Ok(None); }
+                if *upper == ValueEndpointKey::NegativeVariant(term) {
+                    native_upper_present = true;
+                    break;
+                }
+            }
+            if !native_upper_present { continue; }
+            let Ok(crate::TermView::NegativeVariant { alternatives }) = self.store.term_view(term) else {
+                continue;
+            };
+            if alternatives.len() != source_alternatives.len() { continue; }
+            let mut readback_alternatives = Vec::new();
+            readback_alternatives.try_reserve_exact(alternatives.len())
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            let mut exact_domain = true;
+            for (arm_index, (((native, source), source_rows), source_arm)) in alternatives.iter()
+                .zip(source_alternatives).zip(source_payload_rows.iter()).zip(arms.iter()).enumerate()
+            {
+                if !spend(work) { return Ok(None); }
+                let LocalSourceCasePattern::Variant { tag, elements, .. } = &source_arm.pattern else {
+                    exact_domain = false;
+                    break;
+                };
+                if native.tag != source.tag || native.tag != *tag
+                    || native.payloads.len() != source.payloads.len()
+                    || native.payloads.len() != source_rows.len()
+                    || native.payloads.len() != elements.len()
+                {
+                    exact_domain = false;
+                    break;
+                }
+                let mut payload_readbacks = Vec::new();
+                payload_readbacks.try_reserve_exact(native.payloads.len())
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                for (payload_index, (native_payload, source_endpoint_row)) in
+                    native.payloads.iter().zip(source_rows).enumerate()
+                {
+                    if !spend(work) { return Ok(None); }
+                    let Ok(crate::TermView::LiveVariable(view)) = self.store.term_view(*native_payload) else {
+                        exact_domain = false;
+                        break;
+                    };
+                    if view.kind() != ComponentKind::Value || view.polarity() != Polarity::Negative {
+                        exact_domain = false;
+                        break;
+                    }
+                    if let Some(source_row) = source_endpoint_row {
+                        let Some(expected_active) = freshuse_row(*source_row, work) else {
+                            if *work > CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT { return Ok(None); }
+                            exact_domain = false;
+                            break;
+                        };
+                        if state.intrusion.value_rep(view.ordinal()) != expected_active {
+                            exact_domain = false;
+                            break;
+                        }
+                    }
+                    payload_readbacks.push(CandidateGuardedVariantCasePayloadReadback {
+                        payload_index,
+                        source_endpoint_row: *source_endpoint_row,
+                        freshuse_negative_row: view.ordinal(),
+                    });
+                }
+                if !exact_domain { break; }
+                readback_alternatives.push(CandidateGuardedVariantCaseAlternativeReadback {
+                    source_arm: arm_index,
+                    tag: tag.clone(),
+                    payloads: payload_readbacks,
+                });
+            }
+            if !exact_domain { continue; }
+            if matched_domain.is_some() {
+                ambiguous_domain = true;
+                break;
+            }
+            matched_domain = Some(readback_alternatives);
+        }
+        if ambiguous_domain { return Ok(None); }
+        Ok(matched_domain)
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_case_payload_field_receiver_flow(
+        &self,
+        route: &candidate_scheme::FreshRoute,
+        guard: &candidate_scheme::SourceCaseGuard<candidate_scheme::RowKey>,
+        template: &candidate_scheme::SourceFieldTailObligation,
+        obligation: &candidate_scheme::SourceFieldTailObligation,
+        domain: &[shadow_apply::CandidateGuardedVariantCaseAlternativeReadback],
+        work: &mut usize,
+    ) -> Result<Option<shadow_apply::CandidateGuardedVariantCaseReceiverFlowReadback>, SolveAvailabilityError> {
+        use candidate_scheme::RowKey;
+        use shadow_apply::{CandidateEndpoint, CandidateGuardedVariantCaseReceiverFlowReadback,
+            CandidateGuardedVariantCaseReceiverFlowStepReadback, CandidateRelation};
+        use yu_hir::shadow::{LocalSourceCasePattern, LocalSourceCasePatternElement,
+            LocalSourceForm, LocalSourceResolution};
+
+        fn spend(work: &mut usize) -> bool {
+            *work = match work.checked_add(1) {
+                Some(work) => work,
+                None => return false,
+            };
+            *work <= CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT
+        }
+
+        let state = self.candidate_graph.as_ref().ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let provider_root = SourceRootId::Definition(route.provider.clone());
+        if self.batch.candidate_source.source_owners.get(&guard.case) != Some(&provider_root)
+            || template.source_owner != provider_root
+            || template.occurrence != obligation.occurrence
+            || template.source != obligation.source
+            || template.member != obligation.member
+        {
+            return Ok(None);
+        }
+        let Some(hir) = self.batch.hir_for_source_root(&provider_root) else { return Ok(None); };
+        let Ok(Some(source)) = hir.local_source_for(&provider_root) else { return Ok(None); };
+        let mut case_expression = None;
+        let mut field_expression = None;
+        for expression in source.expressions() {
+            if !spend(work) { return Ok(None); }
+            if expression.occurrence == guard.case {
+                if case_expression.replace(expression).is_some() { return Ok(None); }
+            }
+            if expression.occurrence == obligation.occurrence {
+                if field_expression.replace(expression).is_some() { return Ok(None); }
+            }
+        }
+        let (Some(case_expression), Some(field_expression)) = (case_expression, field_expression) else {
+            return Ok(None);
+        };
+        let LocalSourceForm::Case { arms, .. } = &case_expression.form else { return Ok(None); };
+        let Some(arm) = arms.get(guard.arm) else { return Ok(None); };
+        let LocalSourceCasePattern::Variant { tag, elements, .. } = &arm.pattern else { return Ok(None); };
+        if tag != &guard.tag || elements.len() != guard.arity { return Ok(None); }
+        let Some(readback_arm) = domain.iter().find(|alternative|
+            alternative.source_arm == guard.arm && alternative.tag == guard.tag
+        ) else { return Ok(None); };
+        if readback_arm.payloads.len() != elements.len() { return Ok(None); }
+
+        let mut case_recipe = None;
+        let mut field_recipe = None;
+        for recipe in &self.batch.candidate_recipes {
+            if !spend(work) { return Ok(None); }
+            if recipe.occurrence == guard.case {
+                if let CandidateRelation::VariantCase { alternatives, .. } = &recipe.relation {
+                    if case_recipe.replace(alternatives.as_slice()).is_some() { return Ok(None); }
+                }
+            }
+            if recipe.occurrence == obligation.occurrence {
+                if let CandidateRelation::DeferredFieldTail { source, member, receiver, .. } = &recipe.relation {
+                    if source != &obligation.source || member != &obligation.member
+                        || field_recipe.replace(*receiver).is_some()
+                    { return Ok(None); }
+                }
+            }
+        }
+        let (Some(case_recipe), Some(field_receiver)) = (case_recipe, field_recipe) else {
+            return Ok(None);
+        };
+        let Some(case_alternative) = case_recipe.get(guard.arm) else { return Ok(None); };
+        if case_alternative.tag != guard.tag || case_alternative.payloads.len() != elements.len() {
+            return Ok(None);
+        }
+
+        let endpoint_row = |endpoint: CandidateEndpoint| -> Option<u32> {
+            match endpoint {
+                CandidateEndpoint::Component(position) => self.live_components.get(position).map(|row| row.ordinal),
+                CandidateEndpoint::Parameter(position) => self.parameter_live_base.checked_add(
+                    u32::try_from(position).ok()?,
+                ),
+            }
+        };
+        let mapped_row = |endpoint: CandidateEndpoint, work: &mut usize| -> Option<u32> {
+            let source_row = endpoint_row(endpoint)?;
+            let source_key = state.intrusion.rep(RowKey::Value(source_row));
+            let mut graph_row = None;
+            for (index, row) in route.graph.rows.iter().enumerate() {
+                if !spend(work) { return None; }
+                if row.key == source_key {
+                    if graph_row.replace(index).is_some() { return None; }
+                }
+            }
+            let graph_row = graph_row?;
+            let RowKey::Value(active) = route.rows.get(graph_row).copied()? else { return None; };
+            let RowKey::Value(active) = state.intrusion.rep(RowKey::Value(active)) else { return None; };
+            Some(active)
+        };
+        let flow_edge_present = |lower: u32, upper: u32, work: &mut usize| -> Option<bool> {
+            let lower = state.intrusion.value_rep(lower);
+            let upper = state.intrusion.value_rep(upper);
+            for (physical, bounds) in self.bounds.iter().enumerate() {
+                if !spend(work) { return None; }
+                let physical = u32::try_from(physical).ok()?;
+                let owner = state.intrusion.value_rep(physical);
+                if owner == lower {
+                    for candidate in &bounds.direct_upper_rows {
+                        if !spend(work) { return None; }
+                        if state.intrusion.value_rep(*candidate) == upper { return Some(true); }
+                    }
+                }
+                if owner == upper {
+                    for candidate in &bounds.direct_lower_rows {
+                        if !spend(work) { return None; }
+                        if state.intrusion.value_rep(*candidate) == lower { return Some(true); }
+                    }
+                }
+            }
+            Some(false)
+        };
+
+        let (LocalSourceForm::FieldTail { receiver, .. }
+            | LocalSourceForm::GeneratedFormatSelection { receiver, .. }) = &field_expression.form else {
+            return Ok(None);
+        };
+        let Some(mut current) = source.expression(receiver) else { return Ok(None); };
+        let source_receiver = current.occurrence.clone();
+        let Some(receiver_source_row) = endpoint_row(field_receiver) else { return Ok(None); };
+        let Some(receiver_freshuse_row) = mapped_row(field_receiver, work) else { return Ok(None); };
+        let RowKey::Value(obligation_receiver) = state.intrusion.rep(obligation.receiver_row) else {
+            return Ok(None);
+        };
+        if receiver_freshuse_row != obligation_receiver { return Ok(None); }
+
+        let mut expected_endpoint = field_receiver;
+        let mut outer_steps = Vec::<(HirOccurrenceId, CandidateEndpoint, CandidateEndpoint)>::new();
+        let binder_id = loop {
+            if !spend(work) { return Ok(None); }
+            match &current.form {
+                LocalSourceForm::Name { resolution: LocalSourceResolution::CaseBinder(binder), .. } => {
+                    if !elements.iter().any(|element|
+                        matches!(element, LocalSourceCasePatternElement::Binder(expected) if &expected.id == binder)
+                    ) { return Ok(None); }
+                    break binder.clone();
+                }
+                LocalSourceForm::Block { bindings, final_expression } if bindings.is_empty() => {
+                    let child = final_expression.clone();
+                    let mut group = None;
+                    for recipe in &self.batch.candidate_recipes {
+                        if !spend(work) { return Ok(None); }
+                        if recipe.occurrence != current.occurrence { continue; }
+                        if let CandidateRelation::Group { child, result, .. } = &recipe.relation {
+                            if group.replace((*child, CandidateEndpoint::Component(*result))).is_some() {
+                                return Ok(None);
+                            }
+                        }
+                    }
+                    let Some((group_child, group_result)) = group else { return Ok(None); };
+                    if !candidate_call::same_endpoint(group_result, expected_endpoint) { return Ok(None); }
+                    outer_steps.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    outer_steps.push((current.occurrence.clone(), group_child, group_result));
+                    expected_endpoint = group_child;
+                    let Some(next) = source.expression(&child) else { return Ok(None); };
+                    current = next;
+                }
+                LocalSourceForm::Group { inner }
+                | LocalSourceForm::Ascription { inner, .. }
+                | LocalSourceForm::InterpolatedString { lowered: Some(inner), .. } => {
+                    let child = inner.clone();
+                    let mut group = None;
+                    for recipe in &self.batch.candidate_recipes {
+                        if !spend(work) { return Ok(None); }
+                        if recipe.occurrence != current.occurrence { continue; }
+                        if let CandidateRelation::Group { child, result, .. } = &recipe.relation {
+                            if group.replace((*child, CandidateEndpoint::Component(*result))).is_some() {
+                                return Ok(None);
+                            }
+                        }
+                    }
+                    let Some((group_child, group_result)) = group else { return Ok(None); };
+                    if !candidate_call::same_endpoint(group_result, expected_endpoint) { return Ok(None); }
+                    outer_steps.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    outer_steps.push((current.occurrence.clone(), group_child, group_result));
+                    expected_endpoint = group_child;
+                    let Some(next) = source.expression(&child) else { return Ok(None); };
+                    current = next;
+                }
+                _ => return Ok(None),
+            }
+        };
+        let Some(payload_index) = elements.iter().position(|element|
+            matches!(element, LocalSourceCasePatternElement::Binder(pattern_binder)
+                if pattern_binder.id == binder_id)
+        ) else { return Ok(None); };
+        let Some(Some(binder_endpoint)) = case_alternative.payloads.get(payload_index).copied() else {
+            return Ok(None);
+        };
+        if !candidate_call::same_endpoint(expected_endpoint, binder_endpoint) { return Ok(None); }
+        let Some(binder_source_row) = endpoint_row(binder_endpoint) else { return Ok(None); };
+        let Some(binder_freshuse_row) = mapped_row(binder_endpoint, work) else { return Ok(None); };
+        let Some(case_payload) = readback_arm.payloads.get(payload_index) else { return Ok(None); };
+        if case_payload.source_endpoint_row != Some(binder_source_row)
+            || state.intrusion.value_rep(case_payload.freshuse_negative_row) != binder_freshuse_row
+        {
+            return Ok(None);
+        }
+
+        let mut source_group_steps = Vec::new();
+        source_group_steps.try_reserve_exact(outer_steps.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        for (occurrence, lower_endpoint, upper_endpoint) in outer_steps.into_iter().rev() {
+            let (Some(source_lower_row), Some(source_upper_row),
+                Some(freshuse_lower_row), Some(freshuse_upper_row)) = (
+                endpoint_row(lower_endpoint), endpoint_row(upper_endpoint),
+                mapped_row(lower_endpoint, work), mapped_row(upper_endpoint, work),
+            ) else { return Ok(None); };
+            match flow_edge_present(freshuse_lower_row, freshuse_upper_row, work) {
+                Some(true) => {}
+                _ => return Ok(None),
+            }
+            source_group_steps.push(CandidateGuardedVariantCaseReceiverFlowStepReadback {
+                source_relation: occurrence,
+                source_lower_row,
+                source_upper_row,
+                freshuse_lower_row,
+                freshuse_upper_row,
+            });
+        }
+        Ok(Some(CandidateGuardedVariantCaseReceiverFlowReadback {
+            case_arm: guard.arm,
+            case_tag: guard.tag.clone(),
+            payload_index,
+            source_binder: current.occurrence.clone(),
+            binder_source_endpoint_row: binder_source_row,
+            binder_freshuse_negative_row: case_payload.freshuse_negative_row,
+            source_receiver,
+            receiver_source_endpoint_row: receiver_source_row,
+            receiver_freshuse_positive_row: receiver_freshuse_row,
+            source_group_steps,
+        }))
+    }
+
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_case_input_frontier(
+        &self,
+        input_row: u32,
+        work: &mut usize,
+    ) -> Result<Option<shadow_apply::CandidateCaseInputFrontierReadback>, SolveAvailabilityError> {
+        use shadow_apply::{CandidateCaseInputFrontierReadback, CandidateCaseInputVariantLowerReadback,
+            CandidateEndpoint, CandidateRelation};
+        use yu_hir::shadow::LocalSourceForm;
+
+        fn spend(work: &mut usize) -> bool {
+            *work = match work.checked_add(1) {
+                Some(work) => work,
+                None => return false,
+            };
+            *work <= CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT
+        }
+        fn increment(value: &mut usize) -> Result<(), SolveAvailabilityError> {
+            *value = value.checked_add(1).ok_or(SolveAvailabilityError::IdentityExhausted)?;
+            Ok(())
+        }
+
+        let Some(state) = self.candidate_graph.as_ref() else { return Ok(None); };
+        let endpoint_row = |endpoint: CandidateEndpoint| -> Option<u32> {
+            match endpoint {
+                CandidateEndpoint::Component(position) => self.live_components.get(position).map(|row| row.ordinal),
+                CandidateEndpoint::Parameter(position) => self.parameter_live_base.checked_add(
+                    u32::try_from(position).ok()?,
+                ),
+            }
+        };
+        let mut worklist = Vec::new();
+        worklist.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        worklist.push(state.intrusion.value_rep(input_row));
+        let mut scheduled = HashSet::new();
+        scheduled.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        scheduled.insert(state.intrusion.value_rep(input_row));
+
+        let mut frontier = CandidateCaseInputFrontierReadback {
+            input_row: state.intrusion.value_rep(input_row),
+            rows_reached: 0,
+            incoming_row_edges: 0,
+            one_sided_incoming_row_edges: 0,
+            repeated_incoming_row_edges: 0,
+            exact_lower_atoms: 0,
+            non_variant_lower_atoms: 0,
+            positive_variant_lower_atoms: 0,
+            authenticated_variant_lower_atoms: 0,
+            unexplained_variant_lower_atoms: 0,
+            open_input_rows: 0,
+            traversal_complete: false,
+            variants: Vec::new(),
+        };
+        while let Some(row) = worklist.pop() {
+            if !spend(work) { return Ok(None); }
+            let row = state.intrusion.value_rep(row);
+            if self.bounds.get(row as usize).is_none() { return Ok(None); }
+            increment(&mut frontier.rows_reached)?;
+            let mut incoming = HashMap::<u32, (bool, bool)>::new();
+            let mut exact_lower_atoms = Vec::new();
+            // Candidate bound ownership is selected by polarity and level in
+            // candidate_apply_value,
+            // so include both incidences and preserve the one-sided count.
+            // Canonical representatives can own bounds stored at an older physical
+            // row slot, so aggregate every slot mapped to this row as well.
+            for (physical_row, physical_bounds) in self.bounds.iter().enumerate() {
+                if !spend(work) { return Ok(None); }
+                let physical_row = state.intrusion.value_rep(
+                    u32::try_from(physical_row).map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                );
+                if physical_row == row {
+                    for lower in &physical_bounds.direct_lower_rows {
+                        if !spend(work) { return Ok(None); }
+                        let lower = state.intrusion.value_rep(*lower);
+                        if let Some(sides) = incoming.get_mut(&lower) {
+                            sides.0 = true;
+                        } else {
+                            incoming.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            incoming.insert(lower, (true, false));
+                        }
+                    }
+                    for endpoint in &physical_bounds.exact_non_variable_lowers {
+                        if !spend(work) { return Ok(None); }
+                        exact_lower_atoms.try_reserve(1)
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        exact_lower_atoms.push(*endpoint);
+                    }
+                }
+                for upper in &physical_bounds.direct_upper_rows {
+                    if !spend(work) { return Ok(None); }
+                    if state.intrusion.value_rep(*upper) != row { continue; }
+                    if let Some(sides) = incoming.get_mut(&physical_row) {
+                        sides.1 = true;
+                    } else {
+                        incoming.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        incoming.insert(physical_row, (false, true));
+                    }
+                }
+            }
+            let has_incoming_rows = !incoming.is_empty();
+            let mut incoming_rows = Vec::new();
+            incoming_rows.try_reserve_exact(incoming.len())
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            for edge in incoming {
+                if !spend(work) { return Ok(None); }
+                incoming_rows.push(edge);
+            }
+            incoming_rows.sort_unstable_by_key(|(lower, _)| *lower);
+            for (lower, (from_lower_inventory, from_upper_inventory)) in incoming_rows {
+                increment(&mut frontier.incoming_row_edges)?;
+                if from_lower_inventory != from_upper_inventory {
+                    increment(&mut frontier.one_sided_incoming_row_edges)?;
+                }
+                if !scheduled.insert(lower) {
+                    increment(&mut frontier.repeated_incoming_row_edges)?;
+                    continue;
+                }
+                worklist.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                scheduled.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                worklist.push(lower);
+            }
+            if !has_incoming_rows && exact_lower_atoms.is_empty() {
+                increment(&mut frontier.open_input_rows)?;
+            }
+            for endpoint in &exact_lower_atoms {
+                if !spend(work) { return Ok(None); }
+                increment(&mut frontier.exact_lower_atoms)?;
+                let ValueEndpointKey::PositiveVariant(term) = *endpoint else {
+                    increment(&mut frontier.non_variant_lower_atoms)?;
+                    continue;
+                };
+                increment(&mut frontier.positive_variant_lower_atoms)?;
+                let Ok(crate::TermView::PositiveVariant { alternatives }) = self.store.term_view(term) else {
+                    increment(&mut frontier.unexplained_variant_lower_atoms)?;
+                    continue;
+                };
+                if alternatives.len() != 1 {
+                    increment(&mut frontier.unexplained_variant_lower_atoms)?;
+                    continue;
+                }
+                let actual = &alternatives[0];
+                let mut matching_source = None;
+                let mut ambiguous_source = false;
+                for recipe in &self.batch.candidate_recipes {
+                    if !spend(work) { return Ok(None); }
+                    let CandidateRelation::Variant { tag, payloads, result, .. } = &recipe.relation else {
+                        continue;
+                    };
+                    if tag != &actual.tag || payloads.len() != actual.payloads.len() { continue; }
+                    let Some(source_row) = endpoint_row(CandidateEndpoint::Component(*result)) else {
+                        continue;
+                    };
+                    let source_row = state.intrusion.value_rep(source_row);
+                    if !scheduled.contains(&source_row) { continue; }
+                    let mut exact_origin_lower = false;
+                    for (physical_row, source_bounds) in self.bounds.iter().enumerate() {
+                        if !spend(work) { return Ok(None); }
+                        let physical_row = state.intrusion.value_rep(
+                            u32::try_from(physical_row).map_err(|_| SolveAvailabilityError::IdentityExhausted)?,
+                        );
+                        if physical_row != source_row { continue; }
+                        for origin in &source_bounds.exact_non_variable_lowers {
+                            if !spend(work) { return Ok(None); }
+                            if *origin == ValueEndpointKey::PositiveVariant(term) {
+                                exact_origin_lower = true;
+                                break;
+                            }
+                        }
+                        if exact_origin_lower { break; }
+                    }
+                    if !exact_origin_lower { continue; }
+
+                    let mut payload_rows = Vec::new();
+                    payload_rows.try_reserve_exact(payloads.len())
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    let mut exact_payloads = true;
+                    for (&endpoint, native_payload) in payloads.iter().zip(&actual.payloads) {
+                        if !spend(work) { return Ok(None); }
+                        let Some(source_payload_row) = endpoint_row(endpoint) else {
+                            exact_payloads = false;
+                            break;
+                        };
+                        let Ok(crate::TermView::LiveVariable(view)) = self.store.term_view(*native_payload) else {
+                            exact_payloads = false;
+                            break;
+                        };
+                        let source_payload_row = state.intrusion.value_rep(source_payload_row);
+                        if view.kind() != ComponentKind::Value || view.polarity() != Polarity::Positive
+                            || state.intrusion.value_rep(view.ordinal()) != source_payload_row
+                        {
+                            exact_payloads = false;
+                            break;
+                        }
+                        payload_rows.push((source_payload_row, view.ordinal()));
+                    }
+                    if !exact_payloads {
+                        continue;
+                    }
+                    let Some(source_owner) = self.batch.candidate_source.source_owners.get(&recipe.occurrence) else {
+                        continue;
+                    };
+                    let Some(hir) = self.batch.hir_for_source_root(source_owner) else { continue; };
+                    let Ok(Some(source)) = hir.local_source_for(source_owner) else { continue; };
+                    let Some(source_expression) = source.expressions().iter().find(|expression| {
+                        spend(work) && expression.occurrence == recipe.occurrence
+                    }) else { continue; };
+                    let LocalSourceForm::Variant { tag: source_tag, payloads: source_payloads, .. } = &source_expression.form else {
+                        continue;
+                    };
+                    if source_tag != tag || source_payloads.len() != payload_rows.len() { continue; }
+                    let mut readback_payloads = Vec::new();
+                    readback_payloads.try_reserve_exact(payload_rows.len())
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    let mut source_children_complete = true;
+                    for (payload_index, (source_payload, (source_endpoint_row, native_payload_row))) in
+                        source_payloads.iter().zip(payload_rows.iter().copied()).enumerate()
+                    {
+                        if !spend(work) { return Ok(None); }
+                        let Some(source_payload) = source.expression(source_payload) else {
+                            source_children_complete = false;
+                            break;
+                        };
+                        readback_payloads.push(shadow_apply::CandidateGuardedVariantPayloadReadback {
+                            payload_index,
+                            source_payload: source_payload.occurrence.clone(),
+                            source_endpoint_row,
+                            native_payload_row,
+                        });
+                    }
+                    if !source_children_complete { continue; }
+                    let candidate = CandidateCaseInputVariantLowerReadback {
+                        observed_row: row,
+                        constructor_row: source_row,
+                        source_owner: source_owner.clone(),
+                        source_variant: recipe.occurrence.clone(),
+                        tag: tag.clone(),
+                        payloads: readback_payloads,
+                    };
+                    if matching_source.is_some() {
+                        ambiguous_source = true;
+                        break;
+                    }
+                    matching_source = Some(candidate);
+                }
+                if let Some(source) = matching_source.filter(|_| !ambiguous_source) {
+                    increment(&mut frontier.authenticated_variant_lower_atoms)?;
+                    frontier.variants.try_reserve(1)
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    frontier.variants.push(source);
+                } else {
+                    increment(&mut frontier.unexplained_variant_lower_atoms)?;
+                }
+            }
+        }
+        frontier.traversal_complete = true;
+        Ok(Some(frontier))
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
     fn candidate_guarded_variant_calls(
         &self,
         obligation: &candidate_scheme::SourceFieldTailObligation,
     ) -> Result<Vec<shadow_apply::CandidateGuardedVariantCallReadback>, SolveAvailabilityError> {
         use candidate_scheme::{DispatchRoute, RowKey};
-        use shadow_apply::{CandidateEndpoint, CandidateGuardedVariantCallReadback, CandidateRelation};
+        use shadow_apply::{CandidateEndpoint, CandidateGuardedVariantCallReadback,
+            CandidateGuardedVariantPayloadReadback, CandidateGuardedVariantPayloadCaseFlowReadback,
+            CandidateRelation};
         use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
 
         fn spend(work: &mut usize) -> bool {
@@ -12506,12 +13223,12 @@ impl InferenceSession {
                 if recipe.occurrence != argument.occurrence { continue; }
                 if let CandidateRelation::Variant { tag, payloads: recipe_payloads, result, .. } = &recipe.relation {
                     if matching_variant.is_some() { ambiguous_variant = true; break; }
-                    matching_variant = Some((tag, recipe_payloads.len(), *result));
+                    matching_variant = Some((tag, recipe_payloads.as_slice(), *result));
                 }
             }
             if ambiguous_variant { continue; }
-            let Some((recipe_tag, recipe_arity, result)) = matching_variant else { continue; };
-            if recipe_tag.as_ref() != argument_tag.as_ref() || recipe_arity != payloads.len()
+            let Some((recipe_tag, recipe_payloads, result)) = matching_variant else { continue; };
+            if recipe_tag.as_ref() != argument_tag.as_ref() || recipe_payloads.len() != payloads.len()
                 || !candidate_call::same_endpoint(CandidateEndpoint::Component(result), call.argument_value)
             { continue; }
 
@@ -12536,6 +13253,106 @@ impl InferenceSession {
                 continue;
             };
             let argument_row = state.intrusion.value_rep(argument_row);
+
+            // CandidateRelation::Variant is admitted by mapping each ordered
+            // source payload endpoint to a positive live term, building one
+            // singleton positive Variant, then constraining that term below
+            // the recipe's exact result endpoint. Read the saturated direct
+            // lowers on this same argument row and reconstruct only the row
+            // identities; unsupported or ambiguous structure stays absent.
+            let mut payload_trace = None;
+            let mut source_payload_occurrences = Vec::new();
+            let mut source_payloads_complete = true;
+            source_payload_occurrences.try_reserve_exact(payloads.len())
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            for payload in payloads {
+                if !spend(&mut work) { return Ok(Vec::new()); }
+                let Some(payload) = source.expression(payload) else {
+                    source_payloads_complete = false;
+                    break;
+                };
+                source_payload_occurrences.push(payload.occurrence.clone());
+            }
+            if source_payloads_complete && source_payload_occurrences.len() == recipe_payloads.len() {
+                let endpoint_row = |endpoint: CandidateEndpoint| -> Option<u32> {
+                    match endpoint {
+                        CandidateEndpoint::Component(position) => self.live_components.get(position).map(|row| row.ordinal),
+                        CandidateEndpoint::Parameter(position) => self.parameter_live_base.checked_add(
+                            u32::try_from(position).ok()?,
+                        ),
+                    }
+                };
+                let mut expected_rows = Vec::new();
+                expected_rows.try_reserve_exact(recipe_payloads.len())
+                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                let mut expected_rows_complete = true;
+                for endpoint in recipe_payloads.iter().copied() {
+                    if !spend(&mut work) { return Ok(Vec::new()); }
+                    let Some(row) = endpoint_row(endpoint) else {
+                        expected_rows_complete = false;
+                        break;
+                    };
+                    expected_rows.push(row);
+                }
+                if expected_rows_complete {
+                    if let Some(bounds) = self.bounds.get(argument_row as usize) {
+                        let mut matched_payload_rows = None;
+                        let mut ambiguous_payload_lower = false;
+                        for lower in &bounds.exact_non_variable_lowers {
+                            if !spend(&mut work) { return Ok(Vec::new()); }
+                            let ValueEndpointKey::PositiveVariant(term) = *lower else { continue; };
+                            let Ok(crate::TermView::PositiveVariant { alternatives }) = self.store.term_view(term) else {
+                                continue;
+                            };
+                            if alternatives.len() != 1 { continue; }
+                            let alternative = &alternatives[0];
+                            if alternative.tag.as_ref() != argument_tag.as_ref()
+                                || alternative.payloads.len() != expected_rows.len()
+                            { continue; }
+                            let mut observed_rows = Vec::new();
+                            observed_rows.try_reserve_exact(alternative.payloads.len())
+                                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                            let mut exact_payloads = true;
+                            for payload_term in &alternative.payloads {
+                                if !spend(&mut work) { return Ok(Vec::new()); }
+                                let Ok(crate::TermView::LiveVariable(view)) = self.store.term_view(*payload_term) else {
+                                    exact_payloads = false;
+                                    break;
+                                };
+                                if view.kind() != ComponentKind::Value || view.polarity() != Polarity::Positive {
+                                    exact_payloads = false;
+                                    break;
+                                }
+                                observed_rows.push(view.ordinal());
+                            }
+                            if !exact_payloads || observed_rows != expected_rows { continue; }
+                            if matched_payload_rows.is_some() {
+                                ambiguous_payload_lower = true;
+                                break;
+                            }
+                            matched_payload_rows = Some(observed_rows);
+                        }
+                        if !ambiguous_payload_lower {
+                            if let Some(native_rows) = matched_payload_rows {
+                                let mut trace = Vec::new();
+                                trace.try_reserve_exact(native_rows.len())
+                                    .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                                for (payload_index, ((source_payload, source_endpoint_row), native_payload_row)) in
+                                    source_payload_occurrences.iter().zip(expected_rows).zip(native_rows).enumerate()
+                                {
+                                    trace.push(CandidateGuardedVariantPayloadReadback {
+                                        payload_index,
+                                        source_payload: source_payload.clone(),
+                                        source_endpoint_row,
+                                        native_payload_row,
+                                    });
+                                }
+                                payload_trace = Some(trace);
+                            }
+                        }
+                    }
+                }
+            }
             for (guard, guard_input_row) in template.case_guards.iter().zip(&mapped_guard_rows) {
                 if !spend(&mut work) { return Ok(Vec::new()); }
                 let RowKey::Value(guard_input_row) = state.intrusion.rep(RowKey::Value(*guard_input_row)) else {
@@ -12545,7 +13362,73 @@ impl InferenceSession {
                     bounds.direct_upper_rows.iter().any(|upper|
                         state.intrusion.value_rep(*upper) == guard_input_row));
                 if !argument_flows_to_guard { continue; }
+                let case_domain_alternatives = self.candidate_case_domain_alternatives(
+                    route, guard, guard_input_row, &mut work,
+                )?;
+                if work > CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT { return Ok(Vec::new()); }
+                let case_payload_receiver_flow = match &case_domain_alternatives {
+                    Some(domain) => self.candidate_case_payload_field_receiver_flow(
+                        route, guard, template, obligation, domain, &mut work,
+                    )?,
+                    None => None,
+                };
+                if work > CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT { return Ok(Vec::new()); }
+                let case_input_frontier = self.candidate_case_input_frontier(guard_input_row, &mut work)?;
+                if work > CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT { return Ok(Vec::new()); }
+                let case_payload_flows = match (&case_domain_alternatives, &payload_trace) {
+                    (Some(domain), Some(payload_trace)) => {
+                        let mut alternatives = domain.iter().filter(|alternative|
+                            alternative.tag == *argument_tag
+                                && alternative.payloads.len() == payload_trace.len()
+                        );
+                        let Some(alternative) = alternatives.next() else {
+                            continue;
+                        };
+                        if alternatives.next().is_some() { continue; }
+                        let mut flows = Vec::new();
+                        flows.try_reserve_exact(payload_trace.len())
+                            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                        let mut exact_flows = true;
+                        for (payload, case_payload) in payload_trace.iter().zip(&alternative.payloads) {
+                            if !spend(&mut work) { return Ok(Vec::new()); }
+                            let positive_row = state.intrusion.value_rep(payload.native_payload_row);
+                            let negative_row = state.intrusion.value_rep(case_payload.freshuse_negative_row);
+                            let direct_upper_edge = self.bounds.get(positive_row as usize).is_some_and(|bounds|
+                                bounds.direct_upper_rows.iter().any(|upper|
+                                    state.intrusion.value_rep(*upper) == negative_row
+                                )
+                            );
+                            if !direct_upper_edge {
+                                exact_flows = false;
+                                break;
+                            }
+                            flows.push(CandidateGuardedVariantPayloadCaseFlowReadback {
+                                payload_index: payload.payload_index,
+                                source_payload: payload.source_payload.clone(),
+                                source_endpoint_row: payload.source_endpoint_row,
+                                positive_row,
+                                case_arm: alternative.source_arm,
+                                case_tag: alternative.tag.clone(),
+                                case_source_endpoint_row: case_payload.source_endpoint_row,
+                                freshuse_negative_row: case_payload.freshuse_negative_row,
+                            });
+                        }
+                        exact_flows.then_some(flows)
+                    }
+                    _ => None,
+                };
                 output.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                let mut variant_payloads = None;
+                if let Some(payload_trace) = &payload_trace {
+                    variant_payloads = Some(Vec::new());
+                    let values = variant_payloads.as_mut().expect("trace vector was initialized");
+                    values.try_reserve_exact(payload_trace.len())
+                        .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    for payload in payload_trace {
+                        if !spend(&mut work) { return Ok(Vec::new()); }
+                        values.push(payload.clone());
+                    }
+                }
                 output.push(CandidateGuardedVariantCallReadback {
                     guard_case: guard.case.clone(),
                     guard_arm: guard.arm,
@@ -12558,6 +13441,11 @@ impl InferenceSession {
                     argument: argument.occurrence.clone(),
                     argument_tag: argument_tag.clone(),
                     argument_arity: payloads.len(),
+                    variant_payloads,
+                    case_domain_alternatives,
+                    case_payload_flows,
+                    case_payload_receiver_flow,
+                    case_input_frontier,
                     provider: route.provider.clone(),
                     freshuse_context: route.retained.observed_context_use(),
                 });

@@ -455,7 +455,7 @@ pub(super) struct RetainedFreshUseMaps {
     scoped_relations: HashMap<candidate_context::RelationId, candidate_context::ScopedFlow>,
     #[allow(dead_code)]
     context_use: usize,
-    terms: Vec<Option<Term>>,
+    pub(super) terms: Vec<Option<Term>>,
     effect_operands: HashMap<usize, EffectEndpointKey>,
     bundle_remap: HashMap<candidate_context::AttachmentBundleId, candidate_context::AttachmentBundleId>,
     context_remap: HashMap<candidate_context::ContextId, candidate_context::ContextId>,

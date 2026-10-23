@@ -677,3 +677,49 @@ projections and completed its solve loop, so the guarded-call evidence already
 survives that nested-dispatch pass; an explicit branch discharge is still out of
 scope. Parent A/B, receiving, principality, independent review and production
 remain OPEN.
+
+
+Direct-primary continuation from `01d145a8d`, 2026-10-23: preserve 37450
+charged seconds, discard the prior 355 unused seconds, and grant 3600 fresh
+primary seconds (cumulative cap 41050; no carryover). The exact existing R332
+leases remain in force. Continue with a sample-scoped source/native Variant
+payload trace from each original Apply argument through its retained
+CandidateEndpoint and positive native alternative payloads to the matching
+Case-domain input under the same FreshUse. If any constructor, payload, context,
+or incoming-domain provenance is absent or ambiguous, report that exact gap and
+keep completeness UNKNOWN. Lower-bound observations alone do not prove a finite
+closed domain. The trace is observational only: no branch discharge, semantic
+change, production promotion, or parent A/B closure. Direct primary only, one
+heavy verification at a time; review and all parent gates remain OPEN.
+
+R332 direct-primary checkpoint, 2026-10-23: the original Button `:disabled`
+call's source `label` binder reaches its deferred `show` receiver through the
+exact binding-free Block/Name source path and one CandidateRelation::Group.
+The bounded readback checks the same FreshUse mapping and direct positive-lower
+to negative-upper native edge for that source Group step; binder and receiver
+rows are distinct (source/mapped binder 33/100; receiver 97). Across both exact
+guarded calls, the complete current Case-input frontiers compare equal before
+dispatch and after the observed partial dispatch; the exact FreshUse
+binder-to-receiver Group readback also compares equal. Five member uses were
+selected, matching the final candidate graph inventory. The active receiver
+remains unavailable; the next no-progress pass returns
+`DeferredSelectionUnavailable` before stable publication or capture refresh.
+This establishes sample-level observed preservation through partial dispatch,
+not a future fixed-point invariant or whole-state equality. Keep all branch
+discharge and original source/native A/B, receiving, principality, independent
+review and production gates OPEN. Focused regression passes. Direct-primary
+UNREVIEWED.
+
+The transition audit confirms the five actions FreshUse member graphs, admit
+receiver/result constraints plus enabled effects, and may enqueue nested
+FieldTails through the live constraint consumer. The active unavailable item
+is retained for another pass; the no-progress path returns before stable
+capture refresh. The bounded pre/post readbacks do not inspect every
+representative or arbitrary related route.
+
+Remaining premise: preservation by every remaining permitted transition,
+including any successful future fixed point, is not established. The present
+run's unavailable active receiver prevents those later transitions from
+occurring, so do not infer their preservation or close the parent claim.
+
+Validation: focused Button regression and full RUSTC_WRAPPER= cargo test -q -p yu-playground pass; agent_sprint check, 57 tooling unittests and git diff --check pass. Resource at artifact freeze: 40456 cumulative seconds; 594 seconds of this grant unused and discarded, no carryover.

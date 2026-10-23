@@ -3575,3 +3575,97 @@ guard rows or certify a general finite Variant domain. No branch is discharged,
 and the prior `NO_SAFE_CODE_SLICE` for branch discharge remains. Original A/B,
 general source/native adequacy, principality, independent review and production
 remain OPEN.
+
+### Direct-primary continuation: Variant payload and current Case-input graph
+
+The guarded-call readback now joins, for each of the two original Button calls,
+the exact Apply and Variant LocalSource occurrences, ordered CandidateEndpoint
+payload rows, the saturated positive native Variant child terms, and the exact
+provider Case alternatives. The active Case negative Variant term is selected
+through the retained FreshUse bound and mapped binder rows. For `:label`, the
+source payload child, source endpoint, and native positive child all identify
+the same row; that positive row has a direct upper-row edge to the matching
+FreshUse negative Case binder port. The `:disabled` call is authenticated as a
+zero-payload constructor. The Case domain still records both source arms,
+`:label` and `:disabled`, in source order.
+
+The bounded current-input inventory walks incoming row edges from both
+candidate bound-owner incidences (`direct_lower_rows` and reverse
+`direct_upper_rows`), aggregates physical rows by their current intrusive
+representative, and examines exact lower atoms at every reached row. In each
+Button instance the snapshot has two rows and one directed edge: argument row
+38 to Case input row 82 for `:label`, and row 44 to Case input row 98 for
+`:disabled`. Each endpoint is its own SCC; the condensation is acyclic. There
+are no repeated incoming edges, open rows, non-Variant lower atoms, or
+unexplained Variant atoms. Each snapshot contains two exact lower-atom slots,
+both authenticated to the same unique source constructor recipe and payload
+rows. The duplicated atom is retained on both the source row and the Case
+input row; it is not a second constructor.
+
+The single-sided row incidence is the candidate solver's owner representation,
+not a missing reciprocal write: `candidate_apply_value` chooses one bound owner
+and polarity from the row levels, then `candidate_insert_bound` retains that
+one physical incidence. The readback reconstructs incoming paths from either
+owner-side vector. This explains the Button snapshot; it does not prove that
+every source route or every future constraint is present in the snapshot.
+
+Stage evidence separates the source solve from deferred member dispatch. The
+source solve completed, while `execute_candidate_field_tails` returned
+`DeferredSelectionUnavailable` and left member dispatch deferred. The concrete
+active unresolved FieldTail is `show` at source occurrence ordinal 5 under the
+expression root at ordinal 19, receiver row 97 and dispatch context 6. Its
+positive frontier is complete but has no recognized shape, no target match,
+and 16 unsupported targets. The sibling `show` instance at row 81/context 3
+has shape `Str` and one target match. The unavailable active item remains
+pending; when a pass makes no progress with an active item, the dispatcher
+returns `DeferredSelectionUnavailable` instead of publishing a stable result.
+Nested member dispatch can add receiver/result constraints, so the current
+Case-input snapshot has no post-dispatch preservation proof.
+
+This closes an observational constructor-to-binder correspondence and gives a
+complete incoming-edge/atom inventory for these two current candidate graph
+instances only. It does not prove runtime-domain exhaustiveness, exclude
+arbitrary reverse importers, certify preservation after a completed dispatch
+fixed point, or close the original source/native A/B and principality claims.
+No inactive branch is discharged, no semantic behavior changes, and production
+promotion remains OPEN. Independent review remains outstanding.
+
+### Direct-primary continuation: payload binder to deferred receiver
+
+The `:disabled` call's `label` Case binder and the unresolved `show` receiver
+are distinct rows in the same retained FreshUse. The source receiver is the
+binding-free Block result whose final Name resolves to that exact Case binder.
+The LocalSource recipe therefore emits a Group relation from the binder
+endpoint to the field-tail receiver endpoint. The readback checks the mapped
+positive-lower → negative-upper native row edge for each source Group step,
+then checks that the final mapped upper row is the receiver in the unresolved
+FieldTail descriptor. For this Button instance the authenticated chain is
+source/mapped binder row `33`/`100` to receiver row `97`, through one Group
+step. This repairs the mistaken proposal to establish the bridge by row
+identity; the source/native relation is directional.
+
+For each of the two exact guarded calls, the complete bounded current Case-input
+frontier readback is equal immediately before member dispatch and after the
+partial dispatch returns deferred. The dispatch selected five member uses in
+the candidate world, matching the graph snapshot's five member uses. The active
+`show` receiver at row `97` remains unavailable, so the next pass makes no
+progress and returns `DeferredSelectionUnavailable`; it does not enter stable
+publication or refresh captured FieldTail templates. Thus the source domain is
+preserved across the observed partial dispatch on these two calls, while
+preservation by every remaining permitted transition and any successful future
+fixed point remains OPEN. The readback does not compare the whole candidate
+state and grants no branch discharge. Original source/native A/B, receiving,
+principality, independent review and production remain OPEN.
+
+The transition audit follows the selected-action path in
+`execute_candidate_field_tails`: it FreshUses the member graph, admits receiver
+and result value constraints (and receiver/result effect constraints when the
+candidate world enables effects), transports nested FieldTail descriptors,
+records the member use and propagates each admission through the live
+constraint consumer. The unresolved active instance is retained for another
+pass. With no progress, this concrete run returns before the stable-template
+capture refresh path. The two readback equalities cover the five actions
+actually admitted and the final no-progress boundary; they do not compare all
+intrusive representatives, all graph rows, or the effects of a successful
+future action on arbitrary related routes. The induction premise across all
+permitted transitions therefore remains OPEN.

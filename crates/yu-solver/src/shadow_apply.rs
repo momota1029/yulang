@@ -118,8 +118,116 @@ pub struct CandidateGuardedVariantCallReadback {
     pub argument: HirOccurrenceId,
     pub argument_tag: Box<str>,
     pub argument_arity: usize,
+    /// Present only when the exact source Variant recipe's ordered payload
+    /// endpoints match one retained native positive Variant lower bound on
+    /// `argument_row`. An empty vector authenticates a zero-payload variant.
+    /// This remains source/native evidence, not a closed Case domain.
+    pub variant_payloads: Option<Vec<CandidateGuardedVariantPayloadReadback>>,
+    /// Full source-owned Case alternatives with their retained FreshUse
+    /// negative payload rows. This is present only when the exact Case recipe,
+    /// captured bound, and active native term all agree.
+    pub case_domain_alternatives: Option<Vec<CandidateGuardedVariantCaseAlternativeReadback>>,
+    /// Matching Variant payload rows joined to their Case arm's FreshUse
+    /// negative binder ports by a direct native upper-row edge.
+    pub case_payload_flows: Option<Vec<CandidateGuardedVariantPayloadCaseFlowReadback>>,
+    /// Exact source Group constraints from this guarded Case arm's binder to
+    /// the deferred FieldTail receiver, when the LocalSource path and native
+    /// row edges both authenticate under this provider FreshUse.
+    pub case_payload_receiver_flow: Option<CandidateGuardedVariantCaseReceiverFlowReadback>,
+    /// Bounded reverse traversal of current lower-row edges from both endpoint
+    /// inventories and exact lower atoms reaching this Case input. One-sided
+    /// edge records remain explicit; this does not certify future or
+    /// reverse-importer uses.
+    pub case_input_frontier: Option<CandidateCaseInputFrontierReadback>,
     pub provider: yu_hir::DefinitionRootId,
     pub freshuse_context: usize,
+}
+/// One payload position joined from its original LocalSource expression,
+/// retained CandidateEndpoint row, and native positive Variant child term.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateGuardedVariantPayloadReadback {
+    pub payload_index: usize,
+    pub source_payload: HirOccurrenceId,
+    pub source_endpoint_row: u32,
+    pub native_payload_row: u32,
+}
+/// One source Case alternative whose negative Variant ports were reified by
+/// the same provider FreshUse as the guarded call.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateGuardedVariantCaseAlternativeReadback {
+    pub source_arm: usize,
+    pub tag: Box<str>,
+    pub payloads: Vec<CandidateGuardedVariantCasePayloadReadback>,
+}
+/// A Case payload port, including an absent source endpoint for a wildcard.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateGuardedVariantCasePayloadReadback {
+    pub payload_index: usize,
+    pub source_endpoint_row: Option<u32>,
+    pub freshuse_negative_row: u32,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateGuardedVariantPayloadCaseFlowReadback {
+    pub payload_index: usize,
+    pub source_payload: HirOccurrenceId,
+    pub source_endpoint_row: u32,
+    pub positive_row: u32,
+    pub case_arm: usize,
+    pub case_tag: Box<str>,
+    pub case_source_endpoint_row: Option<u32>,
+    pub freshuse_negative_row: u32,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateGuardedVariantCaseReceiverFlowReadback {
+    pub case_arm: usize,
+    pub case_tag: Box<str>,
+    pub payload_index: usize,
+    pub source_binder: HirOccurrenceId,
+    pub binder_source_endpoint_row: u32,
+    pub binder_freshuse_negative_row: u32,
+    pub source_receiver: HirOccurrenceId,
+    pub receiver_source_endpoint_row: u32,
+    pub receiver_freshuse_positive_row: u32,
+    /// Group constraints are ordered from the Case binder toward the
+    /// FieldTail receiver. Each exact source relation has the matching native
+    /// positive-lower to negative-upper row edge in the same FreshUse.
+    pub source_group_steps: Vec<CandidateGuardedVariantCaseReceiverFlowStepReadback>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateGuardedVariantCaseReceiverFlowStepReadback {
+    pub source_relation: HirOccurrenceId,
+    pub source_lower_row: u32,
+    pub source_upper_row: u32,
+    pub freshuse_lower_row: u32,
+    pub freshuse_upper_row: u32,
+}
+/// Current native lower frontier for one mapped Case input row.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateCaseInputFrontierReadback {
+    pub input_row: u32,
+    pub rows_reached: usize,
+    pub incoming_row_edges: usize,
+    /// Incoming edges recorded on only one endpoint's direct-row inventory.
+    pub one_sided_incoming_row_edges: usize,
+    pub repeated_incoming_row_edges: usize,
+    pub exact_lower_atoms: usize,
+    pub non_variant_lower_atoms: usize,
+    pub positive_variant_lower_atoms: usize,
+    pub authenticated_variant_lower_atoms: usize,
+    pub unexplained_variant_lower_atoms: usize,
+    pub open_input_rows: usize,
+    pub traversal_complete: bool,
+    pub variants: Vec<CandidateCaseInputVariantLowerReadback>,
+}
+/// One exact positive Variant lower atom tied back to its unique source recipe.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateCaseInputVariantLowerReadback {
+    pub observed_row: u32,
+    pub constructor_row: u32,
+    pub source_owner: SourceRootId,
+    pub source_variant: HirOccurrenceId,
+    pub tag: Box<str>,
+    pub payloads: Vec<CandidateGuardedVariantPayloadReadback>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CandidateFieldTailReceiverReadback {
@@ -325,6 +433,13 @@ pub struct CandidateOperatorFreshUse<'a> {
 }
 #[derive(Clone, Debug, Default)]
 pub struct CandidateDeferredFieldTailReadbacks {
+    /// Whether the original candidate solve worklist completed before the
+    /// member-dispatch fixed point began.
+    pub source_solve_status: CandidateReadbackStageStatus,
+    /// Whether deferred member dispatch reached a stable, fully drained state.
+    pub member_dispatch_status: CandidateReadbackStageStatus,
+    /// Exact graph inventory counts at the latest captured readback boundary.
+    pub graph_snapshot: Option<CandidateReadbackGraphSnapshot>,
     /// Exact receiver frontier captured after source execution and before any
     /// deferred member body is admitted in this session.
     pub pre_dispatch_receivers: Vec<CandidateFieldTailReceiverReadback>,
@@ -335,6 +450,23 @@ pub struct CandidateDeferredFieldTailReadbacks {
     pub receivers: Vec<CandidateFieldTailReceiverReadback>,
     pub captured_member_graph_count: usize,
     pub captured_member_field_tails: Vec<CandidateCapturedMemberFieldTailReadback>,
+}
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum CandidateReadbackStageStatus {
+    #[default]
+    NotReached,
+    Completed,
+    Deferred,
+}
+/// Inventory stamp only; the counts identify the observed graph boundary and
+/// do not imply that the solve or dispatch fixed point completed.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CandidateReadbackGraphSnapshot {
+    pub module_routes: usize,
+    pub local_routes: usize,
+    pub member_graphs: usize,
+    pub member_uses: usize,
+    pub dispatch_contexts: usize,
 }
 /// Owns a private solver result which cannot be published as a SolvedModule.
 /// Invocation/evaluation effects are intentionally absent from this API.
@@ -1672,15 +1804,32 @@ impl CandidateInference {
             return Err(CandidateError::Unsupported);
         }
         let mut session = InferenceSession::try_new_candidate(batch).map_err(CandidateError::Solve)?;
+        fn record_graph_snapshot(
+            session: &InferenceSession,
+            readbacks: &mut CandidateDeferredFieldTailReadbacks,
+        ) {
+            readbacks.graph_snapshot = session.candidate_graph.as_ref().map(|state|
+                CandidateReadbackGraphSnapshot {
+                    module_routes: state.routes.len(),
+                    local_routes: state.local_routes.len(),
+                    member_graphs: state.member_graphs.len(),
+                    member_uses: state.member_uses.len(),
+                    dispatch_contexts: state.dispatch_contexts.len(),
+                }
+            );
+        }
         let solved = if let Some(readbacks) = deferred_readbacks.as_deref_mut() {
             match session.execute() {
                 Ok(()) => {
+                    readbacks.source_solve_status = CandidateReadbackStageStatus::Completed;
+                    record_graph_snapshot(&session, readbacks);
                     let selected_before_dispatch = session.candidate_field_tail_receiver_readbacks()
                         .map_err(CandidateError::Solve)?;
                     if let Err(error) = session.execute_candidate_field_tails(Some(&mut readbacks.selected_receivers)) {
                         if error != SolveAvailabilityError::DeferredSelectionUnavailable {
                             return Err(CandidateError::Solve(error));
                         }
+                        readbacks.member_dispatch_status = CandidateReadbackStageStatus::Deferred;
                         readbacks.pre_dispatch_receivers = selected_before_dispatch;
                         readbacks.receivers = session.candidate_field_tail_receiver_readbacks()
                             .map_err(CandidateError::Solve)?;
@@ -1688,9 +1837,11 @@ impl CandidateInference {
                             .map_err(CandidateError::Solve)?;
                         readbacks.captured_member_graph_count = member_graph_count;
                         readbacks.captured_member_field_tails = member_field_tails;
+                        record_graph_snapshot(&session, readbacks);
                         return Err(CandidateError::Solve(error));
                     }
                     if session.candidate_has_pending_field_tail_selection() {
+                        readbacks.member_dispatch_status = CandidateReadbackStageStatus::Deferred;
                         readbacks.pre_dispatch_receivers = selected_before_dispatch;
                         readbacks.receivers = session.candidate_field_tail_receiver_readbacks()
                             .map_err(CandidateError::Solve)?;
@@ -1698,17 +1849,22 @@ impl CandidateInference {
                             .map_err(CandidateError::Solve)?;
                         readbacks.captured_member_graph_count = member_graph_count;
                         readbacks.captured_member_field_tails = member_field_tails;
+                        record_graph_snapshot(&session, readbacks);
                         return Err(CandidateError::Solve(SolveAvailabilityError::DeferredSelectionUnavailable));
                     }
+                    readbacks.member_dispatch_status = CandidateReadbackStageStatus::Completed;
+                    record_graph_snapshot(&session, readbacks);
                     session.finish_candidate().map_err(CandidateError::Solve)?
                 }
                 Err(SolveAvailabilityError::DeferredSelectionUnavailable) => {
+                    readbacks.source_solve_status = CandidateReadbackStageStatus::Deferred;
                     readbacks.receivers = session.candidate_field_tail_receiver_readbacks()
                         .map_err(CandidateError::Solve)?;
                     let (member_graph_count, member_field_tails) = session.candidate_captured_member_field_tail_readbacks()
                         .map_err(CandidateError::Solve)?;
                     readbacks.captured_member_graph_count = member_graph_count;
                     readbacks.captured_member_field_tails = member_field_tails;
+                    record_graph_snapshot(&session, readbacks);
                     return Err(CandidateError::Solve(SolveAvailabilityError::DeferredSelectionUnavailable));
                 }
                 Err(error) => return Err(CandidateError::Solve(error)),

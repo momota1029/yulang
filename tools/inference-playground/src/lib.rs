@@ -3557,22 +3557,174 @@ mod tests {
             .map(|expr| expr.occurrence.clone()).collect();
         let modules = pinned_candidate_world(&hir, &sources, &indexes, &role_indexes).unwrap();
         let readbacks = CandidateInference::inspect_deferred_field_tails_and_member_freshuse_with_role_sources(modules.clone(), &indexes, &role_indexes).unwrap();
+        assert_eq!(readbacks.source_solve_status,
+            yu_solver::shadow_apply::CandidateReadbackStageStatus::Completed,
+            "source solving reaches the separate member-dispatch stage");
+        assert_eq!(readbacks.member_dispatch_status,
+            yu_solver::shadow_apply::CandidateReadbackStageStatus::Deferred,
+            "the active member obligation prevents a stable completed dispatch result");
+        let graph_snapshot = readbacks.graph_snapshot.expect(
+            "the returned payload trace records the candidate graph inventory at its readback boundary");
+        assert_eq!(readbacks.selected_receivers.len(), 5,
+            "the original fixture selects exactly five member actions before the active receiver defers");
+        assert_eq!(graph_snapshot.member_uses, readbacks.selected_receivers.len(),
+            "the snapshot contains exactly the member actions captured in the selected readbacks");
         let actual: Vec<_> = readbacks.selected_receivers.iter().chain(readbacks.receivers.iter())
             .filter(|item| sites.contains(&item.occurrence) && item.member.as_ref() == "show").collect();
         assert!(!actual.is_empty(), "original interpolation retains its Button source owner");
         assert!(actual.iter().any(|item| item.instantiation_context_ordinal.is_some()),
             "the actual interpolation occurrence survives a caller's FreshUse");
-        let guarded_calls: Vec<_> = actual.iter().flat_map(|item| &item.guarded_variant_calls).collect();
         let mut source_roots = Vec::new();
         for item in hir.items() {
             let root = match item {
-                HirItem::Binding(binding) => yu_hir::SourceRootId::Definition(binding.definition_root().clone()),
-                HirItem::Expression(expression) => yu_hir::SourceRootId::Expression(
+                HirItem::Binding(binding) => SourceRootId::Definition(binding.definition_root().clone()),
+                HirItem::Expression(expression) => SourceRootId::Expression(
                     hir.expression_root(expression.occurrence()).unwrap().unwrap().clone(),
                 ),
                 HirItem::Import { .. } | HirItem::Error { .. } => continue,
             };
             source_roots.push(hir.local_source_for(&root).unwrap().expect("Button fixture root keeps LocalSource"));
+        }
+        let guarded_calls: Vec<_> = actual.iter().flat_map(|item| &item.guarded_variant_calls).collect();
+        assert!(guarded_calls.iter().all(|call| call.variant_payloads.is_some()),
+            "each original Button Apply has an exact ordered source/native Variant payload trace, including the empty disabled payload list");
+        assert!(guarded_calls.iter().all(|call| call.case_domain_alternatives.is_some()),
+            "each guarded call carries the exact full Case domain and mapped negative payload ports from its provider FreshUse");
+        assert!(guarded_calls.iter().all(|call| call.case_payload_flows.is_some()),
+            "each guarded constructor payload flows directly to its matching FreshUse Case binder port");
+        assert!(guarded_calls.iter().all(|call| call.case_input_frontier.as_ref()
+            .is_some_and(|frontier| frontier.traversal_complete
+                && frontier.positive_variant_lower_atoms == frontier.authenticated_variant_lower_atoms
+                && frontier.one_sided_incoming_row_edges > 0
+                && frontier.unexplained_variant_lower_atoms == 0)),
+            "every reached positive Variant lower is accounted for by a unique source recipe; calls: {:?}",
+            guarded_calls.iter().map(|call| (call.argument.clone(), call.argument_row, call.guard_input_row,
+                call.case_input_frontier.as_ref())).collect::<Vec<_>>());
+        let disabled_call = guarded_calls.iter().find(|call|
+            call.argument_tag.as_ref() == "disabled" && call.argument_arity == 0
+        ).expect("the original disabled Apply has an exact guarded-call readback");
+        let deferred_show = actual.iter().find(|receiver|
+            receiver.positive_shape.is_none()
+                && receiver.unsupported_target_count > 0
+                && receiver.guarded_variant_calls.iter().any(|call|
+                    call.call == disabled_call.call
+                        && call.callee_use == disabled_call.callee_use
+                        && call.argument == disabled_call.argument
+                        && call.provider == disabled_call.provider
+                        && call.freshuse_context == disabled_call.freshuse_context
+                        && call.guard_input_row == disabled_call.guard_input_row)
+        ).expect("the disabled FreshUse retains its active unavailable show receiver");
+        let label_alternative = disabled_call.case_domain_alternatives.as_ref().unwrap().iter()
+            .find(|alternative| alternative.tag.as_ref() == "label")
+            .expect("the disabled call still carries the label Case arm");
+        let label_binder = label_alternative.payloads.first()
+            .expect("the label arm retains its abstract binder port");
+        let receiver_flow = disabled_call.case_payload_receiver_flow.as_ref()
+            .expect("the disabled FreshUse maps the label binder through its source Group into the deferred receiver");
+        assert_eq!(receiver_flow.case_arm, label_alternative.source_arm);
+        assert_eq!(receiver_flow.case_tag.as_ref(), "label");
+        assert_eq!(receiver_flow.binder_source_endpoint_row, label_binder.source_endpoint_row.unwrap());
+        assert_eq!(receiver_flow.binder_freshuse_negative_row, label_binder.freshuse_negative_row);
+        assert_eq!(receiver_flow.receiver_freshuse_positive_row, deferred_show.receiver_row);
+        assert_eq!(receiver_flow.source_group_steps.len(), 1,
+            "the generated interpolation receiver is a Block Group around its exact CaseBinder Name");
+        let group_flow = &receiver_flow.source_group_steps[0];
+        assert_eq!(group_flow.source_lower_row, receiver_flow.binder_source_endpoint_row);
+        assert_eq!(group_flow.freshuse_lower_row, receiver_flow.binder_freshuse_negative_row);
+        assert_eq!(group_flow.source_upper_row, receiver_flow.receiver_source_endpoint_row);
+        assert_eq!(group_flow.freshuse_upper_row, receiver_flow.receiver_freshuse_positive_row);
+        assert!(deferred_show.guarded_variant_calls.iter().any(|call|
+            call.call == disabled_call.call
+                && call.callee_use == disabled_call.callee_use
+                && call.argument == disabled_call.argument
+                && call.provider == disabled_call.provider
+                && call.freshuse_context == disabled_call.freshuse_context
+                && call.guard_input_row == disabled_call.guard_input_row
+        ), "the unresolved FieldTail and disabled constructor share the same retained Case guard and FreshUse");
+        assert!(deferred_show.target_matches.is_empty());
+        for call in &guarded_calls {
+            let payloads = call.variant_payloads.as_ref().unwrap();
+            assert_eq!(payloads.len(), call.argument_arity);
+            let case_payload_flows = call.case_payload_flows.as_ref().unwrap();
+            assert_eq!(case_payload_flows.len(), payloads.len());
+            let case_domain = call.case_domain_alternatives.as_ref().unwrap();
+            let frontier = call.case_input_frontier.as_ref().unwrap();
+            assert!(frontier.rows_reached > 0);
+            let frontier_sources: std::collections::HashSet<_> = frontier.variants.iter()
+                .map(|variant| variant.source_variant.clone()).collect();
+            assert!(frontier_sources.contains(&call.argument),
+                "each guarded constructor occurs in the complete incoming Variant frontier");
+            assert_eq!(case_domain.iter().map(|alternative| alternative.tag.as_ref()).collect::<Vec<_>>(),
+                ["label", "disabled"]);
+            assert_eq!(case_domain.iter().map(|alternative| alternative.source_arm).collect::<Vec<_>>(), [0, 1]);
+            let matching_case_alternative = case_domain.iter().find(|alternative|
+                alternative.tag == call.argument_tag && alternative.payloads.len() == call.argument_arity
+            ).expect("the exact source constructor key has a Case-domain alternative");
+            assert_eq!(matching_case_alternative.payloads.len(), payloads.len());
+            for (index, (payload, case_payload)) in payloads.iter()
+                .zip(&matching_case_alternative.payloads).enumerate()
+            {
+                assert_eq!(payload.payload_index, index);
+                assert_eq!(case_payload.payload_index, index);
+                assert!(case_payload.source_endpoint_row.is_some(),
+                    "the matching Case alternative retains its source binder endpoint");
+                let flow = &case_payload_flows[index];
+                assert_eq!(flow.payload_index, index);
+                assert_eq!(flow.source_payload, payload.source_payload);
+                assert_eq!(flow.source_endpoint_row, payload.source_endpoint_row);
+                assert_eq!(flow.positive_row, payload.native_payload_row);
+                assert_eq!(flow.case_arm, matching_case_alternative.source_arm);
+                assert_eq!(flow.case_tag, matching_case_alternative.tag);
+                assert_eq!(flow.case_source_endpoint_row, case_payload.source_endpoint_row);
+                assert_eq!(flow.freshuse_negative_row, case_payload.freshuse_negative_row);
+            }
+            let (argument_source, argument) = source_roots.iter().find_map(|source|
+                source.expressions().iter().find(|expression| expression.occurrence == call.argument)
+                    .map(|expression| (*source, expression))
+            ).expect("guarded Variant argument has its exact LocalSource occurrence");
+            let LocalSourceForm::Variant { tag, payloads: source_payloads, .. } = &argument.form else {
+                panic!("guarded call argument retains its original Variant source form");
+            };
+            assert_eq!(tag, &call.argument_tag);
+            let source_payload_occurrences: Vec<_> = source_payloads.iter().map(|payload|
+                argument_source.expression(payload).expect("Variant payload index resolves in the same source owner").occurrence.clone()
+            ).collect();
+            assert_eq!(payloads.iter().map(|payload| payload.source_payload.clone()).collect::<Vec<_>>(),
+                source_payload_occurrences,
+                "the ordered native payload trace names the exact source child occurrences");
+            for (index, payload) in payloads.iter().enumerate() {
+                assert_eq!(payload.payload_index, index);
+                assert_eq!(payload.source_endpoint_row, payload.native_payload_row,
+                    "the retained source endpoint and native Variant child are the same live positive row");
+                assert_ne!(payload.source_payload, call.argument,
+                    "payload provenance names the actual child expression, not the Variant constructor");
+            }
+        }
+        for call in &guarded_calls {
+            let same_call = |candidate: &&yu_solver::shadow_apply::CandidateGuardedVariantCallReadback| {
+                candidate.call == call.call
+                    && candidate.callee_use == call.callee_use
+                    && candidate.argument == call.argument
+                    && candidate.provider == call.provider
+                    && candidate.freshuse_context == call.freshuse_context
+                    && candidate.guard_input_row == call.guard_input_row
+            };
+            let before_call = readbacks.pre_dispatch_receivers.iter()
+                .flat_map(|receiver| &receiver.guarded_variant_calls)
+                .find(same_call)
+                .expect("the source-solve snapshot retains each exact guarded call");
+            let after_call = actual.iter()
+                .flat_map(|receiver| &receiver.guarded_variant_calls)
+                .find(same_call)
+                .expect("the post-dispatch snapshot retains each exact guarded call");
+            let before = before_call.case_input_frontier.as_ref()
+                .expect("the source-solve snapshot retains each exact guarded Case input");
+            let after = after_call.case_input_frontier.as_ref()
+                .expect("the post-dispatch snapshot retains each exact guarded Case input");
+            assert_eq!(before, after,
+                "the admitted member action and deferred stop preserve this exact call's current Case-input frontier");
+            assert_eq!(before_call.case_payload_receiver_flow, after_call.case_payload_receiver_flow,
+                "the observed partial dispatch preserves this exact FreshUse binder-to-receiver source/native path");
         }
         let mut source_button_uses: Vec<_> = source_roots.iter().flat_map(|source| source.expressions())
             .filter_map(|expression| match &expression.form {
