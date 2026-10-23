@@ -1,387 +1,350 @@
 {
-"schema_version": 1,
-"mode": "LIVE",
-"phase": "ACTIVE",
-"session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
-"active_sprint": {
-"id": "R338",
-"status": "ACTIVE",
-"contract": "tasks/agent-loop/sprints/r338-k0-d1-d2-state-bridge-20261023.md",
-"resources": {
-"cap_seconds": 3600,
-"charged_seconds": 2700,
-"reserved_seconds": 900,
-"no_carryover": true
-},
-"proof": "Producer RUNNING from 04:51 UTC; 1200s charged for exact R338 D1 composition and first D2 family.",
-"implementation": "Primary RUNNING: read-only census of actual logical bound, owner storage, pending/processing and opposite-bound consequence transitions.",
-"review_receipt": "Pending freeze. One fresh non-contributor compiler_referee, read-only, up to600s; integration300s reserved.",
-"next_action": "Continue exact leased proof and source census; freeze at composition/transition result, counterexample, missing owner, dependency change, or cap.",
-"closure": "OPEN: D1 composition and one bounded D2 transition only; broader N/cache coverage/W/Z/S0/D3/principality/full A/B/production remain OPEN.",
-"dispatch": "Start selector accepted R338 with exact inequality-admission → owner-recording → opposite-bound-enqueue family; no recursive replay claim. Fresh 3600s, no carryover/Astra.",
-"note": "notes/theory/2026-10-23-r338-k0-state-source-census.md",
-"charged_seconds": 2700,
-"contract_sha256": "d742fa449c81b8b3cc918f53f93fc462dccb98565a2ed817e0b64162919ee403",
-"dependencies": {
-"user_audit_sha256": "b720fc938423bea1b677f7121653e2452b0fb0b9bb2919e9d38c7fccbee64895",
-"r337_commit": "56707d984187e9a02b417f9dde80cbecb6ba1e89",
-"compiler_baseline": "17e57af2c4605d7084c7d76792b115674776bbe2",
-"r336_note_sha256": "4bcbe71ec9f2372baca884e3db737c16fc19ad2a51103965ade5ca4c2ecf4973",
-"r336_review_sha256": "d03b7a23bcec2bd0575bf391342f92353b46b840cbcfa70deea7500786fd892e",
-"r337_contract_sha256": "0d71e3c740aa3d48667e3a9d62d15b835084a432e394fe79cc30d2b9d4cc9a3e",
-"r337_proof_sha256": "e14b8125a505c3001021396b8c6e949e3b0a58f61ecf2785f915dbdde65dfc62",
-"r337_census_sha256": "771c3c8ab2a69336579c78a7583097b8d1839bf0d6fe97f2e69da27e77500e6a"
-},
-"revision": 1,
-"resource_breakdown": {
-"primary_census_charged_seconds": 1500,
-"prover_reserved_seconds": 0,
-"review_reserved_seconds": 600,
-"integration_reserved_seconds": 300,
-"prover_charged_seconds": 1200
-}
-},
-"workers": [
-{
-"id": "/root/resident_dispatcher_loop_a",
-"role": "legacy dispatcher",
-"state": "UNKNOWN",
-"session": null,
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "U;Q."
-},
-{
-"id": "/root/resident_implementer_idle",
-"role": "legacy implementer",
-"state": "UNKNOWN",
-"session": null,
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "U;Q."
-},
-{
-"id": "/root/runtime_source_supplier_proof",
-"role": "legacy proof worker",
-"state": "UNKNOWN",
-"session": null,
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "U;Q."
-},
-{
-"id": "/root",
-"role": "direct primary; R338 source census/integration",
-"state": "RUNNING",
-"session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
-"requested_model": "current user-selected primary",
-"requested_effort": "UNKNOWN",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R338 active; owns exact primary contract, census and current-state paths."
-},
-{
-"id": "/root/r333_selector",
-"role": "R338 start next_action_selector",
-"state": "STOPPED",
-"session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
-"requested_model": "UNKNOWN",
-"requested_effort": "UNKNOWN",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R338 start selector approved tightened admission/record/enqueue family; STOPPED, read-only."
-},
-{
-"id": "/root/r337_k0_context_prover",
-"role": "prover (R337 K0 context lifecycle)",
-"state": "STOPPED",
-"session": "291c0520-43ca-4741-a760-f56a1f641e33",
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "STOP 2026-10-23 04:32:26 UTC; observed wall 463s, 1,200s charged; proof artifact SHA e14b8125a505c3001021396b8c6e949e3b0a58f61ecf2785f915dbdde65dfc62; handoff SHA 02711938dc45a29a2163a0580c43241066b5c7c37aa789768b34101919cdccae; all writes stopped; no descendants/scratch."
-},
-{
-"id": "/root/r336_k0_algebra_prover",
-"role": "R338 constructive proof producer",
-"state": "RUNNING",
-"session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "high",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R338 dispatched 2026-10-23 04:51 UTC; grant1200 charged; exact frozen output paths; no code/tests/Cargo/probes/Git."
-},
-{
-"id": "/root/r334_fieldtail_review",
-"role": "R337 fresh independent compiler_referee",
-"state": "STOPPED",
-"session": "291c0520-43ca-4741-a760-f56a1f641e33",
-"requested_model": "gpt-6.1-sol",
-"requested_effort": "medium",
-"observed_model": "UNKNOWN",
-"observed_effort": "UNKNOWN",
-"receipt": "R337-J-REVIEW PASS; STOP 04:41:11 UTC, first04:38:57, wall134s; charge600s; exact hashes/source pins checked; read-only, no files/tests/Cargo/descendants/Git."
-}
-],
-"leases": [
-{
-"path": "tasks/agent-loop/current.json",
-"owner": "/root",
-"state": "HELD",
-"reason": "R337 primary owns active current state."
-},
-{
-"path": "web/playground/src/wasm/yulang_wasm.js",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "R332"
-},
-{
-"path": "web/playground/src/wasm/yulang_wasm.d.ts",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "R332"
-},
-{
-"path": "web/playground/src/wasm/yulang_wasm_bg.wasm",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "R332"
-},
-{
-"path": "tools/inference-playground/src/lib.rs",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "R336 revision 1 preserved; write lease closed at revision 2 with no persistent change."
-},
-{
-"path": "crates/yu-hir/src/module.rs",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "R336 revision 1 preserved; write lease closed at revision 2 with no persistent change."
-},
-{
-"path": "notes/theory/2026-10-23-r336-case-and-source-ownership.md",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "R336 revision 1 preserved; write lease closed at revision 2 with no persistent change."
-},
-{
-"path": "tasks/agent-loop/sprints/r336-case-and-source-ownership-20261023.md",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "R336 revision 1 preserved; write lease closed at revision 2 with no persistent change."
-},
-{
-"path": "tasks/agent-loop/sprints/r336-k0-d0-d1-20261023-rev2.md",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "Superseded by versioned R336 revision 3 after D1 judgment/output-interface counterexample; preserved at pinned old hash."
-},
-{
-"path": "notes/theory/2026-10-23-r336-k0-d0-d1.md",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "Superseded by versioned R336 revision 3; preserved at pinned old hash."
-},
-{
-"path": "notes/theory/2026-10-23-r336-k0-algebra-construction.md",
-"owner": "/root/r336_k0_algebra_prover",
-"state": "FROZEN",
-"reason": "Producer STOPPED; final revision-1 handoff/artifact hashes recorded in active R336 state."
-},
-{
-"path": "tasks/agent-loop/inbox/20261023-r336-k0-algebra-prover.md",
-"owner": "/root/r336_k0_algebra_prover",
-"state": "FROZEN",
-"reason": "Producer STOPPED; final revision-1 handoff/artifact hashes recorded in active R336 state."
-},
-{
-"path": "tasks/agent-loop/sprints/r337-k0-context-lifecycle-20261023.md",
-"owner": "/root",
-"state": "HELD",
-"reason": "R337 primary contract"
-},
-{
-"path": "notes/theory/2026-10-23-r337-k0-context-source-census.md",
-"owner": "/root",
-"state": "FROZEN",
-"reason": "Primary R337 source census frozen at SHA-256 771c3c8ab2a69336579c78a7583097b8d1839bf0d6fe97f2e69da27e77500e6a for independent review."
-},
-{
-"path": "notes/theory/2026-10-23-r337-k0-context-preservation.md",
-"owner": "/root/r337_k0_context_prover",
-"state": "FROZEN",
-"reason": "R337 proof producer STOPPED; exact final artifact/handoff hashes are recorded in active_sprint review_receipt."
-},
-{
-"path": "tasks/agent-loop/inbox/20261023-r337-k0-context-prover.md",
-"owner": "/root/r337_k0_context_prover",
-"state": "FROZEN",
-"reason": "R337 proof producer STOPPED; exact final artifact/handoff hashes are recorded in active_sprint review_receipt."
-}
-],
-"pending": [
-{
-"id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
-"state": "OPEN",
-"owner": "Luna; whole-ascription formation",
-"details": "tasks/agent-loop/inbox/20261019-r61-proof.md"
-},
-{
-"id": "R64-SRC-ANN-ARG-1",
-"state": "OPEN",
-"owner": "Luna; annotation argument",
-"details": "tasks/agent-loop/inbox/20261019-r64-proof.md"
-},
-{
-"id": "R65-CURRENT-OPERAND-1",
-"state": "OPEN",
-"owner": "Luna; ordinary typed Lambda operand",
-"details": "tasks/agent-loop/inbox/20261019-r65-proof.md"
-},
-{
-"id": "R66-LAMBDA-RESULT-STAGE-1",
-"state": "OPEN",
-"owner": "Luna; direct Lambda-checking follow-up",
-"details": "tasks/agent-loop/inbox/20261019-r66-proof.md"
-},
-{
-"id": "R67-DIRECT-BODY-CHECK-1",
-"state": "OPEN",
-"owner": "Luna; source Lambda body consumer",
-"details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md"
-},
-{
-"id": "R68-OWNER-CONSUMER-1",
-"state": "OPEN",
-"owner": "Luna; retained body/result consumer",
-"details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"
-},
-{
-"id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
-"state": "OPEN_UNADOPTED_PROPOSAL",
-"owner": "Luna; source-law completion",
-"details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"
-},
-{
-"id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
-"state": "OPEN",
-"owner": "Luna; exact source/native owners in R70",
-"details": "tasks/agent-loop/inbox/20261019-r70-proof.md"
-},
-{
-"id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
-"state": "OPEN",
-"owner": "Luna; source/native owners in R71",
-"details": "R230 sibling prefix; R231-R234 searches; R236 census; R237 no callback slot-4 alias to later raw WorkBound. OPEN."
-},
-{
-"id": "R72-LATER-OCCURRENCE-1",
-"state": "OPEN",
-"owner": "Luna; exact Local-to-WorkBound replay and consumer lineage",
-"details": "R229 bridge; R231-R233 no slot-4 post-alias consumer. OPEN."
-},
-{
-"id": "R149-SOURCE-OWNER-CLOSURE-1",
-"state": "STOPPED_UNFROZEN_RESULT",
-"owner": "Luna intake",
-"details": "R258-R259 local roots; R260 conditional census; R261-R267 parser/import route evidence; R268 Y3 source graph reaches all 40 modules (39 mod +108 use edges), but external-mod Missing recoveries leave Y2 ModuleMap/publication OPEN. R149 outputs open."
-}
-],
-"closure": "OPEN: full D1, broader N/cache coverage/W/Z/S0/D3, source/native completeness, principality, original A/B, catalog and production.",
-"next_action": "R338 active: exact D1 composition and first same-row K0 transition family; primary source census and producer proof run in parallel.",
-"legacy_reconciliation": {
-"required": false,
-"reason": "3 U; no reclaim.",
-"source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
-},
-"user_goal": "Continue unchanged Y2 playground proof/code through the full-source and Simple-sub A/B goal, following the user-directed audit’s K0-first theorem path; preserve source semantics, expected outputs, compact records, unknown-worker leases and exact-path Git integration.",
-"history": [
-{
-"id": "R330",
-"archive": "notes/theory/2026-10-22-r330-console-role-frontier.md",
-"contract": "tasks/agent-loop/sprints/r330-console-role-frontier-and-member-projection-20261022.md",
-"outcome": "OPEN_CONTINUATION"
-},
-{
-"id": "R331",
-"archive": "notes/theory/2026-10-22-r330-console-role-frontier.md",
-"contract": "tasks/agent-loop/sprints/r331-r149-public-types-web-20261022-rev3.md",
-"outcome": "OPEN_CONTINUATION"
-},
-{
-"id": "R332",
-"archive": "notes/theory/2026-10-22-r330-console-role-frontier.md",
-"contract": "tasks/agent-loop/sprints/r332-candidate-public-scheme-source-adequacy-20261022.md",
-"outcome": "OPEN_CONTINUATION"
-},
-{
-"id": "R333",
-"archive": "notes/theory/2026-10-23-r333-fieldtail-descriptor-transport.md",
-"contract": "tasks/agent-loop/sprints/r333-fieldtail-descriptor-transport-20261023.md",
-"outcome": "REVIEWED PASS as bounded implementation evidence; source-driven readback remains OPEN.",
-"review": "notes/theory/2026-10-23-r334-r333-independent-review.md",
-"review_sha256": "96eac2300c82ebc1a46ab9fe9c54d82877bee49466d146cdf972bf32ae4cb7b4"
-},
-{
-"id": "R334",
-"archive": "notes/theory/2026-10-23-r334-r333-independent-review.md",
-"contract": "tasks/agent-loop/sprints/r334-r333-fieldtail-independent-review-20261023.md",
-"outcome": "REVIEWED PASS; no code repair; later local-use readback OPEN; charged 900s, no carryover.",
-"note_sha256": "96eac2300c82ebc1a46ab9fe9c54d82877bee49466d146cdf972bf32ae4cb7b4",
-"contract_sha256": "34946222f83353f9baeb2863e3e89b483d319de2c9d6df68271788711a44aa8f"
-},
-{
-"id": "R335",
-"archive": "notes/theory/2026-10-23-r335-source-driven-local-use.md",
-"contract": "tasks/agent-loop/sprints/r335-source-driven-local-use-20261023.md",
-"outcome": "REVIEWED PASS; NO_SAFE_CODE_SLICE for post-refresh source-driven local reuse; bounded lifecycle result only; 600s charged, unused discarded.",
-"note_sha256": "ffb799d08501f7f0f3266e0590bfaa0d35da1ebe00b599f4ab524af7295ffcc2",
-"frozen_trace_sha256": "37c234a8f2d3afbf4e3ceb19e26846ed112fb8b284fd4e6b2de0f51c52d4adec",
-"reviewer": "/root/r335_source_trace_review",
-"review": "5/5 bounded claims PASS; no source-qualified counterexample; no tests or writes.",
-"contract_sha256": "09c9d16d00f01ecc5c6ccdaee192f101e87a5dc1bafbfb449cdb2bad91632334"
-},
-{
-"id": "R336-revision-1",
-"contract": "tasks/agent-loop/sprints/r336-case-and-source-ownership-20261023.md",
-"contract_sha256": "3ccf1453ec3eefa2adc4305933c2ce431cd1d1a993248b79cb60562c8f01805c",
-"outcome": "REPLANNED_OPEN by explicit user direction and dispatcher recommendation; Button and Callback Hygiene packets remain unresolved, with no code changes. Preserved-oracle probe returned generic SourceImportResolutionUnavailable and did not identify a name.",
-"superseded_by": "tasks/agent-loop/sprints/r336-k0-d0-d1-20261023-rev2.md"
-},
-{
-"id": "R336-revision-4",
-"contract": "tasks/agent-loop/sprints/r336-k0-d0-d1-20261023-rev4.md",
-"contract_sha256": "080ab51650f88ddb7030e2a9bcb0ebfc9cc9b62de29204910e888365f7d03118",
-"outcome": "REVIEWED_BOUNDED_PASS_OPEN_CONTINUATION",
-"note": "notes/theory/2026-10-23-r336-k0-d0-d1-rev4.md",
-"review": "notes/theory/2026-10-23-r336-k0-d0-d1-review.md",
-"review_sha256": "d03b7a23bcec2bd0575bf391342f92353b46b840cbcfa70deea7500786fd892e",
-"reviewer": "/root/r334_fieldtail_review",
-"charge_seconds": 3600,
-"closure": "Full D1 context lifecycle, D3 and original A/B/production gates OPEN."
-},
-{
-"id": "R337-revision-1",
-"contract": "tasks/agent-loop/sprints/r337-k0-context-lifecycle-20261023.md",
-"contract_sha256": "0d71e3c740aa3d48667e3a9d62d15b835084a432e394fe79cc30d2b9d4cc9a3e",
-"outcome": "REVIEWED_BOUNDED_PASS_OPEN_CONTINUATION",
-"parent": "Only R336 D1 context/metadata premise established; full D1 remains OPEN.",
-"reviewer": "/root/r334_fieldtail_review",
-"review": "R337-J-REVIEW PASS; see current-state record in integrated commit.",
-"proof_sha256": "e14b8125a505c3001021396b8c6e949e3b0a58f61ecf2785f915dbdde65dfc62",
-"census_sha256": "771c3c8ab2a69336579c78a7583097b8d1839bf0d6fe97f2e69da27e77500e6a",
-"commit": "56707d984187e9a02b417f9dde80cbecb6ba1e89"
-}
-],
-"resource_observation": "R338 2700/3600 charged at primary1500+producer1200 grants; review600+integration300 reserved; zero Astra; legacy UNKNOWN quarantined; no Cargo."
+  "schema_version": 1,
+  "mode": "LIVE",
+  "phase": "ACTIVE",
+  "session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
+  "active_sprint": {
+    "id": "R338",
+    "status": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/r338-k0-d1-d2-state-bridge-20261023.md",
+    "resources": {
+      "cap_seconds": 3600,
+      "charged_seconds": 3300,
+      "reserved_seconds": 300,
+      "no_carryover": true
+    },
+    "proof": "R338 constructive proof frozen STOP 2026-10-23 05:00:40 UTC; full 1200s grant charged; artifact/handoff hashes recorded.",
+    "implementation": "Primary RUNNING for frozen census adjudication, review dispatch, current-state synchronization and integration; no compiler implementation authorized.",
+    "review_receipt": "R338 review STOP 2026-10-23 05:06:54 UTC (first05:03:58, wall176s, full600 charged). D1 composition and post-admission record/enqueue PASS under explicit premises. MAJOR census finding: Duplicate FactId/store receipt does not imply H unchanged because successful duplicate still republishes q; no reachable K0 counterexample or compiler defect shown. Exact reviewed census SHA 1361b0223e8950c3e6546f1cbcb9cd25bd7a0ca038511f7c55cad29d3659fa6d. Selector accepted the minimum repair; no reviewer renewal or extra allocation.",
+    "next_action": "Selector accepted the bounded repair: revise only census admission semantics to H_after=H_before∪{q}; source-admission equality pending delta review; preserve D1 and post-admission lemma.",
+    "closure": "OPEN: D1 composition and one bounded D2 transition only; broader N/cache coverage/W/Z/S0/D3/principality/full A/B/production remain OPEN.",
+    "dispatch": "Start selector accepted R338 with exact inequality-admission → owner-recording → opposite-bound-enqueue family; no recursive replay claim. Fresh 3600s, no carryover/Astra.",
+    "note": "notes/theory/2026-10-23-r338-k0-state-source-census.md",
+    "charged_seconds": 3300,
+    "contract_sha256": "d742fa449c81b8b3cc918f53f93fc462dccb98565a2ed817e0b64162919ee403",
+    "dependencies": {
+      "user_audit_sha256": "b720fc938423bea1b677f7121653e2452b0fb0b9bb2919e9d38c7fccbee64895",
+      "r337_commit": "56707d984187e9a02b417f9dde80cbecb6ba1e89",
+      "compiler_baseline": "17e57af2c4605d7084c7d76792b115674776bbe2",
+      "r336_note_sha256": "4bcbe71ec9f2372baca884e3db737c16fc19ad2a51103965ade5ca4c2ecf4973",
+      "r336_review_sha256": "d03b7a23bcec2bd0575bf391342f92353b46b840cbcfa70deea7500786fd892e",
+      "r337_contract_sha256": "0d71e3c740aa3d48667e3a9d62d15b835084a432e394fe79cc30d2b9d4cc9a3e",
+      "r337_proof_sha256": "e14b8125a505c3001021396b8c6e949e3b0a58f61ecf2785f915dbdde65dfc62",
+      "r337_census_sha256": "771c3c8ab2a69336579c78a7583097b8d1839bf0d6fe97f2e69da27e77500e6a"
+    },
+    "revision": 1,
+    "resource_breakdown": {
+      "primary_census_charged_seconds": 1500,
+      "prover_reserved_seconds": 0,
+      "review_reserved_seconds": 0,
+      "integration_reserved_seconds": 300,
+      "prover_charged_seconds": 1200,
+      "review_charged_seconds": 600
+    },
+    "census_sha256": "1361b0223e8950c3e6546f1cbcb9cd25bd7a0ca038511f7c55cad29d3659fa6d",
+    "proof_sha256": "f438939f99c212324a397f527d46d4a4ab565733e4b2e9e2ae55254e96ca9bf0",
+    "proof_handoff_sha256": "1ea41023fd18f95343bd5ec69a4af611a010e2d61bf4388fb3b159d224f3cb40",
+    "resource_observation": "R338 3300/3600 charged (primary1500+producer1200+fresh review600); integration300 reserved; zero Astra; legacy UNKNOWN quarantined; no Cargo."
+  },
+  "workers": [
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "role": "legacy dispatcher",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "U;Q."
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "role": "legacy implementer",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "U;Q."
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "role": "legacy proof worker",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "U;Q."
+    },
+    {
+      "id": "/root",
+      "role": "direct primary; R338 source census/integration",
+      "state": "RUNNING",
+      "session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
+      "requested_model": "current user-selected primary",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R338 active; owns exact primary contract, census and current-state paths."
+    },
+    {
+      "id": "/root/r333_selector",
+      "role": "R338 start next_action_selector",
+      "state": "STOPPED",
+      "session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R338 start selector approved tightened admission/record/enqueue family; STOPPED, read-only."
+    },
+    {
+      "id": "/root/r337_k0_context_prover",
+      "role": "prover (R337 K0 context lifecycle)",
+      "state": "STOPPED",
+      "session": "291c0520-43ca-4741-a760-f56a1f641e33",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "STOP 2026-10-23 04:32:26 UTC; observed wall 463s, 1,200s charged; proof artifact SHA e14b8125a505c3001021396b8c6e949e3b0a58f61ecf2785f915dbdde65dfc62; handoff SHA 02711938dc45a29a2163a0580c43241066b5c7c37aa789768b34101919cdccae; all writes stopped; no descendants/scratch."
+    },
+    {
+      "id": "/root/r336_k0_algebra_prover",
+      "role": "R338 constructive proof producer",
+      "state": "STOPPED",
+      "session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R338-K0-STATE producer STOP 2026-10-23 05:00:40 UTC; first04:51:03, wall577s; full1200s grant charged; proof SHA f438939f99c212324a397f527d46d4a4ab565733e4b2e9e2ae55254e96ca9bf0; handoff SHA 1ea41023fd18f95343bd5ec69a4af611a010e2d61bf4388fb3b159d224f3cb40; all writes stopped; no descendants/scratch/tests/Cargo/probes/Git."
+    },
+    {
+      "id": "/root/r334_fieldtail_review",
+      "role": "R337 fresh independent compiler_referee",
+      "state": "STOPPED",
+      "session": "291c0520-43ca-4741-a760-f56a1f641e33",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R337-J-REVIEW PASS; STOP 04:41:11 UTC, first04:38:57, wall134s; charge600s; exact hashes/source pins checked; read-only, no files/tests/Cargo/descendants/Git."
+    },
+    {
+      "id": "/root/r338_state_review",
+      "role": "R338 fresh independent compiler_referee",
+      "state": "STOPPED",
+      "session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R338 independent review STOP 2026-10-23 05:06:54 UTC; first05:03:58, wall176s, full600s charged. D1 and post-admission local lemma PASS; MAJOR missing premise for duplicate FactId→H unchanged; all writes stopped, read-only, no descendants."
+    }
+  ],
+  "leases": [
+    {
+      "path": "tasks/agent-loop/current.json",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R337 primary owns active current state."
+    },
+    {
+      "path": "web/playground/src/wasm/yulang_wasm.js",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R332"
+    },
+    {
+      "path": "web/playground/src/wasm/yulang_wasm.d.ts",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R332"
+    },
+    {
+      "path": "web/playground/src/wasm/yulang_wasm_bg.wasm",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R332"
+    },
+    {
+      "path": "tools/inference-playground/src/lib.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R336 revision 1 preserved; write lease closed at revision 2 with no persistent change."
+    },
+    {
+      "path": "crates/yu-hir/src/module.rs",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R336 revision 1 preserved; write lease closed at revision 2 with no persistent change."
+    },
+    {
+      "path": "notes/theory/2026-10-23-r336-case-and-source-ownership.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R336 revision 1 preserved; write lease closed at revision 2 with no persistent change."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/r336-case-and-source-ownership-20261023.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R336 revision 1 preserved; write lease closed at revision 2 with no persistent change."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/r336-k0-d0-d1-20261023-rev2.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Superseded by versioned R336 revision 3 after D1 judgment/output-interface counterexample; preserved at pinned old hash."
+    },
+    {
+      "path": "notes/theory/2026-10-23-r336-k0-d0-d1.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Superseded by versioned R336 revision 3; preserved at pinned old hash."
+    },
+    {
+      "path": "notes/theory/2026-10-23-r336-k0-algebra-construction.md",
+      "owner": "/root/r336_k0_algebra_prover",
+      "state": "FROZEN",
+      "reason": "Producer STOPPED; final revision-1 handoff/artifact hashes recorded in active R336 state."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261023-r336-k0-algebra-prover.md",
+      "owner": "/root/r336_k0_algebra_prover",
+      "state": "FROZEN",
+      "reason": "Producer STOPPED; final revision-1 handoff/artifact hashes recorded in active R336 state."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/r337-k0-context-lifecycle-20261023.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R337 primary contract"
+    },
+    {
+      "path": "notes/theory/2026-10-23-r337-k0-context-source-census.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Primary R337 source census frozen at SHA-256 771c3c8ab2a69336579c78a7583097b8d1839bf0d6fe97f2e69da27e77500e6a for independent review."
+    },
+    {
+      "path": "notes/theory/2026-10-23-r337-k0-context-preservation.md",
+      "owner": "/root/r337_k0_context_prover",
+      "state": "FROZEN",
+      "reason": "R337 proof producer STOPPED; exact final artifact/handoff hashes are recorded in active_sprint review_receipt."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261023-r337-k0-context-prover.md",
+      "owner": "/root/r337_k0_context_prover",
+      "state": "FROZEN",
+      "reason": "R337 proof producer STOPPED; exact final artifact/handoff hashes are recorded in active_sprint review_receipt."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/r338-k0-d1-d2-state-bridge-20261023.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R338 primary contract"
+    },
+    {
+      "path": "notes/theory/2026-10-23-r338-k0-state-source-census.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R338 primary census frozen for independent review; SHA-256 1361b0223e8950c3e6546f1cbcb9cd25bd7a0ca038511f7c55cad29d3659fa6d."
+    },
+    {
+      "path": "notes/theory/2026-10-23-r338-k0-d1-d2-state-bridge.md",
+      "owner": "/root/r336_k0_algebra_prover",
+      "state": "FROZEN",
+      "reason": "R338 producer STOPPED; frozen artifact SHA-256 f438939f99c212324a397f527d46d4a4ab565733e4b2e9e2ae55254e96ca9bf0."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261023-r338-k0-state-prover.md",
+      "owner": "/root/r336_k0_algebra_prover",
+      "state": "FROZEN",
+      "reason": "R338 producer STOPPED; frozen handoff SHA-256 1ea41023fd18f95343bd5ec69a4af611a010e2d61bf4388fb3b159d224f3cb40."
+    }
+  ],
+  "pending": [
+    {
+      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+      "state": "OPEN",
+      "owner": "Luna; whole-ascription formation",
+      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md"
+    },
+    {
+      "id": "R64-SRC-ANN-ARG-1",
+      "state": "OPEN",
+      "owner": "Luna; annotation argument",
+      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md"
+    },
+    {
+      "id": "R65-CURRENT-OPERAND-1",
+      "state": "OPEN",
+      "owner": "Luna; ordinary typed Lambda operand",
+      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md"
+    },
+    {
+      "id": "R66-LAMBDA-RESULT-STAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; direct Lambda-checking follow-up",
+      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md"
+    },
+    {
+      "id": "R67-DIRECT-BODY-CHECK-1",
+      "state": "OPEN",
+      "owner": "Luna; source Lambda body consumer",
+      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md"
+    },
+    {
+      "id": "R68-OWNER-CONSUMER-1",
+      "state": "OPEN",
+      "owner": "Luna; retained body/result consumer",
+      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"
+    },
+    {
+      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+      "state": "OPEN_UNADOPTED_PROPOSAL",
+      "owner": "Luna; source-law completion",
+      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"
+    },
+    {
+      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+      "state": "OPEN",
+      "owner": "Luna; exact source/native owners in R70",
+      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md"
+    },
+    {
+      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; source/native owners in R71",
+      "details": "R230 sibling prefix; R231-R234 searches; R236 census; R237 no callback slot-4 alias to later raw WorkBound. OPEN."
+    },
+    {
+      "id": "R72-LATER-OCCURRENCE-1",
+      "state": "OPEN",
+      "owner": "Luna; exact Local-to-WorkBound replay and consumer lineage",
+      "details": "R229 bridge; R231-R233 no slot-4 post-alias consumer. OPEN."
+    },
+    {
+      "id": "R149-SOURCE-OWNER-CLOSURE-1",
+      "state": "STOPPED_UNFROZEN_RESULT",
+      "owner": "Luna intake",
+      "details": "R258-R259 local roots; R260 conditional census; R261-R267 parser/import route evidence; R268 Y3 source graph reaches all 40 modules (39 mod +108 use edges), but external-mod Missing recoveries leave Y2 ModuleMap/publication OPEN. R149 outputs open."
+    }
+  ],
+  "closure": "OPEN: full D1, broader N/cache coverage/W/Z/S0/D3, source/native completeness, principality, original A/B, catalog and production.",
+  "next_action": "R338 active: exact D1 composition and first same-row K0 transition family; primary source census and producer proof run in parallel.",
+  "legacy_reconciliation": {
+    "required": false,
+    "reason": "3 U; no reclaim.",
+    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+  },
+  "user_goal": "Continue unchanged Y2 playground proof/code through the full-source and Simple-sub A/B goal, following the user-directed audit’s K0-first theorem path; preserve source semantics, expected outputs, compact records, unknown-worker leases and exact-path Git integration.",
+  "history": [],
+  "resource_observation": "R338 2700/3600 charged at primary1500+producer1200 grants; review600+integration300 reserved; zero Astra; legacy UNKNOWN quarantined; no Cargo."
 }
