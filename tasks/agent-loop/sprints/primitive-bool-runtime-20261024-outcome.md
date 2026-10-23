@@ -1,6 +1,6 @@
 # PRIMITIVE-BOOL-RUNTIME-20261024 — outcome
 
-Status: **IMPLEMENTATION PASS, independently reviewed; integration pending**.
+Status: **IMPLEMENTATION PASS, independently reviewed, committed and pushed**.
 Baseline: `e80b83f0f81e3859dfd848f768f7d76d6f98e8d6`.
 Contract revision 1 SHA-256:
 `c85f07b09d0072eee08acb07bce60ef004769463a5b67bfd3fb967d7ad3c933a`.
@@ -95,4 +95,6 @@ The outbound integration set is limited to these four implementation files,
 this contract, this outcome, and `tasks/agent-loop/current.json`. Seven
 pre-existing untracked files were preserved, including the two paths whose
 writer cessation remains unconfirmed. They are not part of this change.
-Commit/push remains pending primary integration.
+Integration commit: `8a2f8113f2b7298bc0789c5b285ae05a6603f9d4`.
+After a fresh fetch, `origin/research/simple-sub-intrusion` matched that exact
+commit. No force push was used.
