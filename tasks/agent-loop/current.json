@@ -1,26 +1,25 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ACTIVE",
+  "phase": "ENDED",
   "session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
   "active_sprint": {
     "id": "R338",
-    "status": "ACTIVE",
+    "status": "CLOSED_OPEN_DELTA_REVIEW",
     "contract": "tasks/agent-loop/sprints/r338-k0-d1-d2-state-bridge-20261023.md",
     "resources": {
       "cap_seconds": 3600,
-      "charged_seconds": 3300,
-      "reserved_seconds": 300,
+      "charged_seconds": 3540,
+      "reserved_seconds": 0,
       "no_carryover": true
     },
-    "proof": "R338 constructive proof frozen STOP 2026-10-23 05:00:40 UTC; full 1200s grant charged; artifact/handoff hashes recorded.",
-    "implementation": "Primary RUNNING for frozen census adjudication, review dispatch, current-state synchronization and integration; no compiler implementation authorized.",
-    "review_receipt": "R338 review STOP 2026-10-23 05:06:54 UTC (first05:03:58, wall176s, full600 charged). D1 composition and post-admission record/enqueue PASS under explicit premises. MAJOR census finding: Duplicate FactId/store receipt does not imply H unchanged because successful duplicate still republishes q; no reachable K0 counterexample or compiler defect shown. Exact reviewed census SHA 1361b0223e8950c3e6546f1cbcb9cd25bd7a0ca038511f7c55cad29d3659fa6d. Selector accepted the minimum repair; no reviewer renewal or extra allocation.",
-    "next_action": "Selector accepted the bounded repair: revise only census admission semantics to H_after=H_before∪{q}; source-admission equality pending delta review; preserve D1 and post-admission lemma.",
+    "proof": "R338 producer STOPPED; proof SHA f438939f99c212324a397f527d46d4a4ab565733e4b2e9e2ae55254e96ca9bf0; full1200s charged.",
+    "implementation": "No compiler implementation authorized or performed. Primary stopped after state synchronization and exact-path Git integration.",
+    "review_receipt": "Review STOP 05:06:54 UTC; D1 composition PASS and post-admission owner-record/enqueue PASS. MAJOR duplicate FactId does not imply H unchanged because q is republished. Revision2 corrects H_after=H_before∪{q}; narrow delta review pending, no renewal.",
+    "next_action": "R338 ended with census revision2 admission correction awaiting narrow delta review at a later authorized seam; broad D2/N and original A/B stay OPEN.",
     "closure": "OPEN: D1 composition and one bounded D2 transition only; broader N/cache coverage/W/Z/S0/D3/principality/full A/B/production remain OPEN.",
     "dispatch": "Start selector accepted R338 with exact inequality-admission → owner-recording → opposite-bound-enqueue family; no recursive replay claim. Fresh 3600s, no carryover/Astra.",
     "note": "notes/theory/2026-10-23-r338-k0-state-source-census.md",
-    "charged_seconds": 3300,
     "contract_sha256": "d742fa449c81b8b3cc918f53f93fc462dccb98565a2ed817e0b64162919ee403",
     "dependencies": {
       "user_audit_sha256": "b720fc938423bea1b677f7121653e2452b0fb0b9bb2919e9d38c7fccbee64895",
@@ -37,14 +36,17 @@
       "primary_census_charged_seconds": 1500,
       "prover_reserved_seconds": 0,
       "review_reserved_seconds": 0,
-      "integration_reserved_seconds": 300,
+      "integration_reserved_seconds": 0,
       "prover_charged_seconds": 1200,
-      "review_charged_seconds": 600
+      "review_charged_seconds": 600,
+      "integration_actual_seconds": 240
     },
-    "census_sha256": "1361b0223e8950c3e6546f1cbcb9cd25bd7a0ca038511f7c55cad29d3659fa6d",
+    "census_sha256": "56174af37c13d2e6ac846b84c3fd71075bceefb8b05474c1f8b3d6d5b2c50ac9",
     "proof_sha256": "f438939f99c212324a397f527d46d4a4ab565733e4b2e9e2ae55254e96ca9bf0",
     "proof_handoff_sha256": "1ea41023fd18f95343bd5ec69a4af611a010e2d61bf4388fb3b159d224f3cb40",
-    "resource_observation": "R338 3300/3600 charged (primary1500+producer1200+fresh review600); integration300 reserved; zero Astra; legacy UNKNOWN quarantined; no Cargo."
+    "resource_observation": "R338 3540/3600 charged: primary1500+producer1200+review600+integration240; unused60 discarded; no carryover/Astra; legacy UNKNOWN quarantined; no Cargo.",
+    "reviewed_census_sha256": "1361b0223e8950c3e6546f1cbcb9cd25bd7a0ca038511f7c55cad29d3659fa6d",
+    "census_revision": 2
   },
   "workers": [
     {
@@ -83,13 +85,13 @@
     {
       "id": "/root",
       "role": "direct primary; R338 source census/integration",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
       "requested_model": "current user-selected primary",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R338 active; owns exact primary contract, census and current-state paths."
+      "receipt": "R338 primary STOPPED after final state/Git integration; exact paths only, no compiler implementation."
     },
     {
       "id": "/root/r333_selector",
@@ -100,18 +102,7 @@
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R338 start selector approved tightened admission/record/enqueue family; STOPPED, read-only."
-    },
-    {
-      "id": "/root/r337_k0_context_prover",
-      "role": "prover (R337 K0 context lifecycle)",
-      "state": "STOPPED",
-      "session": "291c0520-43ca-4741-a760-f56a1f641e33",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "STOP 2026-10-23 04:32:26 UTC; observed wall 463s, 1,200s charged; proof artifact SHA e14b8125a505c3001021396b8c6e949e3b0a58f61ecf2785f915dbdde65dfc62; handoff SHA 02711938dc45a29a2163a0580c43241066b5c7c37aa789768b34101919cdccae; all writes stopped; no descendants/scratch."
+      "receipt": "R338 review-boundary selector accepted bounded H_after=H_before∪{q} correction; no renewal, read-only."
     },
     {
       "id": "/root/r336_k0_algebra_prover",
@@ -125,17 +116,6 @@
       "receipt": "R338-K0-STATE producer STOP 2026-10-23 05:00:40 UTC; first04:51:03, wall577s; full1200s grant charged; proof SHA f438939f99c212324a397f527d46d4a4ab565733e4b2e9e2ae55254e96ca9bf0; handoff SHA 1ea41023fd18f95343bd5ec69a4af611a010e2d61bf4388fb3b159d224f3cb40; all writes stopped; no descendants/scratch/tests/Cargo/probes/Git."
     },
     {
-      "id": "/root/r334_fieldtail_review",
-      "role": "R337 fresh independent compiler_referee",
-      "state": "STOPPED",
-      "session": "291c0520-43ca-4741-a760-f56a1f641e33",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "R337-J-REVIEW PASS; STOP 04:41:11 UTC, first04:38:57, wall134s; charge600s; exact hashes/source pins checked; read-only, no files/tests/Cargo/descendants/Git."
-    },
-    {
       "id": "/root/r338_state_review",
       "role": "R338 fresh independent compiler_referee",
       "state": "STOPPED",
@@ -144,7 +124,7 @@
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R338 independent review STOP 2026-10-23 05:06:54 UTC; first05:03:58, wall176s, full600s charged. D1 and post-admission local lemma PASS; MAJOR missing premise for duplicate FactId→H unchanged; all writes stopped, read-only, no descendants."
+      "receipt": "R338 independent review STOP 05:06:54 UTC; first05:03:58, wall176s, full600s charged. D1 and post-admission local lemma PASS; MAJOR duplicate-admission/H premise; no compiler defect demonstrated; no descendants."
     }
   ],
   "leases": [
@@ -219,30 +199,6 @@
       "owner": "/root/r336_k0_algebra_prover",
       "state": "FROZEN",
       "reason": "Producer STOPPED; final revision-1 handoff/artifact hashes recorded in active R336 state."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/r337-k0-context-lifecycle-20261023.md",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "R337 primary contract"
-    },
-    {
-      "path": "notes/theory/2026-10-23-r337-k0-context-source-census.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Primary R337 source census frozen at SHA-256 771c3c8ab2a69336579c78a7583097b8d1839bf0d6fe97f2e69da27e77500e6a for independent review."
-    },
-    {
-      "path": "notes/theory/2026-10-23-r337-k0-context-preservation.md",
-      "owner": "/root/r337_k0_context_prover",
-      "state": "FROZEN",
-      "reason": "R337 proof producer STOPPED; exact final artifact/handoff hashes are recorded in active_sprint review_receipt."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261023-r337-k0-context-prover.md",
-      "owner": "/root/r337_k0_context_prover",
-      "state": "FROZEN",
-      "reason": "R337 proof producer STOPPED; exact final artifact/handoff hashes are recorded in active_sprint review_receipt."
     },
     {
       "path": "tasks/agent-loop/sprints/r338-k0-d1-d2-state-bridge-20261023.md",
@@ -337,14 +293,24 @@
       "details": "R258-R259 local roots; R260 conditional census; R261-R267 parser/import route evidence; R268 Y3 source graph reaches all 40 modules (39 mod +108 use edges), but external-mod Missing recoveries leave Y2 ModuleMap/publication OPEN. R149 outputs open."
     }
   ],
-  "closure": "OPEN: full D1, broader N/cache coverage/W/Z/S0/D3, source/native completeness, principality, original A/B, catalog and production.",
-  "next_action": "R338 active: exact D1 composition and first same-row K0 transition family; primary source census and producer proof run in parallel.",
+  "closure": "OPEN: R338 D1 composition and post-admission local D2 lemma PASS; source-admission correction pending delta review. Full D2/N, cache/coverage, W/Z/S0/D3, principality, original A/B, catalog and production remain OPEN.",
+  "next_action": "Later authorized seam: narrow independent delta review of R338 census revision2 source-admission semantics; no reviewer renewal in R338.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
     "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
   },
   "user_goal": "Continue unchanged Y2 playground proof/code through the full-source and Simple-sub A/B goal, following the user-directed audit’s K0-first theorem path; preserve source semantics, expected outputs, compact records, unknown-worker leases and exact-path Git integration.",
-  "history": [],
-  "resource_observation": "R338 2700/3600 charged at primary1500+producer1200 grants; review600+integration300 reserved; zero Astra; legacy UNKNOWN quarantined; no Cargo."
+  "history": [
+    {
+      "id": "R338",
+      "archive": "notes/theory/2026-10-23-r338-k0-state-source-census.md",
+      "contract": "tasks/agent-loop/sprints/r338-k0-d1-d2-state-bridge-20261023.md",
+      "outcome": "D1 PASS; post-admission local D2 PASS; admission correction pending delta review.",
+      "reviewer": "/root/r338_state_review",
+      "reviewed_census_sha256": "1361b0223e8950c3e6546f1cbcb9cd25bd7a0ca038511f7c55cad29d3659fa6d",
+      "census_revision2_sha256": "56174af37c13d2e6ac846b84c3fd71075bceefb8b05474c1f8b3d6d5b2c50ac9"
+    }
+  ],
+  "resource_observation": "R338 3540/3600 charged; integration240/300, unused60 discarded, no carryover. Full parent gates remain OPEN."
 }

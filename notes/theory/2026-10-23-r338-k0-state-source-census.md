@@ -1,8 +1,9 @@
 # R338 — K0 D1 composition and D2 state/source census
 
-Status: frozen source census for R338 independent review. This is a
-source-reading result only. It is not a machine-checked proof, does not close
-native solution preservation, and makes no compiler change.
+Status: primary-adjudicated revision 2, frozen for narrow delta review. D1
+composition and the post-admission owner-record/enqueue lemma passed review of
+revision 1; this source-admission correction has not had delta review. This is
+a source-reading result only, not a machine-checked proof or compiler change.
 
 ## Authority and inputs
 
@@ -82,19 +83,25 @@ of a logical constraint.
 
 `ConstraintStore` membership and provenance identify authentic source
 admission; they do not add a second copy of an inequality to this `H(S)`.
-During this bounded family, a newly admitted fact is represented as `c` in the
-caller/local transfer slot and then the active typed-drain item until its
-identical owner bound is recorded. Existing entry bounds/work must already
-project to their indicated inequalities. This is a local entry premise, not a
-claim that completed native state captures every source fact.
+After either an accepted or duplicate receipt, `admit_collected_fact` publishes
+the incoming task `q` into a caller/local transfer slot and then active typed
+work until its identical owner bound is recorded. The store delta differs
+(fresh `FactKey` versus existing `FactId`), but both success branches enqueue
+the task. Thus source ingress is modeled as
 
-There are two distinct semantic steps. Successful `ConstraintStore` admission
-of a fresh authentic inequality `c` changes the theory to `H(S) ∪ {c}` and may
-shrink its solution set. A duplicate admission leaves this set unchanged.
-Neither case is an unconditional solution-preservation claim. Once `c` is in
-the store and work state, recording its owner bound and enqueueing the
-opposite-bound consequences is the same-row-set administrative transition
-for which the target is
+```text
+H_after_admission = H_before_admission ∪ {q}.
+```
+
+Its solution set may shrink. Equality with the prior solution set follows only
+if `H_before_admission` already entails `q`; duplicate `FactId` identity alone
+does not establish that premise. Existing entry bounds/work must project to
+their indicated inequalities. This local premise is not a claim that completed
+native state captures every source fact.
+
+The distinct administrative step begins only after `q` is represented in
+`H(S)`. Recording its owner bound and enqueueing the opposite-bound
+consequences is the same-row-set transition for which the target is
 
 ```text
 Sol(H(S_after_record_and_enqueue)) = Sol(H(S_before_record_and_enqueue)).
@@ -114,7 +121,7 @@ non-row Value comparisons and specialized Effect operands take other paths.
 
 | Boundary | Source behavior and owners | Logical reading |
 | --- | --- | --- |
-| Authentic fact admission (`lib.rs:11481–11524`) | `admit_collected_fact` calls `ConstraintTransaction::admit`, then `record_provenance`; on success it maps the admitted term kind to polarized Value/Effect endpoints and calls `constrain_live_value/effect`. The transaction inserts a new `SemanticFact`/canonical `FactId`, or returns a duplicate receipt. | A new source fact adds its inequality to `H`; duplicate `FactKey` is idempotent. This source step can shrink `Sol` and is separated from D2 equality. The occurrence/cause stay attached to the initial typed drain. |
+| Authentic fact admission (`lib.rs:11481–11524, 3960–3971`) | `admit_collected_fact` calls `ConstraintTransaction::admit`, then `record_provenance`; every successful receipt maps the term kind to polarized Value/Effect endpoints and calls `constrain_live_value/effect`. `admit` inserts a new `SemanticFact`/canonical `FactId` or returns an existing `FactId` with `AdmissionDelta::Duplicate`; both success branches continue to typed work. | The store insertion is idempotent for a duplicate key, but the corresponding q still enters the live caller/work representation. Model either receipt as `H_after = H_before ∪ {q}`; this may shrink `Sol` unless q was already entailed. This source/work ingress is separate from D2 equality. The occurrence/cause stay attached to the initial typed drain. |
 | Initial pending/current work (`lib.rs:14186–14245, 14289–14366`) | `constrain_live` creates `TypedWorkItem`; candidate mode enters `run_candidate_typed_drain` → `start_typed_drain`, which starts a frame and enqueues the item. `step_typed_drain` moves a dequeued item from `typed_worklist` into `TypedDrainFrame.current`, then through Transport, Context and Dispatch. The frame also retains its initial request, designated and saved processing pairs; a popped local remains held before `current` publication. `dispatch_live_item` routes a noncurrent Value/Effect pair through `apply_value/effect_task` to `candidate_apply_value/effect` (`lib.rs:14432–14463, 13729–13737, 16193–16200`). | A pop does not erase the obligation: it remains in the active local/frame representation. `H` includes queue membership, active initial/current and saved processing slots, and caller/local transfer slots. Under the R337 K0 invariant, identity context execution is inert; R336 L0 keeps live rows at one level and excludes copy-origin intrusion. |
 | Owner selection and recording (`candidate_extrusion.rs:635–642, 1070–1170`) | For the bounded family where `candidate_apply_value/effect` finds a live row owner, the function canonicalizes endpoints, returns on equality, selects physical owner/polarity, then calls `candidate_insert_bound` followed by `candidate_replay_bound`. Equal-level row→row Value/Effect uses a negative upper bound on the lower row. A row lower endpoint with a non-row upper endpoint uses a negative exact upper; a non-row lower with a row upper uses a positive exact lower. | `candidate_context::bound_pair` (`candidate_context.rs:3311–3321`) interprets positive `(owner,item)` as `item ≤ owner` and negative as `owner ≤ item`. Thus the recorded `BoundKey` denotes the original directed inequality, independent of which endpoint owns its physical cell. Both-row level comparison is settled by R336 L0 (all K0 rows are level 1). Unequal non-row Value endpoints and Effect operands handled by `candidate_check_effect_operand` are outside this owner-recording family. |
 | Physical lane and readback (`candidate_extrusion.rs:648–700, 702–875`) | `candidate_insert_bound_with_evidence` canonicalizes endpoints, registers the logical `BoundKey` admission, chooses the Value/Effect lower/upper row/atom vector, appends one incidence, reads the addressed `PhysicalBoundSlot` back as a complete `BoundKey`, checks exact equality, records capture incidence if requested, marks the graph dirty and emits evidence. | Vectors are incidence storage and intentionally can contain duplicates. `H` interprets each entry through its direction; exact readback verifies the selected cell matches that direction. Duplicate slots add no new logical inequality. |
@@ -186,16 +193,24 @@ pending, processing, or retained replay state; a separating K0 valuation; or
 an omitted K0-reachable mutator. No execution probe, test, Cargo/build, compiler
 write, or runtime was used.
 
-## Freeze record
+## Review and correction record
 
-The census and this note use the contract's exact R336/R337/audit pins and the
-eleven source hashes listed above. R338 producer proof and handoff are frozen
-separately at `notes/theory/2026-10-23-r338-k0-d1-d2-state-bridge.md` (SHA-256
-`f438939f99c212324a397f527d46d4a4ab565733e4b2e9e2ae55254e96ca9bf0`) and
-`tasks/agent-loop/inbox/20261023-r338-k0-state-prover.md` (SHA-256
-`1ea41023fd18f95343bd5ec69a4af611a010e2d61bf4388fb3b159d224f3cb40`). Review must
-challenge D1 premise/endpoint matching, `H(S)` membership, the source-admission
-split, polarity and exact-slot mapping, duplicate normalization, retained
-replay/worklist transfer, the transitivity argument, and excluded writer
-reachability. Until that review and primary adjudication, D1 composition and
-the bounded D2 result remain proof candidates; all broader gates remain OPEN.
+The independent review used revision 1 of this census, SHA-256
+`1361b0223e8950c3e6546f1cbcb9cd25bd7a0ca038511f7c55cad29d3659fa6d`, with the
+unchanged producer proof `notes/theory/2026-10-23-r338-k0-d1-d2-state-bridge.md`
+(SHA-256 `f438939f99c212324a397f527d46d4a4ab565733e4b2e9e2ae55254e96ca9bf0`)
+and handoff `tasks/agent-loop/inbox/20261023-r338-k0-state-prover.md` (SHA-256
+`1ea41023fd18f95343bd5ec69a4af611a010e2d61bf4388fb3b159d224f3cb40`). Review
+disposition: D1 composition PASS; post-admission owner-record/enqueue lemma
+PASS under its stated premises; MAJOR finding on the unconditional duplicate
+admission sentence in revision 1. The reviewer found no source-qualified
+reachable K0 counterexample or compiler defect. Luna accepts the finding and
+applies the reviewer's minimum correction in revision 2.
+
+Revision 2 models both accepted and duplicate source receipts as ingress of q
+into `H(S)`. `Sol` equality at admission is claimed only with a separate
+`H_before ⊨ q` premise. This correction has not received delta review, so the
+admission transition is not promoted. It does not alter the separately reviewed
+post-admission owner-record/enqueue lemma. All broader N, cache/coverage,
+W/Z/S0/D3, principality, source/native completeness, original A/B, catalog and
+production gates remain OPEN.
