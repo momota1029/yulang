@@ -37,7 +37,7 @@ BoldFeatures={FakeBold=2},ItalicFeatures={FakeSlant=.15}]}
 \title{Yulang のソース導出と実行核の接続\
 \large コンストラクタ多相性、保護の由来、再開時の寿命と選択}
 \author{単独構成・自己点検：このセッションの主エージェント}
-\date{2026年10月23日}
+\date{2026年10月24日改訂}
 \begin{document}
 \maketitle
 
@@ -67,6 +67,11 @@ BoldFeatures={FakeBold=2},ItalicFeatures={FakeSlant=.15}]}
 \texttt{compose} の直接呼出しについては、第\ref{sec:named}節で既存の source frame 構成を適用し、
 最後の formal \(x\) の実行 entry から scope/receiver を作る具体化まで進める。
 この bounded な対応を alias/anonymous/一般の捕捉へ拡張する義務は残る。
+今回の追補（第\ref{sec:capture}--\ref{sec:source-family}節）は、source の自由変数と
+実際の値経路から捕捉を構成する。既存 evidence を複写せず、未実行 recipe の binder と分離する。
+追補の基準は \texttt{c1ac52b0a} に保存した前版の source 稿である。
+さらに non-Var 呼出しを扱う一つの全域な候補政策を明記し、候補に対する source 定理へ合成する。
+これは旧 Oracle の全構文についての対応や、未選択の意味論の採用を意味しない。
 独立査読・機械検証は未実施。以下の紙上導出は証明 gate の昇格ではない。
 
 \tableofcontents
@@ -999,6 +1004,646 @@ raw resume、normal exit 後の latent 値は補題\ref{lem:life}の元 receiver
 本節の一般化では、alias/返却/capture の authentic source origin を、
 元の source receiving boundary と一貫して結ぶ構成が次の義務になる。
 
+\section{捕捉範囲をソースから構成する}
+\label{sec:capture}
+
+\subsection{既存の条件付き構成から、どの前提を取り除くか}
+
+\nolinkurl{notes/theory/2026-10-15-effect-scope-ownership-capture.md} は、
+与えられた region forest と capture frontier を単射で複製する局所補題を持つ。
+しかし frontier の source 生成と、将来現れる scope を含む inventory の完全性は前提であった。
+本節では source の実行意味論に限り、この二つを外部入力にしない構成を与える。
+推論器が保存する制約 graph の FreshUse は別の対象である。
+そこへ本節を適用するには、制約 graph と以下の closure/environment の対応が依然として必要になる。
+
+まず次の二種類を構文上区別する。
+\[
+ \underbrace{r,b,s,t,o}_{\text{既に確保した証拠定数}}
+ \qquad\hbox{と}\qquad
+ \underbrace{\nu z.\,c}_{\text{まだ実行していない確保命令の binder}}.
+ \tag{C-Sorts}
+\]
+同じ source label を二度使うこと、scheme の AllE、閉包の複写は左の定数を freshen しない。
+右の \(z\) は code 中の局所束縛変数であり、capture-avoiding な alpha 変換を受ける。
+\(\nu\) を実際に実行したときに限り、全既存 support と異なる定数が左へ追加される。
+source に \(\nu\) 記法を追加するのではなく、source entry から生成する命令をこう表示する。
+
+\subsection{有限な recipe environment と閉包}
+
+各 source Lambda/delay/handler arm と生成 adapter に code label \(\ell\) を付ける。
+\(\ell\) の自由参照を三つの sort に分ける。
+\[
+ F_v(\ell),\quad F_q(\ell),\quad F_\omega(\ell).
+ \tag{C-Free}
+\]
+順に項の binder、qualified 証拠 binder、recipe が読む owner/origin/target の binder である。
+\(F_\omega\) は実行済みの定数集合ではない。source の lexical binder を指す有限の変数集合である。
+型/効果に残る自由変数も、全 packet に属する型環境として別に保持する。
+
+構成手順は次のとおり固定する。
+\begin{enumerate}
+\item source の有限導出を走査して、各 primitive command が読む変数と、
+その命令が束縛する変数を記録する。通常 entry の receiver、formal の origin、group slot、
+marker target はその entry/output の局所変数である。
+\item \(\mathsf{FV}(c_1;c_2)=\mathsf{FV}(c_1)\cup
+(\mathsf{FV}(c_2)\setminus\mathsf{bind}(c_1))\)、
+\(\mathsf{FV}(\nu z.c)=\mathsf{FV}(c)\setminus\{z\}\) として再帰する。
+構造値の子、annotation template、adapter、dictionary field にも同じ規則を使う。
+\item 入れ子の closure を作る命令は、その closure の自由参照を読む命令でもある。
+従って孫の code が使う外側の owner も、途中の closure が保持する。
+遅延された実行は自由参照の解析から削除しない。
+\item 再帰 code label は展開しない。有限な label/lexical-binder 対について、
+上の依存集合の最小固定点を有限 powerset 上で取る。
+各増加で新しい対が一つ以上加わるので、高々その対の総数回の増加で停止する。
+局所で束縛される変数は、その scope を越える前に除く。
+\end{enumerate}
+これは型の graph の全 latent shape を走査して保護を作る算法ではない。
+\(F_\omega\) は既に決めた source recipe の\emph{自由参照}だけである。
+次節の候補政策で必要になる lexical-origin 表も、その命令の明示した入力として数える。
+
+閉包の具体値は
+\[
+ \mathsf{clo}(\ell,\eta_v|_{F_v(\ell)},
+                    \eta_q|_{F_q(\ell)},\eta_\omega|_{F_\omega(\ell)})
+ \tag{C-Close}
+\]
+とする。各環境 entry は既存の値/view または証拠への参照である。
+source の guarded 値 SCC は、先に有限のセル名と signature を確保し、
+closure/構造値だけを登録してから公開する。
+code が指す再帰セルにはこの同じ有限表を使う。computed root を未初期化のまま読まない。
+この処理は source 値 SCC の既存の前提を実現するだけで、全 linker の対応を新たに証明したものではない。
+
+\begin{lemma}[source からの環境充足]
+\label{lem:closure-env}
+第\ref{sec:all-source}節の有限 source 導出と、自由参照を明示した有限 recipe から、
+C-Free/C-Close を構成できる。実行中に closure の code が自由参照を読むとき、
+その参照は捕捉環境、現在の formal、または既に実行した局所 binder に存在する。
+完成済みの capture frontier、動的 scope 一覧、将来の実行履歴を入力として要しない。
+\end{lemma}
+\begin{proof}
+構成の停止は有限対の増加回数から従う。
+code の変数使用とその lexical binder を結ぶ経路に帰納する。
+同じ scope の使用は現在環境にある。closure の境を越える自由使用は C-Free の union に入り、
+C-Close の制限写像でその値が保存される。
+二つ以上の境を越える場合は、内側 closure を作る命令自身の自由参照に同じ変数が入るため、
+外側の各捕捉に帰納仮説を繰り返せる。
+局所 binder は使用より前の実際の entry/let で値を得る。
+再帰参照は登録済みセルであり、body の再帰的展開を証明に用いない。
+pattern 成功環境はその成功枝だけを渡し、Or では共通 binder だけを渡すので、
+失敗枝専用の変数をこの解析が正当化することもない。
+raw continuation の saved environment には同じ判断を保持する。
+source の全式/pattern の残りは子の自由参照の union と binder 除去で尽くされる。
+\end{proof}
+
+\subsection{値経路の生成を全構文で固定する}
+
+recipe の自由参照を捕捉することと、値の由来を外へ投射することは異なる。
+例えば \(\lambda z.p\) の環境には \(p\) があるが、closure 値そのものを
+\(p\) と同じ callable として扱う規則はない。
+ここを混同すると、捕捉しただけの callback の保護を新しい関数の body effect に付けてしまう。
+
+\textbf{二つの問い合わせを区別する。}
+既存の boundary evidence が値の signature path に沿って運ばれることと、
+次節で新しい omission profile を作るために「この callable は元 formal のどれか」を調べることは別である。
+後者を root-origin query と呼ぶ。
+新しい closure root に捕捉値の formal identity を投射しない規則は、
+前者の既存 evidence を消す規則ではない。
+実際の Call の result boundary や構造 adapter が signature の対応した latent path に
+既存 boundary reference を運ぶ場合には、その View/Flow は従来どおり保持する。
+その path に exposure が存在しなければ追加しない。
+「返した値だから全ての深さにコピーする」ことも、「新しい closure だから全て落とす」こともない。
+
+値/view ごとに、その値の\emph{当該 component}へ至る actual-route descriptor を保持する。
+値の取得に対応する新しい immutable view node から、既存 node へ後方参照を置く。
+edge には typed path の prefix/除去と、実際に選んだ child を記す。
+型付き graph の全ての到達可能な値を同じ root provenance に union しない。
+生成規則は次の表で定義する。
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{.25\textwidth}>{\raggedright\arraybackslash}p{.67\textwidth}}
+\toprule source 操作 & 実際に追加する経路と保持するもの \\
+\midrule\endhead
+Var、値 let、Block の結果 & lookup/成功 binder/最後の値への一辺。prefix の計算が返した別の値の由来は足さない。AllE は同じ値参照を使う。\\
+Lambda、delay & 新しい callable/carrier の root は新しい introduction。自由値は C-Close により捕捉する。捕捉値の由来はその root へ投射しない。呼出し/force 後は実際の body 結果の経路を使う。\\
+Tuple、Record、variant、constructor & 実際の子へ component prefix を付けて保持。record spread は評価済み可視 map の選ばれた field だけ。上書きされた field の別経路を同じ出力 field に追加しない。\\
+field/payload projection、構造 pattern & 一致する component prefix を除く。入力全体に付いた source profile は、その許された typed-path derivative として読む。無関係な sibling は含めない。\\
+As、Or、Case & As の元入力と子 binder を区別する。Or/Case は実際の成功枝とその直接境界。失敗枝の値由来を成功枝へ union しない。失敗までの実行効果は取り消さない。\\
+default、guard & 実際に実行した計算の値/効果だけ。default に到達しなければその値経路を作らない。\\
+App & callee の取得、既存の receipt/argument carrier、実際の body の戻り値と result boundary を保持。signature の実際の対応 path の evidence を運ぶ。型一致だけで引数の formal identity を結果へ足さない。identity body の Var は通常の lookup としてその値を返す。\\
+RefSet、reference read & write は実際の RHS view を保存する。read は現在格納されている view から新しい取得辺を作る。reference の address equality だけから任意の過去の内容を復元しない。\\
+Catch、raw resume & 選ばれた arm/return の値経路と saved context の同じ環境。resume の応答値は本当に受け取った値。saved evidence は恒等。\\
+Select、qualified evidence & field はその field、method は構成した closure、dictionary は選ばれた evidence field。行政的な eapp は普通の source entry でも新しい由来の種でもない。\\
+PrimitiveOp、direct adapter & 固定された primitive/adapter 規則が返す子または新しい値。user cast は普通の App として body の結果を使う。型等式だけから由来の辺を補わない。\\
+\bottomrule
+\end{longtable}
+
+古い view node に新しい親 edge を書き足さない。
+再帰値や共有セルの object graph が循環していても、取得の度に作る view-occurrence の辺は
+その時点で既に存在する node へ向かう。query は有限の path derivative と visited 対を使う。
+object graph 全体の再帰的な展開や、未来の write の先取りは行わない。
+将来の read が新しい内容を見る場合、その時点で新しい取得 node が作られる。
+
+\begin{lemma}[実行に沿った由来の正確性]
+\label{lem:source-route}
+上の構成による任意の有限 prefix について、query の各答えは、実行された entry から
+当該値 component への一つの actual typed route を持つ。
+逆に、この表の操作で実際に作られた route は query に現れる。
+未実行の body、失敗枝の値、同型の別の値は答えを増やさない。
+\end{lemma}
+\begin{proof}
+各新しい view node の作成順に帰納する。
+entry は一つの新しい起点、lookup/return は既存の経路への一辺、
+構造 introduction は実際の child への prefix、projection は一致する prefix の除去である。
+選択枝と record の可視 field は一つに確定しているので、不実行の sibling を逆像に含めない。
+closure の root と captured environment を分けたため、環境の存在だけで root への辺は生じない。
+実際の body がその環境値を返す場合は lookup/return の場合で得られる。
+read はその時点の stored view を一つ指すため、過去の write との架空の union もない。
+逆向きは route の最後の生成規則で場合分けし、その前半に帰納仮説を適用する。
+finite prefix の object/view 表は有限であり、visited 対による query は停止する。
+pattern request はまだ成功値を返していないため、値の経路を早く生成しない。
+以上が表の全生成 case である。
+\end{proof}
+
+ここでいう完全性は actual-route query の完全性であり、未知の全実行を静的に正確に予測する
+算法の完全性ではない。両方を同じ「由来解析」と呼んで置き換えない。
+
+\subsection{捕捉・返却・一般化で過去の証拠を改名しない}
+
+有限な実行状態 \(H\) は値セル、view node、closure 環境、Boundary、target、saved context の
+有限表を持つ。終了した receiver の identity/由来表は残し、activity だけを落とす。
+本意味論は garbage collection を規定しない。
+従って使われなくなった metadata が残ることは、未定義の参照を読む口実にならない。
+query の対象集合は、必要な entry からこの有限表を辿ってその時点で構成する。
+sealed な将来 inventory や、複写の度の region-locality 分類を必要としない。
+
+\begin{theorem}[source から構成した捕捉の保存]
+\label{thm:capture}
+上の closure と actual-route 構成、および \(\Core_{\rm life}\) の下では、
+alias、構造値、返された関数、共有セル、rank-2 の複数使用、再帰と複数回の raw resume を含む
+任意の有限実行 prefix について、次が成り立つ。
+\begin{enumerate}
+\item code の自由参照は充足され、既存の \(b,r,s,t\) とそれらの equality は保存される。
+\item 同じ値を二度使うことはその値に属する既存 scope の複製ではない。
+各使用で到達した未実行の通常 entry だけが fresh receiver/scope を作る。
+\item 捕捉・返却・AllE 自体は Observe、Grant、release、receiver の再活性化を行わない。
+元 receiver が失効した保護は、後の closure 使用だけでは復活しない。
+\item 新しい普通の呼出しと、保存された entry 後の suffix の再開を区別する。
+再開前に確保した evidence は固定され、再開後に本当に到達した新しい Call は fresh entry を行う。
+\end{enumerate}
+\end{theorem}
+\begin{proof}
+状態の well-formedness を、全参照が表の同じ sort の entry を指すこと、
+各 closure が C-Free を満たすこと、全 scope が一つの確保済み Boundary に遡ることと定義する。
+初期状態は有限な宣言/値表の構成からこれを満たす。
+closure 作成は補題\ref{lem:closure-env}で必要な参照を制限写像に保存し、新しい証拠定数を作らない。
+alias/構造/返却/read は補題\ref{lem:source-route}の実際の辺を足すだけである。
+write は既に well-formed な RHS view を保存するので、循環した object graph でも参照は定義済みである。
+
+AllI/AllE では、型と未実行 recipe の binder に同じ capture-avoiding な代入を施す。
+動的 evidence 定数はその代入の定義域にない。
+同じ closure を二つの型 instance で使っても、捕捉環境は同じ参照を持つ。
+\(\nu z\) に実際に到達した場合は、有限 support の外に fresh 名を一つ取る。
+この延長で全旧参照を固定するため equality は保たれ、新しい entry との混同もない。
+再帰は同じ有限 code label の実行であり、呼出しごとの環境/確保について今の議論を繰り返す。
+
+handler の捕捉は frame/environment の保存であり、その保存時に新たな View を実行しない。
+raw resume は補題\ref{lem:life}の borrow/own と旧 evidence の恒等写像を使う。
+既に通過した entry 命令は saved suffix の前にあるので再実行されず、
+suffix 内の後続 Call は普通の entry の場合に含まれる。
+leave は activity を減らすだけで表の参照を消さず、捕捉/返却に activity を足す規則はない。
+以上の一段保存を prefix 長について繰り返す。
+この帰納は停止する実行だけを仮定せず、発散する実行の全有限 prefix にも適用できる。
+\end{proof}
+
+この定理で frontier と将来 inventory の外部仮定を除けたのは、
+\emph{実行中の既存値/evidence を複製しない source 意味論}においてである。
+制約 graph の generic 部分を複製する推論器については、どれが code 内の binder に対応し、
+どれが捕捉済み定数に対応するかの証明が必要である。
+既存の region-clone 補題が不要になった、または native FreshUse がこの定理を既に満たす、とは結論しない。
+
+\paragraph{寿命を区別する三つの導出。}
+\begin{enumerate}
+\item receiver \(r\) の実行中に callback を含む closure \(k\) を作り、同じ実行中に \(k\) を呼ぶ。
+C-Close は \(r\) を固定し、\(\Act(r)\) は真なので、既存 protection は通常 query に残る。
+closure を作っただけではその callback の event は発生しない。
+\item 同じ \(k\) を返して \(r\) の正常完了後に呼ぶ。
+保存された参照はなお \(r\)、新しい \(k\) の実行 owner は fresh \(r'\ne r\) である。
+従って古い protection は inactive である。
+新しい呼出しで本当に受け取った引数への別の protection は、この結論と両立する。
+\item 同じ partial application を二度使い、末尾の通常 entry でそれぞれ \(r_1,r_2\) を得る。
+早い引数の captured view は同じ参照だが、末尾の receipt は別の確保命令の実行なので、
+\(r_1\ne r_2\)、\(b_1\ne b_2\)、それらの scope/target も別である。
+一方の target への RC は他方の \(L\) entry を作らない。
+\end{enumerate}
+各項は C-Close の参照の恒等性、通常 entry の fresh 条件、RC の pair equality を順に適用した導出である。
+「返却」と「別の通常 entry」と「raw resume」を同じ fresh-use 操作にすると、この三つを区別できない。
+
+\section{non-Var の由来と owner を決める全域な候補規則}
+\label{sec:flow-policy}
+
+前節は「与えられた recipe を正しく捕捉する」部分を閉じた。
+この節では recipe 自身の source 生成を一つ具体的に定める。
+政策を \(\Pi_{\rm flow}\) と呼ぶ。direct named case 以外への拡張は\emph{未採用の候補}である。
+source 構文を拒否せず、Var-only guard を一般化する場所を明示する。
+元の receiver を常に current owner に置き換える規則ではない。
+
+\subsection{元 formal の静的 identity と、実際の binding token}
+
+無注釈 formal \(p\) の実際の binding を公開する際に fresh token \(o\) を作り、
+\[
+  \mathsf{Seed}(o)=(p,b_o,r_o)
+  \tag{F-Seed}
+\]
+を記録する。\(b_o,r_o\) はその\emph{実際の receipt} の Boundary/receiver である。
+token 自体は effect、Observe、Admit/Grant を作らない。
+omission profile は実際の upper-use で露出する output port にのみ適用される。
+明示 callback wildcard、既知外部 Name、ただの local let に F-Seed はない。
+明示 concrete/computation annotation は既存の source profile を通常 receipt で使い、
+無注釈 origin へ変換しない。
+
+receipt が force/pattern より先である順序は維持する。
+entry で \(b_o,r_o\) と slot を予約し、formal の値/token 環境への登録は
+その binder を作る subpattern の成功後に行う。
+Value formal の入力計算が request を出す段階で、未確定な binder の値を読まない。
+Computation formal の carrier も通常の保持/force 規則を使い、F-Seed のために先に force しない。
+複合 parameter pattern の場合、\(p\) はその成功環境へ公開する解決済み binder ID とし、
+元 parameter slot と実際の component path を一緒に持つ。
+Or 内部の default 等には、その試行で既に成功した branch-local binder の環境を渡す。
+外への公開 binder は共通 merge binder に対して別に作り、選択された枝の直接境界で値を埋める。
+不一致なら branch-local 環境を捨てるが、その試行の effect/共有状態は巻き戻さない。
+As の whole binder と component binder は別の source binder として記録する。
+それぞれの annotation 有無は元の source から読み、無注釈でない子を omission seed にしない。
+これらは同じ実際の parameter receipt を参照し、path/binder の違いを \(j\) に残す。
+raw resume がまだ行っていない binding 公開に到達すれば token は新たに作るが、
+その起点の \(b_o,r_o\) は保存された元 receipt のままである。
+
+formal を束縛した lexical 環境には \(p\mapsto(o,\chi_p)\) を保存する。
+\(\chi_p\) はその source binding が現在参照する receiving slot であり、初めは \(b_o\) である。
+token と slot の identity は別物である。
+source の upper-use occurrence \(u\) には、その lexical scope にある formal の有限表
+\(\Lambda(u)\) を付ける。
+closure ではこの表が読む token 変数も \(F_\omega\) に入り、捕捉時の値を保持する。
+callback の返却先で呼出し stack を検索して、同名の別 binding を探す規則はない。
+
+formal の型付き root に token の由来を付ける。実際の alias/projection/adapter/body return は
+前節の表でそれを運ぶ。root 全体の source profile の descendant は、実際に選んだ typed path の
+derivative として遅延して読む。closure の捕捉環境を root の token 集合へ潰さない。
+次の記号はこの query の答えであり、任意の型判断の追加前提ではない。
+\[
+ \mathsf{RootOrigin}(v,o,j,\tau).
+ \tag{F-Root}
+\]
+\(j\) は元の profile port/path、\(\tau\) は実際の route である。
+新しい source introduction が単に同じ型を持つことは、この関係の生成規則ではない。
+
+\paragraph{upper-use の producer。}
+upper-use は App の callee だけに限らない。
+有限 source 導出の App 規則が作る complete Function demand、および、
+引数/結果/注釈/field の\emph{実際の直接境界導出}が期待側に Function を露出する node を列挙する。
+各 node に元の source rule と方向を付け、型の provider 側から逆向きに列挙しない。
+入れ子の Function 引数では向きが反転するため、構成された比較の向きを使う。
+文字列上の「期待型の中にある」という位置だけでは upper と判定しない。
+direct boundary の child は有限な証拠木/DAG の既存 label を使う。
+再帰型の無限展開や、既存 lower Function の全走査は不要である。
+既存の値をその upper interface へ運ぶ時、\(\mathsf{Expose}_u\) 命令を実行する。
+この命令は以下の F-Owner を使って consumer view の output profile を構成する。
+profile が latent callable に属するなら、その callable の\emph{実際の実行時}まで Observe を行わない。
+その場合の input tag も Expose 時には確保しない。
+profile は \(s\) を自由定数として捕捉し、各実際の invocation に
+\(\nu i.\,(\mathsf{Stamp}_i,\mathsf{Protect}_{s,i})\) を実行する template を保持する。
+同じ view を二度呼んだ場合の tag は相異なる。
+tag の確保はその既存 Call/force の metadata 処理であり、新しい source Call や receiver を挿入しない。
+これにより、第一回の入力由来を第二回の入力由来と誤認することがない。
+例えば callback を別の関数の Function 型引数へ渡す場合には、その実際の引数境界が producer になる。
+そこで既に生成した profile は、後の callback 呼出しで改めて owner を選び直すことなく運ばれる。
+これは本候補の宣言的 producer 規則であり、推論器が全 source upper constraint を列挙するという
+未証明の実装命題を前提にしていない。
+
+\subsection{source owner slot の構成}
+
+named header の最後の Lambda を group terminal とする。
+anonymous Lambda はその一つの formal の group として扱うのが本候補の追加規則である。
+zero-parameter initializer、Block、Group、型適用は新しい group ではない。
+source upper-use の innermost lexical function group を \(G(u)\) と書く。
+function の外では \(G(u)=\bot\)、\(P_\bot=\varnothing\) とする。
+
+named group の通常の terminal entry で、その group の無注釈 formal \(p\) ごとに
+\(B_{G,p}\) を予約する。これは第\ref{sec:named}節の EnterGroup と同じ source entry であり、
+現在の \(r_G\) と元 formal の source descriptor を記録する。
+複合 parameter では元の有限 pattern 導出に現れる binder を列挙し、
+まだ成功していない binder の slot は予約だけ行う。対応する成功時に token/view を埋める。
+失敗枝の slot は外の環境に公開されず、単なる予約を Observe に使う規則はない。
+ここで「埋める」は現在の lexical 環境を immutable に拡張することである。
+既存の Boundary レコードや saved environment を上書きしない。
+その group 自身の各 \(p\) の新しい lexical 環境を
+\(p\mapsto(o,B_{G,p})\) とする。新しい body が捕捉する \(\chi_p\) はこの slot である。
+ancestor の \(\chi_p\) は変更しない。
+値環境には同じ raw value の新しい consumer view を置き、その entry の実際の受領辺を残す。
+\(\mathsf{Seed}(o)\) の古い receiver を書き換えるわけではない。
+新 scope の Origin は選んだ \(B_{G,p}\) の actual entry を指し、
+token equality だけを境界の代用品にはしない。
+一引数で original receipt と terminal が同じなら \(B_{G,p}=b_o\) とし、重複確保しない。
+未使用の slot は output View に参照されないので、その存在だけでは保護 witness にならない。
+profile の全 latent shape は展開せず、後の実際の port query が \(\mathsf{scopeKey}(B_{G,p},j)\) を読む。
+予約と後の読み出しは、新たな source receiving event を二重に数える操作ではない。
+
+実際の \(\mathsf{Expose}_u\) が受け取った値 \(v\) について、F-Root の各答えへ
+以下を実行する。App の callee もこの場合の一つである。
+以下の式では \(p=\mathsf{Seed}(o).p\)、\(\eta_\omega(p)=(o_p,\chi_p)\) とする。
+\[
+ \mathsf{Eligible}(u,o)\iff p\in\Lambda(u)\ \land\ o_p=o.
+\]
+\[
+ \mathsf{OwnerSlot}(u,o)=
+ \begin{cases}
+ \chi_p,&\mathsf{Eligible}(u,o),\\
+ \mathsf{none},&\neg\mathsf{Eligible}(u,o).
+ \end{cases}
+ \tag{F-Owner}
+\]
+同じ group の body では \(\chi_p=B_{G(u),p}\)。
+nested closure では、その closure が捕捉した同じ \(\chi_p\) を使う。
+none は通常 App/境界の拒否ではない。新しい omission profile を導入せず、既存の view を使う。
+source signature に既にある annotation boundary の通常処理も保持する。
+\(p\) は source の解決済み binder、\(o\) は\emph{現在 code が捕捉したその binding}である。
+同じ \(p\) の再帰的な別 activation の token をこの equality で弾く。
+古い token に付いた既存 evidence を削除するわけではない。
+
+選ばれた slot の \(s=\mathsf{scopeKey}(b,\epsilon,j)\) を、当該 upper-use の
+\emph{出力 View} の Protect にだけ入れる。
+source の input carrier の実際の実行には N-Transfer の Stamp を使う。
+App ではこの View が通常 Call を囲み、latent upper interface では実際の callable 実行を囲む。
+従って内側 handler の判定より前に実際の emission から観測できる。
+全 executing View は同じ actual contribution の input tag を参照し、
+別の unstamped packet を勝手に選ばない。
+lower provider の共有 graph、引数の型全体、既知外部関数へ逆方向の seed を追加しない。
+複数 token が実際にある場合には全ての独立した slot を保持し、一つの代表へ統合しない。
+
+\textbf{curried entry と raw resume。}
+最初の引数を受け取って返す途中の closure は、その時点の \(p\mapsto o\) を捕捉する。
+最後の引数の\emph{普通の呼出し}が、そこに fresh な terminal slot を加える。
+同じ partial application を二度使うと、早い receipt は共有され、terminal slot は異なる。
+raw resume は saved environment の \(B_{G,p}\) を固定する。
+新しい実行 control owner があっても、F-Owner はそれを代用しない。
+捕捉した ancestor の \(\chi_p\) の receiver が既に inactive なら、その保護も inactive のままである。
+「近くの live owner が見つかるまで検索する」分岐は存在しない。
+
+\paragraph{構成途中で棄却した owner 規則。}
+ancestor なら常に最初の \(b_o\) へ戻す案は採らない。
+これは凍結 Oracle の C2 の静的 introduced-frame 選択を、そのまま物理的な早い receipt に
+対応させようとした案である。次の名前解決済み source 表示が違いを示す。
+\begin{Verbatim}[fontsize=\small]
+my direct cb x = catch cb x { ping(), _ -> 1; v -> v }
+my nested cb x = {
+    my step z = cb z;
+    catch step x { ping(), _ -> 1; v -> v }
+}
+\end{Verbatim}
+\(cb\) が \(\mathsf{ping}:1\to\mathsf{int}\) を放出し、明示の捕捉許可はない場合を考える。
+curried な最初の \(cb\) entry は残りの関数を返して終了し、\(x\) entry の \(r_X\) は現在 live である。
+direct の scope は \(B_{X,cb}\) を持つ。
+棄却案の nested では、helper 内の上位 \(cb\) use が inactive な \(b_o\) だけを参照するため、
+外側の local Catch が ping を処理できてしまう。
+source 型が一致することだけではこの差は排除されない。
+charter 第13節の「引数から捕捉への経路変更で無許可の捕捉を可能にしない」条件に対し、
+この対応は不足する。
+
+修正版では実際の \(X\) entry が \(\chi_{cb}=B_{X,cb}\) を作り、
+step の C-Close がその同じ参照を保存する。
+helper 内の actual upper-use も \(B_{X,cb}\) を読むので、live な \(r_X\) の protection が残り、
+両方の local Catch はこの witness により遮断される。
+外側の scope が終了すれば、step を返して保持していてもこの witness は inactive になる。
+これは source 上の紙上判別であり、compiler 実行の観測ではない。
+静的 C2 の値型構成を否定するものでもないが、その全 frame を元の物理 receipt に結びつける
+source/runtime 対応は、本候補では使用できない。
+
+\begin{lemma}[全域な recipe 構成と source 起点]
+\label{lem:flow-formation}
+有限 source 導出から \(\Pi_{\rm flow}\) の slot/環境/query 命令を有限に生成できる。
+その任意の有限実行 prefix で、導入する omission scope は一つの actual source receipt または
+terminal entry に遡り、元 receiver を変更しない。
+\(\mathsf{ProtectedVarAt}\)、完成した origin/owner 表、capture frontier を自由な前提として要しない。
+\end{lemma}
+\begin{proof}
+lexical 解決で各 \(p,G(u),\Lambda(u)\) は有限に決まる。
+upper-use の列挙は App と有限な直接境界導出の指定 node への再帰である。
+これらの node の実際の consumer に Expose を挿入するため、型の同形性から起点を捏造しない。
+予約 slot は有限な group/formal 対、各 use の output profile はその source 型導出の port template である。
+再帰 code は同じ label を指すので命令数を増やさない。
+closure の token/slot 参照は C-Free により構成する。
+entry で F-Seed/EnterGroup が実際の受領値と receiver を記録する。
+RootOrigin の答えは補題\ref{lem:source-route}からその受領へ遡る。
+Eligible の equality が actual binding と異なる再帰 instance を除く。
+同じ group の場合は実際の terminal entry の slot、ancestor の場合は捕捉済み \(\chi_p\) を読む。
+\(\chi_p\) は元 receipt または実際の source terminal entry でしか束縛されない。
+どちらも既存の表を読む全域操作であり、missing origin は none の場合になる。
+profile の適用は actual upper-use の output だけなので、型の未来の解を起点にする必要がない。
+inactive な slot を読む場合も参照は定義済みであり、activity query が保護を無効とする。
+全ての確保は上記二つの source entry で尽くされる。
+\end{proof}
+
+\begin{proposition}[別名と新しい関数の区別、および再帰 instance の区別]
+\label{prop:alias-origin}
+\(\Pi_{\rm flow}\) では次の source 導出が成り立つ。
+\begin{enumerate}
+\item \texttt{my direct f x = f x} と
+\texttt{my wrapped f x = (\{ my unused = 0; f \}) x} は、
+対応する実際の call で同じ元 \(f\) token と terminal slot を選ぶ。
+\item \texttt{my a = f; a x} も同じである。
+一方、\texttt{my a z = f z; a x} の \(a\) は新しい closure root であり、
+外側の \(a\) 呼出しを \(f\) の呼出しに偽装しない。
+内側 \(f\) 呼出しは、その closure が捕捉した receiving slot \(\chi_f\) を選ぶ。
+\item 同じ source formal \(p\) に二つの actual binding token \(o_1\ne o_2\) があっても、
+現在の \(\eta_\omega(p)=(o_2,\chi_p)\) を使う code は \(o_1\) を current terminal slot へ付け替えない。
+\end{enumerate}
+\end{proposition}
+\begin{proof}
+最初の Block は一つの literal binding の後に同じ \(f\) の Var を返す。
+source recipe の自由表と group は変わらず、actual route が lookup 一辺だけ延長される。
+RootOrigin の \(o\)、Eligible の equality、OwnerSlot の結果は同じである。
+値 alias も同じ lookup/return の場合である。
+新しい関数の場合は C-Close の root 規則により \(f\) token を \(a\) root に投射しない。
+その body 内では、\(f\) の lexical な token と \(\chi_f\) を C-Close がそのまま供給する。
+第三項では equality の偽からその lexical slot を選ぶ分岐を使えない。
+旧 \(o_1\) の実際の経路と既存 protection は別に保持されるため、これは消去ではない。
+\end{proof}
+
+第1項は凍結 Oracle の C3 と異なる、候補規則自身の結論である。
+原 source を Var の形に制限したり、旧 Oracle と一致すると主張したりしていない。
+第2項の後半は eta 展開の全観測同値を主張しない。
+新しい受領境界や annotation を挿入する変換が、全て無意味であるとは仮定できない。
+multiargument outer の早い formal を nested helper が使う場合にも、
+本候補は実際の outer terminal entry の slot を運ぶ。
+古い early receipt を復活させる操作はなく、terminal entry がなければ新しい slot もない。
+この構成で上の捕捉判別を満たしたことと、全 source の意味論的対応は区別する。
+
+\begin{lemma}[lexical な receiving slot の捕捉保存]
+\label{lem:home-capture}
+source 環境が \(p\mapsto(o,\chi_p)\) を持つとする。
+その環境から何段の nested closure を作り、alias/構造 field/返却を経由して実行しても、
+その \(p\) を同じ lexical binding として使う upper exposure は同じ \(\chi_p\) を読む。
+\(p\) の宣言 group の新しい普通の entry、明示 release、expiry はそれぞれ別の遷移として扱う。
+\end{lemma}
+\begin{proof}
+closure を越える一段は C-Free が \(o,\chi_p\) の両方を自由参照に含め、
+C-Close が同じ組を保存する。複数段はこの一段の帰納である。
+alias/projection/返却は code の捕捉環境を書き換えない。
+実行する内側 group は自分の formal の slot だけを束縛するので、ancestor の組を変更しない。
+同じ binding token を持つ RootOrigin に対する F-Owner は保存された \(\chi_p\) を返す。
+profile の実際の受領辺はその slot が作られた entry に遡る。
+従って source の actual typed route を持つ同じ protection witness は捕捉だけでは失われない。
+\(p\) の group の新しい entry なら新しい source 受領、明示 release なら RC/RP、
+expiry なら activity の変更として、元の witness への作用を別々に判定できる。
+raw resume はこれらの自由参照を変更しない。
+\end{proof}
+
+\subsection{direct compose と一般の返却値へ戻す}
+
+\begin{theorem}[source 由来を持つ alias/捕捉/返却の合成]
+\label{thm:flow-compose}
+\(\Pi_{\rm flow}\) の source recipe は直接の named compose の
+第\ref{sec:named}節の構成を再現する。
+さらに値 alias、純粋な Block の結果、実際に成功した field/pattern の取得を通る
+同じ formal への callee route に対して、対応する source binding が同じなら同じ slot を使う。
+返された関数/多相 field/共有セルに運ばれた既存 evidence は、定理\ref{thm:capture}の寿命を保つ。
+\end{theorem}
+\begin{proof}
+direct compose では両 callee の RootOrigin はその formal の token を含む。
+両 Eligible が真、両 formal は現在 group のものなので、
+slot は \(B_{X,g},B_{X,f}\)。これは補題\ref{lem:compose-static}の二つの key である。
+予約した未使用 slot は実際の View に現れないため、存在だけで query の答えを追加しない。
+各 alias/projection の場合、補題\ref{lem:source-route}が同じ token と実際の path derivative を返す。
+同じ lexical binding の条件が F-Owner の同じ分岐を保証する。
+Source の output marker はその slot の inventory を読むため、
+定理\ref{thm:compose-source}の release と whole-output の計算をそのまま適用できる。
+実際に返された closure/field/store の場合は C-Close と実際の値経路の生成で運ぶので、
+定理\ref{thm:capture}から旧 receiver/target の同一性と expiry を得る。
+新しい source Call があればその新しい receipt だけが別の scope を作る。
+\end{proof}
+
+これは、同じ source binding を持つ actual callee route についての一般化である。
+その条件を「同じ型である」「何らかの closure 内に同じ callback がある」に弱めてはならない。
+一般の関数の body がどの値を返すかを静的に当てる必要はなく、実際に返した値の経路を使う。
+そのため未使用 computation や発散する callback を、由来を知るために先に実行することもない。
+
+\section{ソースからの健全性定理を一つに合成する}
+\label{sec:source-family}
+
+\subsection{未選択の政策と、型健全性に不要な推論義務}
+
+\(\Pi_{\rm flow}\) と、各 marker の有限な ingress 選択政策 \(A\) を固定した体系を
+\(\Src_{\Pi_{\rm flow},A}\) と書く。
+\(A\) は lexical binder と source ingress occurrence/template だけを選び、
+異なる binder/instance を row equality で統合しないものに限る。
+また、本稿の単一 ingress と直接 compose について既に固定した対応に一致させる。
+その唯一の対象を空集合へ変える政策を、元の \texttt{'e?} の解釈としては含めない。
+複数 ingress がある場合の \(A\) をユーザーが既に選んだ、とは仮定しない。
+以下はこの明記した体系族についての一様な定理である。
+選ばれていない政策を隠した「Yulang 全体」の一意な意味論とは呼ばない。
+
+declared source typing の証人は、有限な値型/全称/境界/選択/role の規則木と、
+各生成 port の有限 effect 集合である。
+後者に対して、生成した全 mandatory edge、全共同入力、cut-context summary、
+immediate/latent/reentry の inclusion を検査する。
+型付けに effect inclusion の証拠を要求することは、推論器がそれを発見するという仮定ではない。
+実行の安全性そのものや完成済み runtime metadata 表を証人として渡すこともしない。
+
+\subsection{新しい source 処理の有限表示}
+
+source の finite template/label/binder、token/Boundary/receiver の equality、
+activity、既存の incidence/From の共同座標を complete cell に持たせる。
+closure 環境を無限に inline 展開しない。
+既存の finite interface が表さない hidden origin/route に依存する場合には、
+\emph{整合する全 output cell}を許す関係にする。
+この fallback は powerset の最大元を含む有限列挙であり、精度の主張はしない。
+inclusion が満たせなければ、その小さい effect annotation の導出は得られない。
+これを source の動的失敗や、隠れた正確な membership oracle に置き換えない。
+
+新しい転送は三種類で尽くされる。
+\begin{enumerate}
+\item C-Close、alias、captured-environment の lookup は evidence の恒等コピーと
+実際の typed route の追加。新しい View occurrence と既存 Boundary を別 sort にする。
+\item F-Seed/terminal entry は既存の fresh/receipt の relation と、
+source label/actual binding の有限な同時登録。未使用 slot に Observe を生成しない。
+\item F-Owner は RootOrigin、lexical 表との token equality、保存された receiving slot の取得。
+選択後は N-Transfer と旧 O-Target/RC/RP。unknown の場合には全整合分岐を残す。
+\end{enumerate}
+closure に保存する環境と code の自由参照の対応は補題\ref{lem:closure-env}が与える。
+有限 interface が closure の全内部 graph を正確に表現するという追加仮定は置かない。
+
+\begin{lemma}[source closure/owner transfer の表示保存]
+\label{lem:flow-transfer}
+上記有限 relation は、\(\Pi_{\rm flow}\) の各具体 metadata step の出力を含む。
+全 graph edge は有限集合間の単調 relation image であり、固定した finite signature で検査できる。
+\end{lemma}
+\begin{proof}
+copy/route/fresh の場合は具体操作と同じ既存 relation を使う。
+F-Owner の既知座標の場合には、実際の token equality と slot 取得が列挙した一つの分岐になる。
+未知の場合は全整合 output cell に具体出力の cell も含まれる。
+scope/target の選択後には補題\ref{lem:group-transfer}と\ref{lem:target}を適用する。
+どの relation も有限 signature の powerset 上にあり、入力集合を増やして既存の画像が消える操作はない。
+従って単調である。これは効果の最小集合の精度や、推論器の探索完全性の証明ではない。
+\end{proof}
+
+\begin{theorem}[固定した source 政策族に対する推論器独立の健全性]
+\label{thm:source-safety-family}
+有限で well-formed な source 宣言表、閉じた名前解決済み source \(e\)、
+固定した \(\Pi_{\rm flow},A\) の下で上記の宣言的導出
+\(\vdash_s e:A_0!\Phi\) が与えられたとする。
+その導出から実行 code、closure 環境構成、source origin/owner/target 命令、
+有限な effect 検査 graph を構成できる。
+全有限実行 prefix で以下が成り立つ。
+\begin{enumerate}
+\item 値型が保存され、値、型に合う request、列挙した failure、次の遷移のいずれかである。
+\(\Bad\) へ到達しない。
+\item outward request と latent/reentry の実行は \(\Phi\) に含まれる。
+空の outward 契約から request は出ない。
+\item protection は actual source entry と actual typed route に遡り、
+handler は同じ共同 packet の eligibility を満たす場合だけ request を処理する。
+単なる alias、捕捉、型 instance、raw resume で旧 receiver は復活しない。
+\item release は選択された origin と元 receiver の実際の crossing に限り、
+その whole-output view に作用する。独立 scope、effect membership、attribution、Grant は保つ。
+\end{enumerate}
+この定理の前提に推論器、resolver の停止性、主型性、完成した capture/receiver 表はない。
+\end{theorem}
+\begin{proof}
+定理\ref{thm:source-value}と補題\ref{lem:source-poly}が source 規則木から実行型を作る。
+選択の各使用は有限の BuildSelect 導出を組み込み、各 body は rigid な宣言検査済みである。
+補題\ref{lem:flow-formation}が source から entry/owner 命令を作り、
+補題\ref{lem:closure-env}がその自由参照の環境を構成する。
+補題\ref{lem:source-route}と\ref{lem:target}が各 actual origin と選択政策 \(A\) から
+target を作る。従って完成した任意の metadata 表を型付けの前提に戻していない。
+
+実行型については新 metadata が underlying value/code の型を変えず、
+定理\ref{thm:life-value}の一段保存と canonical forms を使う。
+型変数/qualified 証拠の代入は whole packet に同時に行い、動的定数は固定する。
+型抽象・closure 環境の保存は定理\ref{thm:capture}により同じ型付き参照を保持する。
+
+effect については生成 graph の全 inclusion を前提の有限証人で検査する。
+各一段の具体 metadata を補題\ref{lem:flow-transfer}が表示し、
+既存の seven-frame cut の各 typed hole にこの表示を入れる。
+新しい scope delimiter の種類はなく、source lookup/予約は frame 内の有限処理である。
+handler の No 試行後には current state を再検査し、raw continuation の suffix には
+旧 evidence 恒等/現在 control の cut summary を使う。
+定理\ref{thm:life-full}と\ref{thm:group-safety}の prefix 帰納が、全 outward/latent/reentry を与える。
+unknown branch で effect 集合を広げた場合も、具体出力を含むので同じ保存が使える。
+
+最後に origin の一意な起点は補題\ref{lem:flow-formation}、
+captured evidence の寿命は定理\ref{thm:capture}、captured receiving slot は補題\ref{lem:home-capture}、
+actual route は補題\ref{lem:source-route}による。
+RC は元 receiver と現在の crossing を検査し、RP は同じ target の全 output witness を投射する。
+これらの式は他の scope/attribution/Grant を変更しない。
+従って項目3、4を各 prefix について同時に保持できる。
+全証明は有限導出と有限 prefix の帰納であり、実行や推論の全域停止を要しない。
+\end{proof}
+
+\paragraph{この定理で完了したものと、完了していないもの。}
+候補 \(\Pi_{\rm flow}\) では、13式/11 pattern の source recipe 生成と捕捉を
+完成した runtime 表の外部仮定から取り出し、source 型健全性へ戻した。
+ただし、候補の nested/anonymous owner 選択が全ての承認済み・意図された source 振舞いを満たすこと、
+複数 ingress の \(A\) の選択、全表層構文からこの source への展開はこの定理の結論ではない。
+型健全性は、別の型に合う handler を選んでしまう意味論の相違を自動的には反駁しない。
+したがって「唯一の Yulang 意味論が閉じた」「独立査読だけが残る」という結論にはしない。
+
 \section{dot selection との接続}
 \label{sec:selection}
 
@@ -1043,6 +1688,26 @@ Stamp/Protect/EnterGroup の edge を生成してから定理\ref{thm:group-safe
 dictionary の取得で実行 owner や group recipe を発火させないため、
 field から取り出した全称値の各 use と、実際の source Call の fresh entry が区別される。
 これは source の rank-2、選択、group recipe を別々の不整合な核へ翻訳しないための合成である。
+\(\Pi_{\rm flow}\) を使う場合には、取得した field/dictionary 値にも
+補題\ref{lem:source-route}の actual component 経路を使い、
+method closure の自由参照を C-Free から構成する。
+従って定理\ref{thm:source-safety-family}の Select case に同じ BuildSelect を代入できる。
+method の自由変数を捕捉したことだけで、その callback の origin を method root へ投射しない。
+
+\begin{proposition}[選択の整合性と型健全性の分離]
+\label{prop:selection-policy}
+各 selection site で同じ宣言的結果型/効果契約を満たす有限選択証拠を一つ固定する。
+どの証拠を固定しても、生成 code には定理\ref{thm:source-safety-family}が適用できる。
+このため、resolver の全到達 snapshot で選択が一致するという命題は、この型健全性の前提ではない。
+ただし、異なる証拠の生成 code が観測同値であるという結論は得られない。
+\end{proposition}
+\begin{proof}
+BuildSelect は各証拠について同じ site の型/効果契約の導出を構成する。
+それを該当する型付き穴に入れ、全 mandatory inclusion を検査する。
+定理\ref{thm:source-safety-family}の証明は、その証拠をどの探索器が選んだかを参照しない。
+他方、同じ \(1\to\mathsf{int}\) 型の二つの body が0と1を返すことは可能であり、
+型/効果契約だけから観測同値は導けない。
+\end{proof}
 
 \paragraph{選択の一意性について何が残るか。}
 有限な snapshot と走査順序が完全に与えられ、各検査の有限な真偽証拠があるとき、
@@ -1068,6 +1733,12 @@ source 宣言・rigid 検査・使用箇所の AllE の有限導出へ戻した�
 局所補題の前提を \(f\) の入口 receipt からは供給できないことを特定した。
 既存の source constructor を適用して \(X\) の実際の entry を起点に置き換え、
 直接の compose の source-to-scope/target と identity 出力まで紙上で接続した。
+\item C-Free/C-Close と actual-route の生成により、実行意味論の capture frontier と
+将来 inventory を外部から与える前提を除いた。alias/返却/共有/再帰/raw resume の保存を
+定理\ref{thm:capture}へまとめた。
+\item non-Var upper-use の政策 \(\Pi_{\rm flow}\) を一つ明示し、その source producer から
+健全性定理\ref{thm:source-safety-family}まで合成した。
+政策の採用・全期待挙動との一致と、政策を固定したときの安全性を区別した。
 \end{itemize}
 
 \begin{longtable}{>{\raggedright\arraybackslash}p{.28\textwidth}>{\raggedright\arraybackslash}p{.64\textwidth}}
@@ -1076,19 +1747,23 @@ source 宣言・rigid 検査・使用箇所の AllE の有限導出へ戻した�
 source rank-2 の値型安全性 & 紙上の構成・導出あり。source の通常導出から全称 payload と各 use を生成する。独立査読は未実施。\\
 再開の receiver 寿命 & 旧橋は不成立。修正版の局所/全実行型と精密な保存の紙上導出あり。旧効果証拠の自動移行は不可。\\
 複数入力の \texttt{'e?} & \(A_m\) の source 解釈を照会中。別 binder/instance の保護を潰すことは既存仕様に反する。\\
-compose の source scope 導入 & 直接の named-group case は定理\ref{thm:compose-source}の構成あり。全 alias/anonymous/捕捉と native 全経路への拡張、scheme の主型性は OPEN。\\
-一般の annotation/source 生成 & OPEN。omission seed、directional upper use、一般化・捕捉・source expansion の全経路を保つ生成を要する。\\
-dot selection の source 選択 & source 多相導出から code への橋は構成。全到達 snapshot と compact/raw・SCC 公開の対応は OPEN。\\
+捕捉・返却の source 構成 & C-Free/C-Close と定理\ref{thm:capture}の紙上導出あり。実行時の既存証拠を固定する。制約 graph の FreshUse 対応と独立査読は OPEN。\\
+compose と non-Var upper-use & 候補 \(\Pi_{\rm flow}\) の alias/actual projection と receiving slot 捕捉を構成。早い receipt へ戻す案を source 判別で棄却。修正版の全期待挙動との一致・採用、native 全経路と主型性は OPEN。\\
+一般の annotation/source 生成 & 候補体系の omission seed/upper exposure/closure/target を構成。候補の選択、source の constructor application 一般化を含む受理範囲、全 source expansion は OPEN。\\
+source 型健全性 & 固定した \(\Pi_{\rm flow},A\) の体系族で定理\ref{thm:source-safety-family}へ合成。独立査読・機械化は未実施。政策未選択の Yulang 全体の閉包とは異なる。\\
+dot selection & 有限証拠からの生成 code は上記定理へ接続。snapshot coherence はこの健全性と独立。resolver 自体の compact/raw・SCC 公開・完全性は OPEN。\\
 全表層構文・生成宣言 & 本稿は元の13式・11 pattern まで。parser の全形、control/rule/Yumark/生成 operation 等からの展開対応は別途必要。\\
 推論器・native & 主型性、探索完全性/停止性、現在の compiler の全受理、VM/native 対応、原 A/B は OPEN。\\
 \bottomrule
 \end{longtable}
 
-元の全言語健全性を閉じるには、この表の意味論側の OPEN を解消して、
-完成した source 導出から \(A!\Phi\) と実行機械への一つの定理に戻す必要がある。
+元の全言語健全性を閉じるには、この表の意味論側の OPEN を解消し、
+定理\ref{thm:source-safety-family}の政策/表層範囲を意図した言語と一致させる必要がある。
+推論器や resolver の探索完全性を、推論器独立の型健全性の追加前提にはしない。
 「独立査読だけが残る」「推論器さえ実装すれば済む」とは結論しない。
 今回の成果は source 値型の構成、既存 owner 機械に合わない橋の除去、
-直接の compose の origin/target 構成、および一般化に必要な残りの source 条件の特定である。
+直接の compose の origin/target 構成、source からの捕捉生成、
+および明記した候補政策族に対する source 型健全性の合成である。
 単独著者の紙上導出であり、PDF 組版、構文確認、有限例の実行は数学的検証の代用ではない。
 
 \end{document}
