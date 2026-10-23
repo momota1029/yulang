@@ -446,10 +446,23 @@ pub struct CandidateDeferredFieldTailReadbacks {
     /// Exact readbacks that passed the selector and whose source member body
     /// was admitted during this candidate session.
     pub selected_receivers: Vec<CandidateFieldTailReceiverReadback>,
+    /// Guarded Case-input snapshots taken after each selected member action.
+    /// These observations are bounded and diagnostic; they do not certify a
+    /// completed dispatch fixed point or a whole-graph invariant.
+    pub dispatch_steps: Vec<CandidateMemberDispatchStepReadback>,
     /// Current unresolved receivers after the attempted member dispatch.
     pub receivers: Vec<CandidateFieldTailReceiverReadback>,
     pub captured_member_graph_count: usize,
     pub captured_member_field_tails: Vec<CandidateCapturedMemberFieldTailReadback>,
+}
+#[derive(Clone, Debug)]
+pub struct CandidateMemberDispatchStepReadback {
+    pub owner: SourceRootId,
+    pub source_owner: SourceRootId,
+    pub occurrence: HirOccurrenceId,
+    pub member_root: yu_hir::SourceMemberRootId,
+    pub receiver_row: u32,
+    pub guarded_variant_calls: Vec<CandidateGuardedVariantCallReadback>,
 }
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum CandidateReadbackStageStatus {
@@ -1825,7 +1838,29 @@ impl CandidateInference {
                     record_graph_snapshot(&session, readbacks);
                     let selected_before_dispatch = session.candidate_field_tail_receiver_readbacks()
                         .map_err(CandidateError::Solve)?;
-                    if let Err(error) = session.execute_candidate_field_tails(Some(&mut readbacks.selected_receivers)) {
+                    let mut guarded_case_inputs = Vec::new();
+                    for receiver in &selected_before_dispatch {
+                        for call in &receiver.guarded_variant_calls {
+                            let duplicate = guarded_case_inputs.iter().any(|existing: &CandidateGuardedVariantCallReadback|
+                                existing.call == call.call
+                                    && existing.callee_use == call.callee_use
+                                    && existing.argument == call.argument
+                                    && existing.provider == call.provider
+                                    && existing.freshuse_context == call.freshuse_context
+                                    && existing.guard_input_row == call.guard_input_row
+                            );
+                            if !duplicate {
+                                guarded_case_inputs.try_reserve(1)
+                                    .map_err(|_| CandidateError::Solve(SolveAvailabilityError::IdentityExhausted))?;
+                                guarded_case_inputs.push(call.clone());
+                            }
+                        }
+                    }
+                    if let Err(error) = session.execute_candidate_field_tails_with_case_steps(
+                        Some(&mut readbacks.selected_receivers),
+                        &guarded_case_inputs,
+                        Some(&mut readbacks.dispatch_steps),
+                    ) {
                         if error != SolveAvailabilityError::DeferredSelectionUnavailable {
                             return Err(CandidateError::Solve(error));
                         }

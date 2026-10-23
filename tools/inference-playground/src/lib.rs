@@ -3567,6 +3567,13 @@ mod tests {
             "the returned payload trace records the candidate graph inventory at its readback boundary");
         assert_eq!(readbacks.selected_receivers.len(), 5,
             "the original fixture selects exactly five member actions before the active receiver defers");
+        assert_eq!(readbacks.dispatch_steps.len(), readbacks.selected_receivers.len(),
+            "every selected action has one post-transition Case-input observation");
+        for (selected, step) in readbacks.selected_receivers.iter().zip(&readbacks.dispatch_steps) {
+            assert_eq!(step.owner, selected.owner);
+            assert_eq!(step.occurrence, selected.occurrence);
+            assert_eq!(step.receiver_row, selected.receiver_row);
+        }
         assert_eq!(graph_snapshot.member_uses, readbacks.selected_receivers.len(),
             "the snapshot contains exactly the member actions captured in the selected readbacks");
         let actual: Vec<_> = readbacks.selected_receivers.iter().chain(readbacks.receivers.iter())
@@ -3725,6 +3732,24 @@ mod tests {
                 "the admitted member action and deferred stop preserve this exact call's current Case-input frontier");
             assert_eq!(before_call.case_payload_receiver_flow, after_call.case_payload_receiver_flow,
                 "the observed partial dispatch preserves this exact FreshUse binder-to-receiver source/native path");
+            assert_eq!(readbacks.dispatch_steps.len(), 5,
+                "every selected member action has a post-admission Case-input snapshot");
+            for step in &readbacks.dispatch_steps {
+                let step_call = step.guarded_variant_calls.iter().find(|candidate|
+                    candidate.call == call.call
+                        && candidate.callee_use == call.callee_use
+                        && candidate.argument == call.argument
+                        && candidate.provider == call.provider
+                        && candidate.freshuse_context == call.freshuse_context
+                        && candidate.guard_input_row == call.guard_input_row
+                ).expect("each selected action snapshots this exact guarded call");
+                assert_eq!(step_call.case_input_frontier.as_ref(), Some(before),
+                    "each member action preserves this exact Case-input frontier");
+                assert_eq!(step_call.case_payload_flows, before_call.case_payload_flows,
+                    "each member action preserves the constructor-to-binder native paths");
+                assert_eq!(step_call.case_payload_receiver_flow, before_call.case_payload_receiver_flow,
+                    "each member action preserves this exact FreshUse binder-to-receiver Group path");
+            }
         }
         let mut source_button_uses: Vec<_> = source_roots.iter().flat_map(|source| source.expressions())
             .filter_map(|expression| match &expression.form {

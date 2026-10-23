@@ -723,3 +723,72 @@ run's unavailable active receiver prevents those later transitions from
 occurring, so do not infer their preservation or close the parent claim.
 
 Validation: focused Button regression and full RUSTC_WRAPPER= cargo test -q -p yu-playground pass; agent_sprint check, 57 tooling unittests and git diff --check pass. Resource at artifact freeze: 40456 cumulative seconds; 594 seconds of this grant unused and discarded, no carryover.
+
+Direct-primary continuation from `ac201b290`, 2026-10-23: the previous R332
+cap was 41050 seconds, of which 40456 were charged. Discard the unused 594
+seconds; no carryover. Under the user's active goal to continue proof-backed
+compiler and playground work, grant 3600 fresh direct-primary seconds, making
+the cumulative R332 cap 44056. No child or reviewer is assigned. Existing exact
+leases and all unknown reservations remain unchanged.
+
+Fixed outcome: prove or refute preservation of the authenticated Button
+Case-input domain and binder-to-receiver Group relation under the actual
+member-dispatch transitions. Audit FreshUse, value/effect admissions, nested
+descriptors, propagation/intrusion and stable capture refresh. Falsifier: an
+admitted constraint or representative change adds unaccounted Case ingress or
+breaks the mapped Group path. Do not infer future fixed-point behavior from
+the current deferred terminal state. Keep branch discharge, semantics, original
+A/B, principality and production gates unchanged. One heavy verification at a
+time; freeze evidence and push a coherent checkpoint.
+
+R332 transition-footprint result, 2026-10-23: the source audit follows the
+actual mutation path. Member FreshUse restores every captured graph bound;
+local generic rows are freshened, while rows outside that predicate retain
+their live representative. Dispatch then admits actual-receiver/member-receiver
+and member-result/actual-result value constraints, plus the two corresponding
+effect constraints when enabled. The typed drain can insert and replay bounds;
+lower-level extrusion can copy rows and intrusion settling can merge those
+copies into parents while transporting both bound sides. No admission or merge
+guard proves that these writes avoid the authenticated Case frontier.
+
+The existing `selected_receivers` observations are captured before each
+selected action and do not carry the exact guarded Button calls. The diagnostic
+path now stores a separate `dispatch_steps` entry after every selected action
+has completed propagation and intrusion settlement. Each entry re-reads the
+bounded Case-input frontier for the exact pre-dispatch calls and verifies the
+payload-to-binder and binder-to-receiver edges at their original
+representatives. The regression checks both original calls at all five action
+boundaries; every frontier, payload flow, and Group flow equals its
+source-solve snapshot.
+
+The active receiver returns `DeferredSelectionUnavailable` before stable
+capture refresh. This establishes sample-level preservation across every
+transition in this partial run. It does not establish an induction for every
+admissible member graph, stable capture refresh, or a hypothetical successful
+fixed point. No source-valid counterexample was found. The broader transition
+invariant and all parent gates remain OPEN. No source semantics or branch
+discharge changed.
+
+Validation at checkpoint: the focused Button regression passes (1 test), and
+`cargo test -q -p yu-playground` passes all package targets, including 89
+library tests and 64 CLI tests. Direct-primary result remains UNREVIEWED.
+
+Conditional transition result: typed value drains append direct row bounds
+and exact atoms and replay opposite bounds, so an existing exact payload or
+Group edge persists when its endpoints keep their representatives. The five
+post-action readbacks establish that endpoint condition for the five selected
+Button actions. Case-frontier equality additionally requires that propagation
+adds no incoming edge or exact lower atom to its backward closure and changes
+no representative there. FreshUse only freshens local generic rows above the
+capture boundary; other rows remain shared. Receiver/result admissions have
+no Case-frontier exclusion guard, while extrusion/intrusion can transport
+bounds to existing owners. The owner-specific noninterference premise is
+therefore still OPEN; no source-valid counterexample is established.
+
+Additional verification: `cargo test -q -p yu-solver
+--features shadow-apply-candidate` failed with multiple solver tests and a
+stack overflow. An isolated failure in untouched
+`candidate_context::tests::function_port_incidence_preserves_exact_relations_and_route_retry`
+is `assert!(!attempted.is_empty())` at `candidate_context_tests.rs:3798`.
+The run does not localize these failures to the current changes. The focused
+Button regression and all `yu-playground` package targets still pass.

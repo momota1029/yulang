@@ -3199,9 +3199,84 @@ impl InferenceSession {
     /// Propagate active and captured definition/local FieldTail constraints
     /// after source schedules contribute receiver bounds. Every selected body
     /// uses one FreshUse map; unresolved templates remain at their capture owner.
+    fn candidate_case_call_native_flows_current(
+        &self,
+        call: &crate::shadow_apply::CandidateGuardedVariantCallReadback,
+    ) -> bool {
+        let Some(state) = self.candidate_graph.as_ref() else { return false; };
+        let representative_unchanged = |row: u32| state.intrusion.value_rep(row) == row;
+        let direct_upper = |lower: u32, upper: u32| {
+            self.bounds.get(lower as usize).is_some_and(|bounds|
+                bounds.direct_upper_rows.iter().any(|row| state.intrusion.value_rep(*row) == upper))
+        };
+        if let Some(flow) = &call.case_payload_receiver_flow {
+            if !representative_unchanged(flow.binder_freshuse_negative_row)
+                || !representative_unchanged(flow.receiver_freshuse_positive_row)
+                || flow.source_group_steps.iter().any(|step| {
+                    !representative_unchanged(step.freshuse_lower_row)
+                        || !representative_unchanged(step.freshuse_upper_row)
+                        || !direct_upper(step.freshuse_lower_row, step.freshuse_upper_row)
+                })
+            {
+                return false;
+            }
+        }
+        if let Some(flows) = &call.case_payload_flows {
+            if flows.iter().any(|flow| {
+                !representative_unchanged(flow.positive_row)
+                    || !representative_unchanged(flow.freshuse_negative_row)
+                    || !direct_upper(flow.positive_row, flow.freshuse_negative_row)
+            }) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn candidate_case_dispatch_step_readback(
+        &self,
+        owner: SourceRootId,
+        source_owner: SourceRootId,
+        occurrence: HirOccurrenceId,
+        member_root: yu_hir::SourceMemberRootId,
+        receiver_row: u32,
+        baseline_calls: &[crate::shadow_apply::CandidateGuardedVariantCallReadback],
+    ) -> Result<crate::shadow_apply::CandidateMemberDispatchStepReadback, SolveAvailabilityError> {
+        let mut guarded_variant_calls = Vec::new();
+        guarded_variant_calls.try_reserve_exact(baseline_calls.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        for baseline in baseline_calls {
+            let mut call = baseline.clone();
+            let mut work = 0usize;
+            call.case_input_frontier = self.candidate_case_input_frontier(baseline.guard_input_row, &mut work)?;
+            if !self.candidate_case_call_native_flows_current(baseline) {
+                call.case_payload_flows = None;
+                call.case_payload_receiver_flow = None;
+            }
+            guarded_variant_calls.push(call);
+        }
+        Ok(crate::shadow_apply::CandidateMemberDispatchStepReadback {
+            owner,
+            source_owner,
+            occurrence,
+            member_root,
+            receiver_row,
+            guarded_variant_calls,
+        })
+    }
+
     pub(super) fn execute_candidate_field_tails(
         &mut self,
+        selected_readbacks: Option<&mut Vec<crate::shadow_apply::CandidateFieldTailReceiverReadback>>,
+    ) -> Result<(), SolveAvailabilityError> {
+        self.execute_candidate_field_tails_with_case_steps(selected_readbacks, &[], None)
+    }
+
+    pub(super) fn execute_candidate_field_tails_with_case_steps(
+        &mut self,
         mut selected_readbacks: Option<&mut Vec<crate::shadow_apply::CandidateFieldTailReceiverReadback>>,
+        baseline_case_calls: &[crate::shadow_apply::CandidateGuardedVariantCallReadback],
+        mut dispatch_steps: Option<&mut Vec<crate::shadow_apply::CandidateMemberDispatchStepReadback>>,
     ) -> Result<(), SolveAvailabilityError> {
         #[derive(Clone)]
         struct Pending {
@@ -3368,6 +3443,7 @@ impl InferenceSession {
                 let schedule = self.batch.candidate_source.members.get(member_index)
                     .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
                 let member_root = schedule.root.clone();
+                let step_member_root = member_root.clone();
                 if item.ancestry.contains(&member_root) {
                     if !item.template_owners.is_empty() {
                         push(&mut deferred, item)?;
@@ -3508,6 +3584,18 @@ impl InferenceSession {
                 made_progress = true;
                 state.refresh_bytes()?;
                 self.sample_f4_resources(ResourceBoundary::AllDrafts)?;
+                if let Some(steps) = dispatch_steps.as_deref_mut() {
+                    steps.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                    let step = self.candidate_case_dispatch_step_readback(
+                        item.obligation.owner.clone(),
+                        item.obligation.source_owner.clone(),
+                        item.obligation.occurrence.clone(),
+                        step_member_root,
+                        receiver_row,
+                        baseline_case_calls,
+                    )?;
+                    steps.push(step);
+                }
             }
             if deferred.is_empty() || (!made_progress && deferred.iter().all(|item| !item.template_owners.is_empty())) {
                 // Selection under the provisional role-frontier exception is

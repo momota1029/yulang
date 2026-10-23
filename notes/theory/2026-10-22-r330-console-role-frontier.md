@@ -3669,3 +3669,95 @@ actually admitted and the final no-progress boundary; they do not compare all
 intrusive representatives, all graph rows, or the effects of a successful
 future action on arbitrary related routes. The induction premise across all
 permitted transitions therefore remains OPEN.
+
+### Direct-primary continuation: member-dispatch mutation footprint
+
+The transition audit now reaches the concrete write owners. In
+`execute_candidate_field_tails`, each selected member graph is FreshUsed before
+the actual receiver/result value constraints and optional effect constraints
+are admitted. `prepare_candidate_fresh_use` maps a row to a new row only when
+the captured row is local, above the graph boundary, and not non-generic;
+otherwise the FreshUse retains its current representative. The subsequent
+bound-restoration loop replays every graph bound against that map. Thus the
+FreshUse identifies exactly which member rows are private and which may write
+through to shared live rows.
+
+Each value admission enters the ordinary typed drain. Its value consumer can
+insert direct row bounds or exact atoms and replay opposite bounds. When
+extrusion lowers a row, it creates a copy plus a parent link; intrusion settling
+merges that copy into its parent, copies both bound sides, canonicalizes, and
+replays the merged owner's lower bounds. These are the concrete paths by which
+an admitted member constraint could affect a Case-input frontier. The
+selection code validates the receiver's selection frontier, but does not
+restrict these admissions or intrusion writes to rows disjoint from the
+authenticated Case input or its incoming rows.
+
+The original `selected_receivers` records are captured at selection time,
+before member FreshUse and constraint admission, and do not carry the exact
+Button guarded-call records needed for per-action comparison. I added a separate
+`dispatch_steps` readback to the diagnostic path. It snapshots the deduplicated
+pre-dispatch guarded calls after each selected action has completed its value
+and effect drains, nested-obligation transport, intrusion settlement, and member
+use recording. Each step recomputes the bounded Case-input frontier and checks
+that payload-to-binder and binder-to-receiver edges still exist at the same
+representatives.
+
+The focused Button regression now checks both guarded calls at all five action
+boundaries against the source-solve frontier, payload flow, and exact Group
+flow. Every observed step matches. This closes the per-step sample gap for the
+five actions that actually ran; the initial/final equality remains a separate
+check. It does not prove the universal induction across all possible member
+graphs or future dispatch actions.
+
+The active `show` receiver still returns `DeferredSelectionUnavailable` on the
+no-progress pass, before stable capture refresh. The new snapshots do not
+refute the Button observation: they establish preservation at every selected
+action boundary in this partial run. They do not prove that all admissible
+member graphs preserve this invariant, and they do not cover a future
+successful fixed point or the stable capture refresh path. Keep that broader
+invariant OPEN; no branch discharge, semantic change, or parent gate closure.
+
+Validation: the focused Button regression passes with the five post-transition
+snapshots, and `cargo test -q -p yu-playground` passes all package targets (89
+library tests, 64 CLI tests, and the package integration targets). The
+repository-wide `cargo fmt --all -- --check` reports formatting diffs across
+the existing workspace; it makes no edits and is not evidence about the
+semantic result above.
+
+### Conditional preservation lemma and missing source premise
+
+The source audit yields one useful conditional law. Let the authenticated
+payload-to-binder and binder-to-receiver edges be present before a successful
+member action. A committed typed drain inserts direct row bounds and exact
+atoms by appending to the corresponding bound inventories, then replays the
+opposite inventory; it does not remove an existing bound. Therefore the exact
+Group edge remains represented after the action if its two endpoint
+representatives stay unchanged. This is precisely the persistence condition
+checked by each of the five post-action readbacks.
+
+The complete Case-input frontier needs a stronger premise. For every row in
+its backward incoming closure, the action and its propagation must neither add
+a newly incoming row edge or exact lower atom nor merge/change the
+representative. Under that premise, the frontier traversal sees the same rows,
+atoms, and authenticated Variant sources. A member FreshUse does not establish
+this separation by itself: rows are copied only when the captured row is local,
+above the graph boundary, and generic; all other rows reuse their current
+representative. Receiver/result admissions and their propagation have no
+Case-frontier exclusion check. Extrusion and intrusion can also transport
+bounds to existing owners.
+
+Thus the readback's five unchanged frontiers plus five stable Group paths are
+concrete evidence for this Button execution, while the source-level theorem
+still needs an owner-specific disjointness/alias premise or a source-valid
+counterexample. The conditional lemma does not close stable capture refresh or
+future successful dispatch. No code gate or source behavior changes follow
+from it.
+
+Additional verification receipt: `cargo test -q -p yu-solver
+--features shadow-apply-candidate` did not pass. The feature-enabled solver
+target reported multiple failures in other solver tests and then a stack
+overflow; an isolated failure in the untouched
+`candidate_context::tests::function_port_incidence_preserves_exact_relations_and_route_retry`
+is at `candidate_context_tests.rs:3798` (`assert!(!attempted.is_empty())`).
+This run does not localize those failures to the current changes. The focused
+playground regression and full playground package suite remain passing.
