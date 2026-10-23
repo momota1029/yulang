@@ -847,3 +847,16 @@ regression passes, and `cargo test -q -p yu-playground` passes all package
 targets (89 library tests, 64 CLI tests and all integration targets). The
 finite row-separation check now uses the post-action receiver row. Stable
 capture refresh and arbitrary member-graph claims remain as stated above.
+
+R332 freeze receipt, 2026-10-23: checkpoint `7a20da207` is committed and pushed
+to `research/simple-sub-intrusion`. Focused Button regression and the full
+`yu-playground` package suite pass after the final diagnostic changes; agent
+sprint static check and all 57 tooling unittests pass; `git diff --check` passes.
+The feature-enabled full solver run remains failed as recorded above, with cause
+unlocalized. Final charge at artifact freeze is 42581/44056 seconds; discard
+the remaining 1475 seconds with no carryover or automatic renewal. No child
+or independent reviewer was active. R332 ends as `OPEN_CONTINUATION`; the
+original source/native A/B, receiving, principality, full-descriptor
+correspondence, arbitrary member graphs,
+successful refresh reachability and independent review remain OPEN. Next work
+requires a fresh sprint-boundary selector decision; no gate is promoted here.
