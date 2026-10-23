@@ -1702,6 +1702,9 @@ impl ConstraintBatch {
                         LocalSourceForm::Operation { .. } => return Err(invalid()),
                         LocalSourceForm::Primitive { operation } => {
                             let (argument_negative, result_positive) = match operation {
+                                yu_hir::shadow::PinnedPrimitiveOp::BoolNot
+                                | yu_hir::shadow::PinnedPrimitiveOp::BoolEq => (Leaf::BoolNegative, Leaf::BoolPositive),
+                                yu_hir::shadow::PinnedPrimitiveOp::BoolToString => (Leaf::BoolNegative, Leaf::StrPositive),
                                 yu_hir::shadow::PinnedPrimitiveOp::IntAdd | yu_hir::shadow::PinnedPrimitiveOp::IntSub
                                 | yu_hir::shadow::PinnedPrimitiveOp::IntMul => (Leaf::IntNegative, Leaf::IntPositive),
                                 yu_hir::shadow::PinnedPrimitiveOp::IntToString => (Leaf::IntNegative, Leaf::StrPositive),

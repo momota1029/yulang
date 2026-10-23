@@ -2633,10 +2633,13 @@ impl Machine {
 
 fn pinned_primitive_arity(operation: &yu_hir::shadow::PinnedPrimitiveOp) -> Option<usize> {
     match operation {
-        yu_hir::shadow::PinnedPrimitiveOp::IntToString => Some(1),
+        yu_hir::shadow::PinnedPrimitiveOp::IntToString
+        | yu_hir::shadow::PinnedPrimitiveOp::BoolNot
+        | yu_hir::shadow::PinnedPrimitiveOp::BoolToString => Some(1),
         yu_hir::shadow::PinnedPrimitiveOp::IntAdd
         | yu_hir::shadow::PinnedPrimitiveOp::IntSub
         | yu_hir::shadow::PinnedPrimitiveOp::IntMul
+        | yu_hir::shadow::PinnedPrimitiveOp::BoolEq
         | yu_hir::shadow::PinnedPrimitiveOp::StringConcat => Some(2),
         yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => None,
     }
@@ -2649,6 +2652,23 @@ fn pinned_primitive_apply(
 ) -> Option<RuntimeValueKind> {
     let argument = |index: usize| values.get(arguments.get(index)?.0).map(|value| &value.kind);
     match operation {
+        yu_hir::shadow::PinnedPrimitiveOp::BoolNot => {
+            let RuntimeValueKind::Boolean(value) = argument(0)? else { return None; };
+            Some(RuntimeValueKind::Boolean(!*value))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::BoolEq => {
+            let RuntimeValueKind::Boolean(left) = argument(0)? else { return None; };
+            let RuntimeValueKind::Boolean(right) = argument(1)? else { return None; };
+            Some(RuntimeValueKind::Boolean(*left == *right))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::BoolToString => {
+            let RuntimeValueKind::Boolean(value) = argument(0)? else { return None; };
+            let text = if *value { "true" } else { "false" };
+            let mut result = String::new();
+            result.try_reserve(text.len()).ok()?;
+            result.push_str(text);
+            Some(RuntimeValueKind::String(result.into_boxed_str()))
+        }
         yu_hir::shadow::PinnedPrimitiveOp::IntAdd => {
             let RuntimeValueKind::Integer(left) = argument(0)? else { return None; };
             let RuntimeValueKind::Integer(right) = argument(1)? else { return None; };

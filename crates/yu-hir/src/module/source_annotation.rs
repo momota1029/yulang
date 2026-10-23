@@ -73,6 +73,9 @@ pub enum SourceOperationResolution {
 /// phases must dispatch on this identity.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum PinnedPrimitiveOp {
+    BoolNot,
+    BoolEq,
+    BoolToString,
     IntAdd,
     IntSub,
     IntMul,
@@ -84,6 +87,9 @@ pub enum PinnedPrimitiveOp {
 pub(super) fn pinned_primitive_op(family: &str, member: &str) -> Option<PinnedPrimitiveOp> {
     if family != "builtin_op" { return None; }
     match member {
+        "bool_not" => Some(PinnedPrimitiveOp::BoolNot),
+        "bool_eq" => Some(PinnedPrimitiveOp::BoolEq),
+        "bool_to_string" => Some(PinnedPrimitiveOp::BoolToString),
         "int_add" => Some(PinnedPrimitiveOp::IntAdd),
         "int_sub" => Some(PinnedPrimitiveOp::IntSub),
         "int_mul" => Some(PinnedPrimitiveOp::IntMul),
@@ -91,13 +97,13 @@ pub(super) fn pinned_primitive_op(family: &str, member: &str) -> Option<PinnedPr
         "string_concat" => Some(PinnedPrimitiveOp::StringConcat),
         "yada_yada" | "list_view_raw" | "list_merge" | "list_len" | "list_index"
         | "list_index_range" | "list_index_range_raw" | "list_splice" | "list_splice_raw"
-        | "bool_not" | "bool_eq" | "int_div" | "int_mod"
+        | "int_div" | "int_mod"
         | "int_eq" | "int_lt" | "int_le" | "int_gt" | "int_ge" | "int_to_hex"
         | "int_to_upper_hex" | "int_to_float" | "float_add" | "float_sub" | "float_mul"
         | "float_div" | "float_eq" | "float_lt" | "float_le" | "float_gt" | "float_ge"
         | "float_to_string" | "string_eq" | "string_len" | "string_line_count"
         | "string_index" | "string_index_range" | "string_line_range" | "string_index_range_raw"
-        | "string_splice" | "string_splice_raw" | "string_to_bytes" | "bool_to_string"
+        | "string_splice" | "string_splice_raw" | "string_to_bytes"
         | "char_eq" | "char_to_string" | "char_is_whitespace" | "char_is_punctuation"
         | "char_is_word" | "bytes_len" | "bytes_eq" | "bytes_concat" | "bytes_index"
         | "bytes_index_range" | "bytes_to_utf8_raw" | "bytes_to_path" | "path_to_bytes" =>

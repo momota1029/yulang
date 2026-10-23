@@ -945,13 +945,19 @@ impl InferenceSession {
         use yu_hir::shadow::{SourceAnnotationType as Ty, SourceAnnotationValue as Value};
         let atom = |value| Ty { effects: None, value };
         let (argument, result) = match operation {
+            yu_hir::shadow::PinnedPrimitiveOp::BoolNot | yu_hir::shadow::PinnedPrimitiveOp::BoolEq => (Value::Bool, Value::Bool),
+            yu_hir::shadow::PinnedPrimitiveOp::BoolToString => (Value::Bool, Value::Str),
             yu_hir::shadow::PinnedPrimitiveOp::IntAdd | yu_hir::shadow::PinnedPrimitiveOp::IntSub
                                 | yu_hir::shadow::PinnedPrimitiveOp::IntMul => (Value::Int, Value::Int),
             yu_hir::shadow::PinnedPrimitiveOp::IntToString => (Value::Int, Value::Str),
             yu_hir::shadow::PinnedPrimitiveOp::StringConcat => (Value::Str, Value::Str),
             yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => return Err(exhausted()),
         };
-        let value_type = if matches!(&operation, yu_hir::shadow::PinnedPrimitiveOp::IntToString) {
+        let value_type = if matches!(&operation,
+            yu_hir::shadow::PinnedPrimitiveOp::IntToString
+                | yu_hir::shadow::PinnedPrimitiveOp::BoolNot
+                | yu_hir::shadow::PinnedPrimitiveOp::BoolToString
+        ) {
             Ty { effects: None, value: Value::Function { argument: Box::new(atom(argument)), result: Box::new(atom(result)) } }
         } else {
             let inner = Ty { effects: None, value: Value::Function { argument: Box::new(atom(argument.clone())), result: Box::new(atom(result)) } };
@@ -1833,13 +1839,18 @@ impl InferenceSession {
         let Some(expr) = source.expressions().iter().find(|expr| &expr.occurrence == occurrence) else { return Ok(None); };
         let LocalSourceForm::Primitive { operation } = &expr.form else { return Ok(None); };
         let (argument, result, arity) = match operation {
+            PinnedPrimitiveOp::BoolNot => (SourceAnnotationValue::Bool, SourceAnnotationValue::Bool, 1),
+            PinnedPrimitiveOp::BoolEq => (SourceAnnotationValue::Bool, SourceAnnotationValue::Bool, 2),
+            PinnedPrimitiveOp::BoolToString => (SourceAnnotationValue::Bool, SourceAnnotationValue::Str, 1),
             PinnedPrimitiveOp::IntAdd | PinnedPrimitiveOp::IntSub | PinnedPrimitiveOp::IntMul => (SourceAnnotationValue::Int, SourceAnnotationValue::Int, 2),
             PinnedPrimitiveOp::IntToString => (SourceAnnotationValue::Int, SourceAnnotationValue::Str, 1),
             PinnedPrimitiveOp::StringConcat => (SourceAnnotationValue::Str, SourceAnnotationValue::Str, 2),
             PinnedPrimitiveOp::Unsupported(_) => return Ok(None),
         };
         let same_atom = |a: &SourceAnnotationValue, b: &SourceAnnotationValue| matches!((a, b),
-            (SourceAnnotationValue::Int, SourceAnnotationValue::Int) | (SourceAnnotationValue::Str, SourceAnnotationValue::Str));
+            (SourceAnnotationValue::Bool, SourceAnnotationValue::Bool)
+                | (SourceAnnotationValue::Int, SourceAnnotationValue::Int)
+                | (SourceAnnotationValue::Str, SourceAnnotationValue::Str));
         let mut ty = &annotation.ty;
         for _ in 0..arity {
             if ty.effects.is_some() { return Ok(None); }
