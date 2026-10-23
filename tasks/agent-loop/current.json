@@ -9,18 +9,18 @@
 "contract": "tasks/agent-loop/sprints/r338-k0-d1-d2-state-bridge-20261023.md",
 "resources": {
 "cap_seconds": 3600,
-"charged_seconds": 1500,
-"reserved_seconds": 2100,
+"charged_seconds": 2700,
+"reserved_seconds": 900,
 "no_carryover": true
 },
-"proof": "Producer NOT_STARTED; 1200s proof grant reserved for exact frozen R338 paths.",
+"proof": "Producer RUNNING from 04:51 UTC; 1200s charged for exact R338 D1 composition and first D2 family.",
 "implementation": "Primary RUNNING: read-only census of actual logical bound, owner storage, pending/processing and opposite-bound consequence transitions.",
 "review_receipt": "Pending freeze. One fresh non-contributor compiler_referee, read-only, up to600s; integration300s reserved.",
 "next_action": "Continue exact leased proof and source census; freeze at composition/transition result, counterexample, missing owner, dependency change, or cap.",
 "closure": "OPEN: D1 composition and one bounded D2 transition only; broader N/cache coverage/W/Z/S0/D3/principality/full A/B/production remain OPEN.",
 "dispatch": "Start selector accepted R338 with exact inequality-admission → owner-recording → opposite-bound-enqueue family; no recursive replay claim. Fresh 3600s, no carryover/Astra.",
 "note": "notes/theory/2026-10-23-r338-k0-state-source-census.md",
-"charged_seconds": 1500,
+"charged_seconds": 2700,
 "contract_sha256": "d742fa449c81b8b3cc918f53f93fc462dccb98565a2ed817e0b64162919ee403",
 "dependencies": {
 "user_audit_sha256": "b720fc938423bea1b677f7121653e2452b0fb0b9bb2919e9d38c7fccbee64895",
@@ -35,9 +35,10 @@
 "revision": 1,
 "resource_breakdown": {
 "primary_census_charged_seconds": 1500,
-"prover_reserved_seconds": 1200,
+"prover_reserved_seconds": 0,
 "review_reserved_seconds": 600,
-"integration_reserved_seconds": 300
+"integration_reserved_seconds": 300,
+"prover_charged_seconds": 1200
 }
 },
 "workers": [
@@ -110,13 +111,13 @@
 {
 "id": "/root/r336_k0_algebra_prover",
 "role": "R338 constructive proof producer",
-"state": "NOT_STARTED",
-"session": null,
+"state": "RUNNING",
+"session": "5ffe9814-7837-40eb-8701-4ddb3f7697de",
 "requested_model": "gpt-6.1-sol",
 "requested_effort": "high",
 "observed_model": "UNKNOWN",
 "observed_effort": "UNKNOWN",
-"receipt": "R338 producer lease reserved; dispatch follows committed contract/current."
+"receipt": "R338 dispatched 2026-10-23 04:51 UTC; grant1200 charged; exact frozen output paths; no code/tests/Cargo/probes/Git."
 },
 {
 "id": "/root/r334_fieldtail_review",
@@ -382,5 +383,5 @@
 "commit": "56707d984187e9a02b417f9dde80cbecb6ba1e89"
 }
 ],
-"resource_observation": "R338 1500/3600 charged at primary grant; producer1200+review600+integration300 reserved; zero Astra; legacy UNKNOWN quarantined; no Cargo."
+"resource_observation": "R338 2700/3600 charged at primary1500+producer1200 grants; review600+integration300 reserved; zero Astra; legacy UNKNOWN quarantined; no Cargo."
 }
