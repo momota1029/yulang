@@ -1,1 +1,318 @@
-{"schema_version":1,"mode":"LIVE","phase":"ACTIVE","session":"01a165ee-0212-7af3-8c99-1c1efcf367fe","active_sprint":{"id":"R335","status":"ACTIVE","contract":"tasks/agent-loop/sprints/r335-source-driven-local-use-20261023.md","resources":{"cap_seconds":3600,"charged_seconds":0,"reserved_seconds":0,"no_carryover":true},"proof":"Trace whether the exact refreshed local FieldTail capture can reach a later source-driven use, readback and publication; otherwise prove lifecycle non-reachability.","implementation":"Primary only, conditional on the source trace: authentic source regression and owner repair if reachable; otherwise precise NO_SAFE_CODE_SLICE.","review_receipt":"No R335 review yet; freeze source trace/repair before fresh compiler_referee review.","next_action":"Trace source scheduling -> refresh -> same-capture reuse -> source-instance/frontier readback -> member selection -> publication; helper-only path is excluded.","closure":"OPEN: original Yulang2 catalog, source/native, Simple-sub A/B, receiving, principality and production.","dispatch":"Selector chose R335; direct-primary serial; no child/Astra; exact six-path lease.","note":"notes/theory/2026-10-23-r335-source-driven-local-use.md","charged_seconds":0,"contract_sha256":"70f9053f3ce023fd6f355987d0878fc78a32eb60608e92b0c5942ca0c8929fa5","dependencies":{"commit":"17e57af2c4605d7084c7d76792b115674776bbe2","r333_note_sha256":"945964c75ba27c8ef6bc008e7cc4944d910e2eecd684355b976635fee4c64127","r334_review_sha256":"96eac2300c82ebc1a46ab9fe9c54d82877bee49466d146cdf972bf32ae4cb7b4"}},"workers":[{"id":"/root/resident_dispatcher_loop_a","role":"legacy dispatcher","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"U;Q."},{"id":"/root/resident_implementer_idle","role":"legacy implementer","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"U;Q."},{"id":"/root/runtime_source_supplier_proof","role":"legacy proof worker","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"U;Q."},{"id":"/root/r173_source_drain_proof","role":"R173 proof","state":"STOPPED","requested_model":"UNKNOWN","requested_effort":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Stopped."},{"id":"/root/r174_prover","role":"R174 proof","state":"STOPPED","requested_model":"UNKNOWN","requested_effort":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Stopped."},{"id":"/root/r183_source_to_capture_proof","role":"R183 proof","state":"STOPPED","requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Stopped."},{"id":"/root/r187_post_lambda_age_proof","role":"R187 proof","state":"STOPPED","session":"current-conversation-2026-10-21-r187","requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Stopped."},{"id":"/root","role":"direct primary","state":"RUNNING","session":"01a165ee-0212-7af3-8c99-1c1efcf367fe","requested_model":"current user-selected primary","requested_effort":"UNKNOWN","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"R335 active after sprint-end selector; direct-primary source/consumer trace underway."},{"id":"/root/r334_fieldtail_review","role":"fresh independent compiler_referee (R334)","state":"STOPPED","session":"01a165ee-0212-7af3-8c99-1c1efcf367fe","requested_model":"gpt-6.1-sol","requested_effort":"medium","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Final frozen handoff received; review and writes stopped; no descendants or output leases."}],"leases":[{"path":"tasks/agent-loop/current.json","owner":"/root","state":"HELD","reason":"R335 current-state owner"},{"path":"web/playground/src/wasm/yulang_wasm.js","owner":"/root","state":"FROZEN","reason":"R332"},{"path":"web/playground/src/wasm/yulang_wasm.d.ts","owner":"/root","state":"FROZEN","reason":"R332"},{"path":"web/playground/src/wasm/yulang_wasm_bg.wasm","owner":"/root","state":"FROZEN","reason":"R332"},{"path":"notes/theory/2026-10-23-r334-r333-fieldtail-independent-review.md","owner":"/root","state":"HELD","reason":"R334 exact review outcome note"},{"path":"crates/yu-solver/src/candidate_scheme.rs","owner":"/root","state":"HELD","reason":"R335 exact source/consumer lease"},{"path":"crates/yu-solver/src/shadow_apply.rs","owner":"/root","state":"HELD","reason":"R335 exact source/consumer lease"},{"path":"tools/inference-playground/src/lib.rs","owner":"/root","state":"HELD","reason":"R335 authentic source fixture/consumer lease"},{"path":"tasks/agent-loop/sprints/r335-source-driven-local-use-20261023.md","owner":"/root","state":"HELD","reason":"R335 exact sprint contract"},{"path":"notes/theory/2026-10-23-r335-source-driven-local-use.md","owner":"/root","state":"HELD","reason":"R335 exact source trace/outcome note"}],"pending":[{"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna; whole-ascription formation","details":"tasks/agent-loop/inbox/20261019-r61-proof.md"},{"id":"R64-SRC-ANN-ARG-1","state":"OPEN","owner":"Luna; annotation argument","details":"tasks/agent-loop/inbox/20261019-r64-proof.md"},{"id":"R65-CURRENT-OPERAND-1","state":"OPEN","owner":"Luna; ordinary typed Lambda operand","details":"tasks/agent-loop/inbox/20261019-r65-proof.md"},{"id":"R66-LAMBDA-RESULT-STAGE-1","state":"OPEN","owner":"Luna; direct Lambda-checking follow-up","details":"tasks/agent-loop/inbox/20261019-r66-proof.md"},{"id":"R67-DIRECT-BODY-CHECK-1","state":"OPEN","owner":"Luna; source Lambda body consumer","details":"notes/theory/2026-10-19-r67-direct-lambda-checking.md"},{"id":"R68-OWNER-CONSUMER-1","state":"OPEN","owner":"Luna; retained body/result consumer","details":"tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"},{"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1","state":"OPEN_UNADOPTED_PROPOSAL","owner":"Luna; source-law completion","details":"tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"},{"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1","state":"OPEN","owner":"Luna; exact source/native owners in R70","details":"tasks/agent-loop/inbox/20261019-r70-proof.md"},{"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1","state":"OPEN","owner":"Luna; source/native owners in R71","details":"R230 sibling prefix; R231-R234 searches; R236 census; R237 no callback slot-4 alias to later raw WorkBound. OPEN."},{"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna; exact Local-to-WorkBound replay and consumer lineage","details":"R229 bridge; R231-R233 no slot-4 post-alias consumer. OPEN."},{"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"STOPPED_UNFROZEN_RESULT","owner":"Luna intake","details":"R258-R259 local roots; R260 conditional census; R261-R267 parser/import route evidence; R268 Y3 source graph reaches all 40 modules (39 mod +108 use edges), but external-mod Missing recoveries leave Y2 ModuleMap/publication OPEN. R149 outputs open."}],"closure":"OPEN: original all-source/A-B, receiving, principality and production gates; no independent review.","next_action":"R335 active: establish source-driven post-refresh local-use reachability and consumer correspondence.","legacy_reconciliation":{"required":false,"reason":"3 U; no reclaim.","source_blob":"c066b622b38c2d79319da14e9fe17c15c8aa4b8d"},"user_goal":"Continue unchanged Y2 playground proof/code directly in the primary, minimal sprint records, no routine subagents; preserve source semantics, checkpoint/push coherent results.","history":[{"id":"R330","archive":"notes/theory/2026-10-22-r330-console-role-frontier.md","contract":"tasks/agent-loop/sprints/r330-console-role-frontier-and-member-projection-20261022.md","outcome":"OPEN_CONTINUATION"},{"id":"R331","archive":"notes/theory/2026-10-22-r330-console-role-frontier.md","contract":"tasks/agent-loop/sprints/r331-r149-public-types-web-20261022-rev3.md","outcome":"OPEN_CONTINUATION"},{"id":"R332","archive":"notes/theory/2026-10-22-r330-console-role-frontier.md","contract":"tasks/agent-loop/sprints/r332-candidate-public-scheme-source-adequacy-20261022.md","outcome":"OPEN_CONTINUATION"},{"id":"R333","archive":"notes/theory/2026-10-23-r333-fieldtail-descriptor-transport.md","contract":"tasks/agent-loop/sprints/r333-fieldtail-descriptor-transport-20261023.md","outcome":"REVIEWED PASS as bounded implementation evidence; source-driven readback remains OPEN.","review":"notes/theory/2026-10-23-r334-r333-independent-review.md","review_sha256":"96eac2300c82ebc1a46ab9fe9c54d82877bee49466d146cdf972bf32ae4cb7b4"},{"id":"R334","archive":"notes/theory/2026-10-23-r334-r333-independent-review.md","contract":"tasks/agent-loop/sprints/r334-r333-fieldtail-independent-review-20261023.md","outcome":"REVIEWED PASS; no code repair; later local-use readback OPEN; charged 900s, no carryover.","note_sha256":"96eac2300c82ebc1a46ab9fe9c54d82877bee49466d146cdf972bf32ae4cb7b4","contract_sha256":"34946222f83353f9baeb2863e3e89b483d319de2c9d6df68271788711a44aa8f"}],"charged_seconds":0,"resource_observation":"R335 fresh 3600s; no carryover. R334 900s archived, unused 900s discarded. Three legacy workers remain UNKNOWN/quarantined."}
+{
+  "schema_version": 1,
+  "mode": "LIVE",
+  "phase": "ACTIVE",
+  "session": "01a165ee-0212-7af3-8c99-1c1efcf367fe",
+  "active_sprint": {
+    "id": "R336",
+    "status": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/r336-case-and-source-ownership-20261023.md",
+    "resources": {
+      "cap_seconds": 3600,
+      "charged_seconds": 0,
+      "reserved_seconds": 0,
+      "no_carryover": true
+    },
+    "proof": "On unchanged Button, establish/refute the source Case guard/payload invariant through Capture/FreshUse and dispatch; return a constructive source-qualified result, counterexample, or exact missing premise.",
+    "implementation": "Authenticate preserved Callback Hygiene bytes and import failure; repair only positively established For binder scope if reproduced, with authentic in/out-of-scope regression; stop at the next actual compiler boundary.",
+    "review_receipt": "No R336 review yet; freeze Button proof and HIR/playground source delta for a fresh compiler_referee.",
+    "next_action": "Authenticate unchanged Button and Callback Hygiene source bytes, inspect the current For syntax/SourceImportScopes owner, then trace both fixed outcomes.",
+    "closure": "OPEN: parent source/native, original A/B, receiving, principality, catalog and production gates.",
+    "dispatch": "End selector /root/r333_selector recommends R336; direct-primary serial; no child/Astra; exact five-path lease.",
+    "note": "notes/theory/2026-10-23-r336-case-and-source-ownership.md",
+    "charged_seconds": 0,
+    "contract_sha256": "3ccf1453ec3eefa2adc4305933c2ce431cd1d1a993248b79cb60562c8f01805c",
+    "dependencies": {
+      "code_commit": "17e57af2c4605d7084c7d76792b115674776bbe2",
+      "r335_note_sha256": "ffb799d08501f7f0f3266e0590bfaa0d35da1ebe00b599f4ab524af7295ffcc2",
+      "r335_frozen_trace_sha256": "37c234a8f2d3afbf4e3ceb19e26846ed112fb8b284fd4e6b2de0f51c52d4adec",
+      "button_source_sha256": "880059461e5c8868f605d5fe71c2ccd388485d8e12d09bb80d8c9edd196fcb7c",
+      "callback_oracle_sha256": "9f6b445a2dc87e86448cf6e8cdba45a7af3ef9e6a76eec430df41f90e49e8385",
+      "hir_module_sha256": "6bf92c93fa37f425a7380248c12c50c0d04ea6eb282e76edb6df54e628260646"
+    }
+  },
+  "workers": [
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "role": "legacy dispatcher",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "U;Q."
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "role": "legacy implementer",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "U;Q."
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "role": "legacy proof worker",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "U;Q."
+    },
+    {
+      "id": "/root/r173_source_drain_proof",
+      "role": "R173 proof",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Stopped."
+    },
+    {
+      "id": "/root/r174_prover",
+      "role": "R174 proof",
+      "state": "STOPPED",
+      "requested_model": "UNKNOWN",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Stopped."
+    },
+    {
+      "id": "/root/r183_source_to_capture_proof",
+      "role": "R183 proof",
+      "state": "STOPPED",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Stopped."
+    },
+    {
+      "id": "/root/r187_post_lambda_age_proof",
+      "role": "R187 proof",
+      "state": "STOPPED",
+      "session": "current-conversation-2026-10-21-r187",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Stopped."
+    },
+    {
+      "id": "/root",
+      "role": "direct primary",
+      "state": "RUNNING",
+      "session": "01a165ee-0212-7af3-8c99-1c1efcf367fe",
+      "requested_model": "current user-selected primary",
+      "requested_effort": "UNKNOWN",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R336 RUNNING in current session after R335 review/closeout; direct-primary serial Button proof and Callback Hygiene source-owner work."
+    },
+    {
+      "id": "/root/r334_fieldtail_review",
+      "role": "fresh independent compiler_referee (R334)",
+      "state": "STOPPED",
+      "session": "01a165ee-0212-7af3-8c99-1c1efcf367fe",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Final frozen handoff received; review and writes stopped; no descendants or output leases."
+    },
+    {
+      "id": "/root/r335_source_trace_review",
+      "role": "fresh independent compiler_referee (R335)",
+      "state": "STOPPED",
+      "session": "01a165ee-0212-7af3-8c99-1c1efcf367fe",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Final frozen handoff received: 5/5 bounded claims PASS; static review only; no tests, writes or descendants."
+    }
+  ],
+  "leases": [
+    {
+      "path": "tasks/agent-loop/current.json",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R336 current-state owner"
+    },
+    {
+      "path": "web/playground/src/wasm/yulang_wasm.js",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R332"
+    },
+    {
+      "path": "web/playground/src/wasm/yulang_wasm.d.ts",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R332"
+    },
+    {
+      "path": "web/playground/src/wasm/yulang_wasm_bg.wasm",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R332"
+    },
+    {
+      "path": "tools/inference-playground/src/lib.rs",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R336 authentic Callback Hygiene source regression"
+    },
+    {
+      "path": "crates/yu-hir/src/module.rs",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R336 exact SourceImportScopes owner repair"
+    },
+    {
+      "path": "notes/theory/2026-10-23-r336-case-and-source-ownership.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R336 Button proof and source-owner outcome"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/r336-case-and-source-ownership-20261023.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "R336 exact sprint contract"
+    }
+  ],
+  "pending": [
+    {
+      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+      "state": "OPEN",
+      "owner": "Luna; whole-ascription formation",
+      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md"
+    },
+    {
+      "id": "R64-SRC-ANN-ARG-1",
+      "state": "OPEN",
+      "owner": "Luna; annotation argument",
+      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md"
+    },
+    {
+      "id": "R65-CURRENT-OPERAND-1",
+      "state": "OPEN",
+      "owner": "Luna; ordinary typed Lambda operand",
+      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md"
+    },
+    {
+      "id": "R66-LAMBDA-RESULT-STAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; direct Lambda-checking follow-up",
+      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md"
+    },
+    {
+      "id": "R67-DIRECT-BODY-CHECK-1",
+      "state": "OPEN",
+      "owner": "Luna; source Lambda body consumer",
+      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md"
+    },
+    {
+      "id": "R68-OWNER-CONSUMER-1",
+      "state": "OPEN",
+      "owner": "Luna; retained body/result consumer",
+      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"
+    },
+    {
+      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+      "state": "OPEN_UNADOPTED_PROPOSAL",
+      "owner": "Luna; source-law completion",
+      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"
+    },
+    {
+      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+      "state": "OPEN",
+      "owner": "Luna; exact source/native owners in R70",
+      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md"
+    },
+    {
+      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; source/native owners in R71",
+      "details": "R230 sibling prefix; R231-R234 searches; R236 census; R237 no callback slot-4 alias to later raw WorkBound. OPEN."
+    },
+    {
+      "id": "R72-LATER-OCCURRENCE-1",
+      "state": "OPEN",
+      "owner": "Luna; exact Local-to-WorkBound replay and consumer lineage",
+      "details": "R229 bridge; R231-R233 no slot-4 post-alias consumer. OPEN."
+    },
+    {
+      "id": "R149-SOURCE-OWNER-CLOSURE-1",
+      "state": "STOPPED_UNFROZEN_RESULT",
+      "owner": "Luna intake",
+      "details": "R258-R259 local roots; R260 conditional census; R261-R267 parser/import route evidence; R268 Y3 source graph reaches all 40 modules (39 mod +108 use edges), but external-mod Missing recoveries leave Y2 ModuleMap/publication OPEN. R149 outputs open."
+    }
+  ],
+  "closure": "OPEN: original all-source/A-B, receiving, principality, catalog and production gates; R335 bounded review PASS does not close them.",
+  "next_action": "R336 active: prove/refute original Button guarded Case-obligation preservation and repair the Callback Hygiene For-binder import scope only if current source reproduces the false request.",
+  "legacy_reconciliation": {
+    "required": false,
+    "reason": "3 U; no reclaim.",
+    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+  },
+  "user_goal": "Continue unchanged Y2 playground proof/code directly in the primary, minimal sprint records, no routine subagents; preserve source semantics, checkpoint/push coherent results.",
+  "history": [
+    {
+      "id": "R330",
+      "archive": "notes/theory/2026-10-22-r330-console-role-frontier.md",
+      "contract": "tasks/agent-loop/sprints/r330-console-role-frontier-and-member-projection-20261022.md",
+      "outcome": "OPEN_CONTINUATION"
+    },
+    {
+      "id": "R331",
+      "archive": "notes/theory/2026-10-22-r330-console-role-frontier.md",
+      "contract": "tasks/agent-loop/sprints/r331-r149-public-types-web-20261022-rev3.md",
+      "outcome": "OPEN_CONTINUATION"
+    },
+    {
+      "id": "R332",
+      "archive": "notes/theory/2026-10-22-r330-console-role-frontier.md",
+      "contract": "tasks/agent-loop/sprints/r332-candidate-public-scheme-source-adequacy-20261022.md",
+      "outcome": "OPEN_CONTINUATION"
+    },
+    {
+      "id": "R333",
+      "archive": "notes/theory/2026-10-23-r333-fieldtail-descriptor-transport.md",
+      "contract": "tasks/agent-loop/sprints/r333-fieldtail-descriptor-transport-20261023.md",
+      "outcome": "REVIEWED PASS as bounded implementation evidence; source-driven readback remains OPEN.",
+      "review": "notes/theory/2026-10-23-r334-r333-independent-review.md",
+      "review_sha256": "96eac2300c82ebc1a46ab9fe9c54d82877bee49466d146cdf972bf32ae4cb7b4"
+    },
+    {
+      "id": "R334",
+      "archive": "notes/theory/2026-10-23-r334-r333-independent-review.md",
+      "contract": "tasks/agent-loop/sprints/r334-r333-fieldtail-independent-review-20261023.md",
+      "outcome": "REVIEWED PASS; no code repair; later local-use readback OPEN; charged 900s, no carryover.",
+      "note_sha256": "96eac2300c82ebc1a46ab9fe9c54d82877bee49466d146cdf972bf32ae4cb7b4",
+      "contract_sha256": "34946222f83353f9baeb2863e3e89b483d319de2c9d6df68271788711a44aa8f"
+    },
+    {
+      "id": "R335",
+      "archive": "notes/theory/2026-10-23-r335-source-driven-local-use.md",
+      "contract": "tasks/agent-loop/sprints/r335-source-driven-local-use-20261023.md",
+      "outcome": "REVIEWED PASS; NO_SAFE_CODE_SLICE for post-refresh source-driven local reuse; bounded lifecycle result only; 600s charged, unused discarded.",
+      "note_sha256": "ffb799d08501f7f0f3266e0590bfaa0d35da1ebe00b599f4ab524af7295ffcc2",
+      "frozen_trace_sha256": "37c234a8f2d3afbf4e3ceb19e26846ed112fb8b284fd4e6b2de0f51c52d4adec",
+      "reviewer": "/root/r335_source_trace_review",
+      "review": "5/5 bounded claims PASS; no source-qualified counterexample; no tests or writes.",
+      "contract_sha256": "09c9d16d00f01ecc5c6ccdaee192f101e87a5dc1bafbfb449cdb2bad91632334"
+    }
+  ],
+  "charged_seconds": 0,
+  "resource_observation": "R335 closed at 600/3600s; unused 3000s discarded, no carryover. R336 fresh 3600s, serial primary only, one heavy Cargo maximum. Three legacy workers remain UNKNOWN/quarantined."
+}

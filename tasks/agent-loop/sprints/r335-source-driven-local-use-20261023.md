@@ -1,6 +1,6 @@
 # Sprint R335 — Source-driven local-use reachability and consumer correspondence
 
-Status: ACTIVE; direct-primary only; revision 1. Branch `research/simple-sub-intrusion`; frozen baseline `17e57af2c4605d7084c7d76792b115674776bbe2`.
+Status: REVIEWED COMPLETE; direct-primary only; revision 2. Branch `research/simple-sub-intrusion`; frozen code baseline `17e57af2c4605d7084c7d76792b115674776bbe2`.
 Selector: `/root/r333_selector` recommends following the reviewed R333 provider-role evidence into its actual later source consumer, or proving that later reuse cannot occur in this lifecycle. No approved direct Button execution slice is established.
 
 ## Original goal and fixed outcome
@@ -47,3 +47,14 @@ Pin each frozen source trace/repair and its dependency hashes for fresh independ
 At the R335 start boundary, compact-state cleanup removes only previously FROZEN `/root` lease entries whose tracked bytes are recoverable from the committed snapshot above; the three ignored generated WASM paths remain FROZEN. This does not reclaim or alter any UNKNOWN worker or its reservation. The primary owns current-state/history changes, exact-path staging, commit and push. Stage only the six granted paths, plus any source path added by a later explicit lease; never stage pending question bundles or rewrite history.
 
 Consult the selector at the fixed outcome, material proof obstruction/counterexample, authority/dependency/lease change, integration seam or budget exhaustion. The original parent gates stay OPEN throughout this bounded sprint.
+
+## R335 primary adjudication — 2026-10-23
+
+- Outcome: `NO_SAFE_CODE_SLICE` for the proposed post-refresh source-driven local use. The production phase order runs every source schedule before field-tail refresh; refresh is terminal for dispatch; no later local action can reach member selection and publication.
+- Frozen trace SHA-256 before review: `37c234a8f2d3afbf4e3ceb19e26846ed112fb8b284fd4e6b2de0f51c52d4adec`.
+- Fresh independent reviewer: `/root/r335_source_trace_review`, isolated `compiler_referee`; all five bounded claims PASS, no source-qualified counterexample or compiler finding. The reviewer stopped with no writes or descendants. Review receipt is recorded in the trace note.
+- The reviewer checked the alternate `candidate_receiver.rs` experiment path; it does not invoke field-tail refresh or publish a candidate result and is outside this lifecycle claim.
+- No source edits and no tests. `git diff --check` passed. The audited solver/HIR/runtime/playground sources match their pinned hashes.
+- Conservatively charged 600 of 3,600 seconds, including primary trace and independent review; unused time discarded with no carryover. No heavy Cargo process ran.
+- Three legacy workers remain UNKNOWN/quarantined; their state and leases were not changed. Parent source/native, original A/B, receiving, principality, catalog and production gates remain OPEN.
+- End selector recommendation: R336 should investigate the original Button Case-obligation invariant and independently repair the evidenced Callback Hygiene For-binder import scope, under separate exact owner paths.
