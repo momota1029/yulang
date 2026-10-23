@@ -4,14 +4,14 @@
   "phase": "ACTIVE",
   "session": "active-primary-turn-2026-10-24; numeric host session unavailable",
   "active_sprint": {
-    "id": "CONCRETE-CALLBACK-PERMISSION-20261024",
-    "status": "NO_SAFE_CODE_SLICE",
-    "contract": "tasks/agent-loop/sprints/concrete-callback-permission-20261024.md",
-    "contract_sha256": "4a6b3a6e10d3c496640c015104d555c115e351dd41806f45c04fe6e20fa24f94",
-    "baseline": "5fbc2c2d9e3ab28032caf599ca024b8ba8b19778",
-    "claim": "Bridge approved annotated callback result permission from source formal through the same runtime invocation and Catch; implement only after independent proof review.",
-    "implementation": "No safe slice. Next prove transport through the result consumer.",
-    "proof": "Frozen trace: nested Result permission lacks a runtime view through the request consumer; review accepted.",
+    "id": "CB-PERMISSION-TRANSPORT-20261024",
+    "status": "ACTIVE",
+    "contract": "tasks/agent-loop/sprints/cb-permission-transport-20261024.md",
+    "contract_sha256": "e3d2e8bdffb4cfda48057525b5e7da076acb248eee2c0c5ddaf384b478b18cd9",
+    "baseline": "a0dcc92b8f8b866f7ed2e06acf399a4c86057a3c",
+    "claim": "Construct and review authenticated callback Result permission transport through OperationResultConsumer; implement only after proof review.",
+    "implementation": "Primary runtime/program.rs, receiving.rs, machine.rs; gated on reviewed construction.",
+    "proof": "Forward simulation and frame invariant through request emission, bubbling, unwind, discard and replay, or exact failure.",
     "resources": {
       "cap_seconds": 3600,
       "assignment_envelope": 6,
@@ -19,11 +19,11 @@
       "proof_assignment_cap_seconds": 1200,
       "review_assignment_cap_seconds": 300
     },
-    "outcome": "tasks/agent-loop/sprints/concrete-callback-permission-20261024-outcome.md",
-    "outcome_sha256": "a119e74dee26caf99769dc827d7c73431766fe0286089a1ec83ecf2b6a7f0032",
-    "closure": "Reviewed exact obstruction; NO_SAFE_CODE_SLICE; SOURCE-SAFETY-BRIDGE OPEN_REVIEW.",
-    "next_action": "Plan callback Result transport proof through request consumer.",
-    "review_status": "ACCEPTED_OBSTRUCTION"
+    "outcome": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
+    "outcome_sha256": "fcf5bb8b88d5e5f129716ed3577b0a1913851d76113c83348fea0e0cb5839576",
+    "closure": "Contract frozen; proof assignment NOT_STARTED; code gated on fresh review.",
+    "next_action": "Launch exact constructive callback Result transport proof assignment.",
+    "review_status": "NOT_STARTED"
   },
   "workers": [
     {
@@ -68,18 +68,18 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Primary authoring and implementing under the active sprint in this current session."
+      "receipt": "Primary owns new proof-first callback transport sprint and gated runtime integration in this current session."
     },
     {
       "id": "/root/callback_permission_prover",
-      "role": "constructive callback permission source/runtime bridge",
-      "state": "STOPPED",
+      "role": "callback Result transport constructive proof",
+      "state": "NOT_STARTED",
       "session": null,
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "STOPPED 2026-10-24; frozen hashes verified; 334s, 81 reads, 3 artifact patches; no tests/builds/probes/Git/descendants."
+      "receipt": "Exact new proof paths leased; awaiting live launch receipt."
     },
     {
       "id": "/root/proof_implementation_referee",
@@ -113,46 +113,46 @@
       "reason": "R349 rev3 frozen; sha256 f2446b85c2661abdfb03ace13055d22e9ac82e2c5b068c161b6649b1aa807dbc."
     },
     {
-      "path": "tasks/agent-loop/sprints/concrete-callback-permission-20261024.md",
+      "path": "tasks/agent-loop/sprints/cb-permission-transport-20261024.md",
       "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Frozen at reviewed NO_SAFE_CODE_SLICE sprint closure."
+      "state": "HELD",
+      "reason": "Primary-owned active contract."
     },
     {
-      "path": "tasks/agent-loop/sprints/concrete-callback-permission-20261024-outcome.md",
+      "path": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
       "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Frozen at reviewed NO_SAFE_CODE_SLICE sprint closure."
+      "state": "HELD",
+      "reason": "Primary-owned new-sprint outcome."
+    },
+    {
+      "path": "notes/theory/2026-10-24-cb-permission-transport.md",
+      "owner": "/root/callback_permission_prover",
+      "state": "HELD",
+      "reason": "Exclusive constructive proof artifact."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261024-cb-permission-transport.md",
+      "owner": "/root/callback_permission_prover",
+      "state": "HELD",
+      "reason": "Exclusive proof handoff."
     },
     {
       "path": "tools/inference-playground/src/runtime/program.rs",
       "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Sprint closed with no supported code slice; no writes made."
+      "state": "HELD",
+      "reason": "Exact code lease; gated on reviewed proof."
     },
     {
       "path": "tools/inference-playground/src/runtime/receiving.rs",
       "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Sprint closed with no supported code slice; no writes made."
-    },
-    {
-      "path": "notes/theory/2026-10-24-callback-permission-bridge.md",
-      "owner": "/root/callback_permission_prover",
-      "state": "FROZEN",
-      "reason": "Frozen at reviewed NO_SAFE_CODE_SLICE sprint closure."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261024-callback-permission-bridge.md",
-      "owner": "/root/callback_permission_prover",
-      "state": "FROZEN",
-      "reason": "Frozen at reviewed NO_SAFE_CODE_SLICE sprint closure."
+      "state": "HELD",
+      "reason": "Exact code lease; gated on reviewed proof."
     },
     {
       "path": "tools/inference-playground/src/runtime/machine.rs",
       "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Sprint closed with no supported code slice; no writes made."
+      "state": "HELD",
+      "reason": "Exact code lease; gated on reviewed proof."
     }
   ],
   "pending": [
@@ -265,8 +265,8 @@
       "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
     }
   ],
-  "closure": "Integer slice integrated; callback permission bridge active; source safety and original A/B remain open.",
-  "next_action": "Obtain the bounded callback bridge, review it, then implement only the supported runtime slice.",
+  "closure": "Callback Result transport sprint active; SOURCE-SAFETY-BRIDGE and original A/B remain open.",
+  "next_action": "Construct the callback Result view/frame invariant before runtime writes.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN identities and their quarantined reservations retained.",
@@ -323,7 +323,20 @@
       "outcome_sha256": "552db3a5afe3fff9ef6d45562276eee3d708309e45bd5c1bb14802b66132ae7f",
       "integration_commit": "e2929ec28",
       "closure": "Reviewed and integrated; permission bridge partial/open."
+    },
+    {
+      "id": "CONCRETE-CALLBACK-PERMISSION-20261024",
+      "record": "tasks/agent-loop/sprints/concrete-callback-permission-20261024.md",
+      "contract_sha256": "4a6b3a6e10d3c496640c015104d555c115e351dd41806f45c04fe6e20fa24f94",
+      "outcome": "tasks/agent-loop/sprints/concrete-callback-permission-20261024-outcome.md",
+      "outcome_sha256": "a119e74dee26caf99769dc827d7c73431766fe0286089a1ec83ecf2b6a7f0032",
+      "proof_artifact": "notes/theory/2026-10-24-callback-permission-bridge.md",
+      "proof_sha256": "c228ff45a272a52b92eaaccd91183272438bb8c3287dd39e7749d700ce919f4d",
+      "inbox": "tasks/agent-loop/inbox/20261024-callback-permission-bridge.md",
+      "inbox_sha256": "dddd305fb7d0aa6aca86b0868cf1a4806703e58e57f7c8b8e2e14ac0c5949335",
+      "integration_commit": "a0dcc92b8f8b866f7ed2e06acf399a4c86057a3c",
+      "closure": "Reviewed exact runtime obstruction; NO_SAFE_CODE_SLICE; parent gate remains OPEN_REVIEW."
     }
   ],
-  "resource_observation": "Proof and reviewer STOPPED; hashes verified; obstruction accepted, no code changed; three UNKNOWN reservations retained."
+  "resource_observation": "Fresh 3600s sprint started after reviewed callback obstruction; proof worker NOT_STARTED; three UNKNOWN reservations retained."
 }
