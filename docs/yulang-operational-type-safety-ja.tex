@@ -52,6 +52,15 @@ BoldFeatures={FakeBold=2},ItalicFeatures={FakeSlant=.15}]}
 
 \section*{結論と証明の範囲}
 
+\textbf{source 対応の訂正（2026年10月23日、後続稿）。}
+\nolinkurl{yulang-source-type-safety-ja.tex} は、raw resume の一様改名が
+過去の Boundary receiver まで新しい実行 owner に置き換えると、既存の source-owner
+具体化では失効した保護を復活させる判別導出を与える。本稿の定理は記述した機械についての紙上導出であり、
+その再開規則のままでは既存の source-owner 機械との対応を主張できない。
+後続稿は実行 owner と保持された証拠 identity を分離した具体化候補を定義する。
+その有限 transfer で効果導出を作り直す必要があり、本稿の小さい effect 契約を
+修正版へ無検査で移してはならない。全言語の source 対応 gate は未完了である。
+
 この稿の入力は \nolinkurl{yulang-whole-language-semantics-ja (1).tex} である。
 SHA-256：\nolinkurl{28dc9b7fcb818e99a9513054d5847274ccce0d816a8c4a9644b802f0aa3fbd65}。
 対象を「推論器が成功したプログラム」から、\emph{明示的な実行型付け導出を持つ計画}へ移す。

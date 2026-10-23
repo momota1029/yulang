@@ -45,6 +45,13 @@ BoldFeatures={FakeBold=2},ItalicFeatures={FakeSlant=.15}]}
 
 \section*{結論、依存関係、未完了部分}
 
+\textbf{後続の source 対応監査。}
+\nolinkurl{yulang-source-type-safety-ja.tex} は、基礎機械の再開時の receiver 改名と
+既存の寿命規則の不一致を特定し、修正版の値型保存と source 多相性の構成を扱う。
+本稿の選択証拠から code を構成する補題は保持するが、記述した旧機械での安全性を、
+承認済み source 衛生性の証明と同一視してはならない。
+修正版への適用ではその機械の効果 graph を再構成・検査する。
+
 本稿は \nolinkurl{yulang-operational-type-safety-ja.tex} を基礎体系 \(\Core\) とし、
 そこで入力としていた「選択済みで型付きの member/dictionary/field code」を構成する。
 厳密には、固定稿を \(\Core_0\)、第\ref{sec:evidence-admin}節で dictionary application の
