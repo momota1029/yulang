@@ -24,7 +24,7 @@
     "resource_observation": "Primary census 2400s + proof 3000s charged conservatively = 5400s. Fresh review 1500s and integration 300s reserved; total 7200s. No carryover. Three UNKNOWN legacy workers remain quarantined.",
     "outcome": "tasks/agent-loop/sprints/r343-k0-machine-step-safety-20261023-outcome.md",
     "git_receipt": {
-      "commit": "3634a579e0a517c629bb3d786543fd89e42bf554",
+      "commit": "48e863973bfef0f655df2f4146c5fc1a5f34876e",
       "branch": "research/simple-sub-intrusion",
       "pushed_to": "origin/research/simple-sub-intrusion",
       "upstream_matches_head_at_receipt": true,
