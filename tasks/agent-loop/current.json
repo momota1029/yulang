@@ -20,10 +20,19 @@
     "closure": "OPEN: R342 targets independent K0 value/environment realization and exact R340 body-entry composition only. VREAL adequacy, CAPTURE, M-REST and all broader audit gates remain open.",
     "dispatch": "R341 end selector /root/r333_selector recommended R342. Start delta accepted: conditional S0 -> authentic runtime function-entry supplier; D0 canonical form, typed heap/environment simulation, exact leases and fresh falsifier review.",
     "primary_lane": "FROZEN source census: notes/theory/2026-10-23-r342-k0-value-environment-source-census.md; SHA-256 18a4eef622ee8feacc8db48d4360321fdcbd8d5f330636866705f42b8551b1b5. Runtime program/machine/dispatch/literal/receiving owners inspected. Full 2100s charged conservatively.",
-    "next_action": "R342 DONE and outcome frozen; consult next_action_selector at sprint end. Parent audit, full M, N/W/Z, principality, original A/B and production remain OPEN.",
+    "next_action": "R342 DONE, bounded suppliers accepted and integrated; consult next_action_selector at sprint end. Parent theorem gates remain OPEN.",
     "resource_observation": "Census 2100s + proof 2400s + review 1200s + integration 300s charged conservatively = 6000/6000s. No carryover. Three UNKNOWN legacy workers remain quarantined.",
     "outcome": "tasks/agent-loop/sprints/r342-k0-value-environment-realization-20261023-outcome.md",
-    "outcome_sha256": "0ce866e9a31bd3a34dc833f94e10956980e4379dc1aaa52562b9c07520e99382"
+    "outcome_sha256": "93dff5d9704c747366d822eff588a348f346eaff5270a47882a03928e6e1b988",
+    "outcome_revision": 2,
+    "outcome_previous_sha256": "0ce866e9a31bd3a34dc833f94e10956980e4379dc1aaa52562b9c07520e99382",
+    "git_receipt": {
+      "commit": "14de45d21d673cc1beaf718b393e704c9a651fa1",
+      "branch": "research/simple-sub-intrusion",
+      "pushed_to": "origin/research/simple-sub-intrusion",
+      "upstream_matches_head": true,
+      "user_audit_staged": false
+    }
   },
   "workers": [
     {
@@ -116,7 +125,7 @@
       "path": "tasks/agent-loop/sprints/r342-k0-value-environment-realization-20261023-outcome.md",
       "owner": "/root",
       "state": "FROZEN",
-      "reason": "R342 outcome frozen after Luna adjudication; SHA-256 0ce866e9a31bd3a34dc833f94e10956980e4379dc1aaa52562b9c07520e99382."
+      "reason": "R342 outcome rev2 adds Git integration receipt only; SHA-256 93dff5d9704c747366d822eff588a348f346eaff5270a47882a03928e6e1b988; rev1 preserved in preceding commit."
     },
     {
       "path": "notes/theory/2026-10-23-r342-k0-value-environment-realization.md",

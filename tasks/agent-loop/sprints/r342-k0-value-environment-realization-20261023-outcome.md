@@ -83,3 +83,17 @@ strengthened by this result.
 The static `python3 tools/agent_sprint.py check` passed. It is workflow/static
 evidence, not mathematical proof or independent review. No unit tests, Cargo,
 builds or runtime probes were run.
+
+## Luna integration amendment — revision 2
+
+This appendix changes only the Git integration receipt; the bounded mathematical
+disposition above is unchanged. Revision 1's outcome bytes had SHA-256
+`0ce866e9a31bd3a34dc833f94e10956980e4379dc1aaa52562b9c07520e99382` and are
+preserved in the preceding Git commit.
+
+Luna staged exactly the six approved R342 paths: contract, primary source
+census, proof, producer handoff, outcome receipt, and `current.json`. The
+user-provided audit document was excluded and remains untracked. Commit
+`14de45d21d673cc1beaf718b393e704c9a651fa1` was pushed successfully to
+`origin/research/simple-sub-intrusion`; local HEAD and upstream matched that
+commit after the push.
