@@ -48,7 +48,9 @@ BoldFeatures={FakeBold=2},ItalicFeatures={FakeSlant=.15}]}
 本稿は \nolinkurl{yulang-operational-type-safety-ja.tex} を基礎体系 \(\Core\) とし、
 そこで入力としていた「選択済みで型付きの member/dictionary/field code」を構成する。
 厳密には、固定稿を \(\Core_0\)、第\ref{sec:evidence-admin}節で dictionary application の
-管理構文を明示した保存的拡張を \(\Core\) とする。固定稿の本文は変更しない。
+管理構文を明示した保存的拡張を \(\Core\) とする。固定稿は下記の commit で固定する。
+現在の操作的意味論稿に追加した constructor 多相性・混合 row・scoped release との合成は、
+第\ref{sec:extended-selection}節の \(\Core^+\) として別途証明する。
 元稿 \nolinkurl{yulang-whole-language-semantics-ja (1).tex} の
 695--720行の Select、647--693行の impl、2791--2829行の有限 certificate を具体化する。
 新しい runtime selection、候補の試行型推論、receiver 専用 role demand は導入しない。
@@ -1166,6 +1168,131 @@ wrap/dictionary 用の新しい source receiver を作った & (M)/(R) の展開
 
 以上は有限な手計算と規則の適用箇所であり、実行した compiler regression ではない。
 また、未検査の実装がこれらを既に排除しているという主張でもない。
+
+\section{constructor 多相性・\texttt{'e?}・混合 row との接続}
+\label{sec:extended-selection}
+
+\subsection{拡張した入力と、保持する証拠}
+
+本節の基礎は \nolinkurl{yulang-operational-type-safety-ja.tex} の
+第10--12節で追加した宣言的規則と拡張健全性定理である。
+その体系に本稿の eabs/eapp を加えたものを \(\Core^+\) とする。
+今回の拡張基礎稿の SHA-256：\nolinkurl{bba63cf35153335a22be221ad0925dcef7ac4afdf441e49a5fa5bb2a555f799c}。
+元の定理\ref{thm:elaboration}・\ref{thm:safety}が固定入力 \(\Core\) について述べたことは変えない。
+本節の新しい結論は、\emph{拡張した}型付け・証拠を入力に取る。
+固定した旧 certificate の名前だけから新規則の証拠を推測しない。
+
+各 whole instance に次を追加して運ぶ。
+\begin{enumerate}
+\item constructor payload/field/型引数の \(\forall\) binder と、その value introduction の導出。
+scheme の外側の binder と、値の内側に格納した binder は別に保持する。
+\item abstract effect binder の ingress occurrence と保護 scope の対応 \(\Psi\)、
+印付き出力 target の対応、同じ attribution/typed transport の有限導出。
+\item 混合 row の concrete permission、共有 component の全制約、
+release の mandatory transfer を含む complete Call の graph。
+\end{enumerate}
+同じ注釈で comma と semicolon が違っても item 列と polarity は変わらない。
+符号反転は型の関数引数を通る度に合成し、選択された method の外側の位置だけで決めない。
+concrete な \texttt{undet} 許可だけから method の実際の効果や流入を生成しない。
+
+\subsection{多相 field を取得する場合と、多相 method を呼ぶ場合}
+
+\paragraph{field fallback。}
+required field の型が \(\sigma=\forall a.B\) なら、Select-F の結果型も \(\sigma\) とする。
+field projection は全称 binder を開かず、同じ値を返す。
+使用側に明示的な instance 証拠がある場合にだけ \(v[T]:B[T/a]\) を作る。
+同じ field を二つの型で使うことと、二回異なる member を選ぶことは別である。
+optional presence と direct record boundary は従来どおり必要であり、
+field が多相であることは presence の証拠を代用しない。
+
+\paragraph{通常の method と role method。}
+Select-M/R の member scheme の外側を開く際は、従来の whole-instance 規則を用いる。
+receiver/result の内部に格納された \(\forall\) まで自動的に開かない。
+逆に、選択された member \(m:\forall a.F_a\) を callable として使うなら、
+全 packet に対する一つの明示 instance で \(F_T\) を得てから receiver-first Call を構成する。
+poly field を field として返す経路と method の callable instance の経路を、
+同じ lookup 名という理由で混同しない。
+
+\paragraph{universal boundary の追加。}
+全称型を持つ payload の直接境界には、以下の明示的な value 証拠を許す。
+\[
+ \frac{\Delta,\bar b;\Gamma,x:\sigma\Ty V(x):B
+       \quad\bar b\notin\fv(\Gamma,\sigma,\Psi,\Xi)}
+      {\sigma\Dir\forall\bar b.B
+       \quad[\,x\mapsto\Ret(\Lambda\bar b.V(x))\,]}.
+\]
+ここで \(V\) は値であり、その全 latent 契約を検査する。
+必要な source instance は \(V\) 内の型適用で明記する。
+特に function boundary なら、generic な input/result adapter を保持する
+\(\Lambda\bar b.\Wrap(x[\bar T(\bar b)],a_{\bar b},r_{\bar b})\) を値として作れる。
+この wrap の complete Call の effect と scope 対応も generic な導出に含める。
+任意の effectful 計算 \(N\) を \(V\) として用い、\(\Lambda\bar b.N\) にする規則はない。
+また、特定の \(T\) についての一回の適合から universal conformance を導出しない。
+この追加も raw concrete record の非推移性を変更しない。
+
+\subsection{dictionary の取得と解除の実行位置}
+
+qualified polymorphic field は、前の
+\(\forall\bar b.(\Dict(P)\Rightarrow_e^a(F!0))\) の値として保持する。
+外側の \(\Lambda\) と内側の evidence binder の順序、rigid impl head、candidate-wide な関連型は維持する。
+\(\Psi\) の free な scope/target を環境から捕捉している場合、それは dictionary 取得で freshen しない。
+constructor の多相 payload と同様に、共有 state に依存した binder の不正な一般化は許さない。
+
+sort \(a\) の純粋な dictionary 取得 grammar に release は追加しない。
+outward event が0であることだけでは、解除状態を変更しない管理計算であるとは言えないためである。
+method 本体や一般 adapter の effectful code は既存 sort \(g\) で扱い、
+基礎の release delimiter を通常の計算として含めてよい。
+解除はその code の型付き output slot にあり、名前を選択した時や dictionary を読んだ時には発火しない。
+
+eapp の beta は、同じ evidence 値の項置換と既存の View への展開である。
+項置換は \(\Psi\) の handle を保持し、実際の release は置換後の body の (RC) だけが実行する。
+View は新しい receiver を作らず、現在の \(L\) と activity を再観測する。
+従って eapp が二回実行されても、通常の新しい source call と保存した free target の共有を混同しない。
+raw capture に必要な frame は基礎の七種だけであり、eapp のために別の release/handler を挿入しない。
+
+\begin{lemma}[拡張された管理構文と選択の局所保存]
+\label{lem:extended-select}
+上記の拡張した型・直接証拠・scope 対応の下で、eabs/eapp と Select-M/R/F は
+\(\Core^+\) の \(A!\Phi\) 導出を構成し、型・effect・release state の実行保存を満たす。
+\end{lemma}
+\begin{proof}
+eapp は evidence 値の精密な項置換であり、追加した状態列も同じ whole packet として置換する。
+sort \(a\) の構文帰納は release を含まないので従来の純粋性の補題が保たれる。
+sort \(g\) は body の拡張導出の全 mandatory edge を含む。
+進行の canonical form は同じ sort の eabs であり、新しい redex はない。
+
+Select-F では direct boundary と required field projection によって
+内側の全称型を保つ。後の型適用だけがその binder を開く。
+追加した universal boundary は、fresh rigid な \(\bar b\) の下の値導出を
+基礎の \(\Lambda\) 導入で閉じるので、adapter code の型付けを構成できる。
+Select-M では一つの whole instance、取得、delay 内の引数 adapter、complete Call の順に導出を合成する。
+release はその Call/body/result 内の導出に含まれ、出力を小さくする無根拠な別の規則は要らない。
+Select-R は同じ generic dictionary field の projection と qualified instance を先に構成して M に帰着する。
+全場合で source receiver と target を選択のために再導入することはない。
+基礎の拡張した frame/transfer/置換補題を適用して実行保存が得られる。
+\end{proof}
+
+\begin{theorem}[三つの追加要件を含む dot selection の健全性]
+\label{thm:extended-selection}
+拡張した有限 DeclOK・選択・直接境界・qualified 証拠を持つ closed root に対し、
+\(\mathsf{BuildSelect}\) は \(\Core^+\) の型付き計画を構成する。
+その全有限実行 prefix で、値と immediate/latent/reentry の契約、
+全称 payload の型、source に由来する保護と scoped release の条件が保存され、Bad に到達しない。
+推論器の成功・停止・主型性は前提にしない。
+\end{theorem}
+\begin{proof}
+定理\ref{thm:elaboration}の同時帰納へ、型抽象/型適用、全称 payload、
+release の各基礎規則と補題\ref{lem:extended-select}を加える。
+宣言表の仮定は同じ有限 signature 表であり、全 body 検査後に同時閉包する。
+\(\Psi\) の free handle も他の captured environment と同様に依存を保つ。
+各 scheme instance は型、row、全称 field、scope 対応を同じ代入で運ぶ。
+これで構成された \(\Core^+\) 導出に、基礎の拡張健全性定理と
+eabs/eapp の拡張保存を適用する。旧 \(\Core_0\) の定理だけを適用して追加 case を省略することはない。
+\end{proof}
+
+この結論も単独著者の紙上導出であり、独立査読・機械検証は未実施である。
+source からの rank-2 instance と scope 対応の発見、resolver の一意性・compact/raw 対応、
+compiler の全 lowering と VM/native の対応は引き続き未証明である。
 
 \section{元の義務へ戻す：閉じた橋と残る対応}
 \label{sec:remaining}
