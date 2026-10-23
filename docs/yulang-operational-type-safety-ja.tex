@@ -41,8 +41,10 @@ BoldFeatures={FakeBold=2},ItalicFeatures={FakeSlant=.15}]}
 \newcommand{\V}{\mathcal V}
 \newcommand{\Q}{\mathcal Q}
 \newcommand{\ty}{\mathrel{\vdash}}
+\newcommand{\llbracket}{[\![}
+\newcommand{\rrbracket}{]\!]}
 \title{Yulang の操作的意味論と推論器から独立した型健全性\\
-\large 実行規則・型付け・証明の依存を分離するための第一稿}
+\large 値・効果・衛生性を含む宣言的型付けと保存・進行の証明}
 \author{単独構成・自己点検：このセッションの主エージェント}
 \date{2026年10月23日}
 \begin{document}
@@ -56,13 +58,12 @@ SHA-256：\nolinkurl{28dc9b7fcb818e99a9513054d5847274ccce0d816a8c4a9644b802f0aa3
 推論器の停止、主型、\texttt{BuildLocal}、制約充足可能性、
 \texttt{CheckedExecutable} という結果名を、実行の定義にも証明の前提にも使用しない。
 
-本稿は、値・操作の payload/response・継続についての保存と進行を先に証明する。
-この定理を \textbf{実行型健全性}と呼ぶ。
-元稿の有限 effect descriptor が計算する細かい \(\Phi\) の健全性は、
-この定理の名前に含めない。両者を区別しないと、
-「全操作が宣言された型を守る」ことから「pure 注釈の外へ操作が出ない」ことを
-誤って結論してしまう。
-末尾で、全 \(Y_{\mathsf H}\) の効果型を含む定理を完成と呼べない箇所も特定する。
+まず値・操作の payload/response・継続の保存と進行を証明し、
+次に同じ機械へ元稿の有限 effect descriptor と profile を戻す。
+前半の \textbf{実行型健全性}と、後半の \(A!\Phi\) の健全性は別の定理である。
+値型の保存から effect 注釈の安全性を推測せず、後半で受領・観測・再開の表示関係を証明する。
+定理の入力は、全13式・全11 pattern を含む\emph{宣言的型付けの導出}である。
+導出の探索、既存 compiler がその導出を生成すること、Oracle との同値性は入力ではない。
 
 実行型の定理にも、\emph{型付きであるとは安全に実行できること}という定義を使わない。
 型付けは以下の構文規則であり、\(\Bad\) に到達しないことはその帰結である。
@@ -70,7 +71,7 @@ SHA-256：\nolinkurl{28dc9b7fcb818e99a9513054d5847274ccce0d816a8c4a9644b802f0aa3
 複数回の raw resume、順序付き record、一般の reference protocol を含める。
 第\ref{sec:concrete-eligibility}節では、既存の transport 定義を使い、
 View と対応 template が明記された計画に対する有限な eligibility query も具体化する。
-ただし、全ソースからこの計画を構成する定理は別であり、
+後半では型付き構文の各規則からこの計画を構成する。
 既存 compiler の受理集合との同値性は主張しない。
 
 \textbf{検証状態。}
@@ -106,6 +107,7 @@ Value/Computation entry の違いは callable の code に残す。
 \(\D\) は有限の宣言表で、nominal constructor ごとに payload template、
 operation ごとに \(\forall\bar\alpha.P_o(\bar\alpha)\to Q_o(\bar\alpha)\)、
 primitive ごとに signature を持つ。
+生成 template の code 表も宣言表の一部であり、全 entry の body を所定の formal 環境で型付けする。
 別の宣言 identity は同じ綴りでも別のキーである。
 閉じた実行では、request は一つの instance \((o,\bar A)\) を運び、
 その payload と response の両方に同じ \(\bar A\) を使う。
@@ -127,7 +129,7 @@ intersection introduction は\emph{同じ underlying value}に二つの導出を
 以下は有限の構文、または明示的な有限再帰定義表を伴う構文である。
 \[
 \begin{split}
-v::={}&x\mid c\mid(v_1,\ldots,v_n)\mid\{l_i=v_i\}
+v::={}&x\mid c\mid(v_1,\ldots,v_n)\mid\mathsf{seq}(v_1,\ldots,v_n)\mid\{l_i=v_i\}
  \mid t(\bar v)\mid c_D(\bar v)\\
  &\mid\lambda^{m,\pi}x.M\mid\Delay M
  \mid\mathsf{wrap}(v,a,r)\mid\Lambda\alpha.v\mid v[A]\\
@@ -152,7 +154,8 @@ M::={}&\Ret v\mid\mathsf{let}\ x\leftarrow M\ \mathsf{in}\ M
  \mid\mathsf{absurd}(v)\mid\mathsf{prim}_p(\bar v)\\
  &\mid\mathsf{perform}_{o,\bar A}(v)
  \mid\Handle_h M\mid\mathsf{mapop}_{w}M
- \mid\mathsf{rec}\ \bar x=\bar v\ \mathsf{in}\ M\mid\Fail r.
+ \mid\mathsf{rec}\ \bar x=\bar v\ \mathsf{in}\ M\\
+ &\mid\mathsf{template}_{\ell,\bar A}(\bar v)\mid\Fail r.
 \end{split}
 \]
 \(\mathsf{field}_l\) は required field 用であり、optional field は
@@ -168,6 +171,13 @@ non-exhaustive な末尾は \(\Fail\mathsf{MatchFailure}\) へ移る。
  \quad(x:UA)
 \]
 で表せる。この展開は計算を停止させるという仮定を含まない。
+
+\(\mathsf{template}\) は、nominal mapper 等の有限の生成 code 表への参照である。
+表の各項は型引数、値引数、結果型と、その環境で型付けした body を持つ。
+相互再帰は同じ表への参照で表し、自由な捕捉値は明示引数にする。
+これは source lambda の導入ではなく、展開時にも新しい receiver を作らない。
+adapter のために source invocation を増やさずに、非正則な nominal 引数の
+\(D(\alpha)\) から \(D(D(\alpha))\) 等への template 再利用を表せる。
 
 \subsection{型付け規則}
 
@@ -185,6 +195,7 @@ scheme の新しい instance が既存の共有値を別の型に変更する規
 \midrule\endhead
 \(x:A\) & \(\Gamma(x)=A\)。literal は対応する一つの base 型。\\
 \((\bar v):(\bar A)\) & 各 \(v_i:A_i\)。\\
+\(\mathsf{seq}(\bar v):\mathsf{List}\langle A\rangle\) & \(\mathsf{List}\) は宣言表の固定 native identity、各 \(v_i:A\)、列の長さは有限。\\
 \(r:\{l_i^{p_i}:A_i\}\) & required labels \(\subseteq\dom r\subseteq\) 全 declared labels。存在する payload は各 \(A_i\)。\\
 \(t(\bar v):\langle t_j(\bar A_j)\rangle\) & \(t=t_j\)、正しい arity、各 payload が \(\bar A_j\)。\\
 \(c_D(\bar v):D\langle\bar A\rangle\) & \(\D\) の同じ \(D,c\) の payload template を \(\bar A\) で置換した型。\\
@@ -210,6 +221,7 @@ scheme の新しい instance が既存の共有値を別の型に変更する規
 \(\mathsf{rec}\ \bar x=\bar v\ \mathsf{in}\ M:B\) & \(\Gamma,\bar x:\bar A\ty v_i:A_i\)、同じ環境下で \(M:B\)。値 graph の guard 条件。\\
 \(\mathsf{perform}_{o,\bar A}(v):Q_o(\bar A)\) & \(\D(o)=\forall\bar\alpha.P_o\to Q_o\)、\(v:P_o(\bar A)\)。\\
 \(\mathsf{prim}_p(\bar v):B\) & \(p\) の全型引数を一度だけ置換した signature が \(\bar A\to B\)、\(\bar v:\bar A\)。\\
+\(\mathsf{template}_{\ell,\bar T}(\bar v):B\) & code 表の同じ一つの型 instance の formal 型が \(\bar A\)、結果が \(B\)、\(\bar v:\bar A\)。表の body は formal 環境で別に型付けする。\\
 \(\Fail r:A\) & \(r\in\{\mathsf{MatchFailure},\mathsf{DivideByZero},\mathsf{BoundsError},\mathsf{Unimplemented}\}\)。\\
 \bottomrule
 \end{longtable}
@@ -258,6 +270,13 @@ guard/default/body の effect は同じ handler で自動的に処理されな�
 存在しない required field、非 callable の call、間違った response などである。
 \(\Bad\) を \(\Fail\) に改名しない。型付け規則は \(\Bad\) を導出しない。
 
+linked root 列は一つの順序付き block として実行する。
+最初に fresh な root owner \(u_0\) を確保し、\(\Scope_{u_0}M\) から開始する。
+root は formal を持たず、profile は空である。top-level の let/handler の owner はこの \(u_0\)。
+root 内の source Call は別の fresh owner を持つ。
+root の正常終了では \(u_0\) を終了し、root を越える request では通常の Scope 規則で保存する。
+従って最上位の catch にも所有者があり、未定義の ambient owner を必要としない。
+
 \subsection{通常の遷移}
 
 評価は一つの最左 active computation で行う。
@@ -286,6 +305,9 @@ optional lookup と switch の明示的不一致はその例外で、規則に�
 \(\mathsf{rec}\ \bar x=\bar v\ \mathsf{in}\ M\) は fresh な \(\bar r\) を確保し、
 \(H'=H[\bar r\mapsto\bar v[\bar r/\bar x]]\)、\(M'=M[\bar r/\bar x]\) に移る。
 既存 node を書き換えない。型 graph は \(\Xi'=\Xi[\bar r:\bar A]\) と拡張する。
+\(\mathsf{template}_{\ell,\bar T}(\bar v)\) は、表の body に型と値の引数を同時置換して一段で進む。
+有限の body を一回展開するだけであり、再帰呼出しを先回りして展開しない。
+新しい scope、receipt、View をこの administrative step だけで作ることはない。
 
 最外の形が let、scope、expose、handle、mapop、wait で、
 その唯一の active child が一段進むなら同じ child を一段進める。
@@ -394,6 +416,18 @@ eligibility が真である arm の列を source 順に試す。
 \(\bar h\) は復元する handler activation の束縛名であり、source 定義 identity ではない。
 試行中に request \(q'\) が出れば、wait の残りをその continuation に bind して外へ渡す。
 元の \(q,p,K\) は wait の閉じたデータとして保存する。
+具体的に \(L=\mathsf{cont}(\bar b,x.N)\) に対して
+\[
+\begin{split}
+ &\mathsf{wait}_h(q,p,K;a,\bar a;\Req(q',p',L))\\
+ &\quad\longrightarrow\Req(q',p',\mathsf{cont}(\bar b\,h,x.
+       \mathsf{wait}_h(q,p,K;a,\bar a;N))).
+\end{split}
+\]
+pending な handler activation \(h\) はこの wait frame が所有する束縛であり、
+多重再開では各枝で fresh になる。\(\mathsf{owner}(h)\) は別の名で、
+その owner の Scope まで capture した場合にだけ束縛集合へ入る。
+元の \(K\) の内側の binder は alpha 変換で捕捉を避け、ここで二重に束縛しない。
 value arms が全て No を返す場合だけ \(\Fail\mathsf{MatchFailure}\) になる。
 
 \textbf{二つの継続を区別する。}
@@ -457,7 +491,7 @@ authentic path の完全な帰納定義をまだ与えていない。
 従って「既存の衛生性には何の定義もない」という理由で作り直すのは誤りである。
 同文書991--1026行は有限 evidence graph の query と、
 source ごとの profile・correspondence・reentry owner の構成を区別している。
-本稿の未完は、その候補を全計画の administrative step へ接続する部分である。
+後半の第\ref{sec:decoration}--\ref{sec:full-proof}節で、この候補を全計画と abstract cell へ接続する。
 
 \paragraph{単純な outward bubbling では足りない。}
 同参照先388--460行の観測規則では、event の発生時に、handler より外側にあるものも含めて
@@ -489,13 +523,14 @@ view の実行位置、source profile、各変換の対応が\emph{項の定数�
 \item view occurrence \(v\) と、その underlying value、有限の signature descriptor。
       alias/binding にも新しい occurrence を与え、同じ raw value の別の経路を混同しない。
 \item \(\mathsf{Boundary}(b,u,v,\pi)\)：source occurrence と受信 owner \(u\)、
-      view root、profile の有限 automaton。
-      automaton は型の child labels と call/force/effect/result の別を読む。
+      view root、profile の有限 template。
+      正則な型 graph では automaton として、parametric nominal では下記の guarded template として、
+      型の child labels と call/force/effect/result の別を読む。
       negative concrete row は Admit 集合、omission は空の Admit、
       explicit computation wildcard は AllowAll を持つ。
       explicit callback wildcard は新しい boundary を作らない。
       異なる Admit を持つ profile は別の \(b\) に分ける。
-      一つの \(b\) では accepted path 全ての Admit が同じである。
+      一つの \(b\) では accepted path 全ての Admit template が同じである。
 \item \(\mathsf{Flow}(v,w,T)\)：実行した一つの typed transport と有限 template \(T\)。
       \(w\) は新しい occurrence とする。tuple/record/nominal introduction は prefix 付加、
       projection は指定 prefix の除去、alias は identity、adapter は項に記した対応。
@@ -512,6 +547,10 @@ view の実行位置、source profile、各変換の対応が\emph{項の定数�
 同じ名前への単なる改名では、保存した template/view を同じ置換で解釈する。
 別枝も参照している全 global 行を破壊的に書き換える操作ではない。
 resume 後の新 view は必要な行をその置換の下で参照し、既に実体化された他枝の free 名を固定する。
+event は発生時の Observe 列を immutable packet として保持する。
+pending query を二枝で再開するときは、それぞれの解釈置換をこの同じ列へ適用する。
+同じ元 event ID を持つことを理由に、別枝の観測列を global union してはならない。
+これは新しい emission ではなく、元の event の枝ごとの解釈である。
 旧 view から新 view への辺だけを追加するため、実行履歴の Flow graph は有限 prefix ごとに DAG である。
 再帰値の underlying graph は循環してよい。必要な component を実際に取り出すたびに
 新しい view occurrence を作るので、その循環を provenance の循環と同一視しない。
@@ -524,7 +563,7 @@ optional absence は component 辺を作らない。
 projection、pattern bind、返却、store protocol の応答は、その実際の入力 view から
 新しい出力 view へ、上記の固定 template による Flow を追加する。
 let/formal/captured binding を作るときに、その新 view に対する Receive を追加する。
-receipt は source \(\pi\) の該当する各 finite automaton について Boundary を一度だけ作る。
+receipt は source \(\pi\) の該当する各有限 template について Boundary を一度だけ作る。
 正の effect upper filter は型制約であり、grant の Boundary を作らない。
 
 call は receipt の後、\emph{入口から結果 consumer と adapter まで}を
@@ -546,15 +585,24 @@ request を外へ bubble させるだけの遷移では、新しい event を作
  &\land\mathsf{Observe}(q,v,p,j).
 \end{split}
 \]
-\(\mathsf{Profile}\) は Boundary の automaton が \(p_b\) を accept すること、
+\(\mathsf{Profile}\) は Boundary の template が \(p_b\) を accept すること、
 \(\mathsf{Flow}^*\) は記録した template を route 順に合成する関係である。
 接続では view occurrence と中間 port の\emph{両方}が一致しなければならない。
 異なる alias の endpoint、別 event の Observe、family 名だけの一致を使用しない。
-各 template は child-label の有限 alphabet 上の有限状態 transducer として項に保持する。
-query は DAG の有限の route を列挙し、各 route 上の有限 transducer と profile automaton の
-積を作って port の対応を検査する。
-descriptor 内の再帰辺は finite automaton の状態で扱い、dynamic occurrence の同一性にはしない。
-有限個の automaton の積と有限 route 列挙であるため、この query は停止する。
+primitive Flow template は、固定 prefix の置換 \(a\cdot s\mapsto b\cdot s\) と
+固定した terminal port 対の有限和である。identity、構造の prefix/除去、
+Call/Force/mapper の一段の対応はこの形を持つ。任意の descendant を即時 effect に潰す辺はない。
+再帰 mapper はその実際の一段ごとに辺を追加し、型引数の無限展開を一つの辺にしない。
+query は DAG の有限 route を列挙し、\emph{実際の有限な} observed port \(p\) から辺を逆に辿る。
+各辺の逆像候補は有限なので、Boundary に至る有限個の \(p_b\) を得る。
+各候補を profile template で検査する。
+正則 graph では通常の finite automaton と同じ判定である。
+parametric nominal の profile template は、宣言 node と型引数 environment を持ち、
+一つの child label ごとに一つの型の辺を辿る有限プログラムとする。
+表現を開く場合にも constructor/payload label を一つ消費する。
+従って非正則な \(D(D(\alpha))\) 等でも、有限 path を検査する間の置換は有限回で停止する。
+型 alias の無限な無進展 cycle は well-formed 型表に許さない。
+これで finite query が得られ、非正則型を有限状態 automaton と同一視する仮定は不要になる。
 source plan に記されていない「等しそうな path」を推測する case は存在しない。
 
 候補 \(h\) に対する activity は、\emph{現在検索している残りの context}から読む。
@@ -566,23 +614,35 @@ guard の実行で追加した graph 行や共有資源の変更を取り消さ�
 guard の request が外側の handler に捕捉された場合は、この pending query 自体が
 continuation の code/data に入り、同じ capture-avoiding rename を受ける。
 
+\(\tau\) は上の Path の一つの具体 witness（route、中間 port、instance 対、Observe occurrence）を表す。
+grant の照合ではその\emph{同じ} \(\tau\) を用いる。
+
 \[
 \begin{split}
- I(q,h,b)&=\mathsf{Path}(q,\mathsf{owner}(h),b)
- \land\mathsf{Active}(h)\land\mathsf{Active}(\mathsf{owner}(h))
+ I(q,h,b;\tau)&=\mathsf{Path}_{\tau}(q,\mathsf{owner}(h),b)
+ \land\mathsf{Active}(h)\\
+ &\quad\land\mathsf{Active}(\mathsf{owner}(h))
  \land\mathsf{Active}(\mathsf{receiver}(b)),\\
- P(q,h)&=\exists b.\ I(q,h,b),\\
- G(q,h)&=\exists b.\ I(q,h,b)\land
+ P(q,h)&=\exists b,\tau.\ I(q,h,b;\tau),\\
+ G(q,h)&=\exists b,\tau.\ I(q,h,b;\tau)\land
        \mathsf{receiver}(b)=\mathsf{owner}(h)
-       \land\mathsf{Admit}_{b}(q),\\
- \mathsf{eligible}(q,h)&=\mathsf{Active}(h)\land
-       \mathsf{RoleAllows}(q,h)\land\mathsf{Covers}(q,h)
+       \land\mathsf{Admit}_{b}(q;\tau),\\
+ \mathsf{eligible}(q,h)&=\mathsf{Active}(h)\land\mathsf{Active}(\mathsf{owner}(h))\\
+       &\quad\land\mathsf{RoleAllows}(q,h)\land\mathsf{Covers}(q,h)
        \land(\neg P(q,h)\lor G(q,h)).
 \end{split}
 \]
-Admit は Boundary の有限 concrete set または AllowAll と、同じ operation instance の比較。
+Admit は Boundary の有限 concrete set または AllowAll と、その typed view における operation instance の比較。
+OpMap の辺は port 対応とともに、同じ \(w\) の source/target instance 対を保持する。
+従って Boundary 側で読む instance と、外向き request の現在の instance を区別できる。
+Admit は同じ Path witness に沿って Boundary 側の instance を読み、Covers は現在の instance を読む。
+型引数の双方向 adapter があることを、二つの instance の equality に置き換えない。
 Covers は arm の operation identity と instance。
 RoleAllows は decorated plan に記した source role/phase 表の lookup とする。
+\(\mathsf{Active}(\mathsf{owner}(h))\) は eligibility の外側の conjunct にも必要である。
+Inc の中だけに置くと、owner が失効したとき \(P=G=0\) になり、
+\(\neg P\) によってその handler を誤って許可する。
+この条件は既存 typed-boundary draft の Visible の定義に従う。
 その有限表は local/incoming と entry/body/result の各組について真偽を全て持つ。
 表の欠けた計画は well-formed decorated plan ではない。
 まだ body に入っていない Value entry に body 内の handler を置く frame は存在しない。
@@ -598,7 +658,7 @@ source の明示的な Admit を持つ Boundary の witness を必ず持つ。
 \begin{proof}
 一段は有限個の graph 行と finite template を追加するので、prefix 長への帰納で表は有限。
 Flow は新しい occurrence へ向かうため有限 DAG。
-query はその有限 route と有限 automaton の積だけを調べ、必ず真偽を返す。
+query は有限 route と各辺の有限逆像、有限 path の guarded profile 検査だけを行い、必ず真偽を返す。
 Grant の式を展開すると、宣言した四つの witness がそのまま得られる。
 transport は元 Boundary を移すだけで Admit を変更せず、Receive は Boundary を作らない。
 own receipt の導入以外に Admit を導入する規則はない。
@@ -675,7 +735,8 @@ target 以外の label を導入する規則を使わない。
 \(\{foo:int\}\to\{\}\to\{foo?:int\}\) は foo を復活させない。
 nominal mapper も宣言 payload の有限 template から同じ code を作る。
 function field は wrap、thunk field は delay/force、正負の引数対は別の code を使う。
-再帰 mapper は通常の recursive callable であり、mapper の停止を型保存の仮定にしない。
+再帰 mapper は上記の有限 template 表であり、実際の user cast 呼出しだけが通常の source Call になる。
+mapper の停止を型保存の仮定にしない。
 
 \subsection{全11 pattern の翻訳}
 
@@ -800,6 +861,10 @@ type/struct/enum、act copy、control、loop、rule、Yumark 等の生成 code �
 失敗は \(\mathsf{BoundsError}\)、整数の 0 除算は \(\mathsf{DivideByZero}\)、
 YadaYada は \(\mathsf{Unimplemented}\) とする。
 list の \(A\) は全引数で同じ一つの型である。
+native List の値 constructor は有限 vector \(\mathsf{seq}(\bar v)\) に固定し、
+一般の nominal constructor 規則で別の内部 ListTree node を捏造しない。
+要素が再帰値 graph を参照しても、長さ/slice は有限 vector の骨格だけを見る。
+ListViewRaw の tail もその vector の有限な残余である。
 
 \begin{longtable}{p{.43\textwidth}p{.49\textwidth}}
 \toprule
@@ -1018,6 +1083,7 @@ type application は同時型置換補題。
 primitive は第\ref{sec:prim}節の補題。
 perform は \(x.\Ret x\) と同じ operation signature で request 規則を導出する。
 rec の graph 構築は graph 拡張補題を使う。他の規則は同じ \(H,\Xi\) を使う。
+template の一段展開は code 表の導出への型・値の同時置換である。
 call/enter/wrap は call の局所保存、scope/expose は名前置換と view 規則。
 bind による request の伝播は切出し補題の let case。
 handle/try/wait/resume は直前の補題。
@@ -1042,6 +1108,7 @@ Fail の伝播は同じ許された failure の規則。
 有限 context を抜けて通常 redex に達すれば、値の形補題が必要な constructor を与える。
 primitive の数値処理は有限値上の全域処理または定義した failure。
 rec の構築は有限、force 後の再帰計算は停止しなくても次の一段を持つ。
+template の展開も有限の一つの body への置換であり、次の一段を持つ。
 child が Ret/Req/Fail なら、その外側 frame に対応する明示規則がある。
 handler の eligibility は全域 bool、arm 列は有限で、試行中の計算は普通の active child。
 従って guard の発散も「次の一段がない」状態にはならない。
@@ -1087,52 +1154,885 @@ adapter の保存を仮定していない。adapter は通常 code で、その�
 host が型の違う応答を返さないという開いた protocol 条件は残るが、
 内部 primitive と内部の source callable の安全性を host 条件へ移してはいない。
 
-\section{元稿の全型健全性へ戻すときの未閉包}
-\label{sec:remaining}
+\section{元の型を戻す：型付き構文から decoration を作る}
+\label{sec:decoration}
 
-定理\ref{thm:safety}を、元稿の
-\(\Delta;\Gamma;\Sigma\vdash M:A!\Phi\) の全意味に対する健全性と
-読み替えてはならない。
-本稿が取り出した実行型保存の結論は、\(A\) の\emph{実行型射影}についての結論である。
-次の三点には、まだ明示的な構成が必要である。
+以下では型を元稿の \(A!\Phi\) に戻す。
+\(A\) は \(U(E,A)\)、\(F(A,E^-,E^+,B;\pi,m)\)、全 latent port を含み、
+\(\Phi\) は同じ assignment を共有する有限 descriptor graph である。
+前半の型を \(|A|\) と書く。\(|A|\) の導出だけでは本節以降の型付けにならない。
+適合証拠は、引数・結果を変換する\emph{具体的な code とその導出}を持つ。
+双方向の code を恒等写像または互いの逆写像と仮定しない。
+
+\subsection{有限の入力と、生成する定数}
+
+入力は、解決済み宣言 identity、型 instance、source annotation の occurrence、
+lambda の導入箇所、選択済み member/adapter code を持つ型付き構文である。
+型変数や dictionary が残る場合は、それらを \(\Delta;\Gamma\) の binder として扱う。
+未解決の名前を runtime lookup へ送る規則はない。
+この入力を生成する推論器の存在は仮定しない。
+
+decorator \(d\) は次の有限の構文再帰である。
+型の child labels は tuple index、record label、nominal argument、variant payload、
+\(\mathsf{arg},\mathsf{result},\mathsf{force},\mathsf{effect}\) とする。
+正則型では型 graph の node と polarity \(\{+,-\}\) の積を状態にし、
+arg 辺だけ polarity を反転する。annotation occurrence を保持したままこの積 graph を辿り、
+次の表に一致する node を受理状態とする。再訪は同じ状態への辺であり、再展開しない。
+これが正則部分の source profile の有限 automaton である。
+非正則な nominal は有限な宣言 template と型引数 environment の組で保持し、
+前述の有限 path 検査で解釈する。型引数 environment の全展開を状態の有限性の根拠にはしない。
+abstract signature は宣言 template node と有限色を使い、保持できない environment/path の相関は全候補にする。
+抽象的な型 binder の shape がまだ見えない箇所は、元の occurrence に属する
+delayed-shape template として保持する。未知の callback 位置を「存在しない」と確定しない。
+その instance の型 descriptor を同時に渡して template を満たし、
+有限 cell 側で未表現の path/profile 座標は全候補にする。
+nominal の表現を無限に monomorphize しない。型引数位置は引数位置のまま扱い、
+表現との対応は、その宣言の有限 mapper template を実際に実行した辺から得る。
+
+\begin{longtable}{p{.30\textwidth}p{.62\textwidth}}
+\toprule source の位置 & 生成する定数・義務 \\
+\midrule\endhead
+negative concrete \([C]\) & 対象位置を protect する profile、Admit \(C\)。actual row は独立した open 入力。\\
+negative callback omission & 対象 callback observation の profile、Admit \(\varnothing\)。\\
+explicit callback \([\_]\) & 新しい profile/grant を作らず、既存 packet を輸送する。\\
+explicit computation formal \(x:[\_]A\) & Computation entry と direct force port の AllowAll。\\
+positive closed \([C]\) & 該当 port の upper inclusion。Boundary は作らない。\\
+row variable/tail & 同じ binder への参照。concrete grant は作らない。\\
+whole-type wildcard & 型付き導出が確定した shape を元の occurrence に代入して上記構成を行う。source role を再選択しない。\\
+\bottomrule
+\end{longtable}
+
+lambda の role は、無注釈・expected callback なしなら Pure、
+明示 Function annotation または expected callback ありなら Handler とする。
+両方あるときは明示 annotation から一回導入して expected interface へ適合させる。
+既存 function の適合は元の role/entry/profile を保つ。
+Value/Computation は formal の source form から別に決める。
+これらは元稿2443--2492行の表の有限 case 分けである。
+
+\subsection{View、transport、受領を生成する全規則}
+
+型付き構文の各 node に一つの静的 label を付ける。
+動的 owner、view occurrence、handler activation の identity は label と異なる。
+\(d\) は型に存在する effect port を次の位置でだけ実行に接続する。
+
+\begin{longtable}{p{.24\textwidth}p{.68\textwidth}}
+\toprule 構文・証拠 & decoration の構成 \\
+\midrule\endhead
+literal / primitive & literal は空の metadata root。primitive は表の code。既存要素を返す list 操作はその要素 view の projection、slice/merge は実際に保持する各要素の transport。\\
+Var / type application & 元の view から identity Flow。型・dictionary instance への置換は全 packet に一度だけ施す。\\
+Tuple / Record / PolyVariant / nominal & 子 view から対応 component path への prefix Flow。absence の辺はない。spread は実際に残る可視 component だけを運ぶ。\\
+projection / switch / pattern & 実際に取り出した component への prefix 除去。binder ごとに新しい view と Receive。Or は成功した枝の merge adapter の辺だけ。\\
+Delay / Lambda & code と捕捉 view を保存する。現在の View は生成しない。lambda は上の role/entry/profile 定数を保存する。\\
+Force & \(\View(v,\mathsf{force.effect},M)\)。結果は force.result への別の transport。\\
+App / complete Call & inert carrier を作り、source receipt 後の argument adaptation、entry、body、result consumer、result adaptation の全体を、呼出される interface の call.effect View で囲む。wrap の各実際の interface もこの同じ完全計算に対応する View を持つ。新しい receiver は一つだけ。\\
+let / root initialization & 値の結果 view を identity transport し Receive。root の順序は let の順序。\\
+Case / Catch & match、default、guard、body の各 code を再帰的に装飾する。Catch は fresh activation と、その構文位置の owner/phase を持つ。\\
+Select / RefSet & 選択済み field/dictionary/code を装飾する。呼出し部分は上記 Call。reference の応答にも同じ read-view 作用。\\
+boundary / NomMap & 証拠の code を再帰的に装飾。primitive structural edge は prefix/除去、function は反変引数と共変結果の各 edge、thunk は force と結果を分ける。\\
+OpMap & 同じ \(w\) の payload/response code の decoration と、同じ operation instance 対の transport。元 event の観測を transport し、新しい emission にしない。\\
+Block / rec / declarations & 展開された code と有限の再帰辺をそのまま装飾。binder の参照を visit 済み label へ戻す。\\
+\bottomrule
+\end{longtable}
+
+captured lexical binding の Receive は、その closure が実際に実行を開始したとき、
+新しい invocation の slot に対して作る。closure の public callable view 自身はその slot に入れない。
+pattern default の先行 binder、Ref の equality code、record spread の上書きされる RHS にも
+通常の code label を与える。失敗・上書きを理由に計算を消去しない。
+構造 path の対応は primitive edge の有限 transducer であり、
+一般の user cast の結果と入力の間に構造的な同一性を推測して加えない。
+user cast 内の実際の構造操作が作った辺だけを使う。
+
+\paragraph{phase と role。}
+phase は、entry/argument、body、declared-result、outer-adapter、attempt の code label の分類である。
+handler の phase 表は、その catch node が実際に囲む計算の label から作る。
+\(\mathsf{RoleAllows}\) は、候補 activation がこの lexical catch の occurrence であり、
+検索 context においてその囲まれた計算から来た query であることを検査する。
+source role は profile 構成へ使用し、row の空/非空から作り直さない。
+body にしかない catch は entry force の context に存在しない。
+Pure body の local catch を一律に禁止する追加条件は置かない。
+これは元稿2506--2512行の phase 条件の具体化である。
+raw reentry では保存した label と handler activation の束縛を使用し、
+元の call stack にいたという理由だけで catch を追加しない。
+
+\begin{lemma}[decoration の全域性と保守性]
+有限な型付き構文と有限の template graph に対して \(d\) は停止する。
+全13式・全11 pattern に結果を持ち、実行型を保存する。
+消去すると前半の明示 code になり、constructor、計算の順序、遅延位置、
+call の receiver 数、selected shallow handler の非復元を変更しない。
+\end{lemma}
+\begin{proof}
+非再帰の子への処理は有限構文の真の部分木、再帰辺への処理は visit 済み label への参照である。
+profile 構成は有限 node と二つの polarity の積、または有限の宣言 template の走査で停止する。
+表の各行は新しい値・実行を作る場合と、metadata だけを付ける場合を区別している。
+後者の消去は恒等。前者は前半の let/force/call/adapter 展開そのものである。
+各表の入力 constructor を列挙すると13式と11 pattern が尽きる。
+match の binder 型、record の存在性、OpMap の同じ payload/response instance は
+前半の構文規則をそのまま使う。従って構文帰納と既出の局所型付け補題が適用できる。
+これは推論された未検査 certificate の消去定理ではなく、明示された\emph{型付け導出}の翻訳定理である。
+\end{proof}
+
+\section{具体的な観測と有限 cell の表示関係}
+\label{sec:representation}
+
+\subsection{観測 world と complete cell}
+
+具体 world \(w\) は第\ref{sec:concrete-eligibility}節の有限履歴、
+現在の executing/search context、saved contexts、view の解釈置換を含む。
+interface \(I\) は、比較する有限個の operand/result port と名前 register を指定する。
+名前の sort は owner、handler、family、State scope、resource、event を区別する。
+名前でない path は、type node・profile state・primitive transport label・polarity の有限色を持つ。
+同色性は path equality の証拠ではない。
+
+\(\alpha_I(w,\bar v,q)\) を次の有限 diagram と定義する。
+\(q\) がない値 interface も許す。
+\begin{enumerate}
+\item register の defined bit、同じ sort 内の実際の equality partition。
+\item named owner について、全 profile、候補別 incidence、grant、現在の activity の membership vector。
+\item named でない各 owner の完全な membership vector \(\beta\) ごとの非空 bit \(e_\beta\)。
+      universe はその有限履歴の support であり、未確保の無限個の名を入れない。
+\item path 色、保持された対応 witness、source phase/origin、operation 宣言、
+      同じ family-argument instance を指す query label とその真偽。
+\end{enumerate}
+各述語の意味を任意に選ぶことはできない。\(P\) は Boundary と transport の解釈、
+値 interface の \(R_{c,j}(r)\) は owner \(r\) の Boundary から
+候補 \(j\) の Receive を通ってその view の指定 port へ至る Flow route、
+event interface ではそのうち同じ event の Observe 列に至る第\ref{sec:concrete-eligibility}節の Path、
+\(G\) はそのうち同じ owner と Admit を満たすもの、\(A\) は現在の activity である。
+event の Observe は\emph{発生時の全 executing View}から作り、後の dispatch はそれを読み取る。
+permission があるだけでは event 座標を持つ cell は生成されない。
+
+有限の cell 全体を \(S_I\) と書く。
+\(w,\bar v,q\models_I s\) は単に \(\alpha_I(w,\bar v,q)=s\) を意味する。
+これは実行が安全であるという述語ではない。
+一つの concrete packet は一つの cell を持ち、抽象値 \(U\subseteq S_I\) は
+\(\alpha_I(w,\bar v,q)\in U\) によりその packet を表示する。
+複数 port の比較では、それぞれ独立した cell を作らず、union interface の一つの diagram を使う。
+
+\begin{lemma}[query の正確性]
+候補の register と全 query 述語を持つ \(s=\alpha_I(w,\bar v,q)\) について、
+cell 上の \(\mathsf{Elig}(s)\) と具体機械の \(\mathsf{eligible}(q,h,w)\) は一致する。
+\end{lemma}
+\begin{proof}
+named owner については membership を読む。
+hidden owner が \(A\land R\) を満たすかは、その二座標が1の全 vector の \(e_\beta\) の disjunction。
+従って \(\exists r(A(r)\land R_{c,h}(r))\) は正確に判定できる。
+grant の owner は named candidate と同じ点であり、同じ diagram の \(G\) を読む。
+activity は handler とその owner の両方を検査する。
+role/phase、coverage、family instance の残りの conjunct も定義により同じ値である。
+異なる hidden 集合が各々非空という情報から交差を推測する段階は存在しない。
+\end{proof}
+
+\subsection{全候補 relation の具体的な作り方}
+
+元稿の primitive transfer を、有限 diagram 間の relation として次の手順で固定する。
+input/output の union interface を作り、各 primitive が\emph{指定する座標式}を課す。
+指定されない座標は全整合候補を残す。
+これは successor の実行 trace を探索する定義でも、型安全性を問い返す oracle でもない。
+以下の手順は有限集合上の Boolean 演算と列挙だけである。
+
+ambient observation は、その時点の全 executing View の potential incidence の和を表す入力 packet とする。
+各 View frame は外側の packet を保存し、内部ではそれと新しい View の和を使う。
+正常 leave では保存した外側へ戻る。同じ witness を二つの View が持ちうるため、集合差で除去しない。
+capture では保存した内側 View の列だけを保持し、resume では\emph{現在の resumer の ambient packet}へ加える。
+元の外側 packet を復元して現在の外側を上書きしない。
+有限 interface で保持できない candidate 列・対応は全候補となる。
+従って unbounded な実行 stack を一つの source site に同一視せず、有限 diagram で安全に表示できる。
 
 \begin{enumerate}
-\item \textbf{全計画への decoration の供給。}
-元稿906--930行の \(\mathsf{Inc}\) は「authentic な経路がある」と述べ、
-1026--1038行は constructor ごとの typed-path 対応を要求する。
-第\ref{sec:concrete-eligibility}節は、その参照先の定義から有限 query を具体化した。
-event 発生時の全 context 観測、guard の失敗後の検索、resume の改名も明記した。
-残るのは、元稿の\emph{全ての}実行計画へ、必要な View port、profile/map automaton、
-source role/phase 表を、同じ accepted source 意味の下で供給する写像である。
-query を定義したことは、その入力の生成正当性を証明したことにはならない。
-\item \textbf{有限 descriptor の simulation。}
-元稿2370--2441行の表には、既知の witness を保持し、未知なら全候補を含めるとある。
-これを使うには、raw machine state と complete cell の表示関係、
-全 frame（特に失敗した guard の後の元 request、mapop、shared read、
-result consumer、raw continuation の再入）に対する relation を実際に定義する必要がある。
-「各 primitive が正しい successor を含む」と再び仮定するだけでは閉じない。
-定理\ref{thm:safety}はその simulation の値・継続側を供給するが、simulation 自体は供給しない。
-\item \textbf{証拠消去・生成計画の対応。}
-元稿の certificate から、本稿の union/recursive/nominal/dictionary/entry の
-明示 code と有限の型付け導出を作る写像が要る。
-特に recursion の guard、computed root の初期化順、Ref pattern の equality code、
-native primitive の char/range/list-view constructor の対応を検査する必要がある。
-元稿の13式・11 pattern の一覧だけを、その写像の存在証明にしてはならない。
+\item \textbf{同じ名・集合の輸送。}
+恒等/既知 prefix edge は同じ名前 partition を保ち、指定した port の述語をコピーする。
+\(B'_i(r)=f_i(B_1(r),\ldots,B_n(r))\) のような指定式は、各 named vector に \(f\) を適用する。
+hidden vector は
+\[
+ e'_{\gamma}=\bigvee_{\beta:f(\beta)=\gamma}e_\beta
+\]
+とする。複数 input は最初から共同 diagram の全述語を入力にする。
+追加の未知述語は各 vector の0/1の全 refinement を許す。
+一つの非空 region が複数 region に分かれうる場合、非空の出力 region の任意の非空部分集合を許す。
+これは cardinality を数えないことに対する上近似である。
+\item \textbf{確保・forget・再観測。}
+fresh は入力 support 全体と異なる点を追加し、旧 profile/receipt の membership は0、activity は1。
+source receipt の新しい \(P/R/G\) だけを表の式で設定する。
+register を忘れるとき、その最後の named point の vector を該当 \(e\) に加える。
+再観測は非空 region の vector を持つ一点を named にし、残余 region の空/非空の両候補を出す。
+まだ named な点との equality が指定される場合はその点を使用する。
+candidate 列を忘れた後の再観測は、その失った列の全候補を作る。
+\item \textbf{activity・束縛置換。}
+entry/normal exit/検索のための suspension は、指定された現在の activation だけを更新する。
+capture した frame-bound 集合は resume 時に fresh に一様改名し、free 名を固定する。
+named な bound/free 判定と equality は保存する。
+ここで一様というのは\emph{再開する packet とその解釈下の read の内部}で一様という意味である。
+現在の resumer の ambient packet や、他枝で既に実体化した packet は作用範囲に含めない。
+union interface の各 column/register に、saved 側か ambient 側かの有限 action tag を付ける。
+同じ旧名 \(u\) が両側にあれば、saved の bound occurrence は fresh \(u'\)、ambient は \(u\) となる。
+従って入力で等しかった二つの register を、作用範囲を無視して出力でも等しいと拘束しない。
+同じ action の bound occurrence は全て同じ \(u'\) にし、別の bound 名および全旧 support とは不等にする。
+
+hidden 点についても同じ構成を行う。bound な vector \(\beta\) は、
+非作用側の列を持つ旧点 \(f_0(\beta)\) と、作用側の列を持つ fresh 点 \(f_1(\beta)\) を生む。
+free な点は両側を保った一点になる。出力の region bit はそれぞれの像についての disjunction である。
+旧点を同時に消す規則にはしない。共有 storage や元の continuation が旧点を保持しうるからである。
+activity は旧 world と再開した frame の実際の active 集合から別に更新する。
+hidden な bound 分類が表現されていない場合は、分類の全 refinement にこの構成を適用する。
+最後に不要な register/column を forget する。
+この有限操作は、hidden bound 名の置き去りと、ambient 側の破壊的な改名の双方を避ける。
+receipt column の候補添字も同じ action に従って再索引する。
+saved view と ambient candidate のように作用の異なる端点間の route は、
+既知の具体対応が保持される場合以外は全候補とする。
+旧 candidate と新 candidate の列を、同じ source label を持つことだけでコピーしない。
+後の read は同じ置換を metadata 解釈に合成してから現在の activity を観測する。
+\item \textbf{path と observation。}
+同じ view の identity、実行した一つの prefix/除去、項にある primitive correspondence には
+その witness が保証する座標式を課す。色の一致だけに基づく式は課さない。
+frame の enter/leave は executing View の追加/除去であり、emission はその時の全 View の observation の union。
+具体的な Path は値 packet の potential incidence から event incidence へのこの union と一致する。
+抽象側は保持された incidence の列を Boolean union し、保持されない列は全候補にする。
+static transfer の生成時に具体的な実行履歴を入力として要求するものではない。
+有限 interface に残らない endpoint や合成 path の関係は全候補。
+既知の direct receipt と、未知の古い route とを取り違えない。
+\item \textbf{operation/branch。}
+operation は指定した宣言・instance・origin の event seed を一つ作る。
+branch は全構文 alternative を残す。scalar condition を評価して未検査 arm を削る規則はない。
+scalar primitive は既出の \(\delta\) に従う constructor と component transport のみを返す。
 \end{enumerate}
 
-例えば parameter 化した機械で \(\mathsf{eligible}\equiv\mathsf{false}\) を選んでも
-定理\ref{thm:safety}の証明はそのまま通る。
-しかし、本来 total な handler が消すはずの operation が外へ出るため、
-元稿でその contribution を除いた \(\Phi\) に対する安全性は出ない。
-この例は、値・継続の型保存だけから effect safety を結論できないことの具体的な判別例である。
+ここで「指定した座標式」は自由に追加できる注釈ではない。
+使用できるものは identity、prefix/除去、source receipt、同時改名、現在の activity、
+実際の lexical frame の phase/coverage、上の Boolean 集合演算だけである。
+長い typed route がこの有限 interface に保持されない場合、その座標は未指定となる。
+従って transfer 表を作るために一般の path inclusion 判定を要求しない。
 
-\textbf{到達点。}
-実行型健全性の紙上導出を、推論器から独立させることはできた。
-decorated plan の有限 graph に対する具体的な eligibility query も与えた。
-一方、元稿の全計画への decoration の供給と、元の細かい effect/profile を含む
-全型健全性を「完成」とするところには、この稿は達していない。
-次の仕事は inference の有限 witness ではなく、上記1の全 constructor の decoration と、
-2の全遷移 simulation を接続することである。
-原文書を改変してこの未完を隠さず、既存 A/B、Q1--Q8、production の gate も閉じない。
+\begin{lemma}[有限 transfer の表示保存]
+上記の各具体的な metadata 操作 \(t\) とその有限 relation \(\widehat t\) について、
+\(w,\bar v,q\models_I s\) かつ \(t(w,\bar v,q)=(w',\bar v',q')\) なら
+\[
+ \alpha_J(w',\bar v',q')\in\widehat t(s).
+\]
+新規 seed の場合は入力の event がなくてもよい。
+\end{lemma}
+\begin{proof}
+Boolean 集合操作では、各具体点の出力 vector は入力 vector に \(f\) を適用したものになる。
+named 点は直接計算され、hidden 出力 region が非空であることは上式の disjunction と一致する。
+未知列による分割は、実際の非空出力 region 集合が列挙した部分集合の一つである。
+forget は同じ点の表示位置を変えるだけ。
+再観測の残余は実際に空か非空のどちらかなので、二候補の一方が表示する。
+fresh は旧 support と不等であり、receipt 以外の old membership はない。
+receipt は同じ source automaton と受領 slot を使うため、指定式と具体 Boundary/Receive が一致する。
+
+activity の更新は機械の context 操作そのもの。
+rename の実際の bound/free 分割は列挙する分割の一つである。
+各旧点に対し、実際にそのまま残る occurrence と saved 側で fresh になる occurrence は
+上記 \(f_0,f_1\) の二つの像と一致する。
+named register の equality は action tag と fresh 条件から、hidden region の非空性は像の disjunction から得る。
+後の read にも同じ作用を行うので、保存時にしか改名しない実装の穴は残らない。
+path の指定式は実際の一段の辺の定義、残りは未指定の全候補に実際の座標を含む。
+emission は handler を挟むかにかかわらず全 executing View を先に観測する。
+観測の和に必要な保持されない相関も全候補に含まれ、都合のよい grant を一つ選ばない。
+operation、branch、scalar の場合は指定された constructor/alternative を含む。
+これで定義した全 metadata 操作を尽くす。
+\end{proof}
+
+\paragraph{この補題の限界ではないもの。}
+\(S_I\) が有限であることは具体履歴が有限の大きさに抑えられることを意味しない。
+実行の各有限 prefix は有限 graph だが、その大きさに一定上限はない。
+表示保存は正確な商を要求せず、忘れた相関を全候補へ戻すことを用いる。
+source の既知 operation を Unknown のために消すことはなく、
+profile の存在から operation を生成することもない。
+
+\section{有限の宣言的効果型付け}
+\label{sec:refined-typing}
+
+\subsection{値の情報と request の情報を分ける}
+
+descriptor graph には二種の事実を置く。
+\[
+ \mathsf V(p,s),\qquad \mathsf E(p,s).
+\]
+\(\mathsf V\) は値・入力環境・pending query の packet が持つ diagram、
+\(\mathsf E\) は実際の operation contribution の diagram である。
+\(\mathsf V\) は効果ではなく、型付き値に元からある profile/latent graph の補助判断である。
+例えば \(\Delay M\) の構築では \(\mathsf V\) があり、immediate \(\mathsf E\) は空である。
+\(M\) の graph はその値の force port に結ぶ。
+この区別をせず operation seed だけを伝播させると、
+pure な callback が運ぶ受領情報を後の call まで保存できない。
+
+各 code node の interface は、入力 packet、正常結果 packet、外向き event packet、
+結果の全 latent port を持つ。saved context と closure 環境も有限 template により参照する。
+各 port の abstract 値は \(\mathcal P(S_I)\)。
+共同入力 \(\eta\) は row variable、値の入力 diagram、ambient observation、
+ordinary witness の verdict を\emph{一つの assignment}として与える。
+source type/profile が満たすべき等式は、この入力の整合性条件に残す。
+Unknown の座標は全候補であり、\(\eta\) が選ぶ自由変数にしない。
+
+\paragraph{正常結果 relation の意味。}
+正常結果 port は、入力型に合う応答によって中断が再開された場合の結果も許す。
+perform の応答 port は \(Q_o\) の型付き値の入力 diagram 全体である。
+この port は「その request が必ず応答される」と主張しない。
+型付けでは到達可能性を理由に後続 code を未検査にしない。
+実行の正常値がこの port に含まれることは後の保存証明で導く。
+
+\subsection{descriptor の意味}
+
+元稿の descriptor を、有限の相互再帰を許した次の文法で読む。
+\[
+ E::=0\mid a\mid X\mid E\cup E\mid T(E_1,\ldots,E_k)\mid\mu\bar z.\bar E.
+\]
+\(0\) は空集合、\(a\) は指定した operation の seed 集合、\(X\) は共同入力 \(\eta(X)\)、
+union は集合和である。\(T\) は上記の有限 relation の像であり、
+\[
+ \llbracket T(\bar E)\rrbracket_\eta
+ =\{s'\mid \exists\bar s\in\prod_i\llbracket E_i\rrbracket_\eta.
+       (\bar s,s')\in\mathcal R_T\}
+\]
+で定義する。tuple の joint 整合性も \(\mathcal R_T\) の条件である。
+再帰変数は全て正に現れ、\(\mu\) は有限 power-set lattice の最小固定点。
+同じ \(X\) は全 port で同じ集合を表す。
+abstract Unknown は \(X\) の一種ではなく、既知座標と整合する全 cell の定数である。
+
+positive closed row \([C]\) は、同じ instance witness の下で operation が \(C\) に属する
+全 cell の upper set と解釈する。empty row は空集合。
+negative row の permission は値 packet の profile/grant 座標であり、operation seed ではない。
+value relation も同じ有限 relation image で表せるが、その事実を \(\mathsf E\) として出力しない。
+\(\Phi\) は immediate と全 latent/reentry port のこの graph を保持する。
+
+\subsection{graph の生成規則}
+
+以下の表が effect 型付けの構文規則である。
+edge は第\ref{sec:representation}節の有限 relation image、
+連結は同じ binder の値/latent port への接続を意味する。
+複数入力 edge では joint diagram の整合する tuple を全て使う。
+型の列は前半の導出も同時に要求する。
+
+\begin{longtable}{p{.24\textwidth}p{.68\textwidth}}
+\toprule code & 値 port と effect port の義務 \\
+\midrule\endhead
+\(\Ret v\) & \(v\) の値・全 latent port を結果へ identity transport。immediate は0。\\
+\(M\bind x.N\) & \(M\) の結果を \(N\) の \(x\) へ接続。\(M\) と \(N\) の request を順に同じ外向き port へ。\(N\) は全ての型に合う入力 diagram で検査する。\\
+構造値・除去 & 指定 component の \(\mathsf V\) と latent graph に prefix/除去 relation。値構築自体は event seed を持たない。子計算は source 順の bind。\\
+\(\Delay M\) & body の graph を force port に保存。capture した free packet を共有。作成時の activity を future force の activity と同一視しない。\\
+\(\Force v\) & 値の force graph を現在の diagram で再観測し、View enter、body、View leave を接続。force.effect と force.result を混同しない。\\
+lambda / wrap & 全共同入力に対し complete Call の receipt、entry、body、宣言結果 consumer、adapter の graph を検査する。引数を force する edge は Value entry、または body の実際の Force だけ。\\
+\(\Call(f,t)\) & 同じ入力 \(\eta\) で \(f\) の complete-call graph と \(t\) の whole immediate/latent graph を接続。argument adapter は delay 内。結果の全 latent port も接続。\\
+\(\mathsf{perform}_o(p)\) & payload の \(\mathsf V\)、現在の observation、同じ instance から event seed。一つの response port を \(Q_o\) として作り、直後の continuation は恒等。\\
+\(\mathsf{prim}_p\) & 正常結果は固定 constructor と実際の component transport。新しい event は0。列挙した failure は通常値も event も作らない。\\
+branch / match / attempts & 全 alternative の union。順序付き試行の default/guard/失敗した枝を含む。各 binder は成功した枝の値 port からだけ得る。\\
+\(\Handle_h M\) & 下記の fixed filter と全 attempts の union。raw continuation には下記の cut-context graph を与える。\\
+\(\mathsf{mapop}_w M\) & \(M\) の event に payload code を接続し、同じ event の operation instance を transport。response code は continuation の port。両 code の効果は普通の規則で数える。\\
+\(\mathsf{rec}\) / template & 同じ binder/code label の同じ値/latent port へ back edge。全義務を満たす post-fixed point を要求する。template の展開は receiver を作らない。\\
+type application / dictionary & 一つの instance を値・row・profile・family witness・latent graph の全 occurrence に使用する。必要な ordinary 条件も同じ instance で満たす。\\
+scope / View / wait & 現在の activity、observation と pending query の有限 transfer。request を保存する port と、attempt が新しく出す event port を区別する。\\
+\bottomrule
+\end{longtable}
+
+\paragraph{型付けを有限 inclusion で定義する。}
+この表から生成した有限 Horn graph を \(G\) とする。
+\(U\) は各値/effect port に cell 集合を与える table である。
+\[
+ \Delta;\Gamma\vdash_d M:A!\Phi
+\]
+は、前半の型付き構文の導出、上記 \(d\)、各局所 relation の全 tuple に対する
+Horn closure \(F_G(U)\subseteq U\)、および指定した全出力で \(U_E\subseteq\llbracket\Phi\rrbracket_\eta\)
+を持つことと定義する。
+自由な共同入力がある導出では、この inclusion を全整合 \(\eta\) に要求する。
+formal input の seed は、宣言した型/profile の有限な等式を満たす\emph{全}入力 diagram である。
+literal/constructor/operation の seed は対応する導入規則の全出力である。
+これらを空集合へ任意に狭める選択は \(F_G\) にない。
+宣言した function/thunk の code 契約は値の導入で検査し、diagram だけから code の正しさを推測しない。
+型付き値は同じ定義の \(\mathsf V\) とその全 latent port を用いる。
+annotation の upper obligation と Function 適合も同じ \(\eta\) の inclusion である。
+入力 \(\eta\) を port ごとに選び直す規則はない。
+
+特に Function の適合は、実際の source entry/profile を保った adapter 付き complete call と
+target contract について、同じ generic whole-argument vector \(\bar x\) で
+\[
+ \forall\eta,\bar x\ \forall p\in\mathsf{OutputPorts}.\quad
+ \mathsf{Call}_{S,a,r}(\eta,\bar x)_p
+ \subseteq \mathsf{Contract}_{T}(\eta,\bar x)_p
+\]
+を要求する。\(p\) は結果の全 latent port を含む。
+これは有限 relation/table の inclusion であり、任意の実行 trace を量化する判断ではない。
+この検査を別々の \(E^-\) と \(E^+\) の比較に置き換える rule はない。
+
+この定義は実行の安全性を前提にしない。
+有限表の各行が生成する辺の閉包と inclusion だけを検査する。
+最小固定点を求めることもできるが、保存定理は任意の post-fixed point について成り立つ。
+従って solver の停止・完全性・主型性は不要である。
+\(\mathsf V\) の rule に任意の \(\View_\chi\) を導入するものはない。
+view は decoration、指定 transport、source receipt、同時置換からのみ作る。
+前半の unrestricted view rule は実行型射影専用である。
+
+\subsection{totality と shallow filter}
+
+\(\mathsf{Total}(p,A)\) の有限導出は以下に限る。
+Wild/Var、total な子の As、同じ shape/arity の全成分が total な tuple、
+全要求 field が required または default を持ちその子が total な record、
+閉じた nominal/variant の全 constructor を total payload pattern で覆う unguarded arm 列。
+list は、全要素 pattern が total な arm について、rest なしなら長さ集合 \(\{n\}\)、
+Wild/Var/As の total rest ありなら \(\{m\mid m\ge n\}\) を付ける。
+\(n\) は prefix と suffix の要素数の和である。
+これらの有限和が \(\mathbb N\) を覆う場合だけ全域とする。
+これは最小の tail 下限 \(r\) を取り、\(0,\ldots,r-1\) の singleton が全部あるかを調べれば判定できる。
+tail がなければ全域にはしない。これ以外の list pattern も実行・型付けするが、この totality rule からは証拠を得ない。
+Lit/Ref、guard、open variant の現在見える tag 列だけからは total を導出しない。
+default は正常に返るなら指定型を持つという通常の型付けを要する。
+
+\begin{lemma}[totality の意味]
+\(\mathsf{Total}(p,A)\) と \(v:A\) があれば、\(\mathsf{Match}_p(v)\) が
+正常に No を返ることはない。unguarded な全域 arm 列は、全試行が正常に No となって尽きることはない。
+発散、request、列挙した failure はこの命題に反しない。
+\end{lemma}
+\begin{proof}
+totality 導出に帰納する。Wild/Var は Yes。
+shape が固定した積では各子の帰納仮説により No の伝播枝に入らない。
+record は presence または default の正常結果で子の入力を得る。
+閉じた constructor の場合は値の形補題が必ず列中の tag とその payload を与える。
+先行する partial arm が No でも、この全域の候補は残る。
+guard がある場合を除外しているため、この最後の Yes を false guard が取り消す規則はない。
+\end{proof}
+
+候補の検索 world における cell 上で
+\[
+ \mathsf{Res}_h(U)=\{s\in U\mid
+ \neg(\mathsf{Total}(h,\mathsf{inst}(s))\land\mathsf{Elig}_h(s))\}
+\]
+とする。operation arm の入力は同じ \(p:P_o\)、\(k:\mathsf{Kont}(Q_o,A;E_M^r)\)。
+\(\mathsf{inst}(s)\) は宣言と同じ型引数 witness を持つ instance であり、単なる family 色ではない。
+totality は、その instance に一致して試行される arm 列について検査する。
+別 instance 専用の total arm を現在の coverage に流用しない。
+handler 全体の event 義務は
+\[
+ \mathsf{Res}_h(E_M)\ \cup\ E_{\rm value\ attempts}\
+ \cup\ \bigcup_o E_{\rm operation\ attempts}\ \subseteq E_{\rm out}.
+\]
+attempt の正常結果は Yes の \(B\)、No は次の試行へ接続する。
+試行中の event は候補 handler の外側へ出す。
+この filter は最終結果の集合の否定を取らず、\emph{一つの complete cell}に対する固定述語である。
+従って入力 row に関して単調である。
+
+\subsection{raw continuation の graph を有限に構成する}
+\label{sec:cuts}
+
+\(E_M^r\) を「安全な再開の効果」という未定義の意味で置かない。
+source code graph の各 computation label を穴にした、型の合う\emph{評価 context の文法}を作る。
+terminal frame は前半の六種、すなわち bind、scope、View、handle、mapop、wait である。
+code label、穴の型 node、全体の型 node、mode を非終端記号の添字とする。
+wait の添字には有限 arm index と pending operation 宣言を追加する。
+型は有限 template graph の node であり、scheme では同じ型代入を添字全体に適用する。
+
+生成規則は、構文の active child から親へ進む辺ごとにその frame を追加する、というもの。
+bind では残りの body label、handle では未選択 handler の label、
+wait では保存した元 event と残りの arm 列の interface を保持する。
+再帰呼出しは同じ非終端記号への辺。
+選択された handler の scrutinee の出口で止め、その handler frame は追加しない。
+外へ転送する場合にはその handler frame を追加する。
+imported callable の内部 suffix は、その値型の reentry port を一つの terminal summary として使う。
+その port を持つ値の導入にも同じ規則を課すため、未検査 code の summary ではない。
+
+frame は、穴の値/event/latent port の有限 lattice \(L\) から親の lattice への
+単調関数を表す。異なる interface は有限共通 interface へ埋め込み、不要座標を forget する。
+bind は穴の結果を body input へ結び、event は bind の request 伝播へ結ぶ。
+scope は現在 activity と保存束縛の transfer、View は observation と結果 path の別々の transfer。
+handle は上記 filter と attempts の接続。
+mapop は payload/response code と同じ \(w\) の接続。
+wait は attempt の event と、No の場合の残りの検索、Yes の正常結果を接続する。
+pending event は \(\mathsf V\) に保存し、No の先で元 event として再び検索に渡す。
+新しい operation として seed し直さず、元の emission 観測を保つ。
+検索を再開するとき activity/eligibility は\emph{その時点}で再観測する。
+
+各 grammar rule の summary は関数の合成と pointwise union。
+有限 lattice 上の単調関数は有限個なので、この連立 inclusion には最小固定点がある。
+これを \(\mathsf{Cut}_{i,j}\) とする。
+code の port table と cut summary が相互参照する場合は、両者の有限な積 lattice で同時に閉包を取る。
+関数の合成は関数順序の両引数について単調で、filter の条件は固定 cell 上で決まるため、
+この同時作用素も単調である。未検査の \(E^r\) を先に仮定してから body を検査する循環ではない。
+各 response 型 \(Q\) の穴に、event が空で \(Q\) の入力値 diagram を持つ \(\Ret z\) を入れ、
+normal、restored-bound、inactive-free の各 mode の関数を適用した出力の union が \(E_M^r\) である。
+不明な boundness/activity/path は前節の全候補 relation を使う。
+saved environment は保存した型/profile を持ち、現在の read と ambient View は再観測する。
+再開前の実行を replay する定義ではない。
+
+この構成も元稿の有限 graph 表現の範囲に入る。
+有限 power-set lattice 上の単調関数 \(f\) は、出力 bit ごとに
+\(b\in f(X)\) となる入力集合 \(X\) の最小要素を列挙し、
+\(\bigwedge_{a\in X}a\Rightarrow b\) という有限 Horn 規則で表せる。
+再帰する summary は graph の \(\mu\) 辺になる。
+一般の無限 trace の inclusion を問い合わせる箇所はない。
+関数 table の大きさは大きくなりうるが、ここで必要なのは明示的な有限構成と保存である。
+
+\begin{lemma}[切出した context の表示]
+型付き計画の実行で request が有限個の frame を越えて得る raw continuation \(K\) は、
+その capture 出口の上記 grammar に導出を持つ。
+任意の admissible response packet と現在の world で、その suffix の全局所義務は
+\(\mathsf{Cut}_{i,j}\)、従って \(E_M^r\) に含まれる。
+\end{lemma}
+\begin{proof}
+request 生成時の continuation は恒等で、穴の \(\Ret z\) の規則である。
+次に越える frame は六種のいずれかで、機械の request 伝播規則と grammar の生成規則は同じ。
+従って伝播した frame 数への帰納で実際の有限 frame 列の導出を得る。
+その列の summary は各 frame 関数の合成であり、grammar の post-fixed point に含まれる。
+この事実は関数順序の定義から、\emph{全ての}穴の入力に成立する。
+bound/free の実際の分類は三 mode と Unknown の全候補に含まれ、
+同時改名・現在の read は有限 transfer の表示保存に従う。
+未選択の handler は frame として残り、選択した handler と外側の View は grammar の出口の外にある。
+従ってそれらを誤って \(K\) に追加する導出は不要である。
+wait の場合も元 query の packet は閉じた値であり、保存した観測と現在の activity で再検索する。
+再帰により frame 列が長くても、この帰納は各有限 capture について成立する。
+\end{proof}
+
+\paragraph{単なる row のコピーでは不十分である。}
+\(E_M^r:=E_M\) としたり、作成時の activity を継続へ固定したりする定義は採らない。
+guard の request で中断し、free owner が終了した後に再開した場合、
+失敗した guard の先の元 query は、変わった eligibility で再検索される。
+その event は元の normal mode では除去され、reentry mode では残ることがある。
+上記の cut graph はこの場合も元 event を捨てずに表示する。
+継続を後で呼ぶ式は \(E_M^r\) の Call/Resume 義務を持つ。
+これを元の immediate row だけで検査することは、元稿の retained reentry 契約にも反する。
+
+\section{効果・profile を含む保存と進行}
+\label{sec:full-proof}
+
+\subsection{置換、共有、frame の補題}
+
+\begin{lemma}[精密な項置換と graph 拡張]
+\(\Delta;\Gamma,x:A\vdash_d M:B!E\)、\(\Delta;\Gamma\vdash_d v:A\) なら、
+同じ共同 assignment の下で \(M[v/x]:B!E\) が導出できる。
+全 free metadata と型を固定した well-typed immutable graph の拡張でも導出は保存される。
+\end{lemma}
+\begin{proof}
+実行型部分は既出の置換補題。
+精密な規則は変数の値/latent port を、その変数の契約を満たす値の port で置き換える。
+各規則は relation image、union、共同 tuple の存在量化、fixed cell filter のいずれかであり、
+いずれも入力集合に関して単調である。
+従って formal に許した集合の部分集合を接続しても既存 inclusion を破らない。
+同じ \(x\) の複数使用は同じ packet と row assignment を参照し、
+コピーごとに外来 owner や profile を freshen しない。
+handler case の filter は complete cell ごとの固定述語なので、ここでも単調性が使える。
+lambda/delay の body と結果の全 latent port に同じ帰納仮説を適用する。
+rec では有限 graph の全 binder を同時に置換する。
+古い node の型・code・metadata が変わらないので、その局所 inclusion も変わらず、
+新しい node の導出だけを付加することができる。
+\end{proof}
+
+\begin{lemma}[名前と型 instance の一貫性]
+bound owner/handler 名への injective renaming は、decoration、具体 query、
+表示関係、全 graph inclusion と可換する。
+qualified scheme の一つの instance は、その instance の全 ordinary 条件を満たす
+同一の型・row・dictionary 代入の下で導出を持つ。
+\end{lemma}
+\begin{proof}
+名前について、各具体規則が使用するものは sort、equality、membership、
+scope の束縛関係、同じ template の path である。
+injective renaming はこれらと非空性を保存する。
+従って cell の座標名を変えるだけで finite relation の各 tuple が対応する。
+union、合成、post-fixed-point inclusion もこの対応を保つ。
+
+型 instance については単なる名前の改名を用いない。
+型付き導出の template へ同じ代入を施し、必要な型 node と port を展開して
+その有限 instance の \(d,G\) を構成する。
+変数・Ret・identity transport は代入型の全 component/latent packet をそのまま運ぶ。
+tuple/record/nominal と pattern は宣言 payload template の同時置換、
+function は同じ generic 入力と出力への同時置換、operation は同じ \(P_o,Q_o\) への置換である。
+抽象型変数のままでは許されなかった projection を新しく導出する必要はない。
+新しい shape を見る必要がある dictionary/code は、qualified 条件に含まれるその instance の導出を使う。
+新しい座標について古い signature が表現しなかった関係は全候補へ lift する。
+すなわち忘却 \(\rho:S'\to S\) に対して \(U\) は \(\rho^{-1}(U)\) に移り、
+既存 inclusion は逆像により保たれる。新しい latent port は代入型の契約と構造規則から得る。
+ここで必要な局所条件は、同じ primitive の拡張 relation \(\widehat t'\) に対して
+\(\rho(\widehat t'(\rho^{-1}(U)))\subseteq\widehat t(U)\) である。
+これは座標式ごとに確かめられる。既知の identity/prefix/fresh/receipt 式は同じ代入を両端に行い、
+新しい shape の関係は旧側の未指定座標の全候補に落ちる。
+operation 宣言と既存 query の条件は同じ qualified instance を用いる。
+新たな family 色は旧 \(\star_O\) へ、追加された path 座標は旧 unknown へ忘却する。
+忘却は各既存 query の \(P/R/G\) を対応する追加列の和で表し、その query の真偽を保持する。
+cut summary についてもこの包含を合成・union に帰納して保つ。
+これで型付き規則への帰納を行える。
+古い signature の truth table が任意の構造代入とそのまま可換する、という主張は使わない。
+\end{proof}
+
+scheme の一般化では free 環境・捕捉値・共有 resource・profile の dependency closure と
+交わらない binder だけを量化する。
+reference read は新しい scheme instance を作らず、同じ monomorphic protocol の値を得る。
+同じ graph の名前変更が本補題の前半、構造的な型の instance が後半である。
+両者を混同しないことが、同じ storage を異なる型や異なる外来 owner として読むことを防ぐ。
+
+\begin{lemma}[精密な frame 合成]
+各六種の frame \(f\) の穴へ、その入力の型・値・event・latent inclusion を満たす導出を入れると、
+\(f\) の有限関数が与える出力契約を満たす導出を得る。
+frame の有限列については関数の合成が対応する。
+\end{lemma}
+\begin{proof}
+bind は精密な項置換により結果を body へ渡す。
+穴の request は元 event と body suffix を持つ continuation へ移り、event の伝播 edge に対応する。
+scope は入退場または suspension の activity 関係と同じ bound 名の保存、
+View は実行中の観測と結果 path の別の関係である。
+handle は次の handler 補題、mapop は payload/response の各普通の導出を bind で合成する。
+wait は閉じた pending packet と attempt の結果を持ち、Yes は値、No は残りの query への edge を使う。
+いずれも前半の frame typing と第\ref{sec:refined-typing}節の生成規則そのものに対応する。
+列については長さへの帰納法で合成する。
+handler 補題はこの補題の handle case を用いず、query の正確性と totality から直接示すので循環しない。
+\end{proof}
+
+\subsection{handler、停止と再開の補題}
+
+\begin{lemma}[handler の event 保存]
+現在の query cell \(s\in E_M\) を持つ \(q\) に対し、
+\(\Handle_h\) の直接の選択・転送は上記 filter と attempts の edge に表示される。
+正常に失敗した attempt の後の検索も表示される。
+attempt が request を出して中断した場合、その残りは cut-context graph に表示される。
+\end{lemma}
+\begin{proof}
+query の正確性により、具体的な eligibility は \(\mathsf{Elig}_h(s)\) と同じ。
+偽なら元 event を転送し、\(s\in\mathsf{Res}_h(E_M)\)。
+真の場合は一致する arm を source 順に試す。
+全域でなければ filter は元 event を残し、全 No の転送も覆う。
+全域なら totality 補題により全試行が正常に No で尽きる場合はない。
+Yes はその body の結果、途中の request/failure/発散はその attempt の普通の port に属する。
+従って全域かつ eligible な元 event を除くことは正しい。
+
+中断を伴わず No が返る場合、元 event の Observe は既に固定されている。
+以後の Flow 辺は fresh occurrence に向かうので、元の observed endpoint に戻る
+新しい Boundary--Receive--Observe route を作れない。
+正常な attempt の call/scope は自分の activation だけを入退場し、
+呼出し元の query context の既存 activation を終了させない。
+従って元 query の Path と、復帰した search context での既存 owner の activity は変わらない。
+同じ filter の下で残りの arm を試せる。共有値の更新は残るが、元 event の観測を変更しない。
+
+中断がある場合は wait frame が元 \(q,p,K\) と arm index を保存する。
+再開時の同時置換と read の現在観測は finite transfer に表示される。
+現在の activity が元と異なる場合、normal row を流用せず、cut graph の wait 関数で
+元 query を再検査する。従って inactive free owner による eligibility の変化も表示される。
+ここで使用するのは cut grammar の局所構成であり、まだ全体の実行安全性を仮定していない。
+\end{proof}
+
+\begin{lemma}[精密な raw resumption]
+切出しで作った \(K:\mathsf{Kont}(Q,A;E_M^r)\) と \(v:Q\) があれば、
+\(\Resume(K,v)\) は値型 \(A\) と reentry port の契約を持つ。
+同じ \(K\) の任意回の使用にこの導出を再利用できる。
+\end{lemma}
+\begin{proof}
+切出した context の表示補題から、実際の frame 列の関数は cut summary 以下である。
+response の契約をその穴へ項置換する。
+bound 名は今回の fresh 名へ一様に変え、free family/resource/owner を固定する。
+この作用は saved packet 内で行い、resumer の ambient packet には行わない。
+名前の補題と action tag を持つ有限 transfer の表示保存により、この枝の全 packet は同じ summary に表示される。
+今後の共有 read もその置換を合成するため、保存した local だけの複写に依存しない。
+selected handler は frame 列に存在せず、unselected handler は存在する。
+別枝を開始しても保存した code と packet は変化しない。
+二枝の実際の名前は異なっても、それぞれ同じ source の summary の一つの instance であり、
+effect upper bound は同じ冪等 union に含まれる。linear な使用条件は必要ない。
+\end{proof}
+
+\subsection{一段の simulation を状態について述べる}
+
+実行状態の精密な型付けは、以下の\emph{現在の有限な証拠}からなる。
+\begin{enumerate}
+\item 値 graph と active code の実行型導出。
+\item 各 code label にある精密な局所導出と、その自由値の同じ型付き instance。
+      再帰参照は同じ有限 graph の参照である。
+\item active/saved frame の、上記 grammar における導出。
+\item 現在使用する interface の実際の diagram が、その入力 \(\mathsf V\) 集合に属すること。
+      発生済みまたは pending の event は、その現在の event/query port の集合に属すること。
+\end{enumerate}
+heap 内の全値に古い activity の snapshot を要求しない。
+保存するのは immutable な型・profile と解釈置換であり、次にその値を使用するとき
+reobserve relation を通して現在の interface の事実を得る。
+この状態判断には「今後安全に実行できる」という条件はない。
+
+\begin{theorem}[精密な一段保存と表示 simulation]
+上記の状態判断を持つ \(C\) が内部で一段進んで \(C'\) になるとき、
+\(C'\) は同じ型付き derivation graph の残余、またはその明示された latent/reentry port の instance として
+状態判断を持つ。値型は \(A\) を保ち、各現在 port の concrete diagram は宣言した abstract 集合に含まれる。
+immutable graph の fresh extension と束縛名の一様な改名を許す。
+\end{theorem}
+\begin{proof}
+縮約規則の最後の形で場合分けする。
+\begin{enumerate}
+\item \textbf{Ret/bind、構造除去、分岐。}
+値の形と精密な項置換を使う。実際に選んだ branch は全 alternative の union にある。
+値の projection/transport は有限 relation に表示され、graph closure により次の入力事実がある。
+No から次の arm に移る場合も同じで、未成功の binder を参照しない。
+\item \textbf{literal、構造導入、scalar primitive、rec。}
+固定 constructor と各 component の relation を使う。
+primitive の正常 constructor は既出の全62 case の補題、失敗は列挙した \(\Fail\)。
+rec の新 node は同時置換と graph 拡張で型付きとなる。
+これらの値導入は \(\mathsf V\) を作るが、存在しない event seed を作らない。
+template 参照の場合は、code 表の精密な導出に型・値の引数を同時置換する。
+再帰的な table 参照の graph は back edge であり、有限 prefix の帰納を妨げない。
+\item \textbf{Call/enter/wrap、Force。}
+call graph は機械と同じ一つの owner、inert carrier、receipt、entry の順序を持つ。
+その後の body/result consumer/adapter も同じ bind edge である。
+引数や結果 adapter が operation を起こす場合はその code の通常の port を通り、
+この case だけで効果を0と仮定しない。
+force/call は current-world reobserve と実際の View enter を使用する。
+closure の導入時に示した全共同入力の inclusion を、この実際の入力に適用できる。
+\item \textbf{perform と observation。}
+型の合う payload と同じ family instance の seed がある。
+実際の active context 全体から作る Observe は finite transfer の出力候補に含まれる。
+graph closure がその cell を event port に含める。
+初期 continuation は恒等であり、切出し grammar の base case である。
+\item \textbf{request の伝播、scope、View。}
+越える frame に対応する grammar rule と finite transfer を使う。
+scope の suspension は normal exit と区別され、saved bound set を保存する。
+event の Observe を bubbling の時点で作り直さない。
+View の正常値は result path、request は保存 context の View という別の rule を使う。
+\item \textbf{handle/try/wait。}
+直前の handler 補題が元 event の除去/転送、attempt の新 event、No/Yes の遷移を全て覆う。
+wait が新しい request で中断する場合は、閉じた pending packet を持つ frame の切出し規則を使う。
+\item \textbf{resume。}
+精密な raw resumption 補題を適用し、その明示された reentry port を active code に接続する。
+saved code を直接 normal-entry の row で再検査する必要はない。
+\item \textbf{mapop。}
+payload code の導出を bind し、元 event の instance を同じ \(w\) で運ぶ。
+response の port には逆方向の code と元 \(K\) の suffix を bind する。
+payload/response の code が出す別 event は mapper 自身の外側の通常 port に属する。
+両方向の code と free owner を独立に instantiate しない。
+\item \textbf{型適用と failure。}
+同じ qualified instance の置換補題を使う。
+failure は既出の frame 伝播である。\(\Bad\) に到達する case は実行型保存と値の形が排除する。
+\end{enumerate}
+active child の一段には縮約導出の帰納仮説を使い、精密な frame 合成で親へ戻す。
+すべての concrete metadata successor は有限 transfer の表示保存を満たし、
+その全 tuple は \(F_G(U)\subseteq U\) の検査対象である。
+従って出力 cell の包含を新しい前提として仮定する必要はない。
+以上で全通常形と administrative form を尽くす。
+\end{proof}
+
+\subsection{推論器を前提にしない全型健全性}
+
+\begin{theorem}[全構文の値・効果・衛生性の健全性]
+\label{thm:full-safety}
+有限の宣言表、型付き graph、明示的な導出
+\(\Delta;\Gamma\vdash_d M:A!\Phi\) を固定する。
+閉じたプログラムでは \(\Gamma=\varnothing\)。開いたプログラムでは、
+\(\Gamma\) に同じ精密な型の値を代入し、一つの共同 assignment が全 qualified 条件を満たすものとする。
+root の開始前の raw metadata は空、または同じ導入/transport 規則による型付き interface から供給する。
+root entry は上記の一つの fresh owner と空 profile を作る。
+機械の eligibility は第\ref{sec:concrete-eligibility}節の具体 query に固定する。
+任意の有限な内部実行 prefix について、次が成り立つ。
+\begin{enumerate}
+\item 現在の code/value/request/continuation は所定の精密な残余契約を持ち、\(\Bad\) に到達しない。
+\item 正常結果は \(A\) を持ち、含まれる closure/thunk/reference の全 latent 契約も保存する。
+\item 各 immediate port から外へ出る request の complete cell は、その port の \(\Phi\) に属する。
+      returned latent value や raw continuation を後で実行した場合は、
+      その値に保持された call/force/reentry port の同じ主張を得る。
+\item 具体的な処理/転送は、元の source receipt、authentic typed path、現在の activity、
+      同じ operation instance による query に従う。
+      型適合、alias、scope の停止、resume は外来 grant を現在 owner の grant に作り替えない。
+\end{enumerate}
+従って、初期の immediate upper が空なら、その計算の外へ request は出ない。
+発散と明示した言語 failure は許される。
+\end{theorem}
+\begin{proof}
+初期状態は構文導出とその input diagram によって状態判断を持つ。
+prefix 長に帰納する。内部の一段は精密な一段保存を適用し、
+fresh graph extension、同じ assignment、残余 port の導出を保持する。
+最外で正常値が出たら Ret の値/latent 規則から2を得る。
+最外で request が出たら、その cell は現在の event port の \(U_E\) に属し、
+型付けの最後の inclusion \(U_E\subseteq\llbracket\Phi\rrbracket\) から3を得る。
+caller が型付き response を渡して再開する場合も、raw resumption の導出を
+その caller の Call/Resume port へ接続し、同じ帰納を続ける。
+型付き host response についても、この response が latent code を持つ場合は
+その精密な導出を要求する。内部 code の安全性を host の約束へ移すものではない。
+
+進行は前半の値の形と具体 query の停止性から従う。
+最外は Ret、型付き Req、列挙した Fail、または次の一段を持つ。
+4は具体 query の定義、decoration の Boundary 導入箇所、同時改名の補題から従う。
+grant を導入できるのは source receipt だけであり、他の規則は既存 evidence の輸送である。
+空集合に request の cell は属せないので pure の帰結を得る。
+無限実行に初めての違反があればその有限 prefix に上の帰納が適用され矛盾する。
+\end{proof}
+
+\paragraph{保存している対象。}
+ここでの \(A!\Phi\) は元稿の whole packet であり、表示された family の集合だけではない。
+同じ \(\nu\)、source profile、全 latent port、reentry graph を保つ。
+step 後に読むのはその graph の現在の残余 port である。
+escaped continuation の呼出しに元の creation-time immediate row を流用する、という誤った保存命題は含めない。
+この区別は定理を弱めるための例外ではなく、元稿が明示した \(k:Q\to(A!E^r)\) の型規則そのものである。
+
+\subsection{規則から得られる四つの判別計算}
+
+以下は実装を実行した結果ではなく、上記規則の直接の導出である。
+全候補への近似が必要ない、名前と direct correspondence が interface に残る場合を用いる。
+
+\paragraph{permission は operation を作らない。}
+pure な provider の event port は0である。
+negative \([io]\) receipt は \(\mathsf V\) の grant を作るが、\(\mathsf E\) の seed を作らない。
+従ってその provider を force/call した port も、他の code に seed がなければ0のままである。
+Computation entry の \(\lambda x.\Ret 0\) は引数の latent port に接続せず、
+\(\lambda x.\Force x\) はそこへ接続する。
+Value entry の body が \(b\) を持つ場合は
+\(\mathsf{Call}_S(X)=X\cup b\) なので、target の \(b\cup X\) と同じ共同入力で inclusion が成立する。
+ここから \(X\subseteq0\) は生成されない。
+
+\paragraph{omission と local grant。}
+active な候補 owner \(u\) に届く一つの actual \(io\) cell で、
+\(\mathsf{Prot}=1\)、omission の \(\mathsf{Grant}=0\) なら eligibility は偽、event は残る。
+同じ direct port の \([io]\) receipt により \(\mathsf{Grant}=1\) なら、
+total arm がある場合にその cell だけを除去できる。
+別 owner の helper には \(G(io,u)\) を \(G(io,u')\) として読む規則がなく、同じ除去はできない。
+owner が inactive の場合は eligibility の外側の conjunct が偽となる。
+
+\paragraph{返却値の latent effect。}
+\(\Ret(\Delay(\mathsf{perform}_{choose}()))\) の immediate port は0、
+結果の force port は \(choose\) seed を含む。
+この値を返すだけの catch は、その latent port を fixed filter に通さない。
+後で force する式が、その時点の View/activity と handler の下で同じ seed を処理する。
+
+\paragraph{共有された旧名と二回の再開。}
+stored view が capture 前の bound 名 \(u\) を保持するとする。
+第一枝の置換を \(\theta_1(u)=u_1\)、第二枝を \(\theta_2(u)=u_2\) とすると、
+\(u,u_1,u_2\) は全て異なる。
+\[
+\begin{array}{c|c|c}
+ & \text{第一枝の観測}&\text{第二枝の観測}\\\hline
+\text{元の stored view }u&u_1&u_2\\
+\text{第一枝で実体化して保存した }u_1&u_1&u_1\\
+\text{resumer の ambient view }u&u&u
+\end{array}
+\]
+一行目は future read にも作用する置換、二行目は既に free な名の固定、三行目は action 範囲の区別である。
+保存時だけのコピー、global な破壊的 rename、入力 equality の無条件な保存は、この表のいずれかを破る。
+本稿の action tag と hidden-region の二つの像は、この三行を同時に表示する。
+
+\section{証明の依存と実装への適用範囲}
+\label{sec:remaining}
+
+本稿の規範的な型付き言語について、定理\ref{thm:full-safety}の依存は次で閉じている。
+\[
+\begin{gathered}
+\text{全構文の明示 code と decoration}
+\ \longrightarrow\ \text{実行型の保存・進行},\\
+\text{有限 diagram と transfer の具体的構成}
+\ \longrightarrow\ \text{表示保存・query の正確性},\\
+\text{frame 文法と有限の cut summary}
+\ \longrightarrow\ \text{raw continuation の契約},\\
+\text{構文的な graph inclusion と置換}
+\ \longrightarrow\ \text{一段 simulation}
+\ \longrightarrow\ \text{有限 prefix の全型健全性}.
+\end{gathered}
+\]
+「elaboration が正しい」「primitive transfer が adequate」「継続の再開が安全」といった
+未定義の意味論命題を、最後の定理の仮説に置いていない。
+仮説は、提示された code の上記の構文的導出、宣言表、開いた場合の型付き入力である。
+scalar primitive の文字分割等は元稿と同じ固定 helper データを parameter とし、
+その有限列上の constructor 保存は前半で示した。
+これは arithmetic/Unicode の具体的な表示選択と、効果の安全性を区別する通常の宣言表パラメータである。
+
+\textbf{型推論・compiler について残る仕事。}
+元稿の略記のうち、decoration、未知座標の relation、\(E^r\) の作り方は本稿の具体構成に固定した。
+特に \(E^r\) に任意の小さい row を選ぶ判断は、この体系の導出にならない。
+これらの補完を持たない古い証明書の名前だけから、本稿の導出の存在は結論しない。
+未注釈 source からこの導出を見つけること、全 retained constraint を保存すること、
+compiler の全 lowering がこの型付き翻訳を生成すること、VM/native がこの機械を実現することは別の定理である。
+特に、小さい effect row を出す実装には、この有限規則の inclusion を満たす根拠が要る。
+過去の \texttt{CheckedExecutable} という名前や成功した実行例だけではその根拠にならない。
+原文の全 source inference、principality、Oracle equivalence、A/B、Q1--Q8 の実装側の gate を
+本稿の定理によって一括して閉じない。
+
+\textbf{証明の状態。}
+これは単独著者による規範 calculus の紙上証明であり、独立査読と機械検証は未実施である。
+第1稿に残した decoration と concrete-to-cell simulation の数学的な定義・導出を本稿に含めた。
+リポジトリの査読済み gate や production authority の昇格とは区別する。
+元のユーザー文書は改変していない。
 
 \end{document}
