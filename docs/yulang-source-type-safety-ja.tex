@@ -66,12 +66,20 @@ BoldFeatures={FakeBold=2},ItalicFeatures={FakeSlant=.15}]}
 特に、複数の独立な入力 occurrence と一つの印の対応を独立の義務として判定する。
 \texttt{compose} の直接呼出しについては、第\ref{sec:named}節で既存の source frame 構成を適用し、
 最後の formal \(x\) の実行 entry から scope/receiver を作る具体化まで進める。
-この bounded な対応を alias/anonymous/一般の捕捉へ拡張する義務は残る。
-今回の追補（第\ref{sec:capture}--\ref{sec:source-family}節）は、source の自由変数と
+この bounded な対応を、以下では alias/anonymous/捕捉を含む明示的候補へ拡張する。
+第\ref{sec:capture}--\ref{sec:source-family}節は、source の自由変数と
 実際の値経路から捕捉を構成する。既存 evidence を複写せず、未実行 recipe の binder と分離する。
 追補の基準は \texttt{c1ac52b0a} に保存した前版の source 稿である。
 さらに non-Var 呼出しを扱う一つの全域な候補政策を明記し、候補に対する source 定理へ合成する。
 これは旧 Oracle の全構文についての対応や、未選択の意味論の採用を意味しない。
+今回の解除を優先する追補は第\ref{sec:release-closed}節である。
+同じ binder の全入力を選ぶ具体的候補、複数 target の累積、crossing 履歴の必要十分条件、
+型代入と raw resume を構成し、定理\ref{thm:release-source}へ合成する。
+第\ref{sec:value-restriction}節では constructor 適用の再一般化という前版の残項を、
+凍結 source と既存の値制限に照らして訂正し、計算一回と多相 payload の各使用を接続する。
+さらに第\ref{sec:wildcard-repair}節で、旧 AllowAll query が callback の保護を迂回する
+source 判別を示す。wildcard と具体的な許可を分けた修正候補を構成し、
+最終的な候補体系の定理は定理\ref{thm:repaired-source}とする。
 独立査読・機械検証は未実施。以下の紙上導出は証明 gate の昇格ではない。
 
 \tableofcontents
@@ -108,8 +116,9 @@ nominal の型引数へ \(\forall\) を置く形も明示 instance として表�
 source の constructor application は通常の App として扱う。constructor の任意の効果付き引数式は
 通常の式判断では許すが、その評価を \(\forall\) 導入の内側へ移さない。
 
-constructor application 自体をさらに一般化できる全 source 値制限の対応は、本稿の
-rank-2 payload の導出だけで閉じたとはしない。その元の受理要件を新しい拒否規則へ変更しない。
+constructor application は既存の computed-fetch 制限に従う。
+rank-2 payload の使用には、その適用全体の再一般化を必要としない。
+この source 上の区別と元の受理規約への根拠は第\ref{sec:value-restriction}節で示す。
 
 \(Q\) は通常の宣言的型付けと同じ qualified 前提である。
 必要な型 instance、直接境界の有限証拠、選択証拠、role 証拠を規則木に記す。
@@ -689,7 +698,8 @@ RC の From は現在の有限 route によるので、解除後の eligibility 
 一方、別の \(\epsilon'\) が偶然同じ row 型になったことを理由にその保護まで解除する案は、
 既存の独立 scope 保存に反する。
 複数入力の \(A_m\) の選択はユーザーへ照会中であり、回答前に一般の source 規則として採用しない。
-補題\ref{lem:target}はこの一箇所を明示した構成であり、全 source 対応の完了とは呼ばない。
+第\ref{sec:release-closed}節は、全入力を選ぶ一つの候補を実際に構成してこのパラメータを除く。
+その候補の証明と、言語としての採用は区別する。
 
 \section{compose を実際の呼出し構造で追う}
 \label{sec:compose}
@@ -1644,6 +1654,432 @@ RC は元 receiver と現在の crossing を検査し、RP は同じ target の�
 型健全性は、別の型に合う handler を選んでしまう意味論の相違を自動的には反駁しない。
 したがって「唯一の Yulang 意味論が閉じた」「独立査読だけが残る」という結論にはしない。
 
+\section{\texttt{'e?} の入力対応と、重なる出力 view を具体化する}
+\label{sec:release-closed}
+
+本節は前版 \texttt{5df75a53f} の自由パラメータ \(A_m\) を一つの具体的候補で置き換え、
+複数 target の合成を明示する。候補を \(A_{\rm all}\) と呼ぶ。
+同じ lexical binder の同じ実際の受領環境に属する入力は全て選ぶ。
+二入力の選択については返答待ちであり、これは意味論の採用決定ではない。
+以下の証明には未指定の ingress 選択関数を残さない。
+旧稿の一つの target についての RP は本節の多 target 規則の特殊例となる。
+旧稿の保存済み scope/target の一様 freshening は用いず、第\ref{sec:owners}節を用いる。
+
+\subsection{字面、型の解、実際の受領環境を分離する}
+
+\(\epsilon\) は source annotation、または有限な宣言的 source 導出が導入した scheme の
+binder identity であり、
+解かれた row の denotation ではない。型の座標 \(a\) と、由来を指す \(\epsilon\) は別 sort にする。
+未注釈の compose でも後者の binder を持つ。これはユーザーへ annotation を追加させる条件ではなく、
+通常の宣言的型付けの binder を recipe に残す操作である。
+同じ表示名を使う二つの束縛子、または代入後に同じ row となる二変数の由来は別のままである。
+入力 recipe の key \(k\) は source の formal/component と宣言 instance 内の位置である。
+\(j\) はその signature 内の有限な typed path を含む。既存の実行された entry から
+\[
+ \rho(k)=b,\qquad \mathsf{Origin}(s)=(b,r,\epsilon,j),\qquad
+ s=\mathsf{scopeKey}(b,\epsilon,j)
+ \tag{R-Origin}
+\]
+を得る。\(\rho\) は code が参照する lexical slot 環境であり、全 world の同名 binder の表ではない。
+\(\Pi_{\rm flow}\) の group では、その時点の \(\chi_p\) が \(\rho(k)\) を与える。
+新しい terminal entry による環境拡張と、既に捕捉した環境は区別する。
+
+marker \(m\) に対し、source の有限導出中でその binder を参照する ingress recipe を走査し、
+\[
+ \mathcal I_m=\{(k,P_{m,k})\}
+ \tag{R-Inputs}
+\]
+を作る。\(P_{m,k}\) は \(\epsilon_m\) が現れる入力 component の path template である。
+走査は既に導出した entry/profile の input port から開始し、tuple/record/nominal の宣言辺、
+Function の四ポート、明示された直接境界の対応を辿る。
+内側の別の \(\forall\epsilon'\) は別 binder として扱う。
+単に同じ値型となる箇所や、逆向きの lower-provider 検索から ingress を増やさない。
+regular template は有限 node 表として保持し、再訪 node を展開し直さない。
+各具体 path の照合は有限語に対するこの表の走査であり、潜在 event を先に列挙しない。
+非正則な nominal は、有限な宣言 node と型引数環境を持つ path interpreter とする。
+一つの child label ごとに有限な型代入を一回行い、表現を開く場合にも constructor label を
+消費する。無進展の alias cycle は宣言形成で除かれているので、有限 path の query は停止する。
+型引数環境の全 instance が有限だという仮定は置かない。
+従って \(\mathcal I_m\) は構成可能な有限表である。
+
+実際の印付き output entry で fresh \(t\) を確保し、次を\emph{一度}捕捉する。
+\[
+ B_t=\{(b,\epsilon_m,P_{m,k})\mid
+             (k,P_{m,k})\in\mathcal I_m,\ \rho(k)=b\}.
+ \tag{R-Capture}
+\]
+output の body より先に、その lexical input の receipt key は登録済みである。
+まだ潜在値を使っていなくても、予約した \(b\) は使えるが、Observe や scope witness は作らない。
+実際の source 宣言が対応を持たない marker は形成エラーであり、同じ family の全 scope への
+fallback はない。この条件は元の単一 ingress の形成条件と同じである。
+\(B_t\) は immutable である。新しい通常呼出しの同じ \(k\) が \(b'\) を登録しても、
+既存 \(B_t\) を更新しない。別名・捕捉・返却は既存表を共有する。
+fresh は現在の code、保存された環境/継続、\(L\) を含む全既存 support に対して取る。
+
+\[
+ \mathsf{Match}(t,s)\quad\Longleftrightarrow\quad
+ \exists(b,\epsilon,P)\in B_t.\
+       \mathsf{Origin}(s)=(b,r,\epsilon,j)\ \land\ j\in P.
+ \tag{R-Match}
+\]
+O-Target は、現在の actual inventory にあり、R-Match を満たす \(s\) についてだけ生成する。
+\(r\) は必ずその Origin から読む。一つの \(t\) が二つの元 receiver を持つ入力を選んでも、
+両 receiver を同一視せず、各 \(s\) の activity を別々に検査する。
+後から同じ \(b\) の潜在 path を実際に使った場合にも、この有限 template を照合できる。
+未到達の値、別呼出しの同名の \(\epsilon\)、別 binder の一致した row は照合に成功しない。
+
+\begin{lemma}[入力対応の構成と動的 instance の分離]
+\label{lem:release-inputs}
+R-Inputs/R-Capture/R-Match は、完成した runtime 対応表を外から要求せず、
+有限な source 導出、actual entry、lexical capture から target を構成する。
+同じ marker が選ぶ二入力には二つの起点が残り、独立した通常呼出しの起点は混同しない。
+別の型変数を同じ row に置換しても、この選択は変化しない。
+\end{lemma}
+\begin{proof}
+source 導出への帰納で entry key と有限 path 表を構成する。
+Function のケースは既存の四ポートを別々に訪問し、内側 binder で環境を拡張する。
+再帰型参照は登録済み node への辺で止める。
+非正則な宣言参照は interpreter と引数環境を保存し、具体 path の長さへの帰納で停止を得る。
+R-Capture に必要な \(b\) は F-Seed/EnterGroup または捕捉された lexical slot による。
+補題\ref{lem:home-capture}により捕捉先は既存の受領 key と等しい。
+R-Match の成功を反転すれば、\(b,\epsilon,j\) の三つ全てが一致する。
+二入力の \(b_1\ne b_2\) は同じ \(\epsilon\) でも別の scopeKey を持つ。
+通常呼出しが確保する \(b'\) は既存 support から fresh であり、旧 \(B_t\) に現れない。
+型の代入は \(b,\epsilon\) を商にしないので、row の一致ではこの不等式は変わらない。
+潜在 path の後の照合でも \(b\) は固定されており、同じ議論が使える。
+\end{proof}
+
+\subsection{複数の解除を経路ごとに合成する}
+
+一つの witness \(w\) は Origin への route に加え、実際に輸送された target の有限集合
+\(H(w)\) を持つ。これは同じ event ID の全 view の和ではない。
+\(\mathsf{view}_t\) は actual whole-output の各 witness に対して
+\(H(w)\mapsto H(w)\cup\{t\}\) とする。既存の target を捨てない。
+構造の子では該当 component だけへ、型適用では同じ導出の対応先へ運ぶ。
+alias は同じ view を渡し、別の input view を破壊的に変更しない。
+二つの独立な route を持つ packet は二つの witness を保つ。
+片方の \(H\) をもう片方へ移して存在量化を短絡させてはならない。
+
+\begin{definition}[累積 target による protection query]
+\label{def:release-query}
+\(L\subseteq Scope\times Target\) は現在の world にある集合である。
+\[
+\begin{split}
+ C_L(w)&=\exists t\in H(w).\ (s(w),t)\in L
+          \land\Act(r(s(w)))\land\mathsf{Match}(t,s(w)),\\
+ \mathsf{LiveProt}_L(w)&=\mathsf{Prot}(w)\land\neg C_L(w).
+\end{split}
+\tag{R-Project}
+\]
+handler の \(P(q,h)\) は、従来の receipt/path/activity 条件と
+\(\mathsf{LiveProt}_L(w)\) を全て満たす witness がある、という存在量化である。
+Grant、Admit、Covers、RoleAllows の式は変えない。
+\end{definition}
+
+一つの target しかない場合は旧 RP と同じである。
+\(s\) が解除された \(t\)-view を独立な \(u\)-view が包む場合に、
+最後の \(u\) だけを使って元の \(\mathsf{Prot}(w)\) を読み直す解釈は採らない。
+その解釈では、\(u\) が別 scope を対象にするだけで \(s\) の保護が復活する。
+前版の単一 target の式はこの合成を明記していなかったため、本定義で補う。
+
+delimiter の body が Req となったときの唯一の状態更新は
+\[
+\begin{split}
+ J(q,t)&=\{s\in\mathsf{Scopes}(q)\mid\mathsf{From}_s(q)\land\mathsf{Match}(t,s)
+                                      \land\Act(r(s))\},\\
+ L'&=L\cup\{(s,t)\mid s\in J(q,t)\}.
+\end{split}
+\tag{R-Cross}
+\]
+From は現在の actual route の query であり、R-Project や解除後の eligibility を参照しない。
+\(\mathsf{Scopes}(q)\) はその寄与の有限な actual route が要求した scopeKey の集合である。
+再帰型の全 path の集合ではない。各 route edge は実際の有限 path を持ち、
+view occurrence の親は既存 occurrence なので、新しい occurrence から過去へ辿る query は有限である。
+store の object pointer が循環していても、将来の read を先に辿って query edge を増やさない。
+Req の packet には \(t\) を追加し、continuation の suffix に同じ release frame を戻す。
+Ret は結果へ \(t\) を輸送するだけ、Fail はそのままであり、いずれも \(L\) を変えない。
+通常の内部遷移は先に body 内で行う。内側の handler が処理し尽くした request に
+R-Cross を適用する規則はない。
+
+\paragraph{latent transport と新たな crossing は別である。}
+返された関数・delay・record field に \(t\) を保存する処理は、将来の Call/Force の周りへ
+新しい \(\mathsf{release}_t\) delimiter を設置する処理ではない。
+保存された値を後に使う場合は、実際の latent path で \(H\) を輸送し、現在の \(L\) を読む。
+未解除であれば、target の輸送だけでは最初の解除は起きない。
+その実行が元の delimiter の内側、またはその raw continuation の suffix にあれば、
+そこを外向きに越えた Req が R-Cross を発火させる。
+別の source 注釈に marker があるなら、その注釈自身の actual output entry が別の target を作る。
+こうして、後の潜在実行を過去の source output crossing と誤認しない。
+
+\paragraph{実行規則のまとめ。}
+\(W\) は \(L\) 以外の現在状態である。\(B_t\) の登録だけを \(W[t\mapsto B_t]\) と略記する。
+\[
+\begin{array}{rcl}
+ (W,L;\mathsf{mark}_m M)&\longrightarrow&
+ (W[t\mapsto B_t],L;\mathsf{release}_t M)\quad(t\text{ fresh}),\\
+ (W,L;\mathsf{release}_t\Ret v)&\longrightarrow&
+ (W,L;\Ret\mathsf{view}_t(v)),\\
+ (W,L;\mathsf{release}_t\mathsf{Fail}\ a)&\longrightarrow&
+ (W,L;\mathsf{Fail}\ a),\\
+ (W,L;\mathsf{release}_t\Req(q,p,K))&\longrightarrow&
+ (W,L';\Req(\mathsf{view}_t(q),p,\mathsf{ReleaseCont}_t K)).
+\end{array}
+\tag{R-Step}
+\]
+\(B_t\) は R-Capture、\(L'\) は R-Cross で計算する。
+body の非終端一段は \(\mathsf{release}_t\) の内側で実行する。
+ReleaseCont は \(K=\mathsf{cont}(\bar u,x.M)\) を
+\(\mathsf{cont}(\bar u,x.\mathsf{release}_t M)\) にする。
+mark は該当 output entry に一度だけ生成する管理命令で、再開する suffix に mark を戻さない。
+この四場合と内部一段が全場合であり、未定義の「解除可能なら解除する」という判断を残さない。
+
+\begin{lemma}[crossing 履歴の必要十分条件]
+\label{lem:release-history}
+初期 \(L_0=\varnothing\) から始めた任意の有限実行 prefix について、
+\((s,t)\in L_n\) と、\(n\) より前に同じ \(s,t\) について R-Cross の三条件を満たす
+actual outward transition が少なくとも一度あったことは同値である。
+型付き外部状態から始める場合には、右辺にその状態の既存の履歴を加える。
+\end{lemma}
+\begin{proof}
+step 数に帰納する。R-Cross 以外の step は \(L\) を固定する。
+R-Cross はその時点の \(J(q,t)\) との集合和だけを行うため、追加された対には
+今の transition が証人となり、追加されない対には帰納仮説を使う。
+逆に過去の証人で追加した対は削除されず、現在の証人も式により追加される。
+receiver の終了は activity を変えるが \(L\) の履歴を削除しない。
+raw resume は現在の \(L\) を読むので、保存時点への巻き戻しのケースもない。
+\end{proof}
+
+\begin{lemma}[whole-output、局所性、重なりの保存]
+\label{lem:release-overlap}
+元 receiver が active な間、次が成り立つ。
+\begin{enumerate}
+\item 同じ \(s,t\) の actual crossing は冪等であり、その \(t\) の actual typed transport を
+持つ全出力 witness に作用する。\texttt{'f} の下の同じ \(s\) も含む。
+\item その crossing は、別の scope、\(t\notin H(w)\) の独立 view、event identity、
+family instance、payload/response、From/Observe、既存 Grant を変えない。
+\item 同じ actual route に新たな target を加えても、既に解除された witness は再保護されない。
+\item 固定した同じ actual crossing 列の追加集合を計算する順序は、最終 \(L\) に影響しない。
+これは delimiter や handler を source 上で並べ替える法則ではない。
+\end{enumerate}
+\end{lemma}
+\begin{proof}
+1は \(L\cup\{(s,t)\}\cup\{(s,t)\}=L\cup\{(s,t)\}\) と、
+全 witness に存在量化より先に R-Project を適用することによる。
+表示上の row summand ごとに別の未解除 packet を再 union する規則はない。
+2は R-Cross が変更する唯一の成分と、R-Project の添字 equality を反転して得る。
+3では \(H\subseteq H'\) なので \(C_L(w)\) が真であった witness は真のままである。
+4は有限集合和の可換性・結合性である。
+この議論は crossing 列を固定しており、handler の順序を変えると Req が一方の delimiter に
+到達しない場合を含まない。従って一般の \texttt{['e?, 'e] = ['e?]} という型等式や、
+プログラム文脈の可換性は導かない。
+\end{proof}
+
+\subsection{一般化、rank-2、同じ継続の二回使用}
+
+型の置換 \(\sigma\) と、未実行 recipe の binder 改名 \(\eta\) を区別する。
+\(\sigma\) は二つの型変数を同じ型へ写してよい。
+\(\eta\) は一つの whole packet の束縛された静的参照へ同時に作用し、fresh/injective とする。
+既に確保した \(b,r,s,t\)、\(B_t\)、stored/captured view はいずれでも再確保しない。
+未実行 recipe の \(\nu b\) は実際の普通の entry でだけ fresh \(b\) を作る。
+既存の target に結び付いた descriptor と自由参照は過去の値として固定する。
+
+\begin{lemma}[型代入と解除の可換図式]
+\label{lem:release-substitution}
+whole packet の well-formed な型 instance と、上記の capture-avoiding な recipe 改名は、
+R-Origin--R-Cross の形成と実行を保つ。生成済みの view について
+\[
+ \sigma(C_L(w))=C_L(\sigma w)
+ \tag{R-Subst}
+\]
+であり、型適用自身は \(L\) を変更しない。
+未実行 recipe の普通の entry の両側は、fresh 動的名の全単射を除いて同じ実行を与える。
+\end{lemma}
+\begin{proof}
+型付き route と template の導出への同時帰納を行う。
+variable/type application は型座標だけを代入し、由来の \(\epsilon,b\) を変えない。
+一般化の自由変数条件により、量化した変数は既存の captured/storage/profile 環境に現れない。
+未実行 recipe にある型変数の shape が instance で開く場合は、その template と
+型引数環境に同じ代入を行ってから実際の entry/path を作る。既存の \(B_t\) を
+解いた型の全走査で作り直す場合ではない。
+構造と Function は全対応先に同じ置換を行う。
+内側 forall は先に binder を fresh にするため、別 binder の入力表は混ざらない。
+\(B_t\) の equality と path の source 対応は保存され、R-Match の真偽は一致する。
+From は同じ実行 route の合成なので同じであり、activity と \(L\) は既存動的定数に対して固定する。
+従って R-Project の各 conjunct と R-Cross の \(J\) が一致する。
+型代入により event の型引数は変わりうるが、それは grant/covers を含む型付け全体の
+通常の同時代入であり、新しい Origin や解除権限の生成ではない。
+
+\(\eta\) の場合には束縛される有限 input key/template/marker の全参照を同時に写す。
+injectivity により同一性と相違が保存される。free な実際の受領表は固定される。
+未実行 \(\nu b\) に到達した場合だけ、両実行が選んだ fresh 名同士を対応させる。
+この対応を origin、target、view へ同時に延長でき、旧 support 上は恒等である。
+以後は今の route 帰納を適用する。共有セル、既存 closure、raw continuation を
+型 instance ごとに複製したものとして扱うケースはない。
+\end{proof}
+
+従って rank-2 payload を二つの型で使用しても、捕捉済みの \(s,t\) は同じである。
+一方、payload 内の関数を二回普通に呼び出せば、各 entry が作る新しい \(b,s,t\) は別である。
+型変数の freshening と、実行回数の違いを同じ操作にしていない。
+
+\begin{proposition}[multi-shot resume の現在状態]
+\label{prop:release-resume}
+同じ raw continuation を二回呼び出しても、既存の Origin、target とその受領表は固定される。
+第一の再開が \((s,t)\) を解除した後、第二の再開に同じ \(t\) の transport があり、
+元の \(r(s)\) が active なら、第二の観測は解除済みである。
+元 receiver が終了済みなら、新しい control owner を割り当てても古い protection/解除は復活しない。
+\end{proposition}
+\begin{proof}
+第\ref{sec:owners}節の borrow/own は実行 control だけを解決し、既存 \(s,t,B_t\) を固定する。
+ReleaseCont が保存するのは同じ delimiter の suffix と自由参照である。
+第一の R-Cross の追加は補題\ref{lem:release-history}により現在の \(L\) に残り、
+第二の resume はその現在の \(L\) を読む。したがって R-Project をそのまま適用できる。
+元 receiver が inactive の場合は R-Cross と R-Project の activity 条件がともに偽であり、
+元 protection の query 自身も inactive となる。
+新 control owner は Origin の \(r\) ではないため、この真偽を変更しない。
+未実行の別の普通の source call に後から到達した場合は、そちらだけが fresh entry を行い、
+補題\ref{lem:release-inputs}により旧 target の状態を継承しない。
+\end{proof}
+
+\subsection{有限型付けと全体定理への適用}
+
+新しい runtime query は有限な \(B_t\)、actual route、\(H(w)\)、\(L\) への走査である。
+path query は有限 prefix の有限語を処理する。従って query は停止し、
+実行の将来や解除後の handler 選択に依存しない。
+finite complete cell では、既知の \(s,t\) の equality、R-Match、activity、release bit、
+actual target transport を同じ joint diagram に残す。
+hidden target が named target と同一である可能性も含め、表現しない相関は全整合候補へ広げる。
+未知の \(H\) を空として扱ってはならない。
+ここで「全整合候補」は sort/equality/明記した Boolean 制約を満たす有限な全割当てである。
+その候補が実際の source 実行で到達可能かを決定する oracle は用いない。
+余分な候補を含んでよいが、具体的な一段の出力を除いてはならない。
+各 edge は有限 relation の像であり単調である。これを Value/event/latent/reentry の全 port に使う。
+
+\begin{theorem}[具体的な解除規則を含む source 型健全性]
+\label{thm:release-source}
+\(\Pi_{\rm flow}\)、R-Inputs--R-Cross と \(\Core_{\rm life}\) を規則として固定した体系を
+\(\Src_{\rm all}\) とする。有限で well-formed な宣言と閉じた source \(e\) に対し、
+同体系の有限な宣言的導出 \(\vdash_s e:A!\Phi\) から実行計画を構成できる。
+その全有限 prefix で、値型保存、進行、\(\Bad\) 不到達、outward/latent/reentry の効果包含、
+Origin/receiver の保存、補題\ref{lem:release-history}の crossing の必要十分条件、
+補題\ref{lem:release-overlap}の局所性が同時に成り立つ。
+型付けの前提は普通の有限な型/境界/選択/role 導出と、生成 graph の有限 inclusion であり、
+任意の入力選択関数、完成済み scope 表、推論器の成功を前提に含まない。
+\end{theorem}
+\begin{proof}
+補題\ref{lem:release-inputs}が前の定理の \(A\) と target 形成の箇所を構成する。
+複数 target の場合だけ、旧 RP に代えて定義\ref{def:release-query}を使う。
+R-Cross は旧 RC と同じ型の Req と typed-hole continuation を返す。
+新しい \(H\) は値の実行型、payload/response 型、continuation の穴の型を変えないため、
+値型保存と canonical forms は定理\ref{thm:source-safety-family}の帰納を使える。
+値・closure・pattern の実際の経路に沿って \(H\) を運ぶので、型置換と捕捉のケースは
+補題\ref{lem:release-substitution}および定理\ref{thm:capture}が与える。
+
+effect 部分では R-Project の全 witness の同時 query を finite relation に置き換える。
+既知の座標では具体的な Boolean 式と一致し、未知の座標では具体出力が全整合候補の一つとなる。
+従って各一段の出力は、その step の型付け edge の像に入る。
+mandatory edge、共同入力、cut summary、再開 port の inclusion を用いて prefix 帰納を行う。
+release は既存の七番目の frame であり、複数 target の保持は新しい control frame を増やさない。
+Ret と Fail には明示規則、Req には停止する R-Match/From の query と R-Cross があるため、
+進行の新しい詰まりもない。
+最後に同じ prefix 帰納へ補題\ref{lem:release-history}、\ref{lem:release-overlap}と
+命題\ref{prop:release-resume}を合成する。独立した過去の状態を証明の前提に置いていない。
+\end{proof}
+
+\paragraph{二入力と compose の具体的帰結。}
+二入力の起点が \(s_1,s_2\) で、両方が同じ lexical \(\epsilon\) に対応する場合、
+\(B_t\) は両方の受領 key を持つ。ただし \(\mathsf{From}_{s_1}(q)\) しか成立しない最初の Req は
+\((s_1,t)\) だけを追加する。入力を二つ選ぶことは、未実行の二つ目を先に解除することではない。
+両 route が同じ寄与へ実際に到達すれば両方を追加する。
+他方、独立 scope \(s_3\) が同じ event に付いていても、R-Match が偽なら残る。
+直接 compose は定理\ref{thm:compose-source}の唯一の \(s_E\) に縮退するため、その結論を保つ。
+\(f=id\) の実際の返却経路内にある同じ \(s_E\) にも R-Project を適用し、
+別の \(s_F\) を型変数の一致だけで消さない。
+
+\section{constructor の一般化について残していた義務を判定する}
+\label{sec:value-restriction}
+
+前版は「constructor application 自体の一般化」を未解決としていた。
+しかし、任意の constructor application の再一般化は、元稿が引用する既存の値制限の要求ではない。
+凍結 Oracle \texttt{a58eefc31e22141574b6f20c6a5748151c6d79f1} で確認した経路は次である。
+これは source の読み取りであり、実行結果や推論器全体の正しさの証明ではない。
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{.54\textwidth}>{\raggedright\arraybackslash}p{.38\textwidth}}
+\toprule owning source & 実際の分類・伝播 \\
+\midrule\endhead
+\nolinkurl{crates/infer/src/lowering/expr/tail.rs}:89--138 &
+constructor arity を補った引数も \texttt{make\_source\_app} へ渡す。\\
+同ファイル:626--627、630以降 &
+\texttt{Expr::App} は \texttt{Computation::computation}。constructor 専用の Value 昇格はない。\\
+\nolinkurl{crates/infer/src/lowering/expr/block_local.rs}:548--585 &
+通常の local RHS の evaluation から \texttt{BindingFetch} を作り一般化へ渡す。\\
+\nolinkurl{crates/infer/src/lowering/expr/tail.rs}:944--989 &
+computed fetch の root を non-generic に加え、fetch の一般化境界を使う。\\
+\nolinkurl{spec/2026-06-13-computed-fetch-value-restriction.md}:95--110 &
+計算で生じた型・effect・role 等を use ごとに自由に instance 化しないという元の規約。\\
+\bottomrule
+\end{longtable}
+
+constructor \emph{値}の取得と、その callable への \emph{適用}は異なる。
+第\ref{sec:poly}節の \(S_c\) 自身が \(\forall a.B\) を含むことは、この computed-fetch 制限に反しない。
+多相 payload の格納には、引数を評価し直す一般化は不要である。
+
+\subsection{値の一般化と計算結果の共有を明示する}
+
+通常の非再帰 let について、次の二つを区別する。\(\mathcal E\) は第\ref{sec:poly}節の環境である。
+\[
+ \frac{\Delta,\bar a;\Gamma;Q\vdash_v n:B
+       \quad\bar a\cap\fv(\mathcal E,\D)=\varnothing
+       \quad\Delta;\Gamma,x:\forall\bar a.B;Q\vdash_s e:C!E}
+      {\Delta;\Gamma;Q\vdash_s\mathsf{let}\ x=n\ \mathsf{in}\ e:C!E}
+ \tag{G-Value}
+\]
+\[
+ \frac{\Delta;\Gamma;Q\vdash_s M:A!E_1
+       \quad\Delta;\Gamma,x:A;Q\vdash_s e:C!E_2}
+      {\Delta;\Gamma;Q\vdash_s\mathsf{let}\ x=M\ \mathsf{in}\ e:C!(E_1;E_2)}.
+ \tag{G-Compute}
+\]
+\(E_1;E_2\) は順序付き let の既存の joint effect graph 合成であり、無条件の集合和の略記ではない。
+G-Compute の \(A\) は既に \(\forall\) を含んでいてよい。
+禁止されるのは、\(M\) の計算で生じた新しい自由変数を、この規則だけで新たに量化することである。
+既存の \(\forall\) の除去や、monomorphic nominal の payload に格納した全称型の使用は禁止しない。
+再帰値 group は第\ref{sec:capture}節の typed cell 構成を使い、computed 循環を値の導入へ変えない。
+
+\begin{theorem}[一回の constructor 評価と rank-2 の各使用]
+\label{thm:constructor-once}
+G-Value/G-Compute を含む source の型付けは、定理\ref{thm:release-source}の結論を保つ。
+特に、効果を持つ任意の \(M:S_c(\bar T)\) に対して \(c(M)\) の受領・評価・格納を通常の
+Call として行い、格納後に得る \(\forall a.B\) の payload を複数の型で使用できる。
+この構成は \(M\) を型適用ごとに再評価せず、既存の共有セルや scope を型ごとに freshen しない。
+\end{theorem}
+\begin{proof}
+G-Value の code は \(\Ret(\Lambda\bar a.\El_v(n))\) の結果を body へ渡す通常の let である。
+非拡張な \(n\) の構成はその捕捉環境の参照を保持し、一般の計算を実行しない。
+自由環境条件により全称導入と whole-packet 置換の補題を使える。
+G-Compute の code はそのまま
+\(\mathsf{let}\ x\leftarrow\El(M)\ \mathsf{in}\ \El(e)\) であり、既存の let 保存を使う。
+結果型 \(A\) に新しい forall を加える step はない。
+
+constructor の場合、\(\El(c(M))=\Call(v_c[\bar T],\Delay\El(M))\) である。
+Value entry が先に receiver を作り、carrier を force して、実際の結果を一回格納する。
+この実際の execution path における \(M\) の評価を型抽象の下へ移さない。
+\(M\) が request を出した場合、その suffix の複数回再開は通常の multi-shot 規則による。
+ここでいう一回は通常の let/Call 一回の順序であり、multi-shot が後続 code を再実行しないという
+誤った主張ではない。
+constructor elimination は \(S_c(\bar T)\) の payload を同じ値として取り出す。
+その中の \(\forall a.B\) の各 AllE は型代入だけであり、\(M\) の code に戻る辺はない。
+補題\ref{lem:release-substitution}により既存 receiver/target と現在の解除状態も保つ。
+新しい普通の payload Call だけが新しい受領を作る。
+各段は同じ型付き let/Call/constructor/AllE の合成なので、全 port の包含も保存する。
+\end{proof}
+
+この定理で前版の rank-2 に関する残項を具体化できる。
+\(D_2\) の一つの monomorphic 値から得た同じ多相 payload を int/bool で使うことは導出できる。
+\(\mathsf{Ref}(a)\) を作る一般の計算へ \(\forall a\) を追加することは G-Compute からは導出できない。
+これは証明のための新しい source 制限ではなく、既存の computed-fetch 規約への対応である。
+一方、Oracle の level/非一般化依存の伝播が\emph{全経路}でこの規約を実装しているという命題は、
+この有限な source 経路の読み取りからは導かない。推論器の一般化正当性として別に残す。
+
 \section{dot selection との接続}
 \label{sec:selection}
 
@@ -1718,6 +2154,361 @@ first-success と順序付き fallback は高々一つの結果を返す。
 役割実装の全体的一意性、SCC の Ready 公開の正当性は、この帰納法では得られない。
 同じ型の別 body を選んでも値型が保存される可能性があるため、型健全性だけで穴を埋められない。
 
+\section{区切り記法と、生成される関数の接合}
+\label{sec:surface-bridge}
+
+\subsection{反変の comma row と release は独立に合成できる}
+
+source row はまず、comma/semicolon/qualifying newline を取り除いた順序付き item 列へ写す。
+concrete family、共有 abstract binder、marker の区別は名前解決後に行う。
+最後の item を自動的に tail と解釈したり、semicolon の有無から polarity を決めたりしない。
+これは \nolinkurl{syntax-reference/ja/src/types/bracket-row-grammar.md} 第2節と、
+操作稿の mixed-row 規則を source の導出へ使うものである。
+
+\begin{proposition}[反変の混合 row と具体的 release の保存]
+\label{prop:mixed-release}
+同じ item 列と lexical binder の対応を持つ well-formed な二つの注釈が、
+区切りだけ異なるとする。片方の \(\Src_{\rm all}\) の導出から、もう片方の導出を構成できる。
+実行は source label/fresh 名の対応を除いて同じであり、R-Capture/R-Match/R-Cross も対応する。
+反変の \texttt{[undet, 'e]} は \texttt{[undet; 'e]} と同じ規則を持つ。
+\end{proposition}
+\begin{proof}
+separator 除去の結果は同じ有限 item 列となる。
+型全体の polarity は Function の引数辺で反転し、区切り記号を参照しない。
+item 列に帰納すると、concrete \texttt{undet} の local permission、共有 \(\epsilon\) の契約、
+marker の binder/entry 対応はそれぞれ一致する。
+R-Inputs はその対応した source recipe を走査するため、\(B_t\) の表も同型である。
+補題\ref{lem:release-substitution}の静的改名と fresh 動的名の対応を使えば、実行規則の各場合が一致する。
+negative concrete item の処理は Grant を構成するだけで、Req/Observe の発生規則ではない。
+共有 \(\epsilon\) を具体 family との差へ変える規則もない。
+従って反変の混合 row に comma を許すことは、解除や effect 発生の変更を引き起こさない。
+不正な recovery CST、item の並べ替え、異なる binder はこの命題に含めない。
+\end{proof}
+
+\subsection{生成 binder の出所を失わない展開}
+
+表層展開が作る Lambda には、source の元 formal を表すものと、展開専用の formal がある。
+元 formal の annotation 有無・binder identity・pattern path はそのまま渡す。
+展開専用 binder には、下記の各規則で \(\mathsf{GeneratedNeutral}\) という出所を付ける。
+これは explicit wildcard ではなく、source の omission seed を導入しない分類である。
+F-Seed の「無注釈 formal」は元の source formal に対して判定し、
+生成 binder に注釈 token がないことから omission と推測しない。
+通常の受領、Value/Computation role、型付き input/output transport はどちらにも存在する。
+
+この分類の根拠は、凍結 Oracle の \texttt{LocalCallReturnEffect::Annotated} の実際の生成箇所である。
+\nolinkurl{crates/infer/src/lowering/expr/block_local.rs}:503前後の label 引数、
+\nolinkurl{crates/infer/src/lowering/yumark_lit.rs}:195--219の format/algebra 引数、
+\nolinkurl{crates/infer/src/lowering/rule_lit.rs}:326--349の capture binder が該当する。
+この内部分類は、ユーザーが書いた具体 effect permission があるという主張ではない。
+generated binder と user omission の混同を防ぐための、宣言的展開の情報である。
+rule capture は let binder であり、新しい invocation/Boundary を導入するものでもない。
+
+\(\mathsf{App}_s(f,e)\) は第\ref{sec:all-source}節の通常の source App を表す。
+核では callee を得た後に \(\Call(f,\Delay\El(e))\) を実行し、receiver を先に受領する。
+\(\mathsf{Thunk}(M)=\lambda().M\) は source の Value 関数であり、
+作るだけでは body を実行しない。次の規則の library name は宣言 identity に解決済みとする。
+各使用には普通の有限な型 instance/role/selection 導出を要求し、未知の安全な helper を仮定しない。
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{.27\textwidth}>{\raggedright\arraybackslash}p{.65\textwidth}}
+\toprule source の形 & 構成する source tree \\
+\midrule\endhead
+strict unary/binary operator &
+それぞれ \(\mathsf{App}_s(op,e)\)、\(\mathsf{App}_s(\mathsf{App}_s(op,e_1),e_2)\)。
+resolved callable と引数順を保持。\\
+lazy operator &
+上の operand を \(\mathsf{Thunk}(e_i)\) に置き換える。body を先に実行する let を挿入しない。\\
+\texttt{for p in I: B} &
+\(\mathsf{App}_s(\mathsf{App}_s(forIn,I),\lambda p.B)\)。
+\(p\) の pattern/annotation は source のもの。\\
+labeled \texttt{for} &
+\(\mathsf{App}_s(\mathsf{App}_s(labelForIn,I),\lambda\ell.\lambda p.B)\)。
+\(\ell\) は GeneratedNeutral、\(p\) は source formal。\\
+rule の token/word/rest &
+token は \(\mathsf{App}_s(token,\mathsf{str}(text))\)、word/rest は解決済み値。
+実行は \(\mathsf{App}_s(parser,())\)。\\
+rule の choice &
+左結合で \(\mathsf{App}_s(\mathsf{App}_s(choice,\mathsf{Thunk}(L)),\mathsf{Thunk}(R))\)
+を作り、その parser を \(()\) で実行する。\\
+rule の \texttt{*}/\texttt{+}/\texttt{?} &
+それぞれ \(\mathsf{App}_s(many,P)\)、\(\mathsf{App}_s(some,P)\)、
+\(\mathsf{App}_s(optional,P)\)。反復/失敗の意味は宣言済み library body から来る。\\
+Yumark の builder 外殻 &
+\(\lambda fmt.\lambda alg.
+ \mathsf{App}_s(\mathsf{App}_s(D,fmt),alg)\)。
+両引数は GeneratedNeutral。\(D\) は下位の document builder tree。\\
+\bottomrule
+\end{longtable}
+
+operator の根拠は \nolinkurl{crates/infer/src/lowering/expr/tail.rs}:393--476、
+for は \nolinkurl{crates/infer/src/lowering/expr/block_local.rs}:424--542、
+rule は \nolinkurl{crates/infer/src/lowering/rule_lit.rs}:38--318、
+Yumark 外殻は \nolinkurl{crates/infer/src/lowering/yumark_lit.rs}:166--256である。
+parser が読む \texttt{*?}/\texttt{+?} はこの凍結 lowering では診断となるため、
+上の \texttt{*}/\texttt{+} と同じ実行が既存 source にあるとは扱わない。
+
+\paragraph{rule sequence の評価位置を具体化する。}
+rule literal の列は左から、token/parser は \(\mathsf{Expr}(\mathsf{run}(P))\)、
+capture は \(\mathsf{Let}(x,\mathsf{run}(P))\) を statement 列に追加する。
+最後は capture の値から作る record、capture がなければ Unit を返す。
+一般の rule expression は \(Unit,Value,Record\) という結果分類を持つ。
+凍結 \texttt{lower\_rule\_sequence} は、Unit の実行を statement 列へ加え、
+capture の実行を let にし、capture でない単独の Value/Record は\emph{tail 計算}として保持する。
+二つ目のそのような tail、または tail と capture fields の混在は、その lowering では診断となる。
+tail が source の早い位置にあっても、生成 code では statement 列の後に評価する。
+従ってこの経路を、全 item を source 順で先に評価する一般的な sequence と同一視しない。
+本稿の型付き展開はその明示した statement/tail 配置を使う。
+これは frozen lowering の読み取りであり、別の評価順の意図を承認したという記録ではない。
+
+\begin{lemma}[型付き展開の代入と effect 包含]
+\label{lem:surface-plug}
+上の各 template で、元の子式/型付き pattern、使用する library scheme、
+各 App の直接境界と joint effect inclusion の有限導出があるとする。
+その導出から展開後の source 導出を構成できる。
+rank-2 の全称 binder、元の受領 slot の自由参照、marker の対応、評価の遅延位置を保つ。
+\end{lemma}
+\begin{proof}
+template の有限 syntax へ帰納する。
+App は子の導出と一つの complete Function 導出を S-App へ渡す。
+二段 App では内側の結果を外側の callee とし、引数評価を外へ引き出さない。
+Lambda は pattern 導出の成功環境の下に body の導出を入れ、C-Free がその自由参照を捕捉する。
+GeneratedNeutral は新しい F-Seed を作らず、元 formal については通常の F-Seed/slot 規則を使う。
+Thunk はこの Lambda の Unit-pattern の場合であり、body の effect は latent port に置かれる。
+strict/lazy の両場合で、同じ body を実行したかどうかは通常の source Call/Force だけで決まる。
+
+rule の列については、現在の statement 導出と型環境に帰納する。
+capture の let は現在の環境から result 型を得て、次の環境へその型を追加する。
+result record は同じ binder の取得から作り、capture 計算を複製しない。
+pending tail はその code と自由環境を保持し、最後の Block の tail 判断に置く。
+choice と quantifier は二段/一段 App の場合に帰着する。
+Yumark 外殻は二つの Lambda と二つの App の四規則を合成する。
+\(D\) を評価する code は二つの Lambda の内側にあり、builder 作成時へ動かさない。
+外殻の Value 分類には G-Value を適用できるが、captured environment の自由変数条件は残る。
+この条件を満たす多相 builder の各使用で、document 計算が適切な普通の呼出し時に実行される。
+
+全ケースで各子の whole packet を同じ型付き穴へ一回ずつ差し込む。
+複数の参照が必要な箇所は生成した binder を共有し、任意の計算をコピーしない。
+source label の freshening は binder と全参照に同時に行い、捕捉済み \(b,s,t\) は固定する。
+従って補題\ref{lem:release-substitution}と通常の項/証拠代入が使える。
+effect は各構文の生成 port の inclusion の合成であり、外殻が値であることを理由に
+body の latent/reentry obligation を消すケースはない。
+\end{proof}
+
+\begin{proposition}[上の展開を加えた source の安全性]
+\label{prop:surface-safety}
+\(\Src_{\rm all}\) に上の有限 template の宣言的規則を加えても、
+定理\ref{thm:constructor-once}と\ref{thm:release-source}の結論が成り立つ。
+推論器や既存 lowering 関数の成功を証明の premise として必要としない。
+\end{proposition}
+\begin{proof}
+表層の有限導出に補題\ref{lem:surface-plug}を再帰的に適用して source 導出を構成する。
+子の展開は構文の真部分へ進み、template 自体は有限なので停止する。
+再帰関数は既存の code label を参照し、body を無限に展開しない。
+得た閉じた source 導出へ定理\ref{thm:release-source}を適用する。
+Yumark の外殻や nominal の多相 payload は定理\ref{thm:constructor-once}の値制限を使う。
+これは template の具体的な構成による証明であり、完成した安全な code を引数とする主張ではない。
+\end{proof}
+
+この接合で operator、for、上記 rule の組合せ、Yumark 外殻の義務を減らした。
+Yumark 内部の全 node/format/interpolation、module/use/realm/band の解決、
+生成 error/act-copy/derive の全展開までは、この有限表に含まれない。
+元稿の全表層一覧をこの表だけで被覆したとは記録しない。
+
+\section{wildcard 許可による外来保護の迂回を除く}
+\label{sec:wildcard-repair}
+
+\subsection{元の query と callback return の衝突}
+
+次は型安全な計算を構成できることと、選択済みの衛生性を満たすことを分ける反例である。
+旧操作稿の \(\neg P\lor G\) では、一つの receiver-local AllowAll grant があれば、
+別 receiver の omission protection が残っていても処理を許す。
+これは \texttt{'e?} の入力選択に依存しない。
+
+凍結 \nolinkurl{lib/std/control/flow.yu}:1--5の \texttt{sub} は、
+\(return:\mathsf{int}\to\mathsf{never}\) の instance について次の code を持つ。
+ここで \(x\) は computation formal である。
+\[
+ sub(x:[\_]\mathsf{int})=
+   \mathsf{catch}\ \Force x\ \{return(a),k\mapsto a;\ v\mapsto v\}.
+\]
+次の source の有限な名前解決済み構造を考える。表記は紙上の略記であり、実行ログではない。
+\begin{Verbatim}[fontsize=\small]
+my g h = sub::sub: { h(); 1 }
+my answer = sub::sub: { g (\() -> sub::return 0); 2 }
+\end{Verbatim}
+選択済みの receiver-relative callback hygiene では、\(g\) の未注釈入力の return は
+\(g\) 内の sub を越え、外側の sub が0を返す必要がある。
+これは \nolinkurl{notes/design/2026-10-15-callback-identity-forwarding.md} の境界条件の
+有限な局所 instance であり、loop の停止や標準ライブラリ全体の検査を前提にしない。
+
+\begin{proposition}[旧 AllowAll query はこの境界条件を満たさない]
+\label{prop:wildcard-bypass}
+\(\Pi_{\rm flow}\) と旧操作稿の grant query の組合せでは、上の内側 sub が return を処理する。
+従ってその query を用いた定理\ref{thm:source-safety-family}と\ref{thm:release-source}だけでは、
+選択済みの callback hygiene は導けない。
+\end{proposition}
+\begin{proof}
+\(g\) の実際の receipt を \(b_G\)、receiver を \(r_G\)、
+内側 sub の computation receipt を \(b_I\)、handler owner を \(r_I\) とする。
+\(h\) の actual upper-use は \(b_G\) の omission scope \(s_G\) を持つ。
+return の発生時には、その output View と、sub が実際に force している carrier の View が
+ともに executing である。従って同じ寄与 \(q\) に両方の Observe と actual route がある。
+内側 catch を検査する時点では \(r_G,r_I\) はともに active である。
+\(s_G\) の incidence の有無によらず、以下の grant だけで旧 query の結果が決まる。
+他方、\(b_I.receiver=r_I=owner(h_I)\)、その direct force route の Admit は AllowAll なので、
+旧 query は \(G(q,h_I)=1\) を得る。
+RoleAllows は body の catch、Covers は同じ return instance により真である。
+よって \(\neg P\lor G\) は真であり、内側 arm は0を返して raw continuation を捨てる。
+\(g\) は0を返すが外側 block はその結果を捨てて2を返す。
+marker はなく \(L=\varnothing\) なので、release の解釈を変えてもこの計算は変わらない。
+全値は所定の型を持つため、これは値型保存の反例ではなく、source 衛生性の適用の反例である。
+\end{proof}
+
+\paragraph{修正後の判別に必要な carrier の経路。}
+この source の carrier は \(c=\Delay(\mathsf{let}\ \_\leftarrow h();\Ret1)\) である。
+\(h\) の call.effect から、この let の child effect、\(c\) の force.effect への
+順序付き計算の対応を取り、\(\mathsf{Receive}(r_I,slot,c)\) を経由して
+\(\mathsf{Observe}(q,c,\mathsf{force.effect})\) に至る。
+これが \(\tau_G\) の具体的な port 列である。
+対応は実際に実行した \(h()\) の寄与に対するものであり、closure root の値由来を
+\(h\) と同一視する辺ではない。tail の Ret は event を出さず、ここで未使用の別 callback の
+由来を混ぜる箇所はない。carrier は \(b_G\) の recipe 参照を捕捉し、actual upper-use が同じ
+scopeKey を開く。complete Call/Force の実行 View における観測と、let の effect port の合成から
+この有限経路を構成する。\(r_G\) が active なので、修正後の query では
+\(s_G\) が \(r_I\) に対する foreign protection witness となる。
+
+\subsection{許可の種類を保持する修正候補}
+
+以下を \(\Pi_{\rm permission}\) と呼ぶ明示的な修正候補とする。
+独立査読と採用は未了であり、旧 query が既にこの規則だったとは扱わない。
+まず Boundary の \emph{受領/許可の経路}と \emph{保護 witness} を区別する。
+source から生成する profile は次の通りである。
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{.40\textwidth}>{\raggedright\arraybackslash}p{.22\textwidth}>{\raggedright\arraybackslash}p{.27\textwidth}}
+\toprule 元の source port & 新しい保護 & 許可の種類 \\
+\midrule\endhead
+omission の実際の upper output & あり & なし \\
+negative concrete \([C,\bar X]\) & あり & \(\mathsf{Concrete}(C)\) \\
+explicit computation \([\_]\) の direct force & なし & \(\mathsf{Wildcard}\) \\
+explicit callback result \([\_]\) & なし & なし（既存 view は輸送） \\
+positive allowance / GeneratedNeutral & なし & なし \\
+\bottomrule
+\end{longtable}
+
+computation wildcard の receipt は消さず、grant の authentic な経路を保持する。
+それ自身を新しい protection にしないため、外側に ordinary sub があることだけで
+内側の局所効果が新たに保護されることもない。
+negative concrete の \(C\) は実際の resolved family/instance から作り、
+row variable の解や wildcard を concrete atom に昇格させない。
+既存の任意の保護を wildcard receipt で消す操作もない。
+
+\(I\) は旧稿の activity/Path/Observe の同じ incidence とする。
+\(I\) は grant のためには使えるが、それだけで保護があるとは判定しない。
+\(P\) は R-Project 後の protection witness の存在、\(P_{\rm foreign}\) はそのうち
+\(r(s(w))\ne owner(h)\) の witness の存在である。
+\(G_C\) は同じ receiver-local Path と matching instance に対する Concrete grant、
+\(G_W\) は同じ direct port の Wildcard grant とする。どちらも従来と同じ
+\(receiver(b)=owner(h)\) を要求する。
+\begin{align}
+ Base(q,h)&=\Act(h)\land\Act(owner(h))\land RoleAllows(q,h)\land Covers(q,h),\notag\\
+ Eligible^*(q,h)&=Base(q,h)\land
+ \bigl(\neg P\ \lor\ G_C\ \lor\ (G_W\land\neg P_{\rm foreign})\bigr).
+\tag{W-Eligible}
+\end{align}
+全て同じ joint contribution と現在の world に対する query である。
+具体的な注釈による local permission は保ち、wildcard だけでは外来の保護を迂回できない。
+新しい source 呼出し、追加の handler、型検査用 operation は導入しない。
+
+\begin{lemma}[wildcard 修正の正確な作用域]
+\label{lem:wildcard-query}
+保護/許可を上の表で分離した同じ packet について、旧形
+\(Base\land(\neg P\lor G_C\lor G_W)\) と W-Eligible が異なるのは、ちょうど
+\[
+ Base\land P_{\rm foreign}\land\neg G_C\land G_W
+\]
+が真の場合である。その場合に限り旧形は許し、新規則は転送する。
+W-Eligible は有限で全域であり、grant、effect membership、Origin、解除状態を変更しない。
+\end{lemma}
+\begin{proof}
+\(P_{\rm foreign}\Rightarrow P\) である。
+\(Base=0\)、\(P=0\)、\(G_C=1\)、\(G_W=0\)、\(P_{\rm foreign}=0\) の各場合は
+両 Boolean 式が一致する。残る場合は表示した conjunct の場合で、値が1から0に変わる。
+query は有限 incidence と receiver equality に一つの否定を加えるだけであり、
+その結果を過去の情報の書換えに使わない。従って最後の主張も得る。
+この比較は profile を分離した後の同じ packet の比較であり、旧稿の全 profile が
+既にこの分離を持っていたと仮定するものではない。
+\end{proof}
+
+\begin{theorem}[外来保護の保存、具体許可、解除との合成]
+\label{thm:wildcard-hygiene}
+修正候補では以下が成り立つ。
+\begin{enumerate}
+\item 現在の handler に対して actual incidence を持つ未解除の外来 protection があり、
+その handler owner 自身の matching Concrete grant がなければ、Wildcard grant を
+いくつ持っていてもその handler は当該寄与を処理できない。
+\item matching Concrete grant があれば、Base が真である handler は処理できる。
+permission の存在だけでは event、arm の成功、後続 request の消費を生成しない。
+\item R-Cross は matching scope の \(P,P_{\rm foreign}\) だけを R-Project を通して変え、
+残る独立した保護が上の条件を満たすなら、その遮断は保存される。
+\item 命題\ref{prop:wildcard-bypass}の source では内側 sub は転送し、外側 sub は0を返す。
+その \(h()\) を普通の \texttt{id(h())} で包んだ場合も同じである。
+\end{enumerate}
+\end{theorem}
+\begin{proof}
+1は \(P_{\rm foreign}=1,P=1,G_C=0\) を W-Eligible へ代入した結果である。
+2は \(G_C=1\) の disjunct と、別に実行される source の Req/arm 規則による。
+3は補題\ref{lem:release-overlap}である。存在量化の前に各 witness を処理するので、
+一つの scope を解除しても、別 receiver の未解除 witness の \(P_{\rm foreign}\) は残る。
+receiver expiry の場合には、その元 receiver に関する incidence 自体が無効になる。
+
+4では内側 sub に \(s_G\) の foreign witness があり、Concrete grant はないため1を使う。
+その request が \(g\) の境界を外へ越えると、候補機械 \(\Core_{\rm life}\) の検索 context に
+\(r_G\) はなくなる。外側 sub の query ではこの保護は無効であり、
+wildcard 自身は新しい保護を作らないので \(P=0\)。同じ return instance を持つ外側 arm が0を返す。
+内側の1と外側 block の2を含む raw suffix は使われない。
+
+\texttt{id} は source の \(\lambda x.x\) とする。callee の取得後、Value entry が inert な
+\(h()\) を force する。この段階で id の body はまだ始まっておらず、
+\(h\) の実際の呼出しには元の \(s_G\) が同じ typed route で付く。
+id に handler も matching Concrete grant もなく、request を消費する規則はない。
+id の control frame を越えても、\(g\) 内の sub を試す時点の \(r_G\) と \(s_G\) は同じである。
+従って1を再び使い、外側で同じ0を得る。
+identifier の綴りではなく、この普通の body と受領順序から導いた。
+これはこの有限 source context の結果であり、任意の eta 展開の観測同値ではない。
+\end{proof}
+
+\paragraph{普通の入れ子の sub は妨げない。}
+\(sub\{sub\{return\ 1\};2\}\) には上の \(s_G\) を作る omitted callback がない。
+両 computation wildcard は保護を作らず、局所 operation 自身も omission scope を作らない。
+内側では \(P=0\) なので1を返し、外側は2を返す。
+この場合を保つため、全ての Boundary を無条件に保護と数える旧定義は使えない。
+この導出も紙上のもので、compiler の実行観測ではない。
+
+\begin{theorem}[修正した permission を含む候補体系の型健全性]
+\label{thm:repaired-source}
+\(\Src_{\rm all}\) の profile 生成と eligibility を上の表と W-Eligible へ置き換えた体系
+\(\Src^*_{\rm all}\) について、同体系の有限な宣言的型付けから
+定理\ref{thm:release-source}の全結論と定理\ref{thm:wildcard-hygiene}を得る。
+rank-2、mixed row、dot selection と第\ref{sec:surface-bridge}節の展開も含められる。
+\end{theorem}
+\begin{proof}
+実行型の保存と進行は、全域 Boolean の eligibility に対して成立する局所証明を使う。
+source profile は上の有限表から作れ、実行時の値型、受領順序、raw continuation の型を変えない。
+finite complete cell に source の permission kind と candidate-owner equality を保持する。
+\(P_{\rm foreign}\) は同じ joint diagram の、receiver が候補 owner と異なる region の
+未解除 protection bit の disjunction である。hidden な相関は全 Boolean refinement を残す。
+従って具体 query の真偽を表す cell が必ず relation に含まれる。
+新しい source 表と W-Eligible から graph を生成し、全 mandatory inclusion を検査してから、
+定理\ref{thm:release-source}と同じ prefix 帰納を行う。
+旧 query で検査した小さい residual の証拠を、新規則へそのまま移すことはしない。
+他の構文の保存、G-Value/G-Compute、BuildSelect、typed template の代入は変更されない。
+最後に新しい query の各使用へ定理\ref{thm:wildcard-hygiene}を適用する。
+\end{proof}
+
+この修正は元の AllowAll query をそのまま採用してよいという結論を撤回する。
+既存の抽象的な transport 補題や値型定理の否定ではない。
+ユーザーの全 source 期待との対応と、この permission 具体化の採用・独立査読は依然として必要である。
+その境界を「単に実装すれば済む」と呼ばない。
+
 \section{親定理への適用と残る境界}
 \label{sec:remaining}
 
@@ -1739,31 +2530,43 @@ source 宣言・rigid 検査・使用箇所の AllE の有限導出へ戻した�
 \item non-Var upper-use の政策 \(\Pi_{\rm flow}\) を一つ明示し、その source producer から
 健全性定理\ref{thm:source-safety-family}まで合成した。
 政策の採用・全期待挙動との一致と、政策を固定したときの安全性を区別した。
+\item \texttt{'e?} の全入力候補を実際の受領表から作り、重なる target の累積、
+crossing 履歴、型代入、現在状態を使う再開を定理\ref{thm:release-source}へ合成した。
+\item constructor 適用全体の再一般化は既存の computed-fetch 規約でも要求されないことを
+source で確かめ、G-Compute と既存の多相 payload の使用を定理\ref{thm:constructor-once}で接続した。
+\item operator/for/rule の明示 template と Yumark 外殻について型付き展開を構成した。
+rule の pending tail を勝手に左からの eager 評価へ置き換えない点も明記した。
+\item 旧 AllowAll query による外来 callback 保護の迂回を反駁した。
+保護と許可を分け、foreign protection に対する wildcard の作用を制限する修正候補を作り、
+定理\ref{thm:repaired-source}へ合成した。これを未修正の旧稿の定理と混同しない。
 \end{itemize}
 
 \begin{longtable}{>{\raggedright\arraybackslash}p{.28\textwidth}>{\raggedright\arraybackslash}p{.64\textwidth}}
 \toprule 義務 & 状態と次に必要な根拠 \\
 \midrule\endhead
-source rank-2 の値型安全性 & 紙上の構成・導出あり。source の通常導出から全称 payload と各 use を生成する。独立査読は未実施。\\
+source rank-2 と値制限 & 定理\ref{thm:constructor-once}で既存の computed-fetch 制限と両立。適用全体の再一般化を不要と判定。推論器の level 実装の正当性とは別。\\
 再開の receiver 寿命 & 旧橋は不成立。修正版の局所/全実行型と精密な保存の紙上導出あり。旧効果証拠の自動移行は不可。\\
-複数入力の \texttt{'e?} & \(A_m\) の source 解釈を照会中。別 binder/instance の保護を潰すことは既存仕様に反する。\\
+複数入力の \texttt{'e?} & R-Capture の全入力候補で未指定の \(A_m\) を除き、crossing の必要十分条件まで導出。複数入力の選択自体は照会中。\\
+重なる target・型適用・resume & 補題\ref{lem:release-overlap}、\ref{lem:release-substitution}、命題\ref{prop:release-resume}。後の view で先の解除を上書きせず、過去の receiver を再確保しない。\\
 捕捉・返却の source 構成 & C-Free/C-Close と定理\ref{thm:capture}の紙上導出あり。実行時の既存証拠を固定する。制約 graph の FreshUse 対応と独立査読は OPEN。\\
 compose と non-Var upper-use & 候補 \(\Pi_{\rm flow}\) の alias/actual projection と receiving slot 捕捉を構成。早い receipt へ戻す案を source 判別で棄却。修正版の全期待挙動との一致・採用、native 全経路と主型性は OPEN。\\
-一般の annotation/source 生成 & 候補体系の omission seed/upper exposure/closure/target を構成。候補の選択、source の constructor application 一般化を含む受理範囲、全 source expansion は OPEN。\\
-source 型健全性 & 固定した \(\Pi_{\rm flow},A\) の体系族で定理\ref{thm:source-safety-family}へ合成。独立査読・機械化は未実施。政策未選択の Yulang 全体の閉包とは異なる。\\
+一般の annotation/source 生成 & 候補体系の omission seed/upper exposure/closure/target を構成。全期待挙動との一致、候補の採用、表層の残りの展開は OPEN。\\
+wildcard と callback 保護 & 旧 query の適用は命題\ref{prop:wildcard-bypass}で反駁。修正候補の local callback/identity/入れ子 sub を導出。全 source に対する採用・独立査読は OPEN。\\
+source 型健全性 & 最終候補は \(\Src^*_{\rm all}\)、定理\ref{thm:repaired-source}。有限な値型/効果導出からの紙上証明あり。独立査読・機械化は未実施。政策未選択の Yulang 全体の閉包とは異なる。\\
 dot selection & 有限証拠からの生成 code は上記定理へ接続。snapshot coherence はこの健全性と独立。resolver 自体の compact/raw・SCC 公開・完全性は OPEN。\\
-全表層構文・生成宣言 & 本稿は元の13式・11 pattern まで。parser の全形、control/rule/Yumark/生成 operation 等からの展開対応は別途必要。\\
+反変 \texttt{[undet, 'e]} & 命題\ref{prop:mixed-release}で separator 正規化と具体的 release を合成。semicolon は必須ではない。\\
+全表層構文・生成宣言 & 13式・11 pattern に加え、列挙した operator/for/rule と Yumark 外殻を接続。Yumark 全 node、module/import、error/act-copy/derive 全展開は OPEN。\\
 推論器・native & 主型性、探索完全性/停止性、現在の compiler の全受理、VM/native 対応、原 A/B は OPEN。\\
 \bottomrule
 \end{longtable}
 
 元の全言語健全性を閉じるには、この表の意味論側の OPEN を解消し、
-定理\ref{thm:source-safety-family}の政策/表層範囲を意図した言語と一致させる必要がある。
+定理\ref{thm:repaired-source}の政策/表層範囲を意図した言語と一致させる必要がある。
 推論器や resolver の探索完全性を、推論器独立の型健全性の追加前提にはしない。
 「独立査読だけが残る」「推論器さえ実装すれば済む」とは結論しない。
-今回の成果は source 値型の構成、既存 owner 機械に合わない橋の除去、
-直接の compose の origin/target 構成、source からの捕捉生成、
-および明記した候補政策族に対する source 型健全性の合成である。
+今回の具体的な前進は、解除の入力対応と履歴、重なり、一般化・再開を構成し、
+rank-2 の残項を既存の値制限へ戻し、さらに wildcard の衛生性反例と修正を同じ核へ接続した点にある。
+意図した全 source の正しさが、値型保存だけから自動的に得られないことも具体例で確定した。
 単独著者の紙上導出であり、PDF 組版、構文確認、有限例の実行は数学的検証の代用ではない。
 
 \end{document}
