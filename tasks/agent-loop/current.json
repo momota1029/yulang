@@ -74,7 +74,7 @@
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R342 primary RUNNING; contract/census hashes restored and verified; source census frozen; proof worker active in current session."
+      "receipt": "R343 primary lane completed and frozen; contract/source census pins verified; current state and Git integration active; proof worker RUNNING under exact lease."
     },
     {
       "id": "/root/r343_k0_machine_step_prover",
