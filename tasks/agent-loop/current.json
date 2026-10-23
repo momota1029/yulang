@@ -24,8 +24,15 @@
     "resource_observation": "7200s charged conservatively: primary 2400 + proof 3000 + review 1500 + integration 300; no carryover. Three UNKNOWN legacy workers remain quarantined.",
     "outcome": "tasks/agent-loop/sprints/r343-k0-machine-step-safety-20261023-outcome.md",
     "git_receipt": {
+      "commit": "e3fb9b195",
+      "branch": "research/simple-sub-intrusion",
+      "pushed_to": "origin/research/simple-sub-intrusion",
+      "upstream_matches_head_at_receipt": true,
       "user_audit_staged": false,
-      "integration": "pending exact-path commit/push"
+      "paths": [
+        "tasks/agent-loop/current.json",
+        "tasks/agent-loop/sprints/r343-k0-machine-step-safety-20261023-outcome.md"
+      ]
     },
     "outcome_sha256": "d411262307cc2a578ed1295091958bbc0a3a0ab23a85d706f49ec1395f70f0a9"
   },
@@ -273,7 +280,8 @@
       "outcome": "Bounded K0 step safety and semantic Unavailable exclusion PASS after independent review; full M and parent remain OPEN. Conditional S/D3 composition preserves the four S0 premises and requires same-HIR/candidate runtime construction plus selected-definition entry.",
       "outcome_sha256": "d411262307cc2a578ed1295091958bbc0a3a0ab23a85d706f49ec1395f70f0a9",
       "review": "/root/r343_machine_step_review; 19/19 pins matched; STOP 07:56:56 UTC; 1500s charged.",
-      "dispatch": "End selector recommends separate R344 K0 same-witness Call interface packet; 7200s, no carryover."
+      "dispatch": "End selector recommends separate R344 K0 same-witness Call interface packet; 7200s, no carryover.",
+      "git": "e3fb9b195; outcome/current pushed to origin/research/simple-sub-intrusion; user audit excluded."
     }
   ],
   "resource_observation": "7200s charged conservatively: primary 2400 + proof 3000 + review 1500 + integration 300; no carryover. Three UNKNOWN legacy workers remain quarantined."
