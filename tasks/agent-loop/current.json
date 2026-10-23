@@ -22,7 +22,14 @@
     "primary_lane": "FROZEN census: notes/theory/2026-10-23-r343-k0-machine-step-source-census.md; SHA-256 0816397bd4e6ef493a050f95b13e3e10d90a67fe98e804e577fb33bddecfbe1a. Runtime transition owners and falsifier paths inspected; full 2400s charged conservatively.",
     "next_action": "R343 active: proof and source census in fixed lanes; maintain exact leases, freeze proof result, then fresh independent review.",
     "resource_observation": "Primary census 2400s conservatively charged; proof 3000s + review 1500s + integration 300s reserved = 7200s total. No carryover. Three UNKNOWN legacy workers remain quarantined.",
-    "outcome": "tasks/agent-loop/sprints/r343-k0-machine-step-safety-20261023-outcome.md"
+    "outcome": "tasks/agent-loop/sprints/r343-k0-machine-step-safety-20261023-outcome.md",
+    "git_receipt": {
+      "commit": "3634a579e0a517c629bb3d786543fd89e42bf554",
+      "branch": "research/simple-sub-intrusion",
+      "pushed_to": "origin/research/simple-sub-intrusion",
+      "upstream_matches_head_at_receipt": true,
+      "user_audit_staged": false
+    }
   },
   "workers": [
     {
