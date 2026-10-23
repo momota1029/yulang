@@ -1,0 +1,1392 @@
+% Compile with XeLaTeX. A Japanese font (Noto Sans CJK JP or Yu Mincho) is required.
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=22mm,headheight=15pt]{geometry}
+\usepackage{fontspec}
+\IfFileExists{../../research-output/NotoSansCJKjp-Regular.otf}{%
+  \setmainfont{NotoSansCJKjp-Regular.otf}[Path=../../research-output/,BoldFont={NotoSansCJKjp-Regular.otf},ItalicFont={NotoSansCJKjp-Regular.otf},BoldFeatures={FakeBold=2},ItalicFeatures={FakeSlant=.15}]
+}{\IfFontExistsTF{Noto Sans CJK JP}{\setmainfont{Noto Sans CJK JP}}{\setmainfont{Yu Mincho}}}
+\setmonofont{DejaVu Sans Mono}[Scale=.84]
+\XeTeXlinebreaklocale "ja"
+\XeTeXlinebreakskip=0pt plus 1pt
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{longtable,booktabs,array,enumitem,fancyvrb,fancyhdr,xcolor,xurl}
+\usepackage[colorlinks=true,linkcolor=blue!45!black,urlcolor=blue!55!black]{hyperref}
+\usepackage{bookmark}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.55em}
+\linespread{1.15}
+\setlist{nosep,leftmargin=1.6em}
+\setlength{\emergencystretch}{3em}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Yulang: 全言語の意味論と型推論}
+\fancyhead[R]{\small 2026-10-23}
+\fancyfoot[C]{\thepage}
+\newtheorem{theorem}{命題}[section]
+\newtheorem{lemma}[theorem]{補題}
+\newtheorem{definition}[theorem]{定義}
+\theoremstyle{remark}
+\newtheorem*{boundary}{証明の適用範囲}
+\renewcommand{\proofname}{証明}
+\renewcommand{\contentsname}{目次}
+\newcommand{\Ty}{\mathsf{Ty}}
+\newcommand{\Val}{\mathsf{Val}}
+\newcommand{\Comp}{\mathsf{Comp}}
+\newcommand{\Ret}{\mathsf{Ret}}
+\newcommand{\Req}{\mathsf{Req}}
+\newcommand{\Delay}{\mathsf{Delay}}
+\newcommand{\Force}{\mathsf{Force}}
+\newcommand{\Invoke}{\mathsf{Invoke}}
+\newcommand{\Run}{\mathsf{Run}}
+\newcommand{\Sol}{\mathsf{Sol}}
+\newcommand{\Close}{\mathsf{Close}}
+\newcommand{\dom}{\operatorname{dom}}
+\newcommand{\fv}{\operatorname{fv}}
+\newcommand{\supp}{\operatorname{supp}}
+\newcommand{\sat}{\operatorname{Sat}}
+\newcommand{\adap}{\rightsquigarrow}
+\newcommand{\bind}{\mathbin{\gg\!=}}
+\newcommand{\src}[2]{\href{https://github.com/momota1029/yulang/blob/a58eefc31e22141574b6f20c6a5748151c6d79f1/#1}{\texttt{\detokenize{#2}}}}
+\newcommand{\newsrc}[2]{\href{https://github.com/momota1029/yulang/blob/d5552b3e328e53c3a60170329cd2192e4e11c097/#1}{\texttt{\detokenize{#2}}}}
+\newcommand{\status}[1]{\textbf{状態：}#1}
+\title{Yulang 全体の型付き意味論と型推論\\[.5em]\large 境界変換・飽和時メソッド選択・衛生的 effect を一つにする構成案}
+\author{GitHub の固定ソースに基づく研究報告}
+\date{2026年10月23日}
+\begin{document}
+\maketitle
+
+\section*{この文書の到達点}
+
+本書は、省略可能レコードと method selection を例外として排除せず、Yulang の全構文を対象にする意味論の構成案である。型付きの中間言語、全表層構文からの対応、境界ごとの変換証拠、段階的な選択規則、effect の動的な所有関係、および Simple-sub 型推論の統合手順を一つの仕様として記述する。
+
+中心となる選択は次の三つである。
+\begin{enumerate}
+\item ソースの型適合判定は一つの $A<:B$ とする。具体型での成功は、その境界で実行する変換証拠を作る。型変数間の伝播と、具体型の変換列の合成を混同しない。
+\item メソッドは制約の飽和時点で選ぶ。選択によって追加される制約・値参照辺を取り込んで再飽和し、role 解決と SCC 一般化を同じ手順の中に置く。
+\item effect は名前の集合だけでは扱わない。実際の呼び出し、引数の実行、handler の動的寿命、返された値の潜在的な effect を、同じ実行と同じ型変数の割当ての下で解釈する。
+\end{enumerate}
+
+\textbf{完成した全言語健全性証明という位置付けではない。}本書で証明するのは、明示したレコード変換の保存、変換経路の非一意性、変数伝播の端点被覆、固定の生成規則の下での飽和順序独立性、選択を段階化した算法の順序独立性、および意味論的な合成則である。これらの命題を現行コンパイラの全経路へ適用する対応証明、全 effect 比較器の構成、一般化・intrusion を含む完全な principality は未完である。未完部分を仮定の中へ隠して全体定理を宣言しない。
+
+さらに、Oracle の OR pattern には衛生性とは別の束縛の問題がある。凍結 runtime の束縛規則も維持するなら、「Oracle のすべての受理結果を無修正で保存すること」と「受理プログラムで未束縛変数を起こさないこと」は両立しない。本書では省略可能レコードとメソッド選択の意図された挙動を仕様として維持し、この衝突を独立した修正事項として記録する。
+
+\textbf{固定した資料。}調査対象は \texttt{research/simple-sub-intrusion}。\\
+\href{https://github.com/momota1029/yulang/tree/d5552b3e328e53c3a60170329cd2192e4e11c097}{\texttt{d5552b3e328e53c3a60170329cd2192e4e11c097}}。
+Oracle は次の commit。\\
+\href{https://github.com/momota1029/yulang/tree/a58eefc31e22141574b6f20c6a5748151c6d79f1}{\texttt{a58eefc31e22141574b6f20c6a5748151c6d79f1}}。
+本書の提案は研究仕様であり、既存の実装・承認済み設計を変更していない。
+
+\clearpage
+\begingroup
+\small
+\setlength{\parskip}{0pt}
+\tableofcontents
+\endgroup
+\newpage
+
+\section{仕様の単位と「全言語」の範囲}
+
+\subsection{Oracle から保存するもの}
+
+Oracle を仕様の基準にするとは、具体型の判定を既知の通常の部分型理論に押し込んでから、合わないプログラムを拒否することではない。省略可能レコード、遅延した method selection、明示的 effect 注釈と省略の違い、値制限、再帰 SCC、role の関連型を、最初から意味のある構成として採用することである。
+
+一方、実装にある一つの最適化や欠陥まで、数学的公理にするわけではない。以下を区別する。
+\begin{enumerate}
+\item \textbf{ソース契約：}言語として意図された受理・拒否・評価順序。
+\item \textbf{型付き elaboration：}そのソースを、変換・遅延・実行・メソッド証拠が明示された項へ移すこと。
+\item \textbf{コンパイラ対応：}実際の Oracle / successor の各段階がこの elaboration を実現すること。
+\item \textbf{メタ定理：}その型付き項の保存・進行、および推論の健全性・完全性・停止性。
+\end{enumerate}
+項目2を定義したことだけで3と4が証明済みにはならない。しかし、2を全構文に対して先に固定すれば、局所証明の目標が同じ対象に揃う。
+
+現在の設計が要求する「一つの $A<:B$」「Function の effect 両ポートの共同解釈」は
+\newsrc{notes/design/2026-10-03-concrete-compatibility-boundary.md}{2026-10-03 concrete-compatibility-boundary}、
+制約生成・伝播・level・extrusion・intrusion・一般化を型推論の本体とする方針は
+\newsrc{notes/design/2026-10-11-yulang-inference-top-level-principles.md}{2026-10-11 inference-top-level-principles}
+に対応する。
+
+\subsection{全構文を共通の実行系へ移す}
+
+Oracle の多相 IR の式は13種類、pattern は11種類である。小言語を別に切り出すのではなく、これらすべてと宣言群を対象にする。型付けに必要な境界証拠を加えても、表層言語の機能を削らない。
+
+\begin{longtable}{p{.22\textwidth}p{.70\textwidth}}
+\toprule
+構文・機能 & 統一意味論での位置 \\
+\midrule\endhead
+literal / primitive & 明示した型を持つ値、または仕様付き primitive。\texttt{Any} は top、\texttt{Never} は bottom、\texttt{Unknown} は未解決メタ情報。三者を混同しない。\\
+名前・path・import & 解決済みの定義 identity と、使用箇所に対応する scheme instance。実行時に文字列から型やメソッドを再推論しない。\\
+lambda・curried call & 関数値と全引数 computation の受け渡し。値引数の force と computation 引数の保持は入口で区別する。\\
+tuple・list・nominal data & 積・宣言 identity 付き constructor。list は標準ライブラリの型と primitive。再帰データは有限グラフによる正則な型表現。\\
+record・spread・default & field の可視 view、存在性、境界ごとの変換。default は欠落時のみ左から右へ実行。pattern spread は入力全体を束縛する。\\
+polyvariant・case & tag/arity による照合、順序付き arm、guard、成功した branch の環境。非網羅時の失敗を別の結果として明示。\\
+selection・index & 具体メソッド、role member、record field の選択証拠。index は対応する selection/application へ移る。\\
+catch・act・error & exact operation identity、payload/response 型、raw resumption、shallow handler。error は nominal data と hidden operations、および Throw/Display/wrap/up/EffectUp の生成宣言も持つ。\\
+mutable var・reference & 型付き location / State frame。参照型の不変性、値制限、resumption が捕捉する frame の範囲を保持する。\\
+block・binding・recursion & source 順の計算、値定義の環境、計算定義の評価済み値の保持、値参照グラフの SCC。\\
+type・struct・enum & 名前の alias 解決と nominal 定義 identity を区別し、constructor、field projection、companion を作る。内部名が TypeAlias でも透明な型 alias とは推測しない。\\
+role・impl・associated type & qualified scheme と明示された member 証拠。impl 宣言は使用有無によらず検査する。\\
+cast 宣言 & source/target の直接の候補選択と、その関数の型付き適用。暗黙の経路探索は行わない。\\
+act copy & 新しい family identity。元の private member を漏らさず、公開された型・定義を一貫して改名する。\\
+if / elsif / no else & bool case へ移る。no-else は then の値を捨て unit を返す。型検査は到達可能性にかかわらず両分岐を扱う。\\
+sub・return・for・制御 label & 既存 lowering の関数・operation・handler へ移す。深い handling は shallow handling の明示的な再適用。\\
+演算子・colon・do・with & 結合規則確定後の application、lambda、block、宣言。新しい実行時型規則は加えない。\\
+文字列・rule・Yumark & 補間、parser computation、builder 呼び出しへ構造的に移す。生成コードも同じ型推論と実行規則を通す。\\
+module・realm・band & linking 時の定義 identity、可視性、実行 root の順序。通常実行と test module の root 集合を区別する。\\
+\bottomrule
+\end{longtable}
+
+この一覧の直接の所有箇所は、
+\src{crates/poly/src/expr.rs\#L478-L674}{poly/src/expr.rs}、
+\src{crates/infer/src/lowering/expr/chain.rs\#L563-L607}{lowering/expr/chain.rs}、
+\src{crates/infer/src/lowering/body/mod.rs\#L2071-L2089}{lowering/body/mod.rs}、
+\src{crates/infer/src/lowering/rule_lit.rs\#L39-L63}{lowering/rule_lit.rs}、
+\src{crates/infer/src/lowering/yumark_lit.rs}{lowering/yumark_lit.rs}
+である。構文を common core へ移すのは全言語の意味を定義する通常の方法であり、未実装の表層構文を「core にはない」として対象外へ逃がすことではない。
+
+\section{型付き elaboration の対象}
+
+\subsection{型、scheme、境界}
+
+値型を次の文法で表す。これは説明用の表記であり、新しいソース記法ではない。
+\[
+\begin{aligned}
+A,B ::= {}& \alpha\mid\top\mid\bot\mid b\mid D\langle\bar A\rangle
+\mid A\vee B\mid A\wedge B\mid\mu\alpha.A\\
+&\mid(A_1,\ldots,A_n)\mid\{l_i^{p_i}:A_i\}_{i\in I}
+\mid\langle t_j(\bar A_j)\rangle_{j\in J}\\
+&\mid U(E,A)\mid F(A,E^{-},E^{+},B;\pi,m).
+\end{aligned}
+\]
+$p_i\in\{\mathsf{required},\mathsf{optional}\}$。
+$U(E,A)$ は実行時に $E$ を伴い $A$ を返す遅延 computation 値。
+$F$ は引数型・引数 effect view・結果 effect view・結果型の四つを持つ関数 interface である。
+$\pi$ はそのソースに由来する明示契約の profile、$m$ は引数入口の値/computation の区別を表す。これらは型を見て推測し直す付加的属性ではなく、注釈と導入時に分かっていた情報を保持するための添字である。
+
+Oracle の \texttt{Pos::Fun}, \texttt{Neg::Fun}, \texttt{Neu::Fun} は四ポートを持ち、名目的な型引数には neutral bounds を使う。
+\src{crates/poly/src/types.rs\#L740-L834}{poly/src/types.rs}。
+正の union と負の intersection を使った Simple-sub の極性を保存する。
+再帰型の比較には循環を使えるが、constructor を一度も通らない循環だけで任意の比較を成立させてはならない。
+
+scheme は表示型だけではなく、次の意味を持つ。
+\[
+\sigma=\forall\bar\alpha\,\bar s.\; Q\Rightarrow A
+\quad\text{with retained boundary and recursion evidence}.
+\]
+$Q$ は role/関連型、再帰 bounds、未解決だが一般化可能な正規の義務を含む。
+$\bar s$ は静的な境界・stack binder であり、動的 invocation ID ではない。実装上は既存の scheme/side table の意味を示すもので、別の第二推論器を設けることを意味しない。
+
+型適合の判定は一つだけとし、証拠を付けて
+\[
+  \Delta\vdash A<:B\;\leadsto k
+\]
+と書く。$k$ はこの判定の実現であり、独立した第二のソース関係ではない。$k:A\adap B$ は、既に得られた証拠の型を述べるメタ表記としてのみ使う。
+
+\subsection{型付き項}
+
+elaboration の結果には、元の13種類の式と、実行順序を固定する次の明示形を持たせる。
+\[
+\begin{aligned}
+M ::= {}& \Ret v\mid\mathsf{let}\ x\leftarrow M\ \mathsf{in}\ N
+\mid\Force v\mid\Invoke(v,t)\mid\mathsf{perform}(o,v)\\
+&\mid\mathsf{case}(v,\bar a)\mid\mathsf{handle}_{h}(M,\bar a)
+\mid\mathsf{adapt}_{k}(v)\mid\mathsf{get}(\ell)\mid\mathsf{set}(\ell,v).
+\end{aligned}
+\]
+値には literal、closure、tuple、可視 field view を持つ record、nominal constructor、variant、location、$\Delay(M,\eta)$、raw continuation、必要な adapter 値がある。再帰的な定義は環境の有限グラフにより参照する。
+
+重要なのは、elaboration が \texttt{MakeThunk}/\texttt{ForceThunk}、Function adapter、選択先を明示する点である。実行器は型推論器へ戻らない。この責務は既存の
+\src{spec/2026-06-13-mono-vm-contract.md}{mono-vm-contract}
+とも一致する。ただし force を caller 側へ移す最適化は、後述する入口意味論との別の対応証明を要する。
+
+\subsection{二つの型付けモード}
+
+型付き項について
+\[
+\Delta;\Gamma;\Sigma\vdash v:A,
+\qquad
+\Delta;\Gamma;\Sigma\vdash M:A\mathbin{!}\Phi
+\]
+を用いる。$\Sigma$ は location と保存される値型、$\Phi$ は同じ型割当ての下での computation の振舞いを制限する interface である。公開 effect row は $\Phi$ の有限な観測であって、$\Phi$ 自体を単なる family 名集合とは定義しない。
+
+ソースに対しては synthesis と checking を区別する。
+\[
+\Gamma\vdash e\Rightarrow(A,\Phi)\leadsto M;C,
+\qquad
+\Gamma\vdash e\Leftarrow(B,\Psi)\leadsto N;C.
+\]
+checking は、構文で決まるその境界に一つの適合義務を生成する。自由に中間型を選ぶ一般的な subsumption 規則は置かない。そうしないと、通らない $A<:C$ に勝手に空レコードを挟み、通ることにできてしまう。
+
+\section{全体の実行意味論}
+
+\subsection{状態と結果}
+
+状態を
+\[
+S=(\eta,\mu,\mathcal A,\mathcal L)
+\]
+とする。$\eta$ は lexical environment、$\mu$ は live store、$\mathcal A$ は順序付きの現在の invocation/handler/frame、$\mathcal L$ は値に付いた型付き経路・起源の情報である。名前の綴りで family、location、handler を同一視しない。
+
+計算の観測は、正常終了、operation request、明示された言語上の失敗、および発散の有限 prefix を含む。
+\[
+\Ret(v,S),\qquad \Req(o,a,\kappa,S),\qquad
+\mathsf{Fail}(r,S).
+\]
+request は source origin、動的 occurrence、型引数・payload/response に関する同じ割当て、boundary incidence を保つ。これは既存の $K,D$ と typed flow の解釈であり、新たな family 別台帳を導入する提案ではない。
+
+順序付き合成は通常の bind とする。
+\[
+\begin{aligned}
+\Ret(v,S)\bind f&=f(v,S),\\
+\Req(o,a,\kappa,S)\bind f
+ &=\Req(o,a,\lambda(b,S').\,\kappa(b,S')\bind f,S).
+\end{aligned}
+\]
+継続は応答と resume 時の現在状態を受け取る。以後の簡略式で状態引数を省略しても、この規約を保つ。store の扱いは handler が捕捉する frame によって決まり、bind 自体が全 store を勝手に snapshot することはない。
+
+\subsection{引数を受け取ってから実行する}
+
+source application は callee を得た後、引数式全体の code と lexical environment を遅延値にする。
+\[
+\Run(e_1\ e_2,S)
+=\Run(e_1,S)\bind
+\bigl(\lambda(f,S_1).\Invoke(f,\Delay(e_2,\eta),S_1)\bigr).
+\]
+この式は引数を永遠に遅延するという意味ではない。関数の入口が次を決める。
+\begin{align*}
+\mathsf{Entry}_{\mathsf{Value}}(t,x,M)
+ &=\Force(t)\bind(\lambda v.\,M[x:=v]),\\
+\mathsf{Entry}_{\mathsf{Computation}}(t,x,M)
+ &=M[x:=t].
+\end{align*}
+invocation に入る、型付き境界で受領する、入口を実行する、本体を実行する、結果を変換する、という順序を保つ。入口の force から生じた request の継続には、残りの入口・本体・正常 return が含まれる。
+
+したがって本体が pure でも引数の実行が effectful なら呼び出し全体は pure ではない。逆に computation 引数を本体が一度も実行しなければ、その argument code は動かない。返された値が別の computation や closure であることだけでは、さらに force しない。
+
+選択済みの source 方針は
+\newsrc{notes/design/2026-10-02-source-computation-role-elaboration.md\#L573-L696}{source-computation-role-elaboration, section 10}
+にある。後の pure/handler receiver-role の区別は、入口の値/computation の区別とは別軸である。「全関数が operation を捕まえられる」という意味にはしない。
+
+\subsection{レコード、構造値、パターン、block}
+
+tuple/record/variant の子を、ソースから決まる順序と各子の computation/data role に従って評価する。既に遅延値として導入された field を、単に record を作るために実行してはならない。
+record spread の重複 field は head/tail という元の構文を保持して解決し、型だけから上書き順序を作り直さない。
+
+pattern は値から成功した branch の環境を作る計算として解釈する。default と guard は effect を起こしうるため、単なる真偽値関数とはしない。失敗した branch の lexical bindings は次へ持ち越さない。guard が false のとき、既に実行された通常の effect まで取り消す規則は置かない。
+
+block は source 順に評価し、最後の式を返す。computed binding は一度得た結果をその binding の環境に保存する。top-level の computed roots も source 順に実行し、後から handler 内で参照したときに RHS を再実行しない。
+Oracle の根拠は
+\src{crates/poly/src/expr.rs\#L20-L39}{poly runtime roots} と
+\src{spec/2026-06-13-mono-vm-contract.md\#L48-L88}{mono-vm roots}
+である。
+
+\subsection{shallow handler と raw resumption}
+
+handler $h$ の作用を $\mathcal H_h$ と書く。次の三つを区別する。
+\begin{align*}
+\mathcal H_h(\Ret v)&=\mathsf{valueArm}_h(v),\\
+\mathcal H_h(\Req(o,a,\kappa))&=
+ \mathsf{opArm}_h(o,a,\kappa)
+ &&\text{eligible な arm が選ばれる場合},\\
+\mathcal H_h(\Req(o,a,\kappa))&=
+ \Req(o,a,\lambda b.\mathcal H_h(\kappa b))
+ &&\text{外へ転送する場合}.
+\end{align*}
+第二式で arm が受け取る $\kappa$ は raw な継続であり、$h$ を自動で再設置しない。第三式では、外側で処理された無関係な request の resume 後に内側の catch へ戻る。shallow を「最初の request を見たら、種類を問わず終わる」と解釈してはならない。
+
+arm の body と guard は、選ばれた handler の対象 computation の外で通常の規則により実行する。guard が false なら順序付きで次の eligible arm を試す。深い handler は $\lambda b.\mathcal H_h(\kappa b)$ をユーザー側の再帰で再導入することで表せる。
+これは
+\src{spec/2026-06-13-mono-vm-contract.md\#L340-L376}{mono-vm Catch contract}
+を直接反映する。
+
+\subsection{State と複数回の resume}
+
+location 型 $\mathsf{Ref}\langle\iota,A\rangle$ は、対応する store/frame の一つの cell とその invariant な $A$ を表す。読み書きは同じ $A$ の下で行う。参照の型変数を使用箇所ごとに freshen してはならない。
+
+複数回 resume するときに共有されるか複製されるかは、State frame が捕捉された継続の内側にあるか外側にあるかで決まる。捕捉された local State frame は Oracle の \texttt{SnapshotFork} 方針に従って再開枝ごとに複製しうる。捕捉範囲外の State frame は共有されたままである。全 heap を常に共有、あるいは常に複製、というどちらの単純化も正しくない。
+
+fork される frame occurrence は新しくなるが、対応する State scope の identity は保存する。lexical reference はその scope を参照し、現在の対応 frame へ届く。これは captured reference の全 identity を freshen する操作ではない。外側の共有 cell を誤って複製してはならない。
+この契約は
+\src{crates/evidence-vm/src/lib.rs\#L622-L625}{StateCapturePolicy::SnapshotFork}、
+\src{crates/evidence-vm/src/runtime.rs\#L22623-L22678}{State frame restoration}
+に現れている。外側 State を共有する regression の期待値は
+\src{tests/yulang/cases.toml\#L192-L198}{state_ref_nondet_resume_shared_state}
+の $([1,2],2)$ である。既存 regression の期待値を読んだものであり、今回新たに実行した結果ではない。
+
+\section{省略可能レコードを解釈する境界意味論}
+
+\subsection{存在性と可視 view}
+
+record signature $R$ は label から $(p,A)$ への有限写像とする。
+$\mathsf{Req}(R)$ は required labels、$\mathsf{Lab}(R)$ は宣言された全 labels。
+$r:\mathsf{Rec}(R)$ の意味は
+\[
+\mathsf{Req}(R)\subseteq\dom(r)\subseteq\mathsf{Lab}(R),
+\qquad
+l\in\dom(r)\Longrightarrow r(l):R_l
+\]
+である。optional は $\mathsf{Absent}$ または $\mathsf{Present}(A)$ であって、$\mathsf{Any}$ や未解決の型ではない。ここで $r$ は可視 view であり、backing object の全 field ではない。
+
+開いた row が必要なら $\mathsf{Rec}(R\oplus\rho)$ とし、$\rho$ も可視 field を保持する。注釈のない引数を型推論しただけで、勝手に $\rho$ を空にする実行変換は挿入しない。closed な target record への実際の境界に来たときに、その target が公開しない field を隠す。
+
+\subsection{具体レコードの一回の判定}
+
+同じ一つの resolver が、境界 $j$ で
+\[
+\Delta;j\vdash \mathsf{Rec}(R)<:\mathsf{Rec}(S)
+  \leadsto \mathsf{RecMap}_j(P)
+\]
+を生成する規則を次のように固定する。
+\begin{enumerate}
+\item target required field は source required field、またはその入力値の存在証拠を要する。
+\item target にしかない field は optional の場合だけ許す。変換 plan は absence を保持する。
+\item 共通 field について同じ resolver に $R_l<:S_l$ を発行する。optional field も present branch の payload 比較を免れない。
+\item target にない source field は出力 view に含めない。
+\item field の子変換、存在証拠、元の境界 identity、評価順序を plan に保存する。
+\end{enumerate}
+実行は target field の順に、present な入力を子変換に渡し、absent な optional は作らずに進む。backing object に field があっても、現在の source view から隠れていれば発見し直さない。子変換が計算を含む場合は通常の bind で順番を保存し、その effect を外へ渡す。
+
+Oracle の早期制約伝播は、source にない field と optional-to-required をこの段階ではスキップする。
+\src{crates/infer/src/constraints/machine/propagate.rs\#L550-L574}{record propagation}。
+これは最終的に無条件で受理する意味ではない。
+\src{crates/specialize/src/specialize2/type_graph.rs\#L760-L796}{specialize2 record check}
+は missing required を拒否し、
+\src{crates/mono/src/boundary.rs\#L227-L234}{mono record boundary}
+は source optionality も検査する。この段階差を一つの presence 証明へ接続する作業は残る。
+
+\begin{theorem}[record 変換の保存]
+各子変換が、全 request prefix と型付き resumption に閉じた computation contract と正常値の型を保存し、上の規則が $r:\mathsf{Rec}(R)$ に対して plan を生成したなら、正常終了値は $\mathsf{Rec}(S)$ を満たす。record plan 自体は missing required field を発生させない。
+\end{theorem}
+\begin{proof}
+target fields の走査順に帰納する。required field は存在証拠を持ち、子変換の保存で正しい payload を得る。optional は absent のままでも条件を満たし、present なら同じ保存を用いる。出力 label はすべて target に属し、終了時には全 required label が存在する。子の計算については bind の保存を各段階に用いる。
+\end{proof}
+
+\subsection{非推移性と経路依存性}
+
+\[
+A=\{foo?:string\},\qquad B=\{\},\qquad C=\{foo?:int\}.
+\]
+$A<:B$ は field を忘れ、$B<:C$ は absence を保つ。
+しかし直接の $A<:C$ は present payload の $string<:int$ を要するため、その直接 cast がなければ成立しない。
+二つの適応を実行する項は well typed であっても、一回の直接比較の成功は導けない。
+
+さらに、両方の経路が受理されても同じ意味になるとは限らない。
+\[
+A'=\{foo:int\},\quad r=\{foo=1\},\quad B=\{\},\quad C=\{foo?:int\}.
+\]
+direct $A'\to C$ は $foo=1$ を保つ。$A'\to B\to C$ は空 view になる。
+$foo$ が absent なら $0$ を返す consumer は、前者から $1$、後者から $0$ を得る。
+したがって endpoints だけから cast evidence を同一視する coherence は偽である。
+
+\begin{lemma}[忘れた field の非復活]
+record 自体の label を生成しない二つの正常終了する record plan に対して
+\[
+\dom(\mathsf{RecMap}_{S\to T}(\mathsf{RecMap}_{R\to S}(r)))
+=\dom(r)\cap\mathsf{Lab}(S)\cap\mathsf{Lab}(T).
+\]
+\end{lemma}
+\begin{proof}
+一回の plan が残す label は入力の存在 label と target label の共通部分である。この等式を二回適用する。
+\end{proof}
+
+よって最適化で二つの plan をまとめる場合も、中間 view の survivor labels を保持する必要がある。単純に直接 $R<:T$ を解き直して置換することはできない。
+
+\subsection{default と spread}
+
+default field の実行規則は次である。
+\begin{Verbatim}[fontsize=\small]
+match_field(view, label, pattern, default):
+    if view contains label:
+        match pattern against view[label]
+    else:
+        run default in the environment built by earlier fields
+        match pattern against its result
+\end{Verbatim}
+入力 payload の型を $\alpha$、default を $D$、local の型を $\beta$ とすれば、
+\[
+\alpha<:\beta,\qquad D<:\beta
+\]
+を生成する。$D<:\alpha$ は生成しない。このため、数学的な表示として
+\[
+\mathsf{widthOrDefault}:\forall\alpha.
+\{width?:\alpha\}\longrightarrow\alpha\vee int
+\]
+を得る。$\alpha$ を $int$ に固定したり、入力を $\alpha\wedge int$ に狭めるのは誤りである。
+根拠は
+\src{crates/infer/src/lowering/pattern.rs\#L521-L562}{default field lowering} と
+\src{crates/infer/src/lowering/tests/case_03.rs\#L204-L234}{optional input regression}。
+actual field が required と分かる specialization では値型に default を join せず、field がなければ default 型、optional なら両者の join とする。
+\src{crates/specialize/src/specialize2/task_solver/control.rs\#L472-L564}{default specialization}。
+いずれの場合も default 自体の型検査は行う。
+
+pattern の \texttt{..input} は、既知 fields を除いた残余ではなく、その pattern に渡された record view 全体を束縛する。
+\src{crates/infer/src/lowering/pattern.rs\#L565-L582}{record pattern spread}。
+literal の head/tail spread は異なる positive constructors である。tail は明示 field と同名の demand を tail 側へ optionalize しても送り、head は明示 field があれば同名 demand を tail に送らない。
+\src{crates/infer/src/constraints/machine/propagate.rs\#L576-L662}{head and tail spread propagation}。
+これを unordered row union へ消してはいけない。frozen VM が tail spread を \texttt{UnsupportedExpr} としている事実も、全言語からこの構文を削る根拠にはならない。
+\src{crates/evidence-vm/src/runtime.rs\#L17957-L18012}{record spread runtime}。
+その source 順の row plan と既存 propagation の対応は、未完の実装対応として残す。
+
+\subsection{nominal と cast}
+
+同じ nominal constructor の引数には両向きの義務を生成し、不変性を保つ。異なる nominal constructor の cast は source/target の直接の pair で宣言を探し、missing / unique / ambiguous を区別する。候補の body を順に推論して成功したものを選ぶ規則は置かない。
+\src{crates/infer/src/constraints/machine/propagate.rs\#L272-L291}{nominal comparison}、
+\src{crates/poly/src/cast_resolution.rs\#L5-L47}{direct cast cardinality}。
+nominal-to-record は宣言由来の record-shape certificate と field projection schemes による。
+\src{crates/infer/src/analysis/session/nominal_record_shape.rs\#L39-L132}{nominal record shape}。
+cast 自体は普通の型付き関数呼出しとして実行し、その identity と instance を evidence に保存する。
+
+\section{型変数の伝播と、具体変換の境界を接続する}
+
+\subsection{型変数を暗黙の変換場所にしない}
+
+$L<:\alpha$ と $\alpha<:U$ の意味を、「具体型 $T$ を一つ選び、$L<:T$ と $T<:U$ が成功する」と定義すると、前節の $T=\{\}$ により、本来失敗すべき direct comparison を回避できてしまう。
+
+型変数は、未変換の値が移送される interface を表す。具体変換は別の typed operation として存在し、その入力と出力を別 port にする。これは二種類のソース部分型関係を作ることではなく、同じ判定の endpoint に応じた処理と、その判定が埋める実行 hole の意味である。
+
+\begin{longtable}{p{.24\textwidth}p{.68\textwidth}}
+\toprule
+入力する義務 & 内部で保持するもの \\
+\midrule\endhead
+$\alpha<:\beta$ & 未変換 view の flow edge $\alpha\to\beta$。\\
+$L<:\alpha$ & producer anchor $(L,\alpha,\mathit{origin})$。\\
+$\alpha<:U$ & consumer demand $(\alpha,U,j)$。$j$ は実際の境界。\\
+$L<:U$ & その同じ境界の具体比較と evidence hole。\\
+変換の実行 $p\to B$ & 入力 $p$ の demand を解き、別の出力 $q$ に $B$ の anchor を置く。$p\to q$ を identity edge にしない。\\
+\bottomrule
+\end{longtable}
+
+checking は source に存在する境界に一つの hole を作る。ascription の出力、constructor に実際に保存された変換済み field、function adapter の出力などが、新しい producer view になる。単なる alias、unknown formal、unannotated branch join は、それだけでは変換しない。
+
+\subsection{worklist の明示規則}
+
+各 variable $v$ に lower-anchor 集合 $L(v)$、upper-demand 集合 $U(v)$ を持つ。
+\begin{Verbatim}[fontsize=\small]
+insert_edge(a,b):
+    retain a -> b once
+    enqueue each lower in L(a) at b
+    enqueue each upper in U(b) at a
+
+insert_lower(v,l):
+    if already present: return
+    add l to L(v)
+    enqueue l at every successor of v
+    emit Query(l,u) for every u in U(v)
+
+insert_upper(v,u):
+    if already present: return
+    add u to U(v)
+    enqueue u at every predecessor of v
+    emit Query(l,u) for every l in L(v)
+
+solve_query(L,U,j):
+    decompose by constructors using the same inequality resolver
+    retain child obligations and the evidence constructor at j
+    do not infer L <: V from successes L <: U and U <: V
+\end{Verbatim}
+origin と boundary を必要なキーから落とさない。効果の flow にはさらに authentic な scope/occurrence の guard を課し、型変数代表元が同じという理由だけで任意の effect contributions を組み合わせない。
+
+\begin{theorem}[固定された wiring の端点被覆]
+有限の未変換 flow graph $G$、producer anchors $P$、consumer demands $D$、直接義務 $Q_0$ を固定する。上の insert-edge/lower/upper による fair な routing 層が発行する親端点 query は正確に
+\[
+Q_0\cup\{(L,U,j)\mid(p,L)\in P, (u,U,j)\in D, p\leadsto_G u\}
+\]
+である。従って ordinary worklist の順序は結果を変えない。
+\end{theorem}
+\begin{proof}
+発行された query は、lower の出発点から当該 variable までと、そこから upper の到達点までの二つの route witness を持つ。それらを連結すれば表示した経路になる。逆に経路があれば、lower を各辺に沿って伝播すれば consumer に達し、初期 upper と対になって query を発行する。重複を除く閉包はこの到達可能性の集合に一致する。
+\end{proof}
+
+solve-query による constructor の子義務や新しい wiring は、この固定 graph 定理の集合には含めず、外側の再飽和で扱う。全体には、それぞれ新しく生成された子問題について同じ routing 不変条件を維持する必要がある。
+
+この graph theorem を source に使うには、各 edge が本当に view を変えないことを、先に定義した operational clause から示す。alias、formal、構造値の component routing はそのまま運び、adaptation はそこで経路を止める。branch の経路は構文上の可能性を両方含むので、\texttt{if true} の死んだ枝を評価して省く推論にはしない。
+
+\subsection{role interval にも同じ意味を使う}
+
+role input の $[L,U]$ は、普通の推移的な順序の区間ではなく、同じ実引数 view の lower/upper 義務を一緒に保持する表記とする。二つの usage が同じ slot を共有する場合、lower と upper を両方 union し、そこから新たに到達可能になった cross endpoint queries を発行する。
+\[
+L_1<:U_2,\qquad L_2<:U_1.
+\]
+これらは具体成功の推移性から導くのではなく、同じ未変換 view を consumer が受け取ることから必要になる。
+
+特に「$T$ が二つの具体区間に入るから cross comparison が成功する」という証明はここでは使えない。
+$A=\{foo?:string\}$、$B=\{\}$、$C=\{foo?:int\}$ として、$T=B$ は点ごとの適合で $[A,B]$ と $[B,C]$ を満たしても $A<:C$ は失敗する。この反例は record 章だけでなく、role・nominal 不変性・一般化で使う bounds の意味にも及ぶ。
+
+\section{全 IR 構文の型付けと束縛}
+
+\subsection{式の生成規則}
+
+型付き judgement は値型と immediate effect slot を同時に返す。以下の表は13種類の各 owning rule を定める。各 occurrence に fresh な結果 port を作り、subexpression の共有 binder だけを同じ identity で接続する。既知の expected signature は、その構文上の境界に最初から供給する。
+
+\begin{longtable}{p{.18\textwidth}p{.74\textwidth}}
+\toprule
+IR expression & 制約と型付き実行 \\
+\midrule\endhead
+\texttt{Lit} & literal の宣言型を結果へ anchor。構築は pure。\\
+\texttt{PrimitiveOp} & primitive の固定 signature を instance 化。payload/response、effect identity、world 操作は primitive contract に従う。\\
+\texttt{Var} & local/open recursive use は共有 port、generalized use は一回の scheme instance。computed fetch は保存済み結果を参照し、RHS を再実行しない。\\
+\texttt{App} & callee を関数 interface で check。引数 computation 全体を carrier にし、formal の source entry role で受領。結果境界と joint effect 義務を作る。\\
+\texttt{RefSet} & reference の同じ invariant slot へ書込値を check。書込 effect と unit/result の宣言された型を返す。共有 cell の型を一般化しない。\\
+\texttt{Lambda} & formal/result/effect ports を用いて本体を check。closure 構築は pure。本体の effect は latent interface に保持。entry role は実行 binder の構文から決める。\\
+\texttt{Tuple} & 子の source 順の bind と積。各 component の latent interface はそのまま保持。\\
+\texttt{Record} & required な明示 fields と source 順の spread plan。子の評価と latent value を区別。\\
+\texttt{PolyVariant} & 構造的な tag label、arity、payload ごとの型を導入。tag を intern する場合も同じ label が同じ tag を表す。nominal/operation の宣言 identity とは区別。\\
+\texttt{Select} & pending selection と普通の receiver application を生成。選択証拠を得て member/role/field のどれかへ解決してから emit。\\
+\texttt{Case} & scrutinee、全 pattern/default/guard/body を検査。body 結果を同じ join port へ流し、実際の expected target があれば branch ごとに適応する。\\
+\texttt{Catch} & scrutinee と value/operation arms、raw continuation を検査。immediate residual と arm effects を集める。戻り値の latent slots は別に保つ。\\
+\texttt{Block} & source 順の statement 環境と最後の式。let の SCC/値制限、module の linking と root 順序を適用。\\
+\bottomrule
+\end{longtable}
+
+\texttt{Stmt::Let}, \texttt{Stmt::Expr}, \texttt{Stmt::Module} の三つについて、let は定義 graph と必要な評価 root、expr は順序付き計算、module は解決済みの nested environment とその roots を作る。
+\src{crates/poly/src/expr.rs\#L169-L180}{statement constructors}。
+primitive は「何でもできる」とせず、各宣言の入力、出力、request、store 操作を契約として置く。host I/O の外界動作そのものまで型保存で決めることはしない。
+
+\subsection{pattern の生成規則}
+
+pattern judgement を
+\[
+\Gamma\vdash p\Leftarrow A\leadsto
+ (\mathsf{MatchPlan},\Gamma_p,\Phi_p)
+\]
+とする。失敗は \texttt{NoMatch} として区別する。途中の default/guard は計算であり、match failure によって行った I/O や State 書込を巻き戻さない。
+
+\begin{longtable}{p{.18\textwidth}p{.74\textwidth}}
+\toprule
+pattern & 保存する義務と環境 \\
+\midrule\endhead
+\texttt{Wild} & 値を捨て、binder を作らない。\\
+\texttt{Lit} & literal と比較可能な入力であり、一致したときだけ成功。\\
+\texttt{Var} & 新しい lexical binder identity に入力 view を保存。\\
+\texttt{Tuple} & arity を check し、子を順に照合。\\
+\texttt{List} & list constructor / element constraints。rest は残りの list を束縛。\\
+\texttt{Record} & field の required/optional と default を保持。spread は入力 record view 全体。\\
+\texttt{PolyVariant} & tag と arity を check し、payload を子へ渡す。\\
+\texttt{Con} & resolved nominal constructor identity と invariant arguments を check。\\
+\texttt{Ref} & 解決済みの既存定義への reference pattern。新規 binder や mutable reference の導入と混同せず、その定義の照合契約に従う。\\
+\texttt{As} & 子の成功環境に、入力 view 自身を指す alias binder を加える。\\
+\texttt{Or} & 左を先に試し、失敗なら右。成功した枝の lexical 環境だけを branch merge に渡す。共通 binder の整合を後述の規則で検査。\\
+\bottomrule
+\end{longtable}
+
+non-exhaustive な destructuring/case は、言語が許す明示的な \texttt{MatchFailure} になりうる。これは accepted program の内部 \texttt{UnboundLocal} と同じではない。健全性の結論は「どんな失敗もない」ではなく、値、許された request、意図された failure、発散以外の内部故障が起こらないことにする。
+
+\subsection{OR pattern の具体的な修正}
+
+frozen Oracle の構文で
+\begin{Verbatim}[fontsize=\small]
+case 0: x | y -> y
+\end{Verbatim}
+を考える。左の変数 pattern は成功するので、実行環境には $x$ の binder しか入らない。しかし lowering は両枝の fresh binders を同じ body scope に入れており、$y$ を解決できてしまう。
+この挙動はドキュメントにも記録されている。
+\src{web/docs/reference/patterns.md\#L83-L89}{OR pattern binding behavior}、
+\src{crates/infer/src/lowering/pattern.rs\#L284-L321}{OR pattern lowering}、
+\src{crates/evidence-vm/src/runtime.rs\#L24617-L24624}{OR runtime environment}。
+今回の主張は source と実装分岐を合わせた静的導出であり、Oracle をビルドしてこの式を実行した報告ではない。
+
+修正規則は次の通りとする。OR の各枝を独立した lexical scope で lower し、body に公開できる binder は両枝に現れる同じ source name のみとする。その名前ごとに一つの merge binder を設け、成功枝の値をそこへ移す。型は両枝の値 port の join、effect は実際に実行した pattern 計算と body の合成となる。
+
+この規則なら $x\mid x$ は一つの body-visible $x$ を持つ。$x\mid y$ は branch-local の二つを持つが、body から片側だけの名前を参照できない。両枝の binder 集合を必ず同一にする、より強い構文制限を加える必要はない。片側の名前を使用しない OR pattern は維持できる。
+
+\begin{lemma}[OR merge の環境保存]
+body が両枝で定義された merge binders のみを参照し、各枝の match がその枝の型付き環境を返すなら、どちらの成功枝でも body の全 local references が束縛され、各 merge binder の join 型を満たす。
+\end{lemma}
+\begin{proof}
+merge binder ごとに両枝からの入力が存在する。選ばれた枝の入力をその binder に代入すれば、join の生成規則により型が満たされる。body に他方専用の binder は公開されていないので、その理由による未束縛参照はない。
+\end{proof}
+
+これは Oracle の既知の危険な受理に対する明示的な互換性変更である。ユーザーが正とした省略可能レコードと method inference を変更する理由として、OR の問題を利用しない。
+
+\section{メソッド、role、関連型と選択の算法}
+
+本節は、固定 Oracle の選択手順を再現する基準算法と、順序独立性を証明できる一括処理への改良案を区別する。
+前者は具体的なテーブル走査と制約生成からなる算法であり、意味論的な正解を外部へ問い合わせるものではない。
+後者との同値性は、走査順が影響しうる箇所ごとに証明する必要がある。
+その差を隠して、正規化した候補集合を Oracle の意味に置き換えることはしない。
+
+\subsection{宣言環境、raw demand、実装の主張}
+
+宣言環境を $\mathcal D=(L,V,M,R,I)$ とする。
+$L$ は現在の file SCC から読み込まれたファイル集合、$V$ は解決済み可視性、$M$ は通常・参照・effect のメソッド表、$R$ は role member 表、$I$ は impl 表である。
+未読込ファイルの impl は候補に入らない。読み込まれた後も module と realm の可視性を守る。
+\src{spec/2026-06-04-method-selection.md\#L6-L11}{method-selection: loaded scope}。
+各候補は宣言 identity、所属 scope、member identity を持つ。綴りだけで同じ実装とみなさない。
+
+raw role demand は、通常引数と関連型の各位置に lower/upper の組を持つ。
+\[
+d=R((\ell_1,u_1),\ldots,(\ell_n,u_n);\ a_j=(\ell'_j,u'_j)).
+\]
+この組は、元の不変ポートの配線と、そこに生成された直接比較義務を保持する表現である。
+非推移的な具体適合判定に対して、これを単に $\exists T.\ \ell<:T\land T<:u$ と解釈してはならない。
+その読みでは、途中の変換を自由に挿入して、必要な $\ell<:u$ の直接比較を飛ばせてしまう。
+二つの同一引数位置を結合するときは元の配線を保ち、少なくとも
+\[
+\ell_1<:u_2,\qquad \ell_2<:u_1
+\]
+という直接の端点義務を追加する。通常引数・関連型とも同じである。
+これは前順序の推移性から得た区間補題ではなく、生成規則として明示した義務である。
+表示上の中心変数を保存して、後の instantiation の引数を固定することもしない。
+\src{spec/2026-06-02-role-system.md\#L33-L59}{role-system: bounds obligations}、
+\src{crates/infer/src/analysis/session/generalize.rs\#L797-L876}{role resolution application}。
+
+impl 宣言は、概念上、次の全称的な主張である。
+\[
+i=\forall\bar u.\ P_i\Rightarrow
+ R(\bar H_i(\bar u);\bar a=\bar A_i(\bar u)).
+\]
+明示した関連型等式は定義であり、body を通すために狭めない。
+省略した関連型は実装全体で共有する推論対象であり、各 member ごとに別の答えを作らない。
+各 member $m$ は、同じ全称 binder の下で
+\[
+P_i\models P_{i,m},\qquad
+M_{i,m}<:Req_{R,m}[\bar H_i,\bar A_i]
+\]
+を満たす必要がある。最後の比較は、その一つの直接比較として検査する。
+たとえば \texttt{box u} の field を返しながら関連型を \texttt{bool} と宣言した実装を、$u$ 自体を \texttt{bool} に狭めて正当化してはならない。
+使用されない malformed impl も拒否し、失敗した宣言を含む成功 artifact は公開しない。
+\src{notes/design/2026-07-12-generic-role-impl-conformance-spec.md\#L93-L175}{impl universal conformance}、
+\src{crates/infer/src/lowering/tests/case_07.rs\#L181-L186}{unused malformed impl}。
+
+宣言された引数・結果・effect の上界は、選択に必要な情報として先に与える。
+その情報が body の推論を助けることと、全称的な宣言を証明することは別である。
+後者には真正の全称 binder または不変な binder 対応を持つ検査器が必要であり、既に狭まった scheme の再比較では足りない。
+通常の Simple-sub 簡約を変更する保護変数集合で代用しない。
+
+\subsection{選択式の型付き elaboration}
+
+各 \texttt{e.m} に selection identity $s$、未解決の callable use $\mu_s$、結果の値/effect ポートを作る。
+この時点では target を選ばず、$\mu_s$ を receiver $e$ に適用する通常の Call 義務を生成する。
+owner の一般化には未解決メソッドの blocker を置く。
+選択後も専用の method evaluator を作らず、receiver-first の通常の Call に移す。
+
+通常・参照・effect メソッドでは、実際に選んだ member definition への use を登録する。
+その scheme が確定していれば一度だけ instantiate し、未確定なら実際の値参照辺を追加する。
+同じ SCC の use は開いた interface を共有し、再帰 self-use も元の再帰 interface を使う。
+\src{crates/infer/src/analysis/session/lifecycle.rs\#L1102-L1147}{selection application and use}。
+
+role member では、その member の全 scheme を instantiate する。
+たとえば \texttt{Index} の member は、receiver・key・関連結果を共有する一つの demand を作る。
+receiver だけの追加 demand を捏造してはならない。複数引数の共有と supertype 解決を壊すためである。
+\src{spec/2026-06-04-method-selection.md\#L28-L36}{no fabricated receiver demand}、
+\src{crates/infer/src/lowering/tests/case_04.rs\#L784-L804}{multi-input role member}。
+
+field fallback では、各 Call 上界に対し次の直接義務を作る。
+\[
+\tau_{receiver}<:\{m:\beta_s\},\qquad
+\epsilon_{receiver}<:\epsilon_s.
+\]
+ここでの effect 配線には、通常の computation と衛生性の規則を適用する。
+nominal struct の生成 accessor と、literal record の構造的 projection は区別する。
+\src{crates/infer/src/analysis/session/selection.rs\#L961-L1037}{field projection constraints}。
+
+\subsection{Oracle の具体選択手順}
+
+以下の基準手順は候補集合を勝手に正規化しない。
+\texttt{firstSome} は記述した順に最初の成功を返し、\texttt{unique} は候補がちょうど一つのときだけ成功する。
+local 表が一意でなければ global 表を試す、という実際の規則も保持する。
+\src{crates/infer/src/analysis/mod.rs\#L766-L781}{unique bucket helpers}、
+\src{crates/infer/src/analysis/session/selection.rs\#L828-L910}{local and global lookup}。
+
+\begin{Verbatim}[fontsize=\small]
+Bucket(kind, scope, key):
+  return firstSome(unique(local[kind, scope, key]),
+                   unique(global[kind, key]))
+
+Probe(s):
+  if s.resolved: return
+  target = firstSome(Effect(s.receiver_effect, s.name),
+                     MethodUpper(s.method_value, s.name))
+  if target exists: enqueue ApplySelection(s, target)
+
+MethodUpper(v, name):
+  visit v once
+  return firstSome(Upper(u, name) for u in v.uppers in stored order)
+
+Upper(u, name):
+  Var(v)             => MethodUpper(v, name)
+  Fun(a, ae, re, r)   => firstSome(Effect(ae, name), Pos(a, name))
+  Intersection(l,r)  => firstSome(Upper(l,name), Upper(r,name))
+  Stack(x, w)        => Upper(x, name)
+  other              => None
+
+Pos(p, name):
+  Var(v):
+    watch v
+    scan v.lowers in stored order:
+      return firstSome(Effect(bound.weight, name),
+                       Pos(bound.value, name)) when successful
+    if v.lowers is empty:
+      require exactly one raw upper
+      collect distinct targets from that upper
+      return its target only when the collected set is a singleton
+    return None
+  Con(Ref, args):
+    return firstSome(Bucket(Value, scope, (Ref,name)),
+                     RefPayload(args, name))
+  Con(T, args)       => Bucket(Value, scope, (T,name))
+  Union(l,r)         => firstSome(Pos(l,name), Pos(r,name))
+  Stack(x,w)         => firstSome(Effect(w,name), Pos(x,name))
+  NonSubtract(x, _)  => Pos(x,name)
+  other              => None
+
+RefPayload(args, name):
+  inspect the payload lower and its unique common bound variable
+  scan their lower paths in stored order
+  use Bucket(Ref, scope, (payload_constructor,name))
+
+Effect(e, name):
+  collect authentic effect lower, row, subtract, and weight paths
+  filter local effect candidates by these paths; try unique
+  otherwise filter global candidates by these paths; try unique
+\end{Verbatim}
+
+upper-only の分岐は、単に lower 走査が失敗した場合ではなく、lower リストそのものが空の場合に限る。
+その上界から得る target は重複除去するが、候補表全体の重複や複数 receiver 下界を一意化する別規則は足さない。
+参照 upper も direct \texttt{Ref} member を先に試し、次に payload の参照メソッドを調べる。
+\src{crates/infer/src/analysis/session/selection.rs\#L600-L824}{lower, upper and reference probes}。
+effect 選択は receiver の effect を先に調べ、次に callable 上界の引数 effect/value を調べる。
+\src{crates/infer/src/analysis/session/selection.rs\#L87-L109}{probe entry}、
+\src{crates/infer/src/analysis/session/selection.rs\#L388-L488}{function and effect probes}。
+
+\subsection{Role の解決と関連型の再試行}
+
+role は member 名の検索とは別の判断である。
+主型と全 role を一緒に compact 化し、通常引数ごとに使用可能な単一具体 endpoint を求める。
+主型での極性、同じ具体型による負出現の拘束、および未解決メソッドの影響を調べ、許された lower を優先し、次に upper を使う。
+自身の未解決選択に依存した endpoint を独立の解決根拠にしない。
+\src{crates/infer/src/role_solve/mod.rs\#L720-L765}{role endpoint selection}、
+\src{crates/infer/src/role_solve/taint.rs\#L146-L190}{main polarity conditions}。
+
+候補の通常引数 head を副作用のない照合で比較し、ちょうど一つの場合に解決する。
+関連型の期待結果を使って候補 body を順に試したり、prerequisite が解ける候補だけを勝者にしたりしない。
+唯一の親候補を選んだ後、その代入を関連型と prerequisite に適用する。
+未解決 prerequisite は demand として残る。親選択を取り消して別の型付けを探索することはない。
+\src{crates/infer/src/role_solve/mod.rs\#L479-L535}{role head matching}、
+\src{crates/infer/src/role_solve/mod.rs\#L577-L644}{prerequisite residuals}、
+\src{crates/infer/src/analysis/tests/case_03.rs\#L165-L224}{missing prerequisite regression}。
+
+追加された関連型・引数の直接義務を通常の solver に戻す。
+変化があれば raw graph から新しく compact view を作り、解ける role とメソッドを再試行する。
+以前の compact view を再び簡約するだけでは足りない。
+\src{crates/infer/src/analysis/session/selection.rs\#L263-L325}{associated constraint retry}。
+
+\subsection{SCC frontier と fallback の基準手順}
+
+\texttt{Ready(s)} は、owner が未解決メソッド以外の待機要因を持たず、receiver upper の未走査イベントもないことを表す。
+role fallback の候補は receiver 型から作った独自 demand ではなく、一意な可視 role member 名である。
+\begin{Verbatim}[fontsize=\small]
+FinishSelections():
+  loop:
+    DrainWorkAndMethodRoles()
+    if EnqueueRoleFallback(): continue
+    EnqueueAllUnresolvedConcreteProbes()
+    DrainWorkAndMethodRoles()
+    if EnqueueRoleFallback(): continue
+    fields = sortBySelectId(s where Ready(s) and RoleName(s) is None)
+    if fields is empty: break
+    mark all fields resolved; collect all projection constraints
+    add the constraint batch
+    release their method blockers; route SCC events
+
+EnqueueRoleFallback():
+  ready = sortBySelectId((s,RoleName(s)) where Ready(s)
+                         and RoleName(s) exists)
+  if ready is empty: return false
+  if ready.first.target is already quantified:
+    enqueue all ready entries whose targets are already quantified
+  else:
+    enqueue only ready.first
+  return true
+\end{Verbatim}
+
+未一般化の role member は実際の SCC 辺を追加しうるため、Oracle は一件ずつ処理する。
+一般化済みの target だけは一括処理し、その効果を取り込んでから field fallback に進む。
+\src{crates/infer/src/analysis/session/lifecycle.rs\#L845-L984}{fallback lifecycle}。
+解決済み selection は後の情報だけを見て選び直さない。
+この一回限りの elaboration と、最終 graph からの全面的な再選択は異なる規則である。
+
+値参照 graph へ追加するのは、実際に選ばれた member または実際の参照による辺である。
+「候補かもしれない」すべての impl への辺を入れると、偽の再帰 SCC を作って一般化を変えてしまう。
+dirty query の依存関係と、再帰・intrusion の根拠となる値参照辺を混同しない。
+\src{crates/infer/src/role_solve/mod.rs\#L421-L427}{false candidate-cycle warning}。
+選択が閉じる再帰 cycle は通常どおり SCC を併合し、記録された extrusion occurrence の正確な parent/copy 対へ intrusion を適用する。
+cycle であるという理由だけでソースを拒否しない。
+
+一般化可能な scheme には role residual を残せるが、未解釈の dot selection は残さない。
+role とその共有変数は level 移動を共有し、残置する通常引数には宣言から導出した variance を反転して適用する。関連型は不変のままである。
+主型から切れた floating role と、閉じた top-level computation に残る obligation は境界で診断する。
+\src{spec/2026-06-02-role-system.md\#L67-L113}{role levels and residuals}。
+
+\subsection{基準算法と順序独立な改良案の区別}
+
+基準算法の入力を $(P,\mathcal D,\omega)$ とする。
+$\omega$ は source order、表の走査順、lowering と work の処理順を定める明示的な方針である。
+これを固定すれば、上の走査と solver 呼出しは構成的な算法になる。
+ただし、$\omega$ を言語の意味として採用したことにも、すべての $\omega$ が同じ結果になることにもならない。
+型付け保存は選択された elaboration ごとに示し、全候補を通じた principality をそこから推論しない。
+
+順序独立な改良案では、通常伝播が止まった snapshot $H_k$ を固定し、その snapshot から ready choice の集合 $B_k$ を計算する。
+fresh instance は実際の use/clone occurrence と source binder の組で識別し、全制約・demand・実際の use 辺を一括追加してから SCC の一般化を許す。
+role fallback の後は再飽和し、その後に field fallback を判定する。
+候補集合の正規化も導入する場合は、first-success 走査との差を別に検証する。
+
+\begin{theorem}[一括選択算法の条件付き順序独立性]
+固定生成規則の $\Close$ が worklist 順序に独立であり、snapshot 上の選択と照合が純粋かつ alpha 同変であるとする。さらに、宣言した source priority を固定した上で、選択が graph の表現順・挿入順によらず同じ閉包事実の関数であり、readiness と全読取依存が正確に計算されるとする。
+各 batch の全 use 辺を設置するまで一般化せず、算法が停止するなら、この改良案の結果は batch 内の実行順と通常 worklist 順に依存しない。
+\end{theorem}
+\begin{proof}
+初期状態は source identity で固定する。
+第 $k$ 世代が alpha 同型なら、$\Close$ の仮定から同じ $H_k$ を得る。
+純粋な選択は同じ $B_k$ を返し、同じ freshening 対応の下で同じ制約・use 辺の和集合を生成する。
+一般化は中間状態を観測しないので SCC 分割も一致する。
+従って次世代も同型であり、帰納法により最終結果が一致する。
+\end{proof}
+
+この証明は、Oracle の first-success 走査や未一般化 target の逐次 fallback との同値性を証明していない。
+選択証拠列を $\delta^*$ とすると、得られる不変条件は
+\[
+G^*=\Close(G_0\cup C(\delta^*)),\qquad H_k\vdash B_k
+\]
+である。これを $G^*=\Close(G_0\cup C(Select(G^*)))$ へ置き換えるには、後の関連型・effect・SCC 更新でも選択が変わらないという別の安定性定理が要る。
+たとえば $A<:\alpha$ に $B<:\alpha$ を加えると、唯一だった receiver target が唯一でなくなることがある。従って選択関数の単調性は一般には使えない。
+
+\subsection{計算量と残る証明責任}
+
+各 selection は一度だけ commit し、制約・instance・適用済み role 義務を重複排除する。
+変更した bounds、候補 bucket、owner root の購読先だけを再試行する。全 graph の候補別複製は必要ない。
+有限な生成 graph の下では、この処理を通常の伝播、SCC 更新、変更した lookup の費用の和で評価できる。
+成長する再帰 prerequisite や instance 生成の有限性は別に示し、resource limit では義務を切り捨てず private attempt を停止する。
+
+残る全体責任は、非推移的比較を保つ candidate/head 対応、contextual selection を含む全称 conformance、Oracle 方針から一括処理への同値性、および一般化・intrusion・effect を含む全構文の対応である。
+ここで構成した有限走査や条件付き定理を、完成した全言語健全性または無条件の principality と呼ばない。
+
+
+\section{effect と衛生性を同じ意味論に置く}
+
+\subsection{区別する identity と、共有する証拠}
+
+effect family $F$ とその invariant type arguments、operation $o$、動的 request occurrence $q$、受信 invocation $u$、source annotation boundary $b$、handler activation $h$、State instance $r$ は別の identity である。同じ family 名だから、別 invocation が受け取った callback の request を処理してよいとは限らない。
+
+既存設計の typed-view packet
+\[
+(v,t,\chi,K,D,L)
+\]
+を用いる。$t$ は型の位置、$\chi$ は境界 profile、$K,D$ は共有された記号的条件とその依存関係、$L$ は origin/lineage。これは既存の incidence を意味づけるものであり、同じ情報の第二の所有権台帳を追加する提案ではない。
+\newsrc{notes/design/2026-10-02-typed-boundary-realization-draft.md\#L730-L753}{typed view packet}。
+
+handler eligibility は、同じ request exposure について次を検査する。
+\begin{align*}
+\mathsf{Inc}(q,h,b,p,S)
+ &\iff \text{boundary の位置 $p$ から受信 view への authentic な経路がある},\\
+\mathsf{Protected}(q,h,S)
+ &\iff \text{その経路上に適用可能な protection がある},\\
+\mathsf{Grant}(q,h,S)
+ &\iff \text{同じ受信 owner の有効な permission がその operation を許す},\\
+\mathsf{Visible}(q,h,S)
+ &\iff h\text{ が現在 active で、operation を覆い、}\\[-.4em]
+ &\hspace{2.3em}\neg\mathsf{Protected}(q,h,S)\ \lor\ \mathsf{Grant}(q,h,S).
+\end{align*}
+最後の論理和は active/operation 条件の内側に置く。grant の owner と handler の owner の一致、typed position、family arguments の同じ割当て、現在の寿命をすべて要求する。外側の grant は内側 helper の handler へ権限を与えない。callback を環境や cell に格納しても、その transport が protection を消すことはない。
+
+callback 自身の本体は、その public callback view を別の invocation として受領したことにはならない。自分の本体にある通常の handler まで一律に封じる規則ではない。
+受信 invocation が終了したら古い grant は失効するが、返された closure の latent effect は消えない。
+
+\subsection{省略、明示 wildcard、具体 row を分ける}
+
+source type を合成 polarity と typed path 付きで走査する。関数引数では polarity を反転し、結果では保つ。record、tuple、nominal operand、thunk、返された関数の中も走査する。同じ型変数 ID が二箇所にあっても、annotation occurrence が同じとは限らない。
+
+\begin{longtable}{p{.31\textwidth}p{.61\textwidth}}
+\toprule
+source constructor & 型と permission の生成 \\
+\midrule\endhead
+negative な具体 row $[C]$ & 入力は $[C,\rho]$ の開いた interface とする。この受信 boundary の該当位置に $C$ を扱う permission を置く。$C$ は実際の流入 contribution ではない。\\
+positive な閉じた $[C]$ & 実際の効果に対する上界 filter を保持する。現在と未来の concrete lowers の両方を check。\\
+tail を持つ row & 同じ tail variable の制約を保つ。表示に現れなくなっただけで依存義務を捨てない。\\
+省略した callback effect & 推論された callback effect に対する受信側の fresh protection。具体 family の grant は作らない。\\
+明示 callback result \texttt{[\_]} & explicit open interface。省略時の Empty protection を追加しない。新しい concrete effect atom も作らない。別境界から transport された protection は残る。\\
+明示 computation formal \texttt{x:[\_] A} & 引数 carrier を保持する computation entry と、source 由来の open handling boundary。callback result wildcard と同一の constructor に潰さない。\\
+whole-type wildcard & 型の構造・端点を推論する。ただし実行 formal の entry role は source constructor に従う。expected type だけで普通の formal を computation formal へ変えない。\\
+\bottomrule
+\end{longtable}
+
+negative $[io]$ の open-tail 解釈は現在の明示された方針である。
+\newsrc{notes/theory/2026-10-21-r252-open-effect-tail-correction.md\#L9-L22}{negative row open-tail correction}。
+allowance と実際の流入を分ける要件は
+\newsrc{notes/design/2026-10-10-annotation-effect-hygiene-integration.md\#L80-L135}{annotation effect integration}
+にある。pure な provider から $io$ を作ったり、State しか流れない receiver に $io$ method を出現させたりしてはならない。
+
+wildcard の区別は推測ではない。
+\src{crates/infer/src/annotation/constraints.rs\#L442-L448}{explicit callback wildcard} と
+\src{crates/infer/src/lowering/expr/tail.rs\#L744-L799}{omitted callback protection}、
+\src{crates/infer/src/lowering/expr/lambda.rs\#L1252-L1264}{omission classification}、
+\src{crates/infer/src/annotation/constraints.rs\#L546-L589}{computation formal effect handling}、
+\src{crates/infer/src/annotation/constraints.rs\#L657-L663}{explicit computation boundary}
+が異なり、
+\src{crates/infer/src/lowering/tests/case_05.rs\#L285-L331}{callback wildcard regression} と
+\src{crates/infer/src/lowering/tests/case_05.rs\#L912-L928}{computation wildcard regression}
+が対応する。この差を消す修正は Oracle の意図した型推論を変えてしまう。
+
+\subsection{Function 比較は complete Call の比較}
+
+関数境界の evidence は、次の一連の実行を同じ型変数割当て・同じ受信関係で check する。
+\[
+\mathsf{receipt}\ ;\ \mathsf{argument adaptation/entry}\ ;\
+\mathsf{native call}\ ;\ \mathsf{result consumer}\ ;\
+\mathsf{result adaptation}.
+\]
+value 引数は反変、result は共変である。しかし effect 二ポートを、それぞれ無関係な部分型比較に分離してはならない。
+特に、意図された
+\[
+\mathsf{Fun}(a,never,b,c) <:\
+\mathsf{Fun}(a,d,[b,d],c)
+\]
+を解くために、独立した $d<:never$ を要求するのは誤りである。source が value-entry で引数を実行すれば、その $d$ が呼出しの結果 effect へ流れるからである。
+\newsrc{notes/design/2026-10-03-concrete-compatibility-boundary.md\#L101-L190}{coupled Function comparison}。
+
+メタレベルには adapter を
+\[
+\lambda t.\quad
+\mathsf{ArgPlan}(t)\bind
+\bigl(\lambda x.\mathsf{CompleteCall}(f,x)\bind
+ (\lambda z.\mathsf{ResultPlan}(z))\bigr)
+\]
+と書ける。これは追加の source lambda/receiver を作る変換ではない。引数を本来の受信 invocation に入る前に force したり、grant の owner を別 wrapper に移したりしてはならない。adapter descriptor の構築は inert であり、後の呼出しで complete Call を実行する。
+
+thunk-to-thunk の変換も、target thunk を force した時に source thunk を force し、その返却値を変換する。構築時に source を実行しない。返された普通の first-class thunk を自動で再帰的に force しない。
+\src{spec/2026-06-13-mono-vm-contract.md\#L125-L188}{thunk and adapter contract}。
+
+\subsection{shallow catch の型規則}
+
+$\epsilon$ を scrutinee の effect、$A$ を正常結果型とする。operation $o$ の payload/response を $P_o,Q_o$ とすると、operation arm には
+\[
+p:P_o,\qquad k:Q_o\longrightarrow(A\mathbin{!}\epsilon)
+\]
+を与える。$k$ の effect は元の scrutinee 全体の保守的な上界である。Oracle もこの近似を使う。
+\src{crates/infer/src/lowering/control.rs\#L1562-L1629}{shallow continuation typing}。
+polymorphic operation の型引数は arm 内で rigid に扱い、payload と response、resumption、latent type 全体で同じ instantiation を使う。
+
+value arm の照合・default・guard・body 全体の effect を $\epsilon_v$、operation arm の同じ全計算の effect を $\epsilon_o$ として、後で照合や guard が失敗する試行の効果も含めて
+\[
+\epsilon_{out}\supseteq
+\mathsf{residual}_h(\epsilon)\cup\epsilon_v\cup\bigcup_o\epsilon_o
+\]
+を生成する。$\mathsf{residual}_h$ が消せるのは、その operation・payload coverage・owner/path の下で必ず処理される immediate contribution だけである。失敗しうる guard、不完全な operation coverage、不明な ownership は残す。
+
+$k$ を実行すれば通常の Call 規則で $\epsilon$ が arm に入る。$k$ を使わなければ、その latent row がただ置かれているだけで immediate effect は増えない。$k$ を closure 内に返せば、$\epsilon$ はその返却値の latent type に残る。
+
+\begin{theorem}[shallow handler の effect 上界]
+scrutinee・各 arm の型付けが sound で、消した contribution の coverage と visibility が全対象実行で成立するとする。上の規則は、catch が外へ出す全ての有限 request prefix を覆う。複数回 resume する arm も含む。
+\end{theorem}
+\begin{proof}
+選ばれる request までの外向き request は residual に属する。各試行の pattern/default/guard/body の request は arm effect に属する。raw resumption が実行する scrutinee の suffix は全体の $\epsilon$ に含まれ、$k$ の通常 Call がそれを arm へ戻す。resume の反復は同じ上界の冪等な union で覆える。正常終了後は value arm の効果を使う。有限 prefix の長さに帰納すればよい。返却値の型は独立に保存し、その latent slots へ residual 操作を再帰的に適用しない。
+\end{proof}
+
+この規則は一回だけの request と resume でも保守的に effect を残しうる。その精度を上げるために linearity、affinity、継続の使用回数解析を新設する必要はない。一方、戻り値の closure を作るだけの pure な catch が、その closure を後で呼んだ時の effect まで消す規則は不健全である。後者は必要な意味論上の法則であって、今回特定の Oracle source を実行して defect を再現したという主張ではない。
+
+\subsection{全型位置への transport}
+
+typed path の対応を constructor ごとに定める。projection は tuple/record の該当 prefix を外し、thunk force は force-effect を観測しつつ result path を移し、function adapter は target argument から source argument へ、source result から target result へ対応を作る。store write は view 全体を cell に運び、read はその対応を合成する。
+\[
+\chi_{out}=\bigcup_i M_i^*\chi_i,\qquad
+D_{out}=\bigcup_i M_i^*D_i.
+\]
+$K$ の共有割当てと $L$ の origin は保存する。単なる family support の一致から、この対応を作り直してはいけない。
+argument がさらに関数でも、反変性は変換の向きを変えるだけで、環境や動的 owner を freshen しない。
+
+既存の transport/lifetime package は、正しい対応と profile が供給された場合の合成、identity、union、権限非生成、深さ・current-scope の保存を扱っている。
+\newsrc{notes/design/2026-10-02-typed-boundary-realization-draft.md\#L870-L968}{transport and lifetime lemmas}。
+これらは再利用する。ただし全 source constructor がその前提を満たすことまで、既存の補題だけから結論してはならない。
+
+\subsection{有限な effect 算法の核と、その限界}
+
+実行 trace を列挙せず、正則な型 graph の port、contribution、source boundary と typed-path の有限関係を扱う。動的 activation ID を source site と同一視しない。same / different / unknown の抽象関係を用い、unknown から same へ根拠なく昇格させない。
+
+「handler が消してよい」という無制限な意味論的 oracle を算法の中へ隠さないため、最小の checkable certificate language を次のように置ける。ここで $\widehat q$ は有限な静的 contribution template とし、その concretization に属する全動的 request $q$ を一つの証拠で覆う。実行時の $q$ ごとに新しい解析 node を生成しない。
+\begin{longtable}{p{.28\textwidth}p{.64\textwidth}}
+\toprule
+certificate & 有限な検査 \\
+\midrule\endhead
+$\mathsf{Own}(b,h,p)$ & source binder/receipt に由来する owner 同一性と、constructor が生成した path 対応の導出。activation をまたぐ経路は lifetime premise を要する。\\
+$\mathsf{Allow}(b,o)$ & concrete annotation の明示集合、または explicit computation の open permission constructor。family parameters の invariant obligations も保持。\\
+$\mathsf{Clear}(\widehat q,p)$ & 保護のない local contribution 導入と、identity/projection/構造 transport の導出。未知 callback 入口や不明な merge を含む導出は不可。\\
+$\mathsf{Total}(h,o)$ & 同じ operation の無条件 arm が payload を覆う。最小核では wildcard、variable、全域 as、全域な子を持つ product/record と required/default 存在性により構成。guard があれば証明しない。\\
+$\mathsf{Cut}$ & Total と、Own+Allow または Clear を結合してその immediate contribution にのみ適用。型引数・path・owner の同じ割当てを検査。\\
+\bottomrule
+\end{longtable}
+この certificate language は決定可能な安全側の核である。一般の pattern exhaustiveness や arbitrary guard validity を判定する算法を仮定していない。より精密な certificate を追加するときは、その局所 soundness を証明する。
+
+型 graph 内には cut 前の contribution、条件、依存辺を残す。現在の印字 row から消えたという理由で、元の $K,D$ や latent 義務を削除しない。symbolic な family equality が未解決なら conditional cut として保持し、閉じた boundary で解決できなければ contribution を残す。未来の lower が加わる場合も retained filter を再検査する。
+
+\begin{Verbatim}[fontsize=\small]
+GenerateEffect(expr):
+    create immediate and latent ports from source roles
+    emit constructor-derived path transport and source profiles
+    Delay: retain body port in the value
+    Force: connect the latent port to the current computation
+    Call: emit the complete entry/native/result-consumer constraints
+    Catch: retain original scrutinee row for raw resumptions
+           add match/default/guard/body rows of every attempted arm
+           retain the certified residual operator
+
+PropagateEffect(fact):
+    add each new contribution/incidence fact once
+    retain symbolic tails and invariant family argument obligations
+    verify every active upper filter against current and future lowers
+    apply only structurally checked certificate constructors
+    keep uncertified contributions and all latent dependencies
+\end{Verbatim}
+
+same/different/unknown は書換え可能な単一フラグとして扱わず、可能な incidence outcomes の増加する集合で表す。must 判定はその集合から導出する。後の join により must が失われたら residual transfer を再実行し、外へ出うる contribution を追加する。元の contribution を消さず、早期 must を永久に cache しないため、この更新が可能になる。
+
+固定された有限 graph に対しては、各 port/contribution/incidence の事実を一回ずつ加える閉包は停止する。concretization を「その family、typed path、incidence に合う全 request」とし、constructor transfer が全具体 successor を覆い、Cut が実際に処理されるものだけを消すことを示せば、有限実行 prefix への帰納で safety が得られる。
+
+\textbf{この安全側の核は、Oracle の全受理結果に対する完全な推論器とは主張しない。}
+coverage や ownership を証明できず、Oracle より多くの effect を残すことがありうる。しかも effect の過大近似は effect-method の優先順位を変えうる。したがって「effect safety を証明した」だけでは method selection の互換性は出ない。必要なのは、lookup が読む effect observation の一致、または選択不変性の証明である。
+これを満たす全 descriptor 比較器の完成が、ユーザーの要求を満たす算法に残る主要責任の一つである。
+
+\section{一般化、再帰、extrusion と intrusion}
+
+\subsection{値制限と dependency closure}
+
+Oracle は \texttt{Evaluation::Value/Computation} と
+\texttt{BindingFetch::FetchValue/FetchComputation} を別に持つ。
+\src{crates/infer/src/typing.rs\#L58-L103}{evaluation and binding fetch}。
+effect row が空というだけで、expansive な RHS を一般化しない。
+computed binding が生成した型・effect・role・stack の変数は、同じ非一般化境界に下げる。
+\src{spec/2026-06-13-computed-fetch-value-restriction.md\#L95-L110}{computed binding non-generics}。
+
+一般化から除外する依存集合を
+\[
+N=\mathsf{Reach}(\Gamma,\Sigma,
+\text{captured values},\text{boundary profiles},K,D,\text{role obligations})
+\]
+とする。算法では実行時の heap を調べるのではなく、静的な型環境・store contract・closure capture の graph roots からこの依存を辿る。量化するのは、対象 level より深く、$N$ に属さず、値制限を満たす変数だけである。
+既に生成された共有 cell、closure が保持する環境、捕捉した computation、latent effect、invariant family arguments をこの判定から落とさない。
+呼び出し時に新しい cell を作る関数が多相であることと、既に存在する一つの cell を多相化することは異なる。
+
+\subsection{scheme の内容と instantiation}
+
+scheme は表示型だけでなく、qualified role predicates、recursive bounds、boundary/effect templates、残った evidence holes と依存辺を含む。実装の既存 scheme と side table の共同意味であり、新しい独立 solver を追加するのではない。
+
+instantiation は、実際の use/clone occurrence と quantified binder の対から一つの injective な freshening map を作り、全 packet に一貫して適用する。元の source site だけを key にすると、同じ site から複製された別の use が衝突しうる。unquantified environment variables、共有 cell、捕捉済みの動的 identity は変えない。
+\src{crates/infer/src/instantiate.rs\#L625-L636}{preallocation of quantified variables}、
+\src{crates/infer/src/instantiate.rs\#L741-L768}{consistent clone mapping}。
+
+\begin{lemma}[scheme の一貫した freshening]
+型付き packet の量化集合 $Q$ が $N$ と交わらず、$\pi$ が $Q$ 上で sort を保つ injective map、その他では identity であるとする。さらに $\pi(Q)$ は packet と環境の全非量化自由変数から fresh とする。このとき全型・制約・profile template・依存辺へ $\pi$ を適用した packet は、同じ自由環境と store の下で対応する型付けを持つ。
+\end{lemma}
+\begin{proof}
+型付けと制約導出に帰納する。各 constructor の共有箇所には同じ写像が適用される。負位置も同じ $\pi$ を使う。store/environment は $Q$ と交わらないので変化しない。binder 同一性と相違は injectivity により保存する。source template の freshening は動的 owner の割当てと混同しない。
+\end{proof}
+
+ただし、これは「保存されていた情報を正しくコピーする」補題である。Oracle の stack liveness 選択、stray weights の削除、root POP 導入が必要な情報をすべて保存することまでは証明しない。
+具体的な接合箇所は
+\src{crates/infer/src/generalize/core/stack_ids.rs\#L23-L49}{live stack quantifiers}、
+\src{crates/infer/src/generalize/mod.rs\#L205-L217}{pruning unquantified weights}、
+\src{crates/infer/src/instantiate.rs\#L770-L785}{root POP construction}
+である。
+
+\subsection{実際の値 SCC と extrusion occurrence}
+
+再帰判定に使う graph は実際の値参照 graph とする。type-variable graph の SCC、将来候補になりうる method への購読依存、effect family の同名性を代用しない。
+method selection が新しい値参照辺を追加したら SCC を更新し、その前に一般化してはならない。
+
+extrusion は level をまたぐ必要のある型情報について、元の parent、copy、source/use occurrence、関係する値頂点を記録する。intrusion は、記録されたその occurrence の両値頂点が同じ SCC に入った場合に、対応する parent/copy の型変数を equate する。新しく生じた flow routes と direct endpoint obligations を worklist へ戻す。
+\newsrc{notes/design/2026-10-11-yulang-inference-top-level-principles.md}{extrusion and value-SCC intrusion principles}。
+
+型変数の equality は annotation occurrence や dynamic grant の equality ではない。
+many-to-one な intrusion は、injective renaming の補題から自動では出ない。両 occurrence の origin と依存証拠を保持したまま型の座標を同一化し、影響した bounds/filter/selection 読取を再検査する。
+
+computed-fetch を含む相互再帰には Oracle の診断規則を保つ。ただし
+\src{crates/infer/src/scc/graph.rs\#L658-L675}{computed-fetch-cycle detection}
+は一要素以下の SCC を除外している。そのコードから、computed な自己参照もすべて同じ理由で拒否されると一般化してはならない。単一定義の再帰と関数の再帰 protocol は別に対応を示す。
+
+\subsection{統合 driver}
+
+全体状態を $(G,E,\Gamma,Q,U,\delta,\mathcal B)$ とする。
+$G$ は型/effect graph、$E$ は値参照 graph、$Q$ は worklist、$U$ は未解決 selection/role/cast、$\delta$ は既に選択した証拠、$\mathcal B$ は一般化・宣言検査の blockers。
+
+\begin{Verbatim}[fontsize=\small]
+InferProgram(P, policy):
+    resolve loaded declarations, visibility, names, generated members
+    register all value roots and universal impl obligations
+    generate all source constraints and actual boundary holes
+    attach declared parameter/result/effect requirements
+
+    repeat:
+        drain ordinary structural, row and hygiene constraints
+        update actual value SCCs
+        apply recorded extrusion/intrusion obligations
+        drain every new bound and persistent filter obligation
+        retry dirty concrete selections, roles and nominal casts
+        install selected evidence, constraints and actual use edges
+        if new work exists: continue
+
+        use the explicit Oracle fallback policy at ready SCC frontiers
+        if it creates work: continue
+
+        validate finished declarations under universal binders
+        generalize eligible finished SCCs with all retained obligations
+        instantiate their waiting actual uses
+        if it creates work: continue
+        break
+
+    check remaining closed obligations and emission readiness
+    preserve generic connected role residuals in schemes
+    emit typed terms with explicit boundaries and resolved selections
+    return schemes, evidence program, diagnostics and source map
+\end{Verbatim}
+
+この driver は speculative candidate typing をしない。値 solver、joint effect comparator、source constructor の correspondence、一般化条件は各節の明示された責務を持つ。
+上の擬似コードだけで、その未完部分が実装・証明されたことにはならない。とくに有限 graph の closure が停止することと、recursive prerequisite や scheme instance の生成が有限であることは別である。
+実装の resource limit は安全に失敗する境界であり、任意 source に対する理論的停止性・完全性の証明ではない。
+
+\section{型の意味と、全言語定理の正確な形}
+
+\subsection{値、計算、境界証拠を同時に解釈する}
+
+型の意味を単に raw runtime values の集合だけで定めると、record の異なる可視 view、latent effect、State scope、境界の経路依存性が失われる。
+world $W$ と共通の型・role・effect 条件の割当て $\theta$ の下で、有限観測深さ $n$ ごとに
+\[
+\mathcal V^n_{W,\theta}(A),\qquad
+\mathcal C^n_{W,\theta}(A,\Phi)
+\]
+を同時に解釈する。前者は型付き view、後者は型付き計算の観測である。再帰を扱う際は一回の observable step または型の guarded unfolding ごとに $n$ を減らす。無制限に自身を仮定して任意の型を証明する循環は許さない。
+
+基本型はその literal/nominal constructor、tuple は各 component、record は前節の存在条件と可視 domain、variant は tag/arity と payload の解釈による。
+$\top$ は型付きの全 value views を許し、$\bot$ は値を持たない。union は供給された producer alternative、intersection は要求された全消費 interface を保持する。表示型の簡約は evidence を消す同値性を別に証明して初めて正当化される。
+
+$\mathcal V^n(U(\Phi,A))$ は inert carrier であり、許された将来 world で force したとき $\mathcal C^{n-1}(A,\Phi)$ を満たすものとする。
+関数 $F(A,E^-,E^+,B;\pi,m)$ は、任意の小さい観測深さ、同じ条件割当て、許された world extension、interface に適合する引数 carrier について、receipt から entry、native call、result consumer、adaptation までの complete Call が結果 contract を満たすものとする。
+引数と結果で別々の $\theta$ を選んではならない。
+
+$\mathcal C^n(A,\Phi)$ は、$n$ 段以内の全実行 prefix について次を要求する。
+\begin{enumerate}
+\item 正常に返るなら値は残り深さで $\mathcal V(A)$ に属し、store/world の typing が保存される。
+\item 外へ request が出るなら、operation identity、payload、family arguments、owner/path の観測が $\Phi$ に許される。
+\item 宣言された response contract を満たす応答と現在の world で resume した suffix も、残り深さの contract を満たす。
+\item 明示された言語上の failure はその契約に従う。未束縛 local、根拠のない field/type access、誤った operation payload などの内部故障へは進まない。
+\end{enumerate}
+全 $n$ に成り立つものを無限観測の解釈とする。これで一般再帰、返却 closure、多重 resume、State の将来利用を同じ定理の対象に置ける。
+これは意味の仕様であり、任意の関数を全入力で実行して検査する推論算法ではない。有限な graph/descriptor 検査との対応を証明する責任が残る。
+
+境界証拠 $k:A\adap B$ の semantic validity は
+\[
+v\in\mathcal V^n(A)\Longrightarrow
+\Run(\mathsf{adapt}_k(v))\in\mathcal C^n(B,\Phi_k)
+\]
+で表す。これは $\mathcal V(A)\subseteq\mathcal V(B)$ を要求していない。
+ゆえに concrete checking が非推移的でも、実行する二つの evidence の通常の bind 合成は意味を持つ。
+「証拠の実行を合成できる」と「一回の比較の成功が推移する」を区別することが、この全体構成の要点である。
+
+\subsection{principal と呼ぶべき対象}
+
+生成結果を
+\[
+\mathsf{Gen}(P)=(\bar\alpha,C,T,M[\bar h],\delta)
+\]
+とする。$C$ は型・effect・role・wiring の全義務、$\bar h$ は source boundaries に対応する evidence holes、$\delta$ は選択証拠列である。
+principal と呼ぶ候補は、単なる印字された $T$ ではなく、量化変数、残置する制約、elaboration と choice の対応を持つこの scheme である。
+
+固定された elaboration と選択方針について、求める生成完全性は次の双方向性になる。
+\[
+\begin{aligned}
+&\text{$P$ がその elaboration を持つ、境界を保存した型付けを持つ}\\
+&\quad\Longleftrightarrow\quad
+\text{$C$ を満たし全 holes を埋める割当てと証拠がある}.
+\end{aligned}
+\]
+加えて、出力 scheme の全 instance が正しいことと、許された他の instance がその量化・制約を通して factor することを示す。
+constraints を集めたという事実だけで、解の完全な表現、有限算法、principal な簡約が得られるわけではない。
+
+特に、method の別の選択、具体 cast の別の経路、無制限の subsumption を許す別の declarative system まで principal と主張してはならない。record の経路依存性だけで、そのような proof irrelevance は破れる。
+
+Simple-sub の既存結果も、その実際の定理範囲を保って使う。
+このリポジトリの
+\newsrc{notes/theory/2026-10-11-parreaux-simple-sub-proof-import.md}{Simple-sub proof import}
+は、元論文の主要算法節が let-polymorphism を含まないことと、拡張ごとの別証明が必要なことを明記している。original algebraic subtyping の結果を、Yulang の非推移境界、method choices、effect hygiene、intrusion を含む全体の principality と読み替えない。
+
+\subsection{全体定理を閉じるための八つの接合条件}
+
+全言語の完成定理は、次の責務を同じ judgement について満たしたときに初めて成立する。これは既に証明済みの定理の列挙ではない。
+
+\begin{longtable}{p{.10\textwidth}p{.82\textwidth}}
+\toprule
+番号 & 必要な内容 \\
+\midrule\endhead
+Q1 & 全 source constructor と生成宣言が、正しい名前・binder・entry role・path 対応を持つ型付き core へ移る。parser-only/unsupported を正確に区別する。\\
+Q2 & 単一 $A<:B$ resolver が、全 concrete constructor、joint Function、nominal cast、存在性に対して正しい evidence を生成し、必要な受理結果を欠かさない。\\
+Q3 & ordinary flow、effect replay、row/stack 条件が source wiring の全必要端点を覆う。false route と消えた route がない。\\
+Q4 & method/role の読取、associated equations、実際の値参照辺、選択方針が Oracle の要求された推論挙動に対応する。衛生性修正後の effect observation も含む。\\
+Q5 & generalize/compact/prune/instantiate が、共有環境・store・latent effect・境界証拠の全依存を保存する。extrusion と many-to-one intrusion の解集合も保存する。\\
+Q6 & primitive、host operation、State、全 runtime adapter と最適化が同じ型付き実行を実現する。record fast path、caller 側 force 移動、直接 State route も含む。\\
+Q7 & 生成する正則型 graph、instance、role prerequisite の範囲について停止性、または正確に限定した失敗条件を示す。resource timeout を完全性に数えない。\\
+Q8 & 簡約・scheme 表示を含む解集合の双方向対応を示し、固定された source choice の下で principal scheme が得られる。\\
+\bottomrule
+\end{longtable}
+
+これらが揃えば、source の induction と型付き項の logical relation を結び、閉じた accepted program が値・宣言された request/failure・発散以外の内部故障を起こさないことを示せる。Q1--Q8 を仮定したまま「全言語健全性を証明した」とは書かない。本書は Q2 の record 部分、Q3 の固定 wiring、Q4 の明示した改良方針、Q5 の injective freshening、および Q6 の参照規則の局所合成を前進させたものである。
+
+\section{現在の実装との相違を、修正単位として固定する}
+
+\subsection{必ず修正または証明する箇所}
+
+\begin{longtable}{p{.27\textwidth}p{.65\textwidth}}
+\toprule
+箇所 & 根拠と必要な成果 \\
+\midrule\endhead
+record width fast path & mono の directional な record 比較を \texttt{Trivial} とすると、VM は元の record を返し、忘れた field を露出しうる。target-visible mask または target field 再構築と、その経路保存を証明する。\\
+optional-to-required & infer の skip、specialize2、mono の存在性検査が異なる。accepted source の actual shape と境界 evidence を結ぶ presence theorem が必要。未確認のまま optional 入力を一律拒否しない。\\
+Function comparison & value variance の二義務だけでなく、同じ割当ての complete Call descriptor を構成・比較する。effect support の union の説明だけを comparator としない。\\
+hygiene compaction & 量化 ID の clone が正しくても、量化前の liveness/pruning が全 latent paths を保つとは限らない。source coverage と future-use preservation を証明する。\\
+effect-method observation & 安全な過大近似でも優先候補が増える。permission を実流入と混同せず、修正前後の lookup observation または選択を一致させる。\\
+method scheduling & Oracle の first-success と open fallback の逐次処理を保存した基準算法から、batch 版への refinement を証明する。未証明なら batch 版へ無断変更しない。\\
+OR binder & 成功した branch にない DefId を body に公開する。独立 scope と merge binder の提案は明示的な受理変更であり、effect-only 修正と混同しない。\\
+surface/primitive coverage & parser-only annotations、tail spread、primitive の部分失敗、生成された role/act/control/rule/Yumark を同じ一覧で閉じる。13式だけで完了としない。\\
+\bottomrule
+\end{longtable}
+
+record fast path の具体的根拠は
+\src{crates/mono/src/boundary.rs\#L14-L19}{Trivial classification}、
+\src{crates/mono/src/boundary.rs\#L147-L154}{directional record equivalence}、
+\src{crates/evidence-vm/src/runtime.rs\#L18661-L18676}{raw-value fast return}
+である。別の通常 branch が target fields を再構成していることだけでは、fast path を含む全変換の view 保存は示せない。
+\src{crates/evidence-vm/src/runtime.rs\#L18806-L18878}{record reconstruction branch}。
+
+\subsection{既存の衛生性の成果を捨てずに接続する}
+
+fresh attachment、retained-filter registration、exact-ID cancellation、量化 ID の一貫した cloning、typed path transport、active lifetime と owner realization は、既存の前提を保って再利用する。source-to-profile と generalization の seam が未完だからといって、これらの局所結果まで無効という意味ではない。
+
+反対に、既存の成功例だけで全 source を閉じたとも扱わない。
+callback の既存の正の実験記録は
+\newsrc{notes/progress/2026-10-15-exact-callback-hygiene-oracle.md}{exact callback hygiene oracle}
+にあり、$g:(int\to[\alpha]\,any)\to[\alpha]\,int$ と外側への return を記録している。
+一方、以前の「返された closure の choose が消える」という反例について、今回読んだ
+\newsrc{notes/theory/2026-10-12-oracle-direct-provider-hygiene-counterexample-proof.md}{direct-provider counterexample status}
+は、同じ operational route まで結んだ反例は未成立と述べている。未成立の例を既知の bug として報告しない。
+
+\subsection{今回行った検証}
+
+二つの commit を固定し、source・spec・regression expectation を照合した。レコード、method/role、effect/衛生性の三系統を並行して調査し、相互レビューで role interval の推移性の混入、source site だけの freshening key、State scope と frame occurrence の混同、callback wildcard の取り違えを取り除いた。
+
+Oracle の新しいコンパイル・実行は行っていない。Rust toolchain がこの実行環境にないため、反例は「source と実装に基づく静的導出」、既存 test は「保存済み expectation」として区別した。production code、test expectation、GitHub 上の branch は変更していない。
+
+本書の価値は、全言語を一つの仕様単位に置き、構成できた型付き規則と算法、および全体を閉じるために残る正確な接合点を一つの文書に揃えた点にある。全言語の証明を完了したという成果に置き換えない。
+
+\appendix
+\section{宣言・表層構文・標準ライブラリの被覆}
+
+全体の domain は expression だけではない。13個の式、11個の pattern、3個の statement に加え、\texttt{Def::Module/Let/Arg}、\texttt{RuntimeRoot::Expr/ComputedDef}、可視性、cast/role/operation metadata、生成宣言を含める。
+\src{crates/poly/src/expr.rs\#L165-L197}{statements and metadata}、
+\src{crates/poly/src/expr.rs\#L356-L360}{runtime roots}、
+\src{crates/poly/src/expr.rs\#L441-L470}{definitions and visibility}。
+
+\begin{longtable}{p{.24\textwidth}p{.68\textwidth}}
+\toprule
+source family & lowering の内容と保持する意味 \\
+\midrule\endhead
+module / use / realm / band & 読込閉包、解決済み identity、rename/glob/without、公開境界、companion と private の可視性。通常 run と test roots を区別。\\
+type / struct / enum & nominal owner、型引数、constructor、arity、field projections。内部名 TypeAlias から透明 RHS 展開を仮定しない。\\
+with / derive & 生成された member・impl を同じ型推論と全称 conformance に渡す。単なる非型付きテキスト追加としない。\\
+role / impl & 全 member scheme、関連型の共有、未使用宣言検査、候補可視性、残る一般化可能な義務。\\
+act / act copy & direct/copy-export/copy-internal を区別。copy は新しい family identity と公開部分の一貫した置換を作る。private 依存を漏らさない。\\
+error & nominal error data と hidden operation の両方を生成。Throw/Display/wrap/up/EffectUp の helper と cast も同じ規則で検査。\\
+演算子 & prefix/infix/suffix/nullfix の結合を確定し、解決済み callable へ。lazy operator の生成 thunk を保持。\\
+lambda variants & sub/method/recursive/case/catch lambda の binder、pattern、entry role、hidden references を個別に保持。\\
+local block / do / var & scope 復元、通常 binding と computation、局所 State family、残り block の包囲、source 順を保持。\\
+if / case / catch & bool branching、rule-case の別展開、guard と default の計算、value/operation arms を保存。\\
+for / labeled for & iterator と body lambda を生成し、標準 loop callable を receiver-first application で二度適用。label binder と control effects を保つ。\\
+sub / return & 標準 control operation または fresh な labeled family への名前解決と handler 生成。lexical target を保持。\\
+last / next / redo & 標準ライブラリの operation/handler を普通の型付き使用として扱う。独立した無制約 core keyword にしない。\\
+list / index / range & 宣言された list/role/constructor と reference 更新へ展開。子の評価順・境界・不変性を保持。\\
+string interpolation & 補間式の計算、formatting member/role、format record を生成。単一の untyped string primitive へ消さない。\\
+rule / parser DSL & capture を持つ遅延 parser computation、choice/sequence/quantifier の library calls、結果の Unit/Value/Record、失敗と effect。\\
+Yumark & format/algebra の二つの eta-expanded lambda と多相 builder。interpolation の role/member、Value 分類を保持。string constant とみなさない。\\
+host/native operations & 解決済み operation ABI、payload/response と world への作用。外部環境を contract parameter とする。\\
+\bottomrule
+\end{longtable}
+
+主要な ownership は次の通り。
+\begin{itemize}
+\item \src{crates/infer/src/module_map/mod.rs\#L300-L485}{module registration} と
+\src{crates/infer/src/lowering/body/type_decl.rs\#L22-L135}{nominal generated declarations}。
+\item \src{crates/infer/src/lowering/body/act.rs\#L6-L61}{act construction} と
+\src{crates/infer/src/lowering/body/error_decl.rs}{error construction}。
+\item \src{crates/infer/src/lowering/expr/tail.rs\#L340-L455}{operator elaboration} と
+\src{crates/infer/src/lowering/expr/block_local.rs\#L424-L542}{for and labels}。
+\item \src{crates/infer/src/lowering/string_lit.rs\#L9-L87}{string interpolation} と
+\src{crates/infer/src/lowering/rule_lit.rs\#L38-L207}{rule elaboration}。
+\item \src{crates/infer/src/lowering/yumark_lit.rs\#L166-L257}{Yumark construction}。
+\end{itemize}
+この inventory は全構文対応を検査するためのもので、各展開の保存証明そのものではない。
+
+\section{parser が読むものと、Oracle が型推論するもの}
+
+型表示と source annotation grammar は別である。本文の $\{foo?:A\}$ などは意味論上の型表記として用いた。frozen Oracle でそのまま任意の注釈位置に書けるという主張ではない。
+
+\begin{longtable}{p{.27\textwidth}p{.65\textwidth}}
+\toprule
+構文 & frozen Oracle の状態 \\
+\midrule\endhead
+明示全称型 \texttt{for 'a: ...} & parser は読むが \texttt{AnnType} と annotation builder に対応がない。任意 rank の forall 推論を実装済みとしない。\\
+required record 型注釈 & parser に TypeRecord があるが、同じ annotation builder に対応がない。inferred record の存在とは別。\\
+optional \texttt{foo?:T} 注釈 & field parser は名前の直後に colon を要求し、この spelling の受理を示す根拠がない。optional inferred fields と型表示は実在する。\\
+case pattern の型注釈 & parser が受理しても checker はその注釈を強制せず、runtime type test にもならないという記録がある。全 annotation を同じ checking 境界とみなさない。\\
+parser DSL の lazy quantifier & tokenized な \texttt{*?}/\texttt{+?} でも lowering で拒否される形がある。source 診断規則も被覆に入れる。\\
+tail record spread & 型側に別 constructor がある一方、frozen VM の該当経路は UnsupportedExpr。意図された full implementation への対応は未完。\\
+\bottomrule
+\end{longtable}
+
+根拠は次の owning rules である。
+\begin{itemize}
+\item \src{crates/parser/src/typ/parse.rs\#L153-L191}{forall parsing} と
+\src{crates/parser/src/typ/parse.rs\#L368-L377}{record type parsing}。
+\item \src{crates/parser/src/typ/parse.rs\#L443-L492}{record field grammar}。
+\item \src{crates/infer/src/annotation.rs\#L38-L59}{AnnType constructors} と
+\src{crates/infer/src/annotation/builder.rs\#L180-L208}{annotation dispatch}。
+\item \src{web/docs/reference/patterns.md\#L107-L122}{case annotation behavior} と
+\src{web/docs/reference/parser-dsl.md\#L185-L199}{parser DSL limits}。
+\end{itemize}
+
+全 grammar に対して、typed elaboration または特定の診断という front-end outcome を定めることはできる。しかし、それだけでは parser-only な意図された言語拡張に型付き実行を与えたことにはならない。全称型の rank policy、透明 alias の有無、未実装 annotation の入出力規則を勝手に仮定せず、拡張には別の明示規則と推論対応が必要となる。
+
+\section{primitive 契約の全範囲}
+
+\src{crates/poly/src/expr.rs\#L536-L599}{PrimitiveOp inventory}
+の全 primitive を次の群に分ける。意味論は各 primitive の固定 signature と実行関数 $\delta_p$ を parameter に持つ。これらは Any escape ではない。全言語の保存には各 $\delta_p$ の adequacy が必要である。
+
+\begin{longtable}{p{.17\textwidth}p{.75\textwidth}}
+\toprule
+群 & primitive names \\
+\midrule\endhead
+部分実装 & YadaYada。\\
+bool & BoolNot, BoolEq, BoolToString。\\
+list & ListEmpty, ListSingleton, ListLen, ListMerge, ListIndex, ListIndexRange, ListSplice, ListIndexRangeRaw, ListSpliceRaw, ListViewRaw。\\
+string & StringLen, StringIndex, StringIndexRange, StringSplice, StringIndexRangeRaw, StringSpliceRaw, StringLineCount, StringLineRange, StringEq, StringConcat, StringToBytes。\\
+int & IntAdd, IntSub, IntMul, IntDiv, IntMod, IntEq, IntLt, IntLe, IntGt, IntGe, IntToString, IntToHex, IntToUpperHex, IntToFloat。\\
+float & FloatAdd, FloatSub, FloatMul, FloatDiv, FloatEq, FloatLt, FloatLe, FloatGt, FloatGe, FloatToString。\\
+char & CharEq, CharToString, CharIsWhitespace, CharIsPunctuation, CharIsWord。\\
+bytes/path & BytesLen, BytesEq, BytesConcat, BytesIndex, BytesIndexRange, BytesToUtf8Raw, BytesToPath, PathToBytes。\\
+\bottomrule
+\end{longtable}
+
+VM は arity 分の引数を得て \texttt{apply\_primitive} を実行する。
+\src{crates/evidence-vm/src/runtime.rs\#L16136-L16150}{primitive evaluation}、
+\src{crates/evidence-vm/src/runtime.rs\#L24267-L24478}{primitive execution}。
+integer division/modulo のゼロ除算、index/range の範囲、文字列の grapheme 単位、数値表現と overflow、UTF-8 の部分結果、YadaYada の失敗は、型があるというだけでは消えない。
+意味論の $\mathsf{Fail}$ には、仕様として選んだ失敗を個別に入れる。実装のあらゆる panic や UnsupportedPrimitive を無条件で許し、空虚な no-stuck 定理にしてはならない。
+host operation も同様に、payload/response の型と許される外部失敗を持つ interface として扱い、環境側の契約とコンパイラ側の保証を分ける。
+
+\section{再利用時の読み方}
+
+本書の規則は全言語を同じ実行系・同じ不等式判断・同じ推論 driver に置くための研究仕様である。部分言語の preorder 型理論へ後退せず、record の非推移性、飽和時選択、effect hygiene の相互作用を直接扱う。
+
+他方、現時点の判定は明確に分かれる。
+\begin{itemize}
+\item \textbf{ソースで確認したこと：}Oracle の record/default/selection/role/wildcard/State/OR の処理と、その所有箇所。
+\item \textbf{本書で構成したこと：}boundary を保存する typed view、RecMap、未変換 wiring、choice evidence、whole-Call と浅い handler、全構文の統合先、有限な安全側の effect 核、統合 driver。
+\item \textbf{明示した前提の下で示したこと：}record 保存と非復活、経路依存反例、端点被覆、batch 方針の順序独立性、shallow effect bound、injective freshening、OR merge の環境保存。
+\item \textbf{完成扱いしないこと：}全 joint Function 比較器、full source/profile correspondence、全般の compact/generalize/intrusion 保存、Oracle 全入力との同値性、全言語の principal inference と停止性。
+\end{itemize}
+この区分を維持して初めて、Oracle を正とする要求を尊重しつつ、修正が必要な箇所を正しく直すことができる。
+
+\end{document}
