@@ -10,18 +10,18 @@
     "contract_sha256": "e6fdba88c644fdc094ea451f83fd8ce35d87d9b513db9a99f06e5bd3aa82fa16",
     "resources": {
       "cap_seconds": 7200,
-      "charged_seconds": 2400,
-      "reserved_seconds": 4800,
+      "charged_seconds": 5400,
+      "reserved_seconds": 1800,
       "no_carryover": true
     },
-    "proof": "RUNNING: /root/r343_k0_machine_step_prover; exact proof/handoff leases active; 3000s Sol/high requested, observed UNKNOWN; no descendants.",
+    "proof": "FROZEN/STOPPED rev1: proof SHA-256 e221150460d391c04a400b65cef1ca86df167685d68304bc74aab13adb907706; handoff SHA-256 0b5d8c8d07a86adef21b60d641a0a8f36290f66613f62857c1ba2461add095e. Writes stopped 2026-10-23 07:50:21 UTC; full 3000s charged conservatively.",
     "implementation": "NO_SAFE_CODE_SLICE: source census inspected machine/program/dispatch/literal/receiving; no source-qualified defect found; compiler code read-only.",
-    "review_receipt": "PENDING: one fresh non-contributor compiler_referee after proof and census freeze; 1500s reserved.",
+    "review_receipt": "RUNNING: /root/r343_machine_step_review; exact frozen proof/handoff/census/pins; 1500s reserved, no writes or descendants.",
     "closure": "OPEN: R342 bounded VREAL/value-environment supplier accepted at finite actual-return/body-entry scope. R343 targets K0 reachable machine-step preservation/progress and semantic Unavailable exclusion under explicit source/runtime premises. Full M, S0 premise completion, N/cache, W/Z, model existence, principality, broader source completeness, export transport, original A/B and production remain OPEN.",
     "dispatch": "R342 end selector /root/r333_selector recommends R343 D3/M machine-step safety after the accepted R342 supplier; Luna accepts. No implementation slice authorized absent concrete source-qualified defect.",
     "primary_lane": "FROZEN census: notes/theory/2026-10-23-r343-k0-machine-step-source-census.md; SHA-256 0816397bd4e6ef493a050f95b13e3e10d90a67fe98e804e577fb33bddecfbe1a. Runtime transition owners and falsifier paths inspected; full 2400s charged conservatively.",
-    "next_action": "R343 active: proof and source census in fixed lanes; maintain exact leases, freeze proof result, then fresh independent review.",
-    "resource_observation": "Primary census 2400s conservatively charged; proof 3000s + review 1500s + integration 300s reserved = 7200s total. No carryover. Three UNKNOWN legacy workers remain quarantined.",
+    "next_action": "R343 independent review active; adjudicate its exact disposition, then apply the result to the unchanged S0+M parent.",
+    "resource_observation": "Primary census 2400s + proof 3000s charged conservatively = 5400s. Fresh review 1500s and integration 300s reserved; total 7200s. No carryover. Three UNKNOWN legacy workers remain quarantined.",
     "outcome": "tasks/agent-loop/sprints/r343-k0-machine-step-safety-20261023-outcome.md",
     "git_receipt": {
       "commit": "3634a579e0a517c629bb3d786543fd89e42bf554",
@@ -79,13 +79,24 @@
     {
       "id": "/root/r343_k0_machine_step_prover",
       "role": "prover",
-      "state": "RUNNING",
+      "state": "STOPPED",
       "session": "4a30d8bc-cf58-442a-ac35-a6026b4e35b5",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual spawn receipt returned /root/r343_k0_machine_step_prover; live status observed RUNNING in current session after exact R343 packet dispatch. 3000s reserved; requested Sol/high, observed UNKNOWN/UNKNOWN; no descendants."
+      "receipt": "Frozen proof/handoff rev1 hashes e2211504... / 0b5d8c8d...; writes STOPPED 2026-10-23 07:50:21 UTC. Observed span 845s, active time UNKNOWN; full 3000s charged. No descendants."
+    },
+    {
+      "id": "/root/r343_machine_step_review",
+      "role": "compiler_referee",
+      "state": "RUNNING",
+      "session": "4a30d8bc-cf58-442a-ac35-a6026b4e35b5",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Fresh non-contributor review launched on exact frozen R343 bundle; message-only; 1500s reserved; no writes/descendants."
     }
   ],
   "leases": [
@@ -116,14 +127,14 @@
     {
       "path": "notes/theory/2026-10-23-r343-k0-machine-step-safety.md",
       "owner": "/root/r343_k0_machine_step_prover",
-      "state": "HELD",
-      "reason": "Exact R343 constructive proof artifact lease."
+      "state": "FROZEN",
+      "reason": "R343 revision 1 frozen; producer writes stopped with hash receipt."
     },
     {
       "path": "tasks/agent-loop/inbox/20261023-r343-k0-machine-step-prover.md",
       "owner": "/root/r343_k0_machine_step_prover",
-      "state": "HELD",
-      "reason": "Exact R343 proof handoff artifact lease."
+      "state": "FROZEN",
+      "reason": "R343 revision 1 frozen; producer writes stopped with hash receipt."
     }
   ],
   "pending": [
@@ -207,7 +218,7 @@
     }
   ],
   "closure": "OPEN: R342 bounded VREAL/value-environment supplier accepted at finite actual-return/body-entry scope. R343 targets K0 reachable machine-step preservation/progress and semantic Unavailable exclusion under explicit source/runtime premises. Full M, S0 premise completion, N/cache, W/Z, model existence, principality, broader source completeness, export transport, original A/B and production remain OPEN.",
-  "next_action": "R343 active: proof and source census in fixed lanes; maintain exact leases, freeze proof result, then fresh independent review.",
+  "next_action": "R343 independent review active; adjudicate its exact disposition, then apply the result to the unchanged S0+M parent.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
