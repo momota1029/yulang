@@ -1,8 +1,8 @@
 # Sprint R333 — FieldTail descriptor transport
 
-Status: ACTIVE; direct-primary, UNREVIEWED
+Status: OPEN_CONTINUATION; direct-primary, UNREVIEWED
 Branch / baseline: `research/simple-sub-intrusion`, `85f41587e`
-Fresh envelope: 3,600 seconds, no R332 carryover; primary charge at freeze: 600 seconds (conservative); no automatic renewal
+Fresh envelope: 3,600 seconds, no R332 carryover; primary charge at freeze: 3,300 seconds (conservative); no automatic renewal
 Authority: unchanged parent goal and gates in `tasks/agent-loop/current.json`; `rules/goal-driven-sprints.md`; `notes/design/2026-10-16-goal-driven-sprints.md`; `notes/design/2026-10-11-yulang-inference-top-level-principles.md`; exact source baseline below
 Selector outcome: resolve whether omitted FieldTail descriptor fields are justified by source uniqueness and capture derivation, and repair only a source-evidenced transport defect
 
@@ -14,7 +14,7 @@ This sprint's bounded outcome is the complete descriptor correspondence for auth
 
 Success evidence is either (a) a commuting correspondence argument with a congruence audit of every relevant dedup/removal key, including the premise that makes each omitted field safe; (b) a source-valid counterexample and an in-scope repair followed by focused source/native evidence; or (c) a source-qualified obstruction naming the exact missing constructor/consumer premise and its owner. Synthetic mutation of internal records cannot refute the source-qualified claim. Tests support correspondence evidence but do not prove it.
 
-The decisive question is whether the source-immutable fields (`source`, `member`, `role_member_candidates`) are unique for one authentic occurrence, and whether `required_roles`, which capture derives from authenticated reciprocal role obligations, can differ across otherwise key-equal active/template records. Audit pending coalescing, state retention, definition/local refresh, residual removal, consumption removal, and FreshUse/source-instance matching. A code change is authorized only for an evidenced path under existing semantics. If no safe in-scope repair or useful proof slice exists, record owner-specific `NO_SAFE_CODE_SLICE`.
+The source-valid counterexample established that `required_roles`, which capture derives from authenticated reciprocal role obligations, can differ across otherwise key-equal active/template records. The in-scope repair preserves the union before member selection, refreshes the local capture, and rejects conflicting immutable source metadata. The dedup/removal audit and focused source correspondence are recorded in the theory note. Parent gates and independent review remain open.
 
 ## Source and dependency baseline
 
@@ -43,3 +43,20 @@ The current sprint's independent review remains UNREVIEWED. A green check, condi
 ## Frozen seam and handoff
 
 Before any implementation edit, freeze an authentic-source regression or a source-qualified proof/obstruction. Then inspect the complete three-file lease diff and the retained descriptor snapshot. Focused checks run first; broader Cargo work uses one heavy process and the repository's existing resource limits. Expected outputs and sample source bytes remain protected. At the sprint boundary, sync this contract, the theory note, and compact `current.json`; stage only exact authorized paths; inspect the outbound range; push without rewriting history. Parent goals remain OPEN.
+
+## R333 source-valid result
+
+The regression uses an imported `Display` role and `int` implementation, a consumer definition with a trailing `where 'a: Display`, a local initializer `my shown = value.show`, and a concrete `display 1` use. It is a normal source/HIR/world-collection path. Before pending coalescing, the local initializer capture has empty `required_roles`, while the completed definition graph has `[Display]` for the same authentic occurrence and all four identical current port representatives. The pre-fix focused run showed the local reusable descriptor remained empty after refresh.
+
+The repair merges role identity sets when same-key descriptors meet in pending work, retained state, and definition/local refresh. It rejects same-key collisions in `source`, `member`, or role-member candidate identities. Local refresh selects the source graph for Definition, Member, or Expression owners; it matches exact occurrence, origin, immutable metadata, and guard source IDs, validates the provider descriptor's four ports in that graph, unions its authenticated role identities, and imports only reciprocal source-role records. Provider row keys remain the source evidence even when a local residual is a fresh row image. No bound is synthesized: local activation still needs the reciprocal pair in the local FreshUse graph, or the exact definition-provider pair on shared nonlocal rows unchanged by that FreshUse. Missing evidence stays deferred. The source test confirms the Display member is selected and consumed by a member FreshUse, and the residual local descriptor keeps `[Display]`.
+
+Focused verification passed:
+
+- `cargo test -p yu-solver --features shadow-apply-candidate --lib local_initializer_fieldtail_keeps_late_where_role_requirement -- --nocapture` — 1 passed.
+- `cargo test -p yu-solver --features shadow-apply-candidate --lib declaration_where_subject_uses_provider_row_and_same_freshuse_image` — 1 passed.
+- `cargo test -p yu-solver --features shadow-apply-candidate --lib deferred_field_tail_rows_survive_capture_and_same_freshuse_map` — 1 passed.
+- `cargo test -p yu-solver --features shadow-apply-candidate --lib deferred_field_tail_keeps_authenticated_role_member_candidates` — 1 passed.
+- `cargo test -p yu-solver --features shadow-apply-candidate --lib field_source_instances_require_original_metadata_and_all_four_rows` — 1 passed.
+- `cargo test -p yu-playground` — passed through the ordinary package and CLI paths, including the scheduled local-initializer host-write case.
+
+The focused solver runs and ordinary playground suite report existing compiler warnings. This result remains direct-primary and UNREVIEWED; it does not close source/native, A/B, receiving, principality, independent review, or production.
