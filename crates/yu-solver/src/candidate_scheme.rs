@@ -172,6 +172,8 @@ pub(super) struct MemberFreshUse {
     pub occurrence: HirOccurrenceId,
     /// Canonical receiver row whose readback authorized this exact body use.
     pub receiver_row: RowKey,
+    /// Actual result row receiving the selected member body's lower bounds.
+    pub result_row: RowKey,
     pub member: yu_hir::SourceMemberRootId,
     pub fresh: FreshUse,
 }
@@ -3243,8 +3245,45 @@ impl InferenceSession {
         baseline_calls: &[crate::shadow_apply::CandidateGuardedVariantCallReadback],
     ) -> Result<crate::shadow_apply::CandidateMemberDispatchStepReadback, SolveAvailabilityError> {
         let mut guarded_variant_calls = Vec::new();
+        let mut member_value_rows = Vec::new();
         guarded_variant_calls.try_reserve_exact(baseline_calls.len())
             .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        let state = self.candidate_graph.as_ref().ok_or_else(exhausted)?;
+        let member_use = state.member_uses.last()
+            .filter(|use_| use_.member == member_root)
+            .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        let member_graph = state.member_graphs.get(&member_root)
+            .ok_or(SolveAvailabilityError::ReceiptMismatch)?;
+        if member_graph.graph.rows.len() != member_use.fresh.rows.len() {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
+        }
+        let result_row = match state.intrusion.rep(member_use.result_row) {
+            RowKey::Value(row) => row,
+            RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+        };
+        member_value_rows.try_reserve_exact(member_graph.graph.rows.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        for (graph_row_index, (graph_row, freshuse_row)) in member_graph.graph.rows.iter()
+            .zip(&member_use.fresh.rows).enumerate()
+        {
+            let freshuse_row = match (graph_row.key, *freshuse_row) {
+                (RowKey::Value(_), RowKey::Value(row)) => row,
+                (RowKey::Effect(_), RowKey::Effect(_)) => continue,
+                _ => return Err(SolveAvailabilityError::ReceiptMismatch),
+            };
+            member_value_rows.push(crate::shadow_apply::CandidateMemberValueRowReadback {
+                graph_row_index,
+                source_representative: match state.intrusion.rep(graph_row.key) {
+                    RowKey::Value(row) => row,
+                    RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                },
+                freshuse_representative: match state.intrusion.rep(RowKey::Value(freshuse_row)) {
+                    RowKey::Value(row) => row,
+                    RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+                },
+                source_local: graph_row.local,
+            });
+        }
         for baseline in baseline_calls {
             let mut call = baseline.clone();
             let mut work = 0usize;
@@ -3260,7 +3299,12 @@ impl InferenceSession {
             source_owner,
             occurrence,
             member_root,
-            receiver_row,
+            receiver_row: match state.intrusion.rep(RowKey::Value(receiver_row)) {
+                RowKey::Value(row) => row,
+                RowKey::Effect(_) => return Err(SolveAvailabilityError::ReceiptMismatch),
+            },
+            result_row,
+            member_value_rows,
             guarded_variant_calls,
         })
     }
@@ -3578,6 +3622,7 @@ impl InferenceSession {
                     dispatch_context: item.obligation.dispatch_context,
                     occurrence,
                     receiver_row: item.obligation.receiver_row,
+                    result_row: item.obligation.result_row,
                     member: member_root,
                     fresh,
                 });

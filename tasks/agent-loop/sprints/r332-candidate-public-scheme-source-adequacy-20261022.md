@@ -783,7 +783,27 @@ no representative there. FreshUse only freshens local generic rows above the
 capture boundary; other rows remain shared. Receiver/result admissions have
 no Case-frontier exclusion guard, while extrusion/intrusion can transport
 bounds to existing owners. The owner-specific noninterference premise is
-therefore still OPEN; no source-valid counterexample is established.
+established for the five selected actions in this Button source execution by
+the row-separation receipt below. The general invariant for arbitrary member
+graphs remains OPEN; no source-valid counterexample is established.
+
+Button-owner noninterference receipt, 2026-10-23: the bounded Case-input
+readback now retains every reached row identity. Each post-action record also
+contains all value rows of the selected member graph's actual FreshUse map,
+their source representatives, and the actual receiver/result rows. For both
+exact guarded calls at all five selected action boundaries, the regression
+checks that the frontier is complete, every member value row is source-local
+and distinct from its FreshUse image, and all source/image, receiver, and
+result representatives are outside the exact Case-input closure. The frontier
+and exact payload/Group paths remain unchanged after each action. This
+establishes the sufficient noninterference premise for the five actions in
+this Button source execution. It is finite source-owner evidence, not a
+theorem for every admissible graph or stable capture refresh; those gates stay
+OPEN.
+
+Validation after the row-identity additions: focused Button regression passes;
+`cargo test -q -p yu-playground` passes all package targets (89 library tests,
+64 CLI tests, and all integration targets).
 
 Additional verification: `cargo test -q -p yu-solver
 --features shadow-apply-candidate` failed with multiple solver tests and a
@@ -792,3 +812,38 @@ stack overflow. An isolated failure in untouched
 is `assert!(!attempted.is_empty())` at `candidate_context_tests.rs:3798`.
 The run does not localize these failures to the current changes. The focused
 Button regression and all `yu-playground` package targets still pass.
+
+Current bounded outcome, 2026-10-23: trace the successful
+`refresh_candidate_field_tail_captures` path under its existing entry
+conditions. The Button execution still stops before that path; no successful
+runtime refresh is claimed. Source inspection gives a conditional preservation
+argument: definition-owner dedup compares the ordered Case identity/arm/tag/
+arity and current guard representatives, plus all four receiver/result value
+and effect representatives. Missing descriptors are re-owned to the definition
+and appended. Owned capture canonicalizes and seeds guard inputs and all four
+ports, expands their bound closure, and verifies the four ports are present
+before replacing the stored graph. Local residuals remain attached to the exact
+local capture for its normal later capture. FreshUse maps guards and four ports
+through the same graph-row/FreshUse index. This proves row correspondence only
+conditional on successful capture; it does not prove that the deferred Button
+receiver becomes selectable or that refresh succeeds for this source.
+
+The dedup key omits `source`, `member`, candidate lists and `required_roles`, so
+preservation of the full descriptor is not established. No refresh-specific
+defect or safe code slice was found (`NO_SAFE_CODE_SLICE`); no test or synthetic
+refresh was added or run. Arbitrary member graphs, complete metadata
+preservation, original A/B, receiving, principality, independent review and
+production remain OPEN. This is the same R332 envelope, with no lease or worker
+change; charge at this update is 42042/44056 seconds. Freeze and report before
+the existing cap, without carryover or automatic renewal.
+
+Readback correction, 2026-10-23: the member-step diagnostic previously stored
+the receiver representative computed before the action. Since intrusion can
+merge rows during propagation, the readback now records the current receiver
+representative after the action, matching the already post-action result and
+FreshUse-row observations. The row-map scan now rejects value/effect kind
+mismatches instead of skipping them. This is diagnostic-only. The focused Button
+regression passes, and `cargo test -q -p yu-playground` passes all package
+targets (89 library tests, 64 CLI tests and all integration targets). The
+finite row-separation check now uses the post-action receiver row. Stable
+capture refresh and arbitrary member-graph claims remain as stated above.

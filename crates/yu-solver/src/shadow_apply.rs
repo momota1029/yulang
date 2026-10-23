@@ -205,6 +205,9 @@ pub struct CandidateGuardedVariantCaseReceiverFlowStepReadback {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CandidateCaseInputFrontierReadback {
     pub input_row: u32,
+    /// Canonical rows reached by the bounded reverse traversal. These support
+    /// exact row-set comparisons at diagnostic transition boundaries.
+    pub reached_rows: Vec<u32>,
     pub rows_reached: usize,
     pub incoming_row_edges: usize,
     /// Incoming edges recorded on only one endpoint's direct-row inventory.
@@ -462,7 +465,18 @@ pub struct CandidateMemberDispatchStepReadback {
     pub occurrence: HirOccurrenceId,
     pub member_root: yu_hir::SourceMemberRootId,
     pub receiver_row: u32,
+    pub result_row: u32,
+    /// Value-row images from the selected member graph's retained FreshUse,
+    /// observed after this action's propagation and intrusion settlement.
+    pub member_value_rows: Vec<CandidateMemberValueRowReadback>,
     pub guarded_variant_calls: Vec<CandidateGuardedVariantCallReadback>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateMemberValueRowReadback {
+    pub graph_row_index: usize,
+    pub source_representative: u32,
+    pub freshuse_representative: u32,
+    pub source_local: bool,
 }
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum CandidateReadbackStageStatus {

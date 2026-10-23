@@ -3732,6 +3732,8 @@ mod tests {
                 "the admitted member action and deferred stop preserve this exact call's current Case-input frontier");
             assert_eq!(before_call.case_payload_receiver_flow, after_call.case_payload_receiver_flow,
                 "the observed partial dispatch preserves this exact FreshUse binder-to-receiver source/native path");
+            assert_eq!(before.reached_rows.len(), before.rows_reached,
+                "the bounded Case-input observation retains every reached row identity");
             assert_eq!(readbacks.dispatch_steps.len(), 5,
                 "every selected member action has a post-admission Case-input snapshot");
             for step in &readbacks.dispatch_steps {
@@ -3749,6 +3751,17 @@ mod tests {
                     "each member action preserves the constructor-to-binder native paths");
                 assert_eq!(step_call.case_payload_receiver_flow, before_call.case_payload_receiver_flow,
                     "each member action preserves this exact FreshUse binder-to-receiver Group path");
+                assert!(!before.reached_rows.contains(&step.receiver_row),
+                    "the selected action's actual receiver is outside this Case-input closure");
+                assert!(!before.reached_rows.contains(&step.result_row),
+                    "the selected action's actual result is outside this Case-input closure");
+                assert!(step.member_value_rows.iter().all(|row|
+                    !before.reached_rows.contains(&row.source_representative)
+                        && !before.reached_rows.contains(&row.freshuse_representative)),
+                    "every selected member value row maps outside this Case-input closure");
+                assert!(step.member_value_rows.iter().all(|row|
+                    row.source_local && row.source_representative != row.freshuse_representative),
+                    "every value row in these selected member graphs is local and FreshUsed into a distinct row");
             }
         }
         let mut source_button_uses: Vec<_> = source_roots.iter().flat_map(|source| source.expressions())

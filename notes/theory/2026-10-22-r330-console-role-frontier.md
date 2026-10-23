@@ -3747,11 +3747,12 @@ Case-frontier exclusion check. Extrusion and intrusion can also transport
 bounds to existing owners.
 
 Thus the readback's five unchanged frontiers plus five stable Group paths are
-concrete evidence for this Button execution, while the source-level theorem
-still needs an owner-specific disjointness/alias premise or a source-valid
-counterexample. The conditional lemma does not close stable capture refresh or
-future successful dispatch. No code gate or source behavior changes follow
-from it.
+concrete evidence for this Button execution. The following row-separation
+receipt now establishes the owner-specific premise for its five selected
+actions. The general source-level theorem still needs a premise for arbitrary
+member graphs or a source-valid counterexample. The conditional lemma does not
+close stable capture refresh or future successful dispatch. No code gate or
+source behavior changes follow from it.
 
 Additional verification receipt: `cargo test -q -p yu-solver
 --features shadow-apply-candidate` did not pass. The feature-enabled solver
@@ -3761,3 +3762,101 @@ overflow; an isolated failure in the untouched
 is at `candidate_context_tests.rs:3798` (`assert!(!attempted.is_empty())`).
 This run does not localize those failures to the current changes. The focused
 playground regression and full playground package suite remain passing.
+
+### Button-owner row separation receipt
+
+The diagnostic readback now retains each exact row identity reached by the
+Case-input reverse traversal. After every selected action, it also records all
+value rows in that selected member graph's retained FreshUse map, the source
+representative for each graph row, and the actual receiver and result rows.
+The focused Button regression compares both guarded calls at all five action
+boundaries. Each frontier has exactly its recorded reached rows; every source
+value row in the selected member graphs is local and maps to a distinct FreshUse row;
+and every source/FreshUse representative, actual receiver, and actual result
+lies outside the exact Case-input closure.
+
+This establishes the missing noninterference premise for the five actions in
+this Button source execution. Their captured member value constraints and the
+two admitted receiver/result constraints have no endpoint in the complete
+backward Case-input closure. Propagation follows existing typed row bounds;
+any existing value path from one of these endpoints into that closure would
+make the endpoint itself part of the reverse traversal. Together with the
+unchanged post-action frontier and Group-flow readbacks, this closes the finite
+observed action sequence for the exact Button owner. It does not quantify over
+other source owners or a hypothetical future action, and it does not cover
+stable capture refresh, which the deferred run never reaches. Keep those wider
+claims OPEN.
+
+Validation after adding row-image and frontier-identity assertions:
+`cargo test -q -p yu-playground` passes all package targets, including 89
+library tests and 64 CLI tests; the focused five-transition assertion passes.
+
+### Conditional preservation through successful FieldTail capture refresh
+
+The deferred Button run does not execute `refresh_candidate_field_tail_captures`,
+so this result is a source-level conditional argument. It applies only to the
+existing successful-refresh branch: every remaining deferred item has at least
+one `TemplateOwner`, its descriptor is retained as a residual, and refresh
+returns `Ok`. An active item with no template owner is rejected before refresh.
+No unavailable instance is removed or treated as successfully refreshed here.
+
+For a definition owner, refresh starts from the already captured graph's live
+root, boundary, frontier and role descriptors. It clones the existing
+FieldTail descriptors, then matches each residual by original source owner,
+occurrence, operator origin, dispatch context, the ordered Case guard source
+tuple and its current input representatives, plus the current representatives
+of receiver, receiver effect, result and result effect. If no such descriptor
+exists, it assigns the graph's definition owner and appends the residual. If a
+match exists, that existing descriptor already has the same Case guards and
+four port representatives for this preservation claim. Refresh then calls the
+ordinary owned capture and replaces the definition graph only after capture
+succeeds.
+
+Owned capture canonicalizes every guard input and all four ports through the
+current intrusion representatives before graph construction. It seeds each
+guard input as a positive value endpoint and seeds receiver/result values and
+both effect ports. Capture expands those rows and their bounds, and rejects a
+result graph missing any of the four ports. `SourceCaseGuard::same_source`
+preserves the Case occurrence, arm, tag and arity in order; the guard input is
+the same canonical row used by that guard. Thus a successful definition refresh
+retains the authenticated guard tuple and the receiver/result port map at the
+current representatives. When the descriptor belongs to a local template,
+refresh retains it in that exact local capture; the later ordinary capture
+performs the same normalization and row-seeding steps.
+
+The later FreshUse also uses one shared row vector. The four FieldTail ports
+are resolved to graph-row indexes, and each Case guard is resolved by its graph
+row key through `fresh_case_guards`; both therefore use the same FreshUse image
+for every repeated row. A local row gets the ordinary fresh image and restored
+captured bounds; an older shared anchor keeps its live representative. This is
+a conditional row-correspondence lemma, not evidence that the deferred Button
+receiver becomes selectable, that refresh succeeds for that run, or that all
+other source metadata is equivalent. In particular, the refresh dedup key does
+not compare `source`, `member`, candidate lists or `required_roles`; their
+full-descriptor preservation is outside this result and remains OPEN.
+
+No refresh-specific defect or safe code slice is established, so this outcome
+is proof-only (`NO_SAFE_CODE_SLICE`). The existing focused capture/FreshUse
+tests exercise guard and port mapping, but no synthetic refresh was run and no
+test was added. Arbitrary member graphs, successful future dispatch behavior,
+original source/native A/B, receiving, principality, independent review and
+production remain OPEN.
+
+### Post-dispatch receiver readback correction
+
+The row-separation audit found that the per-action record copied the receiver
+row representative computed before dispatch. Intrusion could merge that row
+during the admitted constraints, so the stored number was not guaranteed to
+be the actual post-action receiver representative. The readback now applies
+the current intrusion representative when it constructs each step. The result
+row and member FreshUse value rows were already read after the transition.
+The row-map scan also rejects a value/effect kind mismatch instead of silently
+omitting that row. This changes diagnostic evidence only; it does not change
+source solving.
+
+After this correction, the focused Button regression passes and
+`cargo test -q -p yu-playground` passes all package targets (89 library tests,
+64 CLI tests and all integration targets). The finite row-separation receipt
+therefore compares the post-action receiver representative with the complete
+Case-input closure. General member-graph and capture-refresh limits above
+remain OPEN.

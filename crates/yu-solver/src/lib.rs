@@ -12884,6 +12884,7 @@ impl InferenceSession {
 
         let mut frontier = CandidateCaseInputFrontierReadback {
             input_row: state.intrusion.value_rep(input_row),
+            reached_rows: Vec::new(),
             rows_reached: 0,
             incoming_row_edges: 0,
             one_sided_incoming_row_edges: 0,
@@ -12901,6 +12902,9 @@ impl InferenceSession {
             if !spend(work) { return Ok(None); }
             let row = state.intrusion.value_rep(row);
             if self.bounds.get(row as usize).is_none() { return Ok(None); }
+            frontier.reached_rows.try_reserve(1)
+                .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+            frontier.reached_rows.push(row);
             increment(&mut frontier.rows_reached)?;
             let mut incoming = HashMap::<u32, (bool, bool)>::new();
             let mut exact_lower_atoms = Vec::new();
