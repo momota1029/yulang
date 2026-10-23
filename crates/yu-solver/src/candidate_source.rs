@@ -1707,6 +1707,11 @@ impl ConstraintBatch {
                                 yu_hir::shadow::PinnedPrimitiveOp::BoolToString => (Leaf::BoolNegative, Leaf::StrPositive),
                                 yu_hir::shadow::PinnedPrimitiveOp::IntAdd | yu_hir::shadow::PinnedPrimitiveOp::IntSub
                                 | yu_hir::shadow::PinnedPrimitiveOp::IntMul => (Leaf::IntNegative, Leaf::IntPositive),
+                                yu_hir::shadow::PinnedPrimitiveOp::IntEq
+                                | yu_hir::shadow::PinnedPrimitiveOp::IntLt
+                                | yu_hir::shadow::PinnedPrimitiveOp::IntLe
+                                | yu_hir::shadow::PinnedPrimitiveOp::IntGt
+                                | yu_hir::shadow::PinnedPrimitiveOp::IntGe => (Leaf::IntNegative, Leaf::BoolPositive),
                                 yu_hir::shadow::PinnedPrimitiveOp::IntToString => (Leaf::IntNegative, Leaf::StrPositive),
                                 yu_hir::shadow::PinnedPrimitiveOp::StringConcat => (Leaf::StrNegative, Leaf::StrPositive),
                                 yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => return Err(invalid()),

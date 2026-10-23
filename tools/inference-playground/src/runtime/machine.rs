@@ -2639,6 +2639,11 @@ fn pinned_primitive_arity(operation: &yu_hir::shadow::PinnedPrimitiveOp) -> Opti
         yu_hir::shadow::PinnedPrimitiveOp::IntAdd
         | yu_hir::shadow::PinnedPrimitiveOp::IntSub
         | yu_hir::shadow::PinnedPrimitiveOp::IntMul
+        | yu_hir::shadow::PinnedPrimitiveOp::IntEq
+        | yu_hir::shadow::PinnedPrimitiveOp::IntLt
+        | yu_hir::shadow::PinnedPrimitiveOp::IntLe
+        | yu_hir::shadow::PinnedPrimitiveOp::IntGt
+        | yu_hir::shadow::PinnedPrimitiveOp::IntGe
         | yu_hir::shadow::PinnedPrimitiveOp::BoolEq
         | yu_hir::shadow::PinnedPrimitiveOp::StringConcat => Some(2),
         yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => None,
@@ -2679,6 +2684,24 @@ fn pinned_primitive_apply(
             let RuntimeValueKind::Integer(right) = argument(1)? else { return None; };
             let negative = super::decimal::negate(right)?;
             Some(RuntimeValueKind::Integer(decimal_add(left, &negative)?.into_boxed_str()))
+        }
+        yu_hir::shadow::PinnedPrimitiveOp::IntEq
+        | yu_hir::shadow::PinnedPrimitiveOp::IntLt
+        | yu_hir::shadow::PinnedPrimitiveOp::IntLe
+        | yu_hir::shadow::PinnedPrimitiveOp::IntGt
+        | yu_hir::shadow::PinnedPrimitiveOp::IntGe => {
+            let RuntimeValueKind::Integer(left) = argument(0)? else { return None; };
+            let RuntimeValueKind::Integer(right) = argument(1)? else { return None; };
+            let ordering = super::decimal::compare(left, right)?;
+            let result = match operation {
+                yu_hir::shadow::PinnedPrimitiveOp::IntEq => ordering.is_eq(),
+                yu_hir::shadow::PinnedPrimitiveOp::IntLt => ordering.is_lt(),
+                yu_hir::shadow::PinnedPrimitiveOp::IntLe => !ordering.is_gt(),
+                yu_hir::shadow::PinnedPrimitiveOp::IntGt => ordering.is_gt(),
+                yu_hir::shadow::PinnedPrimitiveOp::IntGe => !ordering.is_lt(),
+                _ => return None,
+            };
+            Some(RuntimeValueKind::Boolean(result))
         }
         // Multiplication uses the resumable Machine state above.
         yu_hir::shadow::PinnedPrimitiveOp::IntMul => None,

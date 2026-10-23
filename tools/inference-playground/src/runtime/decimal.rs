@@ -1,10 +1,28 @@
 //! Signed decimal arithmetic with an explicit multiplication step boundary.
 
+use std::cmp::Ordering;
+
 fn parts(value: &str) -> Option<(bool, &str)> {
     let (negative, digits) = value.strip_prefix('-').map_or((false, value), |digits| (true, digits));
     if digits.is_empty() || !digits.bytes().all(|digit| digit.is_ascii_digit()) { return None; }
     let digits = digits.trim_start_matches('0');
     Some(if digits.is_empty() { (false, "0") } else { (negative, digits) })
+}
+
+/// Compare signed decimal integers without converting through a machine type.
+pub(super) fn compare(left: &str, right: &str) -> Option<Ordering> {
+    fn magnitude(left: &str, right: &str) -> Ordering {
+        left.len().cmp(&right.len()).then_with(|| left.cmp(right))
+    }
+
+    let (left_negative, left_digits) = parts(left)?;
+    let (right_negative, right_digits) = parts(right)?;
+    Some(match (left_negative, right_negative) {
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        (false, false) => magnitude(left_digits, right_digits),
+        (true, true) => magnitude(right_digits, left_digits),
+    })
 }
 
 pub(super) fn negate(value: &str) -> Option<String> {

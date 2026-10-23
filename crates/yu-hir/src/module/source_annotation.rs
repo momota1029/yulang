@@ -79,6 +79,11 @@ pub enum PinnedPrimitiveOp {
     IntAdd,
     IntSub,
     IntMul,
+    IntEq,
+    IntLt,
+    IntLe,
+    IntGt,
+    IntGe,
     IntToString,
     StringConcat,
     Unsupported(Box<str>),
@@ -93,12 +98,17 @@ pub(super) fn pinned_primitive_op(family: &str, member: &str) -> Option<PinnedPr
         "int_add" => Some(PinnedPrimitiveOp::IntAdd),
         "int_sub" => Some(PinnedPrimitiveOp::IntSub),
         "int_mul" => Some(PinnedPrimitiveOp::IntMul),
+        "int_eq" => Some(PinnedPrimitiveOp::IntEq),
+        "int_lt" => Some(PinnedPrimitiveOp::IntLt),
+        "int_le" => Some(PinnedPrimitiveOp::IntLe),
+        "int_gt" => Some(PinnedPrimitiveOp::IntGt),
+        "int_ge" => Some(PinnedPrimitiveOp::IntGe),
         "int_to_string" => Some(PinnedPrimitiveOp::IntToString),
         "string_concat" => Some(PinnedPrimitiveOp::StringConcat),
         "yada_yada" | "list_view_raw" | "list_merge" | "list_len" | "list_index"
         | "list_index_range" | "list_index_range_raw" | "list_splice" | "list_splice_raw"
         | "int_div" | "int_mod"
-        | "int_eq" | "int_lt" | "int_le" | "int_gt" | "int_ge" | "int_to_hex"
+        | "int_to_hex"
         | "int_to_upper_hex" | "int_to_float" | "float_add" | "float_sub" | "float_mul"
         | "float_div" | "float_eq" | "float_lt" | "float_le" | "float_gt" | "float_ge"
         | "float_to_string" | "string_eq" | "string_len" | "string_line_count"

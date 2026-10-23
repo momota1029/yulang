@@ -949,6 +949,11 @@ impl InferenceSession {
             yu_hir::shadow::PinnedPrimitiveOp::BoolToString => (Value::Bool, Value::Str),
             yu_hir::shadow::PinnedPrimitiveOp::IntAdd | yu_hir::shadow::PinnedPrimitiveOp::IntSub
                                 | yu_hir::shadow::PinnedPrimitiveOp::IntMul => (Value::Int, Value::Int),
+            yu_hir::shadow::PinnedPrimitiveOp::IntEq
+                | yu_hir::shadow::PinnedPrimitiveOp::IntLt
+                | yu_hir::shadow::PinnedPrimitiveOp::IntLe
+                | yu_hir::shadow::PinnedPrimitiveOp::IntGt
+                | yu_hir::shadow::PinnedPrimitiveOp::IntGe => (Value::Int, Value::Bool),
             yu_hir::shadow::PinnedPrimitiveOp::IntToString => (Value::Int, Value::Str),
             yu_hir::shadow::PinnedPrimitiveOp::StringConcat => (Value::Str, Value::Str),
             yu_hir::shadow::PinnedPrimitiveOp::Unsupported(_) => return Err(exhausted()),
@@ -1843,6 +1848,8 @@ impl InferenceSession {
             PinnedPrimitiveOp::BoolEq => (SourceAnnotationValue::Bool, SourceAnnotationValue::Bool, 2),
             PinnedPrimitiveOp::BoolToString => (SourceAnnotationValue::Bool, SourceAnnotationValue::Str, 1),
             PinnedPrimitiveOp::IntAdd | PinnedPrimitiveOp::IntSub | PinnedPrimitiveOp::IntMul => (SourceAnnotationValue::Int, SourceAnnotationValue::Int, 2),
+            PinnedPrimitiveOp::IntEq | PinnedPrimitiveOp::IntLt | PinnedPrimitiveOp::IntLe
+            | PinnedPrimitiveOp::IntGt | PinnedPrimitiveOp::IntGe => (SourceAnnotationValue::Int, SourceAnnotationValue::Bool, 2),
             PinnedPrimitiveOp::IntToString => (SourceAnnotationValue::Int, SourceAnnotationValue::Str, 1),
             PinnedPrimitiveOp::StringConcat => (SourceAnnotationValue::Str, SourceAnnotationValue::Str, 2),
             PinnedPrimitiveOp::Unsupported(_) => return Ok(None),
