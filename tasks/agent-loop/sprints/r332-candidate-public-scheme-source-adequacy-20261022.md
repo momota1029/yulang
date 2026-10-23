@@ -642,3 +642,24 @@ production result follows. Keep the exact source Call → local FreshRoute → f
 argument image → Case guard row as the next open join, then test it before any
 conditional discharge. The focused test compiled but failed the new witness
 expectation; existing parent gates and sample expectations remain unchanged.
+
+Direct-sixteen source/native join checkpoint, 2026-10-23: the rejected matcher
+had the wrong route shape. The original Button uses direct module Name calls;
+their exact CandidateCall callee occurrences select Module FreshRoutes whose
+graph roots are positive rows, while the retained Case guard is a row in that
+same route. Requiring a Function node at the route root discarded the actual
+instance. The readback now joins the exact source Apply recipe and direct
+Variant argument recipe, checks the native NegativeFunction carries that same
+argument term and its positive live-variable row matches the Apply's exact
+CandidateEndpoint, and confirms the argument row has a direct upper-row edge to
+the Case guard row mapped by the exact FreshRoute. These rows are distinct: the
+evidence is a directional subtype edge, not representative equality. The
+original Button source-occurrence regression passes for both `:label`/arity 1
+and `:disabled`/arity 0. The readback is observational only; it does not close
+the whole call domain, discharge an inactive branch, or promote the parent.
+
+Next, establish whether every lawful use of this Button definition remains in
+the authenticated finite Variant domain, including aliases and any escaping
+uses, then recheck the evidence after nested member dispatch. Unknown call
+routes remain open. Parent A/B, receiving, principality, independent review and
+production remain OPEN.

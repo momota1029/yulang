@@ -100,6 +100,27 @@ pub struct CandidateFieldTailWhereReadback {
     pub implementation_inventory_complete: bool,
     pub unsupported_target_count: usize,
 }
+/// One source Variant Apply whose native argument row has a direct upper-row
+/// edge to this Case guard's row under the same retained FreshUse. This is
+/// directional subtype evidence, not row equality, branch discharge, or a
+/// closed call domain.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CandidateGuardedVariantCallReadback {
+    pub guard_case: HirOccurrenceId,
+    pub guard_arm: usize,
+    pub guard_tag: Box<str>,
+    pub guard_arity: usize,
+    pub guard_input_row: u32,
+    /// Native source argument row with a direct upper edge to `guard_input_row`.
+    pub argument_row: u32,
+    pub call: HirOccurrenceId,
+    pub callee_use: HirOccurrenceId,
+    pub argument: HirOccurrenceId,
+    pub argument_tag: Box<str>,
+    pub argument_arity: usize,
+    pub provider: yu_hir::DefinitionRootId,
+    pub freshuse_context: usize,
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CandidateFieldTailReceiverReadback {
     pub owner: SourceRootId,
@@ -110,6 +131,10 @@ pub struct CandidateFieldTailReceiverReadback {
     /// Session-local instantiation DAG node, for exact readback joins only.
     pub instantiation_context_ordinal: Option<usize>,
     pub member: Box<str>,
+    /// Exact source calls whose reified arguments have a direct subtype edge
+    /// to the retained Case guard under this same FreshUse. This does not
+    /// authorize branch discharge.
+    pub guarded_variant_calls: Vec<CandidateGuardedVariantCallReadback>,
     pub role_member_candidates: Vec<yu_hir::shadow::SourceRoleMemberId>,
     pub positive_shape: Option<CandidateReceiverShape>,
     /// Structural target matches only. `where` prerequisites and stability are

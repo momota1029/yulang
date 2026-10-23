@@ -12232,6 +12232,7 @@ impl InferenceSession {
         readbacks.try_reserve_exact(count).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
         for (owner, obligations) in &state.source_field_tail_obligations {
             for obligation in obligations {
+                let guarded_variant_calls = self.candidate_guarded_variant_calls(obligation)?;
                 let candidate_scheme::RowKey::Value(row) = obligation.receiver_row else {
                     return Err(SolveAvailabilityError::ReceiptMismatch);
                 };
@@ -12365,6 +12366,7 @@ impl InferenceSession {
                     occurrence: obligation.occurrence.clone(),
                     receiver_row: row,
                     member: obligation.member.clone(),
+                    guarded_variant_calls,
                     role_member_candidates: obligation.role_member_candidates.clone(),
                     positive_shape,
                     target_matches,
@@ -12383,6 +12385,185 @@ impl InferenceSession {
             }
         }
         Ok(readbacks)
+    }
+    #[cfg(feature = "shadow-apply-candidate")]
+    fn candidate_guarded_variant_calls(
+        &self,
+        obligation: &candidate_scheme::SourceFieldTailObligation,
+    ) -> Result<Vec<shadow_apply::CandidateGuardedVariantCallReadback>, SolveAvailabilityError> {
+        use candidate_scheme::{DispatchRoute, RowKey};
+        use shadow_apply::{CandidateEndpoint, CandidateGuardedVariantCallReadback, CandidateRelation};
+        use yu_hir::shadow::{LocalSourceForm, LocalSourceResolution};
+
+        fn spend(work: &mut usize) -> bool {
+            *work = match work.checked_add(1) {
+                Some(work) => work,
+                None => return false,
+            };
+            *work <= CANDIDATE_RECEIVER_READBACK_VISIT_LIMIT
+        }
+
+        let mut output = Vec::new();
+        let Some(context) = obligation.dispatch_context else { return Ok(output); };
+        let Some(state) = self.candidate_graph.as_ref() else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+        let Some(node) = state.dispatch_contexts.get(context) else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+        if [node.outer, node.inner].into_iter().flatten().any(|child| child >= context) {
+            return Err(SolveAvailabilityError::ReceiptMismatch);
+        }
+        let DispatchRoute::Module(route_index) = node.route else { return Ok(output); };
+        if node.outer.is_some() { return Ok(output); }
+        let Some(route) = state.routes.get(route_index) else { return Err(SolveAvailabilityError::ReceiptMismatch); };
+        if route.source_owner != obligation.owner { return Ok(output); }
+
+        let mut work = 0usize;
+        let mut matching_template = None;
+        for (index, field) in route.graph.source_field_tail_obligations.iter().enumerate() {
+            if !spend(&mut work) { return Ok(Vec::new()); }
+            if field.source_owner == obligation.source_owner
+                && field.occurrence == obligation.occurrence
+                && field.source == obligation.source
+                && field.member == obligation.member
+                && field.role_member_candidates == obligation.role_member_candidates
+                && field.required_roles == obligation.required_roles
+                && field.dispatch_context == node.inner
+            {
+                if matching_template.is_some() { return Ok(output); }
+                matching_template = Some((index, field));
+            }
+        }
+        let Some((template_index, template)) = matching_template else { return Ok(output); };
+        if template.case_guards.is_empty() { return Ok(output); }
+        let mut mapped_guard_rows = Vec::new();
+        mapped_guard_rows.try_reserve_exact(template.case_guards.len())
+            .map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+        if template.case_guards.len() != obligation.case_guards.len() { return Ok(output); }
+        for (source_guard, active_guard) in template.case_guards.iter().zip(&obligation.case_guards) {
+            if !spend(&mut work) { return Ok(Vec::new()); }
+            if source_guard.case != active_guard.case
+                || source_guard.arm != active_guard.arm
+                || source_guard.tag != active_guard.tag
+                || source_guard.arity != active_guard.arity
+            { return Ok(output); }
+            let mut graph_row = None;
+            for (index, row) in route.graph.rows.iter().enumerate() {
+                if !spend(&mut work) { return Ok(Vec::new()); }
+                if row.key == source_guard.input {
+                    if graph_row.is_some() { return Ok(output); }
+                    graph_row = Some(index);
+                }
+            }
+            let Some(graph_row) = graph_row else { return Ok(output); };
+            let Some(mapped_row) = route.rows.get(graph_row).copied() else { return Ok(output); };
+            if mapped_row.kind() != ComponentKind::Value
+                || state.intrusion.rep(mapped_row) != state.intrusion.rep(active_guard.input)
+            { return Ok(output); }
+            let RowKey::Value(mapped_row) = state.intrusion.rep(mapped_row) else { return Ok(output); };
+            mapped_guard_rows.push(mapped_row);
+        }
+        if !route.graph.source_field_tail_obligations.get(template_index).is_some_and(|field|
+            field.occurrence == obligation.occurrence && field.source_owner == obligation.source_owner)
+        { return Ok(output); }
+
+        for (call_index, call) in self.batch.candidate_calls.calls.iter().enumerate() {
+            if !spend(&mut work) { return Ok(Vec::new()); }
+            if call.owner != route.source_owner { continue; }
+            let Some(hir) = self.batch.hir_for_source_root(&call.owner) else { continue; };
+            let Ok(Some(source)) = hir.local_source_for(&call.owner) else { continue; };
+            let Some(expression) = source.expressions().get(call.expression) else { continue; };
+            let (source_callee, source_argument) = match &expression.form {
+                LocalSourceForm::Apply { callee, argument, .. } => (callee, argument),
+                _ => continue,
+            };
+            let (Some(callee), Some(argument)) = (
+                source.expression(&call.callee), source.expression(&call.argument),
+            ) else { continue; };
+            let (Some(source_callee), Some(source_argument)) = (
+                source.expression(source_callee), source.expression(source_argument),
+            ) else { continue; };
+            if source_callee.occurrence != callee.occurrence
+                || source_argument.occurrence != argument.occurrence
+                || callee.occurrence != *route.use_id.occurrence()
+            { continue; }
+            if !matches!(&callee.form,
+                LocalSourceForm::Name { resolution: LocalSourceResolution::ModuleDef(_) | LocalSourceResolution::Imported(_), .. })
+            { continue; }
+            let LocalSourceForm::Variant { tag: argument_tag, payloads, .. } = &argument.form else { continue; };
+            let Some(apply_recipe) = self.batch.candidate_recipes.get(call.recipe) else { continue; };
+            if apply_recipe.occurrence != expression.occurrence || apply_recipe.source_input != Some(call_index) {
+                continue;
+            }
+            let CandidateRelation::Apply { callee: apply_callee, argument: apply_argument, .. } = &apply_recipe.relation else {
+                continue;
+            };
+            if !candidate_call::same_endpoint(*apply_callee, call.callee_value)
+                || !candidate_call::same_endpoint(*apply_argument, call.argument_value)
+            { continue; }
+
+            let mut matching_variant = None;
+            let mut ambiguous_variant = false;
+            for recipe in &self.batch.candidate_recipes {
+                if !spend(&mut work) { return Ok(Vec::new()); }
+                if recipe.occurrence != argument.occurrence { continue; }
+                if let CandidateRelation::Variant { tag, payloads: recipe_payloads, result, .. } = &recipe.relation {
+                    if matching_variant.is_some() { ambiguous_variant = true; break; }
+                    matching_variant = Some((tag, recipe_payloads.len(), *result));
+                }
+            }
+            if ambiguous_variant { continue; }
+            let Some((recipe_tag, recipe_arity, result)) = matching_variant else { continue; };
+            if recipe_tag.as_ref() != argument_tag.as_ref() || recipe_arity != payloads.len()
+                || !candidate_call::same_endpoint(CandidateEndpoint::Component(result), call.argument_value)
+            { continue; }
+
+            let Some(native) = call.native else { continue; };
+            let source_argument_row = match call.argument_value {
+                CandidateEndpoint::Component(position) => self.live_components.get(position).map(|row| row.ordinal),
+                CandidateEndpoint::Parameter(position) => u32::try_from(position).ok()
+                    .and_then(|position| self.parameter_live_base.checked_add(position)),
+            };
+            let Some(source_argument_row) = source_argument_row else { continue; };
+            let Ok(crate::TermView::LiveVariable(argument_view)) = self.store.term_view(native.argument) else {
+                continue;
+            };
+            if argument_view.kind() != ComponentKind::Value
+                || argument_view.polarity() != Polarity::Positive
+                || argument_view.ordinal() != source_argument_row
+            { continue; }
+            let Ok(crate::TermView::NegativeFunction { argument: demand_argument, .. }) =
+                self.store.term_view(native.demand) else { continue; };
+            if demand_argument != native.argument { continue; }
+            let ValueEndpointKey::ValueRow(argument_row) = self.value_endpoint(native.argument, Polarity::Positive) else {
+                continue;
+            };
+            let argument_row = state.intrusion.value_rep(argument_row);
+            for (guard, guard_input_row) in template.case_guards.iter().zip(&mapped_guard_rows) {
+                if !spend(&mut work) { return Ok(Vec::new()); }
+                let RowKey::Value(guard_input_row) = state.intrusion.rep(RowKey::Value(*guard_input_row)) else {
+                    return Ok(output);
+                };
+                let argument_flows_to_guard = self.bounds.get(argument_row as usize).is_some_and(|bounds|
+                    bounds.direct_upper_rows.iter().any(|upper|
+                        state.intrusion.value_rep(*upper) == guard_input_row));
+                if !argument_flows_to_guard { continue; }
+                output.try_reserve(1).map_err(|_| SolveAvailabilityError::IdentityExhausted)?;
+                output.push(CandidateGuardedVariantCallReadback {
+                    guard_case: guard.case.clone(),
+                    guard_arm: guard.arm,
+                    guard_tag: guard.tag.clone(),
+                    guard_arity: guard.arity,
+                    guard_input_row,
+                    argument_row,
+                    call: expression.occurrence.clone(),
+                    callee_use: callee.occurrence.clone(),
+                    argument: argument.occurrence.clone(),
+                    argument_tag: argument_tag.clone(),
+                    argument_arity: payloads.len(),
+                    provider: route.provider.clone(),
+                    freshuse_context: route.retained.observed_context_use(),
+                });
+            }
+        }
+        Ok(output)
     }
     pub(crate) fn candidate_has_pending_field_tail_selection(&self) -> bool {
         self.candidate_graph.as_ref().is_some_and(

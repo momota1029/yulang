@@ -3558,6 +3558,17 @@ mod tests {
         assert!(!actual.is_empty(), "original interpolation retains its Button source owner");
         assert!(actual.iter().any(|item| item.instantiation_context_ordinal.is_some()),
             "the actual interpolation occurrence survives a caller's FreshUse");
+        let guarded_calls: Vec<_> = actual.iter().flat_map(|item| &item.guarded_variant_calls).collect();
+        assert!(guarded_calls.iter().any(|call|
+            call.guard_tag.as_ref() == "label" && call.guard_arity == 1
+                && call.argument_tag.as_ref() == "label" && call.argument_arity == 1
+                && call.call != call.callee_use && call.argument_row != call.guard_input_row),
+            "the source label call argument has a direct upper-row edge to the label Case guard");
+        assert!(guarded_calls.iter().any(|call|
+            call.guard_tag.as_ref() == "label" && call.guard_arity == 1
+                && call.argument_tag.as_ref() == "disabled" && call.argument_arity == 0
+                && call.call != call.callee_use && call.argument_row != call.guard_input_row),
+            "the source disabled call argument has a direct upper-row edge to the label Case guard");
     }
 
     #[test]
