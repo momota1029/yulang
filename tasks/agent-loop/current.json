@@ -15,13 +15,13 @@
       "reserved_seconds": 4800,
       "no_carryover": true
     },
-    "proof": "ADMITTED/NOT_STARTED: K0 same-witness Call interface; exact proof/handoff leases assigned, no live launch recorded.",
+    "proof": "RUNNING: /root/r344_k0_call_interface_prover; exact proof/handoff leases; 3000s reserved; requested Sol/high, observed UNKNOWN/UNKNOWN; no descendants.",
     "implementation": "NO_SAFE_CODE_SLICE: pinned source census maps source Apply/native demand to actual runtime handle, capture, Delay, owner/view; pending whole-carrier and complete-result/future suppliers remain open.",
     "review_receipt": "NOT_STARTED: fresh non-contributor compiler_referee after proof and census freeze.",
     "closure": "OPEN: R344 targets audit C/M same-witness Call interface in ordinary K0. Full M, receiver/result/future/effect interpretation, S0 premise completion, N/cache, W/Z, broader source, original A/B and production remain OPEN.",
     "dispatch": "End selector /root/r333_selector selects R344 after bounded R343 PASS; one joint K0 Call witness, 7200s fresh envelope, no Astra/carryover.",
     "primary_lane": "Frozen census notes/theory/2026-10-23-r344-k0-call-interface-source-census.md; SHA-256 90678f8570dd7619dcaf5a1ad6ad0b149031b449480d1d9cc3f9708ebf549195. Primary allocation 2400s charged conservatively.",
-    "next_action": "Launch the exact-leased constructive proof lane; source/candidate/runtime owners remain read-only.",
+    "next_action": "Construct/apply the same-witness K0 Call relation within the frozen packet; primary source files remain read-only.",
     "resource_observation": "Fresh 7200s: primary 2400 charged, proof 3000 + independent review 1500 + integration 300 reserved; no carryover. Three UNKNOWN legacy workers remain quarantined.",
     "outcome": "tasks/agent-loop/sprints/r344-k0-call-interface-20261023-outcome.md",
     "git_receipt": {
@@ -84,13 +84,13 @@
     {
       "id": "/root/r344_k0_call_interface_prover",
       "role": "prover",
-      "state": "NOT_STARTED",
-      "session": null,
+      "state": "RUNNING",
+      "session": "4a30d8bc-cf58-442a-ac35-a6026b4e35b5",
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R344 exact proof/handoff leases admitted; no live launch recorded yet."
+      "receipt": "Launch acknowledged on exact proof/handoff leases; source-only proof; requested Sol/high; observed model/effort UNKNOWN; no descendants/code/tests/Git."
     }
   ],
   "leases": [
@@ -212,7 +212,7 @@
     }
   ],
   "closure": "OPEN: R344 targets audit C/M same-witness Call interface in ordinary K0. Full M, receiver/result/future/effect interpretation, S0 premise completion, N/cache, W/Z, broader source, original A/B and production remain OPEN.",
-  "next_action": "Launch the exact-leased constructive proof lane; source/candidate/runtime owners remain read-only.",
+  "next_action": "Construct/apply the same-witness K0 Call relation within the frozen packet; primary source files remain read-only.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "3 U; no reclaim.",
