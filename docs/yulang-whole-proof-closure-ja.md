@@ -204,6 +204,14 @@ RG-OWNER、全 source の原 A/B と安全性は残る。SCC と境界 query は
 
 等置後は、全 clause を保持する quotient が同じ level 条件を満たすか有限に検査できる（NL5）。この条件と公開部分の class 飽和性の下で、任意有限個の使用との clause 対応、全域 valuation の pullback を構成し、既存 EC3 の実 store に適用する（NL6–NL7）。最小 level の選択だけでは条件は自動成立しない。元の source-scoped joint strategy と逆向き coverage、全 qualifying occurrence への適用、combined termination は未完のまま保持する。独立査読の受理範囲、source 側 SC4 の撤回と固定 hash は [outcome](../tasks/agent-loop/sprints/source-indexed-derivation-20261024-outcome.md) に記録する。
 
+### 4.11 actual ValueBind と copy 履歴の有限導出
+
+[actual Return からの Call](../notes/theory/2026-10-24-fresh-valuebind-complete-call.md)は、元の typed Return と実 entry/rebind から新しい dynamic binding を構成し、旧 root/value/history を保存する VB1 を導く。同じ h と同じ NameDelay に R/E を適用し、actual admission と receiver の全 prefix/pending/future を構成した。元の unannotated result endpoint は、H* が既に持つ **complete invocation Comp port** へ coherent に解ける場合、各 phase の証拠から CIncl を得る。任意の独立関係 P_H* の source Comp 表示、generated profile の対応、再帰 f の actual membership/history はこの結果から自動的には出ない。SC4 の旧 binding 置換は復活させない。
+
+[copy 系譜による履歴の消去](../notes/theory/2026-10-24-copy-genealogy-history-erasure.md)は、fresh use をまたがない区間の各 copy を実 parent の base へ写し、初期 bounds と外側の source seeds だけから有限 comparison closure を構成する。実 replay・構造分解・両 polarity の extrusion・parent/copy quotient が発行する全 comparison の像をこの closure から導く（GE1–GE4）。その closure に failure がなければ実区間にも比較 failure はない（GE5）。一つの closure model は全 cut の diagonal lift を同時に与える（GE6）。原 native cache との完全同値や source semantic inversion は主張しない。
+
+このため、局所 lift の各 cut に独立に置かれていた demand premise は有限 closure からの導出へ置き換わる。一方、元 source からその joint model/strategy を得ること、publication における独立使用、receiving occurrence、combined termination は同じ親義務として残る。固定版・独立査読範囲は [Call/history outcome](../tasks/agent-loop/sprints/call-realization-history-20261024-outcome.md) に記録する。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。

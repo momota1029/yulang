@@ -53,6 +53,9 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 - [source-indexed constraint の生成](../notes/theory/2026-10-24-source-indexed-constraint-derivation.md): 実 Application の operand origins、有限 obligation graph と native erasure を構成する。SC4 の Record/rebind 実現は semantic substitution の不足により撤回。既存 NameDelay の条件付き入場結果を保ち、全 Call/再帰 membership、一般 realization は未完。
 - [native level 閉包と publication](../notes/theory/2026-10-24-native-level-closure-and-publication.md): 全 ordinary native 有限履歴の bound-level invariant、固定 anchor の依存閉包、実 freshening partition を導く。有限に検査できる quotient 条件の下で任意有限使用との clause 対応と解の pullback を構成し、既存の具体例へ適用する。全 source-scoped completeness の閉包とは区別する。
 
+- [actual Return からの fresh ValueBind と Call](../notes/theory/2026-10-24-fresh-valuebind-complete-call.md): 元の Return/rebind からの新しい binding、同じ carrier の admission、全 Call phase を構成する。継承した complete invocation Comp port がある instance では元の unannotated result assignment と CIncl を与える。抽象 P_H* の source 表示、全 certificate/profile、再帰 history は残る。
+- [copy 系譜による有限履歴の消去](../notes/theory/2026-10-24-copy-genealogy-history-erasure.md): 初期 bounds/source seeds の有限 closure から、全 replay/構造分解/extrusion/parent-copy quotient の comparison を導く。closure による rejection 保存と全 cut の同時 diagonal lift を構成する。fresh use をまたぐ source strategy と全体停止性は別の親義務である。[固定版と査読記録](../tasks/agent-loop/sprints/call-realization-history-20261024-outcome.md)を参照。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。
