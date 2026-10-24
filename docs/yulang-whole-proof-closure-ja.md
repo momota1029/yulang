@@ -218,6 +218,12 @@ RG-OWNER、全 source の原 A/B と安全性は残る。SCC と境界 query は
 
 [捕捉した x を返す Record wrapper](../notes/theory/2026-10-24-captured-record-wrapper-introduction.md)は、元の `lambda z.{a=x}` に selected Strict constructor と source Record rule を適用する。actual x の hereditary certificate から、creation-time capture、実 entry Return 後の fresh z binding、同じ x の field、全 pending/future を持つ complete wrapper と world の同時導入を構成する。元 primitive/history/alternative の独立契約を保持し、未使用 z の Value-entry を省略しない。これは原 result-replay source に必要な closure supplier であり、recursive f やその argument carrier の成立までは含まない。[固定版と査読範囲](../tasks/agent-loop/sprints/generated-call-operator-20261024-outcome.md)を参照。
 
+### 4.13 原 monomorphic 再帰 instance と native profile
+
+[Name Call を持つ再帰閉包](../notes/theory/2026-10-24-name-call-recursive-closure-membership.md)は、元の `f=λx.λy.{first=h x,next=f {a=y}}` について、A=Record(a:Int)、y:Int、genuine H* と元の独立 kernel/formation inputs の下で、同じ一つの f と全 actual inner closure family の V/W/T/Car を同時に構成する。f の entry 後の実 Lambda/Return から receiver の一段証拠を作り、未完成の candidate f に R/E を適用する循環を避ける。内側 body の h Call、再帰 f Call、Record の順序と実結果を保持し、NR1/NR2 を元の actual Return/rebind と HC-REC/HISTORY に適用する。全 polymorphic source instances、publication や native receiving 対応の定理へは拡張していない。
+
+[native local profile 構成](../notes/theory/2026-10-24-native-local-profile-construction.md)は、この source の actual licensed projections に対して、元の local default と inherited packet を区別して形成する。PF1/PF2 は finite license proof を辿り、全依存 witness を保持し、GC の uniform local law を suspended Op として使う。candidate f の membership、license fiber の inhabitance、runtime authority を policy の存在から導かない。元の独立 primitive/arm/transition laws と foreign predicate の対応は残る。[固定版と査読](../tasks/agent-loop/sprints/name-recursion-profile-20261024-outcome.md)に合成の範囲を記録する。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。
