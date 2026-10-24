@@ -24,6 +24,8 @@
 - [再帰 formation の実構成](../notes/theory/2026-10-24-original-recursive-formation-construction.md): actual registry/capture/pending plan と active-f 参照 record を構成し、選択済み native signature grammar を適用した。残る接続は active-root の完全 Call/admission と Generalize の全 typed field action。両稿の固定版と判定は [SCC sprint 記録](../tasks/agent-loop/sprints/extrusion-intrusion-scc-20261024-outcome.md)にある。
 - [完全 Call の carrier 入力構成](../notes/theory/2026-10-24-original-call-admission-construction.md): 同じ full policy の refinement 射影 CA1 と、actual world/value の下での NameDelay 証拠 CA2 を構成した。今回の未注釈 witness の inlet 選択で入力 checking を閉じた。全 joint one-step proof と recursive membership は未完。
 - [ActiveCapture の一般化と閉包判定](../notes/theory/2026-10-24-active-capture-generalization-closure.md): 元の field walk と template eligibility を展開し、全依存 graph/action の未構成部分を特定した。表示型や同根性だけから一般化を結論しない。両稿の限定された結果は [Call/active-capture 査読記録](../tasks/agent-loop/sprints/original-call-active-walk-20261024-outcome.md)の範囲で受理された。J_rec/J_pub と元の全体命題は未完。
+- [Raw observation による再帰構成](../notes/theory/2026-10-24-original-raw-observation-postfixedness.md): raw result の相関、全 prefix、exact H の relative lift と candidate-relative inlet action を構成する。[査読記録](../tasks/agent-loop/sprints/original-raw-postfixed-20261024-outcome.md)は残項集約への MAJOR 指摘と修正を記す。元の full descriptor、各 closure/world/carrier/field の条件が残る。
+- [固定二 view と source 合成](../notes/theory/2026-10-24-active-capture-field-graph.md): 一つの U Parameter/inlet、同じ g の intersection、monomorphic Bind/Name による二使用を構成する。完成済み memberships を入力とする条件付き結果であり、polymorphic J_pub の証明ではない。必要な受理契約が与えられた場合の native failure の含意 FG3 も区別する。
 
 査読範囲、修正履歴、固定 hash、未完了義務は[今回の outcome](../tasks/agent-loop/sprints/semantics-proof-20261024-outcome.md)に記録する。既存の三つの大きな原稿全体を再査読したという意味ではない。
 

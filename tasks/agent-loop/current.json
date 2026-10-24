@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "ORIGINAL-CALL-ACTIVE-WALK-20261024",
+  "sprint_id": "ORIGINAL-RAW-POSTFIXED-20261024",
   "phase": "REVIEWED_CHECKPOINT_OPEN",
-  "contract": "tasks/agent-loop/sprints/original-call-active-walk-20261024.md",
-  "baseline": "9cc452b357117e51161a74b94c756de364d6e3d7",
+  "contract": "tasks/agent-loop/sprints/original-raw-postfixed-20261024.md",
+  "baseline": "e698efa92f35a71a3c3cc6e6880aedc8ffa745d0",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Proof writing stopped and frozen; current turn only final static/Git integration and user report; no background work",
+      "receipt": "Proof/document writing ended at reviewed partial checkpoint; only final explicit Git integration and report remain; no background work",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30s boundary read-only direction complete; actual witness/refutation target, no descendants"
+      "receipt": "Current raw-observation direction30s complete; changed method; STOP/no descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Current r1 Call action c3aff32c3f966526019abd49d389b140b27614be120cc3280b4728545c65c2ee frozen; STOP/no descendants"
+      "receipt": "Raw r1 frozen23fdc511; writes stopped/no descendants; primary subsequently applied only reviewer-requested scope repair and annotations"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current r1 CA1/CA2, inlet selection and WA1/WA2 accepted within explicit premises; no BLOCKING/MINOR; STOP/no descendants; end-boundary recommendation bundled"
+      "receipt": "Current r1 review complete: MAJOR all-sort sufficiency overstatement; limited RP/FG claims accepted; whole parent OPEN; STOP/no descendants; end-boundary recommendation bundled"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -133,13 +133,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "df61387e63e28380a0c17e7e810f3c4cfbdc57952cca83ec40306284e8e93f8b"
+      "sha256": "b6bb8df0d75a4798b9f2c2ef5119e6a4fb68ea0022750339436ec1076bb3d979",
+      "receipt": "Final scope-corrected checkpoint; no whole-theorem promotion; reviewed r1 and post-review repair distinguished in outcome"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "a019e505d472e6fa26af2cfab6e217c63bcc7c3e5eaa7c78d3a43f9ad05e67df"
+      "sha256": "31261eb24a48c001bd19e96824b23601b426883d9f7c50f507ca530b063c4ff4",
+      "receipt": "Final scope-corrected checkpoint; no whole-theorem promotion; reviewed r1 and post-review repair distinguished in outcome"
     },
     {
       "path": "notes/theory/2026-10-24-value-scc-qualification-proof.md",
@@ -165,6 +167,20 @@
       "owner": "/root",
       "state": "FROZEN",
       "sha256": "c626d3833bfec47c0ad2acdb2501c236f2fb8cfa19b0fef3b6568bcf522d8d87"
+    },
+    {
+      "path": "notes/theory/2026-10-24-original-raw-observation-postfixedness.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "cefa39d62cbc38ee74d08e658a2797c842d9dee5b31286c4fcfb26560f742140",
+      "receipt": "Final scope-corrected checkpoint; no whole-theorem promotion; reviewed r1 and post-review repair distinguished in outcome"
+    },
+    {
+      "path": "notes/theory/2026-10-24-active-capture-field-graph.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "1422241055e426d5d5dcb52e366de79e912894abfbcf84a1bd71274224f9c99d",
+      "receipt": "Final scope-corrected checkpoint; no whole-theorem promotion; reviewed r1 and post-review repair distinguished in outcome"
     }
   ],
   "external_isolation": {
@@ -184,7 +200,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Full-carrier refinement and source NameDelay input constructed under actual world/value premises; original simultaneous one-step proof and ActiveCapture full field graph/action remain, plus broader source/semantic/inference obligations."
+      "missing": "RP1-RP6 limited raw/candidate results and FG1-FG3 conditional composition retained. Full owner-indexed closure/world/carrier/computation/record guards remain; J_rec and complete same-g memberships unproved. General ActiveCapture action and broader source/semantic/inference obligations remain."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -204,16 +220,23 @@
       "owner": "primary",
       "missing": "T1-T5 enriched-source arbitrary substitution/path/provenance reviewed; nonregular class algorithm, actual compaction/recursive-center/weights and captured-descriptor ownership remain.",
       "authority": "notes/design/2026-10-24-cooccurrence-release-clarification.md"
+    },
+    {
+      "id": "HELPER-REQUIRED-ACCEPTANCE",
+      "state": "AWAITING_USER",
+      "owner": "primary",
+      "missing": "Direct asynchronous question: whether exact f/g Int/Bool helper must be accepted in Yulang. No answer inferred; previous effect question remains withdrawn."
     }
   ],
   "review": {
-    "outcome": "ACCEPTED_LIMITED_CA1_CA2_WA1_WA2",
-    "receipt": "Fresh independent review: no BLOCKING/MINOR within stated conditional scope; both frozen hashes match; STOP/no descendants",
-    "whole_language_certified": false,
-    "record": "tasks/agent-loop/sprints/original-call-active-walk-20261024-outcome.md"
+    "outcome": "LIMITED_CLAIMS_ACCEPTED_MAJOR_SUFFICIENCY_RETRACTED",
+    "reviewed_raw_sha256": "23fdc511113c927452a710b43f02d1b063fc7db36a65e5eab4ad6ee0d61993fb",
+    "reviewed_field_sha256": "f222570f107b703b8978f85416134aba576d36bec8e1df21af7a90e5ebe0472e",
+    "repair": "Primary implemented requested full residual-family qualification and review annotations after producer STOP; no second independent review or new closure claim",
+    "whole_language_certified": false
   },
   "resource": {
-    "astra_reserved_seconds": 3690,
+    "astra_reserved_seconds": 3990,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -222,15 +245,21 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 30
   },
-  "next_action": "Derive actual simultaneous V/W/T/Car one-step clauses with candidate-relative versus completed certificates explicit; construct ActiveCapture full field action; apply original J_rec/J_pub before any coverage verdict",
-  "closure": "CA1/CA2 and WA1/WA2 accepted in explicit scope. Requested full closure not achieved: original J_rec/J_pub, source-qualified coverage result, principality, combined inference termination and whole-language theorem OPEN. No background workers.",
-  "outcome": "tasks/agent-loop/sprints/original-call-active-walk-20261024-outcome.md",
+  "next_action": "Await exact required-acceptance clarification without assuming its answer; independently remaining proof is full owner-indexed maps for actual closure/world/carrier/computation/record constructors. Any new child work requires a material budget boundary; no background workers.",
+  "closure": "Requested full closure NOT ACHIEVED. Limited raw/candidate lemmas and conditional fixed-view composition preserved; original J_rec, source-qualified coverage, principality, combined inference termination and whole-language safety remain OPEN.",
+  "outcome": "tasks/agent-loop/sprints/original-raw-postfixed-20261024-outcome.md",
   "checks": {
-    "dependency_hashes": "23 contract dependencies and all frozen leases matched",
-    "local_document_links": "65 static local targets resolved; fences balanced",
-    "whitespace": "git diff --check and new-file trailing-whitespace inspection",
-    "state": "JSON parsed; below 16 KiB; all children observed completed",
-    "tests": "NOT_RUN_USER_SCOPE_NO_IMPLEMENTATION",
-    "independent_review": "Frozen CA1/CA2/WA1/WA2 scope accepted; no BLOCKING/MINOR"
-  }
+    "kind": "static document integrity only",
+    "status": "PASS",
+    "frozen_dependencies": 25,
+    "frozen_leases": 22,
+    "local_links": 77,
+    "fences": "PASS",
+    "json_size": "below16KiB",
+    "intended_paths": 7,
+    "whitespace": "PASS",
+    "tests": 0,
+    "implementation_changes": 0
+  },
+  "outcome_sha256": "436a292145d056838b328128458df06e9c3741f66c2d75959fc71adfad264cad"
 }

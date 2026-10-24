@@ -136,6 +136,18 @@ in f
 
 独立査読は CA1/CA2、今回の inlet 選択、WA1/WA2 の明記した範囲を受理した。[固定版と査読記録](../tasks/agent-loop/sprints/original-call-active-walk-20261024-outcome.md)に残項を保持する。whole production C0 を主張する箇所では、実際の nonstructural clauses の元の証拠も必要であるが、これを孤立した NameDelay 入力補題の追加前提にはしない。J_rec/J_pub、元の source-qualified 反例、全体証明の閉鎖はいずれも得ていない。
 
+### 4.4 Raw execution からの再構成と固定二 view
+
+[raw-observation 稿](../notes/theory/2026-10-24-original-raw-observation-postfixedness.md)は、有限 raw 導出の反転・帰納から、wrapper/g が正常に返る場合の同じ y との相関、record の field provenance、全未完了 suffix を構成した。一つの実 allocation/history 族 S を使い、完成済み membership を再帰的に仮定しない。exact value holes H を source-created g/wrapper まで含む族に拡張した relative lift と、candidate-relative carrier projection/NameDelay も構成した。
+
+この方法でも、raw observation を S.T に入れただけでは、その observation が元の full `P_F*[S]` の全独立 conjunct を満たすことにはならない。source phase から全 envelope への map（RP-FULL）に加え、各 closure の formation/profile、source world の joint guard、carrier/retained-field の全 case が残る。査読で q_fy 一件への残項集約に MAJOR 指摘があり、この全 family を保持するよう修正した。record formation は latent fields を force しないため、f の非停止を無条件に使う方法も採用しない。
+
+[固定二 view の source 合成](../notes/theory/2026-10-24-active-capture-field-graph.md)は、g の actual Parameter/inlet を U に固定したまま、同じ g の G_Int/G_Bool の完成した証拠を intersection にまとめ、一回の Bind と二つの monomorphic Name/射影で使う構成を与える。これにより、この別の source 証明では polymorphic J_pub を前提にする必要がない。ただし二つの complete memberships 自体に上記の全 family の導出が必要であり、現時点では条件付きである。
+
+[今回の査読記録](../tasks/agent-loop/sprints/original-raw-postfixed-20261024-outcome.md)は、受理された限定補題と、MAJOR 指摘により撤回した全四 sort の十分性を区別する。修正は不足する証明を追加したものではない。
+
+同稿 FG3 は、当該 source が Yulang で必ず受理されるという明示的な契約があれば、既に導いた native shared-C の `Bool<:Int` failure がその受理契約に反することを示す。これは元の CompleteMem witness の証明とは別の含意である。ユーザーへの受理意図の質問には、回答があるまで前件の成立を仮定しない。元の全体命題と source-qualified 反例は引き続き未確定である。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。
