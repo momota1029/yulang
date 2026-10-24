@@ -1,0 +1,250 @@
+{
+  "schema_version": 1,
+  "sprint_id": "LEAN-STRUCTURAL-20261024",
+  "phase": "FROZEN_REVIEWED",
+  "contract": "tasks/agent-loop/sprints/lean-structural-20261024.md",
+  "baseline": "f1c08808ae575cdc3032442ac3c98f4e4a7c9ca5",
+  "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
+  "workers": [
+    {
+      "id": "/root",
+      "state": "STOPPED",
+      "receipt": "Proof construction/checker and independent review STOPPED/frozen; primary explicit Git integration only. Whole goal ACTIVE; source-branch target terminology clarification pending.",
+      "observed_model": "UNKNOWN"
+    },
+    {
+      "id": "/root/astra_semantics_direction",
+      "state": "STOPPED",
+      "receipt": "Current30sec FINAL: extend same structural allrawtrace theorem; actualSTOP no writes"
+    },
+    {
+      "id": "/root/astra_corrected_machine",
+      "state": "STOPPED",
+      "receipt": "Actual190sec FINAL structural3files frozen, no descendants/checker, candidate hashes in outcome; primary takes coauthor/checker lease"
+    },
+    {
+      "id": "/root/astra_semantics_review",
+      "state": "STOPPED",
+      "receipt": "Actual80sec FINAL accepts stated structural fragment; all8hashes/contract/outcome match, no BLOCKING/MAJOR; no writes/checker/descendants"
+    },
+    {
+      "id": "/root/astra_cooccurrence_proof",
+      "state": "STOPPED",
+      "receipt": "Frozen aff91629345fc75d50a0e76764c4fba6c75749cd61d06adeb53e6c70577359c1; writes stopped, no descendants"
+    },
+    {
+      "id": "/root/astra_scoped_join",
+      "state": "STOPPED",
+      "receipt": "Current190sec final fc700749, exact captured-k Let trace/model; full Let OPEN, STOP/no descendants"
+    }
+  ],
+  "leases": [
+    {
+      "path": "docs/yulang-whole-proof-closure-ja.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "17f7518e72f5977b17ce085523adc788ba72a472041555fd18a24da96b4c79a5"
+    },
+    {
+      "path": "docs/yulang-proof-index-ja.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "bb2d07bfe7bbbd4ad7364831ea2608ba94ef54514ae7a37b1a9724ac3891bb10"
+    },
+    {
+      "path": "notes/theory/2026-10-24-actual-copy-history-transport.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Actual producer STOP; primary handoff to clarify missing premises before any review; original r1 hash retained",
+      "sha256": "270cda463f47d6229def252a8a5e43ae08a04d268ee08538a529a1dd7990c910"
+    },
+    {
+      "path": "notes/theory/2026-10-24-concrete-extrusion-source-realization.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Disjoint primary concrete source realization construction, no new receiver convention",
+      "sha256": "d7e61d29ccec67ab77e05c0ebde232a8787370647d4fce0a4c65bf3d8cee31ed"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/Contracts.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Producer actualSTOP; primary checking/repair handoff; r1 full hashes in outcome",
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreComposition.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Producer actualSTOP; primary checking/repair handoff; r1 full hashes in outcome",
+      "sha256": "1527cd3c5961b413ec2b97495744b218aba6247956881318485364d15065294c"
+    },
+    {
+      "path": "notes/theory/lean/README.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "2c29c8abd8902afddef747dadab0279a5fc2d47f2e80d81aa9c6bfe1f2b3409d"
+    },
+    {
+      "path": "notes/theory/lean/lakefile.toml",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Primary project and verification responsibility",
+      "sha256": "2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194"
+    },
+    {
+      "path": "notes/theory/lean/lean-toolchain",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Primary project and verification responsibility",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "notes/theory/lean/.gitignore",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Primary project and verification responsibility",
+      "sha256": "fde850d24186b6e99c8c0debd641fb3ab85198b109eb66f71a1fea02bd6ea1b3"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "5af826a59689a21294b36f361df95cceae8dc78b674c523e789a0e7e7bc1614d"
+    },
+    {
+      "path": "notes/theory/lean/lake-manifest.json",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+      "receipt": "Empty dependency manifest generated by successful Lake proof check; contractr2 integration clarification"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ControlSyntax.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Unchanged; syntax-bearing body/control bridge remains OPEN; no unreviewed interface rewrite",
+      "sha256": "76b250485b899bf9f7f5d0b9445d869f4c5961b155a21a520b0802678a1db46f"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ControlTyping.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Unchanged; syntax-bearing body/control bridge remains OPEN; no unreviewed interface rewrite",
+      "sha256": "33ddb90ec39e8136c1ec9bb72b0ef4edf35d85fb32c1884cff3a2bcc5819ebfa"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ControlComposition.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Unchanged; syntax-bearing body/control bridge remains OPEN; no unreviewed interface rewrite",
+      "sha256": "23c7b251ef307a61ccaca7e2ec959d4a5583b649309a26cf27eff1eb9e9cb791"
+    },
+    {
+      "path": "notes/theory/2026-10-24-lean-control-correspondence.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Kernel-checked and independently accepted control abstraction; README/correspondence status-only update after review",
+      "sha256": "9a4aa76f9db1b9df2dcf386388e4962bbfa6c00f451c769791afa781d2bee4d5"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreSyntax.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "4c036531cdd599799d0b943b4c8e2f1398aa91f5cf32296d7d6c50be1ff7a001"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreSubstitution.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "6d7d5da463480fbb618072b086c5092452575c56526579e4f898babd37b4567c"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreExecution.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "2cc68ffc79f17c0cb478802fec10ca2861e1a558a8202796bd7599595e5907ed"
+    },
+    {
+      "path": "notes/theory/2026-10-24-lean-core-correspondence.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "5aa9c3c417c98b3f6e69e3cb1ecb8872b49db836a10d0ca72e2606c0399dcbb0"
+    }
+  ],
+  "external_isolation": {
+    "worktree": "/home/momota1029/rust/yulang",
+    "status": "UNKNOWN_EXTERNAL_WRITERS",
+    "action": "no mutation or copy-back; dedicated worktree/branch",
+    "reserved_identities": [
+      "/root/resident_dispatcher_loop_a",
+      "/root/resident_implementer_idle",
+      "/root/runtime_source_supplier_proof",
+      "/root/r149_in_crate_capture_prover"
+    ],
+    "reservation_scope": "Original current state; not live-worker claims in this session."
+  },
+  "pending": [
+    {
+      "id": "WHOLE-LANGUAGE-SAFETY",
+      "state": "OPEN",
+      "owner": "primary",
+      "missing": "Core raw4namespace algebra and typed unit/var/delay Ret/Force/let plus union/intersection/Top/Bottom substitution/principal/canonical/allrawfinite safety now checked/reviewed. General explicit evidence/runtimeViews, full constructor typing/type-evidence substitution, syntax-bearing Control stack-prefix/actual body/value interpretation remain; CM/H metadata/full observations/AnalysisLaws/sourceinitial/native correspondence still OPEN."
+    },
+    {
+      "id": "SOURCE-SEMANTIC-ADOPTION",
+      "state": "OPEN",
+      "owner": "primary",
+      "missing": "candidate owner/permission correspondence; multiple-ingress choice withdrawn by direct clarification, not arbitrary A_all adoption"
+    },
+    {
+      "id": "ORIGINAL-SIMPLE-SUB-A-B",
+      "state": "OPEN",
+      "owner": "primary; original proof owners preserved",
+      "missing": "CH0–7 allfinite Let/LetRec original-history jointmodel/equalityprojection closed; CH8 lowY.lower boundaryfactor preservedthroughfreshening closed. Actual earlier-intrusion selected-bound/polarmemo/history construction remains, plus source receiving/SCC/fullA/B/principality/termination."
+    },
+    {
+      "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
+      "state": "OPEN",
+      "owner": "primary",
+      "missing": "T1-T5 enriched-source arbitrary substitution/path/provenance reviewed; nonregular class algorithm, actual compaction/recursive-center/weights and captured-descriptor ownership remain.",
+      "authority": "notes/design/2026-10-24-cooccurrence-release-clarification.md"
+    }
+  ],
+  "review": {
+    "reviewer": "/root/astra_semantics_review",
+    "outcome": "tasks/agent-loop/sprints/lean-structural-20261024-outcome.md",
+    "outcome_sha256": "d23bb9242d84afa0e48fa7ef15871dee0038a64b09d167f58d21681f74698f82",
+    "whole_language_certified": false
+  },
+  "resource": {
+    "astra_reserved_seconds": 10550,
+    "observed_active_seconds": "UNKNOWN",
+    "parallel_astra_max": 1,
+    "heavy_processes": 0,
+    "tests": 0,
+    "successor_reserved_seconds": 190,
+    "successor_review_reservation_remaining_seconds": 0,
+    "checkpoint_direction_reserved_seconds": 30,
+    "successor_review_reserved_seconds": 80
+  },
+  "next_action": "Extend same original typing/substitution/execution through concrete tuple/record/variant/nominal structural eliminators with arity/presence and everyrawsuccessor coverage. General evidence/Control/fullsource/A-B remain OPEN. User clarified Branch source terminology; integration vs environment target awaits response.",
+  "closure": "Whole goal ACTIVE/OPEN; same rawfinite theorem enlarged to proof-erased structural union/intersection/Top/Bottom, checked and independently accepted. Full original typing/evidence/Control/source/A-B remain open; AH/RZ unreviewed.",
+  "previous_outcome": "tasks/agent-loop/sprints/lean-core-20261024-outcome.md",
+  "previous_outcome_sha256": "d448553e379614a1d17c3d41ec36a6855513c2265b5a4ab1ad9f7b870f393e00",
+  "goal_turn_classification": "PROGRESS: actual structural typing/substitution/principal/canonical/rawbackwards/allfinite theorem extended in same machine and independently reviewed; full original parent not narrowed",
+  "history": {
+    "path": "tasks/agent-loop/sprints/lean-root-20261024-prior-state.json",
+    "sha256": "5220044a112a56c3b51fed07992fe60632ac286cae371f1447ae68e5d60b2289",
+    "scope": "Previous exact leases and charged resources; unresolved AH/RZ retained in current state"
+  },
+  "contract_sha256": "eac1799aa53a7153a6d6ef3b138175c214c4a10b31f984799c56232238ed09ca"
+}

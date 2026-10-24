@@ -1,0 +1,335 @@
+{
+  "schema_version": 1,
+  "sprint_id": "BIRTH-RESIDUAL-CLOSURE-20261024",
+  "phase": "REVIEWED_CHECKPOINT_GOAL_ACTIVE",
+  "contract": "tasks/agent-loop/sprints/birth-residual-closure-20261024.md",
+  "baseline": "c737e06d5d664fcd9d036f7f45c89444cf2f07b9",
+  "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
+  "workers": [
+    {
+      "id": "/root",
+      "state": "STOPPED",
+      "receipt": "Current proof packet construction ended; static/Git integration only; active full goal not completed",
+      "observed_model": "UNKNOWN"
+    },
+    {
+      "id": "/root/astra_semantics_direction",
+      "state": "STOPPED",
+      "receipt": "Current30s redundancy falsifier plus residual-demand method selected; STOP/no descendants"
+    },
+    {
+      "id": "/root/astra_corrected_machine",
+      "state": "STOPPED",
+      "receipt": "Current birth redundancy producer frozen36f21b92; native INV refuted with actual argument replay; STOP/no descendants"
+    },
+    {
+      "id": "/root/astra_semantics_review",
+      "state": "STOPPED",
+      "receipt": "Current80s review complete; concrete native INV refutation and limited RD accepted; BRD2 cache MAJOR repaired by primary without second review; STOP/no descendants"
+    },
+    {
+      "id": "/root/astra_cooccurrence_proof",
+      "state": "STOPPED",
+      "receipt": "Frozen aff91629345fc75d50a0e76764c4fba6c75749cd61d06adeb53e6c70577359c1; writes stopped, no descendants"
+    },
+    {
+      "id": "/root/astra_scoped_join",
+      "state": "STOPPED",
+      "receipt": "Current190s producer frozen018963e3; STOP/no descendants; lease transferred to primary for review-scope clarification"
+    }
+  ],
+  "leases": [
+    {
+      "path": "docs/yulang-semantics-and-soundness-ja.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "2a0b173406353524950e1ab690c679918185167e63929c9b6724547b5cd379f2",
+      "receipt": "Primary integration of accepted candidate coverage and explicit remaining premises"
+    },
+    {
+      "path": "notes/theory/2026-10-24-corrected-machine-simulation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "fffb4f1540739020a0702d4f7b07d41cd9b68a9063f36d24292914b84e6b606d"
+    },
+    {
+      "path": "notes/theory/2026-10-24-surface-elaboration-closure.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "1644317df06a2a1a4804aff38f9f4167702945aadfa4df0921537fcb9c0ed21a"
+    },
+    {
+      "path": "notes/theory/2026-10-24-cooccurrence-release-preservation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "0c5731f1b287c1016d08b645707533a482832aa44dce6b93aae899375c721c84",
+      "receipt": "Producer stopped; primary added only post-review receipt line"
+    },
+    {
+      "path": "notes/theory/2026-10-24-cooccurrence-source-recipes.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "ee99b45dbc49c3563220335b350814ed422bf0fbe7edfcb4cfaef476da986cdb"
+    },
+    {
+      "path": "notes/theory/2026-10-24-scoped-weight-join-compatibility.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "6e69a697e4d1268ab6048f43f5a36d3f1b7635bdde4c3683346bb6a8179c9bed",
+      "receipt": "Producer stopped; primary post-review receipt only"
+    },
+    {
+      "path": "notes/theory/2026-10-24-correlated-handler-observation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "fd3a901a738f24b18d8c21acdb2dc451fe192da0b54a4aa5b674c3aaea8789f0",
+      "receipt": "Producer stopped; primary added only post-review receipt"
+    },
+    {
+      "path": "notes/theory/2026-10-24-source-core-action-coverage.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "36672ef591f42a281a04f14fb7ddc4c5283c119de20fee15168e37cbbf13201a",
+      "receipt": "Independent r3 accepted; proof only editorial status/receipt after review"
+    },
+    {
+      "path": "notes/theory/2026-10-24-source-core-finite-interface.md",
+      "owner": "/root/astra_corrected_machine",
+      "state": "FROZEN",
+      "sha256": "d37a30f1f59ad327ebcba129db5b069f4eed1f839d1733230863fdb711a16488"
+    },
+    {
+      "path": "notes/theory/2026-10-24-corrected-core-value-continuation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "4d8ffd63cbb65cd6917145fa31a4cb3f04656a19f7b71fd0e3fdd6cecaabfbeb"
+    },
+    {
+      "path": "notes/theory/2026-10-24-source-recipe-substitution.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "8ebe787d9a0ed5ee3b053572adade9d2fbb36005c432df8c186648c375bdbfa5",
+      "receipt": "Producer stopped; primary exact reviewer-requested sign(p)=+ clarification only"
+    },
+    {
+      "path": "notes/theory/2026-10-24-string-interpolation-elaboration.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "f592629c1102b18539f7141f7551cf44460fa393ce1d708432b29ff433d8277f"
+    },
+    {
+      "path": "notes/theory/2026-10-24-correlated-helper-original-member.md",
+      "owner": "/root/astra_scoped_join",
+      "state": "FROZEN",
+      "sha256": "4cfa7794b5f2e4e964511a1824a96309bb77a29a3ea5f75b9b0888cae4d9efbf"
+    },
+    {
+      "path": "notes/theory/2026-10-24-correlated-helper-core-derivation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "18e971fef7a67bd2febea26ba399429e2bbbf795394b9430d6d02796d0b62b7e"
+    },
+    {
+      "path": "docs/yulang-whole-proof-closure-ja.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "b5843c388c2b0cd5d69d3d4e2d688bf1da07b6225024fc739198ebf7265dc222",
+      "receipt": "Frozen review input/primary cache clarification distinguished in current outcome"
+    },
+    {
+      "path": "docs/yulang-proof-index-ja.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "93c28dd6afd595cf87803950685d4e49afef89a92182f336d3378e6c950406b4",
+      "receipt": "Frozen review input/primary cache clarification distinguished in current outcome"
+    },
+    {
+      "path": "notes/theory/2026-10-24-value-scc-qualification-proof.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "6275229a0ac3c5db2d4757c4b18c43b33c78a5110d028d29e65e6d2dee187045"
+    },
+    {
+      "path": "notes/theory/2026-10-24-original-recursive-formation-construction.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "f90b88e3e7759a457991f6186782bbd5c1c0236600ca03694527767e4ca49ba8",
+      "receipt": "Producer STOP; primary editorial review note only after handoff"
+    },
+    {
+      "path": "notes/theory/2026-10-24-original-call-admission-construction.md",
+      "owner": "/root/astra_corrected_machine",
+      "state": "FROZEN",
+      "sha256": "c3aff32c3f966526019abd49d389b140b27614be120cc3280b4728545c65c2ee"
+    },
+    {
+      "path": "notes/theory/2026-10-24-active-capture-generalization-closure.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "c626d3833bfec47c0ad2acdb2501c236f2fb8cfa19b0fef3b6568bcf522d8d87"
+    },
+    {
+      "path": "notes/theory/2026-10-24-original-raw-observation-postfixedness.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "cefa39d62cbc38ee74d08e658a2797c842d9dee5b31286c4fcfb26560f742140",
+      "receipt": "Final scope-corrected checkpoint; no whole-theorem promotion; reviewed r1 and post-review repair distinguished in outcome"
+    },
+    {
+      "path": "notes/theory/2026-10-24-active-capture-field-graph.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "1422241055e426d5d5dcb52e366de79e912894abfbcf84a1bd71274224f9c99d",
+      "receipt": "Final scope-corrected checkpoint; no whole-theorem promotion; reviewed r1 and post-review repair distinguished in outcome"
+    },
+    {
+      "path": "notes/design/2026-10-24-birth-level-scc-intrusion.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "ceedbb24ea2f9a640574840e840de7121c8f9b94a5c83ab50efc7a819badf5ae"
+    },
+    {
+      "path": "notes/theory/2026-10-24-birth-level-scc-intrusion.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "67c2a44b7a4009a96424dc329ed4385fffdbc6d6661bf4155408cfbd62de3bfa",
+      "receipt": "Post-review BL5 full-domain extension repair; no second independent review of repaired lemma; BL1-BL4/native scope retained"
+    },
+    {
+      "path": "notes/design/INDEX.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "557d5a37489e11a35f3dfb59fe8c3ef3347aa6d1a391e14cd0670b5e3b59ebfd"
+    },
+    {
+      "path": "notes/theory/2026-10-24-birth-level-replay-intrusion.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "7bc8ccee1ee9c0a2ce168e5f1687ae76e7794b097cb3d35dc85ccb5d4f717c5b",
+      "receipt": "Frozen reviewed r1; primary editorial review-status annotations only after producer/reviewer STOP"
+    },
+    {
+      "path": "notes/theory/2026-10-24-birth-level-publication-replay.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "0e84e618a077b6f3d138707349fbfe51d09e8ccdd54628ad772640f6c12ea244",
+      "receipt": "Frozen reviewed r1; primary editorial review-status annotations only after producer/reviewer STOP"
+    },
+    {
+      "path": "notes/theory/2026-10-24-retained-value-graph-replay-attribution.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "8adfe10dda01a223c2b289cec81692cd6c92cca66f3170501b96fe894ff5c1c6",
+      "receipt": "Producer/reviewer stopped; primary editorial review-status annotations only"
+    },
+    {
+      "path": "notes/theory/2026-10-24-retained-graph-publication-consequence.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "5ea7d91ece760262af4f1ddd9da6496c25a9a555e4f7d9a7c9279adf782b3574",
+      "receipt": "Producer/reviewer stopped; primary editorial review-status annotations only"
+    },
+    {
+      "path": "notes/theory/2026-10-24-replay-receiving-occurrence-proof.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "1acaa0bd6ec055eb66ce0922b164d154e83280344ba414f6afd8841ccbee45ce",
+      "receipt": "Frozen review complete; primary added only recorded status/scope clarifications after STOP"
+    },
+    {
+      "path": "notes/theory/2026-10-24-replay-extrusion-commutation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "645c073ff0aff6ca7f972837bc8c36e652b50665fd751a4feb5fb6cc600a7a6b",
+      "receipt": "Frozen review complete; primary added only recorded status/scope clarifications after STOP"
+    },
+    {
+      "path": "notes/theory/2026-10-24-birth-level-extrusion-redundancy.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "3d447e6982069023d2be69cee3e4cfc208e3f231f92407f34c0d1d8942a44211",
+      "receipt": "Frozen review input/primary cache clarification distinguished in current outcome"
+    },
+    {
+      "path": "notes/theory/2026-10-24-residual-demand-source-association.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "c96289283cd427d949160f6973c925d1faec6a4fa43ce8fae3e7ae47dc65936e",
+      "receipt": "Frozen review input/primary cache clarification distinguished in current outcome"
+    }
+  ],
+  "external_isolation": {
+    "worktree": "/home/momota1029/rust/yulang",
+    "status": "UNKNOWN_EXTERNAL_WRITERS",
+    "action": "no mutation or copy-back; dedicated worktree/branch",
+    "reserved_identities": [
+      "/root/resident_dispatcher_loop_a",
+      "/root/resident_implementer_idle",
+      "/root/runtime_source_supplier_proof",
+      "/root/r149_in_crate_capture_prover"
+    ],
+    "reservation_scope": "Original current state; not live-worker claims in this session."
+  },
+  "pending": [
+    {
+      "id": "WHOLE-LANGUAGE-SAFETY",
+      "state": "OPEN",
+      "owner": "primary",
+      "missing": "Whole objective remains active. Concrete copy-free birth invariant REFUTED; signed native residuals and ScopedDemand owner limits established. Original source-indexed generation/typed maps, RG-OWNER and full source/semantic/inference requirements remain OPEN."
+    },
+    {
+      "id": "SOURCE-SEMANTIC-ADOPTION",
+      "state": "OPEN",
+      "owner": "primary",
+      "missing": "candidate owner/permission correspondence; multiple-ingress choice withdrawn by direct clarification, not arbitrary A_all adoption"
+    },
+    {
+      "id": "ORIGINAL-SIMPLE-SUB-A-B",
+      "state": "OPEN",
+      "owner": "primary; original proof owners preserved",
+      "missing": "Birth rule unchanged. Same-birth Call descendant can create positive copy through captured low anchor, including Argument/Swap. No selected-operation refutation. Construct complete source-indexed inference with native erasure; RG-OWNER, scoped joint lift, publication/use, required principality and combined termination remain."
+    },
+    {
+      "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
+      "state": "OPEN",
+      "owner": "primary",
+      "missing": "T1-T5 enriched-source arbitrary substitution/path/provenance reviewed; nonregular class algorithm, actual compaction/recursive-center/weights and captured-descriptor ownership remain.",
+      "authority": "notes/design/2026-10-24-cooccurrence-release-clarification.md"
+    }
+  ],
+  "review": {
+    "outcome": "CONCRETE_FALSIFIER_ACCEPTED_GENERIC_CACHE_REPAIR_RECORDED",
+    "whole_language_certified": false,
+    "reviewer": "/root/astra_semantics_review",
+    "scope": "Concrete native INV refutation, signed residual endpoints/cut-renaming, conditional source composition, ScopedDemand limits. BRD2 MAJOR cache-miss gap repaired by primary; no second independent review of generic repair."
+  },
+  "resource": {
+    "astra_reserved_seconds": 5490,
+    "observed_active_seconds": "UNKNOWN",
+    "parallel_astra_max": 1,
+    "heavy_processes": 0,
+    "tests": 0,
+    "successor_reserved_seconds": 300,
+    "successor_review_reservation_remaining_seconds": 0,
+    "checkpoint_direction_reserved_seconds": 30
+  },
+  "next_action": "Construct abstract source-indexed inference alongside native erasure: seed, signed ports, bound insertion, replay/extrusion produce complete typed maps together; prove original constructor cases. Rust correspondence is later, not an artificial prerequisite.",
+  "closure": "ACTIVE full user goal, not complete. Concrete native shortcut refuted; original source receiving correspondence and whole proof remain OPEN. No live background children.",
+  "previous_outcome": "tasks/agent-loop/sprints/replay-receiver-proof-20261024-outcome.md",
+  "previous_outcome_sha256": "cb908fd7b145f3fdc96147e73c38d01a872c5ab0ab32ef5f42b918f33d412235",
+  "outcome": "tasks/agent-loop/sprints/birth-residual-closure-20261024-outcome.md",
+  "outcome_sha256": "12ff406aa41f1eb149bd0ae6e55161d49f4888d75c4ffabd8c9988786915db2d",
+  "goal_turn_classification": "PROGRESS: actual empty-start native falsifier changes proof route; inspected ScopedDemand excludes field-only route. No completion or genuine external blocker established.",
+  "checks": {
+    "kind": "static document integrity only",
+    "status": "PASS",
+    "frozen_dependencies": 30,
+    "frozen_leases": 33,
+    "local_links_resolved": 104,
+    "fences": "PASS",
+    "json_size": "below16KiB",
+    "intended_paths": 7,
+    "tests": 0,
+    "implementation_changes": 0
+  }
+}
