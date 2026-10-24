@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "sprint_id": "ACTUAL-REPLAY-MODEL-20261024",
+  "sprint_id": "PUBLICATION-TWO-USE-20261024",
   "phase": "REVIEWED_INTEGRATION",
-  "contract": "tasks/agent-loop/sprints/actual-replay-model-20261024.md",
-  "baseline": "3f04454825c5679cfc43e77786cd018e629ee201",
+  "contract": "tasks/agent-loop/sprints/publication-two-use-20261024.md",
+  "baseline": "b4b684a1426ba6bc99a4f7f4946aba7c57fae0fe",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
@@ -15,7 +15,7 @@
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30s actual receiving/native model direction; STOP/no descendants"
+      "receipt": "Current30s direction: independent reverse-publication comparison; actual extrusion field remains OPEN; STOP/no descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
@@ -25,7 +25,7 @@
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current80s fresh review accepts AR1–AR2/NM1–NM3 explicit scopes; no BLOCKING/MAJOR; actual receiving field OPEN; STOP"
+      "receipt": "Current80s independent review accepts P1–P3/TU1–TU4 explicit scopes; no BLOCKING/MAJOR; STOP/no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -35,7 +35,7 @@
     {
       "id": "/root/astra_scoped_join",
       "state": "STOPPED",
-      "receipt": "Current190s producer f0a3efe6 frozen; NF/NG/NR1–NR2 original monomorphic instance; STOP/no descendants"
+      "receipt": "Current190s producer frozen3d7fe668; P1–P3 exact two-client reverse transport; STOP. Primary clarifies Top wording/unused builtin before review."
     }
   ],
   "leases": [
@@ -57,15 +57,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Accepted independent scope; only status/receipt/link post-review changes",
-      "sha256": "ad2e5b6f640db1acee8101515585a265308cb5887322e28496ad901003fbeea4"
+      "receipt": "Independent accepted scope; post-review status/receipt/link-only changes",
+      "sha256": "6e86ad199a680128c0c9928c3a29caf5c9c278e403847f14704cefd26356440f"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Accepted independent scope; only status/receipt/link post-review changes",
-      "sha256": "305bdef34bafed868f22cc0c9d84164dd442409d6344dfb951be5bdd4d50844e"
+      "receipt": "Independent accepted scope; post-review status/receipt/link-only changes",
+      "sha256": "d6df00322108fc91ea137fe6f93f54802cd49bbadc8d107335a43ddc8d1ef467"
     },
     {
       "path": "notes/theory/2026-10-24-fresh-valuebind-complete-call.md",
@@ -122,6 +122,20 @@
       "state": "FROZEN",
       "sha256": "4f5f3db5509d82e736ea3406957ecf1463d6ce2b9103f2e032ebdb32ff666520",
       "receipt": "Accepted independent scope; only status/receipt/link post-review changes"
+    },
+    {
+      "path": "notes/theory/2026-10-24-publication-reverse-coverage.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "2ffcc43a39d08b367e7e9d8afe4a6eb3b0a1c4b27a415f814df74e01a42e682d",
+      "receipt": "Independent accepted scope; post-review status/receipt/link-only changes"
+    },
+    {
+      "path": "notes/theory/2026-10-24-two-input-recursive-source-use.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "e0a1b76198b4591d23d746e32eb34d517d26d45c5d3e83f0e747fde924e898d4",
+      "receipt": "Independent accepted scope; post-review status/receipt/link-only changes"
     }
   ],
   "external_isolation": {
@@ -153,7 +167,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "NL1–NL7/GE1–GE6 and concrete NM1–NM3 native closure model accepted. AR1–AR2 actual fresh-binding/future-h whole middle accepted. Actual ExtrusionFresh receiving field correspondence, original source-scoped strategies, reverse publication coverage and combined termination remain."
+      "missing": "P1–P3 gives low-anchor-preserving reverse repair for exact two actual App/Sel/succ clients; TU1–TU4 common-h source Bind client accepted. General clients/next observations, native-App/Bind and publication correspondence, actual extrusion receiving field, full A/B and combined termination remain."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -164,12 +178,12 @@
     }
   ],
   "review": {
-    "outcome": "tasks/agent-loop/sprints/actual-replay-model-20261024-outcome.md",
+    "outcome": "tasks/agent-loop/sprints/publication-two-use-20261024-outcome.md",
     "whole_language_certified": false,
     "reviewer": "/root/astra_semantics_review"
   },
   "resource": {
-    "astra_reserved_seconds": 6990,
+    "astra_reserved_seconds": 7290,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -178,10 +192,10 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 0
   },
-  "next_action": "Boundary selection: actual Extrusion-fresh source/native constructor correspondence at Replay(v,u)/T/Y; retain accepted native model.",
-  "closure": "ACTIVE whole goal; AR1–AR2 and NM1–NM3 accepted scoped results; receiving constructor and full parent OPEN; all children STOPPED",
-  "previous_outcome": "tasks/agent-loop/sprints/actual-replay-model-20261024-outcome.md",
-  "previous_outcome_sha256": "76e66d9e6d54873f7b3c4062d5975bc962aa3c3e18caae5ec78e00d8f56cb337",
+  "next_action": "Boundary selection: authentic finite next-consuming client coverage and explicit source/native client bridge.",
+  "closure": "ACTIVE whole goal; exact two-client reverse repair and common-h source uses accepted; full parent OPEN; all children STOPPED",
+  "previous_outcome": "tasks/agent-loop/sprints/publication-two-use-20261024-outcome.md",
+  "previous_outcome_sha256": "e1b48af10962bbac413399dbc0c693a6fabe0f124c0d396f3208a3f9400a1f83",
   "goal_turn_classification": "IN_PROGRESS",
   "history": {
     "path": "tasks/agent-loop/sprints/source-indexed-derivation-20261024-prior-state.json",

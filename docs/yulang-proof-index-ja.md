@@ -66,6 +66,9 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 
 - [actual replay の receiving diagram](../notes/theory/2026-10-24-actual-replay-receiving-diagram.md): actual recursive Return、新しい x、capture と後の h Call を同じ全依存 event family で接続し、旧 binding を変えない middle matching を構成する。対応する Argument/Swap・Replay・T/Y 記録を保持し、native actual occurrence の receiving field との同一性は残す。[両稿の固定版と査読範囲](../tasks/agent-loop/sprints/actual-replay-model-20261024-outcome.md)を参照。
 
+- [公開後の実二使用と逆向きモデル輸送](../notes/theory/2026-10-24-publication-reverse-coverage.md): 原 T/Y 等置の前後で全 freshening rows と App/Sel/succ 制約を比較し、共有 anchors を固定する具体的 reverse repair を構成する。actual lower demands を等式に変えない。
+- [同じ外部 h/f の Int・Bool 使用](../notes/theory/2026-10-24-two-input-recursive-source-use.md): Union/Record の ground data 証拠、genuine h₀、U=Int|Bool に対する共同再帰 membership、原 Bind/Name client の full use judgments を構成する。native App syntax との全 inference 対応と一般化、資格の証明を区別する。[両稿の固定版と査読範囲](../tasks/agent-loop/sprints/publication-two-use-20261024-outcome.md)を参照。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。

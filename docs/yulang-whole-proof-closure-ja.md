@@ -234,6 +234,12 @@ NM3 は C/B、D/J、T/Y の全 copy と全 cut に一つの valuation を同時�
 
 この後の native extrusion occurrence の receiving field を、その source diagram の h receiver と同一視する constructor correspondence は残る。AR2 の実 receiver と solver の field は別の対象であり、support 集合や upper route の存在だけでは同一性を証明していない。両稿の明記した結果は独立査読で受理された。[固定版と査読記録](../tasks/agent-loop/sprints/actual-replay-model-20261024-outcome.md)に未閉鎖の対応を保持する。
 
+### 4.15 共通 h の二入力と実 client の逆向き輸送
+
+[公開後の二使用](../notes/theory/2026-10-24-publication-reverse-coverage.md)は、原 argument-replay store の T/Y 等置を仮に行い、実 `succ (((f {a=0}) 0).first)` と Bool 側の同形 client を比較する。全 freshening clones、共有 C/D/T、八つの実 App/Sel result rows を列挙する。actual demands は Int≤Y₁ と Bool≤Y₂ であり、Y₁=Int/Y₂=Bool という追加等式はない。明示した structural preorder で全 closure を満たすモデルを作り、この client family の任意の等置前モデルから H/C/D/T を固定したまま等置後モデルを作る P3 を証明する。この family の可解性の逆向きが閉じ、任意 client の NL7 converse とは区別する。
+
+[同じ h/f の source 二使用](../notes/theory/2026-10-24-two-input-recursive-source-use.md)は、U=Int|Bool、A=Record(a:U)、actual h₀=λz.0 を用いる。TU1/TU2 は ground data と genuine h₀、TU3 は NR の全四成分をこの U で再構成する。TU4 は実 f Return を monomorphic Name alias に結ぶ source Bind client を型付けし、同じ h/f/world で両入力を受け取れることを示す。独立 kernel/arms の元契約は残す。native nested-App とこの Bind syntax の全推論対応、通常 let の Generalize、actual T/Y 資格、全 source coverage はこの二つの結果を並べるだけでは得られない。この明記した範囲は独立査読で受理された。[固定版と査読](../tasks/agent-loop/sprints/publication-two-use-20261024-outcome.md)に一般 coverage との境界を記録する。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。
