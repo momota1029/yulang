@@ -1,1 +1,427 @@
-{"schema_version":1,"mode":"LIVE","phase":"ACTIVE","session":"FORCE-VIEW-SOURCE-OWNER-20261025/root-turn-1","active_sprint":{"id":"FORCE-VIEW-SOURCE-OWNER-20261025","revision":"r1","status":"R1_FROZEN_NOT_STARTED","contract":"tasks/agent-loop/sprints/force-view-source-owner-20261025-r1.md","contract_sha256":"ec9b434fc06b6b037590f7d1066fb62bb4722f54d34450ae6fb576352641d1af","baseline":"57fbf68f79581349f994bf0db9cd9235d8edd298","claim":"Derive the accepted Force/View producer for a nested/captured wrapped thunk, or the exact missing premise and owner.","parent":"Yulang semantics/type inference and Call A/B remain OPEN.","worktree":"/home/momota1029/rust/yulang","branch":"research/simple-sub-intrusion","resources":{"cap_seconds":1200,"grant_map":"researcher 600s; Luna adjudication 300s; fresh review 300s; no r9 carry","astra":0,"max_concurrent_new_author_assignments":1,"lean_processes":0,"cpu":1,"memory_mib":1024,"verification_timeout_seconds":0},"outcome":"tasks/agent-loop/inbox/20261025-force-view-source-producer-investigation.md","closure":"Contract frozen and pushed. One read-only researcher packet is ready; no worker launched yet. Parent OPEN.","review":"NOT_STARTED","checker":"NOT_AUTHORIZED: read-only source audit; no compiler/build/test commands.","acceptance":"PENDING","contract_commit":"ec81e0077f96de081f27dde2f27b5ee7d18a478f","resource_observation":"Fresh 1200s: researcher 600, Luna 300, reviewer 300; no r9 carry.","next_action":"Launch one Sol/high read-only source investigator; adjudicate after freeze.","domain_decision":"R9 Force/View gap remains open; this packet adopts no draft-only behavior.","primary_integration_receipt":{"commit":"ec81e0077f96de081f27dde2f27b5ee7d18a478f","parent":"57fbf68f79581349f994bf0db9cd9235d8edd298","outbound_range":"only ec81e0077","push":"ordinary push 57fbf68f7 to ec81e0077","post_push_heads":"local=origin=ec81e0077","diff_check":"cached check passed"}},"workers":[{"id":"/root/resident_dispatcher_loop_a","role":"legacy dispatcher","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Identity/session/model/effort UNKNOWN; old reservation remains quarantined."},{"id":"/root/resident_implementer_idle","role":"legacy implementer","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Identity/session/model/effort UNKNOWN; old reservation remains quarantined."},{"id":"/root/runtime_source_supplier_proof","role":"legacy proof worker","state":"UNKNOWN","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Identity/session/model/effort UNKNOWN; old reservation remains quarantined."},{"id":"/root","role":"primary authority/current/Git integrator","state":"RUNNING","session":"FORCE-VIEW-SOURCE-OWNER-20261025/root-turn-1","requested_model":"user-selected primary","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Primary owns Force/View source investigation r1, current state, adjudication, and Git integration."},{"id":"/root/call_implementation_r9","role":"Luna/high r9 Call execution adequacy implementation","state":"STOPPED","session":"LEAN-COMPLETE-CALL-20261025/root-turn-2","requested_model":"gpt-6-luna","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Final handoff sha256 a64ff517628927aa249ed716449d282d86032f15570bb470e5e6b6d9554f0e65; writes ceased; no descendants."},{"id":"/root/force_view_source_owner_r1","role":"Sol/high read-only Force/View source producer investigator","state":"NOT_STARTED","session":null,"requested_model":"gpt-6.1-sol","requested_effort":"high","observed_model":"UNKNOWN","observed_effort":"UNKNOWN","receipt":"Exact source-owner packet frozen and pushed; no agent launch yet. Cap 600s."}],"leases":[{"path":"tasks/agent-loop/current.json","owner":"/root","state":"HELD","reason":"Primary-owned current state."},{"path":"tasks/agent-loop/sprints/lean-complete-call-20261025-r8.md","owner":"/root","state":"FROZEN","reason":"Historical r8 contract, referenced by current."},{"path":"tasks/agent-loop/sprints/lean-complete-call-20261025-r8-outcome.md","owner":"/root","state":"FROZEN","reason":"R8 failed outcome; hash in current and r9 contract."},{"path":"tasks/agent-loop/sprints/lean-complete-call-20261025-r9.md","owner":"/root","state":"FROZEN","reason":"Primary-frozen r9 contract; hash in current."},{"path":"notes/theory/lean/YulangClosure/CoreSyntax.lean","owner":"/root/call_implementation_r9","state":"FROZEN","reason":"Writer STOPPED; candidate frozen at source-input blocker."},{"path":"notes/theory/lean/YulangClosure/CoreSubstitution.lean","owner":"/root/call_implementation_r9","state":"FROZEN","reason":"Writer STOPPED; candidate frozen at source-input blocker."},{"path":"notes/theory/lean/YulangClosure/CoreExecution.lean","owner":"/root/call_implementation_r9","state":"FROZEN","reason":"Writer STOPPED; candidate frozen at source-input blocker."},{"path":"notes/theory/lean/YulangClosure/ControlSyntax.lean","owner":"/root/call_implementation_r9","state":"FROZEN","reason":"Writer STOPPED; candidate frozen at source-input blocker."},{"path":"notes/theory/lean/YulangClosure/ControlTyping.lean","owner":"/root/call_implementation_r9","state":"FROZEN","reason":"Writer STOPPED; candidate frozen at source-input blocker."},{"path":"notes/theory/lean/YulangClosure/ControlComposition.lean","owner":"/root/call_implementation_r9","state":"FROZEN","reason":"Writer STOPPED; candidate frozen at source-input blocker."},{"path":"notes/theory/lean/YulangClosure/CoreControlBridge.lean","owner":"/root/call_implementation_r9","state":"FROZEN","reason":"Writer STOPPED; candidate frozen at source-input blocker."},{"path":"notes/theory/lean/YulangClosure/CallExecution.lean","owner":"/root/call_implementation_r9","state":"FROZEN","reason":"Writer STOPPED; candidate frozen at source-input blocker."},{"path":"tasks/agent-loop/inbox/20261025-lean-call-execution-implementation-r9.md","owner":"/root/call_implementation_r9","state":"FROZEN","reason":"Writer STOPPED; candidate frozen at source-input blocker."},{"path":"tasks/agent-loop/sprints/lean-complete-call-20261025-r9-outcome.md","owner":"/root","state":"FROZEN","reason":"Primary-frozen SOURCE_INPUT_BLOCKED/UNACCEPTED outcome."},{"path":"tasks/agent-loop/sprints/lean-complete-call-20261025-force-view-interface-amendment.md","owner":"/root","state":"FROZEN","reason":"Primary-frozen source/interface gap packet; no new authority."},{"path":"tasks/agent-loop/inbox/20261025-force-view-source-producer-investigation.md","owner":"/root/force_view_source_owner_r1","state":"HELD","reason":"Sole researcher output lease; launch pending."}],"pending":[{"id":"R61-SOURCE-ASCRIPTION-FORMATION-1","state":"OPEN","owner":"Luna; whole-ascription formation","details":"tasks/agent-loop/inbox/20261019-r61-proof.md"},{"id":"R64-SRC-ANN-ARG-1","state":"OPEN","owner":"Luna; annotation argument","details":"tasks/agent-loop/inbox/20261019-r64-proof.md"},{"id":"R65-CURRENT-OPERAND-1","state":"OPEN","owner":"Luna; ordinary typed Lambda operand","details":"tasks/agent-loop/inbox/20261019-r65-proof.md"},{"id":"R66-LAMBDA-RESULT-STAGE-1","state":"OPEN","owner":"Luna; direct Lambda-checking follow-up","details":"tasks/agent-loop/inbox/20261019-r66-proof.md"},{"id":"R67-DIRECT-BODY-CHECK-1","state":"OPEN","owner":"Luna; source Lambda body consumer","details":"notes/theory/2026-10-19-r67-direct-lambda-checking.md"},{"id":"R68-OWNER-CONSUMER-1","state":"OPEN","owner":"Luna; retained body/result consumer","details":"tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"},{"id":"R69-CONSUMER-ORIGIN-SOURCE-LAW-1","state":"OPEN_UNADOPTED_PROPOSAL","owner":"Luna; source-law completion","details":"tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"},{"id":"R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1","state":"OPEN","owner":"Luna; exact source/native owners in R70","details":"tasks/agent-loop/inbox/20261019-r70-proof.md"},{"id":"R71-RAW-CANONICAL-FIBER-COVERAGE-1","state":"OPEN","owner":"Luna; source/native owners in R71","details":"R230; R231\u2013234; R236; R237 found no callback slot-4 alias to later raw WorkBound; coverage open."},{"id":"R72-LATER-OCCURRENCE-1","state":"OPEN","owner":"Luna; exact Local-to-WorkBound replay and consumer lineage","details":"R229; R231\u2013233 found no slot-4 post-alias consumer; bridge open."},{"id":"R149-SOURCE-OWNER-CLOSURE-1","state":"OPEN_SOURCE_TO_CST","owner":"Luna intake","details":"Exact parser/HIR readback remains OPEN after private sample-environment seam; no parser rejection/compiler gap. Capture proof history: tasks/agent-loop/sprints/r149-in-crate-capture-20261024-outcome.md."},{"id":"R339-D2-WHOLE-FRAME-RETIREMENT","state":"OPEN_REMAINDER","owner":"Luna; exact residual N temporal/fiber and end-state coverage","details":"R346 fixed-key replay accepted; R347 projected C_s \u2194 H\u2080(S) open; R348 bounded extension accepted after review; full N open."},{"id":"R340-D3-AUTHENTIC-APPLY-CONTINUATION","state":"OPEN_REMAINDER","owner":"Luna; source Apply handoff and continuation-prefix invariant","details":"Bounded Apply handoff, prefix/owner and invocation/argument identity pass under realization premises; full C/M open. MAJOR S0 dependency row corrected; independent delta review pending."},{"id":"R345-N-REMAINDER","state":"OPEN_REMAINDER","owner":"Luna; all-pair temporal coverage and source-constraint completeness","details":"R346 fixed-key replay accepted; R347 projected C_s \u2194 H\u2080(S) open; R348 bounded extension accepted after review; full N open."},{"id":"OP-SEMANTICS-FULL-EFFECT","state":"OPEN_REVIEW","owner":"primary","details":"Old owner and existential AllowAll source applications need correction. Source candidate 15.4 supplies explicit repairs; adoption/review OPEN."},{"id":"DOT-SELECTION-EVIDENCE-BRIDGE","state":"OPEN_REVIEW","owner":"primary","details":"Finite selected-code bridge retained; lifetime effect evidence requires recheck. Resolver uniqueness, raw/compact and snapshot lifecycle OPEN."},{"id":"CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE","state":"OPEN_REVIEW","owner":"primary","details":"Rank-2 computed-fetch source boundary clarified (12.1); explicit all-input release (11.7). Semantic choice, native correspondence/review OPEN."},{"id":"SOURCE-SAFETY-BRIDGE","state":"OPEN_REVIEW","owner":"primary","details":"Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."},{"id":"CALL-CONTEXT-PLUG-PRESERVATION","state":"OPEN","owner":"Luna intake; later sprint after r9 execution adequacy","details":"OPEN: P/Q unchanged A claim; no r8 proof grant issued; wait for checked raw/typed Call coverage."},{"id":"BOUNDED-CALL-FINITE-PREFIX-SAFETY","state":"OPEN","owner":"Luna intake; later sprint after exact A/hash","details":"OPEN: B unchanged arbitrary-suffix finite-prefix claim; not issued in r9."},{"id":"CALL-STEP-ERASURE","state":"OPEN","owner":"r9 S / Luna intake; launch after checked implementation seam","details":"OPEN/unissued: await source-derived Force effect/result producer; see r9 gap packet."},{"id":"CALL-RAW-SUCCESSOR-COVERAGE","state":"OPEN","owner":"r9 C / Luna intake; launch after checked implementation seam","details":"OPEN/unissued: await Force input, independent raw relation, and checked dependency seam."},{"id":"FORCE-VIEW-SOURCE-OWNER-20261025","state":"OPEN","owner":"Luna adjudication after researcher stop","details":"Trace source-owned Force/View producer and Ret/Req/Fail/Bad lifecycle or exact missing premise; S/C stay gated."}],"closure":"R9 archived unaccepted; source-owner investigation r1 frozen; parent OPEN.","next_action":"Launch the frozen source investigation; Force implementation and S/C remain gated.","legacy_reconciliation":{"required":false,"reason":"Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.","reservations":[{"id":"/root/resident_dispatcher_loop_a","path":"tasks/agent-loop/board.md","state":"UNKNOWN_QUARANTINED"},{"id":"/root/resident_implementer_idle","path":"UNKNOWN historical implementation lease","state":"UNKNOWN_QUARANTINED"},{"id":"/root/runtime_source_supplier_proof","path":"UNKNOWN historical proof lease","state":"UNKNOWN_QUARANTINED"}]},"user_goal":"Prove Yulang semantics and type inference with complete proofs in notes/theory/lean; primary commits and pushes reviewed milestones.","history":[{"id":"NATURAL-CONDITIONAL-RESULT-20261024","record":"tasks/agent-loop/sprints/natural-conditional-result-20261024-prior-current.json","closure":"Prior paused state archived verbatim; distinct scope."},{"id":"LEAN-CORE-CONTROL-BRIDGE-20261024/r1","record":"tasks/agent-loop/sprints/lean-core-control-bridge-20261024-r1.md","closure":"Superseded at sprint start by r2 freezing the explicit source value/frame/boundary interface; no writer had edited its lease."},{"id":"LEAN-CORE-CONTROL-BRIDGE-20261024/r3","record":"tasks/agent-loop/sprints/lean-core-control-bridge-20261024-r3.md","closure":"Versioned typing-domain clarification: ordinary Control judgments stay unchanged; embedded Original segment has separate syntax-directed SegmentTyped; transitions unchanged."},{"id":"LEAN-CORE-CONTROL-BRIDGE-20261025/r4","record":"tasks/agent-loop/sprints/lean-core-control-bridge-20261025-r4.md","closure":"Bounded repair continuation; candidate acceptance and full parent remain OPEN."},{"id":"LEAN-CORE-CONTROL-BRIDGE-20261025/r5","record":"tasks/agent-loop/sprints/lean-core-control-bridge-20261025-r5.md","closure":"R4 check exposed ControlComposition elaboration blockers; r5 bounded primary repair/check/review remains OPEN."},{"id":"LEAN-CORE-CONTROL-BRIDGE-20261025/r6","record":"tasks/agent-loop/sprints/lean-core-control-bridge-20261025-r6-outcome.md","closure":"Bounded bridge checked under Lean 4.35.0 and accepted after fresh independent CLEAN review; commit e578e0332 pushed. Full parent OPEN."},{"id":"LEAN-COMPLETE-CALL-20261025/r7","record":"tasks/agent-loop/sprints/lean-complete-call-20261025-r7-outcome.md","sha256":"892aff9b3005cf6620802555924767968ea4db63914687493f197d3e1c0afa37","closure":"CHECK_FAILED/UNACCEPTED; first pinned Lean module had 33 diagnostics; no proofs/review; parent OPEN."},{"id":"LEAN-COMPLETE-CALL-20261025/r8","record":"tasks/agent-loop/sprints/lean-complete-call-20261025-r8-outcome.md","sha256":"83961c24d5c87e49248475180287272ae21066671bbcf3164e0cdd68037f4a12","closure":"CHECK_FAILED/UNACCEPTED: CoreSyntax failed after r8 repair; missing force successors also block execution adequacy; no proofs/review."},{"id":"LEAN-COMPLETE-CALL-20261025/r9","record":"tasks/agent-loop/sprints/lean-complete-call-20261025-r9-outcome.md","closure":"SOURCE_INPUT_BLOCKED/UNACCEPTED; unchecked candidate; S/C unissued; parent OPEN.","sha256":"66d5f30ee3323b33b6943b5817ee48cdd69e20bfd793ea65b08df125567a7579"}],"resource_observation":"R9 implementation charged; S/C/check/review unissued. New source packet cap 1200s.","checker":"R9 stopped before Lean checks. New packet allows no build/test checks."}
+{
+  "schema_version": 1,
+  "mode": "LIVE",
+  "phase": "ACTIVE",
+  "session": "FORCE-VIEW-SOURCE-OWNER-20261025/root-turn-1",
+  "active_sprint": {
+    "id": "FORCE-VIEW-SOURCE-OWNER-20261025",
+    "revision": "r1",
+    "status": "R1_RESEARCHER_RUNNING",
+    "contract": "tasks/agent-loop/sprints/force-view-source-owner-20261025-r1.md",
+    "contract_sha256": "ec9b434fc06b6b037590f7d1066fb62bb4722f54d34450ae6fb576352641d1af",
+    "baseline": "57fbf68f79581349f994bf0db9cd9235d8edd298",
+    "claim": "Derive the accepted Force/View producer for a nested/captured wrapped thunk, or the exact missing premise and owner.",
+    "parent": "Yulang semantics/type inference and Call A/B remain OPEN.",
+    "worktree": "/home/momota1029/rust/yulang",
+    "branch": "research/simple-sub-intrusion",
+    "resources": {
+      "cap_seconds": 1200,
+      "grant_map": "researcher 600s; Luna adjudication 300s; fresh review 300s; no r9 carry",
+      "astra": 0,
+      "max_concurrent_new_author_assignments": 1,
+      "lean_processes": 0,
+      "cpu": 1,
+      "memory_mib": 1024,
+      "verification_timeout_seconds": 0
+    },
+    "outcome": "tasks/agent-loop/inbox/20261025-force-view-source-producer-investigation.md",
+    "closure": "Contract frozen/pushed; researcher launch observed in current session. Source result and adjudication pending; parent OPEN.",
+    "review": "NOT_STARTED",
+    "checker": "NOT_AUTHORIZED: read-only source audit; no compiler/build/test commands.",
+    "acceptance": "PENDING",
+    "contract_commit": "ec81e0077f96de081f27dde2f27b5ee7d18a478f",
+    "resource_observation": "Researcher grant 600s issued; elapsed/model UNKNOWN. Luna 300s and fresh review 300s reserved, not issued.",
+    "next_action": "Wait for frozen source trace/obstruction; then Luna adjudicates and dispatches only authorized successors.",
+    "domain_decision": "R9 Force/View gap remains open; this packet adopts no draft-only behavior.",
+    "primary_integration_receipt": {
+      "commit": "ec81e0077f96de081f27dde2f27b5ee7d18a478f",
+      "parent": "57fbf68f79581349f994bf0db9cd9235d8edd298",
+      "outbound_range": "only ec81e0077",
+      "push": "ordinary push 57fbf68f7 to ec81e0077",
+      "post_push_heads": "local=origin=ec81e0077",
+      "diff_check": "cached check passed"
+    }
+  },
+  "workers": [
+    {
+      "id": "/root/resident_dispatcher_loop_a",
+      "role": "legacy dispatcher",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Identity/session/model/effort UNKNOWN; old reservation remains quarantined."
+    },
+    {
+      "id": "/root/resident_implementer_idle",
+      "role": "legacy implementer",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Identity/session/model/effort UNKNOWN; old reservation remains quarantined."
+    },
+    {
+      "id": "/root/runtime_source_supplier_proof",
+      "role": "legacy proof worker",
+      "state": "UNKNOWN",
+      "session": null,
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Identity/session/model/effort UNKNOWN; old reservation remains quarantined."
+    },
+    {
+      "id": "/root",
+      "role": "primary authority/current/Git integrator",
+      "state": "RUNNING",
+      "session": "FORCE-VIEW-SOURCE-OWNER-20261025/root-turn-1",
+      "requested_model": "user-selected primary",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Primary owns Force/View source investigation r1, current state, adjudication, and Git integration."
+    },
+    {
+      "id": "/root/call_implementation_r9",
+      "role": "Luna/high r9 Call execution adequacy implementation",
+      "state": "STOPPED",
+      "session": "LEAN-COMPLETE-CALL-20261025/root-turn-2",
+      "requested_model": "gpt-6-luna",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Final handoff sha256 a64ff517628927aa249ed716449d282d86032f15570bb470e5e6b6d9554f0e65; writes ceased; no descendants."
+    },
+    {
+      "id": "/root/force_view_source_owner_r1",
+      "role": "Sol/high read-only Force/View source producer investigator",
+      "state": "RUNNING",
+      "session": "FORCE-VIEW-SOURCE-OWNER-20261025/root-turn-1",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "high",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Spawn returned /root/force_view_source_owner_r1; live roster confirms RUNNING in current session. Requested Sol/high; observed model/effort UNKNOWN. Cap 600s; actual elapsed UNKNOWN."
+    }
+  ],
+  "leases": [
+    {
+      "path": "tasks/agent-loop/current.json",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Primary-owned current state."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/lean-complete-call-20261025-r8.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Historical r8 contract, referenced by current."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/lean-complete-call-20261025-r8-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "R8 failed outcome; hash in current and r9 contract."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/lean-complete-call-20261025-r9.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Primary-frozen r9 contract; hash in current."
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreSyntax.lean",
+      "owner": "/root/call_implementation_r9",
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; candidate frozen at source-input blocker."
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreSubstitution.lean",
+      "owner": "/root/call_implementation_r9",
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; candidate frozen at source-input blocker."
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreExecution.lean",
+      "owner": "/root/call_implementation_r9",
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; candidate frozen at source-input blocker."
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ControlSyntax.lean",
+      "owner": "/root/call_implementation_r9",
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; candidate frozen at source-input blocker."
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ControlTyping.lean",
+      "owner": "/root/call_implementation_r9",
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; candidate frozen at source-input blocker."
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/ControlComposition.lean",
+      "owner": "/root/call_implementation_r9",
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; candidate frozen at source-input blocker."
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreControlBridge.lean",
+      "owner": "/root/call_implementation_r9",
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; candidate frozen at source-input blocker."
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CallExecution.lean",
+      "owner": "/root/call_implementation_r9",
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; candidate frozen at source-input blocker."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-lean-call-execution-implementation-r9.md",
+      "owner": "/root/call_implementation_r9",
+      "state": "FROZEN",
+      "reason": "Writer STOPPED; candidate frozen at source-input blocker."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/lean-complete-call-20261025-r9-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Primary-frozen SOURCE_INPUT_BLOCKED/UNACCEPTED outcome."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/lean-complete-call-20261025-force-view-interface-amendment.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Primary-frozen source/interface gap packet; no new authority."
+    },
+    {
+      "path": "tasks/agent-loop/inbox/20261025-force-view-source-producer-investigation.md",
+      "owner": "/root/force_view_source_owner_r1",
+      "state": "HELD",
+      "reason": "Sole researcher output lease; launch pending."
+    }
+  ],
+  "pending": [
+    {
+      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+      "state": "OPEN",
+      "owner": "Luna; whole-ascription formation",
+      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md"
+    },
+    {
+      "id": "R64-SRC-ANN-ARG-1",
+      "state": "OPEN",
+      "owner": "Luna; annotation argument",
+      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md"
+    },
+    {
+      "id": "R65-CURRENT-OPERAND-1",
+      "state": "OPEN",
+      "owner": "Luna; ordinary typed Lambda operand",
+      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md"
+    },
+    {
+      "id": "R66-LAMBDA-RESULT-STAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; direct Lambda-checking follow-up",
+      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md"
+    },
+    {
+      "id": "R67-DIRECT-BODY-CHECK-1",
+      "state": "OPEN",
+      "owner": "Luna; source Lambda body consumer",
+      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md"
+    },
+    {
+      "id": "R68-OWNER-CONSUMER-1",
+      "state": "OPEN",
+      "owner": "Luna; retained body/result consumer",
+      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"
+    },
+    {
+      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+      "state": "OPEN_UNADOPTED_PROPOSAL",
+      "owner": "Luna; source-law completion",
+      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"
+    },
+    {
+      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+      "state": "OPEN",
+      "owner": "Luna; exact source/native owners in R70",
+      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md"
+    },
+    {
+      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+      "state": "OPEN",
+      "owner": "Luna; source/native owners in R71",
+      "details": "R230; R231–234; R236; R237 found no callback slot-4 alias to later raw WorkBound; coverage open."
+    },
+    {
+      "id": "R72-LATER-OCCURRENCE-1",
+      "state": "OPEN",
+      "owner": "Luna; exact Local-to-WorkBound replay and consumer lineage",
+      "details": "R229; R231–233 found no slot-4 post-alias consumer; bridge open."
+    },
+    {
+      "id": "R149-SOURCE-OWNER-CLOSURE-1",
+      "state": "OPEN_SOURCE_TO_CST",
+      "owner": "Luna intake",
+      "details": "Exact parser/HIR readback remains OPEN after private sample-environment seam; no parser rejection/compiler gap. Capture proof history: tasks/agent-loop/sprints/r149-in-crate-capture-20261024-outcome.md."
+    },
+    {
+      "id": "R339-D2-WHOLE-FRAME-RETIREMENT",
+      "state": "OPEN_REMAINDER",
+      "owner": "Luna; exact residual N temporal/fiber and end-state coverage",
+      "details": "R346 fixed-key replay accepted; R347 projected C_s ↔ H₀(S) open; R348 bounded extension accepted after review; full N open."
+    },
+    {
+      "id": "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
+      "state": "OPEN_REMAINDER",
+      "owner": "Luna; source Apply handoff and continuation-prefix invariant",
+      "details": "Bounded Apply handoff, prefix/owner and invocation/argument identity pass under realization premises; full C/M open. MAJOR S0 dependency row corrected; independent delta review pending."
+    },
+    {
+      "id": "R345-N-REMAINDER",
+      "state": "OPEN_REMAINDER",
+      "owner": "Luna; all-pair temporal coverage and source-constraint completeness",
+      "details": "R346 fixed-key replay accepted; R347 projected C_s ↔ H₀(S) open; R348 bounded extension accepted after review; full N open."
+    },
+    {
+      "id": "OP-SEMANTICS-FULL-EFFECT",
+      "state": "OPEN_REVIEW",
+      "owner": "primary",
+      "details": "Old owner and existential AllowAll source applications need correction. Source candidate 15.4 supplies explicit repairs; adoption/review OPEN."
+    },
+    {
+      "id": "DOT-SELECTION-EVIDENCE-BRIDGE",
+      "state": "OPEN_REVIEW",
+      "owner": "primary",
+      "details": "Finite selected-code bridge retained; lifetime effect evidence requires recheck. Resolver uniqueness, raw/compact and snapshot lifecycle OPEN."
+    },
+    {
+      "id": "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
+      "state": "OPEN_REVIEW",
+      "owner": "primary",
+      "details": "Rank-2 computed-fetch source boundary clarified (12.1); explicit all-input release (11.7). Semantic choice, native correspondence/review OPEN."
+    },
+    {
+      "id": "SOURCE-SAFETY-BRIDGE",
+      "state": "OPEN_REVIEW",
+      "owner": "primary",
+      "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
+    },
+    {
+      "id": "CALL-CONTEXT-PLUG-PRESERVATION",
+      "state": "OPEN",
+      "owner": "Luna intake; later sprint after r9 execution adequacy",
+      "details": "OPEN: P/Q unchanged A claim; no r8 proof grant issued; wait for checked raw/typed Call coverage."
+    },
+    {
+      "id": "BOUNDED-CALL-FINITE-PREFIX-SAFETY",
+      "state": "OPEN",
+      "owner": "Luna intake; later sprint after exact A/hash",
+      "details": "OPEN: B unchanged arbitrary-suffix finite-prefix claim; not issued in r9."
+    },
+    {
+      "id": "CALL-STEP-ERASURE",
+      "state": "OPEN",
+      "owner": "r9 S / Luna intake; launch after checked implementation seam",
+      "details": "OPEN/unissued: await source-derived Force effect/result producer; see r9 gap packet."
+    },
+    {
+      "id": "CALL-RAW-SUCCESSOR-COVERAGE",
+      "state": "OPEN",
+      "owner": "r9 C / Luna intake; launch after checked implementation seam",
+      "details": "OPEN/unissued: await Force input, independent raw relation, and checked dependency seam."
+    },
+    {
+      "id": "FORCE-VIEW-SOURCE-OWNER-20261025",
+      "state": "OPEN",
+      "owner": "Luna adjudication after researcher stop",
+      "details": "Trace source-owned Force/View producer and Ret/Req/Fail/Bad lifecycle or exact missing premise; S/C stay gated."
+    }
+  ],
+  "closure": "R9 archived unaccepted; Force/View source investigator RUNNING; parent OPEN.",
+  "next_action": "Track the active read-only source investigation; keep Force implementation and S/C gated.",
+  "legacy_reconciliation": {
+    "required": false,
+    "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
+    "reservations": [
+      {
+        "id": "/root/resident_dispatcher_loop_a",
+        "path": "tasks/agent-loop/board.md",
+        "state": "UNKNOWN_QUARANTINED"
+      },
+      {
+        "id": "/root/resident_implementer_idle",
+        "path": "UNKNOWN historical implementation lease",
+        "state": "UNKNOWN_QUARANTINED"
+      },
+      {
+        "id": "/root/runtime_source_supplier_proof",
+        "path": "UNKNOWN historical proof lease",
+        "state": "UNKNOWN_QUARANTINED"
+      }
+    ]
+  },
+  "user_goal": "Prove Yulang semantics and type inference with complete proofs in notes/theory/lean; primary commits and pushes reviewed milestones.",
+  "history": [
+    {
+      "id": "NATURAL-CONDITIONAL-RESULT-20261024",
+      "record": "tasks/agent-loop/sprints/natural-conditional-result-20261024-prior-current.json",
+      "closure": "Prior paused state archived verbatim; distinct scope."
+    },
+    {
+      "id": "LEAN-CORE-CONTROL-BRIDGE-20261024/r1",
+      "record": "tasks/agent-loop/sprints/lean-core-control-bridge-20261024-r1.md",
+      "closure": "Superseded at sprint start by r2 freezing the explicit source value/frame/boundary interface; no writer had edited its lease."
+    },
+    {
+      "id": "LEAN-CORE-CONTROL-BRIDGE-20261024/r3",
+      "record": "tasks/agent-loop/sprints/lean-core-control-bridge-20261024-r3.md",
+      "closure": "Versioned typing-domain clarification: ordinary Control judgments stay unchanged; embedded Original segment has separate syntax-directed SegmentTyped; transitions unchanged."
+    },
+    {
+      "id": "LEAN-CORE-CONTROL-BRIDGE-20261025/r4",
+      "record": "tasks/agent-loop/sprints/lean-core-control-bridge-20261025-r4.md",
+      "closure": "Bounded repair continuation; candidate acceptance and full parent remain OPEN."
+    },
+    {
+      "id": "LEAN-CORE-CONTROL-BRIDGE-20261025/r5",
+      "record": "tasks/agent-loop/sprints/lean-core-control-bridge-20261025-r5.md",
+      "closure": "R4 check exposed ControlComposition elaboration blockers; r5 bounded primary repair/check/review remains OPEN."
+    },
+    {
+      "id": "LEAN-CORE-CONTROL-BRIDGE-20261025/r6",
+      "record": "tasks/agent-loop/sprints/lean-core-control-bridge-20261025-r6-outcome.md",
+      "closure": "Bounded bridge checked under Lean 4.35.0 and accepted after fresh independent CLEAN review; commit e578e0332 pushed. Full parent OPEN."
+    },
+    {
+      "id": "LEAN-COMPLETE-CALL-20261025/r7",
+      "record": "tasks/agent-loop/sprints/lean-complete-call-20261025-r7-outcome.md",
+      "sha256": "892aff9b3005cf6620802555924767968ea4db63914687493f197d3e1c0afa37",
+      "closure": "CHECK_FAILED/UNACCEPTED; first pinned Lean module had 33 diagnostics; no proofs/review; parent OPEN."
+    },
+    {
+      "id": "LEAN-COMPLETE-CALL-20261025/r8",
+      "record": "tasks/agent-loop/sprints/lean-complete-call-20261025-r8-outcome.md",
+      "sha256": "83961c24d5c87e49248475180287272ae21066671bbcf3164e0cdd68037f4a12",
+      "closure": "CHECK_FAILED/UNACCEPTED: CoreSyntax failed after r8 repair; missing force successors also block execution adequacy; no proofs/review."
+    },
+    {
+      "id": "LEAN-COMPLETE-CALL-20261025/r9",
+      "record": "tasks/agent-loop/sprints/lean-complete-call-20261025-r9-outcome.md",
+      "closure": "SOURCE_INPUT_BLOCKED/UNACCEPTED; unchecked candidate; S/C unissued; parent OPEN.",
+      "sha256": "66d5f30ee3323b33b6943b5817ee48cdd69e20bfd793ea65b08df125567a7579"
+    }
+  ],
+  "resource_observation": "Fresh packet cap 1200s; 600s researcher grant issued, 600s adjudication/review reserved.",
+  "checker": "R9 stopped before Lean checks. New packet allows no build/test checks."
+}
