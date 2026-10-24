@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "CORRELATED-HANDLER-20261024",
-  "phase": "REVIEWED_CANDIDATE_HANDLER_OBSERVATIONS_PARENT_OPEN",
-  "contract": "tasks/agent-loop/sprints/correlated-handler-20261024.md",
-  "baseline": "d52c2c48e0e876be4e3e6588e2b1b3b4b27933ea",
+  "sprint_id": "SOURCE-RESULT-BOUNDARY-REVIEW-20261024",
+  "phase": "REVIEWED_SOURCE_CORE_COVERAGE_PARENT_OPEN",
+  "contract": "tasks/agent-loop/sprints/source-result-boundary-review-20261024.md",
+  "baseline": "987ee3902a12f9c1e972d5db4b876ad60cff89b8",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "WAITING",
-      "receipt": "Completed two successive proof packets and preparing handoff; no user semantic answer pending, no background work",
+      "receipt": "Reviewed proof and integration frozen; research stopped, final Git handoff only; no answer pending and no background work",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "30sec consumer-boundary direction final received; no writes/children/Git/tests"
+      "receipt": "Explicit material MAJOR/resource boundary: successor60s recommended; no certification/writes/children"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Final handoff explicitly confirms no writes/descendants; requested Astra/medium; observed metadata UNKNOWN"
+      "receipt": "Frozen r1 final received: writes stopped, no descendants; primary took lease for r2"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Final correlated-handler review ACCEPTED for specified finite candidate graph; no blocking/major; no writes/children"
+      "receipt": "r3 delta ACCEPTED; r2 MAJOR CLOSED; no writes/Git/tests/children"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -43,7 +43,8 @@
       "path": "docs/yulang-semantics-and-soundness-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "5a9c6f75b49ec006b19243f816a385a92a575c28c8f01a5c1522806708380cd6"
+      "sha256": "63437836b74e834f91c01083139c30bb29e3301203584590f6b6885d0137b473",
+      "receipt": "Primary integration of accepted candidate coverage and explicit remaining premises"
     },
     {
       "path": "notes/theory/2026-10-24-corrected-machine-simulation.md",
@@ -83,6 +84,13 @@
       "state": "FROZEN",
       "sha256": "fd3a901a738f24b18d8c21acdb2dc451fe192da0b54a4aa5b674c3aaea8789f0",
       "receipt": "Producer stopped; primary added only post-review receipt"
+    },
+    {
+      "path": "notes/theory/2026-10-24-source-core-action-coverage.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "36672ef591f42a281a04f14fb7ddc4c5283c119de20fee15168e37cbbf13201a",
+      "receipt": "Independent r3 accepted; proof only editorial status/receipt after review"
     }
   ],
   "external_isolation": {
@@ -102,7 +110,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "source edge-generation adequacy, finite-template coverage, foreign continuations, separate value proof review, all-surface elaboration"
+      "missing": "Reviewed Gen(d) now derives candidate action coverage; finite-template/interface adequacy, foreign continuations, separate value proof review, all-surface elaboration and terminal-world/host semantics remain"
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -120,28 +128,29 @@
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Reviewed finite signature recipes and join criteria; candidate CO3-OBS now derived. Full source/compaction/recursive centers/all substitutions, actual weight representation, source graph generation, replay and shared freshening remain.",
+      "missing": "Reviewed recipes/join/CO3-OBS and Gen(d) candidate control coverage; full source/compaction/recursive centers/all substitutions, actual weights, finite interfaces, replay/shared freshening remain",
       "authority": "notes/design/2026-10-24-cooccurrence-release-clarification.md"
     }
   ],
   "review": {
     "reviewer": "/root/astra_semantics_review",
-    "outcome": "CANDIDATE_CO3_OBS_ACCEPTED",
-    "correlated_handler_sha256": "b1b94aa7712ef0a5be043070b042c830dfde9c16ca7874f7046a0827405eadc4",
+    "outcome": "G1_G5_GENERATED_CANDIDATE_CORE_ACCEPTED",
+    "reviewed_sha256": "fd1d7cf33dd7c317b44694cb131d63fa7cb30368cab4de0ec53f81315c3057fa",
+    "r2_finding": "MAJOR arm-result boundary connection CLOSED by r3 independent delta",
     "whole_language_certified": false,
-    "post_review_changes": "Only one review receipt line; mathematical text unchanged",
-    "scope": "H1-H5 for specified finite revised candidate graph; full source/action coverage remains open"
+    "scope": "Gen(d) coverage, failure-only abstraction; interface/value/foreign premises remain",
+    "post_review_changes": "Editorial status and review receipt only"
   },
   "resource": {
-    "astra_reserved_seconds": 1800,
+    "astra_reserved_seconds": 2160,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
     "tests": 0,
-    "successor_reserved_seconds": 300,
+    "successor_reserved_seconds": 60,
     "successor_review_reservation_remaining_seconds": 0
   },
-  "outcome": "tasks/agent-loop/sprints/correlated-handler-20261024-outcome.md",
-  "next_action": "Construct source-derived mandatory graph edges for all original constructors, including Fail/terminal routes, both query branches and current-world No/Resume; reconcile with revised transfers without assuming edge adequacy",
+  "outcome": "tasks/agent-loop/sprints/source-result-boundary-review-20261024-outcome.md",
+  "next_action": "Construct finite-interface adequacy for all original code/template instances (including nonregular instantiation), then apply reviewed Gen(d); keep value/foreign/surface/A-B obligations distinct",
   "closure": "Global request remains OPEN. Reviewed local mathematics is not whole-language completion."
 }

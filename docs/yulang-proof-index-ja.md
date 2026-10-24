@@ -9,8 +9,9 @@
 - [共起分析と保護・解除の保存](../notes/theory/2026-10-24-cooccurrence-release-preservation.md): [ユーザーの直接訂正](../notes/design/2026-10-24-cooccurrence-release-clarification.md)に従う後続稿。`'e?` を独立した実行規則の選択として扱わず、同じ共変位置に現れる変数の集約と保護・解除の対応を示す。source 全体の証明範囲は稿内の適用境界に従う。
 - [共変位置から受領対応表を作る](../notes/theory/2026-10-24-cooccurrence-source-recipes.md): 有限 signed graph での位置判定と入力 recipe、actual receipt の分離、単射改名、限定された collector 対応を構成した。
 - [Scoped weight の集約と将来の観測](../notes/theory/2026-10-24-scoped-weight-join-compatibility.md): 単独の存在観測、正の同時観測、存在・不在の同時観測に対し、保存に必要十分な要約をそれぞれ導いた。実際の weight 実装を承認・検証したものではない。
-- [現在状態に基づく handler 分岐の保存](../notes/theory/2026-10-24-correlated-handler-observation.md): 真偽両 filter、候補を飛ばす経路、arm が No を返す経路と current-world Rejoin を構成した。指定された有限候補 graph について独立査読を通過し、source 全体の生成対応は未完として残す。
-- [修正機械の有限表示と simulation](../notes/theory/2026-10-24-corrected-machine-simulation.md): 新規 witness の生成、異なる経路の保持、保存した evidence と現在状態の再接続を明示した。初稿の三つの不備を修正し、有限な候補構成の範囲で独立査読を通過した。全 source の生成 edge との対応は未完である。
+- [現在状態に基づく handler 分岐の保存](../notes/theory/2026-10-24-correlated-handler-observation.md): 真偽両 filter、候補を飛ばす経路、arm が No を返す経路と current-world Rejoin を構成した。指定された有限候補 graph について独立査読を通過した。後続の全制御経路稿が、有限 source 導出からの生成対応を追加する。
+- [修正機械の有限表示と simulation](../notes/theory/2026-10-24-corrected-machine-simulation.md): 新規 witness の生成、異なる経路の保持、保存した evidence と現在状態の再接続を明示した。初稿の三つの不備を修正し、有限な候補構成の範囲で独立査読を通過した。後続の全制御経路稿が Gen(d) の生成 edge との対応を追加し、全表層・実 compiler への対応は未完である。
+- [source からの全制御経路と失敗終端](../notes/theory/2026-10-24-source-core-action-coverage.md): 13式・11 pattern・3 statement、直接証拠・eapp から Gen(d) を作り、No と継続の現在状態、失敗の吸収を証明する候補構成。結果 adapter への接続漏れを修正し、記載した前提の下で G1–G5 の独立査読を通過した。失敗専用表示では観測されない world を忘れ、具体的 cleanup は承認しない。
 - [静的 Yumark の展開](../notes/theory/2026-10-24-surface-elaboration-closure.md): 内部 node 全場合の builder と値型導出、凍結 lowering の成功時の Expr 構造との対応を構成した。独立査読でこの限定範囲に blocking/major 指摘はなかった。全 Yumark 構文や効果包含の検査成功を証明したものではない。
 
 査読範囲、修正履歴、固定 hash、未完了義務は[今回の outcome](../tasks/agent-loop/sprints/semantics-proof-20261024-outcome.md)に記録する。既存の三つの大きな原稿全体を再査読したという意味ではない。
@@ -20,6 +21,8 @@
 さらに recipe 構成 S1–S6 と join の定理 1–3 は、それぞれの有限 graph・観測言語の範囲で独立査読を通過した。[構成と集約の outcome](../tasks/agent-loop/sprints/cooccurrence-source-20261024-outcome.md)に固定 hash と残る source/consumer 対応を記録する。
 
 [handler 分岐の outcome](../tasks/agent-loop/sprints/correlated-handler-20261024-outcome.md)は、その次の consumer 証明 H1–H5 の査読範囲と固定 hash を記録する。有限 table の経路についての等式と、具体実行に対する片方向 inclusion を区別する。
+
+[生成証明の outcome](../tasks/agent-loop/sprints/source-core-coverage-20261024-outcome.md)は G1–G5 の固定版と査読結果、全表層・有限 interface・foreign 契約などの残項を記録する。
 
 ## 現在読む証明稿
 

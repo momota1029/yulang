@@ -28,6 +28,7 @@
 | 位置から入力対応表を作る | [共起と source recipe](../notes/theory/2026-10-24-cooccurrence-source-recipes.md) | 有限 signed graph の traversal、実際の受領・潜在経路の照合、単射改名 |
 | 複数経路の保護状態を集約する | [scoped weight の join](../notes/theory/2026-10-24-scoped-weight-join-compatibility.md) | 観測ごとの必要十分な要約。実 consumer と weight の対応は別義務 |
 | handler の真偽分岐と No の後の再検索 | [joint cell による分岐保存](../notes/theory/2026-10-24-correlated-handler-observation.md) | 候補機械の現在状態から両分岐を構成。有限 table の経路と具体 successor inclusion を区別 |
+| source の各構文から制御 graph を作る | [全制御経路と失敗終端](../notes/theory/2026-10-24-source-core-action-coverage.md) | 13式・11 pattern・3 statement と直接証拠から生成。失敗専用表示を含む候補構成。記載した前提の下で独立査読通過 |
 | Yumark 内部の静的 node | [表層展開の証明](../notes/theory/2026-10-24-surface-elaboration-closure.md) | builder の全構成と値型導出。interpolation 等は未完 |
 
 旧稿の定理を使う際は、その証明が参照する機械を固定する。訂正後の機械の結論を、訂正前の小さい効果型に無条件で適用してはならない。
@@ -191,9 +192,21 @@ F_G(U)\subseteq U
 
 **証明の合成。** 実際の初期 packet は seed に入る。一段の具体出力は対応する transfer の出力集合に入り、閉包条件で次の port に入る。有限 capture の frame 列は cut grammar に帰納的な導出を持ち、その単調 summary に含まれる。これを現在の応答・ambient world ごとに適用し、有限実行長に帰納する。最外 request は `U_E⊆Φ` により契約内にある。空の Φ から request は出ない。
 
-この合成を現存の source 主定理へ適用するには、**生成される全 edge が、その具体操作について証明された transfer を使用すること**を確かめる必要がある。有限な保守的 transfer が一つ存在することだけでは、既存の小さい型導出の保存や自然な推論の完全性を結論できない。simulation 稿はこの適用境界を明記している。
+この合成には、**各構文から生成する edge が、その具体操作について証明された transfer を使用すること**が必要である。次節は候補の生成算法 Gen(d) についてこの対応を構成する。現存する任意の小さい型導出や旧 graph に、有限な保守的 transfer の存在だけから同じ結論を移すことはできない。自然な推論の完全性も別の命題である。
 
-[H4–H5](../notes/theory/2026-10-24-correlated-handler-observation.md)では、真偽両 filter・action・Rejoin で構成する有限 relation graph の閉包が、その graph 自身の全有限経路の像と一致することを示した。具体的な実行に対して得るのは successor の包含である。Refresh が余分な cell を残す場合もあるので、閉包の全経路が実際に実行できるとは主張しない。失敗などを含む全 source transition の生成・網羅性は、引き続き主定理の適用義務である。
+[H4–H5](../notes/theory/2026-10-24-correlated-handler-observation.md)では、真偽両 filter・action・Rejoin で構成する有限 relation graph の閉包が、その graph 自身の全有限経路の像と一致することを示した。具体的な実行に対して得るのは successor の包含である。Refresh が余分な cell を残す場合もあるので、閉包の全経路が実際に実行できるとは主張しない。名前解決済み核の生成対応は次節の対象であり、全表層や実 compiler の生成対応とは区別する。
+
+### 7.1 source から graph を生成する
+
+[生成証明 G1–G5](../notes/theory/2026-10-24-source-core-action-coverage.md)は、有限な source 導出 d を辿り、各命令に通常値・request・failure の出口を作る。再帰は登録済み code label への辺にし、実行を先回りして展開しない。対象は13式、11 pattern、Let/Expr/Module、順序付き root、有限の直接境界・選択証拠である。辞書の eapp は body の効果を保持し、新しい source receipt を作らない。
+
+証明は三つの帰納法を使う。source/証拠の有限導出木から命令と接続を作り、管理遷移の場合分けで実際の後続の位置を示し、捕捉された七種の frame 列から継続の summary を構成する。これで「必要な action edge が存在する」という H5 の前提を、この Gen(d) について導出する。No は現在の world で再検索し、Fail は失敗出口へ進む。arm の body が返した後には、その導出が指定する結果 adapter を実行し、正常に返って初めて Yes を作る。adapter の request・failure も同じ生成規則で保持する。
+
+**失敗の吸収。** この核では、active context が `E[Fail r]` になれば、各 frame は同じ r を外へ伝えるだけである。未実行の suffix、handler の次 arm、Resume は起動しない。frame 数の帰納法で最外の Fail へ至る。
+
+そこで失敗専用の有限表示では reason tag だけを残し、以後読み取られない world を全て忘れる。通常の計算と No/resume では従来の完全な joint cell を使う。これは失敗時の owner cleanup を新たに決める操作ではなく、以後の観測がないことに基づく抽象化である。失敗後の内部 world を読む host の契約や具体的 cleanup は別に残る。
+
+有限 interface と外部コードの導入契約の下で、追加した failure port を含む graph の閉包は全有限実行 prefix を含む。実行型保存・Bad 排除は独立の値型定理を必要とする。全表層の展開、nonregular instance の有限表示、候補政策の採用、旧証明書の保存はこの結論に含まれない。査読状態と固定版は[生成証明の outcome](../tasks/agent-loop/sprints/source-core-coverage-20261024-outcome.md)に記録する。
 
 ## 8. 全表層への接続と未完了箇所
 
@@ -203,7 +216,7 @@ F_G(U)\subseteq U
 
 | 義務 | 完了に必要なもの |
 | --- | --- |
-| 修正機械の finite transfer と source graph の接続 | 各生成 edge の具体 transition、共同入力、現在状態の観測との照合 |
+| 生成 graph の適用範囲 | Gen(d) の候補構成を各 finite interface・実 frontend・元の導出へ接続。失敗後の完全状態を観測する契約は別途確定 |
 | 共起による集約と保護・解除 | 同じ共変位置の判定、provenance を保つ集約、生成・一般化・使用・解除への対応。追加の入力選択を求めない |
 | non-Var/anonymous の受領 owner、wildcard policy | 候補の全期待挙動との照合と、実際に未決定な具体化の切り分け |
 | Yumark interpolation/commands、module/use/realm/band、error/act-copy/derive | 全生成規則と型・効果を保つ展開。未対応の実装を仕様上の禁止へ転用しない |
