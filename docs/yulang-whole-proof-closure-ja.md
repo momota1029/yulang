@@ -122,9 +122,19 @@ in f
 
 [recursive formation の後続構成](../notes/theory/2026-10-24-original-recursive-formation-construction.md)は、finite declaration registry、同じ r_f を共有する f/g/wrapper の実捕捉、全 pending plan、active capture の参照 record を構成した。選択済み native signature grammar と unannotated policy を適用し、既存の pair/step case と同じ raw graph に戻ることも示す。
 
-J_rec/J_pub の次の具体的な接続は、(1) active r_f に対する q_fy の完全 Call/operator law と whole-carrier admission action、(2) 構成した ActiveCapture record の全 typed field を元の Generalize walk に対応付ける証明である。構造的な registry/capture の再調査や、既定の native Lic/Attach grammar の再定義は不要になった。条件付き postfixed assembly は完全な member/world witness とは区別する。
+この段階で残った接続は、(1) active r_f に対する q_fy の完全 Call/operator law と whole-carrier admission action、(2) 構成した ActiveCapture record の全 typed field を元の Generalize walk に対応付ける証明である。§4.3 は (1) の入力 action を構成する。条件付き postfixed assembly は完全な member/world witness とは区別する。
 
 両稿の固定版、査読範囲と残項は[今回の記録](../tasks/agent-loop/sprints/extrusion-intrusion-scc-20261024-outcome.md)にまとめる。元の lawful-use coverage と主型性は引き続き OPEN である。
+
+### 4.3 完全 carrier の入力構成と閉包判定
+
+[Call/admission の構成](../notes/theory/2026-10-24-original-call-admission-construction.md)は、同じ full carrier policy に対して `I_A=I_U∧Ret_A` を作り、元の carrier・world・receipt・pending・response・future を保つ射影を構成した（CA1）。actual current world と hereditary y:A の下で、同じ NameDelay の全 Force/prefix/future 証拠も構成する（CA2）。今回の未注釈 witness の I_U を既存の full `Comp(empty,U)` に選ぶと、NameDelay から I_U への checking は恒等になる。この選択は、独立に固定された別の inlet を上書きせず、admitted carrier を source の NameDelay だけに制限しない。
+
+これを recursive assembly に戻しても、J_rec 全体はまだ出ない。候補集合 S に f が属するという事実から、完成済み membership `νΦ` の elimination を使うことはできない。実 f/g/wrapper の全 phase に対する `S.V⊆Φ_V(S)`、`S.W⊆Φ_W(S)`、`S.T⊆Φ_T(S)`、`S.Car⊆Φ_Car(S)` の同時導出が残る。CA2 が用いる actual world/value の前提も、この適用時に候補集合の要素で置き換えてはならない。
+
+[ActiveCapture の閉包判定](../notes/theory/2026-10-24-active-capture-generalization-closure.md)は、元の Generalize walk を各 field に適用し、最後に不足する complete typed field graph/action を特定した。完全な graph N があれば、A が retained な own Desc で `A∉Fix_N(p_g)` であることが template eligibility の条件になる（WA1）。同じ r_f と FullRelation の参照、表示された F:U→V の自由変数だけでは、この条件は導けない（WA2）。実 source の graph に対するこの判定と action は未完である。
+
+独立査読は CA1/CA2、今回の inlet 選択、WA1/WA2 の明記した範囲を受理した。[固定版と査読記録](../tasks/agent-loop/sprints/original-call-active-walk-20261024-outcome.md)に残項を保持する。whole production C0 を主張する箇所では、実際の nonstructural clauses の元の証拠も必要であるが、これを孤立した NameDelay 入力補題の追加前提にはしない。J_rec/J_pub、元の source-qualified 反例、全体証明の閉鎖はいずれも得ていない。
 
 ## 5. 完了の判定
 

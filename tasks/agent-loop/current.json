@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "EXTRUSION-INTRUSION-SCC-20261024",
+  "sprint_id": "ORIGINAL-CALL-ACTIVE-WALK-20261024",
   "phase": "REVIEWED_CHECKPOINT_OPEN",
-  "contract": "tasks/agent-loop/sprints/extrusion-intrusion-scc-20261024.md",
-  "baseline": "3ca3a9867a9fdc20841b983d047192ca7de9b672",
+  "contract": "tasks/agent-loop/sprints/original-call-active-walk-20261024.md",
+  "baseline": "9cc452b357117e51161a74b94c756de364d6e3d7",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Proof writing frozen after exact MINOR repair; only static verification and explicit-path Git integration remain, no background work",
+      "receipt": "Proof writing stopped and frozen; current turn only final static/Git integration and user report; no background work",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current 30-second direction returned two connected outcomes; no writes or descendants"
+      "receipt": "Current30s boundary read-only direction complete; actual witness/refutation target, no descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Frozen r1 handoff d37a30f1f59ad327ebcba129db5b069f4eed1f839d1733230863fdb711a16488; writes stopped, no descendants"
+      "receipt": "Current r1 Call action c3aff32c3f966526019abd49d389b140b27614be120cc3280b4728545c65c2ee frozen; STOP/no descendants"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Independent S1-S7/E1 and partial OM R1-R5 accepted; MINOR empty memo applied; current STOP/no descendants; next boundary bundled"
+      "receipt": "Current r1 CA1/CA2, inlet selection and WA1/WA2 accepted within explicit premises; no BLOCKING/MINOR; STOP/no descendants; end-boundary recommendation bundled"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -133,13 +133,13 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "7d310ccc344c86841dec3bbfe8de1fd02eb119404db4c5fbdfc01e5b23fadeca"
+      "sha256": "df61387e63e28380a0c17e7e810f3c4cfbdc57952cca83ec40306284e8e93f8b"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "591bc046803560aa3b434a6e062a8653952c509aba0df21edd72f64e80b4815f"
+      "sha256": "a019e505d472e6fa26af2cfab6e217c63bcc7c3e5eaa7c78d3a43f9ad05e67df"
     },
     {
       "path": "notes/theory/2026-10-24-value-scc-qualification-proof.md",
@@ -153,6 +153,18 @@
       "state": "FROZEN",
       "sha256": "f90b88e3e7759a457991f6186782bbd5c1c0236600ca03694527767e4ca49ba8",
       "receipt": "Producer STOP; primary editorial review note only after handoff"
+    },
+    {
+      "path": "notes/theory/2026-10-24-original-call-admission-construction.md",
+      "owner": "/root/astra_corrected_machine",
+      "state": "FROZEN",
+      "sha256": "c3aff32c3f966526019abd49d389b140b27614be120cc3280b4728545c65c2ee"
+    },
+    {
+      "path": "notes/theory/2026-10-24-active-capture-generalization-closure.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "c626d3833bfec47c0ad2acdb2501c236f2fb8cfa19b0fef3b6568bcf522d8d87"
     }
   ],
   "external_isolation": {
@@ -172,7 +184,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "SCC/qualification/local extrusion/quotient reviewed; actual registry/captures built. Remaining complete original q_fy Call/admission and ActiveCapture typed Generalize action, broader source/semantic/inference obligations."
+      "missing": "Full-carrier refinement and source NameDelay input constructed under actual world/value premises; original simultaneous one-step proof and ActiveCapture full field graph/action remain, plus broader source/semantic/inference obligations."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -195,13 +207,13 @@
     }
   ],
   "review": {
-    "outcome": "ACCEPTED_BOUNDED_SCC_EXTRUSION_AND_PARTIAL_ORIGINAL_FORMATION",
-    "receipt": "tasks/agent-loop/sprints/extrusion-intrusion-scc-20261024-outcome.md",
+    "outcome": "ACCEPTED_LIMITED_CA1_CA2_WA1_WA2",
+    "receipt": "Fresh independent review: no BLOCKING/MINOR within stated conditional scope; both frozen hashes match; STOP/no descendants",
     "whole_language_certified": false,
-    "minor": "E1 empty initial memo stated, matching actual native calls"
+    "record": "tasks/agent-loop/sprints/original-call-active-walk-20261024-outcome.md"
   },
   "resource": {
-    "astra_reserved_seconds": 3390,
+    "astra_reserved_seconds": 3690,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -210,14 +222,15 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 30
   },
-  "next_action": "OM-LOCAL-CALL/ADMISSION: construct complete q_fy Call/C0 and whole-carrier action at active r_f, then simultaneous background; OM-ACTIVE-WALK: original typed field action for constructed ActiveCapture. Reuse proved registry/SCC/E1, preserve native shared C.",
-  "closure": "SCC/qualification/local extrusion and quotient results reviewed within stated bounds. Original complete member/publication, lawful-use coverage, principality, combined inference termination and whole-language theorem OPEN. No background workers.",
-  "outcome": "tasks/agent-loop/sprints/extrusion-intrusion-scc-20261024-outcome.md",
+  "next_action": "Derive actual simultaneous V/W/T/Car one-step clauses with candidate-relative versus completed certificates explicit; construct ActiveCapture full field action; apply original J_rec/J_pub before any coverage verdict",
+  "closure": "CA1/CA2 and WA1/WA2 accepted in explicit scope. Requested full closure not achieved: original J_rec/J_pub, source-qualified coverage result, principality, combined inference termination and whole-language theorem OPEN. No background workers.",
+  "outcome": "tasks/agent-loop/sprints/original-call-active-walk-20261024-outcome.md",
   "checks": {
-    "dependency_hashes": "20 contract + 2 linked signature + 2 supplementary source inputs",
-    "local_document_links": "static target resolution",
-    "whitespace": "git diff --check",
+    "dependency_hashes": "23 contract dependencies and all frozen leases matched",
+    "local_document_links": "65 static local targets resolved; fences balanced",
+    "whitespace": "git diff --check and new-file trailing-whitespace inspection",
+    "state": "JSON parsed; below 16 KiB; all children observed completed",
     "tests": "NOT_RUN_USER_SCOPE_NO_IMPLEMENTATION",
-    "independent_review": "Frozen scopes accepted; exact empty-memo MINOR repair applied"
+    "independent_review": "Frozen CA1/CA2/WA1/WA2 scope accepted; no BLOCKING/MINOR"
   }
 }

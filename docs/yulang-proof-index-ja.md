@@ -22,6 +22,8 @@
 - [相関を持つ局所関数の核の導出](../notes/theory/2026-10-24-correlated-helper-core-derivation.md)と[元の member/world 構成試行](../notes/theory/2026-10-24-correlated-helper-original-member.md): 同じ再帰 f を捕捉する g の Int/Bool 二使用を候補核で型付けし、元の意味論へ移す際の J_rec/J_pub を特定した。[査読](../tasks/agent-loop/sprints/original-member-bridge-20261024-outcome.md)はこの部分構成の範囲を受理した。元の主型性の反例や全体閉包は得ていない。
 - [extrusion / intrusion と Value SCC](../notes/theory/2026-10-24-value-scc-qualification-proof.md): source 所属参照、helper graph、SCC の計算と辺追加、実 occurrence の資格、有限 activation、局所 extrusion の終了、全旧制約を保つ型等置を証明する。全 source の coverage と combined inference の停止性は残る。
 - [再帰 formation の実構成](../notes/theory/2026-10-24-original-recursive-formation-construction.md): actual registry/capture/pending plan と active-f 参照 record を構成し、選択済み native signature grammar を適用した。残る接続は active-root の完全 Call/admission と Generalize の全 typed field action。両稿の固定版と判定は [SCC sprint 記録](../tasks/agent-loop/sprints/extrusion-intrusion-scc-20261024-outcome.md)にある。
+- [完全 Call の carrier 入力構成](../notes/theory/2026-10-24-original-call-admission-construction.md): 同じ full policy の refinement 射影 CA1 と、actual world/value の下での NameDelay 証拠 CA2 を構成した。今回の未注釈 witness の inlet 選択で入力 checking を閉じた。全 joint one-step proof と recursive membership は未完。
+- [ActiveCapture の一般化と閉包判定](../notes/theory/2026-10-24-active-capture-generalization-closure.md): 元の field walk と template eligibility を展開し、全依存 graph/action の未構成部分を特定した。表示型や同根性だけから一般化を結論しない。両稿の限定された結果は [Call/active-capture 査読記録](../tasks/agent-loop/sprints/original-call-active-walk-20261024-outcome.md)の範囲で受理された。J_rec/J_pub と元の全体命題は未完。
 
 査読範囲、修正履歴、固定 hash、未完了義務は[今回の outcome](../tasks/agent-loop/sprints/semantics-proof-20261024-outcome.md)に記録する。既存の三つの大きな原稿全体を再査読したという意味ではない。
 
