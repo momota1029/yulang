@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "sprint_id": "ORIGINAL-MEMBER-BRIDGE-20261024",
+  "sprint_id": "EXTRUSION-INTRUSION-SCC-20261024",
   "phase": "REVIEWED_CHECKPOINT_OPEN",
-  "contract": "tasks/agent-loop/sprints/original-member-bridge-20261024.md",
-  "baseline": "59057b660a5a46f448d4c6feda041cb3df3bb38f",
+  "contract": "tasks/agent-loop/sprints/extrusion-intrusion-scc-20261024.md",
+  "baseline": "3ca3a9867a9fdc20841b983d047192ca7de9b672",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Proof writing frozen for reviewed checkpoint; only explicit-path Git integration remains; full user objective OPEN, no background work",
+      "receipt": "Proof writing frozen after exact MINOR repair; only static verification and explicit-path Git integration remain, no background work",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "30s reconciliation: substantial partial milestone, original J_rec/J_pub remain; recommends actual original postfixed construction; no launches/writes"
+      "receipt": "Current 30-second direction returned two connected outcomes; no writes or descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
@@ -25,7 +25,7 @@
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Independent original partial+CH1-CH5 accepted; no original bridge/closure, explicit STOP/no descendants"
+      "receipt": "Independent S1-S7/E1 and partial OM R1-R5 accepted; MINOR empty memo applied; current STOP/no descendants; next boundary bundled"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -35,7 +35,7 @@
     {
       "id": "/root/astra_scoped_join",
       "state": "STOPPED",
-      "receipt": "Frozen original member partial construction 4cfa7794b5f2e4e964511a1824a96309bb77a29a3ea5f75b9b0888cae4d9efbf, explicit writes stopped/no descendants"
+      "receipt": "Frozen 07bdf16b7cacaba85c0aa32d45fc9858d8b929e10dcbaaa65db2f5bca698cb76; current STOP receipt/no descendants"
     }
   ],
   "leases": [
@@ -133,13 +133,26 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "3461483e2a3e44f4ed1141d33e3963aafff738ca0f373d57d1882736befe4476"
+      "sha256": "7d310ccc344c86841dec3bbfe8de1fd02eb119404db4c5fbdfc01e5b23fadeca"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "18978ed40bed3a7a180cdd20c91538ad2e07dbd2467625ca1a0915c2b4a17e96"
+      "sha256": "591bc046803560aa3b434a6e062a8653952c509aba0df21edd72f64e80b4815f"
+    },
+    {
+      "path": "notes/theory/2026-10-24-value-scc-qualification-proof.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "6275229a0ac3c5db2d4757c4b18c43b33c78a5110d028d29e65e6d2dee187045"
+    },
+    {
+      "path": "notes/theory/2026-10-24-original-recursive-formation-construction.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "f90b88e3e7759a457991f6186782bbd5c1c0236600ca03694527767e4ca49ba8",
+      "receipt": "Producer STOP; primary editorial review note only after handoff"
     }
   ],
   "external_isolation": {
@@ -159,7 +172,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Candidate core theorem C, enriched arbitrary substitution and structured string proofs reviewed. Remaining original recursive/member formation J_rec, active capture/Generalize J_pub, all remaining surface/source policy and inference obligations."
+      "missing": "SCC/qualification/local extrusion/quotient reviewed; actual registry/captures built. Remaining complete original q_fy Call/admission and ActiveCapture typed Generalize action, broader source/semantic/inference obligations."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -171,7 +184,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "original proof owners; preserved",
-      "missing": "original algorithm soundness/natural inference, principality and termination obligations remain unchanged"
+      "missing": "Graph/SCC selection and local extrusion/equality proved under stated finite and source-fragment conditions; original scoped lawful-use coverage/principality and combined inference termination remain."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -182,12 +195,13 @@
     }
   ],
   "review": {
-    "outcome": "ACCEPTED_PARTIAL_ORIGINAL_AND_CANDIDATE_CORE",
-    "receipt": "tasks/agent-loop/sprints/original-member-bridge-20261024-outcome.md",
-    "whole_language_certified": false
+    "outcome": "ACCEPTED_BOUNDED_SCC_EXTRUSION_AND_PARTIAL_ORIGINAL_FORMATION",
+    "receipt": "tasks/agent-loop/sprints/extrusion-intrusion-scc-20261024-outcome.md",
+    "whole_language_certified": false,
+    "minor": "E1 empty initial memo stated, matching actual native calls"
   },
   "resource": {
-    "astra_reserved_seconds": 3090,
+    "astra_reserved_seconds": 3390,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -196,14 +210,14 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 30
   },
-  "outcome": "tasks/agent-loop/sprints/original-member-bridge-20261024-outcome.md",
-  "next_action": "OM-REC: construct actual original independent formation/registry/member/world evidence and joint postfixed witness; then OM-PUB complete active-capture Generalize walk. Existing legitimate-definition authorization applies; no permission blocker.",
-  "closure": "User whole-proof request remains OPEN. Candidate-core C, enriched substitution, structured string and concrete helper core reviewed. Original recursive formation/member/world J_rec and active capture Generalize J_pub not derived; neither impossibility nor permission blocker. No background workers.",
+  "next_action": "OM-LOCAL-CALL/ADMISSION: construct complete q_fy Call/C0 and whole-carrier action at active r_f, then simultaneous background; OM-ACTIVE-WALK: original typed field action for constructed ActiveCapture. Reuse proved registry/SCC/E1, preserve native shared C.",
+  "closure": "SCC/qualification/local extrusion and quotient results reviewed within stated bounds. Original complete member/publication, lawful-use coverage, principality, combined inference termination and whole-language theorem OPEN. No background workers.",
+  "outcome": "tasks/agent-loop/sprints/extrusion-intrusion-scc-20261024-outcome.md",
   "checks": {
-    "dependency_hashes": "29 pinned entries matched",
-    "local_document_links": "resolved in changed guides/proofs",
-    "whitespace": "static inspection and git diff --check",
+    "dependency_hashes": "20 contract + 2 linked signature + 2 supplementary source inputs",
+    "local_document_links": "static target resolution",
+    "whitespace": "git diff --check",
     "tests": "NOT_RUN_USER_SCOPE_NO_IMPLEMENTATION",
-    "independent_review": "Three coherent batches accepted within explicitly bounded scopes; one positive-position MINOR clarified"
+    "independent_review": "Frozen scopes accepted; exact empty-memo MINOR repair applied"
   }
 }

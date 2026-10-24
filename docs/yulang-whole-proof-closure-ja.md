@@ -84,7 +84,7 @@ Fail に入った後は G4 により七 frame が失敗を伝播するだけで�
 | 元の Simple-sub A/B | 各実 extrusion の qualifying parent/copy 等置を、元の source scope・共同 witness・publication/use を保って持ち上げる。 | 点ごとの diagonal extension は、一般化された複数 use における共同 strategy を構成しない。 |
 | 局所存在 evidence | head skolem と non-generic 資源を固定し、mixed-variance/recursive な局所存在座標を非総当たりで構成する。 | 完成した certificate の検査や lower union の選択だけでは witness の発見を証明しない。 |
 
-元の A/B の量化と最初の欠落は[侵入の source 保存稿](../notes/theory/2026-10-13-intrusion-source-preservation-proof.md) §1・§3・§5、局所存在構成は[拡張稿](yulang-whole-language-semantics-ja-expanded-20261023.tex) `remaining-conformance` に保持する。強い全モデル一致を追加したり、source を縮小したりして元の義務を置き換えない。
+元の A/B の量化と最初の欠落は[侵入の source 保存稿](../notes/theory/2026-10-13-intrusion-source-preservation-proof.md) §1・§3・§5、局所存在構成は[拡張稿](yulang-whole-language-semantics-ja-expanded-20261023.tex) `remaining-conformance` に保持する。強い全モデル一致を追加したり、source を縮小したりして元の義務を置き換えない。extrusion/intrusion の後続証明は §4.2 にまとめる。
 
 ### 4.1 再帰と局所一般化について実際に試みた接続
 
@@ -104,9 +104,27 @@ in f
 - **J_rec:** この body を持つ実際の f と同じ world を、元の独立した formation/registry/profile/CompleteMem/KV 条件を満たして同時に導入する。既に採用された再帰導入は `f x=g; g y=f` の厳密な場合に限られる。一般の body の安全性から独立 guard の成立を結論する規則はまだ構成されていない。
 - **J_pub:** 構成中の同じ f を g が捕捉するとき、その完全な依存を元の Source-Generalize の walk に渡し、f と world を共有したまま g の二つの正当な使用を得る。表示された f の型に A がないことだけでは、全 capture/admission/future evidence に A がないとは言えない。
 
-これは元の source が不正だという判定でも、intrusion の反例でもない。元の形成条件への bridge が未構成なので、候補核の導出と既知の native scalar failure を組み合わせただけでは、そのどちらも結論できない。正当な未定義部分の定義は引き続き許されるが、既に固定された独立述語を都合よく真へ置換することは証明にならない。
+これは前回の構成試行の境界であり、後続の §4.2 は actual registry/capture の構成を進めている。元の source が不正だという判定でも、intrusion の反例でもない。元の形成条件への bridge が未構成なので、候補核の導出と既知の native scalar failure を組み合わせただけでは、そのどちらも結論できない。正当な未定義部分の定義は引き続き許されるが、既に固定された独立述語を都合よく真へ置換することは証明にならない。
 
 `'e?` の別意味論や入力選択は、この表に未決事項として復活させない。[直接訂正](../notes/design/2026-10-24-cooccurrence-release-clarification.md)に従い、保護の動作原理と同じ共変位置への共起から集約を説明する。残るのは、その対応を元の全生成・代入へ適用する証明である。
+
+### 4.2 extrusion / intrusion と SCC の後続証明
+
+[Value SCC と等置の証明](../notes/theory/2026-10-24-value-scc-qualification-proof.md)は次を構成する。
+
+- source 所属 Name からの辺と helper graph の到達可能性保存。元の値の SCC は型の bounds から作らない。
+- SCC 分割、辺 A→B の追加で合併する正確な集合 `Reach(B)∩Pred(A)`、初回成功・凍結条件の下での native SCC 計算。
+- 実 extrusion occurrence の origin/receiver と polar parent/copy pair による資格判定、有限固定集合での activation/equality 処理の終了。
+- finite-store native extrusion 一回の終了・level 上界。極性 memo により、高 level の元変数が h 個なら copy は最大2h個。
+- 全旧制約を保持する型 quotient の意味保存と、既存 extrusion 定理を通じた元の局所 demand への健全な含意。
+
+具体例では definition-root の F→G と G→F から実 pair C=B,D=R の資格を導いた。全 source の fragment membership、contextual occurrence transport、全 caller lifecycle と combined inference の停止を、この局所証明から自動的に結論しない。
+
+[recursive formation の後続構成](../notes/theory/2026-10-24-original-recursive-formation-construction.md)は、finite declaration registry、同じ r_f を共有する f/g/wrapper の実捕捉、全 pending plan、active capture の参照 record を構成した。選択済み native signature grammar と unannotated policy を適用し、既存の pair/step case と同じ raw graph に戻ることも示す。
+
+J_rec/J_pub の次の具体的な接続は、(1) active r_f に対する q_fy の完全 Call/operator law と whole-carrier admission action、(2) 構成した ActiveCapture record の全 typed field を元の Generalize walk に対応付ける証明である。構造的な registry/capture の再調査や、既定の native Lic/Attach grammar の再定義は不要になった。条件付き postfixed assembly は完全な member/world witness とは区別する。
+
+両稿の固定版、査読範囲と残項は[今回の記録](../tasks/agent-loop/sprints/extrusion-intrusion-scc-20261024-outcome.md)にまとめる。元の lawful-use coverage と主型性は引き続き OPEN である。
 
 ## 5. 完了の判定
 
