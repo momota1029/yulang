@@ -305,6 +305,18 @@ inductive CallControlStep {World : Type} (md : Metadata World) :
         ⟨world, .active (.force (.delay body)), frames, view, result, scopes, views,
           receipts, suffix⟩
         ⟨world, .active body, frames, view, result, scopes, views, receipts, suffix⟩
+  /-- Forcing a thunk retained inside an embedded Original value enters its
+      actual source body. It is not treated as an opaque/non-delay value. -/
+  | forceEmbeddedOriginalDelay (world : World) (body : Original.Comp)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.force (.original (.delay body))), frames, view, result,
+          scopes, views, receipts, suffix⟩
+        ⟨world, .originalState ⟨body, []⟩, frames, view, result, scopes, views,
+          receipts, suffix⟩
   | returnBind (world : World) (value : TypedCall.Value) (body : TypedCall.Comp)
       (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
       (result : Original.Ty) (scopes : List Nat)

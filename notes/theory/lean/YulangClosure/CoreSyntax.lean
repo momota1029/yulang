@@ -259,7 +259,9 @@ mutual
     | request (opInstance : OperationInstance) (payload : Value)
         (savedContinuation : Comp)
     | fail (reason : Original.Failure)
+end
 
+mutual
   inductive ValueTyped : Original.Context → Value → Original.Ty → Prop where
     | var : env index = some type → ValueTyped env (.var index) type
     | original : Original.ValTyped Original.emptyContext value type →
@@ -338,35 +340,32 @@ structure InterfacePlan where
   argumentAdapter : Adapter
   resultAdapter : Adapter
 
-mutual
-  /-- One source lambda leaf or a finite outer-to-inner wrap spine. -/
-  inductive Function where
-    | lambda (mode : Original.Mode) (receipt : ReceiptTemplate)
-        (argument bodyResult result : Original.Ty) (body : Comp)
-        (resultConsumer : Adapter) : Function
-    | wrap (inner : Function) (argumentAdapter resultAdapter : Adapter) : Function
+/-- One source lambda leaf or a finite outer-to-inner wrap spine. -/
+inductive Function where
+  | lambda (mode : Original.Mode) (receipt : ReceiptTemplate)
+      (argument bodyResult result : Original.Ty) (body : Comp)
+      (resultConsumer : Adapter) : Function
+  | wrap (inner : Function) (argumentAdapter resultAdapter : Adapter) : Function
 
-  inductive FunctionTyped : Function → Original.Ty → Original.Ty → Prop where
-    | lambdaValue (receipt : ReceiptTemplate) (a bodyResult result : Original.Ty)
-        (body : Comp) (resultConsumer : Adapter)
-        (h : CompTyped
-          (Original.extend Original.emptyContext a) body bodyResult)
-        (hc : resultConsumer.input = bodyResult) (hr : resultConsumer.output = result) :
-        FunctionTyped (.lambda .value receipt a bodyResult result body resultConsumer) a result
-    | lambdaComputation (receipt : ReceiptTemplate) (a bodyResult result : Original.Ty)
-        (body : Comp) (resultConsumer : Adapter)
-        (h : CompTyped
-          (Original.extend Original.emptyContext (.thunk a)) body bodyResult)
-        (hc : resultConsumer.input = bodyResult) (hr : resultConsumer.output = result) :
-        FunctionTyped (.lambda .computation receipt a bodyResult result body resultConsumer) a result
-    | wrap {f : Function} {argumentAdapter resultAdapter : Adapter}
-        {a b c d : Original.Ty}
-        (hf : FunctionTyped f a b)
-        (ha : argumentAdapter.input = c) (haOut : argumentAdapter.output = a)
-        (hr : resultAdapter.input = b) (hrOut : resultAdapter.output = d) :
-        FunctionTyped (.wrap f argumentAdapter resultAdapter) c d
-
-end
+inductive FunctionTyped : Function → Original.Ty → Original.Ty → Prop where
+  | lambdaValue (receipt : ReceiptTemplate) (a bodyResult result : Original.Ty)
+      (body : Comp) (resultConsumer : Adapter)
+      (h : CompTyped
+        (Original.extend Original.emptyContext a) body bodyResult)
+      (hc : resultConsumer.input = bodyResult) (hr : resultConsumer.output = result) :
+      FunctionTyped (.lambda .value receipt a bodyResult result body resultConsumer) a result
+  | lambdaComputation (receipt : ReceiptTemplate) (a bodyResult result : Original.Ty)
+      (body : Comp) (resultConsumer : Adapter)
+      (h : CompTyped
+        (Original.extend Original.emptyContext (.thunk a)) body bodyResult)
+      (hc : resultConsumer.input = bodyResult) (hr : resultConsumer.output = result) :
+      FunctionTyped (.lambda .computation receipt a bodyResult result body resultConsumer) a result
+  | wrap {f : Function} {argumentAdapter resultAdapter : Adapter}
+      {a b c d : Original.Ty}
+      (hf : FunctionTyped f a b)
+      (ha : argumentAdapter.input = c) (haOut : argumentAdapter.output = a)
+      (hr : resultAdapter.input = b) (hrOut : resultAdapter.output = d) :
+      FunctionTyped (.wrap f argumentAdapter resultAdapter) c d
 
 /-- Immutable source projections used to tie Call metadata to the actual
 function syntax. -/
