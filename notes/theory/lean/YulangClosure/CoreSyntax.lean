@@ -21,6 +21,7 @@ inductive Literal where
   | char (value : String)
 
 inductive Mode where | value | computation
+  deriving DecidableEq
 inductive EvidenceMode where | general | administrative
 inductive Failure where | matchFailure | divideByZero | boundsError | unimplemented
 inductive IdentityKind where
@@ -191,3 +192,293 @@ mutual
 end
 
 end YulangClosure.Original
+
+/-! A source-derived typed Call fragment.  This is deliberately separate from
+`Original.Comp`: the older public fragment has no callable, wrap, request or
+failure constructors.  Bodies and adapters below retain their real
+`Original.CompTyped` derivations instead of being opaque code labels. -/
+namespace YulangClosure.TypedCall
+
+open YulangClosure.Original
+
+inductive CallType where
+  | callable (argument result : Original.Ty)
+  | thunk (result : Original.Ty)
+  deriving DecidableEq
+
+inductive PortKind where
+  | carrier | callEffect | result
+  deriving DecidableEq
+
+structure ViewOccurrence where
+  identity : Nat
+  path : PortPath
+
+/-- A source path is a sequence of structural component labels followed by a
+typed semantic port. -/
+structure PortPath where
+  components : List Nat
+  port : PortKind
+  type : Original.Ty
+
+inductive PathRule : PortPath → PortPath → Prop where
+  | identity (p : PortPath) : PathRule p p
+  | prefix (label : Nat) (p q : PortPath) :
+      PathRule p q → PathRule ⟨label :: p.components, p.port, p.type⟩
+        ⟨label :: q.components, q.port, q.type⟩
+  | adapterMap (mappingIdentity : Nat) (p q : PortPath) : PathRule p q
+
+/-- Correspondence is explicit source-plan data.  Equal endpoint types alone
+do not create a correspondence edge. -/
+structure PathCorrespondence where
+  source : PortPath
+  target : PortPath
+  rule : PathRule source target
+
+structure OperationInstance where
+  operation : Nat
+  typeArguments : List Original.Ty
+  payloadType : Original.Ty
+  responseType : Original.Ty
+
+/-! Call values/computations use a separate finite syntax so delayed adapters
+remain values even when their code can request or fail. Closed Original values
+are embedded explicitly; lexical Call binders use this fragment's variables. -/
+mutual
+  inductive Value where
+    | var (index : Nat)
+    | original (value : Original.Val)
+    | delay (body : Comp)
+    | view (value : Value) (occurrence : ViewOccurrence)
+  inductive Comp where
+    | original (body : Original.Comp)
+    | ret (value : Value)
+    | bind (first body : Comp)
+    | force (value : Value)
+    | scope (owner : Nat) (body : Comp)
+    | expose (effectView resultView : ViewOccurrence) (body : Comp)
+    | request (instance : OperationInstance) (payload : Value)
+        (savedContinuation : Comp)
+    | fail (reason : Original.Failure)
+
+  inductive ValueTyped : Original.Context → Value → Original.Ty → Prop where
+    | var : env index = some type → ValueTyped env (.var index) type
+    | original : Original.ValTyped Original.emptyContext value type →
+        ValueTyped env (.original value) type
+    | delay : CompTyped env body result →
+        ValueTyped env (.delay body) (.thunk result)
+    | view : ValueTyped env value type →
+        ValueTyped env (.view value occurrence) type
+
+  inductive CompTyped : Original.Context → Comp → Original.Ty → Prop where
+    | original : Original.CompTyped Original.emptyContext body result →
+        CompTyped env (.original body) result
+    | ret : ValueTyped env value result → CompTyped env (.ret value) result
+    | bind : CompTyped env first a → CompTyped (Original.extend env a) body result →
+        CompTyped env (.bind first body) result
+    | force : ValueTyped env value (.thunk result) →
+        CompTyped env (.force value) result
+    | scope : CompTyped env body result → CompTyped env (.scope owner body) result
+    | expose (effectView resultView : ViewOccurrence) : CompTyped env body result →
+        CompTyped env (.expose effectView resultView body) result
+    | request : ValueTyped env payload instance.payloadType →
+        CompTyped (Original.extend env instance.responseType) savedContinuation result →
+        CompTyped env (.request instance payload savedContinuation) result
+    | fail : CompTyped env (.fail reason) result
+end
+
+inductive ContextFrame where
+  | bind (body : Comp)
+  | scope (owner : Nat)
+  | expose (effectView resultView : ViewOccurrence)
+  | adapter (input output : Original.Ty) (body : Comp)
+
+inductive ContextTyping : Original.Context → List ContextFrame →
+    Original.Ty → Original.Ty → Prop where
+  | nil : ContextTyping env [] a a
+  | bind : CompTyped (Original.extend env a) body b →
+      ContextTyping env frames b result →
+      ContextTyping env (.bind body :: frames) a result
+  | scope : ContextTyping env frames a result →
+      ContextTyping env (.scope owner :: frames) a result
+  | expose (effectView resultView : ViewOccurrence) :
+      ContextTyping env frames a result →
+      ContextTyping env (.expose effectView resultView :: frames) a result
+  | adapter (hbody : CompTyped (Original.extend env a) body b) :
+      ContextTyping env frames b result →
+      ContextTyping env (.adapter a b body :: frames) a result
+
+structure ReceiptSlot where
+  slot : Nat
+  path : PortPath
+
+structure ReceiptTemplate where
+  profile : List PortPath
+  designatedSlots : List ReceiptSlot
+
+structure InterfacePorts where
+  interface : Nat
+  callEffect : PortPath
+  result : PortPath
+  callEffectView : ViewOccurrence
+  resultView : ViewOccurrence
+
+/-- The metadata plan for one concrete wrap node.  Keeping the adapters beside
+their interface prevents a parallel interface list from drifting away from
+the source wrap spine. -/
+structure InterfacePlan where
+  ports : InterfacePorts
+  argumentAdapter : Adapter
+  resultAdapter : Adapter
+
+structure Adapter where
+  input : Original.Ty
+  output : Original.Ty
+  body : Comp
+  typed : CompTyped (Original.extend Original.emptyContext input) body output
+  pathCorrespondences : List PathCorrespondence
+  capturedViews : List ViewOccurrence
+
+mutual
+  /-- One source lambda leaf or a finite outer-to-inner wrap spine. -/
+  inductive Function where
+    | lambda (mode : Original.Mode) (receipt : ReceiptTemplate)
+        (argument bodyResult result : Original.Ty) (body : Comp)
+        (resultConsumer : Adapter)
+        (bodyTyped : CompTyped
+          (Original.extend Original.emptyContext
+            (if mode = .value then argument else .thunk argument)) body bodyResult) : Function
+    | wrap (inner : Function) (argumentAdapter resultAdapter : Adapter) : Function
+
+  inductive FunctionTyped : Function → Original.Ty → Original.Ty → Prop where
+    | lambdaValue (receipt : ReceiptTemplate) (a bodyResult result : Original.Ty)
+        (body : Comp) (resultConsumer : Adapter)
+        (h : CompTyped
+          (Original.extend Original.emptyContext a) body bodyResult)
+        (hc : resultConsumer.input = bodyResult) (hr : resultConsumer.output = result) :
+        FunctionTyped (.lambda .value receipt a bodyResult result body resultConsumer h) a result
+    | lambdaComputation (receipt : ReceiptTemplate) (a bodyResult result : Original.Ty)
+        (body : Comp) (resultConsumer : Adapter)
+        (h : CompTyped
+          (Original.extend Original.emptyContext (.thunk a)) body bodyResult)
+        (hc : resultConsumer.input = bodyResult) (hr : resultConsumer.output = result) :
+        FunctionTyped (.lambda .computation receipt a bodyResult result body resultConsumer h) a result
+    | wrap {f : Function} {argumentAdapter resultAdapter : Adapter}
+        {a b c d : Original.Ty}
+        (hf : FunctionTyped f a b)
+        (ha : argumentAdapter.input = c) (haOut : argumentAdapter.output = a)
+        (hr : resultAdapter.input = b) (hrOut : resultAdapter.output = d) :
+        FunctionTyped (.wrap f argumentAdapter resultAdapter) c d
+
+end
+
+/-- Immutable source projections used to tie Call metadata to the actual
+function syntax. -/
+def Function.sourceReceipt : Function → ReceiptTemplate
+  | .lambda _ receipt _ _ _ _ _ _ => receipt
+  | .wrap inner _ _ => sourceReceipt inner
+
+def Function.wrapAdapters : Function → List (Adapter × Adapter)
+  | .lambda _ _ _ _ _ _ _ _ => []
+  | .wrap inner argumentAdapter resultAdapter =>
+      (argumentAdapter, resultAdapter) :: wrapAdapters inner
+
+/-- The receipt, owner, carrier paths, interface ports, adapter path maps and
+captured views are frozen inputs to a Call execution. -/
+structure CallView where
+  receiverOwner : Nat
+  sourceReceipt : ReceiptTemplate
+  carrierOccurrences : List ViewOccurrence
+  interfaces : List InterfacePlan
+  adapterPaths : List PathCorrespondence
+  capturedViews : List ViewOccurrence
+
+structure Carrier where
+  underlying : Value
+  carrierType : Original.Ty
+  typed : ValueTyped Original.emptyContext underlying carrierType
+  occurrences : List ViewOccurrence
+  receipts : List ReceiptSlot
+
+/-- A represented source Call has one already selected receiver owner.  The
+freshness premise is explicit input data and is not inferred from type equality. -/
+structure CallTerm where
+  function : Function
+  argument : Carrier
+  inputType : Original.Ty
+  resultType : Original.Ty
+  functionTyped : FunctionTyped function inputType resultType
+  argumentIsThunk : argument.carrierType = .thunk inputType
+  callView : CallView
+  sourceReceiptMatches : function.sourceReceipt = callView.sourceReceipt
+  wrapPlanMatches : function.wrapAdapters =
+    callView.interfaces.map fun plan => (plan.argumentAdapter, plan.resultAdapter)
+  activeOwners : List Nat
+  receiverFresh : callView.receiverOwner ∉ activeOwners
+
+inductive AdaptersTyped : List Adapter → Original.Ty → Original.Ty → Prop where
+  | nil (a : Original.Ty) : AdaptersTyped [] a a
+  | cons (adapter : Adapter) (rest : List Adapter)
+      (first last middle : Original.Ty)
+      (hAdapter : adapter.input = first) (hOutput : adapter.output = middle)
+      (hRest : AdaptersTyped rest middle last) :
+      AdaptersTyped (adapter :: rest) first last
+
+/-- Typed Call zipper data.  `literalSuffix` is opaque here so the same source
+context composes with the actual independently typed Control suffix without
+rewriting or inspecting its constructors. -/
+structure EvaluationContext (Suffix : Type) where
+  activeHole : Comp
+  holeType : Original.Ty
+  holeTyped : CompTyped Original.emptyContext activeHole holeType
+  frames : List ContextFrame
+  contextResultType : Original.Ty
+  contextTyped : ContextTyping Original.emptyContext frames holeType contextResultType
+  pendingDelayedArguments : List Adapter
+  pendingArgumentInput : Original.Ty
+  pendingArgumentOutput : Original.Ty
+  delayedArgumentsTyped : AdaptersTyped pendingDelayedArguments
+    pendingArgumentInput pendingArgumentOutput
+  bodyResultConsumer : Adapter
+  bodyResultType : Original.Ty
+  resultAdapterInput : Original.Ty
+  resultType : Original.Ty
+  bodyResultTyped : contextResultType = bodyResultType
+  bodyConsumerInputTyped : bodyResultConsumer.input = bodyResultType
+  bodyResultOutputTyped : bodyResultConsumer.output = resultAdapterInput
+  pendingResultAdapters : List Adapter
+  pendingResultOutput : Original.Ty
+  pendingResultsTyped : AdaptersTyped pendingResultAdapters
+    resultAdapterInput pendingResultOutput
+  finalResultTyped : pendingResultOutput = resultType
+  scopeOwner : Nat
+  callView : CallView
+  literalSuffix : Suffix
+
+structure Request (Suffix World : Type) where
+  instance : OperationInstance
+  payload : Value
+  payloadTyped : ValueTyped Original.emptyContext payload instance.payloadType
+  resultType : Original.Ty
+  savedContinuation : Comp
+  continuationTyped : CompTyped
+    (Original.extend Original.emptyContext instance.responseType)
+    savedContinuation resultType
+  callView : CallView
+  scopeContext : List Nat
+  viewContext : List ViewOccurrence
+  currentWorld : World
+  literalSuffix : Suffix
+
+structure Failure where
+  reason : Original.Failure
+
+inductive Outcome (Suffix World : Type) where
+  | returned (value : Value) (type : Original.Ty)
+      (typed : ValueTyped Original.emptyContext value type)
+      (currentWorld : World) (literalSuffix : Suffix)
+  | requested (request : Request Suffix World)
+  | failed (failure : Failure) (resultType : Original.Ty)
+      (currentWorld : World) (literalSuffix : Suffix)
+
+end YulangClosure.TypedCall

@@ -57,6 +57,10 @@ mutual
     | release (target : Nat)
     /-- A source bind frame in the delimited Original fragment. -/
     | originalBind (body : Original.Comp)
+    /-- Typed Call frames remain executable syntax while using the existing
+        metadata world operations for failure propagation. -/
+    | typedCallBind (body : TypedCall.Comp)
+    | typedCallAdapter (input output : Original.Ty) (body : TypedCall.Comp)
     /-- Metatheoretic delimiter between source frames and a foreign suffix. -/
     | originalBoundary
 end
@@ -97,6 +101,382 @@ structure Metadata (World : Type) where
   /-- Fail cleanup is observationally unspecified in the frozen core. -/
   failWorld : World → Frame → World → Prop
   failWorld_total : ∀ w f, ∃ w', failWorld w f w'
+
+/-- Actual source-derived Call phases.  The Call execution stack is separate
+from the independently typed Control suffix carried by `CallState`. -/
+inductive CallHead where
+  | call (term : TypedCall.CallTerm)
+  | enter (function : TypedCall.Function) (carrier : TypedCall.Value)
+      (pendingResults : List TypedCall.Adapter)
+  | received (function : TypedCall.Function) (carrier : TypedCall.Value)
+      (pendingResults : List TypedCall.Adapter)
+  | active (computation : TypedCall.Comp)
+  | originalState (state : Original.State)
+  | returned (value : TypedCall.Value)
+  | requesting (instance : TypedCall.OperationInstance) (payload : TypedCall.Value)
+      (continuation : TypedCall.Comp) (observedViews : List TypedCall.ViewOccurrence)
+  | requested (instance : TypedCall.OperationInstance) (payload : TypedCall.Value)
+      (continuation : TypedCall.Comp)
+  | failed (reason : Original.Failure)
+
+structure CallState (World : Type) where
+  world : World
+  head : CallHead
+  frames : List TypedCall.ContextFrame
+  callView : TypedCall.CallView
+  resultType : Original.Ty
+  scopeContext : List Nat
+  viewContext : List TypedCall.ViewOccurrence
+  receiptSlots : List TypedCall.ReceiptSlot
+  literalSuffix : List Frame
+
+def CallState.suffixViewIds : List Frame → List Nat
+  | [] => []
+  | .view identity :: frames => identity :: suffixViewIds frames
+  | _ :: frames => suffixViewIds frames
+
+def CallState.initial {World : Type} (term : TypedCall.CallTerm) (world : World)
+    (suffix : List Frame) : CallState World :=
+  ⟨world, .call term, [], term.callView, term.resultType, [],
+    term.argument.occurrences ++ term.callView.capturedViews,
+    term.argument.receipts, suffix⟩
+
+def CallState.captureBind (continuation body : TypedCall.Comp) : TypedCall.Comp :=
+  .bind continuation (TypedCall.renameCallComp (TypedCall.upCall Nat.succ) body)
+
+def CallState.contextControlFrame : TypedCall.ContextFrame → Frame
+  | .bind body => .typedCallBind body
+  | .scope owner => .scope owner
+  | .expose effectView _ => .view effectView.identity
+  | .adapter input output body => .typedCallAdapter input output body
+
+def CallState.activeViews (frames : List TypedCall.ContextFrame) :
+    List TypedCall.ViewOccurrence :=
+  frames.filterMap fun frame =>
+    match frame with
+    | .expose effectView _ => some effectView
+    | _ => none
+
+/-- The source Call and all its administrative/body transitions are reachable
+with a literal independently typed Control suffix.  Metadata operations are
+the already existing Control world operations; this relation introduces no
+new failure cleanup or event policy. -/
+inductive CallControlStep {World : Type} (md : Metadata World) :
+    CallState World → CallState World → Prop where
+  | start (term : TypedCall.CallTerm) (world : World) (suffix : List Frame) :
+      CallControlStep md (CallState.initial term world suffix)
+        ⟨world, .enter term.function term.argument.underlying [],
+          (term.callView.interfaces.reverse.map fun interface =>
+            TypedCall.ContextFrame.expose interface.ports.callEffectView
+              interface.ports.resultView) ++
+            [.scope term.callView.receiverOwner],
+          term.callView, term.resultType, [],
+          term.argument.occurrences ++ term.callView.capturedViews,
+          term.argument.receipts, suffix⟩
+  | peelWrap (world : World) (inner : TypedCall.Function)
+      (argumentAdapter resultAdapter : TypedCall.Adapter)
+      (carrier : TypedCall.Value) (pending : List TypedCall.Adapter)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .enter (.wrap inner argumentAdapter resultAdapter) carrier pending,
+          frames, view, result, scopes, views, receipts, suffix⟩
+        ⟨world, .enter inner (TypedCall.delayArgument carrier argumentAdapter)
+          (resultAdapter :: pending), frames, view, result, scopes, views, receipts, suffix⟩
+  | attachReceipt (world : World) (mode : Original.Mode)
+      (receipt : TypedCall.ReceiptTemplate) (argument bodyResult result : Original.Ty)
+      (body : TypedCall.Comp) (consumer : TypedCall.Adapter)
+      (bodyTyped : TypedCall.CompTyped
+        (Original.extend Original.emptyContext
+          (if mode = .value then argument else .thunk argument)) body bodyResult)
+      (carrier : TypedCall.Value) (pending : List TypedCall.Adapter)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (resultType : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .enter
+          (.lambda mode receipt argument bodyResult result body consumer bodyTyped)
+          carrier pending, frames, view, resultType, scopes, views, receipts, suffix⟩
+        ⟨world, .received
+          (.lambda mode receipt argument bodyResult result body consumer bodyTyped)
+          carrier pending, frames, view, resultType, scopes, views,
+          receipts ++ receipt.designatedSlots, suffix⟩
+  | enterLambda (world : World) (mode : Original.Mode)
+      (receipt : TypedCall.ReceiptTemplate) (argument bodyResult result : Original.Ty)
+      (body : TypedCall.Comp) (consumer : TypedCall.Adapter)
+      (bodyTyped : TypedCall.CompTyped
+        (Original.extend Original.emptyContext
+          (if mode = .value then argument else .thunk argument)) body bodyResult)
+      (carrier : TypedCall.Value) (pending : List TypedCall.Adapter)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (resultType : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .received
+          (.lambda mode receipt argument bodyResult result body consumer bodyTyped)
+          carrier pending, frames, view, resultType, scopes, views, receipts, suffix⟩
+        ⟨world, .active (TypedCall.callEntryBody mode carrier body consumer pending),
+          frames, view, resultType, scopes, views, receipts, suffix⟩
+  | enterBind (world : World) (first body : TypedCall.Comp)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.bind first body), frames, view, result, scopes, views,
+          receipts, suffix⟩
+        ⟨world, .active first, .bind body :: frames, view, result, scopes, views,
+          receipts, suffix⟩
+  | enterOriginal (world : World) (body : Original.Comp)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.original body), frames, view, result, scopes, views,
+          receipts, suffix⟩
+        ⟨world, .originalState ⟨body, []⟩, frames, view, result, scopes, views,
+          receipts, suffix⟩
+  | originalStep (world : World) (source target : Original.State)
+      (step : Original.Step source target) (frames : List TypedCall.ContextFrame)
+      (view : TypedCall.CallView) (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .originalState source, frames, view, result, scopes, views, receipts,
+          suffix⟩
+        ⟨world, .originalState target, frames, view, result, scopes, views, receipts,
+          suffix⟩
+  | originalExit (world : World) (value : Original.Val)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .originalState ⟨.ret value, []⟩, frames, view, result, scopes, views,
+          receipts, suffix⟩
+        ⟨world, .active (.ret (.original value)), frames, view, result, scopes, views,
+          receipts, suffix⟩
+  | enterScope (world : World) (owner : Nat) (body : TypedCall.Comp)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.scope owner body), frames, view, result, scopes, views,
+          receipts, suffix⟩
+        ⟨world, .active body, .scope owner :: frames, view, result, scopes,
+          views, receipts, suffix⟩
+  | enterExpose (world : World) (effectView resultView : TypedCall.ViewOccurrence)
+      (body : TypedCall.Comp) (frames : List TypedCall.ContextFrame)
+      (view : TypedCall.CallView) (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.expose effectView resultView body), frames, view, result,
+          scopes, views, receipts, suffix⟩
+        ⟨world, .active body, .expose effectView resultView :: frames, view, result,
+          scopes, views, receipts, suffix⟩
+  | emitRequest (world : World) (instance : TypedCall.OperationInstance)
+      (payload : TypedCall.Value) (continuation : TypedCall.Comp)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffixViews : List TypedCall.ViewOccurrence)
+      (suffixViewMatch : suffixViews.map TypedCall.ViewOccurrence.identity =
+        CallState.suffixViewIds suffix)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.request instance payload continuation), frames, view, result,
+          scopes, views, receipts, suffix⟩
+        ⟨world, .requesting instance payload continuation
+          (views ++ CallState.activeViews frames ++ suffixViews), frames, view, result,
+          scopes, views ++ CallState.activeViews frames ++ suffixViews, receipts, suffix⟩
+  | forceDelay (world : World) (body : TypedCall.Comp)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.force (.delay body)), frames, view, result, scopes, views,
+          receipts, suffix⟩
+        ⟨world, .active body, frames, view, result, scopes, views, receipts, suffix⟩
+  | returnBind (world : World) (value : TypedCall.Value) (body : TypedCall.Comp)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.ret value), .bind body :: frames, view, result, scopes,
+          views, receipts, suffix⟩
+        ⟨world, .active (TypedCall.substituteCallComp
+          (fun index => if index = 0 then value else .var (index - 1)) body),
+          frames, view, result, scopes, views, receipts, suffix⟩
+  | returnAdapter (world : World) (value : TypedCall.Value)
+      (input output : Original.Ty) (body : TypedCall.Comp)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.ret value), .adapter input output body :: frames, view,
+          result, scopes, views, receipts, suffix⟩
+        ⟨world, .active (TypedCall.substituteCallComp
+          (fun index => if index = 0 then value else .var (index - 1)) body),
+          frames, view, result, scopes, views, receipts, suffix⟩
+  | returnScope (world : World) (owner : Nat) (value : TypedCall.Value)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.ret value), .scope owner :: frames, view, result, scopes,
+          views, receipts, suffix⟩
+        ⟨md.scopeReturn world owner, .active (.ret value), frames, view, result,
+          scopes, views, receipts, suffix⟩
+  | returnExpose (world : World) (effectView resultView : TypedCall.ViewOccurrence)
+      (value : TypedCall.Value) (frames : List TypedCall.ContextFrame)
+      (view : TypedCall.CallView) (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.ret value), .expose effectView resultView :: frames,
+          view, result, scopes, views, receipts, suffix⟩
+        ⟨md.viewReturn world resultView.identity, .active (.ret (.view value resultView)),
+          frames, view, result, scopes, views, receipts, suffix⟩
+  | requestBind (world : World) (instance : TypedCall.OperationInstance)
+      (payload : TypedCall.Value) (continuation body : TypedCall.Comp)
+      (observed : List TypedCall.ViewOccurrence)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .requesting instance payload continuation observed,
+          .bind body :: frames, view, result, scopes, views, receipts, suffix⟩
+        ⟨world, .requesting instance payload
+          (CallState.captureBind continuation body) observed,
+          frames, view, result, scopes, views, receipts, suffix⟩
+  | requestAdapter (world : World) (instance : TypedCall.OperationInstance)
+      (payload : TypedCall.Value) (continuation : TypedCall.Comp)
+      (observed : List TypedCall.ViewOccurrence)
+      (input output : Original.Ty) (body : TypedCall.Comp)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .requesting instance payload continuation observed,
+          .adapter input output body :: frames, view, result, scopes, views, receipts,
+          suffix⟩
+        ⟨world, .requesting instance payload
+          (CallState.captureBind continuation body) observed,
+          frames, view, result, scopes, views, receipts, suffix⟩
+  | requestScope (world : World) (owner : Nat)
+      (instance : TypedCall.OperationInstance) (payload continuation : TypedCall.Comp)
+      (observed : List TypedCall.ViewOccurrence)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .requesting instance payload continuation observed,
+          .scope owner :: frames, view, result, scopes, views, receipts, suffix⟩
+        ⟨md.suspendScope world owner,
+          .requesting instance payload (.scope owner continuation) observed, frames,
+          view, result, owner :: scopes, views, receipts, suffix⟩
+  | requestExpose (world : World) (effectView resultView : TypedCall.ViewOccurrence)
+      (instance : TypedCall.OperationInstance) (payload continuation : TypedCall.Comp)
+      (observed : List TypedCall.ViewOccurrence)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .requesting instance payload continuation observed,
+          .expose effectView resultView :: frames, view, result, scopes, views,
+          receipts, suffix⟩
+        ⟨md.suspendView world effectView.identity,
+          .requesting instance payload
+            (.expose effectView resultView continuation) observed,
+          frames, view, result, scopes, views, receipts, suffix⟩
+  | failBind (world : World) (reason : Original.Failure) (body : TypedCall.Comp)
+      (nextWorld : World) (cleanup : md.failWorld world (.typedCallBind body) nextWorld)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.fail reason), .bind body :: frames, view, result, scopes,
+          views, receipts, suffix⟩
+        ⟨nextWorld, .active (.fail reason), frames, view, result, scopes, views,
+          receipts, suffix⟩
+  | failAdapter (world : World) (reason : Original.Failure)
+      (input output : Original.Ty) (body : TypedCall.Comp)
+      (nextWorld : World)
+      (cleanup : md.failWorld world (.typedCallAdapter input output body) nextWorld)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.fail reason), .adapter input output body :: frames,
+          view, result, scopes, views, receipts, suffix⟩
+        ⟨nextWorld, .active (.fail reason), frames, view, result, scopes, views,
+          receipts, suffix⟩
+  | failScope (world : World) (reason : Original.Failure) (owner : Nat)
+      (nextWorld : World) (cleanup : md.failWorld world (.scope owner) nextWorld)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.fail reason), .scope owner :: frames, view, result, scopes,
+          views, receipts, suffix⟩
+        ⟨nextWorld, .active (.fail reason), frames, view, result, scopes, views,
+          receipts, suffix⟩
+  | failExpose (world : World) (reason : Original.Failure)
+      (effectView resultView : TypedCall.ViewOccurrence)
+      (nextWorld : World)
+      (cleanup : md.failWorld world (.view effectView.identity) nextWorld)
+      (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.fail reason), .expose effectView resultView :: frames,
+          view, result, scopes, views, receipts, suffix⟩
+        ⟨nextWorld, .active (.fail reason), frames, view, result, scopes, views,
+          receipts, suffix⟩
+  | finishReturn (world : World) (value : TypedCall.Value)
+      (view : TypedCall.CallView) (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.ret value), [], view, result, scopes, views, receipts, suffix⟩
+        ⟨world, .returned value, [], view, result, scopes, views, receipts, suffix⟩
+  | finishRequest (world : World) (instance : TypedCall.OperationInstance)
+      (payload continuation : TypedCall.Comp) (observed : List TypedCall.ViewOccurrence)
+      (view : TypedCall.CallView)
+      (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .requesting instance payload continuation observed, [], view, result,
+          scopes, views, receipts, suffix⟩
+        ⟨world, .requested instance payload continuation, [], view, result, scopes,
+          observed, receipts, suffix⟩
+  | finishFailure (world : World) (reason : Original.Failure)
+      (view : TypedCall.CallView) (result : Original.Ty) (scopes : List Nat)
+      (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
+      (suffix : List Frame) :
+      CallControlStep md
+        ⟨world, .active (.fail reason), [], view, result, scopes, views, receipts, suffix⟩
+        ⟨world, .failed reason, [], view, result, scopes, views, receipts, suffix⟩
 
 /-- Raw response checking is executable and admits ill-typed responses as Bad. -/
 def responseOK (q : Nat) : Value → Bool

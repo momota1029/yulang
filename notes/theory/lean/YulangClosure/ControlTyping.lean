@@ -75,6 +75,54 @@ inductive SavedTyped (sig : Signature) : Option Kont → Option (Ty × Ty) → P
   | none : SavedTyped sig none none
   | some : KontTyped sig k a b → SavedTyped sig (some k) (some (a,b))
 
+/-- Typed witnesses for the actual Call phases. The result passed to the
+independent suffix is always the Original result type of this Call. -/
+inductive CallHeadTyped : CallHead → Original.Ty → Prop where
+  | call (term : TypedCall.CallTerm) :
+      CallHeadTyped (.call term) term.resultType
+  | enter {function : TypedCall.Function} {carrier : TypedCall.Value}
+      {pending : List TypedCall.Adapter} {input output final : Original.Ty}
+      (hf : TypedCall.FunctionTyped function input output)
+      (hc : TypedCall.ValueTyped Original.emptyContext carrier (.thunk input))
+      (hp : TypedCall.AdaptersTyped pending output final) :
+      CallHeadTyped (.enter function carrier pending) final
+  | received {function : TypedCall.Function} {carrier : TypedCall.Value}
+      {pending : List TypedCall.Adapter} {input output final : Original.Ty}
+      (hf : TypedCall.FunctionTyped function input output)
+      (hc : TypedCall.ValueTyped Original.emptyContext carrier (.thunk input))
+      (hp : TypedCall.AdaptersTyped pending output final) :
+      CallHeadTyped (.received function carrier pending) final
+  | active : TypedCall.CompTyped Original.emptyContext computation type →
+      CallHeadTyped (.active computation) type
+  | originalState : Original.StateTyped Original.emptyContext type state →
+      CallHeadTyped (.originalState state) type
+  | returned : TypedCall.ValueTyped Original.emptyContext value type →
+      CallHeadTyped (.returned value) type
+  | requesting {instance : TypedCall.OperationInstance} {payload : TypedCall.Value}
+      {continuation : TypedCall.Comp} {observed : List TypedCall.ViewOccurrence}
+      (hp : TypedCall.ValueTyped Original.emptyContext payload instance.payloadType)
+      (hk : TypedCall.CompTyped
+        (Original.extend Original.emptyContext instance.responseType)
+        continuation result) :
+      CallHeadTyped (.requesting instance payload continuation observed) result
+  | requested {instance : TypedCall.OperationInstance} {payload : TypedCall.Value}
+      {continuation : TypedCall.Comp}
+      (hp : TypedCall.ValueTyped Original.emptyContext payload instance.payloadType)
+      (hk : TypedCall.CompTyped
+        (Original.extend Original.emptyContext instance.responseType)
+        continuation result) :
+      CallHeadTyped (.requested instance payload continuation) result
+  | failed (reason : Original.Failure) (result : Original.Ty) :
+      CallHeadTyped (.failed reason) result
+
+/-- The Call execution is attached to an independently typed and literally
+retained Control suffix. -/
+def CallStateTyped (sig : Signature) (state : CallState W) (result : Ty) : Prop :=
+  ∃ activeType, CallHeadTyped state.head activeType ∧
+    TypedCall.ContextTyping Original.emptyContext state.frames activeType
+      state.resultType ∧
+    FramesTyped sig state.literalSuffix (.original state.resultType) result
+
 inductive HeadTyped (sig : Signature) : Head → Ty → Prop
   | ret : ValueTyped v a → HeadTyped sig (.ret v) a
   | req : PacketTyped sig p a → HeadTyped sig (.req p) a

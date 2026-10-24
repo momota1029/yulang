@@ -361,3 +361,64 @@ interpretation; full original source/native/A-B/coverage/principality/terminatio
 No original full V1/BodyLaws/LocalLaws closure is claimed.
 -/
 end YulangClosure.Original
+
+namespace YulangClosure.TypedCall
+
+open YulangClosure.Original
+
+/-- Peeling a wrap constructs the source-specified inert thunk.  The adapter
+body remains syntax under its value binder; it is not run while peeling. -/
+def delayArgument (carrier : Value) (adapter : Adapter) : Value :=
+  .delay (.bind (.force carrier) adapter.body)
+
+/-- Value entry forces the received carrier only after receipt attachment. -/
+def valueEntryBody (carrier : Value) (body : Comp) : Comp :=
+  .bind (.force carrier) body
+
+/-- The source lambda's immutable receipt slots are attached before entry. The
+underlying carrier remains the same value; the explicit slots are retained as
+observation-path metadata on the Carrier. -/
+def attachReceipt (carrier : Carrier) (receipt : ReceiptTemplate) : Carrier :=
+  { carrier with receipts := carrier.receipts ++ receipt.designatedSlots }
+
+def plugFrame : ContextFrame → Comp → Comp
+  | .bind body, hole => .bind hole body
+  | .scope owner, hole => .scope owner hole
+  | .expose effectView resultView, hole => .expose effectView resultView hole
+  | .adapter _ _ body, hole => .bind hole body
+
+/-- The list is ordered from the active hole outwards. -/
+def plugFrames : List ContextFrame → Comp → Comp
+  | [], hole => hole
+  | frame :: frames, hole => plugFrames frames (plugFrame frame hole)
+
+/-- Pending result adapters execute in their stored inner-to-outer order. -/
+def plugResultAdapters : List Adapter → Comp → Comp
+  | [], body => body
+  | adapter :: adapters, body =>
+      plugResultAdapters adapters (.bind body adapter.body)
+
+/-- Compose the declared-result consumer followed by adapters already stored
+inner-to-outer by wrap peeling. -/
+def consumeCallResult (body : Comp) (consumer : Adapter)
+    (pending : List Adapter) : Comp :=
+  plugResultAdapters pending (.bind body consumer.body)
+
+/-- Build the actual source entry computation. Value entry forces only after
+receipt attachment; Computation entry substitutes the received thunk. -/
+def callEntryBody (mode : Original.Mode) (carrier : Value) (body : Comp)
+    (consumer : Adapter) (pending : List Adapter) : Comp :=
+  let entered := match mode with
+    | .value => valueEntryBody carrier body
+    | .computation => computationEntryBody body carrier
+  consumeCallResult entered consumer pending
+
+/-- Plugging follows the actual typed hole through the active evaluation
+context, then the declared-result consumer and pending result adapters. -/
+def plugEvaluationContext {Suffix : Type} (context : EvaluationContext Suffix)
+    (hole : Comp) : Comp :=
+  plugResultAdapters context.pendingResultAdapters
+    (.bind (plugFrames context.frames hole)
+      context.bodyResultConsumer.body)
+
+end YulangClosure.TypedCall

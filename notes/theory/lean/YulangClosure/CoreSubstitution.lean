@@ -513,3 +513,169 @@ theorem single_raw (m : Comp) (v : Val) :
   cases i <;> rfl
 
 end YulangClosure.Original
+
+namespace YulangClosure.TypedCall
+
+open YulangClosure.Original
+
+/-- Standard de Bruijn lifting for the finite Call fragment. -/
+def upCall (r : Nat → Nat) : Nat → Nat
+  | 0 => 0
+  | n + 1 => r n + 1
+
+mutual
+  def renameCallValue (r : Nat → Nat) : Value → Value
+    | .var i => .var (r i)
+    | .original value => .original value
+    | .delay body => .delay (renameCallComp r body)
+    | .view value occurrence => .view (renameCallValue r value) occurrence
+  def renameCallComp (r : Nat → Nat) : Comp → Comp
+    | .original body => .original body
+    | .ret value => .ret (renameCallValue r value)
+    | .bind first body => .bind (renameCallComp r first)
+        (renameCallComp (upCall r) body)
+    | .force value => .force (renameCallValue r value)
+    | .scope owner body => .scope owner (renameCallComp r body)
+    | .expose effectView resultView body =>
+        .expose effectView resultView (renameCallComp r body)
+    | .request instance payload continuation =>
+        .request instance (renameCallValue r payload)
+          (renameCallComp (upCall r) continuation)
+    | .fail reason => .fail reason
+end
+
+mutual
+  theorem renameCallValue_typed {env target : Original.Context} {r : Nat → Nat}
+      {value : Value} {a : Original.Ty} (h : ValueTyped env value a)
+      (hr : ∀ i, target (r i) = env i) :
+      ValueTyped target (renameCallValue r value) a := by
+    cases h with
+    | var he => exact .var ((hr _).trans he)
+    | original hv => exact .original hv
+    | delay hc => exact .delay (renameCallComp_typed hc hr)
+    | view hv => exact .view (renameCallValue_typed hv hr)
+  theorem renameCallComp_typed {env target : Original.Context} {r : Nat → Nat}
+      {body : Comp} {a : Original.Ty} (h : CompTyped env body a)
+      (hr : ∀ i, target (r i) = env i) :
+      CompTyped target (renameCallComp r body) a := by
+    cases h with
+    | original hc => exact .original hc
+    | ret hv => exact .ret (renameCallValue_typed hv hr)
+    | bind hm hn =>
+        exact .bind (renameCallComp_typed hm hr) (renameCallComp_typed hn (by
+          intro i
+          cases i <;> simp [upCall, Original.extend, hr]))
+    | force hv => exact .force (renameCallValue_typed hv hr)
+    | scope hc => exact .scope (renameCallComp_typed hc hr)
+    | expose hc => exact .expose (renameCallComp_typed hc hr)
+    | request hp hk =>
+        exact .request (renameCallValue_typed hp hr)
+          (renameCallComp_typed hk (by
+            intro i
+            cases i <;> simp [upCall, Original.extend, hr]))
+    | fail => exact .fail
+end
+
+/-- Lift a value substitution through a Call-local value binder. -/
+def liftCallSubstitution (s : Nat → Value) : Nat → Value
+  | 0 => .var 0
+  | n + 1 => renameCallValue Nat.succ (s n)
+
+mutual
+  def substituteCallValue (s : Nat → Value) : Value → Value
+    | .var i => s i
+    | .original value => .original value
+    | .delay body => .delay (substituteCallComp s body)
+    | .view value occurrence => .view (substituteCallValue s value) occurrence
+  def substituteCallComp (s : Nat → Value) : Comp → Comp
+    | .original body => .original body
+    | .ret value => .ret (substituteCallValue s value)
+    | .bind first body => .bind (substituteCallComp s first)
+        (substituteCallComp (liftCallSubstitution s) body)
+    | .force value => .force (substituteCallValue s value)
+    | .scope owner body => .scope owner (substituteCallComp s body)
+    | .expose effectView resultView body =>
+        .expose effectView resultView (substituteCallComp s body)
+    | .request instance payload continuation =>
+        .request instance (substituteCallValue s payload)
+          (substituteCallComp (liftCallSubstitution s) continuation)
+    | .fail reason => .fail reason
+end
+
+private theorem liftedCallSubstitution_typed
+    {env target : Original.Context} {s : Nat → Value} {a : Original.Ty}
+    (hs : ∀ i ty, env i = some ty → ValueTyped target (s i) ty) :
+    ∀ i ty, (Original.extend env a) i = some ty →
+      ValueTyped (Original.extend target a) (liftCallSubstitution s i) ty := by
+  intro i ty hi
+  cases i with
+  | zero =>
+      simp only [Original.extend, Option.some.injEq] at hi
+      subst ty
+      exact .var rfl
+  | succ i =>
+      have he : env i = some ty := hi
+      exact renameCallValue_typed (hs i ty he) (by intro j; rfl)
+
+mutual
+  theorem substituteCallValue_typed {env target : Original.Context} {s : Nat → Value}
+      {value : Value} {a : Original.Ty} (h : ValueTyped env value a)
+      (hs : ∀ i ty, env i = some ty → ValueTyped target (s i) ty) :
+      ValueTyped target (substituteCallValue s value) a := by
+    cases h with
+    | var he => exact hs _ _ he
+    | original hv => exact .original hv
+    | delay hc => exact .delay (substituteCallComp_typed hc hs)
+    | view hv => exact .view (substituteCallValue_typed hv hs)
+  theorem substituteCallComp_typed {env target : Original.Context} {s : Nat → Value}
+      {body : Comp} {a : Original.Ty} (h : CompTyped env body a)
+      (hs : ∀ i ty, env i = some ty → ValueTyped target (s i) ty) :
+      CompTyped target (substituteCallComp s body) a := by
+    cases h with
+    | original hc => exact .original hc
+    | ret hv => exact .ret (substituteCallValue_typed hv hs)
+    | bind hm hn =>
+        exact .bind (substituteCallComp_typed hm hs)
+          (substituteCallComp_typed hn (liftCallSubstitution s)
+            (liftedCallSubstitution_typed hs))
+    | force hv => exact .force (substituteCallValue_typed hv hs)
+    | scope hc => exact .scope (substituteCallComp_typed hc hs)
+    | expose hc => exact .expose (substituteCallComp_typed hc hs)
+    | request hp hk =>
+        exact .request (substituteCallValue_typed hp hs)
+          (substituteCallComp_typed hk (liftCallSubstitution s)
+            (liftedCallSubstitution_typed hs))
+    | fail => exact .fail
+end
+
+/-- Adapter and Computation-entry substitutions share the actual Call syntax
+traversal above, whose closed Original subterms are retained verbatim. -/
+def executeAdapterBody (adapter : Adapter) (value : Value) : Comp :=
+  substituteCallComp (fun i => if i = 0 then value else .var (i - 1)) adapter.body
+
+theorem executeAdapterBody_typed (adapter : Adapter) (value : Value)
+    (hv : ValueTyped Original.emptyContext value adapter.input) :
+    CompTyped Original.emptyContext (executeAdapterBody adapter value) adapter.output := by
+  apply substituteCallComp_typed adapter.typed
+  intro i ty hi
+  cases i with
+  | zero => simp only [Original.extend, Option.some.injEq] at hi; subst ty; exact hv
+  | succ i => exact .var hi
+
+/-- Computation entry substitutes the received thunk carrier itself. -/
+def computationEntryBody (body : Comp) (carrier : Value) : Comp :=
+  substituteCallComp (fun i => if i = 0 then carrier else .var (i - 1)) body
+
+theorem computationEntryBody_typed {a b : Original.Ty} {body : Comp}
+    (bodyTyped : CompTyped
+      (Original.extend Original.emptyContext (.thunk a)) body b)
+    {carrier : Value}
+    (carrierTyped : ValueTyped Original.emptyContext carrier (.thunk a)) :
+    CompTyped Original.emptyContext (computationEntryBody body carrier) b := by
+  apply substituteCallComp_typed bodyTyped
+  intro i ty hi
+  cases i with
+  | zero => simp only [Original.extend, Option.some.injEq] at hi; subst ty; exact carrierTyped
+  | succ i => exact .var hi
+
+end YulangClosure.TypedCall
