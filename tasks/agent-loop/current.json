@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "sprint_id": "FINITE-NEXT-COVERAGE-20261024",
+  "sprint_id": "LET-FREE-CARRIER-20261024",
   "phase": "SPRINT_COMPLETE_PARENT_OPEN",
-  "contract": "tasks/agent-loop/sprints/finite-next-coverage-20261024.md",
-  "baseline": "54c9797c77ee75549ffb4ad81d15daf42b5f57e4",
+  "contract": "tasks/agent-loop/sprints/let-free-carrier-20261024.md",
+  "baseline": "d613a7a34cfd6f98aea09f07682f4a6cef519aa9",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
-      "state": "STOPPED",
-      "receipt": "Current proof packet frozen and reviewed; explicit-path integration only, then yield to active whole-goal continuation; no background worker",
+      "state": "RUNNING",
+      "receipt": "Actual current primary turn; native/source proof sprint integration owner",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30s direction selects all finite next-observation derivations; STOP/no descendants"
+      "receipt": "Current30s boundary decision let-free monomorphic coverage/full carrier checking; tool FINAL STOP/no descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
@@ -25,7 +25,7 @@
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current80s review accepts FN1–FN3/FO1; MAJOR FO2 carrier gap, unconditional claim withdrawn to explicit χ_e premise; STOP/no descendants"
+      "receipt": "Current80sec fresh review FINAL: LF1–4/CA1–3 accepted scoped, CA4 conditional, no BLOCKING/MAJOR; STOP/no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -35,7 +35,7 @@
     {
       "id": "/root/astra_scoped_join",
       "state": "STOPPED",
-      "receipt": "Current190s producer frozen7af7bcfc; FN1–FN3 all finite defined-client node refinement; STOP/no descendants"
+      "receipt": "Current final frozen6d67b4ee LF1–LF4; writes STOP/no descendants, awaiting independent review"
     }
   ],
   "leases": [
@@ -57,15 +57,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Current outcome fixes accepted scope; source FO2 unconditional claim withdrawn after MAJOR, χ_e remains OPEN",
-      "sha256": "a12cd26a9eb8a40cd9230ac53b73e46ceb303ffac79c7301e502c94c9d989d7d"
+      "receipt": "Independent accepted scope; only status/receipt/link post-review changes",
+      "sha256": "0a80670c3cc3c67293099ec3acc058b5b9642d68f60a354ba9079ac2e8c10e12"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Current outcome fixes accepted scope; source FO2 unconditional claim withdrawn after MAJOR, χ_e remains OPEN",
-      "sha256": "c0537574771a709c6d084a2c472ccf43628d1b659cdbc81ef7a9ec86434f1098"
+      "receipt": "Independent accepted scope; only status/receipt/link post-review changes",
+      "sha256": "53ef83c9a66c61f67307d58f010bb2d874b7653e6766f4f322aa9ce1dfdc3534"
     },
     {
       "path": "notes/theory/2026-10-24-fresh-valuebind-complete-call.md",
@@ -150,6 +150,20 @@
       "state": "FROZEN",
       "sha256": "b5c79aff23a73d6a3df01b737d9402d3c6e385367159e73b68e185fdae33acf9",
       "receipt": "Current outcome fixes accepted scope; source FO2 unconditional claim withdrawn after MAJOR, χ_e remains OPEN"
+    },
+    {
+      "path": "notes/theory/2026-10-24-let-free-client-reverse-coverage.md",
+      "owner": "/root/astra_scoped_join",
+      "state": "FROZEN",
+      "receipt": "Independent accepted scope; only status/receipt/link post-review changes",
+      "sha256": "ab2c0ea1bc79a8f4ff48c7ee358abc490d237e166c7baf8571801ee32f38bdd5"
+    },
+    {
+      "path": "notes/theory/2026-10-24-computed-argument-carrier-checking.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Independent accepted scope; only status/receipt/link post-review changes",
+      "sha256": "80cff411cebedc9ba482db22b65a98e3e1ccafdf631dd494342ff27af351e899"
     }
   ],
   "external_isolation": {
@@ -169,7 +183,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "TU common-h/union recursive instance accepted; FO1 computed-callee phases accepted with original whole-carrier checking. FO2 unconditional carrier inference withdrawn after MAJOR; need actual χ_e and original computed-result DescMem, full source/inference semantics and all original coverage."
+      "missing": "Actual computed source-carrier proof CA1–CA3 accepted without succ; complete χ requires target-specific independent arms; computed-result descriptor, full source/inference semantics and original coverage remain."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -181,7 +195,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "FN1–FN3 low-anchor-preserving node refinement/output-contract coverage for defined arbitrary finite next-observation grammar accepted; all higher-order/local-let clients, actual T/Y receiving/SCC, complete source/publication correspondence and combined termination remain."
+      "missing": "LF1–LF4 all finite let-free higher-order clients in unique-label P1 domain accepted; local-let/LetRec publication, duplicate-record embedding, actual T/Y receiving/SCC and full source correspondence/principality/termination remain."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -192,12 +206,12 @@
     }
   ],
   "review": {
-    "outcome": "tasks/agent-loop/sprints/finite-next-coverage-20261024-outcome.md",
+    "outcome": "tasks/agent-loop/sprints/let-free-carrier-20261024-outcome.md",
     "whole_language_certified": false,
     "reviewer": "/root/astra_semantics_review"
   },
   "resource": {
-    "astra_reserved_seconds": 7590,
+    "astra_reserved_seconds": 7890,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -206,10 +220,10 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 0
   },
-  "next_action": "Boundary selection: explicit monomorphic Lam/App/Rcd/Sel client transport; source actual whole-carrier χ_e derivation and computed-result constructor; receiving correspondence remains OPEN.",
-  "closure": "ACTIVE whole goal; current packet frozen; native FN1–FN3/FO1 accepted, FO2 unconditional claim withdrawn; all writers STOPPED; next authorized boundary pending",
-  "previous_outcome": "tasks/agent-loop/sprints/finite-next-coverage-20261024-outcome.md",
-  "previous_outcome_sha256": "c405e86c9a5ec9cd0cb14bfa09b82571496645054cedd095bf389a35bc14723a",
+  "next_action": "Boundary: nonrecursive local-let publication and original computed-result descriptor construction",
+  "closure": "Active whole goal; reviewed current native/source packet integrated, original parents OPEN",
+  "previous_outcome": "tasks/agent-loop/sprints/let-free-carrier-20261024-outcome.md",
+  "previous_outcome_sha256": "e0c0632ee478627320a5ac21429c4791ca414f933292b6205c341cf5977ac1ea",
   "goal_turn_classification": "IN_PROGRESS",
   "history": {
     "path": "tasks/agent-loop/sprints/source-indexed-derivation-20261024-prior-state.json",

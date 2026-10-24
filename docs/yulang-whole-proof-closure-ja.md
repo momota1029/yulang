@@ -249,3 +249,12 @@ NM3 は C/B、D/J、T/Y の全 copy と全 cut に一つの valuation を同時�
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。
+
+
+### 4.17 let-free 高階 client と computed argument の carrier
+
+[let-free client の構造的輸送](../notes/theory/2026-10-24-let-free-client-reverse-coverage.md)は、既存の regular-tree model と一意な Record labels の域で、原公開 root を使う全有限 Lam/App/Rcd/Sel/Var/Lit clients への reverse repair を構成する。Lambda formal の旧解を保持し、body と Record を共変に運び、App/Sel は旧 result を保持する。有限 next 観測だけに限られていた client grammar を高階関数へ広げる。元 qY=T、全 original/cloned bounds、低 anchor と固定出力契約を保持し、local-let 一般化や全 source/native 対応は別の元義務とする。この明記した範囲は独立査読で受理された。
+
+[computed argument の whole-carrier 構成](../notes/theory/2026-10-24-computed-argument-carrier-checking.md)は、同じ実 h₀/f/g の raw code と TU の完成した membership を使う。finite source grammar の Call/first/next/Record/alias について、実際の引数計算の全 prefix と Return を構成し、元 Delay criterion の inert formation と全指定 Force を満たす。返却型から効果を消す推論は使わない。actual-source carrier の χ 成分を供給し、独立 W/Z 等がある complete interface 全体には、その同じ target への arm-local inclusion を別途結合する。
+
+後者は FO2 の全 χ を無条件に証明したものではない。succ の complete primitive law、独立 arm の target-specific checking、computed Call の独立 result descriptor は残る。元の arbitrary-client/source parent と receiving/SCC 資格の未証明対応も保持する。両稿はこの範囲で独立査読を通過した。[固定版と査読範囲](../tasks/agent-loop/sprints/let-free-carrier-20261024-outcome.md)を参照。

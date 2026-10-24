@@ -72,6 +72,10 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 - [有限 next 観測の全出力契約を保つ公開輸送](../notes/theory/2026-10-24-finite-next-observation-coverage.md): 任意有限 depth/branching、共有 alias、実 next upper、fixed whole output contracts について、全 node refinement と低 anchor 保存を構成する。定義した client grammar の可解性対応であり、任意 client の定理ではない。
 - [有限観測の actual callee と Call phase](../notes/theory/2026-10-24-finite-observation-source-bridge.md): FO1 は元 whole-carrier checking の下で実 Return/provider と receiver phase を構成する。FO2 初稿の carrier checking 推論には MAJOR 指摘があり、χ_e family を明示した条件付き合成だけを残す。独立 computed-result descriptor、native MonoBind、χ_e の一般構成は未完。[査読と訂正](../tasks/agent-loop/sprints/finite-next-coverage-20261024-outcome.md)を参照。
 
+
+- [let-free 高階 client の reverse coverage](../notes/theory/2026-10-24-let-free-client-reverse-coverage.md): 既存の一意-label regular-tree model で全有限 Lam/App/Rcd/Sel/Var/Lit clients を構造帰納し、低 anchors と出力契約を保つ。local-let/全 source 対応と区別する。この範囲で独立査読受理。
+- [computed argument の whole-carrier checking](../notes/theory/2026-10-24-computed-argument-carrier-checking.md): 実 h₀/f/g の source code から有限 computed argument の全 source execution と Delay criterion を構成する。独立 arms の target-specific checking は条件として保持し、succ と独立 computed-result descriptor の未完を残す。FO2 全体の無条件閉鎖ではない。この範囲で独立査読受理。[査読記録](../tasks/agent-loop/sprints/let-free-carrier-20261024-outcome.md)を参照。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。
