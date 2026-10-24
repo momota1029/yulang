@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "REPLAY-RECEIVER-PROOF-20261024",
-  "phase": "REVIEWED_CHECKPOINT_OPEN",
-  "contract": "tasks/agent-loop/sprints/replay-receiver-proof-20261024.md",
-  "baseline": "aab952fa1c1ecd66c5f785262976de0b9d8727d9",
+  "sprint_id": "BIRTH-RESIDUAL-CLOSURE-20261024",
+  "phase": "REVIEWED_CHECKPOINT_GOAL_ACTIVE",
+  "contract": "tasks/agent-loop/sprints/birth-residual-closure-20261024.md",
+  "baseline": "c737e06d5d664fcd9d036f7f45c89444cf2f07b9",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Proof construction ended; reviewed finite native result and restricted source result integrated; final static/Git integration only",
+      "receipt": "Current proof packet construction ended; static/Git integration only; active full goal not completed",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30s source-labelled delayed-expansion method/source owners selected; STOP/no descendants"
+      "receipt": "Current30s redundancy falsifier plus residual-demand method selected; STOP/no descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Previous retained-graph producer stopped; no current turn"
+      "receipt": "Current birth redundancy producer frozen36f21b92; native INV refuted with actual argument replay; STOP/no descendants"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current80s RP1/RP2 and EC1-EC4 review complete; no BLOCKING/MAJOR in exact conditional scopes; RP2 supplied-reduct/added-symbol clarification; STOP/no descendants"
+      "receipt": "Current80s review complete; concrete native INV refutation and limited RD accepted; BRD2 cache MAJOR repaired by primary without second review; STOP/no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -133,15 +133,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "ffcbbf9e56896a234f0b938bb5510b89ba1136866e27b13785d873b10c7393f0",
-      "receipt": "Frozen review inputs unchanged after reviewer STOP"
+      "sha256": "b5843c388c2b0cd5d69d3d4e2d688bf1da07b6225024fc739198ebf7265dc222",
+      "receipt": "Frozen review input/primary cache clarification distinguished in current outcome"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "3e77cf3cc15d59c956b78e83d2e602b1c0549e7cd99ef0b389c4e9abc89319fd",
-      "receipt": "Frozen review inputs unchanged after reviewer STOP"
+      "sha256": "93c28dd6afd595cf87803950685d4e49afef89a92182f336d3378e6c950406b4",
+      "receipt": "Frozen review input/primary cache clarification distinguished in current outcome"
     },
     {
       "path": "notes/theory/2026-10-24-value-scc-qualification-proof.md",
@@ -242,6 +242,20 @@
       "state": "FROZEN",
       "sha256": "645c073ff0aff6ca7f972837bc8c36e652b50665fd751a4feb5fb6cc600a7a6b",
       "receipt": "Frozen review complete; primary added only recorded status/scope clarifications after STOP"
+    },
+    {
+      "path": "notes/theory/2026-10-24-birth-level-extrusion-redundancy.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "3d447e6982069023d2be69cee3e4cfc208e3f231f92407f34c0d1d8942a44211",
+      "receipt": "Frozen review input/primary cache clarification distinguished in current outcome"
+    },
+    {
+      "path": "notes/theory/2026-10-24-residual-demand-source-association.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "c96289283cd427d949160f6973c925d1faec6a4fa43ce8fae3e7ae47dc65936e",
+      "receipt": "Frozen review input/primary cache clarification distinguished in current outcome"
     }
   ],
   "external_isolation": {
@@ -261,7 +275,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Conditional source placement RP1 and exact fixed-store finite-use pullback EC1-EC4 reviewed. RP2 is relative expansion only for enumerated structural axioms given D. Receiving-occurrence RG-OWNER and all original full source/semantic/inference obligations remain OPEN."
+      "missing": "Whole objective remains active. Concrete copy-free birth invariant REFUTED; signed native residuals and ScopedDemand owner limits established. Original source-indexed generation/typed maps, RG-OWNER and full source/semantic/inference requirements remain OPEN."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -273,7 +287,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "Birth-level rule unchanged. Graph/SCC and upper boundary known. EC3-EC4 prove fixed-store finite-use solution nonexpansion; reverse can fail if disputed equality applies. Source-labelled replay correspondence RG-OWNER, full producer/member witness, consumption timing, all-source BL-JOINT, principality and combined termination remain. No whole-source counterexample or new receiving policy established."
+      "missing": "Birth rule unchanged. Same-birth Call descendant can create positive copy through captured low anchor, including Argument/Swap. No selected-operation refutation. Construct complete source-indexed inference with native erasure; RG-OWNER, scoped joint lift, publication/use, required principality and combined termination remain."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -284,13 +298,13 @@
     }
   ],
   "review": {
-    "outcome": "LIMITED_RESULTS_ACCEPTED_PARENT_OPEN",
+    "outcome": "CONCRETE_FALSIFIER_ACCEPTED_GENERIC_CACHE_REPAIR_RECORDED",
     "whole_language_certified": false,
     "reviewer": "/root/astra_semantics_review",
-    "scope": "Conditional RP1; RP2 relative to supplied structural reduct, not complete semantic independence; exact fixed-store EC1-EC4. Post-review source wording clarification distinguished in outcome."
+    "scope": "Concrete native INV refutation, signed residual endpoints/cut-renaming, conditional source composition, ScopedDemand limits. BRD2 MAJOR cache-miss gap repaired by primary; no second independent review of generic repair."
   },
   "resource": {
-    "astra_reserved_seconds": 5190,
+    "astra_reserved_seconds": 5490,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -299,16 +313,19 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 30
   },
-  "next_action": "Constructor-level source-to-solver occurrence interpretation for direct extrusion and delayed replay; derive receiving-boundary equation, preserve all original source and publication obligations. No automatic worker renewal.",
-  "closure": "EC1-EC4 exact finite native results and conditional source placement reviewed; RP2 only relative structural non-entailment. Source-labelled commutation and original whole proof NOT CLOSED. No background workers.",
-  "outcome": "tasks/agent-loop/sprints/replay-receiver-proof-20261024-outcome.md",
-  "outcome_sha256": "cb908fd7b145f3fdc96147e73c38d01a872c5ab0ab32ef5f42b918f33d412235",
+  "next_action": "Construct abstract source-indexed inference alongside native erasure: seed, signed ports, bound insertion, replay/extrusion produce complete typed maps together; prove original constructor cases. Rust correspondence is later, not an artificial prerequisite.",
+  "closure": "ACTIVE full user goal, not complete. Concrete native shortcut refuted; original source receiving correspondence and whole proof remain OPEN. No live background children.",
+  "previous_outcome": "tasks/agent-loop/sprints/replay-receiver-proof-20261024-outcome.md",
+  "previous_outcome_sha256": "cb908fd7b145f3fdc96147e73c38d01a872c5ab0ab32ef5f42b918f33d412235",
+  "outcome": "tasks/agent-loop/sprints/birth-residual-closure-20261024-outcome.md",
+  "outcome_sha256": "12ff406aa41f1eb149bd0ae6e55161d49f4888d75c4ffabd8c9988786915db2d",
+  "goal_turn_classification": "PROGRESS: actual empty-start native falsifier changes proof route; inspected ScopedDemand excludes field-only route. No completion or genuine external blocker established.",
   "checks": {
     "kind": "static document integrity only",
     "status": "PASS",
-    "frozen_dependencies": 26,
-    "frozen_leases": 31,
-    "local_links_resolved": 99,
+    "frozen_dependencies": 30,
+    "frozen_leases": 33,
+    "local_links_resolved": 104,
     "fences": "PASS",
     "json_size": "below16KiB",
     "intended_paths": 7,

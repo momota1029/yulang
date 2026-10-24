@@ -188,6 +188,14 @@ in f
 
 RG-OWNER、全 source の原 A/B と安全性は残る。SCC と境界 query は構成済みだが、実 delayed copy と source receiving occurrence を結ぶ式は今回も証明できていない。[査読・到達点](../tasks/agent-loop/sprints/replay-receiver-proof-20261024-outcome.md)を参照。
 
+### 4.9 同 birth の引数 replay と両極性の境界
+
+[同生成レベル Call の native 構成](../notes/theory/2026-10-24-birth-level-extrusion-redundancy.md)により、「同 birth の呼出しなら、全派生比較で extrusion が不要」という候補不変条件は反証された。先行する `h x` が B₂≤C₁ を作り、後続の自己呼出し `f {a=y}` と f completion の反変引数から Record(Y₂)≤C₁ が生成され、実 T₁/Y₂ copy が生じる。これは生成レベル別 SCC の intrusion 意味論の反例ではない。
+
+[残余要求の構成](../notes/theory/2026-10-24-residual-demand-source-association.md)は、正境界 a≤c では後着下界 d を b∘d、負境界 c≤a では後着上界 d を d∘b として運ぶ native replay を証明する。Function の引数では比較方向が反転するので、常に upper を選ぶ規則へ一般化しない。source の完全な typed interface map が与えられる場合の合成も構成するが、それを native cut と対応させる元の source-to-constraint 生成は依然として証明対象である。
+
+実装に保持される ScopedDemand.original_call は whole-Function demand の replay には残るが、Value extrusion link では default に、Function port 消費では None になる。この field を読むだけで delayed copy の receiver を決定する方法は使えない。保持された Derived/Replay/creation の経路と source typed map を接続する義務は残る。結果と査読範囲は[記録](../tasks/agent-loop/sprints/birth-residual-closure-20261024-outcome.md)に分ける。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。

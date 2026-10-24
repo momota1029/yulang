@@ -47,6 +47,9 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 - [完全 Call の receiving incidence と delayed extrusion](../notes/theory/2026-10-24-replay-receiving-occurrence-proof.md): authentic inputs の下で source placement を構成し、監査した構造公理に限る association の非含意を示す。全意味論の独立性や source 保存の反証ではない。
 - [extrusion の可換性と有限使用の解の引戻し](../notes/theory/2026-10-24-replay-extrusion-commutation.md): 具体的な store の局所可換性 EC1 と occurrence の相違 EC2、任意有限回の freshening/quotient の可換性 EC3、任意有限 client 制約についての片方向の解対応 EC4 を証明する。RG-OWNER と元の全体命題は未完。[成果と査読範囲](../tasks/agent-loop/sprints/replay-receiver-proof-20261024-outcome.md)を参照。
 
+- [同生成レベル Call の extrusion 反例](../notes/theory/2026-10-24-birth-level-extrusion-redundancy.md): 元の native grammar から、自己呼出しの反変引数が低い捕捉先へ replay され実 copy を作る有限履歴を構成する。copy-free 候補不変条件を反証し、選択された intrusion 規則自体は反証しない。
+- [両極性の残余要求と source occurrence](../notes/theory/2026-10-24-residual-demand-source-association.md): positive/negative boundary の cut、改名との可換性、ScopedDemand の実保持/消費範囲を導く。source typed map と native 生成の対応は未完。[成果と査読](../tasks/agent-loop/sprints/birth-residual-closure-20261024-outcome.md)を参照。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。
