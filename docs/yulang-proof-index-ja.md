@@ -56,6 +56,9 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 - [actual Return からの fresh ValueBind と Call](../notes/theory/2026-10-24-fresh-valuebind-complete-call.md): 元の Return/rebind からの新しい binding、同じ carrier の admission、全 Call phase を構成する。継承した complete invocation Comp port がある instance では元の unannotated result assignment と CIncl を与える。抽象 P_H* の source 表示、全 certificate/profile、再帰 history は残る。
 - [copy 系譜による有限履歴の消去](../notes/theory/2026-10-24-copy-genealogy-history-erasure.md): 初期 bounds/source seeds の有限 closure から、全 replay/構造分解/extrusion/parent-copy quotient の comparison を導く。closure による rejection 保存と全 cut の同時 diagonal lift を構成する。fresh use をまたぐ source strategy と全体停止性は別の親義務である。[固定版と査読記録](../tasks/agent-loop/sprints/call-realization-history-20261024-outcome.md)を参照。
 
+- [generated ReadInvoke と局所 Call typing](../notes/theory/2026-10-24-generated-call-descriptor-typing.md): 選択済み pure Name result constructor を actual h Call に適用し、HC-RESULT をその範囲で閉じる。全依存 field map・由来分割・局所 typing 関数を構成し、local profile/permission と独立 arm laws の残余を分ける。
+- [captured Record wrapper の導入](../notes/theory/2026-10-24-captured-record-wrapper-introduction.md): actual x の証拠と元の独立 kernel laws から `lambda z.{a=x}` の complete Strict membership と world を構成する。creation-time capture、実 Force/rebind、潜在 field を含む result/future を保持する。[成果と査読範囲](../tasks/agent-loop/sprints/generated-call-operator-20261024-outcome.md)を参照。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。

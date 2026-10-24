@@ -212,6 +212,12 @@ RG-OWNER、全 source の原 A/B と安全性は残る。SCC と境界 query は
 
 このため、局所 lift の各 cut に独立に置かれていた demand premise は有限 closure からの導出へ置き換わる。一方、元 source からその joint model/strategy を得ること、publication における独立使用、receiving occurrence、combined termination は同じ親義務として残る。固定版・独立査読範囲は [Call/history outcome](../tasks/agent-loop/sprints/call-realization-history-20261024-outcome.md) に記録する。
 
+### 4.12 選択済み ReadInvoke の実適用と捕捉 Record 閉包
+
+[generated Call の局所導出](../notes/theory/2026-10-24-generated-call-descriptor-typing.md)は、既に authoritative な [pure-read result constructor](../notes/design/2026-10-08-pure-read-call-result-constructor.md) を原 `h x` へ適用する。この immutable Name route では元の result が `ReadInvoke(H*,D_h,IF_h)` なので、HC1/HC2 の全 phase 証拠を定義の各 case に入れ、HC-RESULT を閉じる。任意の抽象 P を別の Comp grammar へ表示できることは、この選択済み case の前提ではなかった。GC1/GC2 は実 field injections と由来の分割、GC3/GC4 は元 operand judgments と独立 arm-local laws からの局所 typing 関数を構成する。全 TypedCallCert の未列挙 field、actual local profile/permission formation、未供給の独立 arm laws は残す。
+
+[捕捉した x を返す Record wrapper](../notes/theory/2026-10-24-captured-record-wrapper-introduction.md)は、元の `lambda z.{a=x}` に selected Strict constructor と source Record rule を適用する。actual x の hereditary certificate から、creation-time capture、実 entry Return 後の fresh z binding、同じ x の field、全 pending/future を持つ complete wrapper と world の同時導入を構成する。元 primitive/history/alternative の独立契約を保持し、未使用 z の Value-entry を省略しない。これは原 result-replay source に必要な closure supplier であり、recursive f やその argument carrier の成立までは含まない。[固定版と査読範囲](../tasks/agent-loop/sprints/generated-call-operator-20261024-outcome.md)を参照。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。

@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "CALL-REALIZATION-HISTORY-20261024",
+  "sprint_id": "GENERATED-CALL-OPERATOR-20261024",
   "phase": "INTEGRATION",
-  "contract": "tasks/agent-loop/sprints/call-realization-history-20261024.md",
-  "baseline": "ef2b33d76045802cfb61c9ed82d7115a4b9ca9f8",
+  "contract": "tasks/agent-loop/sprints/generated-call-operator-20261024.md",
+  "baseline": "5228829724182a87ae3aaf0bfcff68607557dbb1",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "RUNNING",
-      "receipt": "Current primary turn; constructive native history erasure",
+      "receipt": "Current primary turn; actual captured wrapper constructor proof",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30s actual Call and history erasure selection; STOP/no descendants"
+      "receipt": "Current30s generated operator/wrapper boundary decision; STOP/no descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Previous SOURCE-INDEXED-DERIVATION190s producer; SC4 later withdrawn; STOP/no descendants"
+      "receipt": "Current190s producer freeze63b754e2; GC1–GC4/ReadInvoke HC-RESULT construction; STOP/no descendants"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current80s independent review: VB1/HC1–HC2, conditional full-port CIncl, GE1–GE6 and guide boundaries accepted; no BLOCKING/MAJOR; STOP/no descendants"
+      "receipt": "Current80s independent review accepts GC1–GC4, HC-RESULT Name/ReadInvoke, WR1–WR3 with original kernel/full background; no BLOCKING/MAJOR; STOP"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -57,15 +57,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "51d960bf32a51a9a33a1731ff1e9608959e95b423c1295fdea528343f3ac9570",
-      "receipt": "Current independent accepted scope and status-only post-review updates recorded in outcome"
+      "sha256": "000309475ce47227b82975a3627842f2081164f6a38121bb51b73abe964e1dcf",
+      "receipt": "Current accepted independent scope; only status/receipt post-review change"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "86f793086fd4db01775e853404f22bb5cdf1de4fc35122483dd8004830277356",
-      "receipt": "Current independent accepted scope and status-only post-review updates recorded in outcome"
+      "sha256": "d8fb5620bd863766d5887238a2a5faad40c166d7a81f8f06019c0e18716c8450",
+      "receipt": "Current accepted independent scope; only status/receipt post-review change"
     },
     {
       "path": "notes/theory/2026-10-24-fresh-valuebind-complete-call.md",
@@ -80,6 +80,20 @@
       "state": "FROZEN",
       "sha256": "ba73cf9fd0a555a876565eb7a93e613f478089ca23b2ffb422ddfb4596115c40",
       "receipt": "Current independent accepted scope and status-only post-review updates recorded in outcome"
+    },
+    {
+      "path": "notes/theory/2026-10-24-generated-call-descriptor-typing.md",
+      "owner": "/root/astra_corrected_machine",
+      "state": "FROZEN",
+      "sha256": "ef2dec5bdfaf7a8e55132cafedea1c3ced507ff19acea5189a0106d117c76e4c",
+      "receipt": "Current accepted independent scope; only status/receipt post-review change"
+    },
+    {
+      "path": "notes/theory/2026-10-24-captured-record-wrapper-introduction.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "ef41c8a5d914de3538e7a25dd1bdb899e0ebbeb1bfc0737ec9f47be9bfe206fb",
+      "receipt": "Current accepted independent scope; only status/receipt post-review change"
     }
   ],
   "external_isolation": {
@@ -99,7 +113,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Whole goal active. VB1/HC1–HC2 and complete-port CIncl instance accepted; GE1–GE6 finite native history erasure accepted. Full source result/decorations, recursive history, scoped source closure model, all original global requirements remain."
+      "missing": "Whole goal active. Original Name/ReadInvoke HC-RESULT and GC1–GC4 accepted; WR1–WR3 captured record-wrapper full constructor accepted under original kernel/background. Recursive f/carrier/history, actual profile/permission, source/native receiving, all original global requirements remain."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -122,12 +136,12 @@
     }
   ],
   "review": {
-    "outcome": "ACCEPTED_STATED_LOCAL_SCOPES_NO_BLOCKING_OR_MAJOR",
+    "outcome": "ACCEPTED_STATED_CONSTRUCTOR_SCOPES_NO_BLOCKING_OR_MAJOR",
     "whole_language_certified": false,
     "reviewer": "/root/astra_semantics_review"
   },
   "resource": {
-    "astra_reserved_seconds": 6090,
+    "astra_reserved_seconds": 6390,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -136,16 +150,16 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 30
   },
-  "next_action": "Construct original result-port projection/generated fields for actual source-generated H*, then recursive Return history and source closure model.",
-  "closure": "ACTIVE whole goal; current local subtheorems accepted; original full theorem remains OPEN; children STOPPED",
-  "previous_outcome": "tasks/agent-loop/sprints/source-indexed-derivation-20261024-outcome.md",
-  "previous_outcome_sha256": "8dc0c1ed54d35f5abcd1b13bf51ab651c7bd10eae62cae966a43134dbd52a049",
+  "next_action": "Apply accepted GC/WR constructors inside original simultaneous recursive member/world construction; discharge exact carrier, profile and recursive-body cases.",
+  "closure": "ACTIVE whole goal; selected pure-read result and actual wrapper constructor closed in stated scopes; full parent OPEN; children STOPPED",
+  "previous_outcome": "tasks/agent-loop/sprints/call-realization-history-20261024-outcome.md",
+  "previous_outcome_sha256": "c3d4fdc3458be8bbb6e99f5b6d6342298d98c19205c226469bbeba6bdb6fa86f",
   "goal_turn_classification": "PROGRESS",
   "history": {
     "path": "tasks/agent-loop/sprints/source-indexed-derivation-20261024-prior-state.json",
     "sha256": "498d39c7bd02937deed3a5031167f3f03ab87d91bb0cb7d174131b9b9c529baa",
     "scope": "All33 consumed frozen leases archived; original external isolation preserved"
   },
-  "outcome": "tasks/agent-loop/sprints/call-realization-history-20261024-outcome.md",
-  "outcome_sha256": "c3d4fdc3458be8bbb6e99f5b6d6342298d98c19205c226469bbeba6bdb6fa86f"
+  "outcome": "tasks/agent-loop/sprints/generated-call-operator-20261024-outcome.md",
+  "outcome_sha256": "c3a3076eca68cc8cc0d1a32b0b49435ef5892d57805ee9e47965d0cc5f85e85c"
 }
