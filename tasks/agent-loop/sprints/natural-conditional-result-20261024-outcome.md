@@ -1,6 +1,6 @@
 # NATURAL-CONDITIONAL-RESULT-20261024 — live outcome record
 
-Status: ACTIVE; graph-generic proof construction continues in the isolated worktree. No source edit, build or runtime observation is claimed.
+Status: PAUSED at the user's request. An unreviewed candidate proof is frozen and checkpointed in the isolated branch. Independent review was interrupted before producing a result. No source edit, build or runtime observation is claimed.
 
 - Parent objective: implement Yulang type inference and evaluator from proofs. Whole-language inference/evaluator and original A/B remain OPEN.
 - Selected obstruction: candidate graph construction already records both conditional branch result constraints, but `scheme.rs::heads` rejects distinct concrete Value lower heads.
@@ -9,7 +9,9 @@ Status: ACTIVE; graph-generic proof construction continues in the isolated workt
 - Exact implementation lease: `tools/inference-playground/src/scheme.rs`, Luna only and only after proof review.
 - Isolated branch/worktree: `codex/natural-conditional-result-20261024`, `/tmp/yulang-natural-conditional-result-20261024`; source baseline remains d788. Legacy UNKNOWN reservations stay quarantined; no merge/copy-back is authorized.
 - Authority: sprint contract rev4 `tasks/agent-loop/sprints/natural-conditional-result-20261024-rev4.md`.
-- Proof producer remains active on the exact note/inbox leases. No proof result, source change, build, or runtime observation is claimed yet.
+- Candidate proof: `notes/theory/2026-10-24-natural-conditional-result.md`, SHA-256 `fc65841736234cf5562555a57fdd6d9e66a3968c7c18bc737b41565ce17c10fb`; handoff `tasks/agent-loop/inbox/20261024-natural-conditional-result.md`, SHA-256 `04c2057bb352a0cd47c91b1c9c623d260a489eb69c6a17989e2f9be164ba5d6b`.
+- Research-only checkpoint: branch `codex/natural-conditional-result-20261024`, commit `b6e2dc144`. The artifacts remain unreviewed; original A/B, parser/HIR observation, implementation and production gates remain OPEN.
+- The fresh independent compiler-referee review was interrupted at the user's request before returning findings. No review result is claimed. No source change, build, or runtime observation is claimed.
 
 ## Revision 2 boundary
 
@@ -28,3 +30,7 @@ The proof claim now covers only constraints and identities represented by the ex
 The producer found that block-shaped conditional branches emit literal/result facts through `CandidateRelation::Group`, so the remaining child-positive→branch-result transport was outside rev3's explicitly narrow `shadow_apply.rs` export permission. The dispatcher recommended a same-file read expansion, retaining the existing `shadow_apply.rs` hash: `admit_candidate_fact`'s Group arm and shared value-admission tail, that arm's endpoint mapping, the Group effect arm and `admit_candidate_effect`, plus direct provenance/ownership joins needed to connect these admissions to the already inspected drain/export path.
 
 Rev4 requires the proof to establish actual endpoint and occurrence mapping through Group for both branch contributions. It must state the existing `candidate_graph_effects` guard and cannot claim unconditional effect transport or general effect hygiene. The falsifier is a Block/StatementBlock selecting the wrong result endpoint or occurrence, losing a conditional contribution, or omitting an effect fact while claiming its preservation. No cross-file dependency, source/code write, execution, or resource expansion is authorized; any further file needed must be identified and pinned before reading.
+
+## User pause
+
+The user asked to stop this proof work because proof work is happening elsewhere and explicitly paused the goal. The producer had already stopped and its unreviewed candidate was checkpointed at `b6e2dc144`; the independent reviewer was interrupted before returning a result. No further proof, review, implementation, build or test work is authorized until the user resumes the goal. The original A/B and implementation gates remain OPEN.

@@ -1,11 +1,11 @@
 {
  "schema_version": 1,
  "mode": "LIVE",
- "phase": "ACTIVE",
- "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-2",
+ "phase": "PAUSED",
+ "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-3",
  "active_sprint": {
   "id": "NATURAL-CONDITIONAL-RESULT-20261024",
-  "status": "ACTIVE",
+  "status": "PAUSED",
   "contract": "tasks/agent-loop/sprints/natural-conditional-result-20261024-rev4.md",
   "contract_sha256": "0009f4e037a1edbda567d3cf418bd43a7016e664ad20340f76a614e9946b7603",
   "baseline": "d788d94da66385bf09947932f0aae1972cd51f21",
@@ -25,9 +25,9 @@
    "tests": 0
   },
   "outcome": "tasks/agent-loop/sprints/natural-conditional-result-20261024-outcome.md",
-  "closure": "ACTIVE; NCR-ROOT-1 closed for the traced path conditional on Group transport; proof and independent review remain open; no source edit/build/runtime observation.",
-  "review_status": "Proof producer continues under rev4; fresh independent review still gates scheme.rs.",
-  "outcome_sha256": "418ea995df043ab08a2a4202c831087f5749d3f6d80661e9ec8bb23962599c2c"
+  "closure": "PAUSED at user request; candidate checkpoint b6e2dc144 remains unreviewed; review interrupted; no source edit/build/runtime observation.",
+  "review_status": "PAUSED; independent review interrupted before findings; scheme.rs implementation not started.",
+  "outcome_sha256": "b9772b156b8d9f1a82ad2a6fcec800c734486bd8ef89cde6a2dd6b3a10efc916"
  },
  "workers": [
   {
@@ -66,43 +66,32 @@
   {
    "id": "/root",
    "role": "primary authority/current/Git integrator",
-   "state": "RUNNING",
-   "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-2",
+   "state": "STOPPED",
+   "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-3",
    "requested_model": "user-selected primary",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Primary started the frozen sprint; sole current-state and Git owner."
-  },
-  {
-   "id": "/root/r149_in_crate_capture_prover",
-   "role": "R149 capture transparency/source correspondence producer",
-   "state": "STOPPED",
-   "session": "R149-IN-CRATE-CAPTURE-20261024/root-turn-1",
-   "requested_model": "configured prover role; no spawn override",
-   "requested_effort": "configured role effort; no spawn override",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "Frozen conditional source-prefix argument only; proof note SHA-256 f35a59d6bf9f8ae4eec5833ce04329eaa47031c649fed98775b1aa8c1fe06afa; inbox SHA-256 f9e32b6d9343bae7781fa2833e48bf262680b4e3939a110f09ea6a675f245b97. No parse observation/identity join; all 24 final pins matched; producer ceased writes/processes."
+   "receipt": "User requested pause; primary stopped active proof/review work and synchronized paused state."
   },
   {
    "id": "/root/natural_conditional_result_prover",
    "role": "proof producer",
-   "state": "RUNNING",
+   "state": "STOPPED",
    "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-2",
    "requested_model": "configured prover role",
    "requested_effort": "configured role effort",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "NCR-ROOT-1 closed for selected path conditional on Group route. Rev4 authorizes pinned shadow_apply.rs Group value/effect admissions and endpoint/ownership joins; exact output leases and budget unchanged."
+   "receipt": "Frozen unreviewed candidate; note/inbox hashes and cessation receipt are in sprint outcome/inbox; no descendants."
   }
  ],
  "leases": [
   {
    "path": "tasks/agent-loop/current.json",
    "owner": "/root",
-   "state": "HELD",
-   "reason": "Primary-owned current state; rev3 active contract and outcome hashes synchronized."
+   "state": "FROZEN",
+   "reason": "Primary-owned paused current state; no work until user resumes."
   },
   {
    "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024-rev4.md",
@@ -113,20 +102,20 @@
   {
    "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024-outcome.md",
    "owner": "/root",
-   "state": "HELD",
-   "reason": "Primary-owned live outcome; update hash at milestones."
+   "state": "FROZEN",
+   "reason": "Primary-owned paused outcome; no work until user resumes."
   },
   {
    "path": "notes/theory/2026-10-24-natural-conditional-result.md",
    "owner": "/root/natural_conditional_result_prover",
-   "state": "HELD",
-   "reason": "Exact proof note in isolated worktree; no semantic/source edits."
+   "state": "FROZEN",
+   "reason": "Frozen rev1 research checkpoint b6e2dc144; author STOPPED; review interrupted at user request."
   },
   {
    "path": "tasks/agent-loop/inbox/20261024-natural-conditional-result.md",
    "owner": "/root/natural_conditional_result_prover",
-   "state": "HELD",
-   "reason": "One exact handoff for the proof assignment."
+   "state": "FROZEN",
+   "reason": "Frozen rev1 research checkpoint b6e2dc144; author STOPPED; review interrupted at user request."
   }
  ],
  "pending": [
@@ -194,7 +183,7 @@
    "id": "R149-SOURCE-OWNER-CLOSURE-1",
    "state": "OPEN_SOURCE_TO_CST",
    "owner": "Luna intake",
-   "details": "Exact parser/HIR readback remains OPEN after reviewed private sample-environment visibility seam; no parser rejection or compiler gap shown."
+   "details": "Exact parser/HIR readback remains OPEN after private sample-environment seam; no parser rejection/compiler gap. Capture proof history: tasks/agent-loop/sprints/r149-in-crate-capture-20261024-outcome.md."
   },
   {
    "id": "R339-D2-WHOLE-FRAME-RETIREMENT",
@@ -239,11 +228,11 @@
    "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
   }
  ],
- "closure": "R149 remains PARTIAL_REVIEWED and A/B OPEN. NATURAL-CONDITIONAL-RESULT active under rev4; root locality is conditional on the pending Group transport. Three legacy reservations remain UNKNOWN_QUARANTINED.",
- "next_action": "Prove both branch contributions through the Group endpoint mapping into CandidateGraphExport, under candidate_graph_effects for effects; freeze the complete source→export construction for fresh review.",
+ "closure": "Goal PAUSED at user request because proof work is happening elsewhere. Candidate proof remains unreviewed; review interrupted; no implementation. Three legacy reservations remain UNKNOWN_QUARANTINED.",
+ "next_action": "No work until user resumes. Candidate proof checkpoint b6e2dc144 remains unreviewed; no implementation is authorized.",
  "legacy_reconciliation": {
   "required": false,
-  "reason": "Three UNKNOWN reservations remain quarantined; work stays isolated.",
+  "reason": "Three UNKNOWN reservations stay quarantined; work is isolated.",
   "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
   "reservations": [
    {
