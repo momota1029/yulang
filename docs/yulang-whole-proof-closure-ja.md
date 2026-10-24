@@ -224,6 +224,16 @@ RG-OWNER、全 source の原 A/B と安全性は残る。SCC と境界 query は
 
 [native local profile 構成](../notes/theory/2026-10-24-native-local-profile-construction.md)は、この source の actual licensed projections に対して、元の local default と inherited packet を区別して形成する。PF1/PF2 は finite license proof を辿り、全依存 witness を保持し、GC の uniform local law を suspended Op として使う。candidate f の membership、license fiber の inhabitance、runtime authority を policy の存在から導かない。元の独立 primitive/arm/transition laws と foreign predicate の対応は残る。[固定版と査読](../tasks/agent-loop/sprints/name-recursion-profile-20261024-outcome.md)に合成の範囲を記録する。
 
+### 4.14 原再帰例の全 native closure model
+
+[具体的な再帰木モデル](../notes/theory/2026-10-24-explicit-recursive-native-model.md)は、原 argument-replay source の最初の公開直前までに発行される全三 seeds と全 ordinary variables を固定する。A=Record(a:Int)、G=μg.Function(Int,Record(first:j,next:g)) とし、K も含む全 endpoint の解釈を与える。NM1 は Seed/VarId/CutVar/Function/Record の全 closure 規則が bisimilarity を保つことを示し、NM2 は missing field・異なる constructor・Primitive identity の failure を排除する。これにより、GE6 の「C 全体のモデルがある」という前提を、この具体例では実際に除いた。
+
+NM3 は C/B、D/J、T/Y の全 copy と全 cut に一つの valuation を同時に与える。これは finite pre-publication native interval の結果である。source の advertised result と j の実 projection、独立した公開後使用の coverage、combined termination は別の証明を要する。
+
+[actual replay の source diagram](../notes/theory/2026-10-24-actual-replay-receiving-diagram.md)は、実 f entry で返った Record、fresh x、次の内側閉包の capture、後の実 invocation の Name x と h Call を全依存 field のまま接続する。AR1/AR2 は、旧 x を書き換える SC4 の誤りを避けて source 側の middle matching を構成した。前段が返らない場合は後段を未実行の suffix として残す。static Argument/Swap、ordered Replay と T/Y の生成記録も同時に照合した。
+
+この後の native extrusion occurrence の receiving field を、その source diagram の h receiver と同一視する constructor correspondence は残る。AR2 の実 receiver と solver の field は別の対象であり、support 集合や upper route の存在だけでは同一性を証明していない。両稿の明記した結果は独立査読で受理された。[固定版と査読記録](../tasks/agent-loop/sprints/actual-replay-model-20261024-outcome.md)に未閉鎖の対応を保持する。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。

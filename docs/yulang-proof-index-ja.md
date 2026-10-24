@@ -62,6 +62,10 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 - [Name Call による原再帰 instance の同時導入](../notes/theory/2026-10-24-name-call-recursive-closure-membership.md): 同じ f と各 actual inner closure を全 world/carrier/observation と同時に構成する。元の独立 kernel/formation 前提を保持した一つの monomorphic instance で、HC-REC/HISTORY に actual Return/rebind を供給する。全 source/publication/native 対応は残る。
 - [native local profile の構成](../notes/theory/2026-10-24-native-local-profile-construction.md): 実 introduction と licensed field の証拠に沿って local default、inherited policy と全依存 packet を構成する。uniform local law と actual recursive membership、static policy と dynamic authority を区別する。[成果と査読範囲](../tasks/agent-loop/sprints/name-recursion-profile-20261024-outcome.md)を参照。
 
+- [原再帰例の全 native closure model](../notes/theory/2026-10-24-explicit-recursive-native-model.md): 全 source seeds と有限 closure を一つの guarded regular-tree valuation で満たし、GE6 の model premise を具体例で除く。全 copy/cut の同時 lift と failure 排除を導く。source の full projection、publication と全体停止性とは区別する。
+
+- [actual replay の receiving diagram](../notes/theory/2026-10-24-actual-replay-receiving-diagram.md): actual recursive Return、新しい x、capture と後の h Call を同じ全依存 event family で接続し、旧 binding を変えない middle matching を構成する。対応する Argument/Swap・Replay・T/Y 記録を保持し、native actual occurrence の receiving field との同一性は残す。[両稿の固定版と査読範囲](../tasks/agent-loop/sprints/actual-replay-model-20261024-outcome.md)を参照。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。
