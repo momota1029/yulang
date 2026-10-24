@@ -11,6 +11,8 @@
 intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/design/2026-10-24-birth-level-scc-intrusion.md)に従う。以下の旧稿の跨レベル F/G・O/E qualification とその拒否履歴は旧規則についての結果として保持し、現行規則へそのまま適用しない。
 
 - [生成レベル別 SCC と extrusion の親子等置](../notes/theory/2026-10-24-birth-level-scc-intrusion.md): 固定 birth ごとの誘導グラフ、経路・更新と局所 extrusion 結果の適用、nested helper/odd-even の変更を扱う。全体の source-scoped 保存と実装対応を区別する。[固定版と査読記録](../tasks/agent-loop/sprints/birth-level-scc-20261024-outcome.md)を参照。
+- [同生成レベルの再帰と低い捕捉先への replay](../notes/theory/2026-10-24-birth-level-replay-intrusion.md): 一つの実 source の原 scalar bounds、後続コピー、実 source support の集合和と pair consumer を追跡する。依存元集合とコピーの所属を区別し、source 対応 BR-ATTR を残す。
+- [replay 後の公開と二使用](../notes/theory/2026-10-24-birth-level-publication-replay.md): 正確な freshening map、元 native の独立 Int/Bool 使用と、争点の等置を公開前に加えた場合の拒否を導出する。新規則の反例や全体保存は未確定。[成果・査読範囲](../tasks/agent-loop/sprints/birth-level-replay-20261024-outcome.md)を参照。
 
 - [共起分析と保護・解除の保存](../notes/theory/2026-10-24-cooccurrence-release-preservation.md): [ユーザーの直接訂正](../notes/design/2026-10-24-cooccurrence-release-clarification.md)に従う後続稿。`'e?` を独立した実行規則の選択として扱わず、同じ共変位置に現れる変数の集約と保護・解除の対応を示す。source 全体の証明範囲は稿内の適用境界に従う。
 - [共変位置から受領対応表を作る](../notes/theory/2026-10-24-cooccurrence-source-recipes.md): 有限 signed graph での位置判定と入力 recipe、actual receipt の分離、単射改名、限定された collector 対応を構成した。

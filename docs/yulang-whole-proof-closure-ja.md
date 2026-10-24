@@ -158,6 +158,16 @@ in f
 
 同一 cut の局所 lift と、source の一般化・捕捉・複数使用を通じた joint strategy は区別する。現在の必要な証明は、**新資格を持つ**各 occurrence の source-scoped lift と、その全 consumer への対応である。旧跨レベル資格を証明することを、この新算法の前提にはしない。正確な成果・査読範囲は[今回の記録](../tasks/agent-loop/sprints/birth-level-scc-20261024-outcome.md)にある。
 
+### 4.6 同じ生成レベルの再帰から生じる低いコピー
+
+[具体的 replay の導出](../notes/theory/2026-10-24-birth-level-replay-intrusion.md)は、自己再帰 f の結果を外側の h に渡す source を固定する。元 Simple-sub の全 scalar bounds を辿ると、f の完成時に `Record(B₂) <: C₁` が replay され、実際の親子 pair `(T₁,B₂)` が生成される。F/F は新資格を持つが、この後続コピーの occurrence が F/F に属するかは別途導出を要する。
+
+実 contextual code について証明した BR1 は、replay が依存元の source set の和集合を保持するという命題である。対応する投影経路が実 source から生成されれば F/F と F/H の両 seed がコピー生成まで伝わる。これは各 seed がそのコピーの actual occurrence を所有することの証明ではない。現在の `any` consumer による等置と、採用された意味論への正当な対応を区別する。
+
+[公開後の二使用の導出](../notes/theory/2026-10-24-birth-level-publication-replay.md)は、B₂ を使用ごとに複写し T₁ を共有する正確な freshening map と Int/Bool の二使用を構成する。もし公開前に B₂=T₁ を等置すれば、二使用は一つの固定 anchor を共有し Bool<:Int を要求する。この含意は証明できるが、実 source の完全な producer path、コピー・再利用 occurrence の所属 BR-ATTR、等置の消費時点は未証明である。
+
+従って今回の結果を新規則の反証や全体証明の完了とはしない。BL-JOINT の次の接続は、この実 pair に対する source 所属と公開作用である。固定版・独立査読・残る元の義務は [replay sprint 記録](../tasks/agent-loop/sprints/birth-level-replay-20261024-outcome.md) に記す。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。

@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "BIRTH-LEVEL-SCC-20261024",
+  "sprint_id": "BIRTH-LEVEL-REPLAY-20261024",
   "phase": "REVIEWED_CHECKPOINT_OPEN",
-  "contract": "tasks/agent-loop/sprints/birth-level-scc-20261024.md",
-  "baseline": "d861740dddabcd3dc4d898ff00548cd52d55b119",
+  "contract": "tasks/agent-loop/sprints/birth-level-replay-20261024.md",
+  "baseline": "7af2bbfe9588128e90f6706f99243e91b63a7ae3",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Current birth-level adoption/proof writing stopped; only final static/Git integration and report remain; no background work",
+      "receipt": "Proof/document construction ended; only final static/Git integration and reporting; no post-session work",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30s birth-level direction completed; induced paths and local lift; STOP/no descendants"
+      "receipt": "Current30s concrete-replay owner direction completed; STOP/no descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Birth-level r1 frozen5048bb48; STOP/no descendants; exact proof lease subsequently transferred to primary for requested BL5 repair and review annotations"
+      "receipt": "Current replay producer frozen020da823; live completed receipt; writes stopped/no descendants"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current frozen birth-level design, BL1-BL4 and native histories accepted; MAJOR BL5 totality gap; requested repair retained full domain; STOP/no descendants and end-boundary direction"
+      "receipt": "Current frozen replay/publication independent review complete; no BLOCKING/MAJOR in conditional scope; BR-ATTR confirmed; end-boundary direction; STOP/no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -133,13 +133,13 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "0207e6d0e7b8e4a3d53920e857a1eb46a1320952b8c94fd92e0329cbb0142b01"
+      "sha256": "9f69004dced116b741a3d02eec2529aa35c4f5cb72fe31cce371b3d5edb6d17f"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "5fb960232ed9ee3c4c68f19c1a96a57f56189422c86b117f2b1eb70a5f544dc6"
+      "sha256": "b6cfaab5ca4d2772891c04fe2af8c69e1525e0eb4c36ef27a90cf95a9863c445"
     },
     {
       "path": "notes/theory/2026-10-24-value-scc-qualification-proof.md",
@@ -198,6 +198,20 @@
       "owner": "/root",
       "state": "FROZEN",
       "sha256": "557d5a37489e11a35f3dfb59fe8c3ef3347aa6d1a391e14cd0670b5e3b59ebfd"
+    },
+    {
+      "path": "notes/theory/2026-10-24-birth-level-replay-intrusion.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "7bc8ccee1ee9c0a2ce168e5f1687ae76e7794b097cb3d35dc85ccb5d4f717c5b",
+      "receipt": "Frozen reviewed r1; primary editorial review-status annotations only after producer/reviewer STOP"
+    },
+    {
+      "path": "notes/theory/2026-10-24-birth-level-publication-replay.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "0e84e618a077b6f3d138707349fbfe51d09e8ccdd54628ad772640f6c12ea244",
+      "receipt": "Frozen reviewed r1; primary editorial review-status annotations only after producer/reviewer STOP"
     }
   ],
   "external_isolation": {
@@ -217,7 +231,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Whole source/semantic/inference obligations remain. Old raw/member full owner-indexed guards still unproved, but old cross-level helper rejection is no longer a discriminator for the newly selected birth-level rule. BL-JOINT and exact conditional/infix odd-even recipes remain."
+      "missing": "Whole source/semantic/inference obligations remain. Concrete replay/publication reviewed only within stated scope; BR-ATTR actual occurrence and full source producer/evidence remain. No new-rule counterexample or closure."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -229,7 +243,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "New approved immutable birth-level induced SCC qualification. BL1-BL4 and exact native helper/odd-even analogue histories reviewed. BL-JOINT requires source telescope/full-domain extension/evidence/publication transport for still-qualified events; full coverage/principality and combined inference termination remain OPEN."
+      "missing": "Birth-level rule retained. Exact scalar replay pair (T1,B2), PR1 freshening, PR2 independent uses, conditional PR3 rejection and BR1 source-support union reviewed. Authentic original/reuse occurrence ownership BR-ATTR, full source producer/member evidence, actual consumption timing, BL-JOINT all-source lift, principal coverage and combined termination remain OPEN."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -240,14 +254,15 @@
     }
   ],
   "review": {
-    "outcome": "BIRTH_RULE_AND_LIMITED_BL1_BL4_NATIVE_ACCEPTED_BL5_REPAIRED_UNREVIEWED",
-    "record": "tasks/agent-loop/sprints/birth-level-scc-20261024-outcome.md",
-    "reviewed_proof_sha256": "5048bb4896fa1b37c87a9cba92ec2a6fabcfdfc6f21f2385e2abd3e66589b9f5",
-    "repair": "MAJOR totality gap repaired by retaining full original domain and explicit extension/evidence premises; no parent theorem closed and no second review claimed",
-    "whole_language_certified": false
+    "outcome": "LIMITED_REPLAY_PUBLICATION_ACCEPTED_BR_ATTR_OPEN",
+    "reviewer": "/root/astra_semantics_review",
+    "findings": "No BLOCKING/MAJOR in conditional scope; actual attribution is a genuine obligation, not free ownership choice",
+    "whole_language_certified": false,
+    "post_review_changes": "Editorial proof headers/status annotation only; no mathematical or guide change",
+    "record": "tasks/agent-loop/sprints/birth-level-replay-20261024-outcome.md"
   },
   "resource": {
-    "astra_reserved_seconds": 4290,
+    "astra_reserved_seconds": 4590,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -256,22 +271,19 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 30
   },
-  "next_action": "Under selected birth-level rule, inspect actual same-birth replay through earlier low anchor; derive each copy telescope, full legal domain and publication/evidence action for BL-JOINT. Exact Yulang odd/even also needs conditional/infix recipes. New child budget requires material boundary; no background workers.",
-  "closure": "User-selected birth-level SCC rule recorded and reviewed; graph/local extrusion and exact native helper/odd-even analogue histories accepted. Old cross-level rejection superseded. BL-JOINT, full source safety/coverage/principality, combined inference termination and implementation correspondence OPEN.",
-  "outcome": "tasks/agent-loop/sprints/birth-level-scc-20261024-outcome.md",
-  "outcome_sha256": "59027a702b47d6ea4e5733f97546914cd8a1727eb105336fb36f8e7d067a776f",
+  "next_action": "Derive exact full source recipe into Record(B2)<=C1, original/reuse occurrence association and equality-consumption time; use PR3 only after premises; no automatic worker renewal",
+  "closure": "Native replay/publication and conditional implementation source-support facts reviewed. Actual BR-ATTR/full source correspondence remain; whole new-rule source preservation, safety/principality and combined termination OPEN; no unconditional refutation.",
+  "outcome": "tasks/agent-loop/sprints/birth-level-replay-20261024-outcome.md",
+  "outcome_sha256": "610cec1fb9ca842b9067c13b73f025ca833c5d16c52fbe569bb1570a3df014e8",
   "checks": {
     "kind": "static document integrity only",
     "status": "PASS",
-    "frozen_dependencies": 12,
-    "frozen_leases": 25,
-    "local_links_resolved": 465,
-    "unchanged_index_broken_links": 5,
-    "new_changed_link_failures": 0,
+    "frozen_dependencies": 15,
+    "frozen_leases": 27,
+    "local_links_resolved": 89,
     "fences": "PASS",
     "json_size": "below16KiB",
-    "intended_paths": 8,
-    "whitespace": "PASS",
+    "intended_paths": 7,
     "tests": 0,
     "implementation_changes": 0
   }
