@@ -119,7 +119,9 @@ source constructors, source initialization, Call/wrap/Resume, raw-constructor
 coverage, principality, termination, and original A/B remain OPEN. No
 production authority follows from this theorem.
 
-At initial outcome freeze, the r6 artifacts are ready for Luna's explicit-path
-milestone commit and ordinary non-forced push; the final commit/push receipt is
-recorded by the primary in `current.json` after outbound-range and remote-head
-inspection.
+Primary integration receipt: commit `e578e03322742dfb98483ffc9f05f706e925f1bb`
+(`Accept reviewed Lean core-control bridge`) was created on inspected HEAD
+`1e60051b783c13aae713c35040b5bed87aa83e58`; outbound range contained only that
+commit, `git diff --check HEAD^ HEAD` passed, and ordinary non-forced push moved
+`origin/research/simple-sub-intrusion` from `1e60051b7` to `e578e0332`. Local and
+remote branch heads both resolved to the full commit hash after push.
