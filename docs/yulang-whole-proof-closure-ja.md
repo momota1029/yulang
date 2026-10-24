@@ -240,6 +240,12 @@ NM3 は C/B、D/J、T/Y の全 copy と全 cut に一つの valuation を同時�
 
 [同じ h/f の source 二使用](../notes/theory/2026-10-24-two-input-recursive-source-use.md)は、U=Int|Bool、A=Record(a:U)、actual h₀=λz.0 を用いる。TU1/TU2 は ground data と genuine h₀、TU3 は NR の全四成分をこの U で再構成する。TU4 は実 f Return を monomorphic Name alias に結ぶ source Bind client を型付けし、同じ h/f/world で両入力を受け取れることを示す。独立 kernel/arms の元契約は残す。native nested-App とこの Bind syntax の全推論対応、通常 let の Generalize、actual T/Y 資格、全 source coverage はこの二つの結果を並べるだけでは得られない。この明記した範囲は独立査読で受理された。[固定版と査読](../tasks/agent-loop/sprints/publication-two-use-20261024-outcome.md)に一般 coverage との境界を記録する。
 
+### 4.16 任意有限段の next 観測と出力契約
+
+[有限 next 観測の公開輸送](../notes/theory/2026-10-24-finite-next-observation-coverage.md)は、root App、next/first 選択、後続 App、succ、有限 Record、共有 alias からなる定義済み client grammar を、有限深さ・分岐数の上限なしで扱う。実 next upper bounds と MonoBind の formal/result rows も残す。FN1 の guarded refinement と FN2 の構造帰納により、低い H/C/D/T を固定して全 client node を旧モデルの subtype へ修復し、固定された whole output upper contracts を保つ。これで P3 の next 未消費という条件をこの grammar では除いた。任意の高階 client、可変外部契約、全 source principality への拡張は別である。
+
+[source の有限観測 phase](../notes/theory/2026-10-24-finite-observation-source-bridge.md)の FO1 は、元 callee 証拠と argument の whole-carrier checking から、同じ actual Return/provider、receiver/pending/future を構成する。FO2 は有限観測への合成を与えるが、returned U/A だけから argument 計算全体の checking を得たという初稿の適用には MAJOR 指摘があった。その無条件の主張を撤回し、各 edge の実 checking 証拠 χ_e を明示した条件付き結果として残す。一般 χ_e の構成、独立 computed-Call result descriptor への最後の DescMem、native Lambda MonoBind と source Bind の対応、一般化は未完である。[査読と訂正記録](../tasks/agent-loop/sprints/finite-next-coverage-20261024-outcome.md)に、受理された FN1–FN3/FO1 とこの残項を分ける。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。

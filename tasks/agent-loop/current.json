@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "sprint_id": "PUBLICATION-TWO-USE-20261024",
-  "phase": "REVIEWED_INTEGRATION",
-  "contract": "tasks/agent-loop/sprints/publication-two-use-20261024.md",
-  "baseline": "b4b684a1426ba6bc99a4f7f4946aba7c57fae0fe",
+  "sprint_id": "FINITE-NEXT-COVERAGE-20261024",
+  "phase": "SPRINT_COMPLETE_PARENT_OPEN",
+  "contract": "tasks/agent-loop/sprints/finite-next-coverage-20261024.md",
+  "baseline": "54c9797c77ee75549ffb4ad81d15daf42b5f57e4",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
-      "state": "RUNNING",
-      "receipt": "Current primary turn; explicit regular-tree native model",
+      "state": "STOPPED",
+      "receipt": "Current proof packet frozen and reviewed; explicit-path integration only, then yield to active whole-goal continuation; no background worker",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30s direction: independent reverse-publication comparison; actual extrusion field remains OPEN; STOP/no descendants"
+      "receipt": "Current30s direction selects all finite next-observation derivations; STOP/no descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
@@ -25,7 +25,7 @@
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current80s independent review accepts P1–P3/TU1–TU4 explicit scopes; no BLOCKING/MAJOR; STOP/no descendants"
+      "receipt": "Current80s review accepts FN1–FN3/FO1; MAJOR FO2 carrier gap, unconditional claim withdrawn to explicit χ_e premise; STOP/no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -35,7 +35,7 @@
     {
       "id": "/root/astra_scoped_join",
       "state": "STOPPED",
-      "receipt": "Current190s producer frozen3d7fe668; P1–P3 exact two-client reverse transport; STOP. Primary clarifies Top wording/unused builtin before review."
+      "receipt": "Current190s producer frozen7af7bcfc; FN1–FN3 all finite defined-client node refinement; STOP/no descendants"
     }
   ],
   "leases": [
@@ -57,15 +57,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Independent accepted scope; post-review status/receipt/link-only changes",
-      "sha256": "6e86ad199a680128c0c9928c3a29caf5c9c278e403847f14704cefd26356440f"
+      "receipt": "Current outcome fixes accepted scope; source FO2 unconditional claim withdrawn after MAJOR, χ_e remains OPEN",
+      "sha256": "a12cd26a9eb8a40cd9230ac53b73e46ceb303ffac79c7301e502c94c9d989d7d"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Independent accepted scope; post-review status/receipt/link-only changes",
-      "sha256": "d6df00322108fc91ea137fe6f93f54802cd49bbadc8d107335a43ddc8d1ef467"
+      "receipt": "Current outcome fixes accepted scope; source FO2 unconditional claim withdrawn after MAJOR, χ_e remains OPEN",
+      "sha256": "c0537574771a709c6d084a2c472ccf43628d1b659cdbc81ef7a9ec86434f1098"
     },
     {
       "path": "notes/theory/2026-10-24-fresh-valuebind-complete-call.md",
@@ -136,6 +136,20 @@
       "state": "FROZEN",
       "sha256": "e0a1b76198b4591d23d746e32eb34d517d26d45c5d3e83f0e747fde924e898d4",
       "receipt": "Independent accepted scope; post-review status/receipt/link-only changes"
+    },
+    {
+      "path": "notes/theory/2026-10-24-finite-next-observation-coverage.md",
+      "owner": "/root/astra_scoped_join",
+      "state": "FROZEN",
+      "sha256": "7d1c3d6140aa096b5b0a5874eec22e445a19de5462573de9c5d262a677b09f81",
+      "receipt": "Current outcome fixes accepted scope; source FO2 unconditional claim withdrawn after MAJOR, χ_e remains OPEN"
+    },
+    {
+      "path": "notes/theory/2026-10-24-finite-observation-source-bridge.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "b5c79aff23a73d6a3df01b737d9402d3c6e385367159e73b68e185fdae33acf9",
+      "receipt": "Current outcome fixes accepted scope; source FO2 unconditional claim withdrawn after MAJOR, χ_e remains OPEN"
     }
   ],
   "external_isolation": {
@@ -155,7 +169,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Whole goal active. NR1–NR2 original monomorphic recursive f/inner-closure instance and actual HC-REC/HISTORY accepted under independent kernel/formation inputs; PF1–PF2 supply native local formation. General source/inference, receiving provenance, publication/independent uses and global requirements remain."
+      "missing": "TU common-h/union recursive instance accepted; FO1 computed-callee phases accepted with original whole-carrier checking. FO2 unconditional carrier inference withdrawn after MAJOR; need actual χ_e and original computed-result DescMem, full source/inference semantics and all original coverage."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -167,7 +181,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "P1–P3 gives low-anchor-preserving reverse repair for exact two actual App/Sel/succ clients; TU1–TU4 common-h source Bind client accepted. General clients/next observations, native-App/Bind and publication correspondence, actual extrusion receiving field, full A/B and combined termination remain."
+      "missing": "FN1–FN3 low-anchor-preserving node refinement/output-contract coverage for defined arbitrary finite next-observation grammar accepted; all higher-order/local-let clients, actual T/Y receiving/SCC, complete source/publication correspondence and combined termination remain."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -178,12 +192,12 @@
     }
   ],
   "review": {
-    "outcome": "tasks/agent-loop/sprints/publication-two-use-20261024-outcome.md",
+    "outcome": "tasks/agent-loop/sprints/finite-next-coverage-20261024-outcome.md",
     "whole_language_certified": false,
     "reviewer": "/root/astra_semantics_review"
   },
   "resource": {
-    "astra_reserved_seconds": 7290,
+    "astra_reserved_seconds": 7590,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -192,10 +206,10 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 0
   },
-  "next_action": "Boundary selection: authentic finite next-consuming client coverage and explicit source/native client bridge.",
-  "closure": "ACTIVE whole goal; exact two-client reverse repair and common-h source uses accepted; full parent OPEN; all children STOPPED",
-  "previous_outcome": "tasks/agent-loop/sprints/publication-two-use-20261024-outcome.md",
-  "previous_outcome_sha256": "e1b48af10962bbac413399dbc0c693a6fabe0f124c0d396f3208a3f9400a1f83",
+  "next_action": "Boundary selection: explicit monomorphic Lam/App/Rcd/Sel client transport; source actual whole-carrier χ_e derivation and computed-result constructor; receiving correspondence remains OPEN.",
+  "closure": "ACTIVE whole goal; current packet frozen; native FN1–FN3/FO1 accepted, FO2 unconditional claim withdrawn; all writers STOPPED; next authorized boundary pending",
+  "previous_outcome": "tasks/agent-loop/sprints/finite-next-coverage-20261024-outcome.md",
+  "previous_outcome_sha256": "c405e86c9a5ec9cd0cb14bfa09b82571496645054cedd095bf389a35bc14723a",
   "goal_turn_classification": "IN_PROGRESS",
   "history": {
     "path": "tasks/agent-loop/sprints/source-indexed-derivation-20261024-prior-state.json",
