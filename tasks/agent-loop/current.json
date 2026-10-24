@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "sprint_id": "LET-POLAR-RESULT-SLOT-20261024",
+  "sprint_id": "SIGNED-EXTRUSION-CORRIDOR-20261024",
   "phase": "SPRINT_COMPLETE_PARENT_OPEN",
-  "contract": "tasks/agent-loop/sprints/let-polar-result-slot-20261024.md",
-  "baseline": "0a358d4972bb9e2a8b5edf9c115d0a5d302116cd",
+  "contract": "tasks/agent-loop/sprints/signed-extrusion-corridor-20261024.md",
+  "baseline": "2584aef5344b2d1ebfb304fd79c1236fcbdc8676",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
-      "state": "RUNNING",
-      "receipt": "Actual primary current integration; scoped independent review accepted; continuing whole goal",
+      "state": "STOPPED",
+      "receipt": "Current primary math frozen/reviewed; exact integration then yield to active whole-goal continuation; no background worker",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30sec actual FINAL signed simulation recommendation; no writes/descendants"
+      "receipt": "Current30sec actual FINAL new corridor method; no writes/descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
@@ -25,7 +25,7 @@
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current80sec actual FINAL accepts LP scoped trace and GR derived-view scope; no BLOCKING/MAJOR; no descendants"
+      "receipt": "Current100sec actual FINAL accepts SU1–5/EC1/fixedsnapshotEC2; no BLOCKING/MAJOR; no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -57,15 +57,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Current scoped independent acceptance; only review receipt/status after freeze",
-      "sha256": "0cd1a3fd5ea37e70c55827b81bfe9324ce1e393484767e3eb9b2b9745bf23f4d"
+      "receipt": "Current scoped independent acceptance; receipt/status-only postreview",
+      "sha256": "aaaef3ab30ef2ff0c8603c6f14270f034ef6d1f0c912eecd30999178db7e7a46"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Current scoped independent acceptance; only review receipt/status after freeze",
-      "sha256": "b335733c79f352a0bb372d2b1a48da4a877986565f589e9dac4afa78e52dc15d"
+      "receipt": "Current scoped independent acceptance; receipt/status-only postreview",
+      "sha256": "4ecaedad29962945729d4f4a414618a7235007a40720a920a4778eee82ffe606"
     },
     {
       "path": "notes/theory/2026-10-24-fresh-valuebind-complete-call.md",
@@ -206,6 +206,13 @@
       "state": "FROZEN",
       "receipt": "Current scoped independent acceptance; only review receipt/status after freeze",
       "sha256": "58ab61f7252818e208cc27be29fcc2c7633b35467c47dda0de126fa8bc87544b"
+    },
+    {
+      "path": "notes/theory/2026-10-24-signed-update-extrusion-corridor.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Current scoped independent acceptance; receipt/status-only postreview",
+      "sha256": "f21c438b0ed20a5bc2218fd3b6bfc3e2a1b360dbef535b0ee6a9dac2891c10e8"
     }
   ],
   "external_isolation": {
@@ -237,7 +244,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "LP nested publication/repair accepted, fullLET-POLAR-PUB still open; next needs signed client bounds plus beforeY≤T replay/earlier after-extrusion and full freshening. Receiving/TY qualification and original wholeA/B remain."
+      "missing": "SU1–5 allfinite nonrecursiveLet signed updates/Y.upperT closed; EC1 staged/direct and EC2 fixedsnapshot publication accepted. Joint canonical stored-model repair and actual interleaved-history correspondence remain, plus source receiving/SCC/fullA/B/principality/termination."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -248,12 +255,12 @@
     }
   ],
   "review": {
-    "outcome": "tasks/agent-loop/sprints/let-polar-result-slot-20261024-outcome.md",
+    "outcome": "tasks/agent-loop/sprints/signed-extrusion-corridor-20261024-outcome.md",
     "whole_language_certified": false,
     "reviewer": "/root/astra_semantics_review"
   },
   "resource": {
-    "astra_reserved_seconds": 8700,
+    "astra_reserved_seconds": 8830,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -262,10 +269,10 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 0
   },
-  "next_action": "Primary integration then meaningful new method boundary: signed-update plus actual beforeT-boundary replay versus earlier after-extrusion; no child dispatched or reserved.",
-  "closure": "ACTIVE whole goal; scoped LP/GR accepted; general Let and original whole parents OPEN; children STOPPED, primary current integration",
-  "previous_outcome": "tasks/agent-loop/sprints/let-polar-result-slot-20261024-outcome.md",
-  "previous_outcome_sha256": "f6d9f8dc644c8da3e74b2b7311ef3630d62bd131ce558eadead753b22241fc17",
+  "next_action": "Primary next: simultaneous canonical role repair for all finite client stores using SU invariant and retained internal production bounds; then actual interleaved early-intrusion correspondence. No child dispatched/reserved.",
+  "closure": "ACTIVE whole goal; SU1–5/EC1/EC2 scoped results reviewed; full original parents OPEN; all workers STOPPED",
+  "previous_outcome": "tasks/agent-loop/sprints/signed-extrusion-corridor-20261024-outcome.md",
+  "previous_outcome_sha256": "b93878241337ca79375194325dbe2aa75e74d3aeff2783f6ab2a167bf22f86ef",
   "goal_turn_classification": "PROGRESS",
   "history": {
     "path": "tasks/agent-loop/sprints/source-indexed-derivation-20261024-prior-state.json",

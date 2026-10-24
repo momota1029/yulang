@@ -278,3 +278,12 @@ NM3 は C/B、D/J、T/Y の全 copy と全 cut に一つの valuation を同時�
 [generated computed result の対応](../notes/theory/2026-10-24-generated-computed-result-correspondence.md)は、選択済み EI を元 Call の実 operand と IF slots から形成し、定義された ViewLogic として同じ source occurrence に付ける。GR1–GR3 は complete sort、元 event binder の内側の依存、有限登録 graph、whole substitution、actual result/provider/current-world/future の一致を構成する。GR4–GR6 は genuine local inputs を持つ元 source proof にその view を付加・消去する。元 `Comp(E_c,A_c)` と CIncl は保持し、EI の導入だけで target checking を削除しない。
 
 この source 構成は、既存の全 native result rows が EI を符号化するという証明ではない。全 Let の signed bound/publication transport、fixed target の実包含、primitive/arm laws、source/native receiving 対応と元の全親義務は残る。両稿はこの範囲で独立査読を通過した。[固定版と査読範囲](../tasks/agent-loop/sprints/let-polar-result-slot-20261024-outcome.md)に全体未完了の境界を記録する。
+
+
+### 4.20 全 nonrecursive-let client の signed updates と段階 extrusion
+
+[signed update と extrusion の段階合成](../notes/theory/2026-10-24-signed-update-extrusion-corridor.md)は、固定fの全有限 nonrecursive-Let clientsで、P/N/Zの相互文法とactual bound-list invariantを構成する。SU1–SU4はsource seeds、片側insertion/replay、Functionの反転、両listのfresheningを同時に保つ。SU5により、Y系の全コピーのupperは共有Tのままで、clientから別のupperを追加されない。従来のLET-POLAR-PUBに残っていた、このsigned-update義務を一般に閉じる。
+
+EC1は任意のfinite level-closed storeで、二段extrusionの全modelを一段extrusionへ運び、元row値とextruded resultを保つ。EC2は二つのtarget levelsの間にある固定publication boundaryと任意有限個のfresh instancesへ拡張する。中間copyの各useを等置せず、共有lowを一つに保つ。
+
+元history全体との合成は未完である。Variable branchの優先順位とcache hitにより、保存されたL≤Y≤TというpathだけではL≤Tの最新処理を主張できない。介在する更新、消えるY.lower到達部分、全historyの一つのmodel actionが残る。固定snapshotのEC2を任意interleavingへ一般化したとはしない。本稿はこの範囲で独立査読を通過した。[固定版と査読範囲](../tasks/agent-loop/sprints/signed-extrusion-corridor-20261024-outcome.md)に元の未完了義務を保持する。

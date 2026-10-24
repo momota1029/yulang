@@ -83,6 +83,8 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 - [polar copy と nested let publication](../notes/theory/2026-10-24-let-polar-publication-simulation.md): LP1 は実 selected-bound obligations、LP2 は内側 low copy が外側で high/freshened となる具体的導出。共同 repair により誤った coverage 反例を排除するが、全 Let theorem は未閉鎖。
 - [generated computed result と元結果欄](../notes/theory/2026-10-24-generated-computed-result-correspondence.md): EI の定義 view を実 Call/IF に形成し、scope・共有・actual result/future の一致と、元 proof への付加・消去を構成する。独立な Comp target と CIncl を保持する。native 全 result encoding や全 target inclusion の証明ではない。両稿はこの範囲で独立査読を通過した。[固定版と査読範囲](../tasks/agent-loop/sprints/let-polar-result-slot-20261024-outcome.md)に全体未完了の境界を記録する。
 
+- [signed updates と extrusion の段階合成](../notes/theory/2026-10-24-signed-update-extrusion-corridor.md): SU1–SU5は全finite nonrecursive-Let clientsのbound更新と両list fresheningを帰納し、Y系への後着upperを排除する。EC1/EC2は一般storeの二段→一段model transportと間の固定publicationを構成する。任意interleaved historyへの合成と全Let coverageは未完。この範囲で独立査読受理。[記録](../tasks/agent-loop/sprints/signed-extrusion-corridor-20261024-outcome.md)を参照。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。
