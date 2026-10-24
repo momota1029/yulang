@@ -8,7 +8,7 @@ Status: ACTIVE; graph-generic proof construction continues in the isolated workt
 - Exact proof destination: `notes/theory/2026-10-24-natural-conditional-result.md`; handoff: `tasks/agent-loop/inbox/20261024-natural-conditional-result.md`.
 - Exact implementation lease: `tools/inference-playground/src/scheme.rs`, Luna only and only after proof review.
 - Isolated branch/worktree: `codex/natural-conditional-result-20261024`, `/tmp/yulang-natural-conditional-result-20261024`; source baseline remains d788. Legacy UNKNOWN reservations stay quarantined; no merge/copy-back is authorized.
-- Authority: sprint contract rev3 `tasks/agent-loop/sprints/natural-conditional-result-20261024-rev3.md`.
+- Authority: sprint contract rev4 `tasks/agent-loop/sprints/natural-conditional-result-20261024-rev4.md`.
 - Proof producer remains active on the exact note/inbox leases. No proof result, source change, build, or runtime observation is claimed yet.
 
 ## Revision 2 boundary
@@ -19,6 +19,12 @@ The expansion changes no write lease, source semantics, executable validation, b
 
 ## Revision 3 boundary
 
-The producer identified that the local/shared classification premise also depends on definition-root initialization. After the `next_action_selector` recommended a narrow clarification, rev3 authorized read-only inspection in the same pinned `crates/yu-solver/src/lib.rs`: definition-root initial `level` and `non_generic`, its contrast with expression-root initialization, and the direct join from those fields to exported local/shared classification. A later mutation may be read only if it directly affects that classification, with its owner identified before relying on it.
+The producer identified that the local/shared classification premise also depends on definition-root initialization. After the `next_action_selector` recommended a narrow clarification, rev3 authorized read-only inspection in the same pinned `crates/yu-solver/src/lib.rs`: definition-root initial `level` and `non_generic`, its contrast with expression-root initialization, and the direct join from those fields to exported local/shared classification. The producer reports that both definition and expression Value components start at level 1 with `non_generic=false`, matching the capture predicate `level>0&&!non_generic`; the traced append/replay and scalar endpoint path does not lower/copy this Value. This closes NCR-ROOT-1 only for the selected path and remains conditional on the Group transport below; no independent review has occurred.
 
 The proof claim now covers only constraints and identities represented by the existing `CandidateGraphExport`; both conditional contributions reaching that export remains explicit. It makes no claim that the export contains every source fact. No dependency hash, lease, budget, source/semantic authority or executable validation changed. The falsifier remains: a shared/non-generic root is quantified, a local row is misclassified as an external anchor, or final locality relies on an initializer without accounting for a relevant later mutation.
+
+## Revision 4 boundary
+
+The producer found that block-shaped conditional branches emit literal/result facts through `CandidateRelation::Group`, so the remaining child-positive→branch-result transport was outside rev3's explicitly narrow `shadow_apply.rs` export permission. The dispatcher recommended a same-file read expansion, retaining the existing `shadow_apply.rs` hash: `admit_candidate_fact`'s Group arm and shared value-admission tail, that arm's endpoint mapping, the Group effect arm and `admit_candidate_effect`, plus direct provenance/ownership joins needed to connect these admissions to the already inspected drain/export path.
+
+Rev4 requires the proof to establish actual endpoint and occurrence mapping through Group for both branch contributions. It must state the existing `candidate_graph_effects` guard and cannot claim unconditional effect transport or general effect hygiene. The falsifier is a Block/StatementBlock selecting the wrong result endpoint or occurrence, losing a conditional contribution, or omitting an effect fact while claiming its preservation. No cross-file dependency, source/code write, execution, or resource expansion is authorized; any further file needed must be identified and pinned before reading.
