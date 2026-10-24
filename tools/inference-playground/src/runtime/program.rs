@@ -281,6 +281,7 @@ pub(super) enum Instruction {
         record_pattern: Option<Arc<[RecordParameterField]>>,
         role: ParameterRole,
         root_schema: Option<Arc<super::receiving::RootCompSchema>>,
+        callback_schema: Option<Arc<super::receiving::CallbackResultSchema>>,
         body: Label,
     },
     Apply {
@@ -838,6 +839,14 @@ impl RuntimeProgram {
                             },
                             parameter,
                         ),
+                        callback_schema: super::receiving::CallbackResultSchema::from_parameter(
+                            &SourceSite {
+                                source_root: source_root.clone(),
+                                occurrence: expression.occurrence.clone(),
+                                range: expression.range.clone(),
+                            },
+                            parameter,
+                        ),
                         body: label(body)?,
                     },
                     LocalSourceForm::Apply {
@@ -1038,6 +1047,7 @@ impl RuntimeProgram {
                 ParameterRole::Value
             };
             let root_schema = super::receiving::RootCompSchema::from_parameter_with_result_view(&site, &receiver);
+            let callback_schema = super::receiving::CallbackResultSchema::from_parameter(&site, &receiver);
             code.push(Arc::new(Code {
                 site,
                 instruction: Instruction::Lambda {
@@ -1046,6 +1056,7 @@ impl RuntimeProgram {
                     record_pattern: None,
                     role,
                     root_schema,
+                    callback_schema,
                     body,
                 },
             }));

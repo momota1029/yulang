@@ -7,7 +7,10 @@ use super::{
         Binder, CasePattern, Code, ExecutionRoot, Instruction, Label, NameConsumption, ParameterRole,
         RuntimeProgram, RuntimeUnavailable, SourceSite,
     },
-    receiving::{ExecutionView, Observation, Receiving, RootCompSchema, ViewHandle},
+    receiving::{
+        CallbackResultSchema, CallbackUseHandle, ExecutionView,
+        Observation, Receiving, RootCompSchema, ViewHandle,
+    },
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -183,6 +186,7 @@ enum ExecutableValue {
         record_pattern: Option<Arc<[RecordParameterField]>>,
         role: ParameterRole,
         root_schema: Option<Arc<RootCompSchema>>,
+        callback_schema: Option<Arc<CallbackResultSchema>>,
         body: Label,
         environment: usize,
     },
@@ -245,11 +249,13 @@ pub(super) enum Frame {
     },
     OperationResultConsumer {
         source: SourceSite,
+        callback_use: Option<CallbackUseHandle>,
     },
     DiscardToUnit {
         site: SourceSite,
     },
     Callee {
+        callee: Option<Label>,
         argument: Label,
         environment: usize,
         site: SourceSite,
@@ -265,6 +271,8 @@ pub(super) enum Frame {
     },
     ValueEntry {
         parameter: HirParameterId,
+        callback_schema: Option<Arc<CallbackResultSchema>>,
+        entry_receiver: usize,
         unit_pattern: bool,
         record_pattern: Option<Arc<[RecordParameterField]>>,
         body: Label,
@@ -742,7 +750,7 @@ impl Machine {
                 let callee = *self.program.dictionaries.as_ref().unwrap().get(&(word, key.clone()))
                     .ok_or_else(|| RuntimeUnavailable::UnsupportedFieldTail(site.clone()))?;
                 let entered = self.dispatch_environment(environment, dispatch::Step { kind: dispatch::Kind::Member, site: key })?;
-                self.frames.push(Frame::Callee { argument: *receiver, environment, site: site.clone() });
+                self.frames.push(Frame::Callee { callee: None, argument: *receiver, environment, site: site.clone() });
                 self.state = State::Evaluate { code: callee, environment: entered };
             }
             Instruction::FieldTail { .. } => {
@@ -757,8 +765,8 @@ impl Machine {
                     kind: dispatch::Kind::Operator,
                     site: dispatch::Site { owner: site.source_root.clone(), occurrence: site.occurrence.clone() },
                 })?;
-                if let Some(right) = right { self.frames.push(Frame::Callee { argument: *right, environment, site: site.clone() }); }
-                self.frames.push(Frame::Callee { argument: *left, environment, site: site.clone() });
+                if let Some(right) = right { self.frames.push(Frame::Callee { callee: None, argument: *right, environment, site: site.clone() }); }
+                self.frames.push(Frame::Callee { callee: None, argument: *left, environment, site: site.clone() });
                 self.state = State::Evaluate { code: callee, environment: entered };
             }
             Instruction::OperatorApplication { .. } => {
@@ -859,6 +867,7 @@ impl Machine {
                 record_pattern,
                 role,
                 root_schema,
+                callback_schema,
                 body,
             } => {
                 self.data(
@@ -870,6 +879,7 @@ impl Machine {
                         record_pattern: record_pattern.clone(),
                         role: *role,
                         root_schema: root_schema.clone(),
+                        callback_schema: callback_schema.clone(),
                         body: *body,
                         environment,
                     }),
@@ -877,6 +887,7 @@ impl Machine {
             }
             Instruction::Apply { callee, argument } => {
                 self.frames.push(Frame::Callee {
+                    callee: Some(*callee),
                     argument: *argument,
                     environment,
                     site: site.clone(),
@@ -1127,7 +1138,15 @@ impl Machine {
                 declaration,
                 source,
             } => self.make_request_carrier(declaration, received, &source),
-            Frame::OperationResultConsumer { source } => self.execute_with_substitution(received.value, &source, received.dispatch)?,
+            Frame::OperationResultConsumer { source, callback_use } => {
+                if let Some(callback_use) = callback_use {
+                    let execution = self.receiving.callback_execution(callback_use)
+                        .ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    self.executing_views.push(execution);
+                    self.frames.push(Frame::RootCompReturn { execution });
+                }
+                self.execute_with_substitution(received.value, &source, received.dispatch)?;
+            }
             Frame::DiscardToUnit { site } => self.ground_data(&site, RuntimeValueKind::Unit, None),
             Frame::PrimitiveArgument { operation, mut arguments, site } => {
                 arguments.try_reserve(1).map_err(|_| RuntimeUnavailable::InvalidSourceReference)?;
@@ -1160,6 +1179,7 @@ impl Machine {
                 }
             }
             Frame::Callee {
+                callee,
                 argument,
                 environment,
                 site,
@@ -1207,6 +1227,7 @@ impl Machine {
                         record_pattern,
                         role,
                         root_schema,
+                        callback_schema,
                         body,
                         environment,
                     }) => {
@@ -1265,6 +1286,8 @@ impl Machine {
                             ParameterRole::Value => {
                                 self.frames.push(Frame::ValueEntry {
                                     parameter,
+                                    callback_schema,
+                                    entry_receiver: activation,
                                     unit_pattern,
                                     record_pattern,
                                     body,
@@ -1322,7 +1345,7 @@ impl Machine {
                         if declaration.signature.effects.is_some() {
                             return Err(RuntimeUnavailable::OperationConsumer(site));
                         }
-                        let SourceAnnotationValue::Function { argument, .. } =
+                        let SourceAnnotationValue::Function { argument, result } =
                             &declaration.signature.value
                         else {
                             return Err(RuntimeUnavailable::OperationConsumer(site));
@@ -1332,6 +1355,38 @@ impl Machine {
                         } else {
                             ParameterRole::Value
                         };
+                        let callback_use = if role == ParameterRole::Value
+                            && argument.effects.is_none()
+                            && matches!(argument.value, SourceAnnotationValue::Unit)
+                            && result.effects.is_none()
+                            && matches!(result.value, SourceAnnotationValue::Int)
+                        {
+                            let source_formal = callee.and_then(|callee| {
+                                let code = self.program.code.get(callee.0)?;
+                                let Instruction::Name {
+                                    resolution: LocalSourceResolution::Parameter(formal),
+                                    consumption: NameConsumption::Observe,
+                                } = &code.instruction else { return None; };
+                                self.receiving.callback_entry_for_apply(
+                                    received.value,
+                                    received.view,
+                                    formal,
+                                    self.current_execution_owner(),
+                                    &code.site,
+                                )
+                            });
+                            source_formal.and_then(|entry| {
+                                self.receiving.callback_use(
+                                    entry,
+                                    received.value,
+                                    received.view,
+                                    &site,
+                                    self.current_execution_owner(),
+                                )
+                            })
+                        } else {
+                            None
+                        };
                         let provider = self.values[received.value.0].source.clone();
                         let (activation, previous) = self.new_invocation(site.clone(), provider)?;
                         // The declared source consumer runs after native return.
@@ -1339,6 +1394,7 @@ impl Machine {
                         // including when the written result effect row is absent.
                         self.frames.push(Frame::OperationResultConsumer {
                             source: site.clone(),
+                            callback_use,
                         });
                         self.frames.push(Frame::ReceiverReturn {
                             activation,
@@ -1381,11 +1437,34 @@ impl Machine {
             }
             Frame::ValueEntry {
                 parameter,
+                callback_schema,
+                entry_receiver,
                 unit_pattern,
                 record_pattern,
                 body,
                 environment,
             } => {
+                let received = if let Some(schema) = callback_schema {
+                    let owner = ExecutionOwner::Invocation(entry_receiver);
+                    if unit_pattern
+                        || record_pattern.is_some()
+                        || self.current_execution_owner() != owner
+                        || schema.formal.id != parameter
+                        || schema.formal.id.source_root() != &schema.lambda.source_root
+                        || received.interface != ParameterRole::Value
+                    {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    }
+                    let (view, _) = self.receiving.callback_entry(
+                        schema,
+                        owner,
+                        received.value,
+                        received.view,
+                    ).ok_or(RuntimeUnavailable::InvalidSourceReference)?;
+                    ReceivedValue { interface: ParameterRole::Value, view, ..received }
+                } else {
+                    received
+                };
                 if let Some(fields) = record_pattern {
                     return self.bind_record_parameter(fields, 0, received, body, environment);
                 }
@@ -1850,7 +1929,25 @@ impl Machine {
                 self.state = State::Return(response);
                 return Ok(());
             }
-            TemplateNode::Bind { inner, frame } => {
+            TemplateNode::Bind { inner, mut frame } => {
+                // Pending callback entries are executable frames, so their
+                // owner follows this replay's control map. Existing callback
+                // entries/uses/receipts remain immutable historical evidence.
+                if let Frame::ValueEntry {
+                    callback_schema: Some(_),
+                    entry_receiver,
+                    ..
+                } = &mut frame
+                {
+                    let resolved = Self::resolve_control(
+                        ExecutionOwner::Invocation(*entry_receiver),
+                        &control,
+                    );
+                    let ExecutionOwner::Invocation(receiver) = resolved else {
+                        return Err(RuntimeUnavailable::InvalidSourceReference);
+                    };
+                    *entry_receiver = receiver;
+                }
                 self.frames.push(frame);
                 inner
             }

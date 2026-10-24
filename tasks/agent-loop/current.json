@@ -6,11 +6,11 @@
   "active_sprint": {
     "id": "CB-PERMISSION-TRANSPORT-20261024",
     "status": "ACTIVE",
-    "contract": "tasks/agent-loop/sprints/cb-permission-transport-20261024.md",
-    "contract_sha256": "e3d2e8bdffb4cfda48057525b5e7da076acb248eee2c0c5ddaf384b478b18cd9",
+    "contract": "tasks/agent-loop/sprints/cb-permission-transport-20261024-rev2.md",
+    "contract_sha256": "0c5fe5011811420ae334d2a72f0e46570eed17e0775e48f47228d799e12ce0d7",
     "baseline": "a0dcc92b8f8b866f7ed2e06acf399a4c86057a3c",
-    "claim": "Construct and review authenticated callback Result permission transport through OperationResultConsumer; implement only after proof review.",
-    "implementation": "Primary runtime/program.rs, receiving.rs, machine.rs; gated on reviewed construction.",
+    "claim": "Construct, review and implement authenticated callback Result permission transport through OperationResultConsumer under the accepted bounded proof.",
+    "implementation": "Rev2 frozen candidate passed independent delta review and the single amended cargo check; exact-path integration pending.",
     "proof": "Forward simulation and frame invariant through request emission, bubbling, unwind, discard and replay, or exact failure.",
     "resources": {
       "cap_seconds": 3600,
@@ -20,10 +20,10 @@
       "review_assignment_cap_seconds": 300
     },
     "outcome": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
-    "outcome_sha256": "fcf5bb8b88d5e5f129716ed3577b0a1913851d76113c83348fea0e0cb5839576",
-    "closure": "Contract frozen; proof assignment NOT_STARTED; code gated on fresh review.",
-    "next_action": "Launch exact constructive callback Result transport proof assignment.",
-    "review_status": "NOT_STARTED"
+    "outcome_sha256": "55d26be0672264dbda27de0d6a049a7d52c5c6d3fd590126c7abf216c8dd8d11",
+    "closure": "CONSTRUCTION_ACCEPTED; REV1_MAJOR_REPAIRED; REV2_REVIEW_PASS; CARGO_CHECK_PASS; INTEGRATION_PENDING.",
+    "next_action": "Stage and inspect the exact accepted paths, then commit and push the coherent slice.",
+    "review_status": "CONSTRUCTION_PASS; REV1_MAJOR_REPAIRED; REV2_DELTA_REVIEW_PASS; CARGO_CHECK_PASS"
   },
   "workers": [
     {
@@ -73,24 +73,24 @@
     {
       "id": "/root/callback_permission_prover",
       "role": "callback Result transport constructive proof",
-      "state": "NOT_STARTED",
+      "state": "STOPPED",
       "session": null,
       "requested_model": "gpt-6.1-sol",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Exact new proof paths leased; awaiting live launch receipt."
+      "receipt": "STOPPED 2026-10-24; frozen proof hashes verified; 532s, 33 reads, 3 artifact patches; no tests/builds/probes/code/Git/descendants."
     },
     {
       "id": "/root/proof_implementation_referee",
-      "role": "fresh callback permission obstruction reviewer",
+      "role": "independent callback transport implementation reviewer",
       "state": "STOPPED",
       "session": null,
       "requested_model": "UNKNOWN",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "STOPPED 2026-10-24; obstruction supported, no findings; 66s, 12 reads, 2 clock calls; no writes/tests/builds/probes/Git/descendants."
+      "receipt": "STOPPED 2026-10-24 00:25:38 UTC; 40s, 4 reads; rev2 PASS, no findings; full receipt in outcome."
     }
   ],
   "leases": [
@@ -116,7 +116,13 @@
       "path": "tasks/agent-loop/sprints/cb-permission-transport-20261024.md",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Primary-owned active contract."
+      "reason": "Immutable revision 1 parent contract."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/cb-permission-transport-20261024-rev2.md",
+      "owner": "/root",
+      "state": "HELD",
+      "reason": "Primary-owned bounded owner-remap repair and one additional check amendment."
     },
     {
       "path": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
@@ -127,32 +133,32 @@
     {
       "path": "notes/theory/2026-10-24-cb-permission-transport.md",
       "owner": "/root/callback_permission_prover",
-      "state": "HELD",
-      "reason": "Exclusive constructive proof artifact."
+      "state": "FROZEN",
+      "reason": "Frozen candidate; fresh independent review PASS; do not edit."
     },
     {
       "path": "tasks/agent-loop/inbox/20261024-cb-permission-transport.md",
       "owner": "/root/callback_permission_prover",
-      "state": "HELD",
-      "reason": "Exclusive proof handoff."
+      "state": "FROZEN",
+      "reason": "Frozen candidate; fresh independent review PASS; do not edit."
     },
     {
       "path": "tools/inference-playground/src/runtime/program.rs",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact code lease; gated on reviewed proof."
+      "reason": "Frozen revision 2; independent delta review and amended cargo check PASS."
     },
     {
       "path": "tools/inference-playground/src/runtime/receiving.rs",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact code lease; gated on reviewed proof."
+      "reason": "Frozen revision 2; independent delta review and amended cargo check PASS."
     },
     {
       "path": "tools/inference-playground/src/runtime/machine.rs",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Exact code lease; gated on reviewed proof."
+      "reason": "Frozen revision 2; independent delta review and amended cargo check PASS."
     }
   ],
   "pending": [
@@ -265,8 +271,8 @@
       "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
     }
   ],
-  "closure": "Callback Result transport sprint active; SOURCE-SAFETY-BRIDGE and original A/B remain open.",
-  "next_action": "Construct the callback Result view/frame invariant before runtime writes.",
+  "closure": "Callback Result construction accepted; revision 1 MAJOR repaired, rev2 independently reviewed and checked. SOURCE-SAFETY-BRIDGE and original A/B remain open.",
+  "next_action": "Commit and push only the exact reviewed runtime slice and its sprint records.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN identities and their quarantined reservations retained.",
@@ -338,5 +344,5 @@
       "closure": "Reviewed exact runtime obstruction; NO_SAFE_CODE_SLICE; parent gate remains OPEN_REVIEW."
     }
   ],
-  "resource_observation": "Fresh 3600s sprint started after reviewed callback obstruction; proof worker NOT_STARTED; three UNKNOWN reservations retained."
+  "resource_observation": "Proof STOPPED; construction PASS (98s); rev1 review MAJOR (133s), repaired; rev2 review PASS (40s); rev1 check old bytes; amended rev2 cargo check PASS; 3 UNKNOWN reservations retained."
 }

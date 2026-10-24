@@ -56,10 +56,59 @@ impl RootCompSchema {
         }))
     }
 }
+
+/// Source-owned permission on the result port of a Value callback. This
+/// deliberately accepts only the reviewed `() -> [E] int` shape: the outer
+/// function is a Value, while the resolved concrete row lives at Result.
+#[derive(Clone)]
+pub(super) struct CallbackResultSchema {
+    pub lambda: SourceSite,
+    pub formal: LocalSourceParameter,
+    pub families: Arc<[SourceEffectId]>,
+}
+impl CallbackResultSchema {
+    pub fn from_parameter(
+        lambda: &SourceSite,
+        formal: &LocalSourceParameter,
+    ) -> Option<Arc<Self>> {
+        let annotation = formal.annotation.as_ref()?;
+        if annotation.owner != lambda.source_root
+            || formal.id.source_root() != &lambda.source_root
+            || annotation.ty.effects.is_some()
+            || formal.unit_pattern
+            || formal.record_pattern.is_some()
+        {
+            return None;
+        }
+        let SourceAnnotationValue::Function { argument, result } = &annotation.ty.value else {
+            return None;
+        };
+        if argument.effects.is_some()
+            || !matches!(argument.value, SourceAnnotationValue::Unit)
+            || !matches!(result.value, SourceAnnotationValue::Int)
+        {
+            return None;
+        }
+        let row = result.effects.as_ref()?;
+        if row.concrete.is_empty() || !row.variables.is_empty() {
+            return None;
+        }
+        Some(Arc::new(Self {
+            lambda: lambda.clone(),
+            formal: formal.clone(),
+            families: Arc::from(row.concrete.clone()),
+        }))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub(super) struct ViewHandle(usize);
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct ReceiptHandle(usize);
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub(super) struct CallbackEntryHandle(usize);
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub(super) struct CallbackUseHandle(usize);
 #[derive(Clone, Copy)]
 pub(super) struct ExecutionView {
     pub view: ViewHandle,
@@ -77,6 +126,14 @@ struct View {
     image: Option<usize>,
     // No current consumer interprets unknown coverage as a negative certificate.
     unknown: bool,
+    kind: ViewKind,
+}
+#[derive(Clone, Copy)]
+enum ViewKind {
+    Ordinary,
+    RootComp,
+    CallbackEntry(CallbackEntryHandle),
+    CallbackResult(CallbackUseHandle),
 }
 struct Image {
     boundary: usize,
@@ -96,6 +153,21 @@ struct Receipt {
     slot: SourceSite,
     formal: Option<HirParameterId>,
 }
+struct CallbackEntry {
+    schema: Arc<CallbackResultSchema>,
+    receiver: usize,
+    value: ValueHandle,
+    incoming_view: ViewHandle,
+    view: ViewHandle,
+    formal_receipt: ReceiptHandle,
+}
+struct CallbackUse {
+    entry: CallbackEntryHandle,
+    source_view: ViewHandle,
+    apply: SourceSite,
+    result_view: ViewHandle,
+    receipt: ReceiptHandle,
+}
 #[derive(Default)]
 pub(super) struct Receiving {
     views: Vec<View>,
@@ -103,6 +175,8 @@ pub(super) struct Receiving {
     boundaries: Vec<Boundary>,
     receipts: Vec<Receipt>,
     receipt_index: HashMap<(ExecutionOwner, ViewHandle, Option<HirParameterId>), ReceiptHandle>,
+    callback_entries: Vec<CallbackEntry>,
+    callback_uses: Vec<CallbackUse>,
     next_observer: usize,
     executions: Vec<(ViewHandle, ReceiptHandle)>,
     #[cfg(test)]
@@ -115,6 +189,7 @@ impl Receiving {
             value,
             image: None,
             unknown: true,
+            kind: ViewKind::Ordinary,
         });
         handle
     }
@@ -124,6 +199,7 @@ impl Receiving {
             value,
             image: None,
             unknown: false,
+            kind: ViewKind::Ordinary,
         });
         handle
     }
@@ -141,6 +217,7 @@ impl Receiving {
             value,
             image,
             unknown,
+            kind: ViewKind::Ordinary,
         });
         handle
     }
@@ -177,6 +254,7 @@ impl Receiving {
             value,
             image: Some(image),
             unknown: self.views[inherited.0].unknown,
+            kind: ViewKind::RootComp,
         });
         view
     }
@@ -207,7 +285,7 @@ impl Receiving {
         let child_view = self.views.get(child.0)?;
         if parent.image.is_some() || child_view.value != value { return None; }
         if !parent.unknown || child_view.unknown { return Some(child); }
-        let view = View { value, image: child_view.image, unknown: true };
+        let view = View { value, image: child_view.image, unknown: true, kind: child_view.kind };
         let handle = ViewHandle(self.views.len());
         self.views.push(view);
         Some(handle)
@@ -215,12 +293,160 @@ impl Receiving {
     pub fn matches_value(&self, view: ViewHandle, value: ValueHandle) -> bool {
         self.views[view.0].value == value
     }
+
+    /// Publish the genuine Value-entry receiver for one source-annotated
+    /// callback formal. The inherited image/unknown coverage is copied, while
+    /// this receiver remains separate from RootComp's ordered boundaries.
+    pub fn callback_entry(
+        &mut self,
+        schema: Arc<CallbackResultSchema>,
+        owner: ExecutionOwner,
+        value: ValueHandle,
+        incoming_view: ViewHandle,
+    ) -> Option<(ViewHandle, CallbackEntryHandle)> {
+        let ExecutionOwner::Invocation(receiver) = owner else { return None; };
+        if self.views.get(incoming_view.0)?.value != value {
+            return None;
+        }
+        let entry = CallbackEntryHandle(self.callback_entries.len());
+        let inherited_image = self.views[incoming_view.0].image;
+        let inherited_unknown = self.views[incoming_view.0].unknown;
+        let view = ViewHandle(self.views.len());
+        self.views.push(View {
+            value,
+            image: inherited_image,
+            unknown: inherited_unknown,
+            kind: ViewKind::CallbackEntry(entry),
+        });
+        let formal_receipt = self.receipt(
+            owner,
+            view,
+            &schema.lambda,
+            Some(schema.formal.id.clone()),
+        );
+        self.callback_entries.push(CallbackEntry {
+            schema,
+            receiver,
+            value,
+            incoming_view,
+            view,
+            formal_receipt,
+        });
+        Some((view, entry))
+    }
+
+    pub fn callback_entry_for_apply(
+        &self,
+        value: ValueHandle,
+        view: ViewHandle,
+        formal: &HirParameterId,
+        owner: ExecutionOwner,
+        callee: &SourceSite,
+    ) -> Option<CallbackEntryHandle> {
+        let ExecutionOwner::Invocation(receiver) = owner else { return None; };
+        let entry = match self.views.get(view.0)?.kind {
+            ViewKind::CallbackEntry(entry) => entry,
+            _ => return None,
+        };
+        let entry = self.callback_entries.get(entry.0)?;
+        let formal_receipt = self.receipts.get(entry.formal_receipt.0)?;
+        let name_receipt = self.receipt_index.get(&(owner, view, None))?;
+        let name_receipt = self.receipts.get(name_receipt.0)?;
+        (entry.receiver == receiver
+            && entry.value == value
+            && entry.view == view
+            && self.views.get(entry.incoming_view.0).is_some_and(|incoming|
+                incoming.value == entry.value)
+            && entry.schema.formal.id == *formal
+            && formal_receipt.owner == owner
+            && formal_receipt.view == view
+            && formal_receipt.formal.as_ref() == Some(formal)
+            && formal_receipt.slot.occurrence == entry.schema.lambda.occurrence
+            && name_receipt.owner == owner
+            && name_receipt.view == view
+            && name_receipt.formal.is_none()
+            && name_receipt.slot.source_root == callee.source_root
+            && name_receipt.slot.occurrence == callee.occurrence)
+            .then_some(match self.views[view.0].kind {
+                ViewKind::CallbackEntry(handle) => handle,
+                _ => return None,
+            })
+    }
+
+    /// Select a callback only at the actual direct parameter-name Apply. The
+    /// Result view and receipt are minted here, before the operation invocation.
+    pub fn callback_use(
+        &mut self,
+        entry: CallbackEntryHandle,
+        value: ValueHandle,
+        source_view: ViewHandle,
+        apply: &SourceSite,
+        owner: ExecutionOwner,
+    ) -> Option<CallbackUseHandle> {
+        let (entry_receiver, entry_value, entry_view) = {
+            let entry_record = self.callback_entries.get(entry.0)?;
+            (entry_record.receiver, entry_record.value, entry_record.view)
+        };
+        let ExecutionOwner::Invocation(receiver) = owner else { return None; };
+        if entry_receiver != receiver
+            || entry_value != value
+            || entry_view != source_view
+            || self.views.get(source_view.0)?.value != value
+        {
+            return None;
+        }
+        let use_handle = CallbackUseHandle(self.callback_uses.len());
+        let source_image = self.views[source_view.0].image;
+        let source_unknown = self.views[source_view.0].unknown;
+        let result_view = ViewHandle(self.views.len());
+        self.views.push(View {
+            value,
+            image: source_image,
+            unknown: source_unknown,
+            kind: ViewKind::CallbackResult(use_handle),
+        });
+        let receipt = self.receipt(owner, result_view, apply, None);
+        self.callback_uses.push(CallbackUse {
+            entry,
+            source_view,
+            apply: apply.clone(),
+            result_view,
+            receipt,
+        });
+        Some(use_handle)
+    }
+
+    pub fn callback_execution(&mut self, use_handle: CallbackUseHandle) -> Option<ExecutionView> {
+        let (result_view, receipt) = {
+            let use_record = self.callback_uses.get(use_handle.0)?;
+            (use_record.result_view, use_record.receipt)
+        };
+        self.execution(result_view, receipt)
+    }
     pub fn has_root(&self, view: ViewHandle) -> bool {
         self.views[view.0].image.is_some()
     }
     pub fn execution(&mut self, view: ViewHandle, receipt: ReceiptHandle) -> Option<ExecutionView> {
         if self.receipts.get(receipt.0)?.view != view {
             return None;
+        }
+        match self.views.get(view.0)?.kind {
+            ViewKind::CallbackEntry(_) => return None,
+            ViewKind::CallbackResult(use_handle) => {
+                let use_record = self.callback_uses.get(use_handle.0)?;
+                let use_receipt = self.receipts.get(use_record.receipt.0)?;
+                if use_record.result_view != view
+                    || use_record.receipt != receipt
+                    || use_receipt.view != view
+                    || use_receipt.owner != self.receipts[receipt.0].owner
+                    || use_receipt.formal.is_some()
+                    || use_receipt.slot.source_root != use_record.apply.source_root
+                    || use_receipt.slot.occurrence != use_record.apply.occurrence
+                {
+                    return None;
+                }
+            }
+            ViewKind::Ordinary | ViewKind::RootComp => {}
         }
         let occurrence = self.executions.len();
         self.executions.push((view, receipt));
@@ -276,6 +502,25 @@ impl Receiving {
         {
             return false;
         }
+        for observation in observations {
+            if observation.event != event
+                || observation.observer >= self.next_observer
+                || !self.authentic_execution(observation.execution)
+            {
+                continue;
+            }
+            let Some(view) = self.views.get(observation.execution.view.0) else { continue; };
+            let ViewKind::CallbackResult(use_handle) = view.kind else { continue; };
+            if self.callback_grant(
+                use_handle,
+                observation.execution,
+                owner,
+                receiver,
+                family,
+            ) {
+                return true;
+            }
+        }
         let Ok(target) = self
             .boundaries
             .binary_search_by_key(&receiver, |boundary| boundary.receiver)
@@ -308,6 +553,11 @@ impl Receiving {
             }
             let observing_receipt = &self.receipts[observation.execution.receipt.0];
             if observing_receipt.view != observation.execution.view {
+                continue;
+            }
+            // Callback Result views retain inherited images for provenance,
+            // but they are a distinct port and never satisfy a RootComp query.
+            if matches!(self.views[observation.execution.view.0].kind, ViewKind::CallbackResult(_) | ViewKind::CallbackEntry(_)) {
                 continue;
             }
             // Observe may run in a helper that has since unwound. The source
@@ -349,6 +599,42 @@ impl Receiving {
             }
         }
         false
+    }
+
+    fn callback_grant(
+        &self,
+        use_handle: CallbackUseHandle,
+        execution: ExecutionView,
+        owner: ExecutionOwner,
+        receiver: usize,
+        family: &SourceEffectId,
+    ) -> bool {
+        let Some(use_record) = self.callback_uses.get(use_handle.0) else { return false; };
+        let Some(entry) = self.callback_entries.get(use_record.entry.0) else { return false; };
+        let Some(use_receipt) = self.receipts.get(use_record.receipt.0) else { return false; };
+        let Some(formal_receipt) = self.receipts.get(entry.formal_receipt.0) else { return false; };
+        let Some(entry_view) = self.views.get(entry.view.0) else { return false; };
+        let Some(result_view) = self.views.get(use_record.result_view.0) else { return false; };
+        use_record.result_view == execution.view
+            && use_record.receipt == execution.receipt
+            && use_record.source_view == entry.view
+            && entry.receiver == receiver
+            && owner == ExecutionOwner::Invocation(receiver)
+            && self.views.get(entry.view.0).is_some_and(|view|
+                matches!(view.kind, ViewKind::CallbackEntry(handle) if handle == use_record.entry))
+            && entry.value == entry_view.value
+            && entry.value == result_view.value
+            && use_receipt.owner == owner
+            && use_receipt.view == use_record.result_view
+            && use_receipt.formal.is_none()
+            && use_receipt.slot.source_root == use_record.apply.source_root
+            && use_receipt.slot.occurrence == use_record.apply.occurrence
+            && formal_receipt.owner == owner
+            && formal_receipt.view == entry.view
+            && formal_receipt.formal.as_ref() == Some(&entry.schema.formal.id)
+            && formal_receipt.slot.source_root == entry.schema.lambda.source_root
+            && formal_receipt.slot.occurrence == entry.schema.lambda.occurrence
+            && entry.schema.families.contains(family)
     }
 }
 
