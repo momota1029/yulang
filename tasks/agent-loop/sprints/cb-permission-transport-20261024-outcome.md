@@ -160,6 +160,17 @@ This is compile evidence for the frozen revision 2 bytes only. The bounded
 implementation review and compile gates are complete; the full source/native
 theorem, arbitrary callback coverage and original A/B remain open.
 
+## Integration
+
+The exact eight-path implementation/evidence slice was committed as
+`9ce447b167a24fc80f733a9d5d185d2978663dae` and pushed to
+`origin/research/simple-sub-intrusion` from upstream `5051a696f`. The reviewed
+Runtime files and their proof, inbox, revision 2 contract, outcome and current
+state records are included. No unrelated paths were staged. No observed
+callback result `1` is claimed. `SOURCE-SAFETY-BRIDGE`, original A/B,
+whole-program inference acceptance, and the broader inference/evaluator goal
+remain open.
+
 The approved behavior and open-row rule remain unchanged; a signal grant must
 not consume additional `write`. The full static residual, whole-program
 acceptance, arbitrary callback coverage, source/native theorem and original

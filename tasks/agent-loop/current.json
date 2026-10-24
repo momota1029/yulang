@@ -5,12 +5,13 @@
   "session": "active-primary-turn-2026-10-24; numeric host session unavailable",
   "active_sprint": {
     "id": "CB-PERMISSION-TRANSPORT-20261024",
-    "status": "ACTIVE",
+    "status": "INTEGRATED",
     "contract": "tasks/agent-loop/sprints/cb-permission-transport-20261024-rev2.md",
     "contract_sha256": "0c5fe5011811420ae334d2a72f0e46570eed17e0775e48f47228d799e12ce0d7",
     "baseline": "a0dcc92b8f8b866f7ed2e06acf399a4c86057a3c",
+    "integration_commit": "9ce447b167a24fc80f733a9d5d185d2978663dae",
     "claim": "Construct, review and implement authenticated callback Result permission transport through OperationResultConsumer under the accepted bounded proof.",
-    "implementation": "Rev2 frozen candidate passed independent delta review and the single amended cargo check; exact-path integration pending.",
+    "implementation": "Rev2 candidate passed independent delta review and amended cargo check; integrated and pushed.",
     "proof": "Forward simulation and frame invariant through request emission, bubbling, unwind, discard and replay, or exact failure.",
     "resources": {
       "cap_seconds": 3600,
@@ -20,9 +21,9 @@
       "review_assignment_cap_seconds": 300
     },
     "outcome": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
-    "outcome_sha256": "55d26be0672264dbda27de0d6a049a7d52c5c6d3fd590126c7abf216c8dd8d11",
-    "closure": "CONSTRUCTION_ACCEPTED; REV1_MAJOR_REPAIRED; REV2_REVIEW_PASS; CARGO_CHECK_PASS; INTEGRATION_PENDING.",
-    "next_action": "Stage and inspect the exact accepted paths, then commit and push the coherent slice.",
+    "outcome_sha256": "373e95500c122de631b51de9554778528c95219480a79239bdfe0a943bd821eb",
+    "closure": "CONSTRUCTION_ACCEPTED; REV1_MAJOR_REPAIRED; REV2_REVIEW_PASS; CARGO_CHECK_PASS; INTEGRATED_AND_PUSHED.",
+    "next_action": "Keep SOURCE-SAFETY-BRIDGE, A/B and whole-program acceptance open for the next authorized sprint.",
     "review_status": "CONSTRUCTION_PASS; REV1_MAJOR_REPAIRED; REV2_DELTA_REVIEW_PASS; CARGO_CHECK_PASS"
   },
   "workers": [
@@ -68,7 +69,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Primary owns new proof-first callback transport sprint and gated runtime integration in this current session."
+      "receipt": "Primary integrated and pushed the reviewed callback transport slice; broader gates remain open."
     },
     {
       "id": "/root/callback_permission_prover",
@@ -121,14 +122,14 @@
     {
       "path": "tasks/agent-loop/sprints/cb-permission-transport-20261024-rev2.md",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "Primary-owned bounded owner-remap repair and one additional check amendment."
+      "state": "FROZEN",
+      "reason": "Frozen revision 2 bounded repair and one-check amendment."
     },
     {
       "path": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
       "owner": "/root",
-      "state": "HELD",
-      "reason": "Primary-owned new-sprint outcome."
+      "state": "FROZEN",
+      "reason": "Integrated sprint outcome; commit 9ce447b167a24fc80f733a9d5d185d2978663dae."
     },
     {
       "path": "notes/theory/2026-10-24-cb-permission-transport.md",
@@ -145,19 +146,19 @@
     {
       "path": "tools/inference-playground/src/runtime/program.rs",
       "owner": "/root",
-      "state": "HELD",
+      "state": "FROZEN",
       "reason": "Frozen revision 2; independent delta review and amended cargo check PASS."
     },
     {
       "path": "tools/inference-playground/src/runtime/receiving.rs",
       "owner": "/root",
-      "state": "HELD",
+      "state": "FROZEN",
       "reason": "Frozen revision 2; independent delta review and amended cargo check PASS."
     },
     {
       "path": "tools/inference-playground/src/runtime/machine.rs",
       "owner": "/root",
-      "state": "HELD",
+      "state": "FROZEN",
       "reason": "Frozen revision 2; independent delta review and amended cargo check PASS."
     }
   ],
@@ -271,8 +272,8 @@
       "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
     }
   ],
-  "closure": "Callback Result construction accepted; revision 1 MAJOR repaired, rev2 independently reviewed and checked. SOURCE-SAFETY-BRIDGE and original A/B remain open.",
-  "next_action": "Commit and push only the exact reviewed runtime slice and its sprint records.",
+  "closure": "Bounded callback Result transport reviewed, compiled, committed and pushed; no runtime result claimed. SOURCE-SAFETY-BRIDGE, A/B and whole-program acceptance remain open.",
+  "next_action": "Continue the broader inference/evaluator goal at the next authorized sprint boundary.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN identities and their quarantined reservations retained.",
@@ -344,5 +345,5 @@
       "closure": "Reviewed exact runtime obstruction; NO_SAFE_CODE_SLICE; parent gate remains OPEN_REVIEW."
     }
   ],
-  "resource_observation": "Proof STOPPED; construction PASS (98s); rev1 review MAJOR (133s), repaired; rev2 review PASS (40s); rev1 check old bytes; amended rev2 cargo check PASS; 3 UNKNOWN reservations retained."
+  "resource_observation": "Proof STOPPED; construction PASS 98s; rev1 MAJOR 133s repaired; rev2 review PASS 40s; rev2 cargo check PASS; 3 UNKNOWN reservations retained."
 }
