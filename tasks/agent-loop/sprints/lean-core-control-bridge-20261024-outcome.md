@@ -2,12 +2,14 @@
 
 ## Status
 
-**BLOCKED on repair and checking; bridge acceptance OPEN.** The r3
-implementation and bridge proof were written and frozen, but the pinned Lean
-4.35.0 kernel check did not run. Independent compiler referee
+**BLOCKED on repair; bridge acceptance OPEN.** The r3
+implementation and bridge proof were written and frozen. After the user
+confirmed that elan and Lean are installed, the primary verified the system
+toolchain and ran the first pinned Lean 4.35.0 check. Independent compiler referee
 `/root/core_control_static_review` STOPPED after finding four blocking
-elaboration issues in the frozen candidate. These are static findings, not
-checker diagnostics or a semantic refutation. The bridge is not accepted or
+elaboration issues in the frozen candidate. The pinned checker confirmed two;
+the other two remain static findings, not checker diagnostics or a semantic
+refutation. The bridge is not accepted or
 theorem-closed. The user's full Yulang semantics and type-inference goal,
 including source/native and original A/B obligations, remains OPEN.
 
@@ -71,18 +73,22 @@ by the frozen producer leases; any repair requires a new bounded assignment,
 new hashes, pinned checking, and focused review of the changed dependency
 component.
 
-## Checker status and next dependency
+## First pinned checker receipt and next dependency
 
-The repository pins `leanprover/lean4:v4.35.0`. System `elan`, `lean`, and
-`lake` launchers resolve, but both the system and temporary `elan toolchain
-list` report no installed toolchains. `lean --version` fails when elan tries
-to create `/home/momota1029/.elan/toolchains`, which is read-only here. The
-attempted `lake build YulangClosure.CoreControlBridge` exited 127 with `lake:
-command not found` before the launchers became visible. The official elan
-installer was downloaded to `/tmp` and installed under `/tmp/yulang-elan`;
-requests to download the pinned toolchain were interrupted, so the checker
-remains **NOT_RUN**. No alternate toolchain or install path was used. No tests
-or successful builds ran.
+The pinned project toolchain is available through the actual user-managed
+`/home/momota1029/.elan/bin` shims. `elan toolchain list`, `lean --version`,
+`lake --version`, and `lake env lean --version` report Lean 4.35.0, commit
+`eb6cafb7290e8bd5f2937522d8d804f58f02bafc`. On 2026-10-25, the primary ran
+`timeout 120s lake build YulangClosure.CoreControlBridge` from
+`notes/theory/lean`. It exited 1 after 4.7 seconds. Contracts,
+CoreComposition, CoreSyntax, CoreSubstitution, CoreExecution and ControlSyntax
+built. ControlTyping failed with two checker diagnostics: no `DecidableEq`
+instance for `Original.Ty` at line 9; and
+`original_state_typed_with_suffix` had a non-propositional theorem result at
+line 121 because `SegmentTyped` was Type-valued. These confirm two static
+review findings. The response-constructor and `segment_progress` findings
+remain static until the earliest declarations are repaired. The build created
+only ignored `.lake` outputs. No tests ran.
 
 Deferred repair packet, not issued under this sprint: (1) replace Type-valued
 `SegmentTyped` with a Prop-valued judgment retaining the same syntax, witnesses
@@ -93,12 +99,13 @@ head/stack in `segment_progress`; (5) check every dependent declaration and
 obtain focused review of changed hashes. A new bounded repair assignment is
 needed.
 
-After pinned Lean becomes available and the repair is authorized, run the
-checker with one serialized process and the r3 resource bound. Return exact
-diagnostics or, on acceptance, request fresh independent proof review including
-theorem domains, successor coverage, suffix traces, `#print axioms`, and
-proof-hole scans. The native-source audit is separate and does not supply a
-proof premise for this bridge.
+The pre-repair ControlTyping, ControlComposition and CoreControlBridge bytes
+were preserved read-only at `/tmp/yulang-lean-core-control-r3-20261025/` before
+the next assignment. The bounded r4 continuation and remaining resource
+allocation are in `lean-core-control-bridge-20261025-r4.md`. Until repaired
+hashes pass the pinned checker and fresh independent review, the candidate is
+unaccepted and no Lean proof gate closes. The native-source audit is separate
+and does not supply a proof premise for this bridge.
 
 ## Separate source-native result
 
