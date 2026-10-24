@@ -80,6 +80,9 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 - [nonrecursive local-let の公開への接続](../notes/theory/2026-10-24-nonrecursive-let-client-coverage.md): RHS level+1、captured context への extrusion、保存 graph の freshening を検討する。具体的 captured-k client の全コピーと repair は独立査読受理。全 let-client theorem は未閉鎖。
 - [computed Call の phase と訂正した Bind result](../notes/theory/2026-10-24-computed-call-bind-result.md): CB1/operational composition は受理。旧 CB2/CB3 の descriptor 橋は MAJOR により無条件主張を撤回した。[新 EvalInvoke 定義](../notes/design/2026-10-24-computed-call-result-constructor.md)が missing formation/interpretation を明示し、introduction と checked Name specialization は再査読受理し、この生成 case を選択した。固定 foreign R と native result-slot 対応は残す。[固定版と査読記録](../tasks/agent-loop/sprints/computed-result-definition-20261024-outcome.md)を参照。
 
+- [polar copy と nested let publication](../notes/theory/2026-10-24-let-polar-publication-simulation.md): LP1 は実 selected-bound obligations、LP2 は内側 low copy が外側で high/freshened となる具体的導出。共同 repair により誤った coverage 反例を排除するが、全 Let theorem は未閉鎖。
+- [generated computed result と元結果欄](../notes/theory/2026-10-24-generated-computed-result-correspondence.md): EI の定義 view を実 Call/IF に形成し、scope・共有・actual result/future の一致と、元 proof への付加・消去を構成する。独立な Comp target と CIncl を保持する。native 全 result encoding や全 target inclusion の証明ではない。両稿はこの範囲で独立査読を通過した。[固定版と査読範囲](../tasks/agent-loop/sprints/let-polar-result-slot-20261024-outcome.md)に全体未完了の境界を記録する。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。

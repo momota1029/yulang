@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "COMPUTED-RESULT-DEFINITION-20261024",
+  "sprint_id": "LET-POLAR-RESULT-SLOT-20261024",
   "phase": "SPRINT_COMPLETE_PARENT_OPEN",
-  "contract": "tasks/agent-loop/sprints/computed-result-definition-20261024.md",
-  "baseline": "f6b4dcd810f0e0fa0aea70128d99e6a0810c5bb2",
+  "contract": "tasks/agent-loop/sprints/let-polar-result-slot-20261024.md",
+  "baseline": "0a358d4972bb9e2a8b5edf9c115d0a5d302116cd",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
-      "state": "STOPPED",
-      "receipt": "Current proofs frozen/reviewed; primary exact-path integration then yield to active whole-goal continuation; no background worker",
+      "state": "RUNNING",
+      "receipt": "Actual primary current integration; scoped independent review accepted; continuing whole goal",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current final30sec integration/index navigation accepted; proposed900s next grant NOT issued due retained300s cap; STOP"
+      "receipt": "Current30sec actual FINAL signed simulation recommendation; no writes/descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Current190s producer frozen 13990262; AR1/AR2 actual new-binding/future-h family; actual extrusion receiving field OPEN; STOP/no descendants"
+      "receipt": "Current190sec actual FINAL c6259022 frozen; LP1/LP2 nested history; generalLET OPEN; no descendants"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current150sec FINAL accepts explicit new EI definition/introduction/checkedName conservativity; oldMAJOR resolved selectedcase only; STOP/no descendants"
+      "receipt": "Current80sec actual FINAL accepts LP scoped trace and GR derived-view scope; no BLOCKING/MAJOR; no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -57,15 +57,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Fresh accepted review; only status/receipt/links after frozen math",
-      "sha256": "ee4b039174e41c28a0e0256169e28759b574763b5886a47220bae019d10faa99"
+      "receipt": "Current scoped independent acceptance; only review receipt/status after freeze",
+      "sha256": "0cd1a3fd5ea37e70c55827b81bfe9324ce1e393484767e3eb9b2b9745bf23f4d"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Fresh accepted review; only status/receipt/links after frozen math",
-      "sha256": "951c8e4bd49c2a33d0387df18f4d6e023943c68ccd6783796acbd5409b412568"
+      "receipt": "Current scoped independent acceptance; only review receipt/status after freeze",
+      "sha256": "b335733c79f352a0bb372d2b1a48da4a877986565f589e9dac4afa78e52dc15d"
     },
     {
       "path": "notes/theory/2026-10-24-fresh-valuebind-complete-call.md",
@@ -192,6 +192,20 @@
       "state": "FROZEN",
       "sha256": "98f464f421f07459a15c60fc51fc7bc94efbdfe45d6cbc8f519a19cd50307e0a",
       "receipt": "Exact added navigation lease at current integration boundary, primary grant; one reviewed-definition locator"
+    },
+    {
+      "path": "notes/theory/2026-10-24-let-polar-publication-simulation.md",
+      "owner": "/root/astra_corrected_machine",
+      "state": "FROZEN",
+      "receipt": "Current scoped independent acceptance; only review receipt/status after freeze",
+      "sha256": "2260fa0f3ad0bf2f1fc9a2822ed49ddd09144066da10102cf6b0050f7caa5fa5"
+    },
+    {
+      "path": "notes/theory/2026-10-24-generated-computed-result-correspondence.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Current scoped independent acceptance; only review receipt/status after freeze",
+      "sha256": "58ab61f7252818e208cc27be29fcc2c7633b35467c47dda0de126fa8bc87544b"
     }
   ],
   "external_isolation": {
@@ -211,7 +225,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "New explicit EvalInvoke constructor/EI-Intro/checkedName conservativity accepted selectedcase; actual generated result-slot complete sort/scope/full-field correspondence, missing primitive/arm inclusions and whole source/inference coverage remain."
+      "missing": "GR1–6 gives source-owned EI view formation/scope/actual fields and genuine-source-proof extension. Original image-to-Comp checking, native encoding, genuine primitive/arm laws and whole source/inference remain."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -223,7 +237,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "LF1–4 accepted; exact captured-k nonrecursiveLet polar trace/repair accepted. General LET-POLAR-PUB, source receiving/TY qualification, allsource correspondence/principality/termination remain. Disappearingy refutes identity-row strategy, not coverage."
+      "missing": "LP nested publication/repair accepted, fullLET-POLAR-PUB still open; next needs signed client bounds plus beforeY≤T replay/earlier after-extrusion and full freshening. Receiving/TY qualification and original wholeA/B remain."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -234,12 +248,12 @@
     }
   ],
   "review": {
-    "outcome": "tasks/agent-loop/sprints/computed-result-definition-20261024-outcome.md",
+    "outcome": "tasks/agent-loop/sprints/let-polar-result-slot-20261024-outcome.md",
     "whole_language_certified": false,
     "reviewer": "/root/astra_semantics_review"
   },
   "resource": {
-    "astra_reserved_seconds": 8400,
+    "astra_reserved_seconds": 8700,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -248,10 +262,10 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 0
   },
-  "next_action": "Compliant<=300sec boundary: general signed LET-POLAR-PUB, fresh corrected_machine producer proposed; primary actual result-slot/EI correspondence. No worker dispatched/reserved.",
-  "closure": "ACTIVE whole goal; local new result constructor accepted/adopted; native globalLet and original parents OPEN; all workers STOPPED",
-  "previous_outcome": "tasks/agent-loop/sprints/computed-result-definition-20261024-outcome.md",
-  "previous_outcome_sha256": "c7b5a9ce93655674e50a9d47e6d73b33145877c4127031e9fc7b9c1cad4e8172",
+  "next_action": "Primary integration then meaningful new method boundary: signed-update plus actual beforeT-boundary replay versus earlier after-extrusion; no child dispatched or reserved.",
+  "closure": "ACTIVE whole goal; scoped LP/GR accepted; general Let and original whole parents OPEN; children STOPPED, primary current integration",
+  "previous_outcome": "tasks/agent-loop/sprints/let-polar-result-slot-20261024-outcome.md",
+  "previous_outcome_sha256": "f6d9f8dc644c8da3e74b2b7311ef3630d62bd131ce558eadead753b22241fc17",
   "goal_turn_classification": "PROGRESS",
   "history": {
     "path": "tasks/agent-loop/sprints/source-indexed-derivation-20261024-prior-state.json",

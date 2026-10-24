@@ -269,3 +269,12 @@ NM3 は C/B、D/J、T/Y の全 copy と全 cut に一つの valuation を同時�
 欠けていた規則は [新しい EvalInvoke definition](../notes/design/2026-10-24-computed-call-result-constructor.md) で明示する。実 callee computation、内側で束縛される CalRet、argument formation、同じ provider の complete receiver を、元の順序・full fields のまま解釈する。これは旧規則からの自動導出ではなく、新 generated-result constructor の定義である。EI-Intro と checked immutable read C_Read(F,n) における元 ReadInvoke への両方向 specialization、全 independent arms の保持は再査読で受理され、primary がこの生成 constructor case を選択した。固定 foreign R_c、native result-slot の sort/scope 対応と全元親義務は残る。
 
 [今回の統合記録](../tasks/agent-loop/sprints/computed-result-definition-20261024-outcome.md)に、初回 MAJOR、明示的な新定義、再査読の固定版と全体未完了の境界を保持する。
+
+
+### 4.19 nested let のコピーと生成 result view
+
+[polar copy と nested publication](../notes/theory/2026-10-24-let-polar-publication-simulation.md)は、元 selected-bound copying の必要不等式を LP1 として明示し、二重の nonrecursive Let で実 high/low 境界を追う。内側で low だったコピーは外側の公開では high となり、二つの使用で独立に freshen される。LP2 は永久 low 分類を反証するが、同じ実 graph の共同 repair も与えるため coverage の反例ではない。一般 LET-POLAR-PUB はまだ未証明である。
+
+[generated computed result の対応](../notes/theory/2026-10-24-generated-computed-result-correspondence.md)は、選択済み EI を元 Call の実 operand と IF slots から形成し、定義された ViewLogic として同じ source occurrence に付ける。GR1–GR3 は complete sort、元 event binder の内側の依存、有限登録 graph、whole substitution、actual result/provider/current-world/future の一致を構成する。GR4–GR6 は genuine local inputs を持つ元 source proof にその view を付加・消去する。元 `Comp(E_c,A_c)` と CIncl は保持し、EI の導入だけで target checking を削除しない。
+
+この source 構成は、既存の全 native result rows が EI を符号化するという証明ではない。全 Let の signed bound/publication transport、fixed target の実包含、primitive/arm laws、source/native receiving 対応と元の全親義務は残る。両稿はこの範囲で独立査読を通過した。[固定版と査読範囲](../tasks/agent-loop/sprints/let-polar-result-slot-20261024-outcome.md)に全体未完了の境界を記録する。
