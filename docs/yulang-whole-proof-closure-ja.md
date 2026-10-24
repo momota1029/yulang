@@ -2,6 +2,8 @@
 
 2026-10-24。全体目標は未完了である。本稿は、証明済みの核の定理を実際に合成し、元の全言語・推論定理に残る前提を明示する。表層構文や自然な推論を証明対象から除外しない。
 
+**最新の intrusion 規則:** [生成レベル別 SCC の直接決定](../notes/design/2026-10-24-birth-level-scc-intrusion.md)により、固定された Value 生成レベルごとの誘導グラフで資格を判定する。§4.1–§4.4 の跨レベル F/G 等置・native failure は旧規則についての履歴であり、現行算法の拒否として使用しない。現行の適用は §4.5 に示す。
+
 ## 1. 全体として示す命題
 
 元の対象は、承認された Yulang の全 source constructor、宣言、名前解決、型・効果・profile、全称・存在証拠、一般化と使用、完全 Call、保護・解除、継続を含む。要求される主張を次のように分ける。
@@ -118,7 +120,7 @@ in f
 - finite-store native extrusion 一回の終了・level 上界。極性 memo により、高 level の元変数が h 個なら copy は最大2h個。
 - 全旧制約を保持する型 quotient の意味保存と、既存 extrusion 定理を通じた元の局所 demand への健全な含意。
 
-具体例では definition-root の F→G と G→F から実 pair C=B,D=R の資格を導いた。全 source の fragment membership、contextual occurrence transport、全 caller lifecycle と combined inference の停止を、この局所証明から自動的に結論しない。
+旧規則の具体例では definition-root の F→G と G→F から実 pair C=B,D=R の資格を導いた。現在は birth(F)≠birth(G) のため、この適用を置換する。一般グラフ補題と局所 extrusion の結果は各生成レベルのグラフに再使用できる。全 source の fragment membership、contextual occurrence transport、全 caller lifecycle と combined inference の停止を、この局所証明から自動的に結論しない。
 
 [recursive formation の後続構成](../notes/theory/2026-10-24-original-recursive-formation-construction.md)は、finite declaration registry、同じ r_f を共有する f/g/wrapper の実捕捉、全 pending plan、active capture の参照 record を構成した。選択済み native signature grammar と unannotated policy を適用し、既存の pair/step case と同じ raw graph に戻ることも示す。
 
@@ -146,7 +148,15 @@ in f
 
 [今回の査読記録](../tasks/agent-loop/sprints/original-raw-postfixed-20261024-outcome.md)は、受理された限定補題と、MAJOR 指摘により撤回した全四 sort の十分性を区別する。修正は不足する証明を追加したものではない。
 
-同稿 FG3 は、当該 source が Yulang で必ず受理されるという明示的な契約があれば、既に導いた native shared-C の `Bool<:Int` failure がその受理契約に反することを示す。これは元の CompleteMem witness の証明とは別の含意である。ユーザーへの受理意図の質問には、回答があるまで前件の成立を仮定しない。元の全体命題と source-qualified 反例は引き続き未確定である。
+同稿 FG3 は、旧 intrusion の native shared-C failure と明示的受理契約が両立しないという条件付き結果である。後の生成レベル別 SCC の選択により、その failure を生む等置の資格が変わった。この旧拒否を維持するかという受理意図の質問を現在の待ち条件にはしない。未回答を肯定・否定に読み替えず、新規則の履歴を §4.5 で直接扱う。元の CompleteMem witness と全体命題が証明済みになったとはしない。
+
+### 4.5 生成レベル別 SCC への変更
+
+[新しい資格規則](../notes/design/2026-10-24-birth-level-scc-intrusion.md)は `V_k={v | birth(v)=k}`、`G_k=G[V_k]` とし、実 occurrence の origin と receiver が同じ G_k の SCC に属するときだけ、その parent/copy pairs を intrusion する。birth は Value 生成時の固定ラベルであり、型座標の現在 level と区別する。cross-level の元参照は保持する。
+
+[後続証明](../notes/theory/2026-10-24-birth-level-scc-intrusion.md)は、この資格と各 level 内の相互到達性、SCC 更新、有限固定集合での処理を扱い、旧局所 extrusion/diagonal lift を元の demand 前提の下で適用する。nested F/G と O/E は異なる birth のため、その跨レベル occurrence は親子等置を追加しない。先ほどの helper の拒否導出を、現行規則の反例として残さない。
+
+同一 cut の局所 lift と、source の一般化・捕捉・複数使用を通じた joint strategy は区別する。現在の必要な証明は、**新資格を持つ**各 occurrence の source-scoped lift と、その全 consumer への対応である。旧跨レベル資格を証明することを、この新算法の前提にはしない。正確な成果・査読範囲は[今回の記録](../tasks/agent-loop/sprints/birth-level-scc-20261024-outcome.md)にある。
 
 ## 5. 完了の判定
 

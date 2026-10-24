@@ -8,6 +8,10 @@
 
 [全体証明の主定理と現在の到達点](yulang-whole-proof-closure-ja.md)は、査読済みの生成・有限 interface・値型/継続の結果を定理 C として合成する。全言語への接続と元の推論 A/B を別の未完了義務として明示する。
 
+intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/design/2026-10-24-birth-level-scc-intrusion.md)に従う。以下の旧稿の跨レベル F/G・O/E qualification とその拒否履歴は旧規則についての結果として保持し、現行規則へそのまま適用しない。
+
+- [生成レベル別 SCC と extrusion の親子等置](../notes/theory/2026-10-24-birth-level-scc-intrusion.md): 固定 birth ごとの誘導グラフ、経路・更新と局所 extrusion 結果の適用、nested helper/odd-even の変更を扱う。全体の source-scoped 保存と実装対応を区別する。[固定版と査読記録](../tasks/agent-loop/sprints/birth-level-scc-20261024-outcome.md)を参照。
+
 - [共起分析と保護・解除の保存](../notes/theory/2026-10-24-cooccurrence-release-preservation.md): [ユーザーの直接訂正](../notes/design/2026-10-24-cooccurrence-release-clarification.md)に従う後続稿。`'e?` を独立した実行規則の選択として扱わず、同じ共変位置に現れる変数の集約と保護・解除の対応を示す。source 全体の証明範囲は稿内の適用境界に従う。
 - [共変位置から受領対応表を作る](../notes/theory/2026-10-24-cooccurrence-source-recipes.md): 有限 signed graph での位置判定と入力 recipe、actual receipt の分離、単射改名、限定された collector 対応を構成した。
 - [任意型代入と recipe](../notes/theory/2026-10-24-source-recipe-substitution.md): T1–T5 が由来を保持した source 導出の任意代入、有限経路、AllE/template、元成分別 schema を構成する。既存の捕捉証拠は固定する。一般の非正則 class 計算・実 native 対応は未完。

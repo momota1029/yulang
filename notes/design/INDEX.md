@@ -2,6 +2,7 @@
 
 This index is a navigation aid. The listed source document remains authoritative for its own text and scope. If this file conflicts with a source, read the source and correct the index.
 
+- [生成レベルごとの Value SCC と intrusion](2026-10-24-birth-level-scc-intrusion.md) — ユーザーの直接選択。固定された Value 生成レベルの誘導グラフで SCC を計算し、同じ成分の実 extrusion occurrence の親子を等置する。旧跨レベル資格だけを置換し、参照・extrusion・一般化の規則は保持する。全体保存定理や実装完了の宣言ではない。
 - [共起分析と保護解除の関係](2026-10-24-cooccurrence-release-clarification.md) — 直接のユーザー訂正。引数の保護と正確な共変位置の共起から共有変数・解除を説明する。複数入力の解除対象を新たに選ぶ質問は撤回し、保存証明と source 対応を進める。任意の `A_all` 候補の採用や証明完了ではない。
 - [Braced `if` arm compatibility proposal](2026-10-20-braced-if-compatibility.md) — Draft only; not approved or authoritative. Scope: proposed dedicated expression-list bodies for braced `if`/`elsif`/`else`; current accepted Y3 syntax remains colon-only. The Yulang2 consumer audit has a major correction under review. User approval and a successor implementation contract are required before any syntax or compiler change.
 - [R149 Types and Console compatibility](2026-10-20-r149-types-console.md) — Authoritative, provisionally adopted by the user's explicit ongoing goal for R149. Scope: exact pinned Yulang2 Web `Types` and `Console` examples, tuple inference/Display, standard-library host writes, and ordered whole-module execution; broader unchanged-example compatibility remains the goal. R149 is provisionally adopted; Luna activation still requires exact owner pins and prospective review.
