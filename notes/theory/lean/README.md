@@ -9,6 +9,9 @@ LEAN-ROOT-20261024/r2、LEAN-CONTROL-20261024/r1。**元 Yulang 全体の証明�
 - `YulangClosure/ControlSyntax.lean`: 型証拠を持たない七 frame、順序付き value/operation search、Wait、effectful mapper、Ret/Req/Fail/Bad、current-world resume。
 - `YulangClosure/ControlTyping.lean`: 独立した値・frame・stack・K・packet・候補列の型付け、append/capture、run head だけを対象とする `BodyLaws`。
 - `YulangClosure/ControlComposition.lean`: 全 control 保存・進行、response plugging、有限 raw trace の failure 吸収、外部 resume を含む全有限 trace の型安全性、既存 root `LocalLaws` への具体的な四つの安全性 field の供給。
+- `YulangClosure/CoreSyntax.lean`: 元 constructor 名を持つ raw 木と四つの binder namespace。型付き導出は unit/variable/delay + Ret/Force/let の範囲。
+- `YulangClosure/CoreSubstitution.lean`: 全 raw 木に対する代入・改名の合成則、上記範囲の型付き代入、raw embedding との可換性。
+- `YulangClosure/CoreExecution.lean`: 実 let/Force と枠の追加/消費、閉じた型付き範囲の進行、全 raw step の逆方向対応、任意有限 raw trace の安全性。
 
 `LocalLaws.typing` は result index を持つ独立 judgment。`laws.result` を全 prefix と resume に固定する。`typed` を safety/reachability と定義していない。root の具体的型導出は instance ごとの責務である。Control instance は extrinsic な型規則を定義したが、元 Yulang の全値型・全 body judgment を具体化したものではない。
 
@@ -83,3 +86,12 @@ LEAN-CONTROL-20261024/r1。producer の raw/typing/capture/response/failure 草�
 `localLaws` の安全性四 field はこの証明から生成する。効果解析の seed/step/resume/observation は `AnalysisLaws`、初期型形成と registered body の保存・進行はそれぞれ別入力として残る。未解決の元 A/B、source/native、SCC の実構成を今回の制御抽象へ置き換えない。
 
 Lean 4.35.0 による module 検査、`lake build`、`lake env lean -j1 -M1024 YulangClosure.lean` は exit 0。`control_preservation` は公理依存なし。`progress` と `prefix_fail_absorbing` は Lean 標準の `propext`、`resume_reusable`・`finite_trace_safety`・`finite_prefix_control` は標準の `propext, Classical.choice, Quot.sound` に依存する。project 独自の axiom や未証明穴はないが、これらを「公理依存なし」とは記さない。具体的な audit と独立査読の固定版は [control outcome](../../../tasks/agent-loop/sprints/lean-control-20261024-outcome.md) に記す。独立査読は、この制御抽象の範囲で受理した。BLOCKING/MAJOR 指摘なし。全元値・body・metadata・観測・source 初期形成が未具体化である境界も確認した。コンパイラ実装・tests/probes は実行していない。
+
+
+## 元構文・代入と具体的な式本体
+
+LEAN-CORE-20261024/r1。[元構文との対応稿](../2026-10-24-lean-core-correspondence.md)は、全 raw vocabulary と、型付き規則のある範囲を区別する。`substituteRaw_composition` は全 Raw/Forest と四種類の binder に対する代入合成を証明する。raw constructor の正しい arity/sort、全元言語の型規則と型付き代入までは証明しない。
+
+`substComp_typed`、`single_raw`、`raw_step_lifts`、`raw_finite_safety` は、unit/variable/delay + Ret/Force/let の実構文を扱う。空文脈を持つ型付けから、代入による principal step と bind frame の実生成を証明した。raw 側には不正 Force→Bad の規則もあり、逆方向の step 対応がそれを型付き image から排除する。型付き step だけを検査して全 raw execution を推測してはいない。
+
+既存 Control の body dispatch は unchanged-stack のままであり、全元値と syntax-bearing frame を接続する bridge は未完である。今回の小範囲の safety を full V1/BodyLaws や全言語の定理へ読み替えない。次の義務は同じ raw vocabulary の全 constructor typing、full body/principal semantics と control 接続である。独立査読は raw 代入代数と明記した型付き範囲を受理した。全言語への昇格はしていない。検査・固定版は [core outcome](../../../tasks/agent-loop/sprints/lean-core-20261024-outcome.md) に記録する。

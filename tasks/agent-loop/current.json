@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "LEAN-CONTROL-20261024",
+  "sprint_id": "LEAN-CORE-20261024",
   "phase": "FROZEN_REVIEWED",
-  "contract": "tasks/agent-loop/sprints/lean-control-20261024.md",
-  "baseline": "035c04780dc1cdfd0f35eabe1e56726bff7caacc",
+  "contract": "tasks/agent-loop/sprints/lean-core-20261024.md",
+  "baseline": "23819fbf76d7de467e19a5edbe5222eaefd71d84",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Proof construction/checking STOPPED; independently accepted control abstraction frozen. Primary final explicit Git integration only; whole goal ACTIVE, next bounded proof packet recorded.",
+      "receipt": "Proof construction/checking STOPPED; scoped core result independently accepted and frozen. Primary final explicit Git integration only. Whole goal ACTIVE and full body/control obligations retained.",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Actual30sec FINAL concrete seven-frame control route; no writes/descendants"
+      "receipt": "Actual30sec FINAL identifies unchanged-stack entry defect; proposes full syntax/substitution/concrete frame entry; no writes/descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Actual FINAL freezes three modules; control preservation/progress incomplete, exact value/search-list gap; no descendants. Primary takes over coauthored completion."
+      "receipt": "Actual190sec FINAL freezes3Coremodules; raw full vocabulary but typed unit/var/delay Ret/Force/let only; no descendants; checkerpending"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Actual80sec FINAL accepts control abstraction; no BLOCKING/MAJOR; allsuppliedhashes matched; no checker/writes/descendants"
+      "receipt": "Actual80sec FINAL accepts full raw algebra and exact typedfragment; no BLOCKING/MAJOR;1MINOR eabsnamespace clarification handled in prose/comments; no writes/checker/descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -43,15 +43,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Kernel-checked and independently accepted control abstraction; README/correspondence status-only update after review",
-      "sha256": "f706d12381e0e3dddc4f96a1f0a8f68a2194c5f68fbf8cf98a862d8f935e843b"
+      "receipt": "Primary coauthored core checking/extension complete; full raw algebra and exact typed fragment frozen for independent review",
+      "sha256": "68d12bcd3758c17283683061ae82a6d8acd8141795bc7e74c539e9ada558d892"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Kernel-checked and independently accepted control abstraction; README/correspondence status-only update after review",
-      "sha256": "65efb500914f3dfdb837af561b71ff375246c0083aec7547c4f24ffaaf751e6f"
+      "receipt": "Primary coauthored core checking/extension complete; full raw algebra and exact typed fragment frozen for independent review",
+      "sha256": "c847f492915570945e5996231643705e034981f6d8f8dab1d570608d9a633662"
     },
     {
       "path": "notes/theory/2026-10-24-actual-copy-history-transport.md",
@@ -85,8 +85,8 @@
       "path": "notes/theory/lean/README.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Kernel-checked and independently accepted control abstraction; README/correspondence status-only update after review",
-      "sha256": "a4c018ce0856ef389abc182f2fb2f521564e3291c4531c29584f02555b8bebdb"
+      "receipt": "Accepted scoped review; postreview comment/prose-only status and eabs lexicalencoding clarification; no theorem changes",
+      "sha256": "d2ad32c5b2fa79881e972c53f9d890656fe19e099dd29d5d7e164c466889c3a9"
     },
     {
       "path": "notes/theory/lean/lakefile.toml",
@@ -113,8 +113,8 @@
       "path": "notes/theory/lean/YulangClosure.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Kernel-checked and independently accepted control abstraction; README/correspondence status-only update after review",
-      "sha256": "0da5ae8619020d4cf5ef64a425d9ae9ffde6c5fc7d96867ca265aa086454e988"
+      "receipt": "Primary coauthored core checking/extension complete; full raw algebra and exact typed fragment frozen for independent review",
+      "sha256": "3a6b610ab3041f531445dab0605cb838273c76dd3a3daec144c7a08cbbcd9ff0"
     },
     {
       "path": "notes/theory/lean/lake-manifest.json",
@@ -127,21 +127,21 @@
       "path": "notes/theory/lean/YulangClosure/ControlSyntax.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Kernel-checked and independently accepted control abstraction; README/correspondence status-only update after review",
+      "receipt": "Unchanged; syntax-bearing body/control bridge remains OPEN; no unreviewed interface rewrite",
       "sha256": "76b250485b899bf9f7f5d0b9445d869f4c5961b155a21a520b0802678a1db46f"
     },
     {
       "path": "notes/theory/lean/YulangClosure/ControlTyping.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Kernel-checked and independently accepted control abstraction; README/correspondence status-only update after review",
+      "receipt": "Unchanged; syntax-bearing body/control bridge remains OPEN; no unreviewed interface rewrite",
       "sha256": "33ddb90ec39e8136c1ec9bb72b0ef4edf35d85fb32c1884cff3a2bcc5819ebfa"
     },
     {
       "path": "notes/theory/lean/YulangClosure/ControlComposition.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Kernel-checked and independently accepted control abstraction; README/correspondence status-only update after review",
+      "receipt": "Unchanged; syntax-bearing body/control bridge remains OPEN; no unreviewed interface rewrite",
       "sha256": "23c7b251ef307a61ccaca7e2ec959d4a5583b649309a26cf27eff1eb9e9cb791"
     },
     {
@@ -150,6 +150,34 @@
       "state": "FROZEN",
       "receipt": "Kernel-checked and independently accepted control abstraction; README/correspondence status-only update after review",
       "sha256": "9a4aa76f9db1b9df2dcf386388e4962bbfa6c00f451c769791afa781d2bee4d5"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreSyntax.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Accepted scoped review; postreview comment/prose-only status and eabs lexicalencoding clarification; no theorem changes",
+      "sha256": "1253b796473c1cca0ef21e8819b6e87575d7f5cdd9f26fc4e5f10b59ef7df712"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreSubstitution.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Primary coauthored core checking/extension complete; full raw algebra and exact typed fragment frozen for independent review",
+      "sha256": "980a7b196d398af84ecd681b057030d4a7d2eb7f9a36d143432fd01819656f35"
+    },
+    {
+      "path": "notes/theory/lean/YulangClosure/CoreExecution.lean",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Primary coauthored core checking/extension complete; full raw algebra and exact typed fragment frozen for independent review",
+      "sha256": "e2f348e696a2f22c69ac7e95270a4020e6aaa638e59a5e271356880baa248e87"
+    },
+    {
+      "path": "notes/theory/2026-10-24-lean-core-correspondence.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Accepted scoped review; postreview comment/prose-only status and eabs lexicalencoding clarification; no theorem changes",
+      "sha256": "4dd2b9dfd2580c614129e3701be47aea979c548542955d5150e184805133ccbf"
     }
   ],
   "external_isolation": {
@@ -169,7 +197,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Lean raw/extrinsic seven-frame control preservation/progress and allfinite internal/resume trace safety checked/reviewed; four actual safety fields applied to existing root. Original full values/types/graphs/registered principal bodies and BodyLaws, actual CM/H metadata/full observations/AnalysisLaws, source initial formation and prior GR1–6 image-to-Comp/native/genuine primitive/arm correspondence remain."
+      "missing": "Control finite-trace safety/root4fields checked/reviewed. Full raw4namespace substitution algebra now checked; concrete unit/var/delay Ret/Force/let typed substitution/entry and allrawtrace safety proved with backwards correspondence. Full original constructor typing/principal bodies/BodyLaws and syntaxbearingControlstackprefixbridge remainOPEN; actual CM/H metadata/full observations/AnalysisLaws/sourceinitial/native correspondence remain."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -193,12 +221,12 @@
   ],
   "review": {
     "reviewer": "/root/astra_semantics_review",
-    "outcome": "tasks/agent-loop/sprints/lean-control-20261024-outcome.md",
-    "whole_language_certified": false,
-    "outcome_sha256": "e7d5eaeb5f787d3fc811d3018427b41610fd5f2dcfd59ffca2af1753c9af1b63"
+    "outcome": "tasks/agent-loop/sprints/lean-core-20261024-outcome.md",
+    "outcome_sha256": "d448553e379614a1d17c3d41ec36a6855513c2265b5a4ab1ad9f7b870f393e00",
+    "whole_language_certified": false
   },
   "resource": {
-    "astra_reserved_seconds": 9950,
+    "astra_reserved_seconds": 10250,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -208,15 +236,15 @@
     "checkpoint_direction_reserved_seconds": 30,
     "successor_review_reserved_seconds": 80
   },
-  "next_action": "Construct original value/type and registered-body interpretation; discharge BodyLaws by actual principal constructors including direct result adapter before Yes, then reuse checked control/root proofs. New bounded sprint required; no automatic child renewal.",
-  "closure": "Whole goal ACTIVE/OPEN; concrete control abstraction finite-trace safety checked/reviewed/applied to root; full original source/A-B and runtime-body/metadata/analysis instances remain; AH/RZ unreviewed",
-  "previous_outcome": "tasks/agent-loop/sprints/lean-root-20261024-outcome.md",
-  "previous_outcome_sha256": "708cbeb940878de349e91d690215457b7a9bb5483ceccfcda54e527715980a2c",
-  "goal_turn_classification": "PROGRESS: exhaustive extrinsic seven-frame preservation/progress, capture/response and finite-trace safety, actual four LocalLaws fields and root application, independent scope acceptance",
+  "next_action": "Extend same extrinsic original typing/substitution to actual remaining constructors (including type/evidence binders and one-valueintersection), construct syntax-bearing stack-prefix Control interface and original body interpretation. No new opaque BodyLaws assumption or tag-only milestone; next bounded sprint required.",
+  "closure": "Whole goal ACTIVE/OPEN; full raw substitution algebra and exact typed core fragment safety checked/reviewed; full V1/body/control bridge and original source/A-B remain open; AH/RZ unreviewed",
+  "previous_outcome": "tasks/agent-loop/sprints/lean-control-20261024-outcome.md",
+  "previous_outcome_sha256": "e7d5eaeb5f787d3fc811d3018427b41610fd5f2dcfd59ffca2af1753c9af1b63",
+  "goal_turn_classification": "PROGRESS: full raw4namespace substitution composition and genuine typedfragment substitutions/reductions, backwards allrawstep correspondence and finite safety; exact first control/body integration defect retained as OPEN",
   "history": {
     "path": "tasks/agent-loop/sprints/lean-root-20261024-prior-state.json",
     "sha256": "5220044a112a56c3b51fed07992fe60632ac286cae371f1447ae68e5d60b2289",
     "scope": "Previous exact leases and charged resources; unresolved AH/RZ retained in current state"
   },
-  "contract_sha256": "7c71a1aa5f04f3a8180920f08dfbb4cbef513f892d0b74967042413847e3b43e"
+  "contract_sha256": "c815ccfe4e6f98e888ec5b94851a10f8a780224b9e353f428c2adbedc094f9c1"
 }

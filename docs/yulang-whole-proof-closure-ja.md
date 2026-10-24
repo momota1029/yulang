@@ -316,3 +316,12 @@ Lean 4.35.0 の module 検査と `lake build` は成功し、上記四定理の 
 `finite_trace_safety` は、registered body の型保存・進行を入力に、任意の型付き初期状態から外部応答を含む全有限 trace の型保存・Bad 排除・進行を導く。`finite_prefix_control` は、この具体的制御から構成した四つの安全性 field を既存 root 定理に渡す。Lean 4.35.0 の検査は成功した。独立査読と固定版は [control outcome](../tasks/agent-loop/sprints/lean-control-20261024-outcome.md) に記す。
 
 対象は値型の制御抽象である。全元値/型/graph の定義、principal body の代入・primitive・Call 等、actual metadata と全観測の finite-cell simulation、source 初期形成は未構成である。全元 source・推論 A/B・SCC と coverage/主型性/停止性の義務はそのまま残る。
+
+
+### 6.2 元構文の代入と具体的な principal step
+
+[元構文・代入の対応稿](../notes/theory/2026-10-24-lean-core-correspondence.md)は、元 constructor 名を持つ raw 木、四つの binder namespace、全 raw 木の改名/代入の合成則を Lean で与える。元の全 arity/sort/typing を定義したものではなく、型付き代入が閉じた範囲は unit/variable/delay + Ret/Force/let に限る。
+
+この範囲では `let` が実際に syntax-bearing frame を積み、return と Force が実代入・本体を開始する。式本体の保存・進行という仮定を置かず、閉じた型付き初期状態からの全 raw step に対する逆方向対応と `raw_finite_safety` を証明した。不正 raw Force→Bad も定義し、型導出から排除する。全有限 trace は既存 root と同じ Prefix を使う。
+
+全元 constructor の typing、Call/Resume/eabs/eapp/primitive/graph 等、既存 Control の body hook と新構文の接続は未完である。元全体目標をこの小範囲へ縮小しない。[検査と査読記録](../tasks/agent-loop/sprints/lean-core-20261024-outcome.md)に範囲と不足を残す。
