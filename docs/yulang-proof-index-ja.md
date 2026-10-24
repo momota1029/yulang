@@ -7,12 +7,16 @@
 [意味論と型健全性の統合稿](yulang-semantics-and-soundness-ja.md)は、値・効果・保護・解除・継続の寿命を共通の記法で読む入口である。採用済みの観測条件と未採用の候補規則を区別し、全言語の完了を主張しない。
 
 - [共起分析と保護・解除の保存](../notes/theory/2026-10-24-cooccurrence-release-preservation.md): [ユーザーの直接訂正](../notes/design/2026-10-24-cooccurrence-release-clarification.md)に従う後続稿。`'e?` を独立した実行規則の選択として扱わず、同じ共変位置に現れる変数の集約と保護・解除の対応を示す。source 全体の証明範囲は稿内の適用境界に従う。
+- [共変位置から受領対応表を作る](../notes/theory/2026-10-24-cooccurrence-source-recipes.md): 有限 signed graph での位置判定と入力 recipe、actual receipt の分離、単射改名、限定された collector 対応を構成した。
+- [Scoped weight の集約と将来の観測](../notes/theory/2026-10-24-scoped-weight-join-compatibility.md): 単独の存在観測、正の同時観測、存在・不在の同時観測に対し、保存に必要十分な要約をそれぞれ導いた。実際の weight 実装を承認・検証したものではない。
 - [修正機械の有限表示と simulation](../notes/theory/2026-10-24-corrected-machine-simulation.md): 新規 witness の生成、異なる経路の保持、保存した evidence と現在状態の再接続を明示した。初稿の三つの不備を修正し、有限な候補構成の範囲で独立査読を通過した。全 source の生成 edge との対応は未完である。
 - [静的 Yumark の展開](../notes/theory/2026-10-24-surface-elaboration-closure.md): 内部 node 全場合の builder と値型導出、凍結 lowering の成功時の Expr 構造との対応を構成した。独立査読でこの限定範囲に blocking/major 指摘はなかった。全 Yumark 構文や効果包含の検査成功を証明したものではない。
 
 査読範囲、修正履歴、固定 hash、未完了義務は[今回の outcome](../tasks/agent-loop/sprints/semantics-proof-20261024-outcome.md)に記録する。既存の三つの大きな原稿全体を再査読したという意味ではない。
 
 共起・解除の後続稿は、共起する位置集合の性質と完全な動的証拠を保持する局所表示定理の範囲で独立査読を通過した。[後続 outcome](../tasks/agent-loop/sprints/cooccurrence-release-20261024-outcome.md)が、撤回した質問の前提、固定 hash、source 対応の未完了箇所を記録する。
+
+さらに recipe 構成 S1–S6 と join の定理 1–3 は、それぞれの有限 graph・観測言語の範囲で独立査読を通過した。[構成と集約の outcome](../tasks/agent-loop/sprints/cooccurrence-source-20261024-outcome.md)に固定 hash と残る source/consumer 対応を記録する。
 
 ## 現在読む証明稿
 

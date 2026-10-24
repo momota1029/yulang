@@ -25,6 +25,8 @@
 | 有限選択証拠から code を作る | [選択稿](yulang-dot-selection-safety-ja.tex) | 証拠が与えられたときの構成。resolver 完全性とは区別 |
 | 隠れた複数 witness、解除、再観測の有限表示 | [修正機械の simulation](../notes/theory/2026-10-24-corrected-machine-simulation.md) | 明示的な保守的構成と、既存 graph への適用条件 |
 | 共変位置での共起と解除対象の集約 | [共起・解除の保存](../notes/theory/2026-10-24-cooccurrence-release-preservation.md) | 共起条件と provenance を保持する集約。全 source への対応義務は区別する |
+| 位置から入力対応表を作る | [共起と source recipe](../notes/theory/2026-10-24-cooccurrence-source-recipes.md) | 有限 signed graph の traversal、実際の受領・潜在経路の照合、単射改名 |
+| 複数経路の保護状態を集約する | [scoped weight の join](../notes/theory/2026-10-24-scoped-weight-join-compatibility.md) | 観測ごとの必要十分な要約。実 consumer と weight の対応は別義務 |
 | Yumark 内部の静的 node | [表層展開の証明](../notes/theory/2026-10-24-surface-elaboration-closure.md) | builder の全構成と値型導出。interpolation 等は未完 |
 
 旧稿の定理を使う際は、その証明が参照する機械を固定する。訂正後の機械の結論を、訂正前の小さい効果型に無条件で適用してはならない。
@@ -125,6 +127,28 @@ From は解除前の独立した actual route から計算する。handler が�
 **証明。** 実行長に帰納する。crossing 以外は L を固定する。crossing は表示した有限集合との和なので、追加された各対には現在の transition が証人となり、それ以外は帰納仮説を用いる。逆向きは集合和が既存対を削除しないことによる。解除 query は `s(w),H(w)` の実際の membership を検査するので、H にない target への更新はその witness の Released を変えない。冪等性は集合和から従う。□
 
 この可換性は追加集合の計算についてだけ成り立つ。source 上で二つの handler/delimiter を並べ替えると crossing 列そのものが変わりうるため、プログラムの交換法則は導かない。
+
+### 5.1 共変位置から入力対応を作る
+
+[構成 S1–S6](../notes/theory/2026-10-24-cooccurrence-source-recipes.md)では、有限の型付き signature graph の辺に極性を付ける。Function の二入力では反転、二出力では維持し、入力 root と有限経路語で元の位置を識別する。共変位置の集合が一致する変数をまとめ、出力位置に対応する元の入力経路を有限 recognizer として残す。regular な再帰経路を全展開する必要はない。
+
+実際の output entry では、そこから生成した recipe と lexical な受領環境を合わせ、元の入力位置・変数・receipt・receiver・経路の組を捕捉する。後の通常呼出しが新しい receipt を作っても古い表には混入しない。潜在値を実際に使用した際の有限経路を、この表で照合できる。これは完成済みの対応表を仮定する代わりに、その構成を与える局所結果である。
+
+全 source の型生成・compaction・recursive center・非正則な instance がこの signature graph と対応することは未完である。単射改名の保存を、任意の型代入の保存に読み替えない。
+
+### 5.2 経路をまとめる際に残す情報
+
+同じ非 scope 証拠 w の下で、入力由来の印 T と保護集合 U を持つ複数の代替状態を考える。[join の定理 1–3](../notes/theory/2026-10-24-scoped-weight-join-compatibility.md)は、StampInput・ProtectBody・Release の任意の有限列に対し、次の要約が正確になることを示す。
+
+| 後で観測するもの | 保存に必要十分な情報 |
+| --- | --- |
+| どれかの代替に一つの指定保護が存在するか | T の共通部分と U の和集合。空の代替集合は別状態 |
+| 同じ代替に指定した全保護が存在するか | T が少なく U が多い状態を上位とする順序の極大状態集合 |
+| 同じ代替で指定保護の存在と不在を同時に読む | 元の状態間の完全な相関。等しい関係を圧縮して保存することは可能 |
+
+T と U の両方を単に和集合にする操作は、一般には最初の観測さえ保存しない。`ProtectBody(s,u)` が「印 u がないときだけ s を追加する」ためである。この抽象的な不一致を、現コンパイラーの反例とはしない。
+
+上の分類は同じ w 内の観測についての定理であり、別 receipt や route をまとめる許可ではない。§4 の Eligible* は保護の不在も読むため、単独の存在観測用の要約を無検査で適用しない。実際の query、経路選別、重みの表現がどの観測を保存するかを対応付ける必要がある。
 
 ## 6. 再開と受領の寿命
 
