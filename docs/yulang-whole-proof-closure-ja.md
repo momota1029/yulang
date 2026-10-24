@@ -168,6 +168,16 @@ in f
 
 従って今回の結果を新規則の反証や全体証明の完了とはしない。BL-JOINT の次の接続は、この実 pair に対する source 所属と公開作用である。固定版・独立査読・残る元の義務は [replay sprint 記録](../tasks/agent-loop/sprints/birth-level-replay-20261024-outcome.md) に記す。
 
+### 4.7 保持したグラフを取り出して判定する
+
+ユーザーの指摘に従い、[実 graph の隣接表と SCC](../notes/theory/2026-10-24-retained-value-graph-replay-attribution.md)を取り出した。前例の F、H、wrapper Lambda は別頂点であり、成分はいずれも singleton である。F→F はあるが、F→H や F→X の先から F に戻る経路はない。従って F/F は資格あり、F/H と F/wrapper は資格なしと計算できる。
+
+コピーの記録だけでなく、物理的な B≤T リンクの作成記録、実 processing relation、順序を保持した Replay.upper_input、元の R≤C extrusion-link を辿ると、h-call の F/H association まで戻れる。lower 側の自己呼出し F/F の経路も別に保持されている。「source set を混ぜたので graph が失われた」という説明は当たらない。
+
+[公開への適用](../notes/theory/2026-10-24-retained-graph-publication-consequence.md)は、全 graph・実 association・pair list を持てば SCC 判定が有限計算で一意に決まることを示す。現 `any` consumer の query は F/F を拾うため真、実 upper boundary への遡及 query は F/H なので偽となる。残る source/native 証明は、採用規則の receiving occurrence をその実経路から導くことである。SCC の選び方を新たにユーザーへ求める問題ではない。
+
+抽出時には現 graph builder の FieldTail owner walk の漏れと、immutable birth の未保持も特定した。数学的 source graph とこの実装差分を分けて記録し、実装は変更していない。[査読記録](../tasks/agent-loop/sprints/retained-graph-replay-20261024-outcome.md)に具体的範囲と残項を示す。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。

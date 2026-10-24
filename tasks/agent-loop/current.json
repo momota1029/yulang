@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "BIRTH-LEVEL-REPLAY-20261024",
+  "sprint_id": "RETAINED-GRAPH-REPLAY-20261024",
   "phase": "REVIEWED_CHECKPOINT_OPEN",
-  "contract": "tasks/agent-loop/sprints/birth-level-replay-20261024.md",
-  "baseline": "7af2bbfe9588128e90f6706f99243e91b63a7ae3",
+  "contract": "tasks/agent-loop/sprints/retained-graph-replay-20261024.md",
+  "baseline": "14860b9ba4792c74bfb4d8610cc3ff10b5d0578f",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Proof/document construction ended; only final static/Git integration and reporting; no post-session work",
+      "receipt": "Current graph proof/document construction ended; only final static/Git integration/report; no background work",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30s concrete-replay owner direction completed; STOP/no descendants"
+      "receipt": "Current30s full retained graph/SCC method selected; STOP/no descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Current replay producer frozen020da823; live completed receipt; writes stopped/no descendants"
+      "receipt": "Current graph producer frozen37d4a398; graph and boundary query constructed; STOP/no descendants"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current frozen replay/publication independent review complete; no BLOCKING/MAJOR in conditional scope; BR-ATTR confirmed; end-boundary direction; STOP/no descendants"
+      "receipt": "Current full graph/SCC/boundary-query review complete; no BLOCKING/MAJOR in conditional scope; RG-OWNER retained; end-boundary direction; STOP/no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -133,13 +133,13 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "9f69004dced116b741a3d02eec2529aa35c4f5cb72fe31cce371b3d5edb6d17f"
+      "sha256": "591a97623bb2dc92e9bfa5d090db08f22a2f2447258cece329d2a2e5df5acf77"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "b6cfaab5ca4d2772891c04fe2af8c69e1525e0eb4c36ef27a90cf95a9863c445"
+      "sha256": "8fee9696aff67bea304f2525c116a585374f8be599d46c8ee541acc5c0cbf465"
     },
     {
       "path": "notes/theory/2026-10-24-value-scc-qualification-proof.md",
@@ -212,6 +212,20 @@
       "state": "FROZEN",
       "sha256": "0e84e618a077b6f3d138707349fbfe51d09e8ccdd54628ad772640f6c12ea244",
       "receipt": "Frozen reviewed r1; primary editorial review-status annotations only after producer/reviewer STOP"
+    },
+    {
+      "path": "notes/theory/2026-10-24-retained-value-graph-replay-attribution.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "8adfe10dda01a223c2b289cec81692cd6c92cca66f3170501b96fe894ff5c1c6",
+      "receipt": "Producer/reviewer stopped; primary editorial review-status annotations only"
+    },
+    {
+      "path": "notes/theory/2026-10-24-retained-graph-publication-consequence.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "5ea7d91ece760262af4f1ddd9da6496c25a9a555e4f7d9a7c9279adf782b3574",
+      "receipt": "Producer/reviewer stopped; primary editorial review-status annotations only"
     }
   ],
   "external_isolation": {
@@ -231,7 +245,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Whole source/semantic/inference obligations remain. Concrete replay/publication reviewed only within stated scope; BR-ATTR actual occurrence and full source producer/evidence remain. No new-rule counterexample or closure."
+      "missing": "Concrete source graph/SCC and fresh-copy boundary backtrace reviewed in stated rooted-constructor scope. Actual receiving-occurrence RG-OWNER, full source/contextual path and publication timing remain; whole-language source/semantic/inference obligations OPEN."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -243,7 +257,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "Birth-level rule retained. Exact scalar replay pair (T1,B2), PR1 freshening, PR2 independent uses, conditional PR3 rejection and BR1 source-support union reviewed. Authentic original/reuse occurrence ownership BR-ATTR, full source producer/member evidence, actual consumption timing, BL-JOINT all-source lift, principal coverage and combined termination remain OPEN."
+      "missing": "Birth-level rule unchanged. Retained graph determines F/F true, F/H and F/wrapper false; fresh-link emission/ordered replay recovers h boundary. Source receiving-occurrence theorem RG-OWNER, full producer/member witness, consumption timing, all-source BL-JOINT, principality and combined termination remain. Rust FieldTail/birth correspondence findings in current outcome; implementation excluded."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -254,15 +268,15 @@
     }
   ],
   "review": {
-    "outcome": "LIMITED_REPLAY_PUBLICATION_ACCEPTED_BR_ATTR_OPEN",
+    "outcome": "GRAPH_SCC_BOUNDARY_QUERIES_ACCEPTED_RG_OWNER_OPEN",
     "reviewer": "/root/astra_semantics_review",
-    "findings": "No BLOCKING/MAJOR in conditional scope; actual attribution is a genuine obligation, not free ownership choice",
+    "findings": "No BLOCKING/MAJOR within conditional rooted-source/fresh-cut scope; ordered graph is retained; no new ownership-policy question",
     "whole_language_certified": false,
-    "post_review_changes": "Editorial proof headers/status annotation only; no mathematical or guide change",
-    "record": "tasks/agent-loop/sprints/birth-level-replay-20261024-outcome.md"
+    "post_review_changes": "Only editorial proof review-status annotations; mathematical text/guides unchanged",
+    "record": "tasks/agent-loop/sprints/retained-graph-replay-20261024-outcome.md"
   },
   "resource": {
-    "astra_reserved_seconds": 4590,
+    "astra_reserved_seconds": 4890,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -271,16 +285,16 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 30
   },
-  "next_action": "Derive exact full source recipe into Record(B2)<=C1, original/reuse occurrence association and equality-consumption time; use PR3 only after premises; no automatic worker renewal",
-  "closure": "Native replay/publication and conditional implementation source-support facts reviewed. Actual BR-ATTR/full source correspondence remain; whole new-rule source preservation, safety/principality and combined termination OPEN; no unconditional refutation.",
-  "outcome": "tasks/agent-loop/sprints/birth-level-replay-20261024-outcome.md",
-  "outcome_sha256": "610cec1fb9ca842b9067c13b73f025ca833c5d16c52fbe569bb1570a3df014e8",
+  "next_action": "Use verified graph and emission witnesses to derive exact receiving-occurrence judgment from original Call/transport; establish full source path and consumption timing; no new policy question, consumer change or automatic worker renewal",
+  "closure": "Concrete graph/SCC extraction and actual boundary query reviewed. Current support-any true and boundary-F/H false computed; source faithful occurrence judgment remains. Whole source preservation/safety/principality/combined termination OPEN.",
+  "outcome": "tasks/agent-loop/sprints/retained-graph-replay-20261024-outcome.md",
+  "outcome_sha256": "bc93e35ba5312f889726be7a5bd487e394069b40ed5fd0570ee4bb7c3f51abb1",
   "checks": {
     "kind": "static document integrity only",
     "status": "PASS",
-    "frozen_dependencies": 15,
-    "frozen_leases": 27,
-    "local_links_resolved": 89,
+    "frozen_dependencies": 19,
+    "frozen_leases": 29,
+    "local_links_resolved": 94,
     "fences": "PASS",
     "json_size": "below16KiB",
     "intended_paths": 7,
