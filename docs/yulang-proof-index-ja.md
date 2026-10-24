@@ -2,6 +2,15 @@
 
 このページは、現在読む証明稿、規範的な研究仕様、監査記録、歴史的資料を区別する索引である。証明を追加したり、証明 gate の状態を変更したりする文書ではない。
 
+## 2026年10月24日の統合稿と追加証明
+
+[意味論と型健全性の統合稿](yulang-semantics-and-soundness-ja.md)は、値・効果・保護・解除・継続の寿命を共通の記法で読む入口である。採用済みの観測条件と未採用の候補規則を区別し、全言語の完了を主張しない。
+
+- [修正機械の有限表示と simulation](../notes/theory/2026-10-24-corrected-machine-simulation.md): 新規 witness の生成、異なる経路の保持、保存した evidence と現在状態の再接続を明示した。初稿の三つの不備を修正し、有限な候補構成の範囲で独立査読を通過した。全 source の生成 edge との対応は未完である。
+- [静的 Yumark の展開](../notes/theory/2026-10-24-surface-elaboration-closure.md): 内部 node 全場合の builder と値型導出、凍結 lowering の成功時の Expr 構造との対応を構成した。独立査読でこの限定範囲に blocking/major 指摘はなかった。全 Yumark 構文や効果包含の検査成功を証明したものではない。
+
+査読範囲、修正履歴、固定 hash、未完了義務は[今回の outcome](../tasks/agent-loop/sprints/semantics-proof-20261024-outcome.md)に記録する。既存の三つの大きな原稿全体を再査読したという意味ではない。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。
@@ -26,7 +35,7 @@ R345監査が gate 基準として hash を固定する意味論稿は、拡張�
 
 [R345更新版の全言語意味論整合監査](Yulang%20Simple-sub%20%E6%8B%A1%E5%BC%B5%EF%BC%9A%E5%85%A8言語意味論整合監査・証明設計%EF%BC%88R345更新版%EF%BC%89.md)は、証拠、実装監査、未解決 gate を整理する監査・状態資料であり、証明本文ではない。
 
-2026年10月24日の状態は[agent loop の現在状態](../tasks/agent-loop/current.json)を参照する。この時点で`OP-SEMANTICS-FULL-EFFECT`、`DOT-SELECTION-EVIDENCE-BRIDGE`、`CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE`、`SOURCE-SAFETY-BRIDGE`は`OPEN_REVIEW`である。R149は`PARTIAL_REVIEWED`で、元のA/Bも未完了である。詳細な状態は現在状態ファイルを正とし、この索引では日付付きの要約以上に複製しない。
+このブランチの[agent loop の現在状態](../tasks/agent-loop/current.json)は、今回の文書・証明作業だけを記録する。分岐元 `424566114` の記録では `OP-SEMANTICS-FULL-EFFECT`、`DOT-SELECTION-EVIDENCE-BRIDGE`、`CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE`、`SOURCE-SAFETY-BRIDGE` は `OPEN_REVIEW`、R149 は `PARTIAL_REVIEWED`、元の A/B も未完了であった。今回の局所査読はこれらを閉じない。元の実装作業場所の状態・lease は変更していない。
 
 ## 歴史的資料と安全な整理
 

@@ -1,6 +1,6 @@
 # 静的 Yumark の全展開と型導出の構成
 
-Status: research derivation; independent review pending.
+Status: research derivation; independent review found no blocking/major issue within the stated scope. Reviewed bytes: SHA-256 `8184196d2f4353e725cd7879978ae4bec941f857744e99b85a910be6d4caede5`; only this status receipt was added afterward. Reviewer: `/root/astra_semantics_review`, independent of the primary author. This is not whole-language certification.
 Parent: 全表層構文から source 型健全性への接続。
 Scope: 下記で定義する静的 Yumark 木と、凍結 lowering の成功経路。
 Not claimed: 全 Yumark 構文、parser の正当性、現行推論器の完全性、全言語の証明閉鎖。
