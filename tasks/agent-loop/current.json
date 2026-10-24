@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "sprint_id": "SIGNED-EXTRUSION-CORRIDOR-20261024",
+  "sprint_id": "CANONICAL-LET-HISTORY-20261024",
   "phase": "SPRINT_COMPLETE_PARENT_OPEN",
-  "contract": "tasks/agent-loop/sprints/signed-extrusion-corridor-20261024.md",
+  "contract": "tasks/agent-loop/sprints/canonical-let-history-20261024.md",
   "baseline": "2584aef5344b2d1ebfb304fd79c1236fcbdc8676",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Current primary math frozen/reviewed; exact integration then yield to active whole-goal continuation; no background worker",
+      "receipt": "Primary proof construction and review complete; proof writes STOPPED; only exact Git integration then yield, no background worker",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30sec actual FINAL new corridor method; no writes/descendants"
+      "receipt": "Three current30sec actual FINAL consultations; final scoped delta review recommended; no writes/descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
@@ -25,7 +25,7 @@
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current100sec actual FINAL accepts SU1–5/EC1/fixedsnapshotEC2; no BLOCKING/MAJOR; no descendants"
+      "receipt": "Current100sec actual FINAL delta accepts CH8 and MINOR fix; prior110sec CH0–7 accepted; no writes/descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -57,15 +57,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Current scoped independent acceptance; receipt/status-only postreview",
-      "sha256": "aaaef3ab30ef2ff0c8603c6f14270f034ef6d1f0c912eecd30999178db7e7a46"
+      "receipt": "Independent accepted scope; only final status/review receipt after frozen math",
+      "sha256": "12cad8d500c7c05d02262b6d43b5404725b06bc0caf40fa29a04d9601b9db2fc"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Current scoped independent acceptance; receipt/status-only postreview",
-      "sha256": "4ecaedad29962945729d4f4a414618a7235007a40720a920a4778eee82ffe606"
+      "receipt": "Independent accepted scope; only final status/review receipt after frozen math",
+      "sha256": "11aa91dd96399d0b9c84669250d351abfe9a2611216a793569c98c9d614e2350"
     },
     {
       "path": "notes/theory/2026-10-24-fresh-valuebind-complete-call.md",
@@ -213,6 +213,13 @@
       "state": "FROZEN",
       "receipt": "Current scoped independent acceptance; receipt/status-only postreview",
       "sha256": "f21c438b0ed20a5bc2218fd3b6bfc3e2a1b360dbef535b0ee6a9dac2891c10e8"
+    },
+    {
+      "path": "notes/theory/2026-10-24-canonical-let-history-model.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Independent accepted scope; only final status/review receipt after frozen math",
+      "sha256": "5e8479d3c9272f08e7b99213f9b1fc502f7fffc0e5e4a5b3d38eee1035c3a894"
     }
   ],
   "external_isolation": {
@@ -244,7 +251,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "SU1–5 allfinite nonrecursiveLet signed updates/Y.upperT closed; EC1 staged/direct and EC2 fixedsnapshot publication accepted. Joint canonical stored-model repair and actual interleaved-history correspondence remain, plus source receiving/SCC/fullA/B/principality/termination."
+      "missing": "CH0–7 allfinite Let/LetRec original-history jointmodel/equalityprojection closed; CH8 lowY.lower boundaryfactor preservedthroughfreshening closed. Actual earlier-intrusion selected-bound/polarmemo/history construction remains, plus source receiving/SCC/fullA/B/principality/termination."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -255,12 +262,12 @@
     }
   ],
   "review": {
-    "outcome": "tasks/agent-loop/sprints/signed-extrusion-corridor-20261024-outcome.md",
-    "whole_language_certified": false,
-    "reviewer": "/root/astra_semantics_review"
+    "reviewer": "/root/astra_semantics_review",
+    "outcome": "tasks/agent-loop/sprints/canonical-let-history-20261024-outcome.md",
+    "whole_language_certified": false
   },
   "resource": {
-    "astra_reserved_seconds": 8830,
+    "astra_reserved_seconds": 9130,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -269,14 +276,15 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 0
   },
-  "next_action": "Primary next: simultaneous canonical role repair for all finite client stores using SU invariant and retained internal production bounds; then actual interleaved early-intrusion correspondence. No child dispatched/reserved.",
-  "closure": "ACTIVE whole goal; SU1–5/EC1/EC2 scoped results reviewed; full original parents OPEN; all workers STOPPED",
-  "previous_outcome": "tasks/agent-loop/sprints/signed-extrusion-corridor-20261024-outcome.md",
-  "previous_outcome_sha256": "b93878241337ca79375194325dbe2aa75e74d3aeff2783f6ab2a167bf22f86ef",
+  "next_action": "Primary actual after-history copy/memo model constructor using explicit CH6 valuation and CH8 shared low factors; no child dispatched/reserved",
+  "closure": "ACTIVE whole goal; CH0–8 scoped results reviewed; full original parents OPEN; proof workers STOPPED",
+  "previous_outcome": "tasks/agent-loop/sprints/canonical-let-history-20261024-outcome.md",
+  "previous_outcome_sha256": "3a3c30a23452ca4e79247d477eeddec787f75dcf6b0f20dc43e47809a6504105",
   "goal_turn_classification": "PROGRESS",
   "history": {
     "path": "tasks/agent-loop/sprints/source-indexed-derivation-20261024-prior-state.json",
     "sha256": "498d39c7bd02937deed3a5031167f3f03ab87d91bb0cb7d174131b9b9c529baa",
     "scope": "All33 consumed frozen leases archived; original external isolation preserved"
-  }
+  },
+  "contract_sha256": "8b43b5d0ef521daf765ebad86bf0d8ff90a0015cd1aefb40a211440647f7a73f"
 }

@@ -287,3 +287,12 @@ NM3 は C/B、D/J、T/Y の全 copy と全 cut に一つの valuation を同時�
 EC1は任意のfinite level-closed storeで、二段extrusionの全modelを一段extrusionへ運び、元row値とextruded resultを保つ。EC2は二つのtarget levelsの間にある固定publication boundaryと任意有限個のfresh instancesへ拡張する。中間copyの各useを等置せず、共有lowを一つに保つ。
 
 元history全体との合成は未完である。Variable branchの優先順位とcache hitにより、保存されたL≤Y≤TというpathだけではL≤Tの最新処理を主張できない。介在する更新、消えるY.lower到達部分、全historyの一つのmodel actionが残る。固定snapshotのEC2を任意interleavingへ一般化したとはしない。本稿はこの範囲で独立査読を通過した。[固定版と査読範囲](../tasks/agent-loop/sprints/signed-extrusion-corridor-20261024-outcome.md)に元の未完了義務を保持する。
+
+
+### 4.21 Let/LetRec の全元履歴を保つ共同モデル
+
+[有限 let 履歴の canonical model](../notes/theory/2026-10-24-canonical-let-history-model.md)は、全 f-role descendants の実 internal/external clause origins と完成時の production bounds を追う。client が新しい recursive Let を含む場合も、実 Z placeholder、monomorphic recursive lookup、RHS≤placeholder、返却後の publication から signed invariant を追加証明する。全 J/R/o の下界と B/Y の上界から、同じ guarded regular value G* を使う同時 depth 帰納を行う。
+
+これにより、固定 f/P1 domain の任意有限 Let/LetRec 元推論履歴の全 copies を一度に canonical values へ修復できる。全 client Z の値、元 bounds、source seeds、出力契約、実 mutable publication/use snapshots を一つの model で保つ。各 snapshot で新しい model を選ばない。全 Y descendants=T（および明示した同役割等式）を追加しても、全 Z coordinates 上の solution projection は変わらない。
+
+これは元履歴の joint repair を閉じる。早い段階で intrusion した別履歴の新しい Z copies、level lowering と共有、全 actual events の対応はまだ構成していない。source/native receiving/SCC と元全 A/B、principality、termination も残る。CH0–CH7 は独立査読を通過し、コピー完了点の定義を MINOR 指摘に合わせて明確化した。追加 CH8 は、実 Y.lower entry の低い T-boundary factor と、その同じ低い項を共有する両 list freshening を構成する。CH8 も独立差分査読を通過した。新 after copy の全 selected bounds と polar memo の合成は残る。[固定版と査読範囲](../tasks/agent-loop/sprints/canonical-let-history-20261024-outcome.md)に受理した命題と残項を記録する。

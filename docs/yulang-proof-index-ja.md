@@ -129,3 +129,5 @@ R345監査が gate 基準として hash を固定する意味論稿は、拡張�
 3. gate 入力として固定された意味論稿・監査・crosswalk と、task/theory の履歴は残した。
 
 旧 task や監査記録に使われたことは、その資料を現行の証明 authority にしない。反対に、現在の証明 authority ではないことも、gate の入力・履歴 pointer を消してよい理由にはならない。
+
+| [Let/LetRec 元履歴の共同モデル](../notes/theory/2026-10-24-canonical-let-history-model.md) | CH0–CH7：実 recursive Z placeholder、全 copy の production witness、全元履歴の一つの canonical repair、Z projection を保つ等式追加。固定 f/P1 の有限履歴。CH0–CH7 と CH8 の低い boundary factor／freshening 保存は独立査読受理 | 別の early-intrusion 履歴との allocation/共有/event 対応、全 source A/B は未完 |
