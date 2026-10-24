@@ -208,15 +208,27 @@ F_G(U)\subseteq U
 
 有限 interface と外部コードの導入契約の下で、追加した failure port を含む graph の閉包は全有限実行 prefix を含む。実行型保存・Bad 排除は独立の値型定理を必要とする。全表層の展開、nonregular instance の有限表示、候補政策の採用、旧証明書の保存はこの結論に含まれない。査読状態と固定版は[生成証明の outcome](../tasks/agent-loop/sprints/source-core-coverage-20261024-outcome.md)に記録する。
 
+### 7.2 interface と値・継続の前提を構成する
+
+後続の [I1–I6](../notes/theory/2026-10-24-source-core-finite-interface.md) は、Gen(d) から有限の operand/query/name 欄、共同 witness occupancy、保存 packet と現在 world の接続を構成した。実際の型 instance や path は無限種類あってよい。現在読む観測を表示し、未知の相関は全候補として残すので、実 successor が失われない。任意の非正則型から正しい共起 recipe 自体を生成する証明とは区別する。
+
+[V1–V7](../notes/theory/2026-10-24-corrected-core-value-continuation.md) は、修正された核で代入・全 primitive・七 frame の切出し・値型保存・進行を証明し、内部で作る closure と継続の導入契約を構成した。繰返し再開にも適用する。真に外部から来る code/response の契約は引き続き必要である。
+
+両稿と G5 の合成は、明記された核の範囲で独立査読を通過した。[主定理 C](yulang-whole-proof-closure-ja.md)に、実際の前提と値・効果・再開の統合証明を記す。これで適切な interface と内部 continuation の安全性を未構成の仮定として残す必要はなくなった。全 source の導出生成、候補政策と承認済み観測の一致、元の推論 A/B は同じ文書に残る。
+
 ## 8. 全表層への接続と未完了箇所
 
 静的 Yumark については、文書・文字列・paragraph・emphasis・strong・heading・section-close・list・item・item-body・code-fence・quote の全 node を列挙し、型付き builder を構成した。[証明 Y1–Y6](../notes/theory/2026-10-24-surface-elaboration-closure.md)が、外殻の中身を未指定とする前提を取り除く。
+
+文字列補間についても、[SI1–SI6](../notes/theory/2026-10-24-string-interpolation-elaboration.md)が空・単独・複数 parts、四つの formatting kind、八 field の format record、layout 有無、左結合の連結を構成した。必要な子式・選択・role 証拠の下で型導出を作り、完全 Call と formatting の効果を保つ。特に単独の非 layout 補間には Str 結果の証拠が必要であり、固定 lowering の名前選択だけからそれを推測しない。
+
+任意型代入については、[T1–T5](../notes/theory/2026-10-24-source-recipe-substitution.md)が source 導出から挿入構造の由来と符号付き経路を構成し、AllE/template-use と recipe の対応を示した。共起 class は代入後の正位置で定義し直し、既存の receipt/receiver/Origin は書き換えない。一般の非正則 class 計算と native 表現との対応は引き続き残る。両稿の適用範囲は[査読記録](../tasks/agent-loop/sprints/source-substitution-surface-20261024-outcome.md)に従う。
 
 次の義務は引き続き全体目標の一部である。
 
 | 義務 | 完了に必要なもの |
 | --- | --- |
-| 生成 graph の適用範囲 | Gen(d) の候補構成を各 finite interface・実 frontend・元の導出へ接続。失敗後の完全状態を観測する契約は別途確定 |
+| 生成 graph の適用範囲 | 構成した Gen(d)/interface/値定理を実 frontend・元の source 導出へ接続。失敗後の完全状態を観測する契約は別途確定 |
 | 共起による集約と保護・解除 | 同じ共変位置の判定、provenance を保つ集約、生成・一般化・使用・解除への対応。追加の入力選択を求めない |
 | non-Var/anonymous の受領 owner、wildcard policy | 候補の全期待挙動との照合と、実際に未決定な具体化の切り分け |
 | Yumark interpolation/commands、module/use/realm/band、error/act-copy/derive | 全生成規則と型・効果を保つ展開。未対応の実装を仕様上の禁止へ転用しない |

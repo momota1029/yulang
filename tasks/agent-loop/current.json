@@ -1,41 +1,41 @@
 {
   "schema_version": 1,
-  "sprint_id": "SOURCE-RESULT-BOUNDARY-REVIEW-20261024",
-  "phase": "REVIEWED_SOURCE_CORE_COVERAGE_PARENT_OPEN",
-  "contract": "tasks/agent-loop/sprints/source-result-boundary-review-20261024.md",
-  "baseline": "987ee3902a12f9c1e972d5db4b876ad60cff89b8",
+  "sprint_id": "ORIGINAL-MEMBER-BRIDGE-20261024",
+  "phase": "REVIEWED_CHECKPOINT_OPEN",
+  "contract": "tasks/agent-loop/sprints/original-member-bridge-20261024.md",
+  "baseline": "59057b660a5a46f448d4c6feda041cb3df3bb38f",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
-      "state": "WAITING",
-      "receipt": "Reviewed proof and integration frozen; research stopped, final Git handoff only; no answer pending and no background work",
+      "state": "STOPPED",
+      "receipt": "Proof writing frozen for reviewed checkpoint; only explicit-path Git integration remains; full user objective OPEN, no background work",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Explicit material MAJOR/resource boundary: successor60s recommended; no certification/writes/children"
+      "receipt": "30s reconciliation: substantial partial milestone, original J_rec/J_pub remain; recommends actual original postfixed construction; no launches/writes"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Frozen r1 final received: writes stopped, no descendants; primary took lease for r2"
+      "receipt": "Frozen r1 handoff d37a30f1f59ad327ebcba129db5b069f4eed1f839d1733230863fdb711a16488; writes stopped, no descendants"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "r3 delta ACCEPTED; r2 MAJOR CLOSED; no writes/Git/tests/children"
+      "receipt": "Independent original partial+CH1-CH5 accepted; no original bridge/closure, explicit STOP/no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
       "state": "STOPPED",
-      "receipt": "Frozen r1 final handoff: writes stopped, no descendants, hash 5c81d2fb89c25f3ec10ef89560e3b7784d7e88022f52375992036148d3e8b454"
+      "receipt": "Frozen aff91629345fc75d50a0e76764c4fba6c75749cd61d06adeb53e6c70577359c1; writes stopped, no descendants"
     },
     {
       "id": "/root/astra_scoped_join",
       "state": "STOPPED",
-      "receipt": "Frozen correlated-handler r1 hash b1b94aa7712ef0a5be043070b042c830dfde9c16ca7874f7046a0827405eadc4; final writes stopped/no descendants"
+      "receipt": "Frozen original member partial construction 4cfa7794b5f2e4e964511a1824a96309bb77a29a3ea5f75b9b0888cae4d9efbf, explicit writes stopped/no descendants"
     }
   ],
   "leases": [
@@ -43,7 +43,7 @@
       "path": "docs/yulang-semantics-and-soundness-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "63437836b74e834f91c01083139c30bb29e3301203584590f6b6885d0137b473",
+      "sha256": "2a0b173406353524950e1ab690c679918185167e63929c9b6724547b5cd379f2",
       "receipt": "Primary integration of accepted candidate coverage and explicit remaining premises"
     },
     {
@@ -91,6 +91,55 @@
       "state": "FROZEN",
       "sha256": "36672ef591f42a281a04f14fb7ddc4c5283c119de20fee15168e37cbbf13201a",
       "receipt": "Independent r3 accepted; proof only editorial status/receipt after review"
+    },
+    {
+      "path": "notes/theory/2026-10-24-source-core-finite-interface.md",
+      "owner": "/root/astra_corrected_machine",
+      "state": "FROZEN",
+      "sha256": "d37a30f1f59ad327ebcba129db5b069f4eed1f839d1733230863fdb711a16488"
+    },
+    {
+      "path": "notes/theory/2026-10-24-corrected-core-value-continuation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "4d8ffd63cbb65cd6917145fa31a4cb3f04656a19f7b71fd0e3fdd6cecaabfbeb"
+    },
+    {
+      "path": "notes/theory/2026-10-24-source-recipe-substitution.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "8ebe787d9a0ed5ee3b053572adade9d2fbb36005c432df8c186648c375bdbfa5",
+      "receipt": "Producer stopped; primary exact reviewer-requested sign(p)=+ clarification only"
+    },
+    {
+      "path": "notes/theory/2026-10-24-string-interpolation-elaboration.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "f592629c1102b18539f7141f7551cf44460fa393ce1d708432b29ff433d8277f"
+    },
+    {
+      "path": "notes/theory/2026-10-24-correlated-helper-original-member.md",
+      "owner": "/root/astra_scoped_join",
+      "state": "FROZEN",
+      "sha256": "4cfa7794b5f2e4e964511a1824a96309bb77a29a3ea5f75b9b0888cae4d9efbf"
+    },
+    {
+      "path": "notes/theory/2026-10-24-correlated-helper-core-derivation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "18e971fef7a67bd2febea26ba399429e2bbbf795394b9430d6d02796d0b62b7e"
+    },
+    {
+      "path": "docs/yulang-whole-proof-closure-ja.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "3461483e2a3e44f4ed1141d33e3963aafff738ca0f373d57d1882736befe4476"
+    },
+    {
+      "path": "docs/yulang-proof-index-ja.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "18978ed40bed3a7a180cdd20c91538ad2e07dbd2467625ca1a0915c2b4a17e96"
     }
   ],
   "external_isolation": {
@@ -110,7 +159,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Reviewed Gen(d) now derives candidate action coverage; finite-template/interface adequacy, foreign continuations, separate value proof review, all-surface elaboration and terminal-world/host semantics remain"
+      "missing": "Candidate core theorem C, enriched arbitrary substitution and structured string proofs reviewed. Remaining original recursive/member formation J_rec, active capture/Generalize J_pub, all remaining surface/source policy and inference obligations."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -128,29 +177,33 @@
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Reviewed recipes/join/CO3-OBS and Gen(d) candidate control coverage; full source/compaction/recursive centers/all substitutions, actual weights, finite interfaces, replay/shared freshening remain",
+      "missing": "T1-T5 enriched-source arbitrary substitution/path/provenance reviewed; nonregular class algorithm, actual compaction/recursive-center/weights and captured-descriptor ownership remain.",
       "authority": "notes/design/2026-10-24-cooccurrence-release-clarification.md"
     }
   ],
   "review": {
-    "reviewer": "/root/astra_semantics_review",
-    "outcome": "G1_G5_GENERATED_CANDIDATE_CORE_ACCEPTED",
-    "reviewed_sha256": "fd1d7cf33dd7c317b44694cb131d63fa7cb30368cab4de0ec53f81315c3057fa",
-    "r2_finding": "MAJOR arm-result boundary connection CLOSED by r3 independent delta",
-    "whole_language_certified": false,
-    "scope": "Gen(d) coverage, failure-only abstraction; interface/value/foreign premises remain",
-    "post_review_changes": "Editorial status and review receipt only"
+    "outcome": "ACCEPTED_PARTIAL_ORIGINAL_AND_CANDIDATE_CORE",
+    "receipt": "tasks/agent-loop/sprints/original-member-bridge-20261024-outcome.md",
+    "whole_language_certified": false
   },
   "resource": {
-    "astra_reserved_seconds": 2160,
+    "astra_reserved_seconds": 3090,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
     "tests": 0,
-    "successor_reserved_seconds": 60,
-    "successor_review_reservation_remaining_seconds": 0
+    "successor_reserved_seconds": 300,
+    "successor_review_reservation_remaining_seconds": 0,
+    "checkpoint_direction_reserved_seconds": 30
   },
-  "outcome": "tasks/agent-loop/sprints/source-result-boundary-review-20261024-outcome.md",
-  "next_action": "Construct finite-interface adequacy for all original code/template instances (including nonregular instantiation), then apply reviewed Gen(d); keep value/foreign/surface/A-B obligations distinct",
-  "closure": "Global request remains OPEN. Reviewed local mathematics is not whole-language completion."
+  "outcome": "tasks/agent-loop/sprints/original-member-bridge-20261024-outcome.md",
+  "next_action": "OM-REC: construct actual original independent formation/registry/member/world evidence and joint postfixed witness; then OM-PUB complete active-capture Generalize walk. Existing legitimate-definition authorization applies; no permission blocker.",
+  "closure": "User whole-proof request remains OPEN. Candidate-core C, enriched substitution, structured string and concrete helper core reviewed. Original recursive formation/member/world J_rec and active capture Generalize J_pub not derived; neither impossibility nor permission blocker. No background workers.",
+  "checks": {
+    "dependency_hashes": "29 pinned entries matched",
+    "local_document_links": "resolved in changed guides/proofs",
+    "whitespace": "static inspection and git diff --check",
+    "tests": "NOT_RUN_USER_SCOPE_NO_IMPLEMENTATION",
+    "independent_review": "Three coherent batches accepted within explicitly bounded scopes; one positive-position MINOR clarified"
+  }
 }

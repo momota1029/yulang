@@ -6,13 +6,20 @@
 
 [意味論と型健全性の統合稿](yulang-semantics-and-soundness-ja.md)は、値・効果・保護・解除・継続の寿命を共通の記法で読む入口である。採用済みの観測条件と未採用の候補規則を区別し、全言語の完了を主張しない。
 
+[全体証明の主定理と現在の到達点](yulang-whole-proof-closure-ja.md)は、査読済みの生成・有限 interface・値型/継続の結果を定理 C として合成する。全言語への接続と元の推論 A/B を別の未完了義務として明示する。
+
 - [共起分析と保護・解除の保存](../notes/theory/2026-10-24-cooccurrence-release-preservation.md): [ユーザーの直接訂正](../notes/design/2026-10-24-cooccurrence-release-clarification.md)に従う後続稿。`'e?` を独立した実行規則の選択として扱わず、同じ共変位置に現れる変数の集約と保護・解除の対応を示す。source 全体の証明範囲は稿内の適用境界に従う。
 - [共変位置から受領対応表を作る](../notes/theory/2026-10-24-cooccurrence-source-recipes.md): 有限 signed graph での位置判定と入力 recipe、actual receipt の分離、単射改名、限定された collector 対応を構成した。
+- [任意型代入と recipe](../notes/theory/2026-10-24-source-recipe-substitution.md): T1–T5 が由来を保持した source 導出の任意代入、有限経路、AllE/template、元成分別 schema を構成する。既存の捕捉証拠は固定する。一般の非正則 class 計算・実 native 対応は未完。
 - [Scoped weight の集約と将来の観測](../notes/theory/2026-10-24-scoped-weight-join-compatibility.md): 単独の存在観測、正の同時観測、存在・不在の同時観測に対し、保存に必要十分な要約をそれぞれ導いた。実際の weight 実装を承認・検証したものではない。
 - [現在状態に基づく handler 分岐の保存](../notes/theory/2026-10-24-correlated-handler-observation.md): 真偽両 filter、候補を飛ばす経路、arm が No を返す経路と current-world Rejoin を構成した。指定された有限候補 graph について独立査読を通過した。後続の全制御経路稿が、有限 source 導出からの生成対応を追加する。
 - [修正機械の有限表示と simulation](../notes/theory/2026-10-24-corrected-machine-simulation.md): 新規 witness の生成、異なる経路の保持、保存した evidence と現在状態の再接続を明示した。初稿の三つの不備を修正し、有限な候補構成の範囲で独立査読を通過した。後続の全制御経路稿が Gen(d) の生成 edge との対応を追加し、全表層・実 compiler への対応は未完である。
 - [source からの全制御経路と失敗終端](../notes/theory/2026-10-24-source-core-action-coverage.md): 13式・11 pattern・3 statement、直接証拠・eapp から Gen(d) を作り、No と継続の現在状態、失敗の吸収を証明する候補構成。結果 adapter への接続漏れを修正し、記載した前提の下で G1–G5 の独立査読を通過した。失敗専用表示では観測されない world を忘れ、具体的 cleanup は承認しない。
+- [生成核の有限 interface](../notes/theory/2026-10-24-source-core-finite-interface.md): I1–I6 が有限観測欄・非正則 instance の現在 query・七 frame 接続を構成し、G5 の表示前提を除く。実 successor の包含を証明し、任意 source の recipe 生成や小さい証明書の精度は主張しない。
+- [修正核の値・継続](../notes/theory/2026-10-24-corrected-core-value-continuation.md): V1–V7 が値型保存・進行・型付き反復再開を証明し、内部 code/continuation の導入契約を構成する。両稿と G5 の合成は[独立査読記録](../tasks/agent-loop/sprints/core-interface-value-20261024-outcome.md)の範囲で受理された。
 - [静的 Yumark の展開](../notes/theory/2026-10-24-surface-elaboration-closure.md): 内部 node 全場合の builder と値型導出、凍結 lowering の成功時の Expr 構造との対応を構成した。独立査読でこの限定範囲に blocking/major 指摘はなかった。全 Yumark 構文や効果包含の検査成功を証明したものではない。
+- [文字列補間の展開](../notes/theory/2026-10-24-string-interpolation-elaboration.md): SI1–SI6 が有限 parts 全場合の展開、型導出と完全 Call の順序を構成する。任意代入稿とともに[独立査読](../tasks/agent-loop/sprints/source-substitution-surface-20261024-outcome.md)を通過した。必要な選択/role 証拠の発見までを証明したものではない。
+- [相関を持つ局所関数の核の導出](../notes/theory/2026-10-24-correlated-helper-core-derivation.md)と[元の member/world 構成試行](../notes/theory/2026-10-24-correlated-helper-original-member.md): 同じ再帰 f を捕捉する g の Int/Bool 二使用を候補核で型付けし、元の意味論へ移す際の J_rec/J_pub を特定した。[査読](../tasks/agent-loop/sprints/original-member-bridge-20261024-outcome.md)はこの部分構成の範囲を受理した。元の主型性の反例や全体閉包は得ていない。
 
 査読範囲、修正履歴、固定 hash、未完了義務は[今回の outcome](../tasks/agent-loop/sprints/semantics-proof-20261024-outcome.md)に記録する。既存の三つの大きな原稿全体を再査読したという意味ではない。
 
