@@ -1,6 +1,6 @@
 # 元の実行構文・代入・式本体から control への接続
 
-LEAN-CORE-20261024/r1。primary の構文対応監査と停止後の共同構成。全元 constructor の well-formedness/typing は未構成である。元全体目標は OPEN。
+LEAN-CORE-20261024/r1 および LEAN-STRUCTURAL-20261024/r1。primary の構文対応監査と停止後の共同構成。全元 constructor の well-formedness/typing は未構成である。元全体目標は OPEN。
 
 ## 元の定義
 
@@ -49,11 +49,28 @@ handler の各 body で正常値が出た時点では、まだ Yes(B) ではな�
 
 [CoreSubstitution](lean/YulangClosure/CoreSubstitution.lean) の `renameRaw/substituteRaw` は、atom を保ち、node の全子を巡回し、binder の名前空間だけ index を lift する。代入値が別 namespace の自由変数を含む場合も、その binder の下で shift する。全 Raw/Forest に対する identity・renaming composition・rename/substitute の両交換則・substitution composition が Lean で検査された。これは原始構文上の代入代数であり、全元言語の型付き V1 ではない。
 
-外在的な `ValTyped/CompTyped` が定義されているのは **unit/variable/delay + Ret/Force/let** のみである。`Context = Nat → Option Ty`、空文脈は常に none とし、未束縛変数が型付かない。`substComp_typed/substitute_top` は、この範囲の全型導出について、同じ context を持つ代入値から型付きの body を構成する。`substComp_raw/single_raw` は、その typed-fragment 操作が全 raw traversal の実際の制限であることを証明する。
+外在的な `ValTyped/CompTyped` は **unit/variable/delay + Ret/Force/let** に加え、**union injection/case、同一値の intersection introduction/choose、Top、Bottom elimination** を定義する。`Context = Nat → Option Ty`、空文脈は常に none とし、未束縛変数が型付かない。`substComp_typed/substitute_top` は、この範囲の全型導出について、同じ context を持つ代入値から型付きの body を構成する。`substComp_raw/single_raw` は、その typed-fragment 操作が全 raw traversal の実際の制限であることを証明する。
 
 [CoreExecution](lean/YulangClosure/CoreExecution.lean) は let-return と Force-delay の実置換、syntax-bearing bind frame の追加/消費を定義する。`step_preservation` は arbitrary old suffix を保持し、`progress` は空文脈で Ret または次の一段を得る。さらに raw 側の `RawStep.forceUnitBad` は unit への Force を Bad にする。View/graph/type application の外見が Delay でないことだけでは Bad にせず、その正規化規則は未完として残す。`raw_step_lifts` は、閉じた型付き image から出る **全 raw step** が実 typed-fragment step に戻ることを場合分けし、Bad branch を canonical form から排除する。したがって typed step の片方向 simulation だけから raw safety を推測していない。
 
 `raw_finite_safety` は既存 root と同じ `YulangClosure.Prefix` を用い、任意長の raw trace の全末尾について型付き image、Bad 排除、型付き正常値または次の一段を導く。初期 `RawStateTyped` は構文の image と独立型導出であり、reachability や無故障性を定義に使わない。式本体の保存・進行を前提にしてこの結果を得たわけではない。
+
+## 構造型を同じ全有限実行の定理へ接続
+
+追加した規則は別の safety 仮定を要求しない。次のすべてが、同じ `ValTyped/CompTyped`、代入、`RawStep`、`raw_finite_safety` の場合として Lean 検査を通った。
+
+| 元の規則 | 独立な型付けと実遷移 | 全実行の証明への接続 |
+| --- | --- | --- |
+| union injection/case | 左右の値型と各 branch の独立した一 binder。選択した branch に payload を実代入 | 両側の型付き代入・raw 可換性、`closed_union`、principal 保存、全 raw successor の逆方向対応 |
+| intersection introduction/choose | 一つの `Val.both v` と、**同じ v** の `ValTyped env v a`、`ValTyped env v b`。choose は同じ v を Ret | 選んだ側の導出を用いる保存、`closed_intersection`、両 choose の進行・逆方向対応 |
+| Top | 任意の既に型付きの v を `Val.top v` に包む。payload を無検査で取り出す規則なし | renaming/substitution と raw embedding の保存 |
+| Bottom elimination | `absurd v` の前提は `v:Bottom`。Bottom introduction は存在しない | `closed_bottom` から閉じた typed state のこの場合を排除 |
+
+O の `(v;d_i)` に現れる d は、この範囲では型導出として扱う。`ValTyped.both` の二つの Prop 証拠が元の d1/d2 に当たり、choose の保存証明は対応する方を選ぶ。計算部分の `rawProofBoth` はその二つの証拠を格納せず、一つの raw child を持つ。元の三 child の `rawBoth v d1 d2` とは別の、**型証拠を消去した表現**である。`rawBoth` の任意の明示 evidence を実行する一般対応定理はまだない。実行時 View/receipt/解除 metadata を消去したり、View の正規化を証明したりしたものではない。choose 自体は一段として数える。
+
+`RawStep` は不正 unit の unioncase/choose/absurd が Bad に進む場合も持つ。`raw_step_lifts` は追加した全遷移を含む関係について、閉じた型付き image からの全 successor を調べる。旧関係だけの有限安全性を再利用したのではなく、拡張した関係について同じ定理を再検査した。実行長を有限の固定値へ制限せず、構造値内の delay と任意の let/branch の入れ子も同じ相互帰納に含む。
+
+最初の検査は unioncase の branch 名と renaming 引数名の衝突を検出した。producer STOP 後に primary が修正し、未使用 simp 引数も除去した。三 module の再検査は exit 0、警告なし。独立査読の受理範囲と固定 hash は [structural outcome](../../tasks/agent-loop/sprints/lean-structural-20261024-outcome.md) に記録する。
 
 ## 未完の元義務と既存 control への接続
 

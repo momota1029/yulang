@@ -104,27 +104,59 @@ It embeds below into Raw. Other raw constructors remain present and OPEN. -/
 inductive Ty where
   | base (kind : Base)
   | thunk (result : Ty)
+  | union (left right : Ty)
+  | intersection (left right : Ty)
+  | top | bottom
 
 mutual
   inductive Val where
     | var (index : Nat)
     | unit
     | delay (body : Comp)
+    | inLeft (value : Val)
+    | inRight (value : Val)
+    | both (value : Val)
+    | top (value : Val)
   inductive Comp where
     | ret (value : Val)
     | force (value : Val)
     | bind (first body : Comp)
+    | unionCase (value : Val) (left right : Comp)
+    | chooseLeft (value : Val)
+    | chooseRight (value : Val)
+    | absurd (value : Val)
 end
+
+/-- This computational image erases ONLY the two Prop typing derivations.
+The single underlying child is retained; no runtime View/receipt is erased.
+Full rawBoth with explicit evidence remains available outside this fragment. -/
+def rawProofBoth (v : Raw) : Raw := .node .both (.one v)
+def rawTop (v : Raw) : Raw := .node .top (.one v)
+def rawIn (right : Bool) (v : Raw) : Raw :=
+  .node .inject (.two (.atom (.presence right)) v)
+def rawChoose (right : Bool) (v : Raw) : Raw :=
+  .node .choose (.two (.atom (.presence right)) v)
+def rawUnionCase (v l r : Raw) : Raw :=
+  .node .unionCase (.cons v (.two (.bind .value l) (.bind .value r)))
+def rawAbsurd (v : Raw) : Raw := .node .absurd (.one v)
 
 mutual
   def Val.raw : Val → Raw
     | .var i => .var .value i
     | .unit => .atom (.literal .unit)
     | .delay m => rawDelay m.raw
+    | .inLeft v => rawIn false v.raw
+    | .inRight v => rawIn true v.raw
+    | .both v => rawProofBoth v.raw
+    | .top v => rawTop v.raw
   def Comp.raw : Comp → Raw
     | .ret v => rawRet v.raw
     | .force v => rawForce v.raw
     | .bind m n => rawLet m.raw n.raw
+    | .unionCase v l r => rawUnionCase v.raw l.raw r.raw
+    | .chooseLeft v => rawChoose false v.raw
+    | .chooseRight v => rawChoose true v.raw
+    | .absurd v => rawAbsurd v.raw
 end
 
 abbrev Context := Nat → Option Ty
@@ -140,11 +172,22 @@ mutual
     | var : env i = some a → ValTyped env (.var i) a
     | unit : ValTyped env .unit (.base .unit)
     | delay : CompTyped env m a → ValTyped env (.delay m) (.thunk a)
+    | inLeft : ValTyped env v a → ValTyped env (.inLeft v) (.union a b)
+    | inRight : ValTyped env v b → ValTyped env (.inRight v) (.union a b)
+    | both : ValTyped env v a → ValTyped env v b →
+        ValTyped env (.both v) (.intersection a b)
+    | top : ValTyped env v a → ValTyped env (.top v) .top
   inductive CompTyped : Context → Comp → Ty → Prop
     | ret : ValTyped env v a → CompTyped env (.ret v) a
     | force : ValTyped env v (.thunk a) → CompTyped env (.force v) a
     | bind : CompTyped env m a → CompTyped (extend env a) n b →
         CompTyped env (.bind m n) b
+    | unionCase : ValTyped env v (.union a b) →
+        CompTyped (extend env a) l c → CompTyped (extend env b) r c →
+        CompTyped env (.unionCase v l r) c
+    | chooseLeft : ValTyped env v (.intersection a b) → CompTyped env (.chooseLeft v) a
+    | chooseRight : ValTyped env v (.intersection a b) → CompTyped env (.chooseRight v) b
+    | absurd : ValTyped env v .bottom → CompTyped env (.absurd v) a
 end
 
 end YulangClosure.Original

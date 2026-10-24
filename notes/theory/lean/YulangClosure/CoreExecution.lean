@@ -8,6 +8,10 @@ No premise here asserts preservation. -/
 inductive Principal : Comp → Comp → Prop
   | letReturn : Principal (.bind (.ret v) n) (substComp (single v) n)
   | forceDelay : Principal (.force (.delay m)) m
+  | unionLeft : Principal (.unionCase (.inLeft v) l r) (substComp (single v) l)
+  | unionRight : Principal (.unionCase (.inRight v) l r) (substComp (single v) r)
+  | chooseLeft : Principal (.chooseLeft (.both v)) (.ret v)
+  | chooseRight : Principal (.chooseRight (.both v)) (.ret v)
 
 theorem principal_preservation (step : Principal m n) (ht : CompTyped env m a) :
     CompTyped env n a := by
@@ -22,6 +26,26 @@ theorem principal_preservation (step : Principal m n) (ht : CompTyped env m a) :
     | force hv =>
       cases hv with
       | delay hm => exact hm
+  | unionLeft =>
+    cases ht with
+    | unionCase hv hl hr =>
+      cases hv with
+      | inLeft hv => exact substitute_top hl hv
+  | unionRight =>
+    cases ht with
+    | unionCase hv hl hr =>
+      cases hv with
+      | inRight hv => exact substitute_top hr hv
+  | chooseLeft =>
+    cases ht with
+    | chooseLeft hv =>
+      cases hv with
+      | both ha hb => exact .ret ha
+  | chooseRight =>
+    cases ht with
+    | chooseRight hv =>
+      cases hv with
+      | both ha hb => exact .ret hb
 
 /-- These are syntax-bearing frames, not opaque registered body opcodes. -/
 inductive Frame where
@@ -75,6 +99,24 @@ theorem closed_thunk (hv : ValTyped emptyContext v (.thunk a)) :
   | var he => cases he
   | delay hm => exact ⟨_, rfl, hm⟩
 
+theorem closed_union (hv : ValTyped emptyContext v (.union a b)) :
+    (∃ w, v = .inLeft w ∧ ValTyped emptyContext w a) ∨
+    (∃ w, v = .inRight w ∧ ValTyped emptyContext w b) := by
+  cases hv with
+  | var he => cases he
+  | inLeft h => exact .inl ⟨_, rfl, h⟩
+  | inRight h => exact .inr ⟨_, rfl, h⟩
+
+theorem closed_intersection (hv : ValTyped emptyContext v (.intersection a b)) :
+    ∃ w, v = .both w ∧ ValTyped emptyContext w a ∧ ValTyped emptyContext w b := by
+  cases hv with
+  | var he => cases he
+  | both ha hb => exact ⟨_, rfl, ha, hb⟩
+
+theorem closed_bottom (hv : ValTyped emptyContext v .bottom) : False := by
+  cases hv with
+  | var he => cases he
+
 /-- A closed typed fragment state either returns a typed value at the empty
 stack or has a concrete next transition. No body-progress premise is used. -/
 theorem progress (ht : StateTyped emptyContext result s) :
@@ -90,6 +132,21 @@ theorem progress (ht : StateTyped emptyContext result s) :
       obtain ⟨m, rfl, hm⟩ := closed_thunk hv
       exact .inr ⟨_, .principal .forceDelay⟩
     | bind hm hn => exact .inr ⟨_, .enter⟩
+    | unionCase hv hl hr =>
+      cases closed_union hv with
+      | inl h =>
+        obtain ⟨v, rfl, hv⟩ := h
+        exact .inr ⟨_, .principal .unionLeft⟩
+      | inr h =>
+        obtain ⟨v, rfl, hv⟩ := h
+        exact .inr ⟨_, .principal .unionRight⟩
+    | chooseLeft hv =>
+      obtain ⟨v, rfl, ha, hb⟩ := closed_intersection hv
+      exact .inr ⟨_, .principal .chooseLeft⟩
+    | chooseRight hv =>
+      obtain ⟨v, rfl, ha, hb⟩ := closed_intersection hv
+      exact .inr ⟨_, .principal .chooseRight⟩
+    | absurd hv => exact (closed_bottom hv).elim
 
 theorem finite_safety (trace : YulangClosure.Prefix Step n s t)
     (ht : StateTyped emptyContext result s) :
@@ -132,6 +189,15 @@ inductive RawStep : RawState → RawState → Prop
   | letReturn : RawStep (rawLet (rawRet v) n, fs)
       (substituteRaw (rawSingle v) n, fs)
   | forceDelay : RawStep (rawForce (rawDelay m), fs) (m, fs)
+  | unionLeft : RawStep (rawUnionCase (rawIn false v) l r, fs)
+      (substituteRaw (rawSingle v) l, fs)
+  | unionRight : RawStep (rawUnionCase (rawIn true v) l r, fs)
+      (substituteRaw (rawSingle v) r, fs)
+  | chooseLeft : RawStep (rawChoose false (rawProofBoth v), fs) (rawRet v, fs)
+  | chooseRight : RawStep (rawChoose true (rawProofBoth v), fs) (rawRet v, fs)
+  | unionUnitBad : RawStep (rawUnionCase (.atom (.literal .unit)) l r, fs) (rawBad, fs)
+  | chooseUnitBad : RawStep (rawChoose side (.atom (.literal .unit)), fs) (rawBad, fs)
+  | absurdUnitBad : RawStep (rawAbsurd (.atom (.literal .unit)), fs) (rawBad, fs)
   /-- This known wrong constructor is rejected. No rule declares View/graph/
   type-application operands bad merely because their surface is not Delay. -/
   | forceUnitBad : RawStep (rawForce (.atom (.literal .unit)), fs) (rawBad, fs)
@@ -151,6 +217,16 @@ theorem step_raw (h : Step s t) : RawStep s.raw t.raw := by
       rw [← single_raw]
       exact .letReturn
     | forceDelay => exact .forceDelay
+    | unionLeft =>
+      simp only [State.raw, Comp.raw, Val.raw]
+      rw [← single_raw]
+      exact .unionLeft
+    | unionRight =>
+      simp only [State.raw, Comp.raw, Val.raw]
+      rw [← single_raw]
+      exact .unionRight
+    | chooseLeft => exact .chooseLeft
+    | chooseRight => exact .chooseRight
 
 /-- Backwards step correspondence, crucial for safety of RAW execution rather
 than just its chosen typed reduction. Every possible raw step from a closed
@@ -184,6 +260,39 @@ theorem raw_step_lifts (ht : StateTyped emptyContext result s)
       | bind hm hn =>
         cases hx
         exact ⟨_, rfl, .enter⟩
+      | unionCase hv hl hr =>
+        cases hx
+        exact ⟨_, rfl, .enter⟩
+      | chooseLeft hv =>
+        cases hx
+        exact ⟨_, rfl, .enter⟩
+      | chooseRight hv =>
+        cases hx
+        exact ⟨_, rfl, .enter⟩
+      | absurd hv =>
+        cases hx
+        exact ⟨_, rfl, .enter⟩
+    | unionCase hv hl hr =>
+      cases closed_union hv with
+      | inl h =>
+        obtain ⟨v, rfl, hv⟩ := h
+        cases hx with
+        | unionLeft =>
+          exact ⟨_, by simp only [State.raw, single_raw], .principal .unionLeft⟩
+      | inr h =>
+        obtain ⟨v, rfl, hv⟩ := h
+        cases hx with
+        | unionRight =>
+          exact ⟨_, by simp only [State.raw, single_raw], .principal .unionRight⟩
+    | chooseLeft hv =>
+      obtain ⟨v, rfl, ha, hb⟩ := closed_intersection hv
+      cases hx with
+      | chooseLeft => exact ⟨_, rfl, .principal .chooseLeft⟩
+    | chooseRight hv =>
+      obtain ⟨v, rfl, ha, hb⟩ := closed_intersection hv
+      cases hx with
+      | chooseRight => exact ⟨_, rfl, .principal .chooseRight⟩
+    | absurd hv => exact (closed_bottom hv).elim
 
 def RawStateTyped (result : Ty) (r : RawState) : Prop :=
   ∃ s, r = s.raw ∧ StateTyped emptyContext result s
@@ -225,29 +334,30 @@ theorem raw_finite_safety (ht : RawStateTyped result r)
   exact ⟨typed, raw_not_bad typed, raw_progress typed⟩
 
 /-!
-LEAN-CORE-20261024/r1, jointly completed by primary after producer actual STOP.
+LEAN-STRUCTURAL-20261024/r1, producer construction and primary post-STOP repair.
 
-Full raw constructor vocabulary and four namespace binding traversal are defined;
-renaming/substitution identity/composition are proved over ALL Raw/Forest terms.
-Raw arity/sort/original constructor-specific typing remain OPEN.
+Added union injection/case (each arm independently binds one payload), Top,
+Bottom elimination (no Bottom introduction), and one-value intersection/choose.
+The computational representation erases only d1/d2 : Prop derivations.
+ValTyped.both requires two judgments on the identical v; principal preservation
+selects the corresponding judgment and returns that same v. This is NOT runtime
+View removal. Each choose remains one actual principal step. rawProofBoth is
+this proof-erased image; rawBoth retains the separate explicit-evidence syntax.
+Correspondence to executable evidence outside this image remains OPEN, as do
+all runtime View rules. No erasure of runtime metadata/receipts is authorized.
 
-Typed coverage is exactly unit/variable/delay + Ret/Force/let. Contexts are partial;
-emptyContext is truly empty. Within that scope, typed renaming/substitution,
-raw embedding commutation, let/Force principal preservation, syntax-bearing
-stack entry, progress, backwards correspondence for EVERY raw step and all-finite
-raw safety are proved. Malformed raw Force reaches rawBad; the backwards proof
-excludes it from closed typed images. No body-safety premise is assumed here.
+All former raw algebra is unchanged. The SAME raw_finite_safety now quantifies
+the enlarged RawStep and typed image, including new malformed-unit Bad rules.
+Typed renaming/substitution, raw embedding, canonical forms, preservation,
+progress and lifting of EVERY raw successor have passed primary Lean checking.
+The first check found a shadowed renaming variable in the new unionCase branch;
+primary repaired it and removed unused simp arguments after actual worker STOP.
+Checks and independent review have separate receipts in the sprint outcome.
 
-This does not prove original full V1 or instantiate Control.BodyLaws. Original
-Call/Resume/type beta/intersection/tuple/record/variant/nominal/guarded graph,
-lookup/switch/primitives/perform/handler/mapop/eabs/eapp rules and type safety
-remain owning obligations. Eapp must retain admin.effect/result and direct
-result adapters before Yes. Existing Control modules are unchanged; their body
-hook still needs a syntax-bearing stack-prefix extension and a real original
-value/type interpretation. No Core-to-Nat cast or dummy Analysis is supplied.
-
-Original whole source, source/native, extrusion/intrusion/SCC A/B, coverage,
-principality and inference termination remain OPEN. Kernel checks and independent
-review receipts are recorded separately; no project axioms or proof holes.
+Still OPEN: full original constructor typing/type-evidence substitution,
+Call/Resume/type beta/tuple/record/variant/nominal/guarded graph/primitive/perform/
+handler/mapop/eabs/eapp; actual Control stack-prefix connection and real value
+interpretation; full original source/native/A-B/coverage/principality/termination.
+No original full V1/BodyLaws/LocalLaws closure is claimed.
 -/
 end YulangClosure.Original

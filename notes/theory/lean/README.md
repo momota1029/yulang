@@ -9,7 +9,7 @@ LEAN-ROOT-20261024/r2、LEAN-CONTROL-20261024/r1。**元 Yulang 全体の証明�
 - `YulangClosure/ControlSyntax.lean`: 型証拠を持たない七 frame、順序付き value/operation search、Wait、effectful mapper、Ret/Req/Fail/Bad、current-world resume。
 - `YulangClosure/ControlTyping.lean`: 独立した値・frame・stack・K・packet・候補列の型付け、append/capture、run head だけを対象とする `BodyLaws`。
 - `YulangClosure/ControlComposition.lean`: 全 control 保存・進行、response plugging、有限 raw trace の failure 吸収、外部 resume を含む全有限 trace の型安全性、既存 root `LocalLaws` への具体的な四つの安全性 field の供給。
-- `YulangClosure/CoreSyntax.lean`: 元 constructor 名を持つ raw 木と四つの binder namespace。型付き導出は unit/variable/delay + Ret/Force/let の範囲。
+- `YulangClosure/CoreSyntax.lean`: 元 constructor 名を持つ raw 木と四つの binder namespace。型付き導出は unit/variable/delay + Ret/Force/let、union/intersection/Top/Bottom の構造規則。
 - `YulangClosure/CoreSubstitution.lean`: 全 raw 木に対する代入・改名の合成則、上記範囲の型付き代入、raw embedding との可換性。
 - `YulangClosure/CoreExecution.lean`: 実 let/Force と枠の追加/消費、閉じた型付き範囲の進行、全 raw step の逆方向対応、任意有限 raw trace の安全性。
 
@@ -95,3 +95,10 @@ LEAN-CORE-20261024/r1。[元構文との対応稿](../2026-10-24-lean-core-corre
 `substComp_typed`、`single_raw`、`raw_step_lifts`、`raw_finite_safety` は、unit/variable/delay + Ret/Force/let の実構文を扱う。空文脈を持つ型付けから、代入による principal step と bind frame の実生成を証明した。raw 側には不正 Force→Bad の規則もあり、逆方向の step 対応がそれを型付き image から排除する。型付き step だけを検査して全 raw execution を推測してはいない。
 
 既存 Control の body dispatch は unchanged-stack のままであり、全元値と syntax-bearing frame を接続する bridge は未完である。今回の小範囲の safety を full V1/BodyLaws や全言語の定理へ読み替えない。次の義務は同じ raw vocabulary の全 constructor typing、full body/principal semantics と control 接続である。独立査読は raw 代入代数と明記した型付き範囲を受理した。全言語への昇格はしていない。検査・固定版は [core outcome](../../../tasks/agent-loop/sprints/lean-core-20261024-outcome.md) に記録する。
+
+
+## 同じ型安全性定理の構造型への拡張
+
+LEAN-STRUCTURAL-20261024/r1。union injection/case、同じ値への二つの導出を持つ intersection/choose、Top、Bottom elimination を、既存の `Original.raw_finite_safety` に組み込んだ。両 branch の型付き代入、raw embedding、canonical forms、principal 保存、進行、**拡張した RawStep の全 successor** の逆方向対応を検査した。式本体の安全性を新しく仮定していない。
+
+intersection の Prop 型証拠のみを計算表現で消去する `rawProofBoth` と、明示 evidence を保持する `rawBoth` は別である。任意の明示 evidence/runtime View/metadata の消去定理を主張しない。全元型の型付き代入、Control への接続、source/native/SCC の親義務は OPEN のままである。[対応と限界](../2026-10-24-lean-core-correspondence.md)、[検査・査読記録](../../../tasks/agent-loop/sprints/lean-structural-20261024-outcome.md)を参照。

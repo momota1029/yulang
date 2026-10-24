@@ -320,8 +320,8 @@ Lean 4.35.0 の module 検査と `lake build` は成功し、上記四定理の 
 
 ### 6.2 元構文の代入と具体的な principal step
 
-[元構文・代入の対応稿](../notes/theory/2026-10-24-lean-core-correspondence.md)は、元 constructor 名を持つ raw 木、四つの binder namespace、全 raw 木の改名/代入の合成則を Lean で与える。元の全 arity/sort/typing を定義したものではなく、型付き代入が閉じた範囲は unit/variable/delay + Ret/Force/let に限る。
+[元構文・代入の対応稿](../notes/theory/2026-10-24-lean-core-correspondence.md)は、元 constructor 名を持つ raw 木、四つの binder namespace、全 raw 木の改名/代入の合成則を Lean で与える。元の全 arity/sort/typing を定義したものではなく、型付き代入の範囲は unit/variable/delay + Ret/Force/let と、union injection/case、同一値の intersection/choose、Top、Bottom elimination である。
 
-この範囲では `let` が実際に syntax-bearing frame を積み、return と Force が実代入・本体を開始する。式本体の保存・進行という仮定を置かず、閉じた型付き初期状態からの全 raw step に対する逆方向対応と `raw_finite_safety` を証明した。不正 raw Force→Bad も定義し、型導出から排除する。全有限 trace は既存 root と同じ Prefix を使う。
+この範囲では `let` が実際に syntax-bearing frame を積み、return と Force が実代入・本体を開始する。式本体の保存・進行という仮定を置かず、閉じた型付き初期状態からの全 raw step に対する逆方向対応と `raw_finite_safety` を証明した。不正 raw Force/unioncase/choose/absurd の unit 引数が Bad に進む場合も定義し、型導出から排除する。intersection では一つの値に対する二導出を使い、選んだ証明だけを型保存に渡す。計算表現で消すのはこの型証拠であり、実行時 View/metadata の消去は未証明である。全有限 trace は既存 root と同じ Prefix を使う。
 
-全元 constructor の typing、Call/Resume/eabs/eapp/primitive/graph 等、既存 Control の body hook と新構文の接続は未完である。元全体目標をこの小範囲へ縮小しない。[検査と査読記録](../tasks/agent-loop/sprints/lean-core-20261024-outcome.md)に範囲と不足を残す。
+全元 constructor の typing、Call/Resume/eabs/eapp/primitive/graph 等、既存 Control の body hook と新構文の接続は未完である。元全体目標をこの小範囲へ縮小しない。[最初の核の記録](../tasks/agent-loop/sprints/lean-core-20261024-outcome.md)と[構造型への拡張記録](../tasks/agent-loop/sprints/lean-structural-20261024-outcome.md)に範囲と不足を残す。

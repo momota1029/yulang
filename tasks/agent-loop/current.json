@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "LEAN-CORE-20261024",
+  "sprint_id": "LEAN-STRUCTURAL-20261024",
   "phase": "FROZEN_REVIEWED",
-  "contract": "tasks/agent-loop/sprints/lean-core-20261024.md",
-  "baseline": "23819fbf76d7de467e19a5edbe5222eaefd71d84",
+  "contract": "tasks/agent-loop/sprints/lean-structural-20261024.md",
+  "baseline": "f1c08808ae575cdc3032442ac3c98f4e4a7c9ca5",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Proof construction/checking STOPPED; scoped core result independently accepted and frozen. Primary final explicit Git integration only. Whole goal ACTIVE and full body/control obligations retained.",
+      "receipt": "Proof construction/checker and independent review STOPPED/frozen; primary explicit Git integration only. Whole goal ACTIVE; source-branch target terminology clarification pending.",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Actual30sec FINAL identifies unchanged-stack entry defect; proposes full syntax/substitution/concrete frame entry; no writes/descendants"
+      "receipt": "Current30sec FINAL: extend same structural allrawtrace theorem; actualSTOP no writes"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Actual190sec FINAL freezes3Coremodules; raw full vocabulary but typed unit/var/delay Ret/Force/let only; no descendants; checkerpending"
+      "receipt": "Actual190sec FINAL structural3files frozen, no descendants/checker, candidate hashes in outcome; primary takes coauthor/checker lease"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Actual80sec FINAL accepts full raw algebra and exact typedfragment; no BLOCKING/MAJOR;1MINOR eabsnamespace clarification handled in prose/comments; no writes/checker/descendants"
+      "receipt": "Actual80sec FINAL accepts stated structural fragment; all8hashes/contract/outcome match, no BLOCKING/MAJOR; no writes/checker/descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -43,15 +43,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Primary coauthored core checking/extension complete; full raw algebra and exact typed fragment frozen for independent review",
-      "sha256": "68d12bcd3758c17283683061ae82a6d8acd8141795bc7e74c539e9ada558d892"
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "17f7518e72f5977b17ce085523adc788ba72a472041555fd18a24da96b4c79a5"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Primary coauthored core checking/extension complete; full raw algebra and exact typed fragment frozen for independent review",
-      "sha256": "c847f492915570945e5996231643705e034981f6d8f8dab1d570608d9a633662"
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "bb2d07bfe7bbbd4ad7364831ea2608ba94ef54514ae7a37b1a9724ac3891bb10"
     },
     {
       "path": "notes/theory/2026-10-24-actual-copy-history-transport.md",
@@ -85,8 +85,8 @@
       "path": "notes/theory/lean/README.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Accepted scoped review; postreview comment/prose-only status and eabs lexicalencoding clarification; no theorem changes",
-      "sha256": "d2ad32c5b2fa79881e972c53f9d890656fe19e099dd29d5d7e164c466889c3a9"
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "2c29c8abd8902afddef747dadab0279a5fc2d47f2e80d81aa9c6bfe1f2b3409d"
     },
     {
       "path": "notes/theory/lean/lakefile.toml",
@@ -113,8 +113,8 @@
       "path": "notes/theory/lean/YulangClosure.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Primary coauthored core checking/extension complete; full raw algebra and exact typed fragment frozen for independent review",
-      "sha256": "3a6b610ab3041f531445dab0605cb838273c76dd3a3daec144c7a08cbbcd9ff0"
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "5af826a59689a21294b36f361df95cceae8dc78b674c523e789a0e7e7bc1614d"
     },
     {
       "path": "notes/theory/lean/lake-manifest.json",
@@ -155,29 +155,29 @@
       "path": "notes/theory/lean/YulangClosure/CoreSyntax.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Accepted scoped review; postreview comment/prose-only status and eabs lexicalencoding clarification; no theorem changes",
-      "sha256": "1253b796473c1cca0ef21e8819b6e87575d7f5cdd9f26fc4e5f10b59ef7df712"
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "4c036531cdd599799d0b943b4c8e2f1398aa91f5cf32296d7d6c50be1ff7a001"
     },
     {
       "path": "notes/theory/lean/YulangClosure/CoreSubstitution.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Primary coauthored core checking/extension complete; full raw algebra and exact typed fragment frozen for independent review",
-      "sha256": "980a7b196d398af84ecd681b057030d4a7d2eb7f9a36d143432fd01819656f35"
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "6d7d5da463480fbb618072b086c5092452575c56526579e4f898babd37b4567c"
     },
     {
       "path": "notes/theory/lean/YulangClosure/CoreExecution.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Primary coauthored core checking/extension complete; full raw algebra and exact typed fragment frozen for independent review",
-      "sha256": "e2f348e696a2f22c69ac7e95270a4020e6aaa638e59a5e271356880baa248e87"
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "2cc68ffc79f17c0cb478802fec10ca2861e1a558a8202796bd7599595e5907ed"
     },
     {
       "path": "notes/theory/2026-10-24-lean-core-correspondence.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Accepted scoped review; postreview comment/prose-only status and eabs lexicalencoding clarification; no theorem changes",
-      "sha256": "4dd2b9dfd2580c614129e3701be47aea979c548542955d5150e184805133ccbf"
+      "receipt": "Structural kernelchecked coherent target frozen for fresh independent review",
+      "sha256": "5aa9c3c417c98b3f6e69e3cb1ecb8872b49db836a10d0ca72e2606c0399dcbb0"
     }
   ],
   "external_isolation": {
@@ -197,7 +197,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Control finite-trace safety/root4fields checked/reviewed. Full raw4namespace substitution algebra now checked; concrete unit/var/delay Ret/Force/let typed substitution/entry and allrawtrace safety proved with backwards correspondence. Full original constructor typing/principal bodies/BodyLaws and syntaxbearingControlstackprefixbridge remainOPEN; actual CM/H metadata/full observations/AnalysisLaws/sourceinitial/native correspondence remain."
+      "missing": "Core raw4namespace algebra and typed unit/var/delay Ret/Force/let plus union/intersection/Top/Bottom substitution/principal/canonical/allrawfinite safety now checked/reviewed. General explicit evidence/runtimeViews, full constructor typing/type-evidence substitution, syntax-bearing Control stack-prefix/actual body/value interpretation remain; CM/H metadata/full observations/AnalysisLaws/sourceinitial/native correspondence still OPEN."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -221,12 +221,12 @@
   ],
   "review": {
     "reviewer": "/root/astra_semantics_review",
-    "outcome": "tasks/agent-loop/sprints/lean-core-20261024-outcome.md",
-    "outcome_sha256": "d448553e379614a1d17c3d41ec36a6855513c2265b5a4ab1ad9f7b870f393e00",
+    "outcome": "tasks/agent-loop/sprints/lean-structural-20261024-outcome.md",
+    "outcome_sha256": "d23bb9242d84afa0e48fa7ef15871dee0038a64b09d167f58d21681f74698f82",
     "whole_language_certified": false
   },
   "resource": {
-    "astra_reserved_seconds": 10250,
+    "astra_reserved_seconds": 10550,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -236,15 +236,15 @@
     "checkpoint_direction_reserved_seconds": 30,
     "successor_review_reserved_seconds": 80
   },
-  "next_action": "Extend same extrinsic original typing/substitution to actual remaining constructors (including type/evidence binders and one-valueintersection), construct syntax-bearing stack-prefix Control interface and original body interpretation. No new opaque BodyLaws assumption or tag-only milestone; next bounded sprint required.",
-  "closure": "Whole goal ACTIVE/OPEN; full raw substitution algebra and exact typed core fragment safety checked/reviewed; full V1/body/control bridge and original source/A-B remain open; AH/RZ unreviewed",
-  "previous_outcome": "tasks/agent-loop/sprints/lean-control-20261024-outcome.md",
-  "previous_outcome_sha256": "e7d5eaeb5f787d3fc811d3018427b41610fd5f2dcfd59ffca2af1753c9af1b63",
-  "goal_turn_classification": "PROGRESS: full raw4namespace substitution composition and genuine typedfragment substitutions/reductions, backwards allrawstep correspondence and finite safety; exact first control/body integration defect retained as OPEN",
+  "next_action": "Extend same original typing/substitution/execution through concrete tuple/record/variant/nominal structural eliminators with arity/presence and everyrawsuccessor coverage. General evidence/Control/fullsource/A-B remain OPEN. User clarified Branch source terminology; integration vs environment target awaits response.",
+  "closure": "Whole goal ACTIVE/OPEN; same rawfinite theorem enlarged to proof-erased structural union/intersection/Top/Bottom, checked and independently accepted. Full original typing/evidence/Control/source/A-B remain open; AH/RZ unreviewed.",
+  "previous_outcome": "tasks/agent-loop/sprints/lean-core-20261024-outcome.md",
+  "previous_outcome_sha256": "d448553e379614a1d17c3d41ec36a6855513c2265b5a4ab1ad9f7b870f393e00",
+  "goal_turn_classification": "PROGRESS: actual structural typing/substitution/principal/canonical/rawbackwards/allfinite theorem extended in same machine and independently reviewed; full original parent not narrowed",
   "history": {
     "path": "tasks/agent-loop/sprints/lean-root-20261024-prior-state.json",
     "sha256": "5220044a112a56c3b51fed07992fe60632ac286cae371f1447ae68e5d60b2289",
     "scope": "Previous exact leases and charged resources; unresolved AH/RZ retained in current state"
   },
-  "contract_sha256": "c815ccfe4e6f98e888ec5b94851a10f8a780224b9e353f428c2adbedc094f9c1"
+  "contract_sha256": "eac1799aa53a7153a6d6ef3b138175c214c4a10b31f984799c56232238ed09ca"
 }

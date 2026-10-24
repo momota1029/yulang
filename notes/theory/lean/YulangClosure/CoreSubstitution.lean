@@ -245,10 +245,18 @@ mutual
     | .var i => .var (r i)
     | .unit => .unit
     | .delay m => .delay (renameComp r m)
+    | .inLeft v => .inLeft (renameVal r v)
+    | .inRight v => .inRight (renameVal r v)
+    | .both v => .both (renameVal r v)
+    | .top v => .top (renameVal r v)
   def renameComp (r : Nat → Nat) : Comp → Comp
     | .ret v => .ret (renameVal r v)
     | .force v => .force (renameVal r v)
     | .bind m n => .bind (renameComp r m) (renameComp (up r) n)
+    | .unionCase v l body => .unionCase (renameVal r v) (renameComp (up r) l) (renameComp (up r) body)
+    | .chooseLeft v => .chooseLeft (renameVal r v)
+    | .chooseRight v => .chooseRight (renameVal r v)
+    | .absurd v => .absurd (renameVal r v)
 end
 
 def lift (s : Nat → Val) : Nat → Val
@@ -260,10 +268,18 @@ mutual
     | .var i => s i
     | .unit => .unit
     | .delay m => .delay (substComp s m)
+    | .inLeft v => .inLeft (substVal s v)
+    | .inRight v => .inRight (substVal s v)
+    | .both v => .both (substVal s v)
+    | .top v => .top (substVal s v)
   def substComp (s : Nat → Val) : Comp → Comp
     | .ret v => .ret (substVal s v)
     | .force v => .force (substVal s v)
     | .bind m n => .bind (substComp s m) (substComp (lift s) n)
+    | .unionCase v l r => .unionCase (substVal s v) (substComp (lift s) l) (substComp (lift s) r)
+    | .chooseLeft v => .chooseLeft (substVal s v)
+    | .chooseRight v => .chooseRight (substVal s v)
+    | .absurd v => .absurd (substVal s v)
 end
 
 mutual
@@ -273,11 +289,26 @@ mutual
     | var he => exact .var ((hr _).trans he)
     | unit => exact .unit
     | delay hm => exact .delay (renameComp_typed hm hr)
+    | inLeft hv => exact .inLeft (renameVal_typed hv hr)
+    | inRight hv => exact .inRight (renameVal_typed hv hr)
+    | top hv => exact .top (renameVal_typed hv hr)
+    | both ha hb => exact .both (renameVal_typed ha hr) (renameVal_typed hb hr)
   theorem renameComp_typed (h : CompTyped env m a)
       (hr : ∀ i, target (r i) = env i) : CompTyped target (renameComp r m) a := by
     cases h with
     | ret hv => exact .ret (renameVal_typed hv hr)
     | force hv => exact .force (renameVal_typed hv hr)
+    | chooseLeft hv => exact .chooseLeft (renameVal_typed hv hr)
+    | chooseRight hv => exact .chooseRight (renameVal_typed hv hr)
+    | absurd hv => exact .absurd (renameVal_typed hv hr)
+    | unionCase hv hl hrbody =>
+      apply CompTyped.unionCase (renameVal_typed hv hr)
+      · apply renameComp_typed hl
+        intro i
+        cases i <;> simp [up, extend, hr]
+      · apply renameComp_typed hrbody
+        intro i
+        cases i <;> simp [up, extend, hr]
     | bind hm hn =>
       apply CompTyped.bind (renameComp_typed hm hr)
       apply renameComp_typed hn
@@ -293,12 +324,37 @@ mutual
     | var he => exact hs _ _ he
     | unit => exact .unit
     | delay hm => exact .delay (substComp_typed hm hs)
+    | inLeft hv => exact .inLeft (substVal_typed hv hs)
+    | inRight hv => exact .inRight (substVal_typed hv hs)
+    | top hv => exact .top (substVal_typed hv hs)
+    | both ha hb => exact .both (substVal_typed ha hs) (substVal_typed hb hs)
   theorem substComp_typed (h : CompTyped env m a)
       (hs : ∀ i a, env i = some a → ValTyped target (s i) a) :
       CompTyped target (substComp s m) a := by
     cases h with
     | ret hv => exact .ret (substVal_typed hv hs)
     | force hv => exact .force (substVal_typed hv hs)
+    | chooseLeft hv => exact .chooseLeft (substVal_typed hv hs)
+    | chooseRight hv => exact .chooseRight (substVal_typed hv hs)
+    | absurd hv => exact .absurd (substVal_typed hv hs)
+    | unionCase hv hl hrbody =>
+      apply CompTyped.unionCase (substVal_typed hv hs)
+      · apply substComp_typed hl
+        intro i a he
+        cases i with
+        | zero =>
+          simp only [extend, Option.some.injEq] at he
+          subst a
+          exact .var rfl
+        | succ i => exact renameVal_typed (hs i a he) (fun _ => rfl)
+      · apply substComp_typed hrbody
+        intro i a he
+        cases i with
+        | zero =>
+          simp only [extend, Option.some.injEq] at he
+          subst a
+          exact .var rfl
+        | succ i => exact renameVal_typed (hs i a he) (fun _ => rfl)
     | bind hm hn =>
       apply CompTyped.bind (substComp_typed hm hs)
       apply substComp_typed hn
@@ -331,6 +387,18 @@ mutual
     cases v with
     | var i => simp only [Val.raw, renameVal, renameRaw, hq]
     | unit => rfl
+    | inLeft v =>
+      simp only [Val.raw, renameVal, rawIn, Forest.two, renameRaw, renameForest,
+        renameVal_raw v r q hq]
+    | inRight v =>
+      simp only [Val.raw, renameVal, rawIn, Forest.two, renameRaw, renameForest,
+        renameVal_raw v r q hq]
+    | both v =>
+      simp only [Val.raw, renameVal, rawProofBoth, Forest.one, renameRaw, renameForest,
+        renameVal_raw v r q hq]
+    | top v =>
+      simp only [Val.raw, renameVal, rawTop, Forest.one, renameRaw, renameForest,
+        renameVal_raw v r q hq]
     | delay m =>
       simpa only [Val.raw, rawDelay, Forest.one, renameRaw, renameForest, renameVal]
         using congrArg (fun x => rawDelay x) (renameComp_raw m r q hq)
@@ -344,6 +412,22 @@ mutual
     | force v =>
       simpa only [Comp.raw, rawForce, Forest.one, renameRaw, renameForest, renameComp]
         using congrArg rawForce (renameVal_raw v r q hq)
+    | chooseLeft v =>
+      simp only [Comp.raw, renameComp, rawChoose, Forest.two, renameRaw, renameForest,
+        renameVal_raw v r q hq]
+    | chooseRight v =>
+      simp only [Comp.raw, renameComp, rawChoose, Forest.two, renameRaw, renameForest,
+        renameVal_raw v r q hq]
+    | absurd v =>
+      simp only [Comp.raw, renameComp, rawAbsurd, Forest.one, renameRaw, renameForest,
+        renameVal_raw v r q hq]
+    | unionCase v l rbody =>
+      have hu : ∀ i, liftRenaming .value q .value i = up r i := by
+        intro i
+        cases i <;> simp only [liftRenaming, up, ↓reduceIte, hq]
+      simp only [Comp.raw, renameComp, rawUnionCase, Forest.two, renameRaw, renameForest,
+        renameVal_raw v r q hq, renameComp_raw l (up r) (liftRenaming .value q) hu,
+        renameComp_raw rbody (up r) (liftRenaming .value q) hu]
     | bind m n =>
       have hu : ∀ i, liftRenaming .value q .value i = up r i := by
         intro i
@@ -361,6 +445,18 @@ mutual
     cases v with
     | var i => exact hq i
     | unit => rfl
+    | inLeft v =>
+      simp only [Val.raw, substVal, rawIn, Forest.two, substituteRaw, substituteForest,
+        substVal_raw v s q hq]
+    | inRight v =>
+      simp only [Val.raw, substVal, rawIn, Forest.two, substituteRaw, substituteForest,
+        substVal_raw v s q hq]
+    | both v =>
+      simp only [Val.raw, substVal, rawProofBoth, Forest.one, substituteRaw, substituteForest,
+        substVal_raw v s q hq]
+    | top v =>
+      simp only [Val.raw, substVal, rawTop, Forest.one, substituteRaw, substituteForest,
+        substVal_raw v s q hq]
     | delay m =>
       simpa only [Val.raw, rawDelay, Forest.one, substituteRaw, substituteForest, substVal]
         using congrArg rawDelay (substComp_raw m s q hq)
@@ -374,6 +470,26 @@ mutual
     | force v =>
       simpa only [Comp.raw, rawForce, Forest.one, substituteRaw, substituteForest, substComp]
         using congrArg rawForce (substVal_raw v s q hq)
+    | chooseLeft v =>
+      simp only [Comp.raw, substComp, rawChoose, Forest.two, substituteRaw, substituteForest,
+        substVal_raw v s q hq]
+    | chooseRight v =>
+      simp only [Comp.raw, substComp, rawChoose, Forest.two, substituteRaw, substituteForest,
+        substVal_raw v s q hq]
+    | absurd v =>
+      simp only [Comp.raw, substComp, rawAbsurd, Forest.one, substituteRaw, substituteForest,
+        substVal_raw v s q hq]
+    | unionCase v l rbody =>
+      have hu : ∀ i, liftSubstitution .value q .value i = (lift s i).raw := by
+        intro i
+        cases i with
+        | zero => rfl
+        | succ i =>
+          simp only [liftSubstitution, ↓reduceIte, hq, lift]
+          exact renameVal_raw (s i) Nat.succ _ (fun _ => rfl)
+      simp only [Comp.raw, substComp, rawUnionCase, Forest.two, substituteRaw, substituteForest,
+        substVal_raw v s q hq, substComp_raw l (lift s) (liftSubstitution .value q) hu,
+        substComp_raw rbody (lift s) (liftSubstitution .value q) hu]
     | bind m n =>
       have hu : ∀ i, liftSubstitution .value q .value i = (lift s i).raw := by
         intro i

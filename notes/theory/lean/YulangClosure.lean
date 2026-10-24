@@ -20,3 +20,6 @@ import YulangClosure.CoreExecution
 #print axioms YulangClosure.Original.single_raw
 #print axioms YulangClosure.Original.raw_step_lifts
 #print axioms YulangClosure.Original.raw_finite_safety
+
+#print axioms YulangClosure.Original.principal_preservation
+#print axioms YulangClosure.Original.closed_bottom

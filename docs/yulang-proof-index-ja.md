@@ -8,7 +8,7 @@
 
 [全体証明の主定理と現在の到達点](yulang-whole-proof-closure-ja.md)は、査読済みの生成・有限 interface・値型/継続の結果を定理 C として合成する。全言語への接続と元の推論 A/B を別の未完了義務として明示する。
 
-[Leanによる全体定理の接続](../notes/theory/lean/README.md)は、その合成を機械検査するための証明プロジェクトである。任意有限 prefix と繰返し再開の合成定理、および未構成の source・推論・coverage・停止性の義務を分離する。具体的な Yulang machine/typing/cell/source instance を供給する前の条件付き定理であり、Lean の検査成功を全言語の証明完了と同一視しない。査読・検査の正確な状態は同 README と sprint outcome に記す。 制御層は [七 frame の対応稿](../notes/theory/2026-10-24-lean-control-correspondence.md)で具体化し、全 control 保存・進行と、外部再開を含む全有限 trace の型安全性を Lean で検査した。元値/metadata/全 body/source への対応はなお未完である。 [元構文・代入](../notes/theory/2026-10-24-lean-core-correspondence.md)には全 raw 木の代入合成と、unit/variable/delay + Ret/Force/let の全 raw trace 安全性を追加した。full constructor typing と control/body bridge は未完である。
+[Leanによる全体定理の接続](../notes/theory/lean/README.md)は、その合成を機械検査するための証明プロジェクトである。任意有限 prefix と繰返し再開の合成定理、および未構成の source・推論・coverage・停止性の義務を分離する。具体的な Yulang machine/typing/cell/source instance を供給する前の条件付き定理であり、Lean の検査成功を全言語の証明完了と同一視しない。査読・検査の正確な状態は同 README と sprint outcome に記す。 制御層は [七 frame の対応稿](../notes/theory/2026-10-24-lean-control-correspondence.md)で具体化し、全 control 保存・進行と、外部再開を含む全有限 trace の型安全性を Lean で検査した。元値/metadata/全 body/source への対応はなお未完である。 [元構文・代入](../notes/theory/2026-10-24-lean-core-correspondence.md)には全 raw 木の代入合成と、unit/variable/delay + Ret/Force/let、union/intersection/Top/Bottom の構造規則を含む全 raw trace 安全性を追加した。intersection は同じ値の二導出を用い、消すのは型証拠だけである。full constructor typing と control/body bridge は未完である。
 
 intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/design/2026-10-24-birth-level-scc-intrusion.md)に従う。以下の旧稿の跨レベル F/G・O/E qualification とその拒否履歴は旧規則についての結果として保持し、現行規則へそのまま適用しない。
 
