@@ -88,13 +88,13 @@
   {
    "id": "/root/natural_conditional_result_prover",
    "role": "proof producer",
-   "state": "NOT_STARTED",
-   "session": null,
+   "state": "RUNNING",
+   "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-2",
    "requested_model": "configured prover role",
    "requested_effort": "configured role effort",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Exact note/inbox assignment prepared; awaiting actual launch."
+   "receipt": "collaboration.spawn_agent acknowledged `/root/natural_conditional_result_prover`; exact two-file proof assignment launched. Numeric session/model/effort metadata UNKNOWN."
   }
  ],
  "leases": [
@@ -240,7 +240,7 @@
   }
  ],
  "closure": "R149 remains PARTIAL_REVIEWED and A/B OPEN. NATURAL-CONDITIONAL-RESULT sprint active; no source or proof result yet. Three legacy reservations remain UNKNOWN_QUARANTINED.",
- "next_action": "Freeze isolated worktree, then launch the exact proof assignment. Do not edit scheme.rs until fresh proof review; preserve all UNKNOWN reservations and do not copy back/merge.",
+ "next_action": "Proof producer is active on the frozen note/inbox leases. Luna edits no source until independent proof review.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "Three UNKNOWN identities remain quarantined. Their exact old implementation/proof scopes are unspecified; all new source and proof work is isolated in a fresh worktree, with no merge/copy-back until confirmed cessation/lease handoff.",
@@ -346,5 +346,5 @@
    "outcome_sha256": "4b3e5e822724e78dab6e831f2d7131a28a22bfc3b2b0390fe3dd676193a6a2b7"
   }
  ],
- "resource_observation": "Current sprint started from clean d788; dependency hashes match frozen contract. Static agent_sprint.py check passed. Proof worker not launched yet; no compile/tests/runtime executed."
+ "resource_observation": "Worktree created at b1130f5c8 with source dependencies matching d788. Proof producer launch acknowledged as /root/natural_conditional_result_prover; session/model/effort metadata unavailable. No compile/tests/runtime."
 }
