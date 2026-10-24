@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "RETAINED-GRAPH-REPLAY-20261024",
+  "sprint_id": "REPLAY-RECEIVER-PROOF-20261024",
   "phase": "REVIEWED_CHECKPOINT_OPEN",
-  "contract": "tasks/agent-loop/sprints/retained-graph-replay-20261024.md",
-  "baseline": "14860b9ba4792c74bfb4d8610cc3ff10b5d0578f",
+  "contract": "tasks/agent-loop/sprints/replay-receiver-proof-20261024.md",
+  "baseline": "aab952fa1c1ecd66c5f785262976de0b9d8727d9",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Current graph proof/document construction ended; only final static/Git integration/report; no background work",
+      "receipt": "Proof construction ended; reviewed finite native result and restricted source result integrated; final static/Git integration only",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30s full retained graph/SCC method selected; STOP/no descendants"
+      "receipt": "Current30s source-labelled delayed-expansion method/source owners selected; STOP/no descendants"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Current graph producer frozen37d4a398; graph and boundary query constructed; STOP/no descendants"
+      "receipt": "Previous retained-graph producer stopped; no current turn"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current full graph/SCC/boundary-query review complete; no BLOCKING/MAJOR in conditional scope; RG-OWNER retained; end-boundary direction; STOP/no descendants"
+      "receipt": "Current80s RP1/RP2 and EC1-EC4 review complete; no BLOCKING/MAJOR in exact conditional scopes; RP2 supplied-reduct/added-symbol clarification; STOP/no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -35,7 +35,7 @@
     {
       "id": "/root/astra_scoped_join",
       "state": "STOPPED",
-      "receipt": "Frozen 07bdf16b7cacaba85c0aa32d45fc9858d8b929e10dcbaaa65db2f5bca698cb76; current STOP receipt/no descendants"
+      "receipt": "Current190s producer frozen018963e3; STOP/no descendants; lease transferred to primary for review-scope clarification"
     }
   ],
   "leases": [
@@ -133,13 +133,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "591a97623bb2dc92e9bfa5d090db08f22a2f2447258cece329d2a2e5df5acf77"
+      "sha256": "ffcbbf9e56896a234f0b938bb5510b89ba1136866e27b13785d873b10c7393f0",
+      "receipt": "Frozen review inputs unchanged after reviewer STOP"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "8fee9696aff67bea304f2525c116a585374f8be599d46c8ee541acc5c0cbf465"
+      "sha256": "3e77cf3cc15d59c956b78e83d2e602b1c0549e7cd99ef0b389c4e9abc89319fd",
+      "receipt": "Frozen review inputs unchanged after reviewer STOP"
     },
     {
       "path": "notes/theory/2026-10-24-value-scc-qualification-proof.md",
@@ -226,6 +228,20 @@
       "state": "FROZEN",
       "sha256": "5ea7d91ece760262af4f1ddd9da6496c25a9a555e4f7d9a7c9279adf782b3574",
       "receipt": "Producer/reviewer stopped; primary editorial review-status annotations only"
+    },
+    {
+      "path": "notes/theory/2026-10-24-replay-receiving-occurrence-proof.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "1acaa0bd6ec055eb66ce0922b164d154e83280344ba414f6afd8841ccbee45ce",
+      "receipt": "Frozen review complete; primary added only recorded status/scope clarifications after STOP"
+    },
+    {
+      "path": "notes/theory/2026-10-24-replay-extrusion-commutation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "645c073ff0aff6ca7f972837bc8c36e652b50665fd751a4feb5fb6cc600a7a6b",
+      "receipt": "Frozen review complete; primary added only recorded status/scope clarifications after STOP"
     }
   ],
   "external_isolation": {
@@ -245,7 +261,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Concrete source graph/SCC and fresh-copy boundary backtrace reviewed in stated rooted-constructor scope. Actual receiving-occurrence RG-OWNER, full source/contextual path and publication timing remain; whole-language source/semantic/inference obligations OPEN."
+      "missing": "Conditional source placement RP1 and exact fixed-store finite-use pullback EC1-EC4 reviewed. RP2 is relative expansion only for enumerated structural axioms given D. Receiving-occurrence RG-OWNER and all original full source/semantic/inference obligations remain OPEN."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -257,7 +273,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "Birth-level rule unchanged. Retained graph determines F/F true, F/H and F/wrapper false; fresh-link emission/ordered replay recovers h boundary. Source receiving-occurrence theorem RG-OWNER, full producer/member witness, consumption timing, all-source BL-JOINT, principality and combined termination remain. Rust FieldTail/birth correspondence findings in current outcome; implementation excluded."
+      "missing": "Birth-level rule unchanged. Graph/SCC and upper boundary known. EC3-EC4 prove fixed-store finite-use solution nonexpansion; reverse can fail if disputed equality applies. Source-labelled replay correspondence RG-OWNER, full producer/member witness, consumption timing, all-source BL-JOINT, principality and combined termination remain. No whole-source counterexample or new receiving policy established."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -268,15 +284,13 @@
     }
   ],
   "review": {
-    "outcome": "GRAPH_SCC_BOUNDARY_QUERIES_ACCEPTED_RG_OWNER_OPEN",
-    "reviewer": "/root/astra_semantics_review",
-    "findings": "No BLOCKING/MAJOR within conditional rooted-source/fresh-cut scope; ordered graph is retained; no new ownership-policy question",
+    "outcome": "LIMITED_RESULTS_ACCEPTED_PARENT_OPEN",
     "whole_language_certified": false,
-    "post_review_changes": "Only editorial proof review-status annotations; mathematical text/guides unchanged",
-    "record": "tasks/agent-loop/sprints/retained-graph-replay-20261024-outcome.md"
+    "reviewer": "/root/astra_semantics_review",
+    "scope": "Conditional RP1; RP2 relative to supplied structural reduct, not complete semantic independence; exact fixed-store EC1-EC4. Post-review source wording clarification distinguished in outcome."
   },
   "resource": {
-    "astra_reserved_seconds": 4890,
+    "astra_reserved_seconds": 5190,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -285,16 +299,16 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 30
   },
-  "next_action": "Use verified graph and emission witnesses to derive exact receiving-occurrence judgment from original Call/transport; establish full source path and consumption timing; no new policy question, consumer change or automatic worker renewal",
-  "closure": "Concrete graph/SCC extraction and actual boundary query reviewed. Current support-any true and boundary-F/H false computed; source faithful occurrence judgment remains. Whole source preservation/safety/principality/combined termination OPEN.",
-  "outcome": "tasks/agent-loop/sprints/retained-graph-replay-20261024-outcome.md",
-  "outcome_sha256": "bc93e35ba5312f889726be7a5bd487e394069b40ed5fd0570ee4bb7c3f51abb1",
+  "next_action": "Constructor-level source-to-solver occurrence interpretation for direct extrusion and delayed replay; derive receiving-boundary equation, preserve all original source and publication obligations. No automatic worker renewal.",
+  "closure": "EC1-EC4 exact finite native results and conditional source placement reviewed; RP2 only relative structural non-entailment. Source-labelled commutation and original whole proof NOT CLOSED. No background workers.",
+  "outcome": "tasks/agent-loop/sprints/replay-receiver-proof-20261024-outcome.md",
+  "outcome_sha256": "cb908fd7b145f3fdc96147e73c38d01a872c5ab0ab32ef5f42b918f33d412235",
   "checks": {
     "kind": "static document integrity only",
     "status": "PASS",
-    "frozen_dependencies": 19,
-    "frozen_leases": 29,
-    "local_links_resolved": 94,
+    "frozen_dependencies": 26,
+    "frozen_leases": 31,
+    "local_links_resolved": 99,
     "fences": "PASS",
     "json_size": "below16KiB",
     "intended_paths": 7,

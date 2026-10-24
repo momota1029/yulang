@@ -44,6 +44,9 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 
 [生成証明の outcome](../tasks/agent-loop/sprints/source-core-coverage-20261024-outcome.md)は G1–G5 の固定版と査読結果、全表層・有限 interface・foreign 契約などの残項を記録する。
 
+- [完全 Call の receiving incidence と delayed extrusion](../notes/theory/2026-10-24-replay-receiving-occurrence-proof.md): authentic inputs の下で source placement を構成し、監査した構造公理に限る association の非含意を示す。全意味論の独立性や source 保存の反証ではない。
+- [extrusion の可換性と有限使用の解の引戻し](../notes/theory/2026-10-24-replay-extrusion-commutation.md): 具体的な store の局所可換性 EC1 と occurrence の相違 EC2、任意有限回の freshening/quotient の可換性 EC3、任意有限 client 制約についての片方向の解対応 EC4 を証明する。RG-OWNER と元の全体命題は未完。[成果と査読範囲](../tasks/agent-loop/sprints/replay-receiver-proof-20261024-outcome.md)を参照。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。

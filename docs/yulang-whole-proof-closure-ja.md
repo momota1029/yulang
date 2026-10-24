@@ -178,6 +178,16 @@ in f
 
 抽出時には現 graph builder の FieldTail owner walk の漏れと、immutable birth の未保持も特定した。数学的 source graph とこの実装差分を分けて記録し、実装は変更していない。[査読記録](../tasks/agent-loop/sprints/retained-graph-replay-20261024-outcome.md)に具体的範囲と残項を示す。
 
+### 4.8 遅延した extrusion と有限使用の解対応
+
+[完全 Call の receiving incidence](../notes/theory/2026-10-24-replay-receiving-occurrence-proof.md)は、内側 f の origin と外側 h の argument placement を同時に保持する RP1 を構成する。これは authentic inputs と typed field maps を入力とする source の結果であり、新たな solver copy の所属までを含まない。RP2 は列挙した構造公理に限り、保持済み source/Call/replay データを同じにした二つの association 解釈を与える。全言語意味論の独立性や source 保存の不可能性は主張しない。
+
+[制約の可換性と公開後の解の引戻し](../notes/theory/2026-10-24-replay-extrusion-commutation.md)は、先に下界を展開する場合と後の replay で展開する場合の具体的な native store の同型 EC1 を証明する。実 extrusion group は一つと二つなので、この同型は occurrence の同型へ自動的に拡張しない（EC2）。
+
+さらに、この実 store の B=T 等置について、任意有限回の freshening と quotient を結ぶ写像 q_m を構成した（EC3）。等置後の graph と任意有限 client 制約の解を q_m で引き戻せば、等置前の同じ公開 root と client の解になる（EC4）。この具体的な有限 native 使用で解を増やさない方向は閉じた。任意の solver 実行順や追加一般化、全 source context を量化した結果ではない。逆向きは既存の Int/Bool 二使用で成立しない。
+
+RG-OWNER、全 source の原 A/B と安全性は残る。SCC と境界 query は構成済みだが、実 delayed copy と source receiving occurrence を結ぶ式は今回も証明できていない。[査読・到達点](../tasks/agent-loop/sprints/replay-receiver-proof-20261024-outcome.md)を参照。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。
