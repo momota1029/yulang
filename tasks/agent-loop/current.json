@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "sprint_id": "COOCCURRENCE-SOURCE-20261024",
-  "phase": "REVIEWED_SOURCE_RECIPES_AND_JOIN_PARENT_OPEN",
-  "contract": "tasks/agent-loop/sprints/cooccurrence-source-20261024.md",
-  "baseline": "5fb43a1e61336153496f745e51d6782816561f88",
+  "sprint_id": "CORRELATED-HANDLER-20261024",
+  "phase": "REVIEWED_CANDIDATE_HANDLER_OBSERVATIONS_PARENT_OPEN",
+  "contract": "tasks/agent-loop/sprints/correlated-handler-20261024.md",
+  "baseline": "d52c2c48e0e876be4e3e6588e2b1b3b4b27933ea",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "WAITING",
-      "receipt": "Completed recipe/join proof integration handoff; global research remains open; no background activity",
+      "receipt": "Completed two successive proof packets and preparing handoff; no user semantic answer pending, no background work",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "40-second source/join direction final received; no edits/Git/tests/children"
+      "receipt": "30sec consumer-boundary direction final received; no writes/children/Git/tests"
     },
     {
       "id": "/root/astra_corrected_machine",
@@ -25,7 +25,7 @@
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Final independent review accepted both frozen proofs in stated mathematical scopes; no blocking/major; no writes/descendants"
+      "receipt": "Final correlated-handler review ACCEPTED for specified finite candidate graph; no blocking/major; no writes/children"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -35,7 +35,7 @@
     {
       "id": "/root/astra_scoped_join",
       "state": "STOPPED",
-      "receipt": "Frozen SCOPED-WEIGHT-JOIN/r1 final receipt; writes stopped/no descendants; hash ebf854a3ed7cd3ca64f2025c01262eb53e79cc35f203b4ba148c672327f86b1b"
+      "receipt": "Frozen correlated-handler r1 hash b1b94aa7712ef0a5be043070b042c830dfde9c16ca7874f7046a0827405eadc4; final writes stopped/no descendants"
     }
   ],
   "leases": [
@@ -43,7 +43,7 @@
       "path": "docs/yulang-semantics-and-soundness-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "3db3211294e76f74590fa188409c4adca8cf629c2c90788d50a6f70d10657036"
+      "sha256": "5a9c6f75b49ec006b19243f816a385a92a575c28c8f01a5c1522806708380cd6"
     },
     {
       "path": "notes/theory/2026-10-24-corrected-machine-simulation.md",
@@ -76,6 +76,13 @@
       "state": "FROZEN",
       "sha256": "6e69a697e4d1268ab6048f43f5a36d3f1b7635bdde4c3683346bb6a8179c9bed",
       "receipt": "Producer stopped; primary post-review receipt only"
+    },
+    {
+      "path": "notes/theory/2026-10-24-correlated-handler-observation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "fd3a901a738f24b18d8c21acdb2dc451fe192da0b54a4aa5b674c3aaea8789f0",
+      "receipt": "Producer stopped; primary added only post-review receipt"
     }
   ],
   "external_isolation": {
@@ -113,21 +120,20 @@
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Finite signature recipe construction and observation-indexed joins reviewed. Remaining full source/compaction/recursive centers, all substitutions, consumer filters, weight interpretation, replay and shared freshening.",
+      "missing": "Reviewed finite signature recipes and join criteria; candidate CO3-OBS now derived. Full source/compaction/recursive centers/all substitutions, actual weight representation, source graph generation, replay and shared freshening remain.",
       "authority": "notes/design/2026-10-24-cooccurrence-release-clarification.md"
     }
   ],
   "review": {
     "reviewer": "/root/astra_semantics_review",
-    "outcome": "TWO_LOCAL_CONSTRUCTIONS_ACCEPTED",
-    "source_recipe_sha256": "7e2acfc321f2ba5e17b522d45c864825122d25fac5483dd90e381dd3d21fc35c",
-    "scoped_join_sha256": "ebf854a3ed7cd3ca64f2025c01262eb53e79cc35f203b4ba148c672327f86b1b",
+    "outcome": "CANDIDATE_CO3_OBS_ACCEPTED",
+    "correlated_handler_sha256": "b1b94aa7712ef0a5be043070b042c830dfde9c16ca7874f7046a0827405eadc4",
     "whole_language_certified": false,
-    "post_review_changes": "Only one review receipt line in each proof; mathematical text unchanged",
-    "scope": "finite signed-signature recipe S1-S6 and scoped-continuation observation theorems1-3; not full source/native"
+    "post_review_changes": "Only one review receipt line; mathematical text unchanged",
+    "scope": "H1-H5 for specified finite revised candidate graph; full source/action coverage remains open"
   },
   "resource": {
-    "astra_reserved_seconds": 1500,
+    "astra_reserved_seconds": 1800,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -135,7 +141,7 @@
     "successor_reserved_seconds": 300,
     "successor_review_reservation_remaining_seconds": 0
   },
-  "outcome": "tasks/agent-loop/sprints/cooccurrence-source-20261024-outcome.md",
-  "next_action": "Classify actual protection/eligibility queries and branch filtering to fix necessary correlation; connect chosen observations to source weight/replay/fresh-use construction",
+  "outcome": "tasks/agent-loop/sprints/correlated-handler-20261024-outcome.md",
+  "next_action": "Construct source-derived mandatory graph edges for all original constructors, including Fail/terminal routes, both query branches and current-world No/Resume; reconcile with revised transfers without assuming edge adequacy",
   "closure": "Global request remains OPEN. Reviewed local mathematics is not whole-language completion."
 }

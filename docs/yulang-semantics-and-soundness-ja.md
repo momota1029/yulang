@@ -27,6 +27,7 @@
 | 共変位置での共起と解除対象の集約 | [共起・解除の保存](../notes/theory/2026-10-24-cooccurrence-release-preservation.md) | 共起条件と provenance を保持する集約。全 source への対応義務は区別する |
 | 位置から入力対応表を作る | [共起と source recipe](../notes/theory/2026-10-24-cooccurrence-source-recipes.md) | 有限 signed graph の traversal、実際の受領・潜在経路の照合、単射改名 |
 | 複数経路の保護状態を集約する | [scoped weight の join](../notes/theory/2026-10-24-scoped-weight-join-compatibility.md) | 観測ごとの必要十分な要約。実 consumer と weight の対応は別義務 |
+| handler の真偽分岐と No の後の再検索 | [joint cell による分岐保存](../notes/theory/2026-10-24-correlated-handler-observation.md) | 候補機械の現在状態から両分岐を構成。有限 table の経路と具体 successor inclusion を区別 |
 | Yumark 内部の静的 node | [表層展開の証明](../notes/theory/2026-10-24-surface-elaboration-closure.md) | builder の全構成と値型導出。interpolation 等は未完 |
 
 旧稿の定理を使う際は、その証明が参照する機械を固定する。訂正後の機械の結論を、訂正前の小さい効果型に無条件で適用してはならない。
@@ -150,6 +151,8 @@ T と U の両方を単に和集合にする操作は、一般には最初の観
 
 上の分類は同じ w 内の観測についての定理であり、別 receipt や route をまとめる許可ではない。§4 の Eligible* は保護の不在も読むため、単独の存在観測用の要約を無検査で適用しない。実際の query、経路選別、重みの表現がどの観測を保存するかを対応付ける必要がある。
 
+[handler 分岐の証明 H1–H5](../notes/theory/2026-10-24-correlated-handler-observation.md)は、このうち候補機械の query と分岐を構成した。各 joint cell で `P_F⇒P` なので、Eligible* は条件に応じ false、true、`¬P`、`¬P_F` のいずれかになる。代替 cell の集合 X には `F_b(X)={c∈X | Eligible*(c)=b}` の真偽両方を適用する。否定は各 cell の内部で評価するため、どちらの filter も X の和集合を保存する。複数 cell の保護 bit を先に和集合にしてから一度だけ判定すると、実際に可能な分岐を落としうる。
+
 ## 6. 再開と受領の寿命
 
 保存した evidence と、再開する code の実行 owner は分ける。`b.receiver`、Origin、既存 target、Observe、`B_t` は過去の immutable な値である。
@@ -170,6 +173,8 @@ borrow の完了は元 owner を終了させない。own の完了は今回確�
 
 この機械は[既存の owner 具体化](../notes/design/2026-10-02-typed-source-owner-realization.md)に従う候補である。「外側へ効果が抜ける」という採用済みの観測条件だけから、suspension の全場合についてこの一意の具体化を導いたとは扱わない。
 
+handler の検索で eligibility が偽なら、その arm を実行せず次の候補へ進む。eligibility が真の arm を実行してから No が返る場合は別の経路である。この間に L や activity が変わりうるので、元の pending request の Origin・route・H を保持し、返却時の current world と Rejoin してから次候補の query を再計算する。候補 owner が変われば、foreign 判定や grant の query も更新する。[H3](../notes/theory/2026-10-24-correlated-handler-observation.md)は、この接続が具体的な後続を含むことを候補の局所 simulation から示す。
+
 ## 7. 有限の証明書から安全性へ
 
 値の packet と実際の event を別の事実 `V(p,s),E(p,s)` にする。ここで s は同じ入力 tuple の有限 joint cell であり、receiver の等号、現在の activity、保護・許可、必要な経路観測を併せ持つ。未知の相関を都合のよい真偽に固定しない。
@@ -187,6 +192,8 @@ F_G(U)\subseteq U
 **証明の合成。** 実際の初期 packet は seed に入る。一段の具体出力は対応する transfer の出力集合に入り、閉包条件で次の port に入る。有限 capture の frame 列は cut grammar に帰納的な導出を持ち、その単調 summary に含まれる。これを現在の応答・ambient world ごとに適用し、有限実行長に帰納する。最外 request は `U_E⊆Φ` により契約内にある。空の Φ から request は出ない。
 
 この合成を現存の source 主定理へ適用するには、**生成される全 edge が、その具体操作について証明された transfer を使用すること**を確かめる必要がある。有限な保守的 transfer が一つ存在することだけでは、既存の小さい型導出の保存や自然な推論の完全性を結論できない。simulation 稿はこの適用境界を明記している。
+
+[H4–H5](../notes/theory/2026-10-24-correlated-handler-observation.md)では、真偽両 filter・action・Rejoin で構成する有限 relation graph の閉包が、その graph 自身の全有限経路の像と一致することを示した。具体的な実行に対して得るのは successor の包含である。Refresh が余分な cell を残す場合もあるので、閉包の全経路が実際に実行できるとは主張しない。失敗などを含む全 source transition の生成・網羅性は、引き続き主定理の適用義務である。
 
 ## 8. 全表層への接続と未完了箇所
 
