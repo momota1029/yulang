@@ -204,15 +204,10 @@ open YulangClosure.Original
 inductive CallType where
   | callable (argument result : Original.Ty)
   | thunk (result : Original.Ty)
-  deriving DecidableEq
 
 inductive PortKind where
   | carrier | callEffect | result
   deriving DecidableEq
-
-structure ViewOccurrence where
-  identity : Nat
-  path : PortPath
 
 /-- A source path is a sequence of structural component labels followed by a
 typed semantic port. -/
@@ -220,6 +215,10 @@ structure PortPath where
   components : List Nat
   port : PortKind
   type : Original.Ty
+
+structure ViewOccurrence where
+  identity : Nat
+  path : PortPath
 
 inductive PathRule : PortPath → PortPath → Prop where
   | identity (p : PortPath) : PathRule p p
@@ -257,7 +256,7 @@ mutual
     | force (value : Value)
     | scope (owner : Nat) (body : Comp)
     | expose (effectView resultView : ViewOccurrence) (body : Comp)
-    | request (instance : OperationInstance) (payload : Value)
+    | request (opInstance : OperationInstance) (payload : Value)
         (savedContinuation : Comp)
     | fail (reason : Original.Failure)
 
@@ -281,9 +280,9 @@ mutual
     | scope : CompTyped env body result → CompTyped env (.scope owner body) result
     | expose (effectView resultView : ViewOccurrence) : CompTyped env body result →
         CompTyped env (.expose effectView resultView body) result
-    | request : ValueTyped env payload instance.payloadType →
-        CompTyped (Original.extend env instance.responseType) savedContinuation result →
-        CompTyped env (.request instance payload savedContinuation) result
+    | request : ValueTyped env payload opInstance.payloadType →
+        CompTyped (Original.extend env opInstance.responseType) savedContinuation result →
+        CompTyped env (.request opInstance payload savedContinuation) result
     | fail : CompTyped env (.fail reason) result
 end
 
@@ -326,11 +325,6 @@ structure InterfacePorts where
 /-- The metadata plan for one concrete wrap node.  Keeping the adapters beside
 their interface prevents a parallel interface list from drifting away from
 the source wrap spine. -/
-structure InterfacePlan where
-  ports : InterfacePorts
-  argumentAdapter : Adapter
-  resultAdapter : Adapter
-
 structure Adapter where
   input : Original.Ty
   output : Original.Ty
@@ -339,15 +333,17 @@ structure Adapter where
   pathCorrespondences : List PathCorrespondence
   capturedViews : List ViewOccurrence
 
+structure InterfacePlan where
+  ports : InterfacePorts
+  argumentAdapter : Adapter
+  resultAdapter : Adapter
+
 mutual
   /-- One source lambda leaf or a finite outer-to-inner wrap spine. -/
   inductive Function where
     | lambda (mode : Original.Mode) (receipt : ReceiptTemplate)
         (argument bodyResult result : Original.Ty) (body : Comp)
-        (resultConsumer : Adapter)
-        (bodyTyped : CompTyped
-          (Original.extend Original.emptyContext
-            (if mode = .value then argument else .thunk argument)) body bodyResult) : Function
+        (resultConsumer : Adapter) : Function
     | wrap (inner : Function) (argumentAdapter resultAdapter : Adapter) : Function
 
   inductive FunctionTyped : Function → Original.Ty → Original.Ty → Prop where
@@ -356,13 +352,13 @@ mutual
         (h : CompTyped
           (Original.extend Original.emptyContext a) body bodyResult)
         (hc : resultConsumer.input = bodyResult) (hr : resultConsumer.output = result) :
-        FunctionTyped (.lambda .value receipt a bodyResult result body resultConsumer h) a result
+        FunctionTyped (.lambda .value receipt a bodyResult result body resultConsumer) a result
     | lambdaComputation (receipt : ReceiptTemplate) (a bodyResult result : Original.Ty)
         (body : Comp) (resultConsumer : Adapter)
         (h : CompTyped
           (Original.extend Original.emptyContext (.thunk a)) body bodyResult)
         (hc : resultConsumer.input = bodyResult) (hr : resultConsumer.output = result) :
-        FunctionTyped (.lambda .computation receipt a bodyResult result body resultConsumer h) a result
+        FunctionTyped (.lambda .computation receipt a bodyResult result body resultConsumer) a result
     | wrap {f : Function} {argumentAdapter resultAdapter : Adapter}
         {a b c d : Original.Ty}
         (hf : FunctionTyped f a b)
@@ -375,11 +371,11 @@ end
 /-- Immutable source projections used to tie Call metadata to the actual
 function syntax. -/
 def Function.sourceReceipt : Function → ReceiptTemplate
-  | .lambda _ receipt _ _ _ _ _ _ => receipt
+  | .lambda _ receipt _ _ _ _ _ => receipt
   | .wrap inner _ _ => sourceReceipt inner
 
 def Function.wrapAdapters : Function → List (Adapter × Adapter)
-  | .lambda _ _ _ _ _ _ _ _ => []
+  | .lambda _ _ _ _ _ _ _ => []
   | .wrap inner argumentAdapter resultAdapter =>
       (argumentAdapter, resultAdapter) :: wrapAdapters inner
 
@@ -456,13 +452,13 @@ structure EvaluationContext (Suffix : Type) where
   literalSuffix : Suffix
 
 structure Request (Suffix World : Type) where
-  instance : OperationInstance
+  opInstance : OperationInstance
   payload : Value
-  payloadTyped : ValueTyped Original.emptyContext payload instance.payloadType
+  payloadTyped : ValueTyped Original.emptyContext payload opInstance.payloadType
   resultType : Original.Ty
   savedContinuation : Comp
   continuationTyped : CompTyped
-    (Original.extend Original.emptyContext instance.responseType)
+    (Original.extend Original.emptyContext opInstance.responseType)
     savedContinuation resultType
   callView : CallView
   scopeContext : List Nat

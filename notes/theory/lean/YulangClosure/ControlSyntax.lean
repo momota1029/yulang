@@ -113,9 +113,9 @@ inductive CallHead where
   | active (computation : TypedCall.Comp)
   | originalState (state : Original.State)
   | returned (value : TypedCall.Value)
-  | requesting (instance : TypedCall.OperationInstance) (payload : TypedCall.Value)
+  | requesting (opInstance : TypedCall.OperationInstance) (payload : TypedCall.Value)
       (continuation : TypedCall.Comp) (observedViews : List TypedCall.ViewOccurrence)
-  | requested (instance : TypedCall.OperationInstance) (payload : TypedCall.Value)
+  | requested (opInstance : TypedCall.OperationInstance) (payload : TypedCall.Value)
       (continuation : TypedCall.Comp)
   | failed (reason : Original.Failure)
 
@@ -188,9 +188,9 @@ inductive CallControlStep {World : Type} (md : Metadata World) :
   | attachReceipt (world : World) (mode : Original.Mode)
       (receipt : TypedCall.ReceiptTemplate) (argument bodyResult result : Original.Ty)
       (body : TypedCall.Comp) (consumer : TypedCall.Adapter)
-      (bodyTyped : TypedCall.CompTyped
-        (Original.extend Original.emptyContext
-          (if mode = .value then argument else .thunk argument)) body bodyResult)
+      (functionTyped : TypedCall.FunctionTyped
+        (.lambda mode receipt argument bodyResult result body consumer)
+        argument result)
       (carrier : TypedCall.Value) (pending : List TypedCall.Adapter)
       (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
       (resultType : Original.Ty) (scopes : List Nat)
@@ -198,18 +198,18 @@ inductive CallControlStep {World : Type} (md : Metadata World) :
       (suffix : List Frame) :
       CallControlStep md
         ⟨world, .enter
-          (.lambda mode receipt argument bodyResult result body consumer bodyTyped)
+          (.lambda mode receipt argument bodyResult result body consumer)
           carrier pending, frames, view, resultType, scopes, views, receipts, suffix⟩
         ⟨world, .received
-          (.lambda mode receipt argument bodyResult result body consumer bodyTyped)
+          (.lambda mode receipt argument bodyResult result body consumer)
           carrier pending, frames, view, resultType, scopes, views,
           receipts ++ receipt.designatedSlots, suffix⟩
   | enterLambda (world : World) (mode : Original.Mode)
       (receipt : TypedCall.ReceiptTemplate) (argument bodyResult result : Original.Ty)
       (body : TypedCall.Comp) (consumer : TypedCall.Adapter)
-      (bodyTyped : TypedCall.CompTyped
-        (Original.extend Original.emptyContext
-          (if mode = .value then argument else .thunk argument)) body bodyResult)
+      (functionTyped : TypedCall.FunctionTyped
+        (.lambda mode receipt argument bodyResult result body consumer)
+        argument result)
       (carrier : TypedCall.Value) (pending : List TypedCall.Adapter)
       (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
       (resultType : Original.Ty) (scopes : List Nat)
@@ -217,7 +217,7 @@ inductive CallControlStep {World : Type} (md : Metadata World) :
       (suffix : List Frame) :
       CallControlStep md
         ⟨world, .received
-          (.lambda mode receipt argument bodyResult result body consumer bodyTyped)
+          (.lambda mode receipt argument bodyResult result body consumer)
           carrier pending, frames, view, resultType, scopes, views, receipts, suffix⟩
         ⟨world, .active (TypedCall.callEntryBody mode carrier body consumer pending),
           frames, view, resultType, scopes, views, receipts, suffix⟩
@@ -281,7 +281,7 @@ inductive CallControlStep {World : Type} (md : Metadata World) :
           scopes, views, receipts, suffix⟩
         ⟨world, .active body, .expose effectView resultView :: frames, view, result,
           scopes, views, receipts, suffix⟩
-  | emitRequest (world : World) (instance : TypedCall.OperationInstance)
+  | emitRequest (world : World) (opInstance : TypedCall.OperationInstance)
       (payload : TypedCall.Value) (continuation : TypedCall.Comp)
       (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
       (result : Original.Ty) (scopes : List Nat)
@@ -291,9 +291,9 @@ inductive CallControlStep {World : Type} (md : Metadata World) :
         CallState.suffixViewIds suffix)
       (suffix : List Frame) :
       CallControlStep md
-        ⟨world, .active (.request instance payload continuation), frames, view, result,
+        ⟨world, .active (.request opInstance payload continuation), frames, view, result,
           scopes, views, receipts, suffix⟩
-        ⟨world, .requesting instance payload continuation
+        ⟨world, .requesting opInstance payload continuation
           (views ++ CallState.activeViews frames ++ suffixViews), frames, view, result,
           scopes, views ++ CallState.activeViews frames ++ suffixViews, receipts, suffix⟩
   | forceDelay (world : World) (body : TypedCall.Comp)
@@ -348,7 +348,7 @@ inductive CallControlStep {World : Type} (md : Metadata World) :
           view, result, scopes, views, receipts, suffix⟩
         ⟨md.viewReturn world resultView.identity, .active (.ret (.view value resultView)),
           frames, view, result, scopes, views, receipts, suffix⟩
-  | requestBind (world : World) (instance : TypedCall.OperationInstance)
+  | requestBind (world : World) (opInstance : TypedCall.OperationInstance)
       (payload : TypedCall.Value) (continuation body : TypedCall.Comp)
       (observed : List TypedCall.ViewOccurrence)
       (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
@@ -356,12 +356,12 @@ inductive CallControlStep {World : Type} (md : Metadata World) :
       (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
       (suffix : List Frame) :
       CallControlStep md
-        ⟨world, .requesting instance payload continuation observed,
+        ⟨world, .requesting opInstance payload continuation observed,
           .bind body :: frames, view, result, scopes, views, receipts, suffix⟩
-        ⟨world, .requesting instance payload
+        ⟨world, .requesting opInstance payload
           (CallState.captureBind continuation body) observed,
           frames, view, result, scopes, views, receipts, suffix⟩
-  | requestAdapter (world : World) (instance : TypedCall.OperationInstance)
+  | requestAdapter (world : World) (opInstance : TypedCall.OperationInstance)
       (payload : TypedCall.Value) (continuation : TypedCall.Comp)
       (observed : List TypedCall.ViewOccurrence)
       (input output : Original.Ty) (body : TypedCall.Comp)
@@ -370,38 +370,40 @@ inductive CallControlStep {World : Type} (md : Metadata World) :
       (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
       (suffix : List Frame) :
       CallControlStep md
-        ⟨world, .requesting instance payload continuation observed,
+        ⟨world, .requesting opInstance payload continuation observed,
           .adapter input output body :: frames, view, result, scopes, views, receipts,
           suffix⟩
-        ⟨world, .requesting instance payload
+        ⟨world, .requesting opInstance payload
           (CallState.captureBind continuation body) observed,
           frames, view, result, scopes, views, receipts, suffix⟩
   | requestScope (world : World) (owner : Nat)
-      (instance : TypedCall.OperationInstance) (payload continuation : TypedCall.Comp)
+      (opInstance : TypedCall.OperationInstance) (payload : TypedCall.Value)
+      (continuation : TypedCall.Comp)
       (observed : List TypedCall.ViewOccurrence)
       (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
       (result : Original.Ty) (scopes : List Nat)
       (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
       (suffix : List Frame) :
       CallControlStep md
-        ⟨world, .requesting instance payload continuation observed,
+        ⟨world, .requesting opInstance payload continuation observed,
           .scope owner :: frames, view, result, scopes, views, receipts, suffix⟩
         ⟨md.suspendScope world owner,
-          .requesting instance payload (.scope owner continuation) observed, frames,
+          .requesting opInstance payload (.scope owner continuation) observed, frames,
           view, result, owner :: scopes, views, receipts, suffix⟩
   | requestExpose (world : World) (effectView resultView : TypedCall.ViewOccurrence)
-      (instance : TypedCall.OperationInstance) (payload continuation : TypedCall.Comp)
+      (opInstance : TypedCall.OperationInstance) (payload : TypedCall.Value)
+      (continuation : TypedCall.Comp)
       (observed : List TypedCall.ViewOccurrence)
       (frames : List TypedCall.ContextFrame) (view : TypedCall.CallView)
       (result : Original.Ty) (scopes : List Nat)
       (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
       (suffix : List Frame) :
       CallControlStep md
-        ⟨world, .requesting instance payload continuation observed,
+        ⟨world, .requesting opInstance payload continuation observed,
           .expose effectView resultView :: frames, view, result, scopes, views,
           receipts, suffix⟩
         ⟨md.suspendView world effectView.identity,
-          .requesting instance payload
+          .requesting opInstance payload
             (.expose effectView resultView continuation) observed,
           frames, view, result, scopes, views, receipts, suffix⟩
   | failBind (world : World) (reason : Original.Failure) (body : TypedCall.Comp)
@@ -459,16 +461,17 @@ inductive CallControlStep {World : Type} (md : Metadata World) :
       CallControlStep md
         ⟨world, .active (.ret value), [], view, result, scopes, views, receipts, suffix⟩
         ⟨world, .returned value, [], view, result, scopes, views, receipts, suffix⟩
-  | finishRequest (world : World) (instance : TypedCall.OperationInstance)
-      (payload continuation : TypedCall.Comp) (observed : List TypedCall.ViewOccurrence)
+  | finishRequest (world : World) (opInstance : TypedCall.OperationInstance)
+      (payload : TypedCall.Value) (continuation : TypedCall.Comp)
+      (observed : List TypedCall.ViewOccurrence)
       (view : TypedCall.CallView)
       (result : Original.Ty) (scopes : List Nat)
       (views : List TypedCall.ViewOccurrence) (receipts : List TypedCall.ReceiptSlot)
       (suffix : List Frame) :
       CallControlStep md
-        ⟨world, .requesting instance payload continuation observed, [], view, result,
+        ⟨world, .requesting opInstance payload continuation observed, [], view, result,
           scopes, views, receipts, suffix⟩
-        ⟨world, .requested instance payload continuation, [], view, result, scopes,
+        ⟨world, .requested opInstance payload continuation, [], view, result, scopes,
           observed, receipts, suffix⟩
   | finishFailure (world : World) (reason : Original.Failure)
       (view : TypedCall.CallView) (result : Original.Ty) (scopes : List Nat)

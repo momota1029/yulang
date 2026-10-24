@@ -98,20 +98,20 @@ inductive CallHeadTyped : CallHead → Original.Ty → Prop where
       CallHeadTyped (.originalState state) type
   | returned : TypedCall.ValueTyped Original.emptyContext value type →
       CallHeadTyped (.returned value) type
-  | requesting {instance : TypedCall.OperationInstance} {payload : TypedCall.Value}
+  | requesting {opInstance : TypedCall.OperationInstance} {payload : TypedCall.Value}
       {continuation : TypedCall.Comp} {observed : List TypedCall.ViewOccurrence}
-      (hp : TypedCall.ValueTyped Original.emptyContext payload instance.payloadType)
+      (hp : TypedCall.ValueTyped Original.emptyContext payload opInstance.payloadType)
       (hk : TypedCall.CompTyped
-        (Original.extend Original.emptyContext instance.responseType)
+        (Original.extend Original.emptyContext opInstance.responseType)
         continuation result) :
-      CallHeadTyped (.requesting instance payload continuation observed) result
-  | requested {instance : TypedCall.OperationInstance} {payload : TypedCall.Value}
+      CallHeadTyped (.requesting opInstance payload continuation observed) result
+  | requested {opInstance : TypedCall.OperationInstance} {payload : TypedCall.Value}
       {continuation : TypedCall.Comp}
-      (hp : TypedCall.ValueTyped Original.emptyContext payload instance.payloadType)
+      (hp : TypedCall.ValueTyped Original.emptyContext payload opInstance.payloadType)
       (hk : TypedCall.CompTyped
-        (Original.extend Original.emptyContext instance.responseType)
+        (Original.extend Original.emptyContext opInstance.responseType)
         continuation result) :
-      CallHeadTyped (.requested instance payload continuation) result
+      CallHeadTyped (.requested opInstance payload continuation) result
   | failed (reason : Original.Failure) (result : Original.Ty) :
       CallHeadTyped (.failed reason) result
 
