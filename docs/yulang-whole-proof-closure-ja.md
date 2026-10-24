@@ -307,3 +307,12 @@ EC1は任意のfinite level-closed storeで、二段extrusionの全modelを一�
 Lean 4.35.0 の module 検査と `lake build` は成功し、上記四定理の `#print axioms` は公理依存なしを報告する。これは明示された引数・前提の下での条件付き合成の検査である。具体的な Yulang machine/typing/cell/observations の定義、全 constructor の一段証明、source core judgment から initial state への接続、元の source/inference roots は未具体化である。これらを埋めるまでは、元言語の全体証明の閉鎖にはならない。独立査読と正確な固定版は [Lean sprint outcome](../tasks/agent-loop/sprints/lean-root-20261024-outcome.md) に記録する。
 
 この変更に先行した [actual-copy 稿](../notes/theory/2026-10-24-actual-copy-history-transport.md)と[source realization 草稿](../notes/theory/2026-10-24-concrete-extrusion-source-realization.md)は未査読であり、新しい Lean 定理の前提に使用しない。特に AH2 は複数 operation 間の fixed ambient 条件が不足しており、その無条件な適用を撤回した。共同 witness の供給、元 A/B と全 source の義務を、その局所構成で閉じたとは扱わない。
+
+
+### 6.1 七 frame の制御から全有限実行へ
+
+[Lean control 対応稿](../notes/theory/2026-10-24-lean-control-correspondence.md)は、型証拠なしの raw 状態と独立した型付けを定義し、全 control 規則の保存・進行を構成した。value/operation の候補検索、shallow handler の選択/転送、Wait による pending の保持、現在 world での No、mapper adapter 自身の request/failure、七 frame の failure 伝播を扱う。保存 K は current world を含まず、同じ K を複数の current world で型付きに再開できる。
+
+`finite_trace_safety` は、registered body の型保存・進行を入力に、任意の型付き初期状態から外部応答を含む全有限 trace の型保存・Bad 排除・進行を導く。`finite_prefix_control` は、この具体的制御から構成した四つの安全性 field を既存 root 定理に渡す。Lean 4.35.0 の検査は成功した。独立査読と固定版は [control outcome](../tasks/agent-loop/sprints/lean-control-20261024-outcome.md) に記す。
+
+対象は値型の制御抽象である。全元値/型/graph の定義、principal body の代入・primitive・Call 等、actual metadata と全観測の finite-cell simulation、source 初期形成は未構成である。全元 source・推論 A/B・SCC と coverage/主型性/停止性の義務はそのまま残る。

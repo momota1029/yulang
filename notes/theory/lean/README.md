@@ -1,13 +1,16 @@
-# Yulang closure: Lean root composition
+# Yulang closure: Lean root composition and control
 
-LEAN-ROOT-20261024/r2。**元 Yulang 全体の証明は未完了**。本ディレクトリは guide §3 の有限 prefix 合成を、独立した一段の意味論・型・抽象化 interface に分解した最初の Lean 化である。Lean 4.35.0 による検査済み。独立査読は条件付き合成の範囲を受理した。
+LEAN-ROOT-20261024/r2、LEAN-CONTROL-20261024/r1。**元 Yulang 全体の証明は未完了**。本ディレクトリは guide §3 の有限 prefix 合成を、独立した一段の意味論・型・抽象化 interface に分解した最初の Lean 化である。Lean 4.35.0 による検査済み。独立査読は条件付き合成の範囲を受理した。
 
 ## 構成
 
 - `YulangClosure/Contracts.lean`: parameterized machine、現在 world の resume、有限 cell interface、certificate、独立な一段 laws、birth-level induced graph、未具体化の source/inference roots。
 - `YulangClosure/CoreComposition.lean`: `initial_invariant`、`step_invariant`、`prefix_invariant`、`finite_prefix_composition`、`run_at_every_time`、`saved_reusable`。
+- `YulangClosure/ControlSyntax.lean`: 型証拠を持たない七 frame、順序付き value/operation search、Wait、effectful mapper、Ret/Req/Fail/Bad、current-world resume。
+- `YulangClosure/ControlTyping.lean`: 独立した値・frame・stack・K・packet・候補列の型付け、append/capture、run head だけを対象とする `BodyLaws`。
+- `YulangClosure/ControlComposition.lean`: 全 control 保存・進行、response plugging、有限 raw trace の failure 吸収、外部 resume を含む全有限 trace の型安全性、既存 root `LocalLaws` への具体的な四つの安全性 field の供給。
 
-`LocalLaws.typing` は result index を持つ独立 judgment。`laws.result` を全 prefix と resume に固定する。`typed` を safety/reachability と定義していない。具体的型導出はまだパラメータであり、その妥当性をこの抽象証明から得ることはできない。
+`LocalLaws.typing` は result index を持つ独立 judgment。`laws.result` を全 prefix と resume に固定する。`typed` を safety/reachability と定義していない。root の具体的型導出は instance ごとの責務である。Control instance は extrinsic な型規則を定義したが、元 Yulang の全値型・全 body judgment を具体化したものではない。
 
 `Certificate` の seed inclusion、cell edge closure、output inclusion を別々に要求する。`Analysis.index_injective` は有限 cell domain の独立入力。実行長に有限上限を置くものではない。`Invariant` は型証拠と一つの joint concrete/cell witnessを束ねるだけであり、machineの型定義ではない。
 
@@ -34,7 +37,9 @@ LEAN-ROOT-20261024/r2。**元 Yulang 全体の証明は未完了**。本ディ�
 | observation / cert.outputs | Hと同じcursor/instanceのΦ。別pathの許可を転用しない。 |
 | Qualifies | immutable Value birthの各level誘導graph内での双方向path。元cross-level Refは削除せず、pathの全verticesをfilterする。実occurrence/pairsとのsource/native対応は別義務。 |
 
-**最初の欠落**は、具体的な corrected-core configuration/typing/transition/observationを Lean の型として定義し、その独立 judgment を `Machine` と `LocalLaws` に与えること。現時点では paper theoremをaxiomとして登録していない。表の各fieldを実際のconstructor inductionで埋めるまでは、Yulangへの有限prefix適用も条件付きである。
+七 frame の値型制御抽象は `Control.machine` と `Control.localLaws` に接続した。`finite_trace_safety` は任意長の内部/外部 resume trace で同じ型・Bad 排除・進行を証明し、`finite_prefix_control` は既存 root に実適用する。value/operation の順序付き試行、selected/forwarded shallow K、No の現在 world、mapper adapter の通常 Req/Fail を明示的に処理する。
+
+**残る具体化**は、全元値/graph/closure の型と代入、全 principal body 関係と `BodyLaws`、actual metadata/observation と `AnalysisLaws`、source からの初期形成である。`atom Nat Nat` は全 Yulang 値を符号化した証明ではない。terminal request だけの `exposed` も全 View/emission/latent/reentry 観測の実証明ではない。[各 constructor の対応と限界](../2026-10-24-lean-control-correspondence.md)を参照。紙上定理を axiom に登録したり、全出力を許す dummy certificate を作ったりしていない。
 
 ## 別の元root義務
 
@@ -51,7 +56,7 @@ lake build
 lake env lean -j1 -M1024 YulangClosure.lean
 ```
 
-primary は公式 Linux 配布物を task-local directory に展開し、配布 SHA-256 `7289597a44543246c9227b8cae501767e095ce17f6d448b95fc4a8dc97268f6d` を照合した。Lean は `4.35.0`, commit `eb6cafb7290e8bd5f2937522d8d804f58f02bafc`。各 module を `lean -j1 -M1024 -o …` で依存順に検査し、続いて `lake build` も exit 0 で完了した。root file の四つの `#print axioms` は、全て `does not depend on any axioms` を返す。これは引数として受け取った `LocalLaws` 等の前提を不要にする表示ではなく、公理宣言への依存がないという意味である。
+primary は公式 Linux 配布物を task-local directory に展開し、配布 SHA-256 `7289597a44543246c9227b8cae501767e095ce17f6d448b95fc4a8dc97268f6d` を照合した。Lean は `4.35.0`, commit `eb6cafb7290e8bd5f2937522d8d804f58f02bafc`。各 module を `lean -j1 -M1024 -o …` で依存順に検査し、続いて `lake build` も exit 0 で完了した。root 合成の四つの `#print axioms` は、全て `does not depend on any axioms` を返す。これは引数として受け取った `LocalLaws` 等の前提を不要にする表示ではなく、公理宣言への依存がないという意味である。
 
 最初の checker 実行は prefix 帰納で一般化された初期不変条件の引数不足を検出した。primary が帰納仮説へ `hc` を渡すよう修正し、再検査した。具体的 Yulang の各一段則や元 root 義務はまだ parameter なので、上の結果は条件付き合成の検査結果である。
 
@@ -69,3 +74,12 @@ producer `/root/astra_corrected_machine`、primary の型index/現在worldの監
 `/root/astra_semantics_review` は frozen r2 の全出力 hash と契約を照合し、条件付き合成として受理した。BLOCKING/MAJOR 指摘なし。二つの step case、同じ result index、current world、同じ K の各使用に別々に必要な availability/admissibility、全頂点を filter する birth path、同じ source scope/witness と typable-input principal guard を確認した。レビュー担当は著者ではなく、checker は再実行していない。Lean の実行結果は primary の実 receipt である。受理後の本 README の変更はこの status/receipt のみ。
 
 固定版・producer r1・primary r2・最終 hash、未具体化の義務は [sprint outcome](../../../tasks/agent-loop/sprints/lean-root-20261024-outcome.md) に記録する。
+
+
+## 七 frame の全有限 trace への接続
+
+LEAN-CONTROL-20261024/r1。producer の raw/typing/capture/response/failure 草稿を実際の STOP 後に primary が共同構成した。最初のチェックで予約語 `instance` と相互帰納型の単独 induction が拒否されたため、field を `instanceId` にし、有限 frame list の帰納へ修正した。値 pending と operation 候補列を分離し、value 候補列も明示的検索へ展開した。`ControlStep` 全規則の型保存、進行、admissible response formation と all-finite-trace 定理を補った。
+
+`localLaws` の安全性四 field はこの証明から生成する。効果解析の seed/step/resume/observation は `AnalysisLaws`、初期型形成と registered body の保存・進行はそれぞれ別入力として残る。未解決の元 A/B、source/native、SCC の実構成を今回の制御抽象へ置き換えない。
+
+Lean 4.35.0 による module 検査、`lake build`、`lake env lean -j1 -M1024 YulangClosure.lean` は exit 0。`control_preservation` は公理依存なし。`progress` と `prefix_fail_absorbing` は Lean 標準の `propext`、`resume_reusable`・`finite_trace_safety`・`finite_prefix_control` は標準の `propext, Classical.choice, Quot.sound` に依存する。project 独自の axiom や未証明穴はないが、これらを「公理依存なし」とは記さない。具体的な audit と独立査読の固定版は [control outcome](../../../tasks/agent-loop/sprints/lean-control-20261024-outcome.md) に記す。独立査読は、この制御抽象の範囲で受理した。BLOCKING/MAJOR 指摘なし。全元値・body・metadata・観測・source 初期形成が未具体化である境界も確認した。コンパイラ実装・tests/probes は実行していない。

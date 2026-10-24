@@ -1,7 +1,15 @@
 import YulangClosure.Contracts
 import YulangClosure.CoreComposition
+import YulangClosure.ControlComposition
 
 #print axioms YulangClosure.finite_prefix_composition
 #print axioms YulangClosure.run_at_every_time
 #print axioms YulangClosure.saved_reusable
 #print axioms YulangClosure.SourceProblem.native_success_elaborates
+
+#print axioms YulangClosure.Control.control_preservation
+#print axioms YulangClosure.Control.progress
+#print axioms YulangClosure.Control.resume_reusable
+#print axioms YulangClosure.Control.prefix_fail_absorbing
+#print axioms YulangClosure.Control.finite_trace_safety
+#print axioms YulangClosure.Control.finite_prefix_control
