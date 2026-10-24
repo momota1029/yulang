@@ -6,12 +6,12 @@
  "active_sprint": {
   "id": "NATURAL-CONDITIONAL-RESULT-20261024",
   "status": "ACTIVE",
-  "contract": "tasks/agent-loop/sprints/natural-conditional-result-20261024.md",
-  "contract_sha256": "8fbfe6fa17e190efd034580ccee19f4128a0ffff01803683a6f4d6e1bb65136e",
+  "contract": "tasks/agent-loop/sprints/natural-conditional-result-20261024-rev2.md",
+  "contract_sha256": "38dccbdc24ea3b767ee7ef83f73e8e041549162be70163f7a2740af7ce6ea7f2",
   "baseline": "d788d94da66385bf09947932f0aae1972cd51f21",
   "claim": "Graph-directed positive projection for multiple concrete Value lower heads; both If branches contribute; all original graph constraints remain authoritative.",
   "implementation": "After independent construction review, Luna may edit only tools/inference-playground/src/scheme.rs; no If-specific rendering or constant folding.",
-  "proof": "Exact note and handoff; prove display meaning, preserved upper/shared/quantified/effect/permission evidence, and apply to infer_types.",
+  "proof": "Exact note/handoff; rev2 pins the candidate drain→bound retention→export route. Prove graph-generic positive Value projection, preserving row identities, constraints, binders, effects and permissions.",
   "worktree": "/tmp/yulang-natural-conditional-result-20261024",
   "branch": "codex/natural-conditional-result-20261024",
   "resources": {
@@ -26,8 +26,8 @@
   },
   "outcome": "tasks/agent-loop/sprints/natural-conditional-result-20261024-outcome.md",
   "closure": "ACTIVE; no proof result, source edit, build or runtime observation yet.",
-  "review_status": "Proof construction not launched; fresh review required before scheme.rs edit.",
-  "outcome_sha256": "45d9cd2ac7fc60f6ffd20552073049167301278c350daace9565625580304784"
+  "review_status": "Proof construction active; rev2 read-only source path frozen; fresh review still required before scheme.rs edit.",
+  "outcome_sha256": "a8d771128e39ae22fe63605b28dc873c50d77087abb3f933278cc7ce671b4ff6"
  },
  "workers": [
   {
@@ -94,7 +94,7 @@
    "requested_effort": "configured role effort",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "collaboration.spawn_agent acknowledged `/root/natural_conditional_result_prover`; exact two-file proof assignment launched. Numeric session/model/effort metadata UNKNOWN."
+   "receipt": "Rev2 read-only route approved and frozen; exact proof output leases unchanged. Active work continues; model/effort metadata UNKNOWN."
   }
  ],
  "leases": [
@@ -105,10 +105,10 @@
    "reason": "Primary-owned current state."
   },
   {
-   "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024.md",
+   "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024-rev2.md",
    "owner": "/root",
    "state": "FROZEN",
-   "reason": "Rev1 frozen before producer launch."
+   "reason": "Rev2 frozen; supersedes rev1 SHA pinned in contract. Exact read-only route expansion only."
   },
   {
    "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024-outcome.md",
@@ -240,7 +240,7 @@
   }
  ],
  "closure": "R149 remains PARTIAL_REVIEWED and A/B OPEN. NATURAL-CONDITIONAL-RESULT sprint active; no source or proof result yet. Three legacy reservations remain UNKNOWN_QUARANTINED.",
- "next_action": "Proof producer is active on the frozen note/inbox leases. Luna edits no source until independent proof review.",
+ "next_action": "Proof producer traces the frozen candidate-specific solver path and completes graph-generic projection proof. Luna edits no source until independent review.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "Three UNKNOWN identities remain quarantined. Their exact old implementation/proof scopes are unspecified; all new source and proof work is isolated in a fresh worktree, with no merge/copy-back until confirmed cessation/lease handoff.",
@@ -346,5 +346,5 @@
    "outcome_sha256": "4b3e5e822724e78dab6e831f2d7131a28a22bfc3b2b0390fe3dd676193a6a2b7"
   }
  ],
- "resource_observation": "Worktree created at b1130f5c8 with source dependencies matching d788. Proof producer launch acknowledged as /root/natural_conditional_result_prover; session/model/effort metadata unavailable. No compile/tests/runtime."
+ "resource_observation": "Dispatcher approved rev2 exact read-only path expansion. All five added dependency hashes match the isolated worktree. No executable validation or code edit."
 }
