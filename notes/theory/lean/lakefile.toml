@@ -1,0 +1,7 @@
+name = "YulangClosure"
+version = "0.1.0"
+defaultTargets = ["YulangClosure"]
+moreLeanArgs = ["-j1", "-M1024"]
+
+[[lean_lib]]
+name = "YulangClosure"

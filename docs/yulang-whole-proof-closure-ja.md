@@ -296,3 +296,14 @@ EC1は任意のfinite level-closed storeで、二段extrusionの全modelを一�
 これにより、固定 f/P1 domain の任意有限 Let/LetRec 元推論履歴の全 copies を一度に canonical values へ修復できる。全 client Z の値、元 bounds、source seeds、出力契約、実 mutable publication/use snapshots を一つの model で保つ。各 snapshot で新しい model を選ばない。全 Y descendants=T（および明示した同役割等式）を追加しても、全 Z coordinates 上の solution projection は変わらない。
 
 これは元履歴の joint repair を閉じる。早い段階で intrusion した別履歴の新しい Z copies、level lowering と共有、全 actual events の対応はまだ構成していない。source/native receiving/SCC と元全 A/B、principality、termination も残る。CH0–CH7 は独立査読を通過し、コピー完了点の定義を MINOR 指摘に合わせて明確化した。追加 CH8 は、実 Y.lower entry の低い T-boundary factor と、その同じ低い項を共有する両 list freshening を構成する。CH8 も独立差分査読を通過した。新 after copy の全 selected bounds と polar memo の合成は残る。[固定版と査読範囲](../tasks/agent-loop/sprints/canonical-let-history-20261024-outcome.md)に受理した命題と残項を記録する。
+
+
+## 6. Lean 上の全体定理の接続
+
+[Lean project](../notes/theory/lean/README.md)は、局所証明を元の主定理へ接続するための共通 interface と証明骨格を与える。`finite_prefix_composition` は初期状態、一段の型保存、cell simulation、観測包含、局所進行から、任意有限 prefix の同じ result 型・certificate 包含・Bad 排除を導く。`run_at_every_time` は無限 run の各有限時点へ適用する。`saved_reusable` は同じ saved object を異なる current world で再使用する場合を扱う。保存 object の存在・不変性や lawful response は実 constructor から供給する責務であり、保存時 world の復元は仮定しない。
+
+`SourceProblem.native_success_elaborates` は native success → 元 source judgment → 同じ scope/witness の core judgment を、三つの独立義務から合成する。coverage・principal coverage・inference termination は別の命題として保持し、型健全性の合成から証明済みとはしない。SCC qualification は birth ごとの誘導グラフ内の双方向経路で定義するが、その定義だけで actual occurrence の所属や侵入の保存を証明したとはしない。
+
+Lean 4.35.0 の module 検査と `lake build` は成功し、上記四定理の `#print axioms` は公理依存なしを報告する。これは明示された引数・前提の下での条件付き合成の検査である。具体的な Yulang machine/typing/cell/observations の定義、全 constructor の一段証明、source core judgment から initial state への接続、元の source/inference roots は未具体化である。これらを埋めるまでは、元言語の全体証明の閉鎖にはならない。独立査読と正確な固定版は [Lean sprint outcome](../tasks/agent-loop/sprints/lean-root-20261024-outcome.md) に記録する。
+
+この変更に先行した [actual-copy 稿](../notes/theory/2026-10-24-actual-copy-history-transport.md)と[source realization 草稿](../notes/theory/2026-10-24-concrete-extrusion-source-realization.md)は未査読であり、新しい Lean 定理の前提に使用しない。特に AH2 は複数 operation 間の fixed ambient 条件が不足しており、その無条件な適用を撤回した。共同 witness の供給、元 A/B と全 source の義務を、その局所構成で閉じたとは扱わない。

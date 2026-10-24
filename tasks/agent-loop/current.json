@@ -1,31 +1,31 @@
 {
   "schema_version": 1,
-  "sprint_id": "CANONICAL-LET-HISTORY-20261024",
-  "phase": "SPRINT_COMPLETE_PARENT_OPEN",
-  "contract": "tasks/agent-loop/sprints/canonical-let-history-20261024.md",
-  "baseline": "2584aef5344b2d1ebfb304fd79c1236fcbdc8676",
+  "sprint_id": "LEAN-ROOT-20261024",
+  "phase": "PROOF_MILESTONE_ACCEPTED",
+  "contract": "tasks/agent-loop/sprints/lean-root-20261024.md",
+  "baseline": "61e509ae976aa1e0007fa76a5ff2f33e91362a11",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "STOPPED",
-      "receipt": "Primary proof construction and review complete; proof writes STOPPED; only exact Git integration then yield, no background worker",
+      "receipt": "Primary proof/document writes frozen for accepted checkpoint; final Git integration only; no asynchronous writers or descendants",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Three current30sec actual FINAL consultations; final scoped delta review recommended; no writes/descendants"
+      "receipt": "Actual30sec FINAL selects root composition C; all concrete interfaces remain obligations"
     },
     {
       "id": "/root/astra_corrected_machine",
       "state": "STOPPED",
-      "receipt": "Current190sec actual FINAL c6259022 frozen; LP1/LP2 nested history; generalLET OPEN; no descendants"
+      "receipt": "Actual FINAL Lean r1:Contracts c0113cfa,Core2f8c1f16,READMEda017a56; writes stopped,no descendants; primary checker/repair handoff"
     },
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current100sec actual FINAL delta accepts CH8 and MINOR fix; prior110sec CH0–7 accepted; no writes/descendants"
+      "receipt": "Actual80sec FINAL accepts conditional Lean composition; no BLOCKING/MAJOR; allfrozenhashesmatched; checker receipts primary, no rerun"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -40,186 +40,88 @@
   ],
   "leases": [
     {
-      "path": "notes/theory/2026-10-24-source-indexed-constraint-derivation.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "f11968c9e30d64a96e0a0f7bfebd75d31ff53a36e0af884d1d0cc3fe32491698",
-      "receipt": "Independent scope and post-review changes recorded in current outcome"
-    },
-    {
-      "path": "notes/theory/2026-10-24-native-level-closure-and-publication.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "37aeacff4a6dc310bedcb5a44db4afcf8329b05ed684df19350487c5e8711c13",
-      "receipt": "Independent scope and post-review changes recorded in current outcome"
-    },
-    {
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Independent accepted scope; only final status/review receipt after frozen math",
-      "sha256": "12cad8d500c7c05d02262b6d43b5404725b06bc0caf40fa29a04d9601b9db2fc"
+      "receipt": "Current primary exact guide lease; frozen mathematics read-only",
+      "sha256": "b2a42f8ad933f0456f184978db4b53177ab75ce0ad7c07ddac8427bd88c461f3"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Independent accepted scope; only final status/review receipt after frozen math",
-      "sha256": "11aa91dd96399d0b9c84669250d351abfe9a2611216a793569c98c9d614e2350"
+      "receipt": "Current primary exact guide lease; frozen mathematics read-only",
+      "sha256": "4aa84bd4b6ffb2e9d01ebcb7b93c7af7b5de434fb51551c4ea3ef4f97777a466"
     },
     {
-      "path": "notes/theory/2026-10-24-fresh-valuebind-complete-call.md",
-      "owner": "/root/astra_scoped_join",
-      "state": "FROZEN",
-      "sha256": "6fd9926a5874ad4c419245f21a4cacf0ff7e2f00b2294b1b6657423c61a313cd",
-      "receipt": "Current independent accepted scope and status-only post-review updates recorded in outcome"
-    },
-    {
-      "path": "notes/theory/2026-10-24-copy-genealogy-history-erasure.md",
+      "path": "notes/theory/2026-10-24-actual-copy-history-transport.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "ba73cf9fd0a555a876565eb7a93e613f478089ca23b2ffb422ddfb4596115c40",
-      "receipt": "Current independent accepted scope and status-only post-review updates recorded in outcome"
+      "receipt": "Actual producer STOP; primary handoff to clarify missing premises before any review; original r1 hash retained",
+      "sha256": "270cda463f47d6229def252a8a5e43ae08a04d268ee08538a529a1dd7990c910"
     },
     {
-      "path": "notes/theory/2026-10-24-generated-call-descriptor-typing.md",
-      "owner": "/root/astra_corrected_machine",
-      "state": "FROZEN",
-      "sha256": "ef2dec5bdfaf7a8e55132cafedea1c3ced507ff19acea5189a0106d117c76e4c",
-      "receipt": "Current accepted independent scope; only status/receipt post-review change"
-    },
-    {
-      "path": "notes/theory/2026-10-24-captured-record-wrapper-introduction.md",
+      "path": "notes/theory/2026-10-24-concrete-extrusion-source-realization.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "ef41c8a5d914de3538e7a25dd1bdb899e0ebbeb1bfc0737ec9f47be9bfe206fb",
-      "receipt": "Current accepted independent scope; only status/receipt post-review change"
+      "receipt": "Disjoint primary concrete source realization construction, no new receiver convention",
+      "sha256": "d7e61d29ccec67ab77e05c0ebde232a8787370647d4fce0a4c65bf3d8cee31ed"
     },
     {
-      "path": "notes/theory/2026-10-24-name-call-recursive-closure-membership.md",
-      "owner": "/root/astra_scoped_join",
-      "state": "FROZEN",
-      "sha256": "e477b880f65e58497ae1ab6e57562ceb1bff529331fb46b40db6afd91a4f6532",
-      "receipt": "Current independent accepted scope; status/receipt-only post-review updates"
-    },
-    {
-      "path": "notes/theory/2026-10-24-native-local-profile-construction.md",
+      "path": "notes/theory/lean/YulangClosure/Contracts.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "7ca5a4a3b77fcf2f0bd0dd01b514b8920fa6de5aa955887d806416ba5f9b4e9b",
-      "receipt": "Current independent accepted scope; status/receipt-only post-review updates"
+      "receipt": "Producer actualSTOP; primary checking/repair handoff; r1 full hashes in outcome",
+      "sha256": "2fc7186f47a4e1bf7af1fec3cd546b06394dbd3d8cec0660751554ce9f2bd72e"
     },
     {
-      "path": "notes/theory/2026-10-24-actual-replay-receiving-diagram.md",
-      "owner": "/root/astra_corrected_machine",
-      "state": "FROZEN",
-      "sha256": "f7050f30bde37bc46ff764078ae948ec67b74ecb96ac320fcf5db36b8d4c2f18",
-      "receipt": "Accepted independent scope; only status/receipt/link post-review changes"
-    },
-    {
-      "path": "notes/theory/2026-10-24-explicit-recursive-native-model.md",
+      "path": "notes/theory/lean/YulangClosure/CoreComposition.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "4f5f3db5509d82e736ea3406957ecf1463d6ce2b9103f2e032ebdb32ff666520",
-      "receipt": "Accepted independent scope; only status/receipt/link post-review changes"
+      "receipt": "Producer actualSTOP; primary checking/repair handoff; r1 full hashes in outcome",
+      "sha256": "1527cd3c5961b413ec2b97495744b218aba6247956881318485364d15065294c"
     },
     {
-      "path": "notes/theory/2026-10-24-publication-reverse-coverage.md",
+      "path": "notes/theory/lean/README.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "2ffcc43a39d08b367e7e9d8afe4a6eb3b0a1c4b27a415f814df74e01a42e682d",
-      "receipt": "Independent accepted scope; post-review status/receipt/link-only changes"
+      "receipt": "Producer actualSTOP; primary checking/repair handoff; r1 full hashes in outcome",
+      "sha256": "cb174f9f17611c94f5d909bc06a4835995aa8b1feceb015607ea4cc677760821"
     },
     {
-      "path": "notes/theory/2026-10-24-two-input-recursive-source-use.md",
+      "path": "notes/theory/lean/lakefile.toml",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "e0a1b76198b4591d23d746e32eb34d517d26d45c5d3e83f0e747fde924e898d4",
-      "receipt": "Independent accepted scope; post-review status/receipt/link-only changes"
+      "receipt": "Primary project and verification responsibility",
+      "sha256": "2514197994dc47b5e4c6f15ff8c9251f994056b6e32bf2648588ffc10251e194"
     },
     {
-      "path": "notes/theory/2026-10-24-finite-next-observation-coverage.md",
-      "owner": "/root/astra_scoped_join",
-      "state": "FROZEN",
-      "sha256": "7d1c3d6140aa096b5b0a5874eec22e445a19de5462573de9c5d262a677b09f81",
-      "receipt": "Current outcome fixes accepted scope; source FO2 unconditional claim withdrawn after MAJOR, χ_e remains OPEN"
-    },
-    {
-      "path": "notes/theory/2026-10-24-finite-observation-source-bridge.md",
+      "path": "notes/theory/lean/lean-toolchain",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "b5c79aff23a73d6a3df01b737d9402d3c6e385367159e73b68e185fdae33acf9",
-      "receipt": "Current outcome fixes accepted scope; source FO2 unconditional claim withdrawn after MAJOR, χ_e remains OPEN"
+      "receipt": "Primary project and verification responsibility",
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
     },
     {
-      "path": "notes/theory/2026-10-24-let-free-client-reverse-coverage.md",
-      "owner": "/root/astra_scoped_join",
-      "state": "FROZEN",
-      "receipt": "Independent accepted scope; only status/receipt/link post-review changes",
-      "sha256": "ab2c0ea1bc79a8f4ff48c7ee358abc490d237e166c7baf8571801ee32f38bdd5"
-    },
-    {
-      "path": "notes/theory/2026-10-24-computed-argument-carrier-checking.md",
+      "path": "notes/theory/lean/.gitignore",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Independent accepted scope; only status/receipt/link post-review changes",
-      "sha256": "80cff411cebedc9ba482db22b65a98e3e1ccafdf631dd494342ff27af351e899"
+      "receipt": "Primary project and verification responsibility",
+      "sha256": "fde850d24186b6e99c8c0debd641fb3ab85198b109eb66f71a1fea02bd6ea1b3"
     },
     {
-      "path": "notes/theory/2026-10-24-nonrecursive-let-client-coverage.md",
-      "owner": "/root/astra_scoped_join",
-      "state": "FROZEN",
-      "receipt": "Current independent review frozen bytes",
-      "sha256": "fc7007497df333bb260cf1806eff1672a4a6d07af8fa3f987c1bb99b43c5d16d"
-    },
-    {
-      "path": "notes/theory/2026-10-24-computed-call-bind-result.md",
+      "path": "notes/theory/lean/YulangClosure.lean",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Fresh accepted review; only status/receipt/links after frozen math",
-      "sha256": "118f81e1109304b7d4d92e465bb8f923519bda19a362a3f7ff11224a67e44129"
+      "receipt": "Primary project and verification responsibility",
+      "sha256": "fdbcda98e4d8f9cbbff4280c0323cacb52d8f8fad928554a4b4f9f73e3c9faea"
     },
     {
-      "path": "notes/design/2026-10-24-computed-call-result-constructor.md",
+      "path": "notes/theory/lean/lake-manifest.json",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Fresh accepted review; only status/receipt/links after frozen math",
-      "sha256": "2f3a5461b6dacaa29e881ba8b3003120b912e441dd5e4c47fc4ccaa27d3b31a6"
-    },
-    {
-      "path": "notes/design/INDEX.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "sha256": "98f464f421f07459a15c60fc51fc7bc94efbdfe45d6cbc8f519a19cd50307e0a",
-      "receipt": "Exact added navigation lease at current integration boundary, primary grant; one reviewed-definition locator"
-    },
-    {
-      "path": "notes/theory/2026-10-24-let-polar-publication-simulation.md",
-      "owner": "/root/astra_corrected_machine",
-      "state": "FROZEN",
-      "receipt": "Current scoped independent acceptance; only review receipt/status after freeze",
-      "sha256": "2260fa0f3ad0bf2f1fc9a2822ed49ddd09144066da10102cf6b0050f7caa5fa5"
-    },
-    {
-      "path": "notes/theory/2026-10-24-generated-computed-result-correspondence.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "receipt": "Current scoped independent acceptance; only review receipt/status after freeze",
-      "sha256": "58ab61f7252818e208cc27be29fcc2c7633b35467c47dda0de126fa8bc87544b"
-    },
-    {
-      "path": "notes/theory/2026-10-24-signed-update-extrusion-corridor.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "receipt": "Current scoped independent acceptance; receipt/status-only postreview",
-      "sha256": "f21c438b0ed20a5bc2218fd3b6bfc3e2a1b360dbef535b0ee6a9dac2891c10e8"
-    },
-    {
-      "path": "notes/theory/2026-10-24-canonical-let-history-model.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "receipt": "Independent accepted scope; only final status/review receipt after frozen math",
-      "sha256": "5e8479d3c9272f08e7b99213f9b1fc502f7fffc0e5e4a5b3d38eee1035c3a894"
+      "sha256": "058325944d936e85c1f601e68f3147f790dbbd0d0286357949466ce1ad3504c3",
+      "receipt": "Empty dependency manifest generated by successful Lake proof check; contractr2 integration clarification"
     }
   ],
   "external_isolation": {
@@ -263,28 +165,29 @@
   ],
   "review": {
     "reviewer": "/root/astra_semantics_review",
-    "outcome": "tasks/agent-loop/sprints/canonical-let-history-20261024-outcome.md",
-    "whole_language_certified": false
+    "outcome": "tasks/agent-loop/sprints/lean-root-20261024-outcome.md",
+    "whole_language_certified": false,
+    "outcome_sha256": "708cbeb940878de349e91d690215457b7a9bb5483ceccfcda54e527715980a2c"
   },
   "resource": {
-    "astra_reserved_seconds": 9130,
+    "astra_reserved_seconds": 9650,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
     "tests": 0,
-    "successor_reserved_seconds": 0,
+    "successor_reserved_seconds": 190,
     "successor_review_reservation_remaining_seconds": 0,
-    "checkpoint_direction_reserved_seconds": 0
+    "checkpoint_direction_reserved_seconds": 30
   },
-  "next_action": "Primary actual after-history copy/memo model constructor using explicit CH6 valuation and CH8 shared low factors; no child dispatched/reserved",
-  "closure": "ACTIVE whole goal; CH0–8 scoped results reviewed; full original parents OPEN; proof workers STOPPED",
+  "next_action": "Concrete Lean corrected-core configuration/typing/transition/observation and initialization; then discharge LocalLaws fields at their actual constructors. No global Yulang closure from parameterized theorem.",
+  "closure": "Whole goal ACTIVE; conditional root composition checked/reviewed; exact original source/A-B interfaces uninstantiated; AH/RZ unreviewed",
   "previous_outcome": "tasks/agent-loop/sprints/canonical-let-history-20261024-outcome.md",
   "previous_outcome_sha256": "3a3c30a23452ca4e79247d477eeddec787f75dcf6b0f20dc43e47809a6504105",
-  "goal_turn_classification": "PROGRESS",
+  "goal_turn_classification": "PROGRESS: first kernel-checked root composition and source bridge, exact no-axiom audits, scoped independent acceptance; removed unsupported AH2 application",
   "history": {
-    "path": "tasks/agent-loop/sprints/source-indexed-derivation-20261024-prior-state.json",
-    "sha256": "498d39c7bd02937deed3a5031167f3f03ab87d91bb0cb7d174131b9b9c529baa",
-    "scope": "All33 consumed frozen leases archived; original external isolation preserved"
+    "path": "tasks/agent-loop/sprints/lean-root-20261024-prior-state.json",
+    "sha256": "5220044a112a56c3b51fed07992fe60632ac286cae371f1447ae68e5d60b2289",
+    "scope": "Previous exact leases and charged resources; unresolved AH/RZ retained in current state"
   },
-  "contract_sha256": "8b43b5d0ef521daf765ebad86bf0d8ff90a0015cd1aefb40a211440647f7a73f"
+  "contract_sha256": "52cab8f72182d8f5cc1f9501694b8e752d5897afd9ddaf9f5b36ff1f44e3fd34"
 }

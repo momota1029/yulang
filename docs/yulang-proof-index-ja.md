@@ -8,6 +8,8 @@
 
 [全体証明の主定理と現在の到達点](yulang-whole-proof-closure-ja.md)は、査読済みの生成・有限 interface・値型/継続の結果を定理 C として合成する。全言語への接続と元の推論 A/B を別の未完了義務として明示する。
 
+[Leanによる全体定理の接続](../notes/theory/lean/README.md)は、その合成を機械検査するための証明プロジェクトである。任意有限 prefix と繰返し再開の合成定理、および未構成の source・推論・coverage・停止性の義務を分離する。具体的な Yulang machine/typing/cell/source instance を供給する前の条件付き定理であり、Lean の検査成功を全言語の証明完了と同一視しない。査読・検査の正確な状態は同 README と sprint outcome に記す。
+
 intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/design/2026-10-24-birth-level-scc-intrusion.md)に従う。以下の旧稿の跨レベル F/G・O/E qualification とその拒否履歴は旧規則についての結果として保持し、現行規則へそのまま適用しない。
 
 - [生成レベル別 SCC と extrusion の親子等置](../notes/theory/2026-10-24-birth-level-scc-intrusion.md): 固定 birth ごとの誘導グラフ、経路・更新と局所 extrusion 結果の適用、nested helper/odd-even の変更を扱う。全体の source-scoped 保存と実装対応を区別する。[固定版と査読記録](../tasks/agent-loop/sprints/birth-level-scc-20261024-outcome.md)を参照。
