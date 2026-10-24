@@ -1,0 +1,339 @@
+{
+ "schema_version": 1,
+ "mode": "LIVE",
+ "phase": "PAUSED",
+ "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-3",
+ "active_sprint": {
+  "id": "NATURAL-CONDITIONAL-RESULT-20261024",
+  "status": "PAUSED",
+  "contract": "tasks/agent-loop/sprints/natural-conditional-result-20261024-rev4.md",
+  "contract_sha256": "0009f4e037a1edbda567d3cf418bd43a7016e664ad20340f76a614e9946b7603",
+  "baseline": "d788d94da66385bf09947932f0aae1972cd51f21",
+  "claim": "Graph-directed positive projection of CandidateGraphExport facts; both If branch contributions must pass through Group endpoints into the export.",
+  "implementation": "After independent construction review, Luna may edit only tools/inference-playground/src/scheme.rs; no If-specific rendering or constant folding.",
+  "proof": "Prove generic positive Value projection, both branch Group transports, and definition-root→local/shared join. Preserve only exported facts; effect admission is guarded by candidate_graph_effects.",
+  "worktree": "/tmp/yulang-natural-conditional-result-20261024",
+  "branch": "codex/natural-conditional-result-20261024",
+  "resources": {
+   "cap_seconds": 3000,
+   "assignment_envelope": 6,
+   "astra": 0,
+   "proof_assignment_cap_seconds": 1000,
+   "review_assignment_cap_seconds": 300,
+   "primary_compile_cap_seconds": 300,
+   "heavy_builds": 1,
+   "tests": 0
+  },
+  "outcome": "tasks/agent-loop/sprints/natural-conditional-result-20261024-outcome.md",
+  "closure": "PAUSED at user request; candidate checkpoint b6e2dc144 remains unreviewed; review interrupted; no source edit/build/runtime observation.",
+  "review_status": "PAUSED; independent review interrupted before findings; scheme.rs implementation not started.",
+  "outcome_sha256": "b9772b156b8d9f1a82ad2a6fcec800c734486bd8ef89cde6a2dd6b3a10efc916"
+ },
+ "workers": [
+  {
+   "id": "/root/resident_dispatcher_loop_a",
+   "role": "legacy dispatcher",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Identity/session/model/effort UNKNOWN; reservation remains UNKNOWN_QUARANTINED."
+  },
+  {
+   "id": "/root/resident_implementer_idle",
+   "role": "legacy implementer",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Identity/session/model/effort UNKNOWN; reservation remains UNKNOWN_QUARANTINED."
+  },
+  {
+   "id": "/root/runtime_source_supplier_proof",
+   "role": "legacy proof worker",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Identity/session/model/effort UNKNOWN; reservation remains UNKNOWN_QUARANTINED."
+  },
+  {
+   "id": "/root",
+   "role": "primary authority/current/Git integrator",
+   "state": "STOPPED",
+   "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-3",
+   "requested_model": "user-selected primary",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "User requested pause; primary stopped active proof/review work and synchronized paused state."
+  },
+  {
+   "id": "/root/natural_conditional_result_prover",
+   "role": "proof producer",
+   "state": "STOPPED",
+   "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-2",
+   "requested_model": "configured prover role",
+   "requested_effort": "configured role effort",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Frozen unreviewed candidate; note/inbox hashes and cessation receipt are in sprint outcome/inbox; no descendants."
+  }
+ ],
+ "leases": [
+  {
+   "path": "tasks/agent-loop/current.json",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Primary-owned paused current state; no work until user resumes."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024-rev4.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Rev4 frozen; adds only Group value/effect admission and endpoint ownership joins in pinned shadow_apply.rs."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024-outcome.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Primary-owned paused outcome; no work until user resumes."
+  },
+  {
+   "path": "notes/theory/2026-10-24-natural-conditional-result.md",
+   "owner": "/root/natural_conditional_result_prover",
+   "state": "FROZEN",
+   "reason": "Frozen rev1 research checkpoint b6e2dc144; author STOPPED; review interrupted at user request."
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261024-natural-conditional-result.md",
+   "owner": "/root/natural_conditional_result_prover",
+   "state": "FROZEN",
+   "reason": "Frozen rev1 research checkpoint b6e2dc144; author STOPPED; review interrupted at user request."
+  }
+ ],
+ "pending": [
+  {
+   "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+   "state": "OPEN",
+   "owner": "Luna; whole-ascription formation",
+   "details": "tasks/agent-loop/inbox/20261019-r61-proof.md"
+  },
+  {
+   "id": "R64-SRC-ANN-ARG-1",
+   "state": "OPEN",
+   "owner": "Luna; annotation argument",
+   "details": "tasks/agent-loop/inbox/20261019-r64-proof.md"
+  },
+  {
+   "id": "R65-CURRENT-OPERAND-1",
+   "state": "OPEN",
+   "owner": "Luna; ordinary typed Lambda operand",
+   "details": "tasks/agent-loop/inbox/20261019-r65-proof.md"
+  },
+  {
+   "id": "R66-LAMBDA-RESULT-STAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; direct Lambda-checking follow-up",
+   "details": "tasks/agent-loop/inbox/20261019-r66-proof.md"
+  },
+  {
+   "id": "R67-DIRECT-BODY-CHECK-1",
+   "state": "OPEN",
+   "owner": "Luna; source Lambda body consumer",
+   "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md"
+  },
+  {
+   "id": "R68-OWNER-CONSUMER-1",
+   "state": "OPEN",
+   "owner": "Luna; retained body/result consumer",
+   "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"
+  },
+  {
+   "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+   "state": "OPEN_UNADOPTED_PROPOSAL",
+   "owner": "Luna; source-law completion",
+   "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"
+  },
+  {
+   "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+   "state": "OPEN",
+   "owner": "Luna; exact source/native owners in R70",
+   "details": "tasks/agent-loop/inbox/20261019-r70-proof.md"
+  },
+  {
+   "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; source/native owners in R71",
+   "details": "R230; R231–234; R236; R237 found no callback slot-4 alias to later raw WorkBound; coverage open."
+  },
+  {
+   "id": "R72-LATER-OCCURRENCE-1",
+   "state": "OPEN",
+   "owner": "Luna; exact Local-to-WorkBound replay and consumer lineage",
+   "details": "R229; R231–233 found no slot-4 post-alias consumer; bridge open."
+  },
+  {
+   "id": "R149-SOURCE-OWNER-CLOSURE-1",
+   "state": "OPEN_SOURCE_TO_CST",
+   "owner": "Luna intake",
+   "details": "Exact parser/HIR readback remains OPEN after private sample-environment seam; no parser rejection/compiler gap. Capture proof history: tasks/agent-loop/sprints/r149-in-crate-capture-20261024-outcome.md."
+  },
+  {
+   "id": "R339-D2-WHOLE-FRAME-RETIREMENT",
+   "state": "OPEN_REMAINDER",
+   "owner": "Luna; exact residual N temporal/fiber and end-state coverage",
+   "details": "R346 fixed-key replay accepted; R347 projected C_s ↔ H₀(S) open; R348 bounded extension accepted after review; full N open."
+  },
+  {
+   "id": "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
+   "state": "OPEN_REMAINDER",
+   "owner": "Luna; source Apply handoff and continuation-prefix invariant",
+   "details": "Bounded Apply handoff, prefix/owner and invocation/argument identity pass under realization premises; full C/M open. MAJOR S0 dependency row corrected; independent delta review pending."
+  },
+  {
+   "id": "R345-N-REMAINDER",
+   "state": "OPEN_REMAINDER",
+   "owner": "Luna; all-pair temporal coverage and source-constraint completeness",
+   "details": "R346 fixed-key replay accepted; R347 projected C_s ↔ H₀(S) open; R348 bounded extension accepted after review; full N open."
+  },
+  {
+   "id": "OP-SEMANTICS-FULL-EFFECT",
+   "state": "OPEN_REVIEW",
+   "owner": "primary",
+   "details": "Old owner and existential AllowAll source applications need correction. Source candidate 15.4 supplies explicit repairs; adoption/review OPEN."
+  },
+  {
+   "id": "DOT-SELECTION-EVIDENCE-BRIDGE",
+   "state": "OPEN_REVIEW",
+   "owner": "primary",
+   "details": "Finite selected-code bridge retained; lifetime effect evidence requires recheck. Resolver uniqueness, raw/compact and snapshot lifecycle OPEN."
+  },
+  {
+   "id": "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
+   "state": "OPEN_REVIEW",
+   "owner": "primary",
+   "details": "Rank-2 computed-fetch source boundary clarified (12.1); explicit all-input release (11.7). Semantic choice, native correspondence/review OPEN."
+  },
+  {
+   "id": "SOURCE-SAFETY-BRIDGE",
+   "state": "OPEN_REVIEW",
+   "owner": "primary",
+   "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
+  }
+ ],
+ "closure": "Goal PAUSED at user request because proof work is happening elsewhere. Candidate proof remains unreviewed; review interrupted; no implementation. Three legacy reservations remain UNKNOWN_QUARANTINED.",
+ "next_action": "No work until user resumes. Candidate proof checkpoint b6e2dc144 remains unreviewed; no implementation is authorized.",
+ "legacy_reconciliation": {
+  "required": false,
+  "reason": "Three UNKNOWN reservations stay quarantined; work is isolated.",
+  "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
+  "reservations": [
+   {
+    "id": "/root/resident_dispatcher_loop_a",
+    "path": "tasks/agent-loop/board.md",
+    "state": "UNKNOWN_QUARANTINED"
+   },
+   {
+    "id": "/root/resident_implementer_idle",
+    "path": "UNKNOWN historical implementation lease",
+    "state": "UNKNOWN_QUARANTINED"
+   },
+   {
+    "id": "/root/runtime_source_supplier_proof",
+    "path": "UNKNOWN historical proof lease",
+    "state": "UNKNOWN_QUARANTINED"
+   }
+  ]
+ },
+ "user_goal": "Use established proofs and approved source behavior to implement Yulang type inference and evaluator; commit and push, keeping the worktree clean.",
+ "history": [
+  {
+   "id": "RELEASE-prior-state",
+   "record": "tasks/agent-loop/sprints/release-closure-20261024-prior-current.json"
+  },
+  {
+   "id": "RELEASE-CLOSURE-20261024",
+   "record": "tasks/agent-loop/sprints/release-closure-20261024.md",
+   "closure": "Superseded by the user's explicit implementation scope; proof candidate and open gates retained."
+  },
+  {
+   "id": "PRIMITIVE-BOOL-RUNTIME-20261024",
+   "record": "tasks/agent-loop/sprints/primitive-bool-runtime-20261024-rev2.md",
+   "closure": "Reviewed Boolean slice compiled, committed and pushed; full goal remains open."
+  },
+  {
+   "id": "PERMISSION-BRIDGE-SOURCE-20261024",
+   "record": "notes/theory/2026-10-24-permission-implementation-bridge.md"
+  },
+  {
+   "id": "R349-K0-FINITE-WITNESS-20261023",
+   "record": "notes/theory/2026-10-23-r349-k0-finite-witness.md"
+  },
+  {
+   "id": "INTEGER-COMPARISON-AND-PERMISSION-BRIDGE-20261024",
+   "record": "tasks/agent-loop/sprints/integer-comparison-and-permission-bridge-20261024-rev2.md",
+   "closure": "Reviewed and integrated; permission bridge partial/open."
+  },
+  {
+   "id": "CONCRETE-CALLBACK-PERMISSION-20261024",
+   "record": "tasks/agent-loop/sprints/concrete-callback-permission-20261024.md",
+   "closure": "Reviewed exact runtime obstruction; NO_SAFE_CODE_SLICE; parent gate remains OPEN_REVIEW."
+  },
+  {
+   "id": "CB-PERMISSION-TRANSPORT-20261024",
+   "record": "tasks/agent-loop/sprints/cb-permission-transport-20261024-rev2.md",
+   "closure": "CONSTRUCTION_ACCEPTED; REV1_MAJOR_REPAIRED; REV2_REVIEW_PASS; CARGO_CHECK_PASS; INTEGRATED_AND_PUSHED."
+  },
+  {
+   "id": "R149-CURRENT-SOURCE-ADMISSION-20261024",
+   "record": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev3.md",
+   "contract_sha256": "0e5f5358e69dd48d4006b46773d9f86cf492c30d3a4e8ad063acdbf1e62e8d48",
+   "proof": "notes/theory/2026-10-24-r149-current-source-admission.md",
+   "proof_sha256": "d4c6b9e176f9577e20d05dc2fae24b9c0ff68c926525373b3568900acf39db06",
+   "inbox": "tasks/agent-loop/inbox/20261024-r149-current-source-admission.md",
+   "inbox_sha256": "ba432a682314dd5bd3df774c2330df3db9af0e87f474002888c08eab134e785b",
+   "outcome": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-outcome.md",
+   "outcome_sha256": "7cd904d92e6318b4af9957b50ac78a0ff04c694e6eabaa0a61fe9e4dd0d10450",
+   "integration_commit": "aba6c8eb9b9caf2559bf955670d662503950c98d",
+   "closure": "PARTIAL_REVIEWED; source→CST/recovery boundary remains open; no compiler gap shown."
+  },
+  {
+   "id": "R149-EXACT-SOURCE-READBACK-20261024",
+   "record": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-rev2.md",
+   "contract_sha256": "20541baa2157ffaa9453b7b076bb0b686b61c4663d187cc00af822026905fbe2",
+   "outcome": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-outcome.md",
+   "outcome_sha256": "bf5984e210ef830bde9d9b63c816c6dde619f84cbe81bbe005cd0e229abe225e",
+   "proof": "notes/theory/2026-10-24-r149-exact-source-readback.md",
+   "proof_sha256": "f5cedf75832e6192ddd901039ce9b2a9fd88e82c69c54e74756459fe8bc1ef4d",
+   "inbox": "tasks/agent-loop/inbox/20261024-r149-exact-source-readback.md",
+   "inbox_sha256": "0068ebe2cc513047e8e5f4ff7bcc632feebf5ef169ce175056eca8a925d06996",
+   "closure": "PARTIAL_REVIEWED; no readback; private sample-environment visibility seam; R149/A-B OPEN."
+  },
+  {
+   "id": "R149-EXACT-SOURCE-READBACK-20261024",
+   "record": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-outcome.md",
+   "contract": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-rev2.md",
+   "contract_sha256": "20541baa2157ffaa9453b7b076bb0b686b61c4663d187cc00af822026905fbe2",
+   "outcome_sha256": "bf5984e210ef830bde9d9b63c816c6dde619f84cbe81bbe005cd0e229abe225e",
+   "closure": "PARTIAL_REVIEWED; source/CST/HIR readback not observed; private sample-environment visibility seam identified; R149 and A/B remain OPEN."
+  },
+  {
+   "id": "R149-IN-CRATE-CAPTURE-20261024",
+   "record": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024.md",
+   "contract_sha256": "7718897585334c1baae5b274d6f12c7ded9587fdb7a64c3b8fe179b4aa69effa",
+   "outcome": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024-outcome.md",
+   "proof": "/tmp/yulang-r149-in-crate-capture-20261024/notes/theory/2026-10-24-r149-in-crate-capture.md",
+   "proof_sha256": "f35a59d6bf9f8ae4eec5833ce04329eaa47031c649fed98775b1aa8c1fe06afa",
+   "closure": "PARTIAL_REVIEWED; sole build failed in temporary example; no parser/HIR observation; R149 and A/B OPEN.",
+   "outcome_sha256": "4b3e5e822724e78dab6e831f2d7131a28a22bfc3b2b0390fe3dd676193a6a2b7"
+  }
+ ],
+ "resource_observation": "Dispatcher approved rev2 exact read-only path expansion. All five added dependency hashes match the isolated worktree. No executable validation or code edit."
+}
