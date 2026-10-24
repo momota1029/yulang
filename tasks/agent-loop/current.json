@@ -4,27 +4,28 @@
  "phase": "ENDED",
  "session": null,
  "active_sprint": {
-  "id": "R149-CURRENT-SOURCE-ADMISSION-20261024",
+  "id": "R149-EXACT-SOURCE-READBACK-20261024",
   "status": "PARTIAL_REVIEWED",
-  "contract": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev3.md",
-  "contract_sha256": "0e5f5358e69dd48d4006b46773d9f86cf492c30d3a4e8ad063acdbf1e62e8d48",
-  "baseline": "22239717efd1a8205be561ae1a8cfae35057d3c9",
-  "claim": "Produce a reviewed source-to-inference-to-module-schedule-to-consumer certificate for unchanged R149 Types/Console, or identify the first exact unsupported owner.",
-  "implementation": "Primary audit of lib.rs/runtime/program.rs; no code edits.",
-  "proof": "Partial source/native trace; parser source→CST boundary; A/B OPEN.",
+  "contract": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-rev2.md",
+  "contract_sha256": "20541baa2157ffaa9453b7b076bb0b686b61c4663d187cc00af822026905fbe2",
+  "baseline": "aba6c8eb9b9caf2559bf955670d662503950c98d",
+  "claim": "Read back exact Types/Console/provider bytes through the actual parser/HIR constructors, keys and recovery in one process, or locate the first authenticated constructor/API boundary.",
+  "implementation": "Primary-owned provisional parser/HIR example and one bounded readback; no production transition or API changes.",
+  "proof": "Join parser nodes/ranges/recoveries and genuine source keys to HIR declaration/export/member/operation identities; apply to prior R149 partial trace.",
   "resources": {
    "cap_seconds": 3600,
    "assignment_envelope": 6,
    "astra": 0,
    "proof_assignment_cap_seconds": 1200,
+   "primary_evidence_cap_seconds": 900,
    "review_assignment_cap_seconds": 300,
-   "implementation_reserve_seconds": 1200
+   "heavy_builds": 1,
+   "readback_seconds": 120
   },
-  "outcome": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-outcome.md",
-  "closure": "PARTIAL_REVIEWED; parser source→CST/recovery remains an evidence boundary, not a demonstrated compiler gap.",
-  "next_action": "Complete the independent code-owner audit while the constructive source lane builds its certificate.",
-  "review_status": "PASS; independent review matched pinned evidence and confirmed boundaries.",
-  "outcome_sha256": "7cd904d92e6318b4af9957b50ac78a0ff04c694e6eabaa0a61fe9e4dd0d10450"
+  "outcome": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-outcome.md",
+  "closure": "PARTIAL_REVIEWED; source/CST/HIR readback not observed; private sample-environment visibility seam identified; R149 and A/B remain OPEN.",
+  "review_status": "PASS; fresh independent review accepted partial handoff under boundary criterion.",
+  "outcome_sha256": "bf5984e210ef830bde9d9b63c816c6dde619f84cbe81bbe005cd0e229abe225e"
  },
  "workers": [
   {
@@ -69,29 +70,29 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Session ended after committing reviewed R149 partial evidence; no background work remains."
+   "receipt": "Session ended after freezing and reviewing PARTIAL R149 exact-source-readback evidence, recording the outcome, and preparing explicit paths for Git integration; no background work or active children remain."
   },
   {
-   "id": "/root/r149_current_source_admission_prover",
-   "role": "R149 constructive source/native admission producer",
+   "id": "/root/r149_exact_source_readback_prover",
+   "role": "R149 exact parser/HIR source-key correspondence producer",
    "state": "STOPPED",
    "session": null,
    "requested_model": "configured prover role; no spawn override",
    "requested_effort": "configured role effort; no spawn override",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Stopped after freezing partial R149 certificate; 24 pinned sources matched; 489s interval; no tests/builds/probes/Git."
+   "receipt": "Frozen assignment revision 1; writes stopped; no commands, processes, descendants, builds, tests, probes, or scratch outputs. Note/inbox hashes recorded in leases."
   },
   {
    "id": "/root/proof_implementation_referee",
-   "role": "independent R149 source/native evidence reviewer",
+   "role": "fresh independent R149 readback handoff reviewer",
    "state": "STOPPED",
    "session": null,
    "requested_model": "existing referee role; no override",
    "requested_effort": "existing referee role; no override",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Stopped 2026-10-24 00:51:37 UTC; 65s; 8 read-only calls; no edits/tests/builds/probes/Git; model/session UNKNOWN."
+   "receipt": "Fresh independent review PASS as partial handoff; stopped 2026-10-24 01:07:51 UTC; 99 seconds, 9 read-only calls; no edits, Git, tests, builds, probes, descendants. Session/model/effort UNKNOWN."
   }
  ],
  "leases": [
@@ -99,43 +100,37 @@
    "path": "tasks/agent-loop/current.json",
    "owner": "/root",
    "state": "HELD",
-   "reason": "Primary-owned proof continuation state and integration; old quarantined reservations preserved."
+   "reason": "Primary-owned current state for active exact-source-readback sprint."
   },
   {
-   "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024.md",
+   "path": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024.md",
    "owner": "/root",
    "state": "FROZEN",
-   "reason": "Immutable revision 1; superseded before proof-output work by the explicit revision-2 dependency-pin repair."
+   "reason": "Immutable revision 1; superseded before source reads by revision 2 scratch-path representation."
   },
   {
-   "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-outcome.md",
+   "path": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-outcome.md",
    "owner": "/root",
    "state": "FROZEN",
-   "reason": "Reviewed partial outcome frozen; SHA-256 7cd904d92e6318b4af9957b50ac78a0ff04c694e6eabaa0a61fe9e4dd0d10450."
+   "reason": "PARTIAL_REVIEWED outcome frozen; SHA-256 bf5984e210ef830bde9d9b63c816c6dde619f84cbe81bbe005cd0e229abe225e."
   },
   {
-   "path": "notes/theory/2026-10-24-r149-current-source-admission.md",
-   "owner": "/root/r149_current_source_admission_prover",
-   "state": "FROZEN",
-   "reason": "Frozen proof candidate SHA-256 d4c6b9e1…; independent review pending."
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261024-r149-current-source-admission.md",
-   "owner": "/root/r149_current_source_admission_prover",
-   "state": "FROZEN",
-   "reason": "Frozen handoff SHA-256 ba432a68…; independent review pending."
-  },
-  {
-   "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev2.md",
+   "path": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-rev2.md",
    "owner": "/root",
    "state": "FROZEN",
-   "reason": "Immutable revision 2; superseded by revision 3 owner pins."
+   "reason": "Immutable revision 2 contract with current-state-compatible scratch path."
   },
   {
-   "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev3.md",
-   "owner": "/root",
-   "state": "HELD",
-   "reason": "Frozen revision 3 primary-owned active contract."
+   "path": "notes/theory/2026-10-24-r149-exact-source-readback.md",
+   "owner": "/root/r149_exact_source_readback_prover",
+   "state": "FROZEN",
+   "reason": "Producer handoff frozen; SHA-256 f5cedf75832e6192ddd901039ce9b2a9fd88e82c69c54e74756459fe8bc1ef4d; independent review pending."
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261024-r149-exact-source-readback.md",
+   "owner": "/root/r149_exact_source_readback_prover",
+   "state": "FROZEN",
+   "reason": "Assignment handoff frozen; SHA-256 0068ebe2cc513047e8e5f4ff7bcc632feebf5ef169ce175056eca8a925d06996; independent review pending."
   }
  ],
  "pending": [
@@ -201,9 +196,9 @@
   },
   {
    "id": "R149-SOURCE-OWNER-CLOSURE-1",
-   "state": "OPEN_REMAINDER",
+   "state": "OPEN_SOURCE_TO_CST",
    "owner": "Luna intake",
-   "details": "R149-CURRENT-SOURCE-ADMISSION-20261024: declaration-qualified source→identity→fetch→root/order→consumer certificate or first exact obstruction; source/runtime and publication remain open."
+   "details": "Exact parser/HIR readback remains OPEN after reviewed private sample-environment visibility seam; no parser rejection or compiler gap shown."
   },
   {
    "id": "R339-D2-WHOLE-FRAME-RETIREMENT",
@@ -248,8 +243,8 @@
    "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
   }
  ],
- "closure": "Previous callback transport slice remains integrated/pushed. Current R149 source admission and the broader inference/evaluator goal remain open; no runtime result claimed.",
- "next_action": "Next session: pin parser/API owners, then authorize bounded exact source readback; no production code change without reviewed source/native correspondence.",
+ "closure": "R149 exact-source readback is PARTIAL_REVIEWED at the private environment/readback access seam; no parser/HIR runtime result claimed. Broader inference/evaluator goal and original A/B remain OPEN.",
+ "next_action": "Next selector proposal: prepare R149-IN-CRATE-READBACK-1 with a reviewed provisional in-crate entrypoint; retain private environment and actual parse/HIR objects, no public API or semantic edits without a new exact lease.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "Three prior UNKNOWN identities and their quarantined reservations retained.",
@@ -259,88 +254,66 @@
  "history": [
   {
    "id": "RELEASE-prior-state",
-   "record": "tasks/agent-loop/sprints/release-closure-20261024-prior-current.json",
-   "sha256": "0ffbfdecc3a7e86aa45258ec50adf08025c5048f0729624bf4a96fe9853d4f02",
-   "outcome": "Immutable complete prior history and capture outcome; pending and unknown leases retained."
+   "record": "tasks/agent-loop/sprints/release-closure-20261024-prior-current.json"
   },
   {
    "id": "RELEASE-CLOSURE-20261024",
    "record": "tasks/agent-loop/sprints/release-closure-20261024.md",
-   "contract_sha256": "ca2816d82ffaa700c862b67e968c545dd1dd2b569e3d5130680bde0c5e8a0b23",
-   "outcome": "tasks/agent-loop/sprints/release-closure-20261024-outcome.md",
-   "outcome_sha256": "f29934b35beba23b67299db6dfe4f842455165785910cc8a4adf5e1582b656d8",
    "closure": "Superseded by the user's explicit implementation scope; proof candidate and open gates retained."
   },
   {
    "id": "PRIMITIVE-BOOL-RUNTIME-20261024",
    "record": "tasks/agent-loop/sprints/primitive-bool-runtime-20261024-rev2.md",
-   "contract_sha256": "6c8e615c097570ad669bbb3a6b4b022c8077f12c4057581c88238ce4a73b2551",
-   "outcome": "tasks/agent-loop/sprints/primitive-bool-runtime-20261024-outcome.md",
-   "outcome_sha256": "421597b31b400eb391534d02f1dddcb9dcafdefa7900b001c4f43917cc853401",
-   "integration_commit": "8a2f8113f2b7298bc0789c5b285ae05a6603f9d4",
-   "closure": "Reviewed Boolean slice compiled, committed and pushed; full goal remains open.",
-   "receipt_commit": "d0015dd930f9dfc8df165d4a719a72382c153f13"
+   "closure": "Reviewed Boolean slice compiled, committed and pushed; full goal remains open."
   },
   {
    "id": "PERMISSION-BRIDGE-SOURCE-20261024",
-   "record": "notes/theory/2026-10-24-permission-implementation-bridge.md",
-   "sha256": "f9c40e49dd8c4e9ec1c4ef01a0391940ad5c7fd21b27da1c0635501721b6aeed",
-   "inbox": "tasks/agent-loop/inbox/20261024-permission-implementation-bridge.md",
-   "result": "Partial; joint eligibility and two representation gaps open; no compiler counterexample.",
-   "worker": "STOPPED; seven read-only calls, no writes/descendants; elapsed UNKNOWN."
+   "record": "notes/theory/2026-10-24-permission-implementation-bridge.md"
   },
   {
    "id": "R349-K0-FINITE-WITNESS-20261023",
-   "record": "notes/theory/2026-10-23-r349-k0-finite-witness.md",
-   "sha256": "2bde82649456241d83ef5ceafc159030f57779707be9565d7455ad312a67629b",
-   "inbox": "tasks/agent-loop/inbox/20261023-r349-k0-witness-prover.md",
-   "inbox_sha256": "a891f4dee8460d3146eb1869c27c5450c21f8c9d3e6e0047b3d8e46c0ac98271",
-   "result": "Conditional obstruction only; W0 OPEN; author STOPPED, outputs frozen.",
-   "integration_commit": "5fede4c66"
+   "record": "notes/theory/2026-10-23-r349-k0-finite-witness.md"
   },
   {
    "id": "INTEGER-COMPARISON-AND-PERMISSION-BRIDGE-20261024",
    "record": "tasks/agent-loop/sprints/integer-comparison-and-permission-bridge-20261024-rev2.md",
-   "contract_sha256": "18164e4f2a4b5b05f9c4202b2129b053a263914988a38f5f53430df7f9e92515",
-   "outcome": "tasks/agent-loop/sprints/integer-comparison-and-permission-bridge-20261024-outcome.md",
-   "outcome_sha256": "552db3a5afe3fff9ef6d45562276eee3d708309e45bd5c1bb14802b66132ae7f",
-   "integration_commit": "e2929ec28",
    "closure": "Reviewed and integrated; permission bridge partial/open."
   },
   {
    "id": "CONCRETE-CALLBACK-PERMISSION-20261024",
    "record": "tasks/agent-loop/sprints/concrete-callback-permission-20261024.md",
-   "contract_sha256": "4a6b3a6e10d3c496640c015104d555c115e351dd41806f45c04fe6e20fa24f94",
-   "outcome": "tasks/agent-loop/sprints/concrete-callback-permission-20261024-outcome.md",
-   "outcome_sha256": "a119e74dee26caf99769dc827d7c73431766fe0286089a1ec83ecf2b6a7f0032",
-   "proof_artifact": "notes/theory/2026-10-24-callback-permission-bridge.md",
-   "proof_sha256": "c228ff45a272a52b92eaaccd91183272438bb8c3287dd39e7749d700ce919f4d",
-   "inbox": "tasks/agent-loop/inbox/20261024-callback-permission-bridge.md",
-   "inbox_sha256": "dddd305fb7d0aa6aca86b0868cf1a4806703e58e57f7c8b8e2e14ac0c5949335",
-   "integration_commit": "a0dcc92b8f8b866f7ed2e06acf399a4c86057a3c",
    "closure": "Reviewed exact runtime obstruction; NO_SAFE_CODE_SLICE; parent gate remains OPEN_REVIEW."
   },
   {
    "id": "CB-PERMISSION-TRANSPORT-20261024",
    "record": "tasks/agent-loop/sprints/cb-permission-transport-20261024-rev2.md",
-   "contract_sha256": "0c5fe5011811420ae334d2a72f0e46570eed17e0775e48f47228d799e12ce0d7",
-   "outcome": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
-   "outcome_sha256": "373e95500c122de631b51de9554778528c95219480a79239bdfe0a943bd821eb",
-   "integration_commit": "9ce447b167a24fc80f733a9d5d185d2978663dae",
    "closure": "CONSTRUCTION_ACCEPTED; REV1_MAJOR_REPAIRED; REV2_REVIEW_PASS; CARGO_CHECK_PASS; INTEGRATED_AND_PUSHED."
   },
   {
-   "id": "R149-CURRENT-SOURCE-ADMISSION-20261024-rev1",
-   "record": "tasks/agent-loop/sprints/r149-current-source-admission-20261024.md",
-   "sha256": "418a7ae53e2928abf852c55e55670089330e373e2699308929ef9db23133b052",
-   "outcome": "Superseded before source-output work; revision 2 adds direct pins for the embedded standard-library bundle and HIR declaration/identity owner."
+   "id": "R149-CURRENT-SOURCE-ADMISSION-20261024",
+   "record": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev3.md",
+   "contract_sha256": "0e5f5358e69dd48d4006b46773d9f86cf492c30d3a4e8ad063acdbf1e62e8d48",
+   "proof": "notes/theory/2026-10-24-r149-current-source-admission.md",
+   "proof_sha256": "d4c6b9e176f9577e20d05dc2fae24b9c0ff68c926525373b3568900acf39db06",
+   "inbox": "tasks/agent-loop/inbox/20261024-r149-current-source-admission.md",
+   "inbox_sha256": "ba432a682314dd5bd3df774c2330df3db9af0e87f474002888c08eab134e785b",
+   "outcome": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-outcome.md",
+   "outcome_sha256": "7cd904d92e6318b4af9957b50ac78a0ff04c694e6eabaa0a61fe9e4dd0d10450",
+   "integration_commit": "aba6c8eb9b9caf2559bf955670d662503950c98d",
+   "closure": "PARTIAL_REVIEWED; source→CST/recovery boundary remains open; no compiler gap shown."
   },
   {
-   "id": "R149-CURRENT-SOURCE-ADMISSION-20261024-rev2",
-   "record": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev2.md",
-   "sha256": "c0b5ac07c23b63c57ec299d02314873033d74cee768ce6950f56285f4a5bcd72",
-   "outcome": "Superseded before source-output work; revision 3 pins source_impl and source_annotation owners."
+   "id": "R149-EXACT-SOURCE-READBACK-20261024",
+   "record": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-rev2.md",
+   "contract_sha256": "20541baa2157ffaa9453b7b076bb0b686b61c4663d187cc00af822026905fbe2",
+   "outcome": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-outcome.md",
+   "outcome_sha256": "bf5984e210ef830bde9d9b63c816c6dde619f84cbe81bbe005cd0e229abe225e",
+   "proof": "notes/theory/2026-10-24-r149-exact-source-readback.md",
+   "proof_sha256": "f5cedf75832e6192ddd901039ce9b2a9fd88e82c69c54e74756459fe8bc1ef4d",
+   "inbox": "tasks/agent-loop/inbox/20261024-r149-exact-source-readback.md",
+   "inbox_sha256": "0068ebe2cc513047e8e5f4ff7bcc632feebf5ef169ce175056eca8a925d06996",
+   "closure": "PARTIAL_REVIEWED; no readback; private sample-environment visibility seam; R149/A-B OPEN."
   }
  ],
- "resource_observation": "R149 partial result independently reviewed PASS. Producer: 489s interval, 24 source hashes matched; reviewer: 65s, 8 read-only calls. No code/tests/builds/probes. Parser formation remains evidence boundary; three legacy UNKNOWN reservations retained."
+ "resource_observation": "Producer STOPPED: no driver/readback/scratch. Fresh referee PASS at 2026-10-24 01:07:51 UTC; 99 seconds, 9 read-only calls. Manifest independently reconciled: 151 records, 15,003 bytes, SHA-256 e6c7315c50c75bc6b5ed27405022258769d5594ab31645d15cbdac7400299462; only empty dirs omitted by Git. No tests/builds/probes; three legacy UNKNOWN reservations retained."
 }
