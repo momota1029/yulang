@@ -2,32 +2,32 @@
  "schema_version": 1,
  "mode": "LIVE",
  "phase": "ACTIVE",
- "session": "R149-IN-CRATE-CAPTURE-20261024/root-turn-1",
+ "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-2",
  "active_sprint": {
-  "id": "R149-IN-CRATE-CAPTURE-20261024",
-  "status": "PARTIAL_REVIEWED",
-  "contract": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024.md",
-  "contract_sha256": "7718897585334c1baae5b274d6f12c7ded9587fdb7a64c3b8fe179b4aa69effa",
-  "baseline": "424566114b10aaa948c2a0ffac53f56567416114",
-  "claim": "Read actual unchanged R149 parser/main-HIR objects and actual pinned provider parses/indexes in one process, or report an authenticated constructor failure; stop before pinned_candidate_world.",
-  "implementation": "Temporary cfg-gated capture in an isolated worktree; no manifest, semantic, durable API or production change.",
-  "proof": "Establish capture transparency and join frozen objects/observations to the reviewed R149 partial admission trace; name the remaining provider-selection/fetch premise.",
-  "worktree": "/tmp/yulang-r149-in-crate-capture-20261024",
-  "branch": "codex/r149-in-crate-capture-20261024",
+  "id": "NATURAL-CONDITIONAL-RESULT-20261024",
+  "status": "ACTIVE",
+  "contract": "tasks/agent-loop/sprints/natural-conditional-result-20261024.md",
+  "contract_sha256": "8fbfe6fa17e190efd034580ccee19f4128a0ffff01803683a6f4d6e1bb65136e",
+  "baseline": "d788d94da66385bf09947932f0aae1972cd51f21",
+  "claim": "Graph-directed positive projection for multiple concrete Value lower heads; both If branches contribute; all original graph constraints remain authoritative.",
+  "implementation": "After independent construction review, Luna may edit only tools/inference-playground/src/scheme.rs; no If-specific rendering or constant folding.",
+  "proof": "Exact note and handoff; prove display meaning, preserved upper/shared/quantified/effect/permission evidence, and apply to infer_types.",
+  "worktree": "/tmp/yulang-natural-conditional-result-20261024",
+  "branch": "codex/natural-conditional-result-20261024",
   "resources": {
-   "cap_seconds": 3600,
+   "cap_seconds": 3000,
    "assignment_envelope": 6,
    "astra": 0,
-   "proof_assignment_cap_seconds": 1200,
-   "primary_evidence_cap_seconds": 900,
+   "proof_assignment_cap_seconds": 1000,
    "review_assignment_cap_seconds": 300,
+   "primary_compile_cap_seconds": 300,
    "heavy_builds": 1,
-   "readback_seconds": 120
+   "tests": 0
   },
-  "outcome": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024-outcome.md",
-  "closure": "PARTIAL_REVIEWED; the sole build failed in the temporary example before any parser/HIR observation. R149, source-to-CST closure, original A/B and the full inference/evaluator goal remain OPEN.",
-  "review_status": "Concrete code-delta review PASS after corrections; sole authorized build failed at two temporary-example Sized bounds; stdout/readback empty, no parser/HIR observation.",
-  "outcome_sha256": "4b3e5e822724e78dab6e831f2d7131a28a22bfc3b2b0390fe3dd676193a6a2b7"
+  "outcome": "tasks/agent-loop/sprints/natural-conditional-result-20261024-outcome.md",
+  "closure": "ACTIVE; no proof result, source edit, build or runtime observation yet.",
+  "review_status": "Proof construction not launched; fresh review required before scheme.rs edit.",
+  "outcome_sha256": "45d9cd2ac7fc60f6ffd20552073049167301278c350daace9565625580304784"
  },
  "workers": [
   {
@@ -66,13 +66,13 @@
   {
    "id": "/root",
    "role": "primary authority/current/Git integrator",
-   "state": "STOPPED",
-   "session": "R149-IN-CRATE-CAPTURE-20261024/root-turn-1",
+   "state": "RUNNING",
+   "session": "NATURAL-CONDITIONAL-RESULT-20261024/root-turn-2",
    "requested_model": "user-selected primary",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Primary closed R149 revision 2 as PARTIAL after freezing outcome/current records; no rev3 code or build authorized."
+   "receipt": "Primary started the frozen sprint; sole current-state and Git owner."
   },
   {
    "id": "/root/r149_in_crate_capture_prover",
@@ -84,6 +84,17 @@
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
    "receipt": "Frozen conditional source-prefix argument only; proof note SHA-256 f35a59d6bf9f8ae4eec5833ce04329eaa47031c649fed98775b1aa8c1fe06afa; inbox SHA-256 f9e32b6d9343bae7781fa2833e48bf262680b4e3939a110f09ea6a675f245b97. No parse observation/identity join; all 24 final pins matched; producer ceased writes/processes."
+  },
+  {
+   "id": "/root/natural_conditional_result_prover",
+   "role": "proof producer",
+   "state": "NOT_STARTED",
+   "session": null,
+   "requested_model": "configured prover role",
+   "requested_effort": "configured role effort",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Exact note/inbox assignment prepared; awaiting actual launch."
   }
  ],
  "leases": [
@@ -94,52 +105,28 @@
    "reason": "Primary-owned current state."
   },
   {
-   "path": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024.md",
+   "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024.md",
    "owner": "/root",
    "state": "FROZEN",
-   "reason": "Revision 2 frozen before source edits; SHA-256 7718897585334c1baae5b274d6f12c7ded9587fdb7a64c3b8fe179b4aa69effa."
+   "reason": "Rev1 frozen before producer launch."
   },
   {
-   "path": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024-outcome.md",
+   "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024-outcome.md",
    "owner": "/root",
-   "state": "FROZEN",
-   "reason": "Primary-owned final outcome receipt."
+   "state": "HELD",
+   "reason": "Primary-owned live outcome; update hash at milestones."
   },
   {
-   "path": "tools/inference-playground/src/lib.rs",
-   "owner": "/root",
-   "state": "FROZEN",
-   "reason": "Rev2 worktree delta and failed one-shot build evidence frozen; no further edits or builds authorized."
+   "path": "notes/theory/2026-10-24-natural-conditional-result.md",
+   "owner": "/root/natural_conditional_result_prover",
+   "state": "HELD",
+   "reason": "Exact proof note in isolated worktree; no semantic/source edits."
   },
   {
-   "path": "tools/inference-playground/src/pinned_stdlib.rs",
-   "owner": "/root",
-   "state": "FROZEN",
-   "reason": "Rev2 worktree delta and failed one-shot build evidence frozen; no further edits or builds authorized."
-  },
-  {
-   "path": "tools/inference-playground/examples/r149_exact_source_readback.rs",
-   "owner": "/root",
-   "state": "FROZEN",
-   "reason": "Rev2 worktree delta and failed one-shot build evidence frozen; no further edits or builds authorized."
-  },
-  {
-   "path": "target/r149-in-crate-capture-20261024",
-   "owner": "/root",
-   "state": "FROZEN",
-   "reason": "Rev2 worktree delta and failed one-shot build evidence frozen; no further edits or builds authorized."
-  },
-  {
-   "path": "notes/theory/2026-10-24-r149-in-crate-capture.md",
-   "owner": "/root/r149_in_crate_capture_prover",
-   "state": "FROZEN",
-   "reason": "Producer handoff frozen; source-only conditional argument, no parser/HIR observation."
-  },
-  {
-   "path": "tasks/agent-loop/inbox/20261024-r149-in-crate-capture.md",
-   "owner": "/root/r149_in_crate_capture_prover",
-   "state": "FROZEN",
-   "reason": "Producer handoff frozen; source-only conditional argument, no parser/HIR observation."
+   "path": "tasks/agent-loop/inbox/20261024-natural-conditional-result.md",
+   "owner": "/root/natural_conditional_result_prover",
+   "state": "HELD",
+   "reason": "One exact handoff for the proof assignment."
   }
  ],
  "pending": [
@@ -252,8 +239,8 @@
    "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
   }
  ],
- "closure": "R149 revision 2 closed PARTIAL_REVIEWED after the sole build failed in the temporary example; no parser/HIR readback or identity join. R149, source-to-CST/A-B, inference and evaluator remain OPEN. Three legacy UNKNOWN reservations remain quarantined; no isolated artifact may be integrated.",
- "next_action": "No further source edit/build is authorized by revision 2. Any retry needs a new exact sprint authorization, fresh review, and unspent primary resource; do not integrate while legacy reservations remain UNKNOWN. The isolated proof note is available for parallel conditional proof work.",
+ "closure": "R149 remains PARTIAL_REVIEWED and A/B OPEN. NATURAL-CONDITIONAL-RESULT sprint active; no source or proof result yet. Three legacy reservations remain UNKNOWN_QUARANTINED.",
+ "next_action": "Freeze isolated worktree, then launch the exact proof assignment. Do not edit scheme.rs until fresh proof review; preserve all UNKNOWN reservations and do not copy back/merge.",
  "legacy_reconciliation": {
   "required": false,
   "reason": "Three UNKNOWN identities remain quarantined. Their exact old implementation/proof scopes are unspecified; all new source and proof work is isolated in a fresh worktree, with no merge/copy-back until confirmed cessation/lease handoff.",
@@ -359,5 +346,5 @@
    "outcome_sha256": "4b3e5e822724e78dab6e831f2d7131a28a22bfc3b2b0390fe3dd676193a6a2b7"
   }
  ],
- "resource_observation": "One authorized combined build/readback ran for 42.73 seconds and exited 101 in the temporary example; stdout/readback empty. Fresh code review passed. No tests, evaluator/runtime execution, or parser/HIR observation. Proof worker STOPPED after 935-second recorded check interval; total launch elapsed UNKNOWN. Primary 900-second subcap has no verified remaining allocation. No rev3 retry authorized. Three legacy identities remain UNKNOWN_QUARANTINED."
+ "resource_observation": "Current sprint started from clean d788; dependency hashes match frozen contract. Static agent_sprint.py check passed. Proof worker not launched yet; no compile/tests/runtime executed."
 }
