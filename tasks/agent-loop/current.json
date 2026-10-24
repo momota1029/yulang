@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "sprint_id": "SEMANTICS-PROOF-20261024",
-  "phase": "REVIEWED_LOCAL_RESULTS_PARENT_OPEN",
-  "contract": "tasks/agent-loop/sprints/semantics-proof-20261024.md",
-  "baseline": "424566114b10aaa948c2a0ffac53f56567416114",
+  "sprint_id": "COOCCURRENCE-RELEASE-20261024",
+  "phase": "REVIEWED_LOCAL_COOCCURRENCE_PARENT_OPEN",
+  "contract": "tasks/agent-loop/sprints/cooccurrence-release-20261024.md",
+  "baseline": "6602786c430df75312a2ffb74ebd9561113f3511",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
       "state": "WAITING",
-      "receipt": "Primary preparing finite handoff; pending semantic question; no background execution authorized",
+      "receipt": "Preparing completed correction/local-proof handoff; no semantic input-selection answer pending; global proof remains open",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Final handoff explicitly confirms no writes/descendants; requested Astra/medium; observed metadata UNKNOWN"
+      "receipt": "Final read-only direction on user correction received; no writes/children; 45-second successor allocation fully charged"
     },
     {
       "id": "/root/astra_corrected_machine",
@@ -25,7 +25,12 @@
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Final handoff explicitly confirms no writes/descendants; requested Astra/medium; observed metadata UNKNOWN"
+      "receipt": "Independent co-occurrence r1 review ACCEPTED for local representation; no blocking/major; final explicitly no writes/children"
+    },
+    {
+      "id": "/root/astra_cooccurrence_proof",
+      "state": "STOPPED",
+      "receipt": "Frozen r1 final handoff: writes stopped, no descendants, hash 5c81d2fb89c25f3ec10ef89560e3b7784d7e88022f52375992036148d3e8b454"
     }
   ],
   "leases": [
@@ -33,7 +38,7 @@
       "path": "docs/yulang-semantics-and-soundness-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "sha256": "1f7ffa3c3547ef83b2549e108fdd9c00ca67c20efd9b048fe1ece1c8ce3bdfd3"
+      "sha256": "6638c116864e61699c2783eb574682a07c223db10016057788828272ff687f3e"
     },
     {
       "path": "notes/theory/2026-10-24-corrected-machine-simulation.md",
@@ -46,6 +51,13 @@
       "owner": "/root",
       "state": "FROZEN",
       "sha256": "1644317df06a2a1a4804aff38f9f4167702945aadfa4df0921537fcb9c0ed21a"
+    },
+    {
+      "path": "notes/theory/2026-10-24-cooccurrence-release-preservation.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "0c5731f1b287c1016d08b645707533a482832aa44dce6b93aae899375c721c84",
+      "receipt": "Producer stopped; primary added only post-review receipt line"
     }
   ],
   "external_isolation": {
@@ -70,32 +82,41 @@
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
       "state": "OPEN",
-      "owner": "user decision + primary proof",
-      "missing": "candidate owner/permission policies; multiple ingress A_all question pending",
-      "question": "questions/2026-10-24-release-multiple-ingress/question.md"
+      "owner": "primary",
+      "missing": "candidate owner/permission correspondence; multiple-ingress choice withdrawn by direct clarification, not arbitrary A_all adoption"
     },
     {
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "original proof owners; preserved",
       "missing": "original algorithm soundness/natural inference, principality and termination obligations remain unchanged"
+    },
+    {
+      "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
+      "state": "OPEN",
+      "owner": "primary",
+      "missing": "Local representation theorem reviewed; CO-1 positions, CO-2 other substitutions, CO-3 weights/fibers, CO-4 source/generalization/FreshUse remain",
+      "authority": "notes/design/2026-10-24-cooccurrence-release-clarification.md"
     }
   ],
   "review": {
     "reviewer": "/root/astra_semantics_review",
-    "outcome": "LOCAL_CANDIDATE_CONSTRUCTION_ACCEPTED",
-    "reviewed_cm_sim_sha256": "04e2bc828f3b06681b0013b6e4266abfdd608486ae93cc8599a6d4708811d3db",
-    "post_review_changes": "Only review receipts and minor operations-reference wording",
-    "whole_language_certified": false
+    "outcome": "LOCAL_REPRESENTATION_ACCEPTED",
+    "cooccurrence_sha256": "5c81d2fb89c25f3ec10ef89560e3b7784d7e88022f52375992036148d3e8b454",
+    "whole_language_certified": false,
+    "post_review_changes": "Only one review receipt line in theory note; mathematical text unchanged",
+    "scope": "positive emitted-group incidence and complete-fiber construction; not full source/native correspondence"
   },
   "resource": {
-    "astra_reserved_seconds": 900,
+    "astra_reserved_seconds": 1200,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
-    "tests": 0
+    "tests": 0,
+    "successor_reserved_seconds": 300,
+    "successor_review_reservation_remaining_seconds": 0
   },
-  "outcome": "tasks/agent-loop/sprints/semantics-proof-20261024-outcome.md",
-  "next_action": "Prove source-edge generation adequacy beginning with current-world wait/No; retain pending semantic question and original source quantifiers.",
+  "outcome": "tasks/agent-loop/sprints/cooccurrence-release-20261024-outcome.md",
+  "next_action": "Establish CO-1/CO-3 constructor-to-consumer correspondence using the preserved source quantifiers; no further multiple-ingress semantic question",
   "closure": "Global request remains OPEN. Reviewed local mathematics is not whole-language completion."
 }

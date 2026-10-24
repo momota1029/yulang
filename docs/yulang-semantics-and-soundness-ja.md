@@ -12,7 +12,7 @@
 2. 閉じた状態は正常値、型付き request、言語で定めた failure、次の一段のいずれかとなる。型不整合による stuck 状態にはならない。
 3. 外へ出る効果は immediate 契約に入り、返却した値と継続の将来の効果は対応する latent/reentry 契約に入る。
 4. 保護と許可は実際の受領境界と同じ操作 instance に属する。別の呼出しへ許可を移したり、失効した receiver を再開だけで復活させたりしない。
-5. `'e?` の解除は、選ばれた起点からの効果が実際に印付き出力境界を越えた履歴に対応し、別の保護や効果そのものを消さない。
+5. 引数の保護と出力への輸送・解除を先に定め、共起分析から得る共有変数と `'e?` の表記がその動作を保つことを示す。別の保護や効果そのものを消さない。
 
 無限実行は許す。有限 prefix の不変条件から「最初の型安全性違反」が存在しないことを示す。停止性、主型性、推論器がすべての自然な導出を発見することは別の必要定理であり、上記から自動的には得られない。
 
@@ -24,6 +24,7 @@
 | receiver の寿命、source recipe、rank-2、解除、修正 permission | [ソース稿](yulang-source-type-safety-ja.tex) §§1–15 | 規則ごとの具体化。未採用の政策を含む |
 | 有限選択証拠から code を作る | [選択稿](yulang-dot-selection-safety-ja.tex) | 証拠が与えられたときの構成。resolver 完全性とは区別 |
 | 隠れた複数 witness、解除、再観測の有限表示 | [修正機械の simulation](../notes/theory/2026-10-24-corrected-machine-simulation.md) | 明示的な保守的構成と、既存 graph への適用条件 |
+| 共変位置での共起と解除対象の集約 | [共起・解除の保存](../notes/theory/2026-10-24-cooccurrence-release-preservation.md) | 共起条件と provenance を保持する集約。全 source への対応義務は区別する |
 | Yumark 内部の静的 node | [表層展開の証明](../notes/theory/2026-10-24-surface-elaboration-closure.md) | builder の全構成と値型導出。interpolation 等は未完 |
 
 旧稿の定理を使う際は、その証明が参照する機械を固定する。訂正後の機械の結論を、訂正前の小さい効果型に無条件で適用してはならない。
@@ -91,13 +92,17 @@ P は未解除の有効な保護 witness の存在、`P_F` はそのうち recei
 
 ## 5. 保護の起点と解除
 
+[直接の訂正](../notes/design/2026-10-24-cooccurrence-release-clarification.md)に従い、`'e?` 自体を独立した実行意味論の出発点にしない。先に実行前の引数の保護があり、全く同じ共変位置に現れる対象を共起分析が同じ変数へまとめる。その対象を解除のためにまとめても動作が保存されることが証明課題である。「複数入力のどれを解除対象に選ぶか」という追加の仕様選択ではない。
+
+以下の Origin・target・L は、この動作を記述する既存の候補表示である。共起分析との対応が必要であり、ユーザーの訂正だけで候補全体を承認済みの規則へ読み替えない。[共起・解除の保存稿](../notes/theory/2026-10-24-cooccurrence-release-preservation.md)は、静的変数をまとめることと動的な受領を同一視することを区別して、この接続を扱う。
+
 動的 receipt b、元 receiver r、静的 binder identity ε、typed path j から起点を作る。
 
 \[
 Origin(s)=(b,r,\epsilon,j).
 \]
 
-型の解が等しくても b や ε を等置しない。印付き出力の target t は、その output entry で lexical な入力 receipt の表 `B_t` を一度捕捉する。ソース稿の `A_all` 候補は、同じ binder の対応する全入力をこの表へ入れる。複数入力のこの選択自体は未採用である。
+型の解が等しいだけでは b や ε を等置しない。共起による静的変数の併合も、動的 receipt や元 receiver を等置する根拠にはしない。候補表示では印付き出力の target t が、その output entry で lexical な入力 receipt の表 `B_t` を一度捕捉する。ソース稿の `A_all` は同じ binder の対応する全入力を集める具体化である。必要なのは、この表が保護・共起・出力の動作を正しく表すという導出であり、全入力か指定入力かを改めて選ぶ回答ではない。
 
 一つの経路 witness w は起点 `s(w)` と、その経路で実際に輸送された target 集合 H(w) を持つ。同じ event に二経路があっても、一方の H を他方へ移さない。現在の解除履歴を `L⊆Scope×Target` とする。
 
@@ -168,7 +173,8 @@ F_G(U)\subseteq U
 | 義務 | 完了に必要なもの |
 | --- | --- |
 | 修正機械の finite transfer と source graph の接続 | 各生成 edge の具体 transition、共同入力、現在状態の観測との照合 |
-| non-Var/anonymous の受領 owner、複数入力の `'e?`、wildcard policy | 候補の全期待挙動との照合と、未決定箇所の採用判断 |
+| 共起による集約と保護・解除 | 同じ共変位置の判定、provenance を保つ集約、生成・一般化・使用・解除への対応。追加の入力選択を求めない |
+| non-Var/anonymous の受領 owner、wildcard policy | 候補の全期待挙動との照合と、実際に未決定な具体化の切り分け |
 | Yumark interpolation/commands、module/use/realm/band、error/act-copy/derive | 全生成規則と型・効果を保つ展開。未対応の実装を仕様上の禁止へ転用しない |
 | dot selection | compact/raw、snapshot/SCC 公開、一意性・完全性。有限証拠の code 構成から自動的には出ない |
 | Simple-sub | 生成・蓄積・伝播・level・extrusion・intrusion・一般化の元の A/B、主型性、停止性 |
