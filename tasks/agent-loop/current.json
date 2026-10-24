@@ -1,17 +1,19 @@
 {
  "schema_version": 1,
  "mode": "LIVE",
- "phase": "ENDED",
- "session": null,
+ "phase": "ACTIVE",
+ "session": "R149-IN-CRATE-CAPTURE-20261024/root-turn-1",
  "active_sprint": {
-  "id": "R149-EXACT-SOURCE-READBACK-20261024",
+  "id": "R149-IN-CRATE-CAPTURE-20261024",
   "status": "PARTIAL_REVIEWED",
-  "contract": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-rev2.md",
-  "contract_sha256": "20541baa2157ffaa9453b7b076bb0b686b61c4663d187cc00af822026905fbe2",
-  "baseline": "aba6c8eb9b9caf2559bf955670d662503950c98d",
-  "claim": "Read back exact Types/Console/provider bytes through the actual parser/HIR constructors, keys and recovery in one process, or locate the first authenticated constructor/API boundary.",
-  "implementation": "Primary-owned provisional parser/HIR example and one bounded readback; no production transition or API changes.",
-  "proof": "Join parser nodes/ranges/recoveries and genuine source keys to HIR declaration/export/member/operation identities; apply to prior R149 partial trace.",
+  "contract": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024.md",
+  "contract_sha256": "7718897585334c1baae5b274d6f12c7ded9587fdb7a64c3b8fe179b4aa69effa",
+  "baseline": "424566114b10aaa948c2a0ffac53f56567416114",
+  "claim": "Read actual unchanged R149 parser/main-HIR objects and actual pinned provider parses/indexes in one process, or report an authenticated constructor failure; stop before pinned_candidate_world.",
+  "implementation": "Temporary cfg-gated capture in an isolated worktree; no manifest, semantic, durable API or production change.",
+  "proof": "Establish capture transparency and join frozen objects/observations to the reviewed R149 partial admission trace; name the remaining provider-selection/fetch premise.",
+  "worktree": "/tmp/yulang-r149-in-crate-capture-20261024",
+  "branch": "codex/r149-in-crate-capture-20261024",
   "resources": {
    "cap_seconds": 3600,
    "assignment_envelope": 6,
@@ -22,10 +24,10 @@
    "heavy_builds": 1,
    "readback_seconds": 120
   },
-  "outcome": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-outcome.md",
-  "closure": "PARTIAL_REVIEWED; source/CST/HIR readback not observed; private sample-environment visibility seam identified; R149 and A/B remain OPEN.",
-  "review_status": "PASS; fresh independent review accepted partial handoff under boundary criterion.",
-  "outcome_sha256": "bf5984e210ef830bde9d9b63c816c6dde619f84cbe81bbe005cd0e229abe225e"
+  "outcome": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024-outcome.md",
+  "closure": "PARTIAL_REVIEWED; the sole build failed in the temporary example before any parser/HIR observation. R149, source-to-CST closure, original A/B and the full inference/evaluator goal remain OPEN.",
+  "review_status": "Concrete code-delta review PASS after corrections; sole authorized build failed at two temporary-example Sized bounds; stdout/readback empty, no parser/HIR observation.",
+  "outcome_sha256": "4b3e5e822724e78dab6e831f2d7131a28a22bfc3b2b0390fe3dd676193a6a2b7"
  },
  "workers": [
   {
@@ -37,7 +39,7 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "U;Q."
+   "receipt": "Identity/session/model/effort UNKNOWN; reservation remains UNKNOWN_QUARANTINED."
   },
   {
    "id": "/root/resident_implementer_idle",
@@ -48,7 +50,7 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "U;Q."
+   "receipt": "Identity/session/model/effort UNKNOWN; reservation remains UNKNOWN_QUARANTINED."
   },
   {
    "id": "/root/runtime_source_supplier_proof",
@@ -59,40 +61,29 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "U;Q."
+   "receipt": "Identity/session/model/effort UNKNOWN; reservation remains UNKNOWN_QUARANTINED."
   },
   {
    "id": "/root",
    "role": "primary authority/current/Git integrator",
    "state": "STOPPED",
-   "session": null,
+   "session": "R149-IN-CRATE-CAPTURE-20261024/root-turn-1",
    "requested_model": "user-selected primary",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Session ended after freezing and reviewing PARTIAL R149 exact-source-readback evidence, recording the outcome, and preparing explicit paths for Git integration; no background work or active children remain."
+   "receipt": "Primary closed R149 revision 2 as PARTIAL after freezing outcome/current records; no rev3 code or build authorized."
   },
   {
-   "id": "/root/r149_exact_source_readback_prover",
-   "role": "R149 exact parser/HIR source-key correspondence producer",
+   "id": "/root/r149_in_crate_capture_prover",
+   "role": "R149 capture transparency/source correspondence producer",
    "state": "STOPPED",
-   "session": null,
+   "session": "R149-IN-CRATE-CAPTURE-20261024/root-turn-1",
    "requested_model": "configured prover role; no spawn override",
    "requested_effort": "configured role effort; no spawn override",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Frozen assignment revision 1; writes stopped; no commands, processes, descendants, builds, tests, probes, or scratch outputs. Note/inbox hashes recorded in leases."
-  },
-  {
-   "id": "/root/proof_implementation_referee",
-   "role": "fresh independent R149 readback handoff reviewer",
-   "state": "STOPPED",
-   "session": null,
-   "requested_model": "existing referee role; no override",
-   "requested_effort": "existing referee role; no override",
-   "observed_model": "UNKNOWN",
-   "observed_effort": "UNKNOWN",
-   "receipt": "Fresh independent review PASS as partial handoff; stopped 2026-10-24 01:07:51 UTC; 99 seconds, 9 read-only calls; no edits, Git, tests, builds, probes, descendants. Session/model/effort UNKNOWN."
+   "receipt": "Frozen conditional source-prefix argument only; proof note SHA-256 f35a59d6bf9f8ae4eec5833ce04329eaa47031c649fed98775b1aa8c1fe06afa; inbox SHA-256 f9e32b6d9343bae7781fa2833e48bf262680b4e3939a110f09ea6a675f245b97. No parse observation/identity join; all 24 final pins matched; producer ceased writes/processes."
   }
  ],
  "leases": [
@@ -100,37 +91,55 @@
    "path": "tasks/agent-loop/current.json",
    "owner": "/root",
    "state": "HELD",
-   "reason": "Primary-owned current state for active exact-source-readback sprint."
+   "reason": "Primary-owned current state."
   },
   {
-   "path": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024.md",
+   "path": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024.md",
    "owner": "/root",
    "state": "FROZEN",
-   "reason": "Immutable revision 1; superseded before source reads by revision 2 scratch-path representation."
+   "reason": "Revision 2 frozen before source edits; SHA-256 7718897585334c1baae5b274d6f12c7ded9587fdb7a64c3b8fe179b4aa69effa."
   },
   {
-   "path": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-outcome.md",
+   "path": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024-outcome.md",
    "owner": "/root",
    "state": "FROZEN",
-   "reason": "PARTIAL_REVIEWED outcome frozen; SHA-256 bf5984e210ef830bde9d9b63c816c6dde619f84cbe81bbe005cd0e229abe225e."
+   "reason": "Primary-owned final outcome receipt."
   },
   {
-   "path": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-rev2.md",
+   "path": "tools/inference-playground/src/lib.rs",
    "owner": "/root",
    "state": "FROZEN",
-   "reason": "Immutable revision 2 contract with current-state-compatible scratch path."
+   "reason": "Rev2 worktree delta and failed one-shot build evidence frozen; no further edits or builds authorized."
   },
   {
-   "path": "notes/theory/2026-10-24-r149-exact-source-readback.md",
-   "owner": "/root/r149_exact_source_readback_prover",
+   "path": "tools/inference-playground/src/pinned_stdlib.rs",
+   "owner": "/root",
    "state": "FROZEN",
-   "reason": "Producer handoff frozen; SHA-256 f5cedf75832e6192ddd901039ce9b2a9fd88e82c69c54e74756459fe8bc1ef4d; independent review pending."
+   "reason": "Rev2 worktree delta and failed one-shot build evidence frozen; no further edits or builds authorized."
   },
   {
-   "path": "tasks/agent-loop/inbox/20261024-r149-exact-source-readback.md",
-   "owner": "/root/r149_exact_source_readback_prover",
+   "path": "tools/inference-playground/examples/r149_exact_source_readback.rs",
+   "owner": "/root",
    "state": "FROZEN",
-   "reason": "Assignment handoff frozen; SHA-256 0068ebe2cc513047e8e5f4ff7bcc632feebf5ef169ce175056eca8a925d06996; independent review pending."
+   "reason": "Rev2 worktree delta and failed one-shot build evidence frozen; no further edits or builds authorized."
+  },
+  {
+   "path": "target/r149-in-crate-capture-20261024",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Rev2 worktree delta and failed one-shot build evidence frozen; no further edits or builds authorized."
+  },
+  {
+   "path": "notes/theory/2026-10-24-r149-in-crate-capture.md",
+   "owner": "/root/r149_in_crate_capture_prover",
+   "state": "FROZEN",
+   "reason": "Producer handoff frozen; source-only conditional argument, no parser/HIR observation."
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261024-r149-in-crate-capture.md",
+   "owner": "/root/r149_in_crate_capture_prover",
+   "state": "FROZEN",
+   "reason": "Producer handoff frozen; source-only conditional argument, no parser/HIR observation."
   }
  ],
  "pending": [
@@ -243,12 +252,29 @@
    "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
   }
  ],
- "closure": "R149 exact-source readback is PARTIAL_REVIEWED at the private environment/readback access seam; no parser/HIR runtime result claimed. Broader inference/evaluator goal and original A/B remain OPEN.",
- "next_action": "Next selector proposal: prepare R149-IN-CRATE-READBACK-1 with a reviewed provisional in-crate entrypoint; retain private environment and actual parse/HIR objects, no public API or semantic edits without a new exact lease.",
+ "closure": "R149 revision 2 closed PARTIAL_REVIEWED after the sole build failed in the temporary example; no parser/HIR readback or identity join. R149, source-to-CST/A-B, inference and evaluator remain OPEN. Three legacy UNKNOWN reservations remain quarantined; no isolated artifact may be integrated.",
+ "next_action": "No further source edit/build is authorized by revision 2. Any retry needs a new exact sprint authorization, fresh review, and unspent primary resource; do not integrate while legacy reservations remain UNKNOWN. The isolated proof note is available for parallel conditional proof work.",
  "legacy_reconciliation": {
   "required": false,
-  "reason": "Three prior UNKNOWN identities and their quarantined reservations retained.",
-  "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+  "reason": "Three UNKNOWN identities remain quarantined. Their exact old implementation/proof scopes are unspecified; all new source and proof work is isolated in a fresh worktree, with no merge/copy-back until confirmed cessation/lease handoff.",
+  "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
+  "reservations": [
+   {
+    "id": "/root/resident_dispatcher_loop_a",
+    "path": "tasks/agent-loop/board.md",
+    "state": "UNKNOWN_QUARANTINED"
+   },
+   {
+    "id": "/root/resident_implementer_idle",
+    "path": "UNKNOWN historical implementation lease",
+    "state": "UNKNOWN_QUARANTINED"
+   },
+   {
+    "id": "/root/runtime_source_supplier_proof",
+    "path": "UNKNOWN historical proof lease",
+    "state": "UNKNOWN_QUARANTINED"
+   }
+  ]
  },
  "user_goal": "Use established proofs and approved source behavior to implement Yulang type inference and evaluator; commit and push, keeping the worktree clean.",
  "history": [
@@ -313,7 +339,25 @@
    "inbox": "tasks/agent-loop/inbox/20261024-r149-exact-source-readback.md",
    "inbox_sha256": "0068ebe2cc513047e8e5f4ff7bcc632feebf5ef169ce175056eca8a925d06996",
    "closure": "PARTIAL_REVIEWED; no readback; private sample-environment visibility seam; R149/A-B OPEN."
+  },
+  {
+   "id": "R149-EXACT-SOURCE-READBACK-20261024",
+   "record": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-outcome.md",
+   "contract": "tasks/agent-loop/sprints/r149-exact-source-readback-20261024-rev2.md",
+   "contract_sha256": "20541baa2157ffaa9453b7b076bb0b686b61c4663d187cc00af822026905fbe2",
+   "outcome_sha256": "bf5984e210ef830bde9d9b63c816c6dde619f84cbe81bbe005cd0e229abe225e",
+   "closure": "PARTIAL_REVIEWED; source/CST/HIR readback not observed; private sample-environment visibility seam identified; R149 and A/B remain OPEN."
+  },
+  {
+   "id": "R149-IN-CRATE-CAPTURE-20261024",
+   "record": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024.md",
+   "contract_sha256": "7718897585334c1baae5b274d6f12c7ded9587fdb7a64c3b8fe179b4aa69effa",
+   "outcome": "tasks/agent-loop/sprints/r149-in-crate-capture-20261024-outcome.md",
+   "proof": "/tmp/yulang-r149-in-crate-capture-20261024/notes/theory/2026-10-24-r149-in-crate-capture.md",
+   "proof_sha256": "f35a59d6bf9f8ae4eec5833ce04329eaa47031c649fed98775b1aa8c1fe06afa",
+   "closure": "PARTIAL_REVIEWED; sole build failed in temporary example; no parser/HIR observation; R149 and A/B OPEN.",
+   "outcome_sha256": "4b3e5e822724e78dab6e831f2d7131a28a22bfc3b2b0390fe3dd676193a6a2b7"
   }
  ],
- "resource_observation": "Producer STOPPED: no driver/readback/scratch. Fresh referee PASS at 2026-10-24 01:07:51 UTC; 99 seconds, 9 read-only calls. Manifest independently reconciled: 151 records, 15,003 bytes, SHA-256 e6c7315c50c75bc6b5ed27405022258769d5594ab31645d15cbdac7400299462; only empty dirs omitted by Git. No tests/builds/probes; three legacy UNKNOWN reservations retained."
+ "resource_observation": "One authorized combined build/readback ran for 42.73 seconds and exited 101 in the temporary example; stdout/readback empty. Fresh code review passed. No tests, evaluator/runtime execution, or parser/HIR observation. Proof worker STOPPED after 935-second recorded check interval; total launch elapsed UNKNOWN. Primary 900-second subcap has no verified remaining allocation. No rev3 retry authorized. Three legacy identities remain UNKNOWN_QUARANTINED."
 }
