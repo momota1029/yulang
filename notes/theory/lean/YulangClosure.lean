@@ -2,6 +2,7 @@ import YulangClosure.Contracts
 import YulangClosure.CoreComposition
 import YulangClosure.ControlComposition
 import YulangClosure.CoreExecution
+import YulangClosure.CoreControlBridge
 
 #print axioms YulangClosure.finite_prefix_composition
 #print axioms YulangClosure.run_at_every_time
@@ -23,3 +24,7 @@ import YulangClosure.CoreExecution
 
 #print axioms YulangClosure.Original.principal_preservation
 #print axioms YulangClosure.Original.closed_bottom
+
+#print axioms YulangClosure.CoreControlBridge.successor_coverage
+#print axioms YulangClosure.CoreControlBridge.machine_finite_coverage
+#print axioms YulangClosure.CoreControlBridge.finite_closed_safety

@@ -135,6 +135,10 @@ theorem control_preservation {sig : Signature} {md : Metadata W}
   | failFrame =>
     cases hs with | cons hf tail => exact ⟨_, .fail, tail⟩
   | badFrame => cases hh
+  | originalEnter => cases hh
+  | originalReturnBind => cases hh
+  | originalPrincipal => cases hh
+  | originalExit => cases hh
 
 
 /-- Raw states admit bad responses; typing of the saved stack excludes them
@@ -215,32 +219,49 @@ theorem ret_progress {sig : Signature} {md : Metadata W}
   | response => exact ⟨_, .responseRet⟩
   | enterSaved => exact ⟨_, .enterSavedRet⟩
 
-theorem request_progress {md : Metadata W} (p : Packet) (f : Frame)
-    (w : W) (fs : List Frame) :
+theorem request_progress {sig : Signature} {md : Metadata W} {f : Frame}
+    (hf : FrameTyped sig f a b) (p : Packet) (w : W) (fs : List Frame) :
     ∃ t, ControlStep md ⟨w,.req p,f::fs⟩ t := by
   cases f with
-  | bind => exact ⟨_, .bindReq⟩
-  | scope => exact ⟨_, .scopeReq⟩
-  | view => exact ⟨_, .viewReq⟩
-  | release => exact ⟨_, .releaseReq⟩
-  | handle => exact ⟨_, .handleReq⟩
-  | wait => exact ⟨_, .waitReq⟩
-  | mapop m =>
-    cases p with | mk e q p k =>
-      by_cases he : q = m.source
-      · subst q; exact ⟨_, .mapHit⟩
-      · exact ⟨_, .mapMiss he⟩
+  | bind _ =>
+    cases hf with
+    | bind => exact ⟨_, .bindReq⟩
+    | mapped => exact ⟨_, .bindReq⟩
+    | response => exact ⟨_, .bindReq⟩
+    | enterSaved => exact ⟨_, .bindReq⟩
+  | scope _ => cases hf with | scope => exact ⟨_, .scopeReq⟩
+  | view _ => cases hf with | view => exact ⟨_, .viewReq⟩
+  | release _ => cases hf with | release => exact ⟨_, .releaseReq⟩
+  | handle _ => cases hf with | handle => exact ⟨_, .handleReq⟩
+  | wait _ _ _ => cases hf with | wait => exact ⟨_, .waitReq⟩
+  | mapop mapper =>
+    cases hf with
+    | mapper _ =>
+      cases p with | mk e q p k =>
+        by_cases he : q = mapper.source
+        · subst q; exact ⟨_, .mapHit⟩
+        · exact ⟨_, .mapMiss he⟩
+  | originalBind _ => cases hf
+  | originalBoundary => cases hf
 
-theorem fail_progress {md : Metadata W} (r : Nat) (f : Frame)
-    (w : W) (fs : List Frame) :
+theorem fail_progress {sig : Signature} {md : Metadata W} {f : Frame}
+    (hf : FrameTyped sig f a b) (r : Nat) (w : W) (fs : List Frame) :
     ∃ t, ControlStep md ⟨w,.fail r,f::fs⟩ t := by
   have other (g : Frame) (hne : ∀ target, g ≠ .release target) :
       ∃ t, ControlStep md ⟨w,.fail r,g::fs⟩ t := by
     obtain ⟨w', hw⟩ := md.failWorld_total w g
     exact ⟨_, .failFrame hne hw⟩
-  cases f <;> first
-  | exact ⟨_, .failRelease⟩
-  | exact other _ (by intro target he; cases he)
+  cases hf with
+  | release => exact ⟨_, .failRelease⟩
+  | bind => exact other _ (by intro target he; cases he)
+  | scope => exact other _ (by intro target he; cases he)
+  | view => exact other _ (by intro target he; cases he)
+  | handle => exact other _ (by intro target he; cases he)
+  | mapper => exact other _ (by intro target he; cases he)
+  | wait => exact other _ (by intro target he; cases he)
+  | mapped => exact other _ (by intro target he; cases he)
+  | response => exact other _ (by intro target he; cases he)
+  | enterSaved => exact other _ (by intro target he; cases he)
 
 theorem search_progress {sig : Signature} {md : Metadata W}
     (search : SearchTyped sig h p arms) (w : W) (fs : List Frame) :
@@ -261,6 +282,37 @@ theorem search_progress {sig : Signature} {md : Metadata W}
           | false => exact ⟨_, .skip (.inr ht)⟩
           | true => exact ⟨_, .select he ht⟩
         · exact ⟨_, .skip (.inl he)⟩
+
+/-- A delimited syntax-bearing segment progresses by the original fragment's
+actual progress proof; only a source return at the boundary uses originalExit. -/
+theorem segment_progress {sig : Signature} {md : Metadata W}
+    (hs : SegmentTyped sig s result) : ∃ t, ControlStep md s t := by
+  obtain ⟨sourceResult, source, suffix, hhead, hstack, hsource, hsuffix⟩ := hs
+  cases s with | mk world head stack =>
+    change head = .original source.current at hhead
+    change stack = sourceStackEmbedding source.stack suffix at hstack
+    cases hhead
+    cases hstack
+    cases Original.progress hsource with
+    | inl terminal =>
+      obtain ⟨value, hstate, hvalue⟩ := terminal
+      cases source with
+      | mk current frames =>
+        cases hstate
+        simp [sourceStackEmbedding, sourceFramesControl, sourceFrameControl]
+        exact ⟨_, .originalExit⟩
+    | inr sourceStep =>
+      obtain ⟨next, hstep⟩ := sourceStep
+      cases hstep with
+      | enter =>
+        simp [sourceStackEmbedding, sourceFramesControl, sourceFrameControl]
+        exact ⟨_, .originalEnter⟩
+      | returnBind =>
+        simp [sourceStackEmbedding, sourceFramesControl, sourceFrameControl]
+        exact ⟨_, .originalReturnBind⟩
+      | principal hp =>
+        simp [sourceStackEmbedding, sourceFramesControl, sourceFrameControl]
+        exact ⟨_, .originalPrincipal hp⟩
 
 /-- Concrete root adapter. No Analysis or permissive dummy certificate is supplied. -/
 def machine (md : Metadata W)
@@ -297,13 +349,13 @@ theorem progress {sig : Signature} {md : Metadata W}
       cases hs with
       | nil => exact .inr (.inl ⟨⟨_, rfl⟩, rfl⟩)
       | cons hf tail =>
-        obtain ⟨t, hx⟩ := request_progress (md := md) _ _ w _
+        obtain ⟨t, hx⟩ := request_progress hf _ w _
         exact .inr (.inr (.inr ⟨t, .control hx⟩))
     | fail =>
       cases hs with
       | nil => exact .inr (.inr (.inl ⟨⟨_, rfl⟩, rfl⟩))
       | cons hf tail =>
-        obtain ⟨t, hx⟩ := fail_progress (md := md) _ _ w _
+        obtain ⟨t, hx⟩ := fail_progress hf _ w _
         exact .inr (.inr (.inr ⟨t, .control hx⟩))
     | run ha hk hc =>
       obtain ⟨w', head', hb⟩ := bl.progress w _ _ _ _ (.run ha hk hc)
@@ -323,6 +375,7 @@ theorem admissible_resume_typed {sig : Signature} {k : Kont}
       exact resume_atom_typed (.mk hs) w
     | no => cases hr
     | yes v => cases hr
+    | originalValue value => cases hr
 
 /-- This fills the actual root resume-formation field, retaining the current
 world and the suspended packet's paired response type. -/

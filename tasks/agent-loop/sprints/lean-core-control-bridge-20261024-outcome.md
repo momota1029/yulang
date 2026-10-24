@@ -87,10 +87,10 @@ instance for `Original.Ty` at line 9; and
 `original_state_typed_with_suffix` had a non-propositional theorem result at
 line 121 because `SegmentTyped` was Type-valued. These confirm two static
 review findings. The response-constructor and `segment_progress` findings
-remain static until the earliest declarations are repaired. The build created
+were not reached by this first check. The build created
 only ignored `.lake` outputs. No tests ran.
 
-Deferred repair packet, not issued under this sprint: (1) replace Type-valued
+R3's deferred repair packet (subsequently issued under r4): (1) replace Type-valued
 `SegmentTyped` with a Prop-valued judgment retaining the same syntax, witnesses
 and typing premises; (2) resolve the `Ty.original` equality derivation while
 preserving ordinary equality behavior; (3) discharge the impossible
@@ -99,13 +99,53 @@ head/stack in `segment_progress`; (5) check every dependent declaration and
 obtain focused review of changed hashes. A new bounded repair assignment is
 needed.
 
-The pre-repair ControlTyping, ControlComposition and CoreControlBridge bytes
-were preserved read-only at `/tmp/yulang-lean-core-control-r3-20261025/` before
-the next assignment. The bounded r4 continuation and remaining resource
-allocation are in `lean-core-control-bridge-20261025-r4.md`. Until repaired
-hashes pass the pinned checker and fresh independent review, the candidate is
-unaccepted and no Lean proof gate closes. The native-source audit is separate
-and does not supply a proof premise for this bridge.
+The r3 ControlTyping, ControlComposition and CoreControlBridge bytes were
+preserved read-only at `/tmp/yulang-lean-core-control-r3-20261025/`. The r4
+writer fixed the first two confirmed issues and addressed the other two static
+findings. Its frozen hashes are ControlTyping
+`67e0d5d8840090ad7adf06b33c65725dc0901488c16f9dcc235c5c0372ae0135`,
+ControlComposition
+`a6c7402204bb54db9f074b59b609b74e2f0f7d7d10f5fb33fe2b406a6979929a`,
+unchanged CoreControlBridge
+`95cad83ee84e767aecd6314f84e983db40a9efba1e8322c6f54ee79d45c3cfad`, and
+handoff `7dd2f3af2e484b7d2cedaed7624496699add3ae5ff99ac081089e285b9e8af1d`.
+The r4 writer STOPPED with no descendants; elapsed time is UNKNOWN and the
+full 90-second grant is charged.
+
+The next pinned check rebuilt ControlTyping successfully and stopped at
+ControlComposition. It reported the mapper-value versus `MapperTyped` proof
+case, unreconstructed state equalities in `segment_progress`, and two request/
+failure identifiers out of scope after dependent cases. These are proof
+elaboration errors, not semantic counterexamples; the bridge module remains
+unchecked. The exact r4 snapshot is
+`/tmp/yulang-lean-core-control-r4-20261025/`. The r5 bounded primary repair,
+check and fresh review allocation is recorded in
+`lean-core-control-bridge-20261025-r5.md` (SHA-256
+`30c784d43e0ec5aa5ccb5b74be7cd1d4f32269068f0b761bd6414f5793652b97`).
+Until repaired hashes pass the pinned checker and fresh independent review,
+the candidate is unaccepted and no Lean proof gate closes. The native-source
+audit is separate and does not supply a proof premise for this bridge.
+
+R5 primary repair corrected the mapper-value case, substituted the actual
+state fields in `segment_progress`, named request/reason arguments, and added
+the bridge import plus three planned axiom queries to the root. The pinned
+`lake build YulangClosure.CoreControlBridge YulangClosure` built
+ControlComposition, with three non-blocking unused-simp-argument warnings, then
+failed while checking CoreControlBridge. Actual blockers are at lines 157 and
+214 (`finite_coverage` and `machine_finite_coverage` induction over `Prefix`
+with a fixed embedded start index), line 260 (`exit_empty_prefix` with the
+fixed exit index), line 286 (the `finite_typed_transfer` induction hypothesis
+retains extra Prefix/equality premises), and line 306 (another dependent
+`Prefix` induction in `finite_closed_safety`). The root target was skipped, so
+none of the planned axiom output was produced. These are proof elaboration
+errors; no semantic counterexample was established. Fresh review is not
+eligible while the bridge fails checking.
+
+The r5 contract records the remaining reallocation: at most 35 seconds for the
+mechanical repair, 20 for serialized pinned checking, 40 for fresh review, and
+6.8 unallocated. The primary conservatively charged the 35/20 grants in full;
+actual elapsed time was not captured. The current scheduling record marks the
+bridge blocked on these newly exposed finite-prefix proof obligations.
 
 ## Separate source-native result
 
@@ -118,9 +158,10 @@ strategy, inference soundness/coverage/principality/termination, and original
 A/B remain OPEN. This note is already in commit `fa3658387`, which is pushed
 to `origin/research/simple-sub-intrusion`.
 
-The frozen Lean candidate and its handoffs are not in that commit and are not
-commit-ready. The next record-only checkpoint will contain this outcome and
-the synchronized current state, excluding the blocked Lean code and handoffs.
+The frozen Lean candidate and its handoffs are not in commit `0bfdc64af` and
+are not commit-ready. That record-only checkpoint contains the r4 contract,
+first checker receipt and synchronized current state; the r5 repair/check/review
+result will be recorded at its own milestone.
 `python3 tools/agent_sprint.py check` passes after current-state reconciliation;
 this is static scheduling-state evidence only. No production or semantic
 changes were made.

@@ -5,12 +5,14 @@ namespace YulangClosure.Control
 inductive Ty where
   | base (identity : Nat)
   | attempt (result : Ty)
-  deriving DecidableEq
+  | original (source : Original.Ty)
 
 inductive ValueTyped : Value → Ty → Prop
   | atom : ValueTyped (.atom t v) (.base t)
   | no : ValueTyped .no (.attempt t)
   | yes : ValueTyped v t → ValueTyped (.yes v) (.attempt t)
+  | original : Original.ValTyped Original.emptyContext v a →
+      ValueTyped (.originalValue v) (.original a)
 
 /-- Extrinsic registered-body signature, not a whole-machine safety premise. -/
 structure Signature where
@@ -82,6 +84,8 @@ inductive HeadTyped (sig : Signature) : Head → Ty → Prop
   | search : HandlerTyped sig h → SearchTyped sig h p arms →
       HeadTyped sig (.search h p arms) (.base h.output)
 
+/-- A concrete Original segment is typed by the original judgment and ends at
+an explicit boundary before an independently typed legacy Control suffix. -/
 def StateTyped (sig : Signature) (s : State W) (result : Ty) : Prop :=
   ∃ hole, HeadTyped sig s.head hole ∧ FramesTyped sig s.stack hole result
 
@@ -91,6 +95,34 @@ theorem frames_append {sig : Signature} (h : FramesTyped sig fs a b)
   | nil => cases h; exact k
   | cons f fs ih =>
     cases h with | cons hf ht => exact .cons hf (ih ht k)
+
+/-- The source bind frames retain their computations when embedded in Control. -/
+def sourceFrameControl : Original.Frame → Frame
+  | .bind body => .originalBind body
+
+def sourceFramesControl (frames : List Original.Frame) : List Frame :=
+  frames.map sourceFrameControl
+
+/-- The embedded source segment ends at an explicit boundary, after which the
+foreign Control suffix remains an ordinary, independently typed stack. -/
+def sourceStackEmbedding (frames : List Original.Frame) (suffix : List Frame) : List Frame :=
+  sourceFramesControl frames ++ [.originalBoundary] ++ suffix
+
+inductive SegmentTyped (sig : Signature) : State W → Ty → Prop
+  | intro (sourceResult : Original.Ty) (source : Original.State)
+      (suffix : List Frame) {s : State W} {result : Ty}
+      (head_eq : s.head = .original source.current)
+      (stack_eq : s.stack = sourceStackEmbedding source.stack suffix)
+      (source_typed : Original.StateTyped Original.emptyContext sourceResult source)
+      (suffix_typed : FramesTyped sig suffix (.original sourceResult) result) :
+      SegmentTyped sig s result
+
+theorem original_state_typed_with_suffix {sig : Signature} {s : Original.State}
+    (hs : Original.StateTyped Original.emptyContext result s)
+    (suffix : List Frame)
+    (htail : FramesTyped sig suffix (.original result) final) (w : W) :
+    SegmentTyped sig ⟨w, .original s.current, sourceStackEmbedding s.stack suffix⟩ final := by
+  exact ⟨result, s, suffix, rfl, rfl, hs, htail⟩
 
 theorem capture_typed {sig : Signature} (hk : KontTyped sig k q a)
     (hf : FrameTyped sig f a b) : KontTyped sig (k.append f) q b := by

@@ -1,4 +1,5 @@
 import YulangClosure.Contracts
+import YulangClosure.CoreExecution
 
 namespace YulangClosure.Control
 
@@ -6,7 +7,8 @@ inductive Value where
   | atom (tag data : Nat)
   | no
   | yes (value : Value)
-  deriving DecidableEq
+  /-- A value in the explicitly proved Original fragment, retained as syntax. -/
+  | originalValue (value : Original.Val)
 
 structure Operation where
   family : Nat
@@ -53,6 +55,10 @@ mutual
     | mapop (mapper : Mapper)
     | wait (handler : Handler) (original : Pending) (remaining : List Arm)
     | release (target : Nat)
+    /-- A source bind frame in the delimited Original fragment. -/
+    | originalBind (body : Original.Comp)
+    /-- Metatheoretic delimiter between source frames and a foreign suffix. -/
+    | originalBoundary
 end
 
 def Kont.input : Kont → Nat | .mk q _ => q
@@ -66,6 +72,8 @@ def Packet.capture : Packet → Frame → Packet
 
 inductive Head where
   | ret (value : Value)
+  /-- Original computations remain their actual syntax during source execution. -/
+  | original (computation : Original.Comp)
   | req (packet : Packet)
   | fail (reason : Nat)
   | bad (reason : Nat)
@@ -158,6 +166,16 @@ inductive ControlStep {W : Type} (md : Metadata W) : State W → State W → Pro
   | failFrame (notRelease : ∀ t, f ≠ .release t) (hw : md.failWorld w f w') :
       ControlStep md ⟨w,.fail r,f::fs⟩ ⟨w',.fail r,fs⟩
   | badFrame : ControlStep md ⟨w,.bad r,f::fs⟩ ⟨w,.bad r,fs⟩
+  | originalEnter : ControlStep md ⟨w,.original (.bind first body),fs⟩
+      ⟨w,.original first,.originalBind body::fs⟩
+  | originalReturnBind : ControlStep md
+      ⟨w,.original (.ret value),.originalBind body::fs⟩
+      ⟨w,.original (Original.substComp (Original.single value) body),fs⟩
+  | originalPrincipal : Original.Principal first next → ControlStep md
+      ⟨w,.original first,fs⟩ ⟨w,.original next,fs⟩
+  | originalExit : ControlStep md
+      ⟨w,.original (.ret value),.originalBoundary::fs⟩
+      ⟨w,.ret (.originalValue value),fs⟩
 
 /-- Principal-redex relation is limited to registered-code execution.
 It cannot dispatch any frame or search state. -/
