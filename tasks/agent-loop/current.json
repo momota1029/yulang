@@ -1,333 +1,346 @@
 {
-  "schema_version": 1,
-  "mode": "LIVE",
-  "phase": "ACTIVE",
-  "session": "/root",
-  "active_sprint": {
-    "id": "R149-CURRENT-SOURCE-ADMISSION-20261024",
-    "status": "ACTIVE",
-    "contract": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev3.md",
-    "contract_sha256": "0e5f5358e69dd48d4006b46773d9f86cf492c30d3a4e8ad063acdbf1e62e8d48",
-    "baseline": "22239717efd1a8205be561ae1a8cfae35057d3c9",
-    "claim": "Produce a reviewed source-to-inference-to-module-schedule-to-consumer certificate for unchanged R149 Types/Console, or identify the first exact unsupported owner.",
-    "implementation": "Primary audit of lib.rs/runtime/program.rs; no code edits.",
-    "proof": "Reviewed source/native certificate or exact first obstruction; preserve A/B.",
-    "resources": {
-      "cap_seconds": 3600,
-      "assignment_envelope": 6,
-      "astra": 0,
-      "proof_assignment_cap_seconds": 1200,
-      "review_assignment_cap_seconds": 300,
-      "implementation_reserve_seconds": 1200
-    },
-    "outcome": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-outcome.md",
-    "closure": "OPEN; no source/runtime result or code change yet.",
-    "next_action": "Complete the independent code-owner audit while the constructive source lane builds its certificate."
+ "schema_version": 1,
+ "mode": "LIVE",
+ "phase": "ENDED",
+ "session": null,
+ "active_sprint": {
+  "id": "R149-CURRENT-SOURCE-ADMISSION-20261024",
+  "status": "PARTIAL_REVIEWED",
+  "contract": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev3.md",
+  "contract_sha256": "0e5f5358e69dd48d4006b46773d9f86cf492c30d3a4e8ad063acdbf1e62e8d48",
+  "baseline": "22239717efd1a8205be561ae1a8cfae35057d3c9",
+  "claim": "Produce a reviewed source-to-inference-to-module-schedule-to-consumer certificate for unchanged R149 Types/Console, or identify the first exact unsupported owner.",
+  "implementation": "Primary audit of lib.rs/runtime/program.rs; no code edits.",
+  "proof": "Partial source/native trace; parser source→CST boundary; A/B OPEN.",
+  "resources": {
+   "cap_seconds": 3600,
+   "assignment_envelope": 6,
+   "astra": 0,
+   "proof_assignment_cap_seconds": 1200,
+   "review_assignment_cap_seconds": 300,
+   "implementation_reserve_seconds": 1200
   },
-  "workers": [
-    {
-      "id": "/root/resident_dispatcher_loop_a",
-      "role": "legacy dispatcher",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "U;Q."
-    },
-    {
-      "id": "/root/resident_implementer_idle",
-      "role": "legacy implementer",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "U;Q."
-    },
-    {
-      "id": "/root/runtime_source_supplier_proof",
-      "role": "legacy proof worker",
-      "state": "UNKNOWN",
-      "session": null,
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "U;Q."
-    },
-    {
-      "id": "/root",
-      "role": "primary authority/current/Git integrator",
-      "state": "RUNNING",
-      "session": "/root",
-      "requested_model": "user-selected primary",
-      "requested_effort": "high",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Live /root confirmed by list_agents; runtime has no separate session token."
-    },
-    {
-      "id": "/root/r149_current_source_admission_prover",
-      "role": "R149 constructive source/native admission producer",
-      "state": "RUNNING",
-      "session": "/root",
-      "requested_model": "configured prover role; no spawn override",
-      "requested_effort": "configured role effort; no spawn override",
-      "observed_model": "UNKNOWN",
-      "observed_effort": "UNKNOWN",
-      "receipt": "Actual spawn and list_agents confirmed RUNNING; session correlated to live /root; effective model/effort UNKNOWN."
-    }
-  ],
-  "leases": [
-    {
-      "path": "tasks/agent-loop/current.json",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Primary-owned proof continuation state and integration; old quarantined reservations preserved."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Immutable revision 1; superseded before proof-output work by the explicit revision-2 dependency-pin repair."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-outcome.md",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Primary-owned outcome receipt; reserved for closeout."
-    },
-    {
-      "path": "notes/theory/2026-10-24-r149-current-source-admission.md",
-      "owner": "/root/r149_current_source_admission_prover",
-      "state": "HELD",
-      "reason": "Exact exclusive proof producer lease; actual spawn and RUNNING receipt recorded."
-    },
-    {
-      "path": "tasks/agent-loop/inbox/20261024-r149-current-source-admission.md",
-      "owner": "/root/r149_current_source_admission_prover",
-      "state": "HELD",
-      "reason": "Exact exclusive proof producer lease; actual spawn and RUNNING receipt recorded."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev2.md",
-      "owner": "/root",
-      "state": "FROZEN",
-      "reason": "Immutable revision 2; superseded by revision 3 owner pins."
-    },
-    {
-      "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev3.md",
-      "owner": "/root",
-      "state": "HELD",
-      "reason": "Frozen revision 3 primary-owned active contract."
-    }
-  ],
-  "pending": [
-    {
-      "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
-      "state": "OPEN",
-      "owner": "Luna; whole-ascription formation",
-      "details": "tasks/agent-loop/inbox/20261019-r61-proof.md"
-    },
-    {
-      "id": "R64-SRC-ANN-ARG-1",
-      "state": "OPEN",
-      "owner": "Luna; annotation argument",
-      "details": "tasks/agent-loop/inbox/20261019-r64-proof.md"
-    },
-    {
-      "id": "R65-CURRENT-OPERAND-1",
-      "state": "OPEN",
-      "owner": "Luna; ordinary typed Lambda operand",
-      "details": "tasks/agent-loop/inbox/20261019-r65-proof.md"
-    },
-    {
-      "id": "R66-LAMBDA-RESULT-STAGE-1",
-      "state": "OPEN",
-      "owner": "Luna; direct Lambda-checking follow-up",
-      "details": "tasks/agent-loop/inbox/20261019-r66-proof.md"
-    },
-    {
-      "id": "R67-DIRECT-BODY-CHECK-1",
-      "state": "OPEN",
-      "owner": "Luna; source Lambda body consumer",
-      "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md"
-    },
-    {
-      "id": "R68-OWNER-CONSUMER-1",
-      "state": "OPEN",
-      "owner": "Luna; retained body/result consumer",
-      "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"
-    },
-    {
-      "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
-      "state": "OPEN_UNADOPTED_PROPOSAL",
-      "owner": "Luna; source-law completion",
-      "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"
-    },
-    {
-      "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
-      "state": "OPEN",
-      "owner": "Luna; exact source/native owners in R70",
-      "details": "tasks/agent-loop/inbox/20261019-r70-proof.md"
-    },
-    {
-      "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
-      "state": "OPEN",
-      "owner": "Luna; source/native owners in R71",
-      "details": "R230; R231–234; R236; R237 found no callback slot-4 alias to later raw WorkBound; coverage open."
-    },
-    {
-      "id": "R72-LATER-OCCURRENCE-1",
-      "state": "OPEN",
-      "owner": "Luna; exact Local-to-WorkBound replay and consumer lineage",
-      "details": "R229; R231–233 found no slot-4 post-alias consumer; bridge open."
-    },
-    {
-      "id": "R149-SOURCE-OWNER-CLOSURE-1",
-      "state": "OPEN_REMAINDER",
-      "owner": "Luna intake",
-      "details": "R149-CURRENT-SOURCE-ADMISSION-20261024: declaration-qualified source→identity→fetch→root/order→consumer certificate or first exact obstruction; source/runtime and publication remain open."
-    },
-    {
-      "id": "R339-D2-WHOLE-FRAME-RETIREMENT",
-      "state": "OPEN_REMAINDER",
-      "owner": "Luna; exact residual N temporal/fiber and end-state coverage",
-      "details": "R346 fixed-key replay accepted; R347 projected C_s ↔ H₀(S) open; R348 bounded extension accepted after review; full N open."
-    },
-    {
-      "id": "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
-      "state": "OPEN_REMAINDER",
-      "owner": "Luna; source Apply handoff and continuation-prefix invariant",
-      "details": "Bounded Apply handoff, prefix/owner and invocation/argument identity pass under realization premises; full C/M open. MAJOR S0 dependency row corrected; independent delta review pending."
-    },
-    {
-      "id": "R345-N-REMAINDER",
-      "state": "OPEN_REMAINDER",
-      "owner": "Luna; all-pair temporal coverage and source-constraint completeness",
-      "details": "R346 fixed-key replay accepted; R347 projected C_s ↔ H₀(S) open; R348 bounded extension accepted after review; full N open."
-    },
-    {
-      "id": "OP-SEMANTICS-FULL-EFFECT",
-      "state": "OPEN_REVIEW",
-      "owner": "primary",
-      "details": "Old owner and existential AllowAll source applications need correction. Source candidate 15.4 supplies explicit repairs; adoption/review OPEN."
-    },
-    {
-      "id": "DOT-SELECTION-EVIDENCE-BRIDGE",
-      "state": "OPEN_REVIEW",
-      "owner": "primary",
-      "details": "Finite selected-code bridge retained; lifetime effect evidence requires recheck. Resolver uniqueness, raw/compact and snapshot lifecycle OPEN."
-    },
-    {
-      "id": "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
-      "state": "OPEN_REVIEW",
-      "owner": "primary",
-      "details": "Rank-2 computed-fetch source boundary clarified (12.1); explicit all-input release (11.7). Semantic choice, native correspondence/review OPEN."
-    },
-    {
-      "id": "SOURCE-SAFETY-BRIDGE",
-      "state": "OPEN_REVIEW",
-      "owner": "primary",
-      "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
-    }
-  ],
-  "closure": "Previous callback transport slice remains integrated/pushed. Current R149 source admission and the broader inference/evaluator goal remain open; no runtime result claimed.",
-  "next_action": "Finish R149 source/native admission; only after fresh review grant a bounded implementation continuation if a specific code gap is established.",
-  "legacy_reconciliation": {
-    "required": false,
-    "reason": "Three prior UNKNOWN identities and their quarantined reservations retained.",
-    "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+  "outcome": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-outcome.md",
+  "closure": "PARTIAL_REVIEWED; parser source→CST/recovery remains an evidence boundary, not a demonstrated compiler gap.",
+  "next_action": "Complete the independent code-owner audit while the constructive source lane builds its certificate.",
+  "review_status": "PASS; independent review matched pinned evidence and confirmed boundaries.",
+  "outcome_sha256": "7cd904d92e6318b4af9957b50ac78a0ff04c694e6eabaa0a61fe9e4dd0d10450"
+ },
+ "workers": [
+  {
+   "id": "/root/resident_dispatcher_loop_a",
+   "role": "legacy dispatcher",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "U;Q."
   },
-  "user_goal": "Use established proofs and approved source behavior to implement Yulang type inference and evaluator; commit and push, keeping the worktree clean.",
-  "history": [
-    {
-      "id": "RELEASE-prior-state",
-      "record": "tasks/agent-loop/sprints/release-closure-20261024-prior-current.json",
-      "sha256": "0ffbfdecc3a7e86aa45258ec50adf08025c5048f0729624bf4a96fe9853d4f02",
-      "outcome": "Immutable complete prior history and capture outcome; pending and unknown leases retained."
-    },
-    {
-      "id": "RELEASE-CLOSURE-20261024",
-      "record": "tasks/agent-loop/sprints/release-closure-20261024.md",
-      "contract_sha256": "ca2816d82ffaa700c862b67e968c545dd1dd2b569e3d5130680bde0c5e8a0b23",
-      "outcome": "tasks/agent-loop/sprints/release-closure-20261024-outcome.md",
-      "outcome_sha256": "f29934b35beba23b67299db6dfe4f842455165785910cc8a4adf5e1582b656d8",
-      "closure": "Superseded by the user's explicit implementation scope; proof candidate and open gates retained."
-    },
-    {
-      "id": "PRIMITIVE-BOOL-RUNTIME-20261024",
-      "record": "tasks/agent-loop/sprints/primitive-bool-runtime-20261024-rev2.md",
-      "contract_sha256": "6c8e615c097570ad669bbb3a6b4b022c8077f12c4057581c88238ce4a73b2551",
-      "outcome": "tasks/agent-loop/sprints/primitive-bool-runtime-20261024-outcome.md",
-      "outcome_sha256": "421597b31b400eb391534d02f1dddcb9dcafdefa7900b001c4f43917cc853401",
-      "integration_commit": "8a2f8113f2b7298bc0789c5b285ae05a6603f9d4",
-      "closure": "Reviewed Boolean slice compiled, committed and pushed; full goal remains open.",
-      "receipt_commit": "d0015dd930f9dfc8df165d4a719a72382c153f13"
-    },
-    {
-      "id": "PERMISSION-BRIDGE-SOURCE-20261024",
-      "record": "notes/theory/2026-10-24-permission-implementation-bridge.md",
-      "sha256": "f9c40e49dd8c4e9ec1c4ef01a0391940ad5c7fd21b27da1c0635501721b6aeed",
-      "inbox": "tasks/agent-loop/inbox/20261024-permission-implementation-bridge.md",
-      "result": "Partial; joint eligibility and two representation gaps open; no compiler counterexample.",
-      "worker": "STOPPED; seven read-only calls, no writes/descendants; elapsed UNKNOWN."
-    },
-    {
-      "id": "R349-K0-FINITE-WITNESS-20261023",
-      "record": "notes/theory/2026-10-23-r349-k0-finite-witness.md",
-      "sha256": "2bde82649456241d83ef5ceafc159030f57779707be9565d7455ad312a67629b",
-      "inbox": "tasks/agent-loop/inbox/20261023-r349-k0-witness-prover.md",
-      "inbox_sha256": "a891f4dee8460d3146eb1869c27c5450c21f8c9d3e6e0047b3d8e46c0ac98271",
-      "result": "Conditional obstruction only; W0 OPEN; author STOPPED, outputs frozen.",
-      "integration_commit": "5fede4c66"
-    },
-    {
-      "id": "INTEGER-COMPARISON-AND-PERMISSION-BRIDGE-20261024",
-      "record": "tasks/agent-loop/sprints/integer-comparison-and-permission-bridge-20261024-rev2.md",
-      "contract_sha256": "18164e4f2a4b5b05f9c4202b2129b053a263914988a38f5f53430df7f9e92515",
-      "outcome": "tasks/agent-loop/sprints/integer-comparison-and-permission-bridge-20261024-outcome.md",
-      "outcome_sha256": "552db3a5afe3fff9ef6d45562276eee3d708309e45bd5c1bb14802b66132ae7f",
-      "integration_commit": "e2929ec28",
-      "closure": "Reviewed and integrated; permission bridge partial/open."
-    },
-    {
-      "id": "CONCRETE-CALLBACK-PERMISSION-20261024",
-      "record": "tasks/agent-loop/sprints/concrete-callback-permission-20261024.md",
-      "contract_sha256": "4a6b3a6e10d3c496640c015104d555c115e351dd41806f45c04fe6e20fa24f94",
-      "outcome": "tasks/agent-loop/sprints/concrete-callback-permission-20261024-outcome.md",
-      "outcome_sha256": "a119e74dee26caf99769dc827d7c73431766fe0286089a1ec83ecf2b6a7f0032",
-      "proof_artifact": "notes/theory/2026-10-24-callback-permission-bridge.md",
-      "proof_sha256": "c228ff45a272a52b92eaaccd91183272438bb8c3287dd39e7749d700ce919f4d",
-      "inbox": "tasks/agent-loop/inbox/20261024-callback-permission-bridge.md",
-      "inbox_sha256": "dddd305fb7d0aa6aca86b0868cf1a4806703e58e57f7c8b8e2e14ac0c5949335",
-      "integration_commit": "a0dcc92b8f8b866f7ed2e06acf399a4c86057a3c",
-      "closure": "Reviewed exact runtime obstruction; NO_SAFE_CODE_SLICE; parent gate remains OPEN_REVIEW."
-    },
-    {
-      "id": "CB-PERMISSION-TRANSPORT-20261024",
-      "record": "tasks/agent-loop/sprints/cb-permission-transport-20261024-rev2.md",
-      "contract_sha256": "0c5fe5011811420ae334d2a72f0e46570eed17e0775e48f47228d799e12ce0d7",
-      "outcome": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
-      "outcome_sha256": "373e95500c122de631b51de9554778528c95219480a79239bdfe0a943bd821eb",
-      "integration_commit": "9ce447b167a24fc80f733a9d5d185d2978663dae",
-      "closure": "CONSTRUCTION_ACCEPTED; REV1_MAJOR_REPAIRED; REV2_REVIEW_PASS; CARGO_CHECK_PASS; INTEGRATED_AND_PUSHED."
-    },
-    {
-      "id": "R149-CURRENT-SOURCE-ADMISSION-20261024-rev1",
-      "record": "tasks/agent-loop/sprints/r149-current-source-admission-20261024.md",
-      "sha256": "418a7ae53e2928abf852c55e55670089330e373e2699308929ef9db23133b052",
-      "outcome": "Superseded before source-output work; revision 2 adds direct pins for the embedded standard-library bundle and HIR declaration/identity owner."
-    },
-    {
-      "id": "R149-CURRENT-SOURCE-ADMISSION-20261024-rev2",
-      "record": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev2.md",
-      "sha256": "c0b5ac07c23b63c57ec299d02314873033d74cee768ce6950f56285f4a5bcd72",
-      "outcome": "Superseded before source-output work; revision 3 pins source_impl and source_annotation owners."
-    }
-  ],
-  "resource_observation": "R149 producer active; rev2 verified embedded bundle 40/40; rev3 adds source_impl/source_annotation pins before further reads. No code, tests, builds, or runtime probes. Three legacy UNKNOWN reservations retained."
+  {
+   "id": "/root/resident_implementer_idle",
+   "role": "legacy implementer",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "U;Q."
+  },
+  {
+   "id": "/root/runtime_source_supplier_proof",
+   "role": "legacy proof worker",
+   "state": "UNKNOWN",
+   "session": null,
+   "requested_model": "gpt-6.1-sol",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "U;Q."
+  },
+  {
+   "id": "/root",
+   "role": "primary authority/current/Git integrator",
+   "state": "STOPPED",
+   "session": null,
+   "requested_model": "user-selected primary",
+   "requested_effort": "high",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Session ended after committing reviewed R149 partial evidence; no background work remains."
+  },
+  {
+   "id": "/root/r149_current_source_admission_prover",
+   "role": "R149 constructive source/native admission producer",
+   "state": "STOPPED",
+   "session": null,
+   "requested_model": "configured prover role; no spawn override",
+   "requested_effort": "configured role effort; no spawn override",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Stopped after freezing partial R149 certificate; 24 pinned sources matched; 489s interval; no tests/builds/probes/Git."
+  },
+  {
+   "id": "/root/proof_implementation_referee",
+   "role": "independent R149 source/native evidence reviewer",
+   "state": "STOPPED",
+   "session": null,
+   "requested_model": "existing referee role; no override",
+   "requested_effort": "existing referee role; no override",
+   "observed_model": "UNKNOWN",
+   "observed_effort": "UNKNOWN",
+   "receipt": "Stopped 2026-10-24 00:51:37 UTC; 65s; 8 read-only calls; no edits/tests/builds/probes/Git; model/session UNKNOWN."
+  }
+ ],
+ "leases": [
+  {
+   "path": "tasks/agent-loop/current.json",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "Primary-owned proof continuation state and integration; old quarantined reservations preserved."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Immutable revision 1; superseded before proof-output work by the explicit revision-2 dependency-pin repair."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-outcome.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Reviewed partial outcome frozen; SHA-256 7cd904d92e6318b4af9957b50ac78a0ff04c694e6eabaa0a61fe9e4dd0d10450."
+  },
+  {
+   "path": "notes/theory/2026-10-24-r149-current-source-admission.md",
+   "owner": "/root/r149_current_source_admission_prover",
+   "state": "FROZEN",
+   "reason": "Frozen proof candidate SHA-256 d4c6b9e1…; independent review pending."
+  },
+  {
+   "path": "tasks/agent-loop/inbox/20261024-r149-current-source-admission.md",
+   "owner": "/root/r149_current_source_admission_prover",
+   "state": "FROZEN",
+   "reason": "Frozen handoff SHA-256 ba432a68…; independent review pending."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev2.md",
+   "owner": "/root",
+   "state": "FROZEN",
+   "reason": "Immutable revision 2; superseded by revision 3 owner pins."
+  },
+  {
+   "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev3.md",
+   "owner": "/root",
+   "state": "HELD",
+   "reason": "Frozen revision 3 primary-owned active contract."
+  }
+ ],
+ "pending": [
+  {
+   "id": "R61-SOURCE-ASCRIPTION-FORMATION-1",
+   "state": "OPEN",
+   "owner": "Luna; whole-ascription formation",
+   "details": "tasks/agent-loop/inbox/20261019-r61-proof.md"
+  },
+  {
+   "id": "R64-SRC-ANN-ARG-1",
+   "state": "OPEN",
+   "owner": "Luna; annotation argument",
+   "details": "tasks/agent-loop/inbox/20261019-r64-proof.md"
+  },
+  {
+   "id": "R65-CURRENT-OPERAND-1",
+   "state": "OPEN",
+   "owner": "Luna; ordinary typed Lambda operand",
+   "details": "tasks/agent-loop/inbox/20261019-r65-proof.md"
+  },
+  {
+   "id": "R66-LAMBDA-RESULT-STAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; direct Lambda-checking follow-up",
+   "details": "tasks/agent-loop/inbox/20261019-r66-proof.md"
+  },
+  {
+   "id": "R67-DIRECT-BODY-CHECK-1",
+   "state": "OPEN",
+   "owner": "Luna; source Lambda body consumer",
+   "details": "notes/theory/2026-10-19-r67-direct-lambda-checking.md"
+  },
+  {
+   "id": "R68-OWNER-CONSUMER-1",
+   "state": "OPEN",
+   "owner": "Luna; retained body/result consumer",
+   "details": "tasks/agent-loop/sprints/retained-lambda-introduction-20261019-r68.md"
+  },
+  {
+   "id": "R69-CONSUMER-ORIGIN-SOURCE-LAW-1",
+   "state": "OPEN_UNADOPTED_PROPOSAL",
+   "owner": "Luna; source-law completion",
+   "details": "tasks/agent-loop/sprints/retained-consumer-origin-formation-20261019-r69.md"
+  },
+  {
+   "id": "R70-ORDINARY-EXTRUSION-ENTRY-RETURN-1",
+   "state": "OPEN",
+   "owner": "Luna; exact source/native owners in R70",
+   "details": "tasks/agent-loop/inbox/20261019-r70-proof.md"
+  },
+  {
+   "id": "R71-RAW-CANONICAL-FIBER-COVERAGE-1",
+   "state": "OPEN",
+   "owner": "Luna; source/native owners in R71",
+   "details": "R230; R231–234; R236; R237 found no callback slot-4 alias to later raw WorkBound; coverage open."
+  },
+  {
+   "id": "R72-LATER-OCCURRENCE-1",
+   "state": "OPEN",
+   "owner": "Luna; exact Local-to-WorkBound replay and consumer lineage",
+   "details": "R229; R231–233 found no slot-4 post-alias consumer; bridge open."
+  },
+  {
+   "id": "R149-SOURCE-OWNER-CLOSURE-1",
+   "state": "OPEN_REMAINDER",
+   "owner": "Luna intake",
+   "details": "R149-CURRENT-SOURCE-ADMISSION-20261024: declaration-qualified source→identity→fetch→root/order→consumer certificate or first exact obstruction; source/runtime and publication remain open."
+  },
+  {
+   "id": "R339-D2-WHOLE-FRAME-RETIREMENT",
+   "state": "OPEN_REMAINDER",
+   "owner": "Luna; exact residual N temporal/fiber and end-state coverage",
+   "details": "R346 fixed-key replay accepted; R347 projected C_s ↔ H₀(S) open; R348 bounded extension accepted after review; full N open."
+  },
+  {
+   "id": "R340-D3-AUTHENTIC-APPLY-CONTINUATION",
+   "state": "OPEN_REMAINDER",
+   "owner": "Luna; source Apply handoff and continuation-prefix invariant",
+   "details": "Bounded Apply handoff, prefix/owner and invocation/argument identity pass under realization premises; full C/M open. MAJOR S0 dependency row corrected; independent delta review pending."
+  },
+  {
+   "id": "R345-N-REMAINDER",
+   "state": "OPEN_REMAINDER",
+   "owner": "Luna; all-pair temporal coverage and source-constraint completeness",
+   "details": "R346 fixed-key replay accepted; R347 projected C_s ↔ H₀(S) open; R348 bounded extension accepted after review; full N open."
+  },
+  {
+   "id": "OP-SEMANTICS-FULL-EFFECT",
+   "state": "OPEN_REVIEW",
+   "owner": "primary",
+   "details": "Old owner and existential AllowAll source applications need correction. Source candidate 15.4 supplies explicit repairs; adoption/review OPEN."
+  },
+  {
+   "id": "DOT-SELECTION-EVIDENCE-BRIDGE",
+   "state": "OPEN_REVIEW",
+   "owner": "primary",
+   "details": "Finite selected-code bridge retained; lifetime effect evidence requires recheck. Resolver uniqueness, raw/compact and snapshot lifecycle OPEN."
+  },
+  {
+   "id": "CONSTRUCTOR-POLYMORPHISM-SCOPED-RELEASE",
+   "state": "OPEN_REVIEW",
+   "owner": "primary",
+   "details": "Rank-2 computed-fetch source boundary clarified (12.1); explicit all-input release (11.7). Semantic choice, native correspondence/review OPEN."
+  },
+  {
+   "id": "SOURCE-SAFETY-BRIDGE",
+   "state": "OPEN_REVIEW",
+   "owner": "primary",
+   "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
+  }
+ ],
+ "closure": "Previous callback transport slice remains integrated/pushed. Current R149 source admission and the broader inference/evaluator goal remain open; no runtime result claimed.",
+ "next_action": "Next session: pin parser/API owners, then authorize bounded exact source readback; no production code change without reviewed source/native correspondence.",
+ "legacy_reconciliation": {
+  "required": false,
+  "reason": "Three prior UNKNOWN identities and their quarantined reservations retained.",
+  "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d"
+ },
+ "user_goal": "Use established proofs and approved source behavior to implement Yulang type inference and evaluator; commit and push, keeping the worktree clean.",
+ "history": [
+  {
+   "id": "RELEASE-prior-state",
+   "record": "tasks/agent-loop/sprints/release-closure-20261024-prior-current.json",
+   "sha256": "0ffbfdecc3a7e86aa45258ec50adf08025c5048f0729624bf4a96fe9853d4f02",
+   "outcome": "Immutable complete prior history and capture outcome; pending and unknown leases retained."
+  },
+  {
+   "id": "RELEASE-CLOSURE-20261024",
+   "record": "tasks/agent-loop/sprints/release-closure-20261024.md",
+   "contract_sha256": "ca2816d82ffaa700c862b67e968c545dd1dd2b569e3d5130680bde0c5e8a0b23",
+   "outcome": "tasks/agent-loop/sprints/release-closure-20261024-outcome.md",
+   "outcome_sha256": "f29934b35beba23b67299db6dfe4f842455165785910cc8a4adf5e1582b656d8",
+   "closure": "Superseded by the user's explicit implementation scope; proof candidate and open gates retained."
+  },
+  {
+   "id": "PRIMITIVE-BOOL-RUNTIME-20261024",
+   "record": "tasks/agent-loop/sprints/primitive-bool-runtime-20261024-rev2.md",
+   "contract_sha256": "6c8e615c097570ad669bbb3a6b4b022c8077f12c4057581c88238ce4a73b2551",
+   "outcome": "tasks/agent-loop/sprints/primitive-bool-runtime-20261024-outcome.md",
+   "outcome_sha256": "421597b31b400eb391534d02f1dddcb9dcafdefa7900b001c4f43917cc853401",
+   "integration_commit": "8a2f8113f2b7298bc0789c5b285ae05a6603f9d4",
+   "closure": "Reviewed Boolean slice compiled, committed and pushed; full goal remains open.",
+   "receipt_commit": "d0015dd930f9dfc8df165d4a719a72382c153f13"
+  },
+  {
+   "id": "PERMISSION-BRIDGE-SOURCE-20261024",
+   "record": "notes/theory/2026-10-24-permission-implementation-bridge.md",
+   "sha256": "f9c40e49dd8c4e9ec1c4ef01a0391940ad5c7fd21b27da1c0635501721b6aeed",
+   "inbox": "tasks/agent-loop/inbox/20261024-permission-implementation-bridge.md",
+   "result": "Partial; joint eligibility and two representation gaps open; no compiler counterexample.",
+   "worker": "STOPPED; seven read-only calls, no writes/descendants; elapsed UNKNOWN."
+  },
+  {
+   "id": "R349-K0-FINITE-WITNESS-20261023",
+   "record": "notes/theory/2026-10-23-r349-k0-finite-witness.md",
+   "sha256": "2bde82649456241d83ef5ceafc159030f57779707be9565d7455ad312a67629b",
+   "inbox": "tasks/agent-loop/inbox/20261023-r349-k0-witness-prover.md",
+   "inbox_sha256": "a891f4dee8460d3146eb1869c27c5450c21f8c9d3e6e0047b3d8e46c0ac98271",
+   "result": "Conditional obstruction only; W0 OPEN; author STOPPED, outputs frozen.",
+   "integration_commit": "5fede4c66"
+  },
+  {
+   "id": "INTEGER-COMPARISON-AND-PERMISSION-BRIDGE-20261024",
+   "record": "tasks/agent-loop/sprints/integer-comparison-and-permission-bridge-20261024-rev2.md",
+   "contract_sha256": "18164e4f2a4b5b05f9c4202b2129b053a263914988a38f5f53430df7f9e92515",
+   "outcome": "tasks/agent-loop/sprints/integer-comparison-and-permission-bridge-20261024-outcome.md",
+   "outcome_sha256": "552db3a5afe3fff9ef6d45562276eee3d708309e45bd5c1bb14802b66132ae7f",
+   "integration_commit": "e2929ec28",
+   "closure": "Reviewed and integrated; permission bridge partial/open."
+  },
+  {
+   "id": "CONCRETE-CALLBACK-PERMISSION-20261024",
+   "record": "tasks/agent-loop/sprints/concrete-callback-permission-20261024.md",
+   "contract_sha256": "4a6b3a6e10d3c496640c015104d555c115e351dd41806f45c04fe6e20fa24f94",
+   "outcome": "tasks/agent-loop/sprints/concrete-callback-permission-20261024-outcome.md",
+   "outcome_sha256": "a119e74dee26caf99769dc827d7c73431766fe0286089a1ec83ecf2b6a7f0032",
+   "proof_artifact": "notes/theory/2026-10-24-callback-permission-bridge.md",
+   "proof_sha256": "c228ff45a272a52b92eaaccd91183272438bb8c3287dd39e7749d700ce919f4d",
+   "inbox": "tasks/agent-loop/inbox/20261024-callback-permission-bridge.md",
+   "inbox_sha256": "dddd305fb7d0aa6aca86b0868cf1a4806703e58e57f7c8b8e2e14ac0c5949335",
+   "integration_commit": "a0dcc92b8f8b866f7ed2e06acf399a4c86057a3c",
+   "closure": "Reviewed exact runtime obstruction; NO_SAFE_CODE_SLICE; parent gate remains OPEN_REVIEW."
+  },
+  {
+   "id": "CB-PERMISSION-TRANSPORT-20261024",
+   "record": "tasks/agent-loop/sprints/cb-permission-transport-20261024-rev2.md",
+   "contract_sha256": "0c5fe5011811420ae334d2a72f0e46570eed17e0775e48f47228d799e12ce0d7",
+   "outcome": "tasks/agent-loop/sprints/cb-permission-transport-20261024-outcome.md",
+   "outcome_sha256": "373e95500c122de631b51de9554778528c95219480a79239bdfe0a943bd821eb",
+   "integration_commit": "9ce447b167a24fc80f733a9d5d185d2978663dae",
+   "closure": "CONSTRUCTION_ACCEPTED; REV1_MAJOR_REPAIRED; REV2_REVIEW_PASS; CARGO_CHECK_PASS; INTEGRATED_AND_PUSHED."
+  },
+  {
+   "id": "R149-CURRENT-SOURCE-ADMISSION-20261024-rev1",
+   "record": "tasks/agent-loop/sprints/r149-current-source-admission-20261024.md",
+   "sha256": "418a7ae53e2928abf852c55e55670089330e373e2699308929ef9db23133b052",
+   "outcome": "Superseded before source-output work; revision 2 adds direct pins for the embedded standard-library bundle and HIR declaration/identity owner."
+  },
+  {
+   "id": "R149-CURRENT-SOURCE-ADMISSION-20261024-rev2",
+   "record": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev2.md",
+   "sha256": "c0b5ac07c23b63c57ec299d02314873033d74cee768ce6950f56285f4a5bcd72",
+   "outcome": "Superseded before source-output work; revision 3 pins source_impl and source_annotation owners."
+  }
+ ],
+ "resource_observation": "R149 partial result independently reviewed PASS. Producer: 489s interval, 24 source hashes matched; reviewer: 65s, 8 read-only calls. No code/tests/builds/probes. Parser formation remains evidence boundary; three legacy UNKNOWN reservations retained."
 }
