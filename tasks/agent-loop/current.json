@@ -6,12 +6,12 @@
  "active_sprint": {
   "id": "NATURAL-CONDITIONAL-RESULT-20261024",
   "status": "ACTIVE",
-  "contract": "tasks/agent-loop/sprints/natural-conditional-result-20261024-rev2.md",
-  "contract_sha256": "38dccbdc24ea3b767ee7ef83f73e8e041549162be70163f7a2740af7ce6ea7f2",
+  "contract": "tasks/agent-loop/sprints/natural-conditional-result-20261024-rev3.md",
+  "contract_sha256": "62aa2b5c7b9fb5353f79f1a3e50713a5bb97fdbedea4342092b943553bd1ec16",
   "baseline": "d788d94da66385bf09947932f0aae1972cd51f21",
-  "claim": "Graph-directed positive projection for multiple concrete Value lower heads; both If branches contribute; all original graph constraints remain authoritative.",
+  "claim": "Graph-directed positive projection for multiple concrete Value lower heads represented in CandidateGraphExport; both If branches must reach that export; preserve its local/shared identities and constraints.",
   "implementation": "After independent construction review, Luna may edit only tools/inference-playground/src/scheme.rs; no If-specific rendering or constant folding.",
-  "proof": "Exact note/handoff; rev2 pins the candidate drain→bound retention→export route. Prove graph-generic positive Value projection, preserving row identities, constraints, binders, effects and permissions.",
+  "proof": "Prove graph-generic positive Value projection over exported facts, both If contributions reaching CandidateGraphExport, and the definition-root initialization→local/shared classification join; general source-fact completeness remains OPEN.",
   "worktree": "/tmp/yulang-natural-conditional-result-20261024",
   "branch": "codex/natural-conditional-result-20261024",
   "resources": {
@@ -25,9 +25,9 @@
    "tests": 0
   },
   "outcome": "tasks/agent-loop/sprints/natural-conditional-result-20261024-outcome.md",
-  "closure": "ACTIVE; no proof result, source edit, build or runtime observation yet.",
-  "review_status": "Proof construction active; rev2 read-only source path frozen; fresh review still required before scheme.rs edit.",
-  "outcome_sha256": "a8d771128e39ae22fe63605b28dc873c50d77087abb3f933278cc7ce671b4ff6"
+  "closure": "ACTIVE; proof construction continues under rev3; no reviewed proof result, source edit, build or runtime observation yet.",
+  "review_status": "Proof construction active; rev3 read-only source path frozen; fresh review still required before scheme.rs edit.",
+  "outcome_sha256": "e08a0a9bafab41f0bc99e7ff12532e399c3caa2daf4e59a1574e248a33c9d168"
  },
  "workers": [
   {
@@ -94,7 +94,7 @@
    "requested_effort": "configured role effort",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Rev2 read-only route approved and frozen; exact proof output leases unchanged. Active work continues; model/effort metadata UNKNOWN."
+   "receipt": "Generic projection note drafted; NCR-ROOT-1 remains pending rev3 locality-source permission. Exact note/inbox leases unchanged; no tests/builds/probes/source edits. Active work continues; model/effort UNKNOWN."
   }
  ],
  "leases": [
@@ -102,13 +102,13 @@
    "path": "tasks/agent-loop/current.json",
    "owner": "/root",
    "state": "HELD",
-   "reason": "Primary-owned current state."
+   "reason": "Primary-owned current state; rev3 active contract and outcome hashes synchronized."
   },
   {
-   "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024-rev2.md",
+   "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024-rev3.md",
    "owner": "/root",
    "state": "FROZEN",
-   "reason": "Rev2 frozen; supersedes rev1 SHA pinned in contract. Exact read-only route expansion only."
+   "reason": "Rev3 frozen; supersedes rev2 SHA pinned in contract. Adds only the definition-root locality join and export-claim clarification."
   },
   {
    "path": "tasks/agent-loop/sprints/natural-conditional-result-20261024-outcome.md",
@@ -239,11 +239,11 @@
    "details": "Partial only. BLOCKING joint P/P_foreign/Wildcard eligibility, authenticated route/instance, owner test and forwarding absent. MAJOR callback permission and wildcard/scoped-release representation absent. No compiler counterexample; adoption/full surface open."
   }
  ],
- "closure": "R149 remains PARTIAL_REVIEWED and A/B OPEN. NATURAL-CONDITIONAL-RESULT sprint active; no source or proof result yet. Three legacy reservations remain UNKNOWN_QUARANTINED.",
- "next_action": "Proof producer traces the frozen candidate-specific solver path and completes graph-generic projection proof. Luna edits no source until independent review.",
+ "closure": "R149 remains PARTIAL_REVIEWED and A/B OPEN. NATURAL-CONDITIONAL-RESULT active under rev3; proof construction continues, with no reviewed result or source edit. Three legacy reservations remain UNKNOWN_QUARANTINED.",
+ "next_action": "Proof producer traces both If contributions into CandidateGraphExport and the pinned definition-root→local/shared classification join, then freezes the generic projection proof; fresh independent review precedes any scheme.rs edit.",
  "legacy_reconciliation": {
   "required": false,
-  "reason": "Three UNKNOWN identities remain quarantined. Their exact old implementation/proof scopes are unspecified; all new source and proof work is isolated in a fresh worktree, with no merge/copy-back until confirmed cessation/lease handoff.",
+  "reason": "Three UNKNOWN identities remain quarantined; new work stays isolated. No merge/copy-back before cessation/handoff confirmation.",
   "source_blob": "c066b622b38c2d79319da14e9fe17c15c8aa4b8d",
   "reservations": [
    {
