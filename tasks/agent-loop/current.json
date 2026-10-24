@@ -6,12 +6,12 @@
   "active_sprint": {
     "id": "R149-CURRENT-SOURCE-ADMISSION-20261024",
     "status": "ACTIVE",
-    "contract": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev2.md",
-    "contract_sha256": "c0b5ac07c23b63c57ec299d02314873033d74cee768ce6950f56285f4a5bcd72",
+    "contract": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev3.md",
+    "contract_sha256": "0e5f5358e69dd48d4006b46773d9f86cf492c30d3a4e8ad063acdbf1e62e8d48",
     "baseline": "22239717efd1a8205be561ae1a8cfae35057d3c9",
     "claim": "Produce a reviewed source-to-inference-to-module-schedule-to-consumer certificate for unchanged R149 Types/Console, or identify the first exact unsupported owner.",
-    "implementation": "Primary read-only audit of lib.rs and runtime/program.rs; no code edits in revision 1.",
-    "proof": "Declaration-qualified source/native correspondence or precise first obstruction; preserve original Simple-sub/evaluator A/B.",
+    "implementation": "Primary audit of lib.rs/runtime/program.rs; no code edits.",
+    "proof": "Reviewed source/native certificate or exact first obstruction; preserve A/B.",
     "resources": {
       "cap_seconds": 3600,
       "assignment_envelope": 6,
@@ -67,7 +67,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Live root identity /root confirmed RUNNING by collaboration.list_agents on 2026-10-24; runtime exposes no separate session token, so the canonical live identity is the session correlation."
+      "receipt": "Live /root confirmed by list_agents; runtime has no separate session token."
     },
     {
       "id": "/root/r149_current_source_admission_prover",
@@ -78,7 +78,7 @@
       "requested_effort": "configured role effort; no spawn override",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Actual spawn returned canonical worker identity /root/r149_current_source_admission_prover; list_agents confirmed RUNNING. The runtime exposes no separate worker session token; sprint session correlation remains the live root session /root. Effective model and effort UNKNOWN."
+      "receipt": "Actual spawn and list_agents confirmed RUNNING; session correlated to live /root; effective model/effort UNKNOWN."
     }
   ],
   "leases": [
@@ -115,8 +115,14 @@
     {
       "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev2.md",
       "owner": "/root",
+      "state": "FROZEN",
+      "reason": "Immutable revision 2; superseded by revision 3 owner pins."
+    },
+    {
+      "path": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev3.md",
+      "owner": "/root",
       "state": "HELD",
-      "reason": "Frozen revision 2 primary-owned active contract."
+      "reason": "Frozen revision 3 primary-owned active contract."
     }
   ],
   "pending": [
@@ -315,7 +321,13 @@
       "record": "tasks/agent-loop/sprints/r149-current-source-admission-20261024.md",
       "sha256": "418a7ae53e2928abf852c55e55670089330e373e2699308929ef9db23133b052",
       "outcome": "Superseded before source-output work; revision 2 adds direct pins for the embedded standard-library bundle and HIR declaration/identity owner."
+    },
+    {
+      "id": "R149-CURRENT-SOURCE-ADMISSION-20261024-rev2",
+      "record": "tasks/agent-loop/sprints/r149-current-source-admission-20261024-rev2.md",
+      "sha256": "c0b5ac07c23b63c57ec299d02314873033d74cee768ce6950f56285f4a5bcd72",
+      "outcome": "Superseded before source-output work; revision 3 pins source_impl and source_annotation owners."
     }
   ],
-  "resource_observation": "R149 source-admission producer RUNNING; rev2 contract frozen; embedded 40-source bundle verified 40/40. Primary implementation audit active; no code, tests, builds, or runtime probes. Three legacy UNKNOWN reservations retained."
+  "resource_observation": "R149 producer active; rev2 verified embedded bundle 40/40; rev3 adds source_impl/source_annotation pins before further reads. No code, tests, builds, or runtime probes. Three legacy UNKNOWN reservations retained."
 }
