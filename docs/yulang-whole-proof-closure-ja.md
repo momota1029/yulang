@@ -196,6 +196,14 @@ RG-OWNER、全 source の原 A/B と安全性は残る。SCC と境界 query は
 
 実装に保持される ScopedDemand.original_call は whole-Function demand の replay には残るが、Value extrusion link では default に、Function port 消費では None になる。この field を読むだけで delayed copy の receiver を決定する方法は使えない。保持された Derived/Replay/creation の経路と source typed map を接続する義務は残る。結果と査読範囲は[記録](../tasks/agent-loop/sprints/birth-residual-closure-20261024-outcome.md)に分ける。
 
+### 4.10 source-indexed 生成と publication の一般不変条件
+
+[Application と constraint 導出](../notes/theory/2026-10-24-source-indexed-constraint-derivation.md)は、元の実 Application emission から operand origins を作り、有限 native history に source の義務を付けて同時生成する。発行された義務と、それを満たす semantic evidence を区別する。既存の同じ x/world について NameDelay の inlet checking は得られるが、後着 Record に x の actual value/root を置き換える SC4 は、semantic world/history action が未証明と査読され撤回した。actual ValueBind/rebind からの構成、全 invocation の `CIncl`/`TypedCallCert`、再帰 f の membership、一般 history の whole-interface matching は残る。
+
+[bound のレベル閉包と公開](../notes/theory/2026-10-24-native-level-closure-and-publication.md)は、元 native の全 finite ordinary history で、各保存 bound の level が所属行の level 以下であることを実 write site ごとに証明する（NL1–NL3）。従って低い shared anchor の下に高い依存はなく、実 freshenAbove がコピーする集合を正確に構成できる（NL4）。これは前の具体例だけの条件を一般化した結果である。
+
+等置後は、全 clause を保持する quotient が同じ level 条件を満たすか有限に検査できる（NL5）。この条件と公開部分の class 飽和性の下で、任意有限個の使用との clause 対応、全域 valuation の pullback を構成し、既存 EC3 の実 store に適用する（NL6–NL7）。最小 level の選択だけでは条件は自動成立しない。元の source-scoped joint strategy と逆向き coverage、全 qualifying occurrence への適用、combined termination は未完のまま保持する。独立査読の受理範囲、source 側 SC4 の撤回と固定 hash は [outcome](../tasks/agent-loop/sprints/source-indexed-derivation-20261024-outcome.md) に記録する。
+
 ## 5. 完了の判定
 
 定理 C の成立により、生成済み核についての「有限 interface が適切」「内部 continuation が安全」という未構成の仮定は除かれた。次の作業は §4 の各 source/算法接続を構成し、1節の元の主張へ戻すことである。現段階で全言語・推論の証明が完了したとは報告しない。

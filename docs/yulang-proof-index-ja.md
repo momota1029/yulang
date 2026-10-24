@@ -50,6 +50,9 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 - [同生成レベル Call の extrusion 反例](../notes/theory/2026-10-24-birth-level-extrusion-redundancy.md): 元の native grammar から、自己呼出しの反変引数が低い捕捉先へ replay され実 copy を作る有限履歴を構成する。copy-free 候補不変条件を反証し、選択された intrusion 規則自体は反証しない。
 - [両極性の残余要求と source occurrence](../notes/theory/2026-10-24-residual-demand-source-association.md): positive/negative boundary の cut、改名との可換性、ScopedDemand の実保持/消費範囲を導く。source typed map と native 生成の対応は未完。[成果と査読](../tasks/agent-loop/sprints/birth-residual-closure-20261024-outcome.md)を参照。
 
+- [source-indexed constraint の生成](../notes/theory/2026-10-24-source-indexed-constraint-derivation.md): 実 Application の operand origins、有限 obligation graph と native erasure を構成する。SC4 の Record/rebind 実現は semantic substitution の不足により撤回。既存 NameDelay の条件付き入場結果を保ち、全 Call/再帰 membership、一般 realization は未完。
+- [native level 閉包と publication](../notes/theory/2026-10-24-native-level-closure-and-publication.md): 全 ordinary native 有限履歴の bound-level invariant、固定 anchor の依存閉包、実 freshening partition を導く。有限に検査できる quotient 条件の下で任意有限使用との clause 対応と解の pullback を構成し、既存の具体例へ適用する。全 source-scoped completeness の閉包とは区別する。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。
