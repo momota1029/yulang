@@ -76,6 +76,10 @@ intrusion の現行資格は[生成レベル別 SCC の直接決定](../notes/de
 - [let-free 高階 client の reverse coverage](../notes/theory/2026-10-24-let-free-client-reverse-coverage.md): 既存の一意-label regular-tree model で全有限 Lam/App/Rcd/Sel/Var/Lit clients を構造帰納し、低 anchors と出力契約を保つ。local-let/全 source 対応と区別する。この範囲で独立査読受理。
 - [computed argument の whole-carrier checking](../notes/theory/2026-10-24-computed-argument-carrier-checking.md): 実 h₀/f/g の source code から有限 computed argument の全 source execution と Delay criterion を構成する。独立 arms の target-specific checking は条件として保持し、succ と独立 computed-result descriptor の未完を残す。FO2 全体の無条件閉鎖ではない。この範囲で独立査読受理。[査読記録](../tasks/agent-loop/sprints/let-free-carrier-20261024-outcome.md)を参照。
 
+
+- [nonrecursive local-let の公開への接続](../notes/theory/2026-10-24-nonrecursive-let-client-coverage.md): RHS level+1、captured context への extrusion、保存 graph の freshening を検討する。具体的 captured-k client の全コピーと repair は独立査読受理。全 let-client theorem は未閉鎖。
+- [computed Call の phase と訂正した Bind result](../notes/theory/2026-10-24-computed-call-bind-result.md): CB1/operational composition は受理。旧 CB2/CB3 の descriptor 橋は MAJOR により無条件主張を撤回した。[新 EvalInvoke 定義](../notes/design/2026-10-24-computed-call-result-constructor.md)が missing formation/interpretation を明示し、introduction と checked Name specialization は再査読受理し、この生成 case を選択した。固定 foreign R と native result-slot 対応は残す。[固定版と査読記録](../tasks/agent-loop/sprints/computed-result-definition-20261024-outcome.md)を参照。
+
 ## 現在読む証明稿
 
 以下の3稿は、限定された対象について紙上導出を記す個別の原稿である。いずれも独立査読と機械検証を終えた証明として扱わない。

@@ -2,6 +2,7 @@
 
 This index is a navigation aid. The listed source document remains authoritative for its own text and scope. If this file conflicts with a source, read the source and correct the index.
 
+- [Computed Call の complete result constructor](2026-10-24-computed-call-result-constructor.md) — 既存の missing-definition authorization に基づき独立査読後に選択。EvalInvoke/InvokeTail の新形成・解釈、全 independent arms、genuine inputs による introduction と checked Name における ReadInvoke との両方向一致。旧 IF→Desc の無条件推論を撤回し、固定 foreign R・native result-slot 対応・全体閉鎖は別に保持する。
 - [生成レベルごとの Value SCC と intrusion](2026-10-24-birth-level-scc-intrusion.md) — ユーザーの直接選択。固定された Value 生成レベルの誘導グラフで SCC を計算し、同じ成分の実 extrusion occurrence の親子を等置する。旧跨レベル資格だけを置換し、参照・extrusion・一般化の規則は保持する。全体保存定理や実装完了の宣言ではない。
 - [共起分析と保護解除の関係](2026-10-24-cooccurrence-release-clarification.md) — 直接のユーザー訂正。引数の保護と正確な共変位置の共起から共有変数・解除を説明する。複数入力の解除対象を新たに選ぶ質問は撤回し、保存証明と source 対応を進める。任意の `A_all` 候補の採用や証明完了ではない。
 - [Braced `if` arm compatibility proposal](2026-10-20-braced-if-compatibility.md) — Draft only; not approved or authoritative. Scope: proposed dedicated expression-list bodies for braced `if`/`elsif`/`else`; current accepted Y3 syntax remains colon-only. The Yulang2 consumer audit has a major correction under review. User approval and a successor implementation contract are required before any syntax or compiler change.

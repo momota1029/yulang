@@ -258,3 +258,14 @@ NM3 は C/B、D/J、T/Y の全 copy と全 cut に一つの valuation を同時�
 [computed argument の whole-carrier 構成](../notes/theory/2026-10-24-computed-argument-carrier-checking.md)は、同じ実 h₀/f/g の raw code と TU の完成した membership を使う。finite source grammar の Call/first/next/Record/alias について、実際の引数計算の全 prefix と Return を構成し、元 Delay criterion の inert formation と全指定 Force を満たす。返却型から効果を消す推論は使わない。actual-source carrier の χ 成分を供給し、独立 W/Z 等がある complete interface 全体には、その同じ target への arm-local inclusion を別途結合する。
 
 後者は FO2 の全 χ を無条件に証明したものではない。succ の complete primitive law、独立 arm の target-specific checking、computed Call の独立 result descriptor は残る。元の arbitrary-client/source parent と receiving/SCC 資格の未証明対応も保持する。両稿はこの範囲で独立査読を通過した。[固定版と査読範囲](../tasks/agent-loop/sprints/let-free-carrier-20261024-outcome.md)を参照。
+
+
+### 4.18 local-let の公開と computed Call の result
+
+[nonrecursive local-let の検討](../notes/theory/2026-10-24-nonrecursive-let-client-coverage.md)は、RHS の level+1 推論と、低い captured context へ生じる実 extrusion、公開後の freshening を対象にする。let-free の構造帰納だけでは、保存された bound graph に現れる低いコピーの解まで保持できるとは限らない。全 finite local-let clients への拡張は未閉鎖。実 `lambda k. let a=k f in a` について六つの before コピーと五つの after コピー、全 bound と出力を保つ repair は独立査読で受理された。消える y は恒等 row 対応の誤りを示すもので、coverage の反例ではない。
+
+[computed Call の Bind result](../notes/theory/2026-10-24-computed-call-bind-result.md)の初稿は、relation/interface graph を complete descriptor に昇格させる規則が未供給と査読され、その無条件な CB2/CB3 を撤回した。CB1 の post-CalRet phase 証明と actual operational composition は受理された。
+
+欠けていた規則は [新しい EvalInvoke definition](../notes/design/2026-10-24-computed-call-result-constructor.md) で明示する。実 callee computation、内側で束縛される CalRet、argument formation、同じ provider の complete receiver を、元の順序・full fields のまま解釈する。これは旧規則からの自動導出ではなく、新 generated-result constructor の定義である。EI-Intro と checked immutable read C_Read(F,n) における元 ReadInvoke への両方向 specialization、全 independent arms の保持は再査読で受理され、primary がこの生成 constructor case を選択した。固定 foreign R_c、native result-slot の sort/scope 対応と全元親義務は残る。
+
+[今回の統合記録](../tasks/agent-loop/sprints/computed-result-definition-20261024-outcome.md)に、初回 MAJOR、明示的な新定義、再査読の固定版と全体未完了の境界を保持する。

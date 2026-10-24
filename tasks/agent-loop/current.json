@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
-  "sprint_id": "LET-FREE-CARRIER-20261024",
+  "sprint_id": "COMPUTED-RESULT-DEFINITION-20261024",
   "phase": "SPRINT_COMPLETE_PARENT_OPEN",
-  "contract": "tasks/agent-loop/sprints/let-free-carrier-20261024.md",
-  "baseline": "d613a7a34cfd6f98aea09f07682f4a6cef519aa9",
+  "contract": "tasks/agent-loop/sprints/computed-result-definition-20261024.md",
+  "baseline": "f6b4dcd810f0e0fa0aea70128d99e6a0810c5bb2",
   "user_goal": "Complete Yulang semantics and type soundness documentation; implementation excluded; Astra-only children",
   "workers": [
     {
       "id": "/root",
-      "state": "RUNNING",
-      "receipt": "Actual current primary turn; native/source proof sprint integration owner",
+      "state": "STOPPED",
+      "receipt": "Current proofs frozen/reviewed; primary exact-path integration then yield to active whole-goal continuation; no background worker",
       "observed_model": "UNKNOWN"
     },
     {
       "id": "/root/astra_semantics_direction",
       "state": "STOPPED",
-      "receipt": "Current30s boundary decision let-free monomorphic coverage/full carrier checking; tool FINAL STOP/no descendants"
+      "receipt": "Current final30sec integration/index navigation accepted; proposed900s next grant NOT issued due retained300s cap; STOP"
     },
     {
       "id": "/root/astra_corrected_machine",
@@ -25,7 +25,7 @@
     {
       "id": "/root/astra_semantics_review",
       "state": "STOPPED",
-      "receipt": "Current80sec fresh review FINAL: LF1–4/CA1–3 accepted scoped, CA4 conditional, no BLOCKING/MAJOR; STOP/no descendants"
+      "receipt": "Current150sec FINAL accepts explicit new EI definition/introduction/checkedName conservativity; oldMAJOR resolved selectedcase only; STOP/no descendants"
     },
     {
       "id": "/root/astra_cooccurrence_proof",
@@ -35,7 +35,7 @@
     {
       "id": "/root/astra_scoped_join",
       "state": "STOPPED",
-      "receipt": "Current final frozen6d67b4ee LF1–LF4; writes STOP/no descendants, awaiting independent review"
+      "receipt": "Current190sec final fc700749, exact captured-k Let trace/model; full Let OPEN, STOP/no descendants"
     }
   ],
   "leases": [
@@ -57,15 +57,15 @@
       "path": "docs/yulang-whole-proof-closure-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Independent accepted scope; only status/receipt/link post-review changes",
-      "sha256": "0a80670c3cc3c67293099ec3acc058b5b9642d68f60a354ba9079ac2e8c10e12"
+      "receipt": "Fresh accepted review; only status/receipt/links after frozen math",
+      "sha256": "ee4b039174e41c28a0e0256169e28759b574763b5886a47220bae019d10faa99"
     },
     {
       "path": "docs/yulang-proof-index-ja.md",
       "owner": "/root",
       "state": "FROZEN",
-      "receipt": "Independent accepted scope; only status/receipt/link post-review changes",
-      "sha256": "53ef83c9a66c61f67307d58f010bb2d874b7653e6766f4f322aa9ce1dfdc3534"
+      "receipt": "Fresh accepted review; only status/receipt/links after frozen math",
+      "sha256": "951c8e4bd49c2a33d0387df18f4d6e023943c68ccd6783796acbd5409b412568"
     },
     {
       "path": "notes/theory/2026-10-24-fresh-valuebind-complete-call.md",
@@ -164,6 +164,34 @@
       "state": "FROZEN",
       "receipt": "Independent accepted scope; only status/receipt/link post-review changes",
       "sha256": "80cff411cebedc9ba482db22b65a98e3e1ccafdf631dd494342ff27af351e899"
+    },
+    {
+      "path": "notes/theory/2026-10-24-nonrecursive-let-client-coverage.md",
+      "owner": "/root/astra_scoped_join",
+      "state": "FROZEN",
+      "receipt": "Current independent review frozen bytes",
+      "sha256": "fc7007497df333bb260cf1806eff1672a4a6d07af8fa3f987c1bb99b43c5d16d"
+    },
+    {
+      "path": "notes/theory/2026-10-24-computed-call-bind-result.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Fresh accepted review; only status/receipt/links after frozen math",
+      "sha256": "118f81e1109304b7d4d92e465bb8f923519bda19a362a3f7ff11224a67e44129"
+    },
+    {
+      "path": "notes/design/2026-10-24-computed-call-result-constructor.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "receipt": "Fresh accepted review; only status/receipt/links after frozen math",
+      "sha256": "2f3a5461b6dacaa29e881ba8b3003120b912e441dd5e4c47fc4ccaa27d3b31a6"
+    },
+    {
+      "path": "notes/design/INDEX.md",
+      "owner": "/root",
+      "state": "FROZEN",
+      "sha256": "98f464f421f07459a15c60fc51fc7bc94efbdfe45d6cbc8f519a19cd50307e0a",
+      "receipt": "Exact added navigation lease at current integration boundary, primary grant; one reviewed-definition locator"
     }
   ],
   "external_isolation": {
@@ -183,7 +211,7 @@
       "id": "WHOLE-LANGUAGE-SAFETY",
       "state": "OPEN",
       "owner": "primary",
-      "missing": "Actual computed source-carrier proof CA1–CA3 accepted without succ; complete χ requires target-specific independent arms; computed-result descriptor, full source/inference semantics and original coverage remain."
+      "missing": "New explicit EvalInvoke constructor/EI-Intro/checkedName conservativity accepted selectedcase; actual generated result-slot complete sort/scope/full-field correspondence, missing primitive/arm inclusions and whole source/inference coverage remain."
     },
     {
       "id": "SOURCE-SEMANTIC-ADOPTION",
@@ -195,7 +223,7 @@
       "id": "ORIGINAL-SIMPLE-SUB-A-B",
       "state": "OPEN",
       "owner": "primary; original proof owners preserved",
-      "missing": "LF1–LF4 all finite let-free higher-order clients in unique-label P1 domain accepted; local-let/LetRec publication, duplicate-record embedding, actual T/Y receiving/SCC and full source correspondence/principality/termination remain."
+      "missing": "LF1–4 accepted; exact captured-k nonrecursiveLet polar trace/repair accepted. General LET-POLAR-PUB, source receiving/TY qualification, allsource correspondence/principality/termination remain. Disappearingy refutes identity-row strategy, not coverage."
     },
     {
       "id": "COOCCURRENCE-SOURCE-CORRESPONDENCE",
@@ -206,12 +234,12 @@
     }
   ],
   "review": {
-    "outcome": "tasks/agent-loop/sprints/let-free-carrier-20261024-outcome.md",
+    "outcome": "tasks/agent-loop/sprints/computed-result-definition-20261024-outcome.md",
     "whole_language_certified": false,
     "reviewer": "/root/astra_semantics_review"
   },
   "resource": {
-    "astra_reserved_seconds": 7890,
+    "astra_reserved_seconds": 8400,
     "observed_active_seconds": "UNKNOWN",
     "parallel_astra_max": 1,
     "heavy_processes": 0,
@@ -220,11 +248,11 @@
     "successor_review_reservation_remaining_seconds": 0,
     "checkpoint_direction_reserved_seconds": 0
   },
-  "next_action": "Boundary: nonrecursive local-let publication and original computed-result descriptor construction",
-  "closure": "Active whole goal; reviewed current native/source packet integrated, original parents OPEN",
-  "previous_outcome": "tasks/agent-loop/sprints/let-free-carrier-20261024-outcome.md",
-  "previous_outcome_sha256": "e0c0632ee478627320a5ac21429c4791ca414f933292b6205c341cf5977ac1ea",
-  "goal_turn_classification": "IN_PROGRESS",
+  "next_action": "Compliant<=300sec boundary: general signed LET-POLAR-PUB, fresh corrected_machine producer proposed; primary actual result-slot/EI correspondence. No worker dispatched/reserved.",
+  "closure": "ACTIVE whole goal; local new result constructor accepted/adopted; native globalLet and original parents OPEN; all workers STOPPED",
+  "previous_outcome": "tasks/agent-loop/sprints/computed-result-definition-20261024-outcome.md",
+  "previous_outcome_sha256": "c7b5a9ce93655674e50a9d47e6d73b33145877c4127031e9fc7b9c1cad4e8172",
+  "goal_turn_classification": "PROGRESS",
   "history": {
     "path": "tasks/agent-loop/sprints/source-indexed-derivation-20261024-prior-state.json",
     "sha256": "498d39c7bd02937deed3a5031167f3f03ab87d91bb0cb7d174131b9b9c529baa",
