@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "mode": "LIVE",
-  "phase": "ACTIVE",
-  "session": "active-primary-turn-2026-10-24; numeric host session unavailable",
+  "phase": "ENDED",
+  "session": null,
   "active_sprint": {
     "id": "CB-PERMISSION-TRANSPORT-20261024",
     "status": "INTEGRATED",
@@ -63,13 +63,13 @@
     {
       "id": "/root",
       "role": "primary source/current/Git integrator",
-      "state": "RUNNING",
-      "session": "active-primary-turn-2026-10-24; numeric host session unavailable",
+      "state": "STOPPED",
+      "session": null,
       "requested_model": "user-selected primary",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Primary integrated and pushed the reviewed callback transport slice; broader gates remain open."
+      "receipt": "STOPPED after terminal current-state commit/push; reviewer/build work ceased, bounded sprint integrated, broader gates remain open."
     },
     {
       "id": "/root/callback_permission_prover",
