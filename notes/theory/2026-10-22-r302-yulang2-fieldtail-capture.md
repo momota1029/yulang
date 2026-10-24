@@ -4,7 +4,7 @@ Status: CHECKPOINTED at a cross-layer integration seam, solo primary; no indepen
 
 ## Governing sources read at sprint entry
 
-Read `docs/yulang-unified-design-and-proof-plan-ja.md` §§4.3–4.5, 5.1, 6, 9–10 and `docs/yulang-proof-companion-ja.md` §§3.1–3.6, 4.5, 7.1–7.5. Capture/FreshUse correspondence applies only to semantic records actually included in the graph. Newly registered FieldTail metadata needs its own source-to-record correspondence and then an application of the existing row-map result; candidate collection or a test pass is not source typing or proof closure.
+At entry, the governing documents were the [pinned unified design plan](https://github.com/momota1029/yulang/blob/929f3a790b03261b28a04239fa65cfa5af5e9479/docs/yulang-unified-design-and-proof-plan-ja.md) (§§4.3–4.5, 5.1, 6, 9–10) and [pinned proof companion](https://github.com/momota1029/yulang/blob/8e4229bdc2d83d8fde9b38edb14f305419d5f5ea/docs/yulang-proof-companion-ja.md) (§§3.1–3.6, 4.5, 7.1–7.5). The current related manuscripts are [operational type safety](../../docs/yulang-operational-type-safety-ja.tex) and [source type safety](../../docs/yulang-source-type-safety-ja.tex); these later derivations do not change R302's recorded evidence. Capture/FreshUse correspondence applies only to semantic records actually included in the graph. Newly registered FieldTail metadata needs its own source-to-record correspondence and then an application of the existing row-map result; candidate collection or a test pass is not source typing or proof closure.
 
 ## Frozen baseline and before evidence
 

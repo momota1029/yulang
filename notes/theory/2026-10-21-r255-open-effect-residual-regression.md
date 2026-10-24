@@ -6,8 +6,8 @@ and all source/native and production gates remain unchanged and open.
 ## Parent correction
 
 The user clarified that a contravariant `[io]` annotation means `[io,'e]`; an
-actual `[state]` callback does not violate it. The repository's unified design
-plan, `docs/yulang-unified-design-and-proof-plan-ja.pdf` and `.docx`, §5.3,
+actual `[state]` callback does not violate it. The historical unified design
+plan at [its pinned repository version](https://github.com/momota1029/yulang/blob/929f3a790b03261b28a04239fa65cfa5af5e9479/docs/yulang-unified-design-and-proof-plan-ja.md), §5.3,
 also requires the effect of a callback that is actually called to appear in the
 enclosing result. R252 covered acceptance but not that residual check.
 
