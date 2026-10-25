@@ -440,5 +440,5 @@
   }
  ],
  "resource_observation": "P 900s and Q 300s reserved; both WAITING; r2 enumerates source, handoff and generated outputs; three UNKNOWN reservations retained.",
- "checker": "Pre-dispatch: contract and prior accepted finite-prefix dependency pins frozen; source hashes to recheck before Lean invocation."
+ "checker": "r2 output paths pinned; recheck dependencies before Lean."
 }
