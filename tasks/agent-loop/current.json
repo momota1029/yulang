@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-UNWIND-20261025",
     "revision": "r2",
-    "status": "PRIMARY_VERIFY_RUNNING",
+    "status": "REVIEW_RUNNING",
     "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r2.md",
     "contract_sha256": "4847f89672c8821df47d9ed2e1162b150b3b578b4aec8304e6d2331389c27c01",
     "baseline": "33cd9e0a5",
@@ -26,11 +26,11 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
     "closure": "r1 FAILED_VERIFICATION / UNACCEPTED; P/Q compile only; review pending.",
-    "review": "NOT_RUN; r2 source frozen at 1eaea193; six verification/review/output paths absent.",
+    "review": "Both r2 invocations exit 0; fresh nonauthor reviewer sent START and is activated after checkpoint.",
     "checker": "62 pins match; source 1eaea193; six paths absent.",
     "acceptance": "Exact two corollaries compile; complete receipts; exact signatures/axioms; fresh combined CLEAN review.",
     "author": "Luna owns new composition, verification, adjudication and Git; no P/Q restart.",
-    "next_action": "Run composition module once, then only on success run exact signature/axiom query.",
+    "next_action": "Independent compiler_referee audits frozen P/Q plus composition, signatures, axioms, pins and full receipt; no Git.",
     "non_goal": "No reachability, source/native, cleanup correctness, A/B, inference, or production claim."
   },
   "workers": [
@@ -99,6 +99,17 @@
       "observed_effort": "UNKNOWN",
       "receipt": "STOP; Q source/handoff hashes recorded in r1 handoff.",
       "session": "LEAN-CALL-UNWIND-20261025/root-turn-11"
+    },
+    {
+      "id": "/root/call_unwind_r2_review",
+      "role": "fresh r2 combined compiler referee",
+      "state": "RUNNING",
+      "session": "LEAN-CALL-UNWIND-20261025/root-turn-11",
+      "requested_model": "gpt-6.1-sol",
+      "requested_effort": "medium",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "Actual START acknowledged; exact review output lease accepted; read-only review."
     }
   ],
   "leases": [
@@ -212,9 +223,9 @@
     },
     {
       "path": "tasks/agent-loop/inbox/20261025-call-unwind-r2-review.md",
-      "owner": "/root",
+      "owner": "/root/call_unwind_r2_review",
       "state": "HELD",
-      "reason": "r2 primary lease"
+      "reason": "fresh combined r2 review output"
     },
     {
       "path": "tasks/agent-loop/sprints/call-unwind-20261025-r2-outcome.md",
