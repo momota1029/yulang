@@ -6,15 +6,15 @@
   "active_sprint": {
     "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r55",
     "revision": "r1",
-    "status": "ASSIGNED",
+    "status": "FAILED",
     "contract": "tasks/agent-loop/sprints/paper-type-beta-execution-r55.md",
     "contract_sha256": "611ea5ec46a32be40d4a45fe46257c8686f868429eeb25f4525a79cea0ebaeb1",
     "baseline": "7ea6d0130f4258e0eedf43643130da590a7b0d45",
     "branch": "research/simple-sub-intrusion",
     "claim": "Preserve the unchanged manuscript-explicit type-application beta reduction in existing represented typing judgments using cancellation and PaperValueTyped.subst_explicit.",
-    "outcome": "R55 authorized one exact attachment projection repair, full candidate audit, primary root build/audit and fresh independent review. Parent claim remains OPEN until every gate passes.",
+    "outcome": "Candidate module build passed. Strict audit failed to parse eight private names in the pinned template after 26 public blocks; no complete audit, primary verification or review. No theorem accepted; parent remains OPEN.",
     "budget": "Worker 600s/4 calls/90 checker; Luna 1020s/4 calls/90 checker; fresh reviewer 180s/0 checker; aggregate 1800s/8 calls/180 checker.",
-    "next_action": "Execute the one-lemma R55 continuation; stop on first failure or cap. Keep both user-withdrawn semantic questions untouched."
+    "next_action": "R55 stopped at strict-audit failure; consult selector for a fresh exact audit packet, with no R55 retries or semantic question activity."
   },
   "workers": [
     {
@@ -108,24 +108,24 @@
     {
       "id": "/root",
       "role": "primary/checker/integrator",
-      "state": "NOT_STARTED",
+      "state": "RUNNING",
       "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
       "requested_model": "user-selected model",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R55 exact grant; origin 47855273027957ns; no worker launched yet."
+      "receipt": "R55 primary active since fixed origin 47855273027957ns; contract/pins checked; worker dispatched."
     },
     {
       "id": "/root/r55_type_beta_finalize",
       "role": "registered lean_prover",
-      "state": "NOT_STARTED",
-      "session": null,
+      "state": "STOPPED",
+      "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
       "requested_model": "registered role defaults",
       "requested_effort": "registered role defaults",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Exact R55 continuation; waits for fresh primary pin check."
+      "receipt": "Frozen R55 handoff 4cb89d…94128b; candidate 0a1834…a8c1c8; 4 calls/34.788968363 native s/253.121 conservatively charged s; candidate build passed; strict audit failed; no processes/writes."
     },
     {
       "id": "/root/r55_referee",
@@ -136,7 +136,7 @@
       "requested_effort": "registered role defaults",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Only after immutable candidate freeze; zero checker calls."
+      "receipt": "Not launched; audit gate failed."
     }
   ],
   "leases": [
@@ -153,22 +153,17 @@
     {
       "path": "notes/theory/lean/YulangClosure/PaperTypeBetaExecution.lean",
       "owner": "/root/r55_type_beta_finalize",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "notes/theory/lean/.lake/R55Audit.lean",
       "owner": "/root/r55_type_beta_finalize",
-      "state": "HELD"
+      "state": "FROZEN"
     },
     {
       "path": "tasks/agent-loop/inbox/paper-type-beta-r55.md",
-      "owner": "/root/r55_type_beta_finalize",
-      "state": "HELD"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/paper-type-beta-r55-review.md",
-      "owner": "/root/r55_referee",
-      "state": "HELD"
+      "owner": "/root",
+      "state": "FROZEN"
     }
   ],
   "pending": [
@@ -340,8 +335,8 @@
       "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
     }
   ],
-  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 stopped at proof construction bounds with no accepted beta theorem/audit. R55 ASSIGNED for one exact attachment projection repair. Type-beta and full parent OPEN. Both questions WITHDRAWN_BY_USER and unanswered.",
-  "next_action": "R55 one-lemma repair, full audit, root verification and independent review under exact fresh grant. Withdrawn questions remain untouched.",
+  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 stopped in construction. R55 candidate build passed, but strict audit template failed on eight private names; no accepted theorem. Type-beta and full parent OPEN. Both questions WITHDRAWN_BY_USER and unanswered.",
+  "next_action": "Consult selector at R55 audit obstruction boundary. Fresh packet required for audit-source correction and complete verification. Withdrawn questions remain untouched.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -443,9 +438,14 @@
       "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r55-contract-r1",
       "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r55.md",
       "sha256": "611ea5ec46a32be40d4a45fe46257c8686f868429eeb25f4525a79cea0ebaeb1"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r55-outcome",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r55-outcome.md",
+      "sha256": "85a0fd5a8b5c4114359f6fcb7438b8540781a6647af90ee606ad51a23a555f54"
     }
   ],
-  "resource_observation": "R54 overrun preserved in R54 outcome. R55 primary origin 47855273027957ns (UTC 2025-10-25T22:16:12.267491Z), fresh grant only; no R54 budget transferred.",
+  "resource_observation": "R54 primary overrun remains 453.065/420s and recorded in R54 outcome. R55 worker charged 253.121s conservatively from primary origin 47855273027957ns after missed pre-read worker origin capture; 4 calls/34.788968363 native seconds, audit exit 1. R55 primary origin fixed; no resource transfers.",
   "native_bridge": {
     "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
     "state": "OPEN; NAIVE_RELATION_BLOCKED",
