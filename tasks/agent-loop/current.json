@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-UNWIND-20261025",
     "revision": "r1",
-    "status": "AUTHORS_STOPPED_PENDING_PRIMARY_VERIFY",
+    "status": "PRIMARY_VERIFY_RUNNING",
     "contract": "tasks/agent-loop/sprints/call-unwind-20261025-r1.md",
     "contract_sha256": "efeaabb27416bd9cb51066c37f8a36d13b3a4ced3eeba7f1f9488ac4ada38a2a",
     "baseline": "64d39df59",
@@ -26,11 +26,11 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-unwind-20261025-r1-outcome.md",
     "closure": "Finite Call typing r1 ACCEPTED/CLEAN; original A/B and adequacy OPEN.",
-    "review": "NOT_RUN; both authors STOPPED with frozen source/handoff hashes; primary pin reconciliation and four serialized Lean invocations pending.",
-    "checker": "50 frozen pins matched by both authors; four candidate/handoff hashes independently matched to STOP receipts.",
+    "review": "NOT_RUN; both authors STOPPED, all 50 pins match, all candidate/handoff hashes match receipts; serial Lean verification is starting with P.",
+    "checker": "50 contract pins matched; four candidate/handoff hashes matched; all six assigned output paths absent before verification.",
     "acceptance": "Exact P/Q/composition compile; full receipts; exact signatures/axioms; fresh CLEAN review.",
     "author": "Separate Sol/high P/Q authors, 900s/600s, disjoint exact leases.",
-    "next_action": "Reconcile all frozen pins and absent output paths; inspect exact frozen candidates; run P, Q, composition, then signature/axiom query serially.",
+    "next_action": "Compile frozen P, then Q, compose the two initial-trace corollaries, and query exact signatures/axioms, strictly serially.",
     "non_goal": "No global progress/reachability, cleanup correctness, source/native, A/B, inference, or production claim."
   },
   "workers": [
