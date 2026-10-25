@@ -145,21 +145,42 @@ def mapViewMetadata (σ : Nat → Ty) : ViewMetadata → ViewMetadata
 def mapAdapterMetadata (σ : Nat → Ty) : AdapterMetadata → AdapterMetadata
   | .mk identity source target => .mk identity (subst σ source) (subst σ target)
 
+private theorem sizeOfRecordValue_le (field : Label × Presence × Value) :
+    sizeOf field.2.2 ≤ sizeOf field := by
+  rcases field with ⟨label, presence, value⟩
+  simp +arith
+
+private theorem sizeOfBindingValue_le (binding : TermName × Value) :
+    sizeOf binding.2 ≤ sizeOf binding := by
+  rcases binding with ⟨name, value⟩
+  simp +arith
+
+private theorem sizeOfPatternField_le (field : Label × PatternPlan × Option Computation) :
+    sizeOf field.2.1 ≤ sizeOf field := by
+  rcases field with ⟨label, pattern, default⟩
+  simp +arith
+
+private theorem sizeOfPatternDefault_le (field : Label × PatternPlan × Option Computation)
+    (body : Computation) (h : field.2.2 = some body) :
+    sizeOf body ≤ sizeOf field := by
+  rcases field with ⟨label, pattern, default⟩
+  simp_all +arith
+
 mutual
   def mapPaperValue (σ : Nat → Ty) : Value → Value
     | .variable index => .variable index
     | .graphReference identity => .graphReference identity
     | .literal literal => .literal literal
-    | .tuple values => .tuple (values.attach.map fun value => mapPaperValue σ value.1)
-    | .sequence values => .sequence (values.attach.map fun value => mapPaperValue σ value.1)
-    | .record fields => .record (fields.attach.map fun field =>
-        (field.1.1, field.1.2.1, mapPaperValue σ field.1.2.2))
+    | .tuple values => .tuple (values.attach.map fun ⟨value, hmem⟩ => mapPaperValue σ value)
+    | .sequence values => .sequence (values.attach.map fun ⟨value, hmem⟩ => mapPaperValue σ value)
+    | .record fields => .record (fields.attach.map fun ⟨field, hmem⟩ =>
+        (field.1, field.2.1, mapPaperValue σ field.2.2))
     | .variant constructor arguments payload =>
         .variant constructor (mapTypeArguments σ arguments)
-          (payload.attach.map fun value => mapPaperValue σ value.1)
+          (payload.attach.map fun ⟨value, hmem⟩ => mapPaperValue σ value)
     | .nominal constructor arguments payload =>
         .nominal constructor (mapTypeArguments σ arguments)
-          (payload.attach.map fun value => mapPaperValue σ value.1)
+          (payload.attach.map fun ⟨value, hmem⟩ => mapPaperValue σ value)
     | .lambda mode profile parameter body =>
         .lambda mode (mapAdapterMetadata σ profile) parameter (mapPaperComputation σ body)
     | .delay body => .delay (mapPaperComputation σ body)
@@ -178,9 +199,24 @@ mutual
         .continuation owners binder (mapPaperComputation σ body)
   termination_by value => sizeOf value
   decreasing_by all_goals
-    first
-    | with_reducible exact (List.sizeOf_lt_of_mem (by assumption)).le
-    | with_reducible decreasing_trivial
+    all_goals
+      first
+      | exact (List.sizeOf_lt_of_mem hmem).le
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        simp +arith at hsmall ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfRecordValue_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfBindingValue_le binding
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternField_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternDefault_le field default hdefault
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | with_reducible decreasing_trivial
 
   def mapPaperComputation (σ : Nat → Ty) : Computation → Computation
     | .ret value => .ret (mapPaperValue σ value)
@@ -192,7 +228,7 @@ mutual
     | .field record label => .field (mapPaperValue σ record) label
     | .lookup record label => .lookup (mapPaperValue σ record) label
     | .switch value branches => .switch (mapPaperValue σ value)
-        (branches.attach.map fun branch => mapConstructorBranch σ branch.1)
+        (branches.attach.map fun ⟨branch, hmem⟩ => mapConstructorBranch σ branch)
     | .unroll value => .unroll (mapPaperValue σ value)
     | .choose value side => .choose (mapPaperValue σ value) side
     | .unionCase value leftBinder left rightBinder right =>
@@ -200,18 +236,18 @@ mutual
           rightBinder (mapPaperComputation σ right)
     | .absurd value => .absurd (mapPaperValue σ value)
     | .primitive identity arguments => .primitive identity
-        (arguments.attach.map fun value => mapPaperValue σ value.1)
+        (arguments.attach.map fun ⟨value, hmem⟩ => mapPaperValue σ value)
     | .perform operation arguments payload =>
         .perform operation (mapTypeArguments σ arguments) (mapPaperValue σ payload)
     | .handle body handler => .handle (mapPaperComputation σ body) (mapHandlerPlan σ handler)
     | .mapOperation body mapper => .mapOperation (mapPaperComputation σ body) (mapMapperPlan σ mapper)
     | .recursive bindings body =>
-        .recursive (bindings.attach.map fun binding =>
-          (binding.1.1, mapPaperValue σ binding.1.2))
+        .recursive (bindings.attach.map fun ⟨binding, hmem⟩ =>
+          (binding.1, mapPaperValue σ binding.2))
           (mapPaperComputation σ body)
     | .template identity arguments values =>
         .template identity (mapTypeArguments σ arguments)
-          (values.attach.map fun value => mapPaperValue σ value.1)
+          (values.attach.map fun ⟨value, hmem⟩ => mapPaperValue σ value)
     | .fail reason => .fail reason
     | .request opInstance payload continuation =>
         .request (opInstance.subst σ) (mapPaperValue σ payload) (mapPaperValue σ continuation)
@@ -222,36 +258,51 @@ mutual
     | .tryArms handler opInstance payload continuation arms =>
         .tryArms (mapHandlerPlan σ handler) (opInstance.subst σ) (mapPaperValue σ payload)
           (mapPaperValue σ continuation)
-          (arms.attach.map fun arm => mapOperationArm σ arm.1)
+          (arms.attach.map fun ⟨arm, hmem⟩ => mapOperationArm σ arm)
     | .waitArm handler opInstance payload continuation arm remaining attempt =>
         .waitArm (mapHandlerPlan σ handler) (opInstance.subst σ) (mapPaperValue σ payload)
           (mapPaperValue σ continuation) (mapOperationArm σ arm)
-          (remaining.attach.map fun arm => mapOperationArm σ arm.1)
+          (remaining.attach.map fun ⟨arm, hmem⟩ => mapOperationArm σ arm)
           (mapPaperComputation σ attempt)
   termination_by computation => sizeOf computation
   decreasing_by all_goals
-    first
-    | with_reducible exact (List.sizeOf_lt_of_mem (by assumption)).le
-    | with_reducible decreasing_trivial
+    all_goals
+      first
+      | exact (List.sizeOf_lt_of_mem hmem).le
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        simp +arith at hsmall ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfRecordValue_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfBindingValue_le binding
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternField_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternDefault_le field default hdefault
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | with_reducible decreasing_trivial
 
   def mapPaperPattern (σ : Nat → Ty) : PatternPlan → PatternPlan
     | .wild => .wild
     | .variable binder => .variable binder
     | .literal literal => .literal literal
-    | .tuple children => .tuple (children.attach.map fun child => mapPaperPattern σ child.1)
+    | .tuple children => .tuple (children.attach.map fun ⟨child, hmem⟩ => mapPaperPattern σ child)
     | .list prefixPatterns rest suffix =>
-        .list (prefixPatterns.attach.map fun pattern => mapPaperPattern σ pattern.1) rest
-          (suffix.attach.map fun pattern => mapPaperPattern σ pattern.1)
-    | .record fields spread => .record (fields.attach.map fun field =>
-        (field.1.1, mapPaperPattern σ field.1.2.1,
-          match field.1.2.2 with
+        .list (prefixPatterns.attach.map fun ⟨pattern, hmem⟩ => mapPaperPattern σ pattern) rest
+          (suffix.attach.map fun ⟨pattern, hmem⟩ => mapPaperPattern σ pattern)
+    | .record fields spread => .record (fields.attach.map fun ⟨field, hmem⟩ =>
+        (field.1, mapPaperPattern σ field.2.1,
+          match hdefault : field.2.2 with
           | none => none
           | some default => some (mapPaperComputation σ default))) spread
     | .polyVariant tag payload =>
-        .polyVariant tag (payload.attach.map fun pattern => mapPaperPattern σ pattern.1)
+        .polyVariant tag (payload.attach.map fun ⟨pattern, hmem⟩ => mapPaperPattern σ pattern)
     | .constructor identity arguments payload =>
         .constructor identity (mapTypeArguments σ arguments)
-          (payload.attach.map fun pattern => mapPaperPattern σ pattern.1)
+          (payload.attach.map fun ⟨pattern, hmem⟩ => mapPaperPattern σ pattern)
     | .reference definition equality =>
         .reference (mapPaperValue σ definition) (mapPaperComputation σ equality)
     | .asPattern child binder => .asPattern (mapPaperPattern σ child) binder
@@ -259,17 +310,47 @@ mutual
         .orPattern (mapPaperPattern σ left) (mapPaperPattern σ right) binders
   termination_by pattern => sizeOf pattern
   decreasing_by all_goals
-    first
-    | with_reducible exact (List.sizeOf_lt_of_mem (by assumption)).le
-    | with_reducible decreasing_trivial
+    all_goals
+      first
+      | exact (List.sizeOf_lt_of_mem hmem).le
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        simp +arith at hsmall ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfRecordValue_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfBindingValue_le binding
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternField_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternDefault_le field default hdefault
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | with_reducible decreasing_trivial
 
   def mapConstructorBranch (σ : Nat → Ty) : ConstructorBranch → ConstructorBranch
     | .mk identity binders body => .mk identity binders (mapPaperComputation σ body)
   termination_by branch => sizeOf branch
   decreasing_by all_goals
-    first
-    | with_reducible exact (List.sizeOf_lt_of_mem (by assumption)).le
-    | with_reducible decreasing_trivial
+    all_goals
+      first
+      | exact (List.sizeOf_lt_of_mem hmem).le
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        simp +arith at hsmall ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfRecordValue_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfBindingValue_le binding
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternField_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternDefault_le field default hdefault
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | with_reducible decreasing_trivial
 
   def mapGuardedBranch (σ : Nat → Ty) : GuardedBranch → GuardedBranch
     | .mk pattern guard body => .mk (mapPaperPattern σ pattern)
@@ -279,17 +360,47 @@ mutual
         (mapPaperComputation σ body)
   termination_by branch => sizeOf branch
   decreasing_by all_goals
-    first
-    | with_reducible exact (List.sizeOf_lt_of_mem (by assumption)).le
-    | with_reducible decreasing_trivial
+    all_goals
+      first
+      | exact (List.sizeOf_lt_of_mem hmem).le
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        simp +arith at hsmall ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfRecordValue_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfBindingValue_le binding
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternField_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternDefault_le field default hdefault
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | with_reducible decreasing_trivial
 
   def mapValueArm (σ : Nat → Ty) : ValueArm → ValueArm
     | .mk branch => .mk (mapGuardedBranch σ branch)
   termination_by arm => sizeOf arm
   decreasing_by all_goals
-    first
-    | with_reducible exact (List.sizeOf_lt_of_mem (by assumption)).le
-    | with_reducible decreasing_trivial
+    all_goals
+      first
+      | exact (List.sizeOf_lt_of_mem hmem).le
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        simp +arith at hsmall ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfRecordValue_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfBindingValue_le binding
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternField_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternDefault_le field default hdefault
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | with_reducible decreasing_trivial
 
   def mapOperationArm (σ : Nat → Ty) : OperationArm → OperationArm
     | .mk operation rigidBinders pattern continuationBinder guard body =>
@@ -301,20 +412,50 @@ mutual
           (mapPaperComputation lifted body)
   termination_by arm => sizeOf arm
   decreasing_by all_goals
-    first
-    | with_reducible exact (List.sizeOf_lt_of_mem (by assumption)).le
-    | with_reducible decreasing_trivial
+    all_goals
+      first
+      | exact (List.sizeOf_lt_of_mem hmem).le
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        simp +arith at hsmall ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfRecordValue_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfBindingValue_le binding
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternField_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternDefault_le field default hdefault
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | with_reducible decreasing_trivial
 
   def mapHandlerPlan (σ : Nat → Ty) : HandlerPlan → HandlerPlan
     | .mk input output valueArms operationArms =>
         .mk (subst σ input) (subst σ output)
-          (valueArms.attach.map fun arm => mapValueArm σ arm.1)
-          (operationArms.attach.map fun arm => mapOperationArm σ arm.1)
+          (valueArms.attach.map fun ⟨arm, hmem⟩ => mapValueArm σ arm)
+          (operationArms.attach.map fun ⟨arm, hmem⟩ => mapOperationArm σ arm)
   termination_by handler => sizeOf handler
   decreasing_by all_goals
-    first
-    | with_reducible exact (List.sizeOf_lt_of_mem (by assumption)).le
-    | with_reducible decreasing_trivial
+    all_goals
+      first
+      | exact (List.sizeOf_lt_of_mem hmem).le
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        simp +arith at hsmall ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfRecordValue_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfBindingValue_le binding
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternField_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternDefault_le field default hdefault
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | with_reducible decreasing_trivial
 
   def mapMapperPlan (σ : Nat → Ty) : MapperPlan → MapperPlan
     | .mk source target payload response =>
@@ -322,9 +463,24 @@ mutual
           (mapPaperComputation σ response)
   termination_by mapper => sizeOf mapper
   decreasing_by all_goals
-    first
-    | with_reducible exact (List.sizeOf_lt_of_mem (by assumption)).le
-    | with_reducible decreasing_trivial
+    all_goals
+      first
+      | exact (List.sizeOf_lt_of_mem hmem).le
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        simp +arith at hsmall ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfRecordValue_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfBindingValue_le binding
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternField_le field
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | have hsmall := List.sizeOf_lt_of_mem hmem
+        have hproj := sizeOfPatternDefault_le field default hdefault
+        simp +arith at hsmall hproj ⊢ <;> omega
+      | with_reducible decreasing_trivial
 end
 
 def mapTemplateBody (σ : Nat → Ty) : TemplateBody → TemplateBody
