@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-STEP-TYPING-20261025",
     "revision": "r1",
-    "status": "R1_CANDIDATE_FROZEN",
+    "status": "FAILED_VERIFICATION",
     "contract": "tasks/agent-loop/sprints/call-step-typing-20261025-r1.md",
     "contract_sha256": "677671916d8c628ba45e2492bd799dd69436d1a9ac2ee726ed1139cf11eff8f2",
     "baseline": "12a081b82e2a84678aab7f5d0f301cd724c72542",
@@ -26,11 +26,11 @@
     },
     "outcome": "tasks/agent-loop/sprints/call-step-typing-20261025-r1-outcome.md",
     "closure": "r3 completeCallEntry_typed accepted/CLEAN; r9 source-input and original A/B gates remain OPEN.",
-    "review": "NOT_RUN; starts only after successful exact candidate compile and signature/axiom query.",
-    "checker": "Author STOPPED with frozen candidate/handoff and no Lean. Exact source/dependency pins are being revalidated before the third serialized invocation.",
+    "review": "NOT_RUN; compilation failed, candidate remains unaccepted.",
+    "checker": "Candidate compile exited 1 on pinned inputs; exact first diagnostics and no-output result recorded. Query and review not run.",
     "acceptance": "Exact one-step theorem; rebuilt current Control modules; successful Lean/query; fresh independent CLEAN review.",
     "author": "One Sol/high prover; exact source preflight complete and author writes active under two exact paths.",
-    "next_action": "Luna verifies frozen candidate and dependencies, compiles once, queries signature/axioms once; on success assign fresh independent reviewer.",
+    "next_action": "Consult dispatcher on the six unknown pattern identifiers and prepare a fresh bounded continuation; r1 repair loop prohibited.",
     "non_goal": "No progress, world/effect/metadata, source/native, Call A/B, inference, or production claim."
   },
   "workers": [
@@ -87,7 +87,7 @@
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Author final receipt confirms frozen artifact 4b3b40ae3c295666470c1cda73ac38f0abdc62ea86626be58f10249092d3c3ab, handoff cf43cda1c1d741dd0d6a02cb354af92c42a1721defb0ecc6d59d3d23ea591906, exact 28-constructor proposition, and STOPPED / WRITES STOPPED before verification."
+      "receipt": "STOPPED / WRITES STOPPED. Candidate and handoff frozen. Luna compile failed on six unknown identifiers; author not authorized to repair under r1."
     }
   ],
   "leases": [
@@ -167,7 +167,7 @@
       "path": "tasks/agent-loop/sprints/call-step-typing-20261025-r1-outcome.md",
       "owner": "/root",
       "state": "HELD",
-      "reason": "Luna-owned final outcome and integration receipt."
+      "reason": "Luna records exact r1 FAILED_VERIFICATION / UNACCEPTED outcome."
     }
   ],
   "pending": [
@@ -311,7 +311,7 @@
     }
   ],
   "closure": "r3 exact completeCallEntry_typed syntax theorem ACCEPTED/CLEAN; operational/source/A-B/inference/production parents OPEN.",
-  "next_action": "Frozen candidate/handoff received with author STOP. Validate exact pins, compile module and query exact signature/axioms.",
+  "next_action": "r1 candidate compile failed on six unknown pattern identifiers; query/review not run; dispatcher to select fresh continuation.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three prior UNKNOWN reservations remain quarantined on unrelated paths; no lease reclaimed.",
@@ -412,6 +412,6 @@
       "commit": "12a081b82e2a84678aab7f5d0f301cd724c72542"
     }
   ],
-  "resource_observation": "r1 cap 2280s; 2/4 Lean invocations used; candidate frozen; author STOPPED; three UNKNOWN quarantines unchanged.",
-  "checker": "r1 Control preflight passed; candidate is frozen but not yet compiled or signature/axiom checked."
+  "resource_observation": "r1 cap 2280s; 3/4 Lean invocations used, third failed in 0.682s; 4th stopped; author STOPPED; three UNKNOWN quarantines unchanged.",
+  "checker": "r1 Control preflight passed; frozen CallStepTyping candidate fails elaboration; no theorem output or signature/axiom result."
 }
