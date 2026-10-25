@@ -70,6 +70,18 @@ were accepted. The file has been returned to the last syntactically valid
 invocations; stop checking this candidate until a renewed contract or later
 authorized work.
 
+R5 admission: `tasks/agent-loop/sprints/paper-execution-typing-r5.md`,
+SHA-256 `bc88e820daef09b5e85b19515024f6c1122e3155faab2bd20705978b52847871`,
+baseline `e9735cc2640d73114fd52b55bcda7105c739595e`. The full paper
+substitution parent and all omitted constructors remain the fixed outcome.
+The live runtime inventory had no dispatcher or worker beyond `/root`, and
+eight old/foreign reservations remain quarantined. The new envelope is
+degraded serial primary work only: at most 900 active seconds, 8 serial
+Lean/Lake invocations and 120 checker seconds; R1–R4 charges remain intact.
+Fresh independent review is still NOT_RUN. R5's first method is the explicit
+four-motive mutual recursor, with exact environment-index transport and
+constructor normalization; no source-domain or semantic change is admitted.
+
 ## Original theorem and coverage obligations
 
 Parent: `docs/yulang-operational-type-safety-ja.tex:953–977`, item 2; downstream
