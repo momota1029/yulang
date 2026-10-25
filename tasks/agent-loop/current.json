@@ -2,34 +2,31 @@
   "schema_version": 1,
   "mode": "LIVE",
   "phase": "ACTIVE",
-  "session": "LEAN-NATIVE-CLOSURE-ENVIRONMENT-20261025/root-r1",
+  "session": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025/root-r1",
   "active_sprint": {
-    "id": "LEAN-NATIVE-CLOSURE-ENVIRONMENT-20261025",
+    "id": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025",
     "revision": "r1",
-    "status": "REVIEW",
-    "contract": "tasks/agent-loop/sprints/native-closure-environment-20261025-r1.md",
-    "contract_sha256": "2630ec7db277777bf4e0fb8e99a665cdd65d842471264a736a079c122a1f073f",
-    "baseline": "657d688fc022261fa1013f7eb4f2b323d6cfd4a6",
-    "claim": "Construct actual native lexical lookup/current-cell capture realization and apply derived typed substitution to represented Call bodies; full callable parent remains OPEN.",
+    "status": "DONE",
+    "contract": "tasks/agent-loop/sprints/higher-order-proof-core-20261025-r1.md",
+    "contract_sha256": "56a820500ce7bc3f3d0996e106a9981e539f2e2e05554f15526903e146fcaeb6",
+    "baseline": "77df594169ad07ff9cb523699485cd0e7146e86f",
+    "claim": "Construct structural typing-preserving higher-order syntax embedding; old typed Function becomes actual typed Value and response/cell input. Full native/Call/inference parents OPEN.",
     "resources": {
       "seconds": 1800,
       "author_astra": 300,
-      "primary_seconds": 660,
+      "primary_seconds": 600,
       "lean_calls": 24,
       "lean_seconds": 180,
       "review_astra": 300,
       "integration_seconds": 120,
-      "contingency_seconds": 210,
+      "contingency_seconds": 300,
       "lean_concurrent": 1,
-      "memory_mib": 1024,
-      "boundary_contingency_seconds": 30
+      "memory_mib": 1024
     },
-    "outcome": "tasks/agent-loop/sprints/native-closure-environment-20261025-r1-outcome.md",
-    "review": "Fresh nonauthor r1+r2 CLEAN; one wording finding resolved, exactreportc5133ff5e74ecf5c3a25ac2e2227f37b141d1bba32fff7f31754e15f7ea3bacc",
-    "implementation": "NO_SAFE_CODE_SLICE; source/formal only.",
-    "next_action": "Integrate approved local native environment/current-cell/body realization within120s; whole goal and exact source remainders OPEN.",
-    "amendment": "Primary grant 2026-10-25T06:09:00.494803+00:00: contingency300->30selector+60primary+210remaining; primary660 total bound06:09:10. Original600 wallbound06:08:10 was exceeded by6s at source-note correction06:08:16; observed overrun retained, no retroactive authorization/spend reset. Same claims and verification/review/integration.",
-    "outcome_sha256": "8533ed84a3ea46e012b6626b1ac94234ce6bd8dfecbe357e74234ab207004bb7"
+    "implementation": "NO_SAFE_CODE_SLICE; no runtime defect at Lambda/Callee and Value/Computation entry.",
+    "outcome": "tasks/agent-loop/sprints/higher-order-proof-core-20261025-r1-outcome.md",
+    "outcome_sha256": "0f3bbd63b4d21873e0ff32901d57cdffd572ee7353bf8e62aff9ad3e2babda80",
+    "review": "Fresh nonauthor CLEAN; reporta3aad3636d1480b2bb4cb17c06db9dc7561d4c9878ba835939a9881143f4f4ac; research only, no parent closure."
   },
   "workers": [
     {
@@ -67,101 +64,106 @@
     },
     {
       "id": "/root",
-      "role": "primary authority/current/source/Git",
+      "role": "primary authority/source/coauthor/Git",
       "state": "RUNNING",
-      "session": "LEAN-NATIVE-CLOSURE-ENVIRONMENT-20261025/root-r1",
+      "session": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025/root-r1",
       "requested_model": "user-selected primary",
       "requested_effort": "high",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Primary integration120s from06:09:35UTC to06:11:35UTC after independentCLEAN delta; source proof frozen."
+      "receipt": "Primary integration120s from2026-10-25T06:24:48.728750+00:00 through2026-10-25T06:26:48.728750+00:00 after independentCLEAN; source/proof frozen."
     },
     {
-      "id": "/root/native_closure_environment_astra_r1",
-      "role": "constructive lexical environment/current-cell/body realization author",
+      "id": "/root/higher_order_proof_core_astra_r1",
+      "role": "constructive higher-order syntax/embedding author",
       "state": "STOPPED",
-      "session": "LEAN-NATIVE-CLOSURE-ENVIRONMENT-20261025/root-r1",
+      "session": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "STOPPED/frozen handoff24e5561c5b0c8d3308cca346d16f0a0d48591cc3a56af68136bc6726524328aa; no processes/descendants; actualreceived2026-10-25T06:03:01.188979+00:00"
+      "receipt": "Actual final STOP06:19:52UTC ~189/300s; handoffc1c1b5de2d0b906540a1ba50f7bf70673543b30379cd77b54861bf52f1cecfbb; no processes/descendants. Primary acknowledged."
     },
     {
-      "id": "/root/native_closure_environment_review_astra_r1",
-      "role": "fresh nonauthor combined formal/source reviewer",
+      "id": "/root/higher_order_proof_core_review_astra_r1",
+      "role": "fresh independent nonauthor reviewer",
       "state": "STOPPED",
-      "session": "LEAN-NATIVE-CLOSURE-ENVIRONMENT-20261025/root-r1",
+      "session": "LEAN-HIGHER-ORDER-PROOF-CORE-20261025/root-r1",
       "requested_model": "gpt-6-astra",
       "requested_effort": "medium",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "r1+r2 CLEAN, observedabout107s/capped122s of300; reportc5133ff5e74ecf5c3a25ac2e2227f37b141d1bba32fff7f31754e15f7ea3bacc; no processes/descendants."
+      "receipt": "Actual finalSTOP06:23:59.109299UTC84.109/300s CLEAN; no descendants/processes; reporta3aad3636d1480b2bb4cb17c06db9dc7561d4c9878ba835939a9881143f4f4ac."
     }
   ],
   "leases": [
     {
-      "path": "notes/theory/lean/YulangClosure/NativeClosureEnvironment.lean",
+      "path": "notes/design/2026-10-25-higher-order-proof-core.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/YulangClosure/CallEnvironmentRealization.lean",
+      "path": "notes/theory/lean/YulangClosure/HigherOrderSyntax.lean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261025-native-closure-environment.md",
-      "owner": "/root/native_closure_environment_astra_r1",
-      "state": "FROZEN"
-    },
-    {
-      "path": "notes/theory/2026-10-25-native-closure-environment-correspondence.md",
+      "path": "notes/theory/lean/YulangClosure/HigherOrderEmbedding.lean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/native-closure-environment-r1-run.py",
+      "path": "tasks/agent-loop/inbox/20261025-higher-order-proof-core.md",
+      "owner": "/root/higher_order_proof_core_astra_r1",
+      "state": "FROZEN"
+    },
+    {
+      "path": "notes/theory/2026-10-25-higher-order-source-constructor-map.md",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/native-closure-environment-r1-check.lean",
+      "path": "notes/theory/lean/.lake/higher-order-proof-core-r1-run.py",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.olean",
+      "path": "notes/theory/lean/.lake/higher-order-proof-core-r1-check.lean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/NativeClosureEnvironment.ilean",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderSyntax.olean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEnvironmentRealization.olean",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderSyntax.ilean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/CallEnvironmentRealization.ilean",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderEmbedding.olean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261025-native-closure-environment-r1-verification.jsonl",
+      "path": "notes/theory/lean/.lake/build/lib/lean/YulangClosure/HigherOrderEmbedding.ilean",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/sprints/native-closure-environment-20261025-r1-outcome.md",
+      "path": "tasks/agent-loop/inbox/20261025-higher-order-proof-core-r1-verification.jsonl",
       "owner": "/root",
       "state": "FROZEN"
     },
     {
-      "path": "tasks/agent-loop/sprints/native-closure-environment-20261025-r1.md",
+      "path": "tasks/agent-loop/sprints/higher-order-proof-core-20261025-r1-outcome.md",
+      "owner": "/root",
+      "state": "FROZEN"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/higher-order-proof-core-20261025-r1.md",
       "owner": "/root",
       "state": "FROZEN"
     },
@@ -171,8 +173,8 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/20261025-native-closure-environment-review.md",
-      "owner": "/root/native_closure_environment_review_astra_r1",
+      "path": "tasks/agent-loop/inbox/20261025-higher-order-proof-core-review.md",
+      "owner": "/root/higher_order_proof_core_review_astra_r1",
       "state": "FROZEN"
     }
   ],
@@ -296,7 +298,7 @@
       "id": "RESPONSE-ENCODING-1",
       "state": "OPEN",
       "owner": "primary proof intake",
-      "details": "Reviewed literal/native primitive readback plus current-cell lexical/global capture realization and typed body substitution accepted; exact ENV-LAYOUT-1/ENV-CELL-VALUE-1/ENV-GRAPH-1/ENV-CALLABLE-1/ENV-DISPATCH-1 remain OPEN in native-closure-environment outcome."
+      "details": "Reviewed structural all-constructor higher-order embedding removes missing callable Value representation; actual typed function argument/response/genericcell endpoints. Native closure body/layout/current-value/recursivegraph/dispatch and HO-SUBSTITUTION-1 OPEN, exact owners in higher-order outcome."
     },
     {
       "id": "RESPONSE-INSTANCE-1",
@@ -311,8 +313,8 @@
       "details": "IndependentCLEAN native capture builder/entry finite traces/order/response/outer stack structural supplier; typed frame/metadata/callable/Call semantic interpretation and error exclusion remain OPEN."
     }
   ],
-  "closure": "Full goal OPEN. Native template structural supplier independentlyCLEAN committed+pushed657d688fc; primitive readback6d9e769ab and operation instances8c505d5ae retained. Wholetrace/typed callable/environment/template/metadataerror/Force/inference parents OPEN.",
-  "next_action": "Integrate approved local native environment/current-cell/body realization within120s; whole goal and exact source remainders OPEN.",
+  "closure": "Full goal OPEN. Higher-order structural typing embedding and callable-as-value endpoints independentlyCLEAN; earlier lexical/currentcell supplier77df59416 and native replay/primitive suppliers retained. Full native layout/value/recursive/dispatch/trace, new-core substitution/safety, Force and inference A/B OPEN.",
+  "next_action": "Sprint boundary after integration: construct higher-order capture-avoiding substitution and consume in actual closure/entry body typing, preserving all native source premises.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "Three unrelated UNKNOWN reservations remain quarantined.",
@@ -377,19 +379,26 @@
       "sha256": "c8f85475c1f6cfef7399e8b24dc35bb191c3295d24d8ee252e8b7acb6d2e8db9",
       "commit": "657d688fc022261fa1013f7eb4f2b323d6cfd4a6",
       "push": "Succeeded; origin8c505d5ae ->657d688fc."
+    },
+    {
+      "id": "LEAN-NATIVE-CLOSURE-ENVIRONMENT-20261025/r1",
+      "record": "tasks/agent-loop/sprints/native-closure-environment-20261025-r1-outcome.md",
+      "sha256": "8533ed84a3ea46e012b6626b1ac94234ce6bd8dfecbe357e74234ab207004bb7",
+      "commit": "77df594169ad07ff9cb523699485cd0e7146e86f",
+      "push": "Succeeded; origin657d688fc ->77df59416."
     }
   ],
-  "resource_observation": "authorSTOPPED06:02:50UTC within300s;primarysourcefreeze06:05:52 before06:08:10bound;Lean11calls5.4065s/180;review300reserved;integration120reserved;contingency300unused;dispatcher1470chargedSTOPPED;3quarantines.",
-  "checker": "14Lean calls7.028875749008876s; final12/13/14PASS45pairs whitelist,27examples,59pins35chains. Receiptc40d87dd9215abe0e0600ce45dfd6637180560163952ffdafcfa0f61837ffd9f. Source-note only correction d9c3538b5d1b007f9d761e6951c287371b3bfa890780769fe8d107d4c660bd8e; formalbytes unchanged.",
+  "resource_observation": "author189/300sSTOP;primarysourcefreeze06:22:20 before06:26:26 bound;Lean8calls3.733904196997173s;review84.109/300sSTOP;integration120from2026-10-25T06:24:48.728750+00:00;contingency300unused;dispatcher1680chargedSTOPPED;3quarantines.",
+  "checker": "8Lean calls3.733904196997173s; final3/4/8PASS59signature/axiompairs33examples64pins37priorchains; onlypropext/Quot.sound; no warnings. Frozen for independentreview.",
   "boundary_consultation": {
     "owner": "/root/next_action_selector_astra",
-    "grant_seconds": 1500,
-    "current_grant_seconds": 30,
-    "scope": "Completed native template structure. Choose ambitious next original-parent dependency, closure/environment/typed frames or other source premise, avoid relabeling open trace conditions.",
+    "grant_seconds": 1680,
+    "current_grant_seconds": 180,
+    "scope": "Completed77df59416. Determine next decisive source-layout or genuine callable-as-value construction under existing full operational spec; no endless standalone structural suppliers.",
     "status": "DONE",
     "reason": "Fresh standalone180s boundary grant; prior1050 retained charged.",
-    "receipt": "Actual collaboration.followup_task acknowledged at 2026-10-25T05:57:04.747630+00:00; standalone180s; lifetime1470 charged; requestedAstra/medium observedUNKNOWN.",
-    "result": "Selector STOPPED supports prospective60s primary allocation and30s boundary, preserves explicit6s overrun and original review/verification/integration caps."
+    "receipt": "Actual final received; no writes/processes/descendants; requestedAstra/medium observedUNKNOWN; lifetime1680charged.",
+    "result": "STOPPED; higher-order structural embedding/callable-as-value chosen, source companion lane and fresh review. Corrected authority: paper is target/proposal; no compiler architecture approval."
   },
   "pending_details": {
     "record": "tasks/agent-loop/sprints/call-native-response-authenticity-20261025-r1-outcome.md",
