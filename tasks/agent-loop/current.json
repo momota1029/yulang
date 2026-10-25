@@ -474,7 +474,7 @@
    "sha256": "5174425304aecb9cc6f8b30920944a6bde81b377e7a7dd28da68ef1e8818a668"
   }
  ],
- "resource_observation": "R59: source 240s charged/0 checker; proof 404.594s/42.161 checker; primary call3 capture lost, FAILED. R60: 1200s grant; calls1-2 versions pass, call3 invalid Lake -j1 exit1/0.071s, call4 NOT_RUN. R61: primary 4/4 exit0, 62.167 checker seconds, audit PASS; fresh review pending. Eight UNKNOWN identities remain quarantined. Fresh compiler_referee launched for R61 review (300s/0 checker); exact single-file lease. Reviewer launch acknowledged; tool session cannot be represented by current session field, so reviewer marked UNKNOWN and sole lease retained.",
+ "resource_observation": "R59 primary capture FAILED; source 240s/0 checker, proof 404.594s/42.161 checker. R60 invalid Lake -j1 exit1. R61 4/4 exit0, 62.167 checker, audit PASS. Eight legacy identities quarantined. Fresh reviewer spawn acknowledged; UNKNOWN because collaboration session token cannot fit current-session schema; review lease retained.",
  "native_bridge": {
   "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
   "state": "OPEN; NAIVE_RELATION_BLOCKED",
