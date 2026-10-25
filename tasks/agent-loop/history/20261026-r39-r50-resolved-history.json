@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "id": "PAPER-RESOLVED-HISTORY-R39-R50-20261026/r1",
+  "purpose": "Lossless compact index for resolved handoffs previously listed in tasks/agent-loop/current.json.",
+  "entries": [
+    {
+      "id": "PAPER-BIND-INPUT-AUTHORITY-QUESTION-20261026/r39-result",
+      "record": "questions/2026-10-26-let-bind-input-port-projection/question.md",
+      "sha256": "3d2f50112f7daba42b27456518eaf7cb24d7fcdbc06a3503f96b57fd964803a5"
+    },
+    {
+      "id": "NATIVE-INTEGER-COMPARISON-AUDIT-INTEGRATION-20261026/r42-primary",
+      "record": "tasks/agent-loop/inbox/native-integer-comparison-r42-primary-verification.txt",
+      "sha256": "33a61dc2e2efcb0d811b77f0213f8cfc9a44769c7b1f7579cde15ff537f80834"
+    },
+    {
+      "id": "NATIVE-INTEGER-COMPARISON-AUDIT-INTEGRATION-20261026/r42-review",
+      "record": "tasks/agent-loop/inbox/native-integer-comparison-r42-review.md",
+      "sha256": "9fe02ad3d00694e804c677eaebea1f75fc7ec3302bdd5404dc671547e2a481df"
+    },
+    {
+      "id": "NATIVE-INTEGER-COMPARISON-EVIDENCE-REPAIR-20261026/r43-primary",
+      "record": "tasks/agent-loop/inbox/native-integer-comparison-r43-primary-verification.txt",
+      "sha256": "c29b7e68315e036ea57980460757aea2377fd93cb095b04d02f3a7524bafd018"
+    },
+    {
+      "id": "NATIVE-INTEGER-COMPARISON-EVIDENCE-REPAIR-20261026/r43-review",
+      "record": "tasks/agent-loop/inbox/native-integer-comparison-r43-review.md",
+      "sha256": "1c1fdbe10b67ecb49f40fcca80996b042f05bbd2bac7b5cae46f735ac15e2447"
+    },
+    {
+      "id": "NATIVE-INTEGER-COMPARISON-EVIDENCE-REPAIR-20261026/r43-integration",
+      "record": "tasks/agent-loop/inbox/native-integer-comparison-r43-integration.md",
+      "sha256": "e30c28b05548715a4ce17bc16af89f4ac56719e7e87c96c3c3510e7e9f6bac43"
+    },
+    {
+      "id": "PAPER-TUPLE-SPLIT-EXECUTION-20261026/r44-result",
+      "record": "tasks/agent-loop/inbox/paper-tuple-split-r44.md",
+      "sha256": "b7b03d7bc9ff4e42a442903e8808011e7d285263155bd3074e49c20dc96fd911"
+    },
+    {
+      "id": "PAPER-TUPLE-SPLIT-REPAIR-20261026/r45-result",
+      "record": "tasks/agent-loop/inbox/paper-tuple-split-r45-integration.md",
+      "sha256": "ebb040e0abe9ea2054204a512f5fabcba5cde3b95d74064a6ad074ad6474db63"
+    },
+    {
+      "id": "PAPER-PERFORM-LET-EXECUTION-20261026/r46-result",
+      "record": "tasks/agent-loop/inbox/paper-perform-let-r46.md",
+      "sha256": "f692e59c9d1cddf3fafc90746677ce0742b313c8317ca0e5bc9194e07610b901"
+    },
+    {
+      "id": "PAPER-PERFORM-LET-REPAIR-20261026/r47-contract",
+      "record": "tasks/agent-loop/sprints/paper-perform-let-repair-r47.md",
+      "sha256": "cef97b369ef37114333cb15ff51adf734ef30bcb7e804dbf1cba3c0ec7432630"
+    },
+    {
+      "id": "PAPER-PERFORM-LET-REPAIR-20261026/r47-result",
+      "record": "tasks/agent-loop/inbox/paper-perform-let-r47.md",
+      "sha256": "6cff83a0a88463fa7725fcb03ab749a46e4c0baa3139e0efac02e6ebcb6b9b2b"
+    },
+    {
+      "id": "PAPER-PERFORM-LET-AXIOM-REPAIR-20261026/r48-contract",
+      "record": "tasks/agent-loop/sprints/paper-perform-let-axiom-repair-r48.md",
+      "sha256": "169c0a36181e32f980a497bad581d12daaef90a5fc324e61d790d5bcc9f2fa51"
+    },
+    {
+      "id": "PAPER-PERFORM-LET-AXIOM-REPAIR-20261026/r48-result",
+      "record": "tasks/agent-loop/inbox/paper-perform-let-r48.md",
+      "sha256": "f769e9e544f5bc96139009492108ebac050423c997c60919be7a4bd5cd656c6b"
+    },
+    {
+      "id": "PAPER-PERFORM-LET-FINALIZE-20261026/r49-contract",
+      "record": "tasks/agent-loop/sprints/paper-perform-let-finalize-r49.md",
+      "sha256": "25712855fab407813a89d0970b2bde50e07625fbf6ac1bba8ca236596a565dc4"
+    },
+    {
+      "id": "PAPER-PERFORM-LET-FINALIZE-20261026/r49-primary",
+      "record": "tasks/agent-loop/inbox/paper-perform-let-r49-primary-verification.txt",
+      "sha256": "b8b5338fc02d69d41c124ef6d9cbc1bc0259acd8f74e8b03c770957770a44461"
+    },
+    {
+      "id": "PAPER-PERFORM-LET-FINALIZE-20261026/r49-review",
+      "record": "tasks/agent-loop/inbox/paper-perform-let-r49-review.md",
+      "sha256": "35d7ebb3de16d607d80d5b86799d7e4fb23913ff67862746ae36ed37a7de3e18"
+    },
+    {
+      "id": "PAPER-PERFORM-LET-FINALIZE-20261026/r49-integration",
+      "record": "tasks/agent-loop/inbox/paper-perform-let-r49-integration.md",
+      "sha256": "a285488bc9114e9cf1279a19cbfc737823723e135b1a717ac385eddb7c8ae404"
+    },
+    {
+      "id": "PAPER-EMPTY-OWNER-RESUME-20261026/r50-contract",
+      "record": "tasks/agent-loop/sprints/paper-empty-owner-resume-r50.md",
+      "sha256": "ac7ee54b9d4ed15d1fc8651f7bb14c7c1fc7148bac36dca689108820c8308ba3"
+    }
+  ]
+}
