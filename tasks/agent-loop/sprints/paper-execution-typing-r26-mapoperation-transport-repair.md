@@ -1,6 +1,6 @@
 # Sprint FULL-PAPER-TYPE-SUBSTITUTION-20261026/r26 — mapOperation transport repair
 
-Status: CANDIDATE; no worker edits or checker calls before exact hash, fresh Astra runtime receipt, exact leases and committed acknowledgement. This follows the user's explicit requirement that proof and review subagents use Astra.
+Status: CANDIDATE; no worker edits or checker calls before exact hash, fresh registered lean_prover runtime receipt, exact leases and committed acknowledgement.
 Branch: research/simple-sub-intrusion
 Baseline: 036e97ef905a50bcd6a5257709ee8f6d1228ff1e (R25 adjudicated FAILED_CHECK)
 Contract revision: r3
@@ -38,7 +38,7 @@ The primary revalidates every listed hash and the R24/baseline dependencies in `
 
 ## Exact leases and sequential lanes
 
-Only after a fresh Astra worker/session receipt, reconciled capacity, exact hash verification and committed acknowledgement, one `astra_prover` at medium effort may write in `/tmp/yulang-r26-mapop`:
+Only after a fresh registered `lean_prover` worker/session receipt, reconciled capacity, exact hash verification and committed acknowledgement, one worker may write in `/tmp/yulang-r26-mapop`:
 
 - `notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean` (repair only the mapped constructor application and any direct premises needed by that case)
 - `notes/theory/lean/.lake/R26Audit.lean`
@@ -55,8 +55,8 @@ The worker is sole checker/cache owner during construction, with at most 6 seria
 
 One heavy build at a time, pinned Lean 4.35.0, `LEAN_NUM_THREADS=1`, Lean `-j1 -M1024`; Lake build uses the lakefile's existing `moreLeanArgs`. Failed calls count. First failed check stops all checking, including primary verification; no retries or budget transfer.
 
-After freeze, one fresh non-author `astra_prover` M1 reviewer at medium effort may write `tasks/agent-loop/inbox/paper-typing-subst-r26-review.md`; the reviewer runs no checker and does not overlap worker/cache ownership. The proof author must have a confirmed writes-stopped receipt before the reviewer starts. Proof and review Astra assignments are sequential and together consume at most 300 seconds aggregate Astra time and three substantive stages; record requested and observed model/effort separately. If that envelope or the global one-Astra-at-a-time quota cannot be met, do not start either assignment.
+After freeze, one fresh non-author M1 reviewer may write `tasks/agent-loop/inbox/paper-typing-subst-r26-review.md`; the reviewer runs no checker and does not overlap worker/cache ownership. The proof author must have a confirmed writes-stopped receipt before the reviewer starts. Record the reviewer's fresh runtime receipt and observed model/effort, using UNKNOWN where the tools provide no evidence. The proof and review assignments remain sequential. This packet requests no Astra role or override.
 
 ## Resource and stop contract
 
-Envelope: 1200 active seconds, 8 literal serial Lean/Lake invocations total, 120 checker seconds; worker cap 6 and primary reserves 2; one heavy build at a time. R25's unused budget is not transferred. Version queries count if used. No tests, default/full build, Rust build, network/dependency activity or shared/generated cache reuse. Current state retains 8 UNKNOWN reservations, including prior Astra-role rows; R26 remains CANDIDATE until those reservations and the one-Astra quota are reconciled. The user-requested Astra route does not release their quarantined leases. Stop at source ambiguity, first failed check, budget edge, authority/dependency/lease change, STOP or session end. Preserve R25 as FAILED_CHECK; R23/R18 and all original parent gates remain OPEN.
+Envelope: 1200 active seconds, 8 literal serial Lean/Lake invocations total, 120 checker seconds; worker cap 6 and primary reserves 2; one heavy build at a time. R25's unused budget is not transferred. Version queries count if used. No tests, default/full build, Rust build, network/dependency activity or shared/generated cache reuse. Current state retains 8 UNKNOWN reservations, all quarantined. Capacity counts the primary and worker during construction; after the worker's actual STOP receipt, a fresh reviewer may run sequentially. Do not admit other agents or treat a STOPPED record as new capacity. This packet requests no Astra assignment, so the one-Astra quota is not part of its admission. Stop at source ambiguity, first failed check, budget edge, authority/dependency/lease change, STOP or session end. Preserve R25 as FAILED_CHECK; R23/R18 and all original parent gates remain OPEN.
