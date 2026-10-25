@@ -4,17 +4,17 @@
   "phase": "ACTIVE",
   "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
   "active_sprint": {
-    "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r57",
+    "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58",
     "revision": "r1",
-    "status": "FAILED",
-    "contract": "tasks/agent-loop/sprints/paper-type-beta-execution-r57.md",
-    "contract_sha256": "a6956775f817b66b4a3c7653ff0f52a92f770ab99baaee90669828ca8179458c",
-    "baseline": "fa776ddb531576a2cee4b0ae223aefbc254e1882",
+    "status": "ASSIGNED",
+    "contract": "tasks/agent-loop/sprints/paper-type-beta-execution-r58.md",
+    "contract_sha256": "711db469a7464a9db8ea6cc55d3342b922563b4e7a39ce5a3012dbf69d7eb896",
+    "baseline": "8f5edad44b22723e91dd5fe5ff14ca94cac17116",
     "branch": "yulang3",
-    "claim": "Complete exact 34-declaration audit and corrected root verification of the unchanged manuscript-explicit type-application beta preservation candidate, then obtain fresh independent review; parent remains open.",
-    "outcome": "Root build passed; strict audit harness failed to elaborate MessageData numeric/count expressions. No declaration audit, review, integration, or theorem acceptance.",
-    "budget": "Primary 420s/4 calls/90 checker; fresh reviewer 180s/0 checker; aggregate 600s/4 calls/90 checker.",
-    "next_action": "Keep R57 failed; do not retry its audit. Preserve external proof arrivals; use a separately authorized fresh packet for any corrected audit."
+    "claim": "Complete exact 34-declaration audit and root verification of unchanged manuscript-explicit type-application beta preservation candidate, then fresh independent review; parent remains OPEN.",
+    "outcome": "R58 starts after R57 audit harness failed before declaration traversal; R57 is not retried. Candidate unchanged.",
+    "budget": "Primary 720s/6 calls/120 checker; at most two audit-harness repairs; fresh reviewer 180s/0 calls; aggregate 900s.",
+    "next_action": "Revalidate pins, build once, perform exact audit with no more than two harness-only corrections, then fresh review if complete."
   },
   "workers": [
     {
@@ -108,13 +108,13 @@
     {
       "id": "/root",
       "role": "primary/checker/integrator",
-      "state": "STOPPED",
+      "state": "RUNNING",
       "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
       "requested_model": "user-selected model",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R57 stopped after 4/4 calls; root build passed; audit harness elaboration failed; no audit/review/integration. All processes exited."
+      "receipt": "R58 active; origin 2026-10-25T22:37:31.134943Z/49098575220987ns; 0/6 native calls; bounded audit-harness-only repairs."
     },
     {
       "id": "/root/r55_type_beta_finalize",
@@ -137,6 +137,17 @@
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
       "receipt": "Not started: R57 exact audit call failed; no frozen successful audit to review."
+    },
+    {
+      "id": "/root/r58_compiler_referee",
+      "role": "fresh independent compiler_referee review",
+      "state": "NOT_STARTED",
+      "session": null,
+      "requested_model": "registered role defaults",
+      "requested_effort": "registered role defaults",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "180s/0 checker calls; starts only after full frozen audit success."
     }
   ],
   "leases": [
@@ -188,6 +199,21 @@
     {
       "path": "tasks/agent-loop/inbox/paper-type-beta-r57-yulang3-primary.md",
       "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/sprints/paper-type-beta-execution-r58.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-type-beta-r58-yulang3-primary.md",
+      "owner": "/root",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-type-beta-r58-review.md",
+      "owner": "/root/r58_compiler_referee",
       "state": "HELD"
     }
   ],
@@ -360,8 +386,8 @@
       "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
     }
   ],
-  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 construction failures. R55/R56 failed as recorded. R57 root build passed but exact audit harness failed to elaborate; no declaration audit/review/integration. Type-beta and parent remain OPEN. Question bundles committed, withdrawn and unanswered.",
-  "next_action": "R57 failed in the exact audit harness; no retry, review, or integration. Preserve external proof arrivals.",
+  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 construction failures. R55/R56/R57 failed and remain frozen. R58 is a fresh exact-name audit packet with bounded harness-only repairs; candidate and parent remain OPEN. Questions remain withdrawn, unanswered and unadopted.",
+  "next_action": "R58 authorized on yulang3: exact unchanged candidate audit; at most two diagnosed harness-only repairs; preserve external proof arrivals.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -438,9 +464,14 @@
       "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r57-outcome",
       "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r57-outcome.md",
       "sha256": "3fa2fe42e4938a3ca9894bd903475b17463afd6672bc8b2426af8ca686f0f152"
+    },
+    {
+      "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58-contract-r1",
+      "record": "tasks/agent-loop/sprints/paper-type-beta-execution-r58.md",
+      "sha256": "711db469a7464a9db8ea6cc55d3342b922563b4e7a39ce5a3012dbf69d7eb896"
     }
   ],
-  "resource_observation": "R55 worker 253.121s conservatively charged, audit exit 1. R56 primary origin 48401291550615ns; 3 calls, root build 54.304217993 checker s, 161.382 conservative elapsed s charged; stopped without audit/review. No budget transfer. R57 origin 2026-10-25T22:31:11.959580Z/48729098930805ns; fresh 600s total, primary 420s/4 calls/90 checker, reviewer 180s/0 calls; no native calls yet. R57 stopped after 4/4 calls; root build passed 48.880379530s, audit failed 1.740203162s; 50.620582692 checker s, 129.763s charged; no review or integration.",
+  "resource_observation": "R55 worker 253.121s conservatively charged, audit exit 1. R56 primary origin 48401291550615ns; 3 calls, root build 54.304217993 checker s, 161.382 conservative elapsed s charged; stopped without audit/review. No budget transfer. R57 origin 2026-10-25T22:31:11.959580Z/48729098930805ns; fresh 600s total, primary 420s/4 calls/90 checker, reviewer 180s/0 calls; no native calls yet. R57 stopped after 4/4 calls; root build passed 48.880379530s, audit failed 1.740203162s; 50.620582692 checker s, 129.763s charged; no review or integration. R58 origin 2026-10-25T22:37:31.134943Z/49098575220987ns; fresh 900s (primary 720s/6 calls/120 checker, reviewer 180s/0), no native calls yet.",
   "native_bridge": {
     "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
     "state": "OPEN; NAIVE_RELATION_BLOCKED",
