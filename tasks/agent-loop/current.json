@@ -6,7 +6,7 @@
   "active_sprint": {
     "id": "LEAN-CALL-ENTRY-SPINE-20261025",
     "revision": "r2",
-    "status": "P_STOPPED_COMPOSITION_READY",
+    "status": "P_COMPILED_Q_PENDING",
     "contract": "tasks/agent-loop/sprints/call-entry-spine-20261025-r2.md",
     "contract_sha256": "0f81f286dd3910f48b3f7b49d4f61a6c7a415609a16f0e473fe093bf567c18d4",
     "baseline": "3199f25f0",
@@ -27,10 +27,10 @@
     "outcome": "tasks/agent-loop/sprints/call-entry-spine-20261025-r2-outcome.md",
     "closure": "Syntax typing only; operational/source/A-B/inference/production parents OPEN.",
     "review": "Fresh nonauthor review only after successful serial checks and frozen receipts.",
-    "checker": "No r2 Lean yet; P exact proposition statically MATCHED; author STOPPED.",
+    "checker": "P Repair compiled exit 0 in 2.625s; exact outputs hashed; Q not yet run.",
     "acceptance": "Exact P/Q/compose statements compile; complete receipts; standard axioms; CLEAN review.",
     "author": "P source/handoff frozen; Luna composition and serialized verification next.",
-    "next_action": "Freeze P/compose/query candidates; verify reused r3 artifacts, then run P, Q, compose, query serially.",
+    "next_action": "Compile unchanged Q; flush complete receipt before composition.",
     "prior_r1": "FAILED_VERIFICATION/UNACCEPTED; exact failure receipt and outcome retained."
   },
   "workers": [
@@ -505,6 +505,6 @@
       "closure": "P compile failure; Q/compose unchecked; theorem OPEN."
     }
   ],
-  "resource_observation": "P 600s fully charged; composition 240, verification 480, review 420, integration 180 remain; no carryover.",
-  "checker": "Lean 4.35; reuse r3 only by source and .olean/.ilean hash match; stop on first failure."
+  "resource_observation": "P 600s charged; verification used 2.625s plus pin preflight; remaining gates reserved.",
+  "checker": "P exit 0; next Q; one Lean process; stop on first failure."
 }
