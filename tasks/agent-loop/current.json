@@ -4,17 +4,17 @@
   "phase": "ACTIVE",
   "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
   "active_sprint": {
-    "id": "PAPER-TYPE-BETA-EXECUTION-20261026/r58",
+    "id": "PAPER-HEAP-OBSERVATION-20261026/r59",
     "revision": "r1",
-    "status": "COMPLETE_REVIEWED_INTEGRATED",
-    "contract": "tasks/agent-loop/sprints/paper-type-beta-execution-r58.md",
-    "contract_sha256": "711db469a7464a9db8ea6cc55d3342b922563b4e7a39ce5a3012dbf69d7eb896",
-    "baseline": "8f5edad44b22723e91dd5fe5ff14ca94cac17116",
+    "status": "ASSIGNED",
+    "contract": "tasks/agent-loop/sprints/paper-heap-observation-r59.md",
+    "contract_sha256": "fd8913816e2ab6c6f3316f2be50125b148dab192aefc1de3b529644547604e21",
+    "baseline": "4eb348f7ebf53509ae701c6b0434041a90f8f573",
     "branch": "yulang3",
-    "claim": "Complete exact 34-declaration audit and root verification of unchanged manuscript-explicit type-application beta preservation candidate, then fresh independent review; parent remains OPEN.",
-    "outcome": "Exact candidate integrated byte-identically with one root import after CLEAN independent review. Bounded represented result only; parent theorem remains OPEN.",
-    "budget": "Primary 720s/6 calls/120 checker; at most two audit-harness repairs; fresh reviewer 180s/0 calls; aggregate 900s.",
-    "next_action": "Preserve R57 failure and external proof arrivals; continue original parent only in a new selector-authorized sprint."
+    "claim": "Finite graph-reference/type-beta observation preserves represented paper typing and connects an allocated typed heap to Force/Delay; parent remains OPEN.",
+    "outcome": "Assigned; proof/source writers have not launched. No source realization, guard theorem, full executor or inference closure claimed.",
+    "budget": "1800s total; proof 600s/8 calls/90 checker; source 240s/0 calls; primary 600s/4 calls/90 checker; reviewer 180s/0 calls; 180s integration reserve.",
+    "next_action": "Verify all frozen inputs and obtain current launch receipts; continue proof and source lanes within exact leases."
   },
   "workers": [
     {
@@ -107,28 +107,39 @@
     },
     {
       "id": "/root",
-      "role": "primary/checker/integrator",
-      "state": "STOPPED",
+      "role": "primary/proof coordinator/checker/integrator",
+      "state": "RUNNING",
       "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
-      "requested_model": "user-selected model",
+      "requested_model": "user-selected primary",
       "requested_effort": "UNKNOWN",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "R58 complete; candidate and one root import integrated after CLEAN review; no test/build/check beyond frozen four calls."
+      "receipt": "collaboration.list_agents at 2026-10-25 22:53:50 UTC reported /root running; R59 primary owns current state/contract/Git."
     },
     {
-      "id": "/root/r55_type_beta_finalize",
+      "id": "/root/r59_heap_observation_proof",
       "role": "registered lean_prover",
-      "state": "STOPPED",
-      "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
+      "state": "NOT_STARTED",
+      "session": null,
       "requested_model": "registered role defaults",
       "requested_effort": "registered role defaults",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Frozen R55 handoff 4cb89d…94128b; candidate 0a1834…a8c1c8; 4 calls/34.788968363 native s/253.121 conservatively charged s; candidate build passed; strict audit failed; no processes/writes."
+      "receipt": "R59 assigned; launch acknowledgement pending."
     },
     {
-      "id": "/root/r57_compiler_referee",
+      "id": "/root/r59_heap_observation_source",
+      "role": "researcher/source bridge falsifier",
+      "state": "NOT_STARTED",
+      "session": null,
+      "requested_model": "registered role defaults",
+      "requested_effort": "registered role defaults",
+      "observed_model": "UNKNOWN",
+      "observed_effort": "UNKNOWN",
+      "receipt": "R59 assigned read-only Rust/paper correspondence lane; launch acknowledgement pending."
+    },
+    {
+      "id": "/root/r59_heap_observation_review",
       "role": "fresh independent compiler_referee review",
       "state": "NOT_STARTED",
       "session": null,
@@ -136,18 +147,7 @@
       "requested_effort": "registered role defaults",
       "observed_model": "UNKNOWN",
       "observed_effort": "UNKNOWN",
-      "receipt": "Not started: R57 exact audit call failed; no frozen successful audit to review."
-    },
-    {
-      "id": "/root/r58_compiler_referee",
-      "role": "fresh independent compiler_referee review",
-      "state": "STOPPED",
-      "session": "01a172ef-fec1-72e3-bd47-bc4d7f51d6aa",
-      "requested_model": "gpt-6.1-sol",
-      "requested_effort": "medium",
-      "observed_model": "gpt-6.1-sol",
-      "observed_effort": "medium",
-      "receipt": "CLEAN bounded review returned; zero checker/Git/writes; read-only role completed with no descendants."
+      "receipt": "Reserved for post-freeze independent review; zero checker calls."
     }
   ],
   "leases": [
@@ -157,63 +157,53 @@
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/paper-type-beta-execution-r55.md",
+      "path": "tasks/agent-loop/sprints/paper-heap-observation-r59.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/lean/.lake/R55Audit.lean",
-      "owner": "/root/r55_type_beta_finalize",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/paper-type-beta-r55.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/paper-type-beta-execution-r56.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/paper-type-beta-r56-primary.md",
+      "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-primary.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "notes/theory/lean/.lake/R56Audit.lean",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/inbox/paper-type-beta-r56-yulang3-primary.md",
-      "owner": "/root",
-      "state": "FROZEN"
-    },
-    {
-      "path": "tasks/agent-loop/sprints/paper-type-beta-execution-r57.md",
+      "path": "tasks/agent-loop/sprints/paper-heap-observation-r59-outcome.md",
       "owner": "/root",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/paper-type-beta-r57-yulang3-primary.md",
-      "owner": "/root",
+      "path": "notes/theory/lean/YulangClosure/PaperHeapObservation.lean",
+      "owner": "/root/r59_heap_observation_proof",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/sprints/paper-type-beta-execution-r58.md",
-      "owner": "/root",
+      "path": "notes/theory/lean/.lake/R59Audit.lean",
+      "owner": "/root/r59_heap_observation_proof",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/paper-type-beta-r58-yulang3-primary.md",
-      "owner": "/root",
+      "path": "notes/theory/lean/.lake/build",
+      "owner": "/root/r59_heap_observation_proof",
       "state": "HELD"
     },
     {
-      "path": "tasks/agent-loop/inbox/paper-type-beta-r58-review.md",
-      "owner": "/root/r58_compiler_referee",
+      "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-worker-checks.txt",
+      "owner": "/root/r59_heap_observation_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-heap-observation-r59.md",
+      "owner": "/root/r59_heap_observation_proof",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-source.md",
+      "owner": "/root/r59_heap_observation_source",
+      "state": "HELD"
+    },
+    {
+      "path": "tasks/agent-loop/inbox/paper-heap-observation-r59-review.md",
+      "owner": "/root",
       "state": "HELD"
     }
   ],
@@ -386,8 +376,8 @@
       "details": "Bounded proof accepted; full-paper/native bridge open; pending-cell republication blocks naive relation."
     }
   ],
-  "closure": "R51 bounded slice integrated. R52 no candidate. R53/R54 construction failures. R55/R56/R57 failed and archived. R58 candidate build, exact 34-declaration audit, fresh independent CLEAN review, and byte-identical module plus one root import integrated. Only bounded represented type-beta result is accepted; source/native realization, full executor, inference A/B, parent and production remain OPEN. Questions remain withdrawn and unanswered.",
-  "next_action": "R58 bounded result integrated after CLEAN review; parent remains OPEN. Preserve external proof arrivals.",
+  "closure": "R58 bounded represented type-beta result integrated after CLEAN review at 4eb348f. R59 assigned finite heap observation-to-Force proof and independent source bridge; external proof arrivals remain separate immutable inputs; all original executor, inference A/B, source/native and production parents remain OPEN.",
+  "next_action": "R59: preserve external proof arrivals; verify frozen pins and capture live proof/source acknowledgements; continue finite graph observation-to-Force proof.",
   "legacy_reconciliation": {
     "required": false,
     "reason": "8 UNKNOWN reservations remain quarantined.",
@@ -451,7 +441,7 @@
       "sha256": "059cb2de4cdc8c1e746628f485f445671a927c13f82cef8bbf8defb6c0bbe39c"
     }
   ],
-  "resource_observation": "R55 worker 253.121s conservatively charged, audit exit 1. R56 primary origin 48401291550615ns; 3 calls, root build 54.304217993 checker s, 161.382 conservative elapsed s charged; stopped without audit/review. No budget transfer. R57 origin 2026-10-25T22:31:11.959580Z/48729098930805ns; fresh 600s total, primary 420s/4 calls/90 checker, reviewer 180s/0 calls; no native calls yet. R57 stopped after 4/4 calls; root build passed 48.880379530s, audit failed 1.740203162s; 50.620582692 checker s, 129.763s charged; no review or integration. R58 origin 2026-10-25T22:37:31.134943Z/49098575220987ns; fresh 900s (primary 720s/6 calls/120 checker, reviewer 180s/0), no native calls yet. R58 primary 4/6 calls, 45.336 checker s, 141.204s at freeze; clean exit, review not started. Fresh compiler_referee launched; 180s/0 checker calls; review lease restricted to R58 review receipt. Fresh compiler_referee returned CLEAN; 180s/0 checker calls; no reviewer writes or processes. Primary transcribed read-only disposition due role restriction. R58 CLEAN review adjudicated; exact candidate and one import integrated; fresh 900s grant within cap; parent remains OPEN. R58 primary elapsed at integration record 305.273s; reviewer conservatively charged full 180s allocation.",
+  "resource_observation": "R59 origin 2026-10-25T22:53:50Z. Monotonic origin UNKNOWN; charge conservatively from this recorded origin. Full 1800s allocation includes 180s integration reserve; no carryover. Eight prior UNKNOWN identities remain quarantined.",
   "native_bridge": {
     "id": "SOURCE-GENERATED-NATIVE-CELL-1 / SGI-NATIVE-1",
     "state": "OPEN; NAIVE_RELATION_BLOCKED",
