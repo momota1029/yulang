@@ -3,7 +3,7 @@
 Status: CANDIDATE; no worker edits or checker calls before exact hash, fresh Astra runtime receipt, exact leases and committed acknowledgement. This follows the user's explicit requirement that proof and review subagents use Astra.
 Branch: research/simple-sub-intrusion
 Baseline: 036e97ef905a50bcd6a5257709ee8f6d1228ff1e (R25 adjudicated FAILED_CHECK)
-Contract revision: r2
+Contract revision: r3
 
 ## Parent, evidence and bounded outcome
 
@@ -24,7 +24,7 @@ R26 does not prove one-step execution preservation, request/frame/continuation c
     baseline PaperExecutionTypingSubstitution.lean 3b1588bff2d28a3db7aa241c930495b84f090e880ad49ac8fb2d593d54943d41
     notes/theory/lean/YulangClosure/PaperExecutionSyntax.lean eec31d92375ea700061ff6b0a8c5ac7742db5fe77aa96dd28bc75ad7c93fc2dd (frozen R25 candidate; primary seeds the isolated checkout)
     notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean 6e8c1b8d1cf62736d6df172430bf20e44d35b6d527d468b07dc80ebe7ce736f3 (frozen R25 failed candidate; worker may repair only the mapped constructor application)
-    notes/theory/lean/YulangClosure/PaperMapOperationIntegration.lean 98e78766e2d2671d6d4aae6250fbe001c3eb8e9825df1aac62e5c97efcf1851f (frozen R25 candidate; worker may repair only integration proofs if the focused build exposes an in-scope mismatch)
+    notes/theory/lean/YulangClosure/PaperMapOperationIntegration.lean 98e78766e2d2671d6d4aae6250fbe001c3eb8e9825df1aac62e5c97efcf1851f (frozen R25 candidate; read-only in R26)
     notes/theory/lean/YulangClosure/PaperExecutionBinderLaws.lean 568a9a5a1991bb605d85e9b58f33638fb445b1325516e10eed0f076f72346d7a
     notes/theory/lean/YulangClosure/PaperOperationMapperTyping.lean 175c307e00bea7ba6ec44ff153f50a7d9d943de8bdc3d4dccb02a41bc53dde77
     notes/theory/lean/YulangClosure/PaperTypeFormation.lean 29c1a85b4d2588224bf1847f78a7b4d94db095488f3bba4937888a3815f39d13
@@ -41,13 +41,12 @@ The primary revalidates every listed hash and the R24/baseline dependencies in `
 Only after a fresh Astra worker/session receipt, reconciled capacity, exact hash verification and committed acknowledgement, one `astra_prover` at medium effort may write in `/tmp/yulang-r26-mapop`:
 
 - `notes/theory/lean/YulangClosure/PaperExecutionTypingSubstitution.lean` (repair only the mapped constructor application and any direct premises needed by that case)
-- `notes/theory/lean/YulangClosure/PaperMapOperationIntegration.lean` (only if the focused build shows an in-scope proof mismatch)
 - `notes/theory/lean/.lake/R26Audit.lean`
 - `notes/theory/lean/.lake/build` (dedicated cache; worker sole owner during construction, then stops and hands it to primary)
 - `tasks/agent-loop/inbox/paper-typing-subst-r26-worker-checks.txt`
 - `tasks/agent-loop/inbox/paper-typing-subst-r26.md`
 
-`PaperExecutionSyntax.lean` is a primary-seeded frozen R25 input and read-only for the worker. R24, the paper and all other dependencies are read-only. The worker source-audits the exact mismatch and indices first, then may construct and check the repair. No child agents and no Git operations.
+`PaperExecutionSyntax.lean` and `PaperMapOperationIntegration.lean` are primary-seeded frozen R25 inputs and read-only for the worker. R24, the paper and all other dependencies are read-only. The worker source-audits the exact mismatch and indices first, then may repair only the mapped constructor application and its direct premises in `PaperExecutionTypingSubstitution.lean`. Any focused-build failure in any module, including Integration, stops the packet without repair or retry. No child agents and no Git operations. This is a registered `lean_prover` assignment; no Astra assignment or override is requested.
 
 The worker is sole checker/cache owner during construction, with at most 6 serial invocations and 100 shared checker seconds. If the focused build passes, the worker writes an exact audit file and runs its audit; then freezes the artifact/log/handoff and sends an actual writes-stopped receipt. After that receipt only, the primary owns the exact cache and `tasks/agent-loop/inbox/paper-typing-subst-r26-primary-verification.txt` for the final focused build and final audit (2 invocations). Commands, serially:
 
