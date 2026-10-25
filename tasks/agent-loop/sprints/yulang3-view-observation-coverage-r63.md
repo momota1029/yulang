@@ -1,5 +1,7 @@
 # Sprint YULANG3-VIEW-OBSERVATION-COVERAGE-20261026/r63
 
+Contract revision: r2.
+
 Status: PRIMARY-AUTHORIZED COUNTEREXAMPLE/coverage candidate. Branch `yulang3`; exact baseline `93d08d5867015741b3588ea3df4c56903b2bbe83`; no source or semantic change authority.
 
 ## Original claim and target
@@ -17,7 +19,7 @@ Fixed candidate terms, using existing constructors:
 
 Target public theorem surface in `YulangClosure.PaperTypes.PaperObservationCoverage`:
 
-1. `view_operand_force_typed`: for arbitrary `metadata : ViewMetadata`, show `PaperComputationTyped [] [] []` of the closed force above at `.base .unit`.
+1. `view_operand_force_typed`: for arbitrary `(d : DeclarationTable)` and `metadata : ViewMetadata`, show `PaperComputationTyped d [] []` of the closed force above at `.base .unit`. This uses an arbitrary declaration table because the judgment is indexed by `DeclarationTable`, not by a list; the witness remains closed with empty graph and type environments.
 2. `no_observation_step_from_view`: no `ObservationStep heap (.view metadata value) target` exists, for arbitrary heap and metadata.
 3. `view_operand_no_literal_delay_trace`: no `ObservationTrace heap (.view metadata (.delay body)) (.delay body)` exists.
 4. `connected_executor_view_force_stuck`: the existing `PaperExtendedExecution.controlStep` returns `none` on the represented force of a view-wrapped delay with empty stack, for arbitrary declaration table, binder, metadata and body.
