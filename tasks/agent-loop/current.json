@@ -76,29 +76,29 @@
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "P/Q reservations acknowledged; r2 enumerates source, handoff and generated-output leases before activation."
+   "receipt": "P active on fixed term/five-step trace and Q active on exhaustive successor exclusion; Lean tickets serialized."
   },
   {
    "id": "/root/view_force_reachability_prover",
    "role": "P constructive prover: exact five-step typed Call reachability",
-   "state": "WAITING",
+   "state": "RUNNING",
    "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
    "requested_model": "Sol",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Reservation acknowledged; no source reads/writes until activation checkpoint."
+   "receipt": "Active receipt: source pins checked; designing fixed CallTerm and five-step witness; no Lean invocation yet."
   },
   {
    "id": "/root/view_force_stuck_prover",
    "role": "Q constructive prover: exhaustive no-successor theorem",
-   "state": "WAITING",
+   "state": "RUNNING",
    "session": "LEAN-CALL-PROGRESS-OBSTRUCTION-20261025/root-turn-12",
    "requested_model": "Sol",
    "requested_effort": "high",
    "observed_model": "UNKNOWN",
    "observed_effort": "UNKNOWN",
-   "receipt": "Reservation acknowledged; no source reads/writes until activation checkpoint."
+   "receipt": "Active receipt: constructing exhaustive 28-constructor no-successor proof; waiting for P compile ticket."
   }
  ],
  "leases": [
@@ -439,6 +439,6 @@
    "sha256": "8ad36a0dbcb99faf2a87164b4fcd87e21754f1c40583fee963bd95b267d8655c"
   }
  ],
- "resource_observation": "P 900s and Q 300s reserved; both WAITING; r2 enumerates source, handoff and generated outputs; three UNKNOWN reservations retained.",
+ "resource_observation": "P 900s and Q 300s active; no Lean yet; compiler ticket held by P first; three UNKNOWN reservations retained.",
  "checker": "r2 output paths pinned; recheck dependencies before Lean."
 }
