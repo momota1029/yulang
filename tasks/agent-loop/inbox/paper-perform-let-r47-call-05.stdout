@@ -1,0 +1,631 @@
+.lake/R47Audit.lean:7:0: error: Unknown option `pp.width`
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.resolveOperation_iff
+@YulangClosure.PaperTypes.PaperPerformLetExecution.resolveOperation_iff : ∀
+  {operations : List.{0} YulangClosure.PaperTypes.OperationDeclaration}
+  {operation : YulangClosure.PaperTypes.DeclarationId} {declaration : YulangClosure.PaperTypes.OperationDeclaration},
+  Iff
+    (@Eq.{1} (Option.{0} YulangClosure.PaperTypes.OperationDeclaration)
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.resolveOperation operations operation)
+      (@Option.some.{0} YulangClosure.PaperTypes.OperationDeclaration declaration))
+    (YulangClosure.PaperTypes.OperationDeclarationResolved operations operation declaration)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.resolveOperation_iff' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:15:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.performStep_eq
+@YulangClosure.PaperTypes.PaperPerformLetExecution.performStep_eq : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {operation : YulangClosure.PaperTypes.DeclarationId} {arguments : List.{0} YulangClosure.PaperTypes.Ty}
+  {payload : YulangClosure.PaperTypes.Value} {declaration : YulangClosure.PaperTypes.OperationDeclaration}
+  {binder : YulangClosure.PaperTypes.TermName},
+  YulangClosure.PaperTypes.OperationDeclarationResolved d.operations operation declaration →
+    @Eq.{1} Nat (@List.length.{0} YulangClosure.PaperTypes.Ty arguments) declaration.typeArity →
+      @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+        (YulangClosure.PaperTypes.PaperPerformLetExecution.performStep d binder
+          (YulangClosure.PaperTypes.Computation.perform operation arguments payload))
+        (@Option.some.{0} YulangClosure.PaperTypes.Computation
+          (YulangClosure.PaperTypes.Computation.request (declaration.instantiate arguments) payload
+            (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+              (YulangClosure.PaperTypes.Computation.ret
+                (YulangClosure.PaperTypes.Value.variable
+                  (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))))))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.performStep_eq' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:28:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.performStep_arity_mismatch
+@YulangClosure.PaperTypes.PaperPerformLetExecution.performStep_arity_mismatch : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {operation : YulangClosure.PaperTypes.DeclarationId}
+  {arguments : List.{0} YulangClosure.PaperTypes.Ty} {payload : YulangClosure.PaperTypes.Value}
+  {declaration : YulangClosure.PaperTypes.OperationDeclaration} {binder : YulangClosure.PaperTypes.TermName},
+  YulangClosure.PaperTypes.OperationDeclarationResolved d.operations operation declaration →
+    @Ne.{1} Nat (@List.length.{0} YulangClosure.PaperTypes.Ty arguments) declaration.typeArity →
+      @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+        (YulangClosure.PaperTypes.PaperPerformLetExecution.performStep d binder
+          (YulangClosure.PaperTypes.Computation.perform operation arguments payload))
+        (@Option.none.{0} YulangClosure.PaperTypes.Computation)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.performStep_arity_mismatch' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:41:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.perform_applicable
+@YulangClosure.PaperTypes.PaperPerformLetExecution.perform_applicable : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {operation : YulangClosure.PaperTypes.DeclarationId}
+  {arguments : List.{0} YulangClosure.PaperTypes.Ty} {payload : YulangClosure.PaperTypes.Value}
+  {result : YulangClosure.PaperTypes.Ty} {binder : YulangClosure.PaperTypes.TermName},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e
+      (YulangClosure.PaperTypes.Computation.perform operation arguments payload) result →
+    @Exists.{1} YulangClosure.PaperTypes.Computation fun next =>
+      And
+        (@Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+          (YulangClosure.PaperTypes.PaperPerformLetExecution.performStep d binder
+            (YulangClosure.PaperTypes.Computation.perform operation arguments payload))
+          (@Option.some.{0} YulangClosure.PaperTypes.Computation next))
+        (YulangClosure.PaperTypes.PaperComputationTyped d g e next result)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.perform_applicable' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:54:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.perform_preservation
+@YulangClosure.PaperTypes.PaperPerformLetExecution.perform_preservation : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {c next : YulangClosure.PaperTypes.Computation}
+  {result : YulangClosure.PaperTypes.Ty} {binder : YulangClosure.PaperTypes.TermName},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e c result →
+    @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+        (YulangClosure.PaperTypes.PaperPerformLetExecution.performStep d binder c)
+        (@Option.some.{0} YulangClosure.PaperTypes.Computation next) →
+      YulangClosure.PaperTypes.PaperComputationTyped d g e next result
+'YulangClosure.PaperTypes.PaperPerformLetExecution.perform_preservation' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:67:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_zero
+YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_zero : @Eq.{1} YulangClosure.PaperTypes.Value
+  (YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse
+    (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))
+  (YulangClosure.PaperTypes.Value.variable (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_zero' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_zero
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_outer
+YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_outer : ∀ (n : Nat),
+  @Eq.{1} YulangClosure.PaperTypes.Value
+    (YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse
+      (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) n
+        (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))))
+    (YulangClosure.PaperTypes.Value.variable
+      (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) n
+        (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2)))))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_outer' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_outer
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_typed
+YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_typed : ∀
+  (d : YulangClosure.PaperTypes.DeclarationTable) (g : YulangClosure.PaperTypes.GraphEnvironment)
+  (e : List.{0} YulangClosure.PaperTypes.Ty) (a response : YulangClosure.PaperTypes.Ty),
+  YulangClosure.PaperTypes.TermSubstitutionTyped d g (@List.cons.{0} YulangClosure.PaperTypes.Ty a e)
+    (@List.cons.{0} YulangClosure.PaperTypes.Ty a (@List.cons.{0} YulangClosure.PaperTypes.Ty response e))
+    YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse
+'YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_typed' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse_typed
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_applicable
+@YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_applicable : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {op : YulangClosure.PaperTypes.OperationInstance}
+  {payload : YulangClosure.PaperTypes.Value} {binder : YulangClosure.PaperTypes.TermName}
+  {saved body : YulangClosure.PaperTypes.Computation} {a result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e
+      (YulangClosure.PaperTypes.Computation.request op payload
+        (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder saved))
+      a →
+    YulangClosure.PaperTypes.PaperComputationTyped d g (@List.cons.{0} YulangClosure.PaperTypes.Ty a e) body result →
+      @Exists.{1} YulangClosure.PaperTypes.Computation fun next =>
+        And
+          (@Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+            (YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind
+              (YulangClosure.PaperTypes.Computation.request op payload
+                (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+                  saved))
+              body)
+            (@Option.some.{0} YulangClosure.PaperTypes.Computation next))
+          (YulangClosure.PaperTypes.PaperComputationTyped d g e next result)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_applicable' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_applicable
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_preservation
+@YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_preservation : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {head body next : YulangClosure.PaperTypes.Computation}
+  {a result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperComputationTyped d g e head a →
+    YulangClosure.PaperTypes.PaperComputationTyped d g (@List.cons.{0} YulangClosure.PaperTypes.Ty a e) body result →
+      @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+          (YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind head body)
+          (@Option.some.{0} YulangClosure.PaperTypes.Computation next) →
+        YulangClosure.PaperTypes.PaperComputationTyped d g e next result
+'YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_preservation' depends on axioms: [propext,
+ Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_preservation
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_extends
+@YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_extends : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {binder : YulangClosure.PaperTypes.TermName}
+  {s next : YulangClosure.PaperTypes.PaperCoreControl.State},
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.PaperCoreControl.State)
+      (YulangClosure.PaperTypes.PaperTupleSplitExecution.controlStep s)
+      (@Option.some.{0} YulangClosure.PaperTypes.PaperCoreControl.State next) →
+    @Eq.{1} (Option.{0} YulangClosure.PaperTypes.PaperCoreControl.State)
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep d binder s)
+      (@Option.some.{0} YulangClosure.PaperTypes.PaperCoreControl.State next)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_extends' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_extends
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_evidence
+@YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_evidence : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {binder : YulangClosure.PaperTypes.TermName}
+  {s next : YulangClosure.PaperTypes.PaperCoreControl.State},
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.PaperCoreControl.State)
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep d binder s)
+      (@Option.some.{0} YulangClosure.PaperTypes.PaperCoreControl.State next) →
+    YulangClosure.PaperTypes.PaperPerformLetExecution.ControlStepEvidence d binder s next
+'YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_evidence' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_evidence
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.evidence_preservation
+@YulangClosure.PaperTypes.PaperPerformLetExecution.evidence_preservation : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {s next : YulangClosure.PaperTypes.PaperCoreControl.State}
+  {result : YulangClosure.PaperTypes.Ty} {binder : YulangClosure.PaperTypes.TermName},
+  YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e s result →
+    YulangClosure.PaperTypes.PaperPerformLetExecution.ControlStepEvidence d binder s next →
+      YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e next result
+'YulangClosure.PaperTypes.PaperPerformLetExecution.evidence_preservation' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:171:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.preservation
+@YulangClosure.PaperTypes.PaperPerformLetExecution.preservation : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {s next : YulangClosure.PaperTypes.PaperCoreControl.State} {result : YulangClosure.PaperTypes.Ty}
+  {binder : YulangClosure.PaperTypes.TermName},
+  YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e s result →
+    @Eq.{1} (Option.{0} YulangClosure.PaperTypes.PaperCoreControl.State)
+        (YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep d binder s)
+        (@Option.some.{0} YulangClosure.PaperTypes.PaperCoreControl.State next) →
+      YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e next result
+'YulangClosure.PaperTypes.PaperPerformLetExecution.preservation' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:184:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.plug_step
+@YulangClosure.PaperTypes.PaperPerformLetExecution.plug_step : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {binder : YulangClosure.PaperTypes.TermName} {head next : YulangClosure.PaperTypes.Computation},
+  YulangClosure.PaperTypes.PaperPerformLetExecution.PaperLetContextStep d binder head next →
+    ∀ (stack : List.{0} YulangClosure.PaperTypes.Computation),
+      YulangClosure.PaperTypes.PaperPerformLetExecution.PaperLetContextStep d binder
+        (YulangClosure.PaperTypes.PaperCoreControl.plug stack head)
+        (YulangClosure.PaperTypes.PaperCoreControl.plug stack next)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.plug_step' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.plug_step
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.evidence_erasure
+@YulangClosure.PaperTypes.PaperPerformLetExecution.evidence_erasure : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {binder : YulangClosure.PaperTypes.TermName} {s next : YulangClosure.PaperTypes.PaperCoreControl.State},
+  YulangClosure.PaperTypes.PaperPerformLetExecution.ControlStepEvidence d binder s next →
+    Or
+      (@Eq.{1} YulangClosure.PaperTypes.Computation (YulangClosure.PaperTypes.PaperCoreControl.erase s)
+        (YulangClosure.PaperTypes.PaperCoreControl.erase next))
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.PaperLetContextStep d binder
+        (YulangClosure.PaperTypes.PaperCoreControl.erase s) (YulangClosure.PaperTypes.PaperCoreControl.erase next))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.evidence_erasure' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.evidence_erasure
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.erasure
+@YulangClosure.PaperTypes.PaperPerformLetExecution.erasure : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {binder : YulangClosure.PaperTypes.TermName} {s next : YulangClosure.PaperTypes.PaperCoreControl.State},
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.PaperCoreControl.State)
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep d binder s)
+      (@Option.some.{0} YulangClosure.PaperTypes.PaperCoreControl.State next) →
+    Or
+      (@Eq.{1} YulangClosure.PaperTypes.Computation (YulangClosure.PaperTypes.PaperCoreControl.erase s)
+        (YulangClosure.PaperTypes.PaperCoreControl.erase next))
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.PaperLetContextStep d binder
+        (YulangClosure.PaperTypes.PaperCoreControl.erase s) (YulangClosure.PaperTypes.PaperCoreControl.erase next))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.erasure' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.erasure
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.trace_preservation
+@YulangClosure.PaperTypes.PaperPerformLetExecution.trace_preservation : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {s last : YulangClosure.PaperTypes.PaperCoreControl.State}
+  {result : YulangClosure.PaperTypes.Ty} {binder : YulangClosure.PaperTypes.TermName},
+  YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e s result →
+    YulangClosure.PaperTypes.PaperPerformLetExecution.Trace d binder s last →
+      YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e last result
+'YulangClosure.PaperTypes.PaperPerformLetExecution.trace_preservation' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:236:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.perform_empty_owner
+@YulangClosure.PaperTypes.PaperPerformLetExecution.perform_empty_owner : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {binder : YulangClosure.PaperTypes.TermName}
+  {c next : YulangClosure.PaperTypes.Computation},
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.performStep d binder c)
+      (@Option.some.{0} YulangClosure.PaperTypes.Computation next) →
+    @Exists.{1} YulangClosure.PaperTypes.OperationInstance fun op =>
+      @Exists.{1} YulangClosure.PaperTypes.Value fun payload =>
+        @Eq.{1} YulangClosure.PaperTypes.Computation next
+          (YulangClosure.PaperTypes.Computation.request op payload
+            (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+              (YulangClosure.PaperTypes.Computation.ret
+                (YulangClosure.PaperTypes.Value.variable
+                  (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0)))))))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.perform_empty_owner' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.perform_empty_owner
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_shape
+@YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_shape : ∀
+  {op : YulangClosure.PaperTypes.OperationInstance} {payload : YulangClosure.PaperTypes.Value}
+  {binder : YulangClosure.PaperTypes.TermName} {saved body next : YulangClosure.PaperTypes.Computation},
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind
+        (YulangClosure.PaperTypes.Computation.request op payload
+          (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder saved))
+        body)
+      (@Option.some.{0} YulangClosure.PaperTypes.Computation next) →
+    @Exists.{1} YulangClosure.PaperTypes.Computation fun inserted =>
+      And
+        (@Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+          (YulangClosure.PaperTypes.termSubstituteComputation
+            YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse body)
+          (@Option.some.{0} YulangClosure.PaperTypes.Computation inserted))
+        (@Eq.{1} YulangClosure.PaperTypes.Computation next
+          (YulangClosure.PaperTypes.Computation.request op payload
+            (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+              (saved.letE inserted))))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_shape' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind_shape
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_request_nil
+YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_request_nil : ∀
+  (d : YulangClosure.PaperTypes.DeclarationTable) (binder : YulangClosure.PaperTypes.TermName)
+  (op : YulangClosure.PaperTypes.OperationInstance) (payload continuation : YulangClosure.PaperTypes.Value),
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.PaperCoreControl.State)
+    (YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep d binder
+      { head := YulangClosure.PaperTypes.Computation.request op payload continuation,
+        stack := @List.nil.{0} YulangClosure.PaperTypes.Computation })
+    (@Option.none.{0} YulangClosure.PaperTypes.PaperCoreControl.State)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_request_nil' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_request_nil
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_request_cons
+YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_request_cons : ∀
+  (d : YulangClosure.PaperTypes.DeclarationTable) (binder : YulangClosure.PaperTypes.TermName)
+  (op : YulangClosure.PaperTypes.OperationInstance) (payload continuation : YulangClosure.PaperTypes.Value)
+  (body : YulangClosure.PaperTypes.Computation) (rest : List.{0} YulangClosure.PaperTypes.Computation),
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.PaperCoreControl.State)
+    (YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep d binder
+      { head := YulangClosure.PaperTypes.Computation.request op payload continuation,
+        stack := @List.cons.{0} YulangClosure.PaperTypes.Computation body rest })
+    (@Option.map.{0, 0} YulangClosure.PaperTypes.Computation YulangClosure.PaperTypes.PaperCoreControl.State
+      (fun next => { head := next, stack := rest })
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind
+        (YulangClosure.PaperTypes.Computation.request op payload continuation) body))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_request_cons' depends on axioms: [propext,
+ Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.controlStep_request_cons
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.requestTrace_empty_owner
+@YulangClosure.PaperTypes.PaperPerformLetExecution.requestTrace_empty_owner : ∀
+  {op : YulangClosure.PaperTypes.OperationInstance} {payload : YulangClosure.PaperTypes.Value}
+  {binder : YulangClosure.PaperTypes.TermName} {saved : YulangClosure.PaperTypes.Computation}
+  {stack : List.{0} YulangClosure.PaperTypes.Computation} {last : YulangClosure.PaperTypes.PaperCoreControl.State},
+  YulangClosure.PaperTypes.PaperPerformLetExecution.RequestTrace
+      {
+        head :=
+          YulangClosure.PaperTypes.Computation.request op payload
+            (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+              saved),
+        stack := stack }
+      last →
+    @Exists.{1} YulangClosure.PaperTypes.Computation fun saved' =>
+      @Exists.{1} (List.{0} YulangClosure.PaperTypes.Computation) fun stack' =>
+        @Eq.{1} YulangClosure.PaperTypes.PaperCoreControl.State last
+          {
+            head :=
+              YulangClosure.PaperTypes.Computation.request op payload
+                (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+                  saved'),
+            stack := stack' }
+'YulangClosure.PaperTypes.PaperPerformLetExecution.requestTrace_empty_owner' depends on axioms: [propext,
+ Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.requestTrace_empty_owner
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.perform_requestTrace_empty_owner
+@YulangClosure.PaperTypes.PaperPerformLetExecution.perform_requestTrace_empty_owner : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {binder : YulangClosure.PaperTypes.TermName}
+  {c request : YulangClosure.PaperTypes.Computation} {stack : List.{0} YulangClosure.PaperTypes.Computation}
+  {last : YulangClosure.PaperTypes.PaperCoreControl.State},
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.performStep d binder c)
+      (@Option.some.{0} YulangClosure.PaperTypes.Computation request) →
+    YulangClosure.PaperTypes.PaperPerformLetExecution.RequestTrace { head := request, stack := stack } last →
+      @Exists.{1} YulangClosure.PaperTypes.OperationInstance fun op =>
+        @Exists.{1} YulangClosure.PaperTypes.Value fun payload =>
+          @Exists.{1} YulangClosure.PaperTypes.Computation fun saved =>
+            @Exists.{1} (List.{0} YulangClosure.PaperTypes.Computation) fun frames =>
+              @Eq.{1} YulangClosure.PaperTypes.PaperCoreControl.State last
+                {
+                  head :=
+                    YulangClosure.PaperTypes.Computation.request op payload
+                      (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName)
+                        binder saved),
+                  stack := frames }
+'YulangClosure.PaperTypes.PaperPerformLetExecution.perform_requestTrace_empty_owner' depends on axioms: [propext,
+ Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.perform_requestTrace_empty_owner
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.requestTrace_trans
+@YulangClosure.PaperTypes.PaperPerformLetExecution.requestTrace_trans : ∀
+  {first middle last : YulangClosure.PaperTypes.PaperCoreControl.State},
+  YulangClosure.PaperTypes.PaperPerformLetExecution.RequestTrace first middle →
+    YulangClosure.PaperTypes.PaperPerformLetExecution.RequestTrace middle last →
+      YulangClosure.PaperTypes.PaperPerformLetExecution.RequestTrace first last
+'YulangClosure.PaperTypes.PaperPerformLetExecution.requestTrace_trans' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.requestTrace_trans
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.propagate_stack
+@YulangClosure.PaperTypes.PaperPerformLetExecution.propagate_stack : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {stack : List.{0} YulangClosure.PaperTypes.Computation} {a result : YulangClosure.PaperTypes.Ty}
+  {op : YulangClosure.PaperTypes.OperationInstance} {payload : YulangClosure.PaperTypes.Value}
+  {binder : YulangClosure.PaperTypes.TermName} {saved : YulangClosure.PaperTypes.Computation},
+  YulangClosure.PaperTypes.PaperCoreControl.StackTyped d g e stack a result →
+    YulangClosure.PaperTypes.PaperComputationTyped d g e
+        (YulangClosure.PaperTypes.Computation.request op payload
+          (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder saved))
+        a →
+      @Exists.{1} YulangClosure.PaperTypes.Computation fun finalSaved =>
+        And
+          (YulangClosure.PaperTypes.PaperPerformLetExecution.RequestTrace
+            {
+              head :=
+                YulangClosure.PaperTypes.Computation.request op payload
+                  (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+                    saved),
+              stack := stack }
+            {
+              head :=
+                YulangClosure.PaperTypes.Computation.request op payload
+                  (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+                    finalSaved),
+              stack := @List.nil.{0} YulangClosure.PaperTypes.Computation })
+          (YulangClosure.PaperTypes.PaperComputationTyped d g e
+            (YulangClosure.PaperTypes.Computation.request op payload
+              (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+                finalSaved))
+            result)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.propagate_stack' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.propagate_stack
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.perform_through_stack
+@YulangClosure.PaperTypes.PaperPerformLetExecution.perform_through_stack : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {g : YulangClosure.PaperTypes.GraphEnvironment}
+  {e : YulangClosure.PaperTypes.TypeEnvironment} {declaration : YulangClosure.PaperTypes.OperationDeclaration}
+  {operation : YulangClosure.PaperTypes.DeclarationId} {arguments : List.{0} YulangClosure.PaperTypes.Ty}
+  {payload : YulangClosure.PaperTypes.Value} {binder : YulangClosure.PaperTypes.TermName}
+  {stack : List.{0} YulangClosure.PaperTypes.Computation} {final : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.OperationDeclarationResolved d.operations operation declaration →
+    @Eq.{1} Nat (@List.length.{0} YulangClosure.PaperTypes.Ty arguments) declaration.typeArity →
+      YulangClosure.PaperTypes.PaperValueTyped d g e payload (declaration.instantiate arguments).payloadType →
+        YulangClosure.PaperTypes.PaperCoreControl.StackTyped d g e stack
+            (declaration.instantiate arguments).responseType final →
+          @Exists.{1} YulangClosure.PaperTypes.Computation fun saved =>
+            And
+              (@Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+                (YulangClosure.PaperTypes.PaperPerformLetExecution.performStep d binder
+                  (YulangClosure.PaperTypes.Computation.perform operation arguments payload))
+                (@Option.some.{0} YulangClosure.PaperTypes.Computation
+                  (YulangClosure.PaperTypes.Computation.request (declaration.instantiate arguments) payload
+                    (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName)
+                      binder
+                      (YulangClosure.PaperTypes.Computation.ret
+                        (YulangClosure.PaperTypes.Value.variable
+                          (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0)))))))))
+              (And
+                (YulangClosure.PaperTypes.PaperPerformLetExecution.RequestTrace
+                  {
+                    head :=
+                      YulangClosure.PaperTypes.Computation.request (declaration.instantiate arguments) payload
+                        (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName)
+                          binder
+                          (YulangClosure.PaperTypes.Computation.ret
+                            (YulangClosure.PaperTypes.Value.variable
+                              (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0)))))),
+                    stack := stack }
+                  {
+                    head :=
+                      YulangClosure.PaperTypes.Computation.request (declaration.instantiate arguments) payload
+                        (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName)
+                          binder saved),
+                    stack := @List.nil.{0} YulangClosure.PaperTypes.Computation })
+                (YulangClosure.PaperTypes.PaperComputationTyped d g e
+                  (YulangClosure.PaperTypes.Computation.request (declaration.instantiate arguments) payload
+                    (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName)
+                      binder saved))
+                  final))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.perform_through_stack' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:353:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.perform_controlTrace_empty_owner
+@YulangClosure.PaperTypes.PaperPerformLetExecution.perform_controlTrace_empty_owner : ∀
+  {d : YulangClosure.PaperTypes.DeclarationTable} {binder : YulangClosure.PaperTypes.TermName}
+  {c request : YulangClosure.PaperTypes.Computation} {stack : List.{0} YulangClosure.PaperTypes.Computation}
+  {last : YulangClosure.PaperTypes.PaperCoreControl.State},
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+      (YulangClosure.PaperTypes.PaperPerformLetExecution.performStep d binder c)
+      (@Option.some.{0} YulangClosure.PaperTypes.Computation request) →
+    YulangClosure.PaperTypes.PaperPerformLetExecution.Trace d binder { head := request, stack := stack } last →
+      @Exists.{1} YulangClosure.PaperTypes.OperationInstance fun op =>
+        @Exists.{1} YulangClosure.PaperTypes.Value fun payload =>
+          @Exists.{1} YulangClosure.PaperTypes.Computation fun saved =>
+            @Exists.{1} (List.{0} YulangClosure.PaperTypes.Computation) fun frames =>
+              @Eq.{1} YulangClosure.PaperTypes.PaperCoreControl.State last
+                {
+                  head :=
+                    YulangClosure.PaperTypes.Computation.request op payload
+                      (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName)
+                        binder saved),
+                  stack := frames }
+'YulangClosure.PaperTypes.PaperPerformLetExecution.perform_controlTrace_empty_owner' depends on axioms: [propext,
+ Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.perform_controlTrace_empty_owner
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.nonempty_owner_rejected
+YulangClosure.PaperTypes.PaperPerformLetExecution.nonempty_owner_rejected : ∀
+  (op : YulangClosure.PaperTypes.OperationInstance) (payload : YulangClosure.PaperTypes.Value)
+  (owner : YulangClosure.PaperTypes.OwnerName) (owners : List.{0} YulangClosure.PaperTypes.OwnerName)
+  (binder : YulangClosure.PaperTypes.TermName) (saved body : YulangClosure.PaperTypes.Computation),
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+    (YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind
+      (YulangClosure.PaperTypes.Computation.request op payload
+        (YulangClosure.PaperTypes.Value.continuation (@List.cons.{0} YulangClosure.PaperTypes.OwnerName owner owners)
+          binder saved))
+      body)
+    (@Option.none.{0} YulangClosure.PaperTypes.Computation)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.nonempty_owner_rejected' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.nonempty_owner_rejected
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.external_request
+@YulangClosure.PaperTypes.PaperPerformLetExecution.external_request : ∀ {d : YulangClosure.PaperTypes.DeclarationTable}
+  {g : YulangClosure.PaperTypes.GraphEnvironment} {e : YulangClosure.PaperTypes.TypeEnvironment}
+  {op : YulangClosure.PaperTypes.OperationInstance} {payload continuation : YulangClosure.PaperTypes.Value}
+  {result : YulangClosure.PaperTypes.Ty},
+  YulangClosure.PaperTypes.PaperCoreControl.StateTyped d g e
+      { head := YulangClosure.PaperTypes.Computation.request op payload continuation,
+        stack := @List.nil.{0} YulangClosure.PaperTypes.Computation }
+      result →
+    YulangClosure.PaperTypes.PaperComputationTyped d g e
+      (YulangClosure.PaperTypes.Computation.request op payload continuation) result
+'YulangClosure.PaperTypes.PaperPerformLetExecution.external_request' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.external_request
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.two_frames_order
+@YulangClosure.PaperTypes.PaperPerformLetExecution.two_frames_order : ∀
+  {op : YulangClosure.PaperTypes.OperationInstance} {payload : YulangClosure.PaperTypes.Value}
+  {binder : YulangClosure.PaperTypes.TermName} {saved inner outer inner' outer' : YulangClosure.PaperTypes.Computation},
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+      (YulangClosure.PaperTypes.termSubstituteComputation
+        YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse inner)
+      (@Option.some.{0} YulangClosure.PaperTypes.Computation inner') →
+    @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+        (YulangClosure.PaperTypes.termSubstituteComputation
+          YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse outer)
+        (@Option.some.{0} YulangClosure.PaperTypes.Computation outer') →
+      YulangClosure.PaperTypes.PaperPerformLetExecution.RequestTrace
+        {
+          head :=
+            YulangClosure.PaperTypes.Computation.request op payload
+              (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+                saved),
+          stack :=
+            @List.cons.{0} YulangClosure.PaperTypes.Computation inner
+              (@List.cons.{0} YulangClosure.PaperTypes.Computation outer
+                (@List.nil.{0} YulangClosure.PaperTypes.Computation)) }
+        {
+          head :=
+            YulangClosure.PaperTypes.Computation.request op payload
+              (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder
+                ((saved.letE inner').letE outer')),
+          stack := @List.nil.{0} YulangClosure.PaperTypes.Computation }
+'YulangClosure.PaperTypes.PaperPerformLetExecution.two_frames_order' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.two_frames_order
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.repeated_declarations_resolve
+YulangClosure.PaperTypes.PaperPerformLetExecution.repeated_declarations_resolve : ∀
+  (declaration : YulangClosure.PaperTypes.OperationDeclaration),
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.OperationDeclaration)
+    (YulangClosure.PaperTypes.PaperPerformLetExecution.resolveOperation
+      (@List.cons.{0} YulangClosure.PaperTypes.OperationDeclaration declaration
+        (@List.cons.{0} YulangClosure.PaperTypes.OperationDeclaration declaration
+          (@List.nil.{0} YulangClosure.PaperTypes.OperationDeclaration)))
+      declaration.identity)
+    (@Option.some.{0} YulangClosure.PaperTypes.OperationDeclaration declaration)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.repeated_declarations_resolve' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:418:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.conflicting_declarations_rejected
+@YulangClosure.PaperTypes.PaperPerformLetExecution.conflicting_declarations_rejected : ∀
+  {first second : YulangClosure.PaperTypes.OperationDeclaration},
+  @Eq.{1} Nat first.identity second.identity →
+    @Ne.{1} YulangClosure.PaperTypes.OperationDeclaration first second →
+      @Eq.{1} (Option.{0} YulangClosure.PaperTypes.OperationDeclaration)
+        (YulangClosure.PaperTypes.PaperPerformLetExecution.resolveOperation
+          (@List.cons.{0} YulangClosure.PaperTypes.OperationDeclaration first
+            (@List.cons.{0} YulangClosure.PaperTypes.OperationDeclaration second
+              (@List.nil.{0} YulangClosure.PaperTypes.OperationDeclaration)))
+          first.identity)
+        (@Option.none.{0} YulangClosure.PaperTypes.OperationDeclaration)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.conflicting_declarations_rejected' depends on axioms: [propext,
+ Classical.choice.{u},
+ Quot.sound.{u}]
+.lake/R47Audit.lean:431:0: error: unapproved axiom: Classical.choice
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.one_instance_fields
+YulangClosure.PaperTypes.PaperPerformLetExecution.one_instance_fields : ∀
+  (declaration : YulangClosure.PaperTypes.OperationDeclaration) (arguments : List.{0} YulangClosure.PaperTypes.Ty),
+  And (@Eq.{1} Nat (declaration.instantiate arguments).identity declaration.identity)
+    (And
+      (@Eq.{1} YulangClosure.PaperTypes.Ty (declaration.instantiate arguments).typeArguments
+        (YulangClosure.PaperTypes.argsSyntax arguments))
+      (And
+        (@Eq.{1} YulangClosure.PaperTypes.Ty (declaration.instantiate arguments).payloadType
+          (YulangClosure.PaperTypes.subst (YulangClosure.PaperTypes.instantiateSubstitution arguments)
+            declaration.payloadTemplate))
+        (@Eq.{1} YulangClosure.PaperTypes.Ty (declaration.instantiate arguments).responseType
+          (YulangClosure.PaperTypes.subst (YulangClosure.PaperTypes.instantiateSubstitution arguments)
+            declaration.responseTemplate))))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.one_instance_fields' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.one_instance_fields
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.distinct_result_types
+YulangClosure.PaperTypes.PaperPerformLetExecution.distinct_result_types : ∀
+  (d : YulangClosure.PaperTypes.DeclarationTable) (g : YulangClosure.PaperTypes.GraphEnvironment)
+  (e : YulangClosure.PaperTypes.TypeEnvironment),
+  And
+    (YulangClosure.PaperTypes.PaperContinuationTyped d g e
+      (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName)
+        (@OfNat.ofNat.{0} YulangClosure.PaperTypes.TermName (nat_lit 9) (instOfNatNat (nat_lit 9)))
+        (YulangClosure.PaperTypes.Computation.ret
+          (YulangClosure.PaperTypes.Value.literal (YulangClosure.PaperTypes.Literal.boolean Bool.true))))
+      (YulangClosure.PaperTypes.Ty.base YulangClosure.PaperTypes.Base.int)
+      (YulangClosure.PaperTypes.Ty.base YulangClosure.PaperTypes.Base.bool))
+    (YulangClosure.PaperTypes.PaperCoreControl.StackTyped d g e
+      (@List.cons.{0} YulangClosure.PaperTypes.Computation
+        (YulangClosure.PaperTypes.Computation.ret
+          (YulangClosure.PaperTypes.Value.literal YulangClosure.PaperTypes.Literal.unit))
+        (@List.nil.{0} YulangClosure.PaperTypes.Computation))
+      (YulangClosure.PaperTypes.Ty.base YulangClosure.PaperTypes.Base.bool)
+      (YulangClosure.PaperTypes.Ty.base YulangClosure.PaperTypes.Base.unit))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.distinct_result_types' does not depend on any axioms
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.distinct_result_types
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.insertion_discriminator
+YulangClosure.PaperTypes.PaperPerformLetExecution.insertion_discriminator : ∀ (n : Nat),
+  And
+    (@Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+      (YulangClosure.PaperTypes.termSubstituteComputation
+        YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse
+        (YulangClosure.PaperTypes.Computation.ret
+          (YulangClosure.PaperTypes.Value.variable (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))))
+      (@Option.some.{0} YulangClosure.PaperTypes.Computation
+        (YulangClosure.PaperTypes.Computation.ret
+          (YulangClosure.PaperTypes.Value.variable (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0)))))))
+    (@Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+      (YulangClosure.PaperTypes.termSubstituteComputation
+        YulangClosure.PaperTypes.PaperPerformLetExecution.insertResponse
+        (YulangClosure.PaperTypes.Computation.ret
+          (YulangClosure.PaperTypes.Value.variable
+            (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) n
+              (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))))))
+      (@Option.some.{0} YulangClosure.PaperTypes.Computation
+        (YulangClosure.PaperTypes.Computation.ret
+          (YulangClosure.PaperTypes.Value.variable
+            (@HAdd.hAdd.{0, 0, 0} Nat Nat Nat (@instHAdd.{0} Nat instAddNat) n
+              (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))))))))
+'YulangClosure.PaperTypes.PaperPerformLetExecution.insertion_discriminator' depends on axioms: [propext, Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.insertion_discriminator
+YULANG_AUDIT_BEGIN YulangClosure.PaperTypes.PaperPerformLetExecution.unsupported_body_rejected
+YulangClosure.PaperTypes.PaperPerformLetExecution.unsupported_body_rejected : ∀
+  (op : YulangClosure.PaperTypes.OperationInstance) (payload : YulangClosure.PaperTypes.Value)
+  (binder : YulangClosure.PaperTypes.TermName) (saved : YulangClosure.PaperTypes.Computation)
+  (handler : YulangClosure.PaperTypes.HandlerPlan) (body : YulangClosure.PaperTypes.Computation),
+  @Eq.{1} (Option.{0} YulangClosure.PaperTypes.Computation)
+    (YulangClosure.PaperTypes.PaperPerformLetExecution.requestBind
+      (YulangClosure.PaperTypes.Computation.request op payload
+        (YulangClosure.PaperTypes.Value.continuation (@List.nil.{0} YulangClosure.PaperTypes.OwnerName) binder saved))
+      (body.handle handler))
+    (@Option.none.{0} YulangClosure.PaperTypes.Computation)
+'YulangClosure.PaperTypes.PaperPerformLetExecution.unsupported_body_rejected' depends on axioms: [propext,
+ Quot.sound.{u}]
+YULANG_AUDIT_END YulangClosure.PaperTypes.PaperPerformLetExecution.unsupported_body_rejected
