@@ -463,13 +463,13 @@
       "id": "2026-10-26-let-bind-input-port-projection",
       "state": "WITHDRAWN_BY_USER",
       "receipt": "questions/2026-10-26-let-bind-input-port-projection/receipt.md",
-      "sha256": "e65064d69be7c17b637fc703670ee51b1065a3ec009ff9dcb08ee435722319da"
+      "sha256": "41bbb53e12fc7a4b2c532fc62fe2b79d90bf2cb4aba23985226a03f960e06362"
     },
     {
       "id": "2026-10-26-operational-wrap-graph-guard",
       "state": "WITHDRAWN_BY_USER",
       "receipt": "questions/2026-10-26-operational-wrap-graph-guard/receipt.md",
-      "sha256": "5425246a3096f833120fde40c653c9fbc57d20f1121e122363a1aca7ebb4095d"
+      "sha256": "9bf35954d258a28b3f8da39eb22a8178ae62d57fdd42341ff46ce77e030e02e5"
     }
   ]
 }
